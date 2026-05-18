@@ -4,6 +4,7 @@ import { getTranslations } from "next-intl/server";
 import { listCampuses, listDepartments } from "../_actions/departments";
 import { EmptyState } from "../_components/empty-state";
 import { PageHeader } from "../_components/page-header";
+import { SERIF_STACK, STUDIO, StudioIconBox } from "../_components/studio";
 
 export default async function DepartmentsPage() {
   const t = await getTranslations("adminPortal.departments");
@@ -29,17 +30,16 @@ export default async function DepartmentsPage() {
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {departments.map((dept) => (
             <div
-              className="group overflow-hidden rounded-3xl"
+              className="group overflow-hidden rounded-2xl border transition hover:bg-white/70"
               key={dept.$id}
               style={{
-                background: "rgba(255,255,255,0.02)",
-                border: "1px solid rgba(255,255,255,0.05)",
+                background: "rgba(255,255,255,0.46)",
+                borderColor: STUDIO.rule,
               }}
             >
-              {/* Hero */}
               <div
                 className="relative h-24 overflow-hidden"
-                style={{ background: "rgba(61,169,224,0.05)" }}
+                style={{ background: STUDIO.paper2 }}
               >
                 {dept.hero ? (
                   <Image
@@ -50,18 +50,17 @@ export default async function DepartmentsPage() {
                   />
                 ) : (
                   <div className="flex h-full w-full items-center justify-center">
-                    <Building2
-                      size={24}
-                      style={{ color: "rgba(255,255,255,0.15)" }}
-                    />
+                    <StudioIconBox color={STUDIO.claret}>
+                      <Building2 size={18} />
+                    </StudioIconBox>
                   </div>
                 )}
                 {dept.type && (
                   <div
                     className="absolute top-2 left-2 rounded-full px-2 py-0.5 font-medium text-[10px] uppercase"
                     style={{
-                      background: "rgba(0,0,0,0.60)",
-                      color: "rgba(255,255,255,0.70)",
+                      background: "rgba(250,247,242,0.9)",
+                      color: STUDIO.ink3,
                     }}
                   >
                     {dept.type}
@@ -71,8 +70,8 @@ export default async function DepartmentsPage() {
                   <div
                     className="absolute top-2 right-2 rounded-full px-2 py-0.5 text-[10px]"
                     style={{
-                      background: "rgba(248,113,113,0.20)",
-                      color: "#f87171",
+                      background: "rgba(107,30,30,0.10)",
+                      color: STUDIO.claret,
                     }}
                   >
                     Inactive
@@ -81,28 +80,25 @@ export default async function DepartmentsPage() {
               </div>
 
               <div className="p-4">
-                <p className="font-medium text-sm" style={{ color: "#fff" }}>
+                <p
+                  className="text-2xl leading-7"
+                  style={{ color: STUDIO.ink, fontFamily: SERIF_STACK }}
+                >
                   {dept.Name}
                 </p>
-                <p
-                  className="mt-1 text-xs"
-                  style={{ color: "rgba(255,255,255,0.40)" }}
-                >
+                <p className="mt-1 text-xs" style={{ color: STUDIO.ink3 }}>
                   {campusMap.get(dept.campus_id) ?? dept.campus_id}
                 </p>
 
                 <div className="mt-4 flex items-center justify-between">
-                  <span
-                    className="text-xs"
-                    style={{ color: "rgba(255,255,255,0.30)" }}
-                  >
+                  <span className="text-xs" style={{ color: STUDIO.ink4 }}>
                     {t("fields.members")}: {dept.users?.length ?? 0}
                   </span>
                   <div className="flex items-center gap-2">
                     <a
                       className="text-xs transition-colors hover:text-[#3DA9E0]"
                       href={`/units/${dept.$id}`}
-                      style={{ color: "rgba(255,255,255,0.40)" }}
+                      style={{ color: STUDIO.claret }}
                     >
                       {t("actions.editPage")} →
                     </a>

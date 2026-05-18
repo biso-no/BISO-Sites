@@ -22,6 +22,11 @@ import {
   PortalSelect,
 } from "../../../_components/portal-fields";
 import { PreviewPanel } from "../../../_components/preview-panel";
+import {
+  SERIF_STACK,
+  STUDIO,
+  studioSurface,
+} from "../../../_components/studio";
 
 type NewsWithTranslations = News & { translation_refs: ContentTranslations[] };
 
@@ -97,7 +102,7 @@ export function NewsEditorClient({
     }
     toast.success(isPublishing ? labels.publishSuccess : labels.saveSuccess);
     if (isNew && result.data) {
-      router.push(`/admin/news/${result.data}`);
+      router.push(`/news/${result.data}`);
     }
   }
 
@@ -180,23 +185,22 @@ export function NewsEditorClient({
                         generateSlug(field.state.value)
                       );
                     }
-                    e.currentTarget.style.borderColor =
-                      "rgba(255,255,255,0.08)";
+                    e.currentTarget.style.borderColor = STUDIO.rule2;
                   }}
                   onChange={(e) => {
                     field.handleChange(e.target.value);
                     setPreviewTitle(e.target.value);
                   }}
                   onFocus={(e) => {
-                    e.currentTarget.style.borderColor = "rgba(61,169,224,0.50)";
+                    e.currentTarget.style.borderColor = STUDIO.claret;
                   }}
                   placeholder="Headline goes here..."
                   rows={2}
                   style={{
-                    background: "rgba(255,255,255,0.04)",
-                    border: "1px solid rgba(255,255,255,0.08)",
-                    color: "#fff",
-                    fontFamily: "serif",
+                    background: "rgba(255,255,255,0.62)",
+                    border: `0.5px solid ${STUDIO.rule2}`,
+                    color: STUDIO.ink,
+                    fontFamily: SERIF_STACK,
                   }}
                   value={field.state.value}
                 />
@@ -321,13 +325,7 @@ export function NewsEditorClient({
         {/* Preview */}
         <div className="self-start lg:sticky lg:top-32">
           <PreviewPanel title={labels.preview}>
-            <div
-              className="overflow-hidden rounded-2xl"
-              style={{
-                background: "rgba(255,255,255,0.02)",
-                border: "1px solid rgba(255,255,255,0.06)",
-              }}
-            >
+            <div className="overflow-hidden rounded-2xl" style={studioSurface}>
               {previewImage && (
                 <div className="relative h-28 w-full overflow-hidden">
                   <Image
@@ -341,14 +339,11 @@ export function NewsEditorClient({
               <div className="p-4">
                 <p
                   className="font-medium text-sm leading-snug"
-                  style={{ color: "#fff", fontFamily: "serif" }}
+                  style={{ color: STUDIO.ink, fontFamily: SERIF_STACK }}
                 >
                   {previewTitle || "Article Headline"}
                 </p>
-                <p
-                  className="mt-2 text-xs"
-                  style={{ color: "rgba(255,255,255,0.40)" }}
-                >
+                <p className="mt-2 text-xs" style={{ color: STUDIO.ink3 }}>
                   {previewAuthor || "Author"} ·{" "}
                   {new Date().toLocaleDateString()}
                 </p>

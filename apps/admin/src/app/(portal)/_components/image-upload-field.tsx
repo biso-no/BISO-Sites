@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { uploadMediaFile } from "../_actions/upload";
+import { STUDIO } from "./studio";
 
 interface ImageUploadFieldProps {
   label?: string;
@@ -25,7 +26,7 @@ export function ImageUploadField({ value, onChange }: ImageUploadFieldProps) {
       if (result.error) {
         toast.error(result.error);
       } else {
-        onChange(result.url);
+        onChange(result.url ?? null);
         toast.success("Image uploaded");
       }
     });
@@ -39,7 +40,7 @@ export function ImageUploadField({ value, onChange }: ImageUploadFieldProps) {
     e.target.value = "";
   }
 
-  function handleDrop(e: React.DragEvent<HTMLDivElement>) {
+  function handleDrop(e: React.DragEvent<HTMLButtonElement>) {
     e.preventDefault();
     setIsDragging(false);
     const file = e.dataTransfer.files?.[0];
@@ -48,7 +49,7 @@ export function ImageUploadField({ value, onChange }: ImageUploadFieldProps) {
     }
   }
 
-  function handleDragOver(e: React.DragEvent<HTMLDivElement>) {
+  function handleDragOver(e: React.DragEvent<HTMLButtonElement>) {
     e.preventDefault();
     setIsDragging(true);
   }
@@ -72,7 +73,7 @@ export function ImageUploadField({ value, onChange }: ImageUploadFieldProps) {
       {value ? (
         <div
           className="group relative overflow-hidden rounded-xl"
-          style={{ border: "1px solid rgba(255,255,255,0.08)" }}
+          style={{ border: `0.5px solid ${STUDIO.rule2}` }}
         >
           <Image
             alt="Cover"
@@ -88,7 +89,7 @@ export function ImageUploadField({ value, onChange }: ImageUploadFieldProps) {
               className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 font-medium text-xs transition-all"
               disabled={isPending}
               onClick={() => inputRef.current?.click()}
-              style={{ background: "rgba(255,255,255,0.12)", color: "#fff" }}
+              style={{ background: STUDIO.paper, color: STUDIO.ink }}
               type="button"
             >
               {isPending ? (
@@ -101,7 +102,10 @@ export function ImageUploadField({ value, onChange }: ImageUploadFieldProps) {
             <button
               className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 font-medium text-xs transition-all"
               onClick={() => onChange(null)}
-              style={{ background: "rgba(248,113,113,0.15)", color: "#f87171" }}
+              style={{
+                background: "rgba(107,30,30,0.12)",
+                color: STUDIO.claret,
+              }}
               type="button"
             >
               <X size={13} />
@@ -119,11 +123,11 @@ export function ImageUploadField({ value, onChange }: ImageUploadFieldProps) {
           style={{
             height: 140,
             border: isDragging
-              ? "1.5px dashed rgba(61,169,224,0.60)"
-              : "1.5px dashed rgba(255,255,255,0.12)",
+              ? `1.5px dashed ${STUDIO.claret}`
+              : `1.5px dashed ${STUDIO.rule2}`,
             background: isDragging
-              ? "rgba(61,169,224,0.06)"
-              : "rgba(255,255,255,0.02)",
+              ? "rgba(107,30,30,0.05)"
+              : "rgba(255,255,255,0.42)",
           }}
           type="button"
         >
@@ -131,30 +135,28 @@ export function ImageUploadField({ value, onChange }: ImageUploadFieldProps) {
             <Loader2
               className="animate-spin"
               size={22}
-              style={{ color: "#3DA9E0" }}
+              style={{ color: STUDIO.claret }}
             />
           ) : (
             <>
               <div
                 className="flex h-10 w-10 items-center justify-center rounded-xl"
                 style={{
-                  background: "rgba(61,169,224,0.10)",
-                  border: "1px solid rgba(61,169,224,0.20)",
+                  background: STUDIO.paper2,
+                  border: `0.5px solid ${STUDIO.rule2}`,
                 }}
               >
-                <ImageIcon size={18} style={{ color: "#3DA9E0" }} />
+                <ImageIcon size={18} style={{ color: STUDIO.claret }} />
               </div>
               <div className="text-center">
                 <p
                   className="font-medium text-xs"
-                  style={{ color: "rgba(255,255,255,0.60)" }}
+                  style={{ color: STUDIO.ink3 }}
                 >
-                  Drop image or <span style={{ color: "#3DA9E0" }}>browse</span>
+                  Drop image or{" "}
+                  <span style={{ color: STUDIO.claret }}>browse</span>
                 </p>
-                <p
-                  className="mt-0.5 text-xs"
-                  style={{ color: "rgba(255,255,255,0.25)" }}
-                >
+                <p className="mt-0.5 text-xs" style={{ color: STUDIO.ink4 }}>
                   JPG, PNG, GIF, WEBP, SVG · max 10 MB
                 </p>
               </div>

@@ -1,8 +1,8 @@
 import { ArrowLeft } from "lucide-react";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getJob, listJobApplications } from "../../../_actions/jobs";
 import { PageHeader } from "../../../_components/page-header";
+import { StudioLinkButton } from "../../../_components/studio";
 import { JobApplicationsClient } from "../../_components/job-applications-client";
 
 interface VacancyApplicationsPageProps {
@@ -45,18 +45,10 @@ export default async function VacancyApplicationsPage({
         description="Review applicants for this vacancy, update statuses, and download submitted CVs."
         title={`${title} Applications`}
       >
-        <Link
-          className="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm transition-all"
-          href="/jobs/applications"
-          style={{
-            background: "rgba(255,255,255,0.04)",
-            border: "1px solid rgba(255,255,255,0.08)",
-            color: "rgba(255,255,255,0.75)",
-          }}
-        >
+        <StudioLinkButton href="/jobs/applications">
           <ArrowLeft size={14} />
           All applications
-        </Link>
+        </StudioLinkButton>
       </PageHeader>
 
       <JobApplicationsClient

@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { SERIF_STACK, STUDIO } from "./studio";
 
 interface EmptyStateProps {
   children?: ReactNode;
@@ -14,29 +15,35 @@ export function EmptyState({
   children,
 }: EmptyStateProps) {
   return (
-    <div className="flex flex-col items-center justify-center py-24 text-center">
+    <div
+      className="flex flex-col items-center justify-center rounded-2xl border border-dashed px-6 py-24 text-center"
+      style={{
+        background: "rgba(255,255,255,0.32)",
+        borderColor: STUDIO.rule2,
+      }}
+    >
       {icon && (
         <div
-          className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl"
+          className="mb-4 flex h-16 w-16 items-center justify-center rounded-xl border"
           style={{
-            background: "rgba(255,255,255,0.04)",
-            border: "1px solid rgba(255,255,255,0.08)",
-            color: "rgba(255,255,255,0.25)",
+            background: STUDIO.paper2,
+            borderColor: STUDIO.rule2,
+            color: STUDIO.claret,
           }}
         >
           {icon}
         </div>
       )}
       <p
-        className="font-medium text-base"
-        style={{ color: "rgba(255,255,255,0.60)" }}
+        className="text-2xl"
+        style={{ color: STUDIO.ink, fontFamily: SERIF_STACK }}
       >
         {title}
       </p>
       {description && (
         <p
-          className="mt-1 max-w-xs text-sm"
-          style={{ color: "rgba(255,255,255,0.30)" }}
+          className="mt-2 max-w-sm text-sm leading-6"
+          style={{ color: STUDIO.ink3 }}
         >
           {description}
         </p>

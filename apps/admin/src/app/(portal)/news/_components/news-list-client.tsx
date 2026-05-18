@@ -11,6 +11,11 @@ import { EmptyState } from "../../_components/empty-state";
 import { PaginationBar } from "../../_components/pagination-bar";
 import { SearchToolbar } from "../../_components/search-toolbar";
 import { StatusBadge } from "../../_components/status-badge";
+import {
+  SERIF_STACK,
+  STUDIO,
+  StudioLinkButton,
+} from "../../_components/studio";
 
 type NewsWithTranslations = News & { translation_refs: ContentTranslations[] };
 
@@ -91,13 +96,9 @@ export function NewsListClient({
         icon={<Newspaper size={28} />}
         title={labels.empty}
       >
-        <Link
-          className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 font-medium text-sm"
-          href="/news/new"
-          style={{ background: "#3DA9E0", color: "#001731" }}
-        >
+        <StudioLinkButton href="/news/new" variant="primary">
           Write first article
-        </Link>
+        </StudioLinkButton>
       </EmptyState>
     );
   }
@@ -120,16 +121,16 @@ export function NewsListClient({
         <div className="space-y-3">
           {filtered.map((article) => (
             <div
-              className="group flex items-center gap-4 rounded-2xl px-5 py-4 transition-all"
+              className="group flex items-center gap-4 rounded-2xl border px-5 py-4 transition hover:bg-white/70"
               key={article.$id}
               style={{
-                background: "rgba(255,255,255,0.02)",
-                border: "1px solid rgba(255,255,255,0.05)",
+                background: "rgba(255,255,255,0.46)",
+                borderColor: STUDIO.rule,
               }}
             >
               <div
                 className="relative h-12 w-16 shrink-0 overflow-hidden rounded-xl"
-                style={{ background: "rgba(255,255,255,0.05)" }}
+                style={{ background: STUDIO.paper2 }}
               >
                 {article.image ? (
                   <Image
@@ -140,10 +141,7 @@ export function NewsListClient({
                   />
                 ) : (
                   <div className="flex h-full w-full items-center justify-center">
-                    <Newspaper
-                      size={14}
-                      style={{ color: "rgba(255,255,255,0.20)" }}
-                    />
+                    <Newspaper size={14} style={{ color: STUDIO.ink4 }} />
                   </div>
                 )}
               </div>
@@ -152,8 +150,8 @@ export function NewsListClient({
                 <div className="flex items-center gap-2">
                   <Link
                     className="truncate font-medium text-sm transition-colors hover:text-[#3DA9E0]"
-                    href={`/admin/news/${article.$id}`}
-                    style={{ color: "#fff", fontFamily: "serif" }}
+                    href={`/news/${article.$id}`}
+                    style={{ color: STUDIO.ink, fontFamily: SERIF_STACK }}
                   >
                     {getTitle(article)}
                   </Link>
@@ -161,7 +159,7 @@ export function NewsListClient({
                 </div>
                 <div
                   className="mt-1 flex items-center gap-3 text-xs"
-                  style={{ color: "rgba(255,255,255,0.35)" }}
+                  style={{ color: STUDIO.ink4 }}
                 >
                   {article.author && <span>{article.author}</span>}
                   {getCategory(article) && (
@@ -180,10 +178,10 @@ export function NewsListClient({
               <div className="flex items-center gap-2 opacity-0 transition-opacity group-hover:opacity-100">
                 <Link
                   className="flex h-8 w-8 items-center justify-center rounded-lg"
-                  href={`/admin/news/${article.$id}`}
+                  href={`/news/${article.$id}`}
                   style={{
-                    background: "rgba(255,255,255,0.05)",
-                    color: "rgba(255,255,255,0.50)",
+                    background: STUDIO.paper2,
+                    color: STUDIO.ink3,
                   }}
                 >
                   <Pencil size={13} />
@@ -192,8 +190,8 @@ export function NewsListClient({
                   className="flex h-8 w-8 items-center justify-center rounded-lg"
                   onClick={() => handleDelete(article.$id)}
                   style={{
-                    background: "rgba(248,113,113,0.08)",
-                    color: "#f87171",
+                    background: "rgba(107,30,30,0.08)",
+                    color: STUDIO.claret,
                   }}
                   type="button"
                 >

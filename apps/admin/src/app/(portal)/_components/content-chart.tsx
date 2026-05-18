@@ -10,6 +10,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { SERIF_STACK, STUDIO, studioSurface } from "./studio";
 
 interface ActivityEntry {
   $createdAt: string;
@@ -89,13 +90,13 @@ const CustomTooltip = ({
     <div
       className="space-y-1.5 rounded-xl px-3 py-2.5 text-xs"
       style={{
-        background: "rgba(0,10,22,0.95)",
-        border: "1px solid rgba(255,255,255,0.10)",
+        background: STUDIO.ink,
+        border: `0.5px solid ${STUDIO.rule2}`,
       }}
     >
       <p
         className="mb-1.5 font-medium"
-        style={{ color: "rgba(255,255,255,0.50)" }}
+        style={{ color: "rgba(250,247,242,0.62)" }}
       >
         {label}
       </p>
@@ -105,8 +106,11 @@ const CustomTooltip = ({
             className="h-2 w-2 rounded-full"
             style={{ background: p.color }}
           />
-          <span style={{ color: "rgba(255,255,255,0.70)" }}>{p.name}:</span>
-          <span className="font-medium font-mono" style={{ color: "#fff" }}>
+          <span style={{ color: "rgba(250,247,242,0.72)" }}>{p.name}:</span>
+          <span
+            className="font-medium font-mono"
+            style={{ color: STUDIO.paper }}
+          >
             {p.value}
           </span>
         </div>
@@ -123,33 +127,27 @@ export function ContentActivityChart({
   const hasActivity = activity.length > 0;
 
   return (
-    <div
-      className="rounded-3xl p-6 md:p-8"
-      style={{
-        background: "rgba(255,255,255,0.02)",
-        border: "1px solid rgba(255,255,255,0.05)",
-      }}
-    >
+    <div className="rounded-3xl p-6 md:p-8" style={studioSurface}>
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h2 className="font-medium text-base" style={{ color: "#fff" }}>
+          <h2
+            className="text-2xl"
+            style={{ color: STUDIO.ink, fontFamily: SERIF_STACK }}
+          >
             Activity
           </h2>
-          <p
-            className="mt-0.5 text-xs"
-            style={{ color: "rgba(255,255,255,0.30)" }}
-          >
+          <p className="mt-0.5 text-xs" style={{ color: STUDIO.ink4 }}>
             Last {days} days
           </p>
         </div>
         <div
           className="flex items-center gap-4 text-xs"
-          style={{ color: "rgba(255,255,255,0.40)" }}
+          style={{ color: STUDIO.ink3 }}
         >
           {[
-            { label: "Events", color: "#3DA9E0" },
-            { label: "News", color: "#a78bfa" },
-            { label: "Jobs", color: "#4ade80" },
+            { label: "Events", color: STUDIO.claret },
+            { label: "News", color: STUDIO.sky },
+            { label: "Jobs", color: STUDIO.leaf },
           ].map(({ label, color }) => (
             <span className="flex items-center gap-1.5" key={label}>
               <span
@@ -170,20 +168,24 @@ export function ContentActivityChart({
           >
             <defs>
               <linearGradient id="colorEvents" x1="0" x2="0" y1="0" y2="1">
-                <stop offset="5%" stopColor="#3DA9E0" stopOpacity={0.25} />
-                <stop offset="95%" stopColor="#3DA9E0" stopOpacity={0} />
+                <stop
+                  offset="5%"
+                  stopColor={STUDIO.claret}
+                  stopOpacity={0.22}
+                />
+                <stop offset="95%" stopColor={STUDIO.claret} stopOpacity={0} />
               </linearGradient>
               <linearGradient id="colorNews" x1="0" x2="0" y1="0" y2="1">
-                <stop offset="5%" stopColor="#a78bfa" stopOpacity={0.25} />
-                <stop offset="95%" stopColor="#a78bfa" stopOpacity={0} />
+                <stop offset="5%" stopColor={STUDIO.sky} stopOpacity={0.18} />
+                <stop offset="95%" stopColor={STUDIO.sky} stopOpacity={0} />
               </linearGradient>
               <linearGradient id="colorJobs" x1="0" x2="0" y1="0" y2="1">
-                <stop offset="5%" stopColor="#4ade80" stopOpacity={0.25} />
-                <stop offset="95%" stopColor="#4ade80" stopOpacity={0} />
+                <stop offset="5%" stopColor={STUDIO.leaf} stopOpacity={0.18} />
+                <stop offset="95%" stopColor={STUDIO.leaf} stopOpacity={0} />
               </linearGradient>
             </defs>
             <CartesianGrid
-              stroke="rgba(255,255,255,0.04)"
+              stroke="rgba(26,24,20,0.08)"
               strokeDasharray="3 3"
               vertical={false}
             />
@@ -191,26 +193,26 @@ export function ContentActivityChart({
               axisLine={false}
               dataKey="date"
               interval="preserveStartEnd"
-              tick={{ fontSize: 10, fill: "rgba(255,255,255,0.25)" }}
+              tick={{ fontSize: 10, fill: STUDIO.ink4 }}
               tickLine={false}
             />
             <YAxis
               allowDecimals={false}
               axisLine={false}
-              tick={{ fontSize: 10, fill: "rgba(255,255,255,0.25)" }}
+              tick={{ fontSize: 10, fill: STUDIO.ink4 }}
               tickLine={false}
               width={28}
             />
             <Tooltip
               content={<CustomTooltip />}
-              cursor={{ stroke: "rgba(255,255,255,0.06)" }}
+              cursor={{ stroke: "rgba(26,24,20,0.12)" }}
             />
             <Area
               dataKey="events"
               dot={false}
               fill="url(#colorEvents)"
               name="Events"
-              stroke="#3DA9E0"
+              stroke={STUDIO.claret}
               strokeWidth={1.5}
               type="monotone"
             />
@@ -219,7 +221,7 @@ export function ContentActivityChart({
               dot={false}
               fill="url(#colorNews)"
               name="News"
-              stroke="#a78bfa"
+              stroke={STUDIO.sky}
               strokeWidth={1.5}
               type="monotone"
             />
@@ -228,7 +230,7 @@ export function ContentActivityChart({
               dot={false}
               fill="url(#colorJobs)"
               name="Jobs"
-              stroke="#4ade80"
+              stroke={STUDIO.leaf}
               strokeWidth={1.5}
               type="monotone"
             />
@@ -236,7 +238,7 @@ export function ContentActivityChart({
         </ResponsiveContainer>
       ) : (
         <div className="flex h-40 items-center justify-center">
-          <p className="text-sm" style={{ color: "rgba(255,255,255,0.25)" }}>
+          <p className="text-sm" style={{ color: STUDIO.ink4 }}>
             No activity recorded yet
           </p>
         </div>

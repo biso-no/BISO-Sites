@@ -12,6 +12,11 @@ import {
   PortalInput,
   PortalSelect,
 } from "../../../_components/portal-fields";
+import {
+  buttonStyle,
+  STUDIO,
+  studioSurface,
+} from "../../../_components/studio";
 
 interface CreateUserClientProps {
   labels: {
@@ -84,10 +89,7 @@ export function CreateUserClient({ labels, options }: CreateUserClientProps) {
       <form action={handleSubmit} className="space-y-5">
         <div
           className="grid gap-4 rounded-2xl p-6 md:grid-cols-2"
-          style={{
-            background: "rgba(255,255,255,0.02)",
-            border: "1px solid rgba(255,255,255,0.06)",
-          }}
+          style={studioSurface}
         >
           <PortalField label={labels.givenName} required>
             <PortalInput name="givenName" required />
@@ -142,11 +144,7 @@ export function CreateUserClient({ labels, options }: CreateUserClientProps) {
           <button
             className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 font-medium text-sm transition-all disabled:opacity-50"
             disabled={isPending}
-            style={{
-              background: "#3DA9E0",
-              color: "#001731",
-              boxShadow: "0 0 20px rgba(61,169,224,0.25)",
-            }}
+            style={buttonStyle("primary")}
             type="submit"
           >
             <UserPlus size={15} />
@@ -155,10 +153,7 @@ export function CreateUserClient({ labels, options }: CreateUserClientProps) {
           <Link
             className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm"
             href="/it/users"
-            style={{
-              background: "rgba(255,255,255,0.05)",
-              color: "rgba(255,255,255,0.65)",
-            }}
+            style={buttonStyle("secondary")}
           >
             <ArrowLeft size={15} />
             Back
@@ -166,14 +161,8 @@ export function CreateUserClient({ labels, options }: CreateUserClientProps) {
         </div>
       </form>
 
-      <aside
-        className="h-fit rounded-2xl p-5"
-        style={{
-          background: "rgba(255,255,255,0.02)",
-          border: "1px solid rgba(255,255,255,0.06)",
-        }}
-      >
-        <p className="font-medium text-sm text-white">
+      <aside className="h-fit rounded-2xl p-5" style={studioSurface}>
+        <p className="font-medium text-sm" style={{ color: STUDIO.ink }}>
           {labels.temporaryPassword}
         </p>
         {temporaryPassword ? (
@@ -181,9 +170,9 @@ export function CreateUserClient({ labels, options }: CreateUserClientProps) {
             className="mt-3 flex w-full items-center justify-between rounded-xl px-3 py-2 text-left font-mono text-sm"
             onClick={copyTemporaryPassword}
             style={{
-              background: "rgba(61,169,224,0.10)",
-              border: "1px solid rgba(61,169,224,0.25)",
-              color: "#fff",
+              background: "rgba(107,30,30,0.08)",
+              border: "0.5px solid rgba(107,30,30,0.22)",
+              color: STUDIO.ink,
             }}
             type="button"
           >
@@ -191,7 +180,7 @@ export function CreateUserClient({ labels, options }: CreateUserClientProps) {
             <Copy size={14} />
           </button>
         ) : (
-          <p className="mt-2 text-sm text-white/40">
+          <p className="mt-2 text-sm" style={{ color: STUDIO.ink4 }}>
             Shown once after the account is created.
           </p>
         )}

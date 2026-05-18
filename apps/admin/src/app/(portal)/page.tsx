@@ -5,6 +5,7 @@ import {
   Calendar,
   FileStack,
   Newspaper,
+  Sparkles,
   TrendingUp,
 } from "lucide-react";
 import Link from "next/link";
@@ -13,6 +14,16 @@ import { getUserAuthContext } from "@/lib/authorization";
 import { listActivityLog } from "./_actions/activity";
 import { getDashboardStats } from "./_actions/pages";
 import { ContentActivityChart } from "./_components/content-chart";
+import {
+  SERIF_STACK,
+  STUDIO,
+  StudioIconBox,
+  StudioKpi,
+  StudioKpiStrip,
+  StudioLinkButton,
+  StudioPageHeader,
+  StudioPanel,
+} from "./_components/studio";
 
 export default async function AdminPortalDashboard() {
   const t = await getTranslations("adminPortal.dashboard");
@@ -37,156 +48,112 @@ export default async function AdminPortalDashboard() {
 
   const statCards = [
     {
+      color: STUDIO.sky,
+      href: "/jobs",
+      icon: Briefcase,
       label: t("stats.jobs"),
       value: statsData.jobs,
-      icon: Briefcase,
-      href: "/jobs",
-      color: "#3DA9E0",
     },
     {
+      color: STUDIO.claret,
+      href: "/events",
+      icon: Calendar,
       label: t("stats.events"),
       value: statsData.events,
-      icon: Calendar,
-      href: "/events",
-      color: "#a78bfa",
     },
     {
+      color: STUDIO.leaf,
+      href: "/news",
+      icon: Newspaper,
       label: t("stats.news"),
       value: statsData.news,
-      icon: Newspaper,
-      href: "/news",
-      color: "#4ade80",
     },
     {
+      color: STUDIO.gold,
+      href: "/drafts",
+      icon: FileStack,
       label: t("stats.drafts"),
       value: statsData.drafts,
-      icon: FileStack,
-      href: "/drafts",
-      color: "#fbbf24",
     },
   ];
 
   return (
     <div className="pb-12">
-      {/* Hero greeting */}
-      <div className="mb-10">
-        <div
-          className="mb-4 inline-flex items-center gap-2 rounded-full px-3 py-1.5 font-mono text-xs"
-          style={{
-            background: "rgba(61,169,224,0.10)",
-            border: "1px solid rgba(61,169,224,0.25)",
-            color: "#3DA9E0",
-          }}
-        >
-          <Activity size={11} />
-          BISO
-        </div>
-        <h1
-          className="mb-2 font-light text-4xl tracking-tight md:text-5xl"
-          style={{ color: "#fff" }}
-        >
-          {t("greeting")}, <span style={{ color: "#3DA9E0" }}>Admin</span>
-        </h1>
-        <p className="text-base" style={{ color: "rgba(255,255,255,0.40)" }}>
-          {t("subtitle")}
-        </p>
-      </div>
-
-      {/* Quick actions */}
-      <div className="mb-10 flex items-center gap-3">
-        <Link
-          className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 font-medium text-sm"
-          href="/drafts"
-          style={{
-            background: "#3DA9E0",
-            color: "#001731",
-            boxShadow: "0 0 20px rgba(61,169,224,0.25)",
-          }}
-        >
+      <StudioPageHeader
+        description={t("subtitle")}
+        eyebrow={
+          <>
+            <Activity size={12} />
+            BISO
+          </>
+        }
+        title={
+          <>
+            {t("greeting")}, <em style={{ color: STUDIO.claret }}>Admin</em>
+          </>
+        }
+      >
+        <StudioLinkButton href="/drafts" variant="primary">
           <FileStack size={15} />
           {t("reviewDrafts")}
-        </Link>
-        <Link
-          className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 font-medium text-sm"
-          href="/pages"
-          style={{
-            background: "rgba(255,255,255,0.06)",
-            border: "1px solid rgba(255,255,255,0.10)",
-            color: "rgba(255,255,255,0.80)",
-          }}
-        >
+        </StudioLinkButton>
+        <StudioLinkButton href="/pages">
           {t("createPage")}
           <ArrowRight size={14} />
-        </Link>
+        </StudioLinkButton>
+      </StudioPageHeader>
+
+      <div className="mb-7">
+        <StudioKpiStrip>
+          {statCards.map((card) => (
+            <StudioKpi
+              helper="Open workspace"
+              icon={<card.icon size={13} />}
+              key={card.href}
+              label={card.label}
+              value={
+                <Link
+                  className="group inline-flex items-end gap-2"
+                  href={card.href}
+                >
+                  {card.value}
+                  <TrendingUp
+                    className="mb-1 opacity-0 transition group-hover:opacity-100"
+                    size={14}
+                    style={{ color: card.color }}
+                  />
+                </Link>
+              }
+            />
+          ))}
+        </StudioKpiStrip>
       </div>
 
-      {/* Stats grid */}
-      <div className="mb-10 grid grid-cols-2 gap-4 lg:grid-cols-4">
-        {statCards.map((card) => (
-          <Link
-            className="group flex flex-col gap-4 rounded-3xl p-6 transition-all"
-            href={card.href}
-            key={card.href}
-            style={{
-              background: "rgba(255,255,255,0.02)",
-              border: "1px solid rgba(255,255,255,0.05)",
-            }}
-          >
-            <div className="flex items-center justify-between">
-              <div
-                className="flex h-10 w-10 items-center justify-center rounded-2xl"
-                style={{
-                  background: `${card.color}18`,
-                  border: `1px solid ${card.color}30`,
-                }}
-              >
-                <card.icon size={18} style={{ color: card.color }} />
-              </div>
-              <TrendingUp
-                className="opacity-0 transition-opacity group-hover:opacity-100"
-                size={14}
-                style={{ color: card.color }}
-              />
-            </div>
-            <div>
-              <p
-                className="font-light text-3xl tabular-nums"
-                style={{ color: "#fff" }}
-              >
-                {card.value}
-              </p>
-              <p
-                className="mt-1 text-xs"
-                style={{ color: "rgba(255,255,255,0.40)" }}
-              >
-                {card.label}
-              </p>
-            </div>
-          </Link>
-        ))}
-      </div>
-
-      {/* Activity chart */}
-      <div className="mb-10">
+      <div className="mb-7">
         <ContentActivityChart activity={allActivity} days={14} />
       </div>
 
-      {/* Recent activity */}
-      <div
-        className="rounded-3xl p-6 md:p-8"
-        style={{
-          background: "rgba(255,255,255,0.02)",
-          border: "1px solid rgba(255,255,255,0.05)",
-        }}
-      >
-        <div className="mb-6 flex items-center justify-between">
-          <h2 className="font-medium text-base" style={{ color: "#fff" }}>
-            {t("recentActivity")}
-          </h2>
+      <StudioPanel className="p-6 md:p-7">
+        <div className="mb-5 flex items-center justify-between gap-4">
+          <div>
+            <p
+              className="flex items-center gap-2 font-medium text-[11px] uppercase tracking-[0.08em]"
+              style={{ color: STUDIO.claret }}
+            >
+              <Sparkles size={12} />
+              Studio log
+            </p>
+            <h2
+              className="mt-1 text-3xl"
+              style={{ color: STUDIO.ink, fontFamily: SERIF_STACK }}
+            >
+              {t("recentActivity")}
+            </h2>
+          </div>
           <Link
-            className="flex items-center gap-1.5 text-xs"
+            className="flex items-center gap-1.5 text-sm"
             href="/activity"
-            style={{ color: "#3DA9E0" }}
+            style={{ color: STUDIO.claret }}
           >
             {t("viewAllActivity")}
             <ArrowRight size={13} />
@@ -196,47 +163,31 @@ export default async function AdminPortalDashboard() {
         {activity.length === 0 ? (
           <p
             className="py-8 text-center text-sm"
-            style={{ color: "rgba(255,255,255,0.30)" }}
+            style={{ color: STUDIO.ink4 }}
           >
             {t("noActivity")}
           </p>
         ) : (
-          <div className="space-y-3">
+          <div className="divide-y" style={{ borderColor: STUDIO.rule }}>
             {activity.map((log) => (
-              <div
-                className="flex items-start gap-3 py-3"
-                key={log.$id}
-                style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}
-              >
-                <div
-                  className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full"
-                  style={{
-                    background: "rgba(61,169,224,0.10)",
-                    border: "1px solid rgba(61,169,224,0.20)",
-                  }}
-                >
-                  <Activity size={12} style={{ color: "#3DA9E0" }} />
-                </div>
+              <div className="flex items-start gap-3 py-4" key={log.$id}>
+                <StudioIconBox color={STUDIO.claret}>
+                  <Activity size={14} />
+                </StudioIconBox>
                 <div className="min-w-0 flex-1">
-                  <p
-                    className="text-sm"
-                    style={{ color: "rgba(255,255,255,0.75)" }}
-                  >
-                    <span className="font-medium" style={{ color: "#fff" }}>
+                  <p className="text-sm" style={{ color: STUDIO.ink2 }}>
+                    <span className="font-medium" style={{ color: STUDIO.ink }}>
                       {log.actor_email ?? "System"}
                     </span>{" "}
                     {log.action}
                     {log.resource_type && (
-                      <span style={{ color: "rgba(255,255,255,0.40)" }}>
+                      <span style={{ color: STUDIO.ink4 }}>
                         {" "}
                         · {log.resource_type}
                       </span>
                     )}
                   </p>
-                  <p
-                    className="mt-0.5 text-xs"
-                    style={{ color: "rgba(255,255,255,0.30)" }}
-                  >
+                  <p className="mt-0.5 text-xs" style={{ color: STUDIO.ink4 }}>
                     {new Date(log.$createdAt).toLocaleString()}
                   </p>
                 </div>
@@ -244,7 +195,7 @@ export default async function AdminPortalDashboard() {
             ))}
           </div>
         )}
-      </div>
+      </StudioPanel>
     </div>
   );
 }

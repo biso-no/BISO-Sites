@@ -31,6 +31,7 @@ import { EmptyState } from "../../_components/empty-state";
 import { PaginationBar } from "../../_components/pagination-bar";
 import { SearchToolbar } from "../../_components/search-toolbar";
 import { StatusBadge } from "../../_components/status-badge";
+import { STUDIO, studioSurface } from "../../_components/studio";
 
 interface JobApplicationsClientProps {
   initialApplications: RecruitmentApplicationRecord[];
@@ -787,7 +788,21 @@ export function JobApplicationsClient({
   }
 
   return (
-    <>
+    <div className="job-applications-parchment">
+      <style>{`
+        .job-applications-parchment [class*="text-white"] {
+          color: ${STUDIO.ink2} !important;
+        }
+        .job-applications-parchment [class*="text-white/"] {
+          color: ${STUDIO.ink4} !important;
+        }
+        .job-applications-parchment [class*="border-white"] {
+          border-color: ${STUDIO.rule2} !important;
+        }
+        .job-applications-parchment [class*="bg-white/"] {
+          background: rgba(255,255,255,0.55) !important;
+        }
+      `}</style>
       <SearchToolbar
         activeFilter={activeFilter}
         defaultSearch={defaultSearch}
@@ -800,10 +815,7 @@ export function JobApplicationsClient({
         placeholder="Search applicants or vacancies"
       />
 
-      <div
-        className="grid gap-3 md:grid-cols-4"
-        style={{ color: "rgba(255,255,255,0.72)" }}
-      >
+      <div className="grid gap-3 md:grid-cols-4" style={{ color: STUDIO.ink3 }}>
         {[
           {
             icon: FileText,
@@ -826,21 +838,19 @@ export function JobApplicationsClient({
             value: stats.accepted,
           },
         ].map(({ icon: Icon, label, value }) => (
-          <div
-            className="rounded-2xl p-4"
-            key={label}
-            style={{
-              background: "rgba(255,255,255,0.03)",
-              border: "1px solid rgba(255,255,255,0.06)",
-            }}
-          >
+          <div className="rounded-2xl p-4" key={label} style={studioSurface}>
             <div className="flex items-center justify-between gap-3">
               <span className="text-xs uppercase tracking-[0.18em]">
                 {label}
               </span>
-              <Icon size={16} style={{ color: "#3DA9E0" }} />
+              <Icon size={16} style={{ color: STUDIO.claret }} />
             </div>
-            <p className="mt-2 font-light text-3xl text-white">{value}</p>
+            <p
+              className="mt-2 font-light text-3xl"
+              style={{ color: STUDIO.ink }}
+            >
+              {value}
+            </p>
           </div>
         ))}
       </div>
@@ -939,6 +949,6 @@ export function JobApplicationsClient({
       )}
 
       <PaginationBar page={page} total={total} />
-    </>
+    </div>
   );
 }

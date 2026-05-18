@@ -86,6 +86,12 @@
   --sidebar-ring: hsl(217.2 91.2% 59.8%);
 }
 
+/* Prevent elastic overscroll from revealing body background behind the fixed-height shell */
+html,
+body {
+  overscroll-behavior: none;
+}
+
 /* Admin app-specific gradient backgrounds */
 @layer base {
   /* Light mode gradient background */

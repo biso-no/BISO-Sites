@@ -1,13 +1,17 @@
 "use server";
 
 import { createSessionClient } from "@repo/api/server";
-import { CAMPUS_NAME_TO_ID } from "./campus-constants";
+import { cookies } from "next/headers";
+import { CAMPUS_ID_TO_NAME, CAMPUS_NAME_TO_ID } from "./campus-constants";
+
+const CAMPUS_CTX_COOKIE = "admin_campus_ctx";
 
 /**
  * User authorization context containing their teams and roles parsed from
  * Azure AD Security Groups (SG-App-Campus-*, SG-App-Dept-*)
  */
 export interface UserAuthContext {
+  activeCampusId?: string; // Numeric campus_id if global admin has set a campus filter
   campusNames: string[]; // Parsed campus names (e.g., "National", "Oslo")
   campusTeamIds: string[]; // Azure GUIDs for SG-App-Campus-* teams
   departmentNames: string[]; // Parsed department names (e.g., "OperationsUnit", "LedelsenOslo")
@@ -156,18 +160,25 @@ export async function getUserAuthContext(): Promise<UserAuthContext | null> {
       .map((n) => CAMPUS_NAME_TO_ID[n])
       .filter((id): id is string => Boolean(id));
 
+    const cookieStore = await cookies();
+    const campusCookieName = cookieStore.get(CAMPUS_CTX_COOKIE)?.value ?? null;
+    const activeCampusId = campusCookieName
+      ? CAMPUS_NAME_TO_ID[campusCookieName]
+      : undefined;
+
     return {
-      userId: user.$id,
-      email: user.email ?? null,
-      campusTeamIds: parsed.campusTeamIds,
+      activeCampusId,
       campusNames: parsed.campusNames,
-      departmentTeamIds: parsed.departmentTeamIds,
+      campusTeamIds: parsed.campusTeamIds,
       departmentNames: parsed.departmentNames,
-      roles,
+      departmentTeamIds: parsed.departmentTeamIds,
+      email: user.email ?? null,
       labels,
-      managedCampuses,
       managedCampusIds,
+      managedCampuses,
       resolvedCampusIds,
+      roles,
+      userId: user.$id,
     };
   } catch (error) {
     console.error("Failed to get user auth context:", error);
@@ -362,6 +373,7 @@ import { hasNavAccess, type NavKey, ROLES } from "./roles";
  * Includes campus and department context for proper access control.
  */
 export interface UserRolesForClient {
+  activeCampus: string | null; // Active campus name filter (global admins only, null = all)
   campusNames: string[];
   departmentNames: string[];
   hasDepartmentMembership: boolean;
@@ -379,24 +391,30 @@ export async function getUserRolesForClient(): Promise<UserRolesForClient> {
   const ctx = await getUserAuthContext();
   if (!ctx) {
     return {
-      roles: [],
-      hasDepartmentMembership: false,
+      activeCampus: null,
       campusNames: [],
       departmentNames: [],
-      managedCampuses: [],
-      isGlobalAdmin: false,
+      hasDepartmentMembership: false,
       isCampusAdmin: false,
+      isGlobalAdmin: false,
+      managedCampuses: [],
+      roles: [],
     };
   }
 
+  const activeCampus = ctx.activeCampusId
+    ? (CAMPUS_ID_TO_NAME[ctx.activeCampusId] ?? null)
+    : null;
+
   return {
-    roles: ctx.roles,
-    hasDepartmentMembership: ctx.departmentTeamIds.length > 0,
+    activeCampus,
     campusNames: ctx.campusNames,
     departmentNames: ctx.departmentNames,
-    managedCampuses: ctx.managedCampuses,
-    isGlobalAdmin: ctx.roles.includes("globaladmin"),
+    hasDepartmentMembership: ctx.departmentTeamIds.length > 0,
     isCampusAdmin: ctx.roles.includes("campusadmin"),
+    isGlobalAdmin: ctx.roles.includes("globaladmin"),
+    managedCampuses: ctx.managedCampuses,
+    roles: ctx.roles,
   };
 }
 

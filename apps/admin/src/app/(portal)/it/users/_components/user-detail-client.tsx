@@ -53,6 +53,11 @@ import {
   PortalInput,
   PortalSelect,
 } from "../../../_components/portal-fields";
+import {
+  buttonStyle,
+  STUDIO,
+  studioSurface,
+} from "../../../_components/studio";
 
 type ItPermissionMap = Record<M365Permission, boolean>;
 
@@ -177,16 +182,12 @@ function Section({
   title: string;
 }) {
   return (
-    <section
-      className="rounded-2xl p-5"
-      style={{
-        background: "rgba(255,255,255,0.02)",
-        border: "1px solid rgba(255,255,255,0.06)",
-      }}
-    >
+    <section className="rounded-2xl p-5" style={studioSurface}>
       <div className="mb-4 flex items-center gap-2">
-        <span style={{ color: "#3DA9E0" }}>{icon}</span>
-        <h2 className="font-medium text-sm text-white">{title}</h2>
+        <span style={{ color: STUDIO.claret }}>{icon}</span>
+        <h2 className="font-medium text-sm" style={{ color: STUDIO.ink }}>
+          {title}
+        </h2>
       </div>
       {children}
     </section>
@@ -194,7 +195,11 @@ function Section({
 }
 
 function EmptyInline({ text }: { text: string }) {
-  return <p className="text-sm text-white/35">{text}</p>;
+  return (
+    <p className="text-sm" style={{ color: STUDIO.ink4 }}>
+      {text}
+    </p>
+  );
 }
 
 function PortalConfirm({
@@ -219,29 +224,33 @@ function PortalConfirm({
       <div
         className="w-full max-w-md rounded-2xl p-6"
         style={{
-          background: "rgba(8,18,38,0.98)",
-          border: "1px solid rgba(255,255,255,0.10)",
+          background: STUDIO.paper,
+          border: `0.5px solid ${STUDIO.rule2}`,
         }}
       >
         <div className="mb-1 flex items-start justify-between gap-3">
-          <h3 className="font-medium text-sm text-white">{config.title}</h3>
+          <h3 className="font-medium text-sm" style={{ color: STUDIO.ink }}>
+            {config.title}
+          </h3>
           <button
             aria-label="Close"
-            className="shrink-0 rounded-lg p-1 text-white/40 transition-colors hover:text-white/70"
+            className="shrink-0 rounded-lg p-1 transition-colors"
             onClick={onClose}
-            style={{ background: "rgba(255,255,255,0.05)" }}
+            style={{ background: STUDIO.paper2, color: STUDIO.ink3 }}
             type="button"
           >
             <X size={14} />
           </button>
         </div>
-        <p className="mb-5 text-sm text-white/55">{config.description}</p>
+        <p className="mb-5 text-sm" style={{ color: STUDIO.ink3 }}>
+          {config.description}
+        </p>
         <div className="flex justify-end gap-2">
           <button
             className="rounded-xl px-4 py-2 text-sm disabled:opacity-50"
             disabled={isPending}
             onClick={onClose}
-            style={{ background: "rgba(255,255,255,0.06)", color: "#fff" }}
+            style={buttonStyle("secondary")}
             type="button"
           >
             Cancel
@@ -254,8 +263,7 @@ function PortalConfirm({
               onClose();
             }}
             style={{
-              background: config.danger ? "rgba(239,68,68,0.85)" : "#3DA9E0",
-              color: config.danger ? "#fff" : "#001731",
+              ...buttonStyle(config.danger ? "danger" : "primary"),
             }}
             type="button"
           >
@@ -897,7 +905,27 @@ export function UserDetailClient({
         isPending={isPending}
         onClose={() => setConfirmDialog(null)}
       />
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_24rem]">
+      <style>{`
+        .it-user-detail-parchment [class*="text-white"] {
+          color: ${STUDIO.ink2} !important;
+        }
+        .it-user-detail-parchment [class*="text-white/35"],
+        .it-user-detail-parchment [class*="text-white/40"],
+        .it-user-detail-parchment [class*="text-white/45"],
+        .it-user-detail-parchment [class*="text-white/50"],
+        .it-user-detail-parchment [class*="text-white/55"],
+        .it-user-detail-parchment [class*="text-white/65"],
+        .it-user-detail-parchment [class*="text-white/70"] {
+          color: ${STUDIO.ink4} !important;
+        }
+        .it-user-detail-parchment [class*="border-white"] {
+          border-color: ${STUDIO.rule2} !important;
+        }
+        .it-user-detail-parchment [class*="bg-white/"] {
+          background: rgba(255,255,255,0.55) !important;
+        }
+      `}</style>
+      <div className="it-user-detail-parchment grid gap-6 xl:grid-cols-[minmax(0,1fr)_24rem]">
         <div className="space-y-6">
           {/* Profile */}
           <Section icon={<BadgeCheck size={16} />} title={labels.profile}>

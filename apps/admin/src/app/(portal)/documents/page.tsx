@@ -1,8 +1,8 @@
 import { Plus } from "lucide-react";
-import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { listDocuments } from "../_actions/documents";
 import { PageHeader } from "../_components/page-header";
+import { StudioLinkButton } from "../_components/studio";
 import { DocumentsListClient } from "./_components/documents-list-client";
 
 interface DocumentsPageProps {
@@ -22,18 +22,10 @@ export default async function DocumentsPage({
   return (
     <div className="pb-12">
       <PageHeader description={t("description")} title={t("title")}>
-        <Link
-          className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 font-medium text-sm"
-          href="/documents/new"
-          style={{
-            background: "#3DA9E0",
-            color: "#001731",
-            boxShadow: "0 0 20px rgba(61,169,224,0.25)",
-          }}
-        >
+        <StudioLinkButton href="/documents/new" variant="primary">
           <Plus size={15} />
           {t("create")}
-        </Link>
+        </StudioLinkButton>
       </PageHeader>
 
       <DocumentsListClient

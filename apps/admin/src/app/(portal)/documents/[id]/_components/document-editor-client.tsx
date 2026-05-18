@@ -25,6 +25,7 @@ import {
   PortalSelect,
   PortalTextarea,
 } from "../../../_components/portal-fields";
+import { STUDIO, studioSurface } from "../../../_components/studio";
 
 interface DocumentEditorClientProps {
   campuses: Campus[];
@@ -202,16 +203,16 @@ export function DocumentEditorClient({
         <PortalButton
           disabled={isSaving}
           onClick={() => form.handleSubmit()}
-          style={{ background: "rgba(255,255,255,0.06)", color: "#fff" }}
           type="button"
+          variant="secondary"
         >
           {labels.discard}
         </PortalButton>
         <PortalButton
           disabled={isSaving}
           onClick={() => form.handleSubmit()}
-          style={{ background: "#3DA9E0", color: "#001731" }}
           type="button"
+          variant="primary"
         >
           {isSaving ? (
             <Loader2 className="animate-spin" size={14} />
@@ -223,17 +224,8 @@ export function DocumentEditorClient({
 
       <div className="mx-auto max-w-2xl space-y-6 px-6 pt-8">
         {/* Document details */}
-        <section
-          className="space-y-5 rounded-2xl p-6"
-          style={{
-            background: "rgba(255,255,255,0.02)",
-            border: "1px solid rgba(255,255,255,0.06)",
-          }}
-        >
-          <h2
-            className="font-semibold text-sm"
-            style={{ color: "rgba(255,255,255,0.60)" }}
-          >
+        <section className="space-y-5 rounded-2xl p-6" style={studioSurface}>
+          <h2 className="font-semibold text-sm" style={{ color: STUDIO.ink3 }}>
             Document details
           </h2>
 
@@ -395,16 +387,10 @@ export function DocumentEditorClient({
 
         {/* File section */}
         {isNew ? (
-          <section
-            className="space-y-5 rounded-2xl p-6"
-            style={{
-              background: "rgba(255,255,255,0.02)",
-              border: "1px solid rgba(255,255,255,0.06)",
-            }}
-          >
+          <section className="space-y-5 rounded-2xl p-6" style={studioSurface}>
             <h2
               className="font-semibold text-sm"
-              style={{ color: "rgba(255,255,255,0.60)" }}
+              style={{ color: STUDIO.ink3 }}
             >
               File
             </h2>
@@ -417,14 +403,11 @@ export function DocumentEditorClient({
           document && (
             <section
               className="space-y-5 rounded-2xl p-6"
-              style={{
-                background: "rgba(255,255,255,0.02)",
-                border: "1px solid rgba(255,255,255,0.06)",
-              }}
+              style={studioSurface}
             >
               <h2
                 className="font-semibold text-sm"
-                style={{ color: "rgba(255,255,255,0.60)" }}
+                style={{ color: STUDIO.ink3 }}
               >
                 File on SharePoint
               </h2>
@@ -433,23 +416,17 @@ export function DocumentEditorClient({
               <div
                 className="flex items-center gap-3 rounded-xl px-4 py-3"
                 style={{
-                  background: "rgba(255,255,255,0.03)",
-                  border: "1px solid rgba(255,255,255,0.08)",
+                  background: "rgba(255,255,255,0.5)",
+                  border: `0.5px solid ${STUDIO.rule2}`,
                 }}
               >
-                <FileText size={18} style={{ color: "#3DA9E0" }} />
+                <FileText size={18} style={{ color: STUDIO.claret }} />
                 <div className="min-w-0 flex-1">
-                  <p
-                    className="text-sm"
-                    style={{ color: "rgba(255,255,255,0.70)" }}
-                  >
+                  <p className="text-sm" style={{ color: STUDIO.ink2 }}>
                     Version {document.version_number}
                     {document.version ? ` — ${document.version}` : ""}
                   </p>
-                  <p
-                    className="text-xs"
-                    style={{ color: "rgba(255,255,255,0.30)" }}
-                  >
+                  <p className="text-xs" style={{ color: STUDIO.ink4 }}>
                     {formatBytes(document.file_size)} · Last updated{" "}
                     {new Date(document.$updatedAt).toLocaleDateString()}
                   </p>
@@ -459,9 +436,9 @@ export function DocumentEditorClient({
                   href={document.sharepoint_web_url}
                   rel="noopener noreferrer"
                   style={{
-                    background: "rgba(61,169,224,0.10)",
-                    color: "#3DA9E0",
-                    border: "1px solid rgba(61,169,224,0.20)",
+                    background: "rgba(107,30,30,0.08)",
+                    color: STUDIO.claret,
+                    border: "0.5px solid rgba(107,30,30,0.2)",
                   }}
                   target="_blank"
                 >
@@ -472,10 +449,7 @@ export function DocumentEditorClient({
 
               {/* Upload new version */}
               <div className="space-y-3">
-                <p
-                  className="text-xs"
-                  style={{ color: "rgba(255,255,255,0.30)" }}
-                >
+                <p className="text-xs" style={{ color: STUDIO.ink4 }}>
                   {labels.versionUploadHint}
                 </p>
                 <PdfUploadField onChange={setVersionFile} value={versionFile} />
@@ -483,7 +457,7 @@ export function DocumentEditorClient({
                   <PortalButton
                     disabled={isVersionUploading}
                     onClick={handleVersionUpload}
-                    style={{ background: "#3DA9E0", color: "#001731" }}
+                    style={{ background: STUDIO.ink, color: STUDIO.paper }}
                     type="button"
                   >
                     {isVersionUploading ? (

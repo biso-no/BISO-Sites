@@ -3,6 +3,7 @@
 import { Search, X } from "lucide-react";
 import type { ReactNode } from "react";
 import { useState, useTransition } from "react";
+import { STUDIO } from "./studio";
 
 interface ChipFilter {
   label: string;
@@ -45,28 +46,28 @@ export function SearchToolbar({
   }
 
   return (
-    <div className="mb-6 flex flex-col gap-3 sm:flex-row">
+    <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center">
       {/* Search input */}
       <div className="relative max-w-sm flex-1">
         <Search
           className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2"
           size={15}
-          style={{ color: "rgba(255,255,255,0.30)" }}
+          style={{ color: STUDIO.ink4 }}
         />
         <input
-          className="w-full rounded-2xl py-2.5 pr-9 pl-9 text-sm outline-none transition-all"
+          className="w-full rounded-lg py-2.5 pr-9 pl-9 text-sm outline-none transition-all"
           onBlur={(e) => {
-            e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)";
+            e.currentTarget.style.borderColor = STUDIO.rule2;
           }}
           onChange={handleChange}
           onFocus={(e) => {
-            e.currentTarget.style.borderColor = "rgba(61,169,224,0.50)";
+            e.currentTarget.style.borderColor = STUDIO.claret;
           }}
           placeholder={placeholder}
           style={{
-            background: "rgba(255,255,255,0.04)",
-            border: "1px solid rgba(255,255,255,0.08)",
-            color: "#fff",
+            background: "rgba(255,255,255,0.62)",
+            border: `0.5px solid ${STUDIO.rule2}`,
+            color: STUDIO.ink,
           }}
           type="text"
           value={value}
@@ -75,7 +76,7 @@ export function SearchToolbar({
           <button
             className="absolute top-1/2 right-3 -translate-y-1/2"
             onClick={handleClear}
-            style={{ color: "rgba(255,255,255,0.40)" }}
+            style={{ color: STUDIO.ink4 }}
             type="button"
           >
             <X size={14} />
@@ -90,20 +91,21 @@ export function SearchToolbar({
             const isActive = activeFilter === chip.value;
             return (
               <button
-                className="shrink-0 whitespace-nowrap rounded-full px-3 py-1.5 font-medium text-xs transition-all"
+                className="shrink-0 whitespace-nowrap rounded-lg px-3 py-1.5 font-medium text-xs transition-all"
                 key={chip.value}
                 onClick={() => onFilterChange?.(chip.value)}
                 style={
                   isActive
                     ? {
-                        background: "rgba(61,169,224,0.15)",
-                        border: "1px solid rgba(61,169,224,0.40)",
-                        color: "#3DA9E0",
+                        background: "#fff",
+                        border: `0.5px solid ${STUDIO.rule2}`,
+                        boxShadow: "0 1px 2px rgba(26,24,20,0.06)",
+                        color: STUDIO.ink,
                       }
                     : {
-                        background: "rgba(255,255,255,0.04)",
-                        border: "1px solid rgba(255,255,255,0.08)",
-                        color: "rgba(255,255,255,0.50)",
+                        background: STUDIO.paper2,
+                        border: `0.5px solid ${STUDIO.rule2}`,
+                        color: STUDIO.ink3,
                       }
                 }
                 type="button"

@@ -16,8 +16,8 @@ import {
   Newspaper,
   Settings,
   ShoppingCart,
+  Sparkles,
 } from "lucide-react";
-import { motion } from "motion/react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -25,6 +25,8 @@ import { useTranslations } from "next-intl";
 import { signOut } from "@/lib/actions/user";
 import type { UserRolesForClient } from "@/lib/authorization";
 import { hasNavAccess, type NavKey } from "@/lib/roles";
+import { CampusSwitcher } from "./_components/campus-switcher";
+import { SERIF_STACK, STUDIO } from "./_components/studio";
 
 interface SidebarUser {
   avatar: string | null;
@@ -39,77 +41,106 @@ interface SidebarProps {
   user: SidebarUser;
 }
 
-const NAV_ITEMS: Array<{
-  path: string;
+interface NavItem {
+  group: "operate" | "publish";
+  icon: React.ComponentType<{ size?: number }>;
   labelKey: string;
-  icon: React.ComponentType<{
-    size?: number;
-    className?: string;
-    style?: React.CSSProperties;
-  }>;
   navKey: NavKey;
-}> = [
+  path: string;
+}
+
+export const NAV_ITEMS: NavItem[] = [
   {
-    path: "/",
-    labelKey: "overview",
+    group: "operate",
     icon: LayoutDashboard,
+    labelKey: "overview",
     navKey: "portal.dashboard",
+    path: "/",
   },
   {
-    path: "/pages",
-    labelKey: "pages",
-    icon: Layers,
-    navKey: "portal.pages",
-  },
-  {
-    path: "/departments",
-    labelKey: "departments",
-    icon: Building2,
-    navKey: "portal.departments",
-  },
-  {
-    path: "/jobs",
-    labelKey: "jobs",
+    group: "publish",
     icon: Briefcase,
+    labelKey: "jobs",
     navKey: "portal.jobs",
+    path: "/jobs",
   },
   {
-    path: "/events",
-    labelKey: "events",
+    group: "publish",
     icon: Calendar,
+    labelKey: "events",
     navKey: "portal.events",
+    path: "/events",
   },
   {
-    path: "/shop",
-    labelKey: "shop",
-    icon: ShoppingCart,
-    navKey: "portal.shop",
-  },
-  {
-    path: "/benefits",
-    labelKey: "benefits",
-    icon: Gift,
-    navKey: "portal.benefits",
-  },
-  {
-    path: "/documents",
-    labelKey: "documents",
-    icon: FileText,
-    navKey: "portal.documents",
-  },
-  {
-    path: "/news",
-    labelKey: "news",
+    group: "publish",
     icon: Newspaper,
+    labelKey: "news",
     navKey: "portal.news",
+    path: "/news",
   },
   {
-    path: "/it",
-    labelKey: "it",
+    group: "publish",
+    icon: Gift,
+    labelKey: "benefits",
+    navKey: "portal.benefits",
+    path: "/benefits",
+  },
+  {
+    group: "publish",
+    icon: ShoppingCart,
+    labelKey: "shop",
+    navKey: "portal.shop",
+    path: "/shop",
+  },
+  {
+    group: "publish",
+    icon: Layers,
+    labelKey: "pages",
+    navKey: "portal.pages",
+    path: "/pages",
+  },
+  {
+    group: "operate",
+    icon: Building2,
+    labelKey: "departments",
+    navKey: "portal.departments",
+    path: "/departments",
+  },
+  {
+    group: "operate",
+    icon: FileText,
+    labelKey: "documents",
+    navKey: "portal.documents",
+    path: "/documents",
+  },
+  {
+    group: "operate",
     icon: HardDrive,
+    labelKey: "it",
     navKey: "portal.it",
+    path: "/it",
   },
 ];
+
+function NavGroup({
+  children,
+  title,
+}: {
+  children: React.ReactNode;
+  title: string;
+}) {
+  return (
+    <div>
+      <p
+        className="px-2 pt-3 pb-1.5 font-medium text-[10px] uppercase tracking-[0.08em]"
+        style={{ color: STUDIO.ink4 }}
+      >
+        {title}
+      </p>
+      <div className="space-y-1">{children}</div>
+    </div>
+  );
+}
 
 export function Sidebar({ user, roles }: SidebarProps) {
   const pathname = usePathname();
@@ -157,233 +188,213 @@ export function Sidebar({ user, roles }: SidebarProps) {
         .slice(0, 2)
     : "??";
 
+  const publishItems = visibleItems.filter((item) => item.group === "publish");
+  const operateItems = visibleItems.filter((item) => item.group === "operate");
+
+  let currentCampus: string;
+  if (roles.isGlobalAdmin) {
+    currentCampus = roles.activeCampus ?? "All Campuses";
+  } else if (roles.isCampusAdmin) {
+    currentCampus = roles.managedCampuses[0] ?? "";
+  } else {
+    currentCampus = roles.campusNames[0] ?? "";
+  }
+
   return (
-    <div
-      className="relative z-20 flex h-screen w-72 flex-col"
+    <aside
+      className="relative z-20 hidden h-screen w-60 shrink-0 flex-col p-3 md:flex"
       style={{
-        borderRight: "1px solid rgba(255,255,255,0.05)",
-        background: "rgba(0,10,22,0.80)",
-        backdropFilter: "blur(24px)",
-        WebkitBackdropFilter: "blur(24px)",
+        background: "linear-gradient(180deg, #f6f0e3 0%, #f1ead9 100%)",
+        borderRight: `0.5px solid ${STUDIO.rule}`,
+        color: STUDIO.ink,
       }}
     >
-      {/* Brand */}
-      <div className="flex items-center justify-between p-6">
-        <div className="flex items-center gap-5">
-          <Image
-            alt="BISO Logo"
-            height={40}
-            loading="eager"
-            src="/images/biso-dare-to-be-more-dark.png"
-            width={220}
-          />
-        </div>
-        <div
-          className="flex items-center gap-1 rounded-md px-2 py-1 font-mono text-xs"
+      <div className="flex items-center justify-between px-2 pt-1 pb-4">
+        <Link className="flex min-w-0 items-center gap-2.5" href="/">
+          <span
+            className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-xl"
+            style={{
+              background: STUDIO.ink,
+              color: STUDIO.paper,
+              fontFamily: SERIF_STACK,
+              fontStyle: "italic",
+            }}
+          >
+            B
+          </span>
+          <span className="min-w-0 leading-none">
+            <span className="block truncate font-semibold text-[13px]">
+              BISO Studio
+            </span>
+            <span
+              className="mt-1 block truncate text-[10px] uppercase tracking-[0.06em]"
+              style={{ color: STUDIO.ink3 }}
+            >
+              Admin
+            </span>
+          </span>
+        </Link>
+        <button
+          aria-label="Open command palette"
+          className="flex items-center gap-1 rounded-md border px-1.5 py-1 font-mono text-[10px] transition hover:bg-white/80"
+          onClick={() => window.dispatchEvent(new Event("admin:open-palette"))}
           style={{
-            color: "rgba(255,255,255,0.40)",
-            background: "rgba(255,255,255,0.05)",
-            border: "1px solid rgba(255,255,255,0.05)",
+            background: "rgba(255,255,255,0.52)",
+            borderColor: STUDIO.rule2,
+            color: STUDIO.ink3,
           }}
+          type="button"
         >
-          <Command size={12} /> K
-        </div>
+          <Command size={11} /> K
+        </button>
       </div>
 
-      {/* Main nav */}
-      <nav className="mt-2 flex-1 space-y-1 overflow-y-auto px-4">
-        {visibleItems.map((item) => {
-          const active = isActive(item.path);
-          return (
-            <Link
-              className="group relative flex items-center gap-3 rounded-xl px-4 py-3 transition-all"
+      <CampusSwitcher
+        availableCampuses={["Oslo", "Bergen", "Trondheim", "Stavanger"]}
+        canSwitch={roles.isGlobalAdmin}
+        currentCampus={currentCampus}
+        roleLabel={user.roleLabel}
+      />
+
+      <nav className="min-h-0 flex-1 overflow-y-auto">
+        <NavGroup title="Publish">
+          {publishItems.map((item) => (
+            <SidebarLink
+              active={isActive(item.path)}
               href={item.path}
+              icon={item.icon}
               key={item.path}
-            >
-              {active && (
-                <motion.div
-                  animate={{ opacity: 1 }}
-                  className="absolute inset-0 rounded-xl"
-                  initial={{ opacity: 0 }}
-                  layoutId="portal-sidebar-active"
-                  style={{
-                    background: "rgba(255,255,255,0.05)",
-                    border: "1px solid rgba(255,255,255,0.10)",
-                  }}
-                  transition={{ duration: 0.2 }}
-                />
-              )}
-              {active && (
-                <div
-                  className="absolute top-1/2 left-0 h-6 w-1 -translate-y-1/2 rounded-r-full"
-                  style={{
-                    background: "#3DA9E0",
-                    boxShadow: "0 0 10px #3DA9E0",
-                  }}
-                />
-              )}
-              <item.icon
-                className="relative z-10 transition-colors"
-                size={18}
-                style={{ color: active ? "#3DA9E0" : "rgba(255,255,255,0.40)" }}
-              />
-              <span
-                className="relative z-10 font-medium text-sm transition-colors"
-                style={{ color: active ? "#fff" : "rgba(255,255,255,0.50)" }}
-              >
-                {t(item.labelKey)}
-              </span>
-            </Link>
-          );
-        })}
-
-        {/* Secondary items */}
-        {(canViewDrafts || canViewActivity) && (
-          <div
-            className="my-3"
-            style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}
-          />
-        )}
-
-        {canViewDrafts && (
-          <Link
-            className="group relative flex items-center gap-3 rounded-xl px-4 py-3 transition-all"
-            href="/drafts"
-          >
-            {isActive("/drafts") && (
-              <motion.div
-                className="absolute inset-0 rounded-xl"
-                layoutId="portal-sidebar-active"
-                style={{
-                  background: "rgba(255,255,255,0.05)",
-                  border: "1px solid rgba(255,255,255,0.10)",
-                }}
-              />
-            )}
-            <FileStack
-              className="relative z-10"
-              size={18}
-              style={{
-                color: isActive("/drafts")
-                  ? "#3DA9E0"
-                  : "rgba(255,255,255,0.40)",
-              }}
+              label={t(item.labelKey)}
             />
-            <span
-              className="relative z-10 font-medium text-sm"
-              style={{
-                color: isActive("/drafts") ? "#fff" : "rgba(255,255,255,0.50)",
-              }}
-            >
-              {t("drafts")}
-            </span>
-          </Link>
-        )}
-
-        {canViewActivity && (
-          <Link
-            className="group relative flex items-center gap-3 rounded-xl px-4 py-3 transition-all"
-            href="/activity"
-          >
-            {isActive("/activity") && (
-              <motion.div
-                className="absolute inset-0 rounded-xl"
-                layoutId="portal-sidebar-active"
-                style={{
-                  background: "rgba(255,255,255,0.05)",
-                  border: "1px solid rgba(255,255,255,0.10)",
-                }}
-              />
-            )}
-            <Activity
-              className="relative z-10"
-              size={18}
-              style={{
-                color: isActive("/activity")
-                  ? "#3DA9E0"
-                  : "rgba(255,255,255,0.40)",
-              }}
+          ))}
+          {canViewDrafts && (
+            <SidebarLink
+              active={isActive("/drafts")}
+              href="/drafts"
+              icon={FileStack}
+              label={t("drafts")}
             />
-            <span
-              className="relative z-10 font-medium text-sm"
-              style={{
-                color: isActive("/activity")
-                  ? "#fff"
-                  : "rgba(255,255,255,0.50)",
-              }}
-            >
-              {t("activity")}
-            </span>
-          </Link>
-        )}
+          )}
+        </NavGroup>
+
+        <NavGroup title="Operate">
+          {operateItems.map((item) => (
+            <SidebarLink
+              active={isActive(item.path)}
+              href={item.path}
+              icon={item.icon}
+              key={item.path}
+              label={t(item.labelKey)}
+            />
+          ))}
+          {canViewActivity && (
+            <SidebarLink
+              active={isActive("/activity")}
+              href="/activity"
+              icon={Activity}
+              label={t("activity")}
+            />
+          )}
+          {canViewSettings && (
+            <SidebarLink
+              active={isActive("/settings")}
+              href="/settings"
+              icon={Settings}
+              label={t("settings")}
+            />
+          )}
+        </NavGroup>
       </nav>
 
-      {/* Footer */}
-      <div
-        className="p-4"
-        style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}
-      >
-        {canViewSettings && (
-          <Link
-            className="flex items-center gap-3 rounded-xl px-4 py-3 transition-all"
-            href="/settings"
-            style={{ color: "rgba(255,255,255,0.50)" }}
-          >
-            <Settings size={18} />
-            <span className="font-medium text-sm">{t("settings")}</span>
-          </Link>
-        )}
-
+      <div className="mt-4 space-y-3">
         <div
-          className="mt-2 flex items-center gap-3 rounded-xl px-4 py-3"
+          className="rounded-xl border p-3"
           style={{
-            background: "rgba(255,255,255,0.05)",
-            border: "1px solid rgba(255,255,255,0.05)",
+            background: "rgba(255,255,255,0.48)",
+            borderColor: STUDIO.rule2,
           }}
         >
+          <p
+            className="flex items-center gap-1.5 font-medium text-[10px] uppercase tracking-[0.08em]"
+            style={{ color: STUDIO.ink3 }}
+          >
+            <Sparkles size={12} />
+            Studio hint
+          </p>
+          <p
+            className="mt-1 text-lg leading-5"
+            style={{ color: STUDIO.ink, fontFamily: SERIF_STACK }}
+          >
+            Use search to jump between publishing workflows.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2 px-1 py-1">
           {user.avatar ? (
             <Image
               alt={user.name ?? "User"}
-              className="h-9 w-9 rounded-full object-cover"
-              height={36}
+              className="h-8 w-8 rounded-full object-cover"
+              height={32}
               src={user.avatar}
-              style={{ border: "1px solid rgba(255,255,255,0.10)" }}
-              width={36}
+              width={32}
             />
           ) : (
-            <div
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full font-bold text-xs"
-              style={{
-                background: "rgba(61,169,224,0.20)",
-                color: "#3DA9E0",
-                border: "1px solid rgba(61,169,224,0.30)",
-              }}
+            <span
+              className="grid h-8 w-8 shrink-0 place-items-center rounded-full font-semibold text-xs"
+              style={{ background: STUDIO.claret, color: STUDIO.paper }}
             >
               {initials}
-            </div>
+            </span>
           )}
-          <div className="min-w-0 flex-1">
-            <p className="truncate font-medium text-sm text-white">
+          <div className="min-w-0 flex-1 leading-tight">
+            <p className="truncate font-medium text-xs">
               {user.name ?? user.email ?? "User"}
             </p>
-            <p
-              className="truncate font-mono text-xs"
-              style={{ color: "#3DA9E0" }}
-            >
+            <p className="truncate text-[10px]" style={{ color: STUDIO.ink3 }}>
               {user.roleLabel}
             </p>
           </div>
           <button
             aria-label="Sign out"
-            className="transition-colors"
+            className="rounded-md p-1.5 transition hover:bg-white/60"
             onClick={handleSignOut}
-            style={{ color: "rgba(255,255,255,0.40)" }}
+            style={{ color: STUDIO.ink3 }}
             type="button"
           >
-            <LogOut size={16} />
+            <LogOut size={15} />
           </button>
         </div>
       </div>
-    </div>
+    </aside>
+  );
+}
+
+function SidebarLink({
+  active,
+  href,
+  icon: Icon,
+  label,
+}: {
+  active: boolean;
+  href: string;
+  icon: React.ComponentType<{ size?: number }>;
+  label: string;
+}) {
+  return (
+    <Link
+      className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm transition"
+      href={href}
+      style={
+        active
+          ? {
+              background: STUDIO.ink,
+              color: STUDIO.paper,
+            }
+          : { color: STUDIO.ink2 }
+      }
+    >
+      <Icon size={15} />
+      <span className="min-w-0 truncate">{label}</span>
+    </Link>
   );
 }

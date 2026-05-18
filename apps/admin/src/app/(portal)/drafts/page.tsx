@@ -17,9 +17,9 @@ export default async function DraftsPage() {
           <span
             className="rounded-full px-3 py-1.5 font-medium text-sm"
             style={{
-              background: "rgba(251,191,36,0.10)",
-              border: "1px solid rgba(251,191,36,0.25)",
-              color: "#fbbf24",
+              background: "rgba(176,138,62,0.09)",
+              border: "0.5px solid rgba(176,138,62,0.24)",
+              color: "#6a5118",
             }}
           >
             {t("pending", { count: drafts.length })}

@@ -25,6 +25,9 @@ function isGlobalAdminContext(ctx: UserAuthContext): boolean {
  */
 export function applyScopeQueries(ctx: UserAuthContext): string[] {
   if (isGlobalAdminContext(ctx)) {
+    if (ctx.activeCampusId) {
+      return [Query.equal("campus_id", [ctx.activeCampusId])];
+    }
     return [];
   }
 

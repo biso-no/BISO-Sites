@@ -6,6 +6,11 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { EmptyState } from "../../../_components/empty-state";
 import { SearchToolbar } from "../../../_components/search-toolbar";
+import {
+  STUDIO,
+  StudioCrest,
+  StudioLinkButton,
+} from "../../../_components/studio";
 
 interface UsersListClientProps {
   initialQuery: string;
@@ -37,8 +42,8 @@ function getStatus(
     return {
       icon: ShieldCheck,
       label: labels.statusEnabled,
-      color: "#4ade80",
-      background: "rgba(74,222,128,0.10)",
+      background: "rgba(47,93,58,0.08)",
+      color: STUDIO.leaf,
     };
   }
 
@@ -46,16 +51,16 @@ function getStatus(
     return {
       icon: CircleOff,
       label: labels.statusDisabled,
-      color: "#f87171",
-      background: "rgba(248,113,113,0.10)",
+      background: "rgba(107,30,30,0.08)",
+      color: STUDIO.claret,
     };
   }
 
   return {
     icon: UserRound,
     label: labels.statusUnknown,
-    color: "rgba(255,255,255,0.45)",
-    background: "rgba(255,255,255,0.05)",
+    background: STUDIO.paper2,
+    color: STUDIO.ink3,
   };
 }
 
@@ -83,18 +88,10 @@ export function UsersListClient({
         onSearch={handleSearch}
         placeholder={labels.searchPlaceholder}
       >
-        <Link
-          className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 font-medium text-sm transition-all"
-          href="/it/users/new"
-          style={{
-            background: "#3DA9E0",
-            color: "#001731",
-            boxShadow: "0 0 20px rgba(61,169,224,0.25)",
-          }}
-        >
+        <StudioLinkButton href="/it/users/new" variant="primary">
           <Plus size={15} />
           {labels.create}
-        </Link>
+        </StudioLinkButton>
       </SearchToolbar>
 
       {users.length === 0 ? (
@@ -115,27 +112,25 @@ export function UsersListClient({
                 href={`/it/users/${encodeURIComponent(user.id)}`}
                 key={user.id}
                 style={{
-                  background: "rgba(255,255,255,0.02)",
-                  border: "1px solid rgba(255,255,255,0.05)",
+                  background: "rgba(255,255,255,0.46)",
+                  border: `0.5px solid ${STUDIO.rule}`,
                 }}
               >
                 <div className="flex min-w-0 items-center gap-3">
-                  <div
-                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
-                    style={{
-                      background: "rgba(61,169,224,0.10)",
-                      border: "1px solid rgba(61,169,224,0.20)",
-                    }}
-                  >
-                    <UserRound size={16} style={{ color: "#3DA9E0" }} />
-                  </div>
+                  <StudioCrest
+                    icon={UserRound}
+                    label={user.displayName ?? ""}
+                  />
                   <div className="min-w-0">
-                    <p className="truncate font-medium text-sm text-white">
+                    <p
+                      className="truncate font-medium text-sm"
+                      style={{ color: STUDIO.ink }}
+                    >
                       {user.displayName || user.userPrincipalName}
                     </p>
                     <p
                       className="mt-1 flex min-w-0 items-center gap-1.5 truncate text-xs"
-                      style={{ color: "rgba(255,255,255,0.38)" }}
+                      style={{ color: STUDIO.ink4 }}
                     >
                       <Mail size={12} />
                       {user.mail ?? user.userPrincipalName}
@@ -144,19 +139,31 @@ export function UsersListClient({
                 </div>
 
                 <div className="min-w-0">
-                  <p className="truncate text-white/70 text-xs">
+                  <p
+                    className="truncate text-xs"
+                    style={{ color: STUDIO.ink3 }}
+                  >
                     {user.department ?? "No department"}
                   </p>
-                  <p className="mt-1 truncate text-white/35 text-xs">
+                  <p
+                    className="mt-1 truncate text-xs"
+                    style={{ color: STUDIO.ink4 }}
+                  >
                     {user.jobTitle ?? "No job title"}
                   </p>
                 </div>
 
                 <div className="min-w-0">
-                  <p className="truncate text-white/70 text-xs">
+                  <p
+                    className="truncate text-xs"
+                    style={{ color: STUDIO.ink3 }}
+                  >
                     {user.officeLocation ?? "No office"}
                   </p>
-                  <p className="mt-1 truncate text-white/35 text-xs">
+                  <p
+                    className="mt-1 truncate text-xs"
+                    style={{ color: STUDIO.ink4 }}
+                  >
                     Last sign-in: {formatDate(user.lastSignInDateTime)}
                   </p>
                 </div>

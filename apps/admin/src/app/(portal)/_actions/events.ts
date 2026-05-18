@@ -20,12 +20,11 @@ import {
   assertWriteAccess,
 } from "@/lib/utils/authorization";
 import { logAuditEvent } from "./audit-log";
-import { EVENTS_PAGE_SIZE, type EventFormValues, eventSchema } from "./schemas";
-
 import {
   listCampuses as _listCampuses,
   listDepartmentsForCampus as _listDepartmentsForCampus,
 } from "./lookups";
+import { EVENTS_PAGE_SIZE, type EventFormValues, eventSchema } from "./schemas";
 
 export async function listCampuses() {
   return _listCampuses();

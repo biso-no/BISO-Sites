@@ -3,6 +3,7 @@
 import { Bell, Globe, Lock, Shield, Users, Zap } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { STUDIO, StudioButton, studioSurface } from "../../_components/studio";
 
 interface SettingsClientProps {
   isGlobalAdmin: boolean;
@@ -65,8 +66,8 @@ function Toggle({
       className="relative h-6 w-10 shrink-0 rounded-full transition-all"
       onClick={() => onChange(!checked)}
       style={{
-        background: checked ? "#3DA9E0" : "rgba(255,255,255,0.15)",
-        boxShadow: checked ? "0 0 10px rgba(61,169,224,0.30)" : "none",
+        background: checked ? STUDIO.ink : STUDIO.rule2,
+        boxShadow: checked ? "0 4px 14px rgba(26,24,20,0.16)" : "none",
       }}
       type="button"
     >
@@ -89,14 +90,8 @@ function SectionCard({
   children: React.ReactNode;
 }) {
   return (
-    <div
-      className="rounded-2xl p-6"
-      style={{
-        background: "rgba(255,255,255,0.02)",
-        border: "1px solid rgba(255,255,255,0.06)",
-      }}
-    >
-      <h3 className="mb-4 font-medium text-sm" style={{ color: "#fff" }}>
+    <div className="rounded-2xl p-6" style={studioSurface}>
+      <h3 className="mb-4 font-medium text-sm" style={{ color: STUDIO.ink }}>
         {title}
       </h3>
       {children}
@@ -118,17 +113,14 @@ function ToggleRow({
   return (
     <div
       className="flex items-center justify-between py-3"
-      style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}
+      style={{ borderBottom: `0.5px solid ${STUDIO.rule}` }}
     >
       <div>
-        <p className="text-sm" style={{ color: "rgba(255,255,255,0.80)" }}>
+        <p className="text-sm" style={{ color: STUDIO.ink2 }}>
           {label}
         </p>
         {description && (
-          <p
-            className="mt-0.5 text-xs"
-            style={{ color: "rgba(255,255,255,0.35)" }}
-          >
+          <p className="mt-0.5 text-xs" style={{ color: STUDIO.ink4 }}>
             {description}
           </p>
         )}
@@ -171,8 +163,8 @@ export function SettingsClient({ isGlobalAdmin, labels }: SettingsClientProps) {
                 onClick={() => setActiveSection(key)}
                 style={
                   isActive
-                    ? { background: "rgba(255,255,255,0.06)", color: "#fff" }
-                    : { color: "rgba(255,255,255,0.45)" }
+                    ? { background: STUDIO.ink, color: STUDIO.paper }
+                    : { color: STUDIO.ink3 }
                 }
                 type="button"
               >
@@ -180,7 +172,7 @@ export function SettingsClient({ isGlobalAdmin, labels }: SettingsClientProps) {
                   <Icon
                     size={15}
                     style={{
-                      color: isActive ? "#3DA9E0" : "rgba(255,255,255,0.35)",
+                      color: isActive ? STUDIO.paper : STUDIO.ink4,
                     }}
                   />
                 )}
@@ -200,7 +192,7 @@ export function SettingsClient({ isGlobalAdmin, labels }: SettingsClientProps) {
                 <label
                   className="text-xs"
                   htmlFor="settings-locale"
-                  style={{ color: "rgba(255,255,255,0.50)" }}
+                  style={{ color: STUDIO.ink3 }}
                 >
                   {labels.general.locale}
                 </label>
@@ -208,15 +200,15 @@ export function SettingsClient({ isGlobalAdmin, labels }: SettingsClientProps) {
                   className="rounded-xl px-3 py-2 text-sm outline-none"
                   id="settings-locale"
                   style={{
-                    background: "rgba(255,255,255,0.04)",
-                    border: "1px solid rgba(255,255,255,0.08)",
-                    color: "#fff",
+                    background: "rgba(255,255,255,0.62)",
+                    border: `0.5px solid ${STUDIO.rule2}`,
+                    color: STUDIO.ink,
                   }}
                 >
-                  <option style={{ background: "#000a16" }} value="en">
+                  <option style={{ background: STUDIO.paper }} value="en">
                     English
                   </option>
-                  <option style={{ background: "#000a16" }} value="no">
+                  <option style={{ background: STUDIO.paper }} value="no">
                     Norwegian
                   </option>
                 </select>
@@ -225,7 +217,7 @@ export function SettingsClient({ isGlobalAdmin, labels }: SettingsClientProps) {
                 <label
                   className="text-xs"
                   htmlFor="settings-timezone"
-                  style={{ color: "rgba(255,255,255,0.50)" }}
+                  style={{ color: STUDIO.ink3 }}
                 >
                   {labels.general.timezone}
                 </label>
@@ -233,15 +225,18 @@ export function SettingsClient({ isGlobalAdmin, labels }: SettingsClientProps) {
                   className="rounded-xl px-3 py-2 text-sm outline-none"
                   id="settings-timezone"
                   style={{
-                    background: "rgba(255,255,255,0.04)",
-                    border: "1px solid rgba(255,255,255,0.08)",
-                    color: "#fff",
+                    background: "rgba(255,255,255,0.62)",
+                    border: `0.5px solid ${STUDIO.rule2}`,
+                    color: STUDIO.ink,
                   }}
                 >
-                  <option style={{ background: "#000a16" }} value="Europe/Oslo">
+                  <option
+                    style={{ background: STUDIO.paper }}
+                    value="Europe/Oslo"
+                  >
                     Europe/Oslo (UTC+1)
                   </option>
-                  <option style={{ background: "#000a16" }} value="UTC">
+                  <option style={{ background: STUDIO.paper }} value="UTC">
                     UTC
                   </option>
                 </select>
@@ -280,12 +275,9 @@ export function SettingsClient({ isGlobalAdmin, labels }: SettingsClientProps) {
               <div
                 className="flex items-center justify-between py-3"
                 key={integration.name}
-                style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}
+                style={{ borderBottom: `0.5px solid ${STUDIO.rule}` }}
               >
-                <p
-                  className="text-sm"
-                  style={{ color: "rgba(255,255,255,0.80)" }}
-                >
+                <p className="text-sm" style={{ color: STUDIO.ink2 }}>
                   {integration.name}
                 </p>
                 <span
@@ -293,12 +285,12 @@ export function SettingsClient({ isGlobalAdmin, labels }: SettingsClientProps) {
                   style={
                     integration.connected
                       ? {
-                          background: "rgba(74,222,128,0.10)",
-                          color: "#4ade80",
+                          background: "rgba(47,93,58,0.08)",
+                          color: STUDIO.leaf,
                         }
                       : {
-                          background: "rgba(255,255,255,0.05)",
-                          color: "rgba(255,255,255,0.35)",
+                          background: STUDIO.paper2,
+                          color: STUDIO.ink4,
                         }
                   }
                 >
@@ -319,16 +311,10 @@ export function SettingsClient({ isGlobalAdmin, labels }: SettingsClientProps) {
               onChange={setTwoFactor}
             />
             <div className="py-3">
-              <p
-                className="text-sm"
-                style={{ color: "rgba(255,255,255,0.80)" }}
-              >
+              <p className="text-sm" style={{ color: STUDIO.ink2 }}>
                 {labels.security.sessions}
               </p>
-              <p
-                className="mt-1 text-xs"
-                style={{ color: "rgba(255,255,255,0.35)" }}
-              >
+              <p className="mt-1 text-xs" style={{ color: STUDIO.ink4 }}>
                 1 active session
               </p>
             </div>
@@ -339,13 +325,13 @@ export function SettingsClient({ isGlobalAdmin, labels }: SettingsClientProps) {
           <div
             className="rounded-2xl p-6"
             style={{
-              background: "rgba(248,113,113,0.05)",
-              border: "1px solid rgba(248,113,113,0.15)",
+              background: "rgba(107,30,30,0.05)",
+              border: "0.5px solid rgba(107,30,30,0.15)",
             }}
           >
             <div className="flex items-center gap-2">
-              <Lock size={15} style={{ color: "#f87171" }} />
-              <p className="text-sm" style={{ color: "#f87171" }}>
+              <Lock size={15} style={{ color: STUDIO.claret }} />
+              <p className="text-sm" style={{ color: STUDIO.claret }}>
                 {labels.security.restricted}
               </p>
             </div>
@@ -353,18 +339,9 @@ export function SettingsClient({ isGlobalAdmin, labels }: SettingsClientProps) {
         )}
 
         <div className="flex justify-end">
-          <button
-            className="rounded-xl px-5 py-2.5 font-medium text-sm"
-            onClick={handleSave}
-            style={{
-              background: "#3DA9E0",
-              color: "#001731",
-              boxShadow: "0 0 20px rgba(61,169,224,0.25)",
-            }}
-            type="button"
-          >
+          <StudioButton onClick={handleSave} variant="primary">
             {labels.save}
-          </button>
+          </StudioButton>
         </div>
       </div>
     </div>
