@@ -416,6 +416,13 @@
       ],
       "indexes": [
         {
+          "key": "page_slug_unique",
+          "type": "unique",
+          "status": "available",
+          "columns": ["slug"],
+          "orders": []
+        },
+        {
           "key": "idx_campus_id",
           "type": "key",
           "status": "available",
@@ -4583,6 +4590,24 @@
           "elements": ["no", "en"]
         },
         {
+          "key": "title",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 200,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "description",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 4000,
+          "default": null,
+          "encrypt": false
+        },
+        {
           "key": "puck_document",
           "type": "string",
           "required": false,
@@ -4617,7 +4642,15 @@
           "encrypt": false
         }
       ],
-      "indexes": []
+      "indexes": [
+        {
+          "key": "page_locale_unique",
+          "type": "unique",
+          "status": "available",
+          "columns": ["page_id", "locale"],
+          "orders": []
+        }
+      ]
     },
     {
       "$id": "department_socials",

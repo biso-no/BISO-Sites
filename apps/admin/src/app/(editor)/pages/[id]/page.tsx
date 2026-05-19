@@ -1,7 +1,10 @@
 import { notFound } from "next/navigation";
-import type { PageDoc } from "@repo/editor";
 import { listDepartments } from "@/app/(portal)/_actions/departments";
-import { getPageById } from "@/app/(portal)/_actions/pages";
+import {
+  getPageEditorById,
+  getPageEditorLocales,
+} from "@/app/(portal)/_actions/pages";
+import { getLocale } from "@/app/actions/locale";
 import { PageEditorClient } from "./_components/page-editor-client";
 
 interface Props {
@@ -13,12 +16,15 @@ export default async function PageEditorPage({ params }: Props) {
 
   const isNew = id === "new";
 
-  const [pageResult, departments] = await Promise.all([
-    isNew ? null : getPageById(id, "no"),
-    listDepartments(),
-  ]);
+  const [pageResult, departments, initialLocale, availableLocales] =
+    await Promise.all([
+      isNew ? null : getPageEditorById(id),
+      listDepartments(),
+      getLocale(),
+      getPageEditorLocales(),
+    ]);
 
-  if (!isNew && !pageResult) {
+  if (!(isNew || pageResult)) {
     notFound();
   }
 
@@ -29,9 +35,11 @@ export default async function PageEditorPage({ params }: Props) {
 
   return (
     <PageEditorClient
-      initial={(pageResult?.doc as PageDoc) ?? null}
-      pageId={isNew ? null : id}
+      availableLocales={availableLocales}
       departments={editorDepartments}
+      initialLocale={initialLocale}
+      initialPage={pageResult}
+      pageId={isNew ? null : id}
     />
   );
 }

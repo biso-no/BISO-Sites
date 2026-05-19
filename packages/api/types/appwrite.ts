@@ -192,7 +192,6 @@ export enum PageLocale {
   EN = "en",
 }
 
-
 export enum BenefitLocale {
   EN = "en",
   NO = "no",
@@ -792,8 +791,6 @@ export type FundingPrograms = Models.Row & {
 
 export type Pages = Models.Row & {
   slug: string | null;
-  title: string | null;
-  template: string | null;
   campus_id: string | null;
   campus: Campus;
   status: PageStatus;
@@ -806,7 +803,6 @@ export type PageTranslations = Models.Row & {
   page_id: string;
   locale: PageLocale | null;
   title: string;
-  slug: string | null;
   description: string | null;
   puck_document: string | null;
   draft_document: string | null;
@@ -814,7 +810,6 @@ export type PageTranslations = Models.Row & {
   published_at: string | null;
   page: Pages;
 };
-
 
 export type TaxCodes = Models.Row & {
   code: string;

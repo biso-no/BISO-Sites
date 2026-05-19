@@ -1,13 +1,13 @@
 "use client";
 
 import { useCallback } from "react";
-import { useEditorStore } from "@/editor/store";
-import { useSelection, useInspectorTab } from "@/editor/hooks";
 import { getBlock } from "@/blocks/registry";
 import type { PatchFn } from "@/blocks/types";
-import { HUE_COLORS } from "@/theme/presets";
-import type { AccentHue } from "@/theme/presets";
 import { useEditorCallbacks } from "@/editor/callbacks";
+import { useInspectorTab, useSelection } from "@/editor/hooks";
+import { useEditorStore } from "@/editor/store";
+import type { AccentHue } from "@/theme/presets";
+import { HUE_COLORS } from "@/theme/presets";
 
 export function InspectorPane() {
   const selection = useSelection();
@@ -20,7 +20,11 @@ export function InspectorPane() {
   const applyAccent = useEditorStore((s) => s.applyAccent);
 
   const onPatch = useCallback<PatchFn>(
-    (path, value) => { if (selection) setProp(selection, path, value); },
+    (path, value) => {
+      if (selection) {
+        setProp(selection, path, value);
+      }
+    },
     [selection, setProp]
   );
 
@@ -28,49 +32,76 @@ export function InspectorPane() {
     <aside className="pe-inspector">
       <div className="pe-inspector-tabs">
         {(["block", "page", "outline"] as const).map((t) => (
-          <button key={t} type="button" className={tab === t ? "on" : ""} onClick={() => setTab(t)}>
-            {t === "block" ? "Block" : t === "page" ? "Page" : "Outline"}
+          <button
+            className={tab === t ? "on" : ""}
+            key={t}
+            onClick={() => setTab(t)}
+            type="button"
+          >
+            {getTabLabel(t)}
           </button>
         ))}
       </div>
 
-      <div className="pe-inspector-body scroll">
-        {tab === "block" && (
-          <>
-            {block && def ? (
-              <>
-                <div className="pe-insp-hd">
-                  <div className="pe-insp-hd__ic">
-                    <def.PaletteThumb />
-                  </div>
-                  <div>
-                    <div className="pe-insp-hd__ti">{def.label}</div>
-                    <div className="pe-insp-hd__sub">{block.id}</div>
-                  </div>
+      <div className="scroll pe-inspector-body">
+        {tab === "block" &&
+          (block && def ? (
+            <>
+              <div className="pe-insp-hd">
+                <div className="pe-insp-hd__ic">
+                  <def.PaletteThumb />
                 </div>
-                <def.Inspector block={block as never} doc={doc} onPatch={onPatch} />
-              </>
-            ) : (
-              <p style={{ fontSize: 12, color: "var(--ink-3)", padding: "8px 0" }}>
-                Select a block on the canvas to edit its properties.
-              </p>
-            )}
-          </>
-        )}
+                <div>
+                  <div className="pe-insp-hd__ti">{def.label}</div>
+                  <div className="pe-insp-hd__sub">{block.id}</div>
+                </div>
+              </div>
+              <def.Inspector
+                block={block as never}
+                doc={doc}
+                onPatch={onPatch}
+              />
+            </>
+          ) : (
+            <p
+              style={{
+                fontSize: 12,
+                color: "var(--ink-3)",
+                padding: "8px 0",
+              }}
+            >
+              Select a block on the canvas to edit its properties.
+            </p>
+          ))}
 
-        {tab === "page" && (
-          <PageTab doc={doc} applyAccent={applyAccent} />
-        )}
+        {tab === "page" && <PageTab applyAccent={applyAccent} doc={doc} />}
 
         {tab === "outline" && (
-          <OutlineTab blocks={doc.blocks} selection={selection} onSelect={(id) => useEditorStore.getState().select(id)} />
+          <OutlineTab
+            blocks={doc.blocks}
+            onSelect={(id) => useEditorStore.getState().select(id)}
+            selection={selection}
+          />
         )}
       </div>
     </aside>
   );
 }
 
-function PageTab({ doc, applyAccent }: {
+function getTabLabel(tab: "block" | "page" | "outline") {
+  if (tab === "block") {
+    return "Block";
+  }
+  if (tab === "page") {
+    return "Page";
+  }
+  return "Outline";
+}
+
+function PageTab({
+  doc,
+  applyAccent,
+}: {
   doc: ReturnType<typeof useEditorStore.getState>["doc"];
   applyAccent: (hex: string) => void;
 }) {
@@ -81,50 +112,92 @@ function PageTab({ doc, applyAccent }: {
     <div className="pe-insp-section">
       <div className="pe-insp-section__h">Page settings</div>
       <div className="pe-row">
-        <label>Title</label>
-        <input value={doc.meta.title} onChange={(e) => setMeta("title", e.target.value)} />
+        <label htmlFor="pe-page-title">Title</label>
+        <input
+          id="pe-page-title"
+          onChange={(e) => setMeta("title", e.target.value)}
+          value={doc.meta.title}
+        />
       </div>
       <div className="pe-row">
-        <label>Slug</label>
-        <input value={doc.meta.slug} onChange={(e) => setMeta("slug", e.target.value)} />
+        <label htmlFor="pe-page-description">Description</label>
+        <input
+          id="pe-page-description"
+          onChange={(e) => setMeta("description", e.target.value)}
+          value={doc.meta.description ?? ""}
+        />
       </div>
       <div className="pe-row">
-        <label>Dept</label>
+        <label htmlFor="pe-page-slug">Shared slug</label>
+        <input
+          id="pe-page-slug"
+          onChange={(e) => setMeta("slug", e.target.value)}
+          value={doc.meta.slug}
+        />
+      </div>
+      <div className="pe-row">
+        <label htmlFor="pe-page-department">Dept</label>
         {departments.length > 0 ? (
-          <select value={doc.meta.department} onChange={(e) => setMeta("department", e.target.value)}>
+          <select
+            id="pe-page-department"
+            onChange={(e) => setMeta("department", e.target.value)}
+            value={doc.meta.department}
+          >
             <option value="">— none —</option>
             {departments.map((d) => (
-              <option key={d.id} value={d.id}>{d.name} · {d.id.slice(0, 8)}</option>
+              <option key={d.id} value={d.id}>
+                {d.name} · {d.id.slice(0, 8)}
+              </option>
             ))}
           </select>
         ) : (
-          <input value={doc.meta.department} onChange={(e) => setMeta("department", e.target.value)} placeholder="loading…" />
+          <input
+            id="pe-page-department"
+            onChange={(e) => setMeta("department", e.target.value)}
+            placeholder="loading…"
+            value={doc.meta.department}
+          />
         )}
       </div>
       {doc.meta.department && (
-        <p style={{ fontSize: 10, color: "var(--ink-3)", margin: "2px 0 0", fontFamily: "var(--mono)" }}>
+        <p
+          style={{
+            fontSize: 10,
+            color: "var(--ink-3)",
+            margin: "2px 0 0",
+            fontFamily: "var(--mono)",
+          }}
+        >
           {doc.meta.department}
         </p>
       )}
 
-      <div className="pe-insp-section__h" style={{ marginTop: 16 }}>Accent colour</div>
+      <div className="pe-insp-section__h" style={{ marginTop: 16 }}>
+        Accent colour
+      </div>
       <div className="pe-color-row">
-        {(Object.entries(HUE_COLORS) as [AccentHue, string][]).map(([name, hex]) => (
-          <button
-            key={name}
-            type="button"
-            title={name}
-            className={doc.meta.accentColor === hex ? "on" : ""}
-            style={{ background: hex }}
-            onClick={() => applyAccent(hex)}
-          />
-        ))}
+        {(Object.entries(HUE_COLORS) as [AccentHue, string][]).map(
+          ([name, hex]) => (
+            <button
+              className={doc.meta.accentColor === hex ? "on" : ""}
+              key={name}
+              onClick={() => applyAccent(hex)}
+              style={{ background: hex }}
+              title={name}
+              type="button"
+            />
+          )
+        )}
       </div>
     </div>
   );
 }
 
-function OutlineTab({ blocks, selection, onSelect }: {
+function OutlineTab({
+  blocks,
+  selection,
+  onSelect,
+}: {
   blocks: { id: string; type: string }[];
   selection: string | null;
   onSelect: (id: string) => void;
@@ -132,21 +205,23 @@ function OutlineTab({ blocks, selection, onSelect }: {
   return (
     <div className="pe-outline-list">
       {blocks.map((b, i) => (
-        <div
+        <button
+          className={`pe-outline-item${selection === b.id ? "on" : ""}`}
           key={b.id}
-          className={`pe-outline-item${selection === b.id ? " on" : ""}`}
-          role="button"
-          tabIndex={0}
           onClick={() => onSelect(b.id)}
-          onKeyDown={(e) => e.key === "Enter" && onSelect(b.id)}
+          type="button"
         >
-          <span className="pe-outline-item__num">{String(i + 1).padStart(2, "0")}</span>
+          <span className="pe-outline-item__num">
+            {String(i + 1).padStart(2, "0")}
+          </span>
           <span>{b.type}</span>
           <span className="pe-outline-item__meta">{b.id}</span>
-        </div>
+        </button>
       ))}
       {blocks.length === 0 && (
-        <p style={{ fontSize: 12, color: "var(--ink-3)" }}>No blocks on this page yet.</p>
+        <p style={{ fontSize: 12, color: "var(--ink-3)" }}>
+          No blocks on this page yet.
+        </p>
       )}
     </div>
   );

@@ -1,53 +1,82 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
 import {
-  DndContext,
   closestCenter,
-  PointerSensor,
+  DndContext,
+  type DragEndEvent,
+  type DragOverEvent,
+  DragOverlay,
+  type DragStartEvent,
   KeyboardSensor,
+  PointerSensor,
   useSensor,
   useSensors,
-  DragOverlay,
-  type DragEndEvent,
-  type DragStartEvent,
-  type DragOverEvent,
 } from "@dnd-kit/core";
-import { useEditorStore } from "@/editor/store";
-import { useBlocks } from "@/editor/hooks";
-import type { PageDoc, BlockType, EditorDepartment } from "@/editor/types";
+import { useEffect, useRef, useState } from "react";
 import { EditorCallbacksContext } from "@/editor/callbacks";
-import { ThemeScope } from "./theme-scope";
-import { PalettePane } from "./palette";
+import { useBlocks } from "@/editor/hooks";
+import { useEditorStore } from "@/editor/store";
+import type {
+  BlockType,
+  EditorDepartment,
+  EditorLocale,
+  EditorLocaleOption,
+  PageDoc,
+} from "@/editor/types";
 import { CanvasPane } from "./canvas";
 import { InspectorPane } from "./inspector";
+import { PalettePane } from "./palette";
+import { ThemeScope } from "./theme-scope";
 import { Topbar } from "./topbar";
 
 // Import block registrations (side effects)
 import "@/blocks/index";
 
 interface Props {
-  initial: PageDoc | null;
-  savePage: (doc: PageDoc) => Promise<void>;
-  uploadFile: (fd: FormData) => Promise<{ fileId: string; url: string }>;
+  activeLocale: EditorLocale;
   departments: EditorDepartment[];
+  initial: PageDoc | null;
+  locales: EditorLocaleOption[];
+  onDocChange?: (doc: PageDoc, locale: EditorLocale) => void;
   onExit?: () => void;
+  onLocaleChange: (locale: EditorLocale) => void;
+  onTranslateLocale?: (targetLocale: EditorLocale) => Promise<void>;
+  savePage: (
+    doc: PageDoc,
+    locale: EditorLocale
+  ) => Promise<{ slug?: string } | undefined>;
+  translatingLocale?: EditorLocale | null;
+  uploadFile: (fd: FormData) => Promise<{ fileId: string; url: string }>;
 }
 
 const DEBOUNCE_MS = 800;
 
-export function EditorShell({ initial, savePage, uploadFile, departments, onExit }: Props) {
-  const setDoc    = useEditorStore((s) => s.setDoc);
-  const doc       = useEditorStore((s) => s.doc);
+export function EditorShell({
+  initial,
+  savePage,
+  uploadFile,
+  departments,
+  onExit,
+  activeLocale,
+  locales,
+  onLocaleChange,
+  onDocChange,
+  onTranslateLocale,
+  translatingLocale,
+}: Props) {
+  const setDoc = useEditorStore((s) => s.setDoc);
+  const doc = useEditorStore((s) => s.doc);
   const setSaving = useEditorStore((s) => s.setSaving);
-  const undo      = useEditorStore((s) => s.undo);
-  const redo      = useEditorStore((s) => s.redo);
-  const reorder   = useEditorStore((s) => s.reorder);
+  const undo = useEditorStore((s) => s.undo);
+  const redo = useEditorStore((s) => s.redo);
+  const reorder = useEditorStore((s) => s.reorder);
   const insertBlock = useEditorStore((s) => s.insertBlock);
-  const blocks    = useBlocks();
+  const blocks = useBlocks();
 
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
-  const [activePaletteType, setActivePaletteType] = useState<BlockType | null>(null);
+  const [activePaletteType, setActivePaletteType] = useState<BlockType | null>(
+    null
+  );
   const [overId, setOverId] = useState<string | null>(null);
 
   const sensors = useSensors(
@@ -75,7 +104,7 @@ export function EditorShell({ initial, savePage, uploadFile, departments, onExit
     if (activeData?.source === "palette" && over) {
       if (over.id === "canvas-end") {
         // Append after the last block
-        const afterId = blocks.length > 0 ? blocks[blocks.length - 1].id : undefined;
+        const afterId = blocks.length > 0 ? blocks.at(-1)?.id : undefined;
         insertBlock(activeData.type as BlockType, afterId);
       } else {
         // Insert BEFORE the over block (= after the preceding block)
@@ -86,7 +115,9 @@ export function EditorShell({ initial, savePage, uploadFile, departments, onExit
     } else if (activeDragId && over && active.id !== over.id) {
       const fromIdx = blocks.findIndex((b) => b.id === active.id);
       const toIdx = blocks.findIndex((b) => b.id === over.id);
-      if (fromIdx !== -1 && toIdx !== -1) reorder(fromIdx, toIdx);
+      if (fromIdx !== -1 && toIdx !== -1) {
+        reorder(fromIdx, toIdx);
+      }
     }
 
     setActiveDragId(null);
@@ -94,40 +125,79 @@ export function EditorShell({ initial, savePage, uploadFile, departments, onExit
     setOverId(null);
   }
 
-  // Hydrate store with initial doc on mount
+  const hydratedLocaleRef = useRef<EditorLocale | null>(null);
+
+  // Hydrate store when the editor enters a locale. Subsequent parent mirrors of
+  // the same locale document must not rehydrate the store or autosave loops.
   useEffect(() => {
-    if (initial) setDoc(initial);
-  }, [initial, setDoc]);
+    if (!initial || hydratedLocaleRef.current === activeLocale) {
+      return;
+    }
+
+    hydratedLocaleRef.current = activeLocale;
+    setDoc(initial);
+  }, [activeLocale, initial, setDoc]);
 
   // Debounced save to Appwrite
   const saveTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const docRef = useRef(doc);
+  const localeRef = useRef(activeLocale);
+  const savePageRef = useRef(savePage);
+  const onDocChangeRef = useRef(onDocChange);
+  const _docSignature = JSON.stringify(doc);
   docRef.current = doc;
+  localeRef.current = activeLocale;
+  savePageRef.current = savePage;
+  onDocChangeRef.current = onDocChange;
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: autosave is keyed by serialized document changes; refs keep the current locale/callbacks without firing a save for locale-only renders.
   useEffect(() => {
     clearTimeout(saveTimer.current);
+    const docSnapshot = docRef.current;
+    const localeSnapshot = localeRef.current;
+    const savePageSnapshot = savePageRef.current;
+    const onDocChangeSnapshot = onDocChangeRef.current;
+
+    onDocChangeSnapshot?.(docSnapshot, localeSnapshot);
     setSaving("pending");
     saveTimer.current = setTimeout(async () => {
       try {
-        await savePage(docRef.current);
+        const result = await savePageSnapshot(docSnapshot, localeSnapshot);
+        if (result?.slug && result.slug !== docSnapshot.meta.slug) {
+          setDoc({
+            ...docSnapshot,
+            meta: { ...docSnapshot.meta, slug: result.slug },
+          });
+        }
         setSaving("saved");
         setTimeout(() => setSaving("idle"), 2000);
-      } catch {
+      } catch (error) {
+        console.error("[EditorShell autosave]", error);
         setSaving("error");
       }
     }, DEBOUNCE_MS);
     return () => clearTimeout(saveTimer.current);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [JSON.stringify(doc), setSaving]);
+  }, [_docSignature, setSaving]);
 
   // Keyboard shortcuts
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-      if (e.target instanceof HTMLElement && e.target.isContentEditable) return;
+      if (
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement
+      ) {
+        return;
+      }
+      if (e.target instanceof HTMLElement && e.target.isContentEditable) {
+        return;
+      }
       if ((e.metaKey || e.ctrlKey) && e.key === "z") {
         e.preventDefault();
-        if (e.shiftKey) redo(); else undo();
+        if (e.shiftKey) {
+          redo();
+        } else {
+          undo();
+        }
       }
     }
     window.addEventListener("keydown", handleKey);
@@ -135,44 +205,72 @@ export function EditorShell({ initial, savePage, uploadFile, departments, onExit
   }, [undo, redo]);
 
   return (
-    <EditorCallbacksContext.Provider value={{ savePage, uploadFile, departments, onExit }}>
-    <ThemeScope accent={initial?.meta.accentColor}>
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestCenter}
-        onDragStart={handleDragStart}
-        onDragOver={handleDragOver}
-        onDragEnd={handleDragEnd}
-      >
-        <div style={{ display: "flex", flexDirection: "column", height: "100vh", overflow: "hidden", position: "relative", zIndex: 2 }}>
-          <Topbar />
-          <div className="pe-shell">
-            <PalettePane />
-            <CanvasPane activeDragId={activeDragId} activePaletteType={activePaletteType} overId={overId} />
-            <InspectorPane />
-          </div>
-        </div>
-
-        <DragOverlay>
-          {activeDragId && (() => {
-            const block = blocks.find((b) => b.id === activeDragId);
-            if (!block) return null;
-            return (
-              <div className="pe-drag-ghost">
-                <div className="pe-drag-ghost__thumb" aria-hidden="true" />
-                {block.type}
-              </div>
-            );
-          })()}
-          {activePaletteType && (
-            <div className="pe-drag-ghost">
-              <div className="pe-drag-ghost__thumb" aria-hidden="true" />
-              {activePaletteType}
+    <EditorCallbacksContext.Provider
+      value={{
+        savePage,
+        uploadFile,
+        departments,
+        onExit,
+        activeLocale,
+        locales,
+        onLocaleChange,
+        onTranslateLocale,
+        translatingLocale,
+      }}
+    >
+      <ThemeScope accent={initial?.meta.accentColor}>
+        <DndContext
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+          onDragOver={handleDragOver}
+          onDragStart={handleDragStart}
+          sensors={sensors}
+        >
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              height: "100vh",
+              overflow: "hidden",
+              position: "relative",
+              zIndex: 2,
+            }}
+          >
+            <Topbar />
+            <div className="pe-shell">
+              <PalettePane />
+              <CanvasPane
+                activeDragId={activeDragId}
+                activePaletteType={activePaletteType}
+                overId={overId}
+              />
+              <InspectorPane />
             </div>
-          )}
-        </DragOverlay>
-      </DndContext>
-    </ThemeScope>
+          </div>
+
+          <DragOverlay>
+            {activeDragId &&
+              (() => {
+                const block = blocks.find((b) => b.id === activeDragId);
+                if (!block) {
+                  return null;
+                }
+                return (
+                  <div className="pe-drag-ghost">
+                    <div aria-hidden="true" className="pe-drag-ghost__thumb" />
+                    {block.type}
+                  </div>
+                );
+              })()}
+            {activePaletteType && (
+              <div className="pe-drag-ghost">
+                <div aria-hidden="true" className="pe-drag-ghost__thumb" />
+                {activePaletteType}
+              </div>
+            )}
+          </DragOverlay>
+        </DndContext>
+      </ThemeScope>
     </EditorCallbacksContext.Provider>
   );
 }
