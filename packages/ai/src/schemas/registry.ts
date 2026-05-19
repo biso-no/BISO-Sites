@@ -321,22 +321,6 @@ export const productFormFields: FormFieldInfo[] = [
   },
 ];
 
-/**
- * Puck page schema (for page editor)
- */
-export const puckPageSchema = z.object({
-  content: z.array(
-    z.object({
-      type: z.string(),
-      props: z.record(z.string(), z.unknown()),
-    })
-  ),
-  root: z
-    .object({
-      props: z.record(z.string(), z.unknown()).optional(),
-    })
-    .optional(),
-});
 
 /**
  * Registry of all admin capabilities
@@ -419,25 +403,6 @@ export const CAPABILITY_REGISTRY: Partial<
     pathPattern: /^\/admin\/posts\/[^/]+$/,
     formFields: [],
     zodSchema: z.object({}),
-    requiredRoles: ["Admin", "pr"],
-  },
-  "create-page": {
-    id: "create-page",
-    label: "Create Page",
-    description: "Create a new website page using the Puck editor",
-    path: "/admin/pages",
-    formFields: [],
-    zodSchema: puckPageSchema,
-    requiredRoles: ["Admin", "pr"],
-  },
-  "edit-page": {
-    id: "edit-page",
-    label: "Edit Page",
-    description: "Edit a website page using the Puck editor",
-    path: "/admin/pages",
-    pathPattern: /^\/admin\/pages\/[^/]+\/[^/]+\/editor$/,
-    formFields: [],
-    zodSchema: puckPageSchema,
     requiredRoles: ["Admin", "pr"],
   },
   "view-only": {

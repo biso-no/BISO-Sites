@@ -12,18 +12,6 @@ export type FormFieldHandler = (data: {
 }) => void;
 
 /**
- * Handler function type for Puck content updates from the AI
- */
-export type PuckContentHandler = (data: {
-  blockIndex: number;
-  block: {
-    type: string;
-    props: Record<string, unknown>;
-  };
-  isComplete: boolean;
-}) => void;
-
-/**
  * Page capability definition - what the AI can do on a specific page
  */
 export type PageCapability =
@@ -35,14 +23,11 @@ export type PageCapability =
   | "edit-product"
   | "create-post"
   | "edit-post"
-  | "create-page"
-  | "edit-page"
   | "dashboard"
   | "list-events"
   | "list-jobs"
   | "list-products"
   | "list-posts"
-  | "list-pages"
   | "view-only";
 
 /**
@@ -116,8 +101,6 @@ export interface ActiveHandler {
   capability: PageCapability;
   formFields?: FormFieldInfo[];
   onFormField?: FormFieldHandler;
-  onPuckContent?: PuckContentHandler;
-  puckData?: unknown;
 }
 
 /**
@@ -136,20 +119,6 @@ export type AgentState =
   | "error";
 
 /**
- * Pending Puck content - queued when AI generates content before editor is ready
- */
-export interface PendingPuckContent {
-  blocks: Array<{
-    type: string;
-    props: Record<string, unknown>;
-  }>;
-  /** Timestamp for expiry */
-  createdAt: number;
-  /** Whether to replace all content or append */
-  mode: "replace" | "append";
-}
-
-/**
  * Copilot store state
  */
 interface CopilotState {
@@ -160,11 +129,6 @@ interface CopilotState {
   // Agent state for UI feedback
   agentState: AgentState;
   close: () => void;
-
-  /**
-   * Get and clear pending Puck content
-   */
-  consumePendingPuckContent: () => PendingPuckContent | null;
 
   // Current location
   currentPath: string;
@@ -186,7 +150,6 @@ interface CopilotState {
     page: PageContext | null;
     capability: PageCapability | null;
     formFields: FormFieldInfo[] | undefined;
-    puckData: unknown;
   };
   // Sidebar state
   isOpen: boolean;
@@ -199,9 +162,6 @@ interface CopilotState {
 
   // Pending navigation (when AI wants to navigate)
   pendingNavigation: string | null;
-
-  // Pending Puck content (queued when AI generates content before editor is ready)
-  pendingPuckContent: PendingPuckContent | null;
 
   /**
    * Register a page's capability and handlers with the copilot
@@ -233,10 +193,6 @@ interface CopilotState {
    */
   setPendingNavigation: (path: string | null) => void;
 
-  /**
-   * Queue Puck content to be applied when editor is ready
-   */
-  setPendingPuckContent: (content: PendingPuckContent | null) => void;
   toggle: () => void;
 
   /**
@@ -256,7 +212,6 @@ export const useCopilotStore = create<CopilotState>((set, get) => ({
   agentState: "idle",
   agentMessage: null,
   pendingNavigation: null,
-  pendingPuckContent: null,
 
   // Sidebar actions
   open: () => set({ isOpen: true }),
@@ -286,35 +241,6 @@ export const useCopilotStore = create<CopilotState>((set, get) => ({
     return pendingNavigation;
   },
 
-  // Pending Puck content
-  setPendingPuckContent: (content) => {
-    console.log(
-      "[Store] setPendingPuckContent:",
-      content ? `${content.blocks.length} blocks` : "null"
-    );
-    set({ pendingPuckContent: content });
-  },
-  consumePendingPuckContent: () => {
-    const { pendingPuckContent } = get();
-    console.log(
-      "[Store] consumePendingPuckContent called, current:",
-      pendingPuckContent ? `${pendingPuckContent.blocks.length} blocks` : "null"
-    );
-    if (pendingPuckContent) {
-      // Check if content is still fresh (within 30 seconds)
-      const isExpired = Date.now() - pendingPuckContent.createdAt > 30_000;
-      console.log(
-        "[Store] Content age:",
-        Date.now() - pendingPuckContent.createdAt,
-        "ms, expired:",
-        isExpired
-      );
-      set({ pendingPuckContent: null });
-      return isExpired ? null : pendingPuckContent;
-    }
-    return null;
-  },
-
   // Get full context for AI
   getFullContext: () => {
     const state = get();
@@ -324,7 +250,6 @@ export const useCopilotStore = create<CopilotState>((set, get) => ({
       page: state.pageContext,
       capability: state.activeHandler?.capability ?? null,
       formFields: state.activeHandler?.formFields,
-      puckData: state.activeHandler?.puckData,
     };
   },
 }));

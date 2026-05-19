@@ -192,61 +192,6 @@ export enum PageLocale {
   EN = "en",
 }
 
-export enum Family {
-  PAGE = "page",
-  POLICY = "policy",
-  ARTICLE = "article",
-}
-
-export enum TemplateVersionStatus {
-  DRAFT = "draft",
-  PUBLISHED = "published",
-}
-
-export enum ContentEntryKind {
-  PAGE = "page",
-  POLICY = "policy",
-  ARTICLE = "article",
-}
-
-export enum ContentEntryStatus {
-  DRAFT = "draft",
-  PUBLISHED = "published",
-  ARCHIVED = "archived",
-}
-
-export enum ContentVisibility {
-  PUBLIC = "public",
-  AUTHENTICATED = "authenticated",
-}
-
-export enum Scope {
-  GLOBAL = "global",
-  CAMPUS = "campus",
-  DEPARTMENT = "department",
-}
-
-export enum SourceLocale {
-  NO = "no",
-  EN = "en",
-}
-
-export enum EntryLocale {
-  NO = "no",
-  EN = "en",
-}
-
-export enum TranslationStatus {
-  SOURCE = "source",
-  MANUAL = "manual",
-  AI = "ai",
-  STALE = "stale",
-}
-
-export enum TranslatedFromLocale {
-  NO = "no",
-  EN = "en",
-}
 
 export enum BenefitLocale {
   EN = "en",
@@ -870,58 +815,6 @@ export type PageTranslations = Models.Row & {
   page: Pages;
 };
 
-export type ContentTemplates = Models.Row & {
-  key: string;
-  name: string;
-  family: Family;
-  description: string | null;
-  created_by: string | null;
-  current_draft_version_id: string | null;
-  current_published_version_id: string | null;
-};
-
-export type ContentTemplateVersions = Models.Row & {
-  template_id: string;
-  version: number;
-  status: TemplateVersionStatus;
-  layout_document: string;
-  field_schema: string;
-  bindings: string;
-  preview_seed_data: string | null;
-  notes: string | null;
-  published_at: string | null;
-};
-
-export type ContentEntries = Models.Row & {
-  kind: ContentEntryKind;
-  path: string | null;
-  status: ContentEntryStatus;
-  visibility: ContentVisibility;
-  scope: Scope;
-  source_locale: SourceLocale;
-  template_id: string;
-  campus_id: string | null;
-  department_id: string | null;
-  created_by: string | null;
-};
-
-export type ContentEntryLocales = Models.Row & {
-  entry_id: string;
-  locale: EntryLocale;
-  title: string;
-  description: string | null;
-  field_values: string | null;
-  seo: string | null;
-  translation_status: TranslationStatus;
-  translated_from_locale: TranslatedFromLocale | null;
-  source_updated_at: string | null;
-};
-
-export type SitePages = Models.Row & {
-  slug: string;
-  status: string | null;
-  translation_refs: ContentTranslations;
-};
 
 export type TaxCodes = Models.Row & {
   code: string;
@@ -948,7 +841,7 @@ export type CartReservations = Models.Row & {
 
 export type PageViewEvents = Models.Row & {
   path: string;
-  locale: EntryLocale | null;
+  locale: string | null;
   referrer: string | null;
   user_agent: string | null;
   visitor_ip: string | null;
@@ -1022,16 +915,6 @@ export type LegacyDepartments = Models.Row & {
 
 export type AuthTokens = Models.Row & {
   token: string;
-};
-
-export type PageContent = Models.Row & {
-  path: string;
-  title: string;
-  zones: string | null;
-  value: string | null;
-  response: string | null;
-  status: string | null;
-  content: string[] | null;
 };
 
 export type DashboardCustomization = Models.Row & {
@@ -1303,13 +1186,6 @@ export type Departures = Models.Row & {
   stopPlaceName: string | null;
   updatedAt: string;
   estimatedCalls: string | null;
-};
-
-export type LegacyPages = Models.Row & {
-  path: string;
-  root: string;
-  content: string;
-  zones: string;
 };
 
 export enum DocumentCategory {

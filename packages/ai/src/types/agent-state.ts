@@ -61,10 +61,6 @@ export function inferAgentState(
     return "navigating";
   }
 
-  if (currentToolCall === "generatePuckContent") {
-    return "generating-content";
-  }
-
   if (currentToolCall === "fillFormFields") {
     return "executing";
   }

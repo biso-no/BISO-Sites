@@ -4616,30 +4616,6 @@
           "default": null,
           "encrypt": false
         },
-        {
-          "key": "root",
-          "type": "text",
-          "required": true,
-          "array": false,
-          "default": null,
-          "encrypt": false
-        },
-        {
-          "key": "content",
-          "type": "mediumtext",
-          "required": true,
-          "array": false,
-          "default": null,
-          "encrypt": false
-        },
-        {
-          "key": "zones",
-          "type": "mediumtext",
-          "required": true,
-          "array": false,
-          "default": null,
-          "encrypt": false
-        }
       ],
       "indexes": []
     },
