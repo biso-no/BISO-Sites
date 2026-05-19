@@ -1,0 +1,47 @@
+"use client";
+
+import type { ContactBlock } from "@/editor/types";
+import type { PatchFn } from "@/blocks/types";
+
+interface Props { block: ContactBlock; edit: boolean; onPatch: PatchFn; }
+
+function E({ children, onBlur }: { children: string; onBlur: (v: string) => void }) {
+  return (
+    <span contentEditable suppressContentEditableWarning data-edit="1"
+      onBlur={(e) => onBlur(e.currentTarget.textContent ?? "")}
+    >{children}</span>
+  );
+}
+
+export function ContactRender({ block, edit, onPatch }: Props) {
+  return (
+    <div className="pg-contact pg-block">
+      {edit ? (
+        <h2 contentEditable suppressContentEditableWarning data-edit="1"
+          onBlur={(e) => onPatch("heading", e.currentTarget.textContent ?? "")}
+        >{block.heading}</h2>
+      ) : <h2>{block.heading}</h2>}
+      <div className="pg-contact__col">
+        <div className="pg-contact__col-label">Email</div>
+        <div className="pg-contact__col-val">
+          {edit ? <E onBlur={(v) => onPatch("email", v)}>{block.email}</E> : <a href={`mailto:${block.email}`}>{block.email}</a>}
+        </div>
+      </div>
+      <div className="pg-contact__col">
+        <div className="pg-contact__col-label">Instagram</div>
+        <div className="pg-contact__col-val">
+          {edit ? <E onBlur={(v) => onPatch("instagram", v)}>{block.instagram}</E> : <span>{block.instagram}</span>}
+        </div>
+      </div>
+      <div className="pg-contact__col">
+        <div className="pg-contact__col-label">Address</div>
+        <div className="pg-contact__col-val">
+          {edit ? <E onBlur={(v) => onPatch("address", v)}>{block.address}</E> : <span>{block.address}</span>}
+        </div>
+        <div style={{ marginTop: 6, color: "rgba(250,247,242,.55)", fontSize: 12 }}>
+          {edit ? <E onBlur={(v) => onPatch("hours", v)}>{block.hours}</E> : <span>{block.hours}</span>}
+        </div>
+      </div>
+    </div>
+  );
+}
