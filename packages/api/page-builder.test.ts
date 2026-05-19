@@ -4,6 +4,7 @@ const db = vi.hoisted(() => ({
   createRow: vi.fn(),
   listRows: vi.fn(),
   updateRow: vi.fn(),
+  upsertRow: vi.fn(),
 }));
 
 vi.mock("server-only", () => ({}));
@@ -79,7 +80,7 @@ describe("page builder", () => {
   });
 
   it("creates a page and active locale translation without invalid attributes", async () => {
-    db.createRow
+    db.upsertRow
       .mockResolvedValueOnce({ $id: "page-1" })
       .mockResolvedValueOnce({ $id: "tr-no" });
     db.listRows
@@ -88,14 +89,14 @@ describe("page builder", () => {
 
     await savePageDraft({ id: null, doc, locale: "no", ctx });
 
-    expect(db.createRow).toHaveBeenNthCalledWith(
+    expect(db.upsertRow).toHaveBeenNthCalledWith(
       1,
       "app",
       "pages",
       expect.any(String),
       expect.not.objectContaining({ title: expect.anything() })
     );
-    expect(db.createRow).toHaveBeenNthCalledWith(
+    expect(db.upsertRow).toHaveBeenNthCalledWith(
       2,
       "app",
       "page_translations",
@@ -105,7 +106,7 @@ describe("page builder", () => {
   });
 
   it("increments the slug when a new autosaved page uses an existing slug", async () => {
-    db.createRow
+    db.upsertRow
       .mockResolvedValueOnce({ $id: "page-2" })
       .mockResolvedValueOnce({ $id: "tr-no" });
     db.listRows
@@ -116,14 +117,14 @@ describe("page builder", () => {
     const result = await savePageDraft({ id: null, doc, locale: "no", ctx });
 
     expect(result.slug).toBe("shared-slug-2");
-    expect(db.createRow).toHaveBeenNthCalledWith(
+    expect(db.upsertRow).toHaveBeenNthCalledWith(
       1,
       "app",
       "pages",
       expect.any(String),
       expect.objectContaining({ slug: "shared-slug-2" })
     );
-    expect(db.createRow).toHaveBeenNthCalledWith(
+    expect(db.upsertRow).toHaveBeenNthCalledWith(
       2,
       "app",
       "page_translations",
@@ -135,11 +136,16 @@ describe("page builder", () => {
   });
 
   it("updates an existing locale translation instead of creating a duplicate", async () => {
-    db.listRows.mockResolvedValueOnce({ rows: [{ $id: "tr-no" }] });
+    db.upsertRow
+      .mockResolvedValueOnce({ $id: "page-1" })
+      .mockResolvedValueOnce({ $id: "tr-no" });
+    db.listRows.mockResolvedValueOnce({
+      rows: [{ $id: "tr-no", is_published: false }],
+    });
 
     await savePageDraft({ id: "page-1", doc, locale: "no", ctx });
 
-    expect(db.updateRow).toHaveBeenCalledWith(
+    expect(db.upsertRow).toHaveBeenCalledWith(
       "app",
       "page_translations",
       "tr-no",

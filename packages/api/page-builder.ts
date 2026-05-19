@@ -2,13 +2,8 @@ import "server-only";
 
 import { ID, Query } from "./index";
 import { createSessionClient } from "./server";
-import type {
-  PageLocale,
-  PageStatus,
-  Pages,
-  PageTranslations,
-  PageVisibility,
-} from "./types/appwrite";
+import type { PageLocale, Pages, PageTranslations } from "./types/appwrite";
+import { PageStatus, PageVisibility } from "./types/appwrite";
 
 // Minimal local definition — avoids circular dep with @repo/editor
 interface PageMeta {
@@ -331,34 +326,22 @@ export async function savePageDraft({
   const campusId = resolveCampusId(ctx);
   let normalizedDoc = normalizeDocForSave(doc);
 
-  let pageId: string;
-
-  if (id) {
-    // Update existing page row
-    await db.updateRow("app", "pages", id, {
-      slug: normalizedDoc.meta.slug,
-      status: normalizedDoc.meta.status as PageStatus,
-      department_id: normalizedDoc.meta.department || null,
-      campus_id: campusId,
-    });
-    pageId = id;
-  } else {
+  if (!id) {
     const uniqueSlug = await resolveUniquePageSlug(db, normalizedDoc.meta.slug);
     normalizedDoc = {
       ...normalizedDoc,
       meta: { ...normalizedDoc.meta, slug: uniqueSlug },
     };
-    // Create new page row
-    const created = await db.createRow("app", "pages", ID.unique(), {
-      slug: normalizedDoc.meta.slug,
-      status: "draft" as PageStatus,
-      visibility: "public",
-      department_id: normalizedDoc.meta.department || null,
-      campus_id: campusId,
-    });
-    pageId = created.$id;
   }
 
+  const page = await db.upsertRow<Pages>("app", "pages", id ?? ID.unique(), {
+    slug: normalizedDoc.meta.slug,
+    status: id ? (normalizedDoc.meta.status as PageStatus) : PageStatus.DRAFT,
+    visibility: PageVisibility.PUBLIC,
+    department_id: normalizedDoc.meta.department || null,
+    campus_id: campusId,
+  });
+  const pageId = page.$id;
   const json = pageDocToJson(normalizedDoc);
 
   // Upsert translation row
@@ -368,34 +351,26 @@ export async function savePageDraft({
     Query.limit(1),
   ]);
 
-  let translationId: string;
-
-  if (tRes.rows[0]) {
-    translationId = tRes.rows[0].$id;
-    await db.updateRow("app", "page_translations", translationId, {
+  const translation = await db.upsertRow<PageTranslations>(
+    "app",
+    "page_translations",
+    tRes.rows[0]?.$id ?? ID.unique(),
+    {
+      page_id: pageId,
+      page: pageId as unknown as Pages,
+      locale: locale as PageLocale,
       draft_document: json,
       title: normalizedDoc.meta.title,
       description: normalizedDoc.meta.description ?? null,
-    });
-  } else {
-    const created = await db.createRow(
-      "app",
-      "page_translations",
-      ID.unique(),
-      {
-        page_id: pageId,
-        page: pageId,
-        locale: locale as PageLocale,
-        title: normalizedDoc.meta.title,
-        description: normalizedDoc.meta.description ?? null,
-        draft_document: json,
-        is_published: false,
-      }
-    );
-    translationId = created.$id;
-  }
+      is_published: tRes.rows[0]?.is_published ?? false,
+    }
+  );
 
-  return { pageId, slug: normalizedDoc.meta.slug, translationId };
+  return {
+    pageId,
+    slug: normalizedDoc.meta.slug,
+    translationId: translation.$id,
+  };
 }
 
 export async function publishPage({
