@@ -1,15 +1,27 @@
 "use client";
 
-import { useEditorStore } from "@/editor/store";
 import { useMeta, useSaving } from "@/editor/hooks";
+import { useEditorCallbacks } from "@/editor/callbacks";
 
 export function Topbar() {
   const meta = useMeta();
   const saving = useSaving();
+  const { onExit } = useEditorCallbacks();
 
   return (
     <header className="pe-topbar">
       <div className="pe-topbar__left">
+        {onExit && (
+          <button
+            type="button"
+            className="pe-topbar__exit"
+            onClick={onExit}
+            aria-label="Back to pages"
+            title="Back to pages"
+          >
+            ←
+          </button>
+        )}
         <span className="pe-topbar__logo serif">BISO</span>
         <span className="pe-topbar__sep" aria-hidden="true">/</span>
         <span className="pe-topbar__page">{meta.title}</span>

@@ -7,6 +7,7 @@ export interface EditorCallbacks {
   savePage: (doc: PageDoc) => Promise<void>;
   uploadFile: (fd: FormData) => Promise<{ fileId: string; url: string }>;
   departments: EditorDepartment[];
+  onExit?: () => void;
 }
 
 // Noop implementation for web renderer context (edit=false; callbacks are never invoked).

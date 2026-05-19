@@ -4615,7 +4615,7 @@
           "size": 30,
           "default": null,
           "encrypt": false
-        },
+        }
       ],
       "indexes": []
     },

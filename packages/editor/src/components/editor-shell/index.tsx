@@ -31,11 +31,12 @@ interface Props {
   savePage: (doc: PageDoc) => Promise<void>;
   uploadFile: (fd: FormData) => Promise<{ fileId: string; url: string }>;
   departments: EditorDepartment[];
+  onExit?: () => void;
 }
 
 const DEBOUNCE_MS = 800;
 
-export function EditorShell({ initial, savePage, uploadFile, departments }: Props) {
+export function EditorShell({ initial, savePage, uploadFile, departments, onExit }: Props) {
   const setDoc    = useEditorStore((s) => s.setDoc);
   const doc       = useEditorStore((s) => s.doc);
   const setSaving = useEditorStore((s) => s.setSaving);
@@ -134,7 +135,7 @@ export function EditorShell({ initial, savePage, uploadFile, departments }: Prop
   }, [undo, redo]);
 
   return (
-    <EditorCallbacksContext.Provider value={{ savePage, uploadFile, departments }}>
+    <EditorCallbacksContext.Provider value={{ savePage, uploadFile, departments, onExit }}>
     <ThemeScope accent={initial?.meta.accentColor}>
       <DndContext
         sensors={sensors}

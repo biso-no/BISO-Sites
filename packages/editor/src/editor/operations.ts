@@ -52,7 +52,7 @@ export function removeBlock(doc: PageDoc, id: string): void {
 export function duplicateBlock(doc: PageDoc, id: string): string | null {
   const src = doc.blocks.find((b) => b.id === id);
   if (!src) return null;
-  const copy = { ...structuredClone(src), id: rid() };
+  const copy = { ...(JSON.parse(JSON.stringify(src)) as Block), id: rid() };
   const idx = doc.blocks.findIndex((b) => b.id === id);
   doc.blocks.splice(idx + 1, 0, copy as Block);
   return copy.id;
