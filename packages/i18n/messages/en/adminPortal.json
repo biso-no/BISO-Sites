@@ -258,6 +258,51 @@
       "close": "Close posting",
       "reopen": "Reopen"
     },
+    "studio": {
+      "eyebrow": "BISO recruitment studio",
+      "titleAccent": "this term.",
+      "description": "Create, review, and publish student-facing roles with the BISO visual system while keeping each posting tied to campus and department access.",
+      "deadlineDaysLeft": "{count}d left",
+      "pastDeadline": "Past deadline",
+      "duplicate": "Duplicate",
+      "confirmDelete": "Confirm delete",
+      "kpi": {
+        "openPositions": "Open positions",
+        "liveNow": "{count} live right now",
+        "waitingForPolish": "{count} waiting for polish",
+        "totalJobs": "Total jobs",
+        "accessibleRecords": "{count} accessible records",
+        "closingSoon": "Closing in 5 days",
+        "needsAttention": "Needs attention"
+      },
+      "featured": {
+        "eyebrow": "Pick up where you left off",
+        "almostReady": "almost ready.",
+        "complete": "Complete",
+        "daysLeft": "Days left",
+        "tags": "Tags",
+        "checklistTitle": "Publishing checklist",
+        "checklistDescription": "From draft to student-facing listing in a few focused steps.",
+        "resume": "Resume composer"
+      },
+      "checklist": {
+        "titleDepartment": "Title and department",
+        "descriptionTeaser": "Description and teaser",
+        "applicationDeadline": "Application deadline",
+        "contactDetails": "Contact details"
+      },
+      "fallback": {
+        "untitled": "Untitled vacancy",
+        "noTeaser": "No teaser has been written yet.",
+        "noDeadline": "No deadline",
+        "invalidDate": "Invalid date",
+        "anyDepartment": "Any department"
+      },
+      "table": {
+        "position": "Position",
+        "deadline": "Deadline"
+      }
+    },
     "preview": "Live Preview",
     "saveSuccess": "Job saved successfully",
     "saveError": "Failed to save job",
@@ -363,6 +408,51 @@
       "fillRate": "Avg. fill rate",
       "soldOut": "Sold out next 7 days"
     },
+    "studio": {
+      "titleAccent": "this term.",
+      "description": "Compose, polish, and publish events alongside the BISO visual system. Each draft tracks its own readiness checklist before going student-facing.",
+      "free": "Free",
+      "memberAbbrev": "memb.",
+      "series": "Series",
+      "kpi": {
+        "published": "{count} published",
+        "awaitingRegistration": "Awaiting registration data",
+        "awaitingData": "Awaiting data",
+        "openWaitlist": "Open a waitlist?"
+      },
+      "featured": {
+        "eyebrow": "Pick up where you left off",
+        "readyToPublish": "ready to publish",
+        "fieldsAway": "{count, plural, one {# field away} other {# fields away}}",
+        "description": "Keep momentum on this draft. Finish the remaining checklist items so it can move into the live schedule.",
+        "complete": "Complete",
+        "requiredFields": "Required fields",
+        "plannedFor": "Planned for",
+        "checklistTitle": "Publishing checklist",
+        "checklistDescription": "Steps to turn this draft into a published event.",
+        "resume": "Resume composer"
+      },
+      "checklist": {
+        "titleCategory": "Title & category",
+        "descriptionBoth": "Description (EN + NO)",
+        "dateTimeDoors": "Date, time, doors",
+        "venueCapacity": "Venue & capacity",
+        "ticketsAudience": "Tickets & audience"
+      },
+      "status": {
+        "done": "done",
+        "now": "now"
+      },
+      "fallback": {
+        "tbd": "tbd",
+        "invalidDate": "Invalid date",
+        "untitled": "Untitled event"
+      },
+      "table": {
+        "when": "When",
+        "registered": "Registered"
+      }
+    },
     "preview": "Event preview",
     "saveSuccess": "Event saved",
     "saveError": "Failed to save event",
@@ -406,6 +496,10 @@
       "duplicate": "Duplicate"
     },
     "preview": "Editorial Preview",
+    "fallback": {
+      "untitled": "Untitled"
+    },
+    "noMatching": "No matching articles",
     "saveSuccess": "Article saved",
     "saveError": "Failed to save article",
     "deleteSuccess": "Article deleted",
@@ -443,6 +537,68 @@
       "edit": "Edit product",
       "delete": "Delete product",
       "duplicate": "Duplicate"
+    },
+    "studio": {
+      "titleAccent": "the catalogue.",
+      "description": "Manage your webshop products and incoming orders.",
+      "member": "Member",
+      "confirm": "Confirm",
+      "confirmDelete": "Confirm delete",
+      "deleting": "Deleting…",
+      "tabs": {
+        "catalog": "Catalogue"
+      },
+      "kpi": {
+        "liveProducts": "Live products",
+        "revenue30d": "Revenue (30d)"
+      },
+      "stock": {
+        "unlimited": "Unlimited"
+      },
+      "featured": {
+        "eyebrow": "Pick up where you left off",
+        "completion": "Completion",
+        "checklistTitle": "Publishing checklist",
+        "resume": "Resume editor"
+      },
+      "checklist": {
+        "titleCategory": "Title & category",
+        "description": "Description (NO)",
+        "priceSet": "Price set",
+        "photoUploaded": "Photo uploaded",
+        "campusAssigned": "Campus assigned"
+      },
+      "status": {
+        "done": "done",
+        "now": "now"
+      },
+      "fallback": {
+        "noCategory": "No category"
+      },
+      "filters": {
+        "allProducts": "All products",
+        "fromDate": "From date",
+        "toDate": "To date",
+        "clear": "Clear"
+      },
+      "empty": {
+        "adjustProductFilters": "Try adjusting your search or filter.",
+        "adjustOrderFilters": "Try adjusting your search or filters.",
+        "orders": "Orders will appear here once customers start purchasing."
+      },
+      "table": {
+        "refDate": "Ref / Date"
+      },
+      "csv": {
+        "orderId": "Order ID",
+        "buyerName": "Buyer Name",
+        "buyerEmail": "Buyer Email",
+        "buyerPhone": "Buyer Phone",
+        "currency": "Currency",
+        "paymentProvider": "Payment Provider",
+        "memberDiscount": "Member Discount %",
+        "receiptUrl": "Receipt URL"
+      }
     },
     "preview": "Storefront Preview",
     "saveSuccess": "Product saved",

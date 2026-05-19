@@ -258,6 +258,51 @@
       "close": "Lukk annonse",
       "reopen": "Åpne igjen"
     },
+    "studio": {
+      "eyebrow": "BISO rekrutteringsstudio",
+      "titleAccent": "dette semesteret.",
+      "description": "Opprett, gjennomgå og publiser studentrettede roller med BISOs visuelle system, samtidig som hver utlysning knyttes til campus- og avdelingstilgang.",
+      "deadlineDaysLeft": "{count}d igjen",
+      "pastDeadline": "Frist passert",
+      "duplicate": "Dupliser",
+      "confirmDelete": "Bekreft sletting",
+      "kpi": {
+        "openPositions": "Åpne stillinger",
+        "liveNow": "{count} publisert nå",
+        "waitingForPolish": "{count} venter på finpuss",
+        "totalJobs": "Totalt antall stillinger",
+        "accessibleRecords": "{count} tilgjengelige poster",
+        "closingSoon": "Stenger innen 5 dager",
+        "needsAttention": "Krever oppmerksomhet"
+      },
+      "featured": {
+        "eyebrow": "Fortsett der du slapp",
+        "almostReady": "nesten klar.",
+        "complete": "Fullført",
+        "daysLeft": "Dager igjen",
+        "tags": "Tagger",
+        "checklistTitle": "Publiseringssjekkliste",
+        "checklistDescription": "Fra utkast til studentrettet utlysning i noen fokuserte steg.",
+        "resume": "Fortsett redigering"
+      },
+      "checklist": {
+        "titleDepartment": "Tittel og avdeling",
+        "descriptionTeaser": "Beskrivelse og ingress",
+        "applicationDeadline": "Søknadsfrist",
+        "contactDetails": "Kontaktdetaljer"
+      },
+      "fallback": {
+        "untitled": "Uten tittel",
+        "noTeaser": "Ingen ingress er skrevet ennå.",
+        "noDeadline": "Ingen frist",
+        "invalidDate": "Ugyldig dato",
+        "anyDepartment": "Valgfri avdeling"
+      },
+      "table": {
+        "position": "Stilling",
+        "deadline": "Frist"
+      }
+    },
     "preview": "Forhåndsvisning",
     "saveSuccess": "Stilling lagret",
     "saveError": "Kunne ikke lagre stilling",
@@ -363,6 +408,51 @@
       "fillRate": "Gj.snitt fyllgrad",
       "soldOut": "Utsolgt neste 7 dager"
     },
+    "studio": {
+      "titleAccent": "dette semesteret.",
+      "description": "Lag, finpuss og publiser arrangementer sammen med BISOs visuelle system. Hvert utkast følger sin egen klargjøringssjekkliste før det blir synlig for studenter.",
+      "free": "Gratis",
+      "memberAbbrev": "medl.",
+      "series": "Serie",
+      "kpi": {
+        "published": "{count} publisert",
+        "awaitingRegistration": "Venter på påmeldingsdata",
+        "awaitingData": "Venter på data",
+        "openWaitlist": "Åpne venteliste?"
+      },
+      "featured": {
+        "eyebrow": "Fortsett der du slapp",
+        "readyToPublish": "klar til publisering",
+        "fieldsAway": "{count, plural, one {# felt igjen} other {# felt igjen}}",
+        "description": "Hold fremdriften i utkastet. Fullfør de gjenværende punktene slik at det kan legges inn i programmet.",
+        "complete": "Fullført",
+        "requiredFields": "Obligatoriske felt",
+        "plannedFor": "Planlagt",
+        "checklistTitle": "Publiseringssjekkliste",
+        "checklistDescription": "Steg for å gjøre dette utkastet til et publisert arrangement.",
+        "resume": "Fortsett redigering"
+      },
+      "checklist": {
+        "titleCategory": "Tittel og kategori",
+        "descriptionBoth": "Beskrivelse (EN + NO)",
+        "dateTimeDoors": "Dato, tid og åpning",
+        "venueCapacity": "Sted og kapasitet",
+        "ticketsAudience": "Billetter og publikum"
+      },
+      "status": {
+        "done": "ferdig",
+        "now": "nå"
+      },
+      "fallback": {
+        "tbd": "tbd",
+        "invalidDate": "Ugyldig dato",
+        "untitled": "Uten tittel"
+      },
+      "table": {
+        "when": "Når",
+        "registered": "Påmeldte"
+      }
+    },
     "preview": "Forhåndsvisning",
     "saveSuccess": "Arrangement lagret",
     "saveError": "Kunne ikke lagre arrangement",
@@ -406,6 +496,10 @@
       "duplicate": "Dupliser"
     },
     "preview": "Forhåndsvisning",
+    "fallback": {
+      "untitled": "Uten tittel"
+    },
+    "noMatching": "Ingen samsvarende artikler",
     "saveSuccess": "Artikkel lagret",
     "saveError": "Kunne ikke lagre artikkel",
     "deleteSuccess": "Artikkel slettet",
@@ -443,6 +537,68 @@
       "edit": "Rediger produkt",
       "delete": "Slett produkt",
       "duplicate": "Dupliser"
+    },
+    "studio": {
+      "titleAccent": "katalogen.",
+      "description": "Administrer nettbutikkens produkter og innkommende bestillinger.",
+      "member": "Medlem",
+      "confirm": "Bekreft",
+      "confirmDelete": "Bekreft sletting",
+      "deleting": "Sletter…",
+      "tabs": {
+        "catalog": "Katalog"
+      },
+      "kpi": {
+        "liveProducts": "Publiserte produkter",
+        "revenue30d": "Omsetning (30d)"
+      },
+      "stock": {
+        "unlimited": "Ubegrenset"
+      },
+      "featured": {
+        "eyebrow": "Fortsett der du slapp",
+        "completion": "Fullføring",
+        "checklistTitle": "Publiseringssjekkliste",
+        "resume": "Fortsett redigering"
+      },
+      "checklist": {
+        "titleCategory": "Tittel og kategori",
+        "description": "Beskrivelse (NO)",
+        "priceSet": "Pris satt",
+        "photoUploaded": "Bilde lastet opp",
+        "campusAssigned": "Campus tilordnet"
+      },
+      "status": {
+        "done": "ferdig",
+        "now": "nå"
+      },
+      "fallback": {
+        "noCategory": "Ingen kategori"
+      },
+      "filters": {
+        "allProducts": "Alle produkter",
+        "fromDate": "Fra dato",
+        "toDate": "Til dato",
+        "clear": "Tøm"
+      },
+      "empty": {
+        "adjustProductFilters": "Prøv å justere søk eller filter.",
+        "adjustOrderFilters": "Prøv å justere søk eller filtre.",
+        "orders": "Bestillinger vises her når kunder begynner å handle."
+      },
+      "table": {
+        "refDate": "Ref. / dato"
+      },
+      "csv": {
+        "orderId": "Bestillings-ID",
+        "buyerName": "Kjøpernavn",
+        "buyerEmail": "Kjøper-e-post",
+        "buyerPhone": "Kjøpertelefon",
+        "currency": "Valuta",
+        "paymentProvider": "Betalingsleverandør",
+        "memberDiscount": "Medlemsrabatt %",
+        "receiptUrl": "Kvitterings-URL"
+      }
     },
     "preview": "Butikkvisning",
     "saveSuccess": "Produkt lagret",

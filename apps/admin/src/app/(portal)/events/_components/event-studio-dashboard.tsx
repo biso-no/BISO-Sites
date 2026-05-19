@@ -1,6 +1,6 @@
 "use client";
 
-import type { EventCategory, EventStatus } from "@repo/api/types/appwrite";
+import type { EventStatus } from "@repo/api/types/appwrite";
 import type { EventRecord } from "@repo/shared/types/events";
 import {
   Bell,
@@ -17,6 +17,7 @@ import {
   Users,
 } from "lucide-react";
 import Link from "next/link";
+import { useLocale, useTranslations } from "next-intl";
 import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { deleteEvent } from "../../_actions/events";
@@ -60,86 +61,63 @@ const BRAND = {
   sky: "#2a4a7a",
 } as const;
 
-const CATEGORY_LABELS: Record<
-  EventCategory | string,
-  { crest: string; name: string }
-> = {
-  academic: { crest: "A", name: "Academic" },
-  career: { crest: "C", name: "Career" },
-  party: { crest: "P", name: "Party" },
-  social: { crest: "S", name: "Social" },
-  sport: { crest: "Sp", name: "Sport" },
-  talk: { crest: "T", name: "Talk" },
-  trip: { crest: "Tr", name: "Trip" },
-  workshop: { crest: "W", name: "Workshop" },
-};
-
 const SERIF_STACK =
   '"Cormorant Garamond", "EB Garamond", "Times New Roman", Georgia, serif';
 const MONO_STACK =
   '"IBM Plex Mono", "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace';
 
-const MONTH_FORMATTER = new Intl.DateTimeFormat("en-GB", { month: "short" });
-const DAY_NUM_FORMATTER = new Intl.DateTimeFormat("en-GB", { day: "numeric" });
-const DATE_FORMATTER = new Intl.DateTimeFormat("en-GB", {
-  day: "2-digit",
-  month: "short",
-  year: "numeric",
-});
-const TIME_FORMATTER = new Intl.DateTimeFormat("nb-NO", {
-  hour: "2-digit",
-  minute: "2-digit",
-});
-const DAY_FORMATTER = new Intl.DateTimeFormat("en-GB", {
-  weekday: "short",
-});
 const NOK_FORMATTER = new Intl.NumberFormat("nb-NO", {
   currency: "NOK",
   maximumFractionDigits: 0,
   style: "currency",
 });
 
-function getTitle(event: EventRecord, locale: "en" | "no" = "en"): string {
+function normalizeLocale(locale: string): "en" | "no" {
+  return locale === "no" ? "no" : "en";
+}
+
+function formatterLocale(locale: "en" | "no"): string {
+  return locale === "no" ? "nb-NO" : "en-GB";
+}
+
+function getTitle(event: EventRecord, locale: "en" | "no"): string {
   return (
     event.translation_refs.find((translation) => translation.locale === locale)
       ?.title ??
     event.translation_refs[0]?.title ??
-    "Untitled event"
+    ""
   );
 }
 
-function getDescription(event: EventRecord): string {
+function getDescription(event: EventRecord, locale: "en" | "no"): string {
   return (
-    event.translation_refs.find((translation) => translation.locale === "en")
+    event.translation_refs.find((translation) => translation.locale === locale)
       ?.description ??
     event.translation_refs[0]?.description ??
     ""
   );
 }
 
-function fmtDate(iso: string | null | undefined): string {
+function fmtDate(
+  iso: string | null | undefined,
+  locale: "en" | "no",
+  labels: { invalid: string; tbd: string }
+): string {
   if (!iso) {
-    return "TBD";
+    return labels.tbd;
   }
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) {
-    return "Invalid";
+    return labels.invalid;
   }
-  return DATE_FORMATTER.format(d);
+  return new Intl.DateTimeFormat(formatterLocale(locale), {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  }).format(d);
 }
 
-function fmtTime(iso: string | null | undefined): string {
-  if (!iso) {
-    return "—";
-  }
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) {
-    return "—";
-  }
-  return TIME_FORMATTER.format(d);
-}
-
-function fmtDay(iso: string | null | undefined): string {
+function fmtTime(iso: string | null | undefined, locale: "en" | "no"): string {
   if (!iso) {
     return "—";
   }
@@ -147,15 +125,35 @@ function fmtDay(iso: string | null | undefined): string {
   if (Number.isNaN(d.getTime())) {
     return "—";
   }
-  return DAY_FORMATTER.format(d);
+  return new Intl.DateTimeFormat(formatterLocale(locale), {
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(d);
 }
 
-function fmtMonth(iso: string): string {
-  return MONTH_FORMATTER.format(new Date(iso)).toUpperCase();
+function fmtDay(iso: string | null | undefined, locale: "en" | "no"): string {
+  if (!iso) {
+    return "—";
+  }
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) {
+    return "—";
+  }
+  return new Intl.DateTimeFormat(formatterLocale(locale), {
+    weekday: "short",
+  }).format(d);
 }
 
-function fmtDayNum(iso: string): string {
-  return DAY_NUM_FORMATTER.format(new Date(iso));
+function fmtMonth(iso: string, locale: "en" | "no"): string {
+  return new Intl.DateTimeFormat(formatterLocale(locale), { month: "short" })
+    .format(new Date(iso))
+    .toUpperCase();
+}
+
+function fmtDayNum(iso: string, locale: "en" | "no"): string {
+  return new Intl.DateTimeFormat(formatterLocale(locale), {
+    day: "numeric",
+  }).format(new Date(iso));
 }
 
 function durationHrs(
@@ -176,9 +174,9 @@ function durationHrs(
   return `${hrs.toFixed(1).replace(".0", "")}h`;
 }
 
-function fmtNOK(amount: number | null | undefined): string {
+function fmtNOK(amount: number | null | undefined, freeLabel: string): string {
   if (amount == null || amount === 0) {
-    return "Free";
+    return freeLabel;
   }
   return NOK_FORMATTER.format(amount);
 }
@@ -351,6 +349,8 @@ function KpiCard({
 }
 
 function DateBlock({ iso }: { iso: string | null | undefined }) {
+  const locale = normalizeLocale(useLocale());
+  const t = useTranslations("adminPortal.events.studio");
   const isTbd = !iso;
   const containerStyle: React.CSSProperties = {
     alignItems: "center",
@@ -381,7 +381,7 @@ function DateBlock({ iso }: { iso: string | null | undefined }) {
           width: "100%",
         }}
       >
-        {isTbd ? "tbd" : fmtMonth(iso as string)}
+        {isTbd ? t("fallback.tbd") : fmtMonth(iso as string, locale)}
       </div>
       <div
         style={
@@ -401,13 +401,14 @@ function DateBlock({ iso }: { iso: string | null | undefined }) {
               }
         }
       >
-        {isTbd ? "—" : fmtDayNum(iso as string)}
+        {isTbd ? "—" : fmtDayNum(iso as string, locale)}
       </div>
     </div>
   );
 }
 
 function StatusPill({ status }: { status: EventStatus }) {
+  const commonStatus = useTranslations("adminPortal.common.status");
   const statusKey = String(status);
   let color: string = BRAND.ink3;
   let background: string = BRAND.paper2;
@@ -455,7 +456,7 @@ function StatusPill({ status }: { status: EventStatus }) {
           width: 6,
         }}
       />
-      {statusKey}
+      {commonStatus(statusKey)}
     </span>
   );
 }
@@ -467,10 +468,10 @@ function getDraftCompletion(event: EventRecord): {
 } {
   const titleEn = getTitle(event, "en");
   const titleNo = getTitle(event, "no");
-  const description = getDescription(event);
+  const description = getDescription(event, "en");
   const checks = [
-    Boolean(titleEn && titleEn !== "Untitled event"),
-    Boolean(titleNo && titleNo !== "Untitled event"),
+    Boolean(titleEn),
+    Boolean(titleNo),
     Boolean(description && description.trim().length > 0),
     Boolean(event.category),
     Boolean(event.start_date),
@@ -499,55 +500,47 @@ function pickFeaturedDraft(events: EventRecord[]): EventRecord | null {
   return best;
 }
 
-function checklistStatusLabel(item: { done: boolean; now: boolean }): string {
-  if (item.done) {
-    return "done";
-  }
-  if (item.now) {
-    return "now";
-  }
-  return "—";
-}
-
 function FeaturedEventDraft({ events }: { events: EventRecord[] }) {
+  const locale = normalizeLocale(useLocale());
+  const t = useTranslations("adminPortal.events.studio");
   const draft = useMemo(() => pickFeaturedDraft(events), [events]);
   if (!draft) {
     return null;
   }
 
-  const titleEn = getTitle(draft, "en");
+  const titleEn = getTitle(draft, locale);
   const { complete, filled, total } = getDraftCompletion(draft);
   const percent = Math.round(complete * 100);
   const fieldsLeft = total - filled;
 
-  const titleDone = Boolean(
-    titleEn && titleEn !== "Untitled event" && draft.category
+  const titleDone = Boolean(titleEn && draft.category);
+  const descriptionDone = Boolean(
+    getDescription(draft, locale).trim().length > 0
   );
-  const descriptionDone = Boolean(getDescription(draft).trim().length > 0);
   const dateDone = Boolean(draft.start_date);
   const venueDone = Boolean(draft.location) && draft.capacity > 0;
   const ticketsDone = Boolean(draft.price != null || draft.ticket_url);
 
   const checklist: { done: boolean; label: string; now: boolean }[] = [
-    { done: titleDone, label: "Title & category", now: !titleDone },
+    { done: titleDone, label: t("checklist.titleCategory"), now: !titleDone },
     {
       done: descriptionDone,
-      label: "Description (EN + NO)",
+      label: t("checklist.descriptionBoth"),
       now: titleDone && !descriptionDone,
     },
     {
       done: dateDone,
-      label: "Date, time, doors",
+      label: t("checklist.dateTimeDoors"),
       now: descriptionDone && !dateDone,
     },
     {
       done: venueDone,
-      label: "Venue & capacity",
+      label: t("checklist.venueCapacity"),
       now: dateDone && !venueDone,
     },
     {
       done: ticketsDone,
-      label: "Tickets & audience",
+      label: t("checklist.ticketsAudience"),
       now: venueDone && !ticketsDone,
     },
   ];
@@ -598,7 +591,7 @@ function FeaturedEventDraft({ events }: { events: EventRecord[] }) {
           >
             <Sparkles size={12} />
           </span>
-          Pick up where you left off
+          {t("featured.eyebrow")}
         </div>
         <h2
           style={{
@@ -613,8 +606,8 @@ function FeaturedEventDraft({ events }: { events: EventRecord[] }) {
           {titleEn}{" "}
           <em style={{ color: BRAND.claret, fontStyle: "italic" }}>
             {fieldsLeft === 0
-              ? "ready to publish"
-              : `${fieldsLeft} field${fieldsLeft === 1 ? "" : "s"} away`}
+              ? t("featured.readyToPublish")
+              : t("featured.fieldsAway", { count: fieldsLeft })}
           </em>
         </h2>
         <p
@@ -625,8 +618,7 @@ function FeaturedEventDraft({ events }: { events: EventRecord[] }) {
             maxWidth: "38ch",
           }}
         >
-          Keep momentum on this draft — finish the remaining checklist items so
-          it can move into the live schedule.
+          {t("featured.description")}
         </p>
         <div style={{ display: "flex", gap: 22, marginTop: 18 }}>
           <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
@@ -648,7 +640,7 @@ function FeaturedEventDraft({ events }: { events: EventRecord[] }) {
                 textTransform: "uppercase",
               }}
             >
-              Complete
+              {t("featured.complete")}
             </span>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
@@ -670,7 +662,7 @@ function FeaturedEventDraft({ events }: { events: EventRecord[] }) {
                 textTransform: "uppercase",
               }}
             >
-              Required fields
+              {t("featured.requiredFields")}
             </span>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
@@ -682,7 +674,10 @@ function FeaturedEventDraft({ events }: { events: EventRecord[] }) {
                 lineHeight: 1,
               }}
             >
-              {fmtDate(draft.start_date)}
+              {fmtDate(draft.start_date, locale, {
+                invalid: t("fallback.invalidDate"),
+                tbd: t("fallback.tbd"),
+              })}
             </b>
             <span
               style={{
@@ -692,7 +687,7 @@ function FeaturedEventDraft({ events }: { events: EventRecord[] }) {
                 textTransform: "uppercase",
               }}
             >
-              Planned for
+              {t("featured.plannedFor")}
             </span>
           </div>
         </div>
@@ -718,7 +713,7 @@ function FeaturedEventDraft({ events }: { events: EventRecord[] }) {
               textTransform: "uppercase",
             }}
           >
-            Publishing checklist
+            {t("featured.checklistTitle")}
           </div>
           <h3
             style={{
@@ -730,7 +725,7 @@ function FeaturedEventDraft({ events }: { events: EventRecord[] }) {
               maxWidth: "22ch",
             }}
           >
-            Steps to turn this draft into a published event.
+            {t("featured.checklistDescription")}
           </h3>
         </div>
         <div
@@ -748,6 +743,12 @@ function FeaturedEventDraft({ events }: { events: EventRecord[] }) {
               ? "0 0 0 4px rgba(250,247,242,.12)"
               : "none";
             const dotBorderColor = item.now ? BRAND.paper : dotBorder;
+            let statusText = "—";
+            if (item.done) {
+              statusText = t("status.done");
+            } else if (item.now) {
+              statusText = t("status.now");
+            }
             return (
               <div
                 key={item.label}
@@ -777,7 +778,7 @@ function FeaturedEventDraft({ events }: { events: EventRecord[] }) {
                     marginLeft: "auto",
                   }}
                 >
-                  {checklistStatusLabel(item)}
+                  {statusText}
                 </span>
               </div>
             );
@@ -800,7 +801,7 @@ function FeaturedEventDraft({ events }: { events: EventRecord[] }) {
             textDecoration: "none",
           }}
         >
-          Resume composer
+          {t("featured.resume")}
           <TrendingUp size={14} />
         </Link>
       </div>
@@ -809,6 +810,8 @@ function FeaturedEventDraft({ events }: { events: EventRecord[] }) {
 }
 
 function WhenCell({ event }: { event: EventRecord }) {
+  const locale = normalizeLocale(useLocale());
+  const t = useTranslations("adminPortal.events.studio");
   if (!event.start_date) {
     return (
       <div
@@ -833,10 +836,14 @@ function WhenCell({ event }: { event: EventRecord }) {
       }}
     >
       <span style={{ color: BRAND.ink2, fontFamily: MONO_STACK }}>
-        {fmtDay(event.start_date)} · {fmtDate(event.start_date)}
+        {fmtDay(event.start_date, locale)} ·{" "}
+        {fmtDate(event.start_date, locale, {
+          invalid: t("fallback.invalidDate"),
+          tbd: t("fallback.tbd"),
+        })}
       </span>
       <span style={{ color: BRAND.ink3, fontSize: 11 }}>
-        {fmtTime(event.start_date)} – {fmtTime(event.end_date)}
+        {fmtTime(event.start_date, locale)} – {fmtTime(event.end_date, locale)}
       </span>
       <span
         style={{
@@ -953,6 +960,7 @@ function PriceCell({
   memberPrice: number | null;
   price: number;
 }) {
+  const t = useTranslations("adminPortal.events.studio");
   const isFree = price === 0;
   const showMember =
     price > 0 && memberPrice != null && memberPrice > 0 && memberPrice < price;
@@ -964,10 +972,10 @@ function PriceCell({
         fontSize: 12.5,
       }}
     >
-      {fmtNOK(price)}
+      {fmtNOK(price, t("free"))}
       {showMember && (
         <div style={{ color: BRAND.ink3, fontSize: 10.5 }}>
-          {fmtNOK(memberPrice)} memb.
+          {fmtNOK(memberPrice, t("free"))} {t("memberAbbrev")}
         </div>
       )}
     </div>
@@ -989,10 +997,12 @@ function EventRow({
   onDelete: (id: string) => void;
   onRequestDelete: (id: string) => void;
 }) {
-  const titleEn = getTitle(event, "en");
+  const locale = normalizeLocale(useLocale());
+  const t = useTranslations("adminPortal.events");
+  const ts = useTranslations("adminPortal.events.studio");
+  const titleEn = getTitle(event, locale) || ts("fallback.untitled");
   const titleNo = getTitle(event, "no");
   const categoryKey = event.category ? String(event.category) : null;
-  const category = categoryKey ? CATEGORY_LABELS[categoryKey] : null;
   const capacity = event.capacity ?? 0;
   const registered = 0;
   const price = event.price ?? 0;
@@ -1052,7 +1062,7 @@ function EventRow({
                 textTransform: "uppercase",
               }}
             >
-              Series
+              {ts("series")}
             </span>
           )}
         </Link>
@@ -1089,7 +1099,7 @@ function EventRow({
           >
             {titleNo}
           </span>
-          {category && (
+          {categoryKey && (
             <>
               <span style={{ color: BRAND.ink4 }}>·</span>
               <span
@@ -1104,7 +1114,7 @@ function EventRow({
                   padding: "1px 6px",
                 }}
               >
-                {category.name}
+                {t(`categories.${categoryKey}`)}
               </span>
             </>
           )}
@@ -1148,7 +1158,7 @@ function EventRow({
             <Pencil size={13} />
           </Link>
           <button
-            aria-label="Duplicate"
+            aria-label={t("actions.duplicate")}
             disabled
             style={{
               alignItems: "center",
@@ -1214,6 +1224,9 @@ export function EventStudioDashboard({
   const [query, setQuery] = useState("");
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [, startTransition] = useTransition();
+  const t = useTranslations("adminPortal.events");
+  const ts = useTranslations("adminPortal.events.studio");
+  const tc = useTranslations("adminPortal.common");
 
   const now = Date.now();
 
@@ -1271,7 +1284,7 @@ export function EventStudioDashboard({
         return;
       }
       setPendingDeleteId(null);
-      toast.success("Event deleted");
+      toast.success(t("deleteSuccess"));
     });
   }
 
@@ -1314,9 +1327,9 @@ export function EventStudioDashboard({
               margin: 0,
             }}
           >
-            Events{" "}
+            {t("title")}{" "}
             <em style={{ color: BRAND.claret, fontStyle: "italic" }}>
-              this term.
+              {ts("titleAccent")}
             </em>
           </h1>
           <p
@@ -1327,9 +1340,7 @@ export function EventStudioDashboard({
               maxWidth: "48ch",
             }}
           >
-            Compose, polish, and publish events alongside the BISO visual
-            system. Each draft tracks its own readiness checklist before going
-            student-facing.
+            {ts("description")}
           </p>
         </div>
         <Link
@@ -1381,26 +1392,26 @@ export function EventStudioDashboard({
         }}
       >
         <KpiCard
-          delta={`${counts.upcoming} published`}
-          label="Upcoming events"
+          delta={ts("kpi.published", { count: counts.upcoming })}
+          label={t("kpi.upcoming")}
           spark={[3, 3, 4, 5, 5, 6, 6, counts.upcoming || 1]}
           value={String(counts.upcoming)}
         />
         <KpiCard
-          delta="Awaiting registration data"
+          delta={ts("kpi.awaitingRegistration")}
           icon={<Users size={11} />}
-          label="Total registrants"
+          label={t("kpi.registrants")}
           value="—"
         />
         <KpiCard
-          delta="Awaiting registration data"
-          label="Avg. fill rate"
+          delta={ts("kpi.awaitingRegistration")}
+          label={t("kpi.fillRate")}
           value="—"
         />
         <KpiCard
           alert={soldOut > 0}
-          delta={soldOut > 0 ? "Open a waitlist?" : "Awaiting data"}
-          label="Sold out next 7 days"
+          delta={soldOut > 0 ? ts("kpi.openWaitlist") : ts("kpi.awaitingData")}
+          label={t("kpi.soldOut")}
           value={soldOut > 0 ? String(soldOut) : "—"}
         />
       </section>
@@ -1509,7 +1520,7 @@ export function EventStudioDashboard({
           }}
           type="button"
         >
-          <Filter size={13} /> Category
+          <Filter size={13} /> {tc("category")}
         </button>
         <button
           style={{
@@ -1527,7 +1538,7 @@ export function EventStudioDashboard({
           }}
           type="button"
         >
-          <MapPin size={13} /> Campus
+          <MapPin size={13} /> {tc("campus")}
         </button>
         <button
           style={{
@@ -1545,7 +1556,7 @@ export function EventStudioDashboard({
           }}
           type="button"
         >
-          <CalendarDays size={13} /> Date
+          <CalendarDays size={13} /> {tc("date")}
         </button>
       </div>
 
@@ -1563,12 +1574,12 @@ export function EventStudioDashboard({
           }}
         >
           <div />
-          <div>Event</div>
-          <div>When</div>
-          <div>Venue</div>
-          <div>Registered</div>
-          <div>Price</div>
-          <div style={{ textAlign: "right" }}>Status</div>
+          <div>{t("fields.title")}</div>
+          <div>{ts("table.when")}</div>
+          <div>{t("fields.location")}</div>
+          <div>{ts("table.registered")}</div>
+          <div>{tc("price")}</div>
+          <div style={{ textAlign: "right" }}>{t("fields.status")}</div>
         </div>
 
         {filteredEvents.length === 0 ? (

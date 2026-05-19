@@ -10,9 +10,6 @@ interface PageHeaderProps {
 export function PageHeader({ title, description, children }: PageHeaderProps) {
   return (
     <StudioPageHeader description={description} title={title}>
-      <StudioLinkButton className="px-3 py-2 text-xs" href="/api/units/sync">
-        Sync units
-      </StudioLinkButton>
       {children}
     </StudioPageHeader>
   );
