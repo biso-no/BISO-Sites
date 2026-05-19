@@ -192,7 +192,7 @@ export async function POST(req: Request) {
 
   const result = streamText({
     model: openai("gpt-5"),
-    messages: convertToModelMessages(messages),
+    messages: await convertToModelMessages(messages),
     system: systemPrompt,
     tools: tools as Parameters<typeof streamText>[0]["tools"],
     stopWhen: stepCountIs(10),

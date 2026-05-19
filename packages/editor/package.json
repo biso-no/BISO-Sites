@@ -13,6 +13,7 @@
     "./render": "./src/render/index.ts",
     "./blocks": "./src/blocks/index.ts",
     "./theme": "./src/theme/index.ts",
+    "./theme/styles.css": "./src/theme/styles.css",
     "./ai": "./src/ai/index.ts",
     "./types": "./src/editor/types.ts"
   },

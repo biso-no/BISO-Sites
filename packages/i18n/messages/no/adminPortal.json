@@ -717,7 +717,20 @@
       "edit": "Rediger side",
       "delete": "Slett side",
       "preview": "Forhåndsvis"
-    }
+    },
+    "editor": {
+      "save": "Lagre",
+      "saveDraft": "Lagre utkast",
+      "publish": "Publiser",
+      "unpublish": "Avpubliser",
+      "saving": "Lagrer…",
+      "saved": "Lagret",
+      "error": "Feil ved lagring"
+    },
+    "saveSuccess": "Side lagret",
+    "saveError": "Klarte ikke lagre siden",
+    "publishSuccess": "Side publisert",
+    "publishError": "Klarte ikke publisere siden"
   },
   "activity": {
     "title": "Aktivitetslogg",

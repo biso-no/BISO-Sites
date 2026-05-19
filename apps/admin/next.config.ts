@@ -12,6 +12,7 @@ const baseConfig: NextConfig = {
     "@repo/connectors",
     "@repo/shared",
     "@repo/ai",
+    "@repo/editor",
     "@repo/payment",
     "@repo/typescript-config",
   ],

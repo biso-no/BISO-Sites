@@ -3,8 +3,18 @@
 import { Query } from "@repo/api";
 import { createAdminClient, createSessionClient } from "@repo/api/server";
 import type { Pages, PageViewEvents } from "@repo/api/types/appwrite";
+import {
+  getPage as pbGetPage,
+  getPageById as pbGetPageById,
+  savePageDraft,
+  publishPage as pbPublishPage,
+  unpublishPage as pbUnpublishPage,
+  type PageDoc,
+} from "@repo/api/page-builder";
+import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getUserAuthContext, type UserAuthContext } from "@/lib/authorization";
+import { logAuditEvent } from "./audit-log";
 
 async function requireAuth(): Promise<UserAuthContext> {
   const ctx = await getUserAuthContext();
@@ -129,4 +139,56 @@ async function _getPageViewStats(days = 14): Promise<PageViewDay[]> {
   } catch {
     return [];
   }
+}
+
+export async function getPageBySlug(slug: string, locale: "no" | "en" = "no") {
+  await requireAuth();
+  return pbGetPage(slug, locale);
+}
+
+export async function getPageById(id: string, locale: "no" | "en" = "no") {
+  await requireAuth();
+  return pbGetPageById(id, locale);
+}
+
+export async function savePageEditorDoc({
+  id,
+  doc,
+  locale = "no",
+}: {
+  id: string | null;
+  doc: PageDoc;
+  locale?: "no" | "en";
+}): Promise<{ pageId: string } | { error: string }> {
+  const ctx = await requireAuth();
+  try {
+    const { pageId } = await savePageDraft({ id, doc, locale, ctx });
+    await logAuditEvent(ctx, "page_saved", { resourceId: pageId, resourceType: "page" });
+    revalidatePath("/pages");
+    return { pageId };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Save failed" };
+  }
+}
+
+export async function publishPageAction(id: string, locale: "no" | "en" = "no") {
+  const ctx = await requireAuth();
+  await pbPublishPage({ id, locale });
+  await logAuditEvent(ctx, "page_published", { resourceId: id, resourceType: "page" });
+  revalidatePath("/pages");
+}
+
+export async function unpublishPageAction(id: string, locale: "no" | "en" = "no") {
+  const ctx = await requireAuth();
+  await pbUnpublishPage({ id, locale });
+  await logAuditEvent(ctx, "page_unpublished", { resourceId: id, resourceType: "page" });
+  revalidatePath("/pages");
+}
+
+export async function deletePageAction(id: string) {
+  const ctx = await requireAuth();
+  const { db } = await createSessionClient();
+  await db.updateRow("app", "pages", id, { status: "archived" });
+  await logAuditEvent(ctx, "page_deleted", { resourceId: id, resourceType: "page" });
+  revalidatePath("/pages");
 }

@@ -717,7 +717,20 @@
       "edit": "Edit page",
       "delete": "Delete page",
       "preview": "Preview"
-    }
+    },
+    "editor": {
+      "save": "Save",
+      "saveDraft": "Save draft",
+      "publish": "Publish",
+      "unpublish": "Unpublish",
+      "saving": "Saving…",
+      "saved": "Saved",
+      "error": "Error saving"
+    },
+    "saveSuccess": "Page saved",
+    "saveError": "Failed to save page",
+    "publishSuccess": "Page published",
+    "publishError": "Failed to publish page"
   },
   "activity": {
     "title": "Activity Log",
