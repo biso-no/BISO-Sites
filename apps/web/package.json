@@ -14,6 +14,7 @@
     "@hookform/resolvers": "catalog:",
     "@repo/ai": "workspace:*",
     "@repo/api": "workspace:*",
+    "@repo/editor": "workspace:*",
     "@repo/connectors": "workspace:*",
     "@repo/i18n": "workspace:*",
     "@repo/payment": "workspace:*",
