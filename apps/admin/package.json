@@ -3,8 +3,8 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "next dev -p 3001",
-    "build": "next build",
+    "dev": "bun --env-file=../../.env next dev -p 3001",
+    "build": "bun --env-file=../../.env next build",
     "start": "next start",
     "lint": "biome lint .",
     "check-types": "tsc --noEmit"
@@ -16,6 +16,7 @@
     "@json-render/core": "catalog:",
     "@repo/ai": "workspace:*",
     "@repo/api": "workspace:*",
+    "@repo/env": "workspace:*",
     "@repo/connectors": "workspace:*",
     "@repo/i18n": "workspace:*",
     "@repo/payment": "workspace:*",

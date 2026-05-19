@@ -1,5 +1,6 @@
 {
   "lockfileVersion": 1,
+  "configVersion": 0,
   "workspaces": {
     "": {
       "name": "biso-sites",
@@ -21,6 +22,7 @@
         "@repo/ai": "workspace:*",
         "@repo/api": "workspace:*",
         "@repo/connectors": "workspace:*",
+        "@repo/env": "workspace:*",
         "@repo/i18n": "workspace:*",
         "@repo/payment": "workspace:*",
         "@repo/shared": "workspace:*",
@@ -73,6 +75,7 @@
         "@repo/ai": "workspace:*",
         "@repo/api": "workspace:*",
         "@repo/connectors": "workspace:*",
+        "@repo/env": "workspace:*",
         "@repo/payment": "workspace:*",
         "@repo/shared": "workspace:*",
         "ai": "catalog:",
@@ -127,6 +130,7 @@
         "@repo/ai": "workspace:*",
         "@repo/api": "workspace:*",
         "@repo/connectors": "workspace:*",
+        "@repo/env": "workspace:*",
         "@repo/i18n": "workspace:*",
         "@repo/payment": "workspace:*",
         "@repo/shared": "workspace:*",
@@ -233,6 +237,17 @@
         "@repo/typescript-config": "workspace:*",
         "@types/node": "catalog:",
         "openapi-typescript": "catalog:",
+        "typescript": "catalog:",
+      },
+    },
+    "packages/env": {
+      "name": "@repo/env",
+      "version": "0.0.0",
+      "dependencies": {
+        "zod": "catalog:",
+      },
+      "devDependencies": {
+        "@repo/typescript-config": "workspace:*",
         "typescript": "catalog:",
       },
     },
@@ -1128,6 +1143,8 @@
     "@repo/api": ["@repo/api@workspace:packages/api"],
 
     "@repo/connectors": ["@repo/connectors@workspace:packages/connectors"],
+
+    "@repo/env": ["@repo/env@workspace:packages/env"],
 
     "@repo/i18n": ["@repo/i18n@workspace:packages/i18n"],
 

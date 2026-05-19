@@ -48,7 +48,6 @@ const APPWRITE_PROJECT =
 const NEXT_PUBLIC_APPWRITE_ENDPOINT =
   process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT ||
   process.env.APPWRITE_ENDPOINT ||
-  process.env.NEXT_PUBLIC_NEXT_PUBLIC_APPWRITE_ENDPOINT ||
   "https://appwrite.biso.no/v1";
 
 export async function createSessionClient(jwt?: string) {

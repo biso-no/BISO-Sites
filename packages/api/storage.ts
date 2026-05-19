@@ -3,7 +3,7 @@
  */
 
 const APPWRITE_ENDPOINT =
-  process.env.NEXT_PUBLIC_NEXT_PUBLIC_APPWRITE_ENDPOINT ||
+  process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT ||
   "https://appwrite.biso.no/v1";
 const APPWRITE_PROJECT = process.env.NEXT_PUBLIC_APPWRITE_PROJECT || "biso";
 

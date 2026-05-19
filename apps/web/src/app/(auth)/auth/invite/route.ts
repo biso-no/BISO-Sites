@@ -2,9 +2,9 @@ import { redirect } from "next/navigation";
 import { type NextRequest, NextResponse } from "next/server";
 
 const NEXT_PUBLIC_APPWRITE_ENDPOINT =
-  process.env.NEXT_PUBLIC_NEXT_PUBLIC_APPWRITE_ENDPOINT;
-const PROJECT_ID = "biso";
-const API_KEY = process.env.NEXT_PUBLIC_APPWRITE_API_KEY;
+  process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT ?? "https://appwrite.biso.no/v1";
+const PROJECT_ID = process.env.NEXT_PUBLIC_APPWRITE_PROJECT ?? "biso";
+const API_KEY = process.env.APPWRITE_API_KEY;
 
 // Cookie name mapping
 const COOKIE_NAME_MAP = {

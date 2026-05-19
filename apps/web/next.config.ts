@@ -1,3 +1,4 @@
+import "./src/env.ts";
 import type { NextConfig } from "next";
 import createNextIntlPlugin from "next-intl/plugin";
 import path from "path";
