@@ -1,7 +1,6 @@
 import { createAnthropic } from "@ai-sdk/anthropic";
+import { buildSystemPrompt, pageEditorTools } from "@repo/editor/ai";
 import { convertToModelMessages, stepCountIs, streamText } from "ai";
-import { pageEditorTools } from "@repo/editor/ai";
-import { buildSystemPrompt } from "@repo/editor/ai";
 
 export const maxDuration = 60;
 
@@ -16,7 +15,7 @@ export async function POST(request: Request) {
     pageContext?: string;
   };
 
-  if (!messages || !Array.isArray(messages)) {
+  if (!(messages && Array.isArray(messages))) {
     return new Response("Bad request: missing messages", { status: 400 });
   }
 

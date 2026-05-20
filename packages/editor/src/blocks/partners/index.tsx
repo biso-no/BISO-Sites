@@ -1,7 +1,7 @@
 import { registerBlock } from "@/blocks/registry";
 import { emptyBlock } from "@/editor/operations";
-import { PartnersRender } from "./render";
 import { PartnersInspector } from "./inspector";
+import { PartnersRender } from "./render";
 import { PartnersThumb } from "./thumb";
 
 registerBlock({

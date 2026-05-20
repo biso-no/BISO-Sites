@@ -1,10 +1,17 @@
 "use client";
 
-import type { CalloutBlock, PageDoc } from "@/editor/types";
 import type { PatchFn } from "@/blocks/types";
-import { InspRow, InspSection } from "@/components/editor-shell/inspector/insp-parts";
+import {
+  InspRow,
+  InspSection,
+} from "@/components/editor-shell/inspector/insp-parts";
+import type { CalloutBlock, PageDoc } from "@/editor/types";
 
-interface Props { block: CalloutBlock; doc: PageDoc; onPatch: PatchFn; }
+interface Props {
+  block: CalloutBlock;
+  doc: PageDoc;
+  onPatch: PatchFn;
+}
 
 export function CalloutInspector({ block, onPatch }: Props) {
   const tone = block.tone ?? "info";
@@ -14,10 +21,10 @@ export function CalloutInspector({ block, onPatch }: Props) {
         <div className="pe-variant-grid">
           {(["info", "warn", "tip"] as const).map((t) => (
             <button
+              className={`pe-variant${tone === t ? "on" : ""}`}
               key={t}
-              type="button"
-              className={`pe-variant${tone === t ? " on" : ""}`}
               onClick={() => onPatch("tone", t)}
+              type="button"
             >
               <span className="v-name">{t}</span>
             </button>
@@ -26,10 +33,17 @@ export function CalloutInspector({ block, onPatch }: Props) {
       </InspSection>
       <InspSection label="Callout">
         <InspRow label="Title">
-          <input value={block.title} onChange={(e) => onPatch("title", e.target.value)} />
+          <input
+            onChange={(e) => onPatch("title", e.target.value)}
+            value={block.title}
+          />
         </InspRow>
         <InspRow label="Body">
-          <textarea value={block.body} rows={3} onChange={(e) => onPatch("body", e.target.value)} />
+          <textarea
+            onChange={(e) => onPatch("body", e.target.value)}
+            rows={3}
+            value={block.body}
+          />
         </InspRow>
       </InspSection>
     </>

@@ -1,17 +1,17 @@
 import { registerBlock } from "@/blocks/registry";
 import { emptyBlock } from "@/editor/operations";
-import { TextRender } from "./render";
 import { TextInspector } from "./inspector";
+import { TextRender } from "./render";
 
 function TextThumb() {
   const s = "var(--ink-3)";
   return (
     <svg viewBox="0 0 38 30">
-      <rect x="6" y="6" width="14" height="2.5" fill={s}/>
-      <rect x="6" y="12" width="26" height="1.5" fill={s} opacity=".4"/>
-      <rect x="6" y="15" width="22" height="1.5" fill={s} opacity=".4"/>
-      <rect x="6" y="18" width="24" height="1.5" fill={s} opacity=".4"/>
-      <rect x="6" y="21" width="18" height="1.5" fill={s} opacity=".4"/>
+      <rect fill={s} height="2.5" width="14" x="6" y="6" />
+      <rect fill={s} height="1.5" opacity=".4" width="26" x="6" y="12" />
+      <rect fill={s} height="1.5" opacity=".4" width="22" x="6" y="15" />
+      <rect fill={s} height="1.5" opacity=".4" width="24" x="6" y="18" />
+      <rect fill={s} height="1.5" opacity=".4" width="18" x="6" y="21" />
     </svg>
   );
 }

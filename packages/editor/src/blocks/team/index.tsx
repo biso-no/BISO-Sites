@@ -1,7 +1,7 @@
 import { registerBlock } from "@/blocks/registry";
 import { emptyBlock } from "@/editor/operations";
-import { TeamRender } from "./render";
 import { TeamInspector } from "./inspector";
+import { TeamRender } from "./render";
 
 function TeamThumb() {
   const s = "var(--ink-3)";
@@ -9,9 +9,23 @@ function TeamThumb() {
     <svg viewBox="0 0 38 30">
       {[0, 1, 2].map((i) => (
         <g key={i}>
-          <circle cx={8 + i * 11} cy="13" r="3" fill={s} opacity=".5"/>
-          <rect x={3 + i * 11} y="19" width="10" height="1.5" fill={s} opacity=".4"/>
-          <rect x={5 + i * 11} y="22" width="6" height="1.5" fill={s} opacity=".3"/>
+          <circle cx={8 + i * 11} cy="13" fill={s} opacity=".5" r="3" />
+          <rect
+            fill={s}
+            height="1.5"
+            opacity=".4"
+            width="10"
+            x={3 + i * 11}
+            y="19"
+          />
+          <rect
+            fill={s}
+            height="1.5"
+            opacity=".3"
+            width="6"
+            x={5 + i * 11}
+            y="22"
+          />
         </g>
       ))}
     </svg>

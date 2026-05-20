@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { useMeta, useSaving } from "@/editor/hooks";
 import { useEditorCallbacks } from "@/editor/callbacks";
+import { useMeta, useSaving } from "@/editor/hooks";
 
 export function Topbar() {
   const meta = useMeta();
@@ -13,7 +13,9 @@ export function Topbar() {
   const isPublished = meta.status === "published";
 
   async function handlePublish() {
-    if (!onPublish && !onUnpublish) return;
+    if (!(onPublish || onUnpublish)) {
+      return;
+    }
     setPublishing(true);
     try {
       if (isPublished && onUnpublish) {
@@ -31,23 +33,27 @@ export function Topbar() {
       <div className="pe-topbar__left">
         {onExit && (
           <button
-            type="button"
+            aria-label="Back to pages"
             className="pe-topbar__exit"
             onClick={onExit}
-            aria-label="Back to pages"
             title="Back to pages"
+            type="button"
           >
             ←
           </button>
         )}
-        <span className="pe-topbar__logo serif">BISO</span>
-        <span className="pe-topbar__sep" aria-hidden="true">/</span>
+        <span className="serif pe-topbar__logo">BISO</span>
+        <span aria-hidden="true" className="pe-topbar__sep">
+          /
+        </span>
         <span className="pe-topbar__page">{meta.title}</span>
       </div>
 
       <div className="pe-topbar__center">
         <div className="pe-url">
-          <span className="pe-url__secure" aria-label="secure">✓</span>
+          <span aria-label="secure" className="pe-url__secure">
+            ✓
+          </span>
           <span>biso.no /</span>
           <b className="pe-url__slug">{meta.slug}</b>
         </div>
@@ -55,20 +61,37 @@ export function Topbar() {
 
       <div className="pe-topbar__right">
         <span className="pe-save">
-          {saving === "pending" && <><i className="pe-save__dot pending" aria-hidden="true"/>Saving…</>}
-          {saving === "saved" && <><i className="pe-save__dot saved" aria-hidden="true"/>Saved</>}
-          {saving === "error" && <><i className="pe-save__dot error" aria-hidden="true"/>Error</>}
+          {saving === "pending" && (
+            <>
+              <i aria-hidden="true" className="pending pe-save__dot" />
+              Saving…
+            </>
+          )}
+          {saving === "saved" && (
+            <>
+              <i aria-hidden="true" className="saved pe-save__dot" />
+              Saved
+            </>
+          )}
+          {saving === "error" && (
+            <>
+              <i aria-hidden="true" className="error pe-save__dot" />
+              Error
+            </>
+          )}
           {saving === "idle" && null}
         </span>
         {(onPublish || onUnpublish) && (
           <button
-            type="button"
-            className={`pe-publish${isPublished ? " pe-publish--live" : ""}`}
-            onClick={handlePublish}
+            className={`pe-publish${isPublished ? "pe-publish--live" : ""}`}
             disabled={publishing || saving === "pending"}
+            onClick={handlePublish}
             title={isPublished ? "Unpublish this page" : "Publish to biso.no"}
+            type="button"
           >
-            {!isPublished && <span className="pe-publish__pulse" aria-hidden="true"/>}
+            {!isPublished && (
+              <span aria-hidden="true" className="pe-publish__pulse" />
+            )}
             {publishing ? "…" : isPublished ? "Published ✓" : "Publish"}
           </button>
         )}

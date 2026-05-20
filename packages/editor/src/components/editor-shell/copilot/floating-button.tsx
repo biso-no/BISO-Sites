@@ -7,12 +7,14 @@ export function CopilotButton() {
 
   return (
     <button
-      type="button"
+      aria-label="Open AI copilot"
       className="pe-copilot"
       onClick={() => setCopilotOpen(true)}
-      aria-label="Open AI copilot"
+      type="button"
     >
-      <div className="pe-copilot__gem" aria-hidden="true">✦</div>
+      <div aria-hidden="true" className="pe-copilot__gem">
+        ✦
+      </div>
       <span>Ask AI</span>
       <span className="pe-copilot__kbd-pill">⌘K</span>
     </button>

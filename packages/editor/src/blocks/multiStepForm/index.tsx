@@ -1,7 +1,7 @@
 import { registerBlock } from "@/blocks/registry";
 import { emptyBlock } from "@/editor/operations";
-import { MultiStepFormRender } from "./render";
 import { MultiStepFormInspector } from "./inspector";
+import { MultiStepFormRender } from "./render";
 import { MultiStepFormThumb } from "./thumb";
 
 registerBlock({
@@ -9,7 +9,8 @@ registerBlock({
   label: "Multi-step form",
   description: "Step-by-step form builder",
   category: "Engage",
-  aiHint: "A configurable multi-step form that submits to an Appwrite collection.",
+  aiHint:
+    "A configurable multi-step form that submits to an Appwrite collection.",
   aiProps: ["heading", "steps", "submitTarget"],
   empty: () => emptyBlock("multiStepForm") as never,
   Render: MultiStepFormRender as never,

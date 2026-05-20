@@ -1,10 +1,17 @@
 "use client";
 
-import type { CtaBlock, PageDoc } from "@/editor/types";
 import type { PatchFn } from "@/blocks/types";
-import { InspRow, InspSection } from "@/components/editor-shell/inspector/insp-parts";
+import {
+  InspRow,
+  InspSection,
+} from "@/components/editor-shell/inspector/insp-parts";
+import type { CtaBlock, PageDoc } from "@/editor/types";
 
-interface Props { block: CtaBlock; doc: PageDoc; onPatch: PatchFn; }
+interface Props {
+  block: CtaBlock;
+  doc: PageDoc;
+  onPatch: PatchFn;
+}
 
 export function CtaInspector({ block, onPatch }: Props) {
   return (
@@ -13,10 +20,10 @@ export function CtaInspector({ block, onPatch }: Props) {
         <div className="pe-variant-grid">
           {(["card", "banner", "gradient"] as const).map((v) => (
             <button
+              className={`pe-variant${(block.variant ?? "card") === v ? "on" : ""}`}
               key={v}
-              type="button"
-              className={`pe-variant${(block.variant ?? "card") === v ? " on" : ""}`}
               onClick={() => onPatch("variant", v)}
+              type="button"
             >
               <span className="v-name">{v}</span>
             </button>
@@ -25,13 +32,23 @@ export function CtaInspector({ block, onPatch }: Props) {
       </InspSection>
       <InspSection label="CTA">
         <InspRow label="Title">
-          <input value={block.title} onChange={(e) => onPatch("title", e.target.value)} />
+          <input
+            onChange={(e) => onPatch("title", e.target.value)}
+            value={block.title}
+          />
         </InspRow>
         <InspRow label="Label">
-          <input value={block.label} onChange={(e) => onPatch("label", e.target.value)} />
+          <input
+            onChange={(e) => onPatch("label", e.target.value)}
+            value={block.label}
+          />
         </InspRow>
         <InspRow label="URL">
-          <input type="url" value={block.url} onChange={(e) => onPatch("url", e.target.value)} />
+          <input
+            onChange={(e) => onPatch("url", e.target.value)}
+            type="url"
+            value={block.url}
+          />
         </InspRow>
       </InspSection>
     </>

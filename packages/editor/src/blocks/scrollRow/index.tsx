@@ -1,7 +1,7 @@
 import { registerBlock } from "@/blocks/registry";
 import { emptyBlock } from "@/editor/operations";
-import { ScrollRowRender } from "./render";
 import { ScrollRowInspector } from "./inspector";
+import { ScrollRowRender } from "./render";
 import { ScrollRowThumb } from "./thumb";
 
 registerBlock({

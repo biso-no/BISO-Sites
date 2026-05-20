@@ -1016,7 +1016,7 @@ function PhonePreview({
 
   return (
     <div
-      className="mx-auto w-[310px] max-w-full rounded-[2rem] bg-[#07111f] p-2 shadow-2xl shadow-slate-950/30"
+      className="mx-auto w-77.5 max-w-full rounded-4xl bg-[#07111f] p-2 shadow-2xl shadow-slate-950/30"
       style={{
         animation: phoneFloat
           ? "job-phone-drift 8s ease-in-out infinite"
@@ -1041,7 +1041,7 @@ function PhonePreview({
           display: none;
         }
       `}</style>
-      <div className="relative flex h-[620px] flex-col overflow-hidden rounded-[1.55rem] bg-[#faf7f2] text-[#07111f]">
+      <div className="relative flex h-155 flex-col overflow-hidden rounded-[1.55rem] bg-[#faf7f2] text-[#07111f]">
         <div className="flex items-center justify-between px-5 pt-3 pb-2 font-semibold text-[11px]">
           <span>09:41</span>
           <span>LTE 84%</span>
@@ -1101,7 +1101,7 @@ function PhonePreview({
                 ["Location", form.location ?? "Campus"],
               ].map(([label, value]) => (
                 <div className="bg-[#faf7f2] p-2.5" key={label}>
-                  <p className="text-[9px] text-slate-400 uppercase tracking-[0.1em]">
+                  <p className="text-[9px] text-slate-400 uppercase tracking-widest">
                     {label}
                   </p>
                   <p className="mt-1 truncate font-medium text-[11px]">

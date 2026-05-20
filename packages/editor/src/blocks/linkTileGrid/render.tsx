@@ -1,9 +1,13 @@
 "use client";
 
-import type { LinkTileGridBlock } from "@/editor/types";
 import type { PatchFn } from "@/blocks/types";
+import type { LinkTileGridBlock } from "@/editor/types";
 
-interface Props { block: LinkTileGridBlock; edit: boolean; onPatch: PatchFn; }
+interface Props {
+  block: LinkTileGridBlock;
+  edit: boolean;
+  onPatch: PatchFn;
+}
 
 export function LinkTileGridRender({ block, edit }: Props) {
   return (
@@ -13,15 +17,23 @@ export function LinkTileGridRender({ block, edit }: Props) {
         {block.items.map((item, i) => {
           const inner = (
             <>
-              <span className="pg-linktiles__icon" aria-hidden="true">{item.icon}</span>
+              <span aria-hidden="true" className="pg-linktiles__icon">
+                {item.icon}
+              </span>
               <span className="pg-linktiles__title">{item.title}</span>
-              {item.description && <span className="pg-linktiles__desc">{item.description}</span>}
+              {item.description && (
+                <span className="pg-linktiles__desc">{item.description}</span>
+              )}
             </>
           );
           return edit ? (
-            <div key={i} className="pg-linktiles__tile">{inner}</div>
+            <div className="pg-linktiles__tile" key={i}>
+              {inner}
+            </div>
           ) : (
-            <a key={i} className="pg-linktiles__tile" href={item.href}>{inner}</a>
+            <a className="pg-linktiles__tile" href={item.href} key={i}>
+              {inner}
+            </a>
           );
         })}
       </div>

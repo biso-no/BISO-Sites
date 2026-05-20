@@ -321,7 +321,6 @@ export const productFormFields: FormFieldInfo[] = [
   },
 ];
 
-
 /**
  * Registry of all admin capabilities
  */

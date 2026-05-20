@@ -1,26 +1,45 @@
 "use client";
 
-import type { CtaBlock } from "@/editor/types";
 import type { PatchFn } from "@/blocks/types";
+import type { CtaBlock } from "@/editor/types";
 
-interface Props { block: CtaBlock; edit: boolean; onPatch: PatchFn; }
+interface Props {
+  block: CtaBlock;
+  edit: boolean;
+  onPatch: PatchFn;
+}
 
 export function CtaRender({ block, edit, onPatch }: Props) {
   const variant = block.variant ?? "card";
   return (
     <div className={`pg-cta pg-cta--${variant} pg-block`}>
       {edit ? (
-        <h2 contentEditable suppressContentEditableWarning data-edit="1"
+        <h2
+          contentEditable
+          data-edit="1"
           onBlur={(e) => onPatch("title", e.currentTarget.textContent ?? "")}
-        >{block.title}</h2>
-      ) : <h2>{block.title}</h2>}
-      {edit ? (
-        <button className="pg-cta__btn" type="button"
-          contentEditable suppressContentEditableWarning data-edit="1"
-          onBlur={(e) => onPatch("label", e.currentTarget.textContent ?? "")}
-        >{block.label}</button>
+          suppressContentEditableWarning
+        >
+          {block.title}
+        </h2>
       ) : (
-        <a className="pg-cta__btn" href={block.url}>{block.label}</a>
+        <h2>{block.title}</h2>
+      )}
+      {edit ? (
+        <button
+          className="pg-cta__btn"
+          contentEditable
+          data-edit="1"
+          onBlur={(e) => onPatch("label", e.currentTarget.textContent ?? "")}
+          suppressContentEditableWarning
+          type="button"
+        >
+          {block.label}
+        </button>
+      ) : (
+        <a className="pg-cta__btn" href={block.url}>
+          {block.label}
+        </a>
       )}
     </div>
   );

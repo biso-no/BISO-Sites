@@ -15,7 +15,11 @@ import "@repo/editor/theme/styles.css";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { publishPageAction, savePageEditorDoc, unpublishPageAction } from "@/app/(portal)/_actions/pages";
+import {
+  publishPageAction,
+  savePageEditorDoc,
+  unpublishPageAction,
+} from "@/app/(portal)/_actions/pages";
 import { uploadMediaFile } from "@/app/(portal)/_actions/upload";
 import { sanitizeSlug } from "@/lib/utils";
 
@@ -307,8 +311,13 @@ export function PageEditorClient({
       await publishPageAction(currentPageId, locale);
       setDocuments((current) => {
         const doc = current[locale];
-        if (!doc) return current;
-        return { ...current, [locale]: { ...doc, meta: { ...doc.meta, status: "published" } } };
+        if (!doc) {
+          return current;
+        }
+        return {
+          ...current,
+          [locale]: { ...doc, meta: { ...doc.meta, status: "published" } },
+        };
       });
       toast.success("Page published to biso.no");
     } catch (err) {
@@ -317,13 +326,20 @@ export function PageEditorClient({
   }
 
   async function handleUnpublish(locale: EditorLocale) {
-    if (!currentPageId) return;
+    if (!currentPageId) {
+      return;
+    }
     try {
       await unpublishPageAction(currentPageId, locale);
       setDocuments((current) => {
         const doc = current[locale];
-        if (!doc) return current;
-        return { ...current, [locale]: { ...doc, meta: { ...doc.meta, status: "draft" } } };
+        if (!doc) {
+          return current;
+        }
+        return {
+          ...current,
+          [locale]: { ...doc, meta: { ...doc.meta, status: "draft" } },
+        };
       });
       toast.success("Page unpublished");
     } catch (err) {

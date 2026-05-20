@@ -8,13 +8,15 @@ import { getUserAuthContext, type UserAuthContext } from "@/lib/authorization";
 
 async function requireAuth(): Promise<UserAuthContext> {
   const ctx = await getUserAuthContext();
-  if (!ctx) redirect("/auth/login");
+  if (!ctx) {
+    redirect("/auth/login");
+  }
   return ctx;
 }
 
 export interface FormSubmission {
-  $id: string;
   $createdAt: string;
+  $id: string;
   accessTeamId: string | null;
   campusId: string | null;
   dataJson: string;
@@ -49,7 +51,11 @@ function mapRow(row: Record<string, unknown>): FormSubmission {
 
 export async function listSubmissionTopics(): Promise<SubmissionTopic[]> {
   const ctx = await requireAuth();
-  if (!(ctx.roles.includes("globaladmin") || ctx.roles.includes("campusadmin"))) return [];
+  if (
+    !(ctx.roles.includes("globaladmin") || ctx.roles.includes("campusadmin"))
+  ) {
+    return [];
+  }
 
   const { db } = await createAdminClient();
 
@@ -59,7 +65,11 @@ export async function listSubmissionTopics(): Promise<SubmissionTopic[]> {
     Query.notEqual("status", "archived"),
   ];
 
-  if (ctx.roles.includes("campusadmin") && !ctx.roles.includes("globaladmin") && ctx.activeCampusId) {
+  if (
+    ctx.roles.includes("campusadmin") &&
+    !ctx.roles.includes("globaladmin") &&
+    ctx.activeCampusId
+  ) {
     queries.push(Query.equal("campus_id", ctx.activeCampusId));
   }
 
@@ -81,11 +91,17 @@ export async function listSubmissionTopics(): Promise<SubmissionTopic[]> {
     }
     const t = byTopic.get(sub.topic)!;
     t.count++;
-    if (sub.status === "new") t.unreadCount++;
-    if (sub.$createdAt > t.latestAt) t.latestAt = sub.$createdAt;
+    if (sub.status === "new") {
+      t.unreadCount++;
+    }
+    if (sub.$createdAt > t.latestAt) {
+      t.latestAt = sub.$createdAt;
+    }
   }
 
-  return [...byTopic.values()].sort((a, b) => b.latestAt.localeCompare(a.latestAt));
+  return [...byTopic.values()].sort((a, b) =>
+    b.latestAt.localeCompare(a.latestAt)
+  );
 }
 
 export async function listSubmissions(opts: {
@@ -95,7 +111,9 @@ export async function listSubmissions(opts: {
   topic: string;
 }): Promise<{ rows: FormSubmission[]; total: number }> {
   const ctx = await requireAuth();
-  if (!(ctx.roles.includes("globaladmin") || ctx.roles.includes("campusadmin"))) {
+  if (
+    !(ctx.roles.includes("globaladmin") || ctx.roles.includes("campusadmin"))
+  ) {
     return { rows: [], total: 0 };
   }
 
@@ -107,8 +125,12 @@ export async function listSubmissions(opts: {
     Query.limit(opts.limit ?? 50),
   ];
 
-  if (opts.offset) queries.push(Query.offset(opts.offset));
-  if (opts.status && opts.status !== "all") queries.push(Query.equal("status", opts.status));
+  if (opts.offset) {
+    queries.push(Query.offset(opts.offset));
+  }
+  if (opts.status && opts.status !== "all") {
+    queries.push(Query.equal("status", opts.status));
+  }
 
   const result = await db.listRows("app", "form_submissions", queries);
 
@@ -121,10 +143,12 @@ export async function listSubmissions(opts: {
 export async function updateSubmissionStatus(
   id: string,
   status: FormSubmission["status"],
-  topic: string,
+  topic: string
 ): Promise<void> {
   const ctx = await requireAuth();
-  if (!(ctx.roles.includes("globaladmin") || ctx.roles.includes("campusadmin"))) {
+  if (
+    !(ctx.roles.includes("globaladmin") || ctx.roles.includes("campusadmin"))
+  ) {
     throw new Error("Unauthorized");
   }
 
@@ -133,9 +157,14 @@ export async function updateSubmissionStatus(
   revalidatePath(`/submissions/${topic}`);
 }
 
-export async function deleteSubmission(id: string, topic: string): Promise<void> {
+export async function deleteSubmission(
+  id: string,
+  topic: string
+): Promise<void> {
   const ctx = await requireAuth();
-  if (!ctx.roles.includes("globaladmin")) throw new Error("Unauthorized");
+  if (!ctx.roles.includes("globaladmin")) {
+    throw new Error("Unauthorized");
+  }
 
   const { db } = await createAdminClient();
   await db.deleteRow("app", "form_submissions", id);

@@ -1,7 +1,7 @@
 import { registerBlock } from "@/blocks/registry";
 import { emptyBlock } from "@/editor/operations";
-import { DocumentsRender } from "./render";
 import { DocumentsInspector } from "./inspector";
+import { DocumentsRender } from "./render";
 import { DocumentsThumb } from "./thumb";
 
 registerBlock({

@@ -18,13 +18,28 @@ export async function POST(request: Request) {
   try {
     payload = await request.json();
   } catch {
-    return NextResponse.json({ success: false, message: "Invalid payload" }, { status: 400 });
+    return NextResponse.json(
+      { success: false, message: "Invalid payload" },
+      { status: 400 }
+    );
   }
 
-  const { mode, topic, data, formHeading, accessTeamId, campusId, source, recipientEmail } = payload;
+  const {
+    mode,
+    topic,
+    data,
+    formHeading,
+    accessTeamId,
+    campusId,
+    source,
+    recipientEmail,
+  } = payload;
 
-  if (!topic || !data) {
-    return NextResponse.json({ success: false, message: "Missing required fields" }, { status: 400 });
+  if (!(topic && data)) {
+    return NextResponse.json(
+      { success: false, message: "Missing required fields" },
+      { status: 400 }
+    );
   }
 
   try {
@@ -32,11 +47,17 @@ export async function POST(request: Request) {
 
     if (mode === "email") {
       if (!recipientEmail) {
-        return NextResponse.json({ success: false, message: "No recipient email configured" }, { status: 400 });
+        return NextResponse.json(
+          { success: false, message: "No recipient email configured" },
+          { status: 400 }
+        );
       }
 
       const fieldRows = Object.entries(data)
-        .map(([k, v]) => `<tr><td style="padding:6px 12px;font-weight:600;color:#555;">${k}</td><td style="padding:6px 12px;">${String(v ?? "")}</td></tr>`)
+        .map(
+          ([k, v]) =>
+            `<tr><td style="padding:6px 12px;font-weight:600;color:#555;">${k}</td><td style="padding:6px 12px;">${String(v ?? "")}</td></tr>`
+        )
         .join("");
 
       const html = `
@@ -61,7 +82,7 @@ export async function POST(request: Request) {
         [],
         false,
         true,
-        new Date(Date.now() + 30_000).toISOString(),
+        new Date(Date.now() + 30_000).toISOString()
       );
 
       return NextResponse.json({ success: true });
@@ -91,12 +112,15 @@ export async function POST(request: Request) {
         campus_id: campusId ?? null,
         source: source ?? "multiStepForm",
       },
-      rowPermissions,
+      rowPermissions
     );
 
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Form submit error:", error);
-    return NextResponse.json({ success: false, message: "Submission failed" }, { status: 500 });
+    return NextResponse.json(
+      { success: false, message: "Submission failed" },
+      { status: 500 }
+    );
   }
 }

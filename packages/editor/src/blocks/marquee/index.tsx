@@ -1,16 +1,16 @@
 import { registerBlock } from "@/blocks/registry";
 import { emptyBlock } from "@/editor/operations";
-import { MarqueeRender } from "./render";
 import { MarqueeInspector } from "./inspector";
+import { MarqueeRender } from "./render";
 
 function MarqueeThumb() {
   const s = "var(--ink-3)";
   return (
     <svg viewBox="0 0 38 30">
-      <rect x="3" y="12" width="6" height="2" fill={s} rx="1"/>
-      <rect x="11" y="12" width="6" height="2" fill={s} rx="1" opacity=".6"/>
-      <rect x="19" y="12" width="6" height="2" fill={s} rx="1"/>
-      <rect x="27" y="12" width="6" height="2" fill={s} rx="1" opacity=".6"/>
+      <rect fill={s} height="2" rx="1" width="6" x="3" y="12" />
+      <rect fill={s} height="2" opacity=".6" rx="1" width="6" x="11" y="12" />
+      <rect fill={s} height="2" rx="1" width="6" x="19" y="12" />
+      <rect fill={s} height="2" opacity=".6" rx="1" width="6" x="27" y="12" />
     </svg>
   );
 }

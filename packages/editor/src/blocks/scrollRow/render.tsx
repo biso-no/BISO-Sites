@@ -1,9 +1,13 @@
 "use client";
 
-import type { ScrollRowBlock } from "@/editor/types";
 import type { PatchFn } from "@/blocks/types";
+import type { ScrollRowBlock } from "@/editor/types";
 
-interface Props { block: ScrollRowBlock; edit: boolean; onPatch: PatchFn; }
+interface Props {
+  block: ScrollRowBlock;
+  edit: boolean;
+  onPatch: PatchFn;
+}
 
 export function ScrollRowRender({ block, edit }: Props) {
   return (
@@ -13,15 +17,23 @@ export function ScrollRowRender({ block, edit }: Props) {
         {block.items.map((item, i) => {
           const inner = (
             <>
-              {item.icon && <div className="pg-scrollrow__icon" aria-hidden="true">{item.icon}</div>}
+              {item.icon && (
+                <div aria-hidden="true" className="pg-scrollrow__icon">
+                  {item.icon}
+                </div>
+              )}
               <div className="pg-scrollrow__title">{item.title}</div>
               <p className="pg-scrollrow__body">{item.body}</p>
             </>
           );
           return item.href && !edit ? (
-            <a key={i} className="pg-scrollrow__card" href={item.href}>{inner}</a>
+            <a className="pg-scrollrow__card" href={item.href} key={i}>
+              {inner}
+            </a>
           ) : (
-            <div key={i} className="pg-scrollrow__card">{inner}</div>
+            <div className="pg-scrollrow__card" key={i}>
+              {inner}
+            </div>
           );
         })}
       </div>

@@ -2,8 +2,10 @@ import { Query } from "@repo/api";
 import { createAdminClient } from "@repo/api/server";
 
 function titleFromRefs(refs: unknown): string {
-  if (!Array.isArray(refs) || refs.length === 0) return "";
-  const r = refs as Array<Record<string, unknown>>;
+  if (!Array.isArray(refs) || refs.length === 0) {
+    return "";
+  }
+  const r = refs as Record<string, unknown>[];
   const en = r.find((t) => t.locale === "en");
   return String((en ?? r[0]).title ?? "");
 }
@@ -41,7 +43,8 @@ export async function GET(request: Request) {
         }
       }
       return {
-        title: titleFromRefs(r.translation_refs) || String(r.title ?? r.name ?? ""),
+        title:
+          titleFromRefs(r.translation_refs) || String(r.title ?? r.name ?? ""),
         department: dept,
         publishedAt,
         summary: "",

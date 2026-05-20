@@ -1,18 +1,24 @@
 import { registerBlock } from "@/blocks/registry";
 import { emptyBlock } from "@/editor/operations";
-import { StatsRender } from "./render";
 import { StatsInspector } from "./inspector";
+import { StatsRender } from "./render";
 
 function StatsThumb() {
   const s = "var(--ink-3)";
   return (
     <svg viewBox="0 0 38 30">
-      <line x1="11.5" y1="6" x2="11.5" y2="24" stroke={s} strokeWidth=".3"/>
-      <line x1="20"   y1="6" x2="20"   y2="24" stroke={s} strokeWidth=".3"/>
-      <line x1="28.5" y1="6" x2="28.5" y2="24" stroke={s} strokeWidth=".3"/>
-      <text x="6"  y="16" fontSize="6" fill={s} fontFamily="serif">12</text>
-      <text x="14" y="16" fontSize="6" fill={s} fontFamily="serif">48</text>
-      <text x="23" y="16" fontSize="6" fill={s} fontFamily="serif">91</text>
+      <line stroke={s} strokeWidth=".3" x1="11.5" x2="11.5" y1="6" y2="24" />
+      <line stroke={s} strokeWidth=".3" x1="20" x2="20" y1="6" y2="24" />
+      <line stroke={s} strokeWidth=".3" x1="28.5" x2="28.5" y1="6" y2="24" />
+      <text fill={s} fontFamily="serif" fontSize="6" x="6" y="16">
+        12
+      </text>
+      <text fill={s} fontFamily="serif" fontSize="6" x="14" y="16">
+        48
+      </text>
+      <text fill={s} fontFamily="serif" fontSize="6" x="23" y="16">
+        91
+      </text>
     </svg>
   );
 }

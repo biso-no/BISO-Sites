@@ -1,7 +1,7 @@
 import { registerBlock } from "@/blocks/registry";
 import { emptyBlock } from "@/editor/operations";
-import { FeaturedCardsRender } from "./render";
 import { FeaturedCardsInspector } from "./inspector";
+import { FeaturedCardsRender } from "./render";
 import { FeaturedCardsThumb } from "./thumb";
 
 registerBlock({

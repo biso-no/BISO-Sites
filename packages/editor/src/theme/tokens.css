@@ -2,98 +2,167 @@
 
 :root {
   /* Paper palette */
-  --paper:   #faf7f2;
+  --paper: #faf7f2;
   --paper-2: #f3eee5;
   --paper-3: #ede6d8;
 
   /* Ink ramp */
-  --ink:   #1a1814;
+  --ink: #1a1814;
   --ink-2: #3a342a;
   --ink-3: #6b6357;
   --ink-4: #9c9385;
 
   /* Rules / borders */
-  --rule:   #e5dcca;
+  --rule: #e5dcca;
   --rule-2: #d8cdb6;
 
   /* Brand hues */
-  --claret:   #6b1e1e;
+  --claret: #6b1e1e;
   --claret-2: #8a2727;
-  --gold:     #b08a3e;
-  --leaf:     #2f5d3a;
-  --sky:      #2a4a7a;
+  --gold: #b08a3e;
+  --leaf: #2f5d3a;
+  --sky: #2a4a7a;
 
   /* Accent — overridden per page / department */
   --accent: var(--claret);
 
   /* Fonts — mapped from Next.js font variables */
-  --ui:    var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --serif: var(--font-instrument-serif), "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
-  --mono:  var(--font-geist-mono), ui-monospace, "SF Mono", Menlo, monospace;
+  --ui:
+    var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+    Roboto, sans-serif;
+  --serif:
+    var(--font-instrument-serif), "Iowan Old Style", "Palatino Linotype",
+    Palatino, Georgia, serif;
+  --mono: var(--font-geist-mono), ui-monospace, "SF Mono", Menlo, monospace;
 }
 
 /* ---- Base resets ---- */
-*, *::before, *::after { box-sizing: border-box; }
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
 
-html, body { height: 100%; }
+html,
+body {
+  height: 100%;
+}
 
 body {
-  background: var(--paper);
-  color: var(--ink);
   font-family: var(--ui);
   font-size: 14px;
-  line-height: 1.45;
   -webkit-font-smoothing: antialiased;
+  line-height: 1.45;
+  color: var(--ink);
+  background: var(--paper);
   text-rendering: optimizeLegibility;
 }
 
 /* Warm paper noise overlay */
 body::before {
-  content: "";
   position: fixed;
   inset: 0;
-  pointer-events: none;
   z-index: 0;
+  pointer-events: none;
+  content: "";
   background-image:
-    radial-gradient(circle at 20% 30%, rgba(107,30,30,0.018), transparent 40%),
-    radial-gradient(circle at 80% 70%, rgba(176,138,62,0.020), transparent 45%);
+    radial-gradient(
+      circle at 20% 30%,
+      rgba(107, 30, 30, 0.018),
+      transparent 40%
+    ),
+    radial-gradient(
+      circle at 80% 70%,
+      rgba(176, 138, 62, 0.02),
+      transparent 45%
+    );
   mix-blend-mode: multiply;
 }
 
 /* Text selection */
-::selection { background: rgba(107,30,30,0.18); color: var(--ink); }
+::selection {
+  color: var(--ink);
+  background: rgba(107, 30, 30, 0.18);
+}
 
 /* Form element font inheritance */
-button, input, textarea, select { font: inherit; color: inherit; }
-textarea { resize: none; }
+button,
+input,
+textarea,
+select {
+  font: inherit;
+  color: inherit;
+}
+textarea {
+  resize: none;
+}
 
 /* Utilities */
-.mono { font-family: var(--mono); font-feature-settings: "tnum" 1, "ss01" 1; }
-.serif { font-family: var(--serif); font-weight: 400; letter-spacing: -0.005em; }
+.mono {
+  font-family: var(--mono);
+  font-feature-settings:
+    "tnum" 1,
+    "ss01" 1;
+}
+.serif {
+  font-family: var(--serif);
+  font-weight: 400;
+  letter-spacing: -0.005em;
+}
 
 .scroll {
+  scrollbar-color: rgba(0, 0, 0, 0.15) transparent;
   scrollbar-width: thin;
-  scrollbar-color: rgba(0,0,0,0.15) transparent;
 }
-.scroll::-webkit-scrollbar { width: 8px; height: 8px; }
+.scroll::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
 .scroll::-webkit-scrollbar-thumb {
-  background: rgba(0,0,0,0.15);
-  border-radius: 4px;
-  border: 2px solid transparent;
+  background: rgba(0, 0, 0, 0.15);
   background-clip: content-box;
+  border: 2px solid transparent;
+  border-radius: 4px;
 }
 .scroll::-webkit-scrollbar-thumb:hover {
-  background: rgba(0,0,0,0.28);
+  background: rgba(0, 0, 0, 0.28);
   background-clip: content-box;
   border: 2px solid transparent;
 }
 
 /* Keyframes used throughout the editor */
-@keyframes fadeUp  { from { opacity: 0; transform: translateY(6px) } to { opacity: 1; transform: none } }
-@keyframes pulse   { 0%,100% { opacity: .4 } 50% { opacity: 1 } }
-@keyframes drift   {
-  0%   { transform: translate(0,0) rotate(0) }
-  50%  { transform: translate(8px,-6px) rotate(.4deg) }
-  100% { transform: translate(0,0) rotate(0) }
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
-@keyframes caret   { 50% { opacity: 0 } }
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+@keyframes drift {
+  0% {
+    transform: translate(0, 0) rotate(0);
+  }
+  50% {
+    transform: translate(8px, -6px) rotate(0.4deg);
+  }
+  100% {
+    transform: translate(0, 0) rotate(0);
+  }
+}
+@keyframes caret {
+  50% {
+    opacity: 0;
+  }
+}

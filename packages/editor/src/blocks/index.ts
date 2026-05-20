@@ -34,5 +34,5 @@ import "./filterBar/index";
 import "./profileHeader/index";
 import "./multiStepForm/index";
 
-export { getBlock, allBlocks, BLOCK_LIBRARY } from "./registry";
+export { allBlocks, BLOCK_LIBRARY, getBlock } from "./registry";
 export type { BlockDefinition, PatchFn } from "./types";

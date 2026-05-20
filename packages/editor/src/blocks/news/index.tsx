@@ -1,17 +1,27 @@
 import { registerBlock } from "@/blocks/registry";
 import { emptyBlock } from "@/editor/operations";
-import { NewsRender } from "./render";
 import { NewsInspector } from "./inspector";
+import { NewsRender } from "./render";
 
 function NewsThumb() {
   const s = "var(--ink-3)";
   return (
     <svg viewBox="0 0 38 30">
-      <rect x="3" y="4" width="32" height="22" rx="2" stroke={s} strokeWidth=".5" fill="none" opacity=".5"/>
-      <rect x="5" y="7" width="20" height="3" fill={s} opacity=".5"/>
-      <rect x="5" y="12" width="28" height="1.5" fill={s} opacity=".3"/>
-      <rect x="5" y="15" width="24" height="1.5" fill={s} opacity=".3"/>
-      <rect x="5" y="18" width="26" height="1.5" fill={s} opacity=".3"/>
+      <rect
+        fill="none"
+        height="22"
+        opacity=".5"
+        rx="2"
+        stroke={s}
+        strokeWidth=".5"
+        width="32"
+        x="3"
+        y="4"
+      />
+      <rect fill={s} height="3" opacity=".5" width="20" x="5" y="7" />
+      <rect fill={s} height="1.5" opacity=".3" width="28" x="5" y="12" />
+      <rect fill={s} height="1.5" opacity=".3" width="24" x="5" y="15" />
+      <rect fill={s} height="1.5" opacity=".3" width="26" x="5" y="18" />
     </svg>
   );
 }

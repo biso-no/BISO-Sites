@@ -1,22 +1,38 @@
 "use client";
 
-import type { QuoteBlock, PageDoc } from "@/editor/types";
 import type { PatchFn } from "@/blocks/types";
-import { InspRow, InspSection } from "@/components/editor-shell/inspector/insp-parts";
+import {
+  InspRow,
+  InspSection,
+} from "@/components/editor-shell/inspector/insp-parts";
+import type { PageDoc, QuoteBlock } from "@/editor/types";
 
-interface Props { block: QuoteBlock; doc: PageDoc; onPatch: PatchFn; }
+interface Props {
+  block: QuoteBlock;
+  doc: PageDoc;
+  onPatch: PatchFn;
+}
 
 export function QuoteInspector({ block, onPatch }: Props) {
   return (
     <InspSection label="Quote">
       <InspRow label="Quote">
-        <input value={block.text} onChange={(e) => onPatch("text", e.target.value)} />
+        <input
+          onChange={(e) => onPatch("text", e.target.value)}
+          value={block.text}
+        />
       </InspRow>
       <InspRow label="Author">
-        <input value={block.author} onChange={(e) => onPatch("author", e.target.value)} />
+        <input
+          onChange={(e) => onPatch("author", e.target.value)}
+          value={block.author}
+        />
       </InspRow>
       <InspRow label="Role">
-        <input value={block.role} onChange={(e) => onPatch("role", e.target.value)} />
+        <input
+          onChange={(e) => onPatch("role", e.target.value)}
+          value={block.role}
+        />
       </InspRow>
     </InspSection>
   );

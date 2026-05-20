@@ -9,7 +9,10 @@ interface Props {
   searchParams: Promise<{ page?: string; status?: string }>;
 }
 
-export default async function SubmissionsTopicPage({ params, searchParams }: Props) {
+export default async function SubmissionsTopicPage({
+  params,
+  searchParams,
+}: Props) {
   const { topic } = await params;
   const { page: pageParam, status } = await searchParams;
   const page = Math.max(1, Number(pageParam) || 1);
@@ -28,7 +31,7 @@ export default async function SubmissionsTopicPage({ params, searchParams }: Pro
     <div className="pb-12">
       <div className="mb-2">
         <Link
-          className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+          className="inline-flex items-center gap-1 text-muted-foreground text-xs transition-colors hover:text-foreground"
           href="/submissions"
         >
           <ArrowLeft size={12} />
@@ -36,7 +39,7 @@ export default async function SubmissionsTopicPage({ params, searchParams }: Pro
         </Link>
       </div>
       <PageHeader
-        description={`${result.total} submission${result.total !== 1 ? "s" : ""} · topic: ${decodedTopic}`}
+        description={`${result.total} submission${result.total === 1 ? "" : "s"} · topic: ${decodedTopic}`}
         title={formHeading}
       />
       <SubmissionsList

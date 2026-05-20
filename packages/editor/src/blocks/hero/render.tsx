@@ -1,8 +1,8 @@
 "use client";
 
-import type { HeroBlock } from "@/editor/types";
 import type { PatchFn } from "@/blocks/types";
 import { EditableText } from "@/components/editor-shell/canvas/editable-text";
+import type { HeroBlock } from "@/editor/types";
 
 interface Props {
   block: HeroBlock;
@@ -17,44 +17,64 @@ export function HeroRender({ block, edit, onPatch }: Props) {
     <div className="pg-hero__content">
       <EditableText
         className="pg-hero__eyebrow"
-        tag="p"
-        value={block.eyebrow}
         edit={edit}
         onChange={(v) => onPatch("eyebrow", v)}
+        tag="p"
+        value={block.eyebrow}
       />
       <EditableText
         className="pg-hero__h1"
-        tag="h1"
-        value={block.title}
         edit={edit}
         onChange={(v) => onPatch("title", v)}
+        tag="h1"
+        value={block.title}
       />
       <EditableText
         className="pg-hero__sub"
-        tag="p"
-        value={block.subtitle}
         edit={edit}
         onChange={(v) => onPatch("subtitle", v)}
+        tag="p"
+        value={block.subtitle}
       />
       {edit ? (
-        <button className="pg-hero__cta" type="button">{block.ctaLabel}</button>
+        <button className="pg-hero__cta" type="button">
+          {block.ctaLabel}
+        </button>
       ) : (
-        <a className="pg-hero__cta" href={block.ctaUrl}>{block.ctaLabel}</a>
+        <a className="pg-hero__cta" href={block.ctaUrl}>
+          {block.ctaLabel}
+        </a>
       )}
     </div>
   );
 
   const art = (
-    <div className="pg-hero-art" aria-hidden="true">
+    <div aria-hidden="true" className="pg-hero-art">
       <svg viewBox="0 0 400 500" xmlns="http://www.w3.org/2000/svg">
         <defs>
-          <pattern id="hg" patternUnits="userSpaceOnUse" width="40" height="40" patternTransform="rotate(30)">
-            <line x1="0" y1="0" x2="40" y2="40" stroke="rgba(255,255,255,0.06)" strokeWidth="0.5"/>
+          <pattern
+            height="40"
+            id="hg"
+            patternTransform="rotate(30)"
+            patternUnits="userSpaceOnUse"
+            width="40"
+          >
+            <line
+              stroke="rgba(255,255,255,0.06)"
+              strokeWidth="0.5"
+              x1="0"
+              x2="40"
+              y1="0"
+              y2="40"
+            />
           </pattern>
         </defs>
-        <rect width="400" height="500" fill="url(#hg)"/>
+        <rect fill="url(#hg)" height="500" width="400" />
       </svg>
-      <div className="pg-hero-art__crest" style={{ fontFamily: "var(--serif)" }}>
+      <div
+        className="pg-hero-art__crest"
+        style={{ fontFamily: "var(--serif)" }}
+      >
         {block.eyebrow.slice(0, 1)}
       </div>
       {block.imageAlt && (

@@ -1,15 +1,25 @@
 import { registerBlock } from "@/blocks/registry";
 import { emptyBlock } from "@/editor/operations";
-import { SignupRender } from "./render";
 import { SignupInspector } from "./inspector";
+import { SignupRender } from "./render";
 
 function SignupThumb() {
   const s = "var(--ink-3)";
   return (
     <svg viewBox="0 0 38 30">
-      <rect x="3" y="9" width="32" height="12" rx="6" stroke={s} strokeWidth=".5" fill="none" opacity=".6"/>
-      <rect x="6" y="13" width="14" height="4" rx="2" fill={s} opacity=".3"/>
-      <rect x="26" y="10" width="8" height="10" rx="5" fill={s} opacity=".4"/>
+      <rect
+        fill="none"
+        height="12"
+        opacity=".6"
+        rx="6"
+        stroke={s}
+        strokeWidth=".5"
+        width="32"
+        x="3"
+        y="9"
+      />
+      <rect fill={s} height="4" opacity=".3" rx="2" width="14" x="6" y="13" />
+      <rect fill={s} height="10" opacity=".4" rx="5" width="8" x="26" y="10" />
     </svg>
   );
 }

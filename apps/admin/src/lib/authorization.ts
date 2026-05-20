@@ -17,10 +17,10 @@ export interface UserAuthContext {
   departmentNames: string[]; // Parsed department names (e.g., "OperationsUnit", "LedelsenOslo")
   departmentTeamIds: string[]; // Azure GUIDs for SG-App-Dept-* teams
   email: string | null;
-  name: string | null;
   labels: string[]; // Appwrite user labels (legacy, kept for read-only checks)
   managedCampuses: string[]; // Campus names this user manages (for campus admins)
   managedCampusIds: string[]; // Numeric campus_id values for managedCampuses
+  name: string | null;
   resolvedCampusIds: string[]; // Numeric campus_id values for ALL campuses user belongs to
   roles: string[]; // Computed roles (e.g., "globaladmin", "campusadmin")
   userId: string;

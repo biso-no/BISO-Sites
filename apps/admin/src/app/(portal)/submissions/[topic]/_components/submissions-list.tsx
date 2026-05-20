@@ -1,8 +1,18 @@
 "use client";
 
-import { CheckCheck, ChevronLeft, ChevronRight, Eye, Trash2 } from "lucide-react";
+import {
+  CheckCheck,
+  ChevronLeft,
+  ChevronRight,
+  Eye,
+  Trash2,
+} from "lucide-react";
 import { useState, useTransition } from "react";
-import { deleteSubmission, updateSubmissionStatus, type FormSubmission } from "../../../_actions/submissions";
+import {
+  deleteSubmission,
+  type FormSubmission,
+  updateSubmissionStatus,
+} from "../../../_actions/submissions";
 
 interface Props {
   page: number;
@@ -26,11 +36,18 @@ const STATUS_COLORS: Record<FormSubmission["status"], string> = {
 };
 
 function formatDate(iso: string) {
-  return new Date(iso).toLocaleString("no", { dateStyle: "medium", timeStyle: "short" });
+  return new Date(iso).toLocaleString("no", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
 }
 
 function parseData(json: string): Record<string, string> {
-  try { return JSON.parse(json); } catch { return {}; }
+  try {
+    return JSON.parse(json);
+  } catch {
+    return {};
+  }
 }
 
 export function SubmissionsList({ rows, topic, page, total }: Props) {
@@ -44,36 +61,49 @@ export function SubmissionsList({ rows, topic, page, total }: Props) {
   }
 
   function handleDelete(id: string) {
-    if (!confirm("Delete this submission? This cannot be undone.")) return;
+    if (!confirm("Delete this submission? This cannot be undone.")) {
+      return;
+    }
     startTransition(() => deleteSubmission(id, topic));
   }
 
   if (rows.length === 0) {
-    return <p className="text-sm text-muted-foreground py-12 text-center">No submissions found.</p>;
+    return (
+      <p className="py-12 text-center text-muted-foreground text-sm">
+        No submissions found.
+      </p>
+    );
   }
 
   return (
     <div className="space-y-3">
-      <div className="divide-y border rounded-xl overflow-hidden bg-card">
+      <div className="divide-y overflow-hidden rounded-xl border bg-card">
         {rows.map((sub) => {
           const data = parseData(sub.dataJson);
           const isOpen = expanded === sub.$id;
           return (
-            <div key={sub.$id} className={`transition-colors ${sub.status === "new" ? "bg-blue-50/40" : ""}`}>
+            <div
+              className={`transition-colors ${sub.status === "new" ? "bg-blue-50/40" : ""}`}
+              key={sub.$id}
+            >
               <div className="flex items-center gap-3 px-4 py-3">
-                <span className={`text-xs font-semibold px-2 py-0.5 rounded-full flex-shrink-0 ${STATUS_COLORS[sub.status]}`}>
+                <span
+                  className={`flex-shrink-0 rounded-full px-2 py-0.5 font-semibold text-xs ${STATUS_COLORS[sub.status]}`}
+                >
                   {STATUS_LABELS[sub.status]}
                 </span>
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium truncate">
+                <div className="min-w-0 flex-1">
+                  <div className="truncate font-medium text-sm">
                     {Object.values(data)[0] ?? "—"}
                   </div>
-                  <div className="text-xs text-muted-foreground">{formatDate(sub.$createdAt)}</div>
+                  <div className="text-muted-foreground text-xs">
+                    {formatDate(sub.$createdAt)}
+                  </div>
                 </div>
-                <div className="flex items-center gap-1 flex-shrink-0">
+                <div className="flex flex-shrink-0 items-center gap-1">
                   <button
                     aria-label="Expand"
-                    className="p-1.5 rounded hover:bg-muted transition-colors text-muted-foreground"
+                    className="rounded p-1.5 text-muted-foreground transition-colors hover:bg-muted"
                     onClick={() => setExpanded(isOpen ? null : sub.$id)}
                     type="button"
                   >
@@ -82,7 +112,7 @@ export function SubmissionsList({ rows, topic, page, total }: Props) {
                   {sub.status !== "actioned" && (
                     <button
                       aria-label="Mark actioned"
-                      className="p-1.5 rounded hover:bg-muted transition-colors text-muted-foreground"
+                      className="rounded p-1.5 text-muted-foreground transition-colors hover:bg-muted"
                       disabled={isPending}
                       onClick={() => handleStatus(sub.$id, "actioned")}
                       type="button"
@@ -92,7 +122,7 @@ export function SubmissionsList({ rows, topic, page, total }: Props) {
                   )}
                   <button
                     aria-label="Delete"
-                    className="p-1.5 rounded hover:bg-destructive/10 text-destructive transition-colors"
+                    className="rounded p-1.5 text-destructive transition-colors hover:bg-destructive/10"
                     disabled={isPending}
                     onClick={() => handleDelete(sub.$id)}
                     type="button"
@@ -103,25 +133,34 @@ export function SubmissionsList({ rows, topic, page, total }: Props) {
               </div>
 
               {isOpen && (
-                <div className="px-4 pb-4 border-t bg-muted/20">
-                  <table className="w-full text-sm mt-3">
+                <div className="border-t bg-muted/20 px-4 pb-4">
+                  <table className="mt-3 w-full text-sm">
                     <tbody>
                       {Object.entries(data).map(([k, v]) => (
-                        <tr key={k} className="align-top">
-                          <td className="py-1 pr-4 font-medium text-muted-foreground whitespace-nowrap w-1/3">{k}</td>
-                          <td className="py-1 break-words">{v}</td>
+                        <tr className="align-top" key={k}>
+                          <td className="w-1/3 whitespace-nowrap py-1 pr-4 font-medium text-muted-foreground">
+                            {k}
+                          </td>
+                          <td className="break-words py-1">{v}</td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
-                  <div className="flex gap-2 mt-4">
-                    {(["new", "read", "actioned", "archived"] as FormSubmission["status"][])
+                  <div className="mt-4 flex gap-2">
+                    {(
+                      [
+                        "new",
+                        "read",
+                        "actioned",
+                        "archived",
+                      ] as FormSubmission["status"][]
+                    )
                       .filter((s) => s !== sub.status)
                       .map((s) => (
                         <button
-                          key={s}
-                          className="text-xs px-3 py-1 rounded border hover:bg-muted transition-colors"
+                          className="rounded border px-3 py-1 text-xs transition-colors hover:bg-muted"
                           disabled={isPending}
+                          key={s}
                           onClick={() => handleStatus(sub.$id, s)}
                           type="button"
                         >
@@ -137,16 +176,24 @@ export function SubmissionsList({ rows, topic, page, total }: Props) {
       </div>
 
       {totalPages > 1 && (
-        <div className="flex items-center justify-between text-sm text-muted-foreground">
-          <span>Page {page} of {totalPages} · {total} total</span>
+        <div className="flex items-center justify-between text-muted-foreground text-sm">
+          <span>
+            Page {page} of {totalPages} · {total} total
+          </span>
           <div className="flex gap-2">
             {page > 1 && (
-              <a className="flex items-center gap-1 hover:text-foreground" href={`?page=${page - 1}`}>
+              <a
+                className="flex items-center gap-1 hover:text-foreground"
+                href={`?page=${page - 1}`}
+              >
                 <ChevronLeft size={14} /> Prev
               </a>
             )}
             {page < totalPages && (
-              <a className="flex items-center gap-1 hover:text-foreground" href={`?page=${page + 1}`}>
+              <a
+                className="flex items-center gap-1 hover:text-foreground"
+                href={`?page=${page + 1}`}
+              >
                 Next <ChevronRight size={14} />
               </a>
             )}

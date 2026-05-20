@@ -17,7 +17,8 @@ export default async function SubmissionsPage() {
           <Inbox size={40} strokeWidth={1} />
           <p className="text-sm">No submissions yet.</p>
           <p className="max-w-xs text-xs opacity-60">
-            Submissions appear here when visitors fill out a form block on a published page.
+            Submissions appear here when visitors fill out a form block on a
+            published page.
           </p>
         </div>
       ) : (

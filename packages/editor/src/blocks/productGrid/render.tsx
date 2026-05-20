@@ -1,9 +1,13 @@
 "use client";
 
-import type { ProductGridBlock } from "@/editor/types";
 import type { PatchFn } from "@/blocks/types";
+import type { ProductGridBlock } from "@/editor/types";
 
-interface Props { block: ProductGridBlock; edit: boolean; onPatch: PatchFn; }
+interface Props {
+  block: ProductGridBlock;
+  edit: boolean;
+  onPatch: PatchFn;
+}
 
 const PLACEHOLDER_ITEMS = [
   { name: "Product one", price: "kr 249" },
@@ -18,15 +22,17 @@ export function ProductGridRender({ block, edit }: Props) {
       {edit ? (
         <div className="pg-productgrid__grid">
           {PLACEHOLDER_ITEMS.map((p, i) => (
-            <div key={i} className="pg-productgrid__card">
-              <div className="pg-productgrid__img" aria-hidden="true" />
+            <div className="pg-productgrid__card" key={i}>
+              <div aria-hidden="true" className="pg-productgrid__img" />
               <div className="pg-productgrid__name">{p.name}</div>
               <div className="pg-productgrid__price">{p.price}</div>
             </div>
           ))}
         </div>
       ) : (
-        <p className="pg-productgrid__notice">Products load from the shop on the live page.</p>
+        <p className="pg-productgrid__notice">
+          Products load from the shop on the live page.
+        </p>
       )}
     </div>
   );

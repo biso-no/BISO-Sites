@@ -1,12 +1,18 @@
 "use client";
 
 import { useState } from "react";
-import type { JobsBlock } from "@/editor/types";
 import type { PatchFn } from "@/blocks/types";
-import { InspRow, InspSection } from "@/components/editor-shell/inspector/insp-parts";
+import {
+  InspRow,
+  InspSection,
+} from "@/components/editor-shell/inspector/insp-parts";
 import { useEditorStore } from "@/editor/store";
+import type { JobsBlock } from "@/editor/types";
 
-interface Props { block: JobsBlock; onPatch: PatchFn; }
+interface Props {
+  block: JobsBlock;
+  onPatch: PatchFn;
+}
 
 export function JobsInspector({ block, onPatch }: Props) {
   const department = useEditorStore((s) => s.doc.meta.department);
@@ -17,7 +23,8 @@ export function JobsInspector({ block, onPatch }: Props) {
     block.source && block.source !== "auto" ? block.source : ""
   );
 
-  const effectiveDept = block.source && block.source !== "auto" ? block.source : department;
+  const effectiveDept =
+    block.source && block.source !== "auto" ? block.source : department;
 
   function handleModeChange(v: string) {
     if (v === "auto") {
@@ -39,12 +46,18 @@ export function JobsInspector({ block, onPatch }: Props) {
     <>
       <InspSection label="Jobs feed">
         <InspRow label="Heading">
-          <input value={block.heading} onChange={(e) => onPatch("heading", e.target.value)} />
+          <input
+            onChange={(e) => onPatch("heading", e.target.value)}
+            value={block.heading}
+          />
         </InspRow>
       </InspSection>
       <InspSection label="Data source">
         <InspRow label="Source">
-          <select value={mode} onChange={(e) => handleModeChange(e.target.value)}>
+          <select
+            onChange={(e) => handleModeChange(e.target.value)}
+            value={mode}
+          >
             <option value="auto">Auto (page department)</option>
             <option value="custom">Custom department ID</option>
           </select>
@@ -52,18 +65,35 @@ export function JobsInspector({ block, onPatch }: Props) {
         {mode === "custom" && (
           <InspRow label="Dept ID">
             <input
-              value={customId}
-              onChange={(e) => setCustomId(e.target.value)}
               onBlur={commitCustomId}
+              onChange={(e) => setCustomId(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && commitCustomId()}
               placeholder="e.g. esn"
+              value={customId}
             />
           </InspRow>
         )}
-        <p style={{ fontSize: 11, color: "var(--ink-3)", marginTop: 4, lineHeight: 1.45 }}>
-          {effectiveDept
-            ? <><span style={{ color: "var(--leaf)", fontWeight: 500 }}>● Live</span> — showing open roles for <code style={{ fontFamily: "var(--mono)", fontSize: 10 }}>{effectiveDept}</code></>
-            : <>Set a department on the Page tab to load live roles.</>}
+        <p
+          style={{
+            fontSize: 11,
+            color: "var(--ink-3)",
+            marginTop: 4,
+            lineHeight: 1.45,
+          }}
+        >
+          {effectiveDept ? (
+            <>
+              <span style={{ color: "var(--leaf)", fontWeight: 500 }}>
+                ● Live
+              </span>{" "}
+              — showing open roles for{" "}
+              <code style={{ fontFamily: "var(--mono)", fontSize: 10 }}>
+                {effectiveDept}
+              </code>
+            </>
+          ) : (
+            <>Set a department on the Page tab to load live roles.</>
+          )}
         </p>
       </InspSection>
     </>

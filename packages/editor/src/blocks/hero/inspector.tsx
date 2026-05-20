@@ -1,10 +1,17 @@
 "use client";
 
-import type { HeroBlock, PageDoc } from "@/editor/types";
 import type { PatchFn } from "@/blocks/types";
-import { InspRow, InspSection } from "@/components/editor-shell/inspector/insp-parts";
+import {
+  InspRow,
+  InspSection,
+} from "@/components/editor-shell/inspector/insp-parts";
+import type { HeroBlock, PageDoc } from "@/editor/types";
 
-interface Props { block: HeroBlock; doc: PageDoc; onPatch: PatchFn; }
+interface Props {
+  block: HeroBlock;
+  doc: PageDoc;
+  onPatch: PatchFn;
+}
 
 export function HeroInspector({ block, onPatch }: Props) {
   return (
@@ -13,10 +20,10 @@ export function HeroInspector({ block, onPatch }: Props) {
         <div className="pe-variant-grid">
           {(["split", "centered", "full"] as const).map((v) => (
             <button
+              className={`pe-variant${block.variant === v ? "on" : ""}`}
               key={v}
-              type="button"
-              className={`pe-variant${block.variant === v ? " on" : ""}`}
               onClick={() => onPatch("variant", v)}
+              type="button"
             >
               <span className="v-name">{v}</span>
             </button>
@@ -26,31 +33,47 @@ export function HeroInspector({ block, onPatch }: Props) {
 
       <InspSection label="Content">
         <InspRow label="Eyebrow">
-          <input value={block.eyebrow} onChange={(e) => onPatch("eyebrow", e.target.value)} />
+          <input
+            onChange={(e) => onPatch("eyebrow", e.target.value)}
+            value={block.eyebrow}
+          />
         </InspRow>
         <InspRow label="Title">
-          <input value={block.title} onChange={(e) => onPatch("title", e.target.value)} />
+          <input
+            onChange={(e) => onPatch("title", e.target.value)}
+            value={block.title}
+          />
         </InspRow>
         <InspRow label="Subtitle">
-          <input value={block.subtitle} onChange={(e) => onPatch("subtitle", e.target.value)} />
+          <input
+            onChange={(e) => onPatch("subtitle", e.target.value)}
+            value={block.subtitle}
+          />
         </InspRow>
       </InspSection>
 
       <InspSection label="CTA">
         <InspRow label="Label">
-          <input value={block.ctaLabel} onChange={(e) => onPatch("ctaLabel", e.target.value)} />
+          <input
+            onChange={(e) => onPatch("ctaLabel", e.target.value)}
+            value={block.ctaLabel}
+          />
         </InspRow>
         <InspRow label="URL">
-          <input type="url" value={block.ctaUrl} onChange={(e) => onPatch("ctaUrl", e.target.value)} />
+          <input
+            onChange={(e) => onPatch("ctaUrl", e.target.value)}
+            type="url"
+            value={block.ctaUrl}
+          />
         </InspRow>
       </InspSection>
 
       <InspSection label="Art panel">
         <InspRow label="Image caption">
           <input
-            value={block.imageAlt ?? ""}
             onChange={(e) => onPatch("imageAlt", e.target.value)}
             placeholder="Photo credit or label"
+            value={block.imageAlt ?? ""}
           />
         </InspRow>
       </InspSection>

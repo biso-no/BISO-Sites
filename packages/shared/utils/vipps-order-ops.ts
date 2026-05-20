@@ -5,23 +5,23 @@ import { parseOrderItems } from "./order-parsing";
 import { determineStatusFromPaymentState } from "./vipps-pure";
 
 // Define generic DB client type
-type DbClient = {
+interface DbClient {
   createRow: (
     dbId: string,
     collId: string,
     docId: string,
     data: any
   ) => Promise<any>;
+  deleteRow: (dbId: string, collId: string, docId: string) => Promise<any>;
+  getRow: (dbId: string, collId: string, docId: string) => Promise<any>;
+  listRows: (dbId: string, collId: string, queries?: string[]) => Promise<any>;
   updateRow: (
     dbId: string,
     collId: string,
     docId: string,
     data: any
   ) => Promise<any>;
-  getRow: (dbId: string, collId: string, docId: string) => Promise<any>;
-  listRows: (dbId: string, collId: string, queries?: string[]) => Promise<any>;
-  deleteRow: (dbId: string, collId: string, docId: string) => Promise<any>;
-};
+}
 
 /**
  * Creates an order in the database with PENDING status
@@ -144,14 +144,14 @@ export async function updateOrderStatus(
   }
 }
 
-type StockAdjustmentParams = {
+interface StockAdjustmentParams {
+  databases: DbClient;
   newStatus: OrderStatus;
   oldStatus: OrderStatus;
-  orderItems: any[];
-  databases: DbClient;
   orderId: string;
+  orderItems: any[];
   userId?: string;
-};
+}
 
 async function adjustStockForOrder({
   newStatus,

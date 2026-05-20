@@ -378,7 +378,14 @@ export interface ProfileHeaderBlock {
   type: "profileHeader";
 }
 
-export type FormFieldType = "checkbox" | "email" | "hidden" | "radio" | "select" | "text" | "textarea";
+export type FormFieldType =
+  | "checkbox"
+  | "email"
+  | "hidden"
+  | "radio"
+  | "select"
+  | "text"
+  | "textarea";
 
 export interface FormFieldOption {
   label: string;

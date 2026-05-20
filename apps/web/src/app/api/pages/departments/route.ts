@@ -16,8 +16,12 @@ export async function GET(request: Request) {
       Query.limit(100),
     ];
 
-    if (campusId) queries.push(Query.equal("campus_id", campusId));
-    if (type) queries.push(Query.equal("type", type));
+    if (campusId) {
+      queries.push(Query.equal("campus_id", campusId));
+    }
+    if (type) {
+      queries.push(Query.equal("type", type));
+    }
 
     const result = await db.listRows("app", "departments", queries);
 

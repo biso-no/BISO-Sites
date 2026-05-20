@@ -1,9 +1,13 @@
 "use client";
 
-import type { ProfileHeaderBlock } from "@/editor/types";
 import type { PatchFn } from "@/blocks/types";
+import type { ProfileHeaderBlock } from "@/editor/types";
 
-interface Props { block: ProfileHeaderBlock; edit: boolean; onPatch: PatchFn; }
+interface Props {
+  block: ProfileHeaderBlock;
+  edit: boolean;
+  onPatch: PatchFn;
+}
 
 export function ProfileHeaderRender({ block, edit }: Props) {
   if (!edit) {
@@ -16,12 +20,14 @@ export function ProfileHeaderRender({ block, edit }: Props) {
     <div className="pg-profileheader pg-block">
       <div className="pg-profileheader__row">
         {block.showAvatar && (
-          <div className="pg-profileheader__avatar" aria-hidden="true">
+          <div aria-hidden="true" className="pg-profileheader__avatar">
             <span>JD</span>
           </div>
         )}
         <div className="pg-profileheader__info">
-          <div className="pg-profileheader__name">{block.heading ?? "My BISO"}</div>
+          <div className="pg-profileheader__name">
+            {block.heading ?? "My BISO"}
+          </div>
           <div className="pg-profileheader__role">Member · Oslo</div>
         </div>
       </div>

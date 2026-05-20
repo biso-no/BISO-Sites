@@ -2,15 +2,23 @@ import { Query } from "@repo/api";
 import { createAdminClient } from "@repo/api/server";
 
 function titleFromRefs(refs: unknown): string {
-  if (!Array.isArray(refs) || refs.length === 0) return "";
-  const r = refs as Array<Record<string, unknown>>;
+  if (!Array.isArray(refs) || refs.length === 0) {
+    return "";
+  }
+  const r = refs as Record<string, unknown>[];
   const en = r.find((t) => t.locale === "en");
   return String((en ?? r[0]).title ?? "");
 }
 
 function parseMeta(raw: unknown): Record<string, unknown> {
-  if (typeof raw !== "string") return {};
-  try { return JSON.parse(raw); } catch { return {}; }
+  if (typeof raw !== "string") {
+    return {};
+  }
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return {};
+  }
 }
 
 export async function GET(request: Request) {
@@ -34,7 +42,8 @@ export async function GET(request: Request) {
     const items = (result.rows ?? []).map((r: Record<string, unknown>) => {
       const meta = parseMeta(r.metadata);
       return {
-        title: titleFromRefs(r.translation_refs) || String(r.title ?? r.name ?? ""),
+        title:
+          titleFromRefs(r.translation_refs) || String(r.title ?? r.name ?? ""),
         department: dept,
         deadline: String(meta.deadline ?? r.deadline ?? ""),
         commitment: String(meta.commitment ?? r.commitment ?? ""),

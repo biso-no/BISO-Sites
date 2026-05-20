@@ -1,10 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import type { MultiStepFormBlock } from "@/editor/types";
 import type { PatchFn } from "@/blocks/types";
+import type { MultiStepFormBlock } from "@/editor/types";
 
-interface Props { block: MultiStepFormBlock; edit: boolean; onPatch: PatchFn; }
+interface Props {
+  block: MultiStepFormBlock;
+  edit: boolean;
+  onPatch: PatchFn;
+}
 
 export function MultiStepFormRender({ block, edit }: Props) {
   const [step, setStep] = useState(0);
@@ -18,17 +22,19 @@ export function MultiStepFormRender({ block, edit }: Props) {
   if (edit) {
     return (
       <div className="pg-msform pg-block">
-        {block.heading && <h2 className="pg-msform__heading">{block.heading}</h2>}
+        {block.heading && (
+          <h2 className="pg-msform__heading">{block.heading}</h2>
+        )}
         <div className="pg-msform__stepper">
-          {steps.map((s, i) => (
+          {steps.map((_s, i) => (
             <div
+              className={`pg-msform__step-dot${i === step ? "pg-msform__step-dot--active" : ""}`}
               key={i}
-              className={`pg-msform__step-dot${i === step ? " pg-msform__step-dot--active" : ""}`}
               onClick={() => setStep(i)}
-              style={{ cursor: "pointer" }}
-              role="button"
-              tabIndex={0}
               onKeyDown={(e) => e.key === "Enter" && setStep(i)}
+              role="button"
+              style={{ cursor: "pointer" }}
+              tabIndex={0}
             >
               {i + 1}
             </div>
@@ -38,26 +44,66 @@ export function MultiStepFormRender({ block, edit }: Props) {
           <div className="pg-msform__panel">
             <div className="pg-msform__step-title">{current.title}</div>
             {current.fields.map((f, i) => (
-              <div key={i} className="pg-msform__field">
-                <label className="pg-msform__label">{f.label}{f.required && <span aria-hidden="true"> *</span>}</label>
+              <div className="pg-msform__field" key={i}>
+                <label className="pg-msform__label">
+                  {f.label}
+                  {f.required && <span aria-hidden="true"> *</span>}
+                </label>
                 {f.fieldType === "textarea" ? (
-                  <textarea className="pg-msform__input" rows={4} placeholder={f.placeholder} readOnly aria-label={f.label} />
+                  <textarea
+                    aria-label={f.label}
+                    className="pg-msform__input"
+                    placeholder={f.placeholder}
+                    readOnly
+                    rows={4}
+                  />
                 ) : f.fieldType === "select" ? (
-                  <select className="pg-msform__input" aria-label={f.label}>
-                    {(f.options ?? []).map((o, j) => <option key={j} value={o.value}>{o.label}</option>)}
+                  <select aria-label={f.label} className="pg-msform__input">
+                    {(f.options ?? []).map((o, j) => (
+                      <option key={j} value={o.value}>
+                        {o.label}
+                      </option>
+                    ))}
                   </select>
                 ) : (
-                  <input className="pg-msform__input" type={f.fieldType} placeholder={f.placeholder} readOnly aria-label={f.label} />
+                  <input
+                    aria-label={f.label}
+                    className="pg-msform__input"
+                    placeholder={f.placeholder}
+                    readOnly
+                    type={f.fieldType}
+                  />
                 )}
               </div>
             ))}
           </div>
         )}
         <div className="pg-msform__nav">
-          {step > 0 && <button type="button" className="pg-msform__btn pg-msform__btn--back" onClick={() => setStep(step - 1)}>Back</button>}
-          {step < steps.length - 1
-            ? <button type="button" className="pg-msform__btn pg-msform__btn--next" onClick={() => setStep(step + 1)}>Next</button>
-            : <button type="button" className="pg-msform__btn pg-msform__btn--submit">Submit</button>}
+          {step > 0 && (
+            <button
+              className="pg-msform__btn pg-msform__btn--back"
+              onClick={() => setStep(step - 1)}
+              type="button"
+            >
+              Back
+            </button>
+          )}
+          {step < steps.length - 1 ? (
+            <button
+              className="pg-msform__btn pg-msform__btn--next"
+              onClick={() => setStep(step + 1)}
+              type="button"
+            >
+              Next
+            </button>
+          ) : (
+            <button
+              className="pg-msform__btn pg-msform__btn--submit"
+              type="button"
+            >
+              Submit
+            </button>
+          )}
         </div>
         <p style={{ fontSize: 11, color: "var(--ink-3)", marginTop: 10 }}>
           {mode === "email"
@@ -72,7 +118,9 @@ export function MultiStepFormRender({ block, edit }: Props) {
     return (
       <div className="pg-msform pg-block">
         <div className="pg-msform__success">
-          <span aria-label="Success" role="img">✓</span>
+          <span aria-label="Success" role="img">
+            ✓
+          </span>
           <p>Your message has been sent. We'll be in touch soon.</p>
         </div>
       </div>
@@ -87,7 +135,11 @@ export function MultiStepFormRender({ block, edit }: Props) {
     const data: Record<string, string> = {};
     for (const field of current?.fields ?? []) {
       const el = form.elements.namedItem(field.name);
-      if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement || el instanceof HTMLSelectElement) {
+      if (
+        el instanceof HTMLInputElement ||
+        el instanceof HTMLTextAreaElement ||
+        el instanceof HTMLSelectElement
+      ) {
         data[field.name] = el.value;
       }
     }
@@ -112,7 +164,9 @@ export function MultiStepFormRender({ block, edit }: Props) {
           source: "multiStepForm",
         }),
       });
-      if (res.ok) setSubmitted(true);
+      if (res.ok) {
+        setSubmitted(true);
+      }
     } catch {
       // silent — user sees the form remain, can retry
     } finally {
@@ -124,9 +178,13 @@ export function MultiStepFormRender({ block, edit }: Props) {
     <div className="pg-msform pg-block">
       {block.heading && <h2 className="pg-msform__heading">{block.heading}</h2>}
       {steps.length > 1 && (
-        <div className="pg-msform__stepper" aria-label="Form steps">
-          {steps.map((s, i) => (
-            <div key={i} className={`pg-msform__step-dot${i === step ? " pg-msform__step-dot--active" : i < step ? " pg-msform__step-dot--done" : ""}`} aria-hidden="true">
+        <div aria-label="Form steps" className="pg-msform__stepper">
+          {steps.map((_s, i) => (
+            <div
+              aria-hidden="true"
+              className={`pg-msform__step-dot${i === step ? "pg-msform__step-dot--active" : i < step ? "pg-msform__step-dot--done" : ""}`}
+              key={i}
+            >
               {i < step ? "✓" : i + 1}
             </div>
           ))}
@@ -137,31 +195,72 @@ export function MultiStepFormRender({ block, edit }: Props) {
           <div className="pg-msform__panel">
             <div className="pg-msform__step-title">{current.title}</div>
             {current.fields.map((f) => (
-              <div key={f.name} className="pg-msform__field">
+              <div className="pg-msform__field" key={f.name}>
                 {f.fieldType !== "hidden" && (
                   <label className="pg-msform__label" htmlFor={`msf-${f.name}`}>
-                    {f.label}{f.required && <span aria-hidden="true"> *</span>}
+                    {f.label}
+                    {f.required && <span aria-hidden="true"> *</span>}
                   </label>
                 )}
                 {f.fieldType === "textarea" ? (
-                  <textarea id={`msf-${f.name}`} name={f.name} className="pg-msform__input" rows={4} placeholder={f.placeholder} required={f.required} aria-label={f.label} />
+                  <textarea
+                    aria-label={f.label}
+                    className="pg-msform__input"
+                    id={`msf-${f.name}`}
+                    name={f.name}
+                    placeholder={f.placeholder}
+                    required={f.required}
+                    rows={4}
+                  />
                 ) : f.fieldType === "select" ? (
-                  <select id={`msf-${f.name}`} name={f.name} className="pg-msform__input" required={f.required} aria-label={f.label}>
+                  <select
+                    aria-label={f.label}
+                    className="pg-msform__input"
+                    id={`msf-${f.name}`}
+                    name={f.name}
+                    required={f.required}
+                  >
                     <option value="">Choose…</option>
-                    {(f.options ?? []).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    {(f.options ?? []).map((o) => (
+                      <option key={o.value} value={o.value}>
+                        {o.label}
+                      </option>
+                    ))}
                   </select>
                 ) : (
-                  <input id={`msf-${f.name}`} name={f.name} type={f.fieldType} className="pg-msform__input" placeholder={f.placeholder} required={f.required} aria-label={f.label} />
+                  <input
+                    aria-label={f.label}
+                    className="pg-msform__input"
+                    id={`msf-${f.name}`}
+                    name={f.name}
+                    placeholder={f.placeholder}
+                    required={f.required}
+                    type={f.fieldType}
+                  />
                 )}
               </div>
             ))}
           </div>
           <div className="pg-msform__nav">
             {step > 0 && (
-              <button type="button" className="pg-msform__btn pg-msform__btn--back" onClick={() => setStep(step - 1)}>Back</button>
+              <button
+                className="pg-msform__btn pg-msform__btn--back"
+                onClick={() => setStep(step - 1)}
+                type="button"
+              >
+                Back
+              </button>
             )}
-            <button type="submit" className="pg-msform__btn pg-msform__btn--next" disabled={submitting}>
-              {submitting ? "Sending…" : step < steps.length - 1 ? "Next" : "Submit"}
+            <button
+              className="pg-msform__btn pg-msform__btn--next"
+              disabled={submitting}
+              type="submit"
+            >
+              {submitting
+                ? "Sending…"
+                : step < steps.length - 1
+                  ? "Next"
+                  : "Submit"}
             </button>
           </div>
         </form>

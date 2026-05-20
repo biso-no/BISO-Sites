@@ -1,7 +1,7 @@
 import { registerBlock } from "@/blocks/registry";
 import { emptyBlock } from "@/editor/operations";
-import { ProductGridRender } from "./render";
 import { ProductGridInspector } from "./inspector";
+import { ProductGridRender } from "./render";
 import { ProductGridThumb } from "./thumb";
 
 registerBlock({

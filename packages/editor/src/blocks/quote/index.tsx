@@ -1,16 +1,25 @@
 import { registerBlock } from "@/blocks/registry";
 import { emptyBlock } from "@/editor/operations";
-import { QuoteRender } from "./render";
 import { QuoteInspector } from "./inspector";
+import { QuoteRender } from "./render";
 
 function QuoteThumb() {
   const s = "var(--ink-3)";
   return (
     <svg viewBox="0 0 38 30">
-      <text x="5" y="17" fontSize="16" fill={s} fontFamily="serif" fontStyle="italic">"</text>
-      <rect x="11" y="11" width="20" height="1.5" fill={s} opacity=".5"/>
-      <rect x="11" y="15" width="22" height="1.5" fill={s} opacity=".5"/>
-      <rect x="11" y="19" width="13" height="1.5" fill={s} opacity=".5"/>
+      <text
+        fill={s}
+        fontFamily="serif"
+        fontSize="16"
+        fontStyle="italic"
+        x="5"
+        y="17"
+      >
+        "
+      </text>
+      <rect fill={s} height="1.5" opacity=".5" width="20" x="11" y="11" />
+      <rect fill={s} height="1.5" opacity=".5" width="22" x="11" y="15" />
+      <rect fill={s} height="1.5" opacity=".5" width="13" x="11" y="19" />
     </svg>
   );
 }

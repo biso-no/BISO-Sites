@@ -1,7 +1,7 @@
 import { registerBlock } from "@/blocks/registry";
 import { emptyBlock } from "@/editor/operations";
-import { DepartmentGridRender } from "./render";
 import { DepartmentGridInspector } from "./inspector";
+import { DepartmentGridRender } from "./render";
 import { DepartmentGridThumb } from "./thumb";
 
 registerBlock({

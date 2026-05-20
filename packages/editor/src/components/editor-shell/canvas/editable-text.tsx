@@ -5,13 +5,19 @@ import type { HTMLAttributes } from "react";
 type Tag = "p" | "h1" | "h2" | "h3" | "span" | "div";
 
 interface Props extends Omit<HTMLAttributes<HTMLElement>, "onChange"> {
-  tag?: Tag;
-  value: string;
   edit: boolean;
   onChange?: (value: string) => void;
+  tag?: Tag;
+  value: string;
 }
 
-export function EditableText({ tag: Tag = "p", value, edit, onChange, ...rest }: Props) {
+export function EditableText({
+  tag: Tag = "p",
+  value,
+  edit,
+  onChange,
+  ...rest
+}: Props) {
   if (!edit) {
     return <Tag {...(rest as HTMLAttributes<HTMLElement>)}>{value}</Tag>;
   }
@@ -20,9 +26,11 @@ export function EditableText({ tag: Tag = "p", value, edit, onChange, ...rest }:
     <Tag
       {...(rest as HTMLAttributes<HTMLElement>)}
       contentEditable
-      suppressContentEditableWarning
       data-edit="1"
-      onBlur={(e) => onChange?.((e.currentTarget as HTMLElement).textContent ?? "")}
+      onBlur={(e) =>
+        onChange?.((e.currentTarget as HTMLElement).textContent ?? "")
+      }
+      suppressContentEditableWarning
     >
       {value}
     </Tag>

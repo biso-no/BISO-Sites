@@ -10,7 +10,7 @@ export function proxy(req: NextRequest) {
     anonymousUrl.searchParams.set("redirect", pathname + req.nextUrl.search);
     return NextResponse.redirect(anonymousUrl);
   }
-  
+
   return NextResponse.next();
 }
 

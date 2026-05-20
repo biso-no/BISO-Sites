@@ -1,10 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import type { TabsBlock } from "@/editor/types";
 import type { PatchFn } from "@/blocks/types";
+import type { TabsBlock } from "@/editor/types";
 
-interface Props { block: TabsBlock; edit: boolean; onPatch: PatchFn; }
+interface Props {
+  block: TabsBlock;
+  edit: boolean;
+  onPatch: PatchFn;
+}
 
 export function TabsRender({ block }: Props) {
   const [active, setActive] = useState(0);
@@ -15,21 +19,19 @@ export function TabsRender({ block }: Props) {
       <div className="pg-tabs__bar" role="tablist">
         {tabs.map((tab, i) => (
           <button
-            key={i}
-            type="button"
-            role="tab"
             aria-selected={active === i}
-            className={`pg-tabs__tab${active === i ? " active" : ""}`}
+            className={`pg-tabs__tab${active === i ? "active" : ""}`}
+            key={i}
             onClick={() => setActive(i)}
+            role="tab"
+            type="button"
           >
             {tab.label}
           </button>
         ))}
       </div>
       <div className="pg-tabs__panel" role="tabpanel">
-        {tabs[active] && (
-          <p className="pg-tabs__body">{tabs[active].body}</p>
-        )}
+        {tabs[active] && <p className="pg-tabs__body">{tabs[active].body}</p>}
       </div>
     </div>
   );

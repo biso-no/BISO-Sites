@@ -1,7 +1,7 @@
 import { registerBlock } from "@/blocks/registry";
 import { emptyBlock } from "@/editor/operations";
-import { FeatureGridRender } from "./render";
 import { FeatureGridInspector } from "./inspector";
+import { FeatureGridRender } from "./render";
 import { FeatureGridThumb } from "./thumb";
 
 registerBlock({
@@ -11,8 +11,8 @@ registerBlock({
   category: "Layout",
   variants: [
     { id: "bordered", label: "Bordered", kind: "bordered" },
-    { id: "cards",    label: "Cards",    kind: "cards" },
-    { id: "minimal",  label: "Minimal",  kind: "minimal" },
+    { id: "cards", label: "Cards", kind: "cards" },
+    { id: "minimal", label: "Minimal", kind: "minimal" },
   ],
   aiHint: "A grid of icon cards each with a title and body text.",
   aiProps: ["heading", "intro", "items"],

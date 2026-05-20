@@ -1,9 +1,13 @@
 "use client";
 
-import type { FilterBarBlock } from "@/editor/types";
 import type { PatchFn } from "@/blocks/types";
+import type { FilterBarBlock } from "@/editor/types";
 
-interface Props { block: FilterBarBlock; edit: boolean; onPatch: PatchFn; }
+interface Props {
+  block: FilterBarBlock;
+  edit: boolean;
+  onPatch: PatchFn;
+}
 
 const LABELS: Record<FilterBarBlock["target"], string> = {
   news: "Search news…",
@@ -16,11 +20,11 @@ export function FilterBarRender({ block, edit }: Props) {
     <div className="pg-filterbar pg-block">
       <div className="pg-filterbar__row">
         <input
+          aria-label={LABELS[block.target]}
           className="pg-filterbar__input"
-          type="search"
           placeholder={LABELS[block.target]}
           readOnly={edit}
-          aria-label={LABELS[block.target]}
+          type="search"
         />
         {edit && (
           <span className="pg-filterbar__hint">

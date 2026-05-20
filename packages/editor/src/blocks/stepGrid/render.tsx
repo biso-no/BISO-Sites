@@ -1,9 +1,13 @@
 "use client";
 
-import type { StepGridBlock } from "@/editor/types";
 import type { PatchFn } from "@/blocks/types";
+import type { StepGridBlock } from "@/editor/types";
 
-interface Props { block: StepGridBlock; edit: boolean; onPatch: PatchFn; }
+interface Props {
+  block: StepGridBlock;
+  edit: boolean;
+  onPatch: PatchFn;
+}
 
 export function StepGridRender({ block }: Props) {
   return (
@@ -11,7 +15,7 @@ export function StepGridRender({ block }: Props) {
       {block.heading && <h2 className="pg-stepgrid__h">{block.heading}</h2>}
       <div className="pg-stepgrid__grid">
         {block.items.map((item, i) => (
-          <div key={i} className="pg-stepgrid__card">
+          <div className="pg-stepgrid__card" key={i}>
             <div className="pg-stepgrid__num">{item.number}</div>
             <div className="pg-stepgrid__title">{item.title}</div>
             <p className="pg-stepgrid__body">{item.body}</p>

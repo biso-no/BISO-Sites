@@ -1,7 +1,7 @@
 import { registerBlock } from "@/blocks/registry";
 import { emptyBlock } from "@/editor/operations";
-import { StepGridRender } from "./render";
 import { StepGridInspector } from "./inspector";
+import { StepGridRender } from "./render";
 import { StepGridThumb } from "./thumb";
 
 registerBlock({

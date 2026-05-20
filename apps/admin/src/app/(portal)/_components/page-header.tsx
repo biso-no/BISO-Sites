@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { StudioLinkButton, StudioPageHeader } from "./studio";
+import { StudioPageHeader } from "./studio";
 
 interface PageHeaderProps {
   children?: ReactNode;
