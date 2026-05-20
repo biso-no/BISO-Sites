@@ -13,7 +13,7 @@ export interface JobMetadata extends Record<string, unknown> {
   [key: string]: unknown;
 }
 
-export interface AdminJob extends Jobs {
+export interface AdminJob extends Omit<Jobs, "translations"> {
   metadata_parsed: JobMetadata;
   translation_refs: ContentTranslations[];
   translations: TranslationMap<ContentTranslations>;

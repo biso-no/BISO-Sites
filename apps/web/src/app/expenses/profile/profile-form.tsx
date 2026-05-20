@@ -1,7 +1,6 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import type { Models } from "@repo/api";
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -32,10 +31,13 @@ const profileSchema = z.object({
 });
 
 type ProfileFormValues = z.infer<typeof profileSchema>;
+type ProfileFormInitialData = {
+  [Key in keyof ProfileFormValues]?: ProfileFormValues[Key] | null;
+};
 
 interface ProfileFormProps {
   email: string;
-  initialData: Models.Document | null | any;
+  initialData: ProfileFormInitialData | null;
 }
 
 interface ProfileFieldConfig {

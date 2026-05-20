@@ -1,14 +1,11 @@
 "use client";
 
-import { Currency } from "@repo/api/types/appwrite";
 import { Alert, AlertDescription } from "@repo/ui/components/ui/alert";
 import { Button } from "@repo/ui/components/ui/button";
 import { Card } from "@repo/ui/components/ui/card";
 import { Separator } from "@repo/ui/components/ui/separator";
 import { CreditCard, Package, Sparkles, Tag } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useTransition } from "react";
-import { createCartCheckoutSession as initiateVippsCheckout } from "@/app/actions/orders";
 import { useCart } from "@/lib/contexts/cart-context";
 
 interface CartSummaryProps {
@@ -16,15 +13,13 @@ interface CartSummaryProps {
   userId: string | null;
 }
 
-export function CartSummary({ isMember, userId }: CartSummaryProps) {
+export function CartSummary({ isMember, userId: _userId }: CartSummaryProps) {
   const router = useRouter();
-  const [isPending, startTransition] = useTransition();
   const { items, getSubtotal, getRegularSubtotal, getTotalSavings } = useCart();
 
   const subtotal = getSubtotal(isMember);
   const regularSubtotal = getRegularSubtotal();
   const totalSavings = getTotalSavings(isMember);
-  const discountTotal = isMember ? totalSavings : 0;
 
   const hasUnlockableDiscounts =
     !isMember && items.some((item) => item.memberPrice);
@@ -35,31 +30,6 @@ export function CartSummary({ isMember, userId }: CartSummaryProps) {
         const price = item.memberPrice || item.regularPrice;
         return sum + price * item.quantity;
       }, 0);
-
-  const _handleCheckout = () => {
-    startTransition(async () => {
-      await initiateVippsCheckout({
-        reference: crypto.randomUUID(),
-        userId: userId || "guest",
-        items: items.map((item) => ({
-          productId: item.productId,
-          name: item.name,
-          price:
-            isMember && item.memberPrice ? item.memberPrice : item.regularPrice,
-          quantity: item.quantity,
-        })),
-        subtotal: regularSubtotal,
-        discountTotal: discountTotal || undefined,
-        total: subtotal,
-        currency: Currency.NOK,
-        membershipApplied: isMember,
-        memberDiscountPercent:
-          isMember && totalSavings > 0
-            ? Math.round((totalSavings / regularSubtotal) * 100)
-            : undefined,
-      });
-    });
-  };
 
   return (
     <div className="space-y-6">
@@ -139,11 +109,10 @@ export function CartSummary({ isMember, userId }: CartSummaryProps) {
 
           <Button
             className="mb-3 w-full bg-linear-to-r from-brand-gradient-from to-brand-gradient-to text-white hover:from-brand-gradient-from/90 hover:to-brand-gradient-to/90 disabled:opacity-70"
-            disabled={isPending}
             onClick={() => router.push("/shop/checkout")}
           >
             <CreditCard className="mr-2 h-4 w-4" />
-            {isPending ? "Processing..." : "Proceed to Checkout"}
+            Proceed to Checkout
           </Button>
 
           <Button

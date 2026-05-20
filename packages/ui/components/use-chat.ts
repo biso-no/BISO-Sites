@@ -18,7 +18,7 @@ import { type UIMessage, DefaultChatTransport } from 'ai';
 import { type TNode, KEYS, nanoid, NodeApi, TextApi } from 'platejs';
 import { type PlateEditor, useEditorRef, usePluginOption } from 'platejs/react';
 
-import { aiChatPlugin } from '@repo/ui/components/ai-kit';
+import { AI_CHAT_OPTIONS, aiChatPlugin } from '@repo/ui/components/ai-kit';
 
 import { discussionPlugin } from './discussion-kit';
 import { withAIBatch } from '@platejs/ai';
@@ -54,7 +54,7 @@ export type ChatMessage = UIMessage<{}, MessageDataPart>;
 
 export const useChat = () => {
   const editor = useEditorRef();
-  const options = usePluginOption(aiChatPlugin, 'chatOptions');
+  const options = AI_CHAT_OPTIONS;
 
   // remove when you implement the route /api/ai/command
   const abortControllerRef = React.useRef<AbortController | null>(null);
@@ -71,7 +71,7 @@ export const useChat = () => {
       api: options.api || '/api/ai/command',
       // Mock the API response. Remove it when you implement the route /api/ai/command
       fetch: (async (input, init) => {
-        const bodyOptions = editor.getOptions(aiChatPlugin).chatOptions?.body;
+        const bodyOptions = AI_CHAT_OPTIONS.body;
 
         const initBody = JSON.parse(init?.body as string);
 

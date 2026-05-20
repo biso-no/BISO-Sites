@@ -93,7 +93,7 @@ export default async function BIFundPage() {
 
   return (
     <div className="space-y-12">
-      <HeroSection content={content} locale={locale} t={t} />
+      <HeroSection content={content} t={t} />
       <EligibilityAndSteps content={content} t={t} />
       {content.faqs.length > 0 ? <FaqSection content={content} t={t} /> : null}
       <ContactSection contact={content.contact} t={t} />

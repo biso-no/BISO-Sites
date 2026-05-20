@@ -57,6 +57,9 @@ export async function getDepartments(): Promise<DimensionElement[]> {
  * Parses the `continuationToken` query parameter from a Link header's `next` relation.
  * Example header: `<https://...?continuationToken=abc>; rel="next"`
  */
+const LINK_URL_REGEX = /<([^>]+)>/;
+const LINK_REL_REGEX = /rel="([^"]+)"/;
+
 function parseNextContinuationToken(
   linkHeader: string | null
 ): string | undefined {
@@ -65,8 +68,8 @@ function parseNextContinuationToken(
   }
 
   for (const part of linkHeader.split(",")) {
-    const urlMatch = part.match(/<([^>]+)>/);
-    const relMatch = part.match(/rel="([^"]+)"/);
+    const urlMatch = part.match(LINK_URL_REGEX);
+    const relMatch = part.match(LINK_REL_REGEX);
 
     if (urlMatch && relMatch?.[1] === "next") {
       const url = new URL(urlMatch[1]);

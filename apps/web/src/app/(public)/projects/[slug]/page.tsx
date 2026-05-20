@@ -50,7 +50,7 @@ const pickValue = <T,>(
     : (nbValue ?? enValue ?? fallback);
 
 const formatScheduleDate = (
-  item: ParsedLargeEvent["items"][number],
+  item: NonNullable<ParsedLargeEvent["items"]>[number],
   locale: Locale
 ) => {
   if (!item.startTime) {
@@ -210,7 +210,7 @@ const ScheduleItemCard = ({
   locale,
   ticketLabel,
 }: {
-  item: ParsedLargeEvent["items"][number];
+  item: NonNullable<ParsedLargeEvent["items"]>[number];
   locale: Locale;
   ticketLabel: string;
 }) => {
@@ -249,7 +249,7 @@ const CampusScheduleCard = ({
   ticketLabel,
 }: {
   campusId: string;
-  items: ParsedLargeEvent["items"];
+  items: NonNullable<ParsedLargeEvent["items"]>;
   campusMetadata: Record<string, { campus_name?: string; campus_id?: string }>;
   locale: Locale;
   ticketLabel: string;
@@ -284,7 +284,7 @@ const ScheduleSection = ({
   locale,
   t,
 }: {
-  groupedSchedule: Record<string, ParsedLargeEvent["items"]>;
+  groupedSchedule: Record<string, NonNullable<ParsedLargeEvent["items"]>>;
   campusMetadata: Record<string, { campus_name?: string; campus_id?: string }>;
   locale: Locale;
   t: Awaited<ReturnType<typeof getTranslations>>;
@@ -309,7 +309,7 @@ const ScheduleSection = ({
           <CampusScheduleCard
             campusId={campusId}
             campusMetadata={campusMetadata}
-            items={groupedSchedule[campusId]}
+            items={groupedSchedule[campusId] ?? []}
             key={campusId}
             locale={locale}
             ticketLabel={t("schedule.ticket")}

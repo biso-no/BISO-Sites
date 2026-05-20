@@ -19,7 +19,7 @@ async function DepartmentDetailsContent({ id }: { id: string }) {
 
   // Get member status if user is logged in
   const user = await getLoggedInUser();
-  const isMember = user?.profile?.studentId?.isMember;
+  const isMember = user?.profile?.studentId?.isMember ?? false;
 
   return (
     <>

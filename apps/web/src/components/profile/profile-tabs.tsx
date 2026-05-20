@@ -19,12 +19,26 @@ import { ProfileForm } from "@/app/expenses/profile/profile-form";
 import { PrivacyControls } from "@/components/privacy-controls";
 import { IdentityManagement } from "@/components/profile/identity-management";
 
+interface ProfileTabsUserData {
+  profile: Parameters<typeof ProfileForm>[0]["initialData"];
+  user: {
+    $id: string;
+    email: string;
+  };
+}
+
+interface Identity {
+  $id: string;
+  provider: string;
+  providerUid?: string;
+}
+
 export function ProfileTabs({
   userData,
   identities,
 }: {
-  userData: any;
-  identities?: any[];
+  userData: ProfileTabsUserData;
+  identities?: Identity[];
 }) {
   const [activeTab, setActiveTab] = useState("account");
 
@@ -77,7 +91,7 @@ export function ProfileTabs({
       </TabsContent>
 
       <TabsContent className="space-y-6" value="privacy">
-        <PrivacyControls userId={userData.user.$id} />
+        <PrivacyControls />
       </TabsContent>
 
       <TabsContent className="space-y-6" value="identities">

@@ -7,9 +7,43 @@ const PROJECT_ID = "biso";
 const API_KEY = process.env.NEXT_PUBLIC_APPWRITE_API_KEY;
 
 // Cookie name mapping
-const COOKIE_NAME_MAP = {
+const COOKIE_NAME_MAP: Record<string, string> = {
   a_session_biso_admin: "a_session_biso_admin",
 };
+
+function setSessionCookie(response: NextResponse, name: string, value: string) {
+  const mappedName = COOKIE_NAME_MAP[name] || name;
+  response.cookies.set(mappedName, value, {
+    path: "/",
+    httpOnly: true,
+    sameSite: "lax",
+    secure: true,
+  });
+}
+
+function applySetCookieHeader(response: NextResponse, setCookieHeader: string) {
+  const cookiesList = setCookieHeader.split(",").map((cookie) => cookie.trim());
+  for (const cookieStr of cookiesList) {
+    const [cookiePart] = cookieStr.split(";");
+    const [name, value] = cookiePart.split("=");
+    if (name && value) {
+      setSessionCookie(response, name, value);
+    }
+  }
+}
+
+function applyFallbackCookies(response: NextResponse, fallbackCookies: string) {
+  try {
+    const fallbackCookiesObj = JSON.parse(fallbackCookies);
+    for (const [name, value] of Object.entries(fallbackCookiesObj)) {
+      if (typeof value === "string") {
+        setSessionCookie(response, name, value);
+      }
+    }
+  } catch (e) {
+    console.error("Failed to parse fallback cookies:", e);
+  }
+}
 
 export async function GET(request: NextRequest) {
   const userId = request.nextUrl.searchParams.get("userId");
@@ -21,6 +55,10 @@ export async function GET(request: NextRequest) {
 
   if (!(userId && secret && membershipId && teamId)) {
     return redirect("/auth/login?error=invalid_parameters");
+  }
+  if (!(NEXT_PUBLIC_APPWRITE_ENDPOINT && API_KEY)) {
+    console.error("Appwrite invite configuration is missing");
+    return redirect("/auth/login?error=server_configuration");
   }
 
   try {
@@ -53,43 +91,9 @@ export async function GET(request: NextRequest) {
     const fallbackCookies = response.headers.get("X-Fallback-Cookies");
 
     if (setCookieHeader) {
-      // Parse and set the cookies from Set-Cookie header
-      const cookiesList = setCookieHeader
-        .split(",")
-        .map((cookie) => cookie.trim());
-      for (const cookieStr of cookiesList) {
-        // Extract the cookie name and value
-        const [cookiePart] = cookieStr.split(";");
-        const [name, value] = cookiePart.split("=");
-
-        // Use mapped name if exists, otherwise use original name
-        const mappedName = COOKIE_NAME_MAP[name] || name;
-
-        redirectResponse.cookies.set(mappedName, value, {
-          path: "/",
-          httpOnly: true,
-          sameSite: "lax",
-          secure: true,
-        });
-      }
+      applySetCookieHeader(redirectResponse, setCookieHeader);
     } else if (fallbackCookies) {
-      // Parse and set cookies from X-Fallback-Cookies
-      try {
-        const fallbackCookiesObj = JSON.parse(fallbackCookies);
-        for (const [name, value] of Object.entries(fallbackCookiesObj)) {
-          // Use mapped name if exists, otherwise use original name
-          const mappedName = COOKIE_NAME_MAP[name] || name;
-
-          redirectResponse.cookies.set(mappedName, value as string, {
-            path: "/",
-            httpOnly: true,
-            sameSite: "lax",
-            secure: true,
-          });
-        }
-      } catch (e) {
-        console.error("Failed to parse fallback cookies:", e);
-      }
+      applyFallbackCookies(redirectResponse, fallbackCookies);
     }
 
     return redirectResponse;

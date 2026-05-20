@@ -7,13 +7,13 @@ import { extractTextFromPdf } from "./pdf-text-extractor";
 export interface ProcessedDocument {
   chunks: DocumentChunk[];
   content: string;
-  metadata: Record<string, any>;
+  metadata: Record<string, unknown>;
 }
 
 export interface DocumentChunk {
   chunkIndex: number;
   content: string;
-  metadata: Record<string, any>;
+  metadata: Record<string, unknown>;
 }
 
 // Configuration constants
@@ -71,9 +71,10 @@ export class DocumentProcessor {
   async processDocument(
     buffer: ArrayBuffer,
     contentType: string,
-    metadata: Record<string, any>
+    metadata: Record<string, unknown>
   ): Promise<ProcessedDocument> {
-    const fileName = metadata?.fileName || "";
+    const fileName =
+      typeof metadata.fileName === "string" ? metadata.fileName : "";
     const correctedType = correctMimeType(contentType, fileName);
     const ct = correctedType.toLowerCase();
 
@@ -132,19 +133,22 @@ export class DocumentProcessor {
         continue;
       }
 
-      const parsed = await parseStringPromise(xml);
+      const parsed: unknown = await parseStringPromise(xml);
 
       const texts: string[] = [];
-      const extractTexts = (obj: any) => {
-        if (obj?.["a:t"]) {
-          const text = Array.isArray(obj["a:t"])
-            ? obj["a:t"].join(" ")
-            : String(obj["a:t"]);
+      const extractTexts = (obj: unknown) => {
+        if (!(typeof obj === "object" && obj !== null)) {
+          return;
+        }
+
+        const record = obj as Record<string, unknown>;
+        if (record["a:t"]) {
+          const text = Array.isArray(record["a:t"])
+            ? record["a:t"].join(" ")
+            : String(record["a:t"]);
           texts.push(text);
         }
-        if (typeof obj === "object" && obj !== null) {
-          Object.values(obj).forEach(extractTexts);
-        }
+        Object.values(record).forEach(extractTexts);
       };
 
       extractTexts(parsed);
@@ -163,7 +167,7 @@ export class DocumentProcessor {
 
     for (const sheetName of wb.SheetNames) {
       const sheet = wb.Sheets[sheetName];
-      const rows: any[] = XLSX.utils.sheet_to_json(sheet, {
+      const rows = XLSX.utils.sheet_to_json<unknown[]>(sheet, {
         header: 1,
         blankrows: false,
       });
@@ -201,7 +205,7 @@ export class DocumentProcessor {
     return Promise.resolve(this.turndownService.turndown(html));
   }
 
-  private arrayToMarkdownTable(rows: any[][]): string | null {
+  private arrayToMarkdownTable(rows: unknown[][]): string | null {
     if (rows.length === 0) {
       return null;
     }
@@ -249,7 +253,7 @@ export class DocumentProcessor {
 
   private createChunks(
     content: string,
-    metadata: Record<string, any>
+    metadata: Record<string, unknown>
   ): DocumentChunk[] {
     // Try structure-aware chunking first
     const structuredChunks = this.tryStructuredChunking(content, metadata);
@@ -263,7 +267,7 @@ export class DocumentProcessor {
 
   private tryStructuredChunking(
     content: string,
-    metadata: Record<string, any>
+    metadata: Record<string, unknown>
   ): DocumentChunk[] {
     const chunks: DocumentChunk[] = [];
 
@@ -292,7 +296,7 @@ export class DocumentProcessor {
 
       const sectionStart = section.start;
       const sectionEnd = nextSection ? nextSection.start : content.length;
-      const sectionContent = content.substring(sectionStart, sectionEnd).trim();
+      const sectionContent = content.slice(sectionStart, sectionEnd).trim();
 
       if (sectionContent.length < 50) {
         continue;
@@ -342,7 +346,7 @@ export class DocumentProcessor {
 
     while (position < content.length) {
       const endPos = Math.min(position + targetSize * 4, content.length); // Estimate chars from tokens
-      let chunkContent = content.substring(position, endPos);
+      let chunkContent = content.slice(position, endPos);
 
       // Find good boundary
       if (endPos < content.length) {
@@ -356,7 +360,7 @@ export class DocumentProcessor {
           (pos) => pos > chunkContent.length * 0.7
         );
         if (goodBoundary && goodBoundary > 0) {
-          chunkContent = chunkContent.substring(0, goodBoundary + 1);
+          chunkContent = chunkContent.slice(0, goodBoundary + 1);
         }
       }
 
@@ -389,7 +393,7 @@ export class DocumentProcessor {
 
   private createTokenBasedChunks(
     content: string,
-    metadata: Record<string, any>
+    metadata: Record<string, unknown>
   ): DocumentChunk[] {
     const chunks: DocumentChunk[] = [];
     const targetTokens = CHUNKING_CONFIG.TARGET_CHUNK_SIZE;
@@ -406,7 +410,7 @@ export class DocumentProcessor {
 
     while (startPos < content.length) {
       let endPos = Math.min(startPos + targetChars, content.length);
-      let chunkContent = content.substring(startPos, endPos);
+      let chunkContent = content.slice(startPos, endPos);
 
       // Find good boundary
       if (endPos < content.length) {
@@ -422,7 +426,7 @@ export class DocumentProcessor {
         );
         if (goodBoundary && goodBoundary.pos > 0) {
           const adjustment = goodBoundary.type === "sentence" ? 1 : 0;
-          chunkContent = content.substring(
+          chunkContent = content.slice(
             startPos,
             startPos + goodBoundary.pos + adjustment
           );

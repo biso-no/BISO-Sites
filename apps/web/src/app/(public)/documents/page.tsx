@@ -18,7 +18,7 @@ async function DocumentsList({ campusId }: { campusId: string | null }) {
 function DocumentsListSkeleton() {
   return (
     <div className="mx-auto max-w-7xl space-y-4 px-6 pb-20">
-      {[...Array(5)].map((_, i) => (
+      {[...new Array(5)].map((_, i) => (
         <div
           className="h-32 w-full animate-pulse rounded-2xl"
           key={i}

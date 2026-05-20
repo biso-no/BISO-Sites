@@ -14,12 +14,9 @@ interface TranslationItem {
 }
 
 interface RequestBody {
-  description?: string;
   pageData: unknown;
-  slug: string;
   sourceLocale: "no" | "en";
   targetLocale: "no" | "en";
-  title: string;
 }
 
 /**
@@ -222,24 +219,30 @@ function applyTranslations(
 
 export async function POST(req: Request) {
   const body: RequestBody = await req.json();
-  const { pageData, sourceLocale, targetLocale, title, description, slug } =
-    body;
+  const { pageData, sourceLocale, targetLocale } = body;
 
   const sourceLang = sourceLocale === "no" ? "Norwegian" : "English";
   const targetLang = targetLocale === "no" ? "Norwegian" : "English";
+  const doc = pageData as {
+    meta?: { title?: string; description?: string };
+    blocks?: unknown[];
+  };
 
   // Extract translatable content from page blocks
-  const contentItems = extractTranslatableContent(
-    (pageData as { content?: unknown })?.content ?? []
-  );
+  const contentItems = extractTranslatableContent(doc.blocks ?? [], "blocks");
 
   // Add metadata fields
-  const metadataItems: TranslationItem[] = [
-    { path: "meta.title", value: title },
-  ];
+  const metadataItems: TranslationItem[] = [];
 
-  if (description) {
-    metadataItems.push({ path: "meta.description", value: description });
+  if (doc.meta?.title) {
+    metadataItems.push({ path: "meta.title", value: doc.meta.title });
+  }
+
+  if (doc.meta?.description) {
+    metadataItems.push({
+      path: "meta.description",
+      value: doc.meta.description,
+    });
   }
 
   const allItems = [...metadataItems, ...contentItems];
@@ -247,9 +250,7 @@ export async function POST(req: Request) {
   if (allItems.length === 0) {
     return Response.json({
       translatedData: pageData,
-      translatedTitle: title,
-      translatedDescription: description,
-      translatedSlug: slug,
+      translatedDocument: pageData,
     });
   }
 
@@ -262,11 +263,6 @@ export async function POST(req: Request) {
         translated: z.string(),
       })
     ),
-    translatedSlug: z
-      .string()
-      .describe(
-        "URL-friendly slug based on the translated title (lowercase, hyphens, no special chars)"
-      ),
   });
 
   const prompt = `You are a professional translator specializing in ${sourceLang} to ${targetLang} translation for a student organization website.
@@ -275,20 +271,16 @@ Translate the following content items from ${sourceLang} to ${targetLang}.
 Maintain the same tone, style, and formatting (including markdown if present).
 For short labels and titles, keep them concise.
 For longer descriptions, ensure natural flow in the target language.
+Do not translate URLs, slugs, IDs, emails, media references, variants, or layout configuration.
 
 Content items to translate:
-${allItems.map((item, i) => `${i + 1}. [${item.path}]: "${item.value}"`).join("\n")}
-
-Also generate an appropriate URL-friendly slug based on the translated title.
-The current slug is: "${slug}"
-${sourceLocale === "no" ? "Keep or adapt the slug for English URL." : "Keep or adapt the slug for Norwegian URL."}`;
+${allItems.map((item, i) => `${i + 1}. [${item.path}]: "${item.value}"`).join("\n")}`;
 
   const result = await generateObject({
     model: openai("gpt-5.1-codex"),
     schema: translationSchema,
     prompt,
   });
-  console.log("Result: ", result);
   // Build translations map
   const translationsMap = new Map<string, string>();
   for (const item of result.object.translations) {
@@ -296,22 +288,9 @@ ${sourceLocale === "no" ? "Keep or adapt the slug for English URL." : "Keep or a
   }
 
   // Apply translations to page content
-  const translatedContent = applyTranslations(
-    (pageData as { content?: unknown })?.content ?? [],
-    translationsMap
-  );
-
-  // Reconstruct page data with translated content
-  const translatedData = {
-    ...(pageData as Record<string, unknown>),
-    content: translatedContent,
-  };
+  const translatedDocument = applyTranslations(pageData, translationsMap);
 
   return Response.json({
-    translatedData,
-    translatedTitle: translationsMap.get("meta.title") ?? title,
-    translatedDescription:
-      translationsMap.get("meta.description") ?? description,
-    translatedSlug: result.object.translatedSlug || slug,
+    translatedDocument,
   });
 }

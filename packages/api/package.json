@@ -23,7 +23,6 @@
   },
   "dependencies": {
     "@types/node": "catalog:",
-    "@puckeditor/core": "catalog:",
     "appwrite": "catalog:",
     "next": "catalog:",
     "node-appwrite": "catalog:",

@@ -53,7 +53,7 @@ export async function POST(req: Request) {
       model: openai("gpt-4o-mini"),
       system: systemPrompt,
       // UIMessage[] → ModelMessage[] (AI SDK v5 requirement)
-      messages: convertToModelMessages(messages),
+      messages: await convertToModelMessages(messages),
       temperature: 0.7,
     });
 

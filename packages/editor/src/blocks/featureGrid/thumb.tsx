@@ -1,0 +1,55 @@
+export function FeatureGridThumb() {
+  const s = "var(--ink-3)";
+  return (
+    <svg aria-hidden="true" focusable="false" viewBox="0 0 38 30">
+      <rect
+        fill="none"
+        height="10"
+        rx="1.5"
+        stroke={s}
+        strokeWidth=".5"
+        width="10"
+        x="2"
+        y="4"
+      />
+      <rect
+        fill="none"
+        height="10"
+        rx="1.5"
+        stroke={s}
+        strokeWidth=".5"
+        width="10"
+        x="14"
+        y="4"
+      />
+      <rect
+        fill="none"
+        height="10"
+        rx="1.5"
+        stroke={s}
+        strokeWidth=".5"
+        width="10"
+        x="26"
+        y="4"
+      />
+      <rect
+        fill={s}
+        height="1.5"
+        opacity=".3"
+        rx=".75"
+        width="34"
+        x="2"
+        y="16"
+      />
+      <rect
+        fill={s}
+        height="1.5"
+        opacity=".2"
+        rx=".75"
+        width="22"
+        x="2"
+        y="20"
+      />
+    </svg>
+  );
+}

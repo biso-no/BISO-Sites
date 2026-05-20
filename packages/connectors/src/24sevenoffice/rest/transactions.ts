@@ -11,37 +11,37 @@ import { DEPARTMENT_DIMENSION_TYPE } from "./departments";
 
 const BASE_URL = "https://rest.api.24sevenoffice.com/v1";
 
-type TransactionLine = {
+interface TransactionLine {
   accountNumber: number;
   amount: number; // positive = debit, negative = credit
-  tax: { number: number };
   comment?: string;
   dimensions?: Array<{ type: number; value: string }>;
-};
+  tax: { number: number };
+}
 
-type PostTransactionRequest = {
-  transactionTypeNumber: number;
+interface PostTransactionRequest {
+  comment?: string; // max 75 chars
   date: string; // ISO 8601 date (YYYY-MM-DD)
   lines: TransactionLine[];
-  comment?: string; // max 75 chars
-};
+  transactionTypeNumber: number;
+}
 
-type PostTransactionResponse = {
+interface PostTransactionResponse {
   transactionId: string;
-};
+}
 
-export type ShopTransactionParams = {
-  orderId: string;
+export interface ShopTransactionParams {
+  campusId?: string | null;
+  comment?: string;
   date: string;
-  total: number;
   items: Array<{
     unit_price: number;
     quantity: number;
     finago_account_number?: number | null;
   }>;
-  campusId?: string | null;
-  comment?: string;
-};
+  orderId: string;
+  total: number;
+}
 
 async function postTransaction(
   request: PostTransactionRequest

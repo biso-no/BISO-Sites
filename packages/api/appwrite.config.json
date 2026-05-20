@@ -416,6 +416,13 @@
       ],
       "indexes": [
         {
+          "key": "page_slug_unique",
+          "type": "unique",
+          "status": "available",
+          "columns": ["slug"],
+          "orders": []
+        },
+        {
           "key": "idx_campus_id",
           "type": "key",
           "status": "available",
@@ -2058,6 +2065,111 @@
           "status": "available",
           "columns": ["slug"],
           "orders": []
+        }
+      ]
+    },
+    {
+      "$id": "form_submissions",
+      "$permissions": [],
+      "databaseId": "app",
+      "name": "Form Submissions",
+      "enabled": true,
+      "rowSecurity": true,
+      "columns": [
+        {
+          "key": "page_id",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 50,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "topic",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 100,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "form_heading",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 200,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "data_json",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 16384,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "status",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "default": "new",
+          "format": "enum",
+          "elements": ["new", "read", "actioned", "archived"]
+        },
+        {
+          "key": "access_team_id",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 100,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "campus_id",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 2,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "source",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "default": "multiStepForm",
+          "format": "enum",
+          "elements": ["multiStepForm", "signup"]
+        }
+      ],
+      "indexes": [
+        {
+          "key": "idx_topic",
+          "type": "key",
+          "status": "available",
+          "columns": ["topic"],
+          "orders": ["ASC"]
+        },
+        {
+          "key": "idx_status",
+          "type": "key",
+          "status": "available",
+          "columns": ["status"],
+          "orders": ["ASC"]
+        },
+        {
+          "key": "idx_campus_topic",
+          "type": "key",
+          "status": "available",
+          "columns": ["campus_id", "topic"],
+          "orders": ["ASC", "ASC"]
         }
       ]
     },
@@ -4583,6 +4695,24 @@
           "elements": ["no", "en"]
         },
         {
+          "key": "title",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 200,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "description",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 4000,
+          "default": null,
+          "encrypt": false
+        },
+        {
           "key": "puck_document",
           "type": "string",
           "required": false,
@@ -4615,33 +4745,17 @@
           "size": 30,
           "default": null,
           "encrypt": false
-        },
-        {
-          "key": "root",
-          "type": "text",
-          "required": true,
-          "array": false,
-          "default": null,
-          "encrypt": false
-        },
-        {
-          "key": "content",
-          "type": "mediumtext",
-          "required": true,
-          "array": false,
-          "default": null,
-          "encrypt": false
-        },
-        {
-          "key": "zones",
-          "type": "mediumtext",
-          "required": true,
-          "array": false,
-          "default": null,
-          "encrypt": false
         }
       ],
-      "indexes": []
+      "indexes": [
+        {
+          "key": "page_locale_unique",
+          "type": "unique",
+          "status": "available",
+          "columns": ["page_id", "locale"],
+          "orders": []
+        }
+      ]
     },
     {
       "$id": "department_socials",

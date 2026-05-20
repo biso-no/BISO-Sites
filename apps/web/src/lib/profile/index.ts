@@ -5,11 +5,28 @@ type MembershipCheckResult =
   | {
       ok: true;
       active: boolean;
-      membership?: any;
+      membership?: Record<string, unknown>;
       studentId?: number;
       categories?: number[];
     }
   | { ok: false; error: string };
+
+interface Identity {
+  provider?: string;
+}
+
+interface MembershipPayload {
+  active?: boolean;
+  categories?: number[];
+  error?: string;
+  membership?: Record<string, unknown> & { status?: unknown };
+  studentId?: number;
+}
+
+interface FunctionExecutionResult {
+  response?: string;
+  responseBody?: string;
+}
 
 export async function checkMembership(): Promise<MembershipCheckResult> {
   try {
@@ -19,27 +36,29 @@ export async function checkMembership(): Promise<MembershipCheckResult> {
     try {
       const identities = await account.listIdentities();
       const hasBI = (identities?.identities || []).some(
-        (i: any) => String(i?.provider || "").toLowerCase() === "oidc"
+        (identity: Identity) =>
+          String(identity?.provider || "").toLowerCase() === "oidc"
       );
       if (!hasBI) {
         return { ok: true, active: false };
       }
-    } catch (e: any) {
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : String(e);
       return {
         ok: false,
-        error: `Failed to inspect identities: ${String(e?.message || e)}`,
+        error: `Failed to inspect identities: ${message}`,
       };
     }
-    const exec: any = await functions.createExecution(
+    const exec = (await functions.createExecution(
       "verify_biso_membership",
       undefined,
       false
-    );
+    )) as FunctionExecutionResult;
 
-    const raw = (exec && (exec.responseBody || (exec as any).response)) ?? "{}";
-    let data: any = {};
+    const raw = (exec && (exec.responseBody || exec.response)) ?? "{}";
+    let data: MembershipPayload = {};
     try {
-      data = JSON.parse(raw);
+      data = JSON.parse(raw) as MembershipPayload;
     } catch {
       const sample = String(raw).slice(0, 200);
       return { ok: false, error: `Bad JSON from function: ${sample}` };
@@ -58,7 +77,8 @@ export async function checkMembership(): Promise<MembershipCheckResult> {
       : undefined;
 
     return { ok: true, active, membership, studentId, categories };
-  } catch (err: any) {
-    return { ok: false, error: String(err?.message || err) };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    return { ok: false, error: message };
   }
 }

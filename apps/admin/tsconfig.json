@@ -2,7 +2,7 @@
   "extends": "@repo/typescript-config/nextjs.json",
   "compilerOptions": {
     "paths": {
-      "@/*": ["./src/*"],
+      "@/*": ["./src/*", "../../packages/editor/src/*"],
       "@repo/*": ["../../packages/*"]
     },
     "strictNullChecks": true

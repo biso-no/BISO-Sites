@@ -2,11 +2,11 @@
 
 import type {
   ContentTranslations,
-  Departments,
   Events,
   Jobs,
 } from "@repo/api/types/appwrite";
 import type { Locale } from "@repo/i18n/config";
+import type { RecruitmentVacancy } from "@repo/shared/types/recruitment";
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Button } from "@repo/ui/components/ui/button";
 import {
@@ -33,19 +33,26 @@ type BenefitKey =
 
 interface StudentsPageClientProps {
   campusData: CampusData[];
-  departments: Departments[];
+  departments: ContentTranslations[];
   events: Events[];
   globalBenefits: CampusData | null;
-  jobs: Jobs[];
+  jobs: Array<Jobs | RecruitmentVacancy>;
   locale: Locale;
 }
 
 const getTranslation = (
-  translations: Events["translation_refs"] | Jobs["translation_refs"]
+  translations:
+    | Events["translation_refs"]
+    | Jobs["translation_refs"]
+    | RecruitmentVacancy["translation_refs"]
 ) =>
   Array.isArray(translations)
     ? (translations.find(
-        (item): item is ContentTranslations =>
+        (
+          item
+        ): item is
+          | ContentTranslations
+          | RecruitmentVacancy["translation_refs"][number] =>
           typeof item === "object" && item !== null && "title" in item
       ) ?? null)
     : null;
@@ -57,6 +64,22 @@ const stripHtml = (value?: string | null) =>
         .replace(/\s+/g, " ")
         .trim()
     : "";
+
+const getJobMetadata = (
+  metadata: Jobs["metadata"] | RecruitmentVacancy["metadata"]
+) => {
+  if (!metadata) {
+    return {};
+  }
+  if (typeof metadata === "object") {
+    return metadata as Record<string, unknown>;
+  }
+  try {
+    return JSON.parse(metadata) as Record<string, unknown>;
+  } catch {
+    return {};
+  }
+};
 
 const benefitKeys: BenefitKey[] = [
   "studentBenefits",
@@ -132,7 +155,7 @@ export const StudentsPageClient = ({
   locale,
 }: StudentsPageClientProps) => {
   const t = useTranslations("students");
-  const { campuses, activeCampus, activeCampusId } = useCampus();
+  const { activeCampus, activeCampusId } = useCampus();
 
   const currentCampusData = useMemo(
     () => pickCampusData(campusData, activeCampusId, activeCampus?.name),
@@ -160,7 +183,7 @@ export const StudentsPageClient = ({
       return departments.slice(0, 6);
     }
     return departments
-      .filter((dept) => dept.campus_id === activeCampusId)
+      .filter((dept) => dept.department_ref?.campus_id === activeCampusId)
       .slice(0, 6);
   }, [departments, activeCampusId]);
 
@@ -308,16 +331,20 @@ export const StudentsPageClient = ({
                   key={dept.$id}
                 >
                   <h3 className="font-semibold text-base text-primary-100">
-                    {dept.Name}
+                    {dept.title}
                   </h3>
                   <p className="mt-2 line-clamp-3 text-muted-foreground text-sm">
                     {dept.description}
                   </p>
                   <div className="mt-3 flex items-center justify-between text-muted-foreground text-xs">
-                    <span>{dept.type || t("units.unknownType")}</span>
-                    {dept.users?.length ? (
+                    <span>
+                      {dept.department_ref?.type || t("units.unknownType")}
+                    </span>
+                    {dept.department_ref?.users?.length ? (
                       <span>
-                        {t("units.members", { count: dept.users?.length })}
+                        {t("units.members", {
+                          count: dept.department_ref.users.length,
+                        })}
                       </span>
                     ) : null}
                   </div>
@@ -433,6 +460,11 @@ export const StudentsPageClient = ({
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {filteredJobs.map((job) => {
             const translation = getTranslation(job.translation_refs);
+            const metadata = getJobMetadata(job.metadata);
+            const applicationDeadline =
+              typeof metadata.application_deadline === "string"
+                ? metadata.application_deadline
+                : null;
 
             return (
               <Card className="border-primary/10" key={job.$id}>
@@ -454,14 +486,8 @@ export const StudentsPageClient = ({
                   <div className="flex items-center justify-between text-xs">
                     <span>{job.campus?.name || job.campus_id}</span>
                     <span>
-                      {(job.metadata as Record<string, unknown>)
-                        ?.application_deadline
-                        ? formatDateReadable(
-                            new Date(
-                              ((job.metadata as Record<string, unknown>)
-                                ?.application_deadline as string) || ""
-                            )
-                          )
+                      {applicationDeadline
+                        ? formatDateReadable(new Date(applicationDeadline))
                         : t("jobs.rolling")}
                     </span>
                   </div>

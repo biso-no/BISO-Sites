@@ -17,7 +17,7 @@ export interface NewsItem extends Models.Row {
 }
 
 // Helper interface for working with news data including translations
-interface NewsItemWithTranslations extends NewsItem {
+export interface NewsItemWithTranslations extends NewsItem {
   content?: string;
   // Convenience properties for the current locale
   title?: string;

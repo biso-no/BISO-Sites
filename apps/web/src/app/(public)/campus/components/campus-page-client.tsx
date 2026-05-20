@@ -10,6 +10,7 @@ import type {
   News,
 } from "@repo/api/types/appwrite";
 import type { Locale } from "@repo/i18n/config";
+import type { RecruitmentVacancy } from "@repo/shared/types/recruitment";
 import { useMemo } from "react";
 import { useCampus } from "@/components/context/campus";
 import { CampusHero } from "./campus-hero";
@@ -28,7 +29,7 @@ interface CampusPageClientProps {
   campusMetadata: Record<string, CampusMetadata>;
   departments: ContentTranslations[];
   events: Events[];
-  jobs: Jobs[];
+  jobs: Array<Jobs | RecruitmentVacancy>;
   locale: Locale;
   news: News[];
 }

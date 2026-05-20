@@ -169,7 +169,7 @@ export class DocumentClassifier {
   private detectContentLanguage(
     content: string
   ): "norwegian" | "english" | "mixed" | "unknown" {
-    const sampleText = content.substring(0, 2000).toLowerCase();
+    const sampleText = content.slice(0, 2000).toLowerCase();
 
     // Norwegian indicators
     const norwegianWords = [

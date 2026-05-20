@@ -151,8 +151,13 @@ async function upsertMembership(
   try {
     await db.updateRow("app", "memberships", docId, docData);
     return "updated";
-  } catch (updateError: any) {
-    if (updateError?.code === 404) {
+  } catch (updateError: unknown) {
+    if (
+      typeof updateError === "object" &&
+      updateError !== null &&
+      "code" in updateError &&
+      updateError.code === 404
+    ) {
       await db.createRow("app", "memberships", docId, docData);
       return "created";
     }
@@ -224,8 +229,10 @@ export async function syncMembershipsFrom24SO(): Promise<MembershipProductSyncRe
           result.updated += 1;
           console.log(`[Membership Sync] Updated: ${product.Name}`);
         }
-      } catch (itemError: any) {
-        const errorMsg = `Failed to sync product ${product.Id}: ${itemError.message}`;
+      } catch (itemError: unknown) {
+        const message =
+          itemError instanceof Error ? itemError.message : String(itemError);
+        const errorMsg = `Failed to sync product ${product.Id}: ${message}`;
         result.errors.push(errorMsg);
         console.error(`[Membership Sync] ${errorMsg}`);
       }
@@ -234,9 +241,10 @@ export async function syncMembershipsFrom24SO(): Promise<MembershipProductSyncRe
     console.log(
       `[Membership Sync] Completed: ${result.created} created, ${result.updated} updated, ${result.skipped} skipped`
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
     result.success = false;
-    result.errors.push(`Sync failed: ${error.message}`);
+    result.errors.push(`Sync failed: ${message}`);
     console.error("[Membership Sync] Failed:", error);
   }
 

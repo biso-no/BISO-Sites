@@ -1,6 +1,22 @@
 import { OrderStatus, type Orders } from "@repo/api/types/appwrite";
 import type { CheckoutSessionParams, VippsPaymentState } from "../types/vipps";
 
+interface VippsSessionData {
+  payment?: {
+    aggregate?: {
+      authorizedAmount?: {
+        value?: number | string | null;
+      };
+      capturedAmount?: {
+        value?: number | null;
+      };
+      receipt?: {
+        url?: string | null;
+      };
+    };
+  };
+}
+
 export function buildPrefillCustomer(
   info?: CheckoutSessionParams["customerInfo"]
 ): Record<string, string> | null {
@@ -40,7 +56,7 @@ export function buildPrefillCustomer(
 
 export function determineStatusFromPaymentState(
   paymentState: VippsPaymentState,
-  sessionData: any
+  sessionData: VippsSessionData
 ): { status: OrderStatus; updateData: Partial<Orders> } {
   const updateData: Partial<Orders> = {};
   let newStatus: OrderStatus;
@@ -68,7 +84,8 @@ export function determineStatusFromPaymentState(
       newStatus = OrderStatus.PENDING;
   }
 
-  if (sessionData.payment?.aggregate?.capturedAmount?.value > 0) {
+  const capturedAmount = sessionData.payment?.aggregate?.capturedAmount?.value;
+  if (typeof capturedAmount === "number" && capturedAmount > 0) {
     newStatus = OrderStatus.PAID;
     updateData.payment_receipt_url =
       sessionData.payment?.aggregate?.receipt?.url || null;

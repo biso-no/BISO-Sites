@@ -35,20 +35,23 @@ interface CampusLeader {
   role?: string;
 }
 
+const getString = (value: unknown): string | undefined =>
+  typeof value === "string" && value.length > 0 ? value : undefined;
+
 function mapToLeader(entry: Record<string, unknown>): CampusLeader {
   return {
-    name: entry?.name ?? entry?.displayName ?? "",
-    email: entry?.email ?? entry?.mail ?? undefined,
+    name: getString(entry.name) ?? getString(entry.displayName) ?? "",
+    email: getString(entry.email) ?? getString(entry.mail),
     phone:
-      entry?.phone ??
+      getString(entry.phone) ??
       (Array.isArray(entry?.businessPhones)
-        ? entry.businessPhones[0]
+        ? getString(entry.businessPhones[0])
         : undefined) ??
-      entry?.mobilePhone ??
-      undefined,
-    role: entry?.role ?? entry?.jobTitle ?? "",
-    officeLocation: entry?.officeLocation ?? undefined,
-    profilePhotoUrl: entry?.profilePhotoUrl ?? entry?.imageUrl ?? undefined,
+      getString(entry.mobilePhone),
+    role: getString(entry.role) ?? getString(entry.jobTitle) ?? "",
+    officeLocation: getString(entry.officeLocation),
+    profilePhotoUrl:
+      getString(entry.profilePhotoUrl) ?? getString(entry.imageUrl),
   };
 }
 
@@ -140,6 +143,10 @@ export function TeamTab({
         const members = extractMembersFromPayload(payload);
         if (Array.isArray(members) && members.length) {
           const mapped = members
+            .filter(
+              (entry): entry is Record<string, unknown> =>
+                typeof entry === "object" && entry !== null
+            )
             .map(mapToLeader)
             .filter((member) => member.name)
             .map(mapToDepartmentBoard);

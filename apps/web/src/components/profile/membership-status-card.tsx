@@ -15,11 +15,11 @@ import Link from "next/link";
 import { useCallback, useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
 
-type MembershipCheckResult =
+export type MembershipCheckResult =
   | {
       ok: true;
       active: boolean;
-      membership?: any;
+      membership?: Record<string, unknown>;
       studentId?: number;
       categories?: number[];
     }

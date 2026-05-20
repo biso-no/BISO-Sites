@@ -13,7 +13,7 @@ export interface ProductMetadata {
   [key: string]: unknown;
 }
 
-interface ProductWithTranslation extends ContentTranslations {
+export interface ProductWithTranslation extends ContentTranslations {
   product_ref: NonNullable<ContentTranslations["product_ref"]>;
 }
 

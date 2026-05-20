@@ -1,7 +1,17 @@
 "use server";
 
-import { Query } from "@repo/api";
+import { type Models, Query } from "@repo/api";
 import { createSessionClient } from "@repo/api/server";
+import type {
+  ContentTranslations,
+  WebshopProducts,
+} from "@repo/api/types/appwrite";
+
+type CartReservationRow = Models.Row & {
+  expires_at?: string;
+  product_id: string;
+  quantity: number;
+};
 
 /**
  * Get available stock for a product, accounting for active reservations
@@ -208,15 +218,17 @@ async function _getUserReservation(
  * Returns active (non-expired) reservations only
  * RLS automatically filters to current user
  */
-async function getUserCartReservations(): Promise<Record<string, unknown>[]> {
+async function getUserCartReservations(): Promise<CartReservationRow[]> {
   try {
     const { db } = await createSessionClient();
 
     const now = new Date().toISOString();
     // RLS filters to current user's reservations automatically
-    const reservations = await db.listRows("app", "cart_reservations", [
-      Query.greaterThan("expires_at", now),
-    ]);
+    const reservations = await db.listRows<CartReservationRow>(
+      "app",
+      "cart_reservations",
+      [Query.greaterThan("expires_at", now)]
+    );
 
     return reservations.rows;
   } catch (error) {
@@ -230,19 +242,100 @@ async function getUserCartReservations(): Promise<Record<string, unknown>[]> {
  * Returns enriched cart data ready for display
  */
 interface CartItem {
-  category: unknown;
-  expiresAt: unknown;
-  image: unknown;
-  memberOnly: unknown;
-  memberPrice: unknown;
-  metadata: unknown;
+  category: string;
+  expiresAt?: string;
+  image: string | null;
+  memberOnly: boolean;
+  memberPrice: number | null;
+  metadata?: {
+    max_per_order?: number;
+    max_per_user?: number;
+    sku?: string;
+  };
   name: string;
   productId: string;
-  quantity: unknown;
-  regularPrice: unknown;
+  quantity: number;
+  regularPrice: number;
   reservationId: string;
   slug: string;
-  stock: unknown;
+  stock: number | null;
+}
+
+function parseProductMetadata(metadata: string | null) {
+  if (!metadata) {
+    return undefined;
+  }
+  return JSON.parse(metadata) as CartItem["metadata"];
+}
+
+function getProductTranslation(product: WebshopProducts, locale: "en" | "no") {
+  return Array.isArray(product.translation_refs)
+    ? product.translation_refs.find(
+        (item): item is ContentTranslations =>
+          typeof item === "object" && item !== null && item.locale === locale
+      )
+    : null;
+}
+
+function toCartItem({
+  product,
+  reservation,
+  locale,
+}: {
+  product: WebshopProducts;
+  reservation: CartReservationRow;
+  locale: "en" | "no";
+}): CartItem {
+  const translation = getProductTranslation(product, locale);
+  return {
+    reservationId: reservation.$id,
+    productId: product.$id,
+    slug: product.slug,
+    name: translation?.title || product.slug,
+    image: product.image,
+    category: product.category ?? "Merch",
+    regularPrice: product.regular_price,
+    memberPrice: product.member_price,
+    memberOnly: product.member_only,
+    quantity: reservation.quantity,
+    stock: product.stock,
+    expiresAt: reservation.expires_at,
+    metadata: parseProductMetadata(product.metadata),
+  };
+}
+
+async function getCartItemForReservation(
+  reservation: CartReservationRow,
+  locale: "en" | "no"
+): Promise<CartItem | null> {
+  try {
+    const { db } = await createSessionClient();
+    const product = await db.getRow<WebshopProducts>(
+      "app",
+      "webshop_products",
+      reservation.product_id,
+      [
+        Query.select([
+          "$id",
+          "slug",
+          "category",
+          "image",
+          "regular_price",
+          "member_price",
+          "member_only",
+          "stock",
+          "metadata",
+          "translation_refs.locale",
+          "translation_refs.title",
+        ]),
+      ]
+    );
+
+    return toCartItem({ product, reservation, locale });
+  } catch (error) {
+    console.error(`Error fetching product ${reservation.product_id}:`, error);
+    return null;
+  }
 }
 
 export async function getCartItemsWithDetails(
@@ -250,59 +343,12 @@ export async function getCartItemsWithDetails(
 ): Promise<CartItem[]> {
   try {
     const reservations = await getUserCartReservations();
-    const { db } = await createSessionClient();
-
     const cartItems: CartItem[] = [];
 
     for (const reservation of reservations) {
-      try {
-        // Fetch product details
-        const product = await db.getRow(
-          "app",
-          "webshop_products",
-          reservation.product_id,
-          [
-            Query.select([
-              "$id",
-              "slug",
-              "category",
-              "image",
-              "regular_price",
-              "member_price",
-              "member_only",
-              "stock",
-              "metadata",
-              "translation_refs.locale",
-              "translation_refs.title",
-            ]),
-          ]
-        );
-
-        const translation = Array.isArray(product.translation_refs)
-          ? product.translation_refs.find((item) => item.locale === locale)
-          : null;
-
-        cartItems.push({
-          reservationId: reservation.$id,
-          productId: product.$id,
-          slug: product.slug,
-          name: translation?.title || product.slug,
-          image: product.image,
-          category: product.category,
-          regularPrice: product.regular_price,
-          memberPrice: product.member_price,
-          memberOnly: product.member_only,
-          quantity: reservation.quantity,
-          stock: product.stock,
-          expiresAt: reservation.expires_at,
-          metadata: product.metadata ? JSON.parse(product.metadata) : null,
-        });
-      } catch (error) {
-        console.error(
-          `Error fetching product ${reservation.product_id}:`,
-          error
-        );
-        // Skip products that can't be loaded
+      const item = await getCartItemForReservation(reservation, locale);
+      if (item) {
+        cartItems.push(item);
       }
     }
 

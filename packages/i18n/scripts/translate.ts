@@ -61,9 +61,9 @@ const stats: TranslationStats = {
  * Translates a JSON object using OpenAI GPT-4
  */
 async function translateWithOpenAI(
-  content: Record<string, any>,
+  content: Record<string, unknown>,
   fileName: string
-): Promise<Record<string, any>> {
+): Promise<Record<string, unknown>> {
   const prompt = `You are a professional Norwegian translator specializing in technical and business content.
 
 Translate the following JSON content from English to Norwegian (Bokmål).
@@ -109,7 +109,7 @@ Norwegian (Bokmål) translation:`;
       throw new Error("No content in OpenAI response");
     }
 
-    const parsed = JSON.parse(translatedContent);
+    const parsed = JSON.parse(translatedContent) as Record<string, unknown>;
 
     // Count translated keys
     stats.keysTranslated += countKeys(parsed);
@@ -126,11 +126,11 @@ Norwegian (Bokmål) translation:`;
 /**
  * Count total number of leaf keys in a nested object
  */
-function countKeys(obj: any): number {
+function countKeys(obj: Record<string, unknown>): number {
   let count = 0;
   for (const value of Object.values(obj)) {
     if (typeof value === "object" && value !== null) {
-      count += countKeys(value);
+      count += countKeys(value as Record<string, unknown>);
     } else {
       count += 1;
     }

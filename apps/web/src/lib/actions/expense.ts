@@ -1,6 +1,6 @@
 "use server";
 
-import { ID, Query } from "@repo/api";
+import { ID, type Models, Query } from "@repo/api";
 import { createSessionClient } from "@repo/api/server";
 import {
   type ExpenseAttachments,
@@ -131,7 +131,7 @@ export async function getExpenseById(expenseId: string) {
 /**
  * Create a new expense
  */
-async function _createExpense(data: {
+export async function createExpense(data: {
   campus: string;
   department: string;
   bank_account: string;
@@ -160,12 +160,12 @@ async function _createExpense(data: {
       invoice_id: null,
     };
 
-    const expense = await db.createRow<Expenses>(
+    const expense = (await db.createRow<Models.DefaultRow>(
       "app",
       "expense",
       ID.unique(),
-      expenseData as any
-    );
+      expenseData as Record<string, unknown>
+    )) as unknown as Expenses;
 
     revalidatePath("/fs");
 
@@ -239,7 +239,7 @@ export async function uploadExpenseAttachment(formData: FormData) {
 /**
  * Create an expense attachment record in the database
  */
-async function _createExpenseAttachment(data: {
+export async function createExpenseAttachment(data: {
   date: string;
   url: string;
   amount: number;
@@ -257,12 +257,12 @@ async function _createExpenseAttachment(data: {
       type: data.type,
     };
 
-    const attachment = await db.createRow<ExpenseAttachments>(
+    const attachment = (await db.createRow<Models.DefaultRow>(
       "app",
       "expense_attachments",
       ID.unique(),
-      attachmentData as any
-    );
+      attachmentData as Record<string, unknown>
+    )) as unknown as ExpenseAttachments;
 
     return {
       success: true,
@@ -310,7 +310,7 @@ async function _updateExpense(
       "app",
       "expense",
       expenseId,
-      data as any
+      data as Record<string, unknown>
     );
 
     revalidatePath("/fs");

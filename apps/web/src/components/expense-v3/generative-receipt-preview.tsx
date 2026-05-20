@@ -10,6 +10,7 @@ import {
   DollarSign,
   Globe,
   Loader2,
+  type LucideIcon,
   Sparkles,
   Store,
   Upload,
@@ -28,6 +29,92 @@ interface GenerativeReceiptPreviewProps {
   receipt: Receipt;
 }
 
+type UploadPhase = "uploading" | "analyzing" | null;
+
+interface BankStatementUploadParams {
+  file: File;
+  onInsert?: (afterId: string, receipt: Receipt) => void;
+  onUpdate: (updates: Partial<Receipt>) => void;
+  receipt: Receipt;
+  setUploadPhase: (phase: UploadPhase) => void;
+}
+
+async function analyzeBankStatement(file: File) {
+  const ocrFormData = new FormData();
+  ocrFormData.append("file", file);
+  return await apiClient.fetchFormData<{
+    success: boolean;
+    data?: { amount?: number; amountInNok?: number; currency?: string };
+  }>("/api/expenses/ocr?purpose=bank-statement", {
+    method: "POST",
+    body: ocrFormData,
+  });
+}
+
+async function uploadBankStatement({
+  file,
+  onUpdate,
+  setUploadPhase,
+  receipt,
+  onInsert,
+}: BankStatementUploadParams) {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const result = await uploadExpenseAttachment(formData);
+  if (!(result.success && result.file)) {
+    toast.error("Upload failed");
+    return;
+  }
+
+  const fileId = result.file.$id;
+  const fileUrl =
+    result.file.viewUrl ||
+    `${process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT}/storage/buckets/expenses/files/${fileId}/view?project=${process.env.NEXT_PUBLIC_APPWRITE_PROJECT}`;
+
+  onUpdate({
+    bankStatementId: fileId,
+    bankStatementName: file.name,
+    bankStatementType: file.type,
+  });
+
+  setUploadPhase("analyzing");
+  try {
+    const ocrResult = await analyzeBankStatement(file);
+    if (ocrResult.success && ocrResult.data) {
+      const { amount, amountInNok, currency } = ocrResult.data;
+      const nokAmount =
+        !currency || currency === "NOK" ? amount : (amountInNok ?? amount);
+      if (nokAmount) {
+        onUpdate({ amount: Math.abs(nokAmount) });
+      }
+    }
+  } catch {
+    // OCR failure is non-fatal.
+  }
+
+  if (onInsert) {
+    const statementReceipt: Receipt = {
+      id: uuid(),
+      fileId,
+      fileUrl,
+      fileName: file.name,
+      fileType: file.type,
+      status: "ready",
+      progress: 100,
+      description: `Bank Statement for: ${receipt.vendor || receipt.description || "Receipt"}`,
+      amount: 0,
+      date: receipt.date || new Date().toISOString().split("T")[0],
+      confidence: 1,
+      currency: "NOK",
+      parentId: receipt.id,
+    };
+    onInsert(receipt.id, statementReceipt);
+  }
+
+  toast.success("Bank statement uploaded");
+}
+
 export function GenerativeReceiptPreview({
   receipt,
   onUpdate,
@@ -39,9 +126,7 @@ export function GenerativeReceiptPreview({
   const isForeign = Boolean(receipt.currency && receipt.currency !== "NOK");
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [uploadPhase, setUploadPhase] = useState<
-    "uploading" | "analyzing" | null
-  >(null);
+  const [uploadPhase, setUploadPhase] = useState<UploadPhase>(null);
 
   const handleBankStatementUpload = async (
     e: React.ChangeEvent<HTMLInputElement>
@@ -53,72 +138,13 @@ export function GenerativeReceiptPreview({
 
     setUploadPhase("uploading");
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-
-      const result = await uploadExpenseAttachment(formData);
-      if (result.success && result.file) {
-        const fileId = result.file.$id;
-        const fileUrl =
-          result.file.viewUrl ||
-          `${process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT}/storage/buckets/expenses/files/${fileId}/view?project=${process.env.NEXT_PUBLIC_APPWRITE_PROJECT}`;
-
-        onUpdate({
-          bankStatementId: fileId,
-          bankStatementName: file.name,
-          bankStatementType: file.type,
-        });
-
-        // Switch to analyzing phase — file is uploaded, OCR is the slow part
-        setUploadPhase("analyzing");
-        try {
-          const ocrFormData = new FormData();
-          ocrFormData.append("file", file);
-          const ocrResult = await apiClient.fetchFormData<{
-            success: boolean;
-            data?: { amount?: number; amountInNok?: number; currency?: string };
-          }>("/api/expenses/ocr?purpose=bank-statement", {
-            method: "POST",
-            body: ocrFormData,
-          });
-
-          if (ocrResult.success && ocrResult.data) {
-            const { amount, amountInNok, currency } = ocrResult.data;
-            const nokAmount =
-              !currency || currency === "NOK"
-                ? amount
-                : (amountInNok ?? amount);
-            if (nokAmount) {
-              onUpdate({ amount: Math.abs(nokAmount) });
-            }
-          }
-        } catch {
-          // OCR failure is non-fatal
-        }
-
-        if (onInsert) {
-          const statementReceipt: Receipt = {
-            id: uuid(),
-            fileId,
-            fileUrl,
-            fileName: file.name,
-            fileType: file.type,
-            status: "ready",
-            progress: 100,
-            description: `Bank Statement for: ${receipt.vendor || receipt.description || "Receipt"}`,
-            amount: 0,
-            date: receipt.date || new Date().toISOString().split("T")[0],
-            confidence: 1,
-            currency: "NOK",
-            parentId: receipt.id,
-          };
-          onInsert(receipt.id, statementReceipt);
-        }
-
-        toast.success("Bank statement uploaded");
-      } else {
-        toast.error("Upload failed");
-      }
+      await uploadBankStatement({
+        file,
+        onInsert,
+        onUpdate,
+        receipt,
+        setUploadPhase,
+      });
     } catch (_error) {
       toast.error("Upload failed");
     } finally {
@@ -266,6 +292,26 @@ interface ForeignCurrencyWarningProps {
   uploadPhase: "uploading" | "analyzing" | null;
 }
 
+function getUploadLabel(uploadPhase: UploadPhase) {
+  if (uploadPhase === "analyzing") {
+    return "Analyzing statement…";
+  }
+  if (uploadPhase === "uploading") {
+    return "Uploading…";
+  }
+  return "Upload Bank Statement";
+}
+
+function UploadPhaseIcon({ uploadPhase }: { uploadPhase: UploadPhase }) {
+  if (uploadPhase === "analyzing") {
+    return <Sparkles className="h-3 w-3 animate-spin" />;
+  }
+  if (uploadPhase === "uploading") {
+    return <Loader2 className="h-3 w-3 animate-spin" />;
+  }
+  return <Upload className="h-3 w-3" />;
+}
+
 function ForeignCurrencyWarning({
   receipt,
   isProcessing,
@@ -320,18 +366,8 @@ function ForeignCurrencyWarning({
               size="sm"
               variant="outline"
             >
-              {uploadPhase === "analyzing" ? (
-                <Sparkles className="h-3 w-3 animate-spin" />
-              ) : uploadPhase === "uploading" ? (
-                <Loader2 className="h-3 w-3 animate-spin" />
-              ) : (
-                <Upload className="h-3 w-3" />
-              )}
-              {uploadPhase === "analyzing"
-                ? "Analyzing statement…"
-                : uploadPhase === "uploading"
-                  ? "Uploading…"
-                  : "Upload Bank Statement"}
+              <UploadPhaseIcon uploadPhase={uploadPhase} />
+              {getUploadLabel(uploadPhase)}
             </Button>
           )}
         </div>
@@ -433,7 +469,7 @@ function Field({
   onChange,
   type = "text",
 }: {
-  icon: any;
+  icon: LucideIcon;
   label: string;
   value: string | number;
   isLoading: boolean;

@@ -17,6 +17,7 @@ import {
   Users,
 } from "lucide-react";
 import Link from "next/link";
+import { useLocale, useTranslations } from "next-intl";
 import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { deleteJob } from "../../_actions/jobs";
@@ -55,42 +56,44 @@ const BRAND = {
   rule2: "#cdc9c0",
 } as const;
 
-const STATUS_LABELS: Record<string, string> = {
-  closed: "Closed",
-  draft: "Draft",
-  published: "Published",
-};
-
 const FILTERS = ["all", "published", "draft", "closed"] as const;
 
-function getTitle(job: RecruitmentVacancy, locale: "en" | "no" = "en") {
+function normalizeLocale(locale: string): "en" | "no" {
+  return locale === "no" ? "no" : "en";
+}
+
+function getTitle(job: RecruitmentVacancy, locale: "en" | "no") {
   return (
     job.translation_refs.find((translation) => translation.locale === locale)
       ?.title ??
     job.translation_refs[0]?.title ??
-    "Untitled vacancy"
+    ""
   );
 }
 
-function getDescription(job: RecruitmentVacancy) {
+function getDescription(job: RecruitmentVacancy, locale: "en" | "no") {
   return (
     job.metadata.short_description ??
-    job.translation_refs.find((translation) => translation.locale === "en")
+    job.translation_refs.find((translation) => translation.locale === locale)
       ?.short_description ??
     job.translation_refs[0]?.short_description ??
-    "No teaser has been written yet."
+    ""
   );
 }
 
-function formatDate(value: string | null | undefined) {
+function formatDate(
+  value: string | null | undefined,
+  locale: string,
+  labels: { invalidDate: string; noDeadline: string }
+) {
   if (!value) {
-    return "No deadline";
+    return labels.noDeadline;
   }
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) {
-    return "Invalid date";
+    return labels.invalidDate;
   }
-  return new Intl.DateTimeFormat("en-GB", {
+  return new Intl.DateTimeFormat(locale === "no" ? "nb-NO" : "en-GB", {
     day: "2-digit",
     month: "short",
     year: "numeric",
@@ -111,8 +114,9 @@ function daysUntil(value: string | null | undefined) {
   return Math.ceil((date.getTime() - today.getTime()) / 86_400_000);
 }
 
-function crestFor(job: RecruitmentVacancy) {
-  const source = job.department?.Name ?? job.campus?.name ?? getTitle(job);
+function crestFor(job: RecruitmentVacancy, locale: "en" | "no") {
+  const source =
+    job.department?.Name ?? job.campus?.name ?? getTitle(job, locale);
   return source.trim().charAt(0).toUpperCase() || "B";
 }
 
@@ -127,6 +131,7 @@ function statusColor(status: string) {
 }
 
 function StatusPill({ status }: { status: JobStatus }) {
+  const t = useTranslations("adminPortal.common.status");
   const color = statusColor(status);
   return (
     <span
@@ -141,7 +146,7 @@ function StatusPill({ status }: { status: JobStatus }) {
         className="h-1.5 w-1.5 rounded-full"
         style={{ background: color }}
       />
-      {STATUS_LABELS[status] ?? status}
+      {t(status)}
     </span>
   );
 }
@@ -185,6 +190,8 @@ function KpiCard({
 }
 
 function FeaturedDraft({ jobs }: { jobs: RecruitmentVacancy[] }) {
+  const locale = normalizeLocale(useLocale());
+  const t = useTranslations("adminPortal.jobs.studio");
   const draft =
     jobs.find((job) => job.status === "draft") ??
     jobs.find((job) => Boolean(job.metadata.application_deadline)) ??
@@ -194,11 +201,11 @@ function FeaturedDraft({ jobs }: { jobs: RecruitmentVacancy[] }) {
     return null;
   }
 
-  const title = getTitle(draft);
+  const title = getTitle(draft, locale);
   const completionFields = [
     title,
     draft.department_id,
-    getDescription(draft),
+    getDescription(draft, locale),
     draft.metadata.application_deadline,
     draft.metadata.contact_email,
   ];
@@ -222,19 +229,22 @@ function FeaturedDraft({ jobs }: { jobs: RecruitmentVacancy[] }) {
           style={{ color: BRAND.blue }}
         >
           <Sparkles size={14} style={{ color: BRAND.accent }} />
-          Pick up where you left off
+          {t("featured.eyebrow")}
         </div>
         <h2 className="mt-4 max-w-xl font-light text-4xl tracking-tight md:text-5xl">
-          {title} <span style={{ color: BRAND.accent }}>almost ready.</span>
+          {title}{" "}
+          <span style={{ color: BRAND.accent }}>
+            {t("featured.almostReady")}
+          </span>
         </h2>
         <p className="mt-4 max-w-xl text-slate-600 text-sm leading-6">
-          {getDescription(draft)}
+          {getDescription(draft, locale) || t("fallback.noTeaser")}
         </p>
         <div className="mt-6 flex flex-wrap gap-8">
           <div>
             <b className="font-light text-3xl">{complete}%</b>
             <p className="text-[11px] text-slate-500 uppercase tracking-[0.12em]">
-              Complete
+              {t("featured.complete")}
             </p>
           </div>
           <div>
@@ -244,13 +254,13 @@ function FeaturedDraft({ jobs }: { jobs: RecruitmentVacancy[] }) {
                 : "—"}
             </b>
             <p className="text-[11px] text-slate-500 uppercase tracking-[0.12em]">
-              Days left
+              {t("featured.daysLeft")}
             </p>
           </div>
           <div>
             <b className="font-light text-3xl">{draft.metadata.tags.length}</b>
             <p className="text-[11px] text-slate-500 uppercase tracking-[0.12em]">
-              Tags
+              {t("featured.tags")}
             </p>
           </div>
         </div>
@@ -258,21 +268,30 @@ function FeaturedDraft({ jobs }: { jobs: RecruitmentVacancy[] }) {
       <div className="flex flex-col justify-between bg-[#001731] p-6 text-white md:p-7">
         <div>
           <p className="font-medium text-[11px] text-white/45 uppercase tracking-[0.14em]">
-            Publishing checklist
+            {t("featured.checklistTitle")}
           </p>
           <h3 className="mt-3 max-w-sm font-light text-2xl leading-tight">
-            From draft to student-facing listing in a few focused steps.
+            {t("featured.checklistDescription")}
           </h3>
         </div>
         <div className="my-6 space-y-3 text-sm">
           {[
-            ["Title and department", Boolean(title && draft.department_id)],
-            ["Description and teaser", Boolean(getDescription(draft))],
             [
-              "Application deadline",
+              t("checklist.titleDepartment"),
+              Boolean(title && draft.department_id),
+            ],
+            [
+              t("checklist.descriptionTeaser"),
+              Boolean(getDescription(draft, locale)),
+            ],
+            [
+              t("checklist.applicationDeadline"),
               Boolean(draft.metadata.application_deadline),
             ],
-            ["Contact details", Boolean(draft.metadata.contact_email)],
+            [
+              t("checklist.contactDetails"),
+              Boolean(draft.metadata.contact_email),
+            ],
           ].map(([label, done]) => (
             <div className="flex items-center gap-3" key={String(label)}>
               <span
@@ -292,7 +311,7 @@ function FeaturedDraft({ jobs }: { jobs: RecruitmentVacancy[] }) {
           className="inline-flex w-fit items-center gap-2 rounded-lg border border-white/15 bg-white/10 px-4 py-2 text-sm transition hover:bg-white/15"
           href={`/jobs/${draft.$id}`}
         >
-          Resume composer
+          {t("featured.resume")}
           <ArrowUpRight size={14} />
         </Link>
       </div>
@@ -315,6 +334,9 @@ function JobRow({
   onDelete: (id: string) => void;
   onRequestDelete: (id: string) => void;
 }) {
+  const locale = normalizeLocale(useLocale());
+  const t = useTranslations("adminPortal.jobs.studio");
+  const common = useTranslations("adminPortal.common");
   const deadlineDays = daysUntil(job.metadata.application_deadline);
   return (
     <div
@@ -330,7 +352,7 @@ function JobRow({
             color: BRAND.blue,
           }}
         >
-          {crestFor(job)}
+          {crestFor(job, locale)}
         </div>
         <div className="min-w-0">
           <Link
@@ -338,7 +360,7 @@ function JobRow({
             href={`/jobs/${job.$id}`}
             style={{ color: BRAND.ink }}
           >
-            {getTitle(job)}
+            {getTitle(job, locale) || t("fallback.untitled")}
           </Link>
           <p className="mt-1 truncate text-xs" style={{ color: BRAND.ink4 }}>
             <span
@@ -350,7 +372,7 @@ function JobRow({
             >
               NO
             </span>{" "}
-            {getTitle(job, "no")} · {job.slug}
+            {getTitle(job, "no") || t("fallback.untitled")} · {job.slug}
           </p>
         </div>
       </div>
@@ -361,17 +383,20 @@ function JobRow({
             style={{ background: BRAND.accent }}
           />
           <span className="truncate">
-            {job.department?.Name ?? "Any department"}
+            {job.department?.Name ?? t("fallback.anyDepartment")}
           </span>
         </div>
         <p className="mt-1 text-xs" style={{ color: BRAND.ink4 }}>
-          {job.campus?.name ?? "Campus"}
+          {job.campus?.name ?? common("campus")}
         </p>
       </div>
       <StatusPill status={job.status} />
       <div className="text-xs" style={{ color: BRAND.ink4 }}>
         <p className="font-mono" style={{ color: BRAND.ink3 }}>
-          {formatDate(job.metadata.application_deadline)}
+          {formatDate(job.metadata.application_deadline, locale, {
+            invalidDate: t("fallback.invalidDate"),
+            noDeadline: t("fallback.noDeadline"),
+          })}
         </p>
         {deadlineDays != null && (
           <p
@@ -379,7 +404,9 @@ function JobRow({
               color: deadlineDays <= 5 ? BRAND.gold : BRAND.ink4,
             }}
           >
-            {deadlineDays >= 0 ? `${deadlineDays}d left` : "Past deadline"}
+            {deadlineDays >= 0
+              ? t("deadlineDaysLeft", { count: deadlineDays })
+              : t("pastDeadline")}
           </p>
         )}
       </div>
@@ -409,7 +436,7 @@ function JobRow({
           <Pencil size={14} />
         </Link>
         <button
-          aria-label="Duplicate"
+          aria-label={t("duplicate")}
           className="grid h-8 w-8 place-items-center rounded-lg transition"
           style={{
             background: BRAND.paper2,
@@ -421,7 +448,7 @@ function JobRow({
           <Copy size={14} />
         </button>
         <button
-          aria-label={isConfirmingDelete ? "Confirm delete" : labels.delete}
+          aria-label={isConfirmingDelete ? t("confirmDelete") : labels.delete}
           className="grid h-8 w-8 place-items-center rounded-lg transition"
           onBlur={onCancelDelete}
           onClick={() => {
@@ -456,6 +483,10 @@ export function JobStudioDashboard({
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>("all");
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [, startTransition] = useTransition();
+  const t = useTranslations("adminPortal.jobs");
+  const ts = useTranslations("adminPortal.jobs.studio");
+  const tc = useTranslations("adminPortal.common");
+  const locale = normalizeLocale(useLocale());
 
   const counts = useMemo(
     () => ({
@@ -474,7 +505,7 @@ export function JobStudioDashboard({
 
   const filteredJobs = initialJobs.filter((job) => {
     const haystack = [
-      getTitle(job),
+      getTitle(job, locale),
       getTitle(job, "no"),
       job.slug,
       job.department?.Name,
@@ -499,7 +530,7 @@ export function JobStudioDashboard({
         return;
       }
       setPendingDeleteId(null);
-      toast.success("Vacancy deleted");
+      toast.success(t("deleteSuccess"));
     });
   }
 
@@ -514,21 +545,20 @@ export function JobStudioDashboard({
             className="font-medium text-[11px] uppercase tracking-[0.16em]"
             style={{ color: BRAND.accent }}
           >
-            BISO recruitment studio
+            {ts("eyebrow")}
           </p>
           <h1
             className="mt-2 font-light text-5xl tracking-tight md:text-6xl"
             style={{ color: BRAND.blue }}
           >
-            Jobs <span style={{ color: BRAND.accent }}>this term.</span>
+            {t("title")}{" "}
+            <span style={{ color: BRAND.accent }}>{ts("titleAccent")}</span>
           </h1>
           <p
             className="mt-3 max-w-2xl text-sm leading-6"
             style={{ color: BRAND.ink3 }}
           >
-            Create, review, and publish student-facing roles with the BISO
-            visual system while keeping each posting tied to campus and
-            department access.
+            {ts("description")}
           </p>
         </div>
         <Link
@@ -542,7 +572,7 @@ export function JobStudioDashboard({
           >
             <Plus size={14} />
           </span>
-          Compose new job
+          {t("create")}
         </Link>
       </header>
 
@@ -554,24 +584,24 @@ export function JobStudioDashboard({
         }}
       >
         <KpiCard
-          helper={`${counts.published} live right now`}
-          label="Open positions"
+          helper={ts("kpi.liveNow", { count: counts.published })}
+          label={ts("kpi.openPositions")}
           value={String(counts.published)}
         />
         <KpiCard
-          helper={`${counts.draft} waiting for polish`}
-          label="Drafts"
+          helper={ts("kpi.waitingForPolish", { count: counts.draft })}
+          label={t("filters.draft")}
           value={String(counts.draft)}
         />
         <KpiCard
-          helper={`${total} accessible records`}
-          label="Total jobs"
+          helper={ts("kpi.accessibleRecords", { count: total })}
+          label={ts("kpi.totalJobs")}
           value={String(total)}
         />
         <KpiCard
           alert
-          helper="Needs attention"
-          label="Closing in 5 days"
+          helper={ts("kpi.needsAttention")}
+          label={ts("kpi.closingSoon")}
           value={String(closingSoon)}
         />
       </section>
@@ -609,7 +639,7 @@ export function JobStudioDashboard({
                 }
                 type="button"
               >
-                {item === "all" ? "All" : item}{" "}
+                {t(`filters.${item}`)}{" "}
                 <span
                   className="font-mono"
                   style={{
@@ -653,7 +683,7 @@ export function JobStudioDashboard({
               type="button"
             >
               <Filter size={13} />
-              Department
+              {tc("department")}
             </button>
             <button
               className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2"
@@ -664,7 +694,7 @@ export function JobStudioDashboard({
               type="button"
             >
               <MapPin size={13} />
-              Campus
+              {tc("campus")}
             </button>
             <button
               className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2"
@@ -675,7 +705,7 @@ export function JobStudioDashboard({
               type="button"
             >
               <CalendarClock size={13} />
-              Last edited
+              {tc("lastUpdated")}
             </button>
           </div>
         </div>
@@ -708,11 +738,11 @@ export function JobStudioDashboard({
               className="hidden grid-cols-[1.45fr_0.85fr_0.55fr_0.65fr_0.45fr] gap-4 px-4 py-3 font-medium text-[11px] uppercase tracking-[0.12em] md:grid"
               style={{ color: BRAND.ink4 }}
             >
-              <div>Position</div>
-              <div>Department</div>
-              <div>Status</div>
-              <div>Deadline</div>
-              <div className="text-right">Actions</div>
+              <div>{ts("table.position")}</div>
+              <div>{tc("department")}</div>
+              <div>{t("fields.status")}</div>
+              <div>{ts("table.deadline")}</div>
+              <div className="text-right">{tc("actions")}</div>
             </div>
             {filteredJobs.map((job) => (
               <JobRow

@@ -50,6 +50,8 @@ const NEXT_PUBLIC_APPWRITE_ENDPOINT =
   process.env.APPWRITE_ENDPOINT ||
   process.env.NEXT_PUBLIC_NEXT_PUBLIC_APPWRITE_ENDPOINT ||
   "https://appwrite.biso.no/v1";
+const SESSION_COOKIE_NAME =
+  process.env.APPWRITE_SESSION_COOKIE || "a_session_biso";
 
 export async function createSessionClient(jwt?: string) {
   const client = new Client()
@@ -59,9 +61,7 @@ export async function createSessionClient(jwt?: string) {
   if (jwt) {
     client.setJWT(jwt);
   } else {
-    const session =
-      (await cookies()).get("a_session_biso") ||
-      (await cookies()).get("a_session_biso_admin");
+    const session = (await cookies()).get(SESSION_COOKIE_NAME);
 
     if (session) {
       client.setSession(session.value);

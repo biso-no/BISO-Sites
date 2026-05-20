@@ -19,6 +19,7 @@ import {
   TrendingUp,
 } from "lucide-react";
 import Link from "next/link";
+import { useLocale, useTranslations } from "next-intl";
 import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { deleteProduct } from "../../_actions/shop";
@@ -68,21 +69,23 @@ const NOK_FORMATTER = new Intl.NumberFormat("nb-NO", {
   style: "currency",
 });
 
-const DATE_FORMATTER = new Intl.DateTimeFormat("en-GB", {
-  day: "numeric",
-  month: "short",
-});
+function normalizeLocale(locale: string): "en" | "no" {
+  return locale === "no" ? "no" : "en";
+}
 
 function fmtNOK(amount: number): string {
   return NOK_FORMATTER.format(amount);
 }
 
-function fmtDate(iso: string): string {
+function fmtDate(iso: string, locale: "en" | "no"): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) {
     return "—";
   }
-  return DATE_FORMATTER.format(d);
+  return new Intl.DateTimeFormat(locale === "no" ? "nb-NO" : "en-GB", {
+    day: "numeric",
+    month: "short",
+  }).format(d);
 }
 
 function getProductTitle(
@@ -416,6 +419,7 @@ function StockBar({
   inventoryMode: string | null;
   stock: number | null;
 }) {
+  const t = useTranslations("adminPortal.shop.studio");
   if (inventoryMode === "unlimited" || stock === null) {
     return (
       <span
@@ -425,7 +429,7 @@ function StockBar({
           fontSize: 11.5,
         }}
       >
-        Unlimited
+        {t("stock.unlimited")}
       </span>
     );
   }
@@ -482,6 +486,7 @@ function StockBar({
 // ─── ProductStatusPill ────────────────────────────────────────────────────────
 
 function ProductStatusPill({ status }: { status: string }) {
+  const statusLabels = useTranslations("adminPortal.common.status");
   let bg: string;
   let color: string;
   let dotColor: string;
@@ -493,27 +498,27 @@ function ProductStatusPill({ status }: { status: string }) {
       bg = "rgba(47,93,58,0.12)";
       color = BRAND.leaf;
       dotColor = BRAND.leaf;
-      label = "Published";
+      label = statusLabels("published");
       pulse = true;
       break;
     case "pending_approval":
       bg = "rgba(42,74,122,0.12)";
       color = BRAND.sky;
       dotColor = BRAND.sky;
-      label = "Pending";
+      label = statusLabels("pending_approval");
       break;
     case "archived":
       bg = BRAND.paper3;
       color = BRAND.ink4;
       dotColor = BRAND.ink4;
-      label = "Archived";
+      label = statusLabels("archived");
       break;
     default:
       // draft
       bg = "rgba(176,138,62,0.12)";
       color = "#6a5118";
       dotColor = BRAND.gold;
-      label = "Draft";
+      label = statusLabels("draft");
   }
 
   return (
@@ -564,6 +569,7 @@ function ProductStatusPill({ status }: { status: string }) {
 // ─── OrderStatusPill ──────────────────────────────────────────────────────────
 
 function OrderStatusPill({ status }: { status: string | null }) {
+  const t = useTranslations("adminShop.orders.status");
   const s = status ?? "pending";
   let color: string;
   let bg: string;
@@ -573,32 +579,32 @@ function OrderStatusPill({ status }: { status: string | null }) {
     case "paid":
       color = BRAND.leaf;
       bg = "rgba(47,93,58,0.12)";
-      label = "Paid";
+      label = t("paid");
       break;
     case "authorized":
       color = BRAND.sky;
       bg = "rgba(42,74,122,0.12)";
-      label = "Authorized";
+      label = t("authorized");
       break;
     case "pending":
       color = "#6a5118";
       bg = "rgba(176,138,62,0.12)";
-      label = "Pending";
+      label = t("pending");
       break;
     case "cancelled":
       color = BRAND.claret;
       bg = "rgba(107,30,30,0.12)";
-      label = "Cancelled";
+      label = t("cancelled");
       break;
     case "failed":
       color = BRAND.claret;
       bg = "rgba(107,30,30,0.12)";
-      label = "Failed";
+      label = t("failed");
       break;
     case "refunded":
       color = BRAND.claret;
       bg = "rgba(107,30,30,0.12)";
-      label = "Refunded";
+      label = t("refunded");
       break;
     default:
       color = BRAND.ink3;
@@ -672,12 +678,14 @@ function FeaturedDraftCard({
 }: {
   products: ProductWithTranslations[];
 }) {
+  const locale = normalizeLocale(useLocale());
+  const t = useTranslations("adminPortal.shop.studio");
   const draft = useMemo(() => pickFeaturedDraft(products), [products]);
   if (!draft) {
     return null;
   }
 
-  const title = getProductTitle(draft, "no");
+  const title = getProductTitle(draft, locale);
 
   const noDesc =
     draft.translation_refs.find((t) => t.locale === "no")?.description ?? "";
@@ -692,25 +700,25 @@ function FeaturedDraftCard({
   const percent = Math.round((filledCount / 5) * 100);
 
   const checklistItems = [
-    { done: checks[0], label: "Title & category", now: !checks[0] },
+    { done: checks[0], label: t("checklist.titleCategory"), now: !checks[0] },
     {
       done: checks[1],
-      label: "Description (NO)",
+      label: t("checklist.description"),
       now: Boolean(checks[0]) && !checks[1],
     },
     {
       done: checks[2],
-      label: "Price set",
+      label: t("checklist.priceSet"),
       now: Boolean(checks[0] && checks[1]) && !checks[2],
     },
     {
       done: checks[3],
-      label: "Photo uploaded",
+      label: t("checklist.photoUploaded"),
       now: Boolean(checks[0] && checks[1] && checks[2]) && !checks[3],
     },
     {
       done: checks[4],
-      label: "Campus assigned",
+      label: t("checklist.campusAssigned"),
       now:
         Boolean(checks[0] && checks[1] && checks[2] && checks[3]) && !checks[4],
     },
@@ -752,7 +760,7 @@ function FeaturedDraftCard({
           }}
         >
           <ChevronRight size={12} />
-          Pick up where you left off
+          {t("featured.eyebrow")}
         </div>
 
         {/* Progress bar */}
@@ -773,7 +781,7 @@ function FeaturedDraftCard({
                 textTransform: "uppercase",
               }}
             >
-              Completion
+              {t("featured.completion")}
             </span>
             <span
               style={{
@@ -827,7 +835,7 @@ function FeaturedDraftCard({
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
             <span style={{ color: BRAND.ink2, fontSize: 13, fontWeight: 500 }}>
-              {draft.category ?? "No category"}
+              {draft.category ?? t("fallback.noCategory")}
             </span>
             <span
               style={{
@@ -864,7 +872,7 @@ function FeaturedDraftCard({
               textTransform: "uppercase",
             }}
           >
-            Publishing checklist
+            {t("featured.checklistTitle")}
           </div>
           <h2
             style={{
@@ -896,9 +904,9 @@ function FeaturedDraftCard({
               : "none";
             let statusText: string;
             if (item.done) {
-              statusText = "done";
+              statusText = t("status.done");
             } else if (item.now) {
-              statusText = "now";
+              statusText = t("status.now");
             } else {
               statusText = "—";
             }
@@ -956,7 +964,7 @@ function FeaturedDraftCard({
             textDecoration: "none",
           }}
         >
-          Resume editor
+          {t("featured.resume")}
           <TrendingUp size={14} />
         </Link>
       </div>
@@ -979,8 +987,11 @@ function ProductRow({
   pendingDeleteId: string | null;
   product: ProductWithTranslations;
 }) {
+  const t = useTranslations("adminPortal.shop");
+  const ts = useTranslations("adminPortal.shop.studio");
+  const locale = normalizeLocale(useLocale());
   const isConfirming = pendingDeleteId === product.$id;
-  const title = getProductTitle(product);
+  const title = getProductTitle(product, locale);
   const tags = product.tags ?? [];
   const visibleTags = tags.slice(0, 2);
   const showMemberPrice =
@@ -1034,7 +1045,7 @@ function ProductRow({
             {title}
           </Link>
           {product.member_only && (
-            <span title="Member only">
+            <span title={t("fields.memberOnly")}>
               <Lock size={12} style={{ color: BRAND.gold, flexShrink: 0 }} />
             </span>
           )}
@@ -1102,7 +1113,7 @@ function ProductRow({
             }}
           >
             {fmtNOK(product.member_price as number)}{" "}
-            <span style={{ color: BRAND.ink4 }}>Member</span>
+            <span style={{ color: BRAND.ink4 }}>{ts("member")}</span>
           </span>
         )}
       </div>
@@ -1120,7 +1131,7 @@ function ProductRow({
         }}
       >
         <Link
-          aria-label="Edit product"
+          aria-label={t("actions.edit")}
           href={`/shop/${product.$id}`}
           style={{
             alignItems: "center",
@@ -1138,7 +1149,7 @@ function ProductRow({
           <Pencil size={13} />
         </Link>
         <button
-          aria-label={isConfirming ? "Confirm delete" : "Delete product"}
+          aria-label={isConfirming ? ts("confirmDelete") : t("actions.delete")}
           onBlur={onCancelDelete}
           onClick={() => {
             if (isConfirming) {
@@ -1162,10 +1173,10 @@ function ProductRow({
             justifyItems: "center",
             width: isConfirming ? 54 : 28,
           }}
-          title={isConfirming ? "Confirm delete" : "Delete product"}
+          title={isConfirming ? ts("confirmDelete") : t("actions.delete")}
           type="button"
         >
-          {isConfirming ? "Confirm" : <Trash2 size={13} />}
+          {isConfirming ? ts("confirm") : <Trash2 size={13} />}
         </button>
       </div>
     </div>
@@ -1180,6 +1191,14 @@ interface OrderLineItem {
   quantity?: number;
 }
 
+interface OrderFilterState {
+  dateFrom: string;
+  dateTo: string;
+  orderFilter: OrderFilter;
+  productFilter: string;
+  query: string;
+}
+
 function parseOrderItems(json: string | null): OrderLineItem[] {
   if (!json) {
     return [];
@@ -1192,7 +1211,59 @@ function parseOrderItems(json: string | null): OrderLineItem[] {
   }
 }
 
-function exportOrdersCSV(orders: Orders[]) {
+function orderContainsProduct(order: Orders, productFilter: string): boolean {
+  if (productFilter === "all") {
+    return true;
+  }
+  return parseOrderItems(order.items_json).some(
+    (item) => (item.name ?? item.product_name) === productFilter
+  );
+}
+
+function orderIsInDateRange(
+  order: Orders,
+  fromMs: number | null,
+  toMs: number | null
+): boolean {
+  if (fromMs === null && toMs === null) {
+    return true;
+  }
+  const orderTime = new Date(order.$createdAt).getTime();
+  if (fromMs !== null && orderTime < fromMs) {
+    return false;
+  }
+  return !(toMs !== null && orderTime > toMs);
+}
+
+function orderMatchesSearch(order: Orders, query: string): boolean {
+  if (!query) {
+    return true;
+  }
+  return (
+    (order.buyer_name?.toLowerCase().includes(query) ?? false) ||
+    (order.buyer_email?.toLowerCase().includes(query) ?? false) ||
+    order.$id.toLowerCase().includes(query)
+  );
+}
+
+function orderMatchesFilters(order: Orders, state: OrderFilterState): boolean {
+  if (state.orderFilter !== "all" && order.status !== state.orderFilter) {
+    return false;
+  }
+  if (!orderContainsProduct(order, state.productFilter)) {
+    return false;
+  }
+  const fromMs = state.dateFrom ? new Date(state.dateFrom).getTime() : null;
+  const toMs = state.dateTo
+    ? new Date(`${state.dateTo}T23:59:59`).getTime()
+    : null;
+  return (
+    orderIsInDateRange(order, fromMs, toMs) &&
+    orderMatchesSearch(order, state.query.trim().toLowerCase())
+  );
+}
+
+function exportOrdersCSV(orders: Orders[], headers: string[]) {
   function esc(val: string | number | null | undefined): string {
     if (val == null) {
       return "";
@@ -1203,22 +1274,7 @@ function exportOrdersCSV(orders: Orders[]) {
       : s;
   }
 
-  const headers = [
-    "Order ID",
-    "Date",
-    "Buyer Name",
-    "Buyer Email",
-    "Buyer Phone",
-    "Items",
-    "Subtotal",
-    "Discount",
-    "Total",
-    "Currency",
-    "Status",
-    "Payment Provider",
-    "Member Discount %",
-    "Receipt URL",
-  ].join(",");
+  const headerRow = headers.map(esc).join(",");
 
   const rows = orders.map((o) => {
     const items = parseOrderItems(o.items_json);
@@ -1246,7 +1302,7 @@ function exportOrdersCSV(orders: Orders[]) {
     ].join(",");
   });
 
-  const csv = [headers, ...rows].join("\n");
+  const csv = [headerRow, ...rows].join("\n");
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
@@ -1257,6 +1313,9 @@ function exportOrdersCSV(orders: Orders[]) {
 }
 
 function OrderRow({ order }: { order: Orders }) {
+  const locale = normalizeLocale(useLocale());
+  const t = useTranslations("adminPortal.shop.studio");
+  const orderDetails = useTranslations("adminShop.orders.details");
   const items = parseOrderItems(order.items_json);
   const firstItemName = items[0]?.name ?? items[0]?.product_name ?? "—";
   const extraCount = items.length > 1 ? items.length - 1 : 0;
@@ -1286,7 +1345,7 @@ function OrderRow({ order }: { order: Orders }) {
           #{order.$id.slice(-8)}
         </span>
         <span style={{ color: BRAND.ink4, fontSize: 11 }}>
-          {fmtDate(order.$createdAt)}
+          {fmtDate(order.$createdAt, locale)}
         </span>
       </div>
 
@@ -1322,7 +1381,7 @@ function OrderRow({ order }: { order: Orders }) {
                 whiteSpace: "nowrap",
               }}
             >
-              Member
+              {t("member")}
             </span>
           )}
         </div>
@@ -1403,7 +1462,7 @@ function OrderRow({ order }: { order: Orders }) {
       <div style={{ display: "flex", justifyContent: "flex-end" }}>
         {order.payment_receipt_url ? (
           <a
-            aria-label="View receipt"
+            aria-label={orderDetails("openReceipt")}
             href={order.payment_receipt_url}
             rel="noopener noreferrer"
             style={{
@@ -1429,10 +1488,15 @@ function OrderRow({ order }: { order: Orders }) {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: This studio dashboard already coordinates tabs, filters, and two table states in one render surface.
 export function ShopStudioDashboard({
   initialOrders,
   initialProducts,
 }: ShopStudioDashboardProps) {
+  const t = useTranslations("adminPortal.shop");
+  const ts = useTranslations("adminPortal.shop.studio");
+  const tc = useTranslations("adminPortal.common");
+  const shop = useTranslations("adminShop");
   const [activeTab, setActiveTab] = useState<"catalog" | "orders">("catalog");
   const [catalogFilter, setCatalogFilter] = useState<CatalogFilter>("all");
   const [orderFilter, setOrderFilter] = useState<OrderFilter>("all");
@@ -1518,40 +1582,14 @@ export function ShopStudioDashboard({
   }, [catalogFilter, initialProducts, searchQuery]);
 
   const filteredOrders = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
-    const fromMs = dateFrom ? new Date(dateFrom).getTime() : null;
-    const toMs = dateTo ? new Date(`${dateTo}T23:59:59`).getTime() : null;
-    return initialOrders.filter((o) => {
-      if (orderFilter !== "all" && o.status !== orderFilter) {
-        return false;
-      }
-      if (productFilter !== "all") {
-        const items = parseOrderItems(o.items_json);
-        const has = items.some(
-          (i) => (i.name ?? i.product_name) === productFilter
-        );
-        if (!has) {
-          return false;
-        }
-      }
-      if (fromMs !== null || toMs !== null) {
-        const ts = new Date(o.$createdAt).getTime();
-        if (fromMs !== null && ts < fromMs) {
-          return false;
-        }
-        if (toMs !== null && ts > toMs) {
-          return false;
-        }
-      }
-      if (!q) {
-        return true;
-      }
-      return (
-        (o.buyer_name?.toLowerCase().includes(q) ?? false) ||
-        (o.buyer_email?.toLowerCase().includes(q) ?? false) ||
-        o.$id.toLowerCase().includes(q)
-      );
-    });
+    const state = {
+      dateFrom,
+      dateTo,
+      orderFilter,
+      productFilter,
+      query: searchQuery,
+    };
+    return initialOrders.filter((order) => orderMatchesFilters(order, state));
   }, [
     orderFilter,
     productFilter,
@@ -1571,7 +1609,7 @@ export function ShopStudioDashboard({
         return;
       }
       setPendingDeleteId(null);
-      toast.success("Product deleted");
+      toast.success(t("deleteSuccess"));
     });
   }
 
@@ -1604,20 +1642,20 @@ export function ShopStudioDashboard({
   // ── Render ──────────────────────────────────────────────────────────────────
 
   const catalogFilterTabs: { key: CatalogFilter; label: string }[] = [
-    { key: "all", label: "All" },
-    { key: "published", label: "Published" },
-    { key: "drafts", label: "Drafts" },
-    { key: "pending", label: "Pending" },
-    { key: "archived", label: "Archived" },
+    { key: "all", label: t("filters.all") },
+    { key: "published", label: t("filters.published") },
+    { key: "drafts", label: t("filters.draft") },
+    { key: "pending", label: t("filters.pending") },
+    { key: "archived", label: t("filters.archived") },
   ];
 
   const orderFilterTabs: { key: OrderFilter; label: string }[] = [
-    { key: "all", label: "All" },
-    { key: "paid", label: "Paid" },
-    { key: "authorized", label: "Authorized" },
-    { key: "pending", label: "Pending" },
-    { key: "failed", label: "Failed" },
-    { key: "refunded", label: "Refunded" },
+    { key: "all", label: tc("all") },
+    { key: "paid", label: shop("orders.status.paid") },
+    { key: "authorized", label: shop("orders.status.authorized") },
+    { key: "pending", label: shop("orders.status.pending") },
+    { key: "failed", label: shop("orders.status.failed") },
+    { key: "refunded", label: shop("orders.status.refunded") },
   ];
 
   return (
@@ -1652,9 +1690,9 @@ export function ShopStudioDashboard({
               margin: 0,
             }}
           >
-            Products /{" "}
+            {t("title")} /{" "}
             <em style={{ color: BRAND.claret, fontStyle: "italic" }}>
-              the catalogue.
+              {ts("titleAccent")}
             </em>
           </h1>
           <p
@@ -1664,7 +1702,7 @@ export function ShopStudioDashboard({
               margin: "8px 0 0",
             }}
           >
-            Manage your webshop products and incoming orders.
+            {ts("description")}
           </p>
         </div>
         <Link
@@ -1700,7 +1738,7 @@ export function ShopStudioDashboard({
           >
             <Plus size={12} />
           </span>
-          Compose product
+          {t("create")}
         </Link>
       </header>
 
@@ -1715,8 +1753,8 @@ export function ShopStudioDashboard({
       >
         {(
           [
-            { key: "catalog", label: "Catalogue" },
-            { key: "orders", label: "Orders" },
+            { key: "catalog", label: ts("tabs.catalog") },
+            { key: "orders", label: shop("orders.title") },
           ] as const
         ).map((tab) => {
           const isActive = activeTab === tab.key;
@@ -1798,16 +1836,20 @@ export function ShopStudioDashboard({
           overflow: "hidden",
         }}
       >
-        <KpiCard label="Live products" value={liveCount} />
-        <KpiCard currency="NOK" label="Revenue (30d)" value={paidRevenue} />
+        <KpiCard label={ts("kpi.liveProducts")} value={liveCount} />
+        <KpiCard
+          currency="NOK"
+          label={ts("kpi.revenue30d")}
+          value={paidRevenue}
+        />
         <KpiCard
           alert={lowStockCount > 0}
-          label="Low stock"
+          label={t("fields.lowStock")}
           value={lowStockCount}
         />
         <KpiCard
           alert={pendingCount > 0}
-          label="Pending approval"
+          label={t("filters.pending")}
           value={pendingCount}
         />
       </section>
@@ -1924,7 +1966,9 @@ export function ShopStudioDashboard({
           <input
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder={
-              activeTab === "catalog" ? "Search products…" : "Search orders…"
+              activeTab === "catalog"
+                ? shop("products.search")
+                : shop("orders.search")
             }
             style={{
               background: "rgba(255,255,255,.85)",
@@ -1971,7 +2015,7 @@ export function ShopStudioDashboard({
             }}
             value={productFilter}
           >
-            <option value="all">All products</option>
+            <option value="all">{ts("filters.allProducts")}</option>
             {allProductNames.map((name) => (
               <option key={name} value={name}>
                 {name}
@@ -1992,7 +2036,7 @@ export function ShopStudioDashboard({
               outline: "none",
               padding: "0 10px",
             }}
-            title="From date"
+            title={ts("filters.fromDate")}
             type="date"
             value={dateFrom}
           />
@@ -2012,7 +2056,7 @@ export function ShopStudioDashboard({
               outline: "none",
               padding: "0 10px",
             }}
-            title="To date"
+            title={ts("filters.toDate")}
             type="date"
             value={dateTo}
           />
@@ -2036,7 +2080,7 @@ export function ShopStudioDashboard({
               }}
               type="button"
             >
-              Clear
+              {ts("filters.clear")}
             </button>
           )}
 
@@ -2044,7 +2088,24 @@ export function ShopStudioDashboard({
 
           {/* Export CSV */}
           <button
-            onClick={() => exportOrdersCSV(filteredOrders)}
+            onClick={() =>
+              exportOrdersCSV(filteredOrders, [
+                ts("csv.orderId"),
+                tc("date"),
+                ts("csv.buyerName"),
+                ts("csv.buyerEmail"),
+                ts("csv.buyerPhone"),
+                shop("orders.details.items"),
+                shop("orders.details.subtotal"),
+                shop("orders.details.discount"),
+                shop("orders.details.total"),
+                ts("csv.currency"),
+                shop("orders.details.status"),
+                ts("csv.paymentProvider"),
+                ts("csv.memberDiscount"),
+                ts("csv.receiptUrl"),
+              ])
+            }
             style={{
               alignItems: "center",
               background: BRAND.paper2,
@@ -2062,7 +2123,7 @@ export function ShopStudioDashboard({
             type="button"
           >
             <Download size={13} />
-            Export CSV
+            {shop("orders.export")}
           </button>
         </div>
       )}
@@ -2085,12 +2146,12 @@ export function ShopStudioDashboard({
             }}
           >
             <div />
-            <div>Product</div>
-            <div>Cat.</div>
-            <div>Status</div>
-            <div>Price</div>
-            <div>Stock</div>
-            <div style={{ textAlign: "right" }}>Actions</div>
+            <div>{shop("products.table.product")}</div>
+            <div>{tc("category")}</div>
+            <div>{t("fields.status")}</div>
+            <div>{tc("price")}</div>
+            <div>{tc("stock")}</div>
+            <div style={{ textAlign: "right" }}>{tc("actions")}</div>
           </div>
 
           {filteredProducts.length === 0 ? (
@@ -2133,7 +2194,7 @@ export function ShopStudioDashboard({
                   margin: "8px 0 0",
                 }}
               >
-                No products found
+                {shop("messages.noProducts")}
               </h2>
               <p
                 style={{
@@ -2144,8 +2205,8 @@ export function ShopStudioDashboard({
                 }}
               >
                 {searchQuery
-                  ? "Try adjusting your search or filter."
-                  : "Create your first product to get started."}
+                  ? ts("empty.adjustProductFilters")
+                  : t("emptyDescription")}
               </p>
               {!searchQuery && (
                 <Link
@@ -2164,7 +2225,7 @@ export function ShopStudioDashboard({
                   }}
                 >
                   <Plus size={13} />
-                  Compose product
+                  {t("create")}
                 </Link>
               )}
             </div>
@@ -2205,11 +2266,11 @@ export function ShopStudioDashboard({
               textTransform: "uppercase",
             }}
           >
-            <div>Ref / Date</div>
-            <div>Buyer</div>
-            <div>Items</div>
-            <div>Total</div>
-            <div>Status</div>
+            <div>{ts("table.refDate")}</div>
+            <div>{shop("orders.details.buyer")}</div>
+            <div>{shop("orders.details.items")}</div>
+            <div>{shop("orders.details.total")}</div>
+            <div>{shop("orders.details.status")}</div>
             <div />
           </div>
 
@@ -2253,7 +2314,7 @@ export function ShopStudioDashboard({
                   margin: "8px 0 0",
                 }}
               >
-                No orders yet
+                {shop("messages.noOrders")}
               </h2>
               <p
                 style={{
@@ -2264,8 +2325,8 @@ export function ShopStudioDashboard({
                 }}
               >
                 {searchQuery || productFilter !== "all" || dateFrom || dateTo
-                  ? "Try adjusting your search or filters."
-                  : "Orders will appear here once customers start purchasing."}
+                  ? ts("empty.adjustOrderFilters")
+                  : ts("empty.orders")}
               </p>
             </div>
           ) : (
@@ -2297,7 +2358,7 @@ export function ShopStudioDashboard({
             right: 24,
           }}
         >
-          Deleting…
+          {ts("deleting")}
         </div>
       )}
     </div>

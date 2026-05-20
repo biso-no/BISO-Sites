@@ -13,39 +13,6 @@ interface ListProductsParams {
   status?: string;
 }
 
-interface CreateProductData {
-  campus_id: string;
-  category: string;
-  image?: string;
-  member_only?: boolean;
-  member_price?: number;
-  metadata?: {
-    product_options?: Array<{
-      type: "select" | "input";
-      label: string;
-      required: boolean;
-      options?: string[];
-      placeholder?: string;
-    }>;
-  };
-  regular_price: number;
-  slug: string;
-  status: "draft" | "published" | "closed";
-  stock?: number;
-  translations: {
-    en?: {
-      title: string;
-      description: string;
-      short_description?: string;
-    };
-    no?: {
-      title: string;
-      description: string;
-      short_description?: string;
-    };
-  };
-}
-
 export async function listProducts(
   params: ListProductsParams = {}
 ): Promise<WebshopProducts[]> {

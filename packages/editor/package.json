@@ -1,0 +1,47 @@
+{
+  "name": "@repo/editor",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": [
+    "./src/blocks/index.ts",
+    "./src/blocks/**/index.tsx",
+    "**/*.css"
+  ],
+  "exports": {
+    ".": "./src/index.ts",
+    "./render": "./src/render/index.ts",
+    "./blocks": "./src/blocks/index.ts",
+    "./theme": "./src/theme/index.ts",
+    "./theme/styles.css": "./src/theme/styles.css",
+    "./ai": "./src/ai/index.ts",
+    "./types": "./src/editor/types.ts"
+  },
+  "scripts": {
+    "check-types": "tsc --noEmit",
+    "lint": "biome lint .",
+    "clean": "git clean -xdf .cache .turbo dist node_modules"
+  },
+  "dependencies": {
+    "@ai-sdk/react": "catalog:",
+    "@dnd-kit/core": "catalog:",
+    "@dnd-kit/modifiers": "catalog:",
+    "@dnd-kit/sortable": "catalog:",
+    "@dnd-kit/utilities": "catalog:",
+    "ai": "catalog:",
+    "@repo/api": "workspace:*",
+    "immer": "catalog:",
+    "zod": "catalog:",
+    "zustand": "catalog:"
+  },
+  "devDependencies": {
+    "@repo/typescript-config": "workspace:*",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "typescript": "catalog:"
+  },
+  "peerDependencies": {
+    "react": ">=19.0.0",
+    "react-dom": ">=19.0.0"
+  }
+}

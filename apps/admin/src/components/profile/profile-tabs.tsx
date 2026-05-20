@@ -19,12 +19,26 @@ import { ProfileForm } from "@/app/expenses/profile/profile-form";
 import { PrivacyControls } from "@/components/privacy-controls";
 import { IdentityManagement } from "@/components/profile/identity-management";
 
+interface ProfileTabsUserData {
+  profile: Parameters<typeof ProfileForm>[0]["initialData"];
+  user: {
+    $id: string;
+    email: string;
+  };
+}
+
+interface Identity {
+  $id: string;
+  provider: string;
+  providerUid?: string;
+}
+
 export function ProfileTabs({
   userData,
   identities,
 }: {
-  userData: Record<string, unknown>;
-  identities?: unknown[];
+  userData: ProfileTabsUserData;
+  identities?: Identity[];
 }) {
   const [activeTab, setActiveTab] = useState("account");
 

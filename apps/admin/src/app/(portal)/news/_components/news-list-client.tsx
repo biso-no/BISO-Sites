@@ -4,6 +4,7 @@ import type { ContentTranslations, News } from "@repo/api/types/appwrite";
 import { Newspaper, Pencil, Trash2 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { useLocale, useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { deleteNews } from "../../_actions/news";
@@ -45,6 +46,8 @@ export function NewsListClient({
   const [search, setSearch] = useState("");
   const [activeFilter, setActiveFilter] = useState("all");
   const [, startTransition] = useTransition();
+  const locale = useLocale() === "no" ? "no" : "en";
+  const t = useTranslations("adminPortal.news");
 
   const filters = [
     { label: labels.all, value: "all" },
@@ -54,15 +57,20 @@ export function NewsListClient({
 
   function getTitle(a: NewsWithTranslations) {
     return (
-      a.translation_refs.find((t) => t.locale === "no")?.title ?? "Untitled"
+      a.translation_refs.find((translation) => translation.locale === locale)
+        ?.title ??
+      a.translation_refs[0]?.title ??
+      t("fallback.untitled")
     );
   }
 
   function getCategory(a: NewsWithTranslations) {
-    const t = a.translation_refs.find((t) => t.locale === "no");
-    if (t?.additional_fields) {
+    const translation = a.translation_refs.find(
+      (item) => item.locale === locale
+    );
+    if (translation?.additional_fields) {
       try {
-        return JSON.parse(t.additional_fields).category ?? null;
+        return JSON.parse(translation.additional_fields).category ?? null;
       } catch {
         return null;
       }
@@ -82,9 +90,9 @@ export function NewsListClient({
     startTransition(async () => {
       const result = await deleteNews(id);
       if (result.error) {
-        toast.error("Failed to delete article");
+        toast.error(t("deleteError"));
       } else {
-        toast.success("Article deleted");
+        toast.success(t("deleteSuccess"));
       }
     });
   }
@@ -97,7 +105,7 @@ export function NewsListClient({
         title={labels.empty}
       >
         <StudioLinkButton href="/news/new" variant="primary">
-          Write first article
+          {t("create")}
         </StudioLinkButton>
       </EmptyState>
     );
@@ -113,10 +121,7 @@ export function NewsListClient({
         placeholder={labels.searchPlaceholder}
       />
       {filtered.length === 0 ? (
-        <EmptyState
-          icon={<Newspaper size={28} />}
-          title="No matching articles"
-        />
+        <EmptyState icon={<Newspaper size={28} />} title={t("noMatching")} />
       ) : (
         <div className="space-y-3">
           {filtered.map((article) => (

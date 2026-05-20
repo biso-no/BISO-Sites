@@ -104,6 +104,23 @@ interface CheckoutLineItemInput {
   variationId?: string;
 }
 
+interface ProductVariation {
+  id?: string;
+  name?: string;
+  price_modifier?: number;
+}
+
+interface NormalizedProduct extends Record<string, unknown> {
+  $id: string;
+  campus_id?: string | null;
+  custom_fields?: Record<string, unknown>[];
+  metadata_parsed: Record<string, unknown>;
+  price: number;
+  slug: string;
+  title: string;
+  variations?: ProductVariation[];
+}
+
 type PaymentProvider = "vipps" | "stripe";
 
 interface CartCheckoutData {
@@ -157,7 +174,7 @@ function buildQuantityByProduct(items: CheckoutLineItemInput[]) {
 async function loadProduct(
   productId: string,
   locale: Locale,
-  cache: Map<string, Record<string, unknown>>
+  cache: Map<string, NormalizedProduct>
 ) {
   const cached = cache.get(productId);
   if (cached) {
@@ -180,25 +197,27 @@ async function loadProduct(
     : null;
 
   const metadataParsed = parseProductMetadata(product.metadata);
+  const productMetadata: Record<string, unknown> =
+    metadataParsed && typeof metadataParsed === "object"
+      ? (metadataParsed as Record<string, unknown>)
+      : {};
 
-  const normalizedProduct = {
+  const normalizedProduct: NormalizedProduct = {
     ...product,
     title: translation?.title ?? product.slug,
     description: translation?.description ?? "",
     short_description: translation?.short_description ?? null,
     price: Number(product.regular_price ?? 0),
-    metadata_parsed: metadataParsed,
-    custom_fields: Array.isArray((metadataParsed as any).custom_fields)
-      ? (metadataParsed as any).custom_fields
+    metadata_parsed: productMetadata,
+    custom_fields: Array.isArray(productMetadata.custom_fields)
+      ? productMetadata.custom_fields
       : undefined,
-    variations: Array.isArray((metadataParsed as any).variations)
-      ? (metadataParsed as any).variations
+    variations: Array.isArray(productMetadata.variations)
+      ? productMetadata.variations
       : undefined,
-    member_discount_enabled: Boolean(
-      (metadataParsed as any).member_discount_enabled
-    ),
+    member_discount_enabled: Boolean(productMetadata.member_discount_enabled),
     member_discount_percent: Number(
-      (metadataParsed as any).member_discount_percent || 0
+      productMetadata.member_discount_percent || 0
     ),
   };
 
@@ -251,14 +270,14 @@ function findVariation(product: Record<string, unknown>, variationId?: string) {
   if (!variationId) {
     return;
   }
-  return (product.variations as Record<string, unknown>[])?.find(
+  return (product.variations as ProductVariation[] | undefined)?.find(
     (variant) => variant.id === variationId
   );
 }
 
 async function resolvePricing(
   product: Record<string, unknown>,
-  variation: Record<string, unknown> | undefined,
+  variation: ProductVariation | undefined,
   discountCache: Map<string, { applied: boolean; percent: number }>,
   productId: string
 ) {
@@ -327,7 +346,7 @@ async function buildOrderItems(items: CheckoutLineItemInput[], locale: Locale) {
     string,
     { applied: boolean; percent: number }
   >();
-  const productCache = new Map<string, Record<string, unknown>>();
+  const productCache = new Map<string, NormalizedProduct>();
   const orderItems: OrderItem[] = [];
   const campusIds = new Set<string>();
 
