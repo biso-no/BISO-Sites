@@ -399,6 +399,29 @@ export function buildRecruitmentVacancy(
   };
 }
 
+async function listJobsWithSelectFallback(
+  db: DbClient,
+  baseQueries: string[]
+): Promise<{ rows: Jobs[]; total: number }> {
+  // Prefer the trimmed select with translations.* dotted path; fall back to
+  // fetching all columns when Appwrite rejects the query (column not
+  // deployed yet, etc.). Keeps reads working during schema rollout.
+  try {
+    return await db.listRows<Jobs>("app", "jobs", [
+      Query.select([...JOB_SELECT]),
+      ...baseQueries,
+    ]);
+  } catch (error) {
+    if (process.env.NODE_ENV !== "production") {
+      console.warn(
+        "JOB_SELECT failed; falling back to full-column fetch. Deploy schema with `appwrite deploy collections` to enable column projection.",
+        error
+      );
+    }
+    return await db.listRows<Jobs>("app", "jobs", baseQueries);
+  }
+}
+
 export async function fetchRecruitmentJobsByIds(
   db: DbClient,
   ids: string[]
@@ -407,11 +430,8 @@ export async function fetchRecruitmentJobsByIds(
 
   for (let index = 0; index < ids.length; index += 25) {
     const chunk = ids.slice(index, index + 25);
-    // translations.* in JOB_SELECT hydrates each job's translations array in
-    // a single round-trip, so no separate content_translations fetch needed.
-    const response = await db.listRows<Jobs>("app", "jobs", [
+    const response = await listJobsWithSelectFallback(db, [
       Query.equal("$id", chunk),
-      Query.select([...JOB_SELECT]),
       Query.limit(chunk.length),
     ]);
 
@@ -486,12 +506,6 @@ export async function fetchRecruitmentListRows(
   db: DbClient,
   queries: string[]
 ): Promise<RecruitmentVacancy[]> {
-  const response = await db.listRows<Jobs>("app", "jobs", [
-    Query.select([...JOB_SELECT]),
-    ...queries,
-  ]);
-
-  // translations.* in JOB_SELECT hydrates each job's translations array,
-  // so we no longer need the dedicated content_translations round-trip.
+  const response = await listJobsWithSelectFallback(db, queries);
   return response.rows.map((job) => buildRecruitmentVacancy(job));
 }

@@ -315,6 +315,31 @@ export function buildRecruitmentVacancy(
   };
 }
 
+async function listJobsWithSelectFallback(
+  db: DbClient,
+  baseQueries: string[]
+): Promise<{ rows: Jobs[]; total: number }> {
+  // Prefer the trimmed select with translations.* dotted path, but fall back
+  // to fetching all columns when Appwrite rejects the query (typically
+  // because a referenced column hasn't been deployed yet — common during
+  // schema rollout). The fallback returns the same shape and keeps reads
+  // working until `appwrite deploy collections` lands the new fields.
+  try {
+    return await db.listRows<Jobs>("app", "jobs", [
+      Query.select([...JOB_SELECT]),
+      ...baseQueries,
+    ]);
+  } catch (error) {
+    if (process.env.NODE_ENV !== "production") {
+      console.warn(
+        "JOB_SELECT failed; falling back to full-column fetch. Deploy schema with `appwrite deploy collections` to enable column projection.",
+        error
+      );
+    }
+    return await db.listRows<Jobs>("app", "jobs", baseQueries);
+  }
+}
+
 export async function fetchRecruitmentJobsByIds(
   db: DbClient,
   ids: string[]
@@ -323,12 +348,8 @@ export async function fetchRecruitmentJobsByIds(
 
   for (let index = 0; index < ids.length; index += 25) {
     const chunk = ids.slice(index, index + 25);
-    // translations.* in JOB_SELECT hydrates each job's translations array in
-    // the same Appwrite call (new Relationships GA features), so no separate
-    // content_translations lookup is needed.
-    const response = await db.listRows<Jobs>("app", "jobs", [
+    const response = await listJobsWithSelectFallback(db, [
       Query.equal("$id", chunk),
-      Query.select([...JOB_SELECT]),
       Query.limit(chunk.length),
     ]);
 
@@ -395,10 +416,9 @@ export async function getRecruitmentJobBySlug(
   db: DbClient,
   slug: string
 ): Promise<RecruitmentVacancy | null> {
-  const response = await db.listRows<Jobs>("app", "jobs", [
+  const response = await listJobsWithSelectFallback(db, [
     Query.equal("slug", slug),
     Query.limit(1),
-    Query.select([...JOB_SELECT]),
   ]);
 
   const job = response.rows[0];
@@ -421,11 +441,7 @@ export async function fetchRecruitmentListRows(
   db: DbClient,
   queries: string[]
 ): Promise<RecruitmentVacancy[]> {
-  const response = await db.listRows<Jobs>("app", "jobs", [
-    Query.select([...JOB_SELECT]),
-    ...queries,
-  ]);
-
+  const response = await listJobsWithSelectFallback(db, queries);
   return response.rows.map((job) => buildRecruitmentVacancy(job));
 }
 

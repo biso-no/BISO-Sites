@@ -38,8 +38,17 @@ export async function GET(
     });
   } catch (error) {
     console.error("Failed to get recruitment vacancy:", error);
+    const message =
+      error instanceof Error ? error.message : "Failed to fetch vacancy";
     return NextResponse.json(
-      { error: "Failed to fetch vacancy" },
+      {
+        error: message,
+        ...(process.env.NODE_ENV !== "production"
+          ? {
+              hint: "If this references unknown column(s), run `appwrite deploy collections` to apply packages/api/appwrite.config.json to your Appwrite project.",
+            }
+          : {}),
+      },
       { status: 500 }
     );
   }

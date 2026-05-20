@@ -22,7 +22,23 @@ async function fetchRecruitmentJson<T>(
   });
 
   if (!response.ok) {
-    throw new Error(`Recruitment API error: ${response.status}`);
+    // Surface the upstream message so 5xx debugging doesn't lose the cause.
+    let detail = "";
+    try {
+      const body = (await response.json()) as {
+        error?: string;
+        hint?: string;
+      };
+      if (body?.error) {
+        detail = ` — ${body.error}`;
+      }
+      if (body?.hint) {
+        detail += ` (${body.hint})`;
+      }
+    } catch {
+      // ignore parse failure; keep the raw status
+    }
+    throw new Error(`Recruitment API error: ${response.status}${detail}`);
   }
 
   return response.json() as Promise<T>;

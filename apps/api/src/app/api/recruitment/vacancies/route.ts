@@ -71,8 +71,17 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     });
   } catch (error) {
     console.error("Failed to list recruitment vacancies:", error);
+    const message =
+      error instanceof Error ? error.message : "Failed to list vacancies";
     return NextResponse.json(
-      { error: "Failed to list vacancies" },
+      {
+        error: message,
+        ...(process.env.NODE_ENV !== "production"
+          ? {
+              hint: "If this references unknown column(s), run `appwrite deploy collections` to apply packages/api/appwrite.config.json to your Appwrite project.",
+            }
+          : {}),
+      },
       { status: 500 }
     );
   }
