@@ -650,6 +650,11 @@ export type JobApplications = Models.Row & {
   data_retention_until: string;
   resume_file_id: string | null;
   review_metadata: string | null;
+  candidate_profile_id: string | null;
+  ai_screening: string | null;
+  screening_score: number | null;
+  embedding_status: EmbeddingStatus;
+  source: string | null;
 };
 
 export type ContentTranslations = Models.Row & {
@@ -678,6 +683,11 @@ export type Jobs = Models.Row & {
   translations: ContentTranslations[];
   translation_refs: ContentTranslations[];
   department: Departments;
+  custom_questions: string | null;
+  interview_template: string | null;
+  screening_rubric: string | null;
+  auto_screen: boolean;
+  embedding_id: string | null;
 };
 
 export type Events = Models.Row & {
@@ -1219,4 +1229,133 @@ export type Documents = Models.Row & {
   sort_order: number;
   updated_by: string | null;
   language: string | null;
+};
+
+export enum EmbeddingStatus {
+  PENDING = "pending",
+  READY = "ready",
+  FAILED = "failed",
+}
+
+export enum InterviewStatus {
+  PROPOSED = "proposed",
+  SCHEDULED = "scheduled",
+  COMPLETED = "completed",
+  CANCELLED = "cancelled",
+  NO_SHOW = "no_show",
+}
+
+export enum InterviewParticipantRole {
+  INTERVIEWER = "interviewer",
+  CANDIDATE = "candidate",
+  OBSERVER = "observer",
+}
+
+export enum InterviewResponseStatus {
+  PENDING = "pending",
+  ACCEPTED = "accepted",
+  TENTATIVE = "tentative",
+  DECLINED = "declined",
+}
+
+export enum InterviewRecommendation {
+  STRONG_HIRE = "strong_hire",
+  HIRE = "hire",
+  NO_HIRE = "no_hire",
+  STRONG_NO_HIRE = "strong_no_hire",
+  NEED_MORE_INFO = "need_more_info",
+}
+
+export enum ApplicationAnswerType {
+  TEXT = "text",
+  LONG_TEXT = "long_text",
+  SELECT = "select",
+  MULTI_SELECT = "multi_select",
+  BOOLEAN = "boolean",
+  NUMBER = "number",
+}
+
+export type JobInterviews = Models.Row & {
+  application_id: string;
+  job_id: string;
+  campus_id: string;
+  department_id: string | null;
+  round: number;
+  title: string;
+  starts_at: string | null;
+  ends_at: string | null;
+  timezone: string | null;
+  location: string | null;
+  meeting_url: string | null;
+  teams_meeting_id: string | null;
+  outlook_event_id: string | null;
+  status: InterviewStatus;
+  notes: string | null;
+  created_by_user_id: string | null;
+  cancelled_reason: string | null;
+};
+
+export type JobInterviewParticipants = Models.Row & {
+  interview_id: string;
+  user_id: string | null;
+  email: string;
+  display_name: string | null;
+  role: InterviewParticipantRole;
+  response_status: InterviewResponseStatus;
+  is_lead: boolean;
+};
+
+export type JobInterviewScorecards = Models.Row & {
+  interview_id: string;
+  application_id: string;
+  interviewer_user_id: string;
+  submitted_at: string | null;
+  overall_score: number | null;
+  recommendation: InterviewRecommendation | null;
+  criteria: string | null;
+  strengths: string | null;
+  concerns: string | null;
+  private_notes: string | null;
+};
+
+export type CandidateProfiles = Models.Row & {
+  email: string;
+  full_name: string;
+  phone: string | null;
+  linkedin_url: string | null;
+  current_role: string | null;
+  current_employer: string | null;
+  campus_id: string | null;
+  tags: string | null;
+  gdpr_consent: boolean;
+  consent_date: string;
+  data_retention_until: string;
+  last_application_at: string | null;
+  applications_count: number;
+  notes: string | null;
+  source: string | null;
+  embedding_status: EmbeddingStatus;
+  embedding_id: string | null;
+};
+
+export type JobApplicationAnswers = Models.Row & {
+  application_id: string;
+  job_id: string;
+  question_id: string;
+  question_label: string;
+  answer_type: ApplicationAnswerType;
+  answer: string | null;
+};
+
+export type RecruitmentBookingTokens = Models.Row & {
+  application_id: string;
+  token_hash: string;
+  panel_user_ids: string | null;
+  duration_minutes: number;
+  window_from: string;
+  window_to: string;
+  expires_at: string;
+  consumed_at: string | null;
+  interview_id: string | null;
+  created_by_user_id: string | null;
 };

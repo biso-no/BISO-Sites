@@ -27,6 +27,23 @@ const CONTENT_TABLES = [
 ] as const;
 
 /**
+ * Recruitment tables that SG-App-Dept-* teams need full CRUD on so HR users
+ * within a department can manage interviews, scorecards, and the candidate
+ * pool scoped to vacancies they own. Row-level isolation across campuses is
+ * enforced separately by `assertRecruitmentApplicationReviewAccess` and
+ * `assertInterviewWriteAccess` in `lib/recruitment.ts`.
+ */
+const RECRUITMENT_TABLES = [
+  "job_applications",
+  "job_interviews",
+  "job_interview_participants",
+  "job_interview_scorecards",
+  "candidate_profiles",
+  "job_application_answers",
+  "recruitment_booking_tokens",
+] as const;
+
+/**
  * Grant a dept team create-only permission on all content and translation tables.
  *
  * Only called for SG-App-Dept-* teams (never Campus teams).
@@ -52,6 +69,50 @@ export async function grantTeamContentAccess(teamId: string): Promise<void> {
     } catch (err) {
       console.error(
         `Failed to grant content access for team ${teamId} on table ${tableId}:`,
+        err
+      );
+    }
+  }
+}
+
+/**
+ * Grant a dept team full CRUD on all recruitment tables. Campus-level isolation
+ * is enforced at the service layer (see `assertRecruitmentApplicationReviewAccess`
+ * and `assertInterviewWriteAccess`). The candidate-facing booking endpoint is
+ * the only path that operates without a session and validates HMAC tokens
+ * directly.
+ */
+export async function grantTeamRecruitmentAccess(
+  teamId: string
+): Promise<void> {
+  const { db } = await createAdminClient();
+  const role = Role.team(teamId);
+  const perms = [
+    Permission.read(role),
+    Permission.create(role),
+    Permission.update(role),
+    Permission.delete(role),
+  ];
+
+  for (const tableId of RECRUITMENT_TABLES) {
+    try {
+      const table = await db.getTable({ databaseId: DATABASE_ID, tableId });
+      const existing = table.$permissions as string[];
+      const next = [...new Set([...existing, ...perms])];
+
+      if (next.length !== existing.length) {
+        await db.updateTable({
+          databaseId: DATABASE_ID,
+          tableId,
+          permissions: next,
+        });
+        console.log(
+          `Granted recruitment access on ${tableId} to team ${teamId}`
+        );
+      }
+    } catch (err) {
+      console.error(
+        `Failed to grant recruitment access for team ${teamId} on table ${tableId}:`,
         err
       );
     }

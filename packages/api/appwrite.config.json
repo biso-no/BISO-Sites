@@ -1397,6 +1397,49 @@
           "twoWayKey": "jobs",
           "onDelete": "setNull",
           "side": "parent"
+        },
+        {
+          "key": "custom_questions",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 8000,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "interview_template",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 8000,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "screening_rubric",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 8000,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "auto_screen",
+          "type": "boolean",
+          "required": false,
+          "array": false,
+          "default": true
+        },
+        {
+          "key": "embedding_id",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 100,
+          "default": null,
+          "encrypt": false
         }
       ],
       "indexes": [
@@ -3053,6 +3096,51 @@
           "size": 16000,
           "default": null,
           "encrypt": false
+        },
+        {
+          "key": "candidate_profile_id",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 50,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "ai_screening",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 8000,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "screening_score",
+          "type": "integer",
+          "required": false,
+          "array": false,
+          "default": null,
+          "min": 0,
+          "max": 100
+        },
+        {
+          "key": "embedding_status",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "default": "pending",
+          "format": "enum",
+          "elements": ["pending", "ready", "failed"]
+        },
+        {
+          "key": "source",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 100,
+          "default": null,
+          "encrypt": false
         }
       ],
       "indexes": [
@@ -3062,6 +3150,20 @@
           "status": "available",
           "columns": ["job_id", "status"],
           "orders": []
+        },
+        {
+          "key": "idx_candidate_profile",
+          "type": "key",
+          "status": "available",
+          "columns": ["candidate_profile_id"],
+          "orders": []
+        },
+        {
+          "key": "idx_screening_score",
+          "type": "key",
+          "status": "available",
+          "columns": ["screening_score"],
+          "orders": ["DESC"]
         }
       ]
     },
@@ -6433,6 +6535,826 @@
           "type": "key",
           "status": "available",
           "columns": ["sort_order"],
+          "orders": ["ASC"]
+        }
+      ]
+    },
+    {
+      "$id": "job_interviews",
+      "$permissions": [
+        "create(\"users\")",
+        "read(\"team:admin\")",
+        "update(\"team:admin\")",
+        "delete(\"team:admin\")"
+      ],
+      "databaseId": "app",
+      "name": "Job Interviews",
+      "enabled": true,
+      "rowSecurity": true,
+      "columns": [
+        {
+          "key": "application_id",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 50,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "job_id",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 50,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "campus_id",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 50,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "department_id",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 50,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "round",
+          "type": "integer",
+          "required": true,
+          "array": false,
+          "default": 1,
+          "min": 1,
+          "max": 20
+        },
+        {
+          "key": "title",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 200,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "starts_at",
+          "type": "datetime",
+          "required": false,
+          "array": false,
+          "default": null,
+          "format": ""
+        },
+        {
+          "key": "ends_at",
+          "type": "datetime",
+          "required": false,
+          "array": false,
+          "default": null,
+          "format": ""
+        },
+        {
+          "key": "timezone",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 50,
+          "default": "Europe/Oslo",
+          "encrypt": false
+        },
+        {
+          "key": "location",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 200,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "meeting_url",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 1000,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "teams_meeting_id",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 200,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "outlook_event_id",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 200,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "status",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "default": "proposed",
+          "format": "enum",
+          "elements": [
+            "proposed",
+            "scheduled",
+            "completed",
+            "cancelled",
+            "no_show"
+          ]
+        },
+        {
+          "key": "notes",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 4000,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "created_by_user_id",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 50,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "cancelled_reason",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 500,
+          "default": null,
+          "encrypt": false
+        }
+      ],
+      "indexes": [
+        {
+          "key": "idx_application_round",
+          "type": "key",
+          "status": "available",
+          "columns": ["application_id", "round"],
+          "orders": []
+        },
+        {
+          "key": "idx_starts_at",
+          "type": "key",
+          "status": "available",
+          "columns": ["starts_at"],
+          "orders": ["ASC"]
+        },
+        {
+          "key": "idx_job_status",
+          "type": "key",
+          "status": "available",
+          "columns": ["job_id", "status"],
+          "orders": []
+        },
+        {
+          "key": "idx_campus_status",
+          "type": "key",
+          "status": "available",
+          "columns": ["campus_id", "status"],
+          "orders": []
+        }
+      ]
+    },
+    {
+      "$id": "job_interview_participants",
+      "$permissions": [
+        "create(\"users\")",
+        "read(\"team:admin\")",
+        "update(\"team:admin\")",
+        "delete(\"team:admin\")"
+      ],
+      "databaseId": "app",
+      "name": "Job Interview Participants",
+      "enabled": true,
+      "rowSecurity": true,
+      "columns": [
+        {
+          "key": "interview_id",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 50,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "user_id",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 50,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "email",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "default": null,
+          "format": "email"
+        },
+        {
+          "key": "display_name",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 200,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "role",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "default": "interviewer",
+          "format": "enum",
+          "elements": ["interviewer", "candidate", "observer"]
+        },
+        {
+          "key": "response_status",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "default": "pending",
+          "format": "enum",
+          "elements": ["pending", "accepted", "tentative", "declined"]
+        },
+        {
+          "key": "is_lead",
+          "type": "boolean",
+          "required": false,
+          "array": false,
+          "default": false
+        }
+      ],
+      "indexes": [
+        {
+          "key": "idx_interview_user",
+          "type": "key",
+          "status": "available",
+          "columns": ["interview_id", "user_id"],
+          "orders": []
+        },
+        {
+          "key": "idx_user_interview",
+          "type": "key",
+          "status": "available",
+          "columns": ["user_id", "interview_id"],
+          "orders": []
+        }
+      ]
+    },
+    {
+      "$id": "job_interview_scorecards",
+      "$permissions": [
+        "create(\"users\")",
+        "read(\"team:admin\")",
+        "update(\"team:admin\")",
+        "delete(\"team:admin\")"
+      ],
+      "databaseId": "app",
+      "name": "Job Interview Scorecards",
+      "enabled": true,
+      "rowSecurity": true,
+      "columns": [
+        {
+          "key": "interview_id",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 50,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "application_id",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 50,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "interviewer_user_id",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 50,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "submitted_at",
+          "type": "datetime",
+          "required": false,
+          "array": false,
+          "default": null,
+          "format": ""
+        },
+        {
+          "key": "overall_score",
+          "type": "integer",
+          "required": false,
+          "array": false,
+          "default": null,
+          "min": 1,
+          "max": 5
+        },
+        {
+          "key": "recommendation",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "default": null,
+          "format": "enum",
+          "elements": [
+            "strong_hire",
+            "hire",
+            "no_hire",
+            "strong_no_hire",
+            "need_more_info"
+          ]
+        },
+        {
+          "key": "criteria",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 8000,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "strengths",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 2000,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "concerns",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 2000,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "private_notes",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 4000,
+          "default": null,
+          "encrypt": false
+        }
+      ],
+      "indexes": [
+        {
+          "key": "idx_interview_interviewer",
+          "type": "unique",
+          "status": "available",
+          "columns": ["interview_id", "interviewer_user_id"],
+          "orders": ["ASC", "ASC"]
+        },
+        {
+          "key": "idx_application",
+          "type": "key",
+          "status": "available",
+          "columns": ["application_id"],
+          "orders": []
+        }
+      ]
+    },
+    {
+      "$id": "candidate_profiles",
+      "$permissions": [
+        "create(\"users\")",
+        "read(\"team:admin\")",
+        "update(\"team:admin\")",
+        "delete(\"team:admin\")"
+      ],
+      "databaseId": "app",
+      "name": "Candidate Profiles",
+      "enabled": true,
+      "rowSecurity": true,
+      "columns": [
+        {
+          "key": "email",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "default": null,
+          "format": "email"
+        },
+        {
+          "key": "full_name",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 200,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "phone",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 20,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "linkedin_url",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 500,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "current_role",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 200,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "current_employer",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 200,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "campus_id",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 50,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "tags",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 2000,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "gdpr_consent",
+          "type": "boolean",
+          "required": true,
+          "array": false,
+          "default": null
+        },
+        {
+          "key": "consent_date",
+          "type": "datetime",
+          "required": true,
+          "array": false,
+          "default": null,
+          "format": ""
+        },
+        {
+          "key": "data_retention_until",
+          "type": "datetime",
+          "required": true,
+          "array": false,
+          "default": null,
+          "format": ""
+        },
+        {
+          "key": "last_application_at",
+          "type": "datetime",
+          "required": false,
+          "array": false,
+          "default": null,
+          "format": ""
+        },
+        {
+          "key": "applications_count",
+          "type": "integer",
+          "required": false,
+          "array": false,
+          "default": 0,
+          "min": 0,
+          "max": 1000
+        },
+        {
+          "key": "notes",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 8000,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "source",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 100,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "embedding_status",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "default": "pending",
+          "format": "enum",
+          "elements": ["pending", "ready", "failed"]
+        },
+        {
+          "key": "embedding_id",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 100,
+          "default": null,
+          "encrypt": false
+        }
+      ],
+      "indexes": [
+        {
+          "key": "idx_email_unique",
+          "type": "unique",
+          "status": "available",
+          "columns": ["email"],
+          "orders": ["ASC"]
+        },
+        {
+          "key": "idx_campus_last_applied",
+          "type": "key",
+          "status": "available",
+          "columns": ["campus_id", "last_application_at"],
+          "orders": ["ASC", "DESC"]
+        },
+        {
+          "key": "idx_retention",
+          "type": "key",
+          "status": "available",
+          "columns": ["data_retention_until"],
+          "orders": ["ASC"]
+        }
+      ]
+    },
+    {
+      "$id": "job_application_answers",
+      "$permissions": [
+        "create(\"users\")",
+        "read(\"team:admin\")",
+        "update(\"team:admin\")",
+        "delete(\"team:admin\")"
+      ],
+      "databaseId": "app",
+      "name": "Job Application Answers",
+      "enabled": true,
+      "rowSecurity": true,
+      "columns": [
+        {
+          "key": "application_id",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 50,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "job_id",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 50,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "question_id",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 50,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "question_label",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 500,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "answer_type",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "default": "text",
+          "format": "enum",
+          "elements": [
+            "text",
+            "long_text",
+            "select",
+            "multi_select",
+            "boolean",
+            "number"
+          ]
+        },
+        {
+          "key": "answer",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 4000,
+          "default": null,
+          "encrypt": false
+        }
+      ],
+      "indexes": [
+        {
+          "key": "idx_application",
+          "type": "key",
+          "status": "available",
+          "columns": ["application_id"],
+          "orders": []
+        },
+        {
+          "key": "idx_application_question",
+          "type": "unique",
+          "status": "available",
+          "columns": ["application_id", "question_id"],
+          "orders": ["ASC", "ASC"]
+        }
+      ]
+    },
+    {
+      "$id": "recruitment_booking_tokens",
+      "$permissions": [
+        "create(\"team:admin\")",
+        "read(\"team:admin\")",
+        "update(\"team:admin\")",
+        "delete(\"team:admin\")"
+      ],
+      "databaseId": "app",
+      "name": "Recruitment Booking Tokens",
+      "enabled": true,
+      "rowSecurity": false,
+      "columns": [
+        {
+          "key": "application_id",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 50,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "token_hash",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 128,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "panel_user_ids",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 2000,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "duration_minutes",
+          "type": "integer",
+          "required": false,
+          "array": false,
+          "default": 30,
+          "min": 15,
+          "max": 240
+        },
+        {
+          "key": "window_from",
+          "type": "datetime",
+          "required": true,
+          "array": false,
+          "default": null,
+          "format": ""
+        },
+        {
+          "key": "window_to",
+          "type": "datetime",
+          "required": true,
+          "array": false,
+          "default": null,
+          "format": ""
+        },
+        {
+          "key": "expires_at",
+          "type": "datetime",
+          "required": true,
+          "array": false,
+          "default": null,
+          "format": ""
+        },
+        {
+          "key": "consumed_at",
+          "type": "datetime",
+          "required": false,
+          "array": false,
+          "default": null,
+          "format": ""
+        },
+        {
+          "key": "interview_id",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 50,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "created_by_user_id",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 50,
+          "default": null,
+          "encrypt": false
+        }
+      ],
+      "indexes": [
+        {
+          "key": "idx_token_hash",
+          "type": "unique",
+          "status": "available",
+          "columns": ["token_hash"],
+          "orders": ["ASC"]
+        },
+        {
+          "key": "idx_application",
+          "type": "key",
+          "status": "available",
+          "columns": ["application_id"],
+          "orders": []
+        },
+        {
+          "key": "idx_expires",
+          "type": "key",
+          "status": "available",
+          "columns": ["expires_at"],
           "orders": ["ASC"]
         }
       ]

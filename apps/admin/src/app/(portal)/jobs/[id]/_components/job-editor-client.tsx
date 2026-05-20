@@ -134,6 +134,10 @@ function buildDefaultValues(job: RecruitmentVacancy | null): JobFormValues {
     term: fallback(metadata?.term, null),
     title_en: fallback(en?.title, ""),
     title_no: fallback(no?.title, ""),
+    auto_screen: metadata?.auto_screen ?? true,
+    custom_questions: [],
+    interview_template: { rounds: [] },
+    screening_rubric: { must_have: [], nice_to_have: [], criteria: [] },
   };
 }
 

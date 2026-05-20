@@ -194,6 +194,85 @@ export function assertRecruitmentApplicationReviewAccess(
   }
 }
 
+// Interviews live in their own collection; they inherit the same
+// campus/department gating as the parent vacancy.
+export interface InterviewScopeTarget {
+  campus_id: string;
+  department_id: string | null;
+}
+
+export function canWriteInterview(
+  scope: AdminScope,
+  lookups: RecruitmentLookups,
+  target: InterviewScopeTarget
+): boolean {
+  return canReviewRecruitmentVacancy(scope, lookups, target);
+}
+
+export function assertInterviewWriteAccess(
+  scope: AdminScope,
+  lookups: RecruitmentLookups,
+  target: InterviewScopeTarget
+): void {
+  if (!canWriteInterview(scope, lookups, target)) {
+    throw new Error("Forbidden");
+  }
+}
+
+// Scorecards must be authored by an actual panel participant. Lead reviewers
+// (campus + global admins) may also override in exceptional cases.
+export function canSubmitScorecard(
+  scope: AdminScope,
+  currentUserId: string,
+  participantUserIds: ReadonlySet<string>
+): boolean {
+  if (scope.isGlobalAdmin) {
+    return true;
+  }
+  return participantUserIds.has(currentUserId);
+}
+
+export function assertScorecardWriteAccess(
+  scope: AdminScope,
+  currentUserId: string,
+  participantUserIds: ReadonlySet<string>
+): void {
+  if (!canSubmitScorecard(scope, currentUserId, participantUserIds)) {
+    throw new Error("Forbidden");
+  }
+}
+
+// Candidate profile reads are campus-scoped: campus admins see candidates
+// who last applied within their campus(es); department members see candidates
+// linked to applications they can review. Global admins see everything.
+export interface CandidateProfileScopeTarget {
+  campus_id: string | null;
+}
+
+export function canReadCandidateProfile(
+  scope: AdminScope,
+  lookups: RecruitmentLookups,
+  profile: CandidateProfileScopeTarget
+): boolean {
+  if (scope.canManageAnyCampus) {
+    return true;
+  }
+  if (!profile.campus_id) {
+    return false;
+  }
+  return getManagedCampusIds(scope, lookups).includes(profile.campus_id);
+}
+
+export function assertCandidateProfileReadAccess(
+  scope: AdminScope,
+  lookups: RecruitmentLookups,
+  profile: CandidateProfileScopeTarget
+): void {
+  if (!canReadCandidateProfile(scope, lookups, profile)) {
+    throw new Error("Forbidden");
+  }
+}
+
 function toRecruitmentTranslation(
   translation: ContentTranslations
 ): RecruitmentTranslation {
