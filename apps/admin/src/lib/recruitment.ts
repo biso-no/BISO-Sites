@@ -12,6 +12,8 @@ import {
   buildRecruitmentVacancyMetadata,
   parseRecruitmentApplicationReviewMetadata,
   parseRecruitmentCustomQuestions,
+  parseRecruitmentInterviewTemplate,
+  parseRecruitmentScreeningRubric,
   parseRecruitmentVacancyMetadata,
   type RecruitmentApplicationJobSummary,
   type RecruitmentApplicationRecord,
@@ -381,6 +383,13 @@ export function buildRecruitmentVacancy(
     status: job.status,
     translation_refs: translations,
     custom_questions: parseRecruitmentCustomQuestions(job.custom_questions),
+    screening_rubric: job.screening_rubric
+      ? parseRecruitmentScreeningRubric(job.screening_rubric)
+      : null,
+    interview_template: job.interview_template
+      ? parseRecruitmentInterviewTemplate(job.interview_template)
+      : null,
+    auto_screen: job.auto_screen ?? true,
   };
 }
 

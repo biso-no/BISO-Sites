@@ -9,14 +9,20 @@ import type {
   JobApplicationAnswers,
 } from "@repo/api/types/appwrite";
 import {
+  normalizeScreeningScore,
+  screenApplication,
+} from "@repo/ai/server/recruitment-screener";
+import {
   buildRecruitmentApplicationReviewMetadata,
   computeRecruitmentRetentionUntil,
   isRecruitmentVacancyOpen,
+  parseRecruitmentScreeningRubric,
   RECRUITMENT_RESUME_BUCKET_ID,
   type RecruitmentApplicationAnswerInput,
   type RecruitmentCustomQuestion,
   recruitmentApplicationSubmitSchema,
   serializeRecruitmentApplicationReviewMetadata,
+  serializeRecruitmentAiScreening,
   validateRecruitmentResumeFile,
 } from "@repo/shared/types/recruitment";
 import { type NextRequest, NextResponse } from "next/server";
@@ -252,11 +258,13 @@ export async function POST(
             current_role: parsed.data.current_role ?? null,
             data_retention_until: retentionUntil,
             email: parsed.data.applicant_email,
+            embedding_id: null,
             embedding_status: EmbeddingStatus.PENDING,
             full_name: parsed.data.applicant_name,
             gdpr_consent: true,
             last_application_at: consentDate.toISOString(),
             linkedin_url: parsed.data.linkedin_url ?? null,
+            notes: null,
             phone: parsed.data.applicant_phone ?? null,
             source: "public_apply",
             tags: null,
@@ -315,6 +323,52 @@ export async function POST(
         console.warn(
           `Failed to persist answer for ${answer.question_id}`,
           answerError
+        );
+      }
+    }
+
+    // Best-effort AI screening when the vacancy has auto_screen enabled and
+    // the environment is wired with an OpenAI key. We don't block the
+    // response on this; failure leaves embedding_status pending so a later
+    // re-run can pick it up.
+    const autoScreen =
+      vacancy.auto_screen !== false &&
+      vacancy.metadata.auto_screen !== false &&
+      Boolean(process.env.OPENAI_API_KEY);
+    if (autoScreen) {
+      try {
+        const screening = await screenApplication({
+          answers: (parsed.data.answers ?? []).map((entry) => ({
+            answer: entry.answer ?? null,
+            question_label: entry.question_label,
+          })),
+          application: {
+            $id: application.$id,
+            applicant_email: parsed.data.applicant_email,
+            applicant_name: parsed.data.applicant_name,
+            cover_letter: parsed.data.cover_letter ?? null,
+            current_employer: parsed.data.current_employer ?? null,
+            current_role: parsed.data.current_role ?? null,
+            linkedin_url: parsed.data.linkedin_url ?? null,
+          },
+          rubric:
+            vacancy.screening_rubric ??
+            parseRecruitmentScreeningRubric(null),
+          vacancy: {
+            $id: vacancy.$id,
+            metadata: vacancy.metadata,
+            translation_refs: vacancy.translation_refs,
+          },
+        });
+
+        await db.updateRow("app", "job_applications", application.$id, {
+          ai_screening: serializeRecruitmentAiScreening(screening),
+          screening_score: normalizeScreeningScore(screening),
+        });
+      } catch (screeningError) {
+        console.warn(
+          `AI screening failed for application ${application.$id}`,
+          screeningError
         );
       }
     }

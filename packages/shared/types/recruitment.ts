@@ -436,6 +436,9 @@ export interface RecruitmentVacancy {
   status: JobStatus;
   translation_refs: RecruitmentTranslation[];
   custom_questions: RecruitmentCustomQuestion[];
+  screening_rubric: RecruitmentScreeningRubric | null;
+  interview_template: RecruitmentInterviewTemplate | null;
+  auto_screen: boolean;
 }
 
 export interface RecruitmentApplicationJobSummary {

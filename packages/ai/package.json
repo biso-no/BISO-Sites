@@ -33,7 +33,9 @@
     "./server/indexing-service": "./src/server/indexing-service.ts",
     "./server/rag": "./src/server/rag.ts",
     "./server/site-search": "./src/server/site-search.ts",
-    "./server/tools": "./src/server/tools.ts"
+    "./server/tools": "./src/server/tools.ts",
+    "./server/recruitment-screener": "./src/server/recruitment-screener.ts",
+    "./server/recruitment-emails": "./src/server/recruitment-emails.ts"
   },
   "scripts": {
     "build": "tsc --noEmit",

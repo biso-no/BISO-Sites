@@ -785,6 +785,73 @@ export async function updateJobApplicationStatus(
   }
 }
 
+export async function draftRecruitmentEmail(
+  applicationId: string,
+  options: {
+    stage:
+      | "interview_invite"
+      | "rejection"
+      | "request_more_info"
+      | "offer"
+      | "thank_you";
+    locale?: "no" | "en";
+    tone?: "warm" | "neutral" | "concise";
+    context?: string | null;
+  }
+): Promise<{
+  data?: { subject: string; body: string };
+  error?: string;
+}> {
+  const ctx = await requireAuth();
+  try {
+    const { db } = await createAdminClient();
+    const scope = toRecruitmentAdminScope(ctx);
+    const lookups = await loadRecruitmentLookups(db);
+    const application = await db.getRow<JobApplications>(
+      "app",
+      "job_applications",
+      applicationId
+    );
+    const jobsById = await fetchRecruitmentJobsByIds(db, [application.job_id]);
+    const job = jobsById.get(application.job_id);
+    if (!job) {
+      return { error: "Vacancy not found" };
+    }
+    assertRecruitmentApplicationReviewAccess(scope, lookups, job);
+
+    const { draftCandidateEmail } = await import(
+      "@repo/ai/server/recruitment-emails"
+    );
+    const draft = await draftCandidateEmail({
+      application: {
+        applicant_email: application.applicant_email,
+        applicant_name: application.applicant_name,
+      },
+      context: options.context ?? null,
+      locale: options.locale ?? "no",
+      stage: options.stage,
+      tone: options.tone ?? "warm",
+      vacancy: {
+        metadata: job.metadata,
+        translation_refs: job.translation_refs,
+      },
+    });
+
+    await logAuditEvent(ctx, "recruitment.email.draft", {
+      payload: { stage: options.stage, subject: draft.subject },
+      resourceId: applicationId,
+      resourceType: "job_application",
+    });
+
+    return { data: { body: draft.body, subject: draft.subject } };
+  } catch (error) {
+    return {
+      error:
+        error instanceof Error ? error.message : "Failed to draft email",
+    };
+  }
+}
+
 export async function listCampuses() {
   const { db } = await createSessionClient();
   const response = await db.listRows<Campus>("app", "campus", [
