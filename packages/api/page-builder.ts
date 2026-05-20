@@ -1,5 +1,3 @@
-import "server-only";
-
 import { ID, Query } from "./index";
 import { createSessionClient } from "./server";
 import type { PageLocale, Pages, PageTranslations } from "./types/appwrite";
@@ -226,7 +224,7 @@ export async function getPage(
 
   const res = await db.listRows<Pages>("app", "pages", [
     Query.equal("slug", slug),
-    Query.select(["*", "translation_refs.*"]),
+    Query.select(["$id", "slug", "translation_refs.*"]),
     Query.limit(1),
   ]);
 
