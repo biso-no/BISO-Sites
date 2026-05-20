@@ -91,9 +91,12 @@ export function ProductCard({
 
           <div className="absolute top-4 left-4 flex flex-col gap-2">
             <Badge
-              className={`${categoryColors[productData.category] || categoryColors.Merch}`}
+              className={
+                categoryColors[productData.category ?? ""] ??
+                categoryColors.Merch
+              }
             >
-              {productData.category}
+              {productData.category ?? t("card.uncategorized")}
             </Badge>
             {productData.member_only && (
               <Badge className="flex items-center gap-1 border-0 bg-orange-500 text-white">

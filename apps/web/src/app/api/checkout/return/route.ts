@@ -63,6 +63,9 @@ export async function GET(request: Request) {
         const items = parseOrderItems(updatedOrder?.items_json ?? null);
         const enrichedItems = await Promise.all(
           items.map(async (item) => {
+            if (!item.product_id) {
+              return null;
+            }
             const product = await db
               .getRow(
                 process.env.APPWRITE_DATABASE_ID!,
@@ -71,19 +74,29 @@ export async function GET(request: Request) {
               )
               .catch(() => null);
             return {
-              ...item,
+              unit_price: Number(item.unit_price ?? item.price ?? 0),
+              quantity: Number(item.quantity ?? 0),
               finago_account_number:
                 (product as { finago_account_number?: number | null } | null)
                   ?.finago_account_number ?? null,
             };
           })
         );
+        const transactionItems = enrichedItems.filter(
+          (
+            item
+          ): item is {
+            unit_price: number;
+            quantity: number;
+            finago_account_number: number | null;
+          } => item !== null && item.unit_price > 0 && item.quantity > 0
+        );
 
         const transactionId = await postShopTransaction({
           orderId,
           date: new Date().toISOString().slice(0, 10),
           total: updatedOrder?.total ?? 0,
-          items: enrichedItems,
+          items: transactionItems,
           campusId: updatedOrder?.campus_id ?? null,
         });
 

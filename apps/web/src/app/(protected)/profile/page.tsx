@@ -6,6 +6,7 @@ import {
   CardTitle,
 } from "@repo/ui/components/ui/card";
 import type { Metadata } from "next";
+import type { MembershipCheckResult } from "@/components/profile/membership-status-card";
 import MembershipStatusCard from "@/components/profile/membership-status-card";
 import { ProfileHead } from "@/components/profile/profile-head";
 import { ProfileTabs } from "@/components/profile/profile-tabs";
@@ -22,7 +23,7 @@ export default async function PublicProfilePage() {
   let identitiesResp: {
     identities?: { $id: string; provider: string }[];
   } | null = null;
-  let membership: { ok: boolean; active?: boolean } | null = null;
+  let membership: MembershipCheckResult | null = null;
   let hasBIIdentity = false;
 
   identitiesResp = await listIdentities();
@@ -78,10 +79,12 @@ export default async function PublicProfilePage() {
         />
       </div>
 
-      <ProfileTabs
-        identities={identitiesResp?.identities}
-        userData={userData}
-      />
+      {userData ? (
+        <ProfileTabs
+          identities={identitiesResp?.identities}
+          userData={userData}
+        />
+      ) : null}
     </div>
   );
 }

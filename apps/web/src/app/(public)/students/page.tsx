@@ -1,4 +1,5 @@
 import type { Locale } from "@repo/i18n/config";
+import type { RecruitmentVacancy } from "@repo/shared/types/recruitment";
 import { getCampusData } from "@/app/actions/campus";
 import { listEvents } from "@/app/actions/events";
 import { listJobs } from "@/app/actions/jobs";
@@ -27,7 +28,7 @@ export default async function StudentsPage() {
       departments={departments}
       events={events}
       globalBenefits={globalBenefits}
-      jobs={jobs}
+      jobs={jobs as RecruitmentVacancy[]}
       locale={locale}
     />
   );

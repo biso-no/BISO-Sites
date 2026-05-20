@@ -76,7 +76,10 @@ async function checkMaxPerUser(
       ORDER_STATUS_FILTER,
     ]);
 
-    const { totalPurchased } = summarizePurchases(orders.rows, productId);
+    const { totalPurchased } = summarizePurchases(
+      orders.rows as OrderRow[],
+      productId
+    );
     const remaining = (maxPerUser ?? 0) - totalPurchased;
 
     if (remaining < requestedQty) {
@@ -193,7 +196,7 @@ async function _getPurchaseHistory(
       ORDER_STATUS_FILTER,
     ]);
 
-    return summarizePurchases(orders.rows, productId);
+    return summarizePurchases(orders.rows as OrderRow[], productId);
   } catch (error) {
     console.error("Error getting purchase history:", error);
     return { totalPurchased: 0, orderCount: 0 };

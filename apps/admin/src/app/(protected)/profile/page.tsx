@@ -18,12 +18,13 @@ export const metadata: Metadata = {
 
 export default async function PublicProfilePage() {
   const userData = await getLoggedInUser();
-  let identitiesResp: { identities?: Array<{ provider?: string }> } | null =
-    null;
+  let identitiesResp: {
+    identities?: Array<{ $id: string; provider: string; providerUid?: string }>;
+  } | null = null;
   let hasBIIdentity = false;
 
   identitiesResp = await listIdentities();
-  const ids: Array<{ provider?: string }> = identitiesResp?.identities || [];
+  const ids = identitiesResp?.identities || [];
   hasBIIdentity =
     Array.isArray(ids) &&
     ids.some((i) => String(i?.provider || "").toLowerCase() === "oidc");
@@ -67,10 +68,12 @@ export default async function PublicProfilePage() {
       {/* Membership status up-front */}
       <div className="mb-6" />
 
-      <ProfileTabs
-        identities={identitiesResp?.identities}
-        userData={userData}
-      />
+      {userData ? (
+        <ProfileTabs
+          identities={identitiesResp?.identities}
+          userData={userData}
+        />
+      ) : null}
     </div>
   );
 }

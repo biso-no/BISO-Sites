@@ -1,5 +1,6 @@
 import type { ContentTranslations, Jobs } from "@repo/api/types/appwrite";
 import type { Locale } from "@repo/i18n/config";
+import type { RecruitmentVacancy } from "@repo/shared/types/recruitment";
 import { Button } from "@repo/ui/components/ui/button";
 import { Card } from "@repo/ui/components/ui/card";
 import { Building2, Calendar, ChevronRight } from "lucide-react";
@@ -7,7 +8,7 @@ import { motion } from "motion/react";
 import Link from "next/link";
 
 interface JobPostingsProps {
-  jobs: Jobs[];
+  jobs: Array<Jobs | RecruitmentVacancy>;
   locale: Locale;
 }
 
@@ -28,6 +29,22 @@ export function JobPostings({ jobs, locale }: JobPostingsProps) {
     }
   };
 
+  const getMetadata = (
+    metadata: Jobs["metadata"] | RecruitmentVacancy["metadata"]
+  ) => {
+    if (!metadata) {
+      return {};
+    }
+    if (typeof metadata === "object") {
+      return metadata as Record<string, unknown>;
+    }
+    try {
+      return JSON.parse(metadata) as Record<string, unknown>;
+    } catch {
+      return {};
+    }
+  };
+
   return (
     <section>
       <div className="mb-6 flex items-center justify-between">
@@ -44,6 +61,11 @@ export function JobPostings({ jobs, locale }: JobPostingsProps) {
 
       <div className="space-y-4">
         {jobs.slice(0, 3).map((job, index) => {
+          const metadata = getMetadata(job.metadata);
+          const applicationDeadline =
+            typeof metadata.application_deadline === "string"
+              ? metadata.application_deadline
+              : null;
           const translation = Array.isArray(job.translation_refs)
             ? job.translation_refs.find(
                 (item): item is ContentTranslations =>
@@ -64,23 +86,19 @@ export function JobPostings({ jobs, locale }: JobPostingsProps) {
                     {translation?.title ?? "Untitled"}
                   </h4>
                   <div className="flex flex-wrap items-center gap-4 text-muted-foreground text-sm">
-                    {job.department?.Name && (
+                    {job.department?.Name ? (
                       <div className="flex items-center gap-2">
                         <Building2 className="h-4 w-4 text-brand" />
                         {job.department.Name}
                       </div>
-                    )}
-                    {(job.metadata as Record<string, unknown>)
-                      ?.application_deadline && (
+                    ) : null}
+                    {applicationDeadline ? (
                       <div className="flex items-center gap-2">
                         <Calendar className="h-4 w-4 text-brand" />
                         {locale === "en" ? "Deadline:" : "Søknadsfrist:"}{" "}
-                        {formatDate(
-                          (job.metadata as Record<string, unknown>)
-                            .application_deadline as string
-                        )}
+                        {formatDate(applicationDeadline)}
                       </div>
-                    )}
+                    ) : null}
                   </div>
                 </Card>
               </Link>

@@ -74,7 +74,7 @@ async function _createVippsCheckout({
   return checkout;
 }
 
-export async function getVippsCheckout(reference: string) {
+export async function getVippsCheckout(reference: string): Promise<unknown> {
   const checkout = await vipps.checkout.info(clientId, clientSecret, reference);
   return checkout;
 }

@@ -1,5 +1,5 @@
+import type { Models } from "@repo/api";
 import { createAdminClient } from "@repo/api/server";
-import type { Departments } from "@repo/api/types/appwrite";
 import { getDepartments } from "@repo/connectors/24sevenoffice";
 import { type NextRequest, NextResponse } from "next/server";
 import { getAuthStatus } from "@/lib/auth-utils";
@@ -40,7 +40,12 @@ export async function GET(_request: NextRequest): Promise<NextResponse> {
         campus_id: getCampusId(deptNum),
         campus: getCampusId(deptNum),
       };
-      return db.upsertRow<Departments>("app", "departments", row.$id, row);
+      return db.upsertRow<Models.DefaultRow>(
+        "app",
+        "departments",
+        row.$id,
+        row
+      );
     });
 
     return NextResponse.json({ success: true, sync: rows });

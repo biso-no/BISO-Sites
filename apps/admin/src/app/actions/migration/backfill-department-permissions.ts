@@ -11,12 +11,13 @@
  * Both functions are idempotent and safe to run multiple times.
  */
 
-import { Permission, Query, Role } from "@repo/api";
+import { type Models, Permission, Query, Role } from "@repo/api";
 import { createAdminClient } from "@repo/api/server";
 import { isGlobalAdmin } from "@/lib/authorization";
 import { expandDeptName } from "@/lib/campus-constants";
 
 const DATABASE_ID = "app";
+type DepartmentPermissionRow = Models.Row & { Name: string };
 
 /**
  * Step 1: Enable row-level security on the departments table.
@@ -90,7 +91,7 @@ export async function runBackfillDepartmentPermissions(): Promise<{
     processed++;
 
     try {
-      const result = await db.listRows<{ Name: string }>(
+      const result = await db.listRows<DepartmentPermissionRow>(
         DATABASE_ID,
         "departments",
         [Query.search("Name", deptName), Query.limit(10)]

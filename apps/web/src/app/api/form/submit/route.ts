@@ -103,6 +103,7 @@ export async function POST(request: Request) {
     await db.createRow(
       "app",
       "form_submissions",
+      ID.unique(),
       {
         topic,
         form_heading: formHeading ?? topic,
