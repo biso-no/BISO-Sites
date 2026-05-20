@@ -1,54 +1,17 @@
 import { Card } from "@repo/ui/components/ui/card";
 import { notFound } from "next/navigation";
+import { getBookingContext } from "@/app/actions/booking";
 import { BookingClient } from "./booking-client";
 
 interface PageProps {
   params: Promise<{ token: string }>;
 }
 
-interface BookingData {
-  data?: {
-    application: { applicant_name: string; applicant_email: string };
-    job: { $id: string; slug: string; campus_name: string | null };
-    token: {
-      window_from: string;
-      window_to: string;
-      duration_minutes: number;
-      expires_at: string;
-    };
-  };
-  error?: string;
-}
-
-async function fetchBookingContext(token: string): Promise<BookingData | null> {
-  const apiBase =
-    process.env.API_BASE_URL ??
-    process.env.NEXT_PUBLIC_API_BASE_URL ??
-    "http://localhost:3003";
-  try {
-    const response = await fetch(
-      `${apiBase}/api/recruitment/booking/${encodeURIComponent(token)}`,
-      { cache: "no-store" }
-    );
-    if (!response.ok) {
-      const error = (await response.json().catch(() => null)) as {
-        error?: string;
-      } | null;
-      return { error: error?.error ?? "This link is no longer valid." };
-    }
-    return (await response.json()) as BookingData;
-  } catch {
-    return null;
-  }
-}
-
 export default async function CandidateBookingPage({ params }: PageProps) {
   const { token } = await params;
-  const result = await fetchBookingContext(token);
-  if (!result) {
-    notFound();
-  }
-  if (result.error) {
+  const result = await getBookingContext(token);
+
+  if ("error" in result) {
     return (
       <main className="mx-auto max-w-xl px-4 py-16">
         <Card className="border-border/60 p-8 shadow-sm">
@@ -63,10 +26,9 @@ export default async function CandidateBookingPage({ params }: PageProps) {
       </main>
     );
   }
-  const data = result.data;
-  if (!data) {
-    return notFound();
-  }
+
+  if (!result.data) return notFound();
+  const { data } = result;
 
   return (
     <main className="mx-auto max-w-xl px-4 py-16">

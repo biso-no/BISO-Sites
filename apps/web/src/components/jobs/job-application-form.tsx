@@ -6,7 +6,9 @@ import { Card } from "@repo/ui/components/ui/card";
 import { Checkbox } from "@repo/ui/components/ui/checkbox";
 import { Input } from "@repo/ui/components/ui/input";
 import { Label } from "@repo/ui/components/ui/label";
+import { Separator } from "@repo/ui/components/ui/separator";
 import { Textarea } from "@repo/ui/components/ui/textarea";
+import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { submitJobApplication } from "@/app/actions/jobs";
@@ -15,45 +17,239 @@ interface JobApplicationFormProps {
   applicantEmail?: string;
   applicantName?: string;
   cvRequired: boolean;
+  customQuestions?: RecruitmentCustomQuestion[];
   isAuthenticated: boolean;
   jobId: string;
-  customQuestions?: RecruitmentCustomQuestion[];
+}
+
+type Step = "contact" | "questions" | "documents" | "review";
+
+const STEPS: Array<{ id: Step; label: string }> = [
+  { id: "contact", label: "Contact" },
+  { id: "questions", label: "Questions" },
+  { id: "documents", label: "Documents" },
+  { id: "review", label: "Review" },
+];
+
+function StepIndicator({
+  current,
+  hasQuestions,
+}: {
+  current: Step;
+  hasQuestions: boolean;
+}) {
+  const visibleSteps = hasQuestions
+    ? STEPS
+    : STEPS.filter((s) => s.id !== "questions");
+  const currentIndex = visibleSteps.findIndex((s) => s.id === current);
+
+  return (
+    <div className="flex items-center gap-2 text-xs">
+      {visibleSteps.map((step, i) => (
+        <div className="flex items-center gap-2" key={step.id}>
+          <span
+            className={`flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-medium ${
+              i < currentIndex
+                ? "bg-brand text-white"
+                : i === currentIndex
+                  ? "border-2 border-brand text-brand"
+                  : "border border-border text-muted-foreground"
+            }`}
+          >
+            {i < currentIndex ? "✓" : i + 1}
+          </span>
+          <span
+            className={
+              i === currentIndex
+                ? "font-medium text-foreground"
+                : "text-muted-foreground"
+            }
+          >
+            {step.label}
+          </span>
+          {i < visibleSteps.length - 1 && (
+            <span className="text-border">—</span>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function QuestionInput({
+  answer,
+  onChange,
+  question,
+}: {
+  answer: string;
+  onChange: (value: string) => void;
+  question: RecruitmentCustomQuestion;
+}) {
+  const id = `q-${question.id}`;
+
+  if (question.type === "long_text") {
+    return (
+      <Textarea
+        id={id}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={question.help_text ?? ""}
+        required={question.required}
+        rows={4}
+        value={answer}
+      />
+    );
+  }
+
+  if (question.type === "select" || question.type === "multi_select") {
+    return (
+      <select
+        className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-brand"
+        id={id}
+        multiple={question.type === "multi_select"}
+        onChange={(e) => {
+          if (question.type === "multi_select") {
+            onChange(
+              Array.from(e.target.selectedOptions)
+                .map((o) => o.value)
+                .join(", ")
+            );
+          } else {
+            onChange(e.target.value);
+          }
+        }}
+        required={question.required}
+        value={answer}
+      >
+        {question.type === "select" && <option value="">Choose…</option>}
+        {(question.options ?? []).map((opt) => (
+          <option key={opt} value={opt}>
+            {opt}
+          </option>
+        ))}
+      </select>
+    );
+  }
+
+  if (question.type === "boolean") {
+    return (
+      <label className="flex items-center gap-2 text-muted-foreground text-sm" htmlFor={id}>
+        <Checkbox
+          checked={answer === "true"}
+          id={id}
+          onCheckedChange={(checked) => onChange(checked === true ? "true" : "")}
+        />
+        Yes
+      </label>
+    );
+  }
+
+  if (question.type === "number") {
+    return (
+      <Input
+        id={id}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={question.help_text ?? ""}
+        required={question.required}
+        type="number"
+        value={answer}
+      />
+    );
+  }
+
+  return (
+    <Input
+      id={id}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={question.help_text ?? ""}
+      required={question.required}
+      value={answer}
+    />
+  );
 }
 
 export function JobApplicationForm({
   applicantEmail = "",
   applicantName = "",
   cvRequired,
+  customQuestions = [],
   isAuthenticated,
   jobId,
-  customQuestions = [],
 }: JobApplicationFormProps) {
+  const hasQuestions = customQuestions.length > 0;
+  const steps = hasQuestions
+    ? STEPS
+    : STEPS.filter((s) => s.id !== "questions");
+
+  const [step, setStep] = useState<Step>("contact");
   const [name, setName] = useState(applicantName);
   const [phone, setPhone] = useState("");
-  const [coverLetter, setCoverLetter] = useState("");
-  const [availability, setAvailability] = useState("");
-  const [consent, setConsent] = useState(false);
-  const [resume, setResume] = useState<File | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
-  const [isSuccess, setIsSuccess] = useState(false);
-  const [isPending, startTransition] = useTransition();
-  const [answers, setAnswers] = useState<Record<string, string>>({});
   const [linkedinUrl, setLinkedinUrl] = useState("");
   const [currentRole, setCurrentRole] = useState("");
   const [currentEmployer, setCurrentEmployer] = useState("");
+  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [coverLetter, setCoverLetter] = useState("");
+  const [availability, setAvailability] = useState("");
+  const [resume, setResume] = useState<File | null>(null);
+  const [consent, setConsent] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const [isSuccess, setIsSuccess] = useState(false);
+  const [isPending, startTransition] = useTransition();
 
-  function setAnswer(questionId: string, value: string) {
-    setAnswers((existing) => ({ ...existing, [questionId]: value }));
+  function setAnswer(id: string, value: string) {
+    setAnswers((prev) => ({ ...prev, [id]: value }));
+  }
+
+  function nextStep() {
+    const i = steps.findIndex((s) => s.id === step);
+    const next = steps[i + 1];
+    if (next) setStep(next.id);
+  }
+
+  function prevStep() {
+    const i = steps.findIndex((s) => s.id === step);
+    const prev = steps[i - 1];
+    if (prev) setStep(prev.id);
+  }
+
+  function handleSubmit() {
+    if (!consent) return;
+    setMessage(null);
+
+    startTransition(async () => {
+      const formData = new FormData();
+      formData.set("applicant_name", name);
+      formData.set("applicant_phone", phone);
+      formData.set("cover_letter", coverLetter);
+      formData.set("availability", availability);
+      formData.set("gdpr_consent", "true");
+      if (linkedinUrl.trim()) formData.set("linkedin_url", linkedinUrl.trim());
+      if (currentRole.trim()) formData.set("current_role", currentRole.trim());
+      if (currentEmployer.trim()) formData.set("current_employer", currentEmployer.trim());
+
+      for (const q of customQuestions) {
+        formData.set(`answer.${q.id}`, answers[q.id] ?? "");
+        formData.set(`answer_label.${q.id}`, q.label);
+        formData.set(`answer_type.${q.id}`, q.type);
+      }
+
+      if (resume) formData.set("resume", resume);
+
+      const result = await submitJobApplication(jobId, formData);
+      setIsSuccess(result.success);
+      setMessage(
+        result.success
+          ? "Application submitted successfully."
+          : result.error
+      );
+    });
   }
 
   if (!isAuthenticated) {
     return (
       <Card className="border-border/60 p-6 shadow-sm">
-        <h3 className="font-semibold text-foreground text-xl">
-          Apply for this vacancy
-        </h3>
+        <h3 className="font-semibold text-foreground text-xl">Apply</h3>
         <p className="mt-2 text-muted-foreground text-sm">
-          You need a signed-in BISO account to submit an application.
+          You need a signed-in BISO account to apply.
         </p>
         <Button asChild className="mt-4 w-full">
           <Link href="/auth/login">Sign in to apply</Link>
@@ -62,303 +258,297 @@ export function JobApplicationForm({
     );
   }
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setMessage(null);
-    setIsSuccess(false);
-
-    startTransition(async () => {
-      const formData = new FormData();
-      formData.set("applicant_name", name);
-      formData.set("applicant_phone", phone);
-      formData.set("availability", availability);
-      formData.set("cover_letter", coverLetter);
-      formData.set("gdpr_consent", String(consent));
-      if (linkedinUrl.trim()) {
-        formData.set("linkedin_url", linkedinUrl.trim());
-      }
-      if (currentRole.trim()) {
-        formData.set("current_role", currentRole.trim());
-      }
-      if (currentEmployer.trim()) {
-        formData.set("current_employer", currentEmployer.trim());
-      }
-
-      for (const question of customQuestions) {
-        const value = answers[question.id] ?? "";
-        formData.set(`answer.${question.id}`, value);
-        formData.set(`answer_label.${question.id}`, question.label);
-        formData.set(`answer_type.${question.id}`, question.type);
-      }
-
-      if (resume) {
-        formData.set("resume", resume);
-      }
-
-      const result = await submitJobApplication(jobId, formData);
-      setIsSuccess(result.success);
-      setMessage(
-        result.success
-          ? "Application submitted. We will review it as soon as possible."
-          : result.error
-      );
-
-      if (result.success) {
-        setPhone("");
-        setAvailability("");
-        setCoverLetter("");
-        setResume(null);
-        setConsent(false);
-        setAnswers({});
-        setLinkedinUrl("");
-        setCurrentRole("");
-        setCurrentEmployer("");
-      }
-    });
+  if (isSuccess) {
+    return (
+      <Card className="border-border/60 p-6 shadow-sm">
+        <div className="space-y-3 text-center">
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-100 text-green-700 text-2xl mx-auto dark:bg-green-900/30">
+            ✓
+          </div>
+          <h3 className="font-semibold text-foreground text-lg">Application submitted!</h3>
+          <p className="text-muted-foreground text-sm">
+            We'll review your application and be in touch at{" "}
+            <strong>{applicantEmail}</strong>.
+          </p>
+          <Button asChild className="w-full" variant="outline">
+            <Link href="/applications">View my applications</Link>
+          </Button>
+        </div>
+      </Card>
+    );
   }
 
   return (
     <Card className="border-border/60 p-6 shadow-sm">
-      <h3 className="font-semibold text-foreground text-xl">
-        Apply for this vacancy
-      </h3>
-      <p className="mt-2 text-muted-foreground text-sm">
-        Submit your application with your contact details and a short cover
-        letter.
-      </p>
+      <div className="mb-5 space-y-2">
+        <h3 className="font-semibold text-foreground text-xl">Apply</h3>
+        <StepIndicator current={step} hasQuestions={hasQuestions} />
+      </div>
 
-      <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
-        <div className="space-y-2">
-          <Label htmlFor="applicant_name">Full name</Label>
-          <Input
-            id="applicant_name"
-            onChange={(event) => setName(event.target.value)}
-            required
-            value={name}
-          />
-        </div>
+      <AnimatePresence mode="wait">
+        {/* Step: Contact */}
+        {step === "contact" && (
+          <motion.div
+            animate={{ opacity: 1, x: 0 }}
+            className="space-y-4"
+            exit={{ opacity: 0, x: -20 }}
+            initial={{ opacity: 0, x: 20 }}
+            key="contact"
+            transition={{ duration: 0.15 }}
+          >
+            <div className="space-y-2">
+              <Label htmlFor="applicant_name">Full name *</Label>
+              <Input
+                id="applicant_name"
+                onChange={(e) => setName(e.target.value)}
+                required
+                value={name}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="applicant_email">Email</Label>
+              <Input disabled id="applicant_email" type="email" value={applicantEmail} />
+              <p className="text-muted-foreground text-xs">Verified via your BISO account</p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="applicant_phone">Phone (optional)</Label>
+              <Input
+                id="applicant_phone"
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="+47 …"
+                value={phone}
+              />
+            </div>
+            <Separator />
+            <div className="space-y-2">
+              <Label htmlFor="linkedin_url">LinkedIn (optional)</Label>
+              <Input
+                id="linkedin_url"
+                onChange={(e) => setLinkedinUrl(e.target.value)}
+                placeholder="https://linkedin.com/in/…"
+                value={linkedinUrl}
+              />
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="current_role">Current role (optional)</Label>
+                <Input
+                  id="current_role"
+                  onChange={(e) => setCurrentRole(e.target.value)}
+                  placeholder="Student, intern…"
+                  value={currentRole}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="current_employer">Employer / school (optional)</Label>
+                <Input
+                  id="current_employer"
+                  onChange={(e) => setCurrentEmployer(e.target.value)}
+                  placeholder="BI, BISO…"
+                  value={currentEmployer}
+                />
+              </div>
+            </div>
+            <Button
+              className="w-full"
+              disabled={!name.trim()}
+              onClick={nextStep}
+              type="button"
+            >
+              Continue
+            </Button>
+          </motion.div>
+        )}
 
-        <div className="space-y-2">
-          <Label htmlFor="applicant_email">Email</Label>
-          <Input
-            disabled
-            id="applicant_email"
-            type="email"
-            value={applicantEmail}
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="applicant_phone">Phone number</Label>
-          <Input
-            id="applicant_phone"
-            onChange={(event) => setPhone(event.target.value)}
-            placeholder="+47 ..."
-            value={phone}
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="cover_letter">Cover letter</Label>
-          <Textarea
-            id="cover_letter"
-            onChange={(event) => setCoverLetter(event.target.value)}
-            placeholder="Tell BISO why you are applying."
-            rows={6}
-            value={coverLetter}
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="availability">Interview availability</Label>
-          <Textarea
-            id="availability"
-            onChange={(event) => setAvailability(event.target.value)}
-            placeholder="Add times that usually work for interviews, one per line."
-            rows={4}
-            value={availability}
-          />
-          <p className="text-muted-foreground text-xs">
-            This helps HR suggest interview times without long email threads.
-          </p>
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="resume">
-            Resume {cvRequired ? "(required, PDF)" : "(optional, PDF)"}
-          </Label>
-          <Input
-            accept="application/pdf"
-            id="resume"
-            onChange={(event) => setResume(event.target.files?.[0] ?? null)}
-            required={cvRequired}
-            type="file"
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="linkedin_url">LinkedIn profile (optional)</Label>
-          <Input
-            id="linkedin_url"
-            onChange={(event) => setLinkedinUrl(event.target.value)}
-            placeholder="https://www.linkedin.com/in/your-handle"
-            value={linkedinUrl}
-          />
-        </div>
-
-        <div className="grid gap-3 md:grid-cols-2">
-          <div className="space-y-2">
-            <Label htmlFor="current_role">Current role (optional)</Label>
-            <Input
-              id="current_role"
-              onChange={(event) => setCurrentRole(event.target.value)}
-              placeholder="Student, Marketing intern, ..."
-              value={currentRole}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="current_employer">Current employer / school</Label>
-            <Input
-              id="current_employer"
-              onChange={(event) => setCurrentEmployer(event.target.value)}
-              placeholder="BI, BISO, ..."
-              value={currentEmployer}
-            />
-          </div>
-        </div>
-
-        {customQuestions.length > 0 ? (
-          <div className="space-y-3 rounded-lg border border-border/50 p-3">
-            <p className="font-medium text-foreground text-sm">
-              A few questions from the hiring team
+        {/* Step: Custom questions */}
+        {step === "questions" && (
+          <motion.div
+            animate={{ opacity: 1, x: 0 }}
+            className="space-y-4"
+            exit={{ opacity: 0, x: -20 }}
+            initial={{ opacity: 0, x: 20 }}
+            key="questions"
+            transition={{ duration: 0.15 }}
+          >
+            <p className="text-muted-foreground text-sm">
+              A few questions from the hiring team.
             </p>
-            {customQuestions.map((question) => (
-              <div className="space-y-2" key={question.id}>
-                <Label htmlFor={`question-${question.id}`}>
-                  {question.label}
-                  {question.required ? " *" : null}
+            {customQuestions.map((q) => (
+              <div className="space-y-1.5" key={q.id}>
+                <Label htmlFor={`q-${q.id}`}>
+                  {q.label}
+                  {q.required && " *"}
                 </Label>
-                {question.type === "long_text" ? (
-                  <Textarea
-                    id={`question-${question.id}`}
-                    onChange={(event) =>
-                      setAnswer(question.id, event.target.value)
-                    }
-                    placeholder={question.help_text ?? ""}
-                    required={question.required}
-                    rows={4}
-                    value={answers[question.id] ?? ""}
-                  />
-                ) : question.type === "select" ||
-                  question.type === "multi_select" ? (
-                  <select
-                    className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
-                    id={`question-${question.id}`}
-                    multiple={question.type === "multi_select"}
-                    onChange={(event) => {
-                      if (question.type === "multi_select") {
-                        const selected = Array.from(
-                          event.target.selectedOptions
-                        )
-                          .map((option) => option.value)
-                          .join(", ");
-                        setAnswer(question.id, selected);
-                      } else {
-                        setAnswer(question.id, event.target.value);
-                      }
-                    }}
-                    required={question.required}
-                    value={answers[question.id] ?? ""}
-                  >
-                    {question.type === "select" ? (
-                      <option value="">Choose...</option>
-                    ) : null}
-                    {(question.options ?? []).map((option) => (
-                      <option key={option} value={option}>
-                        {option}
-                      </option>
-                    ))}
-                  </select>
-                ) : question.type === "boolean" ? (
-                  <label
-                    className="flex items-center gap-2 text-muted-foreground text-sm"
-                    htmlFor={`question-${question.id}`}
-                  >
-                    <Checkbox
-                      checked={answers[question.id] === "true"}
-                      id={`question-${question.id}`}
-                      onCheckedChange={(checked) =>
-                        setAnswer(question.id, checked === true ? "true" : "")
-                      }
-                    />
-                    Yes
-                  </label>
-                ) : question.type === "number" ? (
-                  <Input
-                    id={`question-${question.id}`}
-                    onChange={(event) =>
-                      setAnswer(question.id, event.target.value)
-                    }
-                    placeholder={question.help_text ?? ""}
-                    required={question.required}
-                    type="number"
-                    value={answers[question.id] ?? ""}
-                  />
-                ) : (
-                  <Input
-                    id={`question-${question.id}`}
-                    onChange={(event) =>
-                      setAnswer(question.id, event.target.value)
-                    }
-                    placeholder={question.help_text ?? ""}
-                    required={question.required}
-                    value={answers[question.id] ?? ""}
-                  />
+                <QuestionInput
+                  answer={answers[q.id] ?? ""}
+                  onChange={(v) => setAnswer(q.id, v)}
+                  question={q}
+                />
+                {q.help_text && (
+                  <p className="text-muted-foreground text-xs">{q.help_text}</p>
                 )}
-                {question.help_text ? (
-                  <p className="text-muted-foreground text-xs">
-                    {question.help_text}
-                  </p>
-                ) : null}
               </div>
             ))}
-          </div>
-        ) : null}
+            <div className="flex gap-3">
+              <Button className="flex-1" onClick={prevStep} type="button" variant="outline">
+                Back
+              </Button>
+              <Button
+                className="flex-1"
+                disabled={customQuestions
+                  .filter((q) => q.required)
+                  .some((q) => !(answers[q.id] ?? "").trim())}
+                onClick={nextStep}
+                type="button"
+              >
+                Continue
+              </Button>
+            </div>
+          </motion.div>
+        )}
 
-        <label className="flex items-start gap-3" htmlFor="gdpr_consent">
-          <Checkbox
-            checked={consent}
-            id="gdpr_consent"
-            onCheckedChange={(checked) => setConsent(checked === true)}
-          />
-          <span className="text-muted-foreground text-sm">
-            I consent to BISO processing my application data for recruitment.
-          </span>
-        </label>
-
-        {message ? (
-          <div
-            className={
-              isSuccess ? "text-green-700 text-sm" : "text-red-600 text-sm"
-            }
+        {/* Step: Documents */}
+        {step === "documents" && (
+          <motion.div
+            animate={{ opacity: 1, x: 0 }}
+            className="space-y-4"
+            exit={{ opacity: 0, x: -20 }}
+            initial={{ opacity: 0, x: 20 }}
+            key="documents"
+            transition={{ duration: 0.15 }}
           >
-            <p>{message}</p>
-            {isSuccess ? (
-              <Link className="mt-1 inline-block underline" href="/applications">
-                View it in My applications
-              </Link>
-            ) : null}
-          </div>
-        ) : null}
+            <div className="space-y-2">
+              <Label htmlFor="cover_letter">
+                Cover letter {!cvRequired && "(optional)"}
+              </Label>
+              <Textarea
+                id="cover_letter"
+                onChange={(e) => setCoverLetter(e.target.value)}
+                placeholder="Tell BISO why you're applying and what you'd bring."
+                rows={6}
+                value={coverLetter}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="resume">
+                CV / Résumé {cvRequired ? "(required, PDF)" : "(optional, PDF)"}
+              </Label>
+              <Input
+                accept="application/pdf"
+                id="resume"
+                onChange={(e) => setResume(e.target.files?.[0] ?? null)}
+                required={cvRequired}
+                type="file"
+              />
+              {resume && (
+                <p className="text-muted-foreground text-xs">
+                  Selected: {resume.name} ({(resume.size / 1024).toFixed(0)} KB)
+                </p>
+              )}
+              <p className="text-muted-foreground text-xs">Max 5 MB, PDF only.</p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="availability">
+                Interview availability (optional)
+              </Label>
+              <Textarea
+                id="availability"
+                onChange={(e) => setAvailability(e.target.value)}
+                placeholder="Dates and times that generally work — one per line."
+                rows={3}
+                value={availability}
+              />
+              <p className="text-muted-foreground text-xs">
+                Helps HR suggest slots without back-and-forth emails.
+              </p>
+            </div>
+            <div className="flex gap-3">
+              <Button className="flex-1" onClick={prevStep} type="button" variant="outline">
+                Back
+              </Button>
+              <Button
+                className="flex-1"
+                disabled={cvRequired && !resume}
+                onClick={nextStep}
+                type="button"
+              >
+                Review application
+              </Button>
+            </div>
+          </motion.div>
+        )}
 
-        <Button
-          className="w-full"
-          disabled={isPending || !consent}
-          type="submit"
-        >
-          {isPending ? "Submitting..." : "Submit application"}
-        </Button>
-      </form>
+        {/* Step: Review + submit */}
+        {step === "review" && (
+          <motion.div
+            animate={{ opacity: 1, x: 0 }}
+            className="space-y-4"
+            exit={{ opacity: 0, x: -20 }}
+            initial={{ opacity: 0, x: 20 }}
+            key="review"
+            transition={{ duration: 0.15 }}
+          >
+            <div className="rounded-lg border border-border/50 bg-muted/30 p-4 text-sm space-y-2">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Name</span>
+                <span className="font-medium">{name}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Email</span>
+                <span className="font-medium">{applicantEmail}</span>
+              </div>
+              {phone && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Phone</span>
+                  <span className="font-medium">{phone}</span>
+                </div>
+              )}
+              {resume && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">CV</span>
+                  <span className="font-medium text-green-700">{resume.name}</span>
+                </div>
+              )}
+              {coverLetter && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Cover letter</span>
+                  <span className="font-medium text-green-700">Included</span>
+                </div>
+              )}
+            </div>
+
+            <label className="flex items-start gap-3 cursor-pointer" htmlFor="gdpr_consent">
+              <Checkbox
+                checked={consent}
+                id="gdpr_consent"
+                onCheckedChange={(c) => setConsent(c === true)}
+              />
+              <span className="text-muted-foreground text-sm">
+                I consent to BISO processing my application data for this
+                recruitment process. Data is retained for 180 days.
+              </span>
+            </label>
+
+            {message && (
+              <p className="text-destructive text-sm">{message}</p>
+            )}
+
+            <div className="flex gap-3">
+              <Button className="flex-1" onClick={prevStep} type="button" variant="outline">
+                Back
+              </Button>
+              <Button
+                className="flex-1"
+                disabled={isPending || !consent}
+                onClick={handleSubmit}
+                type="button"
+              >
+                {isPending ? "Submitting…" : "Submit application"}
+              </Button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </Card>
   );
 }
