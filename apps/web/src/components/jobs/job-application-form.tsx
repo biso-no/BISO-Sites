@@ -337,13 +337,18 @@ export function JobApplicationForm({
         </label>
 
         {message ? (
-          <p
+          <div
             className={
               isSuccess ? "text-green-700 text-sm" : "text-red-600 text-sm"
             }
           >
-            {message}
-          </p>
+            <p>{message}</p>
+            {isSuccess ? (
+              <Link className="mt-1 inline-block underline" href="/applications">
+                View it in My applications
+              </Link>
+            ) : null}
+          </div>
         ) : null}
 
         <Button

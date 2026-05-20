@@ -80,6 +80,58 @@ export async function getJobBySlug(
   }
 }
 
+export interface MyApplicationView {
+  $id: string;
+  $createdAt: string;
+  status: "submitted" | "reviewed" | "interview" | "accepted" | "rejected";
+  data_retention_until: string;
+  cover_letter: string | null;
+  resume_file_id: string | null;
+  job: {
+    $id: string;
+    slug: string;
+    title: string;
+    campus_name: string | null;
+  } | null;
+  next_interview: {
+    $id: string;
+    starts_at: string | null;
+    ends_at: string | null;
+    title: string;
+    location: string | null;
+    meeting_url: string | null;
+    status: "proposed" | "scheduled" | "completed" | "cancelled" | "no_show";
+  } | null;
+  answers: Array<{ question_label: string; answer: string | null }>;
+  hr_assigned_name: string | null;
+}
+
+export async function listMyApplications(): Promise<MyApplicationView[]> {
+  try {
+    const jwt = await createJWT();
+    if (!jwt) {
+      return [];
+    }
+    const response = await fetch(
+      `${API_BASE_URL}/api/recruitment/applications/me`,
+      {
+        cache: "no-store",
+        headers: { Authorization: `Bearer ${jwt}` },
+      }
+    );
+    if (!response.ok) {
+      return [];
+    }
+    const payload = (await response.json()) as {
+      rows?: MyApplicationView[];
+    };
+    return payload.rows ?? [];
+  } catch (error) {
+    console.error("Error fetching my applications:", error);
+    return [];
+  }
+}
+
 export async function submitJobApplication(
   jobId: string,
   formData: FormData

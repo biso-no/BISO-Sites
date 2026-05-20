@@ -1,11 +1,14 @@
 import { Avatar, AvatarFallback } from "@repo/ui/components/ui/avatar";
+import { Button } from "@repo/ui/components/ui/button";
 import {
   Card,
   CardDescription,
   CardHeader,
   CardTitle,
 } from "@repo/ui/components/ui/card";
+import { Briefcase } from "lucide-react";
 import type { Metadata } from "next";
+import Link from "next/link";
 import type { MembershipCheckResult } from "@/components/profile/membership-status-card";
 import MembershipStatusCard from "@/components/profile/membership-status-card";
 import { ProfileHead } from "@/components/profile/profile-head";
@@ -78,6 +81,23 @@ export default async function PublicProfilePage() {
           initial={membership}
         />
       </div>
+
+      <Card className="mb-6 flex flex-row items-center justify-between gap-4 border border-primary/10 p-4">
+        <div className="flex items-center gap-3">
+          <div className="rounded-full bg-primary/10 p-2 text-primary-80">
+            <Briefcase className="h-5 w-5" />
+          </div>
+          <div className="min-w-0">
+            <p className="font-medium text-primary-100">My applications</p>
+            <p className="text-primary-60 text-sm">
+              Track positions you've applied for and upcoming interviews.
+            </p>
+          </div>
+        </div>
+        <Button asChild size="sm">
+          <Link href="/applications">Open</Link>
+        </Button>
+      </Card>
 
       {userData ? (
         <ProfileTabs
