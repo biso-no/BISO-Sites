@@ -435,6 +435,7 @@ export interface RecruitmentVacancy {
   slug: string;
   status: JobStatus;
   translation_refs: RecruitmentTranslation[];
+  custom_questions: RecruitmentCustomQuestion[];
 }
 
 export interface RecruitmentApplicationJobSummary {

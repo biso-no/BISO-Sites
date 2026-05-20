@@ -1,5 +1,6 @@
 "use client";
 
+import type { RecruitmentCustomQuestion } from "@repo/shared/types/recruitment";
 import { Button } from "@repo/ui/components/ui/button";
 import { Card } from "@repo/ui/components/ui/card";
 import { Checkbox } from "@repo/ui/components/ui/checkbox";
@@ -16,6 +17,7 @@ interface JobApplicationFormProps {
   cvRequired: boolean;
   isAuthenticated: boolean;
   jobId: string;
+  customQuestions?: RecruitmentCustomQuestion[];
 }
 
 export function JobApplicationForm({
@@ -24,6 +26,7 @@ export function JobApplicationForm({
   cvRequired,
   isAuthenticated,
   jobId,
+  customQuestions = [],
 }: JobApplicationFormProps) {
   const [name, setName] = useState(applicantName);
   const [phone, setPhone] = useState("");
@@ -34,6 +37,14 @@ export function JobApplicationForm({
   const [message, setMessage] = useState<string | null>(null);
   const [isSuccess, setIsSuccess] = useState(false);
   const [isPending, startTransition] = useTransition();
+  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [linkedinUrl, setLinkedinUrl] = useState("");
+  const [currentRole, setCurrentRole] = useState("");
+  const [currentEmployer, setCurrentEmployer] = useState("");
+
+  function setAnswer(questionId: string, value: string) {
+    setAnswers((existing) => ({ ...existing, [questionId]: value }));
+  }
 
   if (!isAuthenticated) {
     return (
@@ -63,6 +74,22 @@ export function JobApplicationForm({
       formData.set("availability", availability);
       formData.set("cover_letter", coverLetter);
       formData.set("gdpr_consent", String(consent));
+      if (linkedinUrl.trim()) {
+        formData.set("linkedin_url", linkedinUrl.trim());
+      }
+      if (currentRole.trim()) {
+        formData.set("current_role", currentRole.trim());
+      }
+      if (currentEmployer.trim()) {
+        formData.set("current_employer", currentEmployer.trim());
+      }
+
+      for (const question of customQuestions) {
+        const value = answers[question.id] ?? "";
+        formData.set(`answer.${question.id}`, value);
+        formData.set(`answer_label.${question.id}`, question.label);
+        formData.set(`answer_type.${question.id}`, question.type);
+      }
 
       if (resume) {
         formData.set("resume", resume);
@@ -82,6 +109,10 @@ export function JobApplicationForm({
         setCoverLetter("");
         setResume(null);
         setConsent(false);
+        setAnswers({});
+        setLinkedinUrl("");
+        setCurrentRole("");
+        setCurrentEmployer("");
       }
     });
   }
@@ -164,6 +195,135 @@ export function JobApplicationForm({
             type="file"
           />
         </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="linkedin_url">LinkedIn profile (optional)</Label>
+          <Input
+            id="linkedin_url"
+            onChange={(event) => setLinkedinUrl(event.target.value)}
+            placeholder="https://www.linkedin.com/in/your-handle"
+            value={linkedinUrl}
+          />
+        </div>
+
+        <div className="grid gap-3 md:grid-cols-2">
+          <div className="space-y-2">
+            <Label htmlFor="current_role">Current role (optional)</Label>
+            <Input
+              id="current_role"
+              onChange={(event) => setCurrentRole(event.target.value)}
+              placeholder="Student, Marketing intern, ..."
+              value={currentRole}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="current_employer">Current employer / school</Label>
+            <Input
+              id="current_employer"
+              onChange={(event) => setCurrentEmployer(event.target.value)}
+              placeholder="BI, BISO, ..."
+              value={currentEmployer}
+            />
+          </div>
+        </div>
+
+        {customQuestions.length > 0 ? (
+          <div className="space-y-3 rounded-lg border border-border/50 p-3">
+            <p className="font-medium text-foreground text-sm">
+              A few questions from the hiring team
+            </p>
+            {customQuestions.map((question) => (
+              <div className="space-y-2" key={question.id}>
+                <Label htmlFor={`question-${question.id}`}>
+                  {question.label}
+                  {question.required ? " *" : null}
+                </Label>
+                {question.type === "long_text" ? (
+                  <Textarea
+                    id={`question-${question.id}`}
+                    onChange={(event) =>
+                      setAnswer(question.id, event.target.value)
+                    }
+                    placeholder={question.help_text ?? ""}
+                    required={question.required}
+                    rows={4}
+                    value={answers[question.id] ?? ""}
+                  />
+                ) : question.type === "select" ||
+                  question.type === "multi_select" ? (
+                  <select
+                    className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+                    id={`question-${question.id}`}
+                    multiple={question.type === "multi_select"}
+                    onChange={(event) => {
+                      if (question.type === "multi_select") {
+                        const selected = Array.from(
+                          event.target.selectedOptions
+                        )
+                          .map((option) => option.value)
+                          .join(", ");
+                        setAnswer(question.id, selected);
+                      } else {
+                        setAnswer(question.id, event.target.value);
+                      }
+                    }}
+                    required={question.required}
+                    value={answers[question.id] ?? ""}
+                  >
+                    {question.type === "select" ? (
+                      <option value="">Choose...</option>
+                    ) : null}
+                    {(question.options ?? []).map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
+                ) : question.type === "boolean" ? (
+                  <label
+                    className="flex items-center gap-2 text-muted-foreground text-sm"
+                    htmlFor={`question-${question.id}`}
+                  >
+                    <Checkbox
+                      checked={answers[question.id] === "true"}
+                      id={`question-${question.id}`}
+                      onCheckedChange={(checked) =>
+                        setAnswer(question.id, checked === true ? "true" : "")
+                      }
+                    />
+                    Yes
+                  </label>
+                ) : question.type === "number" ? (
+                  <Input
+                    id={`question-${question.id}`}
+                    onChange={(event) =>
+                      setAnswer(question.id, event.target.value)
+                    }
+                    placeholder={question.help_text ?? ""}
+                    required={question.required}
+                    type="number"
+                    value={answers[question.id] ?? ""}
+                  />
+                ) : (
+                  <Input
+                    id={`question-${question.id}`}
+                    onChange={(event) =>
+                      setAnswer(question.id, event.target.value)
+                    }
+                    placeholder={question.help_text ?? ""}
+                    required={question.required}
+                    value={answers[question.id] ?? ""}
+                  />
+                )}
+                {question.help_text ? (
+                  <p className="text-muted-foreground text-xs">
+                    {question.help_text}
+                  </p>
+                ) : null}
+              </div>
+            ))}
+          </div>
+        ) : null}
 
         <label className="flex items-start gap-3" htmlFor="gdpr_consent">
           <Checkbox

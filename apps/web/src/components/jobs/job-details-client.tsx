@@ -149,6 +149,7 @@ export function JobDetailsClient({
             <JobApplicationForm
               applicantEmail={applicantEmail}
               applicantName={applicantName}
+              customQuestions={job.custom_questions ?? []}
               cvRequired={Boolean(job.metadata.cv_required)}
               isAuthenticated={isAuthenticated}
               jobId={job.$id}

@@ -11,6 +11,7 @@ import { Locale } from "@repo/api/types/appwrite";
 import {
   buildRecruitmentVacancyMetadata,
   parseRecruitmentApplicationReviewMetadata,
+  parseRecruitmentCustomQuestions,
   parseRecruitmentVacancyMetadata,
   type RecruitmentApplicationJobSummary,
   type RecruitmentApplicationRecord,
@@ -50,6 +51,10 @@ const JOB_SELECT = [
   "campus_id",
   "department_id",
   "metadata",
+  "custom_questions",
+  "interview_template",
+  "screening_rubric",
+  "auto_screen",
   "campus.$id",
   "campus.name",
   "department.$id",
@@ -375,6 +380,7 @@ export function buildRecruitmentVacancy(
     slug: job.slug,
     status: job.status,
     translation_refs: translations,
+    custom_questions: parseRecruitmentCustomQuestions(job.custom_questions),
   };
 }
 

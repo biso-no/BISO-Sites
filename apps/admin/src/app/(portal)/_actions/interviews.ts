@@ -16,6 +16,9 @@ import {
   InterviewStatus,
 } from "@repo/api/types/appwrite";
 import {
+  RECRUITMENT_BOOKING_TOKEN_DEFAULT_TTL_DAYS,
+  type RecruitmentBookingProposeInput,
+  recruitmentBookingProposeSchema,
   type RecruitmentInterviewCreateInput,
   recruitmentInterviewCreateSchema,
   type RecruitmentInterviewUpdateInput,
@@ -32,6 +35,7 @@ import {
   loadRecruitmentLookups,
   toRecruitmentAdminScope,
 } from "@/lib/recruitment";
+import { issueBookingToken } from "@/lib/recruitment-booking";
 import {
   cancelInterviewOnGraph,
   proposeSlotsForPanel,
@@ -723,6 +727,85 @@ export async function listInterviewsForUser(opts?: {
     interview,
     participants: byInterview.get(interview.$id) ?? [],
   }));
+}
+
+export async function createBookingToken(
+  values: RecruitmentBookingProposeInput
+): Promise<{ data?: { token: string; url: string }; error?: string }> {
+  const ctx = await requireAuth();
+  const validated = recruitmentBookingProposeSchema.safeParse(values);
+  if (!validated.success) {
+    return { error: "Invalid booking payload" };
+  }
+  const input = validated.data;
+
+  try {
+    const { db } = await createAdminClient();
+    const scope = toRecruitmentAdminScope(ctx);
+    const lookups = await loadRecruitmentLookups(db);
+
+    const application = await db.getRow<JobApplications>(
+      DATABASE_ID,
+      "job_applications",
+      input.application_id
+    );
+    const job = await db.getRow<Jobs>(DATABASE_ID, "jobs", application.job_id, [
+      Query.select(["$id", "campus_id", "department_id"]),
+    ]);
+    assertInterviewWriteAccess(scope, lookups, {
+      campus_id: job.campus_id,
+      department_id: job.department_id,
+    });
+
+    const issued = issueBookingToken();
+    const ttlDays =
+      input.expires_in_days ?? RECRUITMENT_BOOKING_TOKEN_DEFAULT_TTL_DAYS;
+    const expiresAt = new Date(
+      Date.now() + ttlDays * 24 * 60 * 60 * 1000
+    ).toISOString();
+
+    await db.createRow(
+      DATABASE_ID,
+      "recruitment_booking_tokens",
+      ID.unique(),
+      {
+        application_id: input.application_id,
+        consumed_at: null,
+        created_by_user_id: ctx.userId,
+        duration_minutes: input.duration_minutes,
+        expires_at: expiresAt,
+        interview_id: null,
+        panel_user_ids: JSON.stringify(input.panel_user_ids),
+        token_hash: issued.hash,
+        window_from: new Date(input.window_from).toISOString(),
+        window_to: new Date(input.window_to).toISOString(),
+      }
+    );
+
+    await logAuditEvent(ctx, "recruitment.booking.issue", {
+      payload: {
+        application_id: input.application_id,
+        expires_at: expiresAt,
+        panel_size: input.panel_user_ids.length,
+      },
+      resourceId: input.application_id,
+      resourceType: "recruitment_booking_token",
+    });
+
+    const baseUrl =
+      process.env.WEB_PUBLIC_BASE_URL ??
+      process.env.NEXT_PUBLIC_WEB_BASE_URL ??
+      "https://app.biso.no";
+    const url = `${baseUrl.replace(/\/$/, "")}/recruitment/book/${issued.token}`;
+    return { data: { token: issued.token, url } };
+  } catch (error) {
+    return {
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to issue booking token",
+    };
+  }
 }
 
 export async function proposeInterviewSlots(input: {
