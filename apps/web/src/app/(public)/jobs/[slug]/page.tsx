@@ -7,9 +7,9 @@ import { JobDetailsClient } from "@/components/jobs/job-details-client";
 import { getLoggedInUser } from "@/lib/actions/user";
 
 interface JobPageProps {
-  params: {
+  params: Promise<{
     slug: string;
-  };
+  }>;
 }
 
 async function JobDetails({ slug }: { slug: string }) {
@@ -56,10 +56,11 @@ function JobDetailsSkeleton() {
   );
 }
 
-export default function JobPage({ params }: JobPageProps) {
+export default async function JobPage({ params }: JobPageProps) {
+  const awaitedParams = await params
   return (
     <Suspense fallback={<JobDetailsSkeleton />}>
-      <JobDetails slug={params.slug} />
+      <JobDetails slug={awaitedParams.slug} />
     </Suspense>
   );
 }
@@ -67,7 +68,7 @@ export default function JobPage({ params }: JobPageProps) {
 // Generate metadata for SEO
 export async function generateMetadata({ params }: JobPageProps) {
   const locale = await getLocale();
-  const job = await getJobBySlug(params.slug, locale);
+  const job = await getJobBySlug((await params).slug, locale);
 
   if (!job) {
     return {
