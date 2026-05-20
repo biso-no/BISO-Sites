@@ -32,6 +32,12 @@ import {
   loadRecruitmentLookups,
   toRecruitmentAdminScope,
 } from "@/lib/recruitment";
+import {
+  cancelInterviewOnGraph,
+  proposeSlotsForPanel,
+  type ProposedSlot,
+  scheduleInterviewOnGraph,
+} from "@/lib/recruitment-scheduling";
 import { logAuditEvent } from "./audit-log";
 
 const DATABASE_ID = "app";
@@ -225,18 +231,73 @@ export async function createInterview(
       participants.push(participant);
     }
 
+    // Best-effort Graph scheduling — opt-in via env vars + flag.
+    let finalInterview = interview;
+    if (input.auto_create_teams_meeting !== false) {
+      const panelEmails = participants
+        .filter(
+          (participant) =>
+            participant.role === InterviewParticipantRole.INTERVIEWER
+        )
+        .map((participant) => participant.email);
+      const lead = participants.find(
+        (participant) =>
+          participant.role === InterviewParticipantRole.INTERVIEWER &&
+          participant.is_lead
+      );
+      const organizerUpn =
+        lead?.email ?? panelEmails[0] ?? ctx.email ?? null;
+      if (organizerUpn) {
+        try {
+          const scheduled = await scheduleInterviewOnGraph({
+            body: input.notes ?? "Scheduled via BISO recruitment platform.",
+            candidateEmail: application.applicant_email,
+            createTeamsMeeting: true,
+            ends_at: endsAt,
+            organizerUpn,
+            panelEmails,
+            starts_at: startsAt,
+            subject: input.title,
+          });
+          if (
+            scheduled.outlookEventId ||
+            scheduled.teamsMeetingId ||
+            scheduled.meetingUrl
+          ) {
+            finalInterview = await db.updateRow<JobInterviews>(
+              DATABASE_ID,
+              "job_interviews",
+              interview.$id,
+              {
+                meeting_url:
+                  scheduled.meetingUrl ?? finalInterview.meeting_url,
+                outlook_event_id: scheduled.outlookEventId,
+                teams_meeting_id: scheduled.teamsMeetingId,
+              }
+            );
+          }
+        } catch (graphError) {
+          console.warn(
+            `Graph scheduling failed for interview ${interview.$id}`,
+            graphError
+          );
+        }
+      }
+    }
+
     await logAuditEvent(ctx, "recruitment.interview.create", {
       payload: {
         application_id: input.application_id,
         participants: input.participants.length + 1,
         round: input.round,
         starts_at: startsAt.toISOString(),
+        teams_meeting_id: finalInterview.teams_meeting_id,
       },
       resourceId: interview.$id,
       resourceType: "job_interview",
     });
 
-    return { data: { interview, participants } };
+    return { data: { interview: finalInterview, participants } };
   } catch (error) {
     return {
       error:
@@ -318,10 +379,70 @@ export async function cancelInterview(
   id: string,
   reason?: string
 ): Promise<{ data?: JobInterviews; error?: string }> {
-  return updateInterview(id, {
-    cancelled_reason: reason ?? null,
-    status: "cancelled",
-  });
+  const ctx = await requireAuth();
+  try {
+    const { db } = await createAdminClient();
+    const scope = toRecruitmentAdminScope(ctx);
+    const lookups = await loadRecruitmentLookups(db);
+
+    const existing = await db.getRow<JobInterviews>(
+      DATABASE_ID,
+      "job_interviews",
+      id
+    );
+    assertInterviewWriteAccess(scope, lookups, {
+      campus_id: existing.campus_id,
+      department_id: existing.department_id,
+    });
+
+    // Best-effort Graph cancel; ignore failures.
+    if (existing.outlook_event_id) {
+      try {
+        const lead = await db.listRows<JobInterviewParticipants>(
+          DATABASE_ID,
+          "job_interview_participants",
+          [
+            Query.equal("interview_id", id),
+            Query.equal("is_lead", true),
+            Query.limit(1),
+          ]
+        );
+        const organizerUpn = lead.rows[0]?.email ?? ctx.email ?? null;
+        if (organizerUpn) {
+          await cancelInterviewOnGraph(
+            organizerUpn,
+            existing.outlook_event_id,
+            reason
+          );
+        }
+      } catch (graphError) {
+        console.warn(`Graph cancel failed for interview ${id}`, graphError);
+      }
+    }
+
+    const updated = await db.updateRow<JobInterviews>(
+      DATABASE_ID,
+      "job_interviews",
+      id,
+      {
+        cancelled_reason: reason ?? null,
+        status: InterviewStatus.CANCELLED,
+      }
+    );
+
+    await logAuditEvent(ctx, "recruitment.interview.cancel", {
+      payload: { reason: reason ?? null },
+      resourceId: id,
+      resourceType: "job_interview",
+    });
+
+    return { data: updated };
+  } catch (error) {
+    return {
+      error:
+        error instanceof Error ? error.message : "Failed to cancel interview",
+    };
+  }
 }
 
 export async function addInterviewParticipant(
@@ -602,6 +723,33 @@ export async function listInterviewsForUser(opts?: {
     interview,
     participants: byInterview.get(interview.$id) ?? [],
   }));
+}
+
+export async function proposeInterviewSlots(input: {
+  panelEmails: string[];
+  from: string;
+  to: string;
+  durationMinutes: number;
+}): Promise<{ available: boolean; slots: ProposedSlot[] }> {
+  const ctx = await requireAuth();
+  // Reviewers + global admins can propose slots; otherwise lock down.
+  const scope = toRecruitmentAdminScope(ctx);
+  if (
+    !(
+      scope.isGlobalAdmin ||
+      scope.isCampusAdmin ||
+      scope.managedDepartmentNames.length > 0
+    )
+  ) {
+    throw new Error("Forbidden");
+  }
+  const result = await proposeSlotsForPanel({
+    durationMinutes: input.durationMinutes,
+    from: new Date(input.from),
+    to: new Date(input.to),
+    upns: input.panelEmails,
+  });
+  return { available: result.available, slots: result.slots };
 }
 
 export async function getInterviewWithParticipants(
