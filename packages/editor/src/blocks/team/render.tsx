@@ -20,6 +20,7 @@ export function TeamRender({ block, edit, onPatch }: Props) {
   return (
     <div className="pg-team pg-block">
       {edit ? (
+        // biome-ignore lint/a11y/noNoninteractiveElementInteractions: contentEditable and editor preview controls intentionally use custom interaction surfaces.
         <h2
           contentEditable
           data-edit="1"
@@ -42,6 +43,7 @@ export function TeamRender({ block, edit, onPatch }: Props) {
             </div>
             <div>
               {edit ? (
+                // biome-ignore lint/a11y/useSemanticElements: contentEditable and editor preview controls intentionally use custom interaction surfaces.
                 <div
                   className="pg-member__name"
                   contentEditable
@@ -54,7 +56,9 @@ export function TeamRender({ block, edit, onPatch }: Props) {
                     );
                     onPatch("members", members);
                   }}
+                  role="textbox"
                   suppressContentEditableWarning
+                  tabIndex={0}
                 >
                   {m.name}
                 </div>
@@ -62,6 +66,7 @@ export function TeamRender({ block, edit, onPatch }: Props) {
                 <div className="pg-member__name">{m.name}</div>
               )}
               {edit ? (
+                // biome-ignore lint/a11y/useSemanticElements: contentEditable and editor preview controls intentionally use custom interaction surfaces.
                 <div
                   className="pg-member__role"
                   contentEditable
@@ -74,7 +79,9 @@ export function TeamRender({ block, edit, onPatch }: Props) {
                     );
                     onPatch("members", members);
                   }}
+                  role="textbox"
                   suppressContentEditableWarning
+                  tabIndex={0}
                 >
                   {m.role}
                 </div>

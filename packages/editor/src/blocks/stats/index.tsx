@@ -6,7 +6,7 @@ import { StatsRender } from "./render";
 function StatsThumb() {
   const s = "var(--ink-3)";
   return (
-    <svg viewBox="0 0 38 30">
+    <svg aria-hidden="true" focusable="false" viewBox="0 0 38 30">
       <line stroke={s} strokeWidth=".3" x1="11.5" x2="11.5" y1="6" y2="24" />
       <line stroke={s} strokeWidth=".3" x1="20" x2="20" y1="6" y2="24" />
       <line stroke={s} strokeWidth=".3" x1="28.5" x2="28.5" y1="6" y2="24" />

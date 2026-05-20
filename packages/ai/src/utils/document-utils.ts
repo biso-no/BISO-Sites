@@ -124,21 +124,28 @@ export function formatFileSize(bytes: number): string {
  * @param metadata - Raw metadata from vector store
  * @returns Formatted metadata for document viewer
  */
-export function formatDocumentMetadata(metadata: Record<string, any>) {
+export function formatDocumentMetadata(metadata: Record<string, unknown>) {
+  const getString = (key: string, fallback = "") =>
+    typeof metadata[key] === "string" ? metadata[key] : fallback;
+  const getNumber = (key: string, fallback = 0) =>
+    typeof metadata[key] === "number" ? metadata[key] : fallback;
+
   return {
-    id: metadata.documentId,
-    name: metadata.documentName || "Unknown Document",
-    siteId: metadata.siteId,
-    siteName: metadata.siteName || "Unknown Site",
-    driveId: metadata.driveId,
-    contentType: metadata.contentType || "application/octet-stream",
-    size: metadata.fileSize || 0,
-    lastModified: metadata.lastModified || new Date().toISOString(),
-    createdBy: metadata.createdBy || "Unknown",
-    webUrl: metadata.webUrl,
+    id: getString("documentId"),
+    name: getString("documentName", "Unknown Document"),
+    siteId: getString("siteId"),
+    siteName: getString("siteName", "Unknown Site"),
+    driveId: getString("driveId"),
+    contentType: getString("contentType", "application/octet-stream"),
+    size: getNumber("fileSize"),
+    lastModified: getString("lastModified", new Date().toISOString()),
+    createdBy: getString("createdBy", "Unknown"),
+    webUrl: getString("webUrl"),
     viewerUrl: getDocumentViewerUrl({
-      fileName:
-        metadata.fileName || metadata.documentName || "Unknown Document",
+      fileName: getString(
+        "fileName",
+        getString("documentName", "Unknown Document")
+      ),
     }),
   };
 }

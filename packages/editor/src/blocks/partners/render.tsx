@@ -47,7 +47,7 @@ export function PartnersRender({ block }: Props) {
           <div className="pg-partners__logo" key={i}>
             {p.logoSrc ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img alt={p.name} src={p.logoSrc} />
+              <img alt={p.name} height={120} src={p.logoSrc} width={240} />
             ) : (
               <span className="pg-partners__name">{p.name}</span>
             )}

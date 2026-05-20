@@ -56,7 +56,7 @@ interface CreateUserContext {
   campusMap: Map<string, Campus>;
   deptMap: Map<string, Departments>;
   graphService: GraphUserService;
-  scope: Awaited<ReturnType<typeof getAdminScope>>;
+  scope: NonNullable<Awaited<ReturnType<typeof getAdminScope>>>;
 }
 
 async function assignUserGroups(

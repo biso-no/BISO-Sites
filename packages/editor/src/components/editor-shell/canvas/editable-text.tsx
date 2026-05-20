@@ -30,7 +30,9 @@ export function EditableText({
       onBlur={(e) =>
         onChange?.((e.currentTarget as HTMLElement).textContent ?? "")
       }
+      role="textbox"
       suppressContentEditableWarning
+      tabIndex={0}
     >
       {value}
     </Tag>

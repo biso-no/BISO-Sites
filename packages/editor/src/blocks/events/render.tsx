@@ -51,11 +51,18 @@ export function EventsRender({ block, edit, onPatch }: Props) {
   }, [dept]);
 
   const items = (isLive ? liveItems : null) ?? block.items;
+  let emptyMessage = "Set a department to load live events.";
+  if (loading) {
+    emptyMessage = "Loading…";
+  } else if (isLive) {
+    emptyMessage = "No upcoming events.";
+  }
 
   return (
     <div className="pg-events pg-block">
       <div className="pg-events-hd">
         {edit ? (
+          // biome-ignore lint/a11y/noNoninteractiveElementInteractions: contentEditable and editor preview controls intentionally use custom interaction surfaces.
           <h2
             contentEditable
             data-edit="1"
@@ -96,11 +103,7 @@ export function EventsRender({ block, edit, onPatch }: Props) {
           <p
             style={{ fontSize: 13, color: "var(--ink-3)", gridColumn: "1/-1" }}
           >
-            {loading
-              ? "Loading…"
-              : isLive
-                ? "No upcoming events."
-                : "Set a department to load live events."}
+            {emptyMessage}
           </p>
         )}
       </div>

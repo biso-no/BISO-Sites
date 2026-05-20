@@ -16,12 +16,15 @@ export function QuoteRender({ block, edit, onPatch }: Props) {
         "
       </div>
       {edit ? (
+        // biome-ignore lint/a11y/useSemanticElements: contentEditable and editor preview controls intentionally use custom interaction surfaces.
         <div
           className="pg-quote__body"
           contentEditable
           data-edit="1"
           onBlur={(e) => onPatch("text", e.currentTarget.textContent ?? "")}
+          role="textbox"
           suppressContentEditableWarning
+          tabIndex={0}
         >
           {block.text}
         </div>
@@ -39,6 +42,8 @@ export function QuoteRender({ block, edit, onPatch }: Props) {
         </div>
         <div>
           {edit ? (
+            // biome-ignore lint/a11y/noNoninteractiveElementInteractions: contentEditable and editor preview controls intentionally use custom interaction surfaces.
+            // biome-ignore lint/a11y/noStaticElementInteractions: contentEditable and editor preview controls intentionally use custom interaction surfaces.
             <b
               contentEditable
               data-edit="1"
@@ -54,11 +59,14 @@ export function QuoteRender({ block, edit, onPatch }: Props) {
           )}
           {", "}
           {edit ? (
+            // biome-ignore lint/a11y/useSemanticElements: contentEditable and editor preview controls intentionally use custom interaction surfaces.
             <span
               contentEditable
               data-edit="1"
               onBlur={(e) => onPatch("role", e.currentTarget.textContent ?? "")}
+              role="textbox"
               suppressContentEditableWarning
+              tabIndex={0}
             >
               {block.role}
             </span>

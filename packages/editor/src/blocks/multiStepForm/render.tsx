@@ -2,12 +2,128 @@
 
 import { useState } from "react";
 import type { PatchFn } from "@/blocks/types";
-import type { MultiStepFormBlock } from "@/editor/types";
+import type { FormField, MultiStepFormBlock } from "@/editor/types";
 
 interface Props {
   block: MultiStepFormBlock;
   edit: boolean;
   onPatch: PatchFn;
+}
+
+function getStepDotClass(index: number, step: number): string {
+  if (index === step) {
+    return "pg-msform__step-dot pg-msform__step-dot--active";
+  }
+  if (index < step) {
+    return "pg-msform__step-dot pg-msform__step-dot--done";
+  }
+  return "pg-msform__step-dot";
+}
+
+function getActiveStepDotClass(index: number, step: number): string {
+  if (index === step) {
+    return "pg-msform__step-dot pg-msform__step-dot--active";
+  }
+  return "pg-msform__step-dot";
+}
+
+function getSubmitLabel(
+  submitting: boolean,
+  step: number,
+  stepsLength: number
+): string {
+  if (submitting) {
+    return "Sending…";
+  }
+  if (step < stepsLength - 1) {
+    return "Next";
+  }
+  return "Submit";
+}
+
+function renderEditField(field: FormField, index: number) {
+  const id = `msf-edit-${index}-${field.name}`;
+
+  if (field.fieldType === "textarea") {
+    return (
+      <textarea
+        className="pg-msform__input"
+        id={id}
+        placeholder={field.placeholder}
+        readOnly
+        rows={4}
+      />
+    );
+  }
+
+  if (field.fieldType === "select") {
+    return (
+      <select className="pg-msform__input" id={id}>
+        {(field.options ?? []).map((option, optionIndex) => (
+          <option key={optionIndex} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+    );
+  }
+
+  return (
+    <input
+      className="pg-msform__input"
+      id={id}
+      placeholder={field.placeholder}
+      readOnly
+      type={field.fieldType}
+    />
+  );
+}
+
+function renderField(field: FormField) {
+  if (field.fieldType === "textarea") {
+    return (
+      <textarea
+        aria-label={field.label}
+        className="pg-msform__input"
+        id={`msf-${field.name}`}
+        name={field.name}
+        placeholder={field.placeholder}
+        required={field.required}
+        rows={4}
+      />
+    );
+  }
+
+  if (field.fieldType === "select") {
+    return (
+      <select
+        aria-label={field.label}
+        className="pg-msform__input"
+        id={`msf-${field.name}`}
+        name={field.name}
+        required={field.required}
+      >
+        <option value="">Choose…</option>
+        {(field.options ?? []).map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+    );
+  }
+
+  return (
+    <input
+      aria-label={field.label}
+      className="pg-msform__input"
+      id={`msf-${field.name}`}
+      name={field.name}
+      placeholder={field.placeholder}
+      required={field.required}
+      type={field.fieldType}
+    />
+  );
 }
 
 export function MultiStepFormRender({ block, edit }: Props) {
@@ -27,17 +143,15 @@ export function MultiStepFormRender({ block, edit }: Props) {
         )}
         <div className="pg-msform__stepper">
           {steps.map((_s, i) => (
-            <div
-              className={`pg-msform__step-dot${i === step ? "pg-msform__step-dot--active" : ""}`}
+            <button
+              className={getActiveStepDotClass(i, step)}
               key={i}
               onClick={() => setStep(i)}
-              onKeyDown={(e) => e.key === "Enter" && setStep(i)}
-              role="button"
               style={{ cursor: "pointer" }}
-              tabIndex={0}
+              type="button"
             >
               {i + 1}
-            </div>
+            </button>
           ))}
         </div>
         {current && (
@@ -45,35 +159,14 @@ export function MultiStepFormRender({ block, edit }: Props) {
             <div className="pg-msform__step-title">{current.title}</div>
             {current.fields.map((f, i) => (
               <div className="pg-msform__field" key={i}>
-                <label className="pg-msform__label">
+                <label
+                  className="pg-msform__label"
+                  htmlFor={`msf-edit-${i}-${f.name}`}
+                >
                   {f.label}
                   {f.required && <span aria-hidden="true"> *</span>}
                 </label>
-                {f.fieldType === "textarea" ? (
-                  <textarea
-                    aria-label={f.label}
-                    className="pg-msform__input"
-                    placeholder={f.placeholder}
-                    readOnly
-                    rows={4}
-                  />
-                ) : f.fieldType === "select" ? (
-                  <select aria-label={f.label} className="pg-msform__input">
-                    {(f.options ?? []).map((o, j) => (
-                      <option key={j} value={o.value}>
-                        {o.label}
-                      </option>
-                    ))}
-                  </select>
-                ) : (
-                  <input
-                    aria-label={f.label}
-                    className="pg-msform__input"
-                    placeholder={f.placeholder}
-                    readOnly
-                    type={f.fieldType}
-                  />
-                )}
+                {renderEditField(f, i)}
               </div>
             ))}
           </div>
@@ -178,11 +271,11 @@ export function MultiStepFormRender({ block, edit }: Props) {
     <div className="pg-msform pg-block">
       {block.heading && <h2 className="pg-msform__heading">{block.heading}</h2>}
       {steps.length > 1 && (
-        <div aria-label="Form steps" className="pg-msform__stepper">
+        <div className="pg-msform__stepper">
           {steps.map((_s, i) => (
             <div
               aria-hidden="true"
-              className={`pg-msform__step-dot${i === step ? "pg-msform__step-dot--active" : i < step ? "pg-msform__step-dot--done" : ""}`}
+              className={getStepDotClass(i, step)}
               key={i}
             >
               {i < step ? "✓" : i + 1}
@@ -202,42 +295,7 @@ export function MultiStepFormRender({ block, edit }: Props) {
                     {f.required && <span aria-hidden="true"> *</span>}
                   </label>
                 )}
-                {f.fieldType === "textarea" ? (
-                  <textarea
-                    aria-label={f.label}
-                    className="pg-msform__input"
-                    id={`msf-${f.name}`}
-                    name={f.name}
-                    placeholder={f.placeholder}
-                    required={f.required}
-                    rows={4}
-                  />
-                ) : f.fieldType === "select" ? (
-                  <select
-                    aria-label={f.label}
-                    className="pg-msform__input"
-                    id={`msf-${f.name}`}
-                    name={f.name}
-                    required={f.required}
-                  >
-                    <option value="">Choose…</option>
-                    {(f.options ?? []).map((o) => (
-                      <option key={o.value} value={o.value}>
-                        {o.label}
-                      </option>
-                    ))}
-                  </select>
-                ) : (
-                  <input
-                    aria-label={f.label}
-                    className="pg-msform__input"
-                    id={`msf-${f.name}`}
-                    name={f.name}
-                    placeholder={f.placeholder}
-                    required={f.required}
-                    type={f.fieldType}
-                  />
-                )}
+                {renderField(f)}
               </div>
             ))}
           </div>
@@ -256,11 +314,7 @@ export function MultiStepFormRender({ block, edit }: Props) {
               disabled={submitting}
               type="submit"
             >
-              {submitting
-                ? "Sending…"
-                : step < steps.length - 1
-                  ? "Next"
-                  : "Submit"}
+              {getSubmitLabel(submitting, step, steps.length)}
             </button>
           </div>
         </form>

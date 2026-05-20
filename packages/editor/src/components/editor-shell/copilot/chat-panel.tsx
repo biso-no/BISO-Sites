@@ -31,6 +31,8 @@ function applyToolCall(toolName: string, args: ToolArgs) {
     case "bind_collection":
       store.bindCollection(args.id as string, args.source as string);
       break;
+    default:
+      break;
   }
 }
 

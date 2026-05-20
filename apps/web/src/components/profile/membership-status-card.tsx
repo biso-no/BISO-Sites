@@ -19,7 +19,7 @@ type MembershipCheckResult =
   | {
       ok: true;
       active: boolean;
-      membership?: any;
+      membership?: Record<string, unknown>;
       studentId?: number;
       categories?: number[];
     }

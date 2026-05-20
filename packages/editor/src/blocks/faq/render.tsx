@@ -13,6 +13,7 @@ export function FaqRender({ block, edit, onPatch }: Props) {
   return (
     <div className={`pg-faq pg-faq--${block.variant ?? "list"} pg-block`}>
       {edit ? (
+        // biome-ignore lint/a11y/noNoninteractiveElementInteractions: contentEditable and editor preview controls intentionally use custom interaction surfaces.
         <h2
           contentEditable
           data-edit="1"
@@ -28,6 +29,7 @@ export function FaqRender({ block, edit, onPatch }: Props) {
         {block.items.map((item, i) => (
           <div className="pg-faq-item" key={i}>
             {edit ? (
+              // biome-ignore lint/a11y/noNoninteractiveElementInteractions: contentEditable and editor preview controls intentionally use custom interaction surfaces.
               <p
                 className="pg-faq-item__q"
                 contentEditable
@@ -46,6 +48,7 @@ export function FaqRender({ block, edit, onPatch }: Props) {
               <p className="pg-faq-item__q">{item.q}</p>
             )}
             {edit ? (
+              // biome-ignore lint/a11y/noNoninteractiveElementInteractions: contentEditable and editor preview controls intentionally use custom interaction surfaces.
               <p
                 className="pg-faq-item__a"
                 contentEditable

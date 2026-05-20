@@ -14,6 +14,7 @@ export function CtaRender({ block, edit, onPatch }: Props) {
   return (
     <div className={`pg-cta pg-cta--${variant} pg-block`}>
       {edit ? (
+        // biome-ignore lint/a11y/noNoninteractiveElementInteractions: contentEditable and editor preview controls intentionally use custom interaction surfaces.
         <h2
           contentEditable
           data-edit="1"

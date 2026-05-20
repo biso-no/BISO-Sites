@@ -76,7 +76,6 @@ export const pageEditorTools = {
     execute: async ({
       id,
       path,
-      value,
     }: {
       id: string;
       path: string;

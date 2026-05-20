@@ -9,33 +9,44 @@ export function sanitizeRichText(html: string): string {
 
 function cleanNode(node: Node): void {
   for (const child of Array.from(node.childNodes)) {
-    if (child.nodeType === Node.TEXT_NODE) {
+    cleanChild(child);
+  }
+}
+
+function cleanChild(child: Node): void {
+  if (child.nodeType === Node.TEXT_NODE) {
+    return;
+  }
+
+  if (child.nodeType !== Node.ELEMENT_NODE) {
+    child.parentNode?.removeChild(child);
+    return;
+  }
+
+  const el = child as Element;
+  const tag = el.tagName.toLowerCase();
+
+  if (!ALLOWED_TAGS.has(tag)) {
+    unwrapElement(el);
+    return;
+  }
+
+  stripAttributes(el, tag);
+  cleanNode(el);
+}
+
+function stripAttributes(el: Element, tag: string): void {
+  for (const attr of Array.from(el.attributes)) {
+    if (tag === "a" && attr.name === "href") {
       continue;
     }
-
-    if (child.nodeType === Node.ELEMENT_NODE) {
-      const el = child as Element;
-      const tag = el.tagName.toLowerCase();
-
-      if (ALLOWED_TAGS.has(tag)) {
-        // Strip all attributes; keep only href on <a>
-        const attrs = Array.from(el.attributes);
-        for (const attr of attrs) {
-          if (tag === "a" && attr.name === "href") {
-            continue;
-          }
-          el.removeAttribute(attr.name);
-        }
-        cleanNode(el);
-      } else {
-        // Unwrap: replace element with its children
-        while (el.firstChild) {
-          el.before(el.firstChild);
-        }
-        el.remove();
-      }
-    } else {
-      child.remove();
-    }
+    el.removeAttribute(attr.name);
   }
+}
+
+function unwrapElement(el: Element): void {
+  while (el.firstChild) {
+    el.before(el.firstChild);
+  }
+  el.remove();
 }

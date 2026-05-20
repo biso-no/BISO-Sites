@@ -6,7 +6,7 @@ import { VideoRender } from "./render";
 function VideoThumb() {
   const s = "var(--ink-3)";
   return (
-    <svg viewBox="0 0 38 30">
+    <svg aria-hidden="true" focusable="false" viewBox="0 0 38 30">
       <rect
         fill="none"
         height="20"

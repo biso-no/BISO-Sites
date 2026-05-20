@@ -13,6 +13,7 @@ export function TimelineRender({ block, edit, onPatch }: Props) {
   return (
     <div className="pg-timeline pg-block">
       {edit ? (
+        // biome-ignore lint/a11y/noNoninteractiveElementInteractions: contentEditable and editor preview controls intentionally use custom interaction surfaces.
         <h2
           contentEditable
           data-edit="1"
@@ -28,6 +29,7 @@ export function TimelineRender({ block, edit, onPatch }: Props) {
         {(block.items || []).map((it, i) => (
           <div className="pg-timeline-item" key={i}>
             {edit ? (
+              // biome-ignore lint/a11y/useSemanticElements: contentEditable and editor preview controls intentionally use custom interaction surfaces.
               <div
                 className="pg-timeline-item__year"
                 contentEditable
@@ -35,7 +37,9 @@ export function TimelineRender({ block, edit, onPatch }: Props) {
                 onBlur={(e) =>
                   onPatch(`items.${i}.year`, e.currentTarget.textContent ?? "")
                 }
+                role="textbox"
                 suppressContentEditableWarning
+                tabIndex={0}
               >
                 {it.year}
               </div>
@@ -43,6 +47,7 @@ export function TimelineRender({ block, edit, onPatch }: Props) {
               <div className="pg-timeline-item__year">{it.year}</div>
             )}
             {edit ? (
+              // biome-ignore lint/a11y/useSemanticElements: contentEditable and editor preview controls intentionally use custom interaction surfaces.
               <div
                 className="pg-timeline-item__text"
                 contentEditable
@@ -50,7 +55,9 @@ export function TimelineRender({ block, edit, onPatch }: Props) {
                 onBlur={(e) =>
                   onPatch(`items.${i}.text`, e.currentTarget.textContent ?? "")
                 }
+                role="textbox"
                 suppressContentEditableWarning
+                tabIndex={0}
               >
                 {it.text}
               </div>

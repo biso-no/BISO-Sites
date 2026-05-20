@@ -136,13 +136,26 @@ export async function GET(
     console.log("[DEBUG] @odata.count:", response["@odata.count"]);
 
     const members: DepartmentMember[] = matchedUsers.map(
-      (user: Record<string, unknown>) => ({
-        name: user.displayName || "",
-        email: user.mail || "",
-        phone: user.businessPhones?.[0] || user.mobilePhone || "",
-        role: user.jobTitle || "",
-        officeLocation: user.officeLocation || campusInfo.officeFilter,
-      })
+      (user: Record<string, unknown>) => {
+        const businessPhones = Array.isArray(user.businessPhones)
+          ? user.businessPhones
+          : [];
+        const phone =
+          typeof businessPhones[0] === "string" ? businessPhones[0] : "";
+        const fallbackPhone =
+          phone ||
+          (typeof user.mobilePhone === "string" ? user.mobilePhone : "");
+        return {
+          name: typeof user.displayName === "string" ? user.displayName : "",
+          email: typeof user.mail === "string" ? user.mail : "",
+          phone: fallbackPhone,
+          role: typeof user.jobTitle === "string" ? user.jobTitle : "",
+          officeLocation:
+            typeof user.officeLocation === "string"
+              ? user.officeLocation
+              : campusInfo.officeFilter,
+        };
+      }
     );
 
     // Sort: Managers/Presidents first

@@ -7,6 +7,82 @@ const SITE_URL_REGEX = /^https?:\/\//i;
 const LEADING_SLASHES_REGEX = /^\/+/;
 const TRAILING_SLASHES_REGEX = /\/+$/;
 
+type GraphEntity = Record<string, unknown>;
+
+interface GraphSite {
+  displayName: string;
+  id: string;
+  name: string;
+  webUrl: string;
+}
+
+interface GraphDrive {
+  id: string;
+  name: string;
+}
+
+interface GraphDriveItem {
+  createdBy?: {
+    user?: {
+      displayName?: string;
+    };
+  };
+  description?: string;
+  file?: {
+    mimeType: string;
+  };
+  folder?: unknown;
+  id: string;
+  lastModifiedDateTime: string;
+  name: string;
+  parentReference?: {
+    driveId?: string;
+  };
+  size: number;
+  tags?: unknown;
+  webUrl: string;
+}
+
+interface GraphListResponse<T> {
+  value?: T[];
+}
+
+interface PipeableStream {
+  on(
+    event: "data",
+    listener: (chunk: Buffer | Uint8Array | string) => void
+  ): void;
+  on(event: "end", listener: () => void): void;
+  on(event: "error", listener: (error: Error) => void): void;
+  pipe: (...args: unknown[]) => unknown;
+}
+
+function hasFile(
+  item: GraphDriveItem
+): item is GraphDriveItem & { file: { mimeType: string } } {
+  return Boolean(item.file);
+}
+
+function isPipeableStream(value: unknown): value is PipeableStream {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "pipe" in value &&
+    typeof (value as { pipe?: unknown }).pipe === "function" &&
+    "on" in value &&
+    typeof (value as { on?: unknown }).on === "function"
+  );
+}
+
+function toSharePointSite(site: GraphSite): SharePointSite {
+  return {
+    id: site.id,
+    name: site.name,
+    displayName: site.displayName,
+    webUrl: site.webUrl,
+  };
+}
+
 export interface SharePointConfig {
   authority: string;
   clientId: string;
@@ -29,7 +105,7 @@ export interface SharePointDocument {
   folderPath: string;
   id: string;
   lastModified: string;
-  metadata: Record<string, any>;
+  metadata: Record<string, unknown>;
   name: string;
   siteId: string;
   siteName: string;
@@ -101,7 +177,7 @@ export class SharePointService {
       );
       for (const identifier of uniqueIdentifiers) {
         try {
-          let site: any;
+          let site: GraphSite;
           if (SITE_URL_REGEX.test(identifier)) {
             site = await this.getSiteByUrl(client, identifier);
           } else {
@@ -109,12 +185,7 @@ export class SharePointService {
             site = await client.api(`/sites/${identifier}`).get();
           }
           if (site) {
-            resolvedSites.push({
-              id: site.id,
-              name: site.name,
-              displayName: site.displayName,
-              webUrl: site.webUrl,
-            });
+            resolvedSites.push(toSharePointSite(site));
           }
         } catch (error) {
           console.error(
@@ -133,13 +204,12 @@ export class SharePointService {
     // Fallback: attempt to enumerate sites (requires Sites.Read.All). With Sites.Selected this
     // will typically return 403 or empty; handle gracefully.
     try {
-      const response = await client.api("/sites").get();
-      const sites: SharePointSite[] = response.value.map((site: any) => ({
-        id: site.id,
-        name: site.name,
-        displayName: site.displayName,
-        webUrl: site.webUrl,
-      }));
+      const response: GraphListResponse<GraphSite> = await client
+        .api("/sites")
+        .get();
+      const sites: SharePointSite[] = (response.value ?? []).map(
+        toSharePointSite
+      );
       // De-duplicate by site ID
       const uniqueSitesMap = new Map<string, SharePointSite>(
         sites.map((s: SharePointSite) => [s.id, s])
@@ -162,9 +232,11 @@ export class SharePointService {
     const documents: SharePointDocument[] = [];
 
     try {
-      const drivesResponse = await client.api(`/sites/${siteId}/drives`).get();
+      const drivesResponse: GraphListResponse<GraphDrive> = await client
+        .api(`/sites/${siteId}/drives`)
+        .get();
 
-      for (const drive of drivesResponse.value) {
+      for (const drive of drivesResponse.value ?? []) {
         const items = await this.getDriveItems(
           client,
           drive.id,
@@ -199,9 +271,11 @@ export class SharePointService {
         folderPath === "/"
           ? `/drives/${driveId}/root/children`
           : `/drives/${driveId}/root:${folderPath}:/children`;
-      const response = await client.api(apiPath).get();
+      const response: GraphListResponse<GraphDriveItem> = await client
+        .api(apiPath)
+        .get();
       await this.processDriveItemsResponse(
-        response.value,
+        response.value ?? [],
         folderPath,
         documents,
         {
@@ -218,7 +292,7 @@ export class SharePointService {
   }
 
   private async processDriveItemsResponse(
-    items: any[],
+    items: GraphDriveItem[],
     folderPath: string,
     documents: SharePointDocument[],
     context: {
@@ -229,7 +303,7 @@ export class SharePointService {
   ): Promise<void> {
     const { client, driveId, recursive } = context;
     for (const item of items) {
-      if (item.file) {
+      if (hasFile(item)) {
         documents.push(
           this.buildDocumentFromDriveItem(item, folderPath, driveId)
         );
@@ -251,7 +325,7 @@ export class SharePointService {
   }
 
   private buildDocumentFromDriveItem(
-    item: any,
+    item: GraphDriveItem & { file: { mimeType: string } },
     folderPath: string,
     driveId: string
   ): SharePointDocument {
@@ -296,8 +370,8 @@ export class SharePointService {
       return new Uint8Array(data).buffer;
     }
     // If for any reason a stream is returned, read it fully
-    if (typeof (data as any)?.pipe === "function") {
-      const stream: NodeJS.ReadableStream = data as any;
+    if (isPipeableStream(data)) {
+      const stream = data;
       const chunks: Uint8Array[] = await new Promise((resolve, reject) => {
         const acc: Uint8Array[] = [];
         stream.on("data", (chunk) => {
@@ -321,9 +395,9 @@ export class SharePointService {
   async getDocumentMetadata(
     driveId: string,
     itemId: string
-  ): Promise<Record<string, any>> {
+  ): Promise<Record<string, unknown>> {
     const client = await this.getAuthenticatedClient();
-    const response = await client
+    const response: GraphDriveItem = await client
       .api(`/drives/${driveId}/items/${itemId}`)
       .get();
 
@@ -343,25 +417,22 @@ export class SharePointService {
     siteId: string
   ): Promise<Array<{ id: string; name: string }>> {
     const client = await this.getAuthenticatedClient();
-    const response = await client.api(`/sites/${siteId}/drives`).get();
-    return (response.value ?? []).map((d: any) => ({
-      id: d.id as string,
-      name: d.name as string,
+    const response: GraphListResponse<GraphDrive> = await client
+      .api(`/sites/${siteId}/drives`)
+      .get();
+    return (response.value ?? []).map((drive) => ({
+      id: drive.id,
+      name: drive.name,
     }));
   }
 
   async getSiteById(siteId: string): Promise<SharePointSite> {
     const client = await this.getAuthenticatedClient();
-    const site = await client.api(`/sites/${siteId}`).get();
-    return {
-      id: site.id,
-      name: site.name,
-      displayName: site.displayName,
-      webUrl: site.webUrl,
-    };
+    const site: GraphSite = await client.api(`/sites/${siteId}`).get();
+    return toSharePointSite(site);
   }
 
-  async getSiteDetailsRaw(siteId: string): Promise<any> {
+  async getSiteDetailsRaw(siteId: string): Promise<GraphEntity> {
     const client = await this.getAuthenticatedClient();
     return await client.api(`/sites/${siteId}`).get();
   }
@@ -375,7 +446,7 @@ export class SharePointService {
     const client = await this.getAuthenticatedClient();
     const cleanFolder = folderPath.replace(TRAILING_SLASHES_REGEX, "");
     const apiPath = `${cleanFolder.length > 0 ? `/drives/${driveId}/root:${cleanFolder}/${fileName}:/content` : `/drives/${driveId}/root:/${fileName}:/content`}`;
-    const response = await client
+    const response: GraphDriveItem = await client
       .api(apiPath)
       .header("Content-Type", "application/octet-stream")
       .put(buffer);
@@ -395,7 +466,7 @@ export class SharePointService {
     buffer: Buffer
   ): Promise<SharePointUploadResult> {
     const client = await this.getAuthenticatedClient();
-    const response = await client
+    const response: GraphDriveItem = await client
       .api(`/drives/${driveId}/items/${itemId}/content`)
       .header("Content-Type", "application/octet-stream")
       .put(buffer);
@@ -409,7 +480,10 @@ export class SharePointService {
     };
   }
 
-  private async getSiteByUrl(client: Client, siteUrl: string): Promise<any> {
+  private async getSiteByUrl(
+    client: Client,
+    siteUrl: string
+  ): Promise<GraphSite> {
     const parsed = new URL(siteUrl);
     const hostname = parsed.hostname; // e.g., contoso.sharepoint.com
     // Relative path after host, without leading slash

@@ -9,9 +9,14 @@ interface BarRect {
 
 export function FormatBar() {
   const [rect, setRect] = useState<BarRect | null>(null);
+  const [linkDraft, setLinkDraft] = useState("");
+  const [linkRange, setLinkRange] = useState<Range | null>(null);
 
   useEffect(() => {
     function onSelectionChange() {
+      if (linkRange) {
+        return;
+      }
       const sel = window.getSelection();
       if (!sel || sel.isCollapsed) {
         setRect(null);
@@ -32,7 +37,7 @@ export function FormatBar() {
     document.addEventListener("selectionchange", onSelectionChange);
     return () =>
       document.removeEventListener("selectionchange", onSelectionChange);
-  }, []);
+  }, [linkRange]);
 
   if (!rect) {
     return null;
@@ -42,11 +47,29 @@ export function FormatBar() {
     document.execCommand(cmd, false, value ?? undefined);
   }
 
-  function handleLink() {
-    const url = prompt("URL:");
-    if (url) {
-      exec("createLink", url);
+  function openLinkEditor() {
+    const sel = window.getSelection();
+    if (sel && !sel.isCollapsed) {
+      setLinkRange(sel.getRangeAt(0).cloneRange());
     }
+    setLinkDraft("");
+  }
+
+  function applyLink(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const url = linkDraft.trim();
+    if (!url) {
+      setLinkRange(null);
+      return;
+    }
+    const sel = window.getSelection();
+    if (sel && linkRange) {
+      sel.removeAllRanges();
+      sel.addRange(linkRange);
+    }
+    exec("createLink", url);
+    setLinkDraft("");
+    setLinkRange(null);
   }
 
   const btnStyle: React.CSSProperties = {
@@ -103,17 +126,42 @@ export function FormatBar() {
       >
         I
       </button>
-      <button
-        onMouseDown={(e) => {
-          e.preventDefault();
-          handleLink();
-        }}
-        style={{ ...btnStyle, fontSize: 11 }}
-        title="Link"
-        type="button"
-      >
-        URL
-      </button>
+      {linkRange ? (
+        <form onSubmit={applyLink} style={{ display: "flex", height: "100%" }}>
+          <input
+            aria-label="Link URL"
+            autoFocus
+            onChange={(e) => setLinkDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") {
+                setLinkDraft("");
+                setLinkRange(null);
+              }
+            }}
+            placeholder="https://"
+            style={{
+              width: 150,
+              border: 0,
+              borderRadius: 999,
+              padding: "0 8px",
+              fontSize: 12,
+            }}
+            value={linkDraft}
+          />
+        </form>
+      ) : (
+        <button
+          onMouseDown={(e) => {
+            e.preventDefault();
+            openLinkEditor();
+          }}
+          style={{ ...btnStyle, fontSize: 11 }}
+          title="Link"
+          type="button"
+        >
+          URL
+        </button>
+      )}
       <button
         onMouseDown={(e) => {
           e.preventDefault();

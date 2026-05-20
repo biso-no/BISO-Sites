@@ -6,7 +6,7 @@ import { EventsRender } from "./render";
 function EventsThumb() {
   const s = "var(--ink-3)";
   return (
-    <svg viewBox="0 0 38 30">
+    <svg aria-hidden="true" focusable="false" viewBox="0 0 38 30">
       {[0, 1, 2].map((i) => (
         <g key={i}>
           <rect fill={s} height="3" width="10" x={3 + i * 11} y="7" />

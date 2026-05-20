@@ -311,6 +311,10 @@ export function emptyBlock(type: BlockType): Block {
           },
         ],
       };
+    default: {
+      const exhaustive: never = type;
+      throw new Error(`Unsupported block type: ${exhaustive}`);
+    }
   }
 }
 
@@ -385,7 +389,10 @@ export function setProp(
     }
     node = node[key] as Record<string, unknown>;
   }
-  node[parts.at(-1)] = value;
+  const lastKey = parts.at(-1);
+  if (lastKey) {
+    node[lastKey] = value;
+  }
 }
 
 /** Set the layout variant on a block. */

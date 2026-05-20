@@ -180,6 +180,10 @@ async function loadProduct(
     : null;
 
   const metadataParsed = parseProductMetadata(product.metadata);
+  const productMetadata =
+    metadataParsed && typeof metadataParsed === "object"
+      ? (metadataParsed as Record<string, unknown>)
+      : {};
 
   const normalizedProduct = {
     ...product,
@@ -188,17 +192,15 @@ async function loadProduct(
     short_description: translation?.short_description ?? null,
     price: Number(product.regular_price ?? 0),
     metadata_parsed: metadataParsed,
-    custom_fields: Array.isArray((metadataParsed as any).custom_fields)
-      ? (metadataParsed as any).custom_fields
+    custom_fields: Array.isArray(productMetadata.custom_fields)
+      ? productMetadata.custom_fields
       : undefined,
-    variations: Array.isArray((metadataParsed as any).variations)
-      ? (metadataParsed as any).variations
+    variations: Array.isArray(productMetadata.variations)
+      ? productMetadata.variations
       : undefined,
-    member_discount_enabled: Boolean(
-      (metadataParsed as any).member_discount_enabled
-    ),
+    member_discount_enabled: Boolean(productMetadata.member_discount_enabled),
     member_discount_percent: Number(
-      (metadataParsed as any).member_discount_percent || 0
+      productMetadata.member_discount_percent || 0
     ),
   };
 

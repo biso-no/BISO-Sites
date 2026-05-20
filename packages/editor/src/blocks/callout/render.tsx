@@ -25,6 +25,7 @@ export function CalloutRender({ block, edit, onPatch }: Props) {
         </div>
         <div className="pg-callout__body">
           {edit ? (
+            // biome-ignore lint/a11y/noNoninteractiveElementInteractions lint/a11y/noStaticElementInteractions: contentEditable is the editor interaction surface.
             <b
               contentEditable
               data-edit="1"
@@ -39,6 +40,7 @@ export function CalloutRender({ block, edit, onPatch }: Props) {
             <b>{block.title}</b>
           )}
           {edit ? (
+            // biome-ignore lint/a11y/noNoninteractiveElementInteractions: contentEditable is the editor interaction surface.
             <p
               contentEditable
               data-edit="1"

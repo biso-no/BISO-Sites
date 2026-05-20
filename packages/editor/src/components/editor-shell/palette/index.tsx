@@ -132,7 +132,7 @@ function PaletteItem({
   });
 
   return (
-    <div
+    <button
       className={`pe-palette-item${isDragging ? "dragging" : ""}`}
       onClick={() => {
         const id = insertBlock(type);
@@ -141,6 +141,7 @@ function PaletteItem({
       ref={setNodeRef}
       style={{ cursor: isDragging ? "grabbing" : "grab" }}
       title={desc}
+      type="button"
       {...listeners}
       {...attributes}
     >
@@ -148,7 +149,7 @@ function PaletteItem({
         {def?.PaletteThumb ? (
           <def.PaletteThumb />
         ) : (
-          <svg viewBox="0 0 38 30">
+          <svg aria-hidden="true" focusable="false" viewBox="0 0 38 30">
             <rect
               fill="var(--ink-3)"
               height="24"
@@ -179,6 +180,6 @@ function PaletteItem({
         <circle cx="11" cy="8" fill="currentColor" r="1.5" />
         <circle cx="11" cy="12" fill="currentColor" r="1.5" />
       </svg>
-    </div>
+    </button>
   );
 }

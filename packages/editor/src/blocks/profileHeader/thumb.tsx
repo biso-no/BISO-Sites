@@ -1,7 +1,7 @@
 export function ProfileHeaderThumb() {
   const s = "var(--ink-3)";
   return (
-    <svg viewBox="0 0 38 30">
+    <svg aria-hidden="true" focusable="false" viewBox="0 0 38 30">
       <circle cx="10" cy="13" fill="none" r="5" stroke={s} strokeWidth=".5" />
       <path
         d="M4 24c0-3.3 2.7-6 6-6s6 2.7 6 24"

@@ -9,8 +9,10 @@ interface Props {
   onPatch: PatchFn;
 }
 
+const MARQUEE_SEPARATOR_RE = /\s*·\s*/;
+
 export function MarqueeRender({ block, edit, onPatch }: Props) {
-  const parts = (block.text || "").split(/\s*·\s*/);
+  const parts = (block.text || "").split(MARQUEE_SEPARATOR_RE);
   const repeated = [...parts, ...parts];
   return (
     <div className="pg-marquee pg-block">

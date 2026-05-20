@@ -5,6 +5,24 @@ const clientId = process.env.VIPPS_CLIENT_ID!;
 const clientSecret = process.env.VIPPS_CLIENT_SECRET!;
 const callbackToken = process.env.VIPPS_CALLBACK_TOKEN!;
 
+interface VippsCheckoutData {
+  checkoutFrontendUrl: string;
+  token: string;
+}
+
+interface VippsSessionData {
+  payment?: {
+    aggregate?: {
+      authorizedAmount?: {
+        currency: string;
+        value: number;
+      };
+    };
+    state?: string;
+  };
+  sessionState?: string;
+}
+
 /**
  * Creates a Vipps Checkout session.
  * Returns only the checkout URL and session ID — no DB operations.
@@ -73,8 +91,8 @@ export async function createVippsCheckoutSession(
   }
 
   return {
-    checkoutUrl: (result.data as any).checkoutFrontendUrl,
-    sessionId: (result.data as any).token,
+    checkoutUrl: (result.data as VippsCheckoutData).checkoutFrontendUrl,
+    sessionId: (result.data as VippsCheckoutData).token,
   };
 }
 
@@ -85,7 +103,7 @@ export async function createVippsCheckoutSession(
  */
 export async function getVippsSession(sessionId: string): Promise<{
   paymentState: VippsPaymentState;
-  sessionData: any;
+  sessionData: VippsSessionData;
 }> {
   const result = await client.checkout.info(clientId, clientSecret, sessionId);
 
@@ -95,7 +113,7 @@ export async function getVippsSession(sessionId: string): Promise<{
     );
   }
 
-  const sessionData = result.data as any;
+  const sessionData = result.data as VippsSessionData;
   const state =
     sessionData.sessionState || sessionData.payment?.state || "CREATED";
 

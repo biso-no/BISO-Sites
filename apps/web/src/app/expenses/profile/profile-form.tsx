@@ -35,7 +35,7 @@ type ProfileFormValues = z.infer<typeof profileSchema>;
 
 interface ProfileFormProps {
   email: string;
-  initialData: Models.Document | null | any;
+  initialData: Models.Document | null;
 }
 
 interface ProfileFieldConfig {

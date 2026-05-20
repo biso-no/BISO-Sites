@@ -26,7 +26,7 @@ export function InspRow({
 }) {
   return (
     <div className="pe-row">
-      <label>{label}</label>
+      <div className="pe-row__label">{label}</div>
       {children}
     </div>
   );

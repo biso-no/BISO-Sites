@@ -20,13 +20,13 @@ import { useChat } from './use-chat';
 import { CursorOverlayKit } from './cursor-overlay-kit';
 import { MarkdownKit } from './markdown-kit';
 
-export const aiChatPlugin = AIChatPlugin.extend({
-  options: {
-    chatOptions: {
-      api: '/api/ai/command',
-      body: {},
-    },
-  },
+export const AI_CHAT_OPTIONS = {
+  api: '/api/ai/command',
+  body: {},
+} as const;
+
+export const aiChatPlugin: ReturnType<typeof AIChatPlugin.extend> =
+  AIChatPlugin.extend({
   render: {
     afterContainer: AILoadingBar,
     afterEditable: AIMenu,
@@ -101,7 +101,7 @@ export const aiChatPlugin = AIChatPlugin.extend({
       },
     });
   },
-});
+  });
 
 export const AIKit = [
   ...CursorOverlayKit,

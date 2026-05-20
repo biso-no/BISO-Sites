@@ -44,7 +44,7 @@ export function GalleryRender({ block, edit, onPatch }: Props) {
         >
           {img.src && (
             // eslint-disable-next-line @next/next/no-img-element
-            <img alt="" src={img.src} />
+            <img alt="" height={675} src={img.src} width={1200} />
           )}
           {edit && (
             <button

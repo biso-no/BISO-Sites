@@ -164,7 +164,7 @@ async function _createExpense(data: {
       "app",
       "expense",
       ID.unique(),
-      expenseData as any
+      expenseData as Record<string, unknown>
     );
 
     revalidatePath("/fs");
@@ -261,7 +261,7 @@ async function _createExpenseAttachment(data: {
       "app",
       "expense_attachments",
       ID.unique(),
-      attachmentData as any
+      attachmentData as Record<string, unknown>
     );
 
     return {
@@ -310,7 +310,7 @@ async function _updateExpense(
       "app",
       "expense",
       expenseId,
-      data as any
+      data as Record<string, unknown>
     );
 
     revalidatePath("/fs");

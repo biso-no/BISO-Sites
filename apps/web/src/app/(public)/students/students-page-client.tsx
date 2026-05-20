@@ -132,7 +132,7 @@ export const StudentsPageClient = ({
   locale,
 }: StudentsPageClientProps) => {
   const t = useTranslations("students");
-  const { campuses, activeCampus, activeCampusId } = useCampus();
+  const { activeCampus, activeCampusId } = useCampus();
 
   const currentCampusData = useMemo(
     () => pickCampusData(campusData, activeCampusId, activeCampus?.name),

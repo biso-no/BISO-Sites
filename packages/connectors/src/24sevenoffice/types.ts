@@ -178,7 +178,7 @@ export interface Product {
   Price?: number;
 }
 
-interface ProductSearchParams {
+export interface ProductSearchParams {
   CategoryId?: number;
   Id?: number;
   Name?: string;

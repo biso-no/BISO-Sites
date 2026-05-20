@@ -15,6 +15,7 @@ export function StatsRender({ block, edit, onPatch }: Props) {
       {block.items.map((item, i) => (
         <div className="pg-stat" key={i}>
           {edit ? (
+            // biome-ignore lint/a11y/useSemanticElements: contentEditable and editor preview controls intentionally use custom interaction surfaces.
             <div
               className="pg-stat__num"
               contentEditable
@@ -25,7 +26,9 @@ export function StatsRender({ block, edit, onPatch }: Props) {
                 );
                 onPatch("items", items);
               }}
+              role="textbox"
               suppressContentEditableWarning
+              tabIndex={0}
             >
               {item.num}
             </div>
@@ -33,6 +36,7 @@ export function StatsRender({ block, edit, onPatch }: Props) {
             <div className="pg-stat__num">{item.num}</div>
           )}
           {edit ? (
+            // biome-ignore lint/a11y/useSemanticElements: contentEditable and editor preview controls intentionally use custom interaction surfaces.
             <div
               className="pg-stat__lbl"
               contentEditable
@@ -45,7 +49,9 @@ export function StatsRender({ block, edit, onPatch }: Props) {
                 );
                 onPatch("items", items);
               }}
+              role="textbox"
               suppressContentEditableWarning
+              tabIndex={0}
             >
               {item.label}
             </div>

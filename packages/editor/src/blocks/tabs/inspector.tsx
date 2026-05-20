@@ -85,6 +85,7 @@ export function TabsInspector({ block, onPatch }: Props) {
             </div>
             <div style={{ marginBottom: 4 }}>
               <label
+                htmlFor={`tab-label-${i}`}
                 style={{
                   fontSize: 11,
                   color: "var(--ink-3)",
@@ -95,6 +96,7 @@ export function TabsInspector({ block, onPatch }: Props) {
                 Label
               </label>
               <input
+                id={`tab-label-${i}`}
                 onChange={(e) => patchTab(i, { label: e.target.value })}
                 style={{
                   width: "100%",
@@ -110,6 +112,7 @@ export function TabsInspector({ block, onPatch }: Props) {
             </div>
             <div>
               <label
+                htmlFor={`tab-body-${i}`}
                 style={{
                   fontSize: 11,
                   color: "var(--ink-3)",
@@ -120,6 +123,7 @@ export function TabsInspector({ block, onPatch }: Props) {
                 Content
               </label>
               <textarea
+                id={`tab-body-${i}`}
                 onChange={(e) => patchTab(i, { body: e.target.value })}
                 rows={3}
                 style={{

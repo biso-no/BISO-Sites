@@ -30,11 +30,11 @@ import {
 import { EVENTS_PAGE_SIZE, type EventFormValues, eventSchema } from "./schemas";
 
 export async function listCampuses() {
-  return _listCampuses();
+  return await _listCampuses();
 }
 
 export async function listDepartmentsForCampus(campusId: string) {
-  return _listDepartmentsForCampus(campusId);
+  return await _listDepartmentsForCampus(campusId);
 }
 
 type SessionDb = Awaited<ReturnType<typeof createSessionClient>>["db"];

@@ -6,7 +6,7 @@ import { TeamRender } from "./render";
 function TeamThumb() {
   const s = "var(--ink-3)";
   return (
-    <svg viewBox="0 0 38 30">
+    <svg aria-hidden="true" focusable="false" viewBox="0 0 38 30">
       {[0, 1, 2].map((i) => (
         <g key={i}>
           <circle cx={8 + i * 11} cy="13" fill={s} opacity=".5" r="3" />

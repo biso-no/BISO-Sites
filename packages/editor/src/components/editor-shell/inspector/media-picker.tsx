@@ -3,6 +3,9 @@
 import { useRef, useState, useTransition } from "react";
 import { useEditorCallbacks } from "@/editor/callbacks";
 
+const EMBED_URL_RE = /youtu\.?be|youtube\.com|vimeo\.com|player\.vimeo/i;
+const VIDEO_FILE_RE = /\.(mp4|mov|webm|ogg)(\?|$)/i;
+
 interface MediaPickerProps {
   accept?: string;
   label?: string;
@@ -16,7 +19,6 @@ interface MediaPickerProps {
 export function MediaPicker({
   src,
   accept = "image/*,video/*",
-  label = "Media",
   onPicked,
   onUrl,
   onClear,
@@ -46,9 +48,65 @@ export function MediaPicker({
     });
   }
 
-  const isVideo = src && /\.(mp4|mov|webm|ogg)(\?|$)/i.test(src);
-  const isEmbed =
-    src && /youtu\.?be|youtube\.com|vimeo\.com|player\.vimeo/i.test(src);
+  const isVideo = src && VIDEO_FILE_RE.test(src);
+  const isEmbed = src && EMBED_URL_RE.test(src);
+  let preview: React.ReactNode = null;
+
+  if (src) {
+    if (isEmbed) {
+      preview = (
+        <div
+          style={{
+            padding: "16px 12px",
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            minHeight: 60,
+          }}
+        >
+          <span style={{ fontSize: 18 }}>▶</span>
+          <span
+            style={{
+              fontSize: 12,
+              color: "var(--ink-2)",
+              wordBreak: "break-all",
+            }}
+          >
+            {src}
+          </span>
+        </div>
+      );
+    } else if (isVideo) {
+      preview = (
+        <video
+          muted
+          src={src}
+          style={{
+            width: "100%",
+            display: "block",
+            maxHeight: 160,
+            objectFit: "cover",
+          }}
+        />
+      );
+    } else {
+      preview = (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          alt=""
+          height={160}
+          src={src}
+          style={{
+            width: "100%",
+            display: "block",
+            maxHeight: 160,
+            objectFit: "cover",
+          }}
+          width={320}
+        />
+      );
+    }
+  }
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -63,51 +121,7 @@ export function MediaPicker({
             border: "0.5px solid var(--rule-2)",
           }}
         >
-          {isEmbed ? (
-            <div
-              style={{
-                padding: "16px 12px",
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                minHeight: 60,
-              }}
-            >
-              <span style={{ fontSize: 18 }}>▶</span>
-              <span
-                style={{
-                  fontSize: 12,
-                  color: "var(--ink-2)",
-                  wordBreak: "break-all",
-                }}
-              >
-                {src}
-              </span>
-            </div>
-          ) : isVideo ? (
-            <video
-              muted
-              src={src}
-              style={{
-                width: "100%",
-                display: "block",
-                maxHeight: 160,
-                objectFit: "cover",
-              }}
-            />
-          ) : (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              alt=""
-              src={src}
-              style={{
-                width: "100%",
-                display: "block",
-                maxHeight: 160,
-                objectFit: "cover",
-              }}
-            />
-          )}
+          {preview}
           {onClear && (
             <button
               aria-label="Remove"

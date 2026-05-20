@@ -6,7 +6,7 @@ import { MarqueeRender } from "./render";
 function MarqueeThumb() {
   const s = "var(--ink-3)";
   return (
-    <svg viewBox="0 0 38 30">
+    <svg aria-hidden="true" focusable="false" viewBox="0 0 38 30">
       <rect fill={s} height="2" rx="1" width="6" x="3" y="12" />
       <rect fill={s} height="2" opacity=".6" rx="1" width="6" x="11" y="12" />
       <rect fill={s} height="2" rx="1" width="6" x="19" y="12" />

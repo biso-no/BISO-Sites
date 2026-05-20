@@ -1,26 +1,29 @@
 import { OrderStatus, type Orders } from "@repo/api/types/appwrite";
 import { ID } from "node-appwrite";
 import type { CheckoutSessionParams, VippsPaymentState } from "../types/vipps";
-import { parseOrderItems } from "./order-parsing";
+import { type ParsedOrderItem, parseOrderItems } from "./order-parsing";
 import { determineStatusFromPaymentState } from "./vipps-pure";
 
-// Define generic DB client type
 interface DbClient {
   createRow: (
     dbId: string,
     collId: string,
     docId: string,
-    data: any
-  ) => Promise<any>;
-  deleteRow: (dbId: string, collId: string, docId: string) => Promise<any>;
-  getRow: (dbId: string, collId: string, docId: string) => Promise<any>;
-  listRows: (dbId: string, collId: string, queries?: string[]) => Promise<any>;
+    data: Record<string, unknown>
+  ) => Promise<unknown>;
+  deleteRow: (dbId: string, collId: string, docId: string) => Promise<unknown>;
+  getRow: (dbId: string, collId: string, docId: string) => Promise<unknown>;
+  listRows: (
+    dbId: string,
+    collId: string,
+    queries?: string[]
+  ) => Promise<{ rows: Array<{ $id: string }> }>;
   updateRow: (
     dbId: string,
     collId: string,
     docId: string,
-    data: any
-  ) => Promise<any>;
+    data: Record<string, unknown>
+  ) => Promise<unknown>;
 }
 
 /**
@@ -100,7 +103,7 @@ export async function updateOrderWithSession(
 export async function updateOrderStatus(
   orderId: string,
   paymentState: VippsPaymentState,
-  sessionData: any,
+  sessionData: Parameters<typeof determineStatusFromPaymentState>[1],
   databases: DbClient
 ): Promise<{ newStatus: OrderStatus }> {
   const currentOrder = (await databases.getRow(
@@ -149,7 +152,7 @@ interface StockAdjustmentParams {
   newStatus: OrderStatus;
   oldStatus: OrderStatus;
   orderId: string;
-  orderItems: any[];
+  orderItems: ParsedOrderItem[];
   userId?: string;
 }
 
@@ -189,10 +192,14 @@ async function decrementStockForItems({
   orderItems,
   databases,
 }: {
-  orderItems: any[];
+  orderItems: ParsedOrderItem[];
   databases: DbClient;
 }): Promise<void> {
   for (const item of orderItems) {
+    if (!item.product_id) {
+      continue;
+    }
+
     try {
       const product = await databases.getRow(
         process.env.APPWRITE_DATABASE_ID!,
@@ -200,8 +207,14 @@ async function decrementStockForItems({
         item.product_id
       );
 
-      if (product.stock !== null && product.stock !== undefined) {
-        const newStock = Math.max(0, product.stock - item.quantity);
+      const productRecord = product as Record<string, unknown>;
+      const productStock =
+        typeof productRecord.stock === "number" ? productRecord.stock : null;
+      const itemQuantity =
+        typeof item.quantity === "number" ? item.quantity : 0;
+
+      if (productStock !== null) {
+        const newStock = Math.max(0, productStock - itemQuantity);
         await databases.updateRow(
           process.env.APPWRITE_DATABASE_ID!,
           process.env.APPWRITE_WEBSHOP_PRODUCTS_COLLECTION_ID!,
@@ -209,7 +222,7 @@ async function decrementStockForItems({
           { stock: newStock }
         );
         console.log(
-          `[Stock] Product ${item.product_id}: ${product.stock} -> ${newStock}`
+          `[Stock] Product ${item.product_id}: ${productStock} -> ${newStock}`
         );
       }
     } catch (error) {
@@ -225,10 +238,14 @@ async function restoreStockForItems({
   orderItems,
   databases,
 }: {
-  orderItems: any[];
+  orderItems: ParsedOrderItem[];
   databases: DbClient;
 }): Promise<void> {
   for (const item of orderItems) {
+    if (!item.product_id) {
+      continue;
+    }
+
     try {
       const product = await databases.getRow(
         process.env.APPWRITE_DATABASE_ID!,
@@ -236,8 +253,14 @@ async function restoreStockForItems({
         item.product_id
       );
 
-      if (product.stock !== null && product.stock !== undefined) {
-        const newStock = product.stock + item.quantity;
+      const productRecord = product as Record<string, unknown>;
+      const productStock =
+        typeof productRecord.stock === "number" ? productRecord.stock : null;
+      const itemQuantity =
+        typeof item.quantity === "number" ? item.quantity : 0;
+
+      if (productStock !== null) {
+        const newStock = productStock + itemQuantity;
         await databases.updateRow(
           process.env.APPWRITE_DATABASE_ID!,
           process.env.APPWRITE_WEBSHOP_PRODUCTS_COLLECTION_ID!,
@@ -245,7 +268,7 @@ async function restoreStockForItems({
           { stock: newStock }
         );
         console.log(
-          `[Stock] Restored product ${item.product_id}: ${product.stock} -> ${newStock}`
+          `[Stock] Restored product ${item.product_id}: ${productStock} -> ${newStock}`
         );
       }
     } catch (error) {

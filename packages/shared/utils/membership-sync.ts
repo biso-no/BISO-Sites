@@ -3,22 +3,16 @@ import {
   hasMembershipProduct,
   syncMembershipTo24SO,
 } from "@repo/connectors/24sevenoffice";
-import type { Models } from "node-appwrite";
 import { Query } from "node-appwrite";
-import { parseOrderItems } from "./order-parsing";
+import { type ParsedOrderItem, parseOrderItems } from "./order-parsing";
 
-// Define a type for the DB client to avoid 'any' if possible, or keep as any for compatibility
 interface DbClient {
-  getRow: (
-    dbId: string,
-    collId: string,
-    docId: string
-  ) => Promise<Models.Document>;
+  getRow: (dbId: string, collId: string, docId: string) => Promise<unknown>;
   listRows: (
     dbId: string,
     collId: string,
     queries?: string[]
-  ) => Promise<Models.DocumentList<Models.Document>>;
+  ) => Promise<{ rows: unknown[] }>;
 }
 
 /**
@@ -27,7 +21,7 @@ interface DbClient {
  */
 export async function triggerMembershipSync(
   order: Orders,
-  db: any
+  db: DbClient
 ): Promise<void> {
   // Check if order contains a membership product
   if (!hasMembershipProduct(order.items_json)) {
@@ -48,7 +42,11 @@ export async function triggerMembershipSync(
     let user: Users | null = null;
     if (order.userId) {
       try {
-        user = (await db.getRow(dbId, "users", order.userId)) as Users;
+        user = (await db.getRow(
+          dbId,
+          "users",
+          order.userId
+        )) as unknown as Users;
       } catch (err) {
         console.warn(`[24SO Sync] Could not fetch user ${order.userId}:`, err);
       }
@@ -57,7 +55,7 @@ export async function triggerMembershipSync(
     // Parse order items to find membership product
     const items = parseOrderItems(order.items_json);
     const membershipItem = items.find(
-      (item: any) =>
+      (item) =>
         item.product_type === "membership" ||
         item.category?.toLowerCase() === "membership"
     );
@@ -88,9 +86,9 @@ export async function triggerMembershipSync(
 }
 
 async function getOrDefaultMembership(
-  membershipItem: any,
+  membershipItem: ParsedOrderItem,
   dbId: string,
-  db: any
+  db: DbClient
 ): Promise<Memberships> {
   let membership: Memberships | null = null;
   if (membershipItem.product_id) {
@@ -100,7 +98,7 @@ async function getOrDefaultMembership(
         Query.limit(1),
       ]);
       if (memberships.rows.length > 0) {
-        membership = memberships.rows[0] as Memberships;
+        membership = memberships.rows[0] as unknown as Memberships;
       }
     } catch (err) {
       console.warn("[24SO Sync] Could not fetch membership:", err);

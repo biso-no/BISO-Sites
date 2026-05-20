@@ -25,6 +25,7 @@ export function TwoColRender({ block, edit, onPatch }: Props) {
     >
       <div className="pg-twocol__col">
         {edit ? (
+          // biome-ignore lint/a11y/noNoninteractiveElementInteractions: contentEditable and editor preview controls intentionally use custom interaction surfaces.
           <p
             contentEditable
             data-edit="1"
@@ -39,6 +40,7 @@ export function TwoColRender({ block, edit, onPatch }: Props) {
       </div>
       <div className="pg-twocol__col">
         {edit ? (
+          // biome-ignore lint/a11y/noNoninteractiveElementInteractions: contentEditable and editor preview controls intentionally use custom interaction surfaces.
           <p
             contentEditable
             data-edit="1"

@@ -11,6 +11,12 @@ export function Topbar() {
   const [publishing, setPublishing] = useState(false);
 
   const isPublished = meta.status === "published";
+  let publishLabel = "Publish";
+  if (publishing) {
+    publishLabel = "…";
+  } else if (isPublished) {
+    publishLabel = "Published ✓";
+  }
 
   async function handlePublish() {
     if (!(onPublish || onUnpublish)) {
@@ -51,7 +57,7 @@ export function Topbar() {
 
       <div className="pe-topbar__center">
         <div className="pe-url">
-          <span aria-label="secure" className="pe-url__secure">
+          <span aria-hidden="true" className="pe-url__secure">
             ✓
           </span>
           <span>biso.no /</span>
@@ -92,7 +98,7 @@ export function Topbar() {
             {!isPublished && (
               <span aria-hidden="true" className="pe-publish__pulse" />
             )}
-            {publishing ? "…" : isPublished ? "Published ✓" : "Publish"}
+            {publishLabel}
           </button>
         )}
       </div>

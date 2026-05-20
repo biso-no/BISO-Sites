@@ -52,6 +52,7 @@ function parseData(json: string): Record<string, string> {
 
 export function SubmissionsList({ rows, topic, page, total }: Props) {
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const pageSize = 25;
   const totalPages = Math.ceil(total / pageSize);
@@ -61,10 +62,14 @@ export function SubmissionsList({ rows, topic, page, total }: Props) {
   }
 
   function handleDelete(id: string) {
-    if (!confirm("Delete this submission? This cannot be undone.")) {
+    if (pendingDeleteId !== id) {
+      setPendingDeleteId(id);
       return;
     }
-    startTransition(() => deleteSubmission(id, topic));
+    startTransition(() => {
+      setPendingDeleteId(null);
+      return deleteSubmission(id, topic);
+    });
   }
 
   if (rows.length === 0) {
@@ -121,7 +126,9 @@ export function SubmissionsList({ rows, topic, page, total }: Props) {
                     </button>
                   )}
                   <button
-                    aria-label="Delete"
+                    aria-label={
+                      pendingDeleteId === sub.$id ? "Confirm delete" : "Delete"
+                    }
                     className="rounded p-1.5 text-destructive transition-colors hover:bg-destructive/10"
                     disabled={isPending}
                     onClick={() => handleDelete(sub.$id)}
@@ -167,6 +174,11 @@ export function SubmissionsList({ rows, topic, page, total }: Props) {
                           Mark {STATUS_LABELS[s]}
                         </button>
                       ))}
+                    {pendingDeleteId === sub.$id && (
+                      <span className="text-destructive text-xs">
+                        Click delete again to confirm.
+                      </span>
+                    )}
                   </div>
                 </div>
               )}

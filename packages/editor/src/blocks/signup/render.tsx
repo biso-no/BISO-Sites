@@ -55,6 +55,7 @@ export function SignupRender({ block, edit, onPatch }: Props) {
   return (
     <div className="pg-signup pg-block">
       {edit ? (
+        // biome-ignore lint/a11y/noNoninteractiveElementInteractions: contentEditable and editor preview controls intentionally use custom interaction surfaces.
         <h2
           contentEditable
           data-edit="1"

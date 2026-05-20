@@ -810,11 +810,9 @@ function DescriptionBlockRow({
 }
 
 function DescriptionBlockEditor({
-  locale,
   onChange,
   value,
 }: {
-  locale: LocaleCode;
   onChange: (value: string) => void;
   value: string;
 }) {
@@ -1637,7 +1635,6 @@ export function JobStudioEditor({
                     </p>
                   </div>
                   <DescriptionBlockEditor
-                    locale={locale}
                     onChange={setLocalizedDescription}
                     value={
                       locale === "en"

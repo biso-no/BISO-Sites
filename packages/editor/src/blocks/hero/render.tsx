@@ -50,7 +50,12 @@ export function HeroRender({ block, edit, onPatch }: Props) {
 
   const art = (
     <div aria-hidden="true" className="pg-hero-art">
-      <svg viewBox="0 0 400 500" xmlns="http://www.w3.org/2000/svg">
+      <svg
+        aria-hidden="true"
+        focusable="false"
+        viewBox="0 0 400 500"
+        xmlns="http://www.w3.org/2000/svg"
+      >
         <defs>
           <pattern
             height="40"

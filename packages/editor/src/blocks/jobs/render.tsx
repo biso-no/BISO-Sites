@@ -26,6 +26,12 @@ export function JobsRender({ block, edit, onPatch }: Props) {
   const source = block.source || "auto";
   const dept = source === "auto" ? department : source;
   const isLive = !!dept;
+  let emptyMessage = "Set a department to load live roles.";
+  if (loading) {
+    emptyMessage = "Loading…";
+  } else if (isLive) {
+    emptyMessage = "No open roles right now.";
+  }
 
   useEffect(() => {
     if (!dept) {
@@ -66,6 +72,7 @@ export function JobsRender({ block, edit, onPatch }: Props) {
         }}
       >
         {edit ? (
+          // biome-ignore lint/a11y/noNoninteractiveElementInteractions: contentEditable and editor preview controls intentionally use custom interaction surfaces.
           <h2
             contentEditable
             data-edit="1"
@@ -117,13 +124,7 @@ export function JobsRender({ block, edit, onPatch }: Props) {
             </div>
           ))
         ) : (
-          <p style={{ fontSize: 13, color: "var(--ink-3)" }}>
-            {loading
-              ? "Loading…"
-              : isLive
-                ? "No open roles right now."
-                : "Set a department to load live roles."}
-          </p>
+          <p style={{ fontSize: 13, color: "var(--ink-3)" }}>{emptyMessage}</p>
         )}
       </div>
     </div>

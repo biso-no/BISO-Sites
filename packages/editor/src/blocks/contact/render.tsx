@@ -17,11 +17,14 @@ function E({
   onBlur: (v: string) => void;
 }) {
   return (
+    // biome-ignore lint/a11y/useSemanticElements: contentEditable and editor preview controls intentionally use custom interaction surfaces.
     <span
       contentEditable
       data-edit="1"
       onBlur={(e) => onBlur(e.currentTarget.textContent ?? "")}
+      role="textbox"
       suppressContentEditableWarning
+      tabIndex={0}
     >
       {children}
     </span>
@@ -34,6 +37,7 @@ export function ContactRender({ block, edit, onPatch }: Props) {
       className={`pg-contact pg-contact--${block.variant ?? "single"} pg-block`}
     >
       {edit ? (
+        // biome-ignore lint/a11y/noNoninteractiveElementInteractions: contentEditable and editor preview controls intentionally use custom interaction surfaces.
         <h2
           contentEditable
           data-edit="1"

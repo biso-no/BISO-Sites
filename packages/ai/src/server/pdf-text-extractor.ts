@@ -6,6 +6,28 @@ interface PdfTextItem {
 }
 
 type PdfInput = ArrayBuffer | Uint8Array | Buffer;
+interface PdfDocument {
+  destroy: () => Promise<void>;
+  getPage: (pageNumber: number) => Promise<{
+    getTextContent: () => Promise<{ items: unknown[] }>;
+  }>;
+  numPages: number;
+}
+
+interface PdfJsModule {
+  GlobalWorkerOptions: {
+    workerSrc?: string;
+  };
+  getDocument: (options: {
+    data: Uint8Array;
+    disableWorker: boolean;
+    isEvalSupported: boolean;
+    useWorkerFetch: boolean;
+  }) => {
+    destroy: () => void;
+    promise: Promise<PdfDocument>;
+  };
+}
 
 function isNodeBuffer(value: PdfInput): value is Buffer {
   return Buffer.isBuffer(value);
@@ -27,19 +49,21 @@ function toUint8Array(input: PdfInput): Uint8Array {
  */
 export async function extractTextFromPdf(input: PdfInput): Promise<string> {
   const data = toUint8Array(input);
-  const pdfjsLib: any = await import("pdfjs-dist/legacy/build/pdf.mjs");
+  const pdfjsLib = (await import(
+    "pdfjs-dist/legacy/build/pdf.mjs"
+  )) as PdfJsModule;
 
   // Disable worker usage in Node environments where web workers are unavailable.
-  (pdfjsLib as any).GlobalWorkerOptions.workerSrc = undefined;
+  pdfjsLib.GlobalWorkerOptions.workerSrc = undefined;
 
   const loadingTask = pdfjsLib.getDocument({
     data,
     disableWorker: true,
     useWorkerFetch: false,
     isEvalSupported: false,
-  } as any);
+  });
 
-  let pdf: any | null = null;
+  let pdf: PdfDocument | null = null;
 
   try {
     pdf = await loadingTask.promise;

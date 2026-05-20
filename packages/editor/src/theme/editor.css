@@ -155,7 +155,12 @@
   grid-template-columns: 38px 1fr;
   gap: 10px;
   align-items: center;
+  width: 100%;
   padding: 7px 8px;
+  color: inherit;
+  text-align: left;
+  background: transparent;
+  border: 0;
   border-radius: 8px;
   transition: background 0.12s;
 }
@@ -800,7 +805,8 @@
   align-items: center;
   margin-bottom: 8px;
 }
-.pe-row label {
+.pe-row label,
+.pe-row__label {
   flex-shrink: 0;
   width: 70px;
   font-size: 11.5px;

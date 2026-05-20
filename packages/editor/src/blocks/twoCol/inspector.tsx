@@ -12,6 +12,12 @@ interface Props {
   onPatch: PatchFn;
 }
 
+const VARIANT_LABELS = {
+  equal: "50 / 50",
+  leftWide: "66 / 33",
+  rightWide: "33 / 66",
+} as const;
+
 export function TwoColInspector({ block, onPatch }: Props) {
   const variant = block.variant ?? "equal";
   return (
@@ -25,13 +31,7 @@ export function TwoColInspector({ block, onPatch }: Props) {
               onClick={() => onPatch("variant", v)}
               type="button"
             >
-              <span className="v-name">
-                {v === "equal"
-                  ? "50 / 50"
-                  : v === "leftWide"
-                    ? "66 / 33"
-                    : "33 / 66"}
-              </span>
+              <span className="v-name">{VARIANT_LABELS[v]}</span>
             </button>
           ))}
         </div>

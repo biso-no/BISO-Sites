@@ -6,7 +6,7 @@ import { CtaRender } from "./render";
 function CtaThumb() {
   const s = "var(--ink-3)";
   return (
-    <svg viewBox="0 0 38 30">
+    <svg aria-hidden="true" focusable="false" viewBox="0 0 38 30">
       <rect fill={s} height="3" width="26" x="6" y="8" />
       <rect fill={s} height="6" rx="3" width="14" x="12" y="16" />
     </svg>

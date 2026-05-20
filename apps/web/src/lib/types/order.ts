@@ -21,7 +21,7 @@ export interface OrderItem {
   variation_price?: number;
 }
 
-interface Order extends Models.Row {
+export interface Order extends Models.Row {
   buyer_email?: string;
   buyer_name?: string;
   buyer_phone?: string;
