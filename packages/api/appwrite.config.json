@@ -1403,7 +1403,7 @@
           "type": "string",
           "required": false,
           "array": false,
-          "size": 8000,
+          "size": 2000,
           "default": null,
           "encrypt": false
         },
@@ -1412,7 +1412,7 @@
           "type": "string",
           "required": false,
           "array": false,
-          "size": 8000,
+          "size": 5000,
           "default": null,
           "encrypt": false
         },
@@ -1421,7 +1421,7 @@
           "type": "string",
           "required": false,
           "array": false,
-          "size": 8000,
+          "size": 5000,
           "default": null,
           "encrypt": false
         },
@@ -3025,10 +3025,9 @@
         },
         {
           "key": "cover_letter",
-          "type": "string",
+          "type": "mediumtext",
           "required": false,
           "array": false,
-          "size": 4000,
           "default": null,
           "encrypt": false
         },
@@ -3090,10 +3089,9 @@
         },
         {
           "key": "review_metadata",
-          "type": "string",
+          "type": "mediumtext",
           "required": false,
           "array": false,
-          "size": 16000,
           "default": null,
           "encrypt": false
         },
@@ -3108,10 +3106,9 @@
         },
         {
           "key": "ai_screening",
-          "type": "string",
+          "type": "mediumtext",
           "required": false,
           "array": false,
-          "size": 8000,
           "default": null,
           "encrypt": false
         },
@@ -6593,7 +6590,6 @@
           "type": "integer",
           "required": true,
           "array": false,
-          "default": 1,
           "min": 1,
           "max": 20
         },
@@ -6672,7 +6668,6 @@
           "type": "string",
           "required": true,
           "array": false,
-          "default": "proposed",
           "format": "enum",
           "elements": [
             "proposed",
@@ -6792,7 +6787,7 @@
         {
           "key": "role",
           "type": "string",
-          "required": true,
+          "required": false,
           "array": false,
           "default": "interviewer",
           "format": "enum",
@@ -6906,37 +6901,33 @@
         },
         {
           "key": "criteria",
-          "type": "string",
+          "type": "mediumtext",
           "required": false,
           "array": false,
-          "size": 8000,
           "default": null,
           "encrypt": false
         },
         {
           "key": "strengths",
-          "type": "string",
+          "type": "mediumtext",
           "required": false,
           "array": false,
-          "size": 2000,
           "default": null,
           "encrypt": false
         },
         {
           "key": "concerns",
-          "type": "string",
+          "type": "mediumtext",
           "required": false,
           "array": false,
-          "size": 2000,
           "default": null,
           "encrypt": false
         },
         {
           "key": "private_notes",
-          "type": "string",
+          "type": "mediumtext",
           "required": false,
           "array": false,
-          "size": 4000,
           "default": null,
           "encrypt": false
         }
@@ -7195,7 +7186,7 @@
         {
           "key": "answer_type",
           "type": "string",
-          "required": true,
+          "required": false,
           "array": false,
           "default": "text",
           "format": "enum",
