@@ -10,7 +10,7 @@ function rid(): string {
 export function emptyBlock(type: BlockType): Block {
   const id = rid();
   switch (type) {
-    case "hero":     return { id, type, variant: "split", eyebrow: "Eyebrow", title: "A headline that earns the size.", subtitle: "One sentence about what your unit does.", ctaLabel: "Get involved", ctaUrl: "#" };
+    case "hero":     return { id, type, variant: "split", eyebrow: "Eyebrow", title: "A headline that earns the size.", subtitle: "One sentence about what your unit does.", ctaLabel: "Get involved", ctaUrl: "#", imageAlt: "" };
     case "stats":    return { id, type, items: [{ num: "1", label: "Thing" }, { num: "2", label: "Other" }, { num: "3", label: "More" }] };
     case "text":     return { id, type, body: [{ type: "h", text: "Section heading" }, { type: "p", text: "Tell the story like you'd tell a friend." }] };
     case "quote":    return { id, type, text: "Drop a line worth standing on its own.", author: "Someone", role: "Their role" };
@@ -29,6 +29,49 @@ export function emptyBlock(type: BlockType): Block {
     case "signup":   return { id, type, heading: "Stay in the loop", placeholder: "you@bi.no" };
     case "news":     return { id, type, heading: "Latest news" };
     case "jobs":     return { id, type, heading: "Open roles" };
+    case "featureGrid": return { id, type, heading: "What we offer", columns: 3, variant: "cards", items: [
+      { icon: "★", title: "Feature one", body: "Describe this benefit in one sentence." },
+      { icon: "◆", title: "Feature two", body: "Describe this benefit in one sentence." },
+      { icon: "●", title: "Feature three", body: "Describe this benefit in one sentence." },
+    ] };
+    case "partners": return { id, type, heading: "Our partners", source: "auto" };
+    case "linkTileGrid": return { id, type, heading: "Explore", items: [
+      { icon: "→", title: "Page one", description: "Short description.", href: "#" },
+      { icon: "→", title: "Page two", description: "Short description.", href: "#" },
+      { icon: "→", title: "Page three", description: "Short description.", href: "#" },
+    ] };
+    case "tabs": return { id, type, variant: "underline", tabs: [
+      { label: "Overview", body: "Overview content goes here." },
+      { label: "Details", body: "Detailed content goes here." },
+    ] };
+    case "departmentGrid": return { id, type, heading: "Departments", layout: "grid", showFilters: true };
+    case "documents": return { id, type, heading: "Documents", items: [] };
+    case "featuredCards": return { id, type, heading: "Featured", items: [
+      { title: "Project one", body: "Short description.", stripeAccent: "var(--claret)", eyebrow: "Featured" },
+      { title: "Project two", body: "Short description.", stripeAccent: "var(--leaf)" },
+    ] };
+    case "campusSelector": return { id, type, mode: "cards", heading: "Choose your campus" };
+    case "stepGrid": return { id, type, heading: "How it works", items: [
+      { number: "01", title: "First step", body: "Describe the first step." },
+      { number: "02", title: "Second step", body: "Describe the second step." },
+      { number: "03", title: "Third step", body: "Describe the third step." },
+    ] };
+    case "scrollRow": return { id, type, heading: "Benefits", items: [
+      { icon: "★", title: "Benefit one", body: "Short description." },
+      { icon: "◆", title: "Benefit two", body: "Short description." },
+      { icon: "●", title: "Benefit three", body: "Short description." },
+      { icon: "▲", title: "Benefit four", body: "Short description." },
+    ] };
+    case "productGrid": return { id, type, heading: "Shop", source: "auto" };
+    case "filterBar": return { id, type, target: "news" };
+    case "profileHeader": return { id, type, heading: "My BISO", showAvatar: true, showStats: true };
+    case "multiStepForm": return { id, type, heading: "Get in touch", submitTarget: { collection: "submissions" }, steps: [
+      { title: "Your message", fields: [
+        { name: "name", label: "Name", fieldType: "text", required: true },
+        { name: "email", label: "Email", fieldType: "email", required: true },
+        { name: "message", label: "Message", fieldType: "textarea", required: true },
+      ] },
+    ] };
   }
 }
 

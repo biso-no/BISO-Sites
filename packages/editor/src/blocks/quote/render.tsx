@@ -20,7 +20,7 @@ export function QuoteRender({ block, edit, onPatch }: Props) {
       )}
       <div className="pg-quote__attrib">
         <div className="pg-quote__av" aria-hidden="true">
-          {block.author.split(" ").map((p) => p[0]).join("").slice(0, 2)}
+          {(block.author || "?").split(" ").filter(Boolean).map((p) => p[0]).join("").slice(0, 2)}
         </div>
         <div>
           {edit ? (

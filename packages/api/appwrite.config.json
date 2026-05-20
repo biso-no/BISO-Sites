@@ -2069,6 +2069,111 @@
       ]
     },
     {
+      "$id": "form_submissions",
+      "$permissions": [],
+      "databaseId": "app",
+      "name": "Form Submissions",
+      "enabled": true,
+      "rowSecurity": true,
+      "columns": [
+        {
+          "key": "page_id",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 50,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "topic",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 100,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "form_heading",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 200,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "data_json",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 16384,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "status",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "default": "new",
+          "format": "enum",
+          "elements": ["new", "read", "actioned", "archived"]
+        },
+        {
+          "key": "access_team_id",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 100,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "campus_id",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 2,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "source",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "default": "multiStepForm",
+          "format": "enum",
+          "elements": ["multiStepForm", "signup"]
+        }
+      ],
+      "indexes": [
+        {
+          "key": "idx_topic",
+          "type": "key",
+          "status": "available",
+          "columns": ["topic"],
+          "orders": ["ASC"]
+        },
+        {
+          "key": "idx_status",
+          "type": "key",
+          "status": "available",
+          "columns": ["status"],
+          "orders": ["ASC"]
+        },
+        {
+          "key": "idx_campus_topic",
+          "type": "key",
+          "status": "available",
+          "columns": ["campus_id", "topic"],
+          "orders": ["ASC", "ASC"]
+        }
+      ]
+    },
+    {
       "$id": "campus_data",
       "$permissions": ["read(\"any\")"],
       "databaseId": "app",

@@ -40,7 +40,9 @@ interface Props {
   onDocChange?: (doc: PageDoc, locale: EditorLocale) => void;
   onExit?: () => void;
   onLocaleChange: (locale: EditorLocale) => void;
+  onPublish?: (locale: EditorLocale) => Promise<void>;
   onTranslateLocale?: (targetLocale: EditorLocale) => Promise<void>;
+  onUnpublish?: (locale: EditorLocale) => Promise<void>;
   savePage: (
     doc: PageDoc,
     locale: EditorLocale
@@ -57,6 +59,8 @@ export function EditorShell({
   uploadFile,
   departments,
   onExit,
+  onPublish,
+  onUnpublish,
   activeLocale,
   locales,
   onLocaleChange,
@@ -211,6 +215,8 @@ export function EditorShell({
         uploadFile,
         departments,
         onExit,
+        onPublish,
+        onUnpublish,
         activeLocale,
         locales,
         onLocaleChange,

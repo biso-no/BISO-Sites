@@ -14,7 +14,8 @@
     "activity": "Aktivitet",
     "drafts": "Gjennomgå utkast",
     "publishGroup": "Publiser",
-    "operateGroup": "Administrer"
+    "operateGroup": "Administrer",
+    "submissions": "Skjemainnsendinger"
   },
   "sidebar": {
     "studioHint": "Studiohint",

@@ -18,6 +18,11 @@ registerBlock({
   label: "Big button",
   description: "One headline, one action",
   category: "Engage",
+  variants: [
+    { id: "card",     label: "Card",     kind: "card" },
+    { id: "banner",   label: "Banner",   kind: "banner" },
+    { id: "gradient", label: "Gradient", kind: "gradient" },
+  ],
   aiHint: "A call-to-action section with a headline and a prominent button.",
   aiProps: ["title", "label", "url"],
   empty: () => emptyBlock("cta") as never,

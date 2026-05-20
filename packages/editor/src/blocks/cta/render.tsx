@@ -6,8 +6,9 @@ import type { PatchFn } from "@/blocks/types";
 interface Props { block: CtaBlock; edit: boolean; onPatch: PatchFn; }
 
 export function CtaRender({ block, edit, onPatch }: Props) {
+  const variant = block.variant ?? "card";
   return (
-    <div className="pg-cta pg-block">
+    <div className={`pg-cta pg-cta--${variant} pg-block`}>
       {edit ? (
         <h2 contentEditable suppressContentEditableWarning data-edit="1"
           onBlur={(e) => onPatch("title", e.currentTarget.textContent ?? "")}

@@ -14,7 +14,8 @@
     "activity": "Activity",
     "drafts": "Review Drafts",
     "publishGroup": "Publish",
-    "operateGroup": "Operate"
+    "operateGroup": "Operate",
+    "submissions": "Form Submissions"
   },
   "sidebar": {
     "studioHint": "Studio hint",

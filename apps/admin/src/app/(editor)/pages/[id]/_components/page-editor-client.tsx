@@ -15,7 +15,7 @@ import "@repo/editor/theme/styles.css";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { savePageEditorDoc } from "@/app/(portal)/_actions/pages";
+import { publishPageAction, savePageEditorDoc, unpublishPageAction } from "@/app/(portal)/_actions/pages";
 import { uploadMediaFile } from "@/app/(portal)/_actions/upload";
 import { sanitizeSlug } from "@/lib/utils";
 
@@ -298,6 +298,39 @@ export function PageEditorClient({
     router.push("/pages");
   }
 
+  async function handlePublish(locale: EditorLocale) {
+    if (!currentPageId) {
+      toast.error("Save the page first before publishing.");
+      return;
+    }
+    try {
+      await publishPageAction(currentPageId, locale);
+      setDocuments((current) => {
+        const doc = current[locale];
+        if (!doc) return current;
+        return { ...current, [locale]: { ...doc, meta: { ...doc.meta, status: "published" } } };
+      });
+      toast.success("Page published to biso.no");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Publish failed");
+    }
+  }
+
+  async function handleUnpublish(locale: EditorLocale) {
+    if (!currentPageId) return;
+    try {
+      await unpublishPageAction(currentPageId, locale);
+      setDocuments((current) => {
+        const doc = current[locale];
+        if (!doc) return current;
+        return { ...current, [locale]: { ...doc, meta: { ...doc.meta, status: "draft" } } };
+      });
+      toast.success("Page unpublished");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Unpublish failed");
+    }
+  }
+
   return (
     <>
       <EditorShell
@@ -308,7 +341,9 @@ export function PageEditorClient({
         onDocChange={handleDocChange}
         onExit={handleExit}
         onLocaleChange={handleLocaleChange}
+        onPublish={handlePublish}
         onTranslateLocale={handleTranslateLocale}
+        onUnpublish={handleUnpublish}
         savePage={handleSave}
         translatingLocale={translatingLocale}
         uploadFile={handleUpload}

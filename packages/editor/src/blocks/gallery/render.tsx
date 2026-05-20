@@ -32,7 +32,7 @@ export function GalleryRender({ block, edit, onPatch }: Props) {
   return (
     <div className="pg-gallery pg-block">
       {images.map((img, i) => (
-        <div key={i} className={`pg-gallery__tile${i === 0 ? " big" : ""}`}>
+        <div key={img.fileId ?? img.src ?? i} className={`pg-gallery__tile${i === 0 ? " big" : ""}`}>
           {img.src && (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={img.src} alt="" />

@@ -44,6 +44,16 @@ export function HeroInspector({ block, onPatch }: Props) {
           <input type="url" value={block.ctaUrl} onChange={(e) => onPatch("ctaUrl", e.target.value)} />
         </InspRow>
       </InspSection>
+
+      <InspSection label="Art panel">
+        <InspRow label="Image caption">
+          <input
+            value={block.imageAlt ?? ""}
+            onChange={(e) => onPatch("imageAlt", e.target.value)}
+            placeholder="Photo credit or label"
+          />
+        </InspRow>
+      </InspSection>
     </>
   );
 }

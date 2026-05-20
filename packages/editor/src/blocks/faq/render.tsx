@@ -7,7 +7,7 @@ interface Props { block: FaqBlock; edit: boolean; onPatch: PatchFn; }
 
 export function FaqRender({ block, edit, onPatch }: Props) {
   return (
-    <div className="pg-faq pg-block">
+    <div className={`pg-faq pg-faq--${block.variant ?? "list"} pg-block`}>
       {edit ? (
         <h2 contentEditable suppressContentEditableWarning data-edit="1"
           onBlur={(e) => onPatch("heading", e.currentTarget.textContent ?? "")}

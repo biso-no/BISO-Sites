@@ -20,7 +20,21 @@ export type BlockType =
   | "cta"
   | "faq"
   | "contact"
-  | "signup";
+  | "signup"
+  | "featureGrid"
+  | "partners"
+  | "linkTileGrid"
+  | "tabs"
+  | "departmentGrid"
+  | "documents"
+  | "featuredCards"
+  | "campusSelector"
+  | "stepGrid"
+  | "scrollRow"
+  | "productGrid"
+  | "filterBar"
+  | "profileHeader"
+  | "multiStepForm";
 
 // ── Per-block shapes ─────────────────────────────────────────────────────────
 
@@ -74,6 +88,7 @@ export interface TwoColBlock {
   left: string;
   right: string;
   type: "twoCol";
+  variant?: "equal" | "leftWide" | "rightWide";
 }
 
 export interface TeamMember {
@@ -174,6 +189,7 @@ export interface CtaBlock {
   title: string;
   type: "cta";
   url: string;
+  variant?: "card" | "banner" | "gradient";
 }
 
 export interface FaqItem {
@@ -185,6 +201,15 @@ export interface FaqBlock {
   id: string;
   items: FaqItem[];
   type: "faq";
+  variant?: "list" | "accordion-themed";
+}
+
+export interface ContactCard {
+  address?: string;
+  email?: string;
+  name: string;
+  phone?: string;
+  role: string;
 }
 
 export interface ContactBlock {
@@ -194,14 +219,196 @@ export interface ContactBlock {
   hours: string;
   id: string;
   instagram: string;
+  members?: ContactCard[];
   type: "contact";
+  variant?: "single" | "directory";
 }
 
 export interface SignupBlock {
   heading: string;
   id: string;
   placeholder: string;
+  recipientEmail?: string;
+  submitMode?: "email" | "database";
+  topic?: string;
   type: "signup";
+}
+
+// ── New block shapes (Phase C) ────────────────────────────────────────────────
+
+export interface FeatureGridItem {
+  body: string;
+  href?: string;
+  icon: string;
+  title: string;
+}
+export interface FeatureGridBlock {
+  columns: 2 | 3 | 4;
+  heading?: string;
+  id: string;
+  intro?: string;
+  items: FeatureGridItem[];
+  type: "featureGrid";
+  variant?: "bordered" | "cards" | "minimal";
+}
+
+export interface PartnerItem {
+  href?: string;
+  logoFileId?: string;
+  logoSrc?: string;
+  name: string;
+}
+export interface PartnersBlock {
+  heading?: string;
+  id: string;
+  items?: PartnerItem[];
+  source: "auto" | "manual";
+  type: "partners";
+}
+
+export interface LinkTileItem {
+  description?: string;
+  href: string;
+  icon: string;
+  title: string;
+}
+export interface LinkTileGridBlock {
+  heading?: string;
+  id: string;
+  items: LinkTileItem[];
+  type: "linkTileGrid";
+}
+
+export interface TabItem {
+  body: string;
+  label: string;
+}
+export interface TabsBlock {
+  id: string;
+  tabs: TabItem[];
+  type: "tabs";
+  variant?: "pills" | "underline" | "cards";
+}
+
+export interface DepartmentGridBlock {
+  heading?: string;
+  id: string;
+  layout: "grid" | "list";
+  showFilters: boolean;
+  type: "departmentGrid";
+}
+
+export interface DocumentItem {
+  fileId: string;
+  size?: string;
+  title: string;
+}
+export interface DocumentsBlock {
+  heading?: string;
+  id: string;
+  items: DocumentItem[];
+  type: "documents";
+}
+
+export interface FeaturedCardItem {
+  body: string;
+  eyebrow?: string;
+  href?: string;
+  stripeAccent: string;
+  title: string;
+}
+export interface FeaturedCardsBlock {
+  heading?: string;
+  id: string;
+  items: FeaturedCardItem[];
+  type: "featuredCards";
+}
+
+export interface CampusSelectorBlock {
+  heading?: string;
+  id: string;
+  mode: "switcher" | "cards";
+  type: "campusSelector";
+}
+
+export interface StepGridItem {
+  body: string;
+  number: string;
+  title: string;
+}
+export interface StepGridBlock {
+  heading?: string;
+  id: string;
+  items: StepGridItem[];
+  type: "stepGrid";
+}
+
+export interface ScrollRowItem {
+  body: string;
+  href?: string;
+  icon?: string;
+  title: string;
+}
+export interface ScrollRowBlock {
+  heading?: string;
+  id: string;
+  items: ScrollRowItem[];
+  type: "scrollRow";
+}
+
+export interface ProductGridBlock {
+  heading?: string;
+  id: string;
+  source: "auto";
+  tag?: string;
+  type: "productGrid";
+}
+
+export interface FilterBarBlock {
+  id: string;
+  target: "news" | "jobs" | "units";
+  type: "filterBar";
+}
+
+export interface ProfileHeaderBlock {
+  heading?: string;
+  id: string;
+  showAvatar: boolean;
+  showStats: boolean;
+  type: "profileHeader";
+}
+
+export type FormFieldType = "checkbox" | "email" | "hidden" | "radio" | "select" | "text" | "textarea";
+
+export interface FormFieldOption {
+  label: string;
+  value: string;
+}
+
+export interface FormField {
+  fieldType: FormFieldType;
+  label: string;
+  name: string;
+  options?: FormFieldOption[];
+  placeholder?: string;
+  required?: boolean;
+}
+
+export interface FormStep {
+  fields: FormField[];
+  title: string;
+}
+
+export interface MultiStepFormBlock {
+  accessTeamId?: string;
+  adminLabel?: string;
+  heading?: string;
+  id: string;
+  recipientEmail?: string;
+  steps: FormStep[];
+  submitMode?: "email" | "database";
+  submitTarget: { collection: string; topic?: string };
+  type: "multiStepForm";
 }
 
 export type Block =
@@ -223,7 +430,21 @@ export type Block =
   | CtaBlock
   | FaqBlock
   | ContactBlock
-  | SignupBlock;
+  | SignupBlock
+  | FeatureGridBlock
+  | PartnersBlock
+  | LinkTileGridBlock
+  | TabsBlock
+  | DepartmentGridBlock
+  | DocumentsBlock
+  | FeaturedCardsBlock
+  | CampusSelectorBlock
+  | StepGridBlock
+  | ScrollRowBlock
+  | ProductGridBlock
+  | FilterBarBlock
+  | ProfileHeaderBlock
+  | MultiStepFormBlock;
 
 // ── Page document ────────────────────────────────────────────────────────────
 

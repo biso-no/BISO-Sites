@@ -38,13 +38,19 @@ export function MediaPicker({ src, accept = "image/*,video/*", label = "Media", 
   }
 
   const isVideo = src && /\.(mp4|mov|webm|ogg)(\?|$)/i.test(src);
+  const isEmbed = src && /youtu\.?be|youtube\.com|vimeo\.com|player\.vimeo/i.test(src);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
       {/* Preview */}
       {src && (
         <div style={{ position: "relative", borderRadius: 8, overflow: "hidden", background: "var(--paper-3)", border: "0.5px solid var(--rule-2)" }}>
-          {isVideo ? (
+          {isEmbed ? (
+            <div style={{ padding: "16px 12px", display: "flex", alignItems: "center", gap: 8, minHeight: 60 }}>
+              <span style={{ fontSize: 18 }}>▶</span>
+              <span style={{ fontSize: 12, color: "var(--ink-2)", wordBreak: "break-all" }}>{src}</span>
+            </div>
+          ) : isVideo ? (
             <video src={src} style={{ width: "100%", display: "block", maxHeight: 160, objectFit: "cover" }} muted />
           ) : (
             // eslint-disable-next-line @next/next/no-img-element

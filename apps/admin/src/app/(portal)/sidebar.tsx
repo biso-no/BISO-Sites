@@ -10,6 +10,7 @@ import {
   FileText,
   Gift,
   HardDrive,
+  Inbox,
   Layers,
   LayoutDashboard,
   LogOut,
@@ -119,6 +120,13 @@ export const NAV_ITEMS: NavItem[] = [
     labelKey: "it",
     navKey: "portal.it",
     path: "/it",
+  },
+  {
+    group: "operate",
+    icon: Inbox,
+    labelKey: "submissions",
+    navKey: "portal.submissions",
+    path: "/submissions",
   },
 ];
 

@@ -15,7 +15,7 @@ function E({ children, onBlur }: { children: string; onBlur: (v: string) => void
 
 export function ContactRender({ block, edit, onPatch }: Props) {
   return (
-    <div className="pg-contact pg-block">
+    <div className={`pg-contact pg-contact--${block.variant ?? "single"} pg-block`}>
       {edit ? (
         <h2 contentEditable suppressContentEditableWarning data-edit="1"
           onBlur={(e) => onPatch("heading", e.currentTarget.textContent ?? "")}
@@ -42,6 +42,14 @@ export function ContactRender({ block, edit, onPatch }: Props) {
           {edit ? <E onBlur={(v) => onPatch("hours", v)}>{block.hours}</E> : <span>{block.hours}</span>}
         </div>
       </div>
+      {(block.variant === "directory") && (block.members ?? []).map((m, i) => (
+        <div key={i} className="pg-contact__col">
+          <div className="pg-contact__col-label">{m.role}</div>
+          <div className="pg-contact__col-val">{m.name}</div>
+          {m.email && <div style={{ marginTop: 4, fontSize: 12, color: "rgba(250,247,242,.55)" }}><a href={`mailto:${m.email}`} style={{ color: "inherit" }}>{m.email}</a></div>}
+          {m.phone && <div style={{ marginTop: 2, fontSize: 12, color: "rgba(250,247,242,.55)" }}>{m.phone}</div>}
+        </div>
+      ))}
     </div>
   );
 }

@@ -1,12 +1,30 @@
 "use client";
 
+import { useState } from "react";
 import { useMeta, useSaving } from "@/editor/hooks";
 import { useEditorCallbacks } from "@/editor/callbacks";
 
 export function Topbar() {
   const meta = useMeta();
   const saving = useSaving();
-  const { onExit } = useEditorCallbacks();
+  const { onExit, onPublish, onUnpublish, activeLocale } = useEditorCallbacks();
+  const [publishing, setPublishing] = useState(false);
+
+  const isPublished = meta.status === "published";
+
+  async function handlePublish() {
+    if (!onPublish && !onUnpublish) return;
+    setPublishing(true);
+    try {
+      if (isPublished && onUnpublish) {
+        await onUnpublish(activeLocale);
+      } else if (!isPublished && onPublish) {
+        await onPublish(activeLocale);
+      }
+    } finally {
+      setPublishing(false);
+    }
+  }
 
   return (
     <header className="pe-topbar">
@@ -42,10 +60,18 @@ export function Topbar() {
           {saving === "error" && <><i className="pe-save__dot error" aria-hidden="true"/>Error</>}
           {saving === "idle" && null}
         </span>
-        <button type="button" className="pe-publish">
-          <span className="pe-publish__pulse" aria-hidden="true"/>
-          Publish
-        </button>
+        {(onPublish || onUnpublish) && (
+          <button
+            type="button"
+            className={`pe-publish${isPublished ? " pe-publish--live" : ""}`}
+            onClick={handlePublish}
+            disabled={publishing || saving === "pending"}
+            title={isPublished ? "Unpublish this page" : "Publish to biso.no"}
+          >
+            {!isPublished && <span className="pe-publish__pulse" aria-hidden="true"/>}
+            {publishing ? "…" : isPublished ? "Published ✓" : "Publish"}
+          </button>
+        )}
       </div>
     </header>
   );

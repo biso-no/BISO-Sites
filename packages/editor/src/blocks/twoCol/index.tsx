@@ -22,6 +22,11 @@ registerBlock({
   label: "Two columns",
   description: "Side-by-side text blocks",
   category: "Tell a story",
+  variants: [
+    { id: "equal",     label: "50 / 50",  kind: "equal" },
+    { id: "leftWide",  label: "66 / 33",  kind: "leftWide" },
+    { id: "rightWide", label: "33 / 66",  kind: "rightWide" },
+  ],
   aiHint: "Two columns of text side by side.",
   aiProps: ["left", "right"],
   empty: () => emptyBlock("twoCol") as never,

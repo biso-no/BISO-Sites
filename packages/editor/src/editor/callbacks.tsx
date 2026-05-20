@@ -14,7 +14,9 @@ export interface EditorCallbacks {
   locales: EditorLocaleOption[];
   onExit?: () => void;
   onLocaleChange: (locale: EditorLocale) => void;
+  onPublish?: (locale: EditorLocale) => Promise<void>;
   onTranslateLocale?: (targetLocale: EditorLocale) => Promise<void>;
+  onUnpublish?: (locale: EditorLocale) => Promise<void>;
   savePage: (
     doc: PageDoc,
     locale: EditorLocale
