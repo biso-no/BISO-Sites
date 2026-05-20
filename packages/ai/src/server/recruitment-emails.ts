@@ -16,7 +16,7 @@ export type RecruitmentEmailStage =
   | "thank_you";
 
 export interface DraftCandidateEmailInput {
-  vacancy: Pick<RecruitmentVacancy, "translation_refs" | "metadata">;
+  vacancy: Pick<RecruitmentVacancy, "translations" | "metadata">;
   application: {
     applicant_name: string;
     applicant_email: string;
@@ -57,10 +57,10 @@ function buildPrompt(input: DraftCandidateEmailInput): string {
   const locale = input.locale ?? "no";
   const tone = input.tone ?? "warm";
   const title =
-    input.vacancy.translation_refs.find(
+    input.vacancy.translations.find(
       (translation) => translation.locale === locale
     )?.title ??
-    input.vacancy.translation_refs[0]?.title ??
+    input.vacancy.translations[0]?.title ??
     "your application";
 
   const instructions = STAGE_INSTRUCTIONS[input.stage];

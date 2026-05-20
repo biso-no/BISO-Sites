@@ -11,7 +11,7 @@ import {
 import { generateObject } from "ai";
 
 export interface ScreenApplicationInput {
-  vacancy: Pick<RecruitmentVacancy, "$id" | "metadata" | "translation_refs">;
+  vacancy: Pick<RecruitmentVacancy, "$id" | "metadata" | "translations">;
   application: {
     $id: string;
     applicant_name: string;
@@ -47,10 +47,10 @@ Guidelines:
 - Respond in English. Keep summaries under 400 characters.`;
 
 function buildPrompt(input: ScreenApplicationInput): string {
-  const norwegian = input.vacancy.translation_refs.find(
+  const norwegian = input.vacancy.translations.find(
     (translation) => translation.locale === "no"
   );
-  const english = input.vacancy.translation_refs.find(
+  const english = input.vacancy.translations.find(
     (translation) => translation.locale === "en"
   );
   const title = english?.title ?? norwegian?.title ?? "Untitled vacancy";

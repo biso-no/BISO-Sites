@@ -23,17 +23,17 @@ export async function GET(
       return NextResponse.json({ error: "Vacancy not found" }, { status: 404 });
     }
 
-    const localizedTranslations = vacancy.translation_refs.filter(
+    const localizedTranslations = vacancy.translations.filter(
       (translation) => translation.locale === locale
     );
 
     return NextResponse.json({
       row: {
         ...vacancy,
-        translation_refs:
+        translations:
           localizedTranslations.length > 0
             ? localizedTranslations
-            : vacancy.translation_refs,
+            : vacancy.translations,
       },
     });
   } catch (error) {

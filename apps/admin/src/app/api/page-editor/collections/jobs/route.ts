@@ -43,7 +43,7 @@ export async function GET(request: Request) {
       const meta = parseMeta(r.metadata);
       return {
         title:
-          titleFromRefs(r.translation_refs) || String(r.title ?? r.name ?? ""),
+          titleFromRefs(r.translations) || String(r.title ?? r.name ?? ""),
         department: dept,
         deadline: String(meta.deadline ?? r.deadline ?? ""),
         commitment: String(meta.commitment ?? r.commitment ?? ""),

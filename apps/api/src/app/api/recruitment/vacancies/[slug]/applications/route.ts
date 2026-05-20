@@ -357,7 +357,7 @@ export async function POST(
           vacancy: {
             $id: vacancy.$id,
             metadata: vacancy.metadata,
-            translation_refs: vacancy.translation_refs,
+            translations: vacancy.translations,
           },
         });
 

@@ -75,7 +75,7 @@ export async function generateMetadata({ params }: JobPageProps) {
     };
   }
 
-  const translation = job.translation_refs[0];
+  const translation = job.translations[0];
 
   return {
     title: `${translation?.title ?? "Position"} | BISO Careers`,

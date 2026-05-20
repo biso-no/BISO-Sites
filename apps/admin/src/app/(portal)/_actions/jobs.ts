@@ -17,6 +17,8 @@ import {
   type RecruitmentApplicationRecord,
   type RecruitmentApplicationReviewUpdateInput,
   type RecruitmentApplicationStatusUpdateInput,
+  type RecruitmentVacancy,
+  type RecruitmentVacancyMetadata,
   type RecruitmentVacancyUpsertInput,
   recruitmentApplicationReviewUpdateSchema,
   recruitmentApplicationStatusUpdateSchema,
@@ -93,48 +95,72 @@ async function requireAuth(): Promise<UserAuthContext> {
   return ctx;
 }
 
-async function upsertTranslation(
+/**
+ * Build the inline `translations` payload that `db.upsertRow("jobs", ...)`
+ * accepts. When a translation row already exists for a given locale we pass
+ * its `$id` so Appwrite updates it in place; otherwise the row is created
+ * and linked via the `jobs.translations` oneToMany relationship.
+ */
+async function buildJobTranslationsPayload(
   db: AdminDb,
   jobId: string,
-  locale: "no" | "en",
-  payload: {
-    description: string;
-    shortDescription: string | null;
-    title: string;
+  input: {
+    title_no: string;
+    title_en: string;
+    description_no: string;
+    description_en: string;
+    short_description?: string | null;
   }
-): Promise<void> {
+): Promise<
+  Array<{
+    $id?: string;
+    content_id: string;
+    content_type: "job";
+    locale: "no" | "en";
+    title: string;
+    description: string;
+    short_description: string | null;
+    additional_fields: null;
+  }>
+> {
   const existing = await db.listRows<ContentTranslations>(
     "app",
     "content_translations",
     [
       Query.equal("content_type", "job"),
       Query.equal("content_id", jobId),
-      Query.equal("locale", locale),
-      Query.limit(1),
+      Query.equal("locale", ["no", "en"]),
+      Query.limit(10),
     ]
   );
 
-  const data = {
-    additional_fields: null,
-    content_id: jobId,
-    content_type: "job",
-    description: payload.description,
-    locale,
-    short_description: payload.shortDescription,
-    title: payload.title,
-  };
-
-  if (existing.rows[0]) {
-    await db.updateRow(
-      "app",
-      "content_translations",
-      existing.rows[0].$id,
-      data
-    );
-    return;
+  const byLocale = new Map<string, ContentTranslations>();
+  for (const row of existing.rows) {
+    byLocale.set(row.locale, row);
   }
 
-  await db.createRow("app", "content_translations", ID.unique(), data);
+  const buildEntry = (
+    locale: "no" | "en",
+    title: string,
+    description: string
+  ) => {
+    const existingRow = byLocale.get(locale);
+    return {
+      ...(existingRow ? { $id: existingRow.$id } : {}),
+      additional_fields: null,
+      content_id: jobId,
+      content_type: "job" as const,
+      description,
+      locale,
+      short_description: input.short_description ?? null,
+      title,
+    };
+  };
+
+  return [
+    buildEntry("no", input.title_no, input.description_no),
+    buildEntry("en", input.title_en, input.description_en),
+  ];
 }
 
 export async function listJobs(opts?: {
@@ -149,31 +175,59 @@ export async function listJobs(opts?: {
   const page = Math.max(1, opts?.page ?? 1);
   const search = opts?.search?.trim().toLowerCase() ?? "";
 
-  const vacancies = await fetchRecruitmentListRows(db, [
+  // Push the campus / department scope into the Appwrite query so we don't
+  // fetch a global page of jobs only to throw most of them away in memory.
+  // Global admins skip the filter (canManageAnyCampus).
+  const queries: string[] = [
     Query.orderDesc("$updatedAt"),
     Query.limit(200),
-  ]);
+  ];
+  if (!scope.canManageAnyCampus) {
+    const managedCampusIds = scope.managedCampusNames
+      .map((name) => lookups.campusIdsByName.get(name))
+      .filter((id): id is string => Boolean(id));
+    const managedDeptIds = scope.managedDepartmentNames
+      .map((name) => lookups.departmentIdsByName.get(name))
+      .filter((id): id is string => Boolean(id));
 
-  const filtered = vacancies
-    .filter((vacancy) => canManageRecruitmentVacancy(scope, lookups, vacancy))
-    .filter((vacancy) =>
-      opts?.status && opts.status !== "all"
-        ? vacancy.status === opts.status
-        : true
-    )
-    .filter((vacancy) => {
-      if (!search) {
-        return true;
-      }
+    if (scope.isCampusAdmin && managedCampusIds.length > 0) {
+      // Relationship-aware filter — new in Appwrite Relationships GA.
+      queries.push(Query.equal("campus.$id", managedCampusIds));
+    } else if (managedDeptIds.length > 0) {
+      queries.push(Query.equal("department.$id", managedDeptIds));
+    } else {
+      // No scope at all — short-circuit empty list.
+      return {
+        page,
+        pageSize: JOBS_PAGE_SIZE,
+        rows: [] as RecruitmentVacancy[],
+        total: 0,
+      };
+    }
+  }
+  if (opts?.status && opts.status !== "all") {
+    queries.push(Query.equal("status", opts.status));
+  }
 
-      const title =
-        vacancy.translation_refs
-          .find((translation) => translation.locale === "no")
-          ?.title.toLowerCase() ?? "";
-      const company = vacancy.metadata.company?.toLowerCase() ?? "";
+  const vacancies = await fetchRecruitmentListRows(db, queries);
 
-      return title.includes(search) || company.includes(search);
-    });
+  // Defense-in-depth: re-apply the scope check in memory in case the
+  // relationship filter returns a row that slipped through.
+  const scoped = vacancies.filter((vacancy) =>
+    canManageRecruitmentVacancy(scope, lookups, vacancy)
+  );
+
+  const filtered = scoped.filter((vacancy) => {
+    if (!search) {
+      return true;
+    }
+    const title =
+      vacancy.translations
+        .find((translation) => translation.locale === "no")
+        ?.title.toLowerCase() ?? "";
+    const company = vacancy.metadata.company?.toLowerCase() ?? "";
+    return title.includes(search) || company.includes(search);
+  });
 
   const start = (page - 1) * JOBS_PAGE_SIZE;
 
@@ -200,6 +254,49 @@ export async function getJob(id: string) {
   return vacancy;
 }
 
+/**
+ * Build the persisted job payload — including the related `campus` and
+ * `department` references and the inline `translations` array — so we can
+ * issue one `db.upsertRow("app", "jobs", id, payload)` call that creates or
+ * updates the parent row AND links/creates its children in a single hop.
+ *
+ * Following the Appwrite relationship docs (https://appwrite.io/docs/products/databases/relationships):
+ *   - For an existing related row, pass its `$id` (string).
+ *   - For a oneToMany child, pass an object literal (with `$id` if updating).
+ */
+async function buildJobUpsertPayload(
+  db: AdminDb,
+  jobId: string,
+  data: RecruitmentVacancyUpsertInput,
+  existingMetadata?: RecruitmentVacancyMetadata
+): Promise<Record<string, unknown>> {
+  const metadata = serializeRecruitmentVacancyMetadata(
+    buildRecruitmentVacancyMetadata(data, existingMetadata)
+  );
+  const translations = await buildJobTranslationsPayload(db, jobId, data);
+
+  return {
+    auto_screen: data.auto_screen,
+    campus: data.campus_id,
+    campus_id: data.campus_id,
+    custom_questions: data.custom_questions
+      ? JSON.stringify(data.custom_questions)
+      : null,
+    department: data.department_id ?? null,
+    department_id: data.department_id ?? null,
+    interview_template: data.interview_template
+      ? JSON.stringify(data.interview_template)
+      : null,
+    metadata,
+    screening_rubric: data.screening_rubric
+      ? JSON.stringify(data.screening_rubric)
+      : null,
+    slug: data.slug,
+    status: data.status,
+    translations,
+  };
+}
+
 export async function createJob(values: RecruitmentVacancyUpsertInput) {
   const ctx = await requireAuth();
   const validated = recruitmentVacancyUpsertSchema.safeParse(values);
@@ -217,30 +314,9 @@ export async function createJob(values: RecruitmentVacancyUpsertInput) {
       department_id: validated.data.department_id ?? null,
     });
 
-    const metadata = serializeRecruitmentVacancyMetadata(
-      buildRecruitmentVacancyMetadata(validated.data)
-    );
-
-    const job = await db.createRow("app", "jobs", ID.unique(), {
-      campus_id: validated.data.campus_id,
-      department_id: validated.data.department_id ?? null,
-      metadata,
-      slug: validated.data.slug,
-      status: validated.data.status,
-    });
-
-    await Promise.all([
-      upsertTranslation(db, job.$id, "no", {
-        description: validated.data.description_no,
-        shortDescription: validated.data.short_description ?? null,
-        title: validated.data.title_no,
-      }),
-      upsertTranslation(db, job.$id, "en", {
-        description: validated.data.description_en,
-        shortDescription: validated.data.short_description ?? null,
-        title: validated.data.title_en,
-      }),
-    ]);
+    const jobId = ID.unique();
+    const payload = await buildJobUpsertPayload(db, jobId, validated.data);
+    const job = await db.upsertRow("app", "jobs", jobId, payload);
 
     await logAuditEvent(ctx, "recruitment.vacancy.create", {
       payload: {
@@ -288,30 +364,13 @@ export async function updateJob(
       department_id: validated.data.department_id ?? null,
     });
 
-    const metadata = serializeRecruitmentVacancyMetadata(
-      buildRecruitmentVacancyMetadata(validated.data, vacancy.metadata)
+    const payload = await buildJobUpsertPayload(
+      db,
+      id,
+      validated.data,
+      vacancy.metadata
     );
-
-    await db.updateRow("app", "jobs", id, {
-      campus_id: validated.data.campus_id,
-      department_id: validated.data.department_id ?? null,
-      metadata,
-      slug: validated.data.slug,
-      status: validated.data.status,
-    });
-
-    await Promise.all([
-      upsertTranslation(db, id, "no", {
-        description: validated.data.description_no,
-        shortDescription: validated.data.short_description ?? null,
-        title: validated.data.title_no,
-      }),
-      upsertTranslation(db, id, "en", {
-        description: validated.data.description_en,
-        shortDescription: validated.data.short_description ?? null,
-        title: validated.data.title_en,
-      }),
-    ]);
+    await db.upsertRow("app", "jobs", id, payload);
 
     await logAuditEvent(ctx, "recruitment.vacancy.update", {
       payload: {
@@ -833,7 +892,7 @@ export async function draftRecruitmentEmail(
       tone: options.tone ?? "warm",
       vacancy: {
         metadata: job.metadata,
-        translation_refs: job.translation_refs,
+        translations: job.translations,
       },
     });
 

@@ -176,7 +176,7 @@ export const createEntityContext = {
     $id: string;
     slug: string;
     status?: string;
-    translation_refs?: Array<{
+    translations?: Array<{
       title?: string;
       description?: string;
       locale?: string;
@@ -186,9 +186,9 @@ export const createEntityContext = {
   }): UseEntityContextOptions => ({
     type: "job",
     id: job.$id,
-    title: job.translation_refs?.[0]?.title || job.slug,
+    title: job.translations?.[0]?.title || job.slug,
     data: job,
-    locale: job.translation_refs?.[0]?.locale,
+    locale: job.translations?.[0]?.locale,
     metadata: {
       status: job.status,
     },

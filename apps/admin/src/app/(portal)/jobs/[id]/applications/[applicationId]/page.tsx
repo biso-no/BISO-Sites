@@ -39,9 +39,9 @@ export default async function ApplicationDetailPage({ params }: PageProps) {
   }
 
   const title =
-    job.translation_refs.find((translation) => translation.locale === "no")
+    job.translations.find((translation) => translation.locale === "no")
       ?.title ??
-    job.translation_refs[0]?.title ??
+    job.translations[0]?.title ??
     "Vacancy";
 
   const [interviews, reviewerResult] = await Promise.all([

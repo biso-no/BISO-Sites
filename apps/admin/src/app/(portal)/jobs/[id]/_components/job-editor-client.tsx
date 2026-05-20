@@ -94,10 +94,10 @@ function fallback<T>(value: T | null | undefined, fallbackValue: T): T {
 }
 
 function buildDefaultValues(job: RecruitmentVacancy | null): JobFormValues {
-  const no = job?.translation_refs.find(
+  const no = job?.translations.find(
     (translation) => translation.locale === "no"
   );
-  const en = job?.translation_refs.find(
+  const en = job?.translations.find(
     (translation) => translation.locale === "en"
   );
   const metadata = job?.metadata;
@@ -153,7 +153,7 @@ export function JobEditorClient({
   const [isPublishing, setIsPublishing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [previewTitle, setPreviewTitle] = useState(
-    job?.translation_refs.find((translation) => translation.locale === "no")
+    job?.translations.find((translation) => translation.locale === "no")
       ?.title ?? ""
   );
   const [previewCompany, setPreviewCompany] = useState(

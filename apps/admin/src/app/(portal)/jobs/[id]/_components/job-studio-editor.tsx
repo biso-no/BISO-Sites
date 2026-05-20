@@ -120,7 +120,7 @@ interface DescriptionBlock {
 }
 
 function getTranslation(job: RecruitmentVacancy | null, locale: "en" | "no") {
-  return job?.translation_refs.find(
+  return job?.translations.find(
     (translation) => translation.locale === locale
   );
 }

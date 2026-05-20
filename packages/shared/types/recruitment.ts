@@ -434,7 +434,7 @@ export interface RecruitmentVacancy {
   metadata: RecruitmentVacancyMetadata;
   slug: string;
   status: JobStatus;
-  translation_refs: RecruitmentTranslation[];
+  translations: RecruitmentTranslation[];
   custom_questions: RecruitmentCustomQuestion[];
   screening_rubric: RecruitmentScreeningRubric | null;
   interview_template: RecruitmentInterviewTemplate | null;

@@ -31,7 +31,7 @@ export function JobDetailsClient({
   job,
 }: JobDetailsClientProps) {
   const router = useRouter();
-  const translation = job.translation_refs[0];
+  const translation = job.translations[0];
   const title = translation?.title ?? "Untitled";
   const description = translation?.description ?? "";
   const deadline = job.metadata.application_deadline

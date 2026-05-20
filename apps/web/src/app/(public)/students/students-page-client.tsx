@@ -43,8 +43,8 @@ interface StudentsPageClientProps {
 const getTranslation = (
   translations:
     | Events["translation_refs"]
-    | Jobs["translation_refs"]
-    | RecruitmentVacancy["translation_refs"]
+    | Jobs["translations"]
+    | RecruitmentVacancy["translations"]
 ) =>
   Array.isArray(translations)
     ? (translations.find(
@@ -52,7 +52,7 @@ const getTranslation = (
           item
         ): item is
           | ContentTranslations
-          | RecruitmentVacancy["translation_refs"][number] =>
+          | RecruitmentVacancy["translations"][number] =>
           typeof item === "object" && item !== null && "title" in item
       ) ?? null)
     : null;
@@ -459,7 +459,7 @@ export const StudentsPageClient = ({
         </div>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {filteredJobs.map((job) => {
-            const translation = getTranslation(job.translation_refs);
+            const translation = getTranslation(job.translations);
             const metadata = getJobMetadata(job.metadata);
             const applicationDeadline =
               typeof metadata.application_deadline === "string"

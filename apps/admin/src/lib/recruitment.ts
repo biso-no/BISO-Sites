@@ -62,6 +62,7 @@ const JOB_SELECT = [
   "department.$id",
   "department.Name",
   "department.campus_id",
+  "translations.*",
 ] as const;
 
 const TRANSLATION_SELECT = [
@@ -324,10 +325,15 @@ export async function fetchRecruitmentTranslations(
 
 export function buildRecruitmentVacancy(
   job: Jobs,
-  translations: RecruitmentTranslation[] = []
+  translations?: RecruitmentTranslation[]
 ): RecruitmentVacancy {
+  const resolvedTranslations: RecruitmentTranslation[] =
+    translations ??
+    ((job.translations as ContentTranslations[] | undefined) ?? []).map(
+      toRecruitmentTranslation
+    );
   const parsedMetadata = parseRecruitmentVacancyMetadata(job.metadata);
-  const translationFallback = translations.find(
+  const translationFallback = resolvedTranslations.find(
     (translation) => translation.locale === Locale.NO
   );
 
@@ -381,7 +387,7 @@ export function buildRecruitmentVacancy(
     ),
     slug: job.slug,
     status: job.status,
-    translation_refs: translations,
+    translations: resolvedTranslations,
     custom_questions: parseRecruitmentCustomQuestions(job.custom_questions),
     screening_rubric: job.screening_rubric
       ? parseRecruitmentScreeningRubric(job.screening_rubric)
@@ -401,21 +407,16 @@ export async function fetchRecruitmentJobsByIds(
 
   for (let index = 0; index < ids.length; index += 25) {
     const chunk = ids.slice(index, index + 25);
+    // translations.* in JOB_SELECT hydrates each job's translations array in
+    // a single round-trip, so no separate content_translations fetch needed.
     const response = await db.listRows<Jobs>("app", "jobs", [
       Query.equal("$id", chunk),
       Query.select([...JOB_SELECT]),
       Query.limit(chunk.length),
     ]);
-    const translationsById = await fetchRecruitmentTranslations(
-      db,
-      response.rows.map((job) => job.$id)
-    );
 
     for (const job of response.rows) {
-      jobsById.set(
-        job.$id,
-        buildRecruitmentVacancy(job, translationsById.get(job.$id) ?? [])
-      );
+      jobsById.set(job.$id, buildRecruitmentVacancy(job));
     }
   }
 
@@ -427,10 +428,10 @@ export function getRecruitmentVacancyTitle(
   locale: LocaleType = Locale.NO
 ): string {
   return (
-    vacancy.translation_refs.find(
+    vacancy.translations.find(
       (translation) => translation.locale === locale
     )?.title ??
-    vacancy.translation_refs[0]?.title ??
+    vacancy.translations[0]?.title ??
     "Untitled"
   );
 }
@@ -490,12 +491,7 @@ export async function fetchRecruitmentListRows(
     ...queries,
   ]);
 
-  const translationsById = await fetchRecruitmentTranslations(
-    db,
-    response.rows.map((job) => job.$id)
-  );
-
-  return response.rows.map((job) =>
-    buildRecruitmentVacancy(job, translationsById.get(job.$id) ?? [])
-  );
+  // translations.* in JOB_SELECT hydrates each job's translations array,
+  // so we no longer need the dedicated content_translations round-trip.
+  return response.rows.map((job) => buildRecruitmentVacancy(job));
 }

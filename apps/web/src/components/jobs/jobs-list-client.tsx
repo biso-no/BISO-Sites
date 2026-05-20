@@ -21,7 +21,7 @@ export function JobsListClient({ jobs }: JobsListClientProps) {
   const [showPaidOnly, setShowPaidOnly] = useState(false);
 
   const filteredJobs = jobs.filter((job) => {
-    const translation = job.translation_refs[0];
+    const translation = job.translations[0];
     const title = translation?.title ?? "";
     const description = translation?.description ?? "";
     const shortDescription =

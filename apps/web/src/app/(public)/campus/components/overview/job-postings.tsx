@@ -66,8 +66,8 @@ export function JobPostings({ jobs, locale }: JobPostingsProps) {
             typeof metadata.application_deadline === "string"
               ? metadata.application_deadline
               : null;
-          const translation = Array.isArray(job.translation_refs)
-            ? job.translation_refs.find(
+          const translation = Array.isArray(job.translations)
+            ? job.translations.find(
                 (item): item is ContentTranslations =>
                   typeof item === "object" && item !== null && "title" in item
               )

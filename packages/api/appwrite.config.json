@@ -1306,18 +1306,6 @@
       "rowSecurity": true,
       "columns": [
         {
-          "key": "translation_refs",
-          "type": "relationship",
-          "required": false,
-          "array": false,
-          "relatedTable": "content_translations",
-          "relationType": "manyToOne",
-          "twoWay": true,
-          "twoWayKey": "job_ref",
-          "onDelete": "cascade",
-          "side": "child"
-        },
-        {
           "key": "slug",
           "type": "string",
           "required": true,
@@ -4031,18 +4019,6 @@
           "size": 4000,
           "default": null,
           "encrypt": false
-        },
-        {
-          "key": "job_ref",
-          "type": "relationship",
-          "required": false,
-          "array": false,
-          "relatedTable": "jobs",
-          "relationType": "manyToOne",
-          "twoWay": true,
-          "twoWayKey": "translation_refs",
-          "onDelete": "cascade",
-          "side": "parent"
         },
         {
           "key": "content_type",

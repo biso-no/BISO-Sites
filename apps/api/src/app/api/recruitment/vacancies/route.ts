@@ -6,18 +6,18 @@ import { type NextRequest, NextResponse } from "next/server";
 import { fetchRecruitmentListRows } from "@/lib/recruitment";
 
 function localizeVacancy<
-  T extends { translation_refs: Array<{ locale: Locale }> },
+  T extends { translations: Array<{ locale: Locale }> },
 >(vacancy: T, locale: Locale): T {
-  const localizedTranslations = vacancy.translation_refs.filter(
+  const localizedTranslations = vacancy.translations.filter(
     (translation) => translation.locale === locale
   );
 
   return {
     ...vacancy,
-    translation_refs:
+    translations:
       localizedTranslations.length > 0
         ? localizedTranslations
-        : vacancy.translation_refs,
+        : vacancy.translations,
   };
 }
 
@@ -53,9 +53,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           return true;
         }
 
-        const title = vacancy.translation_refs[0]?.title.toLowerCase() ?? "";
+        const title = vacancy.translations[0]?.title.toLowerCase() ?? "";
         const description =
-          vacancy.translation_refs[0]?.description.toLowerCase() ?? "";
+          vacancy.translations[0]?.description.toLowerCase() ?? "";
         const department = vacancy.department?.Name.toLowerCase() ?? "";
 
         return (

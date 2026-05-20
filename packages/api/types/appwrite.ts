@@ -663,7 +663,6 @@ export type ContentTranslations = Models.Row & {
   title: string;
   description: string;
   additional_fields: string | null;
-  job_ref: Jobs;
   event_ref: Events;
   news_ref: News;
   product_ref: WebshopProducts;
@@ -681,7 +680,6 @@ export type Jobs = Models.Row & {
   metadata: string | null;
   campus: Campus;
   translations: ContentTranslations[];
-  translation_refs: ContentTranslations[];
   department: Departments;
   custom_questions: string | null;
   interview_template: string | null;

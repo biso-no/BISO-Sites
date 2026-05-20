@@ -19,7 +19,7 @@ interface JobCardProps {
 }
 
 export function JobCard({ job, index, onViewDetails }: JobCardProps) {
-  const translation = job.translation_refs[0];
+  const translation = job.translations[0];
   const title = translation?.title ?? "Untitled";
   const shortDescription =
     job.metadata.short_description ||
