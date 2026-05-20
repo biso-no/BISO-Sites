@@ -495,7 +495,7 @@ function CodeDrawingTextarea({
       <div className="relative flex-1 rounded-md">
         <pre
           className={
-            'm-0 overflow-x-auto p-8 pr-4 font-mono text-sm leading-[normal] [tab-size:2] print:break-inside-avoid'
+            'm-0 overflow-x-auto p-8 pr-4 font-mono text-sm leading-[normal] tab-2 print:break-inside-avoid'
           }
           style={{ minHeight: `${DEFAULT_MIN_HEIGHT}px`, height: '100%' }}
         >

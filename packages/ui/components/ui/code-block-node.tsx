@@ -38,7 +38,7 @@ export function CodeBlockElement(props: PlateElementProps<TCodeBlockElement>) {
       {...props}
     >
       <div className="relative rounded-md bg-muted/50">
-        <pre className="overflow-x-auto p-8 pr-4 font-mono text-sm leading-[normal] [tab-size:2] print:break-inside-avoid">
+        <pre className="overflow-x-auto p-8 pr-4 font-mono text-sm leading-[normal] tab-2 print:break-inside-avoid">
           <code>{props.children}</code>
         </pre>
 
