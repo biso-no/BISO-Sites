@@ -1,0 +1,621 @@
+"use server";
+
+import { ID, Query } from "@repo/api";
+import { createAdminClient } from "@repo/api/server";
+import type {
+  JobApplications,
+  JobInterviewParticipants,
+  JobInterviews,
+  JobInterviewScorecards,
+  Jobs,
+} from "@repo/api/types/appwrite";
+import {
+  InterviewParticipantRole,
+  InterviewRecommendation,
+  InterviewResponseStatus,
+  InterviewStatus,
+} from "@repo/api/types/appwrite";
+import {
+  type RecruitmentInterviewCreateInput,
+  recruitmentInterviewCreateSchema,
+  type RecruitmentInterviewUpdateInput,
+  recruitmentInterviewUpdateSchema,
+  type RecruitmentScorecardCriterion,
+  type RecruitmentScorecardSubmitInput,
+  recruitmentScorecardSubmitSchema,
+} from "@repo/shared/types/recruitment";
+import { redirect } from "next/navigation";
+import { getUserAuthContext, type UserAuthContext } from "@/lib/authorization";
+import {
+  assertInterviewWriteAccess,
+  assertScorecardWriteAccess,
+  loadRecruitmentLookups,
+  toRecruitmentAdminScope,
+} from "@/lib/recruitment";
+import { logAuditEvent } from "./audit-log";
+
+const DATABASE_ID = "app";
+
+function toParticipantRole(role: string): InterviewParticipantRole {
+  switch (role) {
+    case InterviewParticipantRole.CANDIDATE:
+      return InterviewParticipantRole.CANDIDATE;
+    case InterviewParticipantRole.OBSERVER:
+      return InterviewParticipantRole.OBSERVER;
+    default:
+      return InterviewParticipantRole.INTERVIEWER;
+  }
+}
+
+async function requireAuth(): Promise<UserAuthContext> {
+  const ctx = await getUserAuthContext();
+  if (!ctx) {
+    redirect("/auth/login");
+  }
+  return ctx;
+}
+
+export interface InterviewWithParticipants {
+  interview: JobInterviews;
+  participants: JobInterviewParticipants[];
+}
+
+async function fetchInterviewWithParticipants(
+  db: Awaited<ReturnType<typeof createAdminClient>>["db"],
+  interviewId: string
+): Promise<InterviewWithParticipants> {
+  const interview = await db.getRow<JobInterviews>(
+    DATABASE_ID,
+    "job_interviews",
+    interviewId
+  );
+  const participants = await db.listRows<JobInterviewParticipants>(
+    DATABASE_ID,
+    "job_interview_participants",
+    [Query.equal("interview_id", interviewId), Query.limit(100)]
+  );
+  return { interview, participants: participants.rows };
+}
+
+export async function listInterviewsForApplication(
+  applicationId: string
+): Promise<InterviewWithParticipants[]> {
+  const ctx = await requireAuth();
+  const { db } = await createAdminClient();
+  const scope = toRecruitmentAdminScope(ctx);
+  const lookups = await loadRecruitmentLookups(db);
+
+  const application = await db.getRow<JobApplications>(
+    DATABASE_ID,
+    "job_applications",
+    applicationId
+  );
+  const job = await db.getRow<Jobs>(DATABASE_ID, "jobs", application.job_id, [
+    Query.select(["$id", "campus_id", "department_id"]),
+  ]);
+  assertInterviewWriteAccess(scope, lookups, {
+    campus_id: job.campus_id,
+    department_id: job.department_id,
+  });
+
+  const interviews = await db.listRows<JobInterviews>(
+    DATABASE_ID,
+    "job_interviews",
+    [
+      Query.equal("application_id", applicationId),
+      Query.orderAsc("round"),
+      Query.orderAsc("starts_at"),
+      Query.limit(50),
+    ]
+  );
+
+  const ids = interviews.rows.map((interview) => interview.$id);
+  if (ids.length === 0) {
+    return [];
+  }
+  const participants = await db.listRows<JobInterviewParticipants>(
+    DATABASE_ID,
+    "job_interview_participants",
+    [Query.equal("interview_id", ids), Query.limit(500)]
+  );
+  const byInterview = new Map<string, JobInterviewParticipants[]>();
+  for (const participant of participants.rows) {
+    const list = byInterview.get(participant.interview_id) ?? [];
+    list.push(participant);
+    byInterview.set(participant.interview_id, list);
+  }
+  return interviews.rows.map((interview) => ({
+    interview,
+    participants: byInterview.get(interview.$id) ?? [],
+  }));
+}
+
+export async function createInterview(
+  values: RecruitmentInterviewCreateInput
+): Promise<{ data?: InterviewWithParticipants; error?: string }> {
+  const ctx = await requireAuth();
+  const validated = recruitmentInterviewCreateSchema.safeParse(values);
+  if (!validated.success) {
+    return { error: "Invalid interview payload" };
+  }
+  const input = validated.data;
+
+  try {
+    const { db } = await createAdminClient();
+    const scope = toRecruitmentAdminScope(ctx);
+    const lookups = await loadRecruitmentLookups(db);
+
+    const application = await db.getRow<JobApplications>(
+      DATABASE_ID,
+      "job_applications",
+      input.application_id
+    );
+    const job = await db.getRow<Jobs>(DATABASE_ID, "jobs", application.job_id, [
+      Query.select(["$id", "campus_id", "department_id"]),
+    ]);
+    assertInterviewWriteAccess(scope, lookups, {
+      campus_id: job.campus_id,
+      department_id: job.department_id,
+    });
+
+    const startsAt = new Date(input.starts_at);
+    const endsAt = new Date(input.ends_at);
+    if (endsAt.getTime() <= startsAt.getTime()) {
+      return { error: "Interview end must be after start" };
+    }
+
+    const interview = await db.createRow<JobInterviews>(
+      DATABASE_ID,
+      "job_interviews",
+      ID.unique(),
+      {
+        application_id: input.application_id,
+        cancelled_reason: null,
+        campus_id: job.campus_id,
+        created_by_user_id: ctx.userId,
+        department_id: job.department_id ?? null,
+        ends_at: endsAt.toISOString(),
+        job_id: application.job_id,
+        location: input.location ?? null,
+        meeting_url: input.meeting_url ?? null,
+        notes: input.notes ?? null,
+        outlook_event_id: null,
+        round: input.round,
+        starts_at: startsAt.toISOString(),
+        status: InterviewStatus.SCHEDULED,
+        teams_meeting_id: null,
+        timezone: input.timezone,
+        title: input.title,
+      }
+    );
+
+    const participants: JobInterviewParticipants[] = [];
+    // Always seed the candidate as a participant.
+    const candidate = await db.createRow<JobInterviewParticipants>(
+      DATABASE_ID,
+      "job_interview_participants",
+      ID.unique(),
+      {
+        display_name: application.applicant_name,
+        email: application.applicant_email,
+        interview_id: interview.$id,
+        is_lead: false,
+        response_status: InterviewResponseStatus.PENDING,
+        role: InterviewParticipantRole.CANDIDATE,
+        user_id: null,
+      }
+    );
+    participants.push(candidate);
+
+    for (const participantInput of input.participants) {
+      const participant = await db.createRow<JobInterviewParticipants>(
+        DATABASE_ID,
+        "job_interview_participants",
+        ID.unique(),
+        {
+          display_name: participantInput.display_name ?? null,
+          email: participantInput.email,
+          interview_id: interview.$id,
+          is_lead: participantInput.is_lead,
+          response_status: InterviewResponseStatus.PENDING,
+          role: toParticipantRole(participantInput.role),
+          user_id: participantInput.user_id ?? null,
+        }
+      );
+      participants.push(participant);
+    }
+
+    await logAuditEvent(ctx, "recruitment.interview.create", {
+      payload: {
+        application_id: input.application_id,
+        participants: input.participants.length + 1,
+        round: input.round,
+        starts_at: startsAt.toISOString(),
+      },
+      resourceId: interview.$id,
+      resourceType: "job_interview",
+    });
+
+    return { data: { interview, participants } };
+  } catch (error) {
+    return {
+      error:
+        error instanceof Error ? error.message : "Failed to create interview",
+    };
+  }
+}
+
+export async function updateInterview(
+  id: string,
+  values: RecruitmentInterviewUpdateInput
+): Promise<{ data?: JobInterviews; error?: string }> {
+  const ctx = await requireAuth();
+  const validated = recruitmentInterviewUpdateSchema.safeParse(values);
+  if (!validated.success) {
+    return { error: "Invalid interview payload" };
+  }
+  const input = validated.data;
+
+  try {
+    const { db } = await createAdminClient();
+    const scope = toRecruitmentAdminScope(ctx);
+    const lookups = await loadRecruitmentLookups(db);
+
+    const existing = await db.getRow<JobInterviews>(
+      DATABASE_ID,
+      "job_interviews",
+      id
+    );
+    assertInterviewWriteAccess(scope, lookups, {
+      campus_id: existing.campus_id,
+      department_id: existing.department_id,
+    });
+
+    const patch: Partial<JobInterviews> = {};
+    if (input.title !== undefined) patch.title = input.title;
+    if (input.round !== undefined) patch.round = input.round;
+    if (input.timezone !== undefined) patch.timezone = input.timezone;
+    if (input.location !== undefined) patch.location = input.location ?? null;
+    if (input.meeting_url !== undefined)
+      patch.meeting_url = input.meeting_url ?? null;
+    if (input.notes !== undefined) patch.notes = input.notes ?? null;
+    if (input.status !== undefined) {
+      patch.status = input.status as InterviewStatus;
+    }
+    if (input.cancelled_reason !== undefined) {
+      patch.cancelled_reason = input.cancelled_reason ?? null;
+    }
+    if (input.starts_at !== undefined) {
+      patch.starts_at = new Date(input.starts_at).toISOString();
+    }
+    if (input.ends_at !== undefined) {
+      patch.ends_at = new Date(input.ends_at).toISOString();
+    }
+
+    const updated = await db.updateRow<JobInterviews>(
+      DATABASE_ID,
+      "job_interviews",
+      id,
+      patch
+    );
+
+    await logAuditEvent(ctx, "recruitment.interview.update", {
+      payload: { keys: Object.keys(patch) },
+      resourceId: id,
+      resourceType: "job_interview",
+    });
+
+    return { data: updated };
+  } catch (error) {
+    return {
+      error:
+        error instanceof Error ? error.message : "Failed to update interview",
+    };
+  }
+}
+
+export async function cancelInterview(
+  id: string,
+  reason?: string
+): Promise<{ data?: JobInterviews; error?: string }> {
+  return updateInterview(id, {
+    cancelled_reason: reason ?? null,
+    status: "cancelled",
+  });
+}
+
+export async function addInterviewParticipant(
+  interviewId: string,
+  input: {
+    email: string;
+    user_id?: string | null;
+    display_name?: string | null;
+    role?: "interviewer" | "observer";
+    is_lead?: boolean;
+  }
+): Promise<{ data?: JobInterviewParticipants; error?: string }> {
+  const ctx = await requireAuth();
+  try {
+    const { db } = await createAdminClient();
+    const scope = toRecruitmentAdminScope(ctx);
+    const lookups = await loadRecruitmentLookups(db);
+
+    const interview = await db.getRow<JobInterviews>(
+      DATABASE_ID,
+      "job_interviews",
+      interviewId
+    );
+    assertInterviewWriteAccess(scope, lookups, {
+      campus_id: interview.campus_id,
+      department_id: interview.department_id,
+    });
+
+    const participant = await db.createRow<JobInterviewParticipants>(
+      DATABASE_ID,
+      "job_interview_participants",
+      ID.unique(),
+      {
+        display_name: input.display_name ?? null,
+        email: input.email,
+        interview_id: interviewId,
+        is_lead: input.is_lead ?? false,
+        response_status: InterviewResponseStatus.PENDING,
+        role: toParticipantRole(input.role ?? "interviewer"),
+        user_id: input.user_id ?? null,
+      }
+    );
+
+    await logAuditEvent(ctx, "recruitment.interview.participant_add", {
+      payload: { email: input.email, role: input.role ?? "interviewer" },
+      resourceId: interviewId,
+      resourceType: "job_interview",
+    });
+
+    return { data: participant };
+  } catch (error) {
+    return {
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to add interview participant",
+    };
+  }
+}
+
+export async function removeInterviewParticipant(
+  interviewId: string,
+  participantId: string
+): Promise<{ success?: boolean; error?: string }> {
+  const ctx = await requireAuth();
+  try {
+    const { db } = await createAdminClient();
+    const scope = toRecruitmentAdminScope(ctx);
+    const lookups = await loadRecruitmentLookups(db);
+
+    const interview = await db.getRow<JobInterviews>(
+      DATABASE_ID,
+      "job_interviews",
+      interviewId
+    );
+    assertInterviewWriteAccess(scope, lookups, {
+      campus_id: interview.campus_id,
+      department_id: interview.department_id,
+    });
+
+    await db.deleteRow(
+      DATABASE_ID,
+      "job_interview_participants",
+      participantId
+    );
+
+    await logAuditEvent(ctx, "recruitment.interview.participant_remove", {
+      payload: { participantId },
+      resourceId: interviewId,
+      resourceType: "job_interview",
+    });
+
+    return { success: true };
+  } catch (error) {
+    return {
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to remove interview participant",
+    };
+  }
+}
+
+export interface ScorecardWithSummary {
+  scorecard: JobInterviewScorecards;
+  criteria: RecruitmentScorecardCriterion[];
+}
+
+export async function listScorecardsForInterview(
+  interviewId: string
+): Promise<ScorecardWithSummary[]> {
+  await requireAuth();
+  const { db } = await createAdminClient();
+  const response = await db.listRows<JobInterviewScorecards>(
+    DATABASE_ID,
+    "job_interview_scorecards",
+    [Query.equal("interview_id", interviewId), Query.limit(50)]
+  );
+  return response.rows.map((scorecard) => ({
+    criteria: scorecard.criteria ? safeParseCriteria(scorecard.criteria) : [],
+    scorecard,
+  }));
+}
+
+function safeParseCriteria(value: string): RecruitmentScorecardCriterion[] {
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? (parsed as RecruitmentScorecardCriterion[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+export async function submitScorecard(
+  values: RecruitmentScorecardSubmitInput
+): Promise<{ data?: JobInterviewScorecards; error?: string }> {
+  const ctx = await requireAuth();
+  const validated = recruitmentScorecardSubmitSchema.safeParse(values);
+  if (!validated.success) {
+    return { error: "Invalid scorecard payload" };
+  }
+  const input = validated.data;
+
+  try {
+    const { db } = await createAdminClient();
+    const scope = toRecruitmentAdminScope(ctx);
+
+    const interview = await db.getRow<JobInterviews>(
+      DATABASE_ID,
+      "job_interviews",
+      input.interview_id
+    );
+    const participants = await db.listRows<JobInterviewParticipants>(
+      DATABASE_ID,
+      "job_interview_participants",
+      [
+        Query.equal("interview_id", input.interview_id),
+        Query.equal("role", InterviewParticipantRole.INTERVIEWER),
+        Query.limit(50),
+      ]
+    );
+    const participantUserIds = new Set(
+      participants.rows
+        .map((participant) => participant.user_id)
+        .filter((value): value is string => Boolean(value))
+    );
+
+    assertScorecardWriteAccess(scope, ctx.userId, participantUserIds);
+
+    const existing = await db.listRows<JobInterviewScorecards>(
+      DATABASE_ID,
+      "job_interview_scorecards",
+      [
+        Query.equal("interview_id", input.interview_id),
+        Query.equal("interviewer_user_id", ctx.userId),
+        Query.limit(1),
+      ]
+    );
+
+    const payload = {
+      application_id: interview.application_id,
+      concerns: input.concerns ?? null,
+      criteria: JSON.stringify(input.criteria),
+      interview_id: input.interview_id,
+      interviewer_user_id: ctx.userId,
+      overall_score: input.overall_score,
+      private_notes: input.private_notes ?? null,
+      recommendation: input.recommendation as InterviewRecommendation,
+      strengths: input.strengths ?? null,
+      submitted_at: new Date().toISOString(),
+    };
+
+    let saved: JobInterviewScorecards;
+    if (existing.rows[0]) {
+      saved = await db.updateRow<JobInterviewScorecards>(
+        DATABASE_ID,
+        "job_interview_scorecards",
+        existing.rows[0].$id,
+        payload
+      );
+    } else {
+      saved = await db.createRow<JobInterviewScorecards>(
+        DATABASE_ID,
+        "job_interview_scorecards",
+        ID.unique(),
+        payload
+      );
+    }
+
+    await logAuditEvent(ctx, "recruitment.scorecard.submit", {
+      payload: {
+        overall_score: input.overall_score,
+        recommendation: input.recommendation,
+      },
+      resourceId: saved.$id,
+      resourceType: "job_interview_scorecard",
+    });
+
+    return { data: saved };
+  } catch (error) {
+    return {
+      error:
+        error instanceof Error ? error.message : "Failed to submit scorecard",
+    };
+  }
+}
+
+export async function listInterviewsForUser(opts?: {
+  from?: string;
+  to?: string;
+}): Promise<InterviewWithParticipants[]> {
+  const ctx = await requireAuth();
+  const { db } = await createAdminClient();
+
+  // Find every interview where the user is a participant.
+  const memberships = await db.listRows<JobInterviewParticipants>(
+    DATABASE_ID,
+    "job_interview_participants",
+    [Query.equal("user_id", ctx.userId), Query.limit(200)]
+  );
+  const interviewIds = Array.from(
+    new Set(memberships.rows.map((membership) => membership.interview_id))
+  );
+  if (interviewIds.length === 0) {
+    return [];
+  }
+
+  const queries = [
+    Query.equal("$id", interviewIds),
+    Query.orderAsc("starts_at"),
+    Query.limit(200),
+  ];
+  if (opts?.from) {
+    queries.push(Query.greaterThanEqual("starts_at", opts.from));
+  }
+  if (opts?.to) {
+    queries.push(Query.lessThanEqual("starts_at", opts.to));
+  }
+
+  const interviews = await db.listRows<JobInterviews>(
+    DATABASE_ID,
+    "job_interviews",
+    queries
+  );
+
+  const allParticipants = await db.listRows<JobInterviewParticipants>(
+    DATABASE_ID,
+    "job_interview_participants",
+    [Query.equal("interview_id", interviewIds), Query.limit(500)]
+  );
+  const byInterview = new Map<string, JobInterviewParticipants[]>();
+  for (const participant of allParticipants.rows) {
+    const list = byInterview.get(participant.interview_id) ?? [];
+    list.push(participant);
+    byInterview.set(participant.interview_id, list);
+  }
+  return interviews.rows.map((interview) => ({
+    interview,
+    participants: byInterview.get(interview.$id) ?? [],
+  }));
+}
+
+export async function getInterviewWithParticipants(
+  interviewId: string
+): Promise<InterviewWithParticipants> {
+  const ctx = await requireAuth();
+  const { db } = await createAdminClient();
+  const scope = toRecruitmentAdminScope(ctx);
+  const lookups = await loadRecruitmentLookups(db);
+
+  const data = await fetchInterviewWithParticipants(db, interviewId);
+  assertInterviewWriteAccess(scope, lookups, {
+    campus_id: data.interview.campus_id,
+    department_id: data.interview.department_id,
+  });
+  return data;
+}
