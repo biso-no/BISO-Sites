@@ -570,7 +570,10 @@ export function JobEditorClient({
               >
                 Vacancy preview
               </p>
-              <h3 className="font-semibold text-2xl" style={{ color: "#1a1814" }}>
+              <h3
+                className="font-semibold text-2xl"
+                style={{ color: "#1a1814" }}
+              >
                 {previewTitle || "Vacancy title"}
               </h3>
               <p className="text-sm" style={{ color: "#6b6357" }}>

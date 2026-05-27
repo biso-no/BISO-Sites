@@ -409,7 +409,7 @@ function InlineComboboxGroup({
     <ComboboxGroup
       {...props}
       className={cn(
-        'hidden not-last:border-b py-1.5 has-[[role=option]]:block',
+        'hidden not-last:border-b py-1.5 [&:has([role=option])]:block',
         className
       )}
     />

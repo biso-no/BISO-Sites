@@ -213,6 +213,7 @@ export function JobInterviewPanel({
   }
 
   function handleCancel(interviewId: string) {
+    // biome-ignore lint/suspicious/noAlert: confirm is appropriate for this destructive action
     if (!confirm("Cancel this interview? Participants will be notified.")) {
       return;
     }

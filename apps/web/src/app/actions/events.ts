@@ -4,9 +4,9 @@ import { Query } from "@repo/api";
 import { createSessionClient } from "@repo/api/server";
 import type {
   Campus,
+  ContentTranslationsLocale,
   Departments,
   Events,
-  ContentTranslationsLocale,
 } from "@repo/api/types/appwrite";
 
 function filterTranslationRefs<T extends { translation_refs?: unknown }>(
@@ -83,7 +83,12 @@ export async function listEvents(
     ];
 
     if (locale) {
-      queries.push(Query.equal("translation_refs.locale", locale as ContentTranslationsLocale));
+      queries.push(
+        Query.equal(
+          "translation_refs.locale",
+          locale as ContentTranslationsLocale
+        )
+      );
     }
 
     if (status !== "all") {
@@ -120,7 +125,10 @@ async function _getEvent(
 
     const response = await db.listRows<Events>("app", "events", [
       Query.equal("$id", id),
-      Query.equal("translation_refs.locale", locale as ContentTranslationsLocale),
+      Query.equal(
+        "translation_refs.locale",
+        locale as ContentTranslationsLocale
+      ),
       Query.select([
         "$id",
         "$createdAt",
@@ -180,7 +188,10 @@ export async function getEventBySlug(
 
     const response = await db.listRows<Events>("app", "events", [
       Query.equal("slug", slug),
-      Query.equal("translation_refs.locale", locale as ContentTranslationsLocale),
+      Query.equal(
+        "translation_refs.locale",
+        locale as ContentTranslationsLocale
+      ),
       Query.select([
         "$id",
         "$createdAt",
@@ -276,7 +287,10 @@ export async function getCollectionEvents(
 
     const response = await db.listRows<Events>("app", "events", [
       Query.equal("collection_id", collectionId),
-      Query.equal("translation_refs.locale", locale as ContentTranslationsLocale),
+      Query.equal(
+        "translation_refs.locale",
+        locale as ContentTranslationsLocale
+      ),
       Query.select([
         "$id",
         "$createdAt",

@@ -115,6 +115,93 @@ const inputStyle = {
   color: STUDIO.ink,
 };
 
+function getScoreStyle(score: number) {
+  if (score >= 70) {
+    return {
+      color: STUDIO.leaf,
+      bg: "rgba(47,93,58,0.08)",
+      border: "rgba(47,93,58,0.20)",
+    };
+  }
+  if (score >= 40) {
+    return {
+      color: STUDIO.gold,
+      bg: "rgba(176,138,62,0.10)",
+      border: "rgba(176,138,62,0.22)",
+    };
+  }
+  return {
+    color: STUDIO.claret,
+    bg: "rgba(107,30,30,0.08)",
+    border: "rgba(107,30,30,0.20)",
+  };
+}
+
+function ScreeningStrengthsAndConcerns({
+  screening,
+}: {
+  screening: ReturnType<typeof parseRecruitmentAiScreening>;
+}) {
+  if (
+    !screening ||
+    (screening.strengths.length === 0 && screening.concerns.length === 0)
+  ) {
+    return null;
+  }
+  return (
+    <div className="grid gap-3 md:grid-cols-2">
+      {screening.strengths.length > 0 ? (
+        <div>
+          <p
+            className="mb-1.5 text-xs uppercase tracking-[0.12em]"
+            style={{ color: STUDIO.leaf }}
+          >
+            Strengths
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {screening.strengths.map((strength) => (
+              <span
+                className="rounded-full px-2.5 py-0.5 text-xs"
+                key={strength}
+                style={{
+                  background: "rgba(47,93,58,0.08)",
+                  color: STUDIO.leaf,
+                }}
+              >
+                {strength}
+              </span>
+            ))}
+          </div>
+        </div>
+      ) : null}
+      {screening.concerns.length > 0 ? (
+        <div>
+          <p
+            className="mb-1.5 text-xs uppercase tracking-[0.12em]"
+            style={{ color: STUDIO.claret }}
+          >
+            Concerns
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {screening.concerns.map((concern) => (
+              <span
+                className="rounded-full px-2.5 py-0.5 text-xs"
+                key={concern}
+                style={{
+                  background: "rgba(107,30,30,0.07)",
+                  color: STUDIO.claret,
+                }}
+              >
+                {concern}
+              </span>
+            ))}
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function AiScreeningPanel({
   application,
 }: {
@@ -126,21 +213,11 @@ function AiScreeningPanel({
 
   const score = application.screening_score;
   const screening = parseRecruitmentAiScreening(application.ai_screening);
-
-  const scoreColor =
-    score >= 70 ? STUDIO.leaf : score >= 40 ? STUDIO.gold : STUDIO.claret;
-  const scoreBg =
-    score >= 70
-      ? "rgba(47,93,58,0.08)"
-      : score >= 40
-        ? "rgba(176,138,62,0.10)"
-        : "rgba(107,30,30,0.08)";
-  const scoreBorder =
-    score >= 70
-      ? "rgba(47,93,58,0.20)"
-      : score >= 40
-        ? "rgba(176,138,62,0.22)"
-        : "rgba(107,30,30,0.20)";
+  const {
+    color: scoreColor,
+    bg: scoreBg,
+    border: scoreBorder,
+  } = getScoreStyle(score);
 
   const recommendationLabel: Record<string, string> = {
     interview: "→ Advance to Interview",
@@ -194,59 +271,7 @@ function AiScreeningPanel({
         </p>
       ) : null}
 
-      {screening &&
-      (screening.strengths.length > 0 || screening.concerns.length > 0) ? (
-        <div className="grid gap-3 md:grid-cols-2">
-          {screening.strengths.length > 0 ? (
-            <div>
-              <p
-                className="mb-1.5 text-xs uppercase tracking-[0.12em]"
-                style={{ color: STUDIO.leaf }}
-              >
-                Strengths
-              </p>
-              <div className="flex flex-wrap gap-1.5">
-                {screening.strengths.map((strength) => (
-                  <span
-                    className="rounded-full px-2.5 py-0.5 text-xs"
-                    key={strength}
-                    style={{
-                      background: "rgba(47,93,58,0.08)",
-                      color: STUDIO.leaf,
-                    }}
-                  >
-                    {strength}
-                  </span>
-                ))}
-              </div>
-            </div>
-          ) : null}
-          {screening.concerns.length > 0 ? (
-            <div>
-              <p
-                className="mb-1.5 text-xs uppercase tracking-[0.12em]"
-                style={{ color: STUDIO.claret }}
-              >
-                Concerns
-              </p>
-              <div className="flex flex-wrap gap-1.5">
-                {screening.concerns.map((concern) => (
-                  <span
-                    className="rounded-full px-2.5 py-0.5 text-xs"
-                    key={concern}
-                    style={{
-                      background: "rgba(107,30,30,0.07)",
-                      color: STUDIO.claret,
-                    }}
-                  >
-                    {concern}
-                  </span>
-                ))}
-              </div>
-            </div>
-          ) : null}
-        </div>
-      ) : null}
+      <ScreeningStrengthsAndConcerns screening={screening} />
 
       {screening?.dimension_scores && screening.dimension_scores.length > 0 ? (
         <div className="mt-3 space-y-1.5">

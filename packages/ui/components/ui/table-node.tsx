@@ -692,12 +692,12 @@ export const TableElement = withHOC(
           >
             <div
               ref={dragIndicatorRef}
-              className="translate-x-[-1.5px] pointer-events-none absolute inset-y-0 z-36 hidden w-[3px] bg-ring/70"
+              className="-translate-x-[1.5px] pointer-events-none absolute inset-y-0 z-36 hidden w-[3px] bg-ring/70"
               contentEditable={false}
             />
             <div
               ref={hoverIndicatorRef}
-              className="translate-x-[-1.5px] pointer-events-none absolute inset-y-0 z-35 hidden w-[3px] bg-ring/80"
+              className="-translate-x-[1.5px] pointer-events-none absolute inset-y-0 z-35 hidden w-[3px] bg-ring/80"
               contentEditable={false}
             />
             <table

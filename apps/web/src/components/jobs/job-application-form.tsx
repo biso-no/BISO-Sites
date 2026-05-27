@@ -31,6 +31,16 @@ const STEPS: Array<{ id: Step; label: string }> = [
   { id: "review", label: "Review" },
 ];
 
+function stepCircleClass(i: number, currentIndex: number): string {
+  if (i < currentIndex) {
+    return "bg-brand text-white";
+  }
+  if (i === currentIndex) {
+    return "border-2 border-brand text-brand";
+  }
+  return "border border-border text-muted-foreground";
+}
+
 function StepIndicator({
   current,
   hasQuestions,
@@ -48,13 +58,7 @@ function StepIndicator({
       {visibleSteps.map((step, i) => (
         <div className="flex items-center gap-2" key={step.id}>
           <span
-            className={`flex h-5 w-5 items-center justify-center rounded-full font-medium text-[10px] ${
-              i < currentIndex
-                ? "bg-brand text-white"
-                : i === currentIndex
-                  ? "border-2 border-brand text-brand"
-                  : "border border-border text-muted-foreground"
-            }`}
+            className={`flex h-5 w-5 items-center justify-center rounded-full font-medium text-[10px] ${stepCircleClass(i, currentIndex)}`}
           >
             {i < currentIndex ? "✓" : i + 1}
           </span>

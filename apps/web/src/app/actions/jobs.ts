@@ -97,7 +97,7 @@ const _listJobs = cache(
   }
 );
 
-export async function listJobs(params: {
+export function listJobs(params: {
   campus?: string | null;
   department?: string | null;
   locale?: string;
@@ -132,7 +132,7 @@ const _getJobBySlug = cache(
   }
 );
 
-export async function getJobBySlug(
+export function getJobBySlug(
   slug: string,
   locale: "en" | "no"
 ): Promise<RecruitmentVacancy | null> {
@@ -142,6 +142,28 @@ export async function getJobBySlug(
 // ---------- application submission (session auth + admin writes) ----------
 
 const AVAILABILITY_SPLIT_PATTERN = /\r?\n|,/;
+const DEPT_NAME_SPACE_RE = /\s+/g;
+
+function buildVacancyRowPerms(
+  vacancy: { department?: unknown } | null | undefined
+): string[] {
+  const teams = ["sg-app-dept-operationsunit", "sg-app-dept-hr"];
+  const deptName = (vacancy?.department as { Name?: string } | null)?.Name;
+  if (deptName) {
+    teams.push(
+      `sg-app-dept-${deptName.replace(DEPT_NAME_SPACE_RE, "-").toLowerCase()}`
+    );
+  }
+  return [
+    ...new Set(
+      teams.flatMap((t) => [
+        Permission.read(Role.team(t)),
+        Permission.update(Role.team(t)),
+        Permission.delete(Role.team(t)),
+      ])
+    ),
+  ];
+}
 
 function readCustomAnswers(
   formData: FormData
@@ -203,6 +225,7 @@ function readAvailabilitySlots(formData: FormData): string[] {
     .slice(0, 12);
 }
 
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: coordinating multiple sequential DB writes in a server action
 export async function submitJobApplication(
   jobId: string,
   formData: FormData
@@ -241,27 +264,6 @@ export async function submitJobApplication(
 
     const { db, storage } = await createAdminClient();
     const vacancy = await getRecruitmentJobById(db, jobId);
-    // Build row-level permissions for recruitment rows created by the admin key.
-    // Reviewer teams (campus + dept) need read/update/delete; team:admin + HR always included.
-    const buildRecruitmentRowPerms = () => {
-      const teams = ["sg-app-dept-operationsunit", "sg-app-dept-hr"];
- 
-      const deptName = (vacancy?.department as { Name?: string } | null)?.Name;
-      if (deptName) {
-        //Replace space with dash and lowercase to match team naming convention
-        const deptNameSanitized = deptName.replace(/\s+/g, "-").toLowerCase();
-        teams.push(`sg-app-dept-${deptNameSanitized}`);
-      }
-      return [
-        ...new Set(
-          teams.flatMap((t) => [
-            Permission.read(Role.team(t)),
-            Permission.update(Role.team(t)),
-            Permission.delete(Role.team(t)),
-          ])
-        ),
-      ];
-    };
     if (
       !(vacancy && isRecruitmentVacancyOpen(vacancy.status, vacancy.metadata))
     ) {
@@ -363,15 +365,14 @@ export async function submitJobApplication(
             source: "public_apply",
             tags: null,
           },
-          buildRecruitmentRowPerms()
+          buildVacancyRowPerms(vacancy)
         );
         candidateProfileId = created.$id;
       }
     } catch (err) {
       console.warn("Candidate profile upsert failed:", err);
     }
-const perms = buildRecruitmentRowPerms();
-console.log("Row permissions for new application:", perms);
+    const perms = buildVacancyRowPerms(vacancy);
     const application = await db.createRow(
       "app",
       "job_applications",
@@ -412,15 +413,15 @@ console.log("Row permissions for new application:", perms);
             answer: answer.answer ?? null,
             answer_type:
               answer.answer_type as JobApplicationAnswers["answer_type"],
-              
-              // @ts-expect-error
+
+            // @ts-expect-error
             application: application.$id,
             application_id: application.$id,
             job_id: jobId,
             question_id: answer.question_id,
             question_label: answer.question_label,
           },
-          buildRecruitmentRowPerms()
+          buildVacancyRowPerms(vacancy)
         );
       } catch (err) {
         console.warn(
