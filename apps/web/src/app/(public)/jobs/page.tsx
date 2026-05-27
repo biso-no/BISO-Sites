@@ -2,9 +2,9 @@ import { Locale } from "@repo/api/types/appwrite";
 import { Skeleton } from "@repo/ui/components/ui/skeleton";
 import { Suspense } from "react";
 import { listJobs } from "@/app/actions/jobs";
-import { getUserPreferences } from "@/lib/auth-utils";
 import { JobsHero } from "@/components/jobs/jobs-hero";
 import { JobsListClient } from "@/components/jobs/jobs-list-client";
+import { getUserPreferences } from "@/lib/auth-utils";
 
 export const metadata = {
   title: "Join Our Team | BISO",
@@ -42,9 +42,8 @@ async function JobsList({
   });
 
   const paidPositions = jobs.filter((j) => j.metadata.paid === true).length;
-  const departmentCount = new Set(
-    jobs.map((j) => j.department_id).filter(Boolean)
-  ).size || 4;
+  const departmentCount =
+    new Set(jobs.map((j) => j.department_id).filter(Boolean)).size || 4;
 
   return (
     <>

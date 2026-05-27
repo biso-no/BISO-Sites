@@ -179,29 +179,37 @@ export function JobDetailsClient({
               />
             </Card>
 
-            {job.metadata.commitment || job.metadata.term || job.metadata.start_date ? (
+            {job.metadata.commitment ||
+            job.metadata.term ||
+            job.metadata.start_date ? (
               <Card className="border-border/60 p-8 shadow-sm">
-                <h2 className="font-semibold text-xl text-foreground">
+                <h2 className="font-semibold text-foreground text-xl">
                   Commitment
                 </h2>
                 <dl className="mt-4 grid grid-cols-2 gap-4 text-sm sm:grid-cols-3">
                   {job.metadata.commitment && (
                     <div>
                       <dt className="text-muted-foreground">Hours</dt>
-                      <dd className="font-medium text-foreground">{job.metadata.commitment}</dd>
+                      <dd className="font-medium text-foreground">
+                        {job.metadata.commitment}
+                      </dd>
                     </div>
                   )}
                   {job.metadata.term && (
                     <div>
                       <dt className="text-muted-foreground">Term</dt>
-                      <dd className="font-medium text-foreground">{job.metadata.term}</dd>
+                      <dd className="font-medium text-foreground">
+                        {job.metadata.term}
+                      </dd>
                     </div>
                   )}
                   {job.metadata.start_date && (
                     <div>
                       <dt className="text-muted-foreground">Start date</dt>
                       <dd className="font-medium text-foreground">
-                        {new Date(job.metadata.start_date).toLocaleDateString("en-GB")}
+                        {new Date(job.metadata.start_date).toLocaleDateString(
+                          "en-GB"
+                        )}
                       </dd>
                     </div>
                   )}
@@ -248,7 +256,9 @@ export function JobDetailsClient({
                     <Separator />
                     <div>
                       <p className="text-muted-foreground">Campus</p>
-                      <p className="font-medium text-foreground">{job.campus.name}</p>
+                      <p className="font-medium text-foreground">
+                        {job.campus.name}
+                      </p>
                     </div>
                   </>
                 )}
@@ -263,7 +273,8 @@ export function JobDetailsClient({
                         rel="noopener noreferrer"
                       >
                         <Mail className="h-4 w-4" />
-                        {job.metadata.contact_name || job.metadata.contact_email}
+                        {job.metadata.contact_name ||
+                          job.metadata.contact_email}
                       </a>
                     </div>
                   </>
@@ -290,8 +301,8 @@ export function JobDetailsClient({
                     Your data
                   </h3>
                   <p className="text-muted-foreground text-xs">
-                    BISO stores your application data solely for this recruitment
-                    process and deletes it after 180 days.
+                    BISO stores your application data solely for this
+                    recruitment process and deletes it after 180 days.
                   </p>
                 </div>
               </div>

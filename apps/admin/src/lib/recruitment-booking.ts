@@ -13,16 +13,18 @@ function readSecret(): string {
 }
 
 export interface IssuedBookingToken {
-  /** Opaque URL-safe token that's emailed to the candidate. Never persisted. */
-  token: string;
   /** Hex digest used as the stored lookup key. */
   hash: string;
+  /** Opaque URL-safe token that's emailed to the candidate. Never persisted. */
+  token: string;
 }
 
 export function issueBookingToken(): IssuedBookingToken {
   const random = randomBytes(TOKEN_LENGTH_BYTES).toString("base64url");
   const secret = readSecret();
-  const signature = createHmac("sha256", secret).update(random).digest("base64url");
+  const signature = createHmac("sha256", secret)
+    .update(random)
+    .digest("base64url");
   const token = `${random}.${signature}`;
   const hash = createHash("sha256").update(token).digest("hex");
   return { hash, token };

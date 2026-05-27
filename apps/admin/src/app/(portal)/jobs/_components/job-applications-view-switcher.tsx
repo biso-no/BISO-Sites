@@ -9,13 +9,13 @@ import { JobApplicationsClient } from "./job-applications-client";
 import { JobApplicationsKanban } from "./job-applications-kanban";
 
 interface Props {
+  detailRouteBase?: string;
   initialApplications: RecruitmentApplicationRecord[];
+  initialView: "list" | "kanban";
+  jobId?: string;
   page: number;
   title: string;
   total: number;
-  initialView: "list" | "kanban";
-  jobId?: string;
-  detailRouteBase?: string;
 }
 
 export function JobApplicationsViewSwitcher({

@@ -17,7 +17,9 @@ async function JobDetails({ slug }: { slug: string }) {
   const [locale, user] = await Promise.all([getLocale(), getLoggedInUser()]);
   const job = await getJobBySlug(slug, locale);
 
-  if (!job) notFound();
+  if (!job) {
+    notFound();
+  }
 
   return (
     <JobDetailsClient

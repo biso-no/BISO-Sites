@@ -655,6 +655,14 @@ export type JobApplications = Models.Row & {
   screening_score: number | null;
   embedding_status: EmbeddingStatus;
   source: string | null;
+  // Populated when Query.select includes "job.*"
+  job?: Jobs | null;
+  // Populated when Query.select includes "candidate_profile.*"
+  candidate_profile?: CandidateProfiles | null;
+  // Populated when Query.select includes "interviews.*"
+  interviews?: JobInterviews[];
+  // Populated when Query.select includes "answers.*"
+  answers?: JobApplicationAnswers[];
 };
 
 export type ContentTranslations = Models.Row & {
@@ -686,6 +694,8 @@ export type Jobs = Models.Row & {
   screening_rubric: string | null;
   auto_screen: boolean;
   embedding_id: string | null;
+  // Populated when Query.select includes "applications.*"
+  applications?: JobApplications[];
 };
 
 export type Events = Models.Row & {
@@ -1291,6 +1301,12 @@ export type JobInterviews = Models.Row & {
   notes: string | null;
   created_by_user_id: string | null;
   cancelled_reason: string | null;
+  // Accepts a string $id on writes; populated as the full object on reads with "application.*"
+  application?: JobApplications | string | null;
+  // Populated when Query.select includes "participants.*"
+  participants?: JobInterviewParticipants[];
+  // Populated when Query.select includes "scorecards.*"
+  scorecards?: JobInterviewScorecards[];
 };
 
 export type JobInterviewParticipants = Models.Row & {
@@ -1301,6 +1317,8 @@ export type JobInterviewParticipants = Models.Row & {
   role: InterviewParticipantRole;
   response_status: InterviewResponseStatus;
   is_lead: boolean;
+  // Accepts a string $id on writes; populated as the full object on reads with "interview.*"
+  interview?: JobInterviews | string | null;
 };
 
 export type JobInterviewScorecards = Models.Row & {
@@ -1314,6 +1332,8 @@ export type JobInterviewScorecards = Models.Row & {
   strengths: string | null;
   concerns: string | null;
   private_notes: string | null;
+  // Accepts a string $id on writes; populated as the full object on reads with "interview.*"
+  interview?: JobInterviews | string | null;
 };
 
 export type CandidateProfiles = Models.Row & {
@@ -1334,6 +1354,8 @@ export type CandidateProfiles = Models.Row & {
   source: string | null;
   embedding_status: EmbeddingStatus;
   embedding_id: string | null;
+  // Populated when Query.select includes "applications.*"
+  applications?: JobApplications[];
 };
 
 export type JobApplicationAnswers = Models.Row & {
@@ -1343,6 +1365,8 @@ export type JobApplicationAnswers = Models.Row & {
   question_label: string;
   answer_type: ApplicationAnswerType;
   answer: string | null;
+  // Accepts a string $id on writes; populated as the full object on reads with "application.*"
+  application?: JobApplications | string | null;
 };
 
 export type RecruitmentBookingTokens = Models.Row & {

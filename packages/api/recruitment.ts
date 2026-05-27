@@ -1,11 +1,3 @@
-import { Query } from "./index";
-import type {
-  ContentTranslations,
-  Jobs,
-  Locale as LocaleType,
-} from "./types/appwrite";
-import { Locale } from "./types/appwrite";
-import type { Models } from "./index";
 import {
   buildRecruitmentVacancyMetadata,
   parseRecruitmentCustomQuestions,
@@ -15,6 +7,14 @@ import {
   type RecruitmentTranslation,
   type RecruitmentVacancy,
 } from "@repo/shared/types/recruitment";
+import type { Models } from "./index";
+import { Query } from "./index";
+import type {
+  ContentTranslations,
+  Jobs,
+  Locale as LocaleType,
+} from "./types/appwrite";
+import { Locale } from "./types/appwrite";
 
 export interface DbClient {
   getRow: <T>(
@@ -89,7 +89,10 @@ export function buildRecruitmentVacancy(
   );
 
   let legacyMetadata: Record<string, unknown> = {};
-  if (translationFallback?.additional_fields && typeof translationFallback.additional_fields === "string") {
+  if (
+    translationFallback?.additional_fields &&
+    typeof translationFallback.additional_fields === "string"
+  ) {
     try {
       legacyMetadata = JSON.parse(
         translationFallback.additional_fields
@@ -103,9 +106,7 @@ export function buildRecruitmentVacancy(
     $createdAt: job.$createdAt,
     $id: job.$id,
     $updatedAt: job.$updatedAt,
-    campus: job.campus
-      ? { $id: job.campus.$id, name: job.campus.name }
-      : null,
+    campus: job.campus ? { $id: job.campus.$id, name: job.campus.name } : null,
     campus_id: job.campus_id,
     department: job.department
       ? {
@@ -147,25 +148,14 @@ export function buildRecruitmentVacancy(
   };
 }
 
-export async function listJobsWithSelectFallback(
-  db: DbClient,
-  baseQueries: string[]
-): Promise<{ rows: Jobs[]; total: number }> {
-  try {
-    return await db.listRows<Jobs>("app", "jobs", [
-      Query.select([...JOB_SELECT]),
-      ...baseQueries,
-    ]);
-  } catch {
-    return await db.listRows<Jobs>("app", "jobs", baseQueries);
-  }
-}
-
 export async function fetchRecruitmentListRows(
   db: DbClient,
   queries: string[]
 ): Promise<RecruitmentVacancy[]> {
-  const response = await listJobsWithSelectFallback(db, queries);
+  const response = await db.listRows<Jobs>("app", "jobs", [
+    Query.select([...JOB_SELECT]),
+    ...queries,
+  ]);
   return response.rows.map((job) => buildRecruitmentVacancy(job));
 }
 
@@ -176,7 +166,8 @@ export async function fetchRecruitmentJobsByIds(
   const jobsById = new Map<string, RecruitmentVacancy>();
   for (let i = 0; i < ids.length; i += 25) {
     const chunk = ids.slice(i, i + 25);
-    const response = await listJobsWithSelectFallback(db, [
+    const response = await db.listRows<Jobs>("app", "jobs", [
+      Query.select([...JOB_SELECT]),
       Query.equal("$id", chunk),
       Query.limit(chunk.length),
     ]);
@@ -191,7 +182,8 @@ export async function getRecruitmentJobBySlug(
   db: DbClient,
   slug: string
 ): Promise<RecruitmentVacancy | null> {
-  const response = await listJobsWithSelectFallback(db, [
+  const response = await db.listRows<Jobs>("app", "jobs", [
+    Query.select([...JOB_SELECT]),
     Query.equal("slug", slug),
     Query.limit(1),
   ]);
@@ -203,8 +195,14 @@ export async function getRecruitmentJobById(
   db: DbClient,
   jobId: string
 ): Promise<RecruitmentVacancy | null> {
-  const map = await fetchRecruitmentJobsByIds(db, [jobId]);
-  return map.get(jobId) ?? null;
+  try {
+    const job = await db.getRow<Jobs>("app", "jobs", jobId, [
+      Query.select([...JOB_SELECT]),
+    ]);
+    return buildRecruitmentVacancy(job);
+  } catch {
+    return null;
+  }
 }
 
 export function getRecruitmentVacancyTitle(

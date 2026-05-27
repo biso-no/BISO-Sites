@@ -1428,6 +1428,18 @@
           "size": 100,
           "default": null,
           "encrypt": false
+        },
+        {
+          "key": "applications",
+          "type": "relationship",
+          "required": false,
+          "array": false,
+          "relatedTable": "job_applications",
+          "relationType": "manyToOne",
+          "twoWay": true,
+          "twoWayKey": "job",
+          "onDelete": "restrict",
+          "side": "child"
         }
       ],
       "indexes": [
@@ -3126,6 +3138,54 @@
           "size": 100,
           "default": null,
           "encrypt": false
+        },
+        {
+          "key": "job",
+          "type": "relationship",
+          "required": false,
+          "array": false,
+          "relatedTable": "jobs",
+          "relationType": "manyToOne",
+          "twoWay": true,
+          "twoWayKey": "applications",
+          "onDelete": "restrict",
+          "side": "parent"
+        },
+        {
+          "key": "candidate_profile",
+          "type": "relationship",
+          "required": false,
+          "array": false,
+          "relatedTable": "candidate_profiles",
+          "relationType": "manyToOne",
+          "twoWay": true,
+          "twoWayKey": "applications",
+          "onDelete": "setNull",
+          "side": "parent"
+        },
+        {
+          "key": "answers",
+          "type": "relationship",
+          "required": false,
+          "array": false,
+          "relatedTable": "job_application_answers",
+          "relationType": "manyToOne",
+          "twoWay": true,
+          "twoWayKey": "application",
+          "onDelete": "cascade",
+          "side": "child"
+        },
+        {
+          "key": "interviews",
+          "type": "relationship",
+          "required": false,
+          "array": false,
+          "relatedTable": "job_interviews",
+          "relationType": "manyToOne",
+          "twoWay": true,
+          "twoWayKey": "application",
+          "onDelete": "cascade",
+          "side": "child"
         }
       ],
       "indexes": [
@@ -6679,6 +6739,42 @@
           "size": 500,
           "default": null,
           "encrypt": false
+        },
+        {
+          "key": "application",
+          "type": "relationship",
+          "required": false,
+          "array": false,
+          "relatedTable": "job_applications",
+          "relationType": "manyToOne",
+          "twoWay": true,
+          "twoWayKey": "interviews",
+          "onDelete": "cascade",
+          "side": "parent"
+        },
+        {
+          "key": "participants",
+          "type": "relationship",
+          "required": false,
+          "array": false,
+          "relatedTable": "job_interview_participants",
+          "relationType": "manyToOne",
+          "twoWay": true,
+          "twoWayKey": "interview",
+          "onDelete": "cascade",
+          "side": "child"
+        },
+        {
+          "key": "scorecards",
+          "type": "relationship",
+          "required": false,
+          "array": false,
+          "relatedTable": "job_interview_scorecards",
+          "relationType": "manyToOne",
+          "twoWay": true,
+          "twoWayKey": "interview",
+          "onDelete": "cascade",
+          "side": "child"
         }
       ],
       "indexes": [
@@ -6784,6 +6880,18 @@
           "required": false,
           "array": false,
           "default": false
+        },
+        {
+          "key": "interview",
+          "type": "relationship",
+          "required": false,
+          "array": false,
+          "relatedTable": "job_interviews",
+          "relationType": "manyToOne",
+          "twoWay": true,
+          "twoWayKey": "participants",
+          "onDelete": "cascade",
+          "side": "parent"
         }
       ],
       "indexes": [
@@ -6906,6 +7014,18 @@
           "array": false,
           "default": null,
           "encrypt": false
+        },
+        {
+          "key": "interview",
+          "type": "relationship",
+          "required": false,
+          "array": false,
+          "relatedTable": "job_interviews",
+          "relationType": "manyToOne",
+          "twoWay": true,
+          "twoWayKey": "scorecards",
+          "onDelete": "cascade",
+          "side": "parent"
         }
       ],
       "indexes": [
@@ -7084,6 +7204,18 @@
           "size": 100,
           "default": null,
           "encrypt": false
+        },
+        {
+          "key": "applications",
+          "type": "relationship",
+          "required": false,
+          "array": false,
+          "relatedTable": "job_applications",
+          "relationType": "manyToOne",
+          "twoWay": true,
+          "twoWayKey": "candidate_profile",
+          "onDelete": "setNull",
+          "side": "child"
         }
       ],
       "indexes": [
@@ -7183,6 +7315,18 @@
           "size": 4000,
           "default": null,
           "encrypt": false
+        },
+        {
+          "key": "application",
+          "type": "relationship",
+          "required": false,
+          "array": false,
+          "relatedTable": "job_applications",
+          "relationType": "manyToOne",
+          "twoWay": true,
+          "twoWayKey": "answers",
+          "onDelete": "cascade",
+          "side": "parent"
         }
       ],
       "indexes": [

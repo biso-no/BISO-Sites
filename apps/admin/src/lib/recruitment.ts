@@ -5,20 +5,11 @@ import type {
   Departments,
   JobApplications,
   Jobs,
-  Locale as LocaleType,
 } from "@repo/api/types/appwrite";
-import { Locale } from "@repo/api/types/appwrite";
 import {
-  buildRecruitmentVacancyMetadata,
   parseRecruitmentApplicationReviewMetadata,
-  parseRecruitmentCustomQuestions,
-  parseRecruitmentInterviewTemplate,
-  parseRecruitmentScreeningRubric,
-  parseRecruitmentVacancyMetadata,
   type RecruitmentApplicationJobSummary,
   type RecruitmentApplicationRecord,
-  type RecruitmentTranslation,
-  type RecruitmentVacancy,
 } from "@repo/shared/types/recruitment";
 import type { AdminScope } from "@repo/shared/types/user-management";
 import type { UserAuthContext } from "@/lib/authorization";
@@ -43,37 +34,6 @@ export interface RecruitmentLookups {
   departmentIdsByName: Map<string, string>;
   departmentNamesById: Map<string, string>;
 }
-
-const JOB_SELECT = [
-  "$id",
-  "$createdAt",
-  "$updatedAt",
-  "slug",
-  "status",
-  "campus_id",
-  "department_id",
-  "metadata",
-  "custom_questions",
-  "interview_template",
-  "screening_rubric",
-  "auto_screen",
-  "campus.$id",
-  "campus.name",
-  "department.$id",
-  "department.Name",
-  "department.campus_id",
-  "translations.*",
-] as const;
-
-const TRANSLATION_SELECT = [
-  "$id",
-  "content_id",
-  "locale",
-  "title",
-  "description",
-  "short_description",
-  "additional_fields",
-] as const;
 
 export function toRecruitmentAdminScope(ctx: UserAuthContext): AdminScope {
   const isGlobalAdmin = ctx.roles.includes("globaladmin");
@@ -202,8 +162,6 @@ export function assertRecruitmentApplicationReviewAccess(
   }
 }
 
-// Interviews live in their own collection; they inherit the same
-// campus/department gating as the parent vacancy.
 export interface InterviewScopeTarget {
   campus_id: string;
   department_id: string | null;
@@ -227,8 +185,6 @@ export function assertInterviewWriteAccess(
   }
 }
 
-// Scorecards must be authored by an actual panel participant. Lead reviewers
-// (campus + global admins) may also override in exceptional cases.
 export function canSubmitScorecard(
   scope: AdminScope,
   currentUserId: string,
@@ -250,9 +206,6 @@ export function assertScorecardWriteAccess(
   }
 }
 
-// Candidate profile reads are campus-scoped: campus admins see candidates
-// who last applied within their campus(es); department members see candidates
-// linked to applications they can review. Global admins see everything.
 export interface CandidateProfileScopeTarget {
   campus_id: string | null;
 }
@@ -281,194 +234,24 @@ export function assertCandidateProfileReadAccess(
   }
 }
 
-function toRecruitmentTranslation(
-  translation: ContentTranslations
-): RecruitmentTranslation {
-  return {
-    $id: translation.$id,
-    additional_fields: translation.additional_fields ?? null,
-    description: translation.description ?? "",
-    locale: translation.locale,
-    short_description: translation.short_description ?? null,
-    title: translation.title ?? "",
-  };
-}
-
-export async function fetchRecruitmentTranslations(
-  db: DbClient,
-  contentIds: string[]
-): Promise<Map<string, RecruitmentTranslation[]>> {
-  const translationsByContentId = new Map<string, RecruitmentTranslation[]>();
-
-  for (let index = 0; index < contentIds.length; index += 25) {
-    const chunk = contentIds.slice(index, index + 25);
-    const response = await db.listRows<ContentTranslations>(
-      "app",
-      "content_translations",
-      [
-        Query.equal("content_type", "job"),
-        Query.equal("content_id", chunk),
-        Query.select([...TRANSLATION_SELECT]),
-        Query.limit(chunk.length * 4),
-      ]
-    );
-
-    for (const translation of response.rows) {
-      const current = translationsByContentId.get(translation.content_id) ?? [];
-      current.push(toRecruitmentTranslation(translation));
-      translationsByContentId.set(translation.content_id, current);
-    }
-  }
-
-  return translationsByContentId;
-}
-
-export function buildRecruitmentVacancy(
-  job: Jobs,
-  translations?: RecruitmentTranslation[]
-): RecruitmentVacancy {
-  const resolvedTranslations: RecruitmentTranslation[] =
-    translations ??
-    ((job.translations as ContentTranslations[] | undefined) ?? []).map(
-      toRecruitmentTranslation
-    );
-  const parsedMetadata = parseRecruitmentVacancyMetadata(job.metadata);
-  const translationFallback = resolvedTranslations.find(
-    (translation) => translation.locale === Locale.NO
-  );
-
-  let legacyMetadata: Record<string, unknown> = {};
-  if (translationFallback?.additional_fields) {
-    try {
-      legacyMetadata = JSON.parse(
-        translationFallback.additional_fields
-      ) as Record<string, unknown>;
-    } catch {
-      legacyMetadata = {};
-    }
-  }
-
-  return {
-    $createdAt: job.$createdAt,
-    $id: job.$id,
-    $updatedAt: job.$updatedAt,
-    campus: job.campus
-      ? {
-          $id: job.campus.$id,
-          name: job.campus.name,
-        }
-      : null,
-    campus_id: job.campus_id,
-    department: job.department
-      ? {
-          $id: job.department.$id,
-          campus_id: job.department.campus_id,
-          Name: job.department.Name,
-        }
-      : null,
-    department_id: job.department_id,
-    metadata: buildRecruitmentVacancyMetadata(
-      {
-        company:
-          parsedMetadata.company ??
-          (typeof legacyMetadata.company === "string"
-            ? legacyMetadata.company
-            : null),
-        employment_type:
-          parsedMetadata.employment_type ??
-          (typeof legacyMetadata.employment_type === "string"
-            ? legacyMetadata.employment_type
-            : null),
-        short_description:
-          parsedMetadata.short_description ??
-          translationFallback?.short_description,
-      },
-      parsedMetadata
-    ),
-    slug: job.slug,
-    status: job.status,
-    translations: resolvedTranslations,
-    custom_questions: parseRecruitmentCustomQuestions(job.custom_questions),
-    screening_rubric: job.screening_rubric
-      ? parseRecruitmentScreeningRubric(job.screening_rubric)
-      : null,
-    interview_template: job.interview_template
-      ? parseRecruitmentInterviewTemplate(job.interview_template)
-      : null,
-    auto_screen: job.auto_screen ?? true,
-  };
-}
-
-async function listJobsWithSelectFallback(
-  db: DbClient,
-  baseQueries: string[]
-): Promise<{ rows: Jobs[]; total: number }> {
-  // Prefer the trimmed select with translations.* dotted path; fall back to
-  // fetching all columns when Appwrite rejects the query (column not
-  // deployed yet, etc.). Keeps reads working during schema rollout.
-  try {
-    return await db.listRows<Jobs>("app", "jobs", [
-      Query.select([...JOB_SELECT]),
-      ...baseQueries,
-    ]);
-  } catch (error) {
-    if (process.env.NODE_ENV !== "production") {
-      console.warn(
-        "JOB_SELECT failed; falling back to full-column fetch. Deploy schema with `appwrite deploy collections` to enable column projection.",
-        error
-      );
-    }
-    return await db.listRows<Jobs>("app", "jobs", baseQueries);
-  }
-}
-
-export async function fetchRecruitmentJobsByIds(
-  db: DbClient,
-  ids: string[]
-): Promise<Map<string, RecruitmentVacancy>> {
-  const jobsById = new Map<string, RecruitmentVacancy>();
-
-  for (let index = 0; index < ids.length; index += 25) {
-    const chunk = ids.slice(index, index + 25);
-    const response = await listJobsWithSelectFallback(db, [
-      Query.equal("$id", chunk),
-      Query.limit(chunk.length),
-    ]);
-
-    for (const job of response.rows) {
-      jobsById.set(job.$id, buildRecruitmentVacancy(job));
-    }
-  }
-
-  return jobsById;
-}
-
-export function getRecruitmentVacancyTitle(
-  vacancy: RecruitmentVacancy,
-  locale: LocaleType = Locale.NO
-): string {
-  return (
-    vacancy.translations.find(
-      (translation) => translation.locale === locale
-    )?.title ??
-    vacancy.translations[0]?.title ??
-    "Untitled"
-  );
-}
-
 export function buildRecruitmentApplicationRecord(
-  application: JobApplications,
-  jobsById: Map<string, RecruitmentVacancy>
+  application: JobApplications
 ): RecruitmentApplicationRecord {
-  const vacancy = jobsById.get(application.job_id);
-  const jobSummary: RecruitmentApplicationJobSummary | null = vacancy
+  const jobRow = application.job as Jobs | null | undefined;
+  const jobSummary: RecruitmentApplicationJobSummary | null = jobRow
     ? {
-        $id: vacancy.$id,
-        campus_id: vacancy.campus_id,
-        department_id: vacancy.department_id,
-        slug: vacancy.slug,
-        status: vacancy.status,
-        title: getRecruitmentVacancyTitle(vacancy),
+        $id: jobRow.$id,
+        campus_id: jobRow.campus_id,
+        department_id: jobRow.department_id,
+        slug: jobRow.slug,
+        status: jobRow.status,
+        title:
+          (jobRow.translations as ContentTranslations[] | undefined)?.find(
+            (t) => t.locale === "no"
+          )?.title ??
+          (jobRow.translations as ContentTranslations[] | undefined)?.[0]
+            ?.title ??
+          "Untitled",
       }
     : null;
 
@@ -492,20 +275,4 @@ export function buildRecruitmentApplicationRecord(
     resume_file_id: application.resume_file_id ?? null,
     status: application.status,
   };
-}
-
-export async function getRecruitmentJobById(
-  db: DbClient,
-  jobId: string
-): Promise<RecruitmentVacancy | null> {
-  const jobsById = await fetchRecruitmentJobsByIds(db, [jobId]);
-  return jobsById.get(jobId) ?? null;
-}
-
-export async function fetchRecruitmentListRows(
-  db: DbClient,
-  queries: string[]
-): Promise<RecruitmentVacancy[]> {
-  const response = await listJobsWithSelectFallback(db, queries);
-  return response.rows.map((job) => buildRecruitmentVacancy(job));
 }

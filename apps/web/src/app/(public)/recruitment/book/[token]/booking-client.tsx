@@ -22,7 +22,9 @@ function generateSlots(from: string, to: string, duration: number): string[] {
     cursor = new Date(cursor.getTime() + 60 * 60_000)
   ) {
     const hour = cursor.getHours();
-    if (hour < 9 || hour > 17) continue;
+    if (hour < 9 || hour > 17) {
+      continue;
+    }
     slots.push(cursor.toISOString());
   }
   return slots;
@@ -51,7 +53,9 @@ export function BookingClient({
   const [isPending, startTransition] = useTransition();
 
   function handleConfirm() {
-    if (!selected) return;
+    if (!selected) {
+      return;
+    }
     setError(null);
     startTransition(async () => {
       const result = await confirmBookingSlot(token, selected, durationMinutes);
@@ -66,7 +70,9 @@ export function BookingClient({
   if (confirmedAt) {
     return (
       <Card className="mt-6 border-border/60 p-6 shadow-sm">
-        <h2 className="font-semibold text-foreground text-lg">You're booked!</h2>
+        <h2 className="font-semibold text-foreground text-lg">
+          You're booked!
+        </h2>
         <p className="mt-2 text-muted-foreground text-sm">
           Interview confirmed for {formatSlot(confirmedAt)}. You'll receive a
           calendar invite shortly.

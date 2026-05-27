@@ -42,8 +42,7 @@ export async function GET(request: Request) {
     const items = (result.rows ?? []).map((r: Record<string, unknown>) => {
       const meta = parseMeta(r.metadata);
       return {
-        title:
-          titleFromRefs(r.translations) || String(r.title ?? r.name ?? ""),
+        title: titleFromRefs(r.translations) || String(r.title ?? r.name ?? ""),
         department: dept,
         deadline: String(meta.deadline ?? r.deadline ?? ""),
         commitment: String(meta.commitment ?? r.commitment ?? ""),

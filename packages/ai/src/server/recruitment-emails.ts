@@ -2,9 +2,9 @@ import "server-only";
 
 import { openai } from "@ai-sdk/openai";
 import {
-  recruitmentAiEmailDraftSchema,
   type RecruitmentAiEmailDraft,
   type RecruitmentVacancy,
+  recruitmentAiEmailDraftSchema,
 } from "@repo/shared/types/recruitment";
 import { generateObject } from "ai";
 
@@ -16,17 +16,17 @@ export type RecruitmentEmailStage =
   | "thank_you";
 
 export interface DraftCandidateEmailInput {
-  vacancy: Pick<RecruitmentVacancy, "translations" | "metadata">;
   application: {
     applicant_name: string;
     applicant_email: string;
   };
-  stage: RecruitmentEmailStage;
-  locale?: "no" | "en";
-  tone?: "warm" | "neutral" | "concise";
   /** Optional HR notes the model should fold into the message. */
   context?: string | null;
+  locale?: "no" | "en";
   model?: string;
+  stage: RecruitmentEmailStage;
+  tone?: "warm" | "neutral" | "concise";
+  vacancy: Pick<RecruitmentVacancy, "translations" | "metadata">;
 }
 
 const STAGE_INSTRUCTIONS: Record<RecruitmentEmailStage, string> = {

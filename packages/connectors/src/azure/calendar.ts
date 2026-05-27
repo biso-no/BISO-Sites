@@ -16,29 +16,29 @@ import type { Client as GraphClient } from "@microsoft/microsoft-graph-client";
  */
 
 export interface BusyInterval {
-  start: string;
   end: string;
+  start: string;
   status?: string;
 }
 
 export interface FreeBusyResult {
-  user: string;
   busy: BusyInterval[];
-  workingHours?: WorkingHours;
   error?: string;
+  user: string;
+  workingHours?: WorkingHours;
 }
 
 export interface WorkingHours {
-  startTime: string; // "09:00:00.0000000"
-  endTime: string; // "17:00:00.0000000"
   daysOfWeek: string[]; // ["monday", ...]
+  endTime: string; // "17:00:00.0000000"
+  startTime: string; // "09:00:00.0000000"
   timeZone: string;
 }
 
 export interface FreeSlotCandidate {
-  start: Date;
-  end: Date;
   conflictsByUser: Map<string, BusyInterval[]>;
+  end: Date;
+  start: Date;
 }
 
 const MS_PER_MINUTE = 60_000;
@@ -156,7 +156,10 @@ export function findCommonSlots(
     const start = new Date(cursor);
     const end = new Date(cursor + durationMs);
 
-    if (options.workingHoursOnly && !isWithinAnyWorkingHours(start, end, freeBusyByUser)) {
+    if (
+      options.workingHoursOnly &&
+      !isWithinAnyWorkingHours(start, end, freeBusyByUser)
+    ) {
       continue;
     }
 
@@ -217,7 +220,10 @@ function isWithinAnyWorkingHours(
     winStart.setHours(startHour, startMin, 0, 0);
     const winEnd = new Date(start);
     winEnd.setHours(endHour, endMin, 0, 0);
-    if (start.getTime() >= winStart.getTime() && end.getTime() <= winEnd.getTime()) {
+    if (
+      start.getTime() >= winStart.getTime() &&
+      end.getTime() <= winEnd.getTime()
+    ) {
       return true;
     }
   }
@@ -226,16 +232,16 @@ function isWithinAnyWorkingHours(
 }
 
 export interface CreateTeamsMeetingInput {
-  subject: string;
-  starts_at: Date;
-  ends_at: Date;
   attendeeEmails?: string[];
+  ends_at: Date;
+  starts_at: Date;
+  subject: string;
 }
 
 export interface TeamsMeeting {
+  conferenceId?: string;
   id: string;
   joinUrl: string;
-  conferenceId?: string;
 }
 
 /**
@@ -276,13 +282,13 @@ export async function createTeamsMeeting(
 }
 
 export interface CalendarEventInput {
-  subject: string;
-  body: string;
-  starts_at: Date;
-  ends_at: Date;
   attendeeEmails: string[];
+  body: string;
+  ends_at: Date;
   location?: string | null;
   onlineMeetingUrl?: string | null;
+  starts_at: Date;
+  subject: string;
   timezone?: string;
 }
 
@@ -318,9 +324,7 @@ export async function createCalendarEvent(
           timeZone: input.timezone ?? "UTC",
         },
         isOnlineMeeting: Boolean(input.onlineMeetingUrl),
-        location: input.location
-          ? { displayName: input.location }
-          : undefined,
+        location: input.location ? { displayName: input.location } : undefined,
         start: {
           dateTime: input.starts_at.toISOString(),
           timeZone: input.timezone ?? "UTC",

@@ -1,22 +1,29 @@
-import { ArrowLeft, Briefcase, FileText, Mail, Phone, UserRound } from "lucide-react";
+import {
+  ArrowLeft,
+  Briefcase,
+  FileText,
+  Mail,
+  Phone,
+  UserRound,
+} from "lucide-react";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import {
-  getJob,
-  getJobApplication,
-  listRecruitmentReviewers,
-} from "../../../../_actions/jobs";
+import { getUserAuthContext } from "@/lib/authorization";
 import {
   type InterviewWithParticipants,
   listInterviewsForApplication,
   listScorecardsForInterview,
   type ScorecardWithSummary,
 } from "../../../../_actions/interviews";
+import {
+  getJob,
+  getJobApplication,
+  listRecruitmentReviewers,
+} from "../../../../_actions/jobs";
 import { PageHeader } from "../../../../_components/page-header";
 import { StatusBadge } from "../../../../_components/status-badge";
 import { StudioLinkButton } from "../../../../_components/studio";
 import { JobInterviewPanel } from "../../../_components/job-interview-panel";
-import { getUserAuthContext } from "@/lib/authorization";
 
 interface PageProps {
   params: Promise<{ id: string; applicationId: string }>;
@@ -63,10 +70,10 @@ export default async function ApplicationDetailPage({ params }: PageProps) {
     scorecardEntries
   );
 
-  const screening = (application as unknown as {
+  const screening = application as unknown as {
     ai_screening?: string | null;
     screening_score?: number | null;
-  });
+  };
 
   return (
     <div className="pb-12">

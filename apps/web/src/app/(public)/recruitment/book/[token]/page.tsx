@@ -27,12 +27,14 @@ export default async function CandidateBookingPage({ params }: PageProps) {
     );
   }
 
-  if (!result.data) return notFound();
+  if (!result.data) {
+    return notFound();
+  }
   const { data } = result;
 
   return (
     <main className="mx-auto max-w-xl px-4 py-16">
-      <h1 className="font-semibold text-foreground text-2xl">
+      <h1 className="font-semibold text-2xl text-foreground">
         Pick an interview slot
       </h1>
       <p className="mt-2 text-muted-foreground text-sm">

@@ -384,10 +384,7 @@ export const recruitmentApplicationReviewMetadataSchema = z
     last_reviewed_by: nullableTrimmedString(200),
     review_notes: nullableTrimmedString(4000),
     score: z.number().int().min(1).max(5).nullable().optional(),
-    ai_email_drafts: z
-      .record(z.string(), z.unknown())
-      .optional()
-      .default({}),
+    ai_email_drafts: z.record(z.string(), z.unknown()).optional().default({}),
     ai_screening_summary: nullableTrimmedString(2000),
   })
   .catchall(z.unknown());
@@ -427,18 +424,18 @@ export interface RecruitmentVacancy {
   $createdAt: string;
   $id: string;
   $updatedAt: string;
+  auto_screen: boolean;
   campus: RecruitmentCampusRef | null;
   campus_id: string;
+  custom_questions: RecruitmentCustomQuestion[];
   department: RecruitmentDepartmentRef | null;
   department_id: string | null;
+  interview_template: RecruitmentInterviewTemplate | null;
   metadata: RecruitmentVacancyMetadata;
+  screening_rubric: RecruitmentScreeningRubric | null;
   slug: string;
   status: JobStatus;
   translations: RecruitmentTranslation[];
-  custom_questions: RecruitmentCustomQuestion[];
-  screening_rubric: RecruitmentScreeningRubric | null;
-  interview_template: RecruitmentInterviewTemplate | null;
-  auto_screen: boolean;
 }
 
 export interface RecruitmentApplicationJobSummary {
@@ -516,42 +513,42 @@ export function assertRecruitmentApplicationTransition(
   }
 }
 
+function parseJsonMetadata<T>(
+  schema: { parse: (data: unknown) => T },
+  value: unknown
+): T {
+  if (typeof value === "string") {
+    try {
+      return schema.parse(JSON.parse(value));
+    } catch {
+      return schema.parse({});
+    }
+  }
+  if (value && typeof value === "object") {
+    return schema.parse(value);
+  }
+  return schema.parse({});
+}
+
+function serializeJsonMetadata(
+  metadata: Record<string, unknown>
+): string | null {
+  const normalized = Object.fromEntries(
+    Object.entries(metadata).filter(([, v]) => v !== undefined)
+  );
+  return Object.keys(normalized).length > 0 ? JSON.stringify(normalized) : null;
+}
+
 export function parseRecruitmentVacancyMetadata(
   value: unknown
 ): RecruitmentVacancyMetadata {
-  if (typeof value === "string") {
-    try {
-      const parsed = JSON.parse(value) as unknown;
-      return recruitmentVacancyMetadataSchema.parse(parsed);
-    } catch {
-      return recruitmentVacancyMetadataSchema.parse({});
-    }
-  }
-
-  if (value && typeof value === "object") {
-    return recruitmentVacancyMetadataSchema.parse(value);
-  }
-
-  return recruitmentVacancyMetadataSchema.parse({});
+  return parseJsonMetadata(recruitmentVacancyMetadataSchema, value);
 }
 
 export function parseRecruitmentApplicationReviewMetadata(
   value: unknown
 ): RecruitmentApplicationReviewMetadata {
-  if (typeof value === "string") {
-    try {
-      const parsed = JSON.parse(value) as unknown;
-      return recruitmentApplicationReviewMetadataSchema.parse(parsed);
-    } catch {
-      return recruitmentApplicationReviewMetadataSchema.parse({});
-    }
-  }
-
-  if (value && typeof value === "object") {
-    return recruitmentApplicationReviewMetadataSchema.parse(value);
-  }
-
-  return recruitmentApplicationReviewMetadataSchema.parse({});
+  return parseJsonMetadata(recruitmentApplicationReviewMetadataSchema, value);
 }
 
 export function buildRecruitmentApplicationReviewMetadata(
@@ -569,19 +566,7 @@ export function buildRecruitmentApplicationReviewMetadata(
 export function serializeRecruitmentApplicationReviewMetadata(
   metadata: RecruitmentApplicationReviewMetadata
 ): string | null {
-  const normalized = Object.fromEntries(
-    Object.entries(metadata).filter(([, value]) => value !== undefined)
-  );
-
-  return Object.keys(normalized).length > 0 ? JSON.stringify(normalized) : null;
-}
-
-function metadataValue<T>(
-  inputValue: T | undefined,
-  currentValue: T | undefined,
-  fallbackValue: T
-): T {
-  return inputValue ?? currentValue ?? fallbackValue;
+  return serializeJsonMetadata(metadata);
 }
 
 export function buildRecruitmentVacancyMetadata(
@@ -589,87 +574,16 @@ export function buildRecruitmentVacancyMetadata(
   existing?: unknown
 ): RecruitmentVacancyMetadata {
   const current = parseRecruitmentVacancyMetadata(existing);
-
-  return recruitmentVacancyMetadataSchema.parse({
-    ...current,
-    company: metadataValue(input.company, current.company, null),
-    employment_type: metadataValue(
-      input.employment_type,
-      current.employment_type,
-      null
-    ),
-    paid: metadataValue(input.paid, current.paid, false),
-    short_description: metadataValue(
-      input.short_description,
-      current.short_description,
-      null
-    ),
-    location: metadataValue(input.location, current.location, null),
-    application_deadline: metadataValue(
-      input.application_deadline,
-      current.application_deadline,
-      null
-    ),
-    contact_name: metadataValue(input.contact_name, current.contact_name, null),
-    contact_email: metadataValue(
-      input.contact_email,
-      current.contact_email,
-      null
-    ),
-    cv_required: metadataValue(input.cv_required, current.cv_required, false),
-    tags: metadataValue(input.tags, current.tags, []),
-    commitment: metadataValue(input.commitment, current.commitment, null),
-    term: metadataValue(input.term, current.term, null),
-    start_date: metadataValue(input.start_date, current.start_date, null),
-    audience: metadataValue(input.audience, current.audience, null),
-    contact_role: metadataValue(input.contact_role, current.contact_role, null),
-    cover_pattern: metadataValue(
-      input.cover_pattern,
-      current.cover_pattern,
-      null
-    ),
-    cover_image_file_id: metadataValue(
-      input.cover_image_file_id,
-      current.cover_image_file_id,
-      null
-    ),
-    cover_image_url: metadataValue(
-      input.cover_image_url,
-      current.cover_image_url,
-      null
-    ),
-    auto_translate: metadataValue(
-      input.auto_translate,
-      current.auto_translate,
-      false
-    ),
-    push_to_inboxes: metadataValue(
-      input.push_to_inboxes,
-      current.push_to_inboxes,
-      false
-    ),
-    newsletter: metadataValue(input.newsletter, current.newsletter, false),
-    publication_mode: metadataValue(
-      input.publication_mode,
-      current.publication_mode,
-      null
-    ),
-    scheduled_publish_at: metadataValue(
-      input.scheduled_publish_at,
-      current.scheduled_publish_at,
-      null
-    ),
-  });
+  const defined = Object.fromEntries(
+    Object.entries(input).filter(([, v]) => v !== undefined)
+  );
+  return recruitmentVacancyMetadataSchema.parse({ ...current, ...defined });
 }
 
 export function serializeRecruitmentVacancyMetadata(
   metadata: RecruitmentVacancyMetadata
 ): string | null {
-  const normalized = Object.fromEntries(
-    Object.entries(metadata).filter(([, value]) => value !== undefined)
-  );
-
-  return Object.keys(normalized).length > 0 ? JSON.stringify(normalized) : null;
+  return serializeJsonMetadata(metadata);
 }
 
 export function getRecruitmentVacancyCloseDate(
@@ -753,14 +667,22 @@ export const recruitmentAiScreeningSchema = z.object({
   strengths: z.array(z.string().trim().min(1).max(200)).max(10).default([]),
   concerns: z.array(z.string().trim().min(1).max(200)).max(10).default([]),
   red_flags: z.array(z.string().trim().min(1).max(200)).max(10).default([]),
-  must_have_matches: z.array(z.string().trim().min(1).max(200)).max(20).default([]),
-  must_have_missing: z.array(z.string().trim().min(1).max(200)).max(20).default([]),
+  must_have_matches: z
+    .array(z.string().trim().min(1).max(200))
+    .max(20)
+    .default([]),
+  must_have_missing: z
+    .array(z.string().trim().min(1).max(200))
+    .max(20)
+    .default([]),
   generated_at: z.string(),
   model: z.string().trim().min(1).max(120),
   version: z.literal(1).default(1),
 });
 
-export type RecruitmentAiScreening = z.infer<typeof recruitmentAiScreeningSchema>;
+export type RecruitmentAiScreening = z.infer<
+  typeof recruitmentAiScreeningSchema
+>;
 
 export function parseRecruitmentAiScreening(
   value: unknown
@@ -820,8 +742,9 @@ export type RecruitmentInterviewCreateInput = z.infer<
   typeof recruitmentInterviewCreateSchema
 >;
 
-export const recruitmentInterviewUpdateSchema =
-  recruitmentInterviewCreateSchema.partial().extend({
+export const recruitmentInterviewUpdateSchema = recruitmentInterviewCreateSchema
+  .partial()
+  .extend({
     status: recruitmentNewInterviewStatusSchema.optional(),
     cancelled_reason: nullableTrimmedString(500),
   });
@@ -862,9 +785,7 @@ export function parseScorecardCriteria(
     return [];
   }
   const raw = typeof value === "string" ? safeJsonParse(value) : value;
-  const parsed = z
-    .array(recruitmentScorecardCriterionSchema)
-    .safeParse(raw);
+  const parsed = z.array(recruitmentScorecardCriterionSchema).safeParse(raw);
   return parsed.success ? parsed.data : [];
 }
 
@@ -880,7 +801,11 @@ export const recruitmentCandidateProfileUpsertSchema = z.object({
   current_role: nullableTrimmedString(200),
   current_employer: nullableTrimmedString(200),
   campus_id: nullableTrimmedString(50),
-  tags: z.array(z.string().trim().min(1).max(40)).max(20).optional().default([]),
+  tags: z
+    .array(z.string().trim().min(1).max(40))
+    .max(20)
+    .optional()
+    .default([]),
   notes: nullableTrimmedString(8000),
   source: nullableTrimmedString(100),
 });
@@ -897,14 +822,14 @@ export const RECRUITMENT_BOOKING_TOKEN_DEFAULT_TTL_DAYS = 14;
 
 export const recruitmentBookingProposeSchema = z.object({
   application_id: z.string().trim().min(1).max(50),
-  panel_user_ids: z
-    .array(z.string().trim().min(1).max(50))
-    .min(1)
-    .max(10),
+  panel_user_ids: z.array(z.string().trim().min(1).max(50)).min(1).max(10),
   duration_minutes: z.number().int().min(15).max(240).default(30),
   window_from: z
     .string()
-    .refine((value) => !Number.isNaN(Date.parse(value)), "Invalid window start"),
+    .refine(
+      (value) => !Number.isNaN(Date.parse(value)),
+      "Invalid window start"
+    ),
   window_to: z
     .string()
     .refine((value) => !Number.isNaN(Date.parse(value)), "Invalid window end"),

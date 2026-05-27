@@ -17,9 +17,11 @@ import {
  * developers can run the recruitment UI without Graph access.
  */
 
-function readGraphCreds():
-  | { tenantId: string; clientId: string; clientSecret: string }
-  | null {
+function readGraphCreds(): {
+  tenantId: string;
+  clientId: string;
+  clientSecret: string;
+} | null {
   const tenantId = process.env.AZURE_TENANT_ID;
   const clientId = process.env.AZURE_CLIENT_ID;
   const clientSecret = process.env.AZURE_CLIENT_SECRET;
@@ -38,8 +40,8 @@ function lazyGraphClient() {
 }
 
 export interface ProposedSlot {
-  starts_at: string;
   ends_at: string;
+  starts_at: string;
 }
 
 export async function proposeSlotsForPanel(input: {
@@ -81,20 +83,20 @@ export async function proposeSlotsForPanel(input: {
 }
 
 export interface ScheduleInterviewInput {
-  organizerUpn: string;
-  subject: string;
-  starts_at: Date;
-  ends_at: Date;
-  candidateEmail: string;
-  panelEmails: string[];
   body: string;
+  candidateEmail: string;
   createTeamsMeeting?: boolean;
+  ends_at: Date;
+  organizerUpn: string;
+  panelEmails: string[];
+  starts_at: Date;
+  subject: string;
 }
 
 export interface ScheduledInterview {
+  meetingUrl: string | null;
   outlookEventId: string | null;
   teamsMeetingId: string | null;
-  meetingUrl: string | null;
   webLink: string | null;
 }
 

@@ -13,10 +13,7 @@
 
 import { ID, Query } from "@repo/api";
 import { createAdminClient } from "@repo/api/server";
-import type {
-  JobApplications,
-  Jobs,
-} from "@repo/api/types/appwrite";
+import type { JobApplications, Jobs } from "@repo/api/types/appwrite";
 import {
   InterviewParticipantRole,
   InterviewResponseStatus,
@@ -29,14 +26,14 @@ import { grantTeamRecruitmentAccess } from "@/lib/team-provisioning";
 const DATABASE_ID = "app";
 
 interface MigrationResult {
-  success: boolean;
   applications_scanned: number;
+  dry_run: boolean;
+  error?: string;
+  errors: number;
   interviews_created: number;
   participants_created: number;
+  success: boolean;
   teams_provisioned: number;
-  errors: number;
-  error?: string;
-  dry_run: boolean;
 }
 
 export async function runRecruitment2026MayMigration(
@@ -74,7 +71,10 @@ export async function runRecruitment2026MayMigration(
       }
       teamsProvisioned++;
     } catch (err) {
-      console.error(`Failed to provision recruitment access for ${team.name}`, err);
+      console.error(
+        `Failed to provision recruitment access for ${team.name}`,
+        err
+      );
       errors++;
     }
   }
@@ -84,10 +84,7 @@ export async function runRecruitment2026MayMigration(
   const BATCH = 100;
   // Safety cap to avoid runaway loops.
   for (let i = 0; i < 1000; i++) {
-    const queries = [
-      Query.limit(BATCH),
-      Query.orderAsc("$id"),
-    ];
+    const queries = [Query.limit(BATCH), Query.orderAsc("$id")];
     if (cursor) {
       queries.push(Query.cursorAfter(cursor));
     }
@@ -115,14 +112,10 @@ export async function runRecruitment2026MayMigration(
       }
 
       // Skip if an interview already exists for this application.
-      const existing = await db.listRows(
-        DATABASE_ID,
-        "job_interviews",
-        [
-          Query.equal("application_id", application.$id),
-          Query.limit(1),
-        ]
-      );
+      const existing = await db.listRows(DATABASE_ID, "job_interviews", [
+        Query.equal("application_id", application.$id),
+        Query.limit(1),
+      ]);
       if (existing.rows.length > 0) {
         continue;
       }
@@ -130,12 +123,9 @@ export async function runRecruitment2026MayMigration(
       // Resolve job to denormalise campus/department onto the interview.
       let job: Jobs | null = null;
       try {
-        job = await db.getRow<Jobs>(
-          DATABASE_ID,
-          "jobs",
-          application.job_id,
-          [Query.select(["$id", "campus_id", "department_id"])]
-        );
+        job = await db.getRow<Jobs>(DATABASE_ID, "jobs", application.job_id, [
+          Query.select(["$id", "campus_id", "department_id"]),
+        ]);
       } catch (err) {
         console.warn(
           `Migration: job ${application.job_id} missing for application ${application.$id}`,
@@ -147,14 +137,18 @@ export async function runRecruitment2026MayMigration(
 
       const durationMinutes = review.interview_duration_minutes ?? 45;
       const startsAt = new Date(review.interview_starts_at);
-      const endsAt = new Date(
-        startsAt.getTime() + durationMinutes * 60 * 1000
-      );
+      const endsAt = new Date(startsAt.getTime() + durationMinutes * 60 * 1000);
 
       const status = mapLegacyInterviewStatus(review.interview_status);
 
       try {
-        if (!dryRun) {
+        if (dryRun) {
+          interviewsCreated++;
+          participantsCreated++;
+          if (review.assigned_hr_user_id) {
+            participantsCreated++;
+          }
+        } else {
           const interview = await db.createRow(
             DATABASE_ID,
             "job_interviews",
@@ -216,12 +210,6 @@ export async function runRecruitment2026MayMigration(
             );
             participantsCreated++;
           }
-        } else {
-          interviewsCreated++;
-          participantsCreated++;
-          if (review.assigned_hr_user_id) {
-            participantsCreated++;
-          }
         }
       } catch (err) {
         console.error(
@@ -248,9 +236,7 @@ export async function runRecruitment2026MayMigration(
   };
 }
 
-function mapLegacyInterviewStatus(
-  legacy: string | undefined
-): InterviewStatus {
+function mapLegacyInterviewStatus(legacy: string | undefined): InterviewStatus {
   switch (legacy) {
     case "scheduled":
       return InterviewStatus.SCHEDULED;

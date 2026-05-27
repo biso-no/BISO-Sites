@@ -1,7 +1,6 @@
 "use client";
 
 import type {
-  JobInterviewParticipants,
   JobInterviewScorecards,
   JobInterviews,
 } from "@repo/api/types/appwrite";
@@ -9,16 +8,15 @@ import {
   InterviewParticipantRole,
   InterviewStatus,
 } from "@repo/api/types/appwrite";
-import {
-  type RecruitmentScorecardCriterion,
-  type RecruitmentInterviewCreateInput,
+import type {
+  RecruitmentInterviewCreateInput,
+  RecruitmentScorecardCriterion,
 } from "@repo/shared/types/recruitment";
 import {
   CalendarClock,
   Clock,
   MapPin,
   Plus,
-  UserPlus,
   Users,
   Video,
   X,
@@ -38,31 +36,46 @@ import type { RecruitmentReviewerOption } from "../../_actions/jobs";
 import { JobInterviewScorecardForm } from "./job-interview-scorecard-form";
 
 interface Props {
-  applicationId: string;
-  applicantName: string;
   applicantEmail: string;
+  applicantName: string;
+  applicationId: string;
+  currentUserId: string;
   initialInterviews: InterviewWithParticipants[];
   reviewers: RecruitmentReviewerOption[];
-  currentUserId: string;
   scorecardsByInterview: Map<string, ScorecardWithSummary[]>;
 }
 
 function toDateTimeInputValue(value: string | null | undefined): string {
-  if (!value) return "";
+  if (!value) {
+    return "";
+  }
   // datetime-local needs yyyy-MM-ddThh:mm (no seconds)
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
   const pad = (n: number) => String(n).padStart(2, "0");
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
-function formatDateRange(startsAt: string | null, endsAt: string | null): string {
-  if (!startsAt) return "No time set";
+function formatDateRange(
+  startsAt: string | null,
+  endsAt: string | null
+): string {
+  if (!startsAt) {
+    return "No time set";
+  }
   const s = new Date(startsAt);
-  if (Number.isNaN(s.getTime())) return "Invalid time";
-  if (!endsAt) return s.toLocaleString();
+  if (Number.isNaN(s.getTime())) {
+    return "Invalid time";
+  }
+  if (!endsAt) {
+    return s.toLocaleString();
+  }
   const e = new Date(endsAt);
-  if (Number.isNaN(e.getTime())) return s.toLocaleString();
+  if (Number.isNaN(e.getTime())) {
+    return s.toLocaleString();
+  }
   return `${s.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })} → ${e.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}`;
 }
 
@@ -77,9 +90,9 @@ export function JobInterviewPanel({
 }: Props) {
   const [interviews, setInterviews] =
     useState<InterviewWithParticipants[]>(initialInterviews);
-  const [scorecards, setScorecards] = useState<Map<string, ScorecardWithSummary[]>>(
-    scorecardsByInterview
-  );
+  const [scorecards, setScorecards] = useState<
+    Map<string, ScorecardWithSummary[]>
+  >(scorecardsByInterview);
   const [isCreating, setIsCreating] = useState(false);
   const [createDraft, setCreateDraft] = useState<{
     title: string;
@@ -110,7 +123,7 @@ export function JobInterviewPanel({
   }
 
   function handleCreate() {
-    if (!createDraft.starts_at || !createDraft.ends_at) {
+    if (!(createDraft.starts_at && createDraft.ends_at)) {
       toast.error("Set a start and end time.");
       return;
     }
@@ -152,7 +165,10 @@ export function JobInterviewPanel({
       }
       if (result.data) {
         toast.success("Interview scheduled");
-        setInterviews((existing) => [...existing, result.data as InterviewWithParticipants]);
+        setInterviews((existing) => [
+          ...existing,
+          result.data as InterviewWithParticipants,
+        ]);
         setIsCreating(false);
         setCreateDraft({
           ends_at: "",
@@ -248,7 +264,10 @@ export function JobInterviewPanel({
 
   function handleRemoveParticipant(interviewId: string, participantId: string) {
     startTransition(async () => {
-      const result = await removeInterviewParticipant(interviewId, participantId);
+      const result = await removeInterviewParticipant(
+        interviewId,
+        participantId
+      );
       if (result.error) {
         toast.error(result.error);
         return;
@@ -364,9 +383,7 @@ export function JobInterviewPanel({
               />
             </label>
             <label className="space-y-2 text-xs">
-              <span style={{ color: "rgba(255,255,255,0.45)" }}>
-                Location
-              </span>
+              <span style={{ color: "rgba(255,255,255,0.45)" }}>Location</span>
               <input
                 className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none"
                 onChange={(event) =>
@@ -445,7 +462,7 @@ export function JobInterviewPanel({
               Cancel
             </button>
             <button
-              className="rounded-xl px-4 py-2 text-xs font-medium"
+              className="rounded-xl px-4 py-2 font-medium text-xs"
               disabled={isPending}
               onClick={handleCreate}
               style={{ background: "#3DA9E0", color: "#001731" }}
@@ -488,8 +505,7 @@ export function JobInterviewPanel({
               (participant) => participant.user_id === currentUserId
             );
             const userScorecard = sCards.find(
-              (entry) =>
-                entry.scorecard.interviewer_user_id === currentUserId
+              (entry) => entry.scorecard.interviewer_user_id === currentUserId
             );
 
             return (
@@ -570,7 +586,10 @@ export function JobInterviewPanel({
 
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
-                    <Users size={12} style={{ color: "rgba(255,255,255,0.4)" }} />
+                    <Users
+                      size={12}
+                      style={{ color: "rgba(255,255,255,0.4)" }}
+                    />
                     <p
                       className="text-xs"
                       style={{ color: "rgba(255,255,255,0.45)" }}
@@ -627,7 +646,7 @@ export function JobInterviewPanel({
                       </span>
                     ))}
                     <select
-                      className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-xs text-white outline-none"
+                      className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-white text-xs outline-none"
                       onChange={(event) => {
                         const value = event.target.value;
                         if (value) {

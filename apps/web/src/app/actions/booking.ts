@@ -1,16 +1,16 @@
 "use server";
 
+import { createHash } from "node:crypto";
 import { ID, Query } from "@repo/api";
 import { createAdminClient } from "@repo/api/server";
-import { InterviewStatus } from "@repo/api/types/appwrite";
 import type {
   JobApplications,
   JobInterviews,
   Jobs,
   RecruitmentBookingTokens,
 } from "@repo/api/types/appwrite";
+import { InterviewStatus } from "@repo/api/types/appwrite";
 import { recruitmentBookingConfirmSchema } from "@repo/shared/types/recruitment";
-import { createHash } from "node:crypto";
 
 const SECRET = process.env.RECRUITMENT_BOOKING_SECRET;
 
@@ -32,7 +32,9 @@ export interface BookingContext {
 export async function getBookingContext(
   token: string
 ): Promise<{ data: BookingContext } | { error: string }> {
-  if (!SECRET) return { error: "Booking is not configured." };
+  if (!SECRET) {
+    return { error: "Booking is not configured." };
+  }
 
   const tokenHash = hashToken(token);
   const { db } = await createAdminClient();
@@ -43,10 +45,16 @@ export async function getBookingContext(
     [Query.equal("token_hash", tokenHash), Query.limit(1)]
   );
   const record = result.rows[0];
-  if (!record) return { error: "This booking link is invalid." };
+  if (!record) {
+    return { error: "This booking link is invalid." };
+  }
 
-  if (record.consumed_at) return { error: "This booking link has already been used." };
-  if (Date.now() > new Date(record.expires_at).getTime()) return { error: "This booking link has expired." };
+  if (record.consumed_at) {
+    return { error: "This booking link has already been used." };
+  }
+  if (Date.now() > new Date(record.expires_at).getTime()) {
+    return { error: "This booking link has expired." };
+  }
 
   const application = await db.getRow<JobApplications>(
     "app",
@@ -65,7 +73,9 @@ export async function getBookingContext(
       },
       job: {
         $id: job.$id,
-        campus_name: (job as unknown as { campus?: { name: string } }).campus?.name ?? null,
+        campus_name:
+          (job as unknown as { campus?: { name: string } }).campus?.name ??
+          null,
         slug: job.slug,
       },
       token: {
@@ -82,11 +92,21 @@ export async function confirmBookingSlot(
   token: string,
   startsAt: string,
   durationMinutes: number
-): Promise<{ data: { interview_id: string; starts_at: string } } | { error: string }> {
-  if (!SECRET) return { error: "Booking is not configured." };
+): Promise<
+  { data: { interview_id: string; starts_at: string } } | { error: string }
+> {
+  if (!SECRET) {
+    return { error: "Booking is not configured." };
+  }
 
-  const parsed = recruitmentBookingConfirmSchema.safeParse({ token, starts_at: startsAt, duration_minutes: durationMinutes });
-  if (!parsed.success) return { error: "Invalid booking parameters." };
+  const parsed = recruitmentBookingConfirmSchema.safeParse({
+    token,
+    starts_at: startsAt,
+    duration_minutes: durationMinutes,
+  });
+  if (!parsed.success) {
+    return { error: "Invalid booking parameters." };
+  }
 
   const tokenHash = hashToken(token);
   const { db } = await createAdminClient();
@@ -97,9 +117,15 @@ export async function confirmBookingSlot(
     [Query.equal("token_hash", tokenHash), Query.limit(1)]
   );
   const record = result.rows[0];
-  if (!record) return { error: "This booking link is invalid." };
-  if (record.consumed_at) return { error: "This booking link has already been used." };
-  if (Date.now() > new Date(record.expires_at).getTime()) return { error: "This booking link has expired." };
+  if (!record) {
+    return { error: "This booking link is invalid." };
+  }
+  if (record.consumed_at) {
+    return { error: "This booking link has already been used." };
+  }
+  if (Date.now() > new Date(record.expires_at).getTime()) {
+    return { error: "This booking link has expired." };
+  }
 
   const start = new Date(parsed.data.starts_at);
   const end = new Date(start.getTime() + durationMinutes * 60_000);
@@ -128,7 +154,9 @@ export async function confirmBookingSlot(
       cancelled_reason: null,
       campus_id: (job as unknown as { campus_id: string }).campus_id,
       created_by_user_id: record.created_by_user_id,
-      department_id: (job as unknown as { department_id: string | null }).department_id ?? null,
+      department_id:
+        (job as unknown as { department_id: string | null }).department_id ??
+        null,
       ends_at: end.toISOString(),
       job_id: application.job_id,
       location: null,
@@ -151,5 +179,7 @@ export async function confirmBookingSlot(
     { consumed_at: new Date().toISOString(), interview_id: interview.$id }
   );
 
-  return { data: { interview_id: interview.$id, starts_at: start.toISOString() } };
+  return {
+    data: { interview_id: interview.$id, starts_at: start.toISOString() },
+  };
 }

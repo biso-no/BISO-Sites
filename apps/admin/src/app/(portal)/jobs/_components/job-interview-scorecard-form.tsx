@@ -1,10 +1,10 @@
 "use client";
 
 import type { JobInterviewScorecards } from "@repo/api/types/appwrite";
-import {
-  type RecruitmentRecommendation,
-  type RecruitmentScorecardCriterion,
-  type RecruitmentScorecardSubmitInput,
+import type {
+  RecruitmentRecommendation,
+  RecruitmentScorecardCriterion,
+  RecruitmentScorecardSubmitInput,
 } from "@repo/shared/types/recruitment";
 import { Star } from "lucide-react";
 import { useEffect, useState, useTransition } from "react";
@@ -12,10 +12,10 @@ import { toast } from "sonner";
 import { submitScorecard } from "../../_actions/interviews";
 
 interface Props {
-  interviewId: string;
+  defaultCriteria?: { key: string; label: string }[];
   existing?: JobInterviewScorecards | null;
   existingCriteria?: RecruitmentScorecardCriterion[];
-  defaultCriteria?: { key: string; label: string }[];
+  interviewId: string;
   onSubmitted?: (scorecard: JobInterviewScorecards) => void;
 }
 
@@ -54,9 +54,10 @@ export function JobInterviewScorecardForm({
   const [criteria, setCriteria] =
     useState<RecruitmentScorecardCriterion[]>(initialCriteria);
   const [overall, setOverall] = useState<number>(existing?.overall_score ?? 3);
-  const [recommendation, setRecommendation] = useState<RecruitmentRecommendation>(
-    (existing?.recommendation as RecruitmentRecommendation) ?? "hire"
-  );
+  const [recommendation, setRecommendation] =
+    useState<RecruitmentRecommendation>(
+      (existing?.recommendation as RecruitmentRecommendation) ?? "hire"
+    );
   const [strengths, setStrengths] = useState(existing?.strengths ?? "");
   const [concerns, setConcerns] = useState(existing?.concerns ?? "");
   const [privateNotes, setPrivateNotes] = useState(
@@ -127,10 +128,7 @@ export function JobInterviewScorecardForm({
           </p>
         </div>
         {existing?.submitted_at ? (
-          <span
-            className="text-xs"
-            style={{ color: "rgba(255,255,255,0.4)" }}
-          >
+          <span className="text-xs" style={{ color: "rgba(255,255,255,0.4)" }}>
             Last saved {new Date(existing.submitted_at).toLocaleString()}
           </span>
         ) : null}
@@ -162,7 +160,7 @@ export function JobInterviewScorecardForm({
                 ))}
               </select>
               <input
-                className="flex-1 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-white outline-none"
+                className="flex-1 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-white text-xs outline-none"
                 onChange={(event) =>
                   patchCriterion(index, {
                     comment: event.target.value || null,
@@ -178,9 +176,7 @@ export function JobInterviewScorecardForm({
 
       <div className="grid gap-3 md:grid-cols-2">
         <label className="space-y-2 text-xs">
-          <span style={{ color: "rgba(255,255,255,0.45)" }}>
-            Overall score
-          </span>
+          <span style={{ color: "rgba(255,255,255,0.45)" }}>Overall score</span>
           <select
             className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none"
             onChange={(event) => setOverall(Number(event.target.value))}
@@ -194,7 +190,9 @@ export function JobInterviewScorecardForm({
           </select>
         </label>
         <label className="space-y-2 text-xs">
-          <span style={{ color: "rgba(255,255,255,0.45)" }}>Recommendation</span>
+          <span style={{ color: "rgba(255,255,255,0.45)" }}>
+            Recommendation
+          </span>
           <select
             className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none"
             onChange={(event) =>

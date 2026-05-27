@@ -4,14 +4,18 @@ import { openai } from "@ai-sdk/openai";
 import {
   parseRecruitmentAiScreening,
   type RecruitmentAiScreening,
-  recruitmentAiScreeningSchema,
   type RecruitmentScreeningRubric,
   type RecruitmentVacancy,
+  recruitmentAiScreeningSchema,
 } from "@repo/shared/types/recruitment";
 import { generateObject } from "ai";
 
 export interface ScreenApplicationInput {
-  vacancy: Pick<RecruitmentVacancy, "$id" | "metadata" | "translations">;
+  /** Optional answers to per-vacancy custom questions. */
+  answers?: Array<{
+    question_label: string;
+    answer: string | null;
+  }>;
   application: {
     $id: string;
     applicant_name: string;
@@ -21,17 +25,13 @@ export interface ScreenApplicationInput {
     current_employer?: string | null;
     linkedin_url?: string | null;
   };
+  /** Optional model override; defaults to gpt-5-nano to match existing jobs.ts. */
+  model?: string;
   /** Plaintext resume content — extract before calling. */
   resumeText?: string | null;
   /** Optional per-vacancy rubric (must_have / nice_to_have / criteria). */
   rubric?: RecruitmentScreeningRubric | null;
-  /** Optional model override; defaults to gpt-5-nano to match existing jobs.ts. */
-  model?: string;
-  /** Optional answers to per-vacancy custom questions. */
-  answers?: Array<{
-    question_label: string;
-    answer: string | null;
-  }>;
+  vacancy: Pick<RecruitmentVacancy, "$id" | "metadata" | "translations">;
 }
 
 const SYSTEM_PROMPT = `You evaluate volunteer applications for BISO, the
@@ -60,12 +60,14 @@ function buildPrompt(input: ScreenApplicationInput): string {
   const rubricBlock = input.rubric
     ? `Must-have: ${input.rubric.must_have.join("; ") || "—"}
 Nice-to-have: ${input.rubric.nice_to_have.join("; ") || "—"}
-Custom criteria: ${(input.rubric.criteria ?? [])
-        .map(
-          (criterion) =>
-            `${criterion.label} (weight ${criterion.weight}${criterion.description ? `: ${criterion.description}` : ""})`
-        )
-        .join("; ") || "—"}`
+Custom criteria: ${
+        (input.rubric.criteria ?? [])
+          .map(
+            (criterion) =>
+              `${criterion.label} (weight ${criterion.weight}${criterion.description ? `: ${criterion.description}` : ""})`
+          )
+          .join("; ") || "—"
+      }`
     : "(no rubric supplied)";
 
   const answersBlock =

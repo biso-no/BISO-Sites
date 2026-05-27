@@ -11,10 +11,7 @@ import {
 } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
-import {
-  listMyApplications,
-  type MyApplicationView,
-} from "@/app/actions/jobs";
+import { listMyApplications, type MyApplicationView } from "@/app/actions/jobs";
 
 export const metadata: Metadata = {
   title: "My Applications | BISO",
@@ -128,7 +125,7 @@ export default async function MyApplicationsPage() {
                         Upcoming interview · {application.next_interview.title}
                       </span>
                     </div>
-                    <div className="mt-3 grid gap-2 text-sm text-muted-foreground sm:grid-cols-2">
+                    <div className="mt-3 grid gap-2 text-muted-foreground text-sm sm:grid-cols-2">
                       <div className="flex items-center gap-2">
                         <CalendarClock className="h-4 w-4" />
                         {formatDate(application.next_interview.starts_at)}

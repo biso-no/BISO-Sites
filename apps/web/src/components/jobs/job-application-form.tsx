@@ -16,8 +16,8 @@ import { submitJobApplication } from "@/app/actions/jobs";
 interface JobApplicationFormProps {
   applicantEmail?: string;
   applicantName?: string;
-  cvRequired: boolean;
   customQuestions?: RecruitmentCustomQuestion[];
+  cvRequired: boolean;
   isAuthenticated: boolean;
   jobId: string;
 }
@@ -48,7 +48,7 @@ function StepIndicator({
       {visibleSteps.map((step, i) => (
         <div className="flex items-center gap-2" key={step.id}>
           <span
-            className={`flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-medium ${
+            className={`flex h-5 w-5 items-center justify-center rounded-full font-medium text-[10px] ${
               i < currentIndex
                 ? "bg-brand text-white"
                 : i === currentIndex
@@ -132,11 +132,16 @@ function QuestionInput({
 
   if (question.type === "boolean") {
     return (
-      <label className="flex items-center gap-2 text-muted-foreground text-sm" htmlFor={id}>
+      <label
+        className="flex items-center gap-2 text-muted-foreground text-sm"
+        htmlFor={id}
+      >
         <Checkbox
           checked={answer === "true"}
           id={id}
-          onCheckedChange={(checked) => onChange(checked === true ? "true" : "")}
+          onCheckedChange={(checked) =>
+            onChange(checked === true ? "true" : "")
+          }
         />
         Yes
       </label>
@@ -202,17 +207,23 @@ export function JobApplicationForm({
   function nextStep() {
     const i = steps.findIndex((s) => s.id === step);
     const next = steps[i + 1];
-    if (next) setStep(next.id);
+    if (next) {
+      setStep(next.id);
+    }
   }
 
   function prevStep() {
     const i = steps.findIndex((s) => s.id === step);
     const prev = steps[i - 1];
-    if (prev) setStep(prev.id);
+    if (prev) {
+      setStep(prev.id);
+    }
   }
 
   function handleSubmit() {
-    if (!consent) return;
+    if (!consent) {
+      return;
+    }
     setMessage(null);
 
     startTransition(async () => {
@@ -222,9 +233,15 @@ export function JobApplicationForm({
       formData.set("cover_letter", coverLetter);
       formData.set("availability", availability);
       formData.set("gdpr_consent", "true");
-      if (linkedinUrl.trim()) formData.set("linkedin_url", linkedinUrl.trim());
-      if (currentRole.trim()) formData.set("current_role", currentRole.trim());
-      if (currentEmployer.trim()) formData.set("current_employer", currentEmployer.trim());
+      if (linkedinUrl.trim()) {
+        formData.set("linkedin_url", linkedinUrl.trim());
+      }
+      if (currentRole.trim()) {
+        formData.set("current_role", currentRole.trim());
+      }
+      if (currentEmployer.trim()) {
+        formData.set("current_employer", currentEmployer.trim());
+      }
 
       for (const q of customQuestions) {
         formData.set(`answer.${q.id}`, answers[q.id] ?? "");
@@ -232,14 +249,14 @@ export function JobApplicationForm({
         formData.set(`answer_type.${q.id}`, q.type);
       }
 
-      if (resume) formData.set("resume", resume);
+      if (resume) {
+        formData.set("resume", resume);
+      }
 
       const result = await submitJobApplication(jobId, formData);
       setIsSuccess(result.success);
       setMessage(
-        result.success
-          ? "Application submitted successfully."
-          : result.error
+        result.success ? "Application submitted successfully." : result.error
       );
     });
   }
@@ -262,10 +279,12 @@ export function JobApplicationForm({
     return (
       <Card className="border-border/60 p-6 shadow-sm">
         <div className="space-y-3 text-center">
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-100 text-green-700 text-2xl mx-auto dark:bg-green-900/30">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-green-100 text-2xl text-green-700 dark:bg-green-900/30">
             ✓
           </div>
-          <h3 className="font-semibold text-foreground text-lg">Application submitted!</h3>
+          <h3 className="font-semibold text-foreground text-lg">
+            Application submitted!
+          </h3>
           <p className="text-muted-foreground text-sm">
             We'll review your application and be in touch at{" "}
             <strong>{applicantEmail}</strong>.
@@ -307,8 +326,15 @@ export function JobApplicationForm({
             </div>
             <div className="space-y-2">
               <Label htmlFor="applicant_email">Email</Label>
-              <Input disabled id="applicant_email" type="email" value={applicantEmail} />
-              <p className="text-muted-foreground text-xs">Verified via your BISO account</p>
+              <Input
+                disabled
+                id="applicant_email"
+                type="email"
+                value={applicantEmail}
+              />
+              <p className="text-muted-foreground text-xs">
+                Verified via your BISO account
+              </p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="applicant_phone">Phone (optional)</Label>
@@ -340,7 +366,9 @@ export function JobApplicationForm({
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="current_employer">Employer / school (optional)</Label>
+                <Label htmlFor="current_employer">
+                  Employer / school (optional)
+                </Label>
                 <Input
                   id="current_employer"
                   onChange={(e) => setCurrentEmployer(e.target.value)}
@@ -390,7 +418,12 @@ export function JobApplicationForm({
               </div>
             ))}
             <div className="flex gap-3">
-              <Button className="flex-1" onClick={prevStep} type="button" variant="outline">
+              <Button
+                className="flex-1"
+                onClick={prevStep}
+                type="button"
+                variant="outline"
+              >
                 Back
               </Button>
               <Button
@@ -445,7 +478,9 @@ export function JobApplicationForm({
                   Selected: {resume.name} ({(resume.size / 1024).toFixed(0)} KB)
                 </p>
               )}
-              <p className="text-muted-foreground text-xs">Max 5 MB, PDF only.</p>
+              <p className="text-muted-foreground text-xs">
+                Max 5 MB, PDF only.
+              </p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="availability">
@@ -463,7 +498,12 @@ export function JobApplicationForm({
               </p>
             </div>
             <div className="flex gap-3">
-              <Button className="flex-1" onClick={prevStep} type="button" variant="outline">
+              <Button
+                className="flex-1"
+                onClick={prevStep}
+                type="button"
+                variant="outline"
+              >
                 Back
               </Button>
               <Button
@@ -488,7 +528,7 @@ export function JobApplicationForm({
             key="review"
             transition={{ duration: 0.15 }}
           >
-            <div className="rounded-lg border border-border/50 bg-muted/30 p-4 text-sm space-y-2">
+            <div className="space-y-2 rounded-lg border border-border/50 bg-muted/30 p-4 text-sm">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Name</span>
                 <span className="font-medium">{name}</span>
@@ -506,7 +546,9 @@ export function JobApplicationForm({
               {resume && (
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">CV</span>
-                  <span className="font-medium text-green-700">{resume.name}</span>
+                  <span className="font-medium text-green-700">
+                    {resume.name}
+                  </span>
                 </div>
               )}
               {coverLetter && (
@@ -517,7 +559,10 @@ export function JobApplicationForm({
               )}
             </div>
 
-            <label className="flex items-start gap-3 cursor-pointer" htmlFor="gdpr_consent">
+            <label
+              className="flex cursor-pointer items-start gap-3"
+              htmlFor="gdpr_consent"
+            >
               <Checkbox
                 checked={consent}
                 id="gdpr_consent"
@@ -529,12 +574,15 @@ export function JobApplicationForm({
               </span>
             </label>
 
-            {message && (
-              <p className="text-destructive text-sm">{message}</p>
-            )}
+            {message && <p className="text-destructive text-sm">{message}</p>}
 
             <div className="flex gap-3">
-              <Button className="flex-1" onClick={prevStep} type="button" variant="outline">
+              <Button
+                className="flex-1"
+                onClick={prevStep}
+                type="button"
+                variant="outline"
+              >
                 Back
               </Button>
               <Button

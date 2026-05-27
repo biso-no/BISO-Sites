@@ -2,18 +2,24 @@
 
 import { openai } from "@ai-sdk/openai";
 import { ID, Query } from "@repo/api";
+import {
+  fetchRecruitmentListRows,
+  getRecruitmentJobById,
+} from "@repo/api/recruitment";
 import { createAdminClient, createSessionClient } from "@repo/api/server";
 import type {
   Campus,
   ContentTranslations,
   Departments,
   JobApplications,
+  Jobs,
   Users,
 } from "@repo/api/types/appwrite";
 import {
   assertRecruitmentApplicationTransition,
   buildRecruitmentApplicationReviewMetadata,
   buildRecruitmentVacancyMetadata,
+  parseRecruitmentVacancyMetadata,
   type RecruitmentApplicationRecord,
   type RecruitmentApplicationReviewUpdateInput,
   type RecruitmentApplicationStatusUpdateInput,
@@ -35,18 +41,30 @@ import {
   assertRecruitmentApplicationReviewAccess,
   assertRecruitmentVacancyWriteAccess,
   buildRecruitmentApplicationRecord,
-  canManageRecruitmentVacancy,
   canReviewRecruitmentVacancy,
-  fetchRecruitmentJobsByIds,
-  fetchRecruitmentListRows,
-  getRecruitmentJobById,
   loadRecruitmentLookups,
   toRecruitmentAdminScope,
 } from "@/lib/recruitment";
 import { logAuditEvent } from "./audit-log";
 
+// Shorthand type for the db accessor — both admin and session clients return the same shape.
+type Db = Awaited<ReturnType<typeof createSessionClient>>["db"];
+
 const JOBS_PAGE_SIZE = 20;
 const APPLICATIONS_PAGE_SIZE = 20;
+
+// Fields to select when fetching job_applications with nested job data.
+const APPLICATION_SELECT = [
+  "*",
+  "job.$id",
+  "job.slug",
+  "job.status",
+  "job.campus_id",
+  "job.department_id",
+  "job.translations.$id",
+  "job.translations.locale",
+  "job.translations.title",
+] as const;
 
 const jobTranslationDraftSchema = z.object({
   description_en: z.string().trim().min(1),
@@ -85,8 +103,6 @@ export interface RecruitmentReviewerOption {
   name: string;
 }
 
-type AdminDb = Awaited<ReturnType<typeof createAdminClient>>["db"];
-
 async function requireAuth(): Promise<UserAuthContext> {
   const ctx = await getUserAuthContext();
   if (!ctx) {
@@ -102,7 +118,7 @@ async function requireAuth(): Promise<UserAuthContext> {
  * and linked via the `jobs.translations` oneToMany relationship.
  */
 async function buildJobTranslationsPayload(
-  db: AdminDb,
+  db: Db,
   jobId: string,
   input: {
     title_no: string;
@@ -169,7 +185,7 @@ export async function listJobs(opts?: {
   page?: number;
 }) {
   const ctx = await requireAuth();
-  const { db } = await createAdminClient();
+  const { db } = await createSessionClient();
   const scope = toRecruitmentAdminScope(ctx);
   const lookups = await loadRecruitmentLookups(db);
   const page = Math.max(1, opts?.page ?? 1);
@@ -178,10 +194,7 @@ export async function listJobs(opts?: {
   // Push the campus / department scope into the Appwrite query so we don't
   // fetch a global page of jobs only to throw most of them away in memory.
   // Global admins skip the filter (canManageAnyCampus).
-  const queries: string[] = [
-    Query.orderDesc("$updatedAt"),
-    Query.limit(200),
-  ];
+  const queries: string[] = [Query.orderDesc("$updatedAt"), Query.limit(200)];
   if (!scope.canManageAnyCampus) {
     const managedCampusIds = scope.managedCampusNames
       .map((name) => lookups.campusIdsByName.get(name))
@@ -211,13 +224,7 @@ export async function listJobs(opts?: {
 
   const vacancies = await fetchRecruitmentListRows(db, queries);
 
-  // Defense-in-depth: re-apply the scope check in memory in case the
-  // relationship filter returns a row that slipped through.
-  const scoped = vacancies.filter((vacancy) =>
-    canManageRecruitmentVacancy(scope, lookups, vacancy)
-  );
-
-  const filtered = scoped.filter((vacancy) => {
+  const filtered = vacancies.filter((vacancy) => {
     if (!search) {
       return true;
     }
@@ -241,7 +248,7 @@ export async function listJobs(opts?: {
 
 export async function getJob(id: string) {
   const ctx = await requireAuth();
-  const { db } = await createAdminClient();
+  const { db } = await createSessionClient();
   const scope = toRecruitmentAdminScope(ctx);
   const lookups = await loadRecruitmentLookups(db);
   const vacancy = await getRecruitmentJobById(db, id);
@@ -265,7 +272,7 @@ export async function getJob(id: string) {
  *   - For a oneToMany child, pass an object literal (with `$id` if updating).
  */
 async function buildJobUpsertPayload(
-  db: AdminDb,
+  db: Db,
   jobId: string,
   data: RecruitmentVacancyUpsertInput,
   existingMetadata?: RecruitmentVacancyMetadata
@@ -305,7 +312,7 @@ export async function createJob(values: RecruitmentVacancyUpsertInput) {
   }
 
   try {
-    const { db } = await createAdminClient();
+    const { db } = await createSessionClient();
     const scope = toRecruitmentAdminScope(ctx);
     const lookups = await loadRecruitmentLookups(db);
 
@@ -349,7 +356,7 @@ export async function updateJob(
   }
 
   try {
-    const { db } = await createAdminClient();
+    const { db } = await createSessionClient();
     const scope = toRecruitmentAdminScope(ctx);
     const lookups = await loadRecruitmentLookups(db);
     const vacancy = await getRecruitmentJobById(db, id);
@@ -484,7 +491,7 @@ export async function deleteJob(id: string) {
   const ctx = await requireAuth();
 
   try {
-    const { db } = await createAdminClient();
+    const { db } = await createSessionClient();
     const scope = toRecruitmentAdminScope(ctx);
     const lookups = await loadRecruitmentLookups(db);
     const vacancy = await getRecruitmentJobById(db, id);
@@ -496,7 +503,7 @@ export async function deleteJob(id: string) {
     assertRecruitmentVacancyWriteAccess(scope, lookups, vacancy);
 
     const applications = await db.listRows("app", "job_applications", [
-      Query.equal("job_id", id),
+      Query.equal("job.$id", id),
       Query.limit(1),
     ]);
 
@@ -504,21 +511,7 @@ export async function deleteJob(id: string) {
       return { error: "Vacancies with applications cannot be deleted" };
     }
 
-    const translations = await db.listRows<ContentTranslations>(
-      "app",
-      "content_translations",
-      [
-        Query.equal("content_type", "job"),
-        Query.equal("content_id", id),
-        Query.limit(10),
-      ]
-    );
-
-    await Promise.all(
-      translations.rows.map((translation) =>
-        db.deleteRow("app", "content_translations", translation.$id)
-      )
-    );
+    // Translations cascade via the jobs.translations oneToMany relationship.
     await db.deleteRow("app", "jobs", id);
 
     await logAuditEvent(ctx, "recruitment.vacancy.delete", {
@@ -553,7 +546,7 @@ export async function listJobApplications(opts?: {
     throw new Error("Forbidden");
   }
 
-  const { db } = await createAdminClient();
+  const { db } = await createSessionClient();
   const lookups = await loadRecruitmentLookups(db);
   const page = Math.max(1, opts?.page ?? 1);
   const search = opts?.search?.trim().toLowerCase() ?? "";
@@ -574,10 +567,8 @@ export async function listJobApplications(opts?: {
     throw new Error("Forbidden");
   }
 
-  const jobsById = new Map(
-    accessibleVacancies.map((vacancy) => [vacancy.$id, vacancy])
-  );
   const applicationQueries = [
+    Query.select([...APPLICATION_SELECT]),
     Query.orderDesc("$createdAt"),
     Query.equal("job_id", opts?.jobId ? [opts.jobId] : accessibleJobIds),
     ...(opts?.status && opts.status !== "all"
@@ -598,7 +589,7 @@ export async function listJobApplications(opts?: {
   );
 
   let rows: RecruitmentApplicationRecord[] = applicationsResponse.rows.map(
-    (application) => buildRecruitmentApplicationRecord(application, jobsById)
+    (application) => buildRecruitmentApplicationRecord(application)
   );
 
   if (search) {
@@ -638,22 +629,21 @@ export async function getJobApplication(id: string) {
     throw new Error("Forbidden");
   }
 
-  const { db } = await createAdminClient();
+  const { db } = await createSessionClient();
   const lookups = await loadRecruitmentLookups(db);
   const application = await db.getRow<JobApplications>(
     "app",
     "job_applications",
-    id
+    id,
+    [Query.select([...APPLICATION_SELECT])]
   );
-  const jobsById = await fetchRecruitmentJobsByIds(db, [application.job_id]);
-  const job = jobsById.get(application.job_id);
-
+  const job = application.job as Jobs | null;
   if (!job) {
     throw new Error("Vacancy not found");
   }
 
   assertRecruitmentApplicationReviewAccess(scope, lookups, job);
-  return buildRecruitmentApplicationRecord(application, jobsById);
+  return buildRecruitmentApplicationRecord(application);
 }
 
 export async function listRecruitmentReviewers(jobId?: string): Promise<
@@ -728,17 +718,16 @@ export async function updateJobApplicationReview(
   }
 
   try {
-    const { db } = await createAdminClient();
+    const { db } = await createSessionClient();
     const scope = toRecruitmentAdminScope(ctx);
     const lookups = await loadRecruitmentLookups(db);
     const application = await db.getRow<JobApplications>(
       "app",
       "job_applications",
-      id
+      id,
+      [Query.select([...APPLICATION_SELECT])]
     );
-    const jobsById = await fetchRecruitmentJobsByIds(db, [application.job_id]);
-    const job = jobsById.get(application.job_id);
-
+    const job = application.job as Jobs | null;
     if (!job) {
       throw new Error("Vacancy not found");
     }
@@ -789,7 +778,7 @@ export async function updateJobApplicationStatus(
   }
 
   try {
-    const { db } = await createAdminClient();
+    const { db } = await createSessionClient();
     const scope = toRecruitmentAdminScope(ctx);
     if (
       !(
@@ -805,11 +794,10 @@ export async function updateJobApplicationStatus(
     const application = await db.getRow<JobApplications>(
       "app",
       "job_applications",
-      id
+      id,
+      [Query.select([...APPLICATION_SELECT])]
     );
-    const jobsById = await fetchRecruitmentJobsByIds(db, [application.job_id]);
-    const job = jobsById.get(application.job_id);
-
+    const job = application.job as Jobs | null;
     if (!job) {
       throw new Error("Vacancy not found");
     }
@@ -863,19 +851,29 @@ export async function draftRecruitmentEmail(
 }> {
   const ctx = await requireAuth();
   try {
-    const { db } = await createAdminClient();
+    const { db } = await createSessionClient();
     const scope = toRecruitmentAdminScope(ctx);
     const lookups = await loadRecruitmentLookups(db);
     const application = await db.getRow<JobApplications>(
       "app",
       "job_applications",
-      applicationId
+      applicationId,
+      [
+        Query.select([
+          "*",
+          "job.$id",
+          "job.campus_id",
+          "job.department_id",
+          "job.metadata",
+          "job.translations.*",
+        ]),
+      ]
     );
-    const jobsById = await fetchRecruitmentJobsByIds(db, [application.job_id]);
-    const job = jobsById.get(application.job_id);
+    const job = application.job as Jobs | null;
     if (!job) {
       return { error: "Vacancy not found" };
     }
+
     assertRecruitmentApplicationReviewAccess(scope, lookups, job);
 
     const { draftCandidateEmail } = await import(
@@ -891,8 +889,8 @@ export async function draftRecruitmentEmail(
       stage: options.stage,
       tone: options.tone ?? "warm",
       vacancy: {
-        metadata: job.metadata,
-        translations: job.translations,
+        metadata: parseRecruitmentVacancyMetadata(job.metadata),
+        translations: (job.translations ?? []) as ContentTranslations[],
       },
     });
 
@@ -905,8 +903,7 @@ export async function draftRecruitmentEmail(
     return { data: { body: draft.body, subject: draft.subject } };
   } catch (error) {
     return {
-      error:
-        error instanceof Error ? error.message : "Failed to draft email",
+      error: error instanceof Error ? error.message : "Failed to draft email",
     };
   }
 }

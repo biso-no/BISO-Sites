@@ -12,14 +12,14 @@ import { updateJobApplicationStatus } from "../../_actions/jobs";
 interface KanbanProps {
   applications: RecruitmentApplicationRecord[];
   jobId?: string;
-  onSelect?: (applicationId: string) => void;
   onAfterStatusChange?: () => void;
+  onSelect?: (applicationId: string) => void;
 }
 
 interface Column {
+  accent: string;
   id: JobApplicationStatus;
   label: string;
-  accent: string;
 }
 
 const COLUMNS: Column[] = [
@@ -30,16 +30,20 @@ const COLUMNS: Column[] = [
   { accent: "#EF4444", id: JobApplicationStatus.REJECTED, label: "Rejected" },
 ];
 
-function readScreeningScore(application: RecruitmentApplicationRecord): number | null {
+function readScreeningScore(
+  application: RecruitmentApplicationRecord
+): number | null {
   const review = application.review_metadata as unknown as {
     ai_screening_summary?: string | null;
   } | null;
   if (!review || typeof review !== "object") {
     return null;
   }
-  const summary = (application as unknown as {
-    screening_score?: number | null;
-  }).screening_score;
+  const summary = (
+    application as unknown as {
+      screening_score?: number | null;
+    }
+  ).screening_score;
   return typeof summary === "number" ? summary : null;
 }
 
@@ -63,7 +67,10 @@ export function JobApplicationsKanban({
     setItems(applications);
   }
 
-  const byStatus = new Map<JobApplicationStatus, RecruitmentApplicationRecord[]>();
+  const byStatus = new Map<
+    JobApplicationStatus,
+    RecruitmentApplicationRecord[]
+  >();
   for (const column of COLUMNS) {
     byStatus.set(column.id, []);
   }
@@ -131,7 +138,9 @@ export function JobApplicationsKanban({
   return (
     <div
       className="grid gap-4 overflow-x-auto pb-4"
-      style={{ gridTemplateColumns: `repeat(${COLUMNS.length}, minmax(240px, 1fr))` }}
+      style={{
+        gridTemplateColumns: `repeat(${COLUMNS.length}, minmax(240px, 1fr))`,
+      }}
     >
       {COLUMNS.map((column) => {
         const cards = byStatus.get(column.id) ?? [];
@@ -223,7 +232,7 @@ export function JobApplicationsKanban({
                           {application.job?.title ?? "Unknown vacancy"}
                         </p>
                       </div>
-                      {score !== null ? (
+                      {score === null ? null : (
                         <span
                           className="shrink-0 rounded-full px-2 py-0.5 text-xs"
                           style={{
@@ -234,7 +243,7 @@ export function JobApplicationsKanban({
                         >
                           {score}
                         </span>
-                      ) : null}
+                      )}
                     </div>
                     {application.review_metadata.assigned_hr_user_name ? (
                       <p

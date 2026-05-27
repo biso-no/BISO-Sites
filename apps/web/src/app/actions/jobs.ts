@@ -1,5 +1,9 @@
 "use server";
 
+import {
+  normalizeScreeningScore,
+  screenApplication,
+} from "@repo/ai/server/recruitment-screener";
 import { ID, InputFile, Query } from "@repo/api";
 import {
   fetchRecruitmentListRows,
@@ -9,12 +13,6 @@ import {
   localizeVacancy,
 } from "@repo/api/recruitment";
 import { createAdminClient, createSessionClient } from "@repo/api/server";
-import {
-  EmbeddingStatus,
-  JobApplicationStatus,
-  JobStatus,
-  type Locale,
-} from "@repo/api/types/appwrite";
 import type {
   CandidateProfiles,
   JobApplicationAnswers,
@@ -22,9 +20,11 @@ import type {
   JobInterviews,
 } from "@repo/api/types/appwrite";
 import {
-  normalizeScreeningScore,
-  screenApplication,
-} from "@repo/ai/server/recruitment-screener";
+  EmbeddingStatus,
+  JobApplicationStatus,
+  JobStatus,
+  type Locale,
+} from "@repo/api/types/appwrite";
 import {
   buildRecruitmentApplicationReviewMetadata,
   computeRecruitmentRetentionUntil,
@@ -36,8 +36,8 @@ import {
   type RecruitmentCustomQuestion,
   type RecruitmentVacancy,
   recruitmentApplicationSubmitSchema,
-  serializeRecruitmentApplicationReviewMetadata,
   serializeRecruitmentAiScreening,
+  serializeRecruitmentApplicationReviewMetadata,
   validateRecruitmentResumeFile,
 } from "@repo/shared/types/recruitment";
 import { cache } from "react";
@@ -78,7 +78,9 @@ const _listJobs = cache(
         .filter((v) => isRecruitmentVacancyOpen(v.status, v.metadata))
         .map((v) => localizeVacancy(v, locale))
         .filter((v) => {
-          if (!lowerSearch) return true;
+          if (!lowerSearch) {
+            return true;
+          }
           const t = v.translations[0];
           return (
             (t?.title ?? "").toLowerCase().includes(lowerSearch) ||
@@ -112,14 +114,13 @@ export async function listJobs(params: {
 }
 
 const _getJobBySlug = cache(
-  async (
-    slug: string,
-    locale: string
-  ): Promise<RecruitmentVacancy | null> => {
+  async (slug: string, locale: string): Promise<RecruitmentVacancy | null> => {
     try {
       const { db } = await createAdminClient();
       const vacancy = await getRecruitmentJobBySlug(db, slug);
-      if (!vacancy || !isRecruitmentVacancyOpen(vacancy.status, vacancy.metadata)) {
+      if (
+        !(vacancy && isRecruitmentVacancyOpen(vacancy.status, vacancy.metadata))
+      ) {
         return null;
       }
       return localizeVacancy(vacancy, locale);
@@ -146,14 +147,18 @@ function readCustomAnswers(
 ): RecruitmentApplicationAnswerInput[] {
   const answers: RecruitmentApplicationAnswerInput[] = [];
   for (const [key, value] of formData.entries()) {
-    if (!key.startsWith("answer.")) continue;
+    if (!key.startsWith("answer.")) {
+      continue;
+    }
     const questionId = key.slice("answer.".length);
     const rawType = formData.get(`answer_type.${questionId}`);
     const rawLabel = formData.get(`answer_label.${questionId}`);
     const stringValue = typeof value === "string" ? value : "";
     answers.push({
       answer: stringValue.length > 0 ? stringValue : null,
-      answer_type: (typeof rawType === "string" ? rawType : "text") as RecruitmentApplicationAnswerInput["answer_type"],
+      answer_type: (typeof rawType === "string"
+        ? rawType
+        : "text") as RecruitmentApplicationAnswerInput["answer_type"],
       question_id: questionId,
       question_label:
         typeof rawLabel === "string" && rawLabel.trim().length > 0
@@ -170,7 +175,9 @@ function assertRequiredAnswersPresent(
 ): string | null {
   const answersById = new Map(answers.map((a) => [a.question_id, a.answer]));
   for (const q of vacancyQuestions) {
-    if (!q.required) continue;
+    if (!q.required) {
+      continue;
+    }
     const val = answersById.get(q.id);
     if (!val || val.trim().length === 0) {
       return `Answer required for "${q.label}"`;
@@ -204,7 +211,7 @@ export async function submitJobApplication(
   try {
     const { account } = await createSessionClient();
     const user = await account.get().catch(() => null);
-    if (!user || !isAuthenticatedAppwriteUser(user) || !user.email) {
+    if (!(user && isAuthenticatedAppwriteUser(user) && user.email)) {
       return {
         success: false,
         error: "You must sign in with a verified account before applying.",
@@ -221,7 +228,9 @@ export async function submitJobApplication(
       cover_letter: formData.get("cover_letter"),
       current_employer: formData.get("current_employer"),
       current_role: formData.get("current_role"),
-      gdpr_consent: formData.get("gdpr_consent") === "true" || formData.get("gdpr_consent") === "on",
+      gdpr_consent:
+        formData.get("gdpr_consent") === "true" ||
+        formData.get("gdpr_consent") === "on",
       linkedin_url: formData.get("linkedin_url"),
     });
 
@@ -231,8 +240,13 @@ export async function submitJobApplication(
 
     const { db, storage } = await createAdminClient();
     const vacancy = await getRecruitmentJobById(db, jobId);
-    if (!vacancy || !isRecruitmentVacancyOpen(vacancy.status, vacancy.metadata)) {
-      return { success: false, error: "This vacancy is not accepting applications." };
+    if (
+      !(vacancy && isRecruitmentVacancyOpen(vacancy.status, vacancy.metadata))
+    ) {
+      return {
+        success: false,
+        error: "This vacancy is not accepting applications.",
+      };
     }
 
     const missingAnswerError = assertRequiredAnswersPresent(
@@ -249,7 +263,10 @@ export async function submitJobApplication(
       Query.limit(1),
     ]);
     if (existing.total > 0) {
-      return { success: false, error: "You have already applied for this vacancy." };
+      return {
+        success: false,
+        error: "You have already applied for this vacancy.",
+      };
     }
 
     const resume = formData.get("resume");
@@ -286,10 +303,14 @@ export async function submitJobApplication(
           {
             applications_count: (cur.applications_count ?? 0) + 1,
             campus_id: vacancy.campus_id ?? cur.campus_id,
-            current_employer: parsed.data.current_employer ?? cur.current_employer,
+            current_employer:
+              parsed.data.current_employer ?? cur.current_employer,
             current_role: parsed.data.current_role ?? cur.current_role,
             data_retention_until: retentionUntil,
-            full_name: parsed.data.applicant_name.length > 0 ? parsed.data.applicant_name : cur.full_name,
+            full_name:
+              parsed.data.applicant_name.length > 0
+                ? parsed.data.applicant_name
+                : cur.full_name,
             last_application_at: consentDate.toISOString(),
             linkedin_url: parsed.data.linkedin_url ?? cur.linkedin_url ?? null,
             phone: parsed.data.applicant_phone ?? cur.phone ?? null,
@@ -335,6 +356,7 @@ export async function submitJobApplication(
         applicant_email: user.email,
         applicant_name: parsed.data.applicant_name,
         applicant_phone: parsed.data.applicant_phone ?? null,
+        candidate_profile: candidateProfileId,
         candidate_profile_id: candidateProfileId,
         consent_date: consentDate.toISOString(),
         cover_letter: parsed.data.cover_letter ?? null,
@@ -342,6 +364,7 @@ export async function submitJobApplication(
         data_retention_until: retentionUntil,
         embedding_status: EmbeddingStatus.PENDING,
         gdpr_consent: true,
+        job: jobId,
         job_id: jobId,
         resume_file_id: resumeFileId,
         review_metadata: serializeRecruitmentApplicationReviewMetadata(
@@ -362,7 +385,9 @@ export async function submitJobApplication(
           ID.unique(),
           {
             answer: answer.answer ?? null,
-            answer_type: answer.answer_type as JobApplicationAnswers["answer_type"],
+            answer_type:
+              answer.answer_type as JobApplicationAnswers["answer_type"],
+            application: application.$id,
             application_id: application.$id,
             job_id: jobId,
             question_id: answer.question_id,
@@ -370,7 +395,10 @@ export async function submitJobApplication(
           }
         );
       } catch (err) {
-        console.warn(`Failed to persist answer for ${answer.question_id}:`, err);
+        console.warn(
+          `Failed to persist answer for ${answer.question_id}:`,
+          err
+        );
       }
     }
 
@@ -394,7 +422,8 @@ export async function submitJobApplication(
             current_role: parsed.data.current_role ?? null,
             linkedin_url: parsed.data.linkedin_url ?? null,
           },
-          rubric: vacancy.screening_rubric ?? parseRecruitmentScreeningRubric(null),
+          rubric:
+            vacancy.screening_rubric ?? parseRecruitmentScreeningRubric(null),
           vacancy: {
             $id: vacancy.$id,
             metadata: vacancy.metadata,
@@ -406,7 +435,10 @@ export async function submitJobApplication(
           screening_score: normalizeScreeningScore(screening),
         });
       } catch (err) {
-        console.warn(`AI screening failed for application ${application.$id}:`, err);
+        console.warn(
+          `AI screening failed for application ${application.$id}:`,
+          err
+        );
       }
     }
 
@@ -420,12 +452,12 @@ export async function submitJobApplication(
 // ---------- candidate "my applications" ----------
 
 export interface MyApplicationView {
-  $id: string;
   $createdAt: string;
-  status: "submitted" | "reviewed" | "interview" | "accepted" | "rejected";
-  data_retention_until: string;
+  $id: string;
+  answers: Array<{ question_label: string; answer: string | null }>;
   cover_letter: string | null;
-  resume_file_id: string | null;
+  data_retention_until: string;
+  hr_assigned_name: string | null;
   job: {
     $id: string;
     slug: string;
@@ -441,15 +473,17 @@ export interface MyApplicationView {
     meeting_url: string | null;
     status: "proposed" | "scheduled" | "completed" | "cancelled" | "no_show";
   } | null;
-  answers: Array<{ question_label: string; answer: string | null }>;
-  hr_assigned_name: string | null;
+  resume_file_id: string | null;
+  status: "submitted" | "reviewed" | "interview" | "accepted" | "rejected";
 }
 
 export async function listMyApplications(): Promise<MyApplicationView[]> {
   try {
     const { account } = await createSessionClient();
     const user = await account.get().catch(() => null);
-    if (!user || !isAuthenticatedAppwriteUser(user) || !user.email) return [];
+    if (!(user && isAuthenticatedAppwriteUser(user) && user.email)) {
+      return [];
+    }
 
     const { db } = await createAdminClient();
     const apps = await db.listRows<JobApplications>("app", "job_applications", [
@@ -457,37 +491,60 @@ export async function listMyApplications(): Promise<MyApplicationView[]> {
       Query.orderDesc("$createdAt"),
       Query.limit(50),
     ]);
-    if (apps.rows.length === 0) return [];
+    if (apps.rows.length === 0) {
+      return [];
+    }
 
-    const jobIds = Array.from(new Set(apps.rows.map((a: JobApplications) => a.job_id)));
+    const jobIds = Array.from(
+      new Set(apps.rows.map((a: JobApplications) => a.job_id))
+    );
     const appIds = apps.rows.map((a: JobApplications) => a.$id);
 
     interface JobRow {
       $id: string;
+      campus?: { name: string };
       slug: string;
       translations?: Array<{ locale?: string; title?: string }>;
-      campus?: { name: string };
     }
     const jobsResult = await db.listRows<JobRow>("app", "jobs", [
       Query.equal("$id", jobIds),
-      Query.select(["$id", "slug", "campus.name", "translations.locale", "translations.title"]),
+      Query.select([
+        "$id",
+        "slug",
+        "campus.name",
+        "translations.locale",
+        "translations.title",
+      ]),
       Query.limit(jobIds.length),
     ]);
     const jobById = new Map(jobsResult.rows.map((j: JobRow) => [j.$id, j]));
 
-    const interviews = await db.listRows<JobInterviews>("app", "job_interviews", [
-      Query.equal("application_id", appIds),
-      Query.orderAsc("starts_at"),
-      Query.limit(appIds.length * 3),
-    ]);
+    const interviews = await db.listRows<JobInterviews>(
+      "app",
+      "job_interviews",
+      [
+        Query.equal("application_id", appIds),
+        Query.orderAsc("starts_at"),
+        Query.limit(appIds.length * 3),
+      ]
+    );
     const nextByApp = new Map<string, JobInterviews>();
     const now = Date.now();
     for (const iv of interviews.rows) {
-      if (iv.status === "cancelled") continue;
+      if (iv.status === "cancelled") {
+        continue;
+      }
       const startsAt = iv.starts_at ? new Date(iv.starts_at).getTime() : 0;
-      if (startsAt && startsAt < now) continue;
+      if (startsAt && startsAt < now) {
+        continue;
+      }
       const existing = nextByApp.get(iv.application_id);
-      if (!existing || (startsAt && (!existing.starts_at || startsAt < new Date(existing.starts_at).getTime()))) {
+      if (
+        !existing ||
+        (startsAt &&
+          (!existing.starts_at ||
+            startsAt < new Date(existing.starts_at).getTime()))
+      ) {
         nextByApp.set(iv.application_id, iv);
       }
     }
@@ -497,10 +554,16 @@ export async function listMyApplications(): Promise<MyApplicationView[]> {
       "job_application_answers",
       [Query.equal("application_id", appIds), Query.limit(200)]
     );
-    const answersByApp = new Map<string, Array<{ question_label: string; answer: string | null }>>();
+    const answersByApp = new Map<
+      string,
+      Array<{ question_label: string; answer: string | null }>
+    >();
     for (const answerRow of answersResult.rows) {
       const list = answersByApp.get(answerRow.application_id) ?? [];
-      list.push({ answer: answerRow.answer ?? null, question_label: answerRow.question_label });
+      list.push({
+        answer: answerRow.answer ?? null,
+        question_label: answerRow.question_label,
+      });
       answersByApp.set(answerRow.application_id, list);
     }
 
@@ -513,7 +576,9 @@ export async function listMyApplications(): Promise<MyApplicationView[]> {
         job?.slug ??
         "Vacancy";
       const next = nextByApp.get(app.$id) ?? null;
-      const review = parseRecruitmentApplicationReviewMetadata(app.review_metadata);
+      const review = parseRecruitmentApplicationReviewMetadata(
+        app.review_metadata
+      );
 
       return {
         $createdAt: app.$createdAt,
@@ -523,7 +588,12 @@ export async function listMyApplications(): Promise<MyApplicationView[]> {
         data_retention_until: app.data_retention_until,
         hr_assigned_name: review.assigned_hr_user_name ?? null,
         job: job
-          ? { $id: job.$id, campus_name: job.campus?.name ?? null, slug: job.slug, title }
+          ? {
+              $id: job.$id,
+              campus_name: job.campus?.name ?? null,
+              slug: job.slug,
+              title,
+            }
           : null,
         next_interview: next
           ? {

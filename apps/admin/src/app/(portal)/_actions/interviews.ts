@@ -1,30 +1,30 @@
 "use server";
 
 import { ID, Query } from "@repo/api";
-import { createAdminClient } from "@repo/api/server";
+import { createSessionClient } from "@repo/api/server";
 import type {
   JobApplications,
   JobInterviewParticipants,
-  JobInterviews,
   JobInterviewScorecards,
+  JobInterviews,
   Jobs,
 } from "@repo/api/types/appwrite";
 import {
   InterviewParticipantRole,
-  InterviewRecommendation,
+  type InterviewRecommendation,
   InterviewResponseStatus,
   InterviewStatus,
 } from "@repo/api/types/appwrite";
 import {
   RECRUITMENT_BOOKING_TOKEN_DEFAULT_TTL_DAYS,
   type RecruitmentBookingProposeInput,
-  recruitmentBookingProposeSchema,
   type RecruitmentInterviewCreateInput,
-  recruitmentInterviewCreateSchema,
   type RecruitmentInterviewUpdateInput,
-  recruitmentInterviewUpdateSchema,
   type RecruitmentScorecardCriterion,
   type RecruitmentScorecardSubmitInput,
+  recruitmentBookingProposeSchema,
+  recruitmentInterviewCreateSchema,
+  recruitmentInterviewUpdateSchema,
   recruitmentScorecardSubmitSchema,
 } from "@repo/shared/types/recruitment";
 import { redirect } from "next/navigation";
@@ -38,13 +38,24 @@ import {
 import { issueBookingToken } from "@/lib/recruitment-booking";
 import {
   cancelInterviewOnGraph,
-  proposeSlotsForPanel,
   type ProposedSlot,
+  proposeSlotsForPanel,
   scheduleInterviewOnGraph,
 } from "@/lib/recruitment-scheduling";
 import { logAuditEvent } from "./audit-log";
 
 const DATABASE_ID = "app";
+
+// Fields to select when fetching job_applications with nested job for access control.
+const APPLICATION_JOB_SELECT = [
+  "$id",
+  "job_id",
+  "applicant_name",
+  "applicant_email",
+  "job.$id",
+  "job.campus_id",
+  "job.department_id",
+] as const;
 
 function toParticipantRole(role: string): InterviewParticipantRole {
   switch (role) {
@@ -71,38 +82,39 @@ export interface InterviewWithParticipants {
 }
 
 async function fetchInterviewWithParticipants(
-  db: Awaited<ReturnType<typeof createAdminClient>>["db"],
+  db: Awaited<ReturnType<typeof createSessionClient>>["db"],
   interviewId: string
 ): Promise<InterviewWithParticipants> {
   const interview = await db.getRow<JobInterviews>(
     DATABASE_ID,
     "job_interviews",
-    interviewId
+    interviewId,
+    [Query.select(["*", "participants.*"])]
   );
-  const participants = await db.listRows<JobInterviewParticipants>(
-    DATABASE_ID,
-    "job_interview_participants",
-    [Query.equal("interview_id", interviewId), Query.limit(100)]
-  );
-  return { interview, participants: participants.rows };
+  return {
+    interview,
+    participants: (interview.participants ?? []) as JobInterviewParticipants[],
+  };
 }
 
 export async function listInterviewsForApplication(
   applicationId: string
 ): Promise<InterviewWithParticipants[]> {
   const ctx = await requireAuth();
-  const { db } = await createAdminClient();
+  const { db } = await createSessionClient();
   const scope = toRecruitmentAdminScope(ctx);
   const lookups = await loadRecruitmentLookups(db);
 
   const application = await db.getRow<JobApplications>(
     DATABASE_ID,
     "job_applications",
-    applicationId
+    applicationId,
+    [Query.select([...APPLICATION_JOB_SELECT])]
   );
-  const job = await db.getRow<Jobs>(DATABASE_ID, "jobs", application.job_id, [
-    Query.select(["$id", "campus_id", "department_id"]),
-  ]);
+  const job = application.job as Jobs | null;
+  if (!job) {
+    throw new Error("Vacancy not found");
+  }
   assertInterviewWriteAccess(scope, lookups, {
     campus_id: job.campus_id,
     department_id: job.department_id,
@@ -112,6 +124,7 @@ export async function listInterviewsForApplication(
     DATABASE_ID,
     "job_interviews",
     [
+      Query.select(["*", "participants.*"]),
       Query.equal("application_id", applicationId),
       Query.orderAsc("round"),
       Query.orderAsc("starts_at"),
@@ -119,24 +132,9 @@ export async function listInterviewsForApplication(
     ]
   );
 
-  const ids = interviews.rows.map((interview) => interview.$id);
-  if (ids.length === 0) {
-    return [];
-  }
-  const participants = await db.listRows<JobInterviewParticipants>(
-    DATABASE_ID,
-    "job_interview_participants",
-    [Query.equal("interview_id", ids), Query.limit(500)]
-  );
-  const byInterview = new Map<string, JobInterviewParticipants[]>();
-  for (const participant of participants.rows) {
-    const list = byInterview.get(participant.interview_id) ?? [];
-    list.push(participant);
-    byInterview.set(participant.interview_id, list);
-  }
   return interviews.rows.map((interview) => ({
     interview,
-    participants: byInterview.get(interview.$id) ?? [],
+    participants: (interview.participants ?? []) as JobInterviewParticipants[],
   }));
 }
 
@@ -151,18 +149,20 @@ export async function createInterview(
   const input = validated.data;
 
   try {
-    const { db } = await createAdminClient();
+    const { db } = await createSessionClient();
     const scope = toRecruitmentAdminScope(ctx);
     const lookups = await loadRecruitmentLookups(db);
 
     const application = await db.getRow<JobApplications>(
       DATABASE_ID,
       "job_applications",
-      input.application_id
+      input.application_id,
+      [Query.select([...APPLICATION_JOB_SELECT])]
     );
-    const job = await db.getRow<Jobs>(DATABASE_ID, "jobs", application.job_id, [
-      Query.select(["$id", "campus_id", "department_id"]),
-    ]);
+    const job = application.job as Jobs | null;
+    if (!job) {
+      return { error: "Vacancy not found" };
+    }
     assertInterviewWriteAccess(scope, lookups, {
       campus_id: job.campus_id,
       department_id: job.department_id,
@@ -179,6 +179,7 @@ export async function createInterview(
       "job_interviews",
       ID.unique(),
       {
+        application: input.application_id,
         application_id: input.application_id,
         cancelled_reason: null,
         campus_id: job.campus_id,
@@ -208,6 +209,7 @@ export async function createInterview(
       {
         display_name: application.applicant_name,
         email: application.applicant_email,
+        interview: interview.$id,
         interview_id: interview.$id,
         is_lead: false,
         response_status: InterviewResponseStatus.PENDING,
@@ -225,6 +227,7 @@ export async function createInterview(
         {
           display_name: participantInput.display_name ?? null,
           email: participantInput.email,
+          interview: interview.$id,
           interview_id: interview.$id,
           is_lead: participantInput.is_lead,
           response_status: InterviewResponseStatus.PENDING,
@@ -249,8 +252,7 @@ export async function createInterview(
           participant.role === InterviewParticipantRole.INTERVIEWER &&
           participant.is_lead
       );
-      const organizerUpn =
-        lead?.email ?? panelEmails[0] ?? ctx.email ?? null;
+      const organizerUpn = lead?.email ?? panelEmails[0] ?? ctx.email ?? null;
       if (organizerUpn) {
         try {
           const scheduled = await scheduleInterviewOnGraph({
@@ -273,8 +275,7 @@ export async function createInterview(
               "job_interviews",
               interview.$id,
               {
-                meeting_url:
-                  scheduled.meetingUrl ?? finalInterview.meeting_url,
+                meeting_url: scheduled.meetingUrl ?? finalInterview.meeting_url,
                 outlook_event_id: scheduled.outlookEventId,
                 teams_meeting_id: scheduled.teamsMeetingId,
               }
@@ -322,7 +323,7 @@ export async function updateInterview(
   const input = validated.data;
 
   try {
-    const { db } = await createAdminClient();
+    const { db } = await createSessionClient();
     const scope = toRecruitmentAdminScope(ctx);
     const lookups = await loadRecruitmentLookups(db);
 
@@ -337,13 +338,24 @@ export async function updateInterview(
     });
 
     const patch: Partial<JobInterviews> = {};
-    if (input.title !== undefined) patch.title = input.title;
-    if (input.round !== undefined) patch.round = input.round;
-    if (input.timezone !== undefined) patch.timezone = input.timezone;
-    if (input.location !== undefined) patch.location = input.location ?? null;
-    if (input.meeting_url !== undefined)
+    if (input.title !== undefined) {
+      patch.title = input.title;
+    }
+    if (input.round !== undefined) {
+      patch.round = input.round;
+    }
+    if (input.timezone !== undefined) {
+      patch.timezone = input.timezone;
+    }
+    if (input.location !== undefined) {
+      patch.location = input.location ?? null;
+    }
+    if (input.meeting_url !== undefined) {
       patch.meeting_url = input.meeting_url ?? null;
-    if (input.notes !== undefined) patch.notes = input.notes ?? null;
+    }
+    if (input.notes !== undefined) {
+      patch.notes = input.notes ?? null;
+    }
     if (input.status !== undefined) {
       patch.status = input.status as InterviewStatus;
     }
@@ -385,7 +397,7 @@ export async function cancelInterview(
 ): Promise<{ data?: JobInterviews; error?: string }> {
   const ctx = await requireAuth();
   try {
-    const { db } = await createAdminClient();
+    const { db } = await createSessionClient();
     const scope = toRecruitmentAdminScope(ctx);
     const lookups = await loadRecruitmentLookups(db);
 
@@ -461,7 +473,7 @@ export async function addInterviewParticipant(
 ): Promise<{ data?: JobInterviewParticipants; error?: string }> {
   const ctx = await requireAuth();
   try {
-    const { db } = await createAdminClient();
+    const { db } = await createSessionClient();
     const scope = toRecruitmentAdminScope(ctx);
     const lookups = await loadRecruitmentLookups(db);
 
@@ -513,7 +525,7 @@ export async function removeInterviewParticipant(
 ): Promise<{ success?: boolean; error?: string }> {
   const ctx = await requireAuth();
   try {
-    const { db } = await createAdminClient();
+    const { db } = await createSessionClient();
     const scope = toRecruitmentAdminScope(ctx);
     const lookups = await loadRecruitmentLookups(db);
 
@@ -551,15 +563,15 @@ export async function removeInterviewParticipant(
 }
 
 export interface ScorecardWithSummary {
-  scorecard: JobInterviewScorecards;
   criteria: RecruitmentScorecardCriterion[];
+  scorecard: JobInterviewScorecards;
 }
 
 export async function listScorecardsForInterview(
   interviewId: string
 ): Promise<ScorecardWithSummary[]> {
   await requireAuth();
-  const { db } = await createAdminClient();
+  const { db } = await createSessionClient();
   const response = await db.listRows<JobInterviewScorecards>(
     DATABASE_ID,
     "job_interview_scorecards",
@@ -574,7 +586,9 @@ export async function listScorecardsForInterview(
 function safeParseCriteria(value: string): RecruitmentScorecardCriterion[] {
   try {
     const parsed = JSON.parse(value);
-    return Array.isArray(parsed) ? (parsed as RecruitmentScorecardCriterion[]) : [];
+    return Array.isArray(parsed)
+      ? (parsed as RecruitmentScorecardCriterion[])
+      : [];
   } catch {
     return [];
   }
@@ -591,27 +605,27 @@ export async function submitScorecard(
   const input = validated.data;
 
   try {
-    const { db } = await createAdminClient();
+    const { db } = await createSessionClient();
     const scope = toRecruitmentAdminScope(ctx);
 
     const interview = await db.getRow<JobInterviews>(
       DATABASE_ID,
       "job_interviews",
-      input.interview_id
-    );
-    const participants = await db.listRows<JobInterviewParticipants>(
-      DATABASE_ID,
-      "job_interview_participants",
+      input.interview_id,
       [
-        Query.equal("interview_id", input.interview_id),
-        Query.equal("role", InterviewParticipantRole.INTERVIEWER),
-        Query.limit(50),
+        Query.select([
+          "*",
+          "participants.$id",
+          "participants.user_id",
+          "participants.role",
+        ]),
       ]
     );
     const participantUserIds = new Set(
-      participants.rows
-        .map((participant) => participant.user_id)
-        .filter((value): value is string => Boolean(value))
+      ((interview.participants ?? []) as JobInterviewParticipants[])
+        .filter((p) => p.role === InterviewParticipantRole.INTERVIEWER)
+        .map((p) => p.user_id)
+        .filter((id): id is string => Boolean(id))
     );
 
     assertScorecardWriteAccess(scope, ctx.userId, participantUserIds);
@@ -679,7 +693,7 @@ export async function listInterviewsForUser(opts?: {
   to?: string;
 }): Promise<InterviewWithParticipants[]> {
   const ctx = await requireAuth();
-  const { db } = await createAdminClient();
+  const { db } = await createSessionClient();
 
   // Find every interview where the user is a participant.
   const memberships = await db.listRows<JobInterviewParticipants>(
@@ -695,6 +709,7 @@ export async function listInterviewsForUser(opts?: {
   }
 
   const queries = [
+    Query.select(["*", "participants.*"]),
     Query.equal("$id", interviewIds),
     Query.orderAsc("starts_at"),
     Query.limit(200),
@@ -712,20 +727,9 @@ export async function listInterviewsForUser(opts?: {
     queries
   );
 
-  const allParticipants = await db.listRows<JobInterviewParticipants>(
-    DATABASE_ID,
-    "job_interview_participants",
-    [Query.equal("interview_id", interviewIds), Query.limit(500)]
-  );
-  const byInterview = new Map<string, JobInterviewParticipants[]>();
-  for (const participant of allParticipants.rows) {
-    const list = byInterview.get(participant.interview_id) ?? [];
-    list.push(participant);
-    byInterview.set(participant.interview_id, list);
-  }
   return interviews.rows.map((interview) => ({
     interview,
-    participants: byInterview.get(interview.$id) ?? [],
+    participants: (interview.participants ?? []) as JobInterviewParticipants[],
   }));
 }
 
@@ -740,18 +744,20 @@ export async function createBookingToken(
   const input = validated.data;
 
   try {
-    const { db } = await createAdminClient();
+    const { db } = await createSessionClient();
     const scope = toRecruitmentAdminScope(ctx);
     const lookups = await loadRecruitmentLookups(db);
 
     const application = await db.getRow<JobApplications>(
       DATABASE_ID,
       "job_applications",
-      input.application_id
+      input.application_id,
+      [Query.select([...APPLICATION_JOB_SELECT])]
     );
-    const job = await db.getRow<Jobs>(DATABASE_ID, "jobs", application.job_id, [
-      Query.select(["$id", "campus_id", "department_id"]),
-    ]);
+    const job = application.job as Jobs | null;
+    if (!job) {
+      return { error: "Vacancy not found" };
+    }
     assertInterviewWriteAccess(scope, lookups, {
       campus_id: job.campus_id,
       department_id: job.department_id,
@@ -764,23 +770,18 @@ export async function createBookingToken(
       Date.now() + ttlDays * 24 * 60 * 60 * 1000
     ).toISOString();
 
-    await db.createRow(
-      DATABASE_ID,
-      "recruitment_booking_tokens",
-      ID.unique(),
-      {
-        application_id: input.application_id,
-        consumed_at: null,
-        created_by_user_id: ctx.userId,
-        duration_minutes: input.duration_minutes,
-        expires_at: expiresAt,
-        interview_id: null,
-        panel_user_ids: JSON.stringify(input.panel_user_ids),
-        token_hash: issued.hash,
-        window_from: new Date(input.window_from).toISOString(),
-        window_to: new Date(input.window_to).toISOString(),
-      }
-    );
+    await db.createRow(DATABASE_ID, "recruitment_booking_tokens", ID.unique(), {
+      application_id: input.application_id,
+      consumed_at: null,
+      created_by_user_id: ctx.userId,
+      duration_minutes: input.duration_minutes,
+      expires_at: expiresAt,
+      interview_id: null,
+      panel_user_ids: JSON.stringify(input.panel_user_ids),
+      token_hash: issued.hash,
+      window_from: new Date(input.window_from).toISOString(),
+      window_to: new Date(input.window_to).toISOString(),
+    });
 
     await logAuditEvent(ctx, "recruitment.booking.issue", {
       payload: {
@@ -839,7 +840,7 @@ export async function getInterviewWithParticipants(
   interviewId: string
 ): Promise<InterviewWithParticipants> {
   const ctx = await requireAuth();
-  const { db } = await createAdminClient();
+  const { db } = await createSessionClient();
   const scope = toRecruitmentAdminScope(ctx);
   const lookups = await loadRecruitmentLookups(db);
 

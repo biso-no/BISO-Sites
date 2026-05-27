@@ -32,7 +32,10 @@ const SORT_OPTIONS = [
 
 type SortOption = (typeof SORT_OPTIONS)[number]["value"];
 
-function sortJobs(jobs: RecruitmentVacancy[], sort: SortOption): RecruitmentVacancy[] {
+function sortJobs(
+  jobs: RecruitmentVacancy[],
+  sort: SortOption
+): RecruitmentVacancy[] {
   return [...jobs].sort((a, b) => {
     if (sort === "deadline") {
       const da = a.metadata.application_deadline
@@ -98,11 +101,16 @@ export function JobsListClient({
 
   // When campus switcher changes, re-fetch via URL update (triggers server rerender)
   useEffect(() => {
-    if (activeCampusId === undefined) return; // still loading
+    if (activeCampusId === undefined) {
+      return; // still loading
+    }
     const params = new URLSearchParams(window.location.search);
     const currentCampus = params.get("campus");
     const newCampus = activeCampusId ?? "all";
-    if (currentCampus !== newCampus && !(currentCampus === null && newCampus === "all")) {
+    if (
+      currentCampus !== newCampus &&
+      !(currentCampus === null && newCampus === "all")
+    ) {
       if (newCampus === "all") {
         params.delete("campus");
       } else {
@@ -132,7 +140,11 @@ export function JobsListClient({
         const t0 = job.translations[0];
         const title = (t0?.title ?? "").toLowerCase();
         const desc = (t0?.description ?? "").toLowerCase();
-        const short = (job.metadata.short_description ?? t0?.short_description ?? "").toLowerCase();
+        const short = (
+          job.metadata.short_description ??
+          t0?.short_description ??
+          ""
+        ).toLowerCase();
         const dept = (job.department?.Name ?? "").toLowerCase();
         const company = (job.metadata.company ?? "").toLowerCase();
 
@@ -224,7 +236,7 @@ export function JobsListClient({
                 <SlidersHorizontal className="mr-2 h-4 w-4" />
                 Filters
                 {hasActiveFilters && (
-                  <span className="ml-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-brand text-[10px] text-white font-medium">
+                  <span className="ml-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-brand font-medium text-[10px] text-white">
                     !
                   </span>
                 )}
