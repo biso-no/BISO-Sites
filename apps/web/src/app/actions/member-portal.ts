@@ -8,7 +8,10 @@ import type {
   PublicProfiles,
   Users,
 } from "@repo/api/types/appwrite";
-import { Action, CampusBenefitStatus } from "@repo/api/types/appwrite";
+import {
+  BenefitInteractionsAction,
+  CampusBenefitsStatus,
+} from "@repo/api/types/appwrite";
 import { resolveBenefitCampusIds } from "@repo/shared/utils/benefit-scope";
 import { checkMembership } from "@/lib/profile";
 
@@ -67,7 +70,7 @@ export async function getMemberPortalBenefits(
       "campus_benefits",
       [
         Query.equal("campus_id", campusIds),
-        Query.equal("status", CampusBenefitStatus.PUBLISHED),
+        Query.equal("status", CampusBenefitsStatus.PUBLISHED),
         Query.orderAsc("sort_order"),
         Query.orderDesc("is_featured"),
         Query.limit(100),
@@ -94,7 +97,7 @@ export async function getFeaturedBenefits(
       "campus_benefits",
       [
         Query.equal("campus_id", campusIds),
-        Query.equal("status", CampusBenefitStatus.PUBLISHED),
+        Query.equal("status", CampusBenefitsStatus.PUBLISHED),
         Query.equal("is_featured", true),
         Query.orderAsc("sort_order"),
         Query.limit(6),
@@ -241,7 +244,7 @@ export async function revealBenefit(
       {
         user_id: user.$id,
         benefit_id: benefitId,
-        action: Action.REVEAL,
+        action: BenefitInteractionsAction.REVEAL,
         campus_id: benefit.campus_id ?? null,
         metadata: null,
         $permissions: [Permission.read(`user:${user.$id}`)],

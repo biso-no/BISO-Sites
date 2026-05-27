@@ -1,4 +1,4 @@
-import { ExpenseStatus } from "@repo/api/types/appwrite";
+import { ExpensesStatus } from "@repo/api/types/appwrite";
 import { redirect } from "next/navigation";
 import { getCampuses } from "@/app/actions/campus";
 import { ExpenseSplitView } from "@/components/expense-v3/expense-split-view";
@@ -27,7 +27,7 @@ export default async function NewExpensePage({
   });
   const draftResult = draftId ? await getExpenseById(draftId) : null;
   const initialDraft =
-    draftResult?.success && draftResult.expense?.status === ExpenseStatus.DRAFT
+    draftResult?.success && draftResult.expense?.status === ExpensesStatus.DRAFT
       ? draftResult.expense
       : null;
 

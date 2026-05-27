@@ -3,6 +3,9 @@
   "workspaces": {
     "": {
       "name": "biso-sites",
+      "dependencies": {
+        "server-only": "^0.0.1",
+      },
       "devDependencies": {
         "@biomejs/biome": "2.4.10",
         "lefthook": "^2.1.4",
@@ -210,6 +213,7 @@
         "next": "catalog:",
         "node-appwrite": "catalog:",
         "react": "catalog:",
+        "server-only": "*",
       },
       "devDependencies": {
         "@repo/typescript-config": "workspace:*",

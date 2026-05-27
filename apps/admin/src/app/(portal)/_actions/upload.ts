@@ -1,6 +1,7 @@
 "use server";
 
-import { getStorageFileUrl, ID, InputFile } from "@repo/api";
+import { getStorageFileUrl, ID } from "@repo/api";
+import { InputFile } from "@repo/api/file";
 import { createAdminClient } from "@repo/api/server";
 import { redirect } from "next/navigation";
 import { getUserAuthContext } from "@/lib/authorization";

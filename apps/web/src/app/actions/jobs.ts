@@ -4,7 +4,8 @@ import {
   normalizeScreeningScore,
   screenApplication,
 } from "@repo/ai/server/recruitment-screener";
-import { ID, InputFile, Permission, Query, Role } from "@repo/api";
+import { ID, Permission, Query, Role } from "@repo/api";
+import { InputFile } from "@repo/api/file";
 import { createAdminClient, createSessionClient } from "@repo/api/server";
 import type {
   CandidateProfiles,
@@ -97,7 +98,8 @@ const _listJobs = cache(
   }
 );
 
-export function listJobs(params: {
+// biome-ignore lint/suspicious/useAwait: async required by "use server" — returns cached promise
+export async function listJobs(params: {
   campus?: string | null;
   department?: string | null;
   locale?: string;
@@ -132,7 +134,8 @@ const _getJobBySlug = cache(
   }
 );
 
-export function getJobBySlug(
+// biome-ignore lint/suspicious/useAwait: async required by "use server" — returns cached promise
+export async function getJobBySlug(
   slug: string,
   locale: "en" | "no"
 ): Promise<RecruitmentVacancy | null> {

@@ -1,4 +1,5 @@
-import { ID, InputFile, type Models, Query } from "@repo/api";
+import { ID, type Models, Query } from "@repo/api";
+import { InputFile } from "@repo/api/file";
 import { createAdminClient } from "@repo/api/server";
 import type { Users } from "@repo/api/types/appwrite";
 import { type Expenses, ExpensesStatus } from "@repo/api/types/appwrite";

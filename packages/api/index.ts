@@ -15,7 +15,6 @@ export {
   Teams,
   Users,
 } from "node-appwrite";
-export { InputFile } from "node-appwrite/file";
 export {
   getStorageFileDownloadUrl,
   getStorageFileThumbnailUrl,

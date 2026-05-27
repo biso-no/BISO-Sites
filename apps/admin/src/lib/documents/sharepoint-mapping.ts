@@ -1,4 +1,4 @@
-import { DocumentCategory } from "@repo/api/types/appwrite";
+import { DocumentsCategory } from "@repo/api/types/appwrite";
 import type { SharePointService } from "@repo/connectors/sharepoint";
 
 export type DocumentLanguage = "no" | "en";
@@ -11,13 +11,13 @@ const ORG_DOCS_ROOT = "/Documents/Organisational Documents";
  * under the Organisational Documents root.
  */
 const CATEGORY_FOLDER_MAP: Record<DocumentCategory, string> = {
-  [DocumentCategory.NATIONAL_STATUTES]: "Statutes",
-  [DocumentCategory.CAMPUS_BYLAWS]: "Local laws",
-  [DocumentCategory.CODE_OF_CONDUCT]: "Code of Conduct",
-  [DocumentCategory.BUSINESS_REGULATIONS]: "Business Regulations",
-  [DocumentCategory.COMMUNICATION_GUIDELINES]: "Communication Guidelines",
-  [DocumentCategory.AUTHORIZATION_MATRIX]: "Authorization Matrix",
-  [DocumentCategory.TARGET_DOCUMENTS]: "Target Documents",
+  [DocumentsCategory.NATIONAL_STATUTES]: "Statutes",
+  [DocumentsCategory.CAMPUS_BYLAWS]: "Local laws",
+  [DocumentsCategory.CODE_OF_CONDUCT]: "Code of Conduct",
+  [DocumentsCategory.BUSINESS_REGULATIONS]: "Business Regulations",
+  [DocumentsCategory.COMMUNICATION_GUIDELINES]: "Communication Guidelines",
+  [DocumentsCategory.AUTHORIZATION_MATRIX]: "Authorization Matrix",
+  [DocumentsCategory.TARGET_DOCUMENTS]: "Target Documents",
 };
 
 const LANGUAGE_SUBFOLDER: Record<DocumentLanguage, string> = {
@@ -31,11 +31,11 @@ const LANGUAGE_SUBFOLDER: Record<DocumentLanguage, string> = {
  * sites and are excluded from auto-mapping for now.
  */
 export const AUTO_MAPPED_CATEGORIES = new Set<DocumentCategory>([
-  DocumentCategory.NATIONAL_STATUTES,
-  DocumentCategory.CAMPUS_BYLAWS,
-  DocumentCategory.CODE_OF_CONDUCT,
-  DocumentCategory.AUTHORIZATION_MATRIX,
-  DocumentCategory.TARGET_DOCUMENTS,
+  DocumentsCategory.NATIONAL_STATUTES,
+  DocumentsCategory.CAMPUS_BYLAWS,
+  DocumentsCategory.CODE_OF_CONDUCT,
+  DocumentsCategory.AUTHORIZATION_MATRIX,
+  DocumentsCategory.TARGET_DOCUMENTS,
 ]);
 
 /**

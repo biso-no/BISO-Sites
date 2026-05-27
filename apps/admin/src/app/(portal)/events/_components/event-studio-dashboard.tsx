@@ -1,6 +1,6 @@
 "use client";
 
-import type { EventStatus } from "@repo/api/types/appwrite";
+import type { EventsStatus } from "@repo/api/types/appwrite";
 import type { EventRecord } from "@repo/shared/types/events";
 import {
   Bell,
@@ -407,7 +407,7 @@ function DateBlock({ iso }: { iso: string | null | undefined }) {
   );
 }
 
-function StatusPill({ status }: { status: EventStatus }) {
+function StatusPill({ status }: { status: EventsStatus }) {
   const commonStatus = useTranslations("adminPortal.common.status");
   const statusKey = String(status);
   let color: string = BRAND.ink3;

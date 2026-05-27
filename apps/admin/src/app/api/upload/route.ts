@@ -1,4 +1,5 @@
-import { ID, InputFile } from "@repo/api";
+import { ID } from "@repo/api";
+import { InputFile } from "@repo/api/file";
 import { createSessionClient } from "@repo/api/server";
 import { NextResponse } from "next/server";
 

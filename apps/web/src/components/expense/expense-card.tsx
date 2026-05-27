@@ -2,7 +2,7 @@
 
 import {
   type ExpenseAttachments,
-  ExpenseStatus,
+  ExpensesStatus,
 } from "@repo/api/types/appwrite";
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Button } from "@repo/ui/components/ui/button";
@@ -25,7 +25,7 @@ interface ExpenseCardProps {
     $id: string;
     description: string | null;
     total: number;
-    status: ExpenseStatus;
+    status: ExpensesStatus;
     campus: string;
     department: string;
     $createdAt: string;
@@ -35,27 +35,27 @@ interface ExpenseCardProps {
 }
 
 const statusConfig = {
-  [ExpenseStatus.DRAFT]: {
+  [ExpensesStatus.DRAFT]: {
     label: "Draft",
     color: "bg-muted text-muted-foreground border-border",
     icon: Clock,
   },
-  [ExpenseStatus.PENDING]: {
+  [ExpensesStatus.PENDING]: {
     label: "Pending",
     color: "bg-yellow-100 text-yellow-700 border-yellow-200",
     icon: Clock,
   },
-  [ExpenseStatus.SUCCESS]: {
+  [ExpensesStatus.SUCCESS]: {
     label: "Approved",
     color: "bg-green-100 text-green-700 border-green-200",
     icon: CheckCircle,
   },
-  [ExpenseStatus.SUBMITTED]: {
+  [ExpensesStatus.SUBMITTED]: {
     label: "Submitted",
     color: "bg-blue-100 text-blue-700 border-blue-200",
     icon: CheckCircle,
   },
-  [ExpenseStatus.REJECTED]: {
+  [ExpensesStatus.REJECTED]: {
     label: "Rejected",
     color: "bg-red-100 text-red-700 border-red-200",
     icon: XCircle,
@@ -74,7 +74,7 @@ export function ExpenseCard({ expense, index = 0 }: ExpenseCardProps) {
       day: "numeric",
     }
   );
-  const isDraft = expense.status === ExpenseStatus.DRAFT;
+  const isDraft = expense.status === ExpensesStatus.DRAFT;
   const actionHref = isDraft
     ? `/fs/new?draftId=${expense.$id}`
     : `/fs/${expense.$id}`;

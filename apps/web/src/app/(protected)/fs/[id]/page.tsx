@@ -1,4 +1,4 @@
-import { ExpenseStatus } from "@repo/api/types/appwrite";
+import { ExpensesStatus } from "@repo/api/types/appwrite";
 import { ImageWithFallback } from "@repo/ui/components/image";
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Card } from "@repo/ui/components/ui/card";
@@ -20,27 +20,27 @@ import { getExpenseById } from "@/lib/actions/expense";
 import { PLACEHOLDER_IMAGE } from "@/lib/constants/placeholder-images";
 
 const statusConfig = {
-  [ExpenseStatus.DRAFT]: {
+  [ExpensesStatus.DRAFT]: {
     label: "Draft",
     color: "bg-muted text-muted-foreground border-border",
     icon: Clock,
   },
-  [ExpenseStatus.PENDING]: {
+  [ExpensesStatus.PENDING]: {
     label: "Pending",
     color: "bg-yellow-100 text-yellow-700 border-yellow-200",
     icon: Clock,
   },
-  [ExpenseStatus.SUCCESS]: {
+  [ExpensesStatus.SUCCESS]: {
     label: "Approved",
     color: "bg-green-100 text-green-700 border-green-200",
     icon: CheckCircle,
   },
-  [ExpenseStatus.SUBMITTED]: {
+  [ExpensesStatus.SUBMITTED]: {
     label: "Submitted",
     color: "bg-blue-100 text-blue-700 border-blue-200",
     icon: CheckCircle,
   },
-  [ExpenseStatus.REJECTED]: {
+  [ExpensesStatus.REJECTED]: {
     label: "Rejected",
     color: "bg-red-100 text-red-700 border-red-200",
     icon: XCircle,
@@ -61,7 +61,7 @@ async function ExpenseDetails({ expenseId }: { expenseId: string }) {
   }
 
   const expense = result.expense;
-  const config = statusConfig[expense.status as ExpenseStatus];
+  const config = statusConfig[expense.status as ExpensesStatus];
   const StatusIcon = config.icon;
 
   const submittedDate = new Date(expense.$createdAt).toLocaleDateString(

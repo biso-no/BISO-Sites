@@ -4,8 +4,8 @@ import { ID, type Models, Query } from "@repo/api";
 import { createSessionClient } from "@repo/api/server";
 import {
   type ExpenseAttachments,
-  ExpenseStatus,
   type Expenses,
+  ExpensesStatus,
 } from "@repo/api/types/appwrite";
 import { revalidatePath } from "next/cache";
 
@@ -36,7 +36,7 @@ type CreateExpenseAttachmentInput = Omit<
  * Get all expenses for the current user with optional filters
  */
 export async function getExpenses(filters?: {
-  status?: ExpenseStatus;
+  status?: ExpensesStatus;
   campus?: string;
 }) {
   try {
@@ -154,7 +154,7 @@ export async function createExpense(data: {
       expenseAttachments: data.expenseAttachments,
       total: data.total,
       prepayment_amount: data.prepayment_amount || null,
-      status: ExpenseStatus.PENDING,
+      status: ExpensesStatus.PENDING,
       userId: user.$id,
       eventName: data.eventName || null,
       invoice_id: null,

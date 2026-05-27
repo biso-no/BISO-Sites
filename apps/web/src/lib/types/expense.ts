@@ -1,5 +1,5 @@
 import type { Models } from "@repo/api";
-import type { ExpenseStatus } from "@repo/api/types/appwrite";
+import type { ExpensesStatus } from "@repo/api/types/appwrite";
 
 type CreateAttachmentData = Models.Row & {
   date: string;
@@ -20,7 +20,7 @@ export type CreateExpenseData = Models.Row & {
   expenseAttachments: CreateAttachmentData[];
   campusRel: string;
   departmentRel: string;
-  status: ExpenseStatus;
+  status: ExpensesStatus;
   userId: string;
   user: string;
   $sequence: number;

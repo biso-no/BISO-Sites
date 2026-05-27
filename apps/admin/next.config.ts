@@ -16,6 +16,7 @@ const baseConfig: NextConfig = {
     "@repo/payment",
     "@repo/typescript-config",
   ],
+  serverExternalPackages: ["node-appwrite"],
   typescript: { ignoreBuildErrors: true },
   reactStrictMode: true,
   output: "standalone",

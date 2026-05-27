@@ -2,11 +2,11 @@ import { Query } from "@repo/api";
 import { createSessionClient } from "@repo/api/server";
 import {
   type ContentTranslations,
-  ContentType,
+  ContentTranslationsContentType,
   type News,
   NewsStatus,
-  WebshopProductStatus,
   type WebshopProducts,
+  WebshopProductsStatus,
 } from "@repo/api/types/appwrite";
 import type { Locale } from "@repo/i18n/config";
 
@@ -27,7 +27,7 @@ export async function getDepartments({
   const { db } = await createSessionClient();
 
   const queries = [
-    Query.equal("content_type", ContentType.DEPARTMENT),
+    Query.equal("content_type", ContentTranslationsContentType.DEPARTMENT),
     Query.equal("locale", locale),
     Query.select([
       "$id",
@@ -80,7 +80,7 @@ export async function getDepartmentById(
       "app",
       "content_translations",
       [
-        Query.equal("content_type", ContentType.DEPARTMENT),
+        Query.equal("content_type", ContentTranslationsContentType.DEPARTMENT),
         Query.equal("content_id", id),
         Query.equal("locale", locale),
         Query.select([
@@ -140,7 +140,7 @@ export async function getDepartmentById(
       "webshop_products",
       [
         Query.equal("departmentId", id),
-        Query.equal("status", WebshopProductStatus.PUBLISHED),
+        Query.equal("status", WebshopProductsStatus.PUBLISHED),
         Query.equal("translation_refs.locale", locale),
         Query.select([
           "$id",

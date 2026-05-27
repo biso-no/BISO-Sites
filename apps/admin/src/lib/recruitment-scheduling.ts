@@ -140,7 +140,8 @@ export async function scheduleInterviewOnGraph(
   };
 }
 
-export function cancelInterviewOnGraph(
+// biome-ignore lint/suspicious/useAwait: async required by "use server" — delegates to cancelCalendarEvent promise
+export async function cancelInterviewOnGraph(
   organizerUpn: string,
   outlookEventId: string,
   reason?: string

@@ -3,12 +3,12 @@
 import {
   type Campus,
   type Departments,
-  EventCategory,
-  EventCoverPattern,
-  EventLocationMode,
-  EventPricingMode,
-  EventPublishMode,
-  EventStatus,
+  EventsCategory,
+  EventsCoverPattern,
+  EventsLocationMode,
+  EventsPricingMode,
+  EventsPublishMode,
+  EventsStatus,
 } from "@repo/api/types/appwrite";
 import type { EventRecord } from "@repo/shared/types/events";
 import {
@@ -88,22 +88,22 @@ const STEPS = [
 type StepIndex = 0 | 1 | 2 | 3 | 4;
 
 const EVENT_CATEGORIES = [
-  { id: EventCategory.SOCIAL, name: "Social", crest: "S" },
-  { id: EventCategory.CAREER, name: "Career", crest: "C" },
-  { id: EventCategory.WORKSHOP, name: "Workshop", crest: "W" },
-  { id: EventCategory.TALK, name: "Talk", crest: "T" },
-  { id: EventCategory.PARTY, name: "Party", crest: "P" },
-  { id: EventCategory.SPORT, name: "Sport", crest: "Sp" },
-  { id: EventCategory.ACADEMIC, name: "Academic", crest: "A" },
-  { id: EventCategory.TRIP, name: "Trip", crest: "Tr" },
+  { id: EventsCategory.SOCIAL, name: "Social", crest: "S" },
+  { id: EventsCategory.CAREER, name: "Career", crest: "C" },
+  { id: EventsCategory.WORKSHOP, name: "Workshop", crest: "W" },
+  { id: EventsCategory.TALK, name: "Talk", crest: "T" },
+  { id: EventsCategory.PARTY, name: "Party", crest: "P" },
+  { id: EventsCategory.SPORT, name: "Sport", crest: "Sp" },
+  { id: EventsCategory.ACADEMIC, name: "Academic", crest: "A" },
+  { id: EventsCategory.TRIP, name: "Trip", crest: "Tr" },
 ] as const;
 
 const COVER_PATTERNS = [
-  { id: EventCoverPattern.DOTTED, label: "Dotted" },
-  { id: EventCoverPattern.LINEAR, label: "Linear" },
-  { id: EventCoverPattern.CONCENTRIC, label: "Concentric" },
-  { id: EventCoverPattern.WAVE, label: "Wave" },
-  { id: EventCoverPattern.GRID, label: "Grid" },
+  { id: EventsCoverPattern.DOTTED, label: "Dotted" },
+  { id: EventsCoverPattern.LINEAR, label: "Linear" },
+  { id: EventsCoverPattern.CONCENTRIC, label: "Concentric" },
+  { id: EventsCoverPattern.WAVE, label: "Wave" },
+  { id: EventsCoverPattern.GRID, label: "Grid" },
 ] as const;
 
 const TAG_OPTIONS = [
@@ -122,17 +122,17 @@ const TAG_OPTIONS = [
 
 const LOCATION_MODES = [
   {
-    id: EventLocationMode.PHYSICAL,
+    id: EventsLocationMode.PHYSICAL,
     label: "On campus",
     description: "A room, a venue",
   },
   {
-    id: EventLocationMode.ONLINE,
+    id: EventsLocationMode.ONLINE,
     label: "Online",
     description: "Teams, Zoom, etc",
   },
   {
-    id: EventLocationMode.HYBRID,
+    id: EventsLocationMode.HYBRID,
     label: "Hybrid",
     description: "Both, in parallel",
   },
@@ -386,27 +386,27 @@ function buildDefaultValues(
     campus_id: fallback(event?.campus_id, effectiveCampusId),
     department_id: fallback(event?.department_id, null),
     slug: fallback(event?.slug, ""),
-    status: fallback(event?.status, EventStatus.DRAFT),
+    status: fallback(event?.status, EventsStatus.DRAFT),
     category: fallback(event?.category, null),
     tags: fallback(event?.tags, []),
     start_date: fallback(event?.start_date, null),
     end_date: fallback(event?.end_date, null),
     registration_deadline: fallback(event?.registration_deadline, null),
-    location_mode: fallback(event?.location_mode, EventLocationMode.PHYSICAL),
+    location_mode: fallback(event?.location_mode, EventsLocationMode.PHYSICAL),
     location: fallback(event?.location, null),
     online_url: fallback(event?.online_url, null),
     capacity: fallback(event?.capacity, 0),
     waitlist: fallback(event?.waitlist, false),
-    cover_pattern: fallback(event?.cover_pattern, EventCoverPattern.DOTTED),
+    cover_pattern: fallback(event?.cover_pattern, EventsCoverPattern.DOTTED),
     image: fallback(event?.image, null),
-    pricing_mode: fallback(event?.pricing_mode, EventPricingMode.FREE),
+    pricing_mode: fallback(event?.pricing_mode, EventsPricingMode.FREE),
     price: fallback(event?.price, null),
     member_price: fallback(event?.member_price, null),
     ticket_url: fallback(event?.ticket_url, null),
     member_only: fallback(event?.member_only, false),
     is_collection: fallback(event?.is_collection, false),
     notify_push: fallback(event?.notify_push, false),
-    publish_mode: fallback(event?.publish_mode, EventPublishMode.NOW),
+    publish_mode: fallback(event?.publish_mode, EventsPublishMode.NOW),
     scheduled_publish_at: fallback(event?.scheduled_publish_at, null),
     contact_name: fallback(event?.contact_name, null),
     contact_role: fallback(event?.contact_role, null),
@@ -418,30 +418,30 @@ function buildDefaultValues(
 /*                                Cover patterns                              */
 /* -------------------------------------------------------------------------- */
 
-function coverPatternToNumber(value: EventCoverPattern | null | undefined) {
+function coverPatternToNumber(value: EventsCoverPattern | null | undefined) {
   switch (value) {
-    case EventCoverPattern.LINEAR:
+    case EventsCoverPattern.LINEAR:
       return 2;
-    case EventCoverPattern.CONCENTRIC:
+    case EventsCoverPattern.CONCENTRIC:
       return 3;
-    case EventCoverPattern.WAVE:
+    case EventsCoverPattern.WAVE:
       return 4;
-    case EventCoverPattern.GRID:
+    case EventsCoverPattern.GRID:
       return 5;
     default:
       return 1;
   }
 }
 
-function coverBackground(value: EventCoverPattern | null | undefined) {
+function coverBackground(value: EventsCoverPattern | null | undefined) {
   switch (value) {
-    case EventCoverPattern.LINEAR:
+    case EventsCoverPattern.LINEAR:
       return "linear-gradient(135deg, #2a4a7a 0%, #15263c 100%)";
-    case EventCoverPattern.CONCENTRIC:
+    case EventsCoverPattern.CONCENTRIC:
       return "linear-gradient(135deg, #2f5d3a 0%, #1a3422 100%)";
-    case EventCoverPattern.WAVE:
+    case EventsCoverPattern.WAVE:
       return "linear-gradient(135deg, #b08a3e 0%, #6a5118 100%)";
-    case EventCoverPattern.GRID:
+    case EventsCoverPattern.GRID:
       return "linear-gradient(180deg, #29261b 0%, #100e09 100%)";
     default:
       return "linear-gradient(135deg, #6b1e1e 0%, #2a1010 100%)";
@@ -2179,9 +2179,9 @@ function ScheduleStep({
             {LOCATION_MODES.map((mode) => {
               const active = values.location_mode === mode.id;
               let Icon: typeof Globe = MapPin;
-              if (mode.id === EventLocationMode.ONLINE) {
+              if (mode.id === EventsLocationMode.ONLINE) {
                 Icon = Globe;
-              } else if (mode.id === EventLocationMode.HYBRID) {
+              } else if (mode.id === EventsLocationMode.HYBRID) {
                 Icon = Link2;
               }
               return (
@@ -2240,7 +2240,7 @@ function ScheduleStep({
           </div>
         </div>
 
-        {values.location_mode !== EventLocationMode.ONLINE && (
+        {values.location_mode !== EventsLocationMode.ONLINE && (
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             <FieldLabel>
               <MapPin size={12} /> Venue address
@@ -2254,7 +2254,7 @@ function ScheduleStep({
           </div>
         )}
 
-        {values.location_mode !== EventLocationMode.PHYSICAL && (
+        {values.location_mode !== EventsLocationMode.PHYSICAL && (
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             <FieldLabel help="Sent on registration">
               <Link2 size={12} /> Online link
@@ -2466,7 +2466,7 @@ function ScheduleStep({
               <button
                 onClick={() => {
                   set("image", null);
-                  set("cover_pattern", EventCoverPattern.DOTTED);
+                  set("cover_pattern", EventsCoverPattern.DOTTED);
                 }}
                 style={{
                   background: "transparent",
@@ -2518,7 +2518,7 @@ function TicketsStep({
   ) => void;
   values: EventUpsertInput;
 }) {
-  const isFree = values.pricing_mode === EventPricingMode.FREE;
+  const isFree = values.pricing_mode === EventsPricingMode.FREE;
   const price = values.price ?? 0;
   const memberPrice = values.member_price ?? 0;
   const memberSavings = Math.max(0, price - memberPrice);
@@ -2563,14 +2563,14 @@ function TicketsStep({
           active={isFree}
           description="No payment. Sign-ups are first-come, first-served. Best for socials, talks and casual mixers."
           icon={<Sparkles size={14} />}
-          onClick={() => set("pricing_mode", EventPricingMode.FREE)}
+          onClick={() => set("pricing_mode", EventsPricingMode.FREE)}
           title="Free"
         />
         <ToggleCard
           active={!isFree}
           description="Routes through the BISO Webshop. Members get the member price; everyone else pays the regular price."
           icon={<Save size={14} />}
-          onClick={() => set("pricing_mode", EventPricingMode.PAID)}
+          onClick={() => set("pricing_mode", EventsPricingMode.PAID)}
           title="Paid ticket"
         />
       </div>
@@ -2740,19 +2740,19 @@ function TicketsStep({
           style={{ display: "grid", gap: 14, gridTemplateColumns: "1fr 1fr" }}
         >
           <ToggleCard
-            active={values.publish_mode === EventPublishMode.NOW}
+            active={values.publish_mode === EventsPublishMode.NOW}
             icon={<ArrowRight size={12} />}
-            onClick={() => set("publish_mode", EventPublishMode.NOW)}
+            onClick={() => set("publish_mode", EventsPublishMode.NOW)}
             title="Publish now"
           />
           <ToggleCard
-            active={values.publish_mode === EventPublishMode.SCHEDULED}
+            active={values.publish_mode === EventsPublishMode.SCHEDULED}
             icon={<CalendarDays size={12} />}
-            onClick={() => set("publish_mode", EventPublishMode.SCHEDULED)}
+            onClick={() => set("publish_mode", EventsPublishMode.SCHEDULED)}
             title="Schedule for…"
           />
         </div>
-        {values.publish_mode === EventPublishMode.SCHEDULED && (
+        {values.publish_mode === EventsPublishMode.SCHEDULED && (
           <div
             style={{
               display: "flex",
@@ -2878,7 +2878,7 @@ function ReviewStep({
       {
         label: "Where",
         value:
-          values.location_mode === EventLocationMode.ONLINE
+          values.location_mode === EventsLocationMode.ONLINE
             ? "Online"
             : (values.location ?? null),
         step: 2,
@@ -2891,7 +2891,7 @@ function ReviewStep({
       {
         label: "Price",
         value:
-          values.pricing_mode === EventPricingMode.FREE
+          values.pricing_mode === EventsPricingMode.FREE
             ? "Free"
             : `${formatNOK(values.price)} · ${formatNOK(values.member_price)} for members`,
         step: 3,
@@ -3234,7 +3234,7 @@ function EventPreviewPane({
   const ratio = capacity > 0 ? registered / capacity : 0;
   const seatsLeft = capacity > 0 ? Math.max(0, capacity - registered) : null;
   const price =
-    draft.pricing_mode === EventPricingMode.FREE ? 0 : (draft.price ?? 0);
+    draft.pricing_mode === EventsPricingMode.FREE ? 0 : (draft.price ?? 0);
   const year = draft.start_date ? new Date(draft.start_date).getFullYear() : "";
   const audience = draft.member_only ? PUSH_FOLLOWERS : STUDENT_POPULATION;
   const audienceLabel = draft.member_only
@@ -3708,7 +3708,7 @@ function EventPreviewPane({
                   </div>
                   <div style={infoRowStyle()}>
                     <span style={infoIcStyle()}>
-                      {draft.location_mode === EventLocationMode.ONLINE ? (
+                      {draft.location_mode === EventsLocationMode.ONLINE ? (
                         <Globe size={13} />
                       ) : (
                         <MapPin size={13} />
@@ -3730,12 +3730,12 @@ function EventPreviewPane({
                           fontWeight: 500,
                         }}
                       >
-                        {draft.location_mode === EventLocationMode.ONLINE
+                        {draft.location_mode === EventsLocationMode.ONLINE
                           ? "Online"
                           : (draft.location?.split("·")[0] ?? "Venue TBC")}
                       </div>
                       <div style={{ color: BRAND.ink3, fontSize: 10.5 }}>
-                        {draft.location_mode === EventLocationMode.ONLINE
+                        {draft.location_mode === EventsLocationMode.ONLINE
                           ? "Link sent on registration"
                           : (draft.location?.split("·")[1]?.trim() ?? "—")}
                       </div>
@@ -3977,7 +3977,7 @@ function EventPreviewPane({
                 }}
                 type="button"
               >
-                {draft.location_mode === EventLocationMode.ONLINE
+                {draft.location_mode === EventsLocationMode.ONLINE
                   ? "Reserve my spot"
                   : "Register"}
               </button>
@@ -4129,7 +4129,7 @@ export function EventStudioEditor({
 
     setValues((prev) => ({
       ...prev,
-      cover_pattern: EventCoverPattern.CUSTOM,
+      cover_pattern: EventsCoverPattern.CUSTOM,
       image: result.url ?? null,
     }));
     setDirty(true);
@@ -4198,7 +4198,7 @@ export function EventStudioEditor({
     }
   }
 
-  async function submit(status: EventStatus) {
+  async function submit(status: EventsStatus) {
     setSubmitting(true);
     const payload: EventUpsertInput = { ...values, status };
     const validated = eventUpsertSchema.safeParse(payload);
@@ -4216,7 +4216,7 @@ export function EventStudioEditor({
         return;
       }
       toast.success(
-        status === EventStatus.PUBLISHED
+        status === EventsStatus.PUBLISHED
           ? labels.publishSuccess
           : labels.saveSuccess
       );
@@ -4404,8 +4404,8 @@ export function EventStudioEditor({
           </div>
           <ActionBar
             dirty={dirty}
-            onDraft={() => submit(EventStatus.DRAFT)}
-            onPublish={() => submit(EventStatus.PUBLISHED)}
+            onDraft={() => submit(EventsStatus.DRAFT)}
+            onPublish={() => submit(EventsStatus.PUBLISHED)}
             setStep={setStep}
             step={step}
             submitting={submitting}
