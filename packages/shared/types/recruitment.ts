@@ -158,44 +158,43 @@ export const RECRUITMENT_ALLOWED_RESUME_MIME_TYPES = [
   "application/pdf",
 ] as const;
 
-export const recruitmentVacancyMetadataSchema = z
-  .object({
-    company: nullableTrimmedString(200),
-    employment_type: nullableTrimmedString(100),
-    paid: z.boolean().optional().default(false),
-    short_description: nullableTrimmedString(280),
-    location: nullableTrimmedString(200),
-    application_deadline: nullableDateString,
-    contact_name: nullableTrimmedString(200),
-    contact_email: z.preprocess((value) => {
-      if (typeof value !== "string") {
-        return value;
-      }
-      const trimmed = value.trim();
-      return trimmed.length > 0 ? trimmed : null;
-    }, z.email().nullable().optional()),
-    cv_required: z.boolean().optional().default(false),
-    tags: z
-      .array(z.string().trim().min(1).max(40))
-      .max(4)
-      .optional()
-      .default([]),
-    commitment: nullableTrimmedString(120),
-    term: nullableTrimmedString(120),
-    start_date: nullableDateString,
-    audience: recruitmentAudienceSchema.nullable().optional(),
-    contact_role: nullableTrimmedString(120),
-    cover_pattern: nullableInteger,
-    cover_image_file_id: nullableTrimmedString(200),
-    cover_image_url: nullableTrimmedString(1000),
-    auto_translate: z.boolean().optional().default(false),
-    push_to_inboxes: z.boolean().optional().default(false),
-    newsletter: z.boolean().optional().default(false),
-    publication_mode: recruitmentPublicationModeSchema.nullable().optional(),
-    scheduled_publish_at: nullableDateString,
-    auto_screen: z.boolean().optional().default(true),
-  })
-  .catchall(z.unknown());
+export const recruitmentVacancyMetadataSchema = z.object({
+  company: nullableTrimmedString(200),
+  employment_type: nullableTrimmedString(100),
+  paid: z.boolean().optional().default(false),
+  short_description: nullableTrimmedString(280),
+  location: nullableTrimmedString(200),
+  application_deadline: nullableDateString,
+  contact_name: nullableTrimmedString(200),
+  contact_email: z.preprocess((value) => {
+    if (typeof value !== "string") {
+      return value;
+    }
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : null;
+  }, z.email().nullable().optional()),
+  cv_required: z.boolean().optional().default(false),
+  tags: z.array(z.string().trim().min(1).max(40)).max(4).optional().default([]),
+  commitment: nullableTrimmedString(120),
+  term: nullableTrimmedString(120),
+  start_date: nullableDateString,
+  audience: recruitmentAudienceSchema.nullable().optional(),
+  contact_role: nullableTrimmedString(120),
+  cover_pattern: nullableInteger,
+  cover_image_file_id: nullableTrimmedString(200),
+  cover_image_url: nullableTrimmedString(1000),
+  auto_translate: z.boolean().optional().default(false),
+  push_to_inboxes: z.boolean().optional().default(false),
+  newsletter: z.boolean().optional().default(false),
+  publication_mode: recruitmentPublicationModeSchema.nullable().optional(),
+  scheduled_publish_at: nullableDateString,
+  auto_screen: z.boolean().optional().default(true),
+});
+// No catchall/passthrough: Zod strips unknown keys (titles, descriptions, slug,
+// status, rubric, …) so they never bloat the metadata column. Vacancy content
+// lives in translation rows; only true metadata belongs here. Keeping these out
+// prevents the 2000-char metadata column from overflowing and silently dropping
+// later fields such as application_deadline.
 
 export type RecruitmentVacancyMetadata = z.infer<
   typeof recruitmentVacancyMetadataSchema
