@@ -7,15 +7,14 @@ import { JobDetailsClient } from "@/components/jobs/job-details-client";
 import { getLoggedInUser } from "@/lib/actions/user";
 
 interface JobPageProps {
-  params: {
-    slug: string;
-  };
+  params: Promise<{ slug: string }>;
 }
 
-async function JobDetails({ slug }: { slug: string }) {
-  const locale = await getLocale();
-  const user = await getLoggedInUser();
+// Both generateMetadata and the page component call getJobBySlug — React cache()
+// inside the action deduplicates these to a single Appwrite request per render.
 
+async function JobDetails({ slug }: { slug: string }) {
+  const [locale, user] = await Promise.all([getLocale(), getLoggedInUser()]);
   const job = await getJobBySlug(slug, locale);
 
   if (!job) {
@@ -43,12 +42,10 @@ function JobDetailsSkeleton() {
           <div className="space-y-8 lg:col-span-2">
             <Skeleton className="h-48 w-full" />
             <Skeleton className="h-64 w-full" />
-            <Skeleton className="h-64 w-full" />
           </div>
           <div className="space-y-6">
             <Skeleton className="h-32 w-full" />
             <Skeleton className="h-48 w-full" />
-            <Skeleton className="h-40 w-full" />
           </div>
         </div>
       </div>
@@ -56,29 +53,45 @@ function JobDetailsSkeleton() {
   );
 }
 
-export default function JobPage({ params }: JobPageProps) {
+export default async function JobPage({ params }: JobPageProps) {
+  const { slug } = await params;
   return (
     <Suspense fallback={<JobDetailsSkeleton />}>
-      <JobDetails slug={params.slug} />
+      <JobDetails slug={slug} />
     </Suspense>
   );
 }
 
-// Generate metadata for SEO
 export async function generateMetadata({ params }: JobPageProps) {
+  const { slug } = await params;
   const locale = await getLocale();
-  const job = await getJobBySlug(params.slug, locale);
+  const job = await getJobBySlug(slug, locale);
 
   if (!job) {
-    return {
-      title: "Position Not Found | BISO",
-    };
+    return { title: "Position Not Found | BISO" };
   }
 
-  const translation = job.translation_refs[0];
+  const translation = job.translations[0];
+  const title = translation?.title ?? "Position";
+  const description =
+    job.metadata.short_description ??
+    translation?.short_description ??
+    translation?.description?.slice(0, 160) ??
+    "";
+  const campus = job.campus?.name ? ` · ${job.campus.name}` : "";
 
   return {
-    title: `${translation?.title ?? "Position"} | BISO Careers`,
-    description: translation?.description ?? "",
+    title: `${title} | BISO Careers`,
+    description: `${description}${campus}`.trim(),
+    openGraph: {
+      title: `${title} | BISO Careers`,
+      description,
+      type: "website",
+    },
   };
+}
+
+export async function generateStaticParams() {
+  // Statically generate known open vacancies at build time; ISR handles new ones.
+  return [];
 }

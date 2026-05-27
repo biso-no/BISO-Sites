@@ -4,10 +4,10 @@ import { openai } from "@ai-sdk/openai";
 import { ID, Query } from "@repo/api";
 import { createAdminClient, createSessionClient } from "@repo/api/server";
 import {
-  CollectionPricing,
+  EventsCollectionPricing,
   type ContentTranslations,
-  type EventCategory,
-  type EventStatus,
+  type EventsCategory,
+  type EventsStatus,
   type Events,
 } from "@repo/api/types/appwrite";
 
@@ -137,7 +137,7 @@ function buildEventColumns(values: EventFormValues): Record<string, unknown> {
     slug: values.slug,
     campus_id: values.campus_id,
     department_id: values.department_id ?? null,
-    category: (values.category ?? null) as EventCategory | null,
+    category: (values.category ?? null) as EventsCategory | null,
     tags: values.tags ?? [],
     start_date: values.start_date ?? null,
     end_date: values.end_date ?? null,
@@ -155,7 +155,7 @@ function buildEventColumns(values: EventFormValues): Record<string, unknown> {
     ticket_url: values.ticket_url || null,
     member_only: values.member_only,
     is_collection: values.is_collection,
-    collection_pricing: CollectionPricing.INDIVIDUAL,
+    collection_pricing: EventsCollectionPricing.INDIVIDUAL,
     notify_push: values.notify_push,
     publish_mode: values.publish_mode,
     scheduled_publish_at: values.scheduled_publish_at ?? null,
@@ -291,7 +291,7 @@ export async function createEvent(values: EventFormValues) {
 
     const event = await db.createRow("app", "events", ID.unique(), {
       ...buildEventColumns(validated.data),
-      status: "draft" as EventStatus,
+      status: "draft" as EventsStatus,
     });
 
     await Promise.all([
@@ -484,7 +484,7 @@ export async function publishEvent(id: string) {
     assertWriteAccess(ctx, event.campus_id, event.department_id);
 
     await db.updateRow("app", "events", id, {
-      status: "published" as EventStatus,
+      status: "published" as EventsStatus,
     });
 
     await logAuditEvent(ctx, "event.update", {

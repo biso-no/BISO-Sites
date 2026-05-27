@@ -1,11 +1,11 @@
 import {
-  EventCategory,
-  EventCoverPattern,
-  EventLocationMode,
-  EventPricingMode,
-  EventPublishMode,
-  EventStatus,
   type Events,
+  EventsCategory,
+  EventsCoverPattern,
+  EventsLocationMode,
+  EventsPricingMode,
+  EventsPublishMode,
+  EventsStatus,
 } from "@repo/api/types/appwrite";
 import { z } from "zod";
 
@@ -76,31 +76,31 @@ export const eventUpsertSchema = z.object({
     .trim()
     .min(1, "Slug is required")
     .regex(/^[a-z0-9-]+$/, "Slug must be lowercase alphanumeric with hyphens"),
-  status: z.nativeEnum(EventStatus),
-  category: z.nativeEnum(EventCategory).nullable().optional(),
+  status: z.nativeEnum(EventsStatus),
+  category: z.nativeEnum(EventsCategory).nullable().optional(),
   tags: z.array(z.string().trim().min(1).max(60)).max(5).optional().default([]),
   start_date: nullableDateString,
   end_date: nullableDateString,
   registration_deadline: nullableDateString,
   location_mode: z
-    .nativeEnum(EventLocationMode)
-    .default(EventLocationMode.PHYSICAL),
+    .nativeEnum(EventsLocationMode)
+    .default(EventsLocationMode.PHYSICAL),
   location: nullableTrimmedString(300),
   online_url: nullableTrimmedString(500),
   capacity: z.coerce.number().int().min(0).default(0),
   waitlist: z.boolean().default(false),
   cover_pattern: z
-    .nativeEnum(EventCoverPattern)
-    .default(EventCoverPattern.DOTTED),
+    .nativeEnum(EventsCoverPattern)
+    .default(EventsCoverPattern.DOTTED),
   image: z.string().url().nullable().optional().or(z.literal("")),
-  pricing_mode: z.nativeEnum(EventPricingMode).default(EventPricingMode.FREE),
+  pricing_mode: z.nativeEnum(EventsPricingMode).default(EventsPricingMode.FREE),
   price: z.coerce.number().min(0).nullable().optional(),
   member_price: z.coerce.number().min(0).nullable().optional(),
   ticket_url: z.string().url().nullable().optional().or(z.literal("")),
   member_only: z.boolean().default(false),
   is_collection: z.boolean().default(false),
   notify_push: z.boolean().default(false),
-  publish_mode: z.nativeEnum(EventPublishMode).default(EventPublishMode.NOW),
+  publish_mode: z.nativeEnum(EventsPublishMode).default(EventsPublishMode.NOW),
   scheduled_publish_at: nullableDateString,
   contact_name: nullableTrimmedString(120),
   contact_role: nullableTrimmedString(120),

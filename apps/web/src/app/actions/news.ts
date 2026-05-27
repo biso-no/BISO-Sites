@@ -2,7 +2,7 @@
 
 import { Query } from "@repo/api";
 import { createSessionClient } from "@repo/api/server";
-import type { Locale, News } from "@repo/api/types/appwrite";
+import type { News } from "@repo/api/types/appwrite";
 
 function filterTranslationRefs<T extends { translation_refs?: unknown }>(
   item: T,
@@ -71,7 +71,7 @@ export async function listNews(params: ListNewsParams = {}): Promise<News[]> {
     ];
 
     if (locale) {
-      queries.push(Query.equal("translation_refs.locale", locale as Locale));
+      queries.push(Query.equal("translation_refs.locale", locale));
     }
 
     if (status && status !== "all") {
@@ -104,7 +104,7 @@ async function _getNewsItem(
 
     const response = await db.listRows<News>("app", "news", [
       Query.equal("$id", id),
-      Query.equal("translation_refs.locale", locale as Locale),
+      Query.equal("translation_refs.locale", locale),
       Query.select([
         "$id",
         "$createdAt",
@@ -153,7 +153,7 @@ export async function getNewsBySlug(
 
     const response = await db.listRows<News>("app", "news", [
       Query.equal("slug", slug),
-      Query.equal("translation_refs.locale", locale as Locale),
+      Query.equal("translation_refs.locale", locale),
       Query.select([
         "$id",
         "$createdAt",

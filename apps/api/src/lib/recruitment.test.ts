@@ -1,19 +1,19 @@
-import { JobApplicationStatus, JobStatus } from "@repo/api/types/appwrite";
-import type { AdminScope } from "@repo/shared/types/user-management";
-import { describe, expect, it } from "vitest";
+import { JobApplicationsStatus, JobsStatus } from "@repo/api/types/appwrite";
+import {
+  canManageRecruitmentVacancy,
+  canReviewRecruitmentVacancy,
+  isAuthenticatedAppwriteUser,
+  type RecruitmentLookups,
+} from "@repo/shared/recruitment";
 import {
   assertRecruitmentApplicationTransition,
   computeRecruitmentRetentionUntil,
   isRecruitmentVacancyOpen,
   parseRecruitmentApplicationReviewMetadata,
   parseRecruitmentVacancyMetadata,
-} from "../../../../packages/shared/types/recruitment";
-import {
-  canManageRecruitmentVacancy,
-  canReviewRecruitmentVacancy,
-  isAuthenticatedAppwriteUser,
-  type RecruitmentLookups,
-} from "./recruitment";
+} from "@repo/shared/types/recruitment";
+import type { AdminScope } from "@repo/shared/types/user-management";
+import { describe, expect, it } from "vitest";
 
 const lookupFixture: RecruitmentLookups = {
   campusIdsByName: new Map([
@@ -147,6 +147,7 @@ describe("recruitment domain helpers", () => {
         start_date: null,
         tags: [],
         term: null,
+        auto_screen: true,
       },
       new Date("2026-04-20T00:00:00.000Z")
     );
@@ -157,15 +158,15 @@ describe("recruitment domain helpers", () => {
   it("allows only configured application status transitions", () => {
     expect(() =>
       assertRecruitmentApplicationTransition(
-        JobApplicationStatus.SUBMITTED,
-        JobApplicationStatus.REVIEWED
+        JobApplicationsStatus.SUBMITTED,
+        JobApplicationsStatus.REVIEWED
       )
     ).not.toThrow();
 
     expect(() =>
       assertRecruitmentApplicationTransition(
-        JobApplicationStatus.ACCEPTED,
-        JobApplicationStatus.REVIEWED
+        JobApplicationsStatus.ACCEPTED,
+        JobApplicationsStatus.REVIEWED
       )
     ).toThrow("Invalid application status transition");
   });
@@ -173,7 +174,7 @@ describe("recruitment domain helpers", () => {
   it("treats published vacancies past deadline as closed", () => {
     expect(
       isRecruitmentVacancyOpen(
-        JobStatus.PUBLISHED,
+        JobsStatus.PUBLISHED,
         {
           application_deadline: "2026-04-01T00:00:00.000Z",
           auto_translate: false,
@@ -192,6 +193,7 @@ describe("recruitment domain helpers", () => {
           start_date: null,
           tags: [],
           term: null,
+          auto_screen: true,
         },
         new Date("2026-04-10T00:00:00.000Z")
       )

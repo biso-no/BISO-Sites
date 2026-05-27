@@ -1,4 +1,3 @@
-import { Locale } from "@repo/api/types/appwrite";
 import { Skeleton } from "@repo/ui/components/ui/skeleton";
 import { Suspense } from "react";
 import { listProducts } from "@/app/actions/webshop";
@@ -18,7 +17,7 @@ async function ShopList({
   campus,
   isMember,
 }: {
-  locale: Locale;
+  locale: "en" | "no";
   campus: string | null;
   isMember: boolean;
 }) {
@@ -62,7 +61,7 @@ export default async function ShopPage() {
         <ShopList
           campus={prefs?.campusId ?? "all"}
           isMember={isMember}
-          locale={prefs?.locale ?? Locale.EN}
+          locale={prefs?.locale ?? "en"}
         />
       </Suspense>
     </div>

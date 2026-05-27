@@ -3,7 +3,6 @@
 @import "tw-animate-css";
 /* Import shared styles from UI package */
 @import "../../../../packages/ui/styles/globals.css";
-@plugin "tailwindcss-animate";
 @plugin "@tailwindcss/typography";
 /* Define content sources */
 @source "../../../../packages/ui/**/*.{ts,tsx}";

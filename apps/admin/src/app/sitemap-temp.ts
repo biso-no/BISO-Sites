@@ -1,6 +1,6 @@
 import { Query } from "@repo/api";
 import { createAdminClient } from "@repo/api/server";
-import { ContentType, Locale } from "@repo/api/types/appwrite";
+import { ContentTranslationsContentType } from "@repo/api/types/appwrite";
 import type { MetadataRoute } from "next";
 
 export async function generateSitemap() {
@@ -9,18 +9,18 @@ export async function generateSitemap() {
   const { db } = await createAdminClient();
 
   const news = await db.listRows("app", "content_translations", [
-    Query.equal("content_type", ContentType.NEWS),
-    Query.equal("locale", Locale.NO),
+    Query.equal("content_type", ContentTranslationsContentType.NEWS),
+    Query.equal("locale", "no"),
   ]);
 
   const events = await db.listRows("app", "content_translations", [
-    Query.equal("content_type", ContentType.EVENT),
-    Query.equal("locale", Locale.NO),
+    Query.equal("content_type", ContentTranslationsContentType.EVENT),
+    Query.equal("locale", "no"),
   ]);
 
   const jobs = await db.listRows("app", "content_translations", [
-    Query.equal("content_type", ContentType.JOB),
-    Query.equal("locale", Locale.NO),
+    Query.equal("content_type", ContentTranslationsContentType.JOB),
+    Query.equal("locale", "no"),
   ]);
 
   const staticPaths: MetadataRoute.Sitemap = [

@@ -1,4 +1,4 @@
-import { OrderStatus, type Orders } from "@repo/api/types/appwrite";
+import { type Orders, OrdersStatus } from "@repo/api/types/appwrite";
 import { ID } from "node-appwrite";
 import type { CheckoutSessionParams, VippsPaymentState } from "../types/vipps";
 import { type ParsedOrderItem, parseOrderItems } from "./order-parsing";
@@ -41,7 +41,7 @@ export async function createOrder(
       process.env.APPWRITE_ORDERS_COLLECTION_ID!,
       orderId,
       {
-        status: OrderStatus.PENDING,
+        status: OrdersStatus.PENDING,
         userId: params.userId,
         buyer_name:
           params.customerInfo?.firstName && params.customerInfo?.lastName
@@ -105,14 +105,14 @@ export async function updateOrderStatus(
   paymentState: VippsPaymentState,
   sessionData: Parameters<typeof determineStatusFromPaymentState>[1],
   databases: DbClient
-): Promise<{ newStatus: OrderStatus }> {
+): Promise<{ newStatus: OrdersStatus }> {
   const currentOrder = (await databases.getRow(
     process.env.APPWRITE_DATABASE_ID!,
     process.env.APPWRITE_ORDERS_COLLECTION_ID!,
     orderId
   )) as Orders;
 
-  const oldStatus: OrderStatus = currentOrder.status || OrderStatus.PENDING;
+  const oldStatus: OrdersStatus = currentOrder.status || OrdersStatus.PENDING;
   const { status: newStatus, updateData } = determineStatusFromPaymentState(
     paymentState,
     sessionData
@@ -149,8 +149,8 @@ export async function updateOrderStatus(
 
 interface StockAdjustmentParams {
   databases: DbClient;
-  newStatus: OrderStatus;
-  oldStatus: OrderStatus;
+  newStatus: OrdersStatus;
+  oldStatus: OrdersStatus;
   orderId: string;
   orderItems: ParsedOrderItem[];
   userId?: string;
@@ -165,9 +165,10 @@ async function adjustStockForOrder({
   userId,
 }: StockAdjustmentParams): Promise<void> {
   const shouldDecrement =
-    (newStatus === OrderStatus.AUTHORIZED || newStatus === OrderStatus.PAID) &&
-    oldStatus !== OrderStatus.AUTHORIZED &&
-    oldStatus !== OrderStatus.PAID;
+    (newStatus === OrdersStatus.AUTHORIZED ||
+      newStatus === OrdersStatus.PAID) &&
+    oldStatus !== OrdersStatus.AUTHORIZED &&
+    oldStatus !== OrdersStatus.PAID;
 
   if (shouldDecrement) {
     console.log(`[Stock] Decrementing stock for order ${orderId}`);
@@ -179,8 +180,8 @@ async function adjustStockForOrder({
   }
 
   const shouldRestore =
-    newStatus === OrderStatus.CANCELLED &&
-    (oldStatus === OrderStatus.AUTHORIZED || oldStatus === OrderStatus.PAID);
+    newStatus === OrdersStatus.CANCELLED &&
+    (oldStatus === OrdersStatus.AUTHORIZED || oldStatus === OrdersStatus.PAID);
 
   if (shouldRestore) {
     console.log(`[Stock] Restoring stock for cancelled order ${orderId}`);

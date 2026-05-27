@@ -1,7 +1,7 @@
 "use server";
 
 import { Query } from "@repo/api";
-import { createAdminClient } from "@repo/api/server";
+import { createSessionClient } from "@repo/api/server";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getUserAuthContext, type UserAuthContext } from "@/lib/authorization";
@@ -57,7 +57,7 @@ export async function listSubmissionTopics(): Promise<SubmissionTopic[]> {
     return [];
   }
 
-  const { db } = await createAdminClient();
+  const { db } = await createSessionClient();
 
   const queries = [
     Query.orderDesc("$createdAt"),
@@ -117,7 +117,7 @@ export async function listSubmissions(opts: {
     return { rows: [], total: 0 };
   }
 
-  const { db } = await createAdminClient();
+  const { db } = await createSessionClient();
 
   const queries = [
     Query.equal("topic", opts.topic),
@@ -152,7 +152,7 @@ export async function updateSubmissionStatus(
     throw new Error("Unauthorized");
   }
 
-  const { db } = await createAdminClient();
+  const { db } = await createSessionClient();
   await db.updateRow("app", "form_submissions", id, { status });
   revalidatePath(`/submissions/${topic}`);
 }
@@ -166,7 +166,7 @@ export async function deleteSubmission(
     throw new Error("Unauthorized");
   }
 
-  const { db } = await createAdminClient();
+  const { db } = await createSessionClient();
   await db.deleteRow("app", "form_submissions", id);
   revalidatePath(`/submissions/${topic}`);
 }

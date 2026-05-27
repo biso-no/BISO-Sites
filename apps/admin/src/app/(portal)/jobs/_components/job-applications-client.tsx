@@ -1,8 +1,9 @@
 "use client";
 
-import { JobApplicationStatus } from "@repo/api/types/appwrite";
+import { JobApplicationsStatus } from "@repo/api/types/appwrite";
 import {
   getAllowedRecruitmentApplicationTransitions,
+  parseRecruitmentAiScreening,
   type RecruitmentApplicationRecord,
   type RecruitmentApplicationReviewMetadata,
 } from "@repo/shared/types/recruitment";
@@ -13,6 +14,7 @@ import {
   FileText,
   Mail,
   Phone,
+  Sparkles,
   Star,
   UserRound,
   Users,
@@ -42,19 +44,19 @@ interface JobApplicationsClientProps {
 
 const STATUS_FILTERS = [
   { label: "All", value: "all" },
-  { label: "Submitted", value: JobApplicationStatus.SUBMITTED },
-  { label: "Reviewed", value: JobApplicationStatus.REVIEWED },
-  { label: "Interview", value: JobApplicationStatus.INTERVIEW },
-  { label: "Accepted", value: JobApplicationStatus.ACCEPTED },
-  { label: "Rejected", value: JobApplicationStatus.REJECTED },
+  { label: "Submitted", value: JobApplicationsStatus.SUBMITTED },
+  { label: "Reviewed", value: JobApplicationsStatus.REVIEWED },
+  { label: "Interview", value: JobApplicationsStatus.INTERVIEW },
+  { label: "Accepted", value: JobApplicationsStatus.ACCEPTED },
+  { label: "Rejected", value: JobApplicationsStatus.REJECTED },
 ] as const;
 
-const STATUS_ACTION_LABELS: Record<JobApplicationStatus, string> = {
-  [JobApplicationStatus.SUBMITTED]: "Mark submitted",
-  [JobApplicationStatus.REVIEWED]: "Mark reviewed",
-  [JobApplicationStatus.INTERVIEW]: "Move to interview",
-  [JobApplicationStatus.ACCEPTED]: "Accept candidate",
-  [JobApplicationStatus.REJECTED]: "Reject candidate",
+const STATUS_ACTION_LABELS: Record<JobApplicationsStatus, string> = {
+  [JobApplicationsStatus.SUBMITTED]: "Mark submitted",
+  [JobApplicationsStatus.REVIEWED]: "Mark reviewed",
+  [JobApplicationsStatus.INTERVIEW]: "Move to interview",
+  [JobApplicationsStatus.ACCEPTED]: "Accept candidate",
+  [JobApplicationsStatus.REJECTED]: "Reject candidate",
 };
 
 const INTERVIEW_STATUS_OPTIONS = [
@@ -93,18 +95,199 @@ function toDateTimeInput(value: string | null | undefined): string {
 function pipelineStats(applications: RecruitmentApplicationRecord[]) {
   return {
     accepted: applications.filter(
-      (application) => application.status === JobApplicationStatus.ACCEPTED
+      (application) => application.status === JobApplicationsStatus.ACCEPTED
     ).length,
     interview: applications.filter(
-      (application) => application.status === JobApplicationStatus.INTERVIEW
+      (application) => application.status === JobApplicationsStatus.INTERVIEW
     ).length,
     pending: applications.filter(
-      (application) => application.status === JobApplicationStatus.SUBMITTED
+      (application) => application.status === JobApplicationsStatus.SUBMITTED
     ).length,
     reviewed: applications.filter(
-      (application) => application.status === JobApplicationStatus.REVIEWED
+      (application) => application.status === JobApplicationsStatus.REVIEWED
     ).length,
   };
+}
+
+const inputStyle = {
+  background: STUDIO.paper,
+  border: `1px solid ${STUDIO.rule}`,
+  color: STUDIO.ink,
+};
+
+function AiScreeningPanel({
+  application,
+}: {
+  application: RecruitmentApplicationRecord;
+}) {
+  if (application.screening_score == null) {
+    return null;
+  }
+
+  const score = application.screening_score;
+  const screening = parseRecruitmentAiScreening(application.ai_screening);
+
+  const scoreColor =
+    score >= 70 ? STUDIO.leaf : score >= 40 ? STUDIO.gold : STUDIO.claret;
+  const scoreBg =
+    score >= 70
+      ? "rgba(47,93,58,0.08)"
+      : score >= 40
+        ? "rgba(176,138,62,0.10)"
+        : "rgba(107,30,30,0.08)";
+  const scoreBorder =
+    score >= 70
+      ? "rgba(47,93,58,0.20)"
+      : score >= 40
+        ? "rgba(176,138,62,0.22)"
+        : "rgba(107,30,30,0.20)";
+
+  const recommendationLabel: Record<string, string> = {
+    interview: "→ Advance to Interview",
+    reviewed: "→ Mark for Review",
+    rejected: "→ Reject",
+  };
+
+  return (
+    <div
+      className="rounded-2xl p-4"
+      style={{
+        background: "rgba(61,169,224,0.04)",
+        border: "1px solid rgba(61,169,224,0.18)",
+      }}
+    >
+      <div className="mb-3 flex items-center gap-2">
+        <Sparkles size={15} style={{ color: STUDIO.sky }} />
+        <p className="font-medium text-sm" style={{ color: STUDIO.ink }}>
+          AI Screening
+        </p>
+        <div className="ml-auto flex items-center gap-2">
+          {screening?.recommended_status ? (
+            <span
+              className="rounded-full px-2.5 py-1 font-medium text-xs"
+              style={{
+                background: scoreBg,
+                border: `1px solid ${scoreBorder}`,
+                color: scoreColor,
+              }}
+            >
+              {recommendationLabel[screening.recommended_status] ??
+                screening.recommended_status}
+            </span>
+          ) : null}
+          <span
+            className="rounded-full px-3 py-1 font-medium text-sm"
+            style={{
+              background: scoreBg,
+              border: `1px solid ${scoreBorder}`,
+              color: scoreColor,
+            }}
+          >
+            {score} / 100
+          </span>
+        </div>
+      </div>
+
+      {screening?.summary ? (
+        <p className="mb-3 text-sm leading-6" style={{ color: STUDIO.ink3 }}>
+          {screening.summary}
+        </p>
+      ) : null}
+
+      {screening &&
+      (screening.strengths.length > 0 || screening.concerns.length > 0) ? (
+        <div className="grid gap-3 md:grid-cols-2">
+          {screening.strengths.length > 0 ? (
+            <div>
+              <p
+                className="mb-1.5 text-xs uppercase tracking-[0.12em]"
+                style={{ color: STUDIO.leaf }}
+              >
+                Strengths
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {screening.strengths.map((strength) => (
+                  <span
+                    className="rounded-full px-2.5 py-0.5 text-xs"
+                    key={strength}
+                    style={{
+                      background: "rgba(47,93,58,0.08)",
+                      color: STUDIO.leaf,
+                    }}
+                  >
+                    {strength}
+                  </span>
+                ))}
+              </div>
+            </div>
+          ) : null}
+          {screening.concerns.length > 0 ? (
+            <div>
+              <p
+                className="mb-1.5 text-xs uppercase tracking-[0.12em]"
+                style={{ color: STUDIO.claret }}
+              >
+                Concerns
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {screening.concerns.map((concern) => (
+                  <span
+                    className="rounded-full px-2.5 py-0.5 text-xs"
+                    key={concern}
+                    style={{
+                      background: "rgba(107,30,30,0.07)",
+                      color: STUDIO.claret,
+                    }}
+                  >
+                    {concern}
+                  </span>
+                ))}
+              </div>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
+      {screening?.dimension_scores && screening.dimension_scores.length > 0 ? (
+        <div className="mt-3 space-y-1.5">
+          <p
+            className="text-xs uppercase tracking-[0.12em]"
+            style={{ color: STUDIO.ink4 }}
+          >
+            Dimension scores
+          </p>
+          {screening.dimension_scores.map((dim) => (
+            <div className="flex items-center gap-3" key={dim.name}>
+              <span
+                className="w-32 shrink-0 truncate text-xs"
+                style={{ color: STUDIO.ink3 }}
+              >
+                {dim.name}
+              </span>
+              <div
+                className="flex-1 overflow-hidden rounded-full"
+                style={{ background: STUDIO.paper3, height: 4 }}
+              >
+                <div
+                  className="h-full rounded-full"
+                  style={{
+                    background: STUDIO.sky,
+                    width: `${(dim.score / 5) * 100}%`,
+                  }}
+                />
+              </div>
+              <span
+                className="w-6 shrink-0 text-right text-xs"
+                style={{ color: STUDIO.ink4 }}
+              >
+                {dim.score}
+              </span>
+            </div>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
 }
 
 interface RecruitmentProcessPanelProps {
@@ -136,24 +319,22 @@ function RecruitmentProcessPanel({
       <div>
         <p
           className="mb-3 text-xs uppercase tracking-[0.2em]"
-          style={{ color: "rgba(255,255,255,0.30)" }}
+          style={{ color: STUDIO.ink4 }}
         >
           HRM Process
         </p>
         <div
           className="rounded-2xl p-4"
           style={{
-            background: "rgba(255,255,255,0.03)",
-            border: "1px solid rgba(255,255,255,0.06)",
+            background: STUDIO.paper2,
+            border: `1px solid ${STUDIO.rule}`,
           }}
         >
           <div className="grid gap-3 md:grid-cols-2">
             <label className="space-y-2 text-xs">
-              <span style={{ color: "rgba(255,255,255,0.45)" }}>
-                Assigned HR member
-              </span>
+              <span style={{ color: STUDIO.ink4 }}>Assigned HR member</span>
               <select
-                className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none"
+                className="w-full rounded-xl px-3 py-2 text-sm outline-none"
                 onChange={(event) => {
                   const reviewer = reviewers.find(
                     (item) => item.id === event.target.value
@@ -164,6 +345,7 @@ function RecruitmentProcessPanel({
                     assigned_hr_user_name: reviewer?.name ?? null,
                   });
                 }}
+                style={inputStyle}
                 value={selectedReviewerId}
               >
                 <option value="">Unassigned</option>
@@ -176,11 +358,9 @@ function RecruitmentProcessPanel({
               </select>
             </label>
             <label className="space-y-2 text-xs">
-              <span style={{ color: "rgba(255,255,255,0.45)" }}>
-                Candidate score
-              </span>
+              <span style={{ color: STUDIO.ink4 }}>Candidate score</span>
               <select
-                className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none"
+                className="w-full rounded-xl px-3 py-2 text-sm outline-none"
                 onChange={(event) =>
                   patchDraft({
                     score: event.target.value
@@ -188,6 +368,7 @@ function RecruitmentProcessPanel({
                       : null,
                   })
                 }
+                style={inputStyle}
                 value={draft.score ?? ""}
               >
                 <option value="">Not scored</option>
@@ -201,15 +382,14 @@ function RecruitmentProcessPanel({
           </div>
 
           <label className="mt-3 block space-y-2 text-xs">
-            <span style={{ color: "rgba(255,255,255,0.45)" }}>
-              Review notes
-            </span>
+            <span style={{ color: STUDIO.ink4 }}>Review notes</span>
             <textarea
-              className="min-h-24 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none"
+              className="min-h-24 w-full rounded-xl px-3 py-2 text-sm outline-none"
               onChange={(event) =>
                 patchDraft({ review_notes: event.target.value || null })
               }
               placeholder="Internal HR notes, screening outcome, questions to ask..."
+              style={inputStyle}
               value={draft.review_notes ?? ""}
             />
           </label>
@@ -219,7 +399,7 @@ function RecruitmentProcessPanel({
       <div>
         <p
           className="mb-3 text-xs uppercase tracking-[0.2em]"
-          style={{ color: "rgba(255,255,255,0.30)" }}
+          style={{ color: STUDIO.ink4 }}
         >
           Availability
         </p>
@@ -227,11 +407,14 @@ function RecruitmentProcessPanel({
           <div
             className="rounded-2xl p-4"
             style={{
-              background: "rgba(255,255,255,0.03)",
-              border: "1px solid rgba(255,255,255,0.06)",
+              background: STUDIO.paper2,
+              border: `1px solid ${STUDIO.rule}`,
             }}
           >
-            <p className="mb-2 font-medium text-sm" style={{ color: "#fff" }}>
+            <p
+              className="mb-2 font-medium text-sm"
+              style={{ color: STUDIO.ink }}
+            >
               Candidate
             </p>
             {candidateSlots.length > 0 ? (
@@ -241,8 +424,8 @@ function RecruitmentProcessPanel({
                     className="rounded-full px-2.5 py-1 text-xs"
                     key={slot}
                     style={{
-                      background: "rgba(61,169,224,0.10)",
-                      color: "#7dd3fc",
+                      background: "rgba(42,74,122,0.08)",
+                      color: STUDIO.sky,
                     }}
                   >
                     {slot}
@@ -250,10 +433,7 @@ function RecruitmentProcessPanel({
                 ))}
               </div>
             ) : (
-              <p
-                className="text-sm"
-                style={{ color: "rgba(255,255,255,0.45)" }}
-              >
+              <p className="text-sm" style={{ color: STUDIO.ink4 }}>
                 No availability submitted.
               </p>
             )}
@@ -261,19 +441,20 @@ function RecruitmentProcessPanel({
           <label
             className="block rounded-2xl p-4 text-xs"
             style={{
-              background: "rgba(255,255,255,0.03)",
-              border: "1px solid rgba(255,255,255,0.06)",
+              background: STUDIO.paper2,
+              border: `1px solid ${STUDIO.rule}`,
             }}
           >
-            <span className="font-medium text-sm" style={{ color: "#fff" }}>
+            <span className="font-medium text-sm" style={{ color: STUDIO.ink }}>
               HR availability
             </span>
             <textarea
-              className="mt-2 min-h-24 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none"
+              className="mt-2 min-h-24 w-full rounded-xl px-3 py-2 text-sm outline-none"
               onChange={(event) =>
                 patchDraft({ hr_availability: textToSlots(event.target.value) })
               }
               placeholder="Times the assigned HR member can do interviews."
+              style={inputStyle}
               value={slotsToText(draft.hr_availability)}
             />
           </label>
@@ -283,27 +464,28 @@ function RecruitmentProcessPanel({
       <div
         className="rounded-2xl p-4"
         style={{
-          background: "rgba(255,255,255,0.03)",
-          border: "1px solid rgba(255,255,255,0.06)",
+          background: STUDIO.paper2,
+          border: `1px solid ${STUDIO.rule}`,
         }}
       >
         <div className="mb-3 flex items-center gap-2">
-          <CalendarClock size={16} style={{ color: "#3DA9E0" }} />
-          <p className="font-medium text-sm" style={{ color: "#fff" }}>
+          <CalendarClock size={16} style={{ color: STUDIO.sky }} />
+          <p className="font-medium text-sm" style={{ color: STUDIO.ink }}>
             Interview plan
           </p>
         </div>
         <div className="grid gap-3 md:grid-cols-2">
           <label className="space-y-2 text-xs">
-            <span style={{ color: "rgba(255,255,255,0.45)" }}>Status</span>
+            <span style={{ color: STUDIO.ink4 }}>Status</span>
             <select
-              className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none"
+              className="w-full rounded-xl px-3 py-2 text-sm outline-none"
               onChange={(event) =>
                 patchDraft({
                   interview_status: event.target
                     .value as RecruitmentApplicationReviewMetadata["interview_status"],
                 })
               }
+              style={inputStyle}
               value={draft.interview_status ?? "none"}
             >
               {INTERVIEW_STATUS_OPTIONS.map((option) => (
@@ -314,20 +496,21 @@ function RecruitmentProcessPanel({
             </select>
           </label>
           <label className="space-y-2 text-xs">
-            <span style={{ color: "rgba(255,255,255,0.45)" }}>Start time</span>
+            <span style={{ color: STUDIO.ink4 }}>Start time</span>
             <input
-              className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none"
+              className="w-full rounded-xl px-3 py-2 text-sm outline-none"
               onChange={(event) =>
                 patchDraft({ interview_starts_at: event.target.value || null })
               }
+              style={inputStyle}
               type="datetime-local"
               value={toDateTimeInput(draft.interview_starts_at)}
             />
           </label>
           <label className="space-y-2 text-xs">
-            <span style={{ color: "rgba(255,255,255,0.45)" }}>Duration</span>
+            <span style={{ color: STUDIO.ink4 }}>Duration</span>
             <input
-              className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none"
+              className="w-full rounded-xl px-3 py-2 text-sm outline-none"
               min={15}
               onChange={(event) =>
                 patchDraft({
@@ -337,43 +520,45 @@ function RecruitmentProcessPanel({
                 })
               }
               step={15}
+              style={inputStyle}
               type="number"
               value={draft.interview_duration_minutes ?? ""}
             />
           </label>
           <label className="space-y-2 text-xs">
-            <span style={{ color: "rgba(255,255,255,0.45)" }}>Location</span>
+            <span style={{ color: STUDIO.ink4 }}>Location</span>
             <input
-              className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none"
+              className="w-full rounded-xl px-3 py-2 text-sm outline-none"
               onChange={(event) =>
                 patchDraft({ interview_location: event.target.value || null })
               }
               placeholder="Room, campus or Teams"
+              style={inputStyle}
               value={draft.interview_location ?? ""}
             />
           </label>
         </div>
         <label className="mt-3 block space-y-2 text-xs">
-          <span style={{ color: "rgba(255,255,255,0.45)" }}>Meeting URL</span>
+          <span style={{ color: STUDIO.ink4 }}>Meeting URL</span>
           <input
-            className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none"
+            className="w-full rounded-xl px-3 py-2 text-sm outline-none"
             onChange={(event) =>
               patchDraft({ interview_meeting_url: event.target.value || null })
             }
             placeholder="https://..."
+            style={inputStyle}
             value={draft.interview_meeting_url ?? ""}
           />
         </label>
         <label className="mt-3 block space-y-2 text-xs">
-          <span style={{ color: "rgba(255,255,255,0.45)" }}>
-            Interview notes
-          </span>
+          <span style={{ color: STUDIO.ink4 }}>Interview notes</span>
           <textarea
-            className="min-h-20 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none"
+            className="min-h-20 w-full rounded-xl px-3 py-2 text-sm outline-none"
             onChange={(event) =>
               patchDraft({ interview_notes: event.target.value || null })
             }
             placeholder="Questions, assessment criteria, follow-up..."
+            style={inputStyle}
             value={draft.interview_notes ?? ""}
           />
         </label>
@@ -384,8 +569,8 @@ function RecruitmentProcessPanel({
         disabled={isSaving}
         onClick={onSave}
         style={{
-          background: "#3DA9E0",
-          color: "#001731",
+          background: STUDIO.ink,
+          color: STUDIO.paper,
           opacity: isSaving ? 0.65 : 1,
         }}
         type="button"
@@ -394,10 +579,7 @@ function RecruitmentProcessPanel({
         {isSaving ? "Saving process..." : "Save recruitment process"}
       </button>
       {application.review_metadata.last_reviewed_at ? (
-        <p
-          className="text-center text-xs"
-          style={{ color: "rgba(255,255,255,0.35)" }}
-        >
+        <p className="text-center text-xs" style={{ color: STUDIO.ink4 }}>
           Last reviewed{" "}
           {formatDateTime(application.review_metadata.last_reviewed_at)}
         </p>
@@ -412,7 +594,7 @@ interface ApplicationDetailPanelProps {
   isSavingReview: boolean;
   onReviewDraftChange: (draft: RecruitmentApplicationReviewMetadata) => void;
   onReviewSave: () => void;
-  onStatusUpdate: (status: JobApplicationStatus) => void;
+  onStatusUpdate: (status: JobApplicationsStatus) => void;
   reviewers: RecruitmentReviewerOption[];
   title: string;
 }
@@ -449,16 +631,13 @@ function ApplicationDetailPanel({
           <div className="flex items-center gap-2">
             <h2
               className="font-light text-2xl tracking-tight"
-              style={{ color: "#fff" }}
+              style={{ color: STUDIO.ink }}
             >
               {application.applicant_name}
             </h2>
             <StatusBadge size="md" status={application.status} />
           </div>
-          <p
-            className="mt-1 text-sm"
-            style={{ color: "rgba(255,255,255,0.45)" }}
-          >
+          <p className="mt-1 text-sm" style={{ color: STUDIO.ink4 }}>
             {application.job?.title ?? title}
           </p>
         </div>
@@ -468,9 +647,9 @@ function ApplicationDetailPanel({
             className="rounded-xl px-3 py-2 text-xs transition-all"
             href={`/jobs/${application.job.$id}`}
             style={{
-              background: "rgba(255,255,255,0.04)",
-              border: "1px solid rgba(255,255,255,0.08)",
-              color: "rgba(255,255,255,0.65)",
+              background: STUDIO.paper2,
+              border: `1px solid ${STUDIO.rule}`,
+              color: STUDIO.ink3,
             }}
           >
             Open vacancy
@@ -482,25 +661,26 @@ function ApplicationDetailPanel({
         <div
           className="rounded-2xl p-4"
           style={{
-            background: "rgba(255,255,255,0.03)",
-            border: "1px solid rgba(255,255,255,0.06)",
+            background: STUDIO.paper2,
+            border: `1px solid ${STUDIO.rule}`,
           }}
         >
           <p
             className="mb-3 text-xs uppercase tracking-[0.2em]"
-            style={{ color: "rgba(255,255,255,0.30)" }}
+            style={{ color: STUDIO.ink4 }}
           >
             Candidate
           </p>
           <div className="space-y-2 text-sm">
-            <p className="flex items-center gap-2" style={{ color: "#fff" }}>
+            <p
+              className="flex items-center gap-2"
+              style={{ color: STUDIO.ink }}
+            >
               <UserRound size={14} />
               {application.applicant_name}
             </p>
-            <p style={{ color: "rgba(255,255,255,0.65)" }}>
-              {application.applicant_email}
-            </p>
-            <p style={{ color: "rgba(255,255,255,0.65)" }}>
+            <p style={{ color: STUDIO.ink3 }}>{application.applicant_email}</p>
+            <p style={{ color: STUDIO.ink3 }}>
               {application.applicant_phone ?? "No phone provided"}
             </p>
           </div>
@@ -509,29 +689,31 @@ function ApplicationDetailPanel({
         <div
           className="rounded-2xl p-4"
           style={{
-            background: "rgba(255,255,255,0.03)",
-            border: "1px solid rgba(255,255,255,0.06)",
+            background: STUDIO.paper2,
+            border: `1px solid ${STUDIO.rule}`,
           }}
         >
           <p
             className="mb-3 text-xs uppercase tracking-[0.2em]"
-            style={{ color: "rgba(255,255,255,0.30)" }}
+            style={{ color: STUDIO.ink4 }}
           >
             Processing
           </p>
           <div className="space-y-2 text-sm">
-            <p style={{ color: "rgba(255,255,255,0.65)" }}>
+            <p style={{ color: STUDIO.ink3 }}>
               Submitted {formatDateTime(application.$createdAt)}
             </p>
-            <p style={{ color: "rgba(255,255,255,0.65)" }}>
+            <p style={{ color: STUDIO.ink3 }}>
               Consent recorded {formatDateTime(application.consent_date)}
             </p>
-            <p style={{ color: "rgba(255,255,255,0.65)" }}>
+            <p style={{ color: STUDIO.ink3 }}>
               Retention until {formatDateTime(application.data_retention_until)}
             </p>
           </div>
         </div>
       </div>
+
+      <AiScreeningPanel application={application} />
 
       <RecruitmentProcessPanel
         application={application}
@@ -546,7 +728,7 @@ function ApplicationDetailPanel({
         <div className="mb-3 flex items-center justify-between gap-3">
           <p
             className="text-xs uppercase tracking-[0.2em]"
-            style={{ color: "rgba(255,255,255,0.30)" }}
+            style={{ color: STUDIO.ink4 }}
           >
             Application Materials
           </p>
@@ -555,9 +737,9 @@ function ApplicationDetailPanel({
               className="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-xs transition-all"
               href={`/api/recruitment/applications/${application.$id}/resume`}
               style={{
-                background: "rgba(61,169,224,0.10)",
-                border: "1px solid rgba(61,169,224,0.25)",
-                color: "#3DA9E0",
+                background: "rgba(42,74,122,0.06)",
+                border: "1px solid rgba(42,74,122,0.20)",
+                color: STUDIO.sky,
               }}
             >
               <Download size={13} />
@@ -569,16 +751,16 @@ function ApplicationDetailPanel({
         <div
           className="rounded-2xl p-4"
           style={{
-            background: "rgba(255,255,255,0.03)",
-            border: "1px solid rgba(255,255,255,0.06)",
+            background: STUDIO.paper2,
+            border: `1px solid ${STUDIO.rule}`,
           }}
         >
-          <p className="mb-2 font-medium text-sm" style={{ color: "#fff" }}>
+          <p className="mb-2 font-medium text-sm" style={{ color: STUDIO.ink }}>
             Cover letter
           </p>
           <p
             className="whitespace-pre-wrap text-sm leading-6"
-            style={{ color: "rgba(255,255,255,0.70)" }}
+            style={{ color: STUDIO.ink3 }}
           >
             {application.cover_letter?.trim() || "No cover letter provided."}
           </p>
@@ -588,7 +770,7 @@ function ApplicationDetailPanel({
       <div>
         <p
           className="mb-3 text-xs uppercase tracking-[0.2em]"
-          style={{ color: "rgba(255,255,255,0.30)" }}
+          style={{ color: STUDIO.ink4 }}
         >
           Status Actions
         </p>
@@ -600,9 +782,9 @@ function ApplicationDetailPanel({
                 key={status}
                 onClick={() => onStatusUpdate(status)}
                 style={{
-                  background: "rgba(255,255,255,0.04)",
-                  border: "1px solid rgba(255,255,255,0.08)",
-                  color: "rgba(255,255,255,0.72)",
+                  background: STUDIO.paper2,
+                  border: `1px solid ${STUDIO.rule2}`,
+                  color: STUDIO.ink2,
                 }}
                 type="button"
               >
@@ -611,7 +793,7 @@ function ApplicationDetailPanel({
             ))}
           </div>
         ) : (
-          <p className="text-sm" style={{ color: "rgba(255,255,255,0.45)" }}>
+          <p className="text-sm" style={{ color: STUDIO.ink4 }}>
             This application is in a terminal state.
           </p>
         )}
@@ -710,7 +892,7 @@ export function JobApplicationsClient({
     router.push(query ? `${pathname}?${query}` : pathname);
   }
 
-  function handleStatusUpdate(nextStatus: JobApplicationStatus) {
+  function handleStatusUpdate(nextStatus: JobApplicationsStatus) {
     if (!selectedApplication) {
       return;
     }
@@ -788,21 +970,7 @@ export function JobApplicationsClient({
   }
 
   return (
-    <div className="job-applications-parchment">
-      <style>{`
-        .job-applications-parchment [class*="text-white"] {
-          color: ${STUDIO.ink2} !important;
-        }
-        .job-applications-parchment [class*="text-white/"] {
-          color: ${STUDIO.ink4} !important;
-        }
-        .job-applications-parchment [class*="border-white"] {
-          border-color: ${STUDIO.rule2} !important;
-        }
-        .job-applications-parchment [class*="bg-white/"] {
-          background: rgba(255,255,255,0.55) !important;
-        }
-      `}</style>
+    <div className="space-y-4">
       <SearchToolbar
         activeFilter={activeFilter}
         defaultSearch={defaultSearch}
@@ -874,11 +1042,11 @@ export function JobApplicationsClient({
                   onClick={() => setSelectedId(application.$id)}
                   style={{
                     background: isSelected
-                      ? "rgba(61,169,224,0.10)"
-                      : "rgba(255,255,255,0.02)",
+                      ? "rgba(61,169,224,0.08)"
+                      : STUDIO.paper2,
                     border: isSelected
-                      ? "1px solid rgba(61,169,224,0.35)"
-                      : "1px solid rgba(255,255,255,0.05)",
+                      ? "1px solid rgba(61,169,224,0.30)"
+                      : `1px solid ${STUDIO.rule}`,
                   }}
                   type="button"
                 >
@@ -887,7 +1055,7 @@ export function JobApplicationsClient({
                       <div className="flex items-center gap-2">
                         <span
                           className="truncate font-medium text-sm"
-                          style={{ color: "#fff" }}
+                          style={{ color: STUDIO.ink }}
                         >
                           {application.applicant_name}
                         </span>
@@ -895,21 +1063,21 @@ export function JobApplicationsClient({
                       </div>
                       <p
                         className="mt-1 truncate text-xs"
-                        style={{ color: "rgba(255,255,255,0.55)" }}
+                        style={{ color: STUDIO.ink4 }}
                       >
                         {application.job?.title ?? title}
                       </p>
                     </div>
                     <p
                       className="shrink-0 text-xs"
-                      style={{ color: "rgba(255,255,255,0.35)" }}
+                      style={{ color: STUDIO.ink4 }}
                     >
                       {new Date(application.$createdAt).toLocaleDateString()}
                     </p>
                   </div>
                   <div
                     className="mt-3 flex flex-wrap items-center gap-3 text-xs"
-                    style={{ color: "rgba(255,255,255,0.40)" }}
+                    style={{ color: STUDIO.ink4 }}
                   >
                     <span className="flex items-center gap-1.5">
                       <Mail size={12} />
@@ -930,8 +1098,8 @@ export function JobApplicationsClient({
           <div
             className="rounded-3xl p-6"
             style={{
-              background: "rgba(255,255,255,0.02)",
-              border: "1px solid rgba(255,255,255,0.06)",
+              background: STUDIO.paper,
+              border: `1px solid ${STUDIO.rule}`,
             }}
           >
             <ApplicationDetailPanel

@@ -1,24 +1,30 @@
-import { Query } from "@repo/api";
+import { Permission, Query, Role } from "@repo/api";
 import type {
   Campus,
   ContentTranslations,
   Departments,
   JobApplications,
   Jobs,
-  Locale as LocaleType,
 } from "@repo/api/types/appwrite";
-import { Locale } from "@repo/api/types/appwrite";
 import {
-  buildRecruitmentVacancyMetadata,
+  canManageRecruitmentVacancy,
+  canReviewRecruitmentVacancy,
+  getManagedCampusIds,
+  type RecruitmentLookups,
+} from "@repo/shared/recruitment";
+import {
   parseRecruitmentApplicationReviewMetadata,
-  parseRecruitmentVacancyMetadata,
   type RecruitmentApplicationJobSummary,
   type RecruitmentApplicationRecord,
-  type RecruitmentTranslation,
-  type RecruitmentVacancy,
 } from "@repo/shared/types/recruitment";
 import type { AdminScope } from "@repo/shared/types/user-management";
 import type { UserAuthContext } from "@/lib/authorization";
+
+export type { RecruitmentLookups } from "@repo/shared/recruitment";
+export {
+  canManageRecruitmentVacancy,
+  canReviewRecruitmentVacancy,
+} from "@repo/shared/recruitment";
 
 interface DbClient {
   getRow: <T>(
@@ -33,39 +39,6 @@ interface DbClient {
     queries?: string[]
   ) => Promise<{ rows: T[]; total: number }>;
 }
-
-export interface RecruitmentLookups {
-  campusIdsByName: Map<string, string>;
-  campusNamesById: Map<string, string>;
-  departmentIdsByName: Map<string, string>;
-  departmentNamesById: Map<string, string>;
-}
-
-const JOB_SELECT = [
-  "$id",
-  "$createdAt",
-  "$updatedAt",
-  "slug",
-  "status",
-  "campus_id",
-  "department_id",
-  "metadata",
-  "campus.$id",
-  "campus.name",
-  "department.$id",
-  "department.Name",
-  "department.campus_id",
-] as const;
-
-const TRANSLATION_SELECT = [
-  "$id",
-  "content_id",
-  "locale",
-  "title",
-  "description",
-  "short_description",
-  "additional_fields",
-] as const;
 
 export function toRecruitmentAdminScope(ctx: UserAuthContext): AdminScope {
   const isGlobalAdmin = ctx.roles.includes("globaladmin");
@@ -108,70 +81,56 @@ export async function loadRecruitmentLookups(
   };
 }
 
-function getManagedCampusIds(
-  scope: AdminScope,
-  lookups: RecruitmentLookups
-): string[] {
-  if (scope.canManageAnyCampus) {
-    return [];
-  }
+const ADMIN_TEAM = "admin";
+const HR_TEAM = "sg-app-dept-hr";
+const MEMBERS_TEAM = "biso-members";
 
-  return scope.managedCampusNames
-    .map((name) => lookups.campusIdsByName.get(name))
-    .filter((value): value is string => Boolean(value));
-}
-
-function getManagedDepartmentIds(
-  scope: AdminScope,
-  lookups: RecruitmentLookups
-): string[] {
-  return scope.managedDepartmentNames
-    .map((name) => lookups.departmentIdsByName.get(name))
-    .filter((value): value is string => Boolean(value));
-}
-
-export function canManageRecruitmentVacancy(
-  scope: AdminScope,
+/**
+ * Build Appwrite $permissions for a job row.
+ *
+ * Public vacancies: readable by anyone.
+ * Member-only vacancies: readable only by biso-members + review teams.
+ * Write (update/delete): granted to team:admin, team:sg-app-dept-hr, and the
+ * owning campus + department teams (team ID = sanitized display name).
+ */
+export function buildJobRowPermissions(
   lookups: RecruitmentLookups,
-  job: Pick<Jobs, "campus_id" | "department_id">
-): boolean {
-  if (scope.canManageAnyCampus) {
-    return true;
+  job: { campus_id: string; department_id: string | null },
+  audience: "public" | "members"
+): string[] {
+  const ownerTeams: string[] = [];
+  const campusName = lookups.campusNamesById.get(job.campus_id);
+  if (campusName) {
+    ownerTeams.push(`sg-app-campus-${campusName.toLowerCase()}`);
+  }
+  const deptName = job.department_id
+    ? lookups.departmentNamesById.get(job.department_id)
+    : null;
+  if (deptName) {
+    ownerTeams.push(`sg-app-dept-${deptName.toLowerCase()}`);
   }
 
-  const managedCampusIds = getManagedCampusIds(scope, lookups);
-  if (!managedCampusIds.includes(job.campus_id)) {
-    return false;
-  }
+  const writeTeams = [...new Set([ADMIN_TEAM, HR_TEAM, ...ownerTeams])];
 
-  if (scope.isCampusAdmin) {
-    return true;
-  }
+  const readPerms =
+    audience === "public"
+      ? [Permission.read(Role.any())]
+      : [
+          Permission.read(Role.team(MEMBERS_TEAM)),
+          Permission.read(Role.team(ADMIN_TEAM)),
+          Permission.read(Role.team(HR_TEAM)),
+          ...ownerTeams.map((t) => Permission.read(Role.team(t))),
+        ];
 
-  return Boolean(
-    job.department_id &&
-      getManagedDepartmentIds(scope, lookups).includes(job.department_id)
-  );
-}
-
-export function canReviewRecruitmentVacancy(
-  scope: AdminScope,
-  lookups: RecruitmentLookups,
-  job: Pick<Jobs, "campus_id" | "department_id">
-): boolean {
-  if (scope.canManageAnyCampus) {
-    return true;
-  }
-
-  const managedCampusIds = getManagedCampusIds(scope, lookups);
-  if (scope.isCampusAdmin && managedCampusIds.includes(job.campus_id)) {
-    return true;
-  }
-
-  return Boolean(
-    job.department_id &&
-      getManagedDepartmentIds(scope, lookups).includes(job.department_id)
-  );
+  return [
+    ...new Set([
+      ...readPerms,
+      ...writeTeams.flatMap((t) => [
+        Permission.update(Role.team(t)),
+        Permission.delete(Role.team(t)),
+      ]),
+    ]),
+  ];
 }
 
 export function assertRecruitmentVacancyWriteAccess(
@@ -194,166 +153,96 @@ export function assertRecruitmentApplicationReviewAccess(
   }
 }
 
-function toRecruitmentTranslation(
-  translation: ContentTranslations
-): RecruitmentTranslation {
-  return {
-    $id: translation.$id,
-    additional_fields: translation.additional_fields ?? null,
-    description: translation.description ?? "",
-    locale: translation.locale,
-    short_description: translation.short_description ?? null,
-    title: translation.title ?? "",
-  };
+export interface InterviewScopeTarget {
+  campus_id: string;
+  department_id: string | null;
 }
 
-export async function fetchRecruitmentTranslations(
-  db: DbClient,
-  contentIds: string[]
-): Promise<Map<string, RecruitmentTranslation[]>> {
-  const translationsByContentId = new Map<string, RecruitmentTranslation[]>();
+export function canWriteInterview(
+  scope: AdminScope,
+  lookups: RecruitmentLookups,
+  target: InterviewScopeTarget
+): boolean {
+  return canReviewRecruitmentVacancy(scope, lookups, target);
+}
 
-  for (let index = 0; index < contentIds.length; index += 25) {
-    const chunk = contentIds.slice(index, index + 25);
-    const response = await db.listRows<ContentTranslations>(
-      "app",
-      "content_translations",
-      [
-        Query.equal("content_type", "job"),
-        Query.equal("content_id", chunk),
-        Query.select([...TRANSLATION_SELECT]),
-        Query.limit(chunk.length * 4),
-      ]
-    );
-
-    for (const translation of response.rows) {
-      const current = translationsByContentId.get(translation.content_id) ?? [];
-      current.push(toRecruitmentTranslation(translation));
-      translationsByContentId.set(translation.content_id, current);
-    }
+export function assertInterviewWriteAccess(
+  scope: AdminScope,
+  lookups: RecruitmentLookups,
+  target: InterviewScopeTarget
+): void {
+  if (!canWriteInterview(scope, lookups, target)) {
+    throw new Error("Forbidden");
   }
-
-  return translationsByContentId;
 }
 
-export function buildRecruitmentVacancy(
-  job: Jobs,
-  translations: RecruitmentTranslation[] = []
-): RecruitmentVacancy {
-  const parsedMetadata = parseRecruitmentVacancyMetadata(job.metadata);
-  const translationFallback = translations.find(
-    (translation) => translation.locale === Locale.NO
-  );
-
-  let legacyMetadata: Record<string, unknown> = {};
-  if (translationFallback?.additional_fields) {
-    try {
-      legacyMetadata = JSON.parse(
-        translationFallback.additional_fields
-      ) as Record<string, unknown>;
-    } catch {
-      legacyMetadata = {};
-    }
+export function canSubmitScorecard(
+  scope: AdminScope,
+  currentUserId: string,
+  participantUserIds: ReadonlySet<string>
+): boolean {
+  if (scope.isGlobalAdmin) {
+    return true;
   }
-
-  return {
-    $createdAt: job.$createdAt,
-    $id: job.$id,
-    $updatedAt: job.$updatedAt,
-    campus: job.campus
-      ? {
-          $id: job.campus.$id,
-          name: job.campus.name,
-        }
-      : null,
-    campus_id: job.campus_id,
-    department: job.department
-      ? {
-          $id: job.department.$id,
-          campus_id: job.department.campus_id,
-          Name: job.department.Name,
-        }
-      : null,
-    department_id: job.department_id,
-    metadata: buildRecruitmentVacancyMetadata(
-      {
-        company:
-          parsedMetadata.company ??
-          (typeof legacyMetadata.company === "string"
-            ? legacyMetadata.company
-            : null),
-        employment_type:
-          parsedMetadata.employment_type ??
-          (typeof legacyMetadata.employment_type === "string"
-            ? legacyMetadata.employment_type
-            : null),
-        short_description:
-          parsedMetadata.short_description ??
-          translationFallback?.short_description,
-      },
-      parsedMetadata
-    ),
-    slug: job.slug,
-    status: job.status,
-    translation_refs: translations,
-  };
+  return participantUserIds.has(currentUserId);
 }
 
-export async function fetchRecruitmentJobsByIds(
-  db: DbClient,
-  ids: string[]
-): Promise<Map<string, RecruitmentVacancy>> {
-  const jobsById = new Map<string, RecruitmentVacancy>();
-
-  for (let index = 0; index < ids.length; index += 25) {
-    const chunk = ids.slice(index, index + 25);
-    const response = await db.listRows<Jobs>("app", "jobs", [
-      Query.equal("$id", chunk),
-      Query.select([...JOB_SELECT]),
-      Query.limit(chunk.length),
-    ]);
-    const translationsById = await fetchRecruitmentTranslations(
-      db,
-      response.rows.map((job) => job.$id)
-    );
-
-    for (const job of response.rows) {
-      jobsById.set(
-        job.$id,
-        buildRecruitmentVacancy(job, translationsById.get(job.$id) ?? [])
-      );
-    }
+export function assertScorecardWriteAccess(
+  scope: AdminScope,
+  currentUserId: string,
+  participantUserIds: ReadonlySet<string>
+): void {
+  if (!canSubmitScorecard(scope, currentUserId, participantUserIds)) {
+    throw new Error("Forbidden");
   }
-
-  return jobsById;
 }
 
-export function getRecruitmentVacancyTitle(
-  vacancy: RecruitmentVacancy,
-  locale: LocaleType = Locale.NO
-): string {
-  return (
-    vacancy.translation_refs.find(
-      (translation) => translation.locale === locale
-    )?.title ??
-    vacancy.translation_refs[0]?.title ??
-    "Untitled"
-  );
+export interface CandidateProfileScopeTarget {
+  campus_id: string | null;
+}
+
+export function canReadCandidateProfile(
+  scope: AdminScope,
+  lookups: RecruitmentLookups,
+  profile: CandidateProfileScopeTarget
+): boolean {
+  if (scope.canManageAnyCampus) {
+    return true;
+  }
+  if (!profile.campus_id) {
+    return false;
+  }
+  return getManagedCampusIds(scope, lookups).includes(profile.campus_id);
+}
+
+export function assertCandidateProfileReadAccess(
+  scope: AdminScope,
+  lookups: RecruitmentLookups,
+  profile: CandidateProfileScopeTarget
+): void {
+  if (!canReadCandidateProfile(scope, lookups, profile)) {
+    throw new Error("Forbidden");
+  }
 }
 
 export function buildRecruitmentApplicationRecord(
-  application: JobApplications,
-  jobsById: Map<string, RecruitmentVacancy>
+  application: JobApplications
 ): RecruitmentApplicationRecord {
-  const vacancy = jobsById.get(application.job_id);
-  const jobSummary: RecruitmentApplicationJobSummary | null = vacancy
+  const jobRow = application.job as Jobs | null | undefined;
+  const jobSummary: RecruitmentApplicationJobSummary | null = jobRow
     ? {
-        $id: vacancy.$id,
-        campus_id: vacancy.campus_id,
-        department_id: vacancy.department_id,
-        slug: vacancy.slug,
-        status: vacancy.status,
-        title: getRecruitmentVacancyTitle(vacancy),
+        $id: jobRow.$id,
+        campus_id: jobRow.campus_id,
+        department_id: jobRow.department_id,
+        slug: jobRow.slug,
+        status: jobRow.status,
+        title:
+          (jobRow.translations as ContentTranslations[] | undefined)?.find(
+            (t) => t.locale === "no"
+          )?.title ??
+          (jobRow.translations as ContentTranslations[] | undefined)?.[0]
+            ?.title ??
+          "Untitled",
       }
     : null;
 
@@ -361,6 +250,7 @@ export function buildRecruitmentApplicationRecord(
     $createdAt: application.$createdAt,
     $id: application.$id,
     $updatedAt: application.$updatedAt,
+    ai_screening: application.ai_screening ?? null,
     applicant_email: application.applicant_email,
     applicant_name: application.applicant_name,
     applicant_phone: application.applicant_phone ?? null,
@@ -375,33 +265,7 @@ export function buildRecruitmentApplicationRecord(
       application.review_metadata
     ),
     resume_file_id: application.resume_file_id ?? null,
+    screening_score: application.screening_score ?? null,
     status: application.status,
   };
-}
-
-export async function getRecruitmentJobById(
-  db: DbClient,
-  jobId: string
-): Promise<RecruitmentVacancy | null> {
-  const jobsById = await fetchRecruitmentJobsByIds(db, [jobId]);
-  return jobsById.get(jobId) ?? null;
-}
-
-export async function fetchRecruitmentListRows(
-  db: DbClient,
-  queries: string[]
-): Promise<RecruitmentVacancy[]> {
-  const response = await db.listRows<Jobs>("app", "jobs", [
-    Query.select([...JOB_SELECT]),
-    ...queries,
-  ]);
-
-  const translationsById = await fetchRecruitmentTranslations(
-    db,
-    response.rows.map((job) => job.$id)
-  );
-
-  return response.rows.map((job) =>
-    buildRecruitmentVacancy(job, translationsById.get(job.$id) ?? [])
-  );
 }

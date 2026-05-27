@@ -1,7 +1,11 @@
 import { ID, Query } from "./index";
 import { createSessionClient } from "./server";
-import type { PageLocale, Pages, PageTranslations } from "./types/appwrite";
-import { PageStatus, PageVisibility } from "./types/appwrite";
+import type {
+  Pages,
+  PageTranslations,
+  PageTranslationsLocale,
+} from "./types/appwrite";
+import { PagesStatus, PagesVisibility } from "./types/appwrite";
 
 // Minimal local definition — avoids circular dep with @repo/editor
 interface PageMeta {
@@ -43,8 +47,8 @@ export interface PageEditorSharedData {
   departmentId: string;
   id: string;
   slug: string;
-  status: PageStatus;
-  visibility: PageVisibility;
+  status: PagesStatus;
+  visibility: PagesVisibility;
 }
 
 export interface PageEditorLoadResult {
@@ -334,8 +338,8 @@ export async function savePageDraft({
 
   const page = await db.upsertRow<Pages>("app", "pages", id ?? ID.unique(), {
     slug: normalizedDoc.meta.slug,
-    status: id ? (normalizedDoc.meta.status as PageStatus) : PageStatus.DRAFT,
-    visibility: PageVisibility.PUBLIC,
+    status: id ? (normalizedDoc.meta.status as PagesStatus) : PagesStatus.DRAFT,
+    visibility: PagesVisibility.PUBLIC,
     department_id: normalizedDoc.meta.department || null,
     campus_id: campusId,
   });
@@ -345,7 +349,7 @@ export async function savePageDraft({
   // Upsert translation row
   const tRes = await db.listRows<PageTranslations>("app", "page_translations", [
     Query.equal("page_id", pageId),
-    Query.equal("locale", locale as PageLocale),
+    Query.equal("locale", locale as PageTranslationsLocale),
     Query.limit(1),
   ]);
 
@@ -356,7 +360,7 @@ export async function savePageDraft({
     {
       page_id: pageId,
       page: pageId as unknown as Pages,
-      locale: locale as PageLocale,
+      locale: locale as PageTranslationsLocale,
       draft_document: json,
       title: normalizedDoc.meta.title,
       description: normalizedDoc.meta.description ?? null,
@@ -382,7 +386,7 @@ export async function publishPage({
 
   const tRes = await db.listRows<PageTranslations>("app", "page_translations", [
     Query.equal("page_id", id),
-    Query.equal("locale", locale as PageLocale),
+    Query.equal("locale", locale as PageTranslationsLocale),
     Query.limit(1),
   ]);
 
@@ -398,7 +402,7 @@ export async function publishPage({
   });
 
   await db.updateRow("app", "pages", id, {
-    status: "published" as PageStatus,
+    status: "published" as PagesStatus,
   });
 }
 
@@ -413,7 +417,7 @@ export async function unpublishPage({
 
   const tRes = await db.listRows<PageTranslations>("app", "page_translations", [
     Query.equal("page_id", id),
-    Query.equal("locale", locale as PageLocale),
+    Query.equal("locale", locale as PageTranslationsLocale),
     Query.limit(1),
   ]);
 
@@ -425,6 +429,6 @@ export async function unpublishPage({
   }
 
   await db.updateRow("app", "pages", id, {
-    status: "draft" as PageStatus,
+    status: "draft" as PagesStatus,
   });
 }

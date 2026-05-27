@@ -4,6 +4,7 @@ import { expandDeptName } from "./campus-constants";
 import {
   grantDeptTeamAccess,
   grantTeamContentAccess,
+  grantTeamRecruitmentAccess,
 } from "./team-provisioning";
 
 interface AzureGroup {
@@ -57,6 +58,7 @@ async function syncTeamMembership(
       // Only dept teams get table-level create permissions; campus teams get nothing
       if (azureGroup.name.startsWith("SG-App-Dept-")) {
         await grantTeamContentAccess(teamId);
+        await grantTeamRecruitmentAccess(teamId);
 
         // Provision row-level write permissions on matching department rows
         const rawDeptName = azureGroup.name.replace("SG-App-Dept-", "");

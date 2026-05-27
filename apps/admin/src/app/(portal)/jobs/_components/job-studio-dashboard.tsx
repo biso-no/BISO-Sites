@@ -1,6 +1,6 @@
 "use client";
 
-import type { JobStatus } from "@repo/api/types/appwrite";
+import type { JobsStatus } from "@repo/api/types/appwrite";
 import type { RecruitmentVacancy } from "@repo/shared/types/recruitment";
 import {
   ArrowUpRight,
@@ -64,9 +64,9 @@ function normalizeLocale(locale: string): "en" | "no" {
 
 function getTitle(job: RecruitmentVacancy, locale: "en" | "no") {
   return (
-    job.translation_refs.find((translation) => translation.locale === locale)
+    job.translations.find((translation) => translation.locale === locale)
       ?.title ??
-    job.translation_refs[0]?.title ??
+    job.translations[0]?.title ??
     ""
   );
 }
@@ -74,9 +74,9 @@ function getTitle(job: RecruitmentVacancy, locale: "en" | "no") {
 function getDescription(job: RecruitmentVacancy, locale: "en" | "no") {
   return (
     job.metadata.short_description ??
-    job.translation_refs.find((translation) => translation.locale === locale)
+    job.translations.find((translation) => translation.locale === locale)
       ?.short_description ??
-    job.translation_refs[0]?.short_description ??
+    job.translations[0]?.short_description ??
     ""
   );
 }
@@ -130,7 +130,7 @@ function statusColor(status: string) {
   return BRAND.gold;
 }
 
-function StatusPill({ status }: { status: JobStatus }) {
+function StatusPill({ status }: { status: JobsStatus }) {
   const t = useTranslations("adminPortal.common.status");
   const color = statusColor(status);
   return (

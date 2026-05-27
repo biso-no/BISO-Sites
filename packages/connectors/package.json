@@ -11,6 +11,7 @@
   },
   "exports": {
     "./azure": "./src/azure/index.ts",
+    "./azure/calendar": "./src/azure/calendar.ts",
     "./azure/users": "./src/azure/users.ts",
     "./24sevenoffice": "./src/24sevenoffice/index.ts",
     "./sharepoint": "./src/sharepoint/index.ts",

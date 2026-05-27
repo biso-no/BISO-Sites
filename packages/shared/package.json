@@ -4,7 +4,8 @@
   "private": true,
   "exports": {
     "./utils/*": "./utils/*.ts",
-    "./types/*": "./types/*.ts"
+    "./types/*": "./types/*.ts",
+    "./recruitment": "./recruitment.ts"
   },
   "scripts": {
     "build": "tsc --noEmit",

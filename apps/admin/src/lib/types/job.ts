@@ -15,6 +15,6 @@ export interface JobMetadata extends Record<string, unknown> {
 
 export interface AdminJob extends Omit<Jobs, "translations"> {
   metadata_parsed: JobMetadata;
-  translation_refs: ContentTranslations[];
-  translations: TranslationMap<ContentTranslations>;
+  translations: ContentTranslations[];
+  translations_map: TranslationMap<ContentTranslations>;
 }

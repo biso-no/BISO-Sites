@@ -49,7 +49,7 @@ export function JobsListClient({
 
   const filtered = initialJobs.filter((job) => {
     const title =
-      job.translation_refs.find((translation) => translation.locale === "no")
+      job.translations.find((translation) => translation.locale === "no")
         ?.title ?? "";
 
     return (
@@ -107,7 +107,7 @@ export function JobsListClient({
         <div className="space-y-2">
           {filtered.map((job) => {
             const title =
-              job.translation_refs.find(
+              job.translations.find(
                 (translation) => translation.locale === "no"
               )?.title ?? "Untitled";
 

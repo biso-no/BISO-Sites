@@ -1,57 +1,48 @@
-import { Locale } from "@repo/api/types/appwrite";
 import { Skeleton } from "@repo/ui/components/ui/skeleton";
-import { BookOpen, Cog, PartyPopper, Rocket } from "lucide-react";
 import { Suspense } from "react";
 import { listJobs } from "@/app/actions/jobs";
 import { JobsHero } from "@/components/jobs/jobs-hero";
 import { JobsListClient } from "@/components/jobs/jobs-list-client";
 import { getUserPreferences } from "@/lib/auth-utils";
 
-const jobCategories = [
-  {
-    name: "Academic Associations",
-    icon: BookOpen,
-    color: "from-blue-500 to-indigo-600",
-  },
-  {
-    name: "Societies",
-    icon: PartyPopper,
-    color: "from-brand-gradient-from to-cyan-500",
-  },
-  {
-    name: "Staff Functions",
-    icon: Cog,
-    color: "from-brand-gradient-to to-slate-700",
-  },
-  { name: "Projects", icon: Rocket, color: "from-purple-500 to-pink-500" },
-];
-
-// This is a server component
 export const metadata = {
   title: "Join Our Team | BISO",
-  description: "Discover open positions at BISO and join our team",
+  description: "Discover open positions at BISO and apply today.",
 };
 
+interface JobsPageProps {
+  searchParams: Promise<{
+    campus?: string;
+    department?: string;
+    type?: string;
+    q?: string;
+    paid?: string;
+    sort?: string;
+  }>;
+}
+
 async function JobsList({
-  locale,
   campus,
+  department,
+  locale,
+  search,
 }: {
-  locale: Locale;
   campus: string | null;
+  department?: string | null;
+  locale: string;
+  search?: string;
 }) {
   const jobs = await listJobs({
+    campus,
+    department,
     locale,
-    status: "published",
     limit: 100,
-    campus: campus || "all",
+    search,
   });
 
-  // Calculate stats for hero
-  const paidPositions = jobs.filter((job) => job.metadata.paid === true).length;
-
+  const paidPositions = jobs.filter((j) => j.metadata.paid === true).length;
   const departmentCount =
-    new Set(jobs.map((job) => job.department_id).filter(Boolean)).size ||
-    jobCategories.length;
+    new Set(jobs.map((j) => j.department_id).filter(Boolean)).size || 4;
 
   return (
     <>
@@ -60,7 +51,11 @@ async function JobsList({
         paidPositions={paidPositions}
         totalPositions={jobs.length}
       />
-      <JobsListClient jobs={jobs} />
+      <JobsListClient
+        initialDepartment={department ?? null}
+        initialSearch={search ?? ""}
+        jobs={jobs}
+      />
     </>
   );
 }
@@ -88,15 +83,21 @@ function JobsListSkeleton() {
   );
 }
 
-export default async function JobsPage() {
-  const prefs = await getUserPreferences();
+export default async function JobsPage({ searchParams }: JobsPageProps) {
+  const [sp, prefs] = await Promise.all([searchParams, getUserPreferences()]);
+
+  // URL param wins, then user prefs, then "all"
+  const campus = sp.campus ?? prefs?.campusId ?? null;
+  const locale = prefs?.locale ?? "en";
 
   return (
     <div className="min-h-screen bg-linear-to-b from-section to-background">
       <Suspense fallback={<JobsListSkeleton />}>
         <JobsList
-          campus={prefs?.campusId ?? "all"}
-          locale={prefs?.locale ?? Locale.EN}
+          campus={campus}
+          department={sp.department ?? null}
+          locale={locale}
+          search={sp.q}
         />
       </Suspense>
     </div>

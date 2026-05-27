@@ -1,4 +1,4 @@
-import { ExpenseStatus } from "@repo/api/types/appwrite";
+import { ExpensesStatus } from "@repo/api/types/appwrite";
 import { z } from "zod";
 
 const ExpenseAttachmentInputSchema = z.object({
@@ -37,7 +37,7 @@ export interface ExpenseRowInput {
   eventName: string | null;
   expenseAttachments: ExpenseAttachmentInput[];
   prepayment_amount: number | null;
-  status: ExpenseStatus;
+  status: ExpensesStatus;
   total: number;
   user: string;
   userId: string;
@@ -51,7 +51,7 @@ export function parseExpensePayload(body: unknown): ExpensePayload | null {
 export function buildExpenseRowInput(
   data: ExpensePayload,
   userId: string,
-  status: ExpenseStatus = ExpenseStatus.DRAFT
+  status: ExpensesStatus = ExpensesStatus.DRAFT
 ): ExpenseRowInput {
   return {
     bank_account: data.bank_account,

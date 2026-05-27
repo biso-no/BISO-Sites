@@ -1,7 +1,7 @@
 import { ID, InputFile, type Models, Query } from "@repo/api";
 import { createAdminClient } from "@repo/api/server";
 import type { Users } from "@repo/api/types/appwrite";
-import { ExpenseStatus, type Expenses } from "@repo/api/types/appwrite";
+import { type Expenses, ExpensesStatus } from "@repo/api/types/appwrite";
 import { type NextRequest, NextResponse } from "next/server";
 import { createAuthenticatedClient } from "@/lib/auth";
 import { applyCorsHeaders, corsPreflightResponse } from "@/lib/cors";
@@ -49,7 +49,7 @@ async function checkDraftOwnership(
     };
   }
 
-  if (existingExpense.status !== ExpenseStatus.DRAFT) {
+  if (existingExpense.status !== ExpensesStatus.DRAFT) {
     return {
       ok: false,
       error: "Only draft expenses can be submitted",
@@ -89,7 +89,7 @@ async function saveDraftBeforeSubmission(
   );
 }
 
-type ExpenseStatusUpdateRow = Models.Row & { status: ExpenseStatus };
+type ExpenseStatusUpdateRow = Models.Row & { status: ExpensesStatus };
 
 /**
  * Generates a 5-digit reimbursement number from the sequence.
@@ -149,7 +149,7 @@ export async function POST(req: NextRequest) {
     const expenseBody = buildExpenseRowInput(
       expenseData,
       user.$id,
-      ExpenseStatus.DRAFT
+      ExpensesStatus.DRAFT
     );
 
     const expense = await saveDraftBeforeSubmission(
@@ -308,7 +308,7 @@ export async function POST(req: NextRequest) {
     );
 
     await db.updateRow<ExpenseStatusUpdateRow>("app", "expense", expense.$id, {
-      status: ExpenseStatus.PENDING,
+      status: ExpensesStatus.PENDING,
     });
 
     return applyCorsHeaders(

@@ -2,7 +2,7 @@
 
 import { Query } from "@repo/api";
 import { createSessionClient } from "@repo/api/server";
-import type { Locale, WebshopProducts } from "@repo/api/types/appwrite";
+import type { WebshopProducts } from "@repo/api/types/appwrite";
 
 export async function getProduct(
   id: string,
@@ -16,7 +16,7 @@ export async function getProduct(
       "webshop_products",
       [
         Query.equal("$id", id),
-        Query.equal("translation_refs.locale", locale as Locale),
+        Query.equal("translation_refs.locale", locale),
         Query.select([
           "$id",
           "$createdAt",

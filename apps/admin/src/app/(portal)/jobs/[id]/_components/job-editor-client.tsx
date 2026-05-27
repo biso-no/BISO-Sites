@@ -3,7 +3,7 @@
 import {
   type Campus,
   type Departments,
-  JobStatus,
+  JobsStatus,
 } from "@repo/api/types/appwrite";
 import type { RecruitmentVacancy } from "@repo/shared/types/recruitment";
 import { ContentEditor } from "@repo/ui/components/content-editor";
@@ -71,9 +71,9 @@ const EMPLOYMENT_TYPES = [
 ];
 
 const STATUS_OPTIONS = [
-  { value: JobStatus.DRAFT, label: "Draft" },
-  { value: JobStatus.PUBLISHED, label: "Published" },
-  { value: JobStatus.CLOSED, label: "Closed" },
+  { value: JobsStatus.DRAFT, label: "Draft" },
+  { value: JobsStatus.PUBLISHED, label: "Published" },
+  { value: JobsStatus.CLOSED, label: "Closed" },
 ];
 
 function generateSlug(title: string): string {
@@ -94,10 +94,10 @@ function fallback<T>(value: T | null | undefined, fallbackValue: T): T {
 }
 
 function buildDefaultValues(job: RecruitmentVacancy | null): JobFormValues {
-  const no = job?.translation_refs.find(
+  const no = job?.translations.find(
     (translation) => translation.locale === "no"
   );
-  const en = job?.translation_refs.find(
+  const en = job?.translations.find(
     (translation) => translation.locale === "en"
   );
   const metadata = job?.metadata;
@@ -129,11 +129,19 @@ function buildDefaultValues(job: RecruitmentVacancy | null): JobFormValues {
     short_description: fallback(metadata?.short_description, null),
     slug: fallback(job?.slug, ""),
     start_date: fallback(metadata?.start_date, null),
-    status: fallback(job?.status, JobStatus.DRAFT),
+    status: fallback(job?.status, JobsStatus.DRAFT),
     tags: fallback(metadata?.tags, []),
     term: fallback(metadata?.term, null),
     title_en: fallback(en?.title, ""),
     title_no: fallback(no?.title, ""),
+    auto_screen: job?.auto_screen ?? true,
+    custom_questions: [],
+    interview_template: { rounds: [] },
+    screening_rubric: job?.screening_rubric ?? {
+      must_have: [],
+      nice_to_have: [],
+      criteria: [],
+    },
   };
 }
 
@@ -149,7 +157,7 @@ export function JobEditorClient({
   const [isPublishing, setIsPublishing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [previewTitle, setPreviewTitle] = useState(
-    job?.translation_refs.find((translation) => translation.locale === "no")
+    job?.translations.find((translation) => translation.locale === "no")
       ?.title ?? ""
   );
   const [previewCompany, setPreviewCompany] = useState(
@@ -222,7 +230,7 @@ export function JobEditorClient({
           loading={isSaving}
           onClick={() => {
             setIsSaving(true);
-            form.setFieldValue("status", JobStatus.DRAFT);
+            form.setFieldValue("status", JobsStatus.DRAFT);
             form.handleSubmit().finally(() => setIsSaving(false));
           }}
           size="sm"
@@ -234,7 +242,7 @@ export function JobEditorClient({
           loading={isPublishing}
           onClick={() => {
             setIsPublishing(true);
-            form.setFieldValue("status", JobStatus.PUBLISHED);
+            form.setFieldValue("status", JobsStatus.PUBLISHED);
             form.handleSubmit().finally(() => setIsPublishing(false));
           }}
           size="sm"
@@ -398,7 +406,7 @@ export function JobEditorClient({
             <form.Field name="paid">
               {(field) => (
                 <PortalField label={labels.paid}>
-                  <label className="flex items-center gap-3 rounded-xl border border-white/10 px-3 py-2.5 text-sm text-white">
+                  <label className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-white">
                     <input
                       checked={field.state.value}
                       onChange={(event) =>
@@ -415,7 +423,7 @@ export function JobEditorClient({
             <form.Field name="cv_required">
               {(field) => (
                 <PortalField label={labels.cvRequired}>
-                  <label className="flex items-center gap-3 rounded-xl border border-white/10 px-3 py-2.5 text-sm text-white">
+                  <label className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-white">
                     <input
                       checked={field.state.value}
                       onChange={(event) =>
@@ -429,6 +437,33 @@ export function JobEditorClient({
               )}
             </form.Field>
           </div>
+
+          <form.Field name="auto_screen">
+            {(field) => (
+              <PortalField label="AI screening">
+                <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-white/10 bg-white/5 px-4 py-3.5">
+                  <input
+                    checked={field.state.value}
+                    className="mt-0.5 shrink-0"
+                    onChange={(event) =>
+                      field.handleChange(event.target.checked)
+                    }
+                    type="checkbox"
+                  />
+                  <div>
+                    <p className="font-medium text-sm text-white">
+                      Enable automatic screening
+                    </p>
+                    <p className="mt-1 text-white/55 text-xs">
+                      Claude will evaluate each application against the rubric
+                      and assign a score. Configure the full rubric in the
+                      Studio editor.
+                    </p>
+                  </div>
+                </label>
+              </PortalField>
+            )}
+          </form.Field>
 
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             <form.Field name="campus_id">
@@ -524,18 +559,21 @@ export function JobEditorClient({
           <div
             className="rounded-3xl border p-6"
             style={{
-              background: "rgba(255,255,255,0.03)",
-              borderColor: "rgba(255,255,255,0.08)",
+              background: "rgba(255,255,255,0.46)",
+              borderColor: "#e5dcca",
             }}
           >
             <div className="space-y-3">
-              <p className="font-mono text-[11px] text-white/40 uppercase tracking-widest">
+              <p
+                className="font-mono text-[11px] uppercase tracking-widest"
+                style={{ color: "#9c9385" }}
+              >
                 Vacancy preview
               </p>
-              <h3 className="font-semibold text-2xl text-white">
+              <h3 className="font-semibold text-2xl" style={{ color: "#1a1814" }}>
                 {previewTitle || "Vacancy title"}
               </h3>
-              <p className="text-sm text-white/60">
+              <p className="text-sm" style={{ color: "#6b6357" }}>
                 {previewCompany || "Company"} · {previewSlug || "slug"}
               </p>
             </div>
