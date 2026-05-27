@@ -45,6 +45,7 @@ import {
 import { logAuditEvent } from "./audit-log";
 
 const DATABASE_ID = "app";
+const TRAILING_SLASH_RE = /\/$/;
 
 // Fields to select when fetching job_applications with nested job for access control.
 const APPLICATION_JOB_SELECT = [
@@ -136,6 +137,69 @@ export async function listInterviewsForApplication(
     interview,
     participants: (interview.participants ?? []) as JobInterviewParticipants[],
   }));
+}
+
+async function applyGraphScheduling(
+  db: Awaited<ReturnType<typeof createSessionClient>>["db"],
+  ctx: UserAuthContext,
+  input: {
+    auto_create_teams_meeting?: boolean;
+    notes?: string | null;
+    title: string;
+  },
+  interview: JobInterviews,
+  participants: JobInterviewParticipants[],
+  startsAt: Date,
+  endsAt: Date,
+  candidateEmail: string
+): Promise<JobInterviews> {
+  if (input.auto_create_teams_meeting === false) {
+    return interview;
+  }
+  const panelEmails = participants
+    .filter((p) => p.role === JobInterviewParticipantsRole.INTERVIEWER)
+    .map((p) => p.email);
+  const lead = participants.find(
+    (p) => p.role === JobInterviewParticipantsRole.INTERVIEWER && p.is_lead
+  );
+  const organizerUpn = lead?.email ?? panelEmails[0] ?? ctx.email ?? null;
+  if (!organizerUpn) {
+    return interview;
+  }
+  try {
+    const scheduled = await scheduleInterviewOnGraph({
+      body: input.notes ?? "Scheduled via BISO recruitment platform.",
+      candidateEmail,
+      createTeamsMeeting: true,
+      ends_at: endsAt,
+      organizerUpn,
+      panelEmails,
+      starts_at: startsAt,
+      subject: input.title,
+    });
+    if (
+      scheduled.outlookEventId ||
+      scheduled.teamsMeetingId ||
+      scheduled.meetingUrl
+    ) {
+      return await db.updateRow<JobInterviews>(
+        DATABASE_ID,
+        "job_interviews",
+        interview.$id,
+        {
+          meeting_url: scheduled.meetingUrl ?? interview.meeting_url,
+          outlook_event_id: scheduled.outlookEventId,
+          teams_meeting_id: scheduled.teamsMeetingId,
+        }
+      );
+    }
+  } catch (graphError) {
+    console.warn(
+      `Graph scheduling failed for interview ${interview.$id}`,
+      graphError
+    );
+  }
+  return interview;
 }
 
 export async function createInterview(
@@ -239,56 +303,16 @@ export async function createInterview(
     }
 
     // Best-effort Graph scheduling — opt-in via env vars + flag.
-    let finalInterview = interview;
-    if (input.auto_create_teams_meeting !== false) {
-      const panelEmails = participants
-        .filter(
-          (participant) =>
-            participant.role === JobInterviewParticipantsRole.INTERVIEWER
-        )
-        .map((participant) => participant.email);
-      const lead = participants.find(
-        (participant) =>
-          participant.role === JobInterviewParticipantsRole.INTERVIEWER &&
-          participant.is_lead
-      );
-      const organizerUpn = lead?.email ?? panelEmails[0] ?? ctx.email ?? null;
-      if (organizerUpn) {
-        try {
-          const scheduled = await scheduleInterviewOnGraph({
-            body: input.notes ?? "Scheduled via BISO recruitment platform.",
-            candidateEmail: application.applicant_email,
-            createTeamsMeeting: true,
-            ends_at: endsAt,
-            organizerUpn,
-            panelEmails,
-            starts_at: startsAt,
-            subject: input.title,
-          });
-          if (
-            scheduled.outlookEventId ||
-            scheduled.teamsMeetingId ||
-            scheduled.meetingUrl
-          ) {
-            finalInterview = await db.updateRow<JobInterviews>(
-              DATABASE_ID,
-              "job_interviews",
-              interview.$id,
-              {
-                meeting_url: scheduled.meetingUrl ?? finalInterview.meeting_url,
-                outlook_event_id: scheduled.outlookEventId,
-                teams_meeting_id: scheduled.teamsMeetingId,
-              }
-            );
-          }
-        } catch (graphError) {
-          console.warn(
-            `Graph scheduling failed for interview ${interview.$id}`,
-            graphError
-          );
-        }
-      }
-    }
+    const finalInterview = await applyGraphScheduling(
+      db,
+      ctx,
+      input,
+      interview,
+      participants,
+      startsAt,
+      endsAt,
+      application.applicant_email
+    );
 
     await logAuditEvent(ctx, "recruitment.interview.create", {
       payload: {
@@ -798,7 +822,7 @@ export async function createBookingToken(
       process.env.WEB_PUBLIC_BASE_URL ??
       process.env.NEXT_PUBLIC_WEB_BASE_URL ??
       "https://app.biso.no";
-    const url = `${baseUrl.replace(/\/$/, "")}/recruitment/book/${issued.token}`;
+    const url = `${baseUrl.replace(TRAILING_SLASH_RE, "")}/recruitment/book/${issued.token}`;
     return { data: { token: issued.token, url } };
   } catch (error) {
     return {

@@ -36,6 +36,7 @@ interface MigrationResult {
   teams_provisioned: number;
 }
 
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: one-time migration script
 export async function runRecruitment2026MayMigration(
   options: { dryRun?: boolean } = {}
 ): Promise<MigrationResult> {
@@ -96,7 +97,7 @@ export async function runRecruitment2026MayMigration(
     if (page.rows.length === 0) {
       break;
     }
-    cursor = page.rows[page.rows.length - 1].$id;
+    cursor = page.rows.at(-1)?.$id ?? cursor;
 
     for (const application of page.rows) {
       applicationsScanned++;

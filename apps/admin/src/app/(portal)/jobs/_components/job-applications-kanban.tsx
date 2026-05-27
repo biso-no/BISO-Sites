@@ -5,7 +5,7 @@ import {
   canTransitionRecruitmentApplicationStatus,
   type RecruitmentApplicationRecord,
 } from "@repo/shared/types/recruitment";
-import { useState, useTransition } from "react";
+import { Fragment, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { updateJobApplicationStatus } from "../../_actions/jobs";
 import { STUDIO } from "../../_components/studio";
@@ -138,121 +138,125 @@ export function JobApplicationsKanban({
         const cards = byStatus.get(column.id) ?? [];
         const isDropTarget = dropTarget === column.id;
         return (
-          <div
-            className="flex flex-col rounded-2xl p-3"
-            key={column.id}
-            onDragLeave={() => {
-              setDropTarget((current) =>
-                current === column.id ? null : current
-              );
-            }}
-            onDragOver={(event) => {
-              event.preventDefault();
-              setDropTarget(column.id);
-            }}
-            onDrop={(event) => handleDrop(column.id, event)}
-            style={{
-              background: isDropTarget ? STUDIO.paper3 : STUDIO.paper2,
-              border: `1px solid ${isDropTarget ? column.accent : STUDIO.rule}`,
-              minHeight: 200,
-              transition: "background 150ms ease, border-color 150ms ease",
-            }}
-          >
-            <div className="mb-3 flex items-center justify-between">
-              <div className="flex items-center gap-2">
+          <Fragment key={column.id}>
+            {/* biome-ignore lint/a11y/noNoninteractiveElementInteractions lint/a11y/useSemanticElements: DnD drop-zone requires non-semantic element with drag handlers */}
+            <div
+              aria-label={column.label}
+              className="flex flex-col rounded-2xl p-3"
+              onDragLeave={() => {
+                setDropTarget((current) =>
+                  current === column.id ? null : current
+                );
+              }}
+              onDragOver={(event) => {
+                event.preventDefault();
+                setDropTarget(column.id);
+              }}
+              onDrop={(event) => handleDrop(column.id, event)}
+              role="region"
+              style={{
+                background: isDropTarget ? STUDIO.paper3 : STUDIO.paper2,
+                border: `1px solid ${isDropTarget ? column.accent : STUDIO.rule}`,
+                minHeight: 200,
+                transition: "background 150ms ease, border-color 150ms ease",
+              }}
+            >
+              <div className="mb-3 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span
+                    className="h-2 w-2 rounded-full"
+                    style={{ background: column.accent }}
+                  />
+                  <span
+                    className="font-medium text-sm"
+                    style={{ color: STUDIO.ink2 }}
+                  >
+                    {column.label}
+                  </span>
+                </div>
                 <span
-                  className="h-2 w-2 rounded-full"
-                  style={{ background: column.accent }}
-                />
-                <span
-                  className="font-medium text-sm"
-                  style={{ color: STUDIO.ink2 }}
+                  className="rounded-full px-2 py-0.5 text-xs"
+                  style={{
+                    background: STUDIO.paper3,
+                    color: STUDIO.ink4,
+                  }}
                 >
-                  {column.label}
+                  {cards.length}
                 </span>
               </div>
-              <span
-                className="rounded-full px-2 py-0.5 text-xs"
-                style={{
-                  background: STUDIO.paper3,
-                  color: STUDIO.ink4,
-                }}
-              >
-                {cards.length}
-              </span>
-            </div>
 
-            <div className="flex flex-col gap-2">
-              {cards.map((application) => {
-                const score = readScreeningScore(application);
-                return (
-                  <button
-                    className="rounded-xl p-3 text-left transition-all"
-                    draggable
-                    key={application.$id}
-                    onClick={() => onSelect?.(application.$id)}
-                    onDragEnd={handleDragEnd}
-                    onDragStart={() => handleDragStart(application.$id)}
-                    style={{
-                      background:
-                        draggingId === application.$id
-                          ? "rgba(61,169,224,0.08)"
-                          : STUDIO.paper,
-                      border: `1px solid ${draggingId === application.$id ? "rgba(61,169,224,0.30)" : STUDIO.rule}`,
-                      cursor: "grab",
-                      opacity: draggingId === application.$id ? 0.6 : 1,
-                    }}
-                    type="button"
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0 flex-1">
+              <div className="flex flex-col gap-2">
+                {cards.map((application) => {
+                  const score = readScreeningScore(application);
+                  return (
+                    <button
+                      className="rounded-xl p-3 text-left transition-all"
+                      draggable
+                      key={application.$id}
+                      onClick={() => onSelect?.(application.$id)}
+                      onDragEnd={handleDragEnd}
+                      onDragStart={() => handleDragStart(application.$id)}
+                      style={{
+                        background:
+                          draggingId === application.$id
+                            ? "rgba(61,169,224,0.08)"
+                            : STUDIO.paper,
+                        border: `1px solid ${draggingId === application.$id ? "rgba(61,169,224,0.30)" : STUDIO.rule}`,
+                        cursor: "grab",
+                        opacity: draggingId === application.$id ? 0.6 : 1,
+                      }}
+                      type="button"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <p
+                            className="truncate font-medium text-sm"
+                            style={{ color: STUDIO.ink }}
+                          >
+                            {application.applicant_name}
+                          </p>
+                          <p
+                            className="truncate text-xs"
+                            style={{ color: STUDIO.ink4 }}
+                          >
+                            {application.job?.title ?? "Unknown vacancy"}
+                          </p>
+                        </div>
+                        {score === null ? null : (
+                          <span
+                            className="shrink-0 rounded-full px-2 py-0.5 text-xs"
+                            style={{
+                              background: "rgba(176,138,62,0.12)",
+                              color: STUDIO.gold,
+                            }}
+                            title="AI screening score (0–100)"
+                          >
+                            {score}
+                          </span>
+                        )}
+                      </div>
+                      {application.review_metadata.assigned_hr_user_name ? (
                         <p
-                          className="truncate font-medium text-sm"
-                          style={{ color: STUDIO.ink }}
-                        >
-                          {application.applicant_name}
-                        </p>
-                        <p
-                          className="truncate text-xs"
+                          className="mt-2 truncate text-xs"
                           style={{ color: STUDIO.ink4 }}
                         >
-                          {application.job?.title ?? "Unknown vacancy"}
+                          @ {application.review_metadata.assigned_hr_user_name}
                         </p>
-                      </div>
-                      {score === null ? null : (
-                        <span
-                          className="shrink-0 rounded-full px-2 py-0.5 text-xs"
-                          style={{
-                            background: "rgba(176,138,62,0.12)",
-                            color: STUDIO.gold,
-                          }}
-                          title="AI screening score (0–100)"
-                        >
-                          {score}
-                        </span>
-                      )}
-                    </div>
-                    {application.review_metadata.assigned_hr_user_name ? (
-                      <p
-                        className="mt-2 truncate text-xs"
-                        style={{ color: STUDIO.ink4 }}
-                      >
-                        @ {application.review_metadata.assigned_hr_user_name}
-                      </p>
-                    ) : null}
-                  </button>
-                );
-              })}
-              {cards.length === 0 ? (
-                <p
-                  className="rounded-lg p-3 text-center text-xs"
-                  style={{ color: STUDIO.ink4 }}
-                >
-                  No applications here.
-                </p>
-              ) : null}
+                      ) : null}
+                    </button>
+                  );
+                })}
+                {cards.length === 0 ? (
+                  <p
+                    className="rounded-lg p-3 text-center text-xs"
+                    style={{ color: STUDIO.ink4 }}
+                  >
+                    No applications here.
+                  </p>
+                ) : null}
+              </div>
             </div>
-          </div>
+          </Fragment>
         );
       })}
     </div>

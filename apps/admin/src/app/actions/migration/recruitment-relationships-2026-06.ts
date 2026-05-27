@@ -161,7 +161,7 @@ async function backfillTable(
     if (result.rows.length === 0) {
       break;
     }
-    cursor = result.rows[result.rows.length - 1].$id;
+    cursor = result.rows.at(-1)?.$id ?? cursor;
 
     for (const row of result.rows) {
       const relatedId = row[stringIdKey] as string | null | undefined;
@@ -186,6 +186,7 @@ async function backfillTable(
 // Step 3: backfill row-level write permissions on jobs
 // ---------------------------------------------------------------------------
 
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: one-time migration script
 async function backfillJobsPermissions(
   db: Awaited<ReturnType<typeof createAdminClient>>["db"],
   teams: Awaited<ReturnType<typeof createAdminClient>>["teams"],
@@ -262,7 +263,7 @@ async function backfillJobsPermissions(
     if (result.rows.length === 0) {
       break;
     }
-    cursor = result.rows[result.rows.length - 1].$id;
+    cursor = result.rows.at(-1)?.$id ?? cursor;
 
     for (const job of result.rows) {
       const campusId =
@@ -348,7 +349,7 @@ async function backfillContentTranslations(
     if (result.rows.length === 0) {
       break;
     }
-    cursor = result.rows[result.rows.length - 1].$id;
+    cursor = result.rows.at(-1)?.$id ?? cursor;
 
     for (const row of result.rows) {
       const perms = (row.$permissions as string[]) ?? [];

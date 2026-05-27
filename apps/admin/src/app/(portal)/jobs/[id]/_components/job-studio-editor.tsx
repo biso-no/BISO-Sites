@@ -1914,36 +1914,36 @@ export function JobStudioEditor({
                           weighted in AI scoring.
                         </p>
                         <div className="mb-3 flex flex-wrap gap-2">
-                          {(
-                            form.screening_rubric?.must_have ?? []
-                          ).map((item) => (
-                            <span
-                              className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs"
-                              key={item}
-                            >
-                              {item}
-                              <button
-                                onClick={() =>
-                                  setValue("screening_rubric", {
-                                    ...(form.screening_rubric ?? {
-                                      must_have: [],
-                                      nice_to_have: [],
-                                      criteria: [],
-                                    }),
-                                    must_have: (
-                                      form.screening_rubric?.must_have ?? []
-                                    ).filter((h) => h !== item),
-                                  })
-                                }
-                                type="button"
+                          {(form.screening_rubric?.must_have ?? []).map(
+                            (item) => (
+                              <span
+                                className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs"
+                                key={item}
                               >
-                                <Trash2
-                                  className="text-slate-400 hover:text-[#6b1e1e]"
-                                  size={11}
-                                />
-                              </button>
-                            </span>
-                          ))}
+                                {item}
+                                <button
+                                  onClick={() =>
+                                    setValue("screening_rubric", {
+                                      ...(form.screening_rubric ?? {
+                                        must_have: [],
+                                        nice_to_have: [],
+                                        criteria: [],
+                                      }),
+                                      must_have: (
+                                        form.screening_rubric?.must_have ?? []
+                                      ).filter((h) => h !== item),
+                                    })
+                                  }
+                                  type="button"
+                                >
+                                  <Trash2
+                                    className="text-slate-400 hover:text-[#6b1e1e]"
+                                    size={11}
+                                  />
+                                </button>
+                              </span>
+                            )
+                          )}
                           {(form.screening_rubric?.must_have ?? []).length ===
                             0 && (
                             <p className="text-slate-400 text-xs">
@@ -1962,8 +1962,9 @@ export function JobStudioEditor({
                               (form.screening_rubric?.must_have ?? []).includes(
                                 val
                               )
-                            )
+                            ) {
                               return;
+                            }
                             setValue("screening_rubric", {
                               ...(form.screening_rubric ?? {
                                 must_have: [],
@@ -2002,38 +2003,39 @@ export function JobStudioEditor({
                           present.
                         </p>
                         <div className="mb-3 flex flex-wrap gap-2">
-                          {(
-                            form.screening_rubric?.nice_to_have ?? []
-                          ).map((item) => (
-                            <span
-                              className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs"
-                              key={item}
-                            >
-                              {item}
-                              <button
-                                onClick={() =>
-                                  setValue("screening_rubric", {
-                                    ...(form.screening_rubric ?? {
-                                      must_have: [],
-                                      nice_to_have: [],
-                                      criteria: [],
-                                    }),
-                                    nice_to_have: (
-                                      form.screening_rubric?.nice_to_have ?? []
-                                    ).filter((h) => h !== item),
-                                  })
-                                }
-                                type="button"
+                          {(form.screening_rubric?.nice_to_have ?? []).map(
+                            (item) => (
+                              <span
+                                className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs"
+                                key={item}
                               >
-                                <Trash2
-                                  className="text-slate-400 hover:text-[#6b1e1e]"
-                                  size={11}
-                                />
-                              </button>
-                            </span>
-                          ))}
-                          {(form.screening_rubric?.nice_to_have ?? []).length ===
-                            0 && (
+                                {item}
+                                <button
+                                  onClick={() =>
+                                    setValue("screening_rubric", {
+                                      ...(form.screening_rubric ?? {
+                                        must_have: [],
+                                        nice_to_have: [],
+                                        criteria: [],
+                                      }),
+                                      nice_to_have: (
+                                        form.screening_rubric?.nice_to_have ??
+                                        []
+                                      ).filter((h) => h !== item),
+                                    })
+                                  }
+                                  type="button"
+                                >
+                                  <Trash2
+                                    className="text-slate-400 hover:text-[#6b1e1e]"
+                                    size={11}
+                                  />
+                                </button>
+                              </span>
+                            )
+                          )}
+                          {(form.screening_rubric?.nice_to_have ?? [])
+                            .length === 0 && (
                             <p className="text-slate-400 text-xs">
                               No preferences added yet.
                             </p>
@@ -2050,8 +2052,9 @@ export function JobStudioEditor({
                               (
                                 form.screening_rubric?.nice_to_have ?? []
                               ).includes(val)
-                            )
+                            ) {
                               return;
+                            }
                             setValue("screening_rubric", {
                               ...(form.screening_rubric ?? {
                                 must_have: [],
@@ -2401,7 +2404,9 @@ export function JobStudioEditor({
                       ],
                       [
                         "Screening",
-                        form.auto_screen ? "AI screening enabled" : "Manual review",
+                        form.auto_screen
+                          ? "AI screening enabled"
+                          : "Manual review",
                         3,
                       ],
                       [

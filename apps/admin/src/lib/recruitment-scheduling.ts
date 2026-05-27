@@ -140,7 +140,7 @@ export async function scheduleInterviewOnGraph(
   };
 }
 
-export async function cancelInterviewOnGraph(
+export function cancelInterviewOnGraph(
   organizerUpn: string,
   outlookEventId: string,
   reason?: string

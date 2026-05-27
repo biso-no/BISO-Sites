@@ -56,6 +56,7 @@ function safeStringEquals(a: string, b: string): boolean {
   }
   let result = 0;
   for (let i = 0; i < a.length; i++) {
+    // biome-ignore lint/suspicious/noBitwiseOperators: constant-time comparison to prevent timing attacks
     result |= a.charCodeAt(i) ^ b.charCodeAt(i);
   }
   return result === 0;
