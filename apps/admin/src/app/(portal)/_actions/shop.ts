@@ -5,8 +5,8 @@ import { createSessionClient } from "@repo/api/server";
 import type {
   ContentTranslations,
   Orders,
-  WebshopProductStatus,
   WebshopProducts,
+  WebshopProductsStatus,
 } from "@repo/api/types/appwrite";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -161,7 +161,7 @@ export async function createProduct(values: ProductFormValues) {
 
   const product = await db.createRow("app", "webshop_products", "unique()", {
     ...buildProductFields(validated.data),
-    status: "draft" as WebshopProductStatus,
+    status: "draft" as WebshopProductsStatus,
   });
 
   await db.createRow("app", "content_translations", "unique()", {
@@ -212,7 +212,7 @@ export async function updateProduct(id: string, values: ProductFormValues) {
 
   await db.updateRow("app", "webshop_products", id, {
     ...buildProductFields(validated.data),
-    status: validated.data.status as WebshopProductStatus,
+    status: validated.data.status as WebshopProductsStatus,
   });
 
   const existingTranslations = await db.listRows<ContentTranslations>(

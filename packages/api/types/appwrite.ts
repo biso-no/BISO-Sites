@@ -799,6 +799,20 @@ export type WebshopProducts = Models.Row & {
   inventory_mode: WebshopProductsInventoryMode;
 };
 
+export type StopPlaces = Models.Row & {
+  stopPlaceId: string;
+  name: string | null;
+  enabled: boolean | null;
+  campus_id: string;
+};
+
+export type Departures = Models.Row & {
+  stopPlaceId: string;
+  stopPlaceName: string | null;
+  updatedAt: string;
+  estimatedCalls: string | null;
+};
+
 export type VarslingSettings = Models.Row & {
   campus_id: string;
   role_name: string;

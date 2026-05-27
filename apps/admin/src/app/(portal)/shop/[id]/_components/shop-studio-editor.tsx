@@ -35,6 +35,7 @@ import { uploadMediaFile } from "../../../_actions/upload";
 
 type ProductWithTranslations = WebshopProducts & {
   translation_refs: ContentTranslations[];
+  finago_account_number?: number | null;
 };
 
 interface ProductVariant {

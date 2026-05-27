@@ -15,6 +15,12 @@ import {
   type JobInterviewScorecardsRecommendation,
   JobInterviewsStatus,
 } from "@repo/api/types/appwrite";
+import type {
+  JobInterviewParticipantWriteInput,
+  JobInterviewScorecardWriteInput,
+  JobInterviewWriteInput,
+} from "@repo/api/types/inputs";
+import { createTypedRow, updateTypedRow } from "@repo/api/write";
 import {
   RECRUITMENT_BOOKING_TOKEN_DEFAULT_TTL_DAYS,
   type RecruitmentBookingProposeInput,
@@ -238,67 +244,61 @@ export async function createInterview(
       return { error: "Interview end must be after start" };
     }
 
-    const interview = await db.createRow<JobInterviews>(
-      DATABASE_ID,
-      "job_interviews",
-      ID.unique(),
-      {
-        application: input.application_id,
-        application_id: input.application_id,
-        cancelled_reason: null,
-        campus_id: job.campus_id,
-        created_by_user_id: ctx.userId,
-        department_id: job.department_id ?? null,
-        ends_at: endsAt.toISOString(),
-        job_id: application.job_id,
-        location: input.location ?? null,
-        meeting_url: input.meeting_url ?? null,
-        notes: input.notes ?? null,
-        outlook_event_id: null,
-        round: input.round,
-        starts_at: startsAt.toISOString(),
-        status: JobInterviewsStatus.SCHEDULED,
-        teams_meeting_id: null,
-        timezone: input.timezone,
-        title: input.title,
-      }
-    );
+    const interview = await createTypedRow<
+      JobInterviews,
+      JobInterviewWriteInput
+    >(db, DATABASE_ID, "job_interviews", ID.unique(), {
+      application: input.application_id,
+      application_id: input.application_id,
+      cancelled_reason: null,
+      campus_id: job.campus_id,
+      created_by_user_id: ctx.userId,
+      department_id: job.department_id ?? null,
+      ends_at: endsAt.toISOString(),
+      job_id: application.job_id,
+      location: input.location ?? null,
+      meeting_url: input.meeting_url ?? null,
+      notes: input.notes ?? null,
+      outlook_event_id: null,
+      round: input.round,
+      starts_at: startsAt.toISOString(),
+      status: JobInterviewsStatus.SCHEDULED,
+      teams_meeting_id: null,
+      timezone: input.timezone,
+      title: input.title,
+    });
 
     const participants: JobInterviewParticipants[] = [];
     // Always seed the candidate as a participant.
-    const candidate = await db.createRow<JobInterviewParticipants>(
-      DATABASE_ID,
-      "job_interview_participants",
-      ID.unique(),
-      {
-        display_name: application.applicant_name,
-        email: application.applicant_email,
-        interview: interview.$id,
-        interview_id: interview.$id,
-        is_lead: false,
-        response_status: JobInterviewParticipantsResponseStatus.PENDING,
-        role: JobInterviewParticipantsRole.CANDIDATE,
-        user_id: null,
-      }
-    );
+    const candidate = await createTypedRow<
+      JobInterviewParticipants,
+      JobInterviewParticipantWriteInput
+    >(db, DATABASE_ID, "job_interview_participants", ID.unique(), {
+      display_name: application.applicant_name,
+      email: application.applicant_email,
+      interview: interview.$id,
+      interview_id: interview.$id,
+      is_lead: false,
+      response_status: JobInterviewParticipantsResponseStatus.PENDING,
+      role: JobInterviewParticipantsRole.CANDIDATE,
+      user_id: null,
+    });
     participants.push(candidate);
 
     for (const participantInput of input.participants) {
-      const participant = await db.createRow<JobInterviewParticipants>(
-        DATABASE_ID,
-        "job_interview_participants",
-        ID.unique(),
-        {
-          display_name: participantInput.display_name ?? null,
-          email: participantInput.email,
-          interview: interview.$id,
-          interview_id: interview.$id,
-          is_lead: participantInput.is_lead,
-          response_status: JobInterviewParticipantsResponseStatus.PENDING,
-          role: toParticipantRole(participantInput.role),
-          user_id: participantInput.user_id ?? null,
-        }
-      );
+      const participant = await createTypedRow<
+        JobInterviewParticipants,
+        JobInterviewParticipantWriteInput
+      >(db, DATABASE_ID, "job_interview_participants", ID.unique(), {
+        display_name: participantInput.display_name ?? null,
+        email: participantInput.email,
+        interview: interview.$id,
+        interview_id: interview.$id,
+        is_lead: participantInput.is_lead,
+        response_status: JobInterviewParticipantsResponseStatus.PENDING,
+        role: toParticipantRole(participantInput.role),
+        user_id: participantInput.user_id ?? null,
+      });
       participants.push(participant);
     }
 
@@ -511,20 +511,18 @@ export async function addInterviewParticipant(
       department_id: interview.department_id,
     });
 
-    const participant = await db.createRow<JobInterviewParticipants>(
-      DATABASE_ID,
-      "job_interview_participants",
-      ID.unique(),
-      {
-        display_name: input.display_name ?? null,
-        email: input.email,
-        interview_id: interviewId,
-        is_lead: input.is_lead ?? false,
-        response_status: JobInterviewParticipantsResponseStatus.PENDING,
-        role: toParticipantRole(input.role ?? "interviewer"),
-        user_id: input.user_id ?? null,
-      }
-    );
+    const participant = await createTypedRow<
+      JobInterviewParticipants,
+      JobInterviewParticipantWriteInput
+    >(db, DATABASE_ID, "job_interview_participants", ID.unique(), {
+      display_name: input.display_name ?? null,
+      email: input.email,
+      interview_id: interviewId,
+      is_lead: input.is_lead ?? false,
+      response_status: JobInterviewParticipantsResponseStatus.PENDING,
+      role: toParticipantRole(input.role ?? "interviewer"),
+      user_id: input.user_id ?? null,
+    });
 
     await logAuditEvent(ctx, "recruitment.interview.participant_add", {
       payload: { email: input.email, role: input.role ?? "interviewer" },
@@ -664,7 +662,7 @@ export async function submitScorecard(
       ]
     );
 
-    const payload = {
+    const payload: JobInterviewScorecardWriteInput = {
       application_id: interview.application_id,
       concerns: input.concerns ?? null,
       criteria: JSON.stringify(input.criteria),
@@ -680,19 +678,21 @@ export async function submitScorecard(
 
     let saved: JobInterviewScorecards;
     if (existing.rows[0]) {
-      saved = await db.updateRow<JobInterviewScorecards>(
+      saved = await updateTypedRow<
+        JobInterviewScorecards,
+        JobInterviewScorecardWriteInput
+      >(
+        db,
         DATABASE_ID,
         "job_interview_scorecards",
         existing.rows[0].$id,
         payload
       );
     } else {
-      saved = await db.createRow<JobInterviewScorecards>(
-        DATABASE_ID,
-        "job_interview_scorecards",
-        ID.unique(),
-        payload
-      );
+      saved = await createTypedRow<
+        JobInterviewScorecards,
+        JobInterviewScorecardWriteInput
+      >(db, DATABASE_ID, "job_interview_scorecards", ID.unique(), payload);
     }
 
     await logAuditEvent(ctx, "recruitment.scorecard.submit", {

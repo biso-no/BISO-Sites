@@ -4,10 +4,11 @@ import { Query } from "@repo/api";
 import { createSessionClient } from "@repo/api/server";
 import type {
   Campus,
-  DocumentCategory,
-  DocumentScope,
-  DocumentStatus,
   Documents,
+  DocumentsCategory,
+  DocumentsLanguage,
+  DocumentsScope,
+  DocumentsStatus,
 } from "@repo/api/types/appwrite";
 import {
   getSharePointConfig,
@@ -140,7 +141,7 @@ export async function createDocument(
   }
 
   const folderPath = resolveFolderPath(
-    category as DocumentCategory,
+    category as DocumentsCategory,
     language,
     campusName
   );
@@ -160,17 +161,17 @@ export async function createDocument(
   const doc = await db.upsertRow<Documents>("app", "documents", "unique()", {
     title: validated.data.title,
     description: validated.data.description ?? null,
-    category: validated.data.category as DocumentCategory,
-    scope: validated.data.scope as DocumentScope,
+    category: validated.data.category as DocumentsCategory,
+    scope: validated.data.scope as DocumentsScope,
     campus_id: campus_id ?? null,
-    language,
+    language: language as DocumentsLanguage,
     version: validated.data.version ?? null,
     version_number: validated.data.version_number,
     sharepoint_item_id: spResult.itemId,
     sharepoint_drive_id: spResult.driveId,
     sharepoint_web_url: spResult.webUrl,
     file_size: spResult.size,
-    status: validated.data.status as DocumentStatus,
+    status: validated.data.status as DocumentsStatus,
     sort_order: validated.data.sort_order,
     updated_by: ctx.userId,
   });
@@ -215,12 +216,12 @@ export async function updateDocumentMetadata(
   await db.updateRow("app", "documents", id, {
     title: validated.data.title,
     description: validated.data.description ?? null,
-    category: validated.data.category as DocumentCategory,
-    scope: validated.data.scope as DocumentScope,
+    category: validated.data.category as DocumentsCategory,
+    scope: validated.data.scope as DocumentsScope,
     campus_id: validated.data.campus_id ?? null,
     language: validated.data.language,
     version: validated.data.version ?? null,
-    status: validated.data.status as DocumentStatus,
+    status: validated.data.status as DocumentsStatus,
     sort_order: validated.data.sort_order,
     updated_by: ctx.userId,
   });

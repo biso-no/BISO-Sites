@@ -10,6 +10,8 @@ import type {
   RecruitmentBookingTokens,
 } from "@repo/api/types/appwrite";
 import { JobInterviewsStatus } from "@repo/api/types/appwrite";
+import type { JobInterviewWriteInput } from "@repo/api/types/inputs";
+import { createTypedRow } from "@repo/api/write";
 import { recruitmentBookingConfirmSchema } from "@repo/shared/types/recruitment";
 
 const SECRET = process.env.RECRUITMENT_BOOKING_SECRET;
@@ -175,7 +177,8 @@ export async function confirmBookingSlot(
     ),
   ];
 
-  const interview = await db.createRow<JobInterviews>(
+  const interview = await createTypedRow<JobInterviews, JobInterviewWriteInput>(
+    db,
     "app",
     "job_interviews",
     ID.unique(),

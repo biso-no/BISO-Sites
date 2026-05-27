@@ -1758,8 +1758,8 @@ export function JobStudioEditor({
                             event.target.value || null
                           )
                         }
-                        type="datetime-local"
-                        value={toDateTimeInput(form.application_deadline)}
+                        type="date"
+                        value={toDateInput(form.application_deadline)}
                       />
                     </Field>
                   </div>

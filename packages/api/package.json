@@ -15,6 +15,7 @@
     "./client": "./client.ts",
     "./file": "./file.ts",
     "./page-builder": "./page-builder.ts",
+    "./write": "./write.ts",
     "./types/*": "./types/*.ts"
   },
   "devDependencies": {

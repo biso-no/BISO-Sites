@@ -3,8 +3,8 @@
 import { Query } from "@repo/api";
 import { createSessionClient } from "@repo/api/server";
 import type {
-  CampusBenefitStatus,
   CampusBenefits,
+  CampusBenefitsStatus,
   Partners,
 } from "@repo/api/types/appwrite";
 import { revalidatePath } from "next/cache";
@@ -85,7 +85,7 @@ export async function createBenefit(values: BenefitFormValues) {
 
   const benefit = await db.createRow("app", "campus_benefits", "unique()", {
     campus_id: validated.data.campus_id,
-    status: "draft" as CampusBenefitStatus,
+    status: "draft" as CampusBenefitsStatus,
     kind: validated.data.kind,
     redemption_type: validated.data.redemption_type,
     redemption_value: validated.data.redemption_value ?? null,
@@ -131,7 +131,7 @@ export async function updateBenefit(id: string, values: BenefitFormValues) {
 
   await db.updateRow("app", "campus_benefits", id, {
     campus_id: validated.data.campus_id,
-    status: validated.data.status as CampusBenefitStatus,
+    status: validated.data.status as CampusBenefitsStatus,
     kind: validated.data.kind,
     redemption_type: validated.data.redemption_type,
     redemption_value: validated.data.redemption_value ?? null,

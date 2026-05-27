@@ -13,16 +13,17 @@ import type {
  * Write-side input types for tables with Appwrite relationship columns.
  *
  * Appwrite row types carry relationship fields as the related object (e.g.
- * `job: Jobs`), but at write time we pass the ID string instead. These types
- * make that distinction explicit: ManyToOne fields become `string | null`,
- * reverse/computed relations are dropped entirely.
+ * `job: Jobs`), but at write time Appwrite accepts either the related object or
+ * just its ID string. These types make that explicit: ManyToOne fields (IdRels)
+ * become `string | RelatedRow | null` and optional, reverse/computed relations
+ * (Drop) are removed, and system (`Models.Row`) fields are stripped.
  */
 type WriteInput<
   T,
   IdRels extends keyof T = never,
   Drop extends keyof T = never,
 > = Omit<T, keyof Models.Row | IdRels | Drop> & {
-  [K in IdRels]?: string | null;
+  [K in IdRels]?: string | T[K] | null;
 };
 
 export type JobWriteInput = WriteInput<

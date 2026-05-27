@@ -10,7 +10,7 @@ const ORG_DOCS_ROOT = "/Documents/Organisational Documents";
  * Maps each document category to its corresponding SharePoint folder name
  * under the Organisational Documents root.
  */
-const CATEGORY_FOLDER_MAP: Record<DocumentCategory, string> = {
+const CATEGORY_FOLDER_MAP: Record<DocumentsCategory, string> = {
   [DocumentsCategory.NATIONAL_STATUTES]: "Statutes",
   [DocumentsCategory.CAMPUS_BYLAWS]: "Local laws",
   [DocumentsCategory.CODE_OF_CONDUCT]: "Code of Conduct",
@@ -30,7 +30,7 @@ const LANGUAGE_SUBFOLDER: Record<DocumentLanguage, string> = {
  * Business Regulations and Communication Guidelines live on different SharePoint
  * sites and are excluded from auto-mapping for now.
  */
-export const AUTO_MAPPED_CATEGORIES = new Set<DocumentCategory>([
+export const AUTO_MAPPED_CATEGORIES = new Set<DocumentsCategory>([
   DocumentsCategory.NATIONAL_STATUTES,
   DocumentsCategory.CAMPUS_BYLAWS,
   DocumentsCategory.CODE_OF_CONDUCT,
@@ -45,7 +45,7 @@ export const AUTO_MAPPED_CATEGORIES = new Set<DocumentCategory>([
  * All categories support language subfolders.
  */
 export function resolveFolderPath(
-  category: DocumentCategory,
+  category: DocumentsCategory,
   language: DocumentLanguage,
   campusName: string | null
 ): string {
