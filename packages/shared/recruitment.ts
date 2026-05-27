@@ -1,3 +1,6 @@
+import type { Models } from "@repo/api";
+import { Query } from "@repo/api";
+import type { ContentTranslations, Jobs } from "@repo/api/types/appwrite";
 import {
   buildRecruitmentVacancyMetadata,
   parseRecruitmentCustomQuestions,
@@ -6,15 +9,81 @@ import {
   parseRecruitmentVacancyMetadata,
   type RecruitmentTranslation,
   type RecruitmentVacancy,
-} from "@repo/shared/types/recruitment";
-import type { Models } from "./index";
-import { Query } from "./index";
-import type {
-  ContentTranslations,
-  Jobs,
-  Locale as LocaleType,
-} from "./types/appwrite";
-import { Locale } from "./types/appwrite";
+} from "./types/recruitment";
+import type { AdminScope } from "./types/user-management";
+
+export interface RecruitmentLookups {
+  campusIdsByName: Map<string, string>;
+  campusNamesById: Map<string, string>;
+  departmentIdsByName: Map<string, string>;
+  departmentNamesById: Map<string, string>;
+}
+
+export function getManagedCampusIds(
+  scope: AdminScope,
+  lookups: RecruitmentLookups
+): string[] {
+  if (scope.canManageAnyCampus) {
+    return [];
+  }
+
+  return scope.managedCampusNames
+    .map((name) => lookups.campusIdsByName.get(name))
+    .filter((value): value is string => Boolean(value));
+}
+
+export function getManagedDepartmentIds(
+  scope: AdminScope,
+  lookups: RecruitmentLookups
+): string[] {
+  return scope.managedDepartmentNames
+    .map((name) => lookups.departmentIdsByName.get(name))
+    .filter((value): value is string => Boolean(value));
+}
+
+export function canManageRecruitmentVacancy(
+  scope: AdminScope,
+  lookups: RecruitmentLookups,
+  job: Pick<Jobs, "campus_id" | "department_id">
+): boolean {
+  if (scope.canManageAnyCampus) {
+    return true;
+  }
+
+  const managedCampusIds = getManagedCampusIds(scope, lookups);
+  if (!managedCampusIds.includes(job.campus_id)) {
+    return false;
+  }
+
+  if (scope.isCampusAdmin) {
+    return true;
+  }
+
+  return Boolean(
+    job.department_id &&
+      getManagedDepartmentIds(scope, lookups).includes(job.department_id)
+  );
+}
+
+export function canReviewRecruitmentVacancy(
+  scope: AdminScope,
+  lookups: RecruitmentLookups,
+  job: Pick<Jobs, "campus_id" | "department_id">
+): boolean {
+  if (scope.canManageAnyCampus) {
+    return true;
+  }
+
+  const managedCampusIds = getManagedCampusIds(scope, lookups);
+  if (scope.isCampusAdmin && managedCampusIds.includes(job.campus_id)) {
+    return true;
+  }
+
+  return Boolean(
+    job.department_id &&
+      getManagedDepartmentIds(scope, lookups).includes(job.department_id)
+  );
+}
 
 export interface DbClient {
   getRow: <T>(
@@ -207,7 +276,7 @@ export async function getRecruitmentJobById(
 
 export function getRecruitmentVacancyTitle(
   vacancy: RecruitmentVacancy,
-  locale: LocaleType = Locale.NO
+  locale: "en" | "no" = "no"
 ): string {
   return (
     vacancy.translations.find((t) => t.locale === locale)?.title ??
@@ -219,7 +288,9 @@ export function getRecruitmentVacancyTitle(
 export function localizeVacancy<
   T extends { translations: Array<{ locale: string }> },
 >(vacancy: T, locale: string): T {
-  const localized = vacancy.translations.filter((t) => t.locale === locale);
+  const localized = vacancy.translations.filter(
+    (t: { locale: string }) => t.locale === locale
+  );
   return {
     ...vacancy,
     translations: localized.length > 0 ? localized : vacancy.translations,

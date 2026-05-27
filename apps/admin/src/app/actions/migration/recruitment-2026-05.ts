@@ -15,9 +15,9 @@ import { ID, Query } from "@repo/api";
 import { createAdminClient } from "@repo/api/server";
 import type { JobApplications, Jobs } from "@repo/api/types/appwrite";
 import {
-  InterviewParticipantRole,
-  InterviewResponseStatus,
-  InterviewStatus,
+  JobInterviewParticipantsResponseStatus,
+  JobInterviewParticipantsRole,
+  JobInterviewsStatus,
 } from "@repo/api/types/appwrite";
 import { parseRecruitmentApplicationReviewMetadata } from "@repo/shared/types/recruitment";
 import { isGlobalAdmin } from "@/lib/authorization";
@@ -185,8 +185,8 @@ export async function runRecruitment2026MayMigration(
               email: application.applicant_email,
               interview_id: interview.$id,
               is_lead: false,
-              response_status: InterviewResponseStatus.PENDING,
-              role: InterviewParticipantRole.CANDIDATE,
+              response_status: JobInterviewParticipantsResponseStatus.PENDING,
+              role: JobInterviewParticipantsRole.CANDIDATE,
               user_id: null,
             }
           );
@@ -203,8 +203,9 @@ export async function runRecruitment2026MayMigration(
                 email: review.assigned_hr_user_email,
                 interview_id: interview.$id,
                 is_lead: true,
-                response_status: InterviewResponseStatus.ACCEPTED,
-                role: InterviewParticipantRole.INTERVIEWER,
+                response_status:
+                  JobInterviewParticipantsResponseStatus.ACCEPTED,
+                role: JobInterviewParticipantsRole.INTERVIEWER,
                 user_id: review.assigned_hr_user_id,
               }
             );
@@ -236,17 +237,19 @@ export async function runRecruitment2026MayMigration(
   };
 }
 
-function mapLegacyInterviewStatus(legacy: string | undefined): InterviewStatus {
+function mapLegacyInterviewStatus(
+  legacy: string | undefined
+): JobInterviewsStatus {
   switch (legacy) {
     case "scheduled":
-      return InterviewStatus.SCHEDULED;
+      return JobInterviewsStatus.SCHEDULED;
     case "completed":
-      return InterviewStatus.COMPLETED;
+      return JobInterviewsStatus.COMPLETED;
     case "cancelled":
-      return InterviewStatus.CANCELLED;
+      return JobInterviewsStatus.CANCELLED;
     case "requested":
-      return InterviewStatus.PROPOSED;
+      return JobInterviewsStatus.PROPOSED;
     default:
-      return InterviewStatus.PROPOSED;
+      return JobInterviewsStatus.PROPOSED;
   }
 }

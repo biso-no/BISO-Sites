@@ -2,7 +2,7 @@
 
 import { Query } from "@repo/api";
 import { createSessionClient } from "@repo/api/server";
-import type { Locale, WebshopProducts } from "@repo/api/types/appwrite";
+import type { WebshopProducts } from "@repo/api/types/appwrite";
 
 interface ListProductsParams {
   campus?: string;
@@ -64,7 +64,7 @@ export async function listProducts(
     ];
 
     if (locale) {
-      queries.push(Query.equal("translation_refs.locale", locale as Locale));
+      queries.push(Query.equal("translation_refs.locale", locale));
     }
 
     if (status !== "all") {
@@ -109,7 +109,7 @@ export async function getProductBySlug(
       "webshop_products",
       [
         Query.equal("slug", slug),
-        Query.equal("translation_refs.locale", locale as Locale),
+        Query.equal("translation_refs.locale", locale),
         Query.select([
           "$id",
           "$createdAt",

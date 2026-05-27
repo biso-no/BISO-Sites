@@ -10,6 +10,7 @@ import type {
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getUserAuthContext, type UserAuthContext } from "@/lib/authorization";
+import { buildContentTranslationPermissions } from "@/lib/utils";
 import {
   applyScopeQueries,
   assertWriteAccess,
@@ -123,17 +124,27 @@ export async function createNews(values: NewsFormValues) {
     author: validated.data.author ?? null,
   });
 
-  await db.createRow("app", "content_translations", "unique()", {
-    content_id: article.$id,
-    content_type: "news",
-    locale: validated.data.locale,
-    title: validated.data.title,
-    description: validated.data.description ?? "",
-    additional_fields: JSON.stringify({
-      category: validated.data.category,
-      author: validated.data.author,
-    }),
-  });
+  await db.createRow(
+    "app",
+    "content_translations",
+    "unique()",
+    {
+      content_id: article.$id,
+      content_type: "news",
+      locale: validated.data.locale,
+      title: validated.data.title,
+      description: validated.data.description ?? "",
+      additional_fields: JSON.stringify({
+        category: validated.data.category,
+        author: validated.data.author,
+      }),
+    },
+    buildContentTranslationPermissions({
+      audience: "public",
+      ownerUserId: ctx.userId,
+      writeTeams: [],
+    })
+  );
 
   await logAuditEvent(ctx, "news_created", {
     resourceId: article.$id,
@@ -208,7 +219,12 @@ export async function updateNews(id: string, values: NewsFormValues) {
       "app",
       "content_translations",
       "unique()",
-      translationData
+      translationData,
+      buildContentTranslationPermissions({
+        audience: "public",
+        ownerUserId: ctx.userId,
+        writeTeams: [],
+      })
     );
   }
 

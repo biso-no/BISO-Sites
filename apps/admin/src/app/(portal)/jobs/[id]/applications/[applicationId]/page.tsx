@@ -22,7 +22,7 @@ import {
 } from "../../../../_actions/jobs";
 import { PageHeader } from "../../../../_components/page-header";
 import { StatusBadge } from "../../../../_components/status-badge";
-import { StudioLinkButton } from "../../../../_components/studio";
+import { STUDIO, StudioLinkButton } from "../../../../_components/studio";
 import { JobInterviewPanel } from "../../../_components/job-interview-panel";
 
 interface PageProps {
@@ -70,11 +70,6 @@ export default async function ApplicationDetailPage({ params }: PageProps) {
     scorecardEntries
   );
 
-  const screening = application as unknown as {
-    ai_screening?: string | null;
-    screening_score?: number | null;
-  };
-
   return (
     <div className="pb-12">
       <PageHeader
@@ -92,14 +87,14 @@ export default async function ApplicationDetailPage({ params }: PageProps) {
           <div
             className="rounded-2xl p-5"
             style={{
-              background: "rgba(255,255,255,0.03)",
-              border: "1px solid rgba(255,255,255,0.06)",
+              background: STUDIO.paper2,
+              border: `1px solid ${STUDIO.rule}`,
             }}
           >
             <div className="flex items-center justify-between gap-2">
               <h2
                 className="font-light text-2xl tracking-tight"
-                style={{ color: "#fff" }}
+                style={{ color: STUDIO.ink }}
               >
                 {application.applicant_name}
               </h2>
@@ -108,7 +103,7 @@ export default async function ApplicationDetailPage({ params }: PageProps) {
             <div className="mt-3 grid gap-3 text-sm md:grid-cols-2">
               <p
                 className="flex items-center gap-2"
-                style={{ color: "rgba(255,255,255,0.65)" }}
+                style={{ color: STUDIO.ink3 }}
               >
                 <Mail size={14} />
                 {application.applicant_email}
@@ -116,7 +111,7 @@ export default async function ApplicationDetailPage({ params }: PageProps) {
               {application.applicant_phone ? (
                 <p
                   className="flex items-center gap-2"
-                  style={{ color: "rgba(255,255,255,0.65)" }}
+                  style={{ color: STUDIO.ink3 }}
                 >
                   <Phone size={14} />
                   {application.applicant_phone}
@@ -124,14 +119,14 @@ export default async function ApplicationDetailPage({ params }: PageProps) {
               ) : null}
               <p
                 className="flex items-center gap-2"
-                style={{ color: "rgba(255,255,255,0.65)" }}
+                style={{ color: STUDIO.ink3 }}
               >
                 <Briefcase size={14} />
                 {title}
               </p>
               <p
                 className="flex items-center gap-2"
-                style={{ color: "rgba(255,255,255,0.65)" }}
+                style={{ color: STUDIO.ink3 }}
               >
                 <UserRound size={14} />
                 Applied {new Date(application.$createdAt).toLocaleDateString()}
@@ -139,34 +134,34 @@ export default async function ApplicationDetailPage({ params }: PageProps) {
             </div>
           </div>
 
-          {screening.ai_screening ? (
+          {application.ai_screening ? (
             <div
               className="rounded-2xl p-5"
               style={{
-                background: "rgba(245,158,11,0.04)",
-                border: "1px solid rgba(245,158,11,0.18)",
+                background: "rgba(176,138,62,0.08)",
+                border: "1px solid rgba(176,138,62,0.28)",
               }}
             >
               <div className="flex items-center justify-between">
                 <p
                   className="text-xs uppercase tracking-[0.2em]"
-                  style={{ color: "rgba(245,158,11,0.85)" }}
+                  style={{ color: STUDIO.gold }}
                 >
                   AI screening summary
                 </p>
-                {typeof screening.screening_score === "number" ? (
+                {typeof application.screening_score === "number" ? (
                   <span
                     className="rounded-full px-2 py-0.5 text-xs"
                     style={{
-                      background: "rgba(245,158,11,0.16)",
-                      color: "#FCD34D",
+                      background: "rgba(176,138,62,0.12)",
+                      color: STUDIO.gold,
                     }}
                   >
-                    {screening.screening_score} / 100
+                    {application.screening_score} / 100
                   </span>
                 ) : null}
               </div>
-              <p className="mt-2 text-sm" style={{ color: "#fff" }}>
+              <p className="mt-2 text-sm" style={{ color: STUDIO.ink2 }}>
                 {application.review_metadata.ai_screening_summary ??
                   "AI screening complete. See the full report in the assistant pane."}
               </p>
@@ -177,19 +172,19 @@ export default async function ApplicationDetailPage({ params }: PageProps) {
             <div
               className="rounded-2xl p-5"
               style={{
-                background: "rgba(255,255,255,0.03)",
-                border: "1px solid rgba(255,255,255,0.06)",
+                background: STUDIO.paper2,
+                border: `1px solid ${STUDIO.rule}`,
               }}
             >
               <p
                 className="mb-3 text-xs uppercase tracking-[0.2em]"
-                style={{ color: "rgba(255,255,255,0.30)" }}
+                style={{ color: STUDIO.ink4 }}
               >
                 Cover letter
               </p>
               <p
                 className="whitespace-pre-line text-sm"
-                style={{ color: "rgba(255,255,255,0.8)" }}
+                style={{ color: STUDIO.ink2 }}
               >
                 {application.cover_letter}
               </p>
@@ -200,20 +195,20 @@ export default async function ApplicationDetailPage({ params }: PageProps) {
             <div
               className="flex items-center justify-between rounded-2xl p-5"
               style={{
-                background: "rgba(255,255,255,0.03)",
-                border: "1px solid rgba(255,255,255,0.06)",
+                background: STUDIO.paper2,
+                border: `1px solid ${STUDIO.rule}`,
               }}
             >
               <div className="flex items-center gap-3">
-                <FileText size={20} style={{ color: "#7dd3fc" }} />
+                <FileText size={20} style={{ color: STUDIO.sky }} />
                 <div>
-                  <p className="font-medium text-sm" style={{ color: "#fff" }}>
+                  <p
+                    className="font-medium text-sm"
+                    style={{ color: STUDIO.ink }}
+                  >
                     Resume on file
                   </p>
-                  <p
-                    className="text-xs"
-                    style={{ color: "rgba(255,255,255,0.45)" }}
-                  >
+                  <p className="text-xs" style={{ color: STUDIO.ink4 }}>
                     Stored in recruitment_resumes bucket.
                   </p>
                 </div>
@@ -222,9 +217,9 @@ export default async function ApplicationDetailPage({ params }: PageProps) {
                 className="rounded-xl px-3 py-2 text-xs"
                 href={`/jobs/applications?search=${encodeURIComponent(application.applicant_email)}`}
                 style={{
-                  background: "rgba(255,255,255,0.04)",
-                  border: "1px solid rgba(255,255,255,0.08)",
-                  color: "rgba(255,255,255,0.7)",
+                  background: STUDIO.paper3,
+                  border: `1px solid ${STUDIO.rule}`,
+                  color: STUDIO.ink3,
                 }}
               >
                 Download via list view
@@ -246,13 +241,13 @@ export default async function ApplicationDetailPage({ params }: PageProps) {
         <aside
           className="rounded-2xl p-5"
           style={{
-            background: "rgba(255,255,255,0.02)",
-            border: "1px solid rgba(255,255,255,0.06)",
+            background: STUDIO.paper2,
+            border: `1px solid ${STUDIO.rule}`,
           }}
         >
           <p
             className="mb-3 text-xs uppercase tracking-[0.2em]"
-            style={{ color: "rgba(255,255,255,0.30)" }}
+            style={{ color: STUDIO.ink4 }}
           >
             Quick links
           </p>
@@ -262,8 +257,8 @@ export default async function ApplicationDetailPage({ params }: PageProps) {
                 className="block rounded-lg px-3 py-2 transition-colors"
                 href={`/jobs/${id}`}
                 style={{
-                  background: "rgba(255,255,255,0.03)",
-                  color: "#fff",
+                  background: STUDIO.paper3,
+                  color: STUDIO.ink,
                 }}
               >
                 Open vacancy
@@ -274,8 +269,8 @@ export default async function ApplicationDetailPage({ params }: PageProps) {
                 className="block rounded-lg px-3 py-2 transition-colors"
                 href={`/jobs/${id}/applications?view=kanban`}
                 style={{
-                  background: "rgba(255,255,255,0.03)",
-                  color: "#fff",
+                  background: STUDIO.paper3,
+                  color: STUDIO.ink,
                 }}
               >
                 Kanban pipeline
@@ -286,8 +281,8 @@ export default async function ApplicationDetailPage({ params }: PageProps) {
                 className="block rounded-lg px-3 py-2 transition-colors"
                 href="/jobs/applications"
                 style={{
-                  background: "rgba(255,255,255,0.03)",
-                  color: "#fff",
+                  background: STUDIO.paper3,
+                  color: STUDIO.ink,
                 }}
               >
                 All applications

@@ -14,7 +14,6 @@
     "./server": "./server.ts",
     "./client": "./client.ts",
     "./page-builder": "./page-builder.ts",
-    "./recruitment": "./recruitment.ts",
     "./types/*": "./types/*.ts"
   },
   "devDependencies": {

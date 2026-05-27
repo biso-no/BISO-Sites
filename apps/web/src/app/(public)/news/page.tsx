@@ -1,4 +1,3 @@
-import { Locale } from "@repo/api/types/appwrite";
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { listNews } from "@/app/actions/news";
@@ -38,7 +37,7 @@ export default async function NewsPage({ searchParams }: NewsPageProps) {
   // Fetch data on the server
   const articles = await listNews({
     campus: prefs?.campusId ?? "all",
-    locale: prefs?.locale ?? Locale.EN,
+    locale: prefs?.locale ?? "en",
     status: "published",
     limit: 100,
   });

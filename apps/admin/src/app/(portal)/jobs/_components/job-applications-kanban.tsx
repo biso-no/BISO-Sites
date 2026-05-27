@@ -1,6 +1,6 @@
 "use client";
 
-import { JobApplicationStatus } from "@repo/api/types/appwrite";
+import { JobApplicationsStatus } from "@repo/api/types/appwrite";
 import {
   canTransitionRecruitmentApplicationStatus,
   type RecruitmentApplicationRecord,
@@ -8,6 +8,7 @@ import {
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { updateJobApplicationStatus } from "../../_actions/jobs";
+import { STUDIO } from "../../_components/studio";
 
 interface KanbanProps {
   applications: RecruitmentApplicationRecord[];
@@ -18,57 +19,48 @@ interface KanbanProps {
 
 interface Column {
   accent: string;
-  id: JobApplicationStatus;
+  id: JobApplicationsStatus;
   label: string;
 }
 
 const COLUMNS: Column[] = [
-  { accent: "#3DA9E0", id: JobApplicationStatus.SUBMITTED, label: "New" },
-  { accent: "#A78BFA", id: JobApplicationStatus.REVIEWED, label: "Reviewed" },
-  { accent: "#F59E0B", id: JobApplicationStatus.INTERVIEW, label: "Interview" },
-  { accent: "#22C55E", id: JobApplicationStatus.ACCEPTED, label: "Accepted" },
-  { accent: "#EF4444", id: JobApplicationStatus.REJECTED, label: "Rejected" },
+  { accent: "#3DA9E0", id: JobApplicationsStatus.SUBMITTED, label: "New" },
+  { accent: "#A78BFA", id: JobApplicationsStatus.REVIEWED, label: "Reviewed" },
+  {
+    accent: "#F59E0B",
+    id: JobApplicationsStatus.INTERVIEW,
+    label: "Interview",
+  },
+  { accent: "#22C55E", id: JobApplicationsStatus.ACCEPTED, label: "Accepted" },
+  { accent: "#EF4444", id: JobApplicationsStatus.REJECTED, label: "Rejected" },
 ];
 
 function readScreeningScore(
   application: RecruitmentApplicationRecord
 ): number | null {
-  const review = application.review_metadata as unknown as {
-    ai_screening_summary?: string | null;
-  } | null;
-  if (!review || typeof review !== "object") {
-    return null;
-  }
-  const summary = (
-    application as unknown as {
-      screening_score?: number | null;
-    }
-  ).screening_score;
-  return typeof summary === "number" ? summary : null;
+  return application.screening_score ?? null;
 }
 
 export function JobApplicationsKanban({
   applications,
-  jobId,
   onSelect,
   onAfterStatusChange,
 }: KanbanProps) {
   const [items, setItems] =
     useState<RecruitmentApplicationRecord[]>(applications);
   const [draggingId, setDraggingId] = useState<string | null>(null);
-  const [dropTarget, setDropTarget] = useState<JobApplicationStatus | null>(
+  const [dropTarget, setDropTarget] = useState<JobApplicationsStatus | null>(
     null
   );
   const [isPending, startTransition] = useTransition();
 
   // Keep the local board in sync when the server-provided list changes.
   if (applications !== items && !isPending && draggingId === null) {
-    // Naively reset; avoids a useEffect for a single dependency.
     setItems(applications);
   }
 
   const byStatus = new Map<
-    JobApplicationStatus,
+    JobApplicationsStatus,
     RecruitmentApplicationRecord[]
   >();
   for (const column of COLUMNS) {
@@ -90,7 +82,7 @@ export function JobApplicationsKanban({
   }
 
   function handleDrop(
-    columnStatus: JobApplicationStatus,
+    columnStatus: JobApplicationsStatus,
     event: React.DragEvent<HTMLDivElement>
   ) {
     event.preventDefault();
@@ -160,12 +152,8 @@ export function JobApplicationsKanban({
             }}
             onDrop={(event) => handleDrop(column.id, event)}
             style={{
-              background: isDropTarget
-                ? "rgba(255,255,255,0.06)"
-                : "rgba(255,255,255,0.02)",
-              border: `1px solid ${
-                isDropTarget ? column.accent : "rgba(255,255,255,0.06)"
-              }`,
+              background: isDropTarget ? STUDIO.paper3 : STUDIO.paper2,
+              border: `1px solid ${isDropTarget ? column.accent : STUDIO.rule}`,
               minHeight: 200,
               transition: "background 150ms ease, border-color 150ms ease",
             }}
@@ -178,7 +166,7 @@ export function JobApplicationsKanban({
                 />
                 <span
                   className="font-medium text-sm"
-                  style={{ color: "rgba(255,255,255,0.85)" }}
+                  style={{ color: STUDIO.ink2 }}
                 >
                   {column.label}
                 </span>
@@ -186,8 +174,8 @@ export function JobApplicationsKanban({
               <span
                 className="rounded-full px-2 py-0.5 text-xs"
                 style={{
-                  background: "rgba(255,255,255,0.06)",
-                  color: "rgba(255,255,255,0.5)",
+                  background: STUDIO.paper3,
+                  color: STUDIO.ink4,
                 }}
               >
                 {cards.length}
@@ -208,10 +196,9 @@ export function JobApplicationsKanban({
                     style={{
                       background:
                         draggingId === application.$id
-                          ? "rgba(61,169,224,0.10)"
-                          : "rgba(255,255,255,0.03)",
-                      border: "1px solid rgba(255,255,255,0.06)",
-                      color: "#fff",
+                          ? "rgba(61,169,224,0.08)"
+                          : STUDIO.paper,
+                      border: `1px solid ${draggingId === application.$id ? "rgba(61,169,224,0.30)" : STUDIO.rule}`,
                       cursor: "grab",
                       opacity: draggingId === application.$id ? 0.6 : 1,
                     }}
@@ -221,13 +208,13 @@ export function JobApplicationsKanban({
                       <div className="min-w-0 flex-1">
                         <p
                           className="truncate font-medium text-sm"
-                          style={{ color: "#fff" }}
+                          style={{ color: STUDIO.ink }}
                         >
                           {application.applicant_name}
                         </p>
                         <p
                           className="truncate text-xs"
-                          style={{ color: "rgba(255,255,255,0.5)" }}
+                          style={{ color: STUDIO.ink4 }}
                         >
                           {application.job?.title ?? "Unknown vacancy"}
                         </p>
@@ -236,8 +223,8 @@ export function JobApplicationsKanban({
                         <span
                           className="shrink-0 rounded-full px-2 py-0.5 text-xs"
                           style={{
-                            background: "rgba(245,158,11,0.10)",
-                            color: "#FCD34D",
+                            background: "rgba(176,138,62,0.12)",
+                            color: STUDIO.gold,
                           }}
                           title="AI screening score (0–100)"
                         >
@@ -248,7 +235,7 @@ export function JobApplicationsKanban({
                     {application.review_metadata.assigned_hr_user_name ? (
                       <p
                         className="mt-2 truncate text-xs"
-                        style={{ color: "rgba(255,255,255,0.4)" }}
+                        style={{ color: STUDIO.ink4 }}
                       >
                         @ {application.review_metadata.assigned_hr_user_name}
                       </p>
@@ -259,7 +246,7 @@ export function JobApplicationsKanban({
               {cards.length === 0 ? (
                 <p
                   className="rounded-lg p-3 text-center text-xs"
-                  style={{ color: "rgba(255,255,255,0.3)" }}
+                  style={{ color: STUDIO.ink4 }}
                 >
                   No applications here.
                 </p>
@@ -268,7 +255,6 @@ export function JobApplicationsKanban({
           </div>
         );
       })}
-      {jobId ? null : null}
     </div>
   );
 }

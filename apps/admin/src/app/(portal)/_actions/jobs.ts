@@ -2,10 +2,6 @@
 
 import { openai } from "@ai-sdk/openai";
 import { ID, Query } from "@repo/api";
-import {
-  fetchRecruitmentListRows,
-  getRecruitmentJobById,
-} from "@repo/api/recruitment";
 import { createAdminClient, createSessionClient } from "@repo/api/server";
 import type {
   Campus,
@@ -15,6 +11,10 @@ import type {
   Jobs,
   Users,
 } from "@repo/api/types/appwrite";
+import {
+  fetchRecruitmentListRows,
+  getRecruitmentJobById,
+} from "@repo/shared/recruitment";
 import {
   assertRecruitmentApplicationTransition,
   buildRecruitmentApplicationReviewMetadata,
@@ -40,11 +40,13 @@ import { getUserAuthContext, type UserAuthContext } from "@/lib/authorization";
 import {
   assertRecruitmentApplicationReviewAccess,
   assertRecruitmentVacancyWriteAccess,
+  buildJobRowPermissions,
   buildRecruitmentApplicationRecord,
   canReviewRecruitmentVacancy,
   loadRecruitmentLookups,
   toRecruitmentAdminScope,
 } from "@/lib/recruitment";
+import { buildContentTranslationPermissions } from "@/lib/utils";
 import { logAuditEvent } from "./audit-log";
 
 // Shorthand type for the db accessor — both admin and session clients return the same shape.
@@ -126,10 +128,12 @@ async function buildJobTranslationsPayload(
     description_no: string;
     description_en: string;
     short_description?: string | null;
-  }
+  },
+  translationPerms: string[]
 ): Promise<
   Array<{
     $id?: string;
+    $permissions?: string[];
     content_id: string;
     content_type: "job";
     locale: "no" | "en";
@@ -163,6 +167,7 @@ async function buildJobTranslationsPayload(
     const existingRow = byLocale.get(locale);
     return {
       ...(existingRow ? { $id: existingRow.$id } : {}),
+      $permissions: translationPerms,
       additional_fields: null,
       content_id: jobId,
       content_type: "job" as const,
@@ -275,12 +280,18 @@ async function buildJobUpsertPayload(
   db: Db,
   jobId: string,
   data: RecruitmentVacancyUpsertInput,
+  translationPerms: string[],
   existingMetadata?: RecruitmentVacancyMetadata
 ): Promise<Record<string, unknown>> {
   const metadata = serializeRecruitmentVacancyMetadata(
     buildRecruitmentVacancyMetadata(data, existingMetadata)
   );
-  const translations = await buildJobTranslationsPayload(db, jobId, data);
+  const translations = await buildJobTranslationsPayload(
+    db,
+    jobId,
+    data,
+    translationPerms
+  );
 
   return {
     auto_screen: data.auto_screen,
@@ -322,8 +333,28 @@ export async function createJob(values: RecruitmentVacancyUpsertInput) {
     });
 
     const jobId = ID.unique();
-    const payload = await buildJobUpsertPayload(db, jobId, validated.data);
-    const job = await db.upsertRow("app", "jobs", jobId, payload);
+    const audience = validated.data.audience ?? "public";
+    const jobPerms = buildJobRowPermissions(
+      lookups,
+      {
+        campus_id: validated.data.campus_id,
+        department_id: validated.data.department_id ?? null,
+      },
+      audience
+    );
+    const translationPerms = buildContentTranslationPermissions({
+      audience,
+      writeTeams: jobPerms
+        .filter((p) => p.startsWith('update("team:'))
+        .map((p) => p.slice('update("team:'.length, -2)),
+    });
+    const payload = await buildJobUpsertPayload(
+      db,
+      jobId,
+      validated.data,
+      translationPerms
+    );
+    const job = await db.upsertRow("app", "jobs", jobId, payload, jobPerms);
 
     await logAuditEvent(ctx, "recruitment.vacancy.create", {
       payload: {
@@ -371,13 +402,29 @@ export async function updateJob(
       department_id: validated.data.department_id ?? null,
     });
 
+    const audience = validated.data.audience ?? "public";
+    const jobPerms = buildJobRowPermissions(
+      lookups,
+      {
+        campus_id: validated.data.campus_id,
+        department_id: validated.data.department_id ?? null,
+      },
+      audience
+    );
+    const translationPerms = buildContentTranslationPermissions({
+      audience,
+      writeTeams: jobPerms
+        .filter((p) => p.startsWith('update("team:'))
+        .map((p) => p.slice('update("team:'.length, -2)),
+    });
     const payload = await buildJobUpsertPayload(
       db,
       id,
       validated.data,
+      translationPerms,
       vacancy.metadata
     );
-    await db.upsertRow("app", "jobs", id, payload);
+    await db.upsertRow("app", "jobs", id, payload, jobPerms);
 
     await logAuditEvent(ctx, "recruitment.vacancy.update", {
       payload: {

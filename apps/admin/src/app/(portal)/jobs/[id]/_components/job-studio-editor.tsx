@@ -3,7 +3,7 @@
 import {
   type Campus,
   type Departments,
-  JobStatus,
+  JobsStatus,
 } from "@repo/api/types/appwrite";
 import type { RecruitmentVacancy } from "@repo/shared/types/recruitment";
 import {
@@ -83,6 +83,7 @@ const STEPS = [
   "Essentials",
   "Description",
   "Logistics",
+  "Screening",
   "Visibility",
   "Review",
 ] as const;
@@ -285,15 +286,19 @@ function buildDefaultValues(
     short_description: fallback(metadata?.short_description, null),
     slug: fallback(job?.slug, ""),
     start_date: fallback(metadata?.start_date, null),
-    status: fallback(job?.status, JobStatus.DRAFT),
+    status: fallback(job?.status, JobsStatus.DRAFT),
     tags: fallback(metadata?.tags, []),
     term: fallback(metadata?.term, null),
     title_en: fallback(en?.title, ""),
     title_no: fallback(no?.title, ""),
-    auto_screen: metadata?.auto_screen ?? true,
+    auto_screen: job?.auto_screen ?? true,
     custom_questions: [],
     interview_template: { rounds: [] },
-    screening_rubric: { must_have: [], nice_to_have: [], criteria: [] },
+    screening_rubric: job?.screening_rubric ?? {
+      must_have: [],
+      nice_to_have: [],
+      criteria: [],
+    },
   };
 }
 
@@ -1345,7 +1350,7 @@ export function JobStudioEditor({
     toast.success("Cover image uploaded");
   }
 
-  async function submit(status: JobStatus) {
+  async function submit(status: JobsStatus) {
     const payload = { ...form, status };
     const validated = jobSchema.safeParse(payload);
     if (!validated.success) {
@@ -1353,7 +1358,7 @@ export function JobStudioEditor({
       return;
     }
 
-    if (status === JobStatus.PUBLISHED) {
+    if (status === JobsStatus.PUBLISHED) {
       setIsPublishing(true);
     } else {
       setIsSaving(true);
@@ -1373,7 +1378,7 @@ export function JobStudioEditor({
 
     setDirty(false);
     toast.success(
-      status === JobStatus.PUBLISHED
+      status === JobsStatus.PUBLISHED
         ? labels.publishSuccess
         : labels.saveSuccess
     );
@@ -1418,7 +1423,7 @@ export function JobStudioEditor({
             <button
               className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 font-medium text-[#001731] text-sm transition hover:border-[#3DA9E0]/50"
               disabled={isSaving}
-              onClick={() => submit(JobStatus.DRAFT)}
+              onClick={() => submit(JobsStatus.DRAFT)}
               type="button"
             >
               <Save size={15} />
@@ -1427,7 +1432,7 @@ export function JobStudioEditor({
             <button
               className="inline-flex items-center gap-2 rounded-lg bg-[#001731] px-4 py-2 font-medium text-sm text-white shadow-lg shadow-slate-950/10 transition hover:-translate-y-0.5"
               disabled={isPublishing}
-              onClick={() => submit(JobStatus.PUBLISHED)}
+              onClick={() => submit(JobsStatus.PUBLISHED)}
               type="button"
             >
               <Send size={15} />
@@ -1827,6 +1832,263 @@ export function JobStudioEditor({
                 <div className="space-y-6">
                   <div>
                     <h2 className="font-light text-4xl tracking-tight">
+                      AI screening.
+                    </h2>
+                    <p className="mt-2 max-w-xl text-slate-500 text-sm">
+                      Enable automatic screening to let Claude evaluate each
+                      application against your rubric and assign a score.
+                    </p>
+                  </div>
+
+                  <div className="grid gap-4 md:grid-cols-2">
+                    {[
+                      {
+                        description:
+                          "Claude evaluates each application and assigns a score when it arrives.",
+                        icon: Sparkles,
+                        label: "Auto-screen enabled",
+                        value: true,
+                      },
+                      {
+                        description:
+                          "Applications are not automatically screened. HR reviews each one manually.",
+                        icon: Users,
+                        label: "Manual review only",
+                        value: false,
+                      },
+                    ].map((option) => {
+                      const active = form.auto_screen === option.value;
+                      return (
+                        <button
+                          className="relative rounded-xl border p-5 text-left transition"
+                          key={String(option.value)}
+                          onClick={() => setValue("auto_screen", option.value)}
+                          style={
+                            active
+                              ? {
+                                  background: BRAND.blue,
+                                  borderColor: BRAND.blue,
+                                  color: "#fff",
+                                }
+                              : {
+                                  background: "rgba(255,255,255,0.72)",
+                                  borderColor: "rgba(148,163,184,0.35)",
+                                  color: "#07111f",
+                                }
+                          }
+                          type="button"
+                        >
+                          <option.icon size={20} />
+                          <p className="mt-3 font-medium">{option.label}</p>
+                          <p
+                            className={
+                              active
+                                ? "mt-2 text-sm text-white/65"
+                                : "mt-2 text-slate-500 text-sm"
+                            }
+                          >
+                            {option.description}
+                          </p>
+                          {active && (
+                            <span className="absolute top-4 right-4 grid h-5 w-5 place-items-center rounded-full bg-[#4ade80] text-white">
+                              <Check size={12} />
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {form.auto_screen && (
+                    <div className="space-y-4">
+                      <p className="font-medium text-[11px] text-slate-500 uppercase tracking-[0.12em]">
+                        Screening rubric
+                      </p>
+
+                      <div className="rounded-xl border border-slate-200 bg-white/65 p-5">
+                        <p className="mb-1 font-medium text-sm">
+                          Must-have qualifications
+                        </p>
+                        <p className="mb-4 text-slate-500 text-xs">
+                          Requirements that every candidate must meet. Heavily
+                          weighted in AI scoring.
+                        </p>
+                        <div className="mb-3 flex flex-wrap gap-2">
+                          {(
+                            form.screening_rubric?.must_have ?? []
+                          ).map((item) => (
+                            <span
+                              className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs"
+                              key={item}
+                            >
+                              {item}
+                              <button
+                                onClick={() =>
+                                  setValue("screening_rubric", {
+                                    ...(form.screening_rubric ?? {
+                                      must_have: [],
+                                      nice_to_have: [],
+                                      criteria: [],
+                                    }),
+                                    must_have: (
+                                      form.screening_rubric?.must_have ?? []
+                                    ).filter((h) => h !== item),
+                                  })
+                                }
+                                type="button"
+                              >
+                                <Trash2
+                                  className="text-slate-400 hover:text-[#6b1e1e]"
+                                  size={11}
+                                />
+                              </button>
+                            </span>
+                          ))}
+                          {(form.screening_rubric?.must_have ?? []).length ===
+                            0 && (
+                            <p className="text-slate-400 text-xs">
+                              No requirements added yet.
+                            </p>
+                          )}
+                        </div>
+                        <form
+                          className="flex gap-2"
+                          onSubmit={(event) => {
+                            event.preventDefault();
+                            const fd = new FormData(event.currentTarget);
+                            const val = String(fd.get("mh") ?? "").trim();
+                            if (
+                              !val ||
+                              (form.screening_rubric?.must_have ?? []).includes(
+                                val
+                              )
+                            )
+                              return;
+                            setValue("screening_rubric", {
+                              ...(form.screening_rubric ?? {
+                                must_have: [],
+                                nice_to_have: [],
+                                criteria: [],
+                              }),
+                              must_have: [
+                                ...(form.screening_rubric?.must_have ?? []),
+                                val,
+                              ].slice(0, 20),
+                            });
+                            event.currentTarget.reset();
+                          }}
+                        >
+                          <input
+                            className={inputClass("flex-1")}
+                            name="mh"
+                            placeholder="e.g. 2+ years React experience"
+                          />
+                          <button
+                            className="inline-flex items-center gap-1.5 rounded-lg bg-[#001731] px-3 py-2 font-medium text-sm text-white"
+                            type="submit"
+                          >
+                            <Plus size={14} />
+                            Add
+                          </button>
+                        </form>
+                      </div>
+
+                      <div className="rounded-xl border border-slate-200 bg-white/65 p-5">
+                        <p className="mb-1 font-medium text-sm">
+                          Nice-to-have qualifications
+                        </p>
+                        <p className="mb-4 text-slate-500 text-xs">
+                          Preferred but not essential. Boost scores when
+                          present.
+                        </p>
+                        <div className="mb-3 flex flex-wrap gap-2">
+                          {(
+                            form.screening_rubric?.nice_to_have ?? []
+                          ).map((item) => (
+                            <span
+                              className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs"
+                              key={item}
+                            >
+                              {item}
+                              <button
+                                onClick={() =>
+                                  setValue("screening_rubric", {
+                                    ...(form.screening_rubric ?? {
+                                      must_have: [],
+                                      nice_to_have: [],
+                                      criteria: [],
+                                    }),
+                                    nice_to_have: (
+                                      form.screening_rubric?.nice_to_have ?? []
+                                    ).filter((h) => h !== item),
+                                  })
+                                }
+                                type="button"
+                              >
+                                <Trash2
+                                  className="text-slate-400 hover:text-[#6b1e1e]"
+                                  size={11}
+                                />
+                              </button>
+                            </span>
+                          ))}
+                          {(form.screening_rubric?.nice_to_have ?? []).length ===
+                            0 && (
+                            <p className="text-slate-400 text-xs">
+                              No preferences added yet.
+                            </p>
+                          )}
+                        </div>
+                        <form
+                          className="flex gap-2"
+                          onSubmit={(event) => {
+                            event.preventDefault();
+                            const fd = new FormData(event.currentTarget);
+                            const val = String(fd.get("nth") ?? "").trim();
+                            if (
+                              !val ||
+                              (
+                                form.screening_rubric?.nice_to_have ?? []
+                              ).includes(val)
+                            )
+                              return;
+                            setValue("screening_rubric", {
+                              ...(form.screening_rubric ?? {
+                                must_have: [],
+                                nice_to_have: [],
+                                criteria: [],
+                              }),
+                              nice_to_have: [
+                                ...(form.screening_rubric?.nice_to_have ?? []),
+                                val,
+                              ].slice(0, 20),
+                            });
+                            event.currentTarget.reset();
+                          }}
+                        >
+                          <input
+                            className={inputClass("flex-1")}
+                            name="nth"
+                            placeholder="e.g. Familiarity with TypeScript"
+                          />
+                          <button
+                            className="inline-flex items-center gap-1.5 rounded-lg bg-[#001731] px-3 py-2 font-medium text-sm text-white"
+                            type="submit"
+                          >
+                            <Plus size={14} />
+                            Add
+                          </button>
+                        </form>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {step === 4 && (
+                <div className="space-y-6">
+                  <div>
+                    <h2 className="font-light text-4xl tracking-tight">
                       Who gets to see this?
                     </h2>
                     <p className="mt-2 max-w-xl text-slate-500 text-sm">
@@ -2101,7 +2363,7 @@ export function JobStudioEditor({
                 </div>
               )}
 
-              {step === 4 && (
+              {step === 5 && (
                 <div className="space-y-6">
                   <div>
                     <h2 className="font-light text-4xl tracking-tight">
@@ -2138,9 +2400,14 @@ export function JobStudioEditor({
                         2,
                       ],
                       [
+                        "Screening",
+                        form.auto_screen ? "AI screening enabled" : "Manual review",
+                        3,
+                      ],
+                      [
                         "Audience",
                         form.audience === "public" ? "Public" : "Members only",
-                        3,
+                        4,
                       ],
                     ].map(([label, value, targetStep]) => (
                       <button
@@ -2222,7 +2489,7 @@ export function JobStudioEditor({
             <button
               className="hidden items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 font-medium text-[#001731] text-sm sm:inline-flex"
               disabled={isSaving}
-              onClick={() => submit(JobStatus.DRAFT)}
+              onClick={() => submit(JobsStatus.DRAFT)}
               type="button"
             >
               <Save size={15} />
@@ -2250,7 +2517,7 @@ export function JobStudioEditor({
               <button
                 className="inline-flex items-center gap-2 rounded-lg bg-[#001731] px-4 py-2 font-medium text-sm text-white"
                 disabled={isPublishing}
-                onClick={() => submit(JobStatus.PUBLISHED)}
+                onClick={() => submit(JobsStatus.PUBLISHED)}
                 type="button"
               >
                 <Send size={15} />

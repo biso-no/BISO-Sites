@@ -1,9 +1,7 @@
-import {
-  JobApplicationStatus,
-  JobStatus,
-  type Locale,
-} from "@repo/api/types/appwrite";
+import { JobApplicationsStatus, JobsStatus } from "@repo/api/types/appwrite";
 import { z } from "zod";
+
+type RecruitmentLocale = "en" | "no";
 
 const nullableTrimmedString = (max: number) =>
   z.preprocess((value) => {
@@ -153,7 +151,7 @@ export type RecruitmentNewInterviewStatus = z.infer<
   typeof recruitmentNewInterviewStatusSchema
 >;
 
-export const RECRUITMENT_RESUME_BUCKET_ID = "recruitment_resumes";
+export const RECRUITMENT_RESUME_BUCKET_ID = "resumes";
 export const RECRUITMENT_RETENTION_DAYS = 180;
 export const RECRUITMENT_MAX_RESUME_BYTES = 5 * 1024 * 1024;
 export const RECRUITMENT_ALLOWED_RESUME_MIME_TYPES = [
@@ -215,7 +213,7 @@ export const recruitmentVacancyUpsertSchema = z.object({
     .trim()
     .min(1, "Slug is required")
     .regex(/^[a-z0-9-]+$/, "Slug must be lowercase alphanumeric with hyphens"),
-  status: z.nativeEnum(JobStatus),
+  status: z.nativeEnum(JobsStatus),
   company: nullableTrimmedString(200),
   employment_type: nullableTrimmedString(100),
   paid: z.boolean().default(false),
@@ -344,7 +342,7 @@ export type RecruitmentApplicationSubmitInput = z.infer<
 >;
 
 export const recruitmentApplicationStatusUpdateSchema = z.object({
-  status: z.nativeEnum(JobApplicationStatus),
+  status: z.nativeEnum(JobApplicationsStatus),
 });
 
 export type RecruitmentApplicationStatusUpdateInput = z.infer<
@@ -404,7 +402,7 @@ export interface RecruitmentTranslation {
   $id: string;
   additional_fields: string | null;
   description: string;
-  locale: Locale;
+  locale: RecruitmentLocale;
   short_description: string | null;
   title: string;
 }
@@ -434,7 +432,7 @@ export interface RecruitmentVacancy {
   metadata: RecruitmentVacancyMetadata;
   screening_rubric: RecruitmentScreeningRubric | null;
   slug: string;
-  status: JobStatus;
+  status: JobsStatus;
   translations: RecruitmentTranslation[];
 }
 
@@ -443,7 +441,7 @@ export interface RecruitmentApplicationJobSummary {
   campus_id: string;
   department_id: string | null;
   slug: string;
-  status: JobStatus;
+  status: JobsStatus;
   title: string;
 }
 
@@ -451,6 +449,7 @@ export interface RecruitmentApplicationRecord {
   $createdAt: string;
   $id: string;
   $updatedAt: string;
+  ai_screening: string | null;
   applicant_email: string;
   applicant_name: string;
   applicant_phone: string | null;
@@ -463,39 +462,40 @@ export interface RecruitmentApplicationRecord {
   job_id: string;
   resume_file_id: string | null;
   review_metadata: RecruitmentApplicationReviewMetadata;
-  status: JobApplicationStatus;
+  screening_score: number | null;
+  status: JobApplicationsStatus;
 }
 
 const STATUS_TRANSITIONS: Record<
-  JobApplicationStatus,
-  readonly JobApplicationStatus[]
+  JobApplicationsStatus,
+  readonly JobApplicationsStatus[]
 > = {
-  [JobApplicationStatus.SUBMITTED]: [
-    JobApplicationStatus.REVIEWED,
-    JobApplicationStatus.REJECTED,
+  [JobApplicationsStatus.SUBMITTED]: [
+    JobApplicationsStatus.REVIEWED,
+    JobApplicationsStatus.REJECTED,
   ],
-  [JobApplicationStatus.REVIEWED]: [
-    JobApplicationStatus.INTERVIEW,
-    JobApplicationStatus.REJECTED,
+  [JobApplicationsStatus.REVIEWED]: [
+    JobApplicationsStatus.INTERVIEW,
+    JobApplicationsStatus.REJECTED,
   ],
-  [JobApplicationStatus.INTERVIEW]: [
-    JobApplicationStatus.REVIEWED,
-    JobApplicationStatus.ACCEPTED,
-    JobApplicationStatus.REJECTED,
+  [JobApplicationsStatus.INTERVIEW]: [
+    JobApplicationsStatus.REVIEWED,
+    JobApplicationsStatus.ACCEPTED,
+    JobApplicationsStatus.REJECTED,
   ],
-  [JobApplicationStatus.ACCEPTED]: [],
-  [JobApplicationStatus.REJECTED]: [],
+  [JobApplicationsStatus.ACCEPTED]: [],
+  [JobApplicationsStatus.REJECTED]: [],
 };
 
 export function getAllowedRecruitmentApplicationTransitions(
-  currentStatus: JobApplicationStatus
-): readonly JobApplicationStatus[] {
+  currentStatus: JobApplicationsStatus
+): readonly JobApplicationsStatus[] {
   return STATUS_TRANSITIONS[currentStatus];
 }
 
 export function canTransitionRecruitmentApplicationStatus(
-  currentStatus: JobApplicationStatus,
-  nextStatus: JobApplicationStatus
+  currentStatus: JobApplicationsStatus,
+  nextStatus: JobApplicationsStatus
 ): boolean {
   return getAllowedRecruitmentApplicationTransitions(currentStatus).includes(
     nextStatus
@@ -503,8 +503,8 @@ export function canTransitionRecruitmentApplicationStatus(
 }
 
 export function assertRecruitmentApplicationTransition(
-  currentStatus: JobApplicationStatus,
-  nextStatus: JobApplicationStatus
+  currentStatus: JobApplicationsStatus,
+  nextStatus: JobApplicationsStatus
 ): void {
   if (!canTransitionRecruitmentApplicationStatus(currentStatus, nextStatus)) {
     throw new Error(
@@ -614,11 +614,11 @@ export function computeRecruitmentRetentionUntil(
 }
 
 export function isRecruitmentVacancyOpen(
-  status: JobStatus,
+  status: JobsStatus,
   metadata: RecruitmentVacancyMetadata,
   now: Date = new Date()
 ): boolean {
-  if (status !== JobStatus.PUBLISHED) {
+  if (status !== JobsStatus.PUBLISHED) {
     return false;
   }
 

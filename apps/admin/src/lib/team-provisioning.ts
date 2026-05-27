@@ -119,6 +119,8 @@ export async function grantTeamRecruitmentAccess(
   }
 }
 
+
+
 /**
  * Grant a department team write access on its matching department row(s).
  * Called when a new SG-App-Dept-* team is created during M365 sync.

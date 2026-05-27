@@ -1,4 +1,4 @@
-import { OrderStatus, type Orders } from "@repo/api/types/appwrite";
+import { type Orders, OrdersStatus } from "@repo/api/types/appwrite";
 import type { CheckoutSessionParams, VippsPaymentState } from "../types/vipps";
 
 interface VippsSessionData {
@@ -57,36 +57,36 @@ export function buildPrefillCustomer(
 export function determineStatusFromPaymentState(
   paymentState: VippsPaymentState,
   sessionData: VippsSessionData
-): { status: OrderStatus; updateData: Partial<Orders> } {
+): { status: OrdersStatus; updateData: Partial<Orders> } {
   const updateData: Partial<Orders> = {};
-  let newStatus: OrderStatus;
+  let newStatus: OrdersStatus;
 
   switch (paymentState.state) {
     case "CREATED":
-      newStatus = OrderStatus.PENDING;
+      newStatus = OrdersStatus.PENDING;
       break;
     case "AUTHORIZED":
-      newStatus = OrderStatus.AUTHORIZED;
+      newStatus = OrdersStatus.AUTHORIZED;
       updateData.payment_intent_id =
         sessionData.payment?.aggregate?.authorizedAmount?.value?.toString() ||
         null;
       break;
     case "ABORTED":
-      newStatus = OrderStatus.CANCELLED;
+      newStatus = OrdersStatus.CANCELLED;
       break;
     case "EXPIRED":
-      newStatus = OrderStatus.CANCELLED;
+      newStatus = OrdersStatus.CANCELLED;
       break;
     case "TERMINATED":
-      newStatus = OrderStatus.CANCELLED;
+      newStatus = OrdersStatus.CANCELLED;
       break;
     default:
-      newStatus = OrderStatus.PENDING;
+      newStatus = OrdersStatus.PENDING;
   }
 
   const capturedAmount = sessionData.payment?.aggregate?.capturedAmount?.value;
   if (typeof capturedAmount === "number" && capturedAmount > 0) {
-    newStatus = OrderStatus.PAID;
+    newStatus = OrdersStatus.PAID;
     updateData.payment_receipt_url =
       sessionData.payment?.aggregate?.receipt?.url || null;
   }

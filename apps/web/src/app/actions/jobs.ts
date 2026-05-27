@@ -4,27 +4,28 @@ import {
   normalizeScreeningScore,
   screenApplication,
 } from "@repo/ai/server/recruitment-screener";
-import { ID, InputFile, Query } from "@repo/api";
-import {
-  fetchRecruitmentListRows,
-  getRecruitmentJobById,
-  getRecruitmentJobBySlug,
-  isAuthenticatedAppwriteUser,
-  localizeVacancy,
-} from "@repo/api/recruitment";
+import { ID, InputFile, Permission, Query, Role } from "@repo/api";
 import { createAdminClient, createSessionClient } from "@repo/api/server";
 import type {
   CandidateProfiles,
   JobApplicationAnswers,
   JobApplications,
   JobInterviews,
+  Jobs,
 } from "@repo/api/types/appwrite";
 import {
-  EmbeddingStatus,
-  JobApplicationStatus,
-  JobStatus,
-  type Locale,
+  CandidateProfilesEmbeddingStatus,
+  JobApplicationsEmbeddingStatus,
+  JobApplicationsStatus,
+  JobsStatus,
 } from "@repo/api/types/appwrite";
+import {
+  fetchRecruitmentListRows,
+  getRecruitmentJobById,
+  getRecruitmentJobBySlug,
+  isAuthenticatedAppwriteUser,
+  localizeVacancy,
+} from "@repo/shared/recruitment";
 import {
   buildRecruitmentApplicationReviewMetadata,
   computeRecruitmentRetentionUntil,
@@ -42,7 +43,7 @@ import {
 } from "@repo/shared/types/recruitment";
 import { cache } from "react";
 
-// ---------- public reads (admin client — no session needed) ----------
+// ---------- public reads (session/guest client — enforces row permissions) ----------
 
 const _listJobs = cache(
   async (params: {
@@ -53,11 +54,11 @@ const _listJobs = cache(
     search?: string;
   }): Promise<RecruitmentVacancy[]> => {
     try {
-      const { db } = await createAdminClient();
+      const { db } = await createSessionClient();
       const { campus, department, limit = 100, locale = "en", search } = params;
 
       const queries: string[] = [
-        Query.equal("status", JobStatus.PUBLISHED),
+        Query.equal("status", JobsStatus.PUBLISHED),
         Query.orderDesc("$createdAt"),
         Query.limit(Math.min(limit, 200)),
       ];
@@ -116,7 +117,7 @@ export async function listJobs(params: {
 const _getJobBySlug = cache(
   async (slug: string, locale: string): Promise<RecruitmentVacancy | null> => {
     try {
-      const { db } = await createAdminClient();
+      const { db } = await createSessionClient();
       const vacancy = await getRecruitmentJobBySlug(db, slug);
       if (
         !(vacancy && isRecruitmentVacancyOpen(vacancy.status, vacancy.metadata))
@@ -133,7 +134,7 @@ const _getJobBySlug = cache(
 
 export async function getJobBySlug(
   slug: string,
-  locale: Locale | "en" | "no"
+  locale: "en" | "no"
 ): Promise<RecruitmentVacancy | null> {
   return _getJobBySlug(slug, locale);
 }
@@ -240,6 +241,27 @@ export async function submitJobApplication(
 
     const { db, storage } = await createAdminClient();
     const vacancy = await getRecruitmentJobById(db, jobId);
+    // Build row-level permissions for recruitment rows created by the admin key.
+    // Reviewer teams (campus + dept) need read/update/delete; team:admin + HR always included.
+    const buildRecruitmentRowPerms = () => {
+      const teams = ["sg-app-dept-operationsunit", "sg-app-dept-hr"];
+ 
+      const deptName = (vacancy?.department as { Name?: string } | null)?.Name;
+      if (deptName) {
+        //Replace space with dash and lowercase to match team naming convention
+        const deptNameSanitized = deptName.replace(/\s+/g, "-").toLowerCase();
+        teams.push(`sg-app-dept-${deptNameSanitized}`);
+      }
+      return [
+        ...new Set(
+          teams.flatMap((t) => [
+            Permission.read(Role.team(t)),
+            Permission.update(Role.team(t)),
+            Permission.delete(Role.team(t)),
+          ])
+        ),
+      ];
+    };
     if (
       !(vacancy && isRecruitmentVacancyOpen(vacancy.status, vacancy.metadata))
     ) {
@@ -331,7 +353,7 @@ export async function submitJobApplication(
             data_retention_until: retentionUntil,
             email: user.email,
             embedding_id: null,
-            embedding_status: EmbeddingStatus.PENDING,
+            embedding_status: CandidateProfilesEmbeddingStatus.PENDING,
             full_name: parsed.data.applicant_name,
             gdpr_consent: true,
             last_application_at: consentDate.toISOString(),
@@ -340,14 +362,16 @@ export async function submitJobApplication(
             phone: parsed.data.applicant_phone ?? null,
             source: "public_apply",
             tags: null,
-          }
+          },
+          buildRecruitmentRowPerms()
         );
         candidateProfileId = created.$id;
       }
     } catch (err) {
       console.warn("Candidate profile upsert failed:", err);
     }
-
+const perms = buildRecruitmentRowPerms();
+console.log("Row permissions for new application:", perms);
     const application = await db.createRow(
       "app",
       "job_applications",
@@ -362,7 +386,7 @@ export async function submitJobApplication(
         cover_letter: parsed.data.cover_letter ?? null,
         data_processing_purpose: "BISO recruitment process",
         data_retention_until: retentionUntil,
-        embedding_status: EmbeddingStatus.PENDING,
+        embedding_status: JobApplicationsEmbeddingStatus.PENDING,
         gdpr_consent: true,
         job: jobId,
         job_id: jobId,
@@ -373,8 +397,9 @@ export async function submitJobApplication(
           })
         ),
         source: "public_apply",
-        status: JobApplicationStatus.SUBMITTED,
-      }
+        status: JobApplicationsStatus.SUBMITTED,
+      },
+      perms
     );
 
     for (const answer of parsed.data.answers ?? []) {
@@ -387,12 +412,15 @@ export async function submitJobApplication(
             answer: answer.answer ?? null,
             answer_type:
               answer.answer_type as JobApplicationAnswers["answer_type"],
+              
+              // @ts-expect-error
             application: application.$id,
             application_id: application.$id,
             job_id: jobId,
             question_id: answer.question_id,
             question_label: answer.question_label,
-          }
+          },
+          buildRecruitmentRowPerms()
         );
       } catch (err) {
         console.warn(
@@ -506,7 +534,7 @@ export async function listMyApplications(): Promise<MyApplicationView[]> {
       slug: string;
       translations?: Array<{ locale?: string; title?: string }>;
     }
-    const jobsResult = await db.listRows<JobRow>("app", "jobs", [
+    const jobsResult = await db.listRows<Jobs>("app", "jobs", [
       Query.equal("$id", jobIds),
       Query.select([
         "$id",

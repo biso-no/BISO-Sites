@@ -1,4 +1,4 @@
-import { ExpenseStatus } from "@repo/api/types/appwrite";
+import { ExpensesStatus } from "@repo/api/types/appwrite";
 import { describe, expect, it } from "vitest";
 import { buildExpenseRowInput, parseExpensePayload } from "./expense-payload";
 
@@ -23,7 +23,7 @@ describe("expense payload helpers", () => {
 
     expect(payload).not.toBeNull();
 
-    const row = buildExpenseRowInput(payload!, "user-id", ExpenseStatus.DRAFT);
+    const row = buildExpenseRowInput(payload!, "user-id", ExpensesStatus.DRAFT);
 
     expect(row).toMatchObject({
       bank_account: "1234 56 78901",
@@ -32,7 +32,7 @@ describe("expense payload helpers", () => {
       department: "marketing",
       departmentRel: "marketing",
       description: "Team lunch",
-      status: ExpenseStatus.DRAFT,
+      status: ExpensesStatus.DRAFT,
       total: 199.5,
       user: "user-id",
       userId: "user-id",

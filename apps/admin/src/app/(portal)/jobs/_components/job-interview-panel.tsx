@@ -5,8 +5,8 @@ import type {
   JobInterviews,
 } from "@repo/api/types/appwrite";
 import {
-  InterviewParticipantRole,
-  InterviewStatus,
+  JobInterviewParticipantsRole,
+  JobInterviewsStatus,
 } from "@repo/api/types/appwrite";
 import type {
   RecruitmentInterviewCreateInput,
@@ -33,6 +33,7 @@ import {
   updateInterview,
 } from "../../_actions/interviews";
 import type { RecruitmentReviewerOption } from "../../_actions/jobs";
+import { STUDIO } from "../../_components/studio";
 import { JobInterviewScorecardForm } from "./job-interview-scorecard-form";
 
 interface Props {
@@ -49,7 +50,6 @@ function toDateTimeInputValue(value: string | null | undefined): string {
   if (!value) {
     return "";
   }
-  // datetime-local needs yyyy-MM-ddThh:mm (no seconds)
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) {
     return "";
@@ -112,6 +112,12 @@ export function JobInterviewPanel({
     title: `Interview round ${initialInterviews.length + 1}`,
   });
   const [isPending, startTransition] = useTransition();
+
+  const inputStyle = {
+    background: STUDIO.paper,
+    border: `1px solid ${STUDIO.rule}`,
+    color: STUDIO.ink,
+  };
 
   function toggleParticipant(userId: string) {
     setCreateDraft((draft) => ({
@@ -309,14 +315,14 @@ export function JobInterviewPanel({
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <CalendarClock size={16} style={{ color: "#3DA9E0" }} />
-          <h3 className="font-medium text-sm" style={{ color: "#fff" }}>
+          <h3 className="font-medium text-sm" style={{ color: STUDIO.ink }}>
             Interview pipeline
           </h3>
           <span
             className="rounded-full px-2 py-0.5 text-xs"
             style={{
-              background: "rgba(255,255,255,0.06)",
-              color: "rgba(255,255,255,0.5)",
+              background: STUDIO.paper3,
+              color: STUDIO.ink4,
             }}
           >
             {interviews.length} {interviews.length === 1 ? "round" : "rounds"}
@@ -326,9 +332,9 @@ export function JobInterviewPanel({
           className="inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs"
           onClick={() => setIsCreating((current) => !current)}
           style={{
-            background: "rgba(61,169,224,0.16)",
-            border: "1px solid rgba(61,169,224,0.32)",
-            color: "#7dd3fc",
+            background: "rgba(61,169,224,0.10)",
+            border: "1px solid rgba(61,169,224,0.28)",
+            color: STUDIO.sky,
           }}
           type="button"
         >
@@ -342,50 +348,53 @@ export function JobInterviewPanel({
           className="space-y-3 rounded-2xl p-4"
           style={{
             background: "rgba(61,169,224,0.04)",
-            border: "1px solid rgba(61,169,224,0.16)",
+            border: "1px solid rgba(61,169,224,0.20)",
           }}
         >
           <input
-            className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none"
+            className="w-full rounded-xl px-3 py-2 text-sm outline-none"
             onChange={(event) =>
               setCreateDraft({ ...createDraft, title: event.target.value })
             }
             placeholder="Round title"
+            style={inputStyle}
             value={createDraft.title}
           />
           <div className="grid gap-3 md:grid-cols-2">
             <label className="space-y-2 text-xs">
-              <span style={{ color: "rgba(255,255,255,0.45)" }}>Starts</span>
+              <span style={{ color: STUDIO.ink3 }}>Starts</span>
               <input
-                className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none"
+                className="w-full rounded-xl px-3 py-2 text-sm outline-none"
                 onChange={(event) =>
                   setCreateDraft({
                     ...createDraft,
                     starts_at: event.target.value,
                   })
                 }
+                style={inputStyle}
                 type="datetime-local"
                 value={createDraft.starts_at}
               />
             </label>
             <label className="space-y-2 text-xs">
-              <span style={{ color: "rgba(255,255,255,0.45)" }}>Ends</span>
+              <span style={{ color: STUDIO.ink3 }}>Ends</span>
               <input
-                className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none"
+                className="w-full rounded-xl px-3 py-2 text-sm outline-none"
                 onChange={(event) =>
                   setCreateDraft({
                     ...createDraft,
                     ends_at: event.target.value,
                   })
                 }
+                style={inputStyle}
                 type="datetime-local"
                 value={createDraft.ends_at}
               />
             </label>
             <label className="space-y-2 text-xs">
-              <span style={{ color: "rgba(255,255,255,0.45)" }}>Location</span>
+              <span style={{ color: STUDIO.ink3 }}>Location</span>
               <input
-                className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none"
+                className="w-full rounded-xl px-3 py-2 text-sm outline-none"
                 onChange={(event) =>
                   setCreateDraft({
                     ...createDraft,
@@ -393,15 +402,14 @@ export function JobInterviewPanel({
                   })
                 }
                 placeholder="Room or Teams"
+                style={inputStyle}
                 value={createDraft.location}
               />
             </label>
             <label className="space-y-2 text-xs">
-              <span style={{ color: "rgba(255,255,255,0.45)" }}>
-                Meeting URL
-              </span>
+              <span style={{ color: STUDIO.ink3 }}>Meeting URL</span>
               <input
-                className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none"
+                className="w-full rounded-xl px-3 py-2 text-sm outline-none"
                 onChange={(event) =>
                   setCreateDraft({
                     ...createDraft,
@@ -409,12 +417,13 @@ export function JobInterviewPanel({
                   })
                 }
                 placeholder="https://..."
+                style={inputStyle}
                 value={createDraft.meeting_url}
               />
             </label>
           </div>
           <div className="space-y-2 text-xs">
-            <p style={{ color: "rgba(255,255,255,0.45)" }}>Panel</p>
+            <p style={{ color: STUDIO.ink3 }}>Panel</p>
             <div className="flex flex-wrap gap-2">
               {reviewers.map((reviewer) => {
                 const selected = createDraft.participantIds.includes(
@@ -427,10 +436,10 @@ export function JobInterviewPanel({
                     onClick={() => toggleParticipant(reviewer.id)}
                     style={{
                       background: selected
-                        ? "rgba(61,169,224,0.18)"
-                        : "rgba(255,255,255,0.04)",
-                      border: `1px solid ${selected ? "#3DA9E0" : "rgba(255,255,255,0.08)"}`,
-                      color: selected ? "#7dd3fc" : "rgba(255,255,255,0.65)",
+                        ? "rgba(61,169,224,0.12)"
+                        : STUDIO.paper2,
+                      border: `1px solid ${selected ? "rgba(61,169,224,0.32)" : STUDIO.rule}`,
+                      color: selected ? STUDIO.sky : STUDIO.ink3,
                     }}
                     type="button"
                   >
@@ -441,11 +450,12 @@ export function JobInterviewPanel({
             </div>
           </div>
           <textarea
-            className="min-h-16 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none"
+            className="min-h-16 w-full rounded-xl px-3 py-2 text-sm outline-none"
             onChange={(event) =>
               setCreateDraft({ ...createDraft, notes: event.target.value })
             }
             placeholder="Agenda / questions to cover"
+            style={inputStyle}
             value={createDraft.notes}
           />
           <div className="flex items-center justify-end gap-2">
@@ -453,9 +463,9 @@ export function JobInterviewPanel({
               className="rounded-xl px-3 py-2 text-xs"
               onClick={() => setIsCreating(false)}
               style={{
-                background: "rgba(255,255,255,0.04)",
-                border: "1px solid rgba(255,255,255,0.08)",
-                color: "rgba(255,255,255,0.6)",
+                background: STUDIO.paper2,
+                border: `1px solid ${STUDIO.rule}`,
+                color: STUDIO.ink3,
               }}
               type="button"
             >
@@ -465,7 +475,7 @@ export function JobInterviewPanel({
               className="rounded-xl px-4 py-2 font-medium text-xs"
               disabled={isPending}
               onClick={handleCreate}
-              style={{ background: "#3DA9E0", color: "#001731" }}
+              style={{ background: STUDIO.ink, color: STUDIO.paper }}
               type="button"
             >
               {isPending ? "Scheduling..." : "Schedule interview"}
@@ -479,12 +489,12 @@ export function JobInterviewPanel({
           <p
             className="rounded-2xl p-4 text-sm"
             style={{
-              background: "rgba(255,255,255,0.02)",
-              border: "1px dashed rgba(255,255,255,0.08)",
-              color: "rgba(255,255,255,0.45)",
+              background: STUDIO.paper2,
+              border: `1px dashed ${STUDIO.rule}`,
+              color: STUDIO.ink4,
             }}
           >
-            No interviews scheduled yet. Start with “New round” above.
+            No interviews scheduled yet. Start with "New round" above.
           </p>
         ) : null}
 
@@ -494,11 +504,11 @@ export function JobInterviewPanel({
           .map(({ interview, participants }) => {
             const interviewerParticipants = participants.filter(
               (participant) =>
-                participant.role === InterviewParticipantRole.INTERVIEWER
+                participant.role === JobInterviewParticipantsRole.INTERVIEWER
             );
             const candidate = participants.find(
               (participant) =>
-                participant.role === InterviewParticipantRole.CANDIDATE
+                participant.role === JobInterviewParticipantsRole.CANDIDATE
             );
             const sCards = scorecards.get(interview.$id) ?? [];
             const userIsParticipant = interviewerParticipants.some(
@@ -513,23 +523,25 @@ export function JobInterviewPanel({
                 className="space-y-3 rounded-2xl p-4"
                 key={interview.$id}
                 style={{
-                  background: "rgba(255,255,255,0.02)",
-                  border: "1px solid rgba(255,255,255,0.06)",
+                  background: STUDIO.paper2,
+                  border: `1px solid ${STUDIO.rule}`,
                   opacity:
-                    interview.status === InterviewStatus.CANCELLED ? 0.5 : 1,
+                    interview.status === JobInterviewsStatus.CANCELLED
+                      ? 0.5
+                      : 1,
                 }}
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
                     <p
                       className="font-medium text-sm"
-                      style={{ color: "#fff" }}
+                      style={{ color: STUDIO.ink }}
                     >
                       Round {interview.round} · {interview.title}
                     </p>
                     <p
                       className="mt-1 flex items-center gap-1 text-xs"
-                      style={{ color: "rgba(255,255,255,0.55)" }}
+                      style={{ color: STUDIO.ink3 }}
                     >
                       <Clock size={12} />
                       {formatDateRange(interview.starts_at, interview.ends_at)}
@@ -537,7 +549,7 @@ export function JobInterviewPanel({
                     {interview.location ? (
                       <p
                         className="mt-1 flex items-center gap-1 text-xs"
-                        style={{ color: "rgba(255,255,255,0.55)" }}
+                        style={{ color: STUDIO.ink3 }}
                       >
                         <MapPin size={12} />
                         {interview.location}
@@ -548,7 +560,7 @@ export function JobInterviewPanel({
                         className="mt-1 flex items-center gap-1 text-xs underline"
                         href={interview.meeting_url}
                         rel="noopener"
-                        style={{ color: "#7dd3fc" }}
+                        style={{ color: STUDIO.sky }}
                         target="_blank"
                       >
                         <Video size={12} />
@@ -560,21 +572,21 @@ export function JobInterviewPanel({
                     <span
                       className="rounded-full px-2 py-0.5 text-xs uppercase tracking-wide"
                       style={{
-                        background: "rgba(255,255,255,0.06)",
-                        color: "rgba(255,255,255,0.5)",
+                        background: STUDIO.paper3,
+                        color: STUDIO.ink4,
                       }}
                     >
                       {interview.status}
                     </span>
-                    {interview.status !== InterviewStatus.CANCELLED &&
-                    interview.status !== InterviewStatus.COMPLETED ? (
+                    {interview.status !== JobInterviewsStatus.CANCELLED &&
+                    interview.status !== JobInterviewsStatus.COMPLETED ? (
                       <button
                         className="rounded-lg px-2 py-1 text-xs"
                         onClick={() => handleCancel(interview.$id)}
                         style={{
-                          background: "rgba(239,68,68,0.10)",
-                          border: "1px solid rgba(239,68,68,0.24)",
-                          color: "#FCA5A5",
+                          background: "rgba(107,30,30,0.08)",
+                          border: "1px solid rgba(107,30,30,0.20)",
+                          color: STUDIO.claret,
                         }}
                         type="button"
                       >
@@ -586,14 +598,8 @@ export function JobInterviewPanel({
 
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
-                    <Users
-                      size={12}
-                      style={{ color: "rgba(255,255,255,0.4)" }}
-                    />
-                    <p
-                      className="text-xs"
-                      style={{ color: "rgba(255,255,255,0.45)" }}
-                    >
+                    <Users size={12} style={{ color: STUDIO.ink4 }} />
+                    <p className="text-xs" style={{ color: STUDIO.ink4 }}>
                       Panel
                     </p>
                   </div>
@@ -602,8 +608,8 @@ export function JobInterviewPanel({
                       <span
                         className="rounded-full px-2.5 py-1 text-xs"
                         style={{
-                          background: "rgba(168,139,250,0.10)",
-                          color: "#C4B5FD",
+                          background: "rgba(95,57,138,0.08)",
+                          color: "#5f398a",
                         }}
                       >
                         Candidate · {candidate.display_name ?? applicantName}
@@ -612,8 +618,8 @@ export function JobInterviewPanel({
                       <span
                         className="rounded-full px-2.5 py-1 text-xs"
                         style={{
-                          background: "rgba(168,139,250,0.10)",
-                          color: "#C4B5FD",
+                          background: "rgba(95,57,138,0.08)",
+                          color: "#5f398a",
                         }}
                       >
                         Candidate · {applicantName} ({applicantEmail})
@@ -625,7 +631,7 @@ export function JobInterviewPanel({
                         key={participant.$id}
                         style={{
                           background: "rgba(61,169,224,0.10)",
-                          color: "#7dd3fc",
+                          color: STUDIO.sky,
                         }}
                       >
                         {participant.display_name ?? participant.email}
@@ -646,13 +652,18 @@ export function JobInterviewPanel({
                       </span>
                     ))}
                     <select
-                      className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-white text-xs outline-none"
+                      className="rounded-full px-2.5 py-1 text-xs outline-none"
                       onChange={(event) => {
                         const value = event.target.value;
                         if (value) {
                           handleAddParticipant(interview.$id, value);
                           event.target.value = "";
                         }
+                      }}
+                      style={{
+                        background: STUDIO.paper,
+                        border: `1px solid ${STUDIO.rule}`,
+                        color: STUDIO.ink3,
                       }}
                       value=""
                     >
@@ -676,31 +687,31 @@ export function JobInterviewPanel({
 
                 <div className="grid gap-3 md:grid-cols-2">
                   <label className="space-y-2 text-xs">
-                    <span style={{ color: "rgba(255,255,255,0.45)" }}>
+                    <span style={{ color: STUDIO.ink3 }}>
                       Reschedule (starts)
                     </span>
                     <input
-                      className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none"
+                      className="w-full rounded-xl px-3 py-2 text-sm outline-none"
                       onChange={(event) =>
                         handleUpdateField(interview.$id, {
                           starts_at: new Date(event.target.value).toISOString(),
                         })
                       }
+                      style={inputStyle}
                       type="datetime-local"
                       value={toDateTimeInputValue(interview.starts_at)}
                     />
                   </label>
                   <label className="space-y-2 text-xs">
-                    <span style={{ color: "rgba(255,255,255,0.45)" }}>
-                      Status
-                    </span>
+                    <span style={{ color: STUDIO.ink3 }}>Status</span>
                     <select
-                      className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none"
+                      className="w-full rounded-xl px-3 py-2 text-sm outline-none"
                       onChange={(event) =>
                         handleUpdateField(interview.$id, {
-                          status: event.target.value as InterviewStatus,
+                          status: event.target.value as JobInterviewsStatus,
                         })
                       }
+                      style={inputStyle}
                       value={interview.status}
                     >
                       <option value="proposed">Proposed</option>
@@ -716,7 +727,7 @@ export function JobInterviewPanel({
                   <div className="space-y-2">
                     <p
                       className="text-xs uppercase tracking-[0.2em]"
-                      style={{ color: "rgba(255,255,255,0.30)" }}
+                      style={{ color: STUDIO.ink4 }}
                     >
                       Panel scorecards
                     </p>
@@ -726,13 +737,13 @@ export function JobInterviewPanel({
                           className="rounded-xl p-3 text-xs"
                           key={entry.scorecard.$id}
                           style={{
-                            background: "rgba(255,255,255,0.02)",
-                            border: "1px solid rgba(255,255,255,0.05)",
+                            background: STUDIO.paper3,
+                            border: `1px solid ${STUDIO.rule}`,
                           }}
                         >
                           <p
                             className="font-medium text-xs"
-                            style={{ color: "#fff" }}
+                            style={{ color: STUDIO.ink }}
                           >
                             {entry.scorecard.recommendation ?? "—"}
                             {" · "}
@@ -740,7 +751,7 @@ export function JobInterviewPanel({
                           </p>
                           <p
                             className="mt-1 text-xs"
-                            style={{ color: "rgba(255,255,255,0.5)" }}
+                            style={{ color: STUDIO.ink3 }}
                           >
                             {entry.scorecard.strengths ?? "No strengths noted"}
                           </p>
@@ -764,11 +775,8 @@ export function JobInterviewPanel({
                     }}
                   />
                 ) : (
-                  <p
-                    className="text-xs"
-                    style={{ color: "rgba(255,255,255,0.35)" }}
-                  >
-                    You aren’t on this panel. Only panelists can submit a
+                  <p className="text-xs" style={{ color: STUDIO.ink4 }}>
+                    You aren't on this panel. Only panelists can submit a
                     scorecard.
                   </p>
                 )}

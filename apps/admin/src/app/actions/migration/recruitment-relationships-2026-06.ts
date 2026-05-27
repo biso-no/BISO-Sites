@@ -23,6 +23,7 @@ import { isGlobalAdmin } from "@/lib/authorization";
 const DATABASE_ID = "app";
 
 export interface RelationshipMigrationResult {
+  content_translations_backfilled: number;
   dry_run: boolean;
   error?: string;
   errors: number;
@@ -283,12 +284,13 @@ async function backfillJobsPermissions(
       }
 
       const existing = (job.$permissions as string[]) ?? [];
-      const hasWritePerms = teamIds.every(
-        (tid) =>
-          existing.includes(`update("team:${tid}")`) ||
-          existing.includes(`update("team:${tid}")`)
+      const allWriteTeams = [
+        ...new Set(["admin", "sg-app-dept-hr", ...teamIds]),
+      ];
+      const hasAllWritePerms = allWriteTeams.every((tid) =>
+        existing.includes(`update("team:${tid}")`)
       );
-      if (hasWritePerms) {
+      if (hasAllWritePerms) {
         continue;
       }
 
@@ -296,7 +298,7 @@ async function backfillJobsPermissions(
       const newPerms = [
         Permission.read(Role.any()),
         ...kept,
-        ...teamIds.flatMap((tid) => [
+        ...allWriteTeams.flatMap((tid) => [
           Permission.update(Role.team(tid)),
           Permission.delete(Role.team(tid)),
         ]),
@@ -318,6 +320,64 @@ async function backfillJobsPermissions(
 }
 
 // ---------------------------------------------------------------------------
+// Step 4: backfill read("any") on content_translations rows lacking row perms
+// ---------------------------------------------------------------------------
+
+async function backfillContentTranslations(
+  db: Awaited<ReturnType<typeof createAdminClient>>["db"],
+  dryRun: boolean
+): Promise<number> {
+  let updated = 0;
+  let cursor: string | undefined;
+
+  for (let page = 0; page < 2000; page++) {
+    const queries: string[] = [
+      Query.select(["$id", "$permissions"]),
+      Query.limit(100),
+      Query.orderAsc("$id"),
+    ];
+    if (cursor) {
+      queries.push(Query.cursorAfter(cursor));
+    }
+
+    const result = await db.listRows<Models.DefaultRow>(
+      DATABASE_ID,
+      "content_translations",
+      queries
+    );
+    if (result.rows.length === 0) {
+      break;
+    }
+    cursor = result.rows[result.rows.length - 1].$id;
+
+    for (const row of result.rows) {
+      const perms = (row.$permissions as string[]) ?? [];
+      const hasRead = perms.some((p) => p.startsWith("read("));
+      if (hasRead) {
+        continue;
+      }
+      if (!dryRun) {
+        const deduped = [...new Set([Permission.read(Role.any()), ...perms])];
+        await db.updateRow(
+          DATABASE_ID,
+          "content_translations",
+          row.$id,
+          {},
+          deduped
+        );
+      }
+      updated++;
+    }
+
+    if (result.rows.length < 100) {
+      break;
+    }
+  }
+
+  return updated;
+}
+
+// ---------------------------------------------------------------------------
 // Main exported action
 // ---------------------------------------------------------------------------
 
@@ -326,6 +386,7 @@ export async function runRecruitmentRelationshipsMigration(
 ): Promise<RelationshipMigrationResult> {
   if (!(await isGlobalAdmin())) {
     return {
+      content_translations_backfilled: 0,
       dry_run: Boolean(options.dryRun),
       error: "Unauthorized",
       errors: 0,
@@ -424,7 +485,23 @@ export async function runRecruitmentRelationshipsMigration(
     errors++;
   }
 
+  // 4. Backfill content_translations row read permissions
+  let contentTranslationsBackfilled = 0;
+  try {
+    contentTranslationsBackfilled = await backfillContentTranslations(
+      db,
+      dryRun
+    );
+    console.log(
+      `${dryRun ? "[dry-run] Would backfill" : "Backfilled"} ${contentTranslationsBackfilled} content_translations rows with read("any")`
+    );
+  } catch (err) {
+    console.error("Content translations backfill failed:", err);
+    errors++;
+  }
+
   return {
+    content_translations_backfilled: contentTranslationsBackfilled,
     dry_run: dryRun,
     errors,
     jobs_permissions_updated: jobsPermissionsUpdated,

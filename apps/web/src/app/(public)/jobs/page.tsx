@@ -1,4 +1,3 @@
-import { Locale } from "@repo/api/types/appwrite";
 import { Skeleton } from "@repo/ui/components/ui/skeleton";
 import { Suspense } from "react";
 import { listJobs } from "@/app/actions/jobs";
@@ -89,7 +88,7 @@ export default async function JobsPage({ searchParams }: JobsPageProps) {
 
   // URL param wins, then user prefs, then "all"
   const campus = sp.campus ?? prefs?.campusId ?? null;
-  const locale = prefs?.locale ?? Locale.EN;
+  const locale = prefs?.locale ?? "en";
 
   return (
     <div className="min-h-screen bg-linear-to-b from-section to-background">

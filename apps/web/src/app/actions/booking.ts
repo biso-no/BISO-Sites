@@ -9,7 +9,7 @@ import type {
   Jobs,
   RecruitmentBookingTokens,
 } from "@repo/api/types/appwrite";
-import { InterviewStatus } from "@repo/api/types/appwrite";
+import { JobInterviewsStatus } from "@repo/api/types/appwrite";
 import { recruitmentBookingConfirmSchema } from "@repo/shared/types/recruitment";
 
 const SECRET = process.env.RECRUITMENT_BOOKING_SECRET;
@@ -142,21 +142,50 @@ export async function confirmBookingSlot(
     record.application_id
   );
   const job = await db.getRow<Jobs>("app", "jobs", application.job_id, [
-    Query.select(["$id", "campus_id", "department_id"]),
+    Query.select([
+      "$id",
+      "campus_id",
+      "department_id",
+      "campus.name",
+      "department.$id",
+    ]),
   ]);
+
+  const typedJob = job as unknown as {
+    campus_id: string;
+    department_id: string | null;
+    campus?: { name: string };
+    department?: { Name?: string };
+  };
+
+  const reviewTeams = ["admin", "sg-app-dept-hr"];
+  if (typedJob.campus?.name) {
+    reviewTeams.push(`sg-app-campus-${typedJob.campus.name.toLowerCase()}`);
+  }
+  if (typedJob.department?.Name) {
+    reviewTeams.push(`sg-app-dept-${typedJob.department.Name.toLowerCase()}`);
+  }
+  const interviewPerms = [
+    ...new Set(
+      reviewTeams.flatMap((t) => [
+        `read("team:${t}")`,
+        `update("team:${t}")`,
+        `delete("team:${t}")`,
+      ])
+    ),
+  ];
 
   const interview = await db.createRow<JobInterviews>(
     "app",
     "job_interviews",
     ID.unique(),
     {
+      application: record.application_id,
       application_id: record.application_id,
       cancelled_reason: null,
-      campus_id: (job as unknown as { campus_id: string }).campus_id,
+      campus_id: typedJob.campus_id,
       created_by_user_id: record.created_by_user_id,
-      department_id:
-        (job as unknown as { department_id: string | null }).department_id ??
-        null,
+      department_id: typedJob.department_id ?? null,
       ends_at: end.toISOString(),
       job_id: application.job_id,
       location: null,
@@ -165,11 +194,12 @@ export async function confirmBookingSlot(
       outlook_event_id: null,
       round: 1,
       starts_at: start.toISOString(),
-      status: InterviewStatus.SCHEDULED,
+      status: JobInterviewsStatus.SCHEDULED,
       teams_meeting_id: null,
       timezone: "Europe/Oslo",
       title: "Interview",
-    }
+    },
+    interviewPerms
   );
 
   await db.updateRow<RecruitmentBookingTokens>(

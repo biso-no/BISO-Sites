@@ -1,4 +1,4 @@
-import { Query } from "@repo/api";
+import { Permission, Query, Role } from "@repo/api";
 import type {
   Campus,
   ContentTranslations,
@@ -7,12 +7,24 @@ import type {
   Jobs,
 } from "@repo/api/types/appwrite";
 import {
+  canManageRecruitmentVacancy,
+  canReviewRecruitmentVacancy,
+  getManagedCampusIds,
+  type RecruitmentLookups,
+} from "@repo/shared/recruitment";
+import {
   parseRecruitmentApplicationReviewMetadata,
   type RecruitmentApplicationJobSummary,
   type RecruitmentApplicationRecord,
 } from "@repo/shared/types/recruitment";
 import type { AdminScope } from "@repo/shared/types/user-management";
 import type { UserAuthContext } from "@/lib/authorization";
+
+export type { RecruitmentLookups } from "@repo/shared/recruitment";
+export {
+  canManageRecruitmentVacancy,
+  canReviewRecruitmentVacancy,
+} from "@repo/shared/recruitment";
 
 interface DbClient {
   getRow: <T>(
@@ -26,13 +38,6 @@ interface DbClient {
     tableId: string,
     queries?: string[]
   ) => Promise<{ rows: T[]; total: number }>;
-}
-
-export interface RecruitmentLookups {
-  campusIdsByName: Map<string, string>;
-  campusNamesById: Map<string, string>;
-  departmentIdsByName: Map<string, string>;
-  departmentNamesById: Map<string, string>;
 }
 
 export function toRecruitmentAdminScope(ctx: UserAuthContext): AdminScope {
@@ -76,70 +81,56 @@ export async function loadRecruitmentLookups(
   };
 }
 
-function getManagedCampusIds(
-  scope: AdminScope,
-  lookups: RecruitmentLookups
-): string[] {
-  if (scope.canManageAnyCampus) {
-    return [];
-  }
+const ADMIN_TEAM = "admin";
+const HR_TEAM = "sg-app-dept-hr";
+const MEMBERS_TEAM = "biso-members";
 
-  return scope.managedCampusNames
-    .map((name) => lookups.campusIdsByName.get(name))
-    .filter((value): value is string => Boolean(value));
-}
-
-function getManagedDepartmentIds(
-  scope: AdminScope,
-  lookups: RecruitmentLookups
-): string[] {
-  return scope.managedDepartmentNames
-    .map((name) => lookups.departmentIdsByName.get(name))
-    .filter((value): value is string => Boolean(value));
-}
-
-export function canManageRecruitmentVacancy(
-  scope: AdminScope,
+/**
+ * Build Appwrite $permissions for a job row.
+ *
+ * Public vacancies: readable by anyone.
+ * Member-only vacancies: readable only by biso-members + review teams.
+ * Write (update/delete): granted to team:admin, team:sg-app-dept-hr, and the
+ * owning campus + department teams (team ID = sanitized display name).
+ */
+export function buildJobRowPermissions(
   lookups: RecruitmentLookups,
-  job: Pick<Jobs, "campus_id" | "department_id">
-): boolean {
-  if (scope.canManageAnyCampus) {
-    return true;
+  job: { campus_id: string; department_id: string | null },
+  audience: "public" | "members"
+): string[] {
+  const ownerTeams: string[] = [];
+  const campusName = lookups.campusNamesById.get(job.campus_id);
+  if (campusName) {
+    ownerTeams.push(`sg-app-campus-${campusName.toLowerCase()}`);
+  }
+  const deptName = job.department_id
+    ? lookups.departmentNamesById.get(job.department_id)
+    : null;
+  if (deptName) {
+    ownerTeams.push(`sg-app-dept-${deptName.toLowerCase()}`);
   }
 
-  const managedCampusIds = getManagedCampusIds(scope, lookups);
-  if (!managedCampusIds.includes(job.campus_id)) {
-    return false;
-  }
+  const writeTeams = [...new Set([ADMIN_TEAM, HR_TEAM, ...ownerTeams])];
 
-  if (scope.isCampusAdmin) {
-    return true;
-  }
+  const readPerms =
+    audience === "public"
+      ? [Permission.read(Role.any())]
+      : [
+          Permission.read(Role.team(MEMBERS_TEAM)),
+          Permission.read(Role.team(ADMIN_TEAM)),
+          Permission.read(Role.team(HR_TEAM)),
+          ...ownerTeams.map((t) => Permission.read(Role.team(t))),
+        ];
 
-  return Boolean(
-    job.department_id &&
-      getManagedDepartmentIds(scope, lookups).includes(job.department_id)
-  );
-}
-
-export function canReviewRecruitmentVacancy(
-  scope: AdminScope,
-  lookups: RecruitmentLookups,
-  job: Pick<Jobs, "campus_id" | "department_id">
-): boolean {
-  if (scope.canManageAnyCampus) {
-    return true;
-  }
-
-  const managedCampusIds = getManagedCampusIds(scope, lookups);
-  if (scope.isCampusAdmin && managedCampusIds.includes(job.campus_id)) {
-    return true;
-  }
-
-  return Boolean(
-    job.department_id &&
-      getManagedDepartmentIds(scope, lookups).includes(job.department_id)
-  );
+  return [
+    ...new Set([
+      ...readPerms,
+      ...writeTeams.flatMap((t) => [
+        Permission.update(Role.team(t)),
+        Permission.delete(Role.team(t)),
+      ]),
+    ]),
+  ];
 }
 
 export function assertRecruitmentVacancyWriteAccess(
@@ -259,6 +250,7 @@ export function buildRecruitmentApplicationRecord(
     $createdAt: application.$createdAt,
     $id: application.$id,
     $updatedAt: application.$updatedAt,
+    ai_screening: application.ai_screening ?? null,
     applicant_email: application.applicant_email,
     applicant_name: application.applicant_name,
     applicant_phone: application.applicant_phone ?? null,
@@ -273,6 +265,7 @@ export function buildRecruitmentApplicationRecord(
       application.review_metadata
     ),
     resume_file_id: application.resume_file_id ?? null,
+    screening_score: application.screening_score ?? null,
     status: application.status,
   };
 }

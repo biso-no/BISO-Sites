@@ -1,6 +1,6 @@
 "use client";
 
-import type { JobStatus } from "@repo/api/types/appwrite";
+import type { JobsStatus } from "@repo/api/types/appwrite";
 import type { RecruitmentVacancy } from "@repo/shared/types/recruitment";
 import {
   ArrowUpRight,
@@ -130,7 +130,7 @@ function statusColor(status: string) {
   return BRAND.gold;
 }
 
-function StatusPill({ status }: { status: JobStatus }) {
+function StatusPill({ status }: { status: JobsStatus }) {
   const t = useTranslations("adminPortal.common.status");
   const color = statusColor(status);
   return (

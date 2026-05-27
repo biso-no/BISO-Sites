@@ -1,5 +1,5 @@
 import { ID, type Models, Query } from "@repo/api";
-import { ExpenseStatus, type Expenses } from "@repo/api/types/appwrite";
+import { type Expenses, ExpensesStatus } from "@repo/api/types/appwrite";
 import { type NextRequest, NextResponse } from "next/server";
 import { createAuthenticatedClient } from "@/lib/auth";
 import { applyCorsHeaders, corsPreflightResponse } from "@/lib/cors";
@@ -30,7 +30,7 @@ async function assertDraftOwnership(
     );
   }
 
-  if (existingExpense.status !== ExpenseStatus.DRAFT) {
+  if (existingExpense.status !== ExpensesStatus.DRAFT) {
     return NextResponse.json(
       { success: false, error: "Only draft expenses can be updated" },
       { status: 409 }
@@ -61,7 +61,7 @@ export async function POST(req: NextRequest) {
     const expenseBody = buildExpenseRowInput(
       payload,
       user.$id,
-      ExpenseStatus.DRAFT
+      ExpensesStatus.DRAFT
     );
 
     const draft = payload.expenseId

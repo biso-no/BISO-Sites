@@ -10,6 +10,7 @@ import { Star } from "lucide-react";
 import { useEffect, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { submitScorecard } from "../../_actions/interviews";
+import { STUDIO } from "../../_components/studio";
 
 interface Props {
   defaultCriteria?: { key: string; label: string }[];
@@ -112,23 +113,29 @@ export function JobInterviewScorecardForm({
     });
   }
 
+  const inputStyle = {
+    background: STUDIO.paper,
+    border: `1px solid ${STUDIO.rule}`,
+    color: STUDIO.ink,
+  };
+
   return (
     <div
       className="space-y-4 rounded-2xl p-4"
       style={{
-        background: "rgba(255,255,255,0.03)",
-        border: "1px solid rgba(255,255,255,0.06)",
+        background: STUDIO.paper2,
+        border: `1px solid ${STUDIO.rule}`,
       }}
     >
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <Star size={16} style={{ color: "#F59E0B" }} />
-          <p className="font-medium text-sm" style={{ color: "#fff" }}>
+          <Star size={16} style={{ color: STUDIO.gold }} />
+          <p className="font-medium text-sm" style={{ color: STUDIO.ink }}>
             My scorecard
           </p>
         </div>
         {existing?.submitted_at ? (
-          <span className="text-xs" style={{ color: "rgba(255,255,255,0.4)" }}>
+          <span className="text-xs" style={{ color: STUDIO.ink4 }}>
             Last saved {new Date(existing.submitted_at).toLocaleString()}
           </span>
         ) : null}
@@ -137,12 +144,10 @@ export function JobInterviewScorecardForm({
       <div className="grid gap-3 md:grid-cols-2">
         {criteria.map((criterion, index) => (
           <label className="space-y-2 text-xs" key={criterion.key}>
-            <span style={{ color: "rgba(255,255,255,0.45)" }}>
-              {criterion.label}
-            </span>
+            <span style={{ color: STUDIO.ink3 }}>{criterion.label}</span>
             <div className="flex items-center gap-2">
               <select
-                className="w-24 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none"
+                className="w-24 rounded-xl px-3 py-2 text-sm outline-none"
                 onChange={(event) =>
                   patchCriterion(index, {
                     score: event.target.value
@@ -150,6 +155,7 @@ export function JobInterviewScorecardForm({
                       : null,
                   })
                 }
+                style={inputStyle}
                 value={criterion.score ?? ""}
               >
                 <option value="">—</option>
@@ -160,13 +166,14 @@ export function JobInterviewScorecardForm({
                 ))}
               </select>
               <input
-                className="flex-1 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-white text-xs outline-none"
+                className="flex-1 rounded-xl px-3 py-2 text-xs outline-none"
                 onChange={(event) =>
                   patchCriterion(index, {
                     comment: event.target.value || null,
                   })
                 }
                 placeholder="Brief comment"
+                style={inputStyle}
                 value={criterion.comment ?? ""}
               />
             </div>
@@ -176,10 +183,11 @@ export function JobInterviewScorecardForm({
 
       <div className="grid gap-3 md:grid-cols-2">
         <label className="space-y-2 text-xs">
-          <span style={{ color: "rgba(255,255,255,0.45)" }}>Overall score</span>
+          <span style={{ color: STUDIO.ink3 }}>Overall score</span>
           <select
-            className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none"
+            className="w-full rounded-xl px-3 py-2 text-sm outline-none"
             onChange={(event) => setOverall(Number(event.target.value))}
+            style={inputStyle}
             value={overall}
           >
             {[1, 2, 3, 4, 5].map((value) => (
@@ -190,14 +198,13 @@ export function JobInterviewScorecardForm({
           </select>
         </label>
         <label className="space-y-2 text-xs">
-          <span style={{ color: "rgba(255,255,255,0.45)" }}>
-            Recommendation
-          </span>
+          <span style={{ color: STUDIO.ink3 }}>Recommendation</span>
           <select
-            className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none"
+            className="w-full rounded-xl px-3 py-2 text-sm outline-none"
             onChange={(event) =>
               setRecommendation(event.target.value as RecruitmentRecommendation)
             }
+            style={inputStyle}
             value={recommendation}
           >
             {RECOMMENDATIONS.map((option) => (
@@ -210,31 +217,34 @@ export function JobInterviewScorecardForm({
       </div>
 
       <label className="block space-y-2 text-xs">
-        <span style={{ color: "rgba(255,255,255,0.45)" }}>Strengths</span>
+        <span style={{ color: STUDIO.ink3 }}>Strengths</span>
         <textarea
-          className="min-h-16 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none"
+          className="min-h-16 w-full rounded-xl px-3 py-2 text-sm outline-none"
           onChange={(event) => setStrengths(event.target.value)}
           placeholder="What stood out?"
+          style={inputStyle}
           value={strengths}
         />
       </label>
 
       <label className="block space-y-2 text-xs">
-        <span style={{ color: "rgba(255,255,255,0.45)" }}>Concerns</span>
+        <span style={{ color: STUDIO.ink3 }}>Concerns</span>
         <textarea
-          className="min-h-16 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none"
+          className="min-h-16 w-full rounded-xl px-3 py-2 text-sm outline-none"
           onChange={(event) => setConcerns(event.target.value)}
           placeholder="Anything that gave you pause?"
+          style={inputStyle}
           value={concerns}
         />
       </label>
 
       <label className="block space-y-2 text-xs">
-        <span style={{ color: "rgba(255,255,255,0.45)" }}>Private notes</span>
+        <span style={{ color: STUDIO.ink3 }}>Private notes</span>
         <textarea
-          className="min-h-16 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none"
+          className="min-h-16 w-full rounded-xl px-3 py-2 text-sm outline-none"
           onChange={(event) => setPrivateNotes(event.target.value)}
           placeholder="Visible only to you and the HR lead."
+          style={inputStyle}
           value={privateNotes}
         />
       </label>
@@ -244,8 +254,8 @@ export function JobInterviewScorecardForm({
         disabled={isPending}
         onClick={handleSubmit}
         style={{
-          background: "#3DA9E0",
-          color: "#001731",
+          background: STUDIO.ink,
+          color: STUDIO.paper,
           opacity: isPending ? 0.65 : 1,
         }}
         type="button"

@@ -1,6 +1,5 @@
 {
   "lockfileVersion": 1,
-  "configVersion": 0,
   "workspaces": {
     "": {
       "name": "biso-sites",
@@ -174,6 +173,7 @@
         "@json-render/react": "catalog:",
         "@pinecone-database/pinecone": "catalog:",
         "@repo/connectors": "workspace:*",
+        "@repo/shared": "workspace:*",
         "ai": "catalog:",
         "gpt-tokenizer": "catalog:",
         "jszip": "catalog:",

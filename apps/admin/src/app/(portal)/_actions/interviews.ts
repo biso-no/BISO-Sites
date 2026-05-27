@@ -10,10 +10,10 @@ import type {
   Jobs,
 } from "@repo/api/types/appwrite";
 import {
-  InterviewParticipantRole,
-  type InterviewRecommendation,
-  InterviewResponseStatus,
-  InterviewStatus,
+  JobInterviewParticipantsResponseStatus,
+  JobInterviewParticipantsRole,
+  type JobInterviewScorecardsRecommendation,
+  JobInterviewsStatus,
 } from "@repo/api/types/appwrite";
 import {
   RECRUITMENT_BOOKING_TOKEN_DEFAULT_TTL_DAYS,
@@ -57,14 +57,14 @@ const APPLICATION_JOB_SELECT = [
   "job.department_id",
 ] as const;
 
-function toParticipantRole(role: string): InterviewParticipantRole {
+function toParticipantRole(role: string): JobInterviewParticipantsRole {
   switch (role) {
-    case InterviewParticipantRole.CANDIDATE:
-      return InterviewParticipantRole.CANDIDATE;
-    case InterviewParticipantRole.OBSERVER:
-      return InterviewParticipantRole.OBSERVER;
+    case JobInterviewParticipantsRole.CANDIDATE:
+      return JobInterviewParticipantsRole.CANDIDATE;
+    case JobInterviewParticipantsRole.OBSERVER:
+      return JobInterviewParticipantsRole.OBSERVER;
     default:
-      return InterviewParticipantRole.INTERVIEWER;
+      return JobInterviewParticipantsRole.INTERVIEWER;
   }
 }
 
@@ -193,7 +193,7 @@ export async function createInterview(
         outlook_event_id: null,
         round: input.round,
         starts_at: startsAt.toISOString(),
-        status: InterviewStatus.SCHEDULED,
+        status: JobInterviewsStatus.SCHEDULED,
         teams_meeting_id: null,
         timezone: input.timezone,
         title: input.title,
@@ -212,8 +212,8 @@ export async function createInterview(
         interview: interview.$id,
         interview_id: interview.$id,
         is_lead: false,
-        response_status: InterviewResponseStatus.PENDING,
-        role: InterviewParticipantRole.CANDIDATE,
+        response_status: JobInterviewParticipantsResponseStatus.PENDING,
+        role: JobInterviewParticipantsRole.CANDIDATE,
         user_id: null,
       }
     );
@@ -230,7 +230,7 @@ export async function createInterview(
           interview: interview.$id,
           interview_id: interview.$id,
           is_lead: participantInput.is_lead,
-          response_status: InterviewResponseStatus.PENDING,
+          response_status: JobInterviewParticipantsResponseStatus.PENDING,
           role: toParticipantRole(participantInput.role),
           user_id: participantInput.user_id ?? null,
         }
@@ -244,12 +244,12 @@ export async function createInterview(
       const panelEmails = participants
         .filter(
           (participant) =>
-            participant.role === InterviewParticipantRole.INTERVIEWER
+            participant.role === JobInterviewParticipantsRole.INTERVIEWER
         )
         .map((participant) => participant.email);
       const lead = participants.find(
         (participant) =>
-          participant.role === InterviewParticipantRole.INTERVIEWER &&
+          participant.role === JobInterviewParticipantsRole.INTERVIEWER &&
           participant.is_lead
       );
       const organizerUpn = lead?.email ?? panelEmails[0] ?? ctx.email ?? null;
@@ -357,7 +357,7 @@ export async function updateInterview(
       patch.notes = input.notes ?? null;
     }
     if (input.status !== undefined) {
-      patch.status = input.status as InterviewStatus;
+      patch.status = input.status as JobInterviewsStatus;
     }
     if (input.cancelled_reason !== undefined) {
       patch.cancelled_reason = input.cancelled_reason ?? null;
@@ -442,7 +442,7 @@ export async function cancelInterview(
       id,
       {
         cancelled_reason: reason ?? null,
-        status: InterviewStatus.CANCELLED,
+        status: JobInterviewsStatus.CANCELLED,
       }
     );
 
@@ -496,7 +496,7 @@ export async function addInterviewParticipant(
         email: input.email,
         interview_id: interviewId,
         is_lead: input.is_lead ?? false,
-        response_status: InterviewResponseStatus.PENDING,
+        response_status: JobInterviewParticipantsResponseStatus.PENDING,
         role: toParticipantRole(input.role ?? "interviewer"),
         user_id: input.user_id ?? null,
       }
@@ -623,7 +623,7 @@ export async function submitScorecard(
     );
     const participantUserIds = new Set(
       ((interview.participants ?? []) as JobInterviewParticipants[])
-        .filter((p) => p.role === InterviewParticipantRole.INTERVIEWER)
+        .filter((p) => p.role === JobInterviewParticipantsRole.INTERVIEWER)
         .map((p) => p.user_id)
         .filter((id): id is string => Boolean(id))
     );
@@ -648,7 +648,8 @@ export async function submitScorecard(
       interviewer_user_id: ctx.userId,
       overall_score: input.overall_score,
       private_notes: input.private_notes ?? null,
-      recommendation: input.recommendation as InterviewRecommendation,
+      recommendation:
+        input.recommendation as JobInterviewScorecardsRecommendation,
       strengths: input.strengths ?? null,
       submitted_at: new Date().toISOString(),
     };
