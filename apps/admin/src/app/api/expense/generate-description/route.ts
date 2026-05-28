@@ -17,8 +17,7 @@ export async function POST(request: Request) {
         headers: {
           "Content-Type": "application/json",
           // Add any required Appwrite authentication headers here
-          "X-Appwrite-Project":
-            process.env.NEXT_PUBLIC_APPWRITE_PROJECT ?? "",
+          "X-Appwrite-Project": process.env.NEXT_PUBLIC_APPWRITE_PROJECT ?? "",
           "X-Appwrite-Key": process.env.APPWRITE_API_KEY ?? "",
         },
         body: JSON.stringify({

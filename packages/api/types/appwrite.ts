@@ -512,6 +512,7 @@ export type Jobs = Models.Row & {
   campus_id: string;
   department_id: string | null;
   metadata: string | null;
+  application_deadline: string | null;
   campus: Campus;
   translations: ContentTranslations[];
   department: Departments;

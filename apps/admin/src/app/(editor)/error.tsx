@@ -28,8 +28,8 @@ export default function EditorError({
         The page editor crashed.
       </h1>
       <p className="mt-3 max-w-md text-muted-foreground text-sm">
-        Unsaved changes may be lost. Try reloading the editor, or go back to
-        the pages list.
+        Unsaved changes may be lost. Try reloading the editor, or go back to the
+        pages list.
       </p>
       {error.digest ? (
         <p className="mt-4 font-mono text-muted-foreground text-xs">

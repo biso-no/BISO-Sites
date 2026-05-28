@@ -294,6 +294,9 @@ async function buildJobUpsertPayload(
   );
 
   return {
+    application_deadline: data.application_deadline
+      ? new Date(data.application_deadline).toISOString()
+      : null,
     auto_screen: data.auto_screen,
     campus: data.campus_id,
     campus_id: data.campus_id,
@@ -323,9 +326,10 @@ export async function createJob(values: RecruitmentVacancyUpsertInput) {
   }
 
   try {
-    const { db } = await createSessionClient();
+    const { db: sessionDb } = await createSessionClient();
+    const { db: adminDb } = await createAdminClient();
     const scope = toRecruitmentAdminScope(ctx);
-    const lookups = await loadRecruitmentLookups(db);
+    const lookups = await loadRecruitmentLookups(sessionDb);
 
     assertRecruitmentVacancyWriteAccess(scope, lookups, {
       campus_id: validated.data.campus_id,
@@ -349,12 +353,12 @@ export async function createJob(values: RecruitmentVacancyUpsertInput) {
         .map((p) => p.slice('update("team:'.length, -2)),
     });
     const payload = await buildJobUpsertPayload(
-      db,
+      sessionDb,
       jobId,
       validated.data,
       translationPerms
     );
-    const job = await db.upsertRow("app", "jobs", jobId, payload, jobPerms);
+    const job = await adminDb.upsertRow("app", "jobs", jobId, payload, jobPerms);
 
     await logAuditEvent(ctx, "recruitment.vacancy.create", {
       payload: {
@@ -387,10 +391,11 @@ export async function updateJob(
   }
 
   try {
-    const { db } = await createSessionClient();
+    const { db: sessionDb } = await createSessionClient();
+    const { db: adminDb } = await createAdminClient();
     const scope = toRecruitmentAdminScope(ctx);
-    const lookups = await loadRecruitmentLookups(db);
-    const vacancy = await getRecruitmentJobById(db, id);
+    const lookups = await loadRecruitmentLookups(sessionDb);
+    const vacancy = await getRecruitmentJobById(sessionDb, id);
 
     if (!vacancy) {
       return { error: "Vacancy not found" };
@@ -418,13 +423,15 @@ export async function updateJob(
         .map((p) => p.slice('update("team:'.length, -2)),
     });
     const payload = await buildJobUpsertPayload(
-      db,
+      sessionDb,
       id,
       validated.data,
       translationPerms,
       vacancy.metadata
     );
-    await db.upsertRow("app", "jobs", id, payload, jobPerms);
+    console.log("[updateJob] payload", JSON.stringify(payload, null, 2));
+    const upsertResult = await adminDb.upsertRow("app", "jobs", id, payload, jobPerms);
+    console.log("[updateJob] upsertResult", JSON.stringify(upsertResult, null, 2));
 
     await logAuditEvent(ctx, "recruitment.vacancy.update", {
       payload: {
@@ -440,6 +447,7 @@ export async function updateJob(
     revalidatePath(`/jobs/${id}`);
     return { data: id };
   } catch (error) {
+    console.error("[updateJob] error", error);
     return {
       error: error instanceof Error ? error.message : "Failed to update job",
     };

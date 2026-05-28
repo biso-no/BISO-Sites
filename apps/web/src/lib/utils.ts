@@ -1,5 +1,7 @@
 import type { ContentTranslations, News } from "@repo/api/types/appwrite";
 
+const SCHEME_RELATIVE_RE = /^\/[a-z][a-z0-9+.-]*:/i;
+
 export function filterArticles(
   articles: News[],
   category: string,
@@ -68,7 +70,7 @@ export function safeRedirectPath(
   if (trimmed.startsWith("//") || trimmed.startsWith("/\\")) {
     return fallback;
   }
-  if (/^\/[a-z][a-z0-9+.-]*:/i.test(trimmed)) {
+  if (SCHEME_RELATIVE_RE.test(trimmed)) {
     return fallback;
   }
 

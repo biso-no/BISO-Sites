@@ -13,8 +13,8 @@ const BASE = process.env.NEXT_PUBLIC_BASE_URL || "https://biso.no";
 export const revalidate = 3600;
 
 interface SlugWithTimestamp {
-  slug: string | null;
   $updatedAt: string;
+  slug: string | null;
 }
 
 function mapSlugRoutes(

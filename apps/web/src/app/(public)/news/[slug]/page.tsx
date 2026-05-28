@@ -8,7 +8,7 @@ import { getNewsBySlug } from "@/app/actions/news";
 import { PublicPageHeader } from "@/components/public/public-page-header";
 
 function pickTranslation(item: Awaited<ReturnType<typeof getNewsBySlug>>) {
-  if (!item || !Array.isArray(item.translation_refs)) {
+  if (!(item && Array.isArray(item.translation_refs))) {
     return null;
   }
   return (

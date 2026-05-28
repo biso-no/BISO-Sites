@@ -7,6 +7,7 @@ export const metadata: Metadata = {
   description:
     "Discover BISO's presence on every BI Norwegian Business School campus — Oslo, Bergen, Trondheim, and Stavanger.",
 };
+
 import { listEvents } from "@/app/actions/events";
 import { listJobs } from "@/app/actions/jobs";
 import { getLocale } from "@/app/actions/locale";

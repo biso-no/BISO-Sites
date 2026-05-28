@@ -77,7 +77,9 @@ const _listJobs = cache(
       const lowerSearch = search?.trim().toLowerCase() ?? "";
 
       return vacancies
-        .filter((v) => isRecruitmentVacancyOpen(v.status, v.metadata))
+        .filter((v) =>
+          isRecruitmentVacancyOpen(v.status, v.application_deadline)
+        )
         .map((v) => localizeVacancy(v, locale))
         .filter((v) => {
           if (!lowerSearch) {
@@ -122,7 +124,10 @@ const _getJobBySlug = cache(
       const { db } = await createSessionClient();
       const vacancy = await getRecruitmentJobBySlug(db, slug);
       if (
-        !(vacancy && isRecruitmentVacancyOpen(vacancy.status, vacancy.metadata))
+        !(
+          vacancy &&
+          isRecruitmentVacancyOpen(vacancy.status, vacancy.application_deadline)
+        )
       ) {
         return null;
       }
@@ -268,7 +273,10 @@ export async function submitJobApplication(
     const { db, storage } = await createAdminClient();
     const vacancy = await getRecruitmentJobById(db, jobId);
     if (
-      !(vacancy && isRecruitmentVacancyOpen(vacancy.status, vacancy.metadata))
+      !(
+        vacancy &&
+        isRecruitmentVacancyOpen(vacancy.status, vacancy.application_deadline)
+      )
     ) {
       return {
         success: false,
@@ -312,7 +320,9 @@ export async function submitJobApplication(
     }
 
     const consentDate = new Date();
-    const retentionUntil = computeRecruitmentRetentionUntil(vacancy.metadata);
+    const retentionUntil = computeRecruitmentRetentionUntil(
+      vacancy.application_deadline
+    );
 
     let candidateProfileId: string | null = null;
     try {

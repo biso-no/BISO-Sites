@@ -108,6 +108,7 @@ export const JOB_SELECT = [
   "campus_id",
   "department_id",
   "metadata",
+  "application_deadline",
   "custom_questions",
   "interview_template",
   "screening_rubric",
@@ -175,6 +176,7 @@ export function buildRecruitmentVacancy(
     $createdAt: job.$createdAt,
     $id: job.$id,
     $updatedAt: job.$updatedAt,
+    application_deadline: job.application_deadline ?? null,
     campus: job.campus ? { $id: job.campus.$id, name: job.campus.name } : null,
     campus_id: job.campus_id,
     department: job.department

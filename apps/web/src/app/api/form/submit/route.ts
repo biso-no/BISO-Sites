@@ -36,9 +36,9 @@ function clampString(value: unknown, max: number): string {
   return str.length > max ? `${str.slice(0, max)}…` : str;
 }
 
-function validatePayload(input: unknown):
-  | { ok: true; value: SubmitPayload }
-  | { ok: false; message: string } {
+function validatePayload(
+  input: unknown
+): { ok: true; value: SubmitPayload } | { ok: false; message: string } {
   if (!input || typeof input !== "object") {
     return { ok: false, message: "Invalid payload" };
   }

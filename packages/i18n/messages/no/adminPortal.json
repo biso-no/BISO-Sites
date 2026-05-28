@@ -19,7 +19,20 @@
   },
   "sidebar": {
     "studioHint": "Studiohint",
-    "hintText": "Bruk søk for å hoppe mellom publiseringsarbeidsflyter.",
+    "hints": [
+      "Trykk ⌘K for å hoppe mellom arbeidsflyter uten å røre musen.",
+      "I stillingseditoren kan du generere et norsk utkast med ett klikk.",
+      "Aktiver AI-screening på en stilling for å få automatiske kandidatinnsikter.",
+      "Planlegg publisering av en stilling eller et arrangement til et fremtidig tidspunkt.",
+      "Dra kandidater mellom trinn i pipeline, eller velg flere for å flytte dem samlet.",
+      "Aktiver venteliste på arrangementer slik at studenter kan stille seg i kø når kapasiteten er nådd.",
+      "Utkast-seksjonen samler alt upublisert innhold på tvers av alle arbeidsflyter.",
+      "Globale administratorer kan begrense visningen til én campus via velgeren over.",
+      "Alle endringer logges i Aktivitet — nyttig for revisjoner og teamgjennomganger.",
+      "Sideeditoren er et fullstendig dra-og-slipp-blokklerretet for rike landingssider.",
+      "Bruk sammenligningsbrettet i rekrutteringspipelinen for å vurdere toppkandidater side ved side.",
+      "Send massee-post til kandidater direkte fra rekrutteringspipelinen med én handling."
+    ],
     "openCommandPalette": "Åpne kommandopaletten",
     "allCampuses": "Alle campuser",
     "back": "Tilbake",

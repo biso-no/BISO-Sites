@@ -10,6 +10,7 @@ import { postShopTransaction } from "@repo/connectors/24sevenoffice";
 // config, which is regenerated separately). Extend the type locally
 // until the column is added to packages/api/types/appwrite.ts.
 type Orders = BaseOrders & { finago_transaction_id?: string | null };
+
 import { getVippsSession } from "@repo/payment/vipps";
 import { parseOrderItems } from "@repo/shared/utils/order-parsing";
 import { updateOrderStatus } from "@repo/shared/utils/vipps-order-ops";
@@ -96,7 +97,9 @@ export async function GET(request: Request) {
               return null;
             }
             const product = await db
-              .getRow<WebshopProducts & { finago_account_number?: number | null }>(
+              .getRow<
+                WebshopProducts & { finago_account_number?: number | null }
+              >(
                 process.env.APPWRITE_DATABASE_ID!,
                 process.env.APPWRITE_WEBSHOP_PRODUCTS_COLLECTION_ID!,
                 item.product_id

@@ -42,8 +42,8 @@ function JobPostingSchema({ job }: { job: RecruitmentVacancy }) {
     title,
     description,
     datePosted: job.$createdAt,
-    ...(job.metadata.application_deadline
-      ? { validThrough: job.metadata.application_deadline }
+    ...(job.application_deadline
+      ? { validThrough: job.application_deadline }
       : {}),
     hiringOrganization: {
       "@type": "Organization",
@@ -91,8 +91,8 @@ export function JobDetailsClient({
   const translation = job.translations[0];
   const title = translation?.title ?? "Untitled";
   const description = translation?.description ?? "";
-  const deadline = job.metadata.application_deadline
-    ? new Date(job.metadata.application_deadline).toLocaleDateString("en-GB")
+  const deadline = job.application_deadline
+    ? new Date(job.application_deadline).toLocaleDateString("en-GB")
     : "Rolling";
   const department = job.department?.Name || "BISO";
   const company = job.metadata.company || "BISO";

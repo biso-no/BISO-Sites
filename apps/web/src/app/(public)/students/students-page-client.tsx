@@ -65,22 +65,6 @@ const stripHtml = (value?: string | null) =>
         .trim()
     : "";
 
-const getJobMetadata = (
-  metadata: Jobs["metadata"] | RecruitmentVacancy["metadata"]
-) => {
-  if (!metadata) {
-    return {};
-  }
-  if (typeof metadata === "object") {
-    return metadata as Record<string, unknown>;
-  }
-  try {
-    return JSON.parse(metadata) as Record<string, unknown>;
-  } catch {
-    return {};
-  }
-};
-
 const benefitKeys: BenefitKey[] = [
   "studentBenefits",
   "careerAdvantages",
@@ -460,11 +444,7 @@ export const StudentsPageClient = ({
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {filteredJobs.map((job) => {
             const translation = getTranslation(job.translations);
-            const metadata = getJobMetadata(job.metadata);
-            const applicationDeadline =
-              typeof metadata.application_deadline === "string"
-                ? metadata.application_deadline
-                : null;
+            const applicationDeadline = job.application_deadline ?? null;
 
             return (
               <Card className="border-primary/10" key={job.$id}>

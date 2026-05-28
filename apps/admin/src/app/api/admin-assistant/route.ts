@@ -1,6 +1,5 @@
 import { openai } from "@ai-sdk/openai";
 import { getSystemPrompt } from "@repo/ai/prompts";
-import { requireApiAuth } from "@/lib/api-auth";
 import {
   CAPABILITY_REGISTRY,
   getCapabilityFromPath,
@@ -21,6 +20,7 @@ import {
   streamText,
   type UIMessage,
 } from "ai";
+import { requireApiAuth } from "@/lib/api-auth";
 
 // Allow streaming responses up to 60 seconds
 export const maxDuration = 60;

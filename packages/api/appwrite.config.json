@@ -1351,6 +1351,14 @@
           "encrypt": false
         },
         {
+          "key": "application_deadline",
+          "type": "datetime",
+          "required": false,
+          "array": false,
+          "default": null,
+          "format": ""
+        },
+        {
           "key": "campus",
           "type": "relationship",
           "required": false,

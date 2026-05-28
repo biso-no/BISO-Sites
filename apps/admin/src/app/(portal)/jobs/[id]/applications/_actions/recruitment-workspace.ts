@@ -542,7 +542,7 @@ export async function getRecruitmentWorkspace(
     campusName: vacancy.campus?.name ?? null,
     commitment: vacancy.metadata.commitment ?? null,
     customQuestions: vacancy.custom_questions ?? [],
-    deadline: vacancy.metadata.application_deadline ?? null,
+    deadline: vacancy.application_deadline ?? null,
     departmentCrest: (vacancy.department?.Name ?? "B").charAt(0).toUpperCase(),
     departmentName: vacancy.department?.Name ?? null,
     id: vacancy.$id,

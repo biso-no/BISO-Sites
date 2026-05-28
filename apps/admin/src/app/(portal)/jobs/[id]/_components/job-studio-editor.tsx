@@ -260,7 +260,7 @@ function buildDefaultValues(
   const metadata = job?.metadata;
 
   return {
-    application_deadline: fallback(metadata?.application_deadline, null),
+    application_deadline: fallback(job?.application_deadline, null),
     audience: fallback(metadata?.audience, "members"),
     auto_translate: Boolean(metadata?.auto_translate),
     campus_id: fallback(job?.campus_id, effectiveCampusId),

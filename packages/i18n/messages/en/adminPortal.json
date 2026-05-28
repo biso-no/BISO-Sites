@@ -19,7 +19,20 @@
   },
   "sidebar": {
     "studioHint": "Studio hint",
-    "hintText": "Use search to jump between publishing workflows.",
+    "hints": [
+      "Press ⌘K to jump between any workflow without touching the mouse.",
+      "In the job editor, generate a full Norwegian draft with one click.",
+      "Enable AI screening on a position to get automatic candidate insights.",
+      "Schedule a job or event to go live automatically at a future date and time.",
+      "Drag candidates between pipeline stages, or select several to bulk-move them.",
+      "Turn on waitlists for events so students can queue when capacity fills.",
+      "The Drafts section collects all unpublished content across every workflow.",
+      "Global admins can scope the view to one campus using the campus switcher above.",
+      "Every change is logged in Activity — useful for audits and team reviews.",
+      "The Pages editor is a full drag-and-drop block canvas for rich landing pages.",
+      "Use the compare tray in the recruitment pipeline to weigh top candidates side-by-side.",
+      "Bulk-email candidates directly from the recruitment pipeline in one action."
+    ],
     "openCommandPalette": "Open command palette",
     "allCampuses": "All Campuses",
     "back": "Back",

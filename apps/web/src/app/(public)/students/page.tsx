@@ -8,6 +8,7 @@ export const metadata: Metadata = {
   description:
     "Resources, events, and opportunities for students at BI Norwegian Business School.",
 };
+
 import { listEvents } from "@/app/actions/events";
 import { listJobs } from "@/app/actions/jobs";
 import { getLocale } from "@/app/actions/locale";

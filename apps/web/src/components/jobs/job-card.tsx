@@ -29,8 +29,8 @@ export function JobCard({ job, index, onViewDetails }: JobCardProps) {
   const department = job.department?.Name || "BISO";
   const company = job.metadata.company || "BISO";
   const employmentType = job.metadata.employment_type || "Position";
-  const deadline = job.metadata.application_deadline
-    ? new Date(job.metadata.application_deadline).toLocaleDateString("en-GB")
+  const deadline = job.application_deadline
+    ? new Date(job.application_deadline).toLocaleDateString("en-GB")
     : "Rolling";
 
   return (

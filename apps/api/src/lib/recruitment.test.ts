@@ -50,7 +50,6 @@ describe("recruitment domain helpers", () => {
   it("parses metadata and preserves new recruitment fields", () => {
     const metadata = parseRecruitmentVacancyMetadata(
       JSON.stringify({
-        application_deadline: "2026-05-01T12:00:00.000Z",
         auto_translate: true,
         company: "BISO",
         commitment: "6 h/week",
@@ -129,26 +128,7 @@ describe("recruitment domain helpers", () => {
 
   it("computes retention 180 days after the vacancy close date", () => {
     const retentionUntil = computeRecruitmentRetentionUntil(
-      {
-        application_deadline: "2026-05-01T00:00:00.000Z",
-        auto_translate: false,
-        company: "BISO",
-        contact_email: null,
-        contact_name: null,
-        contact_role: null,
-        cover_pattern: null,
-        cv_required: false,
-        employment_type: null,
-        location: null,
-        newsletter: false,
-        paid: false,
-        push_to_inboxes: false,
-        short_description: null,
-        start_date: null,
-        tags: [],
-        term: null,
-        auto_screen: true,
-      },
+      "2026-05-01T00:00:00.000Z",
       new Date("2026-04-20T00:00:00.000Z")
     );
 
@@ -175,26 +155,7 @@ describe("recruitment domain helpers", () => {
     expect(
       isRecruitmentVacancyOpen(
         JobsStatus.PUBLISHED,
-        {
-          application_deadline: "2026-04-01T00:00:00.000Z",
-          auto_translate: false,
-          company: null,
-          contact_email: null,
-          contact_name: null,
-          contact_role: null,
-          cover_pattern: null,
-          cv_required: false,
-          employment_type: null,
-          location: null,
-          newsletter: false,
-          paid: false,
-          push_to_inboxes: false,
-          short_description: null,
-          start_date: null,
-          tags: [],
-          term: null,
-          auto_screen: true,
-        },
+        "2026-04-01T00:00:00.000Z",
         new Date("2026-04-10T00:00:00.000Z")
       )
     ).toBe(false);

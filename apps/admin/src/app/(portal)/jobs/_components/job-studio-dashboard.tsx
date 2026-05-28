@@ -194,7 +194,7 @@ function FeaturedDraft({ jobs }: { jobs: RecruitmentVacancy[] }) {
   const t = useTranslations("adminPortal.jobs.studio");
   const draft =
     jobs.find((job) => job.status === "draft") ??
-    jobs.find((job) => Boolean(job.metadata.application_deadline)) ??
+    jobs.find((job) => Boolean(job.application_deadline)) ??
     jobs[0];
 
   if (!draft) {
@@ -206,7 +206,7 @@ function FeaturedDraft({ jobs }: { jobs: RecruitmentVacancy[] }) {
     title,
     draft.department_id,
     getDescription(draft, locale),
-    draft.metadata.application_deadline,
+    draft.application_deadline,
     draft.metadata.contact_email,
   ];
   const complete = Math.round(
@@ -249,8 +249,8 @@ function FeaturedDraft({ jobs }: { jobs: RecruitmentVacancy[] }) {
           </div>
           <div>
             <b className="font-light text-3xl">
-              {draft.metadata.application_deadline
-                ? (daysUntil(draft.metadata.application_deadline) ?? "—")
+              {draft.application_deadline
+                ? (daysUntil(draft.application_deadline) ?? "—")
                 : "—"}
             </b>
             <p className="text-[11px] text-slate-500 uppercase tracking-[0.12em]">
@@ -286,7 +286,7 @@ function FeaturedDraft({ jobs }: { jobs: RecruitmentVacancy[] }) {
             ],
             [
               t("checklist.applicationDeadline"),
-              Boolean(draft.metadata.application_deadline),
+              Boolean(draft.application_deadline),
             ],
             [
               t("checklist.contactDetails"),
@@ -337,7 +337,7 @@ function JobRow({
   const locale = normalizeLocale(useLocale());
   const t = useTranslations("adminPortal.jobs.studio");
   const common = useTranslations("adminPortal.common");
-  const deadlineDays = daysUntil(job.metadata.application_deadline);
+  const deadlineDays = daysUntil(job.application_deadline);
   return (
     <div
       className="group grid items-center gap-4 border-t px-4 py-4 transition hover:bg-black/[0.02] md:grid-cols-[1.45fr_0.85fr_0.55fr_0.65fr_0.45fr]"
@@ -393,7 +393,7 @@ function JobRow({
       <StatusPill status={job.status} />
       <div className="text-xs" style={{ color: BRAND.ink4 }}>
         <p className="font-mono" style={{ color: BRAND.ink3 }}>
-          {formatDate(job.metadata.application_deadline, locale, {
+          {formatDate(job.application_deadline, locale, {
             invalidDate: t("fallback.invalidDate"),
             noDeadline: t("fallback.noDeadline"),
           })}
@@ -499,7 +499,7 @@ export function JobStudioDashboard({
   );
 
   const closingSoon = initialJobs.filter((job) => {
-    const days = daysUntil(job.metadata.application_deadline);
+    const days = daysUntil(job.application_deadline);
     return days != null && days >= 0 && days <= 5;
   }).length;
 

@@ -38,11 +38,11 @@ function sortJobs(
 ): RecruitmentVacancy[] {
   return [...jobs].sort((a, b) => {
     if (sort === "deadline") {
-      const da = a.metadata.application_deadline
-        ? new Date(a.metadata.application_deadline).getTime()
+      const da = a.application_deadline
+        ? new Date(a.application_deadline).getTime()
         : Number.POSITIVE_INFINITY;
-      const db = b.metadata.application_deadline
-        ? new Date(b.metadata.application_deadline).getTime()
+      const db = b.application_deadline
+        ? new Date(b.application_deadline).getTime()
         : Number.POSITIVE_INFINITY;
       return da - db;
     }

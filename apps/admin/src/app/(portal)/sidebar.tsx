@@ -23,6 +23,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { useEffect, useMemo, useState } from "react";
 import { signOut } from "@/lib/actions/user";
 import type { UserRolesForClient } from "@/lib/authorization";
 import { hasNavAccess, type NavKey } from "@/lib/roles";
@@ -316,27 +317,11 @@ export function Sidebar({ user, roles }: SidebarProps) {
       </nav>
 
       <div className="mt-4 space-y-3">
-        <div
-          className="rounded-xl border p-3"
-          style={{
-            background: "rgba(255,255,255,0.48)",
-            borderColor: STUDIO.rule2,
-          }}
-        >
-          <p
-            className="flex items-center gap-1.5 font-medium text-[10px] uppercase tracking-[0.08em]"
-            style={{ color: STUDIO.ink3 }}
-          >
-            <Sparkles size={12} />
-            {tSidebar("studioHint")}
-          </p>
-          <p
-            className="mt-1 text-lg leading-5"
-            style={{ color: STUDIO.ink, fontFamily: SERIF_STACK }}
-          >
-            {tSidebar("hintText")}
-          </p>
-        </div>
+        <StudioHintCarousel
+          hints={tSidebar.raw("hints") as string[]}
+          label={tSidebar("studioHint")}
+          roles={roles}
+        />
 
         <div className="flex items-center gap-2 px-1 py-1">
           {user.avatar ? (
@@ -375,6 +360,124 @@ export function Sidebar({ user, roles }: SidebarProps) {
         </div>
       </div>
     </aside>
+  );
+}
+
+// Parallel to the `hints` array in the i18n messages — one entry per hint.
+// An empty object means the hint is visible to everyone.
+const HINT_ACCESS: Array<{ navKey?: NavKey; globalAdminOnly?: true }> = [
+  {}, // ⌘K — everyone
+  { navKey: "portal.jobs" }, // AI Norwegian draft
+  { navKey: "portal.jobs" }, // AI screening
+  { navKey: "portal.jobs" }, // Scheduled publish
+  { navKey: "portal.jobs" }, // Pipeline drag & bulk-move
+  { navKey: "portal.events" }, // Event waitlists
+  { navKey: "portal.drafts" }, // Drafts section
+  { globalAdminOnly: true }, // Campus switcher
+  { navKey: "portal.activity" }, // Activity log
+  { navKey: "portal.pages" }, // Block page editor
+  { navKey: "portal.jobs" }, // Compare tray
+  { navKey: "portal.jobs" }, // Bulk email
+];
+
+const HINT_INTERVAL_MS = 8000;
+const HINT_FADE_MS = 350;
+
+function StudioHintCarousel({
+  hints,
+  label,
+  roles,
+}: {
+  hints: string[];
+  label: string;
+  roles: UserRolesForClient;
+}) {
+  const allowedHints = useMemo(
+    () =>
+      hints.filter((_, i) => {
+        const access = HINT_ACCESS[i];
+        if (!access) {
+          return true;
+        }
+        if (access.globalAdminOnly) {
+          return roles.isGlobalAdmin;
+        }
+        if (access.navKey) {
+          return hasNavAccess(
+            access.navKey,
+            roles.roles,
+            roles.hasDepartmentMembership
+          );
+        }
+        return true;
+      }),
+    [hints, roles]
+  );
+
+  const [initialIdx] = useState(() =>
+    Math.floor(Math.random() * Math.max(allowedHints.length, 1))
+  );
+  const [idx, setIdx] = useState(initialIdx);
+  const [visible, setVisible] = useState(true);
+
+  useEffect(() => {
+    if (allowedHints.length <= 1) {
+      return;
+    }
+    const id = setInterval(() => {
+      setVisible(false);
+      setTimeout(() => {
+        setIdx((prev) => (prev + 1) % allowedHints.length);
+        setVisible(true);
+      }, HINT_FADE_MS);
+    }, HINT_INTERVAL_MS);
+    return () => clearInterval(id);
+  }, [allowedHints.length]);
+
+  return (
+    <div
+      className="rounded-xl border p-3"
+      style={{
+        background: "rgba(255,255,255,0.48)",
+        borderColor: STUDIO.rule2,
+      }}
+    >
+      <p
+        className="flex items-center gap-1.5 font-medium text-[10px] uppercase tracking-[0.08em]"
+        style={{ color: STUDIO.ink3 }}
+      >
+        <Sparkles size={12} />
+        {label}
+      </p>
+      <p
+        className="mt-1 text-[15px] leading-5"
+        style={{
+          color: STUDIO.ink,
+          fontFamily: SERIF_STACK,
+          opacity: visible ? 1 : 0,
+          transition: `opacity ${HINT_FADE_MS}ms ease`,
+        }}
+      >
+        {allowedHints[idx]}
+      </p>
+      {allowedHints.length > 1 && (
+        <div className="mt-2.5 flex gap-1">
+          {allowedHints.map((_, i) => (
+            <span
+              key={i}
+              style={{
+                background: i === idx ? STUDIO.ink3 : STUDIO.rule2,
+                borderRadius: "9999px",
+                display: "inline-block",
+                height: 4,
+                transition: "background 0.3s ease",
+                width: i === idx ? 12 : 4,
+              }}
+            />
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 

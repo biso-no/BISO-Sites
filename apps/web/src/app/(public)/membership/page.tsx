@@ -8,6 +8,7 @@ export const metadata: Metadata = {
   description:
     "Become a BISO member and unlock benefits, discounts, and access to events across BI Norwegian Business School.",
 };
+
 import { getGlobalMembershipBenefits } from "@/app/actions/membership";
 import { getUserPreferences } from "@/lib/auth-utils";
 import type { CampusData } from "@/lib/types/campus-data";

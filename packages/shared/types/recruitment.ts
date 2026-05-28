@@ -164,7 +164,6 @@ export const recruitmentVacancyMetadataSchema = z.object({
   paid: z.boolean().optional().default(false),
   short_description: nullableTrimmedString(280),
   location: nullableTrimmedString(200),
-  application_deadline: nullableDateString,
   contact_name: nullableTrimmedString(200),
   contact_email: z.preprocess((value) => {
     if (typeof value !== "string") {
@@ -190,11 +189,8 @@ export const recruitmentVacancyMetadataSchema = z.object({
   scheduled_publish_at: nullableDateString,
   auto_screen: z.boolean().optional().default(true),
 });
-// No catchall/passthrough: Zod strips unknown keys (titles, descriptions, slug,
-// status, rubric, …) so they never bloat the metadata column. Vacancy content
-// lives in translation rows; only true metadata belongs here. Keeping these out
-// prevents the 2000-char metadata column from overflowing and silently dropping
-// later fields such as application_deadline.
+// No catchall/passthrough: Zod strips unknown keys so they never bloat the
+// metadata column. application_deadline is stored as a direct Jobs column.
 
 export type RecruitmentVacancyMetadata = z.infer<
   typeof recruitmentVacancyMetadataSchema
@@ -421,6 +417,7 @@ export interface RecruitmentVacancy {
   $createdAt: string;
   $id: string;
   $updatedAt: string;
+  application_deadline: string | null;
   auto_screen: boolean;
   campus: RecruitmentCampusRef | null;
   campus_id: string;
@@ -586,11 +583,11 @@ export function serializeRecruitmentVacancyMetadata(
 }
 
 export function getRecruitmentVacancyCloseDate(
-  metadata: RecruitmentVacancyMetadata,
+  applicationDeadline: string | null | undefined,
   now: Date = new Date()
 ): Date {
-  if (metadata.application_deadline) {
-    const deadline = new Date(metadata.application_deadline);
+  if (applicationDeadline) {
+    const deadline = new Date(applicationDeadline);
     if (!Number.isNaN(deadline.getTime())) {
       return deadline;
     }
@@ -600,10 +597,10 @@ export function getRecruitmentVacancyCloseDate(
 }
 
 export function computeRecruitmentRetentionUntil(
-  metadata: RecruitmentVacancyMetadata,
+  applicationDeadline: string | null | undefined,
   now: Date = new Date()
 ): string {
-  const closeDate = getRecruitmentVacancyCloseDate(metadata, now);
+  const closeDate = getRecruitmentVacancyCloseDate(applicationDeadline, now);
   const retentionUntil = new Date(closeDate);
   retentionUntil.setUTCDate(
     retentionUntil.getUTCDate() + RECRUITMENT_RETENTION_DAYS
@@ -614,18 +611,18 @@ export function computeRecruitmentRetentionUntil(
 
 export function isRecruitmentVacancyOpen(
   status: JobsStatus,
-  metadata: RecruitmentVacancyMetadata,
+  applicationDeadline: string | null | undefined,
   now: Date = new Date()
 ): boolean {
   if (status !== JobsStatus.PUBLISHED) {
     return false;
   }
 
-  if (!metadata.application_deadline) {
+  if (!applicationDeadline) {
     return true;
   }
 
-  const deadline = new Date(metadata.application_deadline);
+  const deadline = new Date(applicationDeadline);
   if (Number.isNaN(deadline.getTime())) {
     return true;
   }

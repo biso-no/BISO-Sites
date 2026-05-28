@@ -1,3 +1,4 @@
+import { createSessionClient } from "@repo/api/server";
 import type { Orders } from "@repo/api/types/appwrite";
 import { ImageWithFallback } from "@repo/ui/components/image";
 import { Badge } from "@repo/ui/components/ui/badge";
@@ -14,7 +15,6 @@ import {
   Receipt,
   XCircle,
 } from "lucide-react";
-import { createSessionClient } from "@repo/api/server";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { getOrder, verifyOrder } from "@/app/actions/orders";
@@ -234,7 +234,7 @@ async function OrderDetails({
   if (order.userId !== "guest") {
     const { account } = await createSessionClient();
     const caller = await account.get().catch(() => null);
-    if (!caller || !order.userId || order.userId !== caller.$id) {
+    if (!(caller && order.userId) || order.userId !== caller.$id) {
       notFound();
     }
   }

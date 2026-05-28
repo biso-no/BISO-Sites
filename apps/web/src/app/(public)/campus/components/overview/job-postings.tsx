@@ -29,22 +29,6 @@ export function JobPostings({ jobs, locale }: JobPostingsProps) {
     }
   };
 
-  const getMetadata = (
-    metadata: Jobs["metadata"] | RecruitmentVacancy["metadata"]
-  ) => {
-    if (!metadata) {
-      return {};
-    }
-    if (typeof metadata === "object") {
-      return metadata as Record<string, unknown>;
-    }
-    try {
-      return JSON.parse(metadata) as Record<string, unknown>;
-    } catch {
-      return {};
-    }
-  };
-
   return (
     <section>
       <div className="mb-6 flex items-center justify-between">
@@ -61,11 +45,7 @@ export function JobPostings({ jobs, locale }: JobPostingsProps) {
 
       <div className="space-y-4">
         {jobs.slice(0, 3).map((job, index) => {
-          const metadata = getMetadata(job.metadata);
-          const applicationDeadline =
-            typeof metadata.application_deadline === "string"
-              ? metadata.application_deadline
-              : null;
+          const applicationDeadline = job.application_deadline ?? null;
           const translation = Array.isArray(job.translations)
             ? job.translations.find(
                 (item): item is ContentTranslations =>

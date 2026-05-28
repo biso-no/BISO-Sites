@@ -28,8 +28,8 @@ export default function PortalError({
         This view couldn&apos;t load.
       </h1>
       <p className="mt-3 max-w-md text-muted-foreground text-sm">
-        The page failed to render. Try again, or pick a different workspace
-        from the sidebar.
+        The page failed to render. Try again, or pick a different workspace from
+        the sidebar.
       </p>
       {error.digest ? (
         <p className="mt-4 font-mono text-muted-foreground text-xs">

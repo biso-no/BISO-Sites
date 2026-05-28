@@ -98,19 +98,20 @@ export function buildJobRowPermissions(
   job: { campus_id: string; department_id: string | null },
   audience: "public" | "members"
 ): string[] {
-  const ownerTeams: string[] = [];
   const campusName = lookups.campusNamesById.get(job.campus_id);
-  if (campusName) {
-    ownerTeams.push(`sg-app-campus-${campusName.toLowerCase()}`);
-  }
+  const campusTeam = campusName
+    ? `sg-app-campus-${campusName.toLowerCase().replace(/\s+/g, "")}`
+    : null;
+
   const deptName = job.department_id
     ? lookups.departmentNamesById.get(job.department_id)
     : null;
-  if (deptName) {
-    ownerTeams.push(`sg-app-dept-${deptName.toLowerCase()}`);
-  }
+  const deptTeam = deptName
+    ? `sg-app-dept-${deptName.toLowerCase().replace(/\s+/g, "")}`
+    : null;
 
-  const writeTeams = [...new Set([ADMIN_TEAM, HR_TEAM, ...ownerTeams])];
+  // Campus teams must never receive write access — only department + admin + hr.
+  const writeTeams = [...new Set([ADMIN_TEAM, HR_TEAM, ...(deptTeam ? [deptTeam] : [])])];
 
   const readPerms =
     audience === "public"
@@ -119,7 +120,8 @@ export function buildJobRowPermissions(
           Permission.read(Role.team(MEMBERS_TEAM)),
           Permission.read(Role.team(ADMIN_TEAM)),
           Permission.read(Role.team(HR_TEAM)),
-          ...ownerTeams.map((t) => Permission.read(Role.team(t))),
+          ...(campusTeam ? [Permission.read(Role.team(campusTeam))] : []),
+          ...(deptTeam ? [Permission.read(Role.team(deptTeam))] : []),
         ];
 
   return [
