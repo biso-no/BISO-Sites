@@ -127,7 +127,8 @@ export async function syncM365Permissions(userId: string) {
     );
 
     if (!microsoftIdentity?.providerAccessToken) {
-      console.warn(`User ${userId} has no Microsoft token. Skipping sync.`);
+      // No cached Microsoft token; the user signed in via magic link without
+      // a fresh OAuth flow. Skip silently — this is a normal path.
       return;
     }
 
@@ -154,8 +155,6 @@ export async function syncM365Permissions(userId: string) {
         syncTeamMembership(teams, azureGroup, ["member"], userId)
       )
     );
-
-    console.log(`Synced User ${userId}: ${teamsToSync.length} Teams`);
   } catch (error) {
     console.error("M365 Sync Failed:", error);
   }

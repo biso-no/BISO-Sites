@@ -21,38 +21,33 @@ export async function getLoggedInUser(): Promise<{
     const { account, db } = await createSessionClient();
 
     const user = await account.get();
-    console.log("user authenticated:", user.$id);
 
-    if (user.$id) {
-      // Check if this is an authenticated user (not anonymous)
-      const hasEmail = user.email && user.email.length > 0;
-      const hasRealName =
-        user.name && user.name.length > 0 && !user.name.startsWith("guest_");
-      const isEmailVerified = user.emailVerification;
-
-      const isAuthenticated = hasEmail || (hasRealName && isEmailVerified);
-
-      // Only return user data for authenticated users
-      if (!isAuthenticated) {
-        console.log("Anonymous user detected, not returning user data");
-        return null;
-      }
-
-      try {
-        // Try to get the user profile document
-        const profile = await db.getRow<Users>("app", "user", user.$id);
-        return { user, profile };
-      } catch (profileError) {
-        // If profile doesn't exist, return user but null profile
-        console.log("No profile found for user:", user.$id);
-        console.error("Profile error:", profileError);
-        return { user, profile: null };
-      }
-    } else {
+    if (!user.$id) {
       return null;
     }
-  } catch (error) {
-    console.error("Error getting logged in user!!", error);
+
+    // Check if this is an authenticated user (not anonymous)
+    const hasEmail = user.email && user.email.length > 0;
+    const hasRealName =
+      user.name && user.name.length > 0 && !user.name.startsWith("guest_");
+    const isEmailVerified = user.emailVerification;
+
+    const isAuthenticated = hasEmail || (hasRealName && isEmailVerified);
+
+    // Only return user data for authenticated users
+    if (!isAuthenticated) {
+      return null;
+    }
+
+    try {
+      // Try to get the user profile document
+      const profile = await db.getRow<Users>("app", "user", user.$id);
+      return { user, profile };
+    } catch {
+      // If profile doesn't exist, return user but null profile
+      return { user, profile: null };
+    }
+  } catch {
     return null;
   }
 }
@@ -145,26 +140,17 @@ export async function updateProfile(profile: Partial<Users>) {
     const { account, db } = await createSessionClient();
     const user = await account.get();
 
-    console.log("Updating profile for user:", user.$id);
-    console.log("Profile data being sent:", JSON.stringify(profile));
-
     try {
-      const existingProfile = await db.getRow("app", "user", user.$id);
-      console.log("Profile found, updating...", existingProfile.$id);
+      await db.getRow("app", "user", user.$id);
       if (profile.name) {
         await account.updateName(profile.name);
       }
       return await db.updateRow("app", "user", user.$id, profile);
-    } catch (profileError) {
-      console.log(
-        "Profile not found, creating new profile for user:",
-        user.$id
-      );
-      console.error("Profile lookup error details:", profileError);
+    } catch {
       return await db.createRow("app", "user", user.$id, profile);
     }
   } catch (error) {
-    console.error("Error in updateProfile:", error);
+    console.error("updateProfile failed");
     // Check if it's a specific Appwrite error we can handle
     if (typeof error === "object" && error !== null && "code" in error) {
       console.error(`Appwrite error code: ${error.code}`);
