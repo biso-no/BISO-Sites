@@ -1,6 +1,6 @@
 "use server";
 import { ID, Permission, Query } from "@repo/api";
-import { createAdminClient, createSessionClient } from "@repo/api/server";
+import { createSessionClient } from "@repo/api/server";
 import type {
   BenefitInteractions,
   BenefitReveals,
@@ -64,7 +64,9 @@ export async function getMemberPortalBenefits(
 ): Promise<CampusBenefits[]> {
   try {
     const campusIds = resolveBenefitCampusIds(campusId);
-    const { db } = await createAdminClient();
+    // Use session client so Appwrite row-level permissions gate which
+    // benefits the caller can see; published rows carry Permission.read("any").
+    const { db } = await createSessionClient();
     const response = await db.listRows<CampusBenefits>(
       "app",
       "campus_benefits",
@@ -91,7 +93,7 @@ export async function getFeaturedBenefits(
 ): Promise<CampusBenefits[]> {
   try {
     const campusIds = resolveBenefitCampusIds(campusId);
-    const { db } = await createAdminClient();
+    const { db } = await createSessionClient();
     const response = await db.listRows<CampusBenefits>(
       "app",
       "campus_benefits",
@@ -159,7 +161,25 @@ export async function getPublicProfile(
   userId: string
 ): Promise<PublicProfiles | null> {
   try {
-    const { db } = await createSessionClient();
+    const { account, db } = await createSessionClient();
+
+    // Require a real authenticated session before allowing arbitrary
+    // user-id lookups. Anonymous Appwrite sessions still have a $id but
+    // no email / verified name; we mirror the rule from auth-utils.
+    const caller = await account.get().catch(() => null);
+    if (!caller?.$id) {
+      return null;
+    }
+    const hasEmail = !!caller.email && caller.email.length > 0;
+    const hasVerifiedName =
+      !!caller.name &&
+      caller.name.length > 0 &&
+      !caller.name.startsWith("guest_") &&
+      caller.emailVerification;
+    if (!(hasEmail || hasVerifiedName)) {
+      return null;
+    }
+
     const response = await db.listRows<PublicProfiles>(
       "app",
       "public_profiles",
@@ -212,9 +232,9 @@ export async function revealBenefit(
       Query.limit(1),
     ]);
 
-    // Fetch the benefit (works because campus_benefits has read("any") on published)
-    const adminClient = await createAdminClient();
-    const benefit = await adminClient.db.getRow<CampusBenefits>(
+    // Published campus_benefits rows carry Permission.read("any"), so the
+    // session client suffices — no need to escalate to the admin client.
+    const benefit = await db.getRow<CampusBenefits>(
       "app",
       "campus_benefits",
       benefitId

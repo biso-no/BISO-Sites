@@ -1,7 +1,7 @@
 "use server";
 
 import { Query } from "@repo/api/client";
-import { createAdminClient, createSessionClient } from "@repo/api/server";
+import { createSessionClient } from "@repo/api/server";
 import type { Memberships, Users } from "@repo/api/types/appwrite";
 import { getCustomerCategories } from "@repo/connectors/24sevenoffice";
 import { cookies } from "next/headers";
@@ -47,12 +47,10 @@ export async function getMembershipStatus(): Promise<MembershipStatus> {
   // 1. Check for cached membership in cookie
   const cached = getCachedMembership(cookieStore);
   if (cached) {
-    console.log("[Membership] Using cached membership status");
     return cached;
   }
 
   // 2. No valid cache - fetch fresh data
-  console.log("[Membership] Cache miss - fetching from Finago");
   const freshStatus = await fetchMembershipFromFinago();
 
   // 3. Cache the result in a cookie
@@ -68,7 +66,6 @@ export async function getMembershipStatus(): Promise<MembershipStatus> {
 export async function refreshMembershipStatus(): Promise<MembershipStatus> {
   const cookieStore = await cookies();
 
-  console.log("[Membership] Force refreshing membership status");
   const freshStatus = await fetchMembershipFromFinago();
   cacheMembershipStatus(cookieStore, freshStatus);
 
@@ -82,7 +79,6 @@ export async function refreshMembershipStatus(): Promise<MembershipStatus> {
 async function _clearMembershipCache(): Promise<void> {
   const cookieStore = await cookies();
   cookieStore.delete(MEMBERSHIP_COOKIE_NAME);
-  console.log("[Membership] Cache cleared");
 }
 
 /**
@@ -101,7 +97,6 @@ function getCachedMembership(
 
     // Check if cache is still valid
     if (Date.now() > data.expiresAt) {
-      console.log("[Membership] Cache expired");
       return null;
     }
 
@@ -136,11 +131,7 @@ function cacheMembershipStatus(
     });
   } catch {
     // Cookie setting is not allowed in Server Component render context.
-    // This is expected when getMembershipStatus is called from a layout or page.
-    // The cache will be populated on next Server Action call.
-    console.log(
-      "[Membership] Cannot cache in render context - will cache on next action"
-    );
+    // The cache will be populated on the next Server Action call.
   }
 }
 
@@ -218,10 +209,6 @@ async function fetchMembershipFromFinago(): Promise<MembershipStatus> {
     let finagoCategoryIds: number[];
     try {
       finagoCategoryIds = await getCustomerCategories(numericId);
-      console.log(
-        `[Membership] Finago category IDs for ${numericId}:`,
-        finagoCategoryIds
-      );
     } catch (error) {
       console.error("[Membership] Failed to fetch from Finago:", error);
       return {
@@ -244,8 +231,10 @@ async function fetchMembershipFromFinago(): Promise<MembershipStatus> {
       };
     }
 
-    // 7. Query active memberships from database
-    const { db } = await createAdminClient();
+    // 7. Query active memberships from database. The memberships table is
+    // read("users") so the session client is sufficient and we don't need
+    // to escalate to the service-key client for this read.
+    const { db } = await createSessionClient();
     const membershipsResponse = await db.listRows<Memberships>(
       "app",
       "memberships",
@@ -264,10 +253,6 @@ async function fetchMembershipFromFinago(): Promise<MembershipStatus> {
     });
 
     const isMember = matchedMemberships.length > 0;
-
-    console.log(
-      `[Membership] User is ${isMember ? "a member" : "not a member"}`
-    );
 
     return {
       isMember,

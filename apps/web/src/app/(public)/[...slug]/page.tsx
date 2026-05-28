@@ -16,9 +16,7 @@ export default async function DynamicPage({ params }: Props) {
   }
 
   const slug = segments.join("/");
-  console.log(slug);
   const result = await getPage(slug, "no");
-  console.log("Result: ", result);
 
   if (!(result?.translation?.is_published && result.doc)) {
     notFound();
