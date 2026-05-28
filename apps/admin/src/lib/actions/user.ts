@@ -63,7 +63,7 @@ export async function getUserById(userId: string): Promise<Users | null> {
     const { db } = await createAdminClient();
     const user = await db.getRow<Users>("app", "user", userId);
     return user;
-  } catch (error) {
+  } catch {
     console.error("Failed to fetch user by id");
     return null;
   }

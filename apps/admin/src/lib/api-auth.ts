@@ -1,8 +1,14 @@
 import { NextResponse } from "next/server";
 import { getUserAuthContext, type UserAuthContext } from "./authorization";
 
-export type ApiAuthSuccess = { ctx: UserAuthContext; response?: never };
-export type ApiAuthFailure = { ctx?: never; response: NextResponse };
+export interface ApiAuthSuccess {
+  ctx: UserAuthContext;
+  response?: never;
+}
+export interface ApiAuthFailure {
+  ctx?: never;
+  response: NextResponse;
+}
 export type ApiAuthResult = ApiAuthSuccess | ApiAuthFailure;
 
 export async function requireApiAuth(): Promise<ApiAuthResult> {
