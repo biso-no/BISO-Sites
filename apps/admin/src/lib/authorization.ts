@@ -5,6 +5,7 @@ import { createAdminClient, createSessionClient } from "@repo/api/server";
 import type { Departments } from "@repo/api/types/appwrite";
 import { cookies } from "next/headers";
 import { notFound, redirect } from "next/navigation";
+import { cache } from "react";
 import { CAMPUS_ID_TO_NAME, CAMPUS_NAME_TO_ID } from "./campus-constants";
 
 const CAMPUS_CTX_COOKIE = "admin_campus_ctx";
@@ -173,56 +174,63 @@ async function resolveDepartmentIds(
  * - Ledelsen{City} + Campus-{City} → "campusadmin" role with managed campus
  *
  * Authorization is team-based only. Labels are stored but not used for role checks.
+ *
+ * Wrapped with React.cache so multiple calls within the same RSC render share
+ * a single Appwrite round-trip (the dashboard alone has 4+ consumers per
+ * render via the various server actions).
  */
-export async function getUserAuthContext(): Promise<UserAuthContext | null> {
-  try {
-    const { account, teams } = await createSessionClient();
-    const user = await account.get();
-    const teamMemberships = await teams.list();
+export const getUserAuthContext = cache(
+  async (): Promise<UserAuthContext | null> => {
+    try {
+      const { account, teams } = await createSessionClient();
+      const user = await account.get();
+      const teamMemberships = await teams.list();
 
-    const parsed = parseTeamMemberships(teamMemberships.teams);
-    const labels = user.labels || [];
-    const { roles, managedCampuses } = deriveRoles(parsed);
+      const parsed = parseTeamMemberships(teamMemberships.teams);
+      const labels = user.labels || [];
+      const { roles, managedCampuses } = deriveRoles(parsed);
 
-    const managedCampusIds = managedCampuses
-      .map((n) => CAMPUS_NAME_TO_ID[n])
-      .filter((id): id is string => Boolean(id));
+      const managedCampusIds = managedCampuses
+        .map((n) => CAMPUS_NAME_TO_ID[n])
+        .filter((id): id is string => Boolean(id));
 
-    const resolvedCampusIds = parsed.campusNames
-      .map((n) => CAMPUS_NAME_TO_ID[n])
-      .filter((id): id is string => Boolean(id));
+      const resolvedCampusIds = parsed.campusNames
+        .map((n) => CAMPUS_NAME_TO_ID[n])
+        .filter((id): id is string => Boolean(id));
 
-    const resolvedDepartmentIds = await resolveDepartmentIds(
-      parsed.departmentNames
-    );
+      const resolvedDepartmentIds = await resolveDepartmentIds(
+        parsed.departmentNames
+      );
 
-    const cookieStore = await cookies();
-    const campusCookieName = cookieStore.get(CAMPUS_CTX_COOKIE)?.value ?? null;
-    const activeCampusId = campusCookieName
-      ? CAMPUS_NAME_TO_ID[campusCookieName]
-      : undefined;
+      const cookieStore = await cookies();
+      const campusCookieName =
+        cookieStore.get(CAMPUS_CTX_COOKIE)?.value ?? null;
+      const activeCampusId = campusCookieName
+        ? CAMPUS_NAME_TO_ID[campusCookieName]
+        : undefined;
 
-    return {
-      activeCampusId,
-      campusNames: parsed.campusNames,
-      campusTeamIds: parsed.campusTeamIds,
-      departmentNames: parsed.departmentNames,
-      departmentTeamIds: parsed.departmentTeamIds,
-      email: user.email ?? null,
-      name: user.name ?? null,
-      labels,
-      managedCampusIds,
-      managedCampuses,
-      resolvedCampusIds,
-      resolvedDepartmentIds,
-      roles,
-      userId: user.$id,
-    };
-  } catch (error) {
-    console.error("Failed to get user auth context:", error);
-    return null;
+      return {
+        activeCampusId,
+        campusNames: parsed.campusNames,
+        campusTeamIds: parsed.campusTeamIds,
+        departmentNames: parsed.departmentNames,
+        departmentTeamIds: parsed.departmentTeamIds,
+        email: user.email ?? null,
+        name: user.name ?? null,
+        labels,
+        managedCampusIds,
+        managedCampuses,
+        resolvedCampusIds,
+        resolvedDepartmentIds,
+        roles,
+        userId: user.$id,
+      };
+    } catch (error) {
+      console.error("Failed to get user auth context:", error);
+      return null;
+    }
   }
-}
+);
 
 /**
  * Check if user has a specific role
