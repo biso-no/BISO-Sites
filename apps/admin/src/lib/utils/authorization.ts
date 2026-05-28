@@ -35,9 +35,11 @@ export function applyScopeQueries(ctx: UserAuthContext): string[] {
     return [Query.equal("campus_id", ctx.managedCampusIds)];
   }
 
-  // Regular department user: scope to their own department(s)
-  if (ctx.departmentNames.length > 0) {
-    return [Query.equal("department_id", ctx.departmentNames)];
+  // Regular department user: scope to their own department(s).
+  // department_id on content rows stores the Appwrite Departments $id,
+  // not the team-derived department name — use the resolved IDs.
+  if (ctx.resolvedDepartmentIds.length > 0) {
+    return [Query.equal("department_id", ctx.resolvedDepartmentIds)];
   }
 
   return [];
@@ -73,7 +75,7 @@ export function assertWriteAccess(
   if (campusId && !ctx.resolvedCampusIds.includes(campusId)) {
     throw new Error("Unauthorized: no access to this campus");
   }
-  if (departmentId && ctx.departmentNames.includes(departmentId)) {
+  if (departmentId && ctx.resolvedDepartmentIds.includes(departmentId)) {
     return;
   }
   throw new Error("Unauthorized: no write access to this department");

@@ -1,6 +1,8 @@
 "use server";
 
-import { createSessionClient } from "@repo/api/server";
+import { Query } from "@repo/api";
+import { createAdminClient, createSessionClient } from "@repo/api/server";
+import type { Departments } from "@repo/api/types/appwrite";
 import { cookies } from "next/headers";
 import { CAMPUS_ID_TO_NAME, CAMPUS_NAME_TO_ID } from "./campus-constants";
 
@@ -22,6 +24,7 @@ export interface UserAuthContext {
   managedCampusIds: string[]; // Numeric campus_id values for managedCampuses
   name: string | null;
   resolvedCampusIds: string[]; // Numeric campus_id values for ALL campuses user belongs to
+  resolvedDepartmentIds: string[]; // Appwrite Departments row $ids matching departmentNames
   roles: string[]; // Computed roles (e.g., "globaladmin", "campusadmin")
   userId: string;
 }
@@ -134,6 +137,33 @@ function deriveRoles(parsed: TeamParseResult): {
 }
 
 /**
+ * Resolve team-derived department names (e.g. "Operations Unit") to the
+ * Appwrite Departments row $ids stored on content rows' `department_id` column.
+ *
+ * Returns an empty array on lookup failure — callers must treat the absence of
+ * a resolved id the same as no department membership (no extra access granted).
+ */
+async function resolveDepartmentIds(
+  departmentNames: string[]
+): Promise<string[]> {
+  if (departmentNames.length === 0) {
+    return [];
+  }
+
+  try {
+    const { db } = await createAdminClient();
+    const result = await db.listRows<Departments>("app", "departments", [
+      Query.equal("Name", departmentNames),
+      Query.limit(departmentNames.length),
+    ]);
+    return result.rows.map((row) => row.$id);
+  } catch (error) {
+    console.error("Failed to resolve department IDs:", error);
+    return [];
+  }
+}
+
+/**
  * Get the current user's authorization context by fetching their team memberships.
  * Teams are created during M365 OAuth sync with Azure AD group GUIDs as IDs.
  *
@@ -161,6 +191,10 @@ export async function getUserAuthContext(): Promise<UserAuthContext | null> {
       .map((n) => CAMPUS_NAME_TO_ID[n])
       .filter((id): id is string => Boolean(id));
 
+    const resolvedDepartmentIds = await resolveDepartmentIds(
+      parsed.departmentNames
+    );
+
     const cookieStore = await cookies();
     const campusCookieName = cookieStore.get(CAMPUS_CTX_COOKIE)?.value ?? null;
     const activeCampusId = campusCookieName
@@ -179,6 +213,7 @@ export async function getUserAuthContext(): Promise<UserAuthContext | null> {
       managedCampusIds,
       managedCampuses,
       resolvedCampusIds,
+      resolvedDepartmentIds,
       roles,
       userId: user.$id,
     };
