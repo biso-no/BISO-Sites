@@ -1,6 +1,35 @@
-import { Permission, Role } from "@repo/api";
+import { type Models, Permission, Role } from "@repo/api";
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
+
+const GUEST_NAME_PREFIX = "guest_";
+
+/**
+ * Single definition of "authenticated" used across the admin app.
+ *
+ * Appwrite treats anonymous and authenticated users uniformly in the Account
+ * API — both have a $id. We treat the user as authenticated when they have
+ * an email, or a real (non-guest_) display name AND a verified email.
+ *
+ * Keep this in sync with the server-side gating in getUserAuthContext and
+ * the protected-route check in /(protected)/layout.tsx.
+ */
+export function isAuthenticatedAppwriteUser(
+  user: Pick<
+    Models.User<Models.Preferences>,
+    "$id" | "email" | "name" | "emailVerification"
+  >
+): boolean {
+  if (!user.$id) {
+    return false;
+  }
+  const hasEmail = !!user.email && user.email.length > 0;
+  const hasRealName =
+    !!user.name &&
+    user.name.length > 0 &&
+    !user.name.startsWith(GUEST_NAME_PREFIX);
+  return hasEmail || (hasRealName && user.emailVerification);
+}
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));

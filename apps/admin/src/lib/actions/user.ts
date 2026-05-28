@@ -5,6 +5,7 @@ import type { Users } from "@repo/api/types/appwrite";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { getUserAuthContext, isGlobalAdmin } from "@/lib/authorization";
+import { isAuthenticatedAppwriteUser } from "@/lib/utils";
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL;
 //
@@ -22,20 +23,8 @@ export async function getLoggedInUser(): Promise<{
 
     const user = await account.get();
 
-    if (!user.$id) {
-      return null;
-    }
-
-    // Check if this is an authenticated user (not anonymous)
-    const hasEmail = user.email && user.email.length > 0;
-    const hasRealName =
-      user.name && user.name.length > 0 && !user.name.startsWith("guest_");
-    const isEmailVerified = user.emailVerification;
-
-    const isAuthenticated = hasEmail || (hasRealName && isEmailVerified);
-
-    // Only return user data for authenticated users
-    if (!isAuthenticated) {
+    // Only return user data for authenticated (non-anonymous) users.
+    if (!isAuthenticatedAppwriteUser(user)) {
       return null;
     }
 

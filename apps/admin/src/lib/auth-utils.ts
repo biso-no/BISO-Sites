@@ -1,46 +1,11 @@
 "use server";
 import { createSessionClient } from "@repo/api/server";
 import { cookies } from "next/headers";
+import { isAuthenticatedAppwriteUser } from "./utils";
 
 /**
- * Check if the current session belongs to an authenticated user (not anonymous)
- */
-async function _isAuthenticatedUser(): Promise<boolean> {
-  try {
-    const { account } = await createSessionClient();
-    const user = await account.get();
-
-    // In Appwrite, anonymous users have no email and their name is typically empty or a generated ID
-    // We can check if the user has an email or if they have a proper name (not just an ID)
-    const hasEmail = !!user.email && user.email.length > 0;
-    const hasRealName =
-      !!user.name && user.name.length > 0 && !user.name.startsWith("guest_");
-
-    // Additional check: anonymous users typically don't have verified emails
-    const isEmailVerified = user.emailVerification;
-
-    return hasEmail || (hasRealName && isEmailVerified);
-  } catch (error) {
-    console.error("Error checking authentication status:", error);
-    return false;
-  }
-}
-
-/**
- * Check if there's any session (anonymous or authenticated)
- */
-async function _hasAnySession(): Promise<boolean> {
-  try {
-    const { account } = await createSessionClient();
-    const user = await account.get();
-    return !!user.$id;
-  } catch (_error) {
-    return false;
-  }
-}
-
-/**
- * Get user authentication status
+ * Get user authentication status. Used by /api/auth/check and the login page.
+ * Resolves to hasSession + isAuthenticated + isAnonymous flags, never throws.
  */
 export async function getAuthStatus(): Promise<{
   hasSession: boolean;
@@ -68,20 +33,14 @@ export async function getAuthStatus(): Promise<{
       };
     }
 
-    const hasEmail = !!user.email && user.email.length > 0;
-    const hasRealName =
-      !!user.name && user.name.length > 0 && !user.name.startsWith("guest_");
-    const isEmailVerified = user.emailVerification;
-
-    const isAuthenticated = hasEmail || (hasRealName && isEmailVerified);
+    const isAuthenticated = isAuthenticatedAppwriteUser(user);
 
     return {
       hasSession: true,
-      isAuthenticated: !!isAuthenticated,
+      isAuthenticated,
       isAnonymous: !isAuthenticated,
     };
-  } catch (error) {
-    console.error("Error getting auth status:", error);
+  } catch {
     return {
       hasSession: false,
       isAuthenticated: false,
