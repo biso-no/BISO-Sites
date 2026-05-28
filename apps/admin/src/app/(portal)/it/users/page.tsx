@@ -1,4 +1,5 @@
 import { getTranslations } from "next-intl/server";
+import { requireItPagePermission } from "@/lib/it-permissions";
 import { searchM365Users } from "../../_actions/it-users";
 import { PageHeader } from "../../_components/page-header";
 import { UsersListClient } from "./_components/users-list-client";
@@ -8,6 +9,7 @@ interface ItUsersPageProps {
 }
 
 export default async function ItUsersPage({ searchParams }: ItUsersPageProps) {
+  await requireItPagePermission("it.users.view");
   const t = await getTranslations("adminPortal.it.users");
   const { q } = await searchParams;
   const query = q?.trim() ?? "";

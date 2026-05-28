@@ -1,5 +1,6 @@
 import type { EventRecord } from "@repo/shared/types/events";
 import { getTranslations } from "next-intl/server";
+import { requireNavAccess } from "@/lib/authorization";
 import { listEvents } from "../_actions/events";
 import { EventStudioDashboard } from "./_components/event-studio-dashboard";
 
@@ -8,6 +9,7 @@ interface EventsPageProps {
 }
 
 export default async function EventsPage({ searchParams }: EventsPageProps) {
+  await requireNavAccess("portal.events");
   const t = await getTranslations("adminPortal.events");
   const tc = await getTranslations("adminPortal.common");
   const { page: pageParam } = await searchParams;

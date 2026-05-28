@@ -1,5 +1,6 @@
 import { Query } from "@repo/api";
 import { createAdminClient } from "@repo/api/server";
+import { requireApiAuth } from "@/lib/api-auth";
 
 function titleFromRefs(refs: unknown): string {
   if (!Array.isArray(refs) || refs.length === 0) {
@@ -22,6 +23,11 @@ function parseMeta(raw: unknown): Record<string, unknown> {
 }
 
 export async function GET(request: Request) {
+  const auth = await requireApiAuth();
+  if (auth.response) {
+    return auth.response;
+  }
+
   const { searchParams } = new URL(request.url);
   const dept = searchParams.get("dept");
 

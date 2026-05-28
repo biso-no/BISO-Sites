@@ -1,6 +1,7 @@
 import { openai } from "@ai-sdk/openai";
 import { generateObject } from "ai";
 import { z } from "zod";
+import { requireApiAuth } from "@/lib/api-auth";
 
 export const maxDuration = 120;
 
@@ -218,6 +219,11 @@ function applyTranslations(
 }
 
 export async function POST(req: Request) {
+  const auth = await requireApiAuth();
+  if (auth.response) {
+    return auth.response;
+  }
+
   const body: RequestBody = await req.json();
   const { pageData, sourceLocale, targetLocale } = body;
 

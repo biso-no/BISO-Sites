@@ -1,5 +1,6 @@
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
+import { requireNavAccess } from "@/lib/authorization";
 import { listSubmissions } from "../../_actions/submissions";
 import { PageHeader } from "../../_components/page-header";
 import { SubmissionsList } from "./_components/submissions-list";
@@ -13,6 +14,7 @@ export default async function SubmissionsTopicPage({
   params,
   searchParams,
 }: Props) {
+  await requireNavAccess("portal.submissions");
   const { topic } = await params;
   const { page: pageParam, status } = await searchParams;
   const page = Math.max(1, Number(pageParam) || 1);

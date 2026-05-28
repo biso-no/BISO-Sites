@@ -1,6 +1,12 @@
 import { NextResponse } from "next/server";
+import { requireApiAuth } from "@/lib/api-auth";
 
 export async function POST(request: Request) {
+  const auth = await requireApiAuth();
+  if (auth.response) {
+    return auth.response;
+  }
+
   try {
     const { descriptions, event } = await request.json();
 
@@ -12,8 +18,8 @@ export async function POST(request: Request) {
           "Content-Type": "application/json",
           // Add any required Appwrite authentication headers here
           "X-Appwrite-Project":
-            process.env.NEXT_PUBLIC_NEXT_PUBLIC_APPWRITE_PROJECT!,
-          "X-Appwrite-Key": process.env.APPWRITE_API_KEY!,
+            process.env.NEXT_PUBLIC_APPWRITE_PROJECT ?? "",
+          "X-Appwrite-Key": process.env.APPWRITE_API_KEY ?? "",
         },
         body: JSON.stringify({
           descriptions,

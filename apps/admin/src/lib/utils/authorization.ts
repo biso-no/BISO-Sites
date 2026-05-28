@@ -6,6 +6,13 @@ import { Query } from "@repo/api";
 import type { UserAuthContext } from "../authorization";
 
 /**
+ * Sentinel filter used when a non-admin user's scope cannot be determined.
+ * Matches no rows, so callers fail closed (empty list) instead of returning
+ * everything when the scope lookup is partial.
+ */
+const NO_MATCH_FILTER = Query.equal("$id", "__no_scope_resolved__");
+
+/**
  * Check if user is a global admin based on context (team membership only)
  */
 function isGlobalAdminContext(ctx: UserAuthContext): boolean {
@@ -19,6 +26,12 @@ function isGlobalAdminContext(ctx: UserAuthContext): boolean {
  * - Global admins: no filter (see everything)
  * - Campus admins: filter to their managed campuses by numeric campus_id
  * - Department users: filter to their department(s)
+ *
+ * Fails closed: if a non-admin user has team-derived department membership
+ * but no resolved Appwrite department IDs (lookup failure, renamed/missing
+ * department, name mismatch), returns a sentinel filter that matches no rows
+ * instead of an empty filter array. An empty array would be spread into the
+ * query and produce an unscoped list of every row across every campus.
  *
  * Note: campus_id on content documents stores numeric IDs ("1"=Oslo, etc.),
  * not campus names. managedCampusIds and resolvedCampusIds are already resolved.
@@ -35,12 +48,23 @@ export function applyScopeQueries(ctx: UserAuthContext): string[] {
     return [Query.equal("campus_id", ctx.managedCampusIds)];
   }
 
-  // Regular department user: scope to their own department(s)
-  if (ctx.departmentNames.length > 0) {
-    return [Query.equal("department_id", ctx.departmentNames)];
+  // Regular department user: scope to their own department(s).
+  // department_id on content rows stores the Appwrite Departments $id,
+  // not the team-derived department name — use the resolved IDs.
+  if (ctx.resolvedDepartmentIds.length > 0) {
+    return [Query.equal("department_id", ctx.resolvedDepartmentIds)];
   }
 
-  return [];
+  // Department membership exists at the team level but didn't resolve to
+  // any Appwrite Departments rows. Fail closed: return no rows rather than
+  // an unscoped list.
+  if (ctx.departmentTeamIds.length > 0) {
+    return [NO_MATCH_FILTER];
+  }
+
+  // No team-derived scope at all (e.g. a brand-new account with no group
+  // assignments). Same fail-closed behavior.
+  return [NO_MATCH_FILTER];
 }
 
 /**
@@ -73,7 +97,7 @@ export function assertWriteAccess(
   if (campusId && !ctx.resolvedCampusIds.includes(campusId)) {
     throw new Error("Unauthorized: no access to this campus");
   }
-  if (departmentId && ctx.departmentNames.includes(departmentId)) {
+  if (departmentId && ctx.resolvedDepartmentIds.includes(departmentId)) {
     return;
   }
   throw new Error("Unauthorized: no write access to this department");

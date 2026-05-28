@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { getUserAuthContext } from "@/lib/authorization";
+import { requireNavAccess } from "@/lib/authorization";
 import { listCampuses, listDepartmentsForCampus } from "../../_actions/lookups";
 import { getProduct } from "../../_actions/shop";
 import { ShopStudioEditor } from "./_components/shop-studio-editor";
@@ -9,26 +9,23 @@ interface Props {
 }
 
 export default async function ShopEditorPage({ params }: Props) {
+  const ctx = await requireNavAccess("portal.shop");
   const { id } = await params;
   const isNew = id === "new";
 
-  const [product, campuses, ctx] = await Promise.all([
+  const [product, campuses] = await Promise.all([
     isNew ? null : getProduct(id),
     listCampuses(),
-    getUserAuthContext(),
   ]);
 
   if (!(isNew || product)) {
     notFound();
   }
 
-  const isGlobalAdmin = ctx?.roles.includes("globaladmin") ?? false;
-  const isCampusAdmin = ctx?.roles.includes("campusadmin") ?? false;
+  const isGlobalAdmin = ctx.roles.includes("globaladmin");
+  const isCampusAdmin = ctx.roles.includes("campusadmin");
 
   const effectiveCampusId = (() => {
-    if (!ctx) {
-      return campuses[0]?.$id ?? "";
-    }
     if (isGlobalAdmin) {
       return ctx.activeCampusId ?? campuses[0]?.$id ?? "";
     }
@@ -43,8 +40,8 @@ export default async function ShopEditorPage({ params }: Props) {
     ? campuses
     : campuses.filter((c) => {
         const allowed = isCampusAdmin
-          ? (ctx?.managedCampusIds ?? [])
-          : (ctx?.resolvedCampusIds ?? []);
+          ? ctx.managedCampusIds
+          : ctx.resolvedCampusIds;
         return allowed.includes(c.$id);
       });
 
@@ -55,9 +52,9 @@ export default async function ShopEditorPage({ params }: Props) {
 
   const isDepartmentUser = !(isGlobalAdmin || isCampusAdmin);
   const allowedDepartmentIds =
-    isDepartmentUser && ctx?.departmentNames.length
+    isDepartmentUser && ctx.resolvedDepartmentIds.length
       ? departments
-          .filter((d) => ctx.departmentNames.includes(d.Name))
+          .filter((d) => ctx.resolvedDepartmentIds.includes(d.$id))
           .map((d) => d.$id)
       : undefined;
 

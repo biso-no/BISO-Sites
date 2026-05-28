@@ -2,7 +2,7 @@ import type { Models } from "@repo/api";
 import { createAdminClient } from "@repo/api/server";
 import { getDepartments } from "@repo/connectors/24sevenoffice";
 import { type NextRequest, NextResponse } from "next/server";
-import { getAuthStatus } from "@/lib/auth-utils";
+import { requireApiGlobalAdmin } from "@/lib/api-auth";
 
 function getCampusId(deptNum: number): string {
   if (deptNum >= 1 && deptNum <= 299) {
@@ -21,34 +21,40 @@ function getCampusId(deptNum: number): string {
 }
 
 export async function GET(_request: NextRequest): Promise<NextResponse> {
+  const auth = await requireApiGlobalAdmin();
+  if (auth.response) {
+    return auth.response;
+  }
+
   try {
-    const authStatus = await getAuthStatus();
-    if (!authStatus.isAuthenticated) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
     const { db } = await createAdminClient();
 
     const departments = await getDepartments();
 
-    const rows = departments.map((department) => {
-      const deptNum = Number(department.value);
-      const row = {
-        $id: department.value,
-        Id: department.value,
-        Name: department.name,
-        active: true,
-        campus_id: getCampusId(deptNum),
-        campus: getCampusId(deptNum),
-      };
-      return db.upsertRow<Models.DefaultRow>(
-        "app",
-        "departments",
-        row.$id,
-        row
-      );
-    });
+    const results = await Promise.allSettled(
+      departments.map((department) => {
+        const deptNum = Number(department.value);
+        const row = {
+          $id: department.value,
+          Id: department.value,
+          Name: department.name,
+          active: true,
+          campus_id: getCampusId(deptNum),
+          campus: getCampusId(deptNum),
+        };
+        return db.upsertRow<Models.DefaultRow>(
+          "app",
+          "departments",
+          row.$id,
+          row
+        );
+      })
+    );
 
-    return NextResponse.json({ success: true, sync: rows });
+    const succeeded = results.filter((r) => r.status === "fulfilled").length;
+    const failed = results.length - succeeded;
+
+    return NextResponse.json({ success: failed === 0, succeeded, failed });
   } catch (error) {
     console.error(error);
     return NextResponse.json(

@@ -4,7 +4,8 @@ import { createAdminClient, createSessionClient } from "@repo/api/server";
 import type { Users } from "@repo/api/types/appwrite";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { isGlobalAdmin } from "@/lib/authorization";
+import { getUserAuthContext, isGlobalAdmin } from "@/lib/authorization";
+import { isAuthenticatedAppwriteUser } from "@/lib/utils";
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL;
 //
@@ -21,38 +22,21 @@ export async function getLoggedInUser(): Promise<{
     const { account, db } = await createSessionClient();
 
     const user = await account.get();
-    console.log("user authenticated:", user.$id);
 
-    if (user.$id) {
-      // Check if this is an authenticated user (not anonymous)
-      const hasEmail = user.email && user.email.length > 0;
-      const hasRealName =
-        user.name && user.name.length > 0 && !user.name.startsWith("guest_");
-      const isEmailVerified = user.emailVerification;
-
-      const isAuthenticated = hasEmail || (hasRealName && isEmailVerified);
-
-      // Only return user data for authenticated users
-      if (!isAuthenticated) {
-        console.log("Anonymous user detected, not returning user data");
-        return null;
-      }
-
-      try {
-        // Try to get the user profile document
-        const profile = await db.getRow<Users>("app", "user", user.$id);
-        return { user, profile };
-      } catch (profileError) {
-        // If profile doesn't exist, return user but null profile
-        console.log("No profile found for user:", user.$id);
-        console.error("Profile error:", profileError);
-        return { user, profile: null };
-      }
-    } else {
+    // Only return user data for authenticated (non-anonymous) users.
+    if (!isAuthenticatedAppwriteUser(user)) {
       return null;
     }
-  } catch (error) {
-    console.error("Error getting logged in user!!", error);
+
+    try {
+      // Try to get the user profile document
+      const profile = await db.getRow<Users>("app", "user", user.$id);
+      return { user, profile };
+    } catch {
+      // If profile doesn't exist, return user but null profile
+      return { user, profile: null };
+    }
+  } catch {
     return null;
   }
 }
@@ -64,12 +48,23 @@ async function _getCurrentSession() {
 }
 
 export async function getUserById(userId: string): Promise<Users | null> {
+  const ctx = await getUserAuthContext();
+  if (!ctx) {
+    return null;
+  }
+  // Only admins may look up arbitrary user rows by id; everyone else may only
+  // resolve their own profile through this server action.
+  const isAdmin =
+    ctx.roles.includes("globaladmin") || ctx.roles.includes("campusadmin");
+  if (!(isAdmin || ctx.userId === userId)) {
+    return null;
+  }
   try {
     const { db } = await createAdminClient();
     const user = await db.getRow<Users>("app", "user", userId);
     return user;
-  } catch (error) {
-    console.error(error);
+  } catch {
+    console.error("Failed to fetch user by id");
     return null;
   }
 }
@@ -134,26 +129,17 @@ export async function updateProfile(profile: Partial<Users>) {
     const { account, db } = await createSessionClient();
     const user = await account.get();
 
-    console.log("Updating profile for user:", user.$id);
-    console.log("Profile data being sent:", JSON.stringify(profile));
-
     try {
-      const existingProfile = await db.getRow("app", "user", user.$id);
-      console.log("Profile found, updating...", existingProfile.$id);
+      await db.getRow("app", "user", user.$id);
       if (profile.name) {
         await account.updateName(profile.name);
       }
       return await db.updateRow("app", "user", user.$id, profile);
-    } catch (profileError) {
-      console.log(
-        "Profile not found, creating new profile for user:",
-        user.$id
-      );
-      console.error("Profile lookup error details:", profileError);
+    } catch {
       return await db.createRow("app", "user", user.$id, profile);
     }
   } catch (error) {
-    console.error("Error in updateProfile:", error);
+    console.error("updateProfile failed");
     // Check if it's a specific Appwrite error we can handle
     if (typeof error === "object" && error !== null && "code" in error) {
       console.error(`Appwrite error code: ${error.code}`);
@@ -231,7 +217,7 @@ export async function signOut(): Promise<void> {
   redirect("/auth/login");
 }
 
-export async function deleteUserData() {
+export async function deleteUserData(): Promise<boolean> {
   const { account } = await createSessionClient();
   const { users, db } = await createAdminClient();
   const user = await account.get();
@@ -245,11 +231,9 @@ export async function deleteUserData() {
   }
 
   const deletedUserDoc = await db.deleteRow("app", "user", user.$id);
-  if (deletedUserDoc) {
-    const deletedUser = await users.delete(user.$id);
-    if (deletedUser) {
-      return true;
-    }
+  if (!deletedUserDoc) {
     return false;
   }
+  const deletedUser = await users.delete(user.$id);
+  return Boolean(deletedUser);
 }

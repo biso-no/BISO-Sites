@@ -178,6 +178,14 @@ export async function createNotification(data: {
   link?: string;
   isActive?: boolean;
 }): Promise<{ success: boolean; notificationId?: string; error?: string }> {
+  const ctx = await getUserAuthContext();
+  if (!ctx) {
+    return { success: false, error: "Unauthorized" };
+  }
+  if (!ctx.roles.includes("globaladmin")) {
+    return { success: false, error: "Forbidden" };
+  }
+
   try {
     const { db } = await createSessionClient();
 

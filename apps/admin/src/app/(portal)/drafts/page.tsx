@@ -1,11 +1,13 @@
 import { FileStack } from "lucide-react";
 import { getTranslations } from "next-intl/server";
+import { requireNavAccess } from "@/lib/authorization";
 import { listDrafts } from "../_actions/drafts";
 import { EmptyState } from "../_components/empty-state";
 import { PageHeader } from "../_components/page-header";
 import { DraftsReviewClient } from "./_components/drafts-review-client";
 
 export default async function DraftsPage() {
+  await requireNavAccess("portal.drafts");
   const t = await getTranslations("adminPortal.drafts");
 
   const drafts = await listDrafts();

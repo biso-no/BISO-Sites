@@ -1,5 +1,8 @@
 import { getTranslations } from "next-intl/server";
-import { getCurrentItPermissions } from "@/lib/it-permissions";
+import {
+  getCurrentItPermissions,
+  requireItPagePermission,
+} from "@/lib/it-permissions";
 import {
   getAuthenticationMethodsSummary,
   getM365UserDetail,
@@ -18,6 +21,7 @@ interface M365UserDetailPageProps {
 export default async function M365UserDetailPage({
   params,
 }: M365UserDetailPageProps) {
+  await requireItPagePermission("it.users.view");
   const t = await getTranslations("adminPortal.it.users");
   const { userId } = await params;
   const decodedUserId = decodeURIComponent(userId);

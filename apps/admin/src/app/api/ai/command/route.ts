@@ -10,6 +10,7 @@
 
 import { openai } from "@ai-sdk/openai";
 import { convertToModelMessages, streamText, type UIMessage } from "ai";
+import { requireApiAuth } from "@/lib/api-auth";
 
 const BASE_SYSTEM = `You are an expert writing assistant embedded in a content management system.
 You help content editors write, improve, and refine content.
@@ -26,6 +27,11 @@ const CONTENT_TYPE_CONTEXT: Record<string, string> = {
 };
 
 export async function POST(req: Request) {
+  const auth = await requireApiAuth();
+  if (auth.response) {
+    return auth.response;
+  }
+
   try {
     const body = await req.json();
     const { messages, system, data } = body as {

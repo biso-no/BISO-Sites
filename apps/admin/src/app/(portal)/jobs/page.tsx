@@ -1,4 +1,5 @@
 import { getTranslations } from "next-intl/server";
+import { requireNavAccess } from "@/lib/authorization";
 import { listJobs } from "../_actions/jobs";
 import { JobStudioDashboard } from "./_components/job-studio-dashboard";
 
@@ -7,6 +8,7 @@ interface JobsPageProps {
 }
 
 export default async function JobsPage({ searchParams }: JobsPageProps) {
+  await requireNavAccess("portal.jobs");
   const t = await getTranslations("adminPortal.jobs");
   const tc = await getTranslations("adminPortal.common");
   const { page: pageParam } = await searchParams;

@@ -1,4 +1,5 @@
 import { FileText } from "lucide-react";
+import { requireNavAccess } from "@/lib/authorization";
 import { listJobApplications } from "../../_actions/jobs";
 import { EmptyState } from "../../_components/empty-state";
 import { PageHeader } from "../../_components/page-header";
@@ -15,6 +16,7 @@ interface JobApplicationsPageProps {
 export default async function JobApplicationsPage({
   searchParams,
 }: JobApplicationsPageProps) {
+  await requireNavAccess("portal.jobs");
   const params = await searchParams;
   const page = Math.max(1, Number(params.page) || 1);
   const applications = await listJobApplications({

@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { Login } from "@/components/login";
 import { getAuthStatus } from "@/lib/auth-utils";
+import { sanitizeRedirectTarget } from "@/lib/utils";
 
 export default async function Page({
   searchParams,
@@ -12,9 +13,7 @@ export default async function Page({
   const authStatus = await getAuthStatus();
   const { error, redirectTo } = await searchParams;
   if (authStatus.isAuthenticated) {
-    // User is already authenticated, redirect them
-    const target = redirectTo ? decodeURIComponent(redirectTo) : "/";
-    return redirect(target);
+    return redirect(sanitizeRedirectTarget(redirectTo));
   }
   return (
     <div className="relative flex min-h-screen items-center justify-center bg-primary-100 px-4 py-12">

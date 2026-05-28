@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
-import { getUserAuthContext } from "@/lib/authorization";
+import { requireNavAccess } from "@/lib/authorization";
 import { listCampuses } from "../../_actions/jobs";
 import { getNewsArticle } from "../../_actions/news";
 import { NewsEditorClient } from "./_components/news-editor-client";
@@ -10,27 +10,24 @@ interface Props {
 }
 
 export default async function NewsEditorPage({ params }: Props) {
+  const ctx = await requireNavAccess("portal.news");
   const { id } = await params;
   const t = await getTranslations("adminPortal.news");
 
   const isNew = id === "new";
-  const [article, campuses, ctx] = await Promise.all([
+  const [article, campuses] = await Promise.all([
     isNew ? null : getNewsArticle(id),
     listCampuses(),
-    getUserAuthContext(),
   ]);
 
   if (!(isNew || article)) {
     notFound();
   }
 
-  const isGlobalAdmin = ctx?.roles.includes("globaladmin") ?? false;
-  const isCampusAdmin = ctx?.roles.includes("campusadmin") ?? false;
+  const isGlobalAdmin = ctx.roles.includes("globaladmin");
+  const isCampusAdmin = ctx.roles.includes("campusadmin");
 
   const effectiveCampusId = (() => {
-    if (!ctx) {
-      return campuses[0]?.$id ?? "";
-    }
     if (isGlobalAdmin) {
       return ctx.activeCampusId ?? campuses[0]?.$id ?? "";
     }
@@ -45,8 +42,8 @@ export default async function NewsEditorPage({ params }: Props) {
     ? campuses
     : campuses.filter((c) => {
         const allowed = isCampusAdmin
-          ? (ctx?.managedCampusIds ?? [])
-          : (ctx?.resolvedCampusIds ?? []);
+          ? ctx.managedCampusIds
+          : ctx.resolvedCampusIds;
         return allowed.includes(c.$id);
       });
 

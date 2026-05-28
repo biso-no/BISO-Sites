@@ -1,5 +1,6 @@
 import { openai } from "@ai-sdk/openai";
 import { getSystemPrompt } from "@repo/ai/prompts";
+import { requireApiAuth } from "@/lib/api-auth";
 import {
   CAPABILITY_REGISTRY,
   getCapabilityFromPath,
@@ -119,6 +120,11 @@ function buildEntityContextSection(entityContext: EntityContext): string {
 }
 
 export async function POST(req: Request) {
+  const auth = await requireApiAuth();
+  if (auth.response) {
+    return auth.response;
+  }
+
   const {
     messages,
     capability,

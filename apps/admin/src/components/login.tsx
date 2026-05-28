@@ -45,11 +45,12 @@ export function Login() {
 
     setIsLoading(true);
     try {
-      await signInWithMagicLink(email);
-      setMessage({
-        type: "success",
-        text: t("success.linkSent"),
-      });
+      const sent = await signInWithMagicLink(email);
+      if (sent) {
+        setMessage({ type: "success", text: t("success.linkSent") });
+      } else {
+        setMessage({ type: "error", text: t("errors.sendFailed") });
+      }
     } catch (_error) {
       setMessage({
         type: "error",
@@ -61,7 +62,8 @@ export function Login() {
   };
 
   const handleAdminLogin = async () => {
-    await signInWithAzure();
+    const redirectTo = searchParams.get("redirectTo") ?? undefined;
+    await signInWithAzure(redirectTo);
   };
 
   return (

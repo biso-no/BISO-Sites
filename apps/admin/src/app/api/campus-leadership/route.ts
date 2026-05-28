@@ -1,5 +1,6 @@
 import { createSessionClient } from "@repo/api/server";
 import { NextResponse } from "next/server";
+import { requireApiAuth } from "@/lib/api-auth";
 
 const FUNCTION_ID =
   process.env.APPWRITE_CAMPUS_BOARD_FUNCTION_ID || "get_board_members";
@@ -12,6 +13,11 @@ interface ExecutionLike {
 }
 
 export async function POST(request: Request) {
+  const auth = await requireApiAuth();
+  if (auth.response) {
+    return auth.response;
+  }
+
   let payload: Record<string, unknown>;
 
   try {

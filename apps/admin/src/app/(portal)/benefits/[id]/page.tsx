@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
+import { requireNavAccess } from "@/lib/authorization";
 import { getBenefit } from "../../_actions/benefits";
 import { listCampuses } from "../../_actions/jobs";
 import { BenefitEditorClient } from "./_components/benefit-editor-client";
@@ -9,6 +10,7 @@ interface Props {
 }
 
 export default async function BenefitEditorPage({ params }: Props) {
+  await requireNavAccess("portal.benefits");
   const { id } = await params;
   const t = await getTranslations("adminPortal.benefits");
 

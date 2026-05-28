@@ -1,7 +1,11 @@
 "use server";
 
-import { createSessionClient } from "@repo/api/server";
+import { Query } from "@repo/api";
+import { createAdminClient, createSessionClient } from "@repo/api/server";
+import type { Departments } from "@repo/api/types/appwrite";
 import { cookies } from "next/headers";
+import { notFound, redirect } from "next/navigation";
+import { cache } from "react";
 import { CAMPUS_ID_TO_NAME, CAMPUS_NAME_TO_ID } from "./campus-constants";
 
 const CAMPUS_CTX_COOKIE = "admin_campus_ctx";
@@ -22,6 +26,7 @@ export interface UserAuthContext {
   managedCampusIds: string[]; // Numeric campus_id values for managedCampuses
   name: string | null;
   resolvedCampusIds: string[]; // Numeric campus_id values for ALL campuses user belongs to
+  resolvedDepartmentIds: string[]; // Appwrite Departments row $ids matching departmentNames
   roles: string[]; // Computed roles (e.g., "globaladmin", "campusadmin")
   userId: string;
 }
@@ -134,6 +139,33 @@ function deriveRoles(parsed: TeamParseResult): {
 }
 
 /**
+ * Resolve team-derived department names (e.g. "Operations Unit") to the
+ * Appwrite Departments row $ids stored on content rows' `department_id` column.
+ *
+ * Returns an empty array on lookup failure — callers must treat the absence of
+ * a resolved id the same as no department membership (no extra access granted).
+ */
+async function resolveDepartmentIds(
+  departmentNames: string[]
+): Promise<string[]> {
+  if (departmentNames.length === 0) {
+    return [];
+  }
+
+  try {
+    const { db } = await createAdminClient();
+    const result = await db.listRows<Departments>("app", "departments", [
+      Query.equal("Name", departmentNames),
+      Query.limit(departmentNames.length),
+    ]);
+    return result.rows.map((row) => row.$id);
+  } catch (error) {
+    console.error("Failed to resolve department IDs:", error);
+    return [];
+  }
+}
+
+/**
  * Get the current user's authorization context by fetching their team memberships.
  * Teams are created during M365 OAuth sync with Azure AD group GUIDs as IDs.
  *
@@ -142,51 +174,63 @@ function deriveRoles(parsed: TeamParseResult): {
  * - Ledelsen{City} + Campus-{City} → "campusadmin" role with managed campus
  *
  * Authorization is team-based only. Labels are stored but not used for role checks.
+ *
+ * Wrapped with React.cache so multiple calls within the same RSC render share
+ * a single Appwrite round-trip (the dashboard alone has 4+ consumers per
+ * render via the various server actions).
  */
-export async function getUserAuthContext(): Promise<UserAuthContext | null> {
-  try {
-    const { account, teams } = await createSessionClient();
-    const user = await account.get();
-    const teamMemberships = await teams.list();
+export const getUserAuthContext = cache(
+  async (): Promise<UserAuthContext | null> => {
+    try {
+      const { account, teams } = await createSessionClient();
+      const user = await account.get();
+      const teamMemberships = await teams.list();
 
-    const parsed = parseTeamMemberships(teamMemberships.teams);
-    const labels = user.labels || [];
-    const { roles, managedCampuses } = deriveRoles(parsed);
+      const parsed = parseTeamMemberships(teamMemberships.teams);
+      const labels = user.labels || [];
+      const { roles, managedCampuses } = deriveRoles(parsed);
 
-    const managedCampusIds = managedCampuses
-      .map((n) => CAMPUS_NAME_TO_ID[n])
-      .filter((id): id is string => Boolean(id));
+      const managedCampusIds = managedCampuses
+        .map((n) => CAMPUS_NAME_TO_ID[n])
+        .filter((id): id is string => Boolean(id));
 
-    const resolvedCampusIds = parsed.campusNames
-      .map((n) => CAMPUS_NAME_TO_ID[n])
-      .filter((id): id is string => Boolean(id));
+      const resolvedCampusIds = parsed.campusNames
+        .map((n) => CAMPUS_NAME_TO_ID[n])
+        .filter((id): id is string => Boolean(id));
 
-    const cookieStore = await cookies();
-    const campusCookieName = cookieStore.get(CAMPUS_CTX_COOKIE)?.value ?? null;
-    const activeCampusId = campusCookieName
-      ? CAMPUS_NAME_TO_ID[campusCookieName]
-      : undefined;
+      const resolvedDepartmentIds = await resolveDepartmentIds(
+        parsed.departmentNames
+      );
 
-    return {
-      activeCampusId,
-      campusNames: parsed.campusNames,
-      campusTeamIds: parsed.campusTeamIds,
-      departmentNames: parsed.departmentNames,
-      departmentTeamIds: parsed.departmentTeamIds,
-      email: user.email ?? null,
-      name: user.name ?? null,
-      labels,
-      managedCampusIds,
-      managedCampuses,
-      resolvedCampusIds,
-      roles,
-      userId: user.$id,
-    };
-  } catch (error) {
-    console.error("Failed to get user auth context:", error);
-    return null;
+      const cookieStore = await cookies();
+      const campusCookieName =
+        cookieStore.get(CAMPUS_CTX_COOKIE)?.value ?? null;
+      const activeCampusId = campusCookieName
+        ? CAMPUS_NAME_TO_ID[campusCookieName]
+        : undefined;
+
+      return {
+        activeCampusId,
+        campusNames: parsed.campusNames,
+        campusTeamIds: parsed.campusTeamIds,
+        departmentNames: parsed.departmentNames,
+        departmentTeamIds: parsed.departmentTeamIds,
+        email: user.email ?? null,
+        name: user.name ?? null,
+        labels,
+        managedCampusIds,
+        managedCampuses,
+        resolvedCampusIds,
+        resolvedDepartmentIds,
+        roles,
+        userId: user.$id,
+      };
+    } catch (error) {
+      console.error("Failed to get user auth context:", error);
+      return null;
+    }
   }
-}
+);
 
 /**
  * Check if user has a specific role
@@ -435,4 +479,26 @@ export async function checkNavAccess(navKey: NavKey): Promise<boolean> {
   }
 
   return hasNavAccess(navKey, ctx.roles, ctx.departmentTeamIds.length > 0);
+}
+
+/**
+ * Page-level guard: redirects unauthenticated users to login and
+ * notFound()s authenticated users who lack access to the given nav key.
+ * Returns the auth context so callers can reuse it without a second
+ * getUserAuthContext() round-trip.
+ */
+export async function requireNavAccess(
+  navKey: NavKey
+): Promise<UserAuthContext> {
+  const ctx = await getUserAuthContext();
+  if (!ctx) {
+    redirect("/auth/login");
+  }
+  if (ctx.roles.includes(ROLES.GLOBAL_ADMIN)) {
+    return ctx;
+  }
+  if (!hasNavAccess(navKey, ctx.roles, ctx.departmentTeamIds.length > 0)) {
+    notFound();
+  }
+  return ctx;
 }
