@@ -59,6 +59,25 @@ export async function GET(request: Request) {
       (status === "authorized" || status === "paid") &&
       !updatedOrder?.finago_transaction_id
     ) {
+      // Best-effort idempotency: stamp the row with a sentinel before
+      // posting so a concurrent request (e.g. duplicate return-URL hit or
+      // browser navigation race) sees finago_transaction_id as truthy and
+      // skips. Appwrite has no atomic check-and-set, so this still has a
+      // small race window between the existence check above and this
+      // claim write — but it shrinks the duplicate-post window from
+      // seconds (Vipps + Finago round-trips) to a single Appwrite write.
+      const claim = `PENDING_${Date.now()}_${crypto.randomUUID().slice(0, 8)}`;
+      try {
+        await db.updateRow("app", "orders", orderId, {
+          finago_transaction_id: claim,
+        });
+      } catch (err) {
+        console.error(
+          `[Finago] Failed to claim Finago post slot for order ${orderId}:`,
+          err
+        );
+      }
+
       try {
         const items = parseOrderItems(updatedOrder?.items_json ?? null);
         const enrichedItems = await Promise.all(
@@ -103,10 +122,16 @@ export async function GET(request: Request) {
         await db.updateRow("app", "orders", orderId, {
           finago_transaction_id: transactionId,
         });
-        console.log(
-          `[Finago] Posted transaction ${transactionId} for order ${orderId}`
-        );
       } catch (err) {
+        // Clear the sentinel so a future retry can take another swing,
+        // otherwise the order would be stuck in PENDING_ forever.
+        await db
+          .updateRow("app", "orders", orderId, {
+            finago_transaction_id: null,
+          })
+          .catch(() => {
+            // Already in trouble — swallow the rollback failure.
+          });
         console.error(
           `[Finago] Failed to post transaction for order ${orderId}:`,
           err

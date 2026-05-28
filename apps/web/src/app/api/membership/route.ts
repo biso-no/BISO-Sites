@@ -21,7 +21,7 @@ export async function GET(request: Request) {
   } catch (error) {
     console.error("[Membership API] Error:", error);
     return NextResponse.json(
-      { isMember: false, reason: "error", error: String(error) },
+      { isMember: false, reason: "error" },
       { status: 500 }
     );
   }

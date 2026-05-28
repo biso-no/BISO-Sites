@@ -74,19 +74,54 @@ export async function removeIdentity(identityId: string) {
   }
 }
 
+// Fields users may edit themselves via updateProfile. Everything else on
+// the Users row (roles, isActive, campus_id, department_ids,
+// membership_ids, student_id, email) is managed elsewhere — by the
+// Microsoft / 24SO sync, by dedicated server actions, or by the admin
+// CMS — so we don't accept caller-supplied writes to those columns.
+const PROFILE_WRITABLE_FIELDS = [
+  "name",
+  "phone",
+  "address",
+  "city",
+  "zip",
+  "bank_account",
+  "swift",
+  "avatar",
+  "bio",
+  "is_public",
+] as const satisfies readonly (keyof Users)[];
+
+type WritableProfileField = (typeof PROFILE_WRITABLE_FIELDS)[number];
+
+function pickWritableProfileFields(
+  input: Partial<Users>
+): Partial<Pick<Users, WritableProfileField>> {
+  const result: Partial<Pick<Users, WritableProfileField>> = {};
+  for (const key of PROFILE_WRITABLE_FIELDS) {
+    if (key in input) {
+      // The conditional cast keeps the narrow per-key type from Users.
+      result[key] = input[key] as never;
+    }
+  }
+  return result;
+}
+
 export async function updateProfile(profile: Partial<Users>) {
   try {
     const { account, db } = await createSessionClient();
     const user = await account.get();
 
+    const writable = pickWritableProfileFields(profile);
+
     try {
       await db.getRow("app", "user", user.$id);
-      if (profile.name) {
-        await account.updateName(profile.name);
+      if (typeof writable.name === "string" && writable.name.length > 0) {
+        await account.updateName(writable.name);
       }
-      return await db.updateRow("app", "user", user.$id, profile);
+      return await db.updateRow("app", "user", user.$id, writable);
     } catch {
-      return await db.createRow("app", "user", user.$id, profile);
+      return await db.createRow("app", "user", user.$id, writable);
     }
   } catch (error) {
     console.error("Error in updateProfile:", error);

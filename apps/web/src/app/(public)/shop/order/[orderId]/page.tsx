@@ -14,6 +14,7 @@ import {
   Receipt,
   XCircle,
 } from "lucide-react";
+import { createSessionClient } from "@repo/api/server";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { getOrder, verifyOrder } from "@/app/actions/orders";
@@ -215,6 +216,17 @@ async function OrderDetails({
     : await getOrder(orderId);
 
   if (!order) {
+    notFound();
+  }
+
+  // Defense-in-depth: orders carry per-user read permissions so the session
+  // client should already gate this fetch, but if a single order is ever
+  // created without that grant the page would otherwise leak buyer PII
+  // (name, email, phone, payment intent id) to any logged-in user who
+  // guesses the orderId. Verify ownership explicitly.
+  const { account } = await createSessionClient();
+  const caller = await account.get().catch(() => null);
+  if (!caller || !order.userId || order.userId !== caller.$id) {
     notFound();
   }
 
