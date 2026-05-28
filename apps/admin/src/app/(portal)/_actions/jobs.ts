@@ -435,17 +435,12 @@ export async function updateJob(
       translationPerms,
       vacancy.metadata
     );
-    console.log("[updateJob] payload", JSON.stringify(payload, null, 2));
-    const upsertResult = await adminDb.upsertRow(
+    await adminDb.upsertRow(
       "app",
       "jobs",
       id,
       payload,
       jobPerms
-    );
-    console.log(
-      "[updateJob] upsertResult",
-      JSON.stringify(upsertResult, null, 2)
     );
 
     await logAuditEvent(ctx, "recruitment.vacancy.update", {
