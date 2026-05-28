@@ -1,6 +1,7 @@
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { buildSystemPrompt, pageEditorTools } from "@repo/editor/ai";
 import { convertToModelMessages, stepCountIs, streamText } from "ai";
+import { requireApiAuth } from "@/lib/api-auth";
 
 export const maxDuration = 60;
 
@@ -9,6 +10,11 @@ const anthropic = createAnthropic({
 });
 
 export async function POST(request: Request) {
+  const auth = await requireApiAuth();
+  if (auth.response) {
+    return auth.response;
+  }
+
   const body = await request.json();
   const { messages, pageContext } = body as {
     messages: unknown[];

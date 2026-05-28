@@ -11,6 +11,7 @@
 
 import { openai } from "@ai-sdk/openai";
 import { streamText } from "ai";
+import { requireApiAuth } from "@/lib/api-auth";
 
 const SYSTEM_PROMPT = `You are an advanced AI writing assistant, similar to GitHub Copilot but for general prose.
 Your task is to predict and generate the next part of the text based on the given context.
@@ -26,6 +27,11 @@ Rules:
 - If you cannot generate a meaningful continuation, respond with exactly: 0`;
 
 export async function POST(req: Request) {
+  const auth = await requireApiAuth();
+  if (auth.response) {
+    return auth.response;
+  }
+
   try {
     const body = await req.json();
     const { prompt, system } = body as { prompt: string; system?: string };
