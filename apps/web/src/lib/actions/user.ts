@@ -3,6 +3,7 @@ import type { Models } from "@repo/api";
 import { createAdminClient, createSessionClient } from "@repo/api/server";
 import type { Users } from "@repo/api/types/appwrite";
 import { cookies } from "next/headers";
+import { isAuthenticatedAccount } from "@/lib/auth-utils";
 
 const _BASE_URL = process.env.NEXT_PUBLIC_BASE_URL;
 
@@ -20,30 +21,16 @@ export async function getLoggedInUser(): Promise<{
 
     const user = await account.get();
 
-    if (user.$id) {
-      // Check if this is an authenticated user (not anonymous)
-      const hasEmail = user.email && user.email.length > 0;
-      const hasRealName =
-        user.name && user.name.length > 0 && !user.name.startsWith("guest_");
-      const isEmailVerified = user.emailVerification;
-
-      const isAuthenticated = hasEmail || (hasRealName && isEmailVerified);
-
-      // Only return user data for authenticated users
-      if (!isAuthenticated) {
-        return null;
-      }
-
-      try {
-        // Try to get the user profile document
-        const profile = await db.getRow<Users>("app", "user", user.$id);
-        return { user, profile };
-      } catch {
-        // If profile doesn't exist, return user but null profile
-        return { user, profile: null };
-      }
-    } else {
+    if (!isAuthenticatedAccount(user)) {
       return null;
+    }
+
+    try {
+      const profile = await db.getRow<Users>("app", "user", user.$id);
+      return { user, profile };
+    } catch {
+      // Profile row doesn't exist yet — return the account anyway.
+      return { user, profile: null };
     }
   } catch (error) {
     console.error("Error getting logged in user!!", error);

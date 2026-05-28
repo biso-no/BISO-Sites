@@ -5,6 +5,7 @@ import { createSessionClient } from "@repo/api/server";
 import type { Memberships, Users } from "@repo/api/types/appwrite";
 import { getCustomerCategories } from "@repo/connectors/24sevenoffice";
 import { cookies } from "next/headers";
+import { isAuthenticatedAccount } from "@/lib/auth-utils";
 
 // Cookie configuration
 const MEMBERSHIP_COOKIE_NAME = "biso_membership";
@@ -161,15 +162,7 @@ async function fetchMembershipFromFinago(): Promise<MembershipStatus> {
       const { account, db: sessionDb } = await createSessionClient();
       const currentUser = await account.get();
 
-      // Check if this is a real authenticated user
-      const hasEmail = currentUser.email && currentUser.email.length > 0;
-      const hasRealName =
-        currentUser.name &&
-        currentUser.name.length > 0 &&
-        !currentUser.name.startsWith("guest_");
-      const isEmailVerified = currentUser.emailVerification;
-
-      if (!(hasEmail || (hasRealName && isEmailVerified))) {
+      if (!isAuthenticatedAccount(currentUser)) {
         return notAuthenticated;
       }
 

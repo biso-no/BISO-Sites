@@ -22,10 +22,16 @@ export async function GET(request: NextRequest) {
       ...(isProduction && { domain: ".biso.no" }),
     });
 
-    return NextResponse.redirect(new URL(redirectPath, request.url));
+    // The response sets a session cookie unique to this caller; it must
+    // never be cached or two visitors could share a session.
+    const response = NextResponse.redirect(new URL(redirectPath, request.url));
+    response.headers.set("Cache-Control", "no-store");
+    return response;
   } catch (error) {
     console.error("Error creating anonymous session:", error);
-    return NextResponse.redirect(new URL(redirectPath, request.url));
+    const response = NextResponse.redirect(new URL(redirectPath, request.url));
+    response.headers.set("Cache-Control", "no-store");
+    return response;
   }
 }
 

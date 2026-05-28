@@ -39,17 +39,20 @@ export async function GET(request: Request) {
   try {
     const deletedCount = await cleanupExpiredReservations();
 
-    return NextResponse.json({
-      success: true,
-      message: `Cleaned up ${deletedCount} expired reservations`,
-      deletedCount,
-      timestamp: new Date().toISOString(),
-    });
+    return NextResponse.json(
+      {
+        success: true,
+        message: `Cleaned up ${deletedCount} expired reservations`,
+        deletedCount,
+        timestamp: new Date().toISOString(),
+      },
+      { headers: { "Cache-Control": "no-store" } }
+    );
   } catch (error) {
     console.error("Error in cleanup-reservations cron:", error);
     return NextResponse.json(
       { success: false, error: "Failed to cleanup reservations" },
-      { status: 500 }
+      { status: 500, headers: { "Cache-Control": "no-store" } }
     );
   }
 }

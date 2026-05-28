@@ -13,6 +13,7 @@ import {
   CampusBenefitsStatus,
 } from "@repo/api/types/appwrite";
 import { resolveBenefitCampusIds } from "@repo/shared/utils/benefit-scope";
+import { isAuthenticatedAccount } from "@/lib/auth-utils";
 import { checkMembership } from "@/lib/profile";
 
 async function createOrUpdatePublicProfile(
@@ -164,19 +165,9 @@ export async function getPublicProfile(
     const { account, db } = await createSessionClient();
 
     // Require a real authenticated session before allowing arbitrary
-    // user-id lookups. Anonymous Appwrite sessions still have a $id but
-    // no email / verified name; we mirror the rule from auth-utils.
+    // user-id lookups so anonymous callers can't iterate user IDs.
     const caller = await account.get().catch(() => null);
-    if (!caller?.$id) {
-      return null;
-    }
-    const hasEmail = !!caller.email && caller.email.length > 0;
-    const hasVerifiedName =
-      !!caller.name &&
-      caller.name.length > 0 &&
-      !caller.name.startsWith("guest_") &&
-      caller.emailVerification;
-    if (!(hasEmail || hasVerifiedName)) {
+    if (!isAuthenticatedAccount(caller)) {
       return null;
     }
 
