@@ -358,7 +358,13 @@ export async function createJob(values: RecruitmentVacancyUpsertInput) {
       validated.data,
       translationPerms
     );
-    const job = await adminDb.upsertRow("app", "jobs", jobId, payload, jobPerms);
+    const job = await adminDb.upsertRow(
+      "app",
+      "jobs",
+      jobId,
+      payload,
+      jobPerms
+    );
 
     await logAuditEvent(ctx, "recruitment.vacancy.create", {
       payload: {
@@ -430,8 +436,17 @@ export async function updateJob(
       vacancy.metadata
     );
     console.log("[updateJob] payload", JSON.stringify(payload, null, 2));
-    const upsertResult = await adminDb.upsertRow("app", "jobs", id, payload, jobPerms);
-    console.log("[updateJob] upsertResult", JSON.stringify(upsertResult, null, 2));
+    const upsertResult = await adminDb.upsertRow(
+      "app",
+      "jobs",
+      id,
+      payload,
+      jobPerms
+    );
+    console.log(
+      "[updateJob] upsertResult",
+      JSON.stringify(upsertResult, null, 2)
+    );
 
     await logAuditEvent(ctx, "recruitment.vacancy.update", {
       payload: {

@@ -111,7 +111,9 @@ export function buildJobRowPermissions(
     : null;
 
   // Campus teams must never receive write access — only department + admin + hr.
-  const writeTeams = [...new Set([ADMIN_TEAM, HR_TEAM, ...(deptTeam ? [deptTeam] : [])])];
+  const writeTeams = [
+    ...new Set([ADMIN_TEAM, HR_TEAM, ...(deptTeam ? [deptTeam] : [])]),
+  ];
 
   const readPerms =
     audience === "public"
