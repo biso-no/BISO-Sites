@@ -80,7 +80,14 @@ export function UploadStep({ onNext, onBack }: UploadStepProps) {
           throw new Error("Failed to upload file");
         }
 
-        const fileUrl = `${process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT}/storage/buckets/expenses/files/${uploadResult.file.$id}/view?project=${process.env.NEXT_PUBLIC_APPWRITE_PROJECT}`;
+        // The .env.example files use NEXT_PUBLIC_APPWRITE_PROJECT, but the
+        // operations docs still document NEXT_PUBLIC_APPWRITE_PROJECT_ID.
+        // Support either to avoid breaking deployments that followed the
+        // docs.
+        const project =
+          process.env.NEXT_PUBLIC_APPWRITE_PROJECT ||
+          process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID;
+        const fileUrl = `${process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT}/storage/buckets/expenses/files/${uploadResult.file.$id}/view?project=${project}`;
 
         // Process with OCR
         const ocrResult = await processReceipt(uploadResult.file.$id, fileUrl);

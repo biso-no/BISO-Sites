@@ -267,7 +267,12 @@ type InitialExpenseDraft = Pick<
 
 function buildStorageViewUrl(fileId: string): string {
   const endpoint = process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT;
-  const project = process.env.NEXT_PUBLIC_APPWRITE_PROJECT;
+  // The .env.example files use NEXT_PUBLIC_APPWRITE_PROJECT, but the
+  // operations docs still document NEXT_PUBLIC_APPWRITE_PROJECT_ID.
+  // Support either to avoid breaking deployments that followed the docs.
+  const project =
+    process.env.NEXT_PUBLIC_APPWRITE_PROJECT ||
+    process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID;
 
   if (!(endpoint && project)) {
     return "";
