@@ -1,10 +1,9 @@
 import { redirect } from "next/navigation";
 import { type NextRequest, NextResponse } from "next/server";
 
-const NEXT_PUBLIC_APPWRITE_ENDPOINT =
-  process.env.NEXT_PUBLIC_NEXT_PUBLIC_APPWRITE_ENDPOINT;
-const PROJECT_ID = "biso";
-const API_KEY = process.env.NEXT_PUBLIC_APPWRITE_API_KEY;
+const APPWRITE_ENDPOINT = process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT;
+const PROJECT_ID = process.env.NEXT_PUBLIC_APPWRITE_PROJECT ?? "biso";
+const APPWRITE_API_KEY = process.env.APPWRITE_API_KEY;
 
 // Cookie name mapping
 const COOKIE_NAME_MAP: Record<string, string> = {
@@ -51,25 +50,25 @@ export async function GET(request: NextRequest) {
   const membershipId = request.nextUrl.searchParams.get("membershipId");
   const teamId = request.nextUrl.searchParams.get("teamId");
 
-  const origin = "https://app.biso.no";
+  const origin = request.nextUrl.origin;
 
   if (!(userId && secret && membershipId && teamId)) {
     return redirect("/auth/login?error=invalid_parameters");
   }
-  if (!(NEXT_PUBLIC_APPWRITE_ENDPOINT && API_KEY)) {
+  if (!(APPWRITE_ENDPOINT && APPWRITE_API_KEY)) {
     console.error("Appwrite invite configuration is missing");
     return redirect("/auth/login?error=server_configuration");
   }
 
   try {
     const response = await fetch(
-      `${NEXT_PUBLIC_APPWRITE_ENDPOINT}/teams/${teamId}/memberships/${membershipId}/status`,
+      `${APPWRITE_ENDPOINT}/teams/${teamId}/memberships/${membershipId}/status`,
       {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
           "X-Appwrite-Project": PROJECT_ID,
-          "X-Appwrite-Key": API_KEY,
+          "X-Appwrite-Key": APPWRITE_API_KEY,
         },
         body: JSON.stringify({
           userId,
