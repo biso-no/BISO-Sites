@@ -36,18 +36,16 @@ const baseConfig: NextConfig = {
         port: "",
         pathname: "/**",
       },
-      {
-        protocol: "https",
-        hostname: "via.placeholder.com",
-        port: "",
-        pathname: "/**",
-      },
     ],
   },
 
   experimental: {
     serverActions: {
-      bodySizeLimit: "10mb",
+      // 4 MB covers the largest legitimate page editor payload. Image
+      // uploads have their own 10 MB cap enforced in uploadMediaFile and
+      // /api/upload; leaving the global ceiling lower limits abuse via
+      // other server actions.
+      bodySizeLimit: "4mb",
     },
     authInterrupts: true,
   },
