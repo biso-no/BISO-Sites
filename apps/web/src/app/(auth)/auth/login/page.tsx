@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { Login } from "@/components/login";
 import { getAuthStatus } from "@/lib/auth-utils";
+import { safeRedirectPath } from "@/lib/utils";
 
 export default async function Page({
   searchParams,
@@ -11,9 +12,7 @@ export default async function Page({
   const authStatus = await getAuthStatus();
   const { error, redirectTo } = await searchParams;
   if (authStatus.isAuthenticated) {
-    // User is already authenticated, redirect them
-    const target = redirectTo ? decodeURIComponent(redirectTo) : "/";
-    return redirect(target);
+    return redirect(safeRedirectPath(redirectTo));
   }
   return (
     <div className="relative flex min-h-screen items-center justify-center bg-background px-4 py-12">
