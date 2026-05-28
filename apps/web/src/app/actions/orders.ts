@@ -37,7 +37,7 @@ async function _getOrders({
       query.push(Query.equal("status", status));
     }
     query.push(Query.orderDesc("$createdAt"));
-    const orders = await db.listRows("app", "orders", query);
+    const orders = await db.listRows<Orders>("app", "orders", query);
     return orders.rows;
   } catch (error) {
     console.error("Error fetching orders:", error);

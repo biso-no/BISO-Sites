@@ -267,9 +267,7 @@ type InitialExpenseDraft = Pick<
 
 function buildStorageViewUrl(fileId: string): string {
   const endpoint = process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT;
-  const project =
-    process.env.NEXT_PUBLIC_APPWRITE_PROJECT ||
-    process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID;
+  const project = process.env.NEXT_PUBLIC_APPWRITE_PROJECT;
 
   if (!(endpoint && project)) {
     return "";

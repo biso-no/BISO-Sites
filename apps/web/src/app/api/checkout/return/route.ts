@@ -1,5 +1,15 @@
 import { createSessionClient } from "@repo/api/server";
+import type {
+  Orders as BaseOrders,
+  WebshopProducts,
+} from "@repo/api/types/appwrite";
 import { postShopTransaction } from "@repo/connectors/24sevenoffice";
+
+// finago_transaction_id lives on the Appwrite "orders" table but is not
+// in the generated types (the schema source-of-truth is the Appwrite CLI
+// config, which is regenerated separately). Extend the type locally
+// until the column is added to packages/api/types/appwrite.ts.
+type Orders = BaseOrders & { finago_transaction_id?: string | null };
 import { getVippsSession } from "@repo/payment/vipps";
 import { parseOrderItems } from "@repo/shared/utils/order-parsing";
 import { updateOrderStatus } from "@repo/shared/utils/vipps-order-ops";
@@ -27,7 +37,7 @@ export async function GET(request: Request) {
     console.log(`[Checkout Return] Verifying order status for: ${orderId}`);
 
     const { db } = await createSessionClient();
-    const order = await db.getRow("app", "orders", orderId);
+    const order = await db.getRow<Orders>("app", "orders", orderId);
 
     if (!order) {
       console.error(`[Checkout Return] Order not found: ${orderId}`);
@@ -50,7 +60,7 @@ export async function GET(request: Request) {
       }
     }
 
-    const updatedOrder = await db.getRow("app", "orders", orderId);
+    const updatedOrder = await db.getRow<Orders>("app", "orders", orderId);
     const status = updatedOrder?.status ?? order.status;
 
     console.log(`[Checkout Return] Order ${orderId} status: ${status}`);
@@ -86,7 +96,7 @@ export async function GET(request: Request) {
               return null;
             }
             const product = await db
-              .getRow(
+              .getRow<WebshopProducts & { finago_account_number?: number | null }>(
                 process.env.APPWRITE_DATABASE_ID!,
                 process.env.APPWRITE_WEBSHOP_PRODUCTS_COLLECTION_ID!,
                 item.product_id
@@ -95,9 +105,7 @@ export async function GET(request: Request) {
             return {
               unit_price: Number(item.unit_price ?? item.price ?? 0),
               quantity: Number(item.quantity ?? 0),
-              finago_account_number:
-                (product as { finago_account_number?: number | null } | null)
-                  ?.finago_account_number ?? null,
+              finago_account_number: product?.finago_account_number ?? null,
             };
           })
         );

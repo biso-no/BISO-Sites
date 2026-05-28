@@ -115,12 +115,15 @@ export async function updateProfile(profile: Partial<Users>) {
     const writable = pickWritableProfileFields(profile);
 
     try {
-      await db.getRow("app", "user", user.$id);
+      await db.getRow<Users>("app", "user", user.$id);
       if (typeof writable.name === "string" && writable.name.length > 0) {
         await account.updateName(writable.name);
       }
-      return await db.updateRow("app", "user", user.$id, writable);
+      return await db.updateRow<Users>("app", "user", user.$id, writable);
     } catch {
+      // createRow's typed signature wants the full row; we're seeding a
+      // partial profile that the user will fill in over time. Omit the
+      // generic so the Appwrite SDK accepts the partial payload.
       return await db.createRow("app", "user", user.$id, writable);
     }
   } catch (error) {

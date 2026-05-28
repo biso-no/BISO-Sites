@@ -80,7 +80,7 @@ export function UploadStep({ onNext, onBack }: UploadStepProps) {
           throw new Error("Failed to upload file");
         }
 
-        const fileUrl = `${process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT}/storage/buckets/expenses/files/${uploadResult.file.$id}/view?project=${process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID}`;
+        const fileUrl = `${process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT}/storage/buckets/expenses/files/${uploadResult.file.$id}/view?project=${process.env.NEXT_PUBLIC_APPWRITE_PROJECT}`;
 
         // Process with OCR
         const ocrResult = await processReceipt(uploadResult.file.$id, fileUrl);
