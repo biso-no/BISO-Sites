@@ -4,7 +4,7 @@ import { createAdminClient, createSessionClient } from "@repo/api/server";
 import type { Users } from "@repo/api/types/appwrite";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { isGlobalAdmin } from "@/lib/authorization";
+import { getUserAuthContext, isGlobalAdmin } from "@/lib/authorization";
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL;
 //
@@ -64,12 +64,23 @@ async function _getCurrentSession() {
 }
 
 export async function getUserById(userId: string): Promise<Users | null> {
+  const ctx = await getUserAuthContext();
+  if (!ctx) {
+    return null;
+  }
+  // Only admins may look up arbitrary user rows by id; everyone else may only
+  // resolve their own profile through this server action.
+  const isAdmin =
+    ctx.roles.includes("globaladmin") || ctx.roles.includes("campusadmin");
+  if (!(isAdmin || ctx.userId === userId)) {
+    return null;
+  }
   try {
     const { db } = await createAdminClient();
     const user = await db.getRow<Users>("app", "user", userId);
     return user;
   } catch (error) {
-    console.error(error);
+    console.error("Failed to fetch user by id");
     return null;
   }
 }
@@ -231,7 +242,7 @@ export async function signOut(): Promise<void> {
   redirect("/auth/login");
 }
 
-export async function deleteUserData() {
+export async function deleteUserData(): Promise<boolean> {
   const { account } = await createSessionClient();
   const { users, db } = await createAdminClient();
   const user = await account.get();
@@ -245,11 +256,9 @@ export async function deleteUserData() {
   }
 
   const deletedUserDoc = await db.deleteRow("app", "user", user.$id);
-  if (deletedUserDoc) {
-    const deletedUser = await users.delete(user.$id);
-    if (deletedUser) {
-      return true;
-    }
+  if (!deletedUserDoc) {
     return false;
   }
+  const deletedUser = await users.delete(user.$id);
+  return Boolean(deletedUser);
 }
