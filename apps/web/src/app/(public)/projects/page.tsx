@@ -1,5 +1,12 @@
 import type { Locale } from "@repo/i18n/config";
+import type { Metadata } from "next";
 import { Badge } from "@repo/ui/components/ui/badge";
+
+export const metadata: Metadata = {
+  title: "Projects | BISO",
+  description:
+    "Explore the projects and large events organised by BI Student Organisation across our campuses.",
+};
 import { Button } from "@repo/ui/components/ui/button";
 import {
   Card,

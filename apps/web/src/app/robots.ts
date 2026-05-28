@@ -7,7 +7,20 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: "*",
         allow: "/",
-        disallow: ["/api/checkout", "/api/health"],
+        // Block all API routes and authentication / member-only sections.
+        // The trailing wildcard is required — robots matches by prefix
+        // only when an explicit `*` is provided.
+        disallow: [
+          "/api/",
+          "/auth/",
+          "/applications",
+          "/fs",
+          "/profile",
+          "/shop/order/",
+          "/shop/checkout",
+          "/shop/cart",
+          "/recruitment/book/",
+        ],
       },
     ],
     sitemap: `${base}/sitemap.xml`,

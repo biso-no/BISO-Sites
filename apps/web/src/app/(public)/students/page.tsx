@@ -1,6 +1,13 @@
 import type { Locale } from "@repo/i18n/config";
 import type { RecruitmentVacancy } from "@repo/shared/types/recruitment";
+import type { Metadata } from "next";
 import { getCampusData } from "@/app/actions/campus";
+
+export const metadata: Metadata = {
+  title: "For Students | BISO",
+  description:
+    "Resources, events, and opportunities for students at BI Norwegian Business School.",
+};
 import { listEvents } from "@/app/actions/events";
 import { listJobs } from "@/app/actions/jobs";
 import { getLocale } from "@/app/actions/locale";

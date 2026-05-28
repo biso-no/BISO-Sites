@@ -1,9 +1,16 @@
+import type { Metadata } from "next";
 import { Suspense } from "react";
 import { getLocale } from "@/app/actions/locale";
 import { getDepartments } from "@/lib/actions/departments";
 import { DepartmentsCTA } from "./components/departments-cta";
 import { DepartmentsHero } from "./components/departments-hero";
 import { DepartmentsListClient } from "./components/departments-list-client";
+
+export const metadata: Metadata = {
+  title: "BISO Units & Departments | BI Student Organisation",
+  description:
+    "Explore the student-run units and departments that make up BISO across BI Norwegian Business School campuses.",
+};
 
 export const revalidate = 0;
 

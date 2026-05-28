@@ -1,10 +1,44 @@
 import type { ContentTranslations } from "@repo/api/types/appwrite";
 import { PlateContentRenderer } from "@repo/ui/components/plate-content-renderer";
+import type { Metadata } from "next";
 import Image from "next/image";
 import { notFound } from "next/navigation";
 import { getLocale } from "@/app/actions/locale";
 import { getNewsBySlug } from "@/app/actions/news";
 import { PublicPageHeader } from "@/components/public/public-page-header";
+
+function pickTranslation(item: Awaited<ReturnType<typeof getNewsBySlug>>) {
+  if (!item || !Array.isArray(item.translation_refs)) {
+    return null;
+  }
+  return (
+    item.translation_refs.find(
+      (entry): entry is ContentTranslations =>
+        typeof entry === "object" && entry !== null && "title" in entry
+    ) ?? null
+  );
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  try {
+    const locale = await getLocale();
+    const item = await getNewsBySlug(slug, locale);
+    const translation = pickTranslation(item);
+    const title = translation?.title ?? "News";
+    const description =
+      translation?.short_description ??
+      translation?.description?.slice(0, 160) ??
+      undefined;
+    return { title: `${title} | BISO`, description };
+  } catch {
+    return { title: "News | BISO" };
+  }
+}
 
 export default async function PublicNewsDetailBySlug({
   params,
