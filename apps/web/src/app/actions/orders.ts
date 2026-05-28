@@ -340,7 +340,11 @@ function pushCampusId(campusIds: Set<string>, campusId?: string | null) {
   }
 }
 
-async function buildOrderItems(items: CheckoutLineItemInput[], locale: Locale) {
+async function buildOrderItems(
+  items: CheckoutLineItemInput[],
+  locale: Locale,
+  userId: string
+) {
   const quantityByProduct = buildQuantityByProduct(items);
   const discountCache = new Map<
     string,
@@ -376,7 +380,6 @@ async function buildOrderItems(items: CheckoutLineItemInput[], locale: Locale) {
       input.slug
     );
 
-    const userId = "guest";
     await ensurePurchaseLimit(
       productId,
       userId,
@@ -530,6 +533,15 @@ export async function createCartCheckoutSession(
   try {
     const locale = await getLocale();
     const sanitizedItems = sanitizeCartItems(data.items);
+
+    // Resolve the buyer's identity from the Appwrite session. Anonymous
+    // sessions (no email, no real name) still have a $id we can use for
+    // per-user purchase-limit enforcement; if even that lookup fails we
+    // fall back to "guest" which disables max_per_user checks.
+    const { account } = await createSessionClient();
+    const user = await account.get().catch(() => null);
+    const userId = user?.$id ?? "guest";
+
     const {
       orderItems,
       subtotal,
@@ -537,14 +549,14 @@ export async function createCartCheckoutSession(
       membershipApplied,
       maxDiscountPercent,
       campusIds,
-    } = await buildOrderItems(sanitizedItems, locale);
+    } = await buildOrderItems(sanitizedItems, locale, userId);
 
     const discountTotal = Math.max(0, originalTotal - subtotal);
     const [firstName, ...lastNameParts] = data.name.trim().split(WHITESPACE_RE);
     const { checkoutUrl, orderId } = await createProviderCheckoutSession({
       provider: data.provider,
       payload: {
-        userId: "guest",
+        userId,
         items: orderItems.map((item) => ({
           productId: item.product_id,
           name: item.title || item.product_slug || item.product_id,
