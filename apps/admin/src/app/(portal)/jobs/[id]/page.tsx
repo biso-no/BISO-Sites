@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
-import { getUserAuthContext } from "@/lib/authorization";
+import { requireNavAccess } from "@/lib/authorization";
 import {
   getJob,
   listCampuses,
@@ -13,28 +13,25 @@ interface JobEditorPageProps {
 }
 
 export default async function JobEditorPage({ params }: JobEditorPageProps) {
+  const ctx = await requireNavAccess("portal.jobs");
   const { id } = await params;
   const t = await getTranslations("adminPortal.jobs");
 
   const isNew = id === "new";
 
-  const [job, campuses, ctx] = await Promise.all([
+  const [job, campuses] = await Promise.all([
     isNew ? null : getJob(id),
     listCampuses(),
-    getUserAuthContext(),
   ]);
 
   if (!(isNew || job)) {
     notFound();
   }
 
-  const isGlobalAdmin = ctx?.roles.includes("globaladmin") ?? false;
-  const isCampusAdmin = ctx?.roles.includes("campusadmin") ?? false;
+  const isGlobalAdmin = ctx.roles.includes("globaladmin");
+  const isCampusAdmin = ctx.roles.includes("campusadmin");
 
   const effectiveCampusId = (() => {
-    if (!ctx) {
-      return campuses[0]?.$id ?? "";
-    }
     if (isGlobalAdmin) {
       return ctx.activeCampusId ?? campuses[0]?.$id ?? "";
     }
@@ -49,8 +46,8 @@ export default async function JobEditorPage({ params }: JobEditorPageProps) {
     ? campuses
     : campuses.filter((c) => {
         const allowed = isCampusAdmin
-          ? (ctx?.managedCampusIds ?? [])
-          : (ctx?.resolvedCampusIds ?? []);
+          ? ctx.managedCampusIds
+          : ctx.resolvedCampusIds;
         return allowed.includes(c.$id);
       });
 
@@ -61,9 +58,9 @@ export default async function JobEditorPage({ params }: JobEditorPageProps) {
 
   const isDepartmentUser = !(isGlobalAdmin || isCampusAdmin);
   const allowedDepartmentIds =
-    isDepartmentUser && ctx?.departmentNames.length
+    isDepartmentUser && ctx.resolvedDepartmentIds.length
       ? departments
-          .filter((d) => ctx.departmentNames.includes(d.Name))
+          .filter((d) => ctx.resolvedDepartmentIds.includes(d.$id))
           .map((d) => d.$id)
       : undefined;
 

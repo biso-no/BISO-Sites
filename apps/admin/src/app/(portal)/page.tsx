@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
-import { getUserAuthContext } from "@/lib/authorization";
+import { requireNavAccess } from "@/lib/authorization";
 import { listActivityLog } from "./_actions/activity";
 import { getDashboardStats } from "./_actions/pages";
 import { ContentActivityChart } from "./_components/content-chart";
@@ -26,16 +26,14 @@ import {
 } from "./_components/studio";
 
 export default async function AdminPortalDashboard() {
+  await requireNavAccess("portal.dashboard");
   const t = await getTranslations("adminPortal.dashboard");
 
-  const [_ctx, stats, recentActivity, chartActivity] = await Promise.allSettled(
-    [
-      getUserAuthContext(),
-      getDashboardStats(),
-      listActivityLog({ limit: 5 }),
-      listActivityLog({ limit: 200 }),
-    ]
-  );
+  const [stats, recentActivity, chartActivity] = await Promise.allSettled([
+    getDashboardStats(),
+    listActivityLog({ limit: 5 }),
+    listActivityLog({ limit: 200 }),
+  ]);
 
   const statsData =
     stats.status === "fulfilled"

@@ -1,11 +1,13 @@
 import { Plus } from "lucide-react";
 import { getTranslations } from "next-intl/server";
+import { requireNavAccess } from "@/lib/authorization";
 import { listPages } from "../_actions/pages";
 import { PageHeader } from "../_components/page-header";
 import { StudioLinkButton } from "../_components/studio";
 import { PagesListClient } from "./_components/pages-list-client";
 
 export default async function PagesPage() {
+  await requireNavAccess("portal.pages");
   const t = await getTranslations("adminPortal.pages");
 
   const pages = await listPages();

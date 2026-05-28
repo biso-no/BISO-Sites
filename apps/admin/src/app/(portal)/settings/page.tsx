@@ -1,13 +1,15 @@
 import { getTranslations } from "next-intl/server";
-import { getUserAuthContext } from "@/lib/authorization";
+import { requireNavAccess } from "@/lib/authorization";
 import { PageHeader } from "../_components/page-header";
 import { SettingsClient } from "./_components/settings-client";
 
 export default async function SettingsPage() {
+  // portal.settings is restricted to globaladmin; the helper redirects/404s
+  // for anyone else, so reaching this line means the user IS a global admin.
+  await requireNavAccess("portal.settings");
   const t = await getTranslations("adminPortal.settings");
 
-  const ctx = await getUserAuthContext();
-  const isGlobalAdmin = ctx?.roles.includes("globaladmin") ?? false;
+  const isGlobalAdmin = true;
 
   return (
     <div className="pb-12">

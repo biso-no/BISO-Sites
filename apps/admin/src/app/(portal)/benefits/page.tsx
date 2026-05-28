@@ -2,6 +2,7 @@ import { ExternalLink, Gift, Plus } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
+import { requireNavAccess } from "@/lib/authorization";
 import { listBenefits } from "../_actions/benefits";
 import { EmptyState } from "../_components/empty-state";
 import { StatusBadge } from "../_components/status-badge";
@@ -13,6 +14,7 @@ import {
 } from "../_components/studio";
 
 export default async function BenefitsPage() {
+  await requireNavAccess("portal.benefits");
   const t = await getTranslations("adminPortal.benefits");
 
   const benefits = await listBenefits();

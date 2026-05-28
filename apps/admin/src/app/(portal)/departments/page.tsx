@@ -1,12 +1,14 @@
 import { Building2 } from "lucide-react";
 import Image from "next/image";
 import { getTranslations } from "next-intl/server";
+import { requireNavAccess } from "@/lib/authorization";
 import { listCampuses, listDepartments } from "../_actions/departments";
 import { EmptyState } from "../_components/empty-state";
 import { PageHeader } from "../_components/page-header";
 import { SERIF_STACK, STUDIO, StudioIconBox } from "../_components/studio";
 
 export default async function DepartmentsPage() {
+  await requireNavAccess("portal.departments");
   const t = await getTranslations("adminPortal.departments");
 
   const [departments, campuses] = await Promise.all([

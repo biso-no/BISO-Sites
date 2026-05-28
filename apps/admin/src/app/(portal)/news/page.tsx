@@ -1,5 +1,6 @@
 import { Plus } from "lucide-react";
 import { getTranslations } from "next-intl/server";
+import { requireNavAccess } from "@/lib/authorization";
 import { listNews } from "../_actions/news";
 import { PageHeader } from "../_components/page-header";
 import { StudioLinkButton } from "../_components/studio";
@@ -10,6 +11,7 @@ interface NewsPageProps {
 }
 
 export default async function NewsPage({ searchParams }: NewsPageProps) {
+  await requireNavAccess("portal.news");
   const t = await getTranslations("adminPortal.news");
   const tc = await getTranslations("adminPortal.common");
   const { page: pageParam } = await searchParams;

@@ -1,7 +1,7 @@
 import type { EventRecord } from "@repo/shared/types/events";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
-import { getUserAuthContext } from "@/lib/authorization";
+import { requireNavAccess } from "@/lib/authorization";
 import { getEvent, listDepartmentsForCampus } from "../../_actions/events";
 import { listCampuses } from "../../_actions/lookups";
 import { EventStudioEditor } from "./_components/event-studio-editor";
@@ -13,23 +13,23 @@ interface EventEditorPageProps {
 export default async function EventEditorPage({
   params,
 }: EventEditorPageProps) {
+  const ctx = await requireNavAccess("portal.events");
   const { id } = await params;
   const t = await getTranslations("adminPortal.events");
 
   const isNew = id === "new";
 
-  const [event, campuses, ctx] = await Promise.all([
+  const [event, campuses] = await Promise.all([
     isNew ? null : getEvent(id),
     listCampuses(),
-    getUserAuthContext(),
   ]);
 
   if (!(isNew || event)) {
     notFound();
   }
 
-  const isGlobalAdmin = ctx?.roles.includes("globaladmin") ?? false;
-  const isCampusAdmin = ctx?.roles.includes("campusadmin") ?? false;
+  const isGlobalAdmin = ctx.roles.includes("globaladmin");
+  const isCampusAdmin = ctx.roles.includes("campusadmin");
 
   const effectiveCampusId = (() => {
     if (!ctx) {

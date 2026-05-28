@@ -2,12 +2,14 @@ import { ArrowLeft, Users } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
+import { requireNavAccess } from "@/lib/authorization";
 import { listPartners } from "../../_actions/benefits";
 import { EmptyState } from "../../_components/empty-state";
 import { PageHeader } from "../../_components/page-header";
 import { SERIF_STACK, STUDIO, StudioIconBox } from "../../_components/studio";
 
 export default async function BenefitPartnersPage() {
+  await requireNavAccess("portal.benefitsPartners");
   const t = await getTranslations("adminPortal.benefits");
 
   const partners = await listPartners();

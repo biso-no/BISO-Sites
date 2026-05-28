@@ -4,6 +4,7 @@ import { Query } from "@repo/api";
 import { createAdminClient, createSessionClient } from "@repo/api/server";
 import type { Departments } from "@repo/api/types/appwrite";
 import { cookies } from "next/headers";
+import { notFound, redirect } from "next/navigation";
 import { CAMPUS_ID_TO_NAME, CAMPUS_NAME_TO_ID } from "./campus-constants";
 
 const CAMPUS_CTX_COOKIE = "admin_campus_ctx";
@@ -470,4 +471,26 @@ export async function checkNavAccess(navKey: NavKey): Promise<boolean> {
   }
 
   return hasNavAccess(navKey, ctx.roles, ctx.departmentTeamIds.length > 0);
+}
+
+/**
+ * Page-level guard: redirects unauthenticated users to login and
+ * notFound()s authenticated users who lack access to the given nav key.
+ * Returns the auth context so callers can reuse it without a second
+ * getUserAuthContext() round-trip.
+ */
+export async function requireNavAccess(
+  navKey: NavKey
+): Promise<UserAuthContext> {
+  const ctx = await getUserAuthContext();
+  if (!ctx) {
+    redirect("/auth/login");
+  }
+  if (ctx.roles.includes(ROLES.GLOBAL_ADMIN)) {
+    return ctx;
+  }
+  if (!hasNavAccess(navKey, ctx.roles, ctx.departmentTeamIds.length > 0)) {
+    notFound();
+  }
+  return ctx;
 }

@@ -1,11 +1,13 @@
 import { Activity } from "lucide-react";
 import { getTranslations } from "next-intl/server";
+import { requireNavAccess } from "@/lib/authorization";
 import { listActivityLog } from "../_actions/activity";
 import { EmptyState } from "../_components/empty-state";
 import { PageHeader } from "../_components/page-header";
 import { STUDIO, StudioIconBox, StudioPanel } from "../_components/studio";
 
 export default async function ActivityPage() {
+  await requireNavAccess("portal.activity");
   const t = await getTranslations("adminPortal.activity");
 
   const logs = await listActivityLog({ limit: 50 });

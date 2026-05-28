@@ -1,5 +1,6 @@
 import { Plus } from "lucide-react";
 import { getTranslations } from "next-intl/server";
+import { requireNavAccess } from "@/lib/authorization";
 import { listDocuments } from "../_actions/documents";
 import { PageHeader } from "../_components/page-header";
 import { StudioLinkButton } from "../_components/studio";
@@ -12,6 +13,7 @@ interface DocumentsPageProps {
 export default async function DocumentsPage({
   searchParams,
 }: DocumentsPageProps) {
+  await requireNavAccess("portal.documents");
   const t = await getTranslations("adminPortal.documents");
   const tc = await getTranslations("adminPortal.common");
   const { page: pageParam, status } = await searchParams;
