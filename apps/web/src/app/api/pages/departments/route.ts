@@ -1,5 +1,6 @@
 import { Query } from "@repo/api";
 import { createAdminClient } from "@repo/api/server";
+import type { Departments } from "@repo/api/types/appwrite";
 import { NextResponse } from "next/server";
 
 export async function GET(request: Request) {
@@ -23,16 +24,20 @@ export async function GET(request: Request) {
       queries.push(Query.equal("type", type));
     }
 
-    const result = await db.listRows("app", "departments", queries);
+    const result = await db.listRows<Departments>(
+      "app",
+      "departments",
+      queries
+    );
 
     return NextResponse.json({
       departments: result.rows.map((d) => ({
         id: d.$id,
-        internalId: (d as Record<string, unknown>).Id,
-        name: (d as Record<string, unknown>).Name,
-        campusId: (d as Record<string, unknown>).campus_id,
-        type: (d as Record<string, unknown>).type,
-        logo: (d as Record<string, unknown>).logo,
+        internalId: d.Id,
+        name: d.Name,
+        campusId: d.campus_id,
+        type: d.type,
+        logo: d.logo,
       })),
       total: result.total,
     });

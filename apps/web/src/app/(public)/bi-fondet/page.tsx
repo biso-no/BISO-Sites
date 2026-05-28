@@ -1,7 +1,12 @@
-"use server";
-
 import type { Locale } from "@repo/i18n/config";
+import type { Metadata } from "next";
 import { Badge } from "@repo/ui/components/ui/badge";
+
+export const metadata: Metadata = {
+  title: "BI-fondet | BISO",
+  description:
+    "BI-fondet — the student fund of BI Norwegian Business School, supporting student initiatives and projects.",
+};
 import { Button } from "@repo/ui/components/ui/button";
 import {
   Card,

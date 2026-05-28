@@ -2,6 +2,7 @@
 
 import { Query } from "@repo/api";
 import { createSessionClient } from "@repo/api/server";
+import type { Orders } from "@repo/api/types/appwrite";
 import type { ProductMetadata } from "@/lib/types/webshop";
 
 interface PurchaseLimitResult {
@@ -11,9 +12,7 @@ interface PurchaseLimitResult {
   reason?: string;
 }
 
-interface OrderRow {
-  items_json?: string;
-}
+type OrderRow = Pick<Orders, "items_json">;
 
 const ORDER_STATUS_FILTER = Query.or([
   Query.equal("status", "authorized"),
@@ -32,7 +31,10 @@ function summarizePurchases(
       continue;
     }
     try {
-      const items = JSON.parse(order.items_json as string);
+      const items = JSON.parse(order.items_json) as Array<{
+        product_id?: string;
+        quantity?: number;
+      }>;
       for (const item of items) {
         if (item.product_id === productId) {
           totalPurchased += item.quantity || 0;
@@ -71,15 +73,12 @@ async function checkMaxPerUser(
     const { db } = await createSessionClient();
 
     // Get all completed orders for this user with 'authorized' or 'paid' status
-    const orders = await db.listRows("app", "orders", [
+    const orders = await db.listRows<Orders>("app", "orders", [
       Query.equal("userId", userId),
       ORDER_STATUS_FILTER,
     ]);
 
-    const { totalPurchased } = summarizePurchases(
-      orders.rows as OrderRow[],
-      productId
-    );
+    const { totalPurchased } = summarizePurchases(orders.rows, productId);
     const remaining = (maxPerUser ?? 0) - totalPurchased;
 
     if (remaining < requestedQty) {
@@ -191,12 +190,12 @@ async function _getPurchaseHistory(
   try {
     const { db } = await createSessionClient();
 
-    const orders = await db.listRows("app", "orders", [
+    const orders = await db.listRows<Orders>("app", "orders", [
       Query.equal("userId", userId),
       ORDER_STATUS_FILTER,
     ]);
 
-    return summarizePurchases(orders.rows as OrderRow[], productId);
+    return summarizePurchases(orders.rows, productId);
   } catch (error) {
     console.error("Error getting purchase history:", error);
     return { totalPurchased: 0, orderCount: 0 };

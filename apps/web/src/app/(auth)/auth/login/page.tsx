@@ -1,20 +1,34 @@
 import { redirect } from "next/navigation";
 import { Login } from "@/components/login";
 import { getAuthStatus } from "@/lib/auth-utils";
+import { safeRedirectPath } from "@/lib/utils";
+
+// Only the error codes the auth callback handlers actually emit get a
+// banner. Anything else (or arbitrary attacker-supplied strings via
+// ?error=…) is ignored — React already escapes the value, but accepting
+// only known codes prevents attackers from controlling the on-screen
+// copy of the page.
+const LOGIN_ERROR_MESSAGES: Record<string, string> = {
+  invalid_parameters: "The login link is missing required information.",
+  invitation_failed: "We couldn't accept that invitation. Please try again.",
+  server_configuration:
+    "Login is temporarily unavailable. Please try again later.",
+  unexpected_error: "Something went wrong while signing you in.",
+};
 
 export default async function Page({
   searchParams,
 }: {
   searchParams: Promise<{ redirectTo?: string; error?: string }>;
 }) {
-  // Check if user is already authenticated (not anonymous)
   const authStatus = await getAuthStatus();
   const { error, redirectTo } = await searchParams;
   if (authStatus.isAuthenticated) {
-    // User is already authenticated, redirect them
-    const target = redirectTo ? decodeURIComponent(redirectTo) : "/";
-    return redirect(target);
+    return redirect(safeRedirectPath(redirectTo));
   }
+
+  const errorMessage = error ? LOGIN_ERROR_MESSAGES[error] : undefined;
+
   return (
     <div className="relative flex min-h-screen items-center justify-center bg-background px-4 py-12">
       {/* Background decoration - subtle gradients */}
@@ -24,9 +38,9 @@ export default async function Page({
         <div className="absolute right-1/4 bottom-0 h-[450px] w-[450px] rounded-full bg-brand-muted blur-3xl dark:bg-brand-muted" />
       </div>
 
-      {error && (
+      {errorMessage && (
         <div className="absolute top-8 left-1/2 -translate-x-1/2 transform rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-2 text-red-600 dark:text-red-400">
-          {error}
+          {errorMessage}
         </div>
       )}
 

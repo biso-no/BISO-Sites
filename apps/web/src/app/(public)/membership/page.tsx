@@ -1,6 +1,13 @@
 import type { Locale } from "@repo/i18n/config";
+import type { Metadata } from "next";
 import { getCampusData } from "@/app/actions/campus";
 import { getLocale } from "@/app/actions/locale";
+
+export const metadata: Metadata = {
+  title: "BISO Membership | BI Student Organisation",
+  description:
+    "Become a BISO member and unlock benefits, discounts, and access to events across BI Norwegian Business School.",
+};
 import { getGlobalMembershipBenefits } from "@/app/actions/membership";
 import { getUserPreferences } from "@/lib/auth-utils";
 import type { CampusData } from "@/lib/types/campus-data";

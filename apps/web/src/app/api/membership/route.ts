@@ -17,12 +17,17 @@ export async function GET(request: Request) {
       ? await refreshMembershipStatus()
       : await getMembershipStatus();
 
-    return NextResponse.json(status);
+    // Per-user data; the in-memory cookie cache in getMembershipStatus
+    // already handles short-term reuse, and we don't want any shared
+    // CDN to serve one user's status to another.
+    return NextResponse.json(status, {
+      headers: { "Cache-Control": "private, no-store" },
+    });
   } catch (error) {
     console.error("[Membership API] Error:", error);
     return NextResponse.json(
-      { isMember: false, reason: "error", error: String(error) },
-      { status: 500 }
+      { isMember: false, reason: "error" },
+      { status: 500, headers: { "Cache-Control": "no-store" } }
     );
   }
 }

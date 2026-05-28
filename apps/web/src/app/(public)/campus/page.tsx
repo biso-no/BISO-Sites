@@ -1,5 +1,12 @@
 import type { Locale } from "@repo/i18n/config";
+import type { Metadata } from "next";
 import { getCampusData, getCampusMetadata } from "@/app/actions/campus";
+
+export const metadata: Metadata = {
+  title: "Campuses | BISO",
+  description:
+    "Discover BISO's presence on every BI Norwegian Business School campus — Oslo, Bergen, Trondheim, and Stavanger.",
+};
 import { listEvents } from "@/app/actions/events";
 import { listJobs } from "@/app/actions/jobs";
 import { getLocale } from "@/app/actions/locale";

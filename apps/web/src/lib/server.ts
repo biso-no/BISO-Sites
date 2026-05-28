@@ -1,7 +1,7 @@
 "use server";
 
 import { ID, type Models, OAuthProvider } from "@repo/api";
-import { createAdminClient, createSessionClient } from "@repo/api/server";
+import { createSessionClient } from "@repo/api/server";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
@@ -33,7 +33,7 @@ async function _signInWithAzure() {
 }
 
 export async function signInWithGoogle() {
-  const { account } = await createAdminClient();
+  const { account } = await createSessionClient();
   const origin = (await headers()).get("origin");
 
   const url = new URL(
@@ -55,7 +55,7 @@ export async function signInWithGoogle() {
 }
 
 export async function signInWithFacebook() {
-  const { account } = await createAdminClient();
+  const { account } = await createSessionClient();
   const origin = (await headers()).get("origin");
 
   const url = new URL(
@@ -77,7 +77,7 @@ export async function signInWithFacebook() {
 }
 
 export async function signInWithApple() {
-  const { account } = await createAdminClient();
+  const { account } = await createSessionClient();
   const origin = (await headers()).get("origin");
 
   const url = new URL(

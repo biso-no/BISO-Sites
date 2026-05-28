@@ -208,7 +208,7 @@ async function ExpenseDetails({ expenseId }: { expenseId: string }) {
                   {attachment.url && (
                     <a
                       className="text-brand text-sm hover:underline"
-                      href={`${process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT}/storage/buckets/expenses/files/${attachment.url}/view?project=${process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID}`}
+                      href={`${process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT}/storage/buckets/expenses/files/${attachment.url}/view?project=${process.env.NEXT_PUBLIC_APPWRITE_PROJECT || process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID}`}
                       rel="noopener noreferrer"
                       target="_blank"
                     >

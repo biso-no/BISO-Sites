@@ -14,6 +14,7 @@ import {
   Receipt,
   XCircle,
 } from "lucide-react";
+import { createSessionClient } from "@repo/api/server";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { getOrder, verifyOrder } from "@/app/actions/orders";
@@ -216,6 +217,26 @@ async function OrderDetails({
 
   if (!order) {
     notFound();
+  }
+
+  // Defense-in-depth: orders carry per-user read permissions so the session
+  // client should already gate this fetch, but if a single order is ever
+  // created without that grant the page would otherwise leak buyer PII
+  // (name, email, phone, payment intent id) to any logged-in user who
+  // guesses the orderId. Verify ownership explicitly.
+  //
+  // The literal "guest" string is the legacy / fallback owner that
+  // createCartCheckoutSession stamps when account.get() throws, and that
+  // every in-flight order created before the userId-resolution fix carries.
+  // Those orders rely entirely on the row's read("any") permission for
+  // access, so we let them through this guard rather than 404 the buyer
+  // on their own confirmation page.
+  if (order.userId !== "guest") {
+    const { account } = await createSessionClient();
+    const caller = await account.get().catch(() => null);
+    if (!caller || !order.userId || order.userId !== caller.$id) {
+      notFound();
+    }
   }
 
   const config =

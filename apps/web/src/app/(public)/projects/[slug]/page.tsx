@@ -1,5 +1,3 @@
-"use server";
-
 import type { Locale } from "@repo/i18n/config";
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Button } from "@repo/ui/components/ui/button";
@@ -9,6 +7,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@repo/ui/components/ui/card";
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
@@ -16,6 +15,25 @@ import { getCampusMetadata } from "@/app/actions/campus";
 import { getLargeEventBySlug } from "@/app/actions/large-events";
 import { getLocale } from "@/app/actions/locale";
 import type { ParsedLargeEvent } from "@/lib/types/large-event";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  try {
+    const event = await getLargeEventBySlug(slug);
+    const title = event?.name ?? slug;
+    const description = event?.description ?? undefined;
+    return {
+      title: `${title} | BISO`,
+      description: description?.slice(0, 160),
+    };
+  } catch {
+    return { title: "Projects | BISO" };
+  }
+}
 
 const PROTOCOL_REGEX = /^https?:\/\//;
 
