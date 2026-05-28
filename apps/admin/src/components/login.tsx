@@ -61,7 +61,8 @@ export function Login() {
   };
 
   const handleAdminLogin = async () => {
-    await signInWithAzure();
+    const redirectTo = searchParams.get("redirectTo") ?? undefined;
+    await signInWithAzure(redirectTo);
   };
 
   return (

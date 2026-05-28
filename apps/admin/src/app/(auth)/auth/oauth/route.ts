@@ -4,7 +4,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import type { NextRequest } from "next/server";
 import { syncM365Permissions } from "@/lib/m365-sync"; // Import the utility
-import { isProd } from "@/lib/utils";
+import { isProd, sanitizeRedirectTarget } from "@/lib/utils";
 
 export async function GET(request: NextRequest) {
   const userId = request.nextUrl.searchParams.get("userId");
@@ -34,9 +34,5 @@ export async function GET(request: NextRequest) {
     domain: isProd ? ".biso.no" : "localhost",
   });
 
-  if (redirectTo) {
-    return redirect(decodeURIComponent(redirectTo));
-  }
-
-  return redirect("/");
+  return redirect(sanitizeRedirectTarget(redirectTo));
 }
