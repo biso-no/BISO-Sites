@@ -109,6 +109,10 @@ export async function getProductBySlug(
       "webshop_products",
       [
         Query.equal("slug", slug),
+        // `webshop_products` grants row read to `any`, so draft / pending /
+        // archived products are reachable by anonymous visitors. Restrict the
+        // public detail page to published products only.
+        Query.equal("status", "published"),
         Query.equal("translation_refs.locale", locale),
         Query.select([
           "$id",

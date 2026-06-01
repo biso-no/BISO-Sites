@@ -188,6 +188,10 @@ export async function getEventBySlug(
 
     const response = await db.listRows<Events>("app", "events", [
       Query.equal("slug", slug),
+      // The `events` collection grants row read to `any`, so unpublished rows
+      // are reachable by anonymous visitors. This filter is the guard that
+      // keeps draft/cancelled events from leaking via a direct slug URL.
+      Query.equal("status", "published"),
       Query.equal(
         "translation_refs.locale",
         locale as ContentTranslationsLocale
