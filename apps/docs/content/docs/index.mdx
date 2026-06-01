@@ -72,8 +72,10 @@ trade-offs the original author made.
 - **Auth**: Microsoft / Azure AD OAuth + Appwrite anonymous sessions for the
   public site
 - **Payments**: Vipps MobilePay (in production); Stripe scaffolded but not currently enabled
-- **AI**: Anthropic Claude (page editor copilot, admin assistant, resume
-  screening) + OpenAI (translation, expense OCR)
+- **AI**: OpenAI for everything in production today — translation,
+  expense OCR, page editor copilot, admin assistant, recruitment resume
+  screening. The repo contains some `@ai-sdk/anthropic` imports as a
+  legacy / exploratory path; no BISO Anthropic account exists today.
 - **External systems**: Microsoft 365 / Graph, SharePoint, 24SevenOffice
   (Finago), Pinecone, Entur (Norwegian public transit)
 - **Package manager**: Bun 1.3.1 (workspaces + `catalog:` protocol)

@@ -51,6 +51,29 @@ That's it. The model identifier is configured inside `@repo/ai` (the
 package defaults to a current OpenAI model) and not pinned in env, so
 upgrading to a newer generation is a code change, not an ops change.
 
+For BISO specifically (handover snapshot):
+
+- **Organisation ID**: `org-OYbnzkHo28huLcXHylKJvlsB`
+- **Account owner**: Markus Heien (`markus@biso.no`); planned to move to
+  `it@biso.no` when feasible
+- **Usage tier**: 4 (pay-as-you-go)
+- **Typical monthly spend**: ~USD $10 today; expected to rise once the
+  new public site goes live
+- **Soft cap**: USD $120/month — no enforced organisation budget yet
+- **Billing email**: `invoice@biso.no`
+- **Payment method**: **Markus Heien's personal card today** — being
+  transitioned to a BISO-owned card (Simen, the Administrasjonsleder)
+  imminently. See the warning at [Handover / Ownership and accounts →
+  OpenAI](/docs/handover/ownership-and-accounts#openai).
+
+<Callout type="warn">
+Because OpenAI handles every AI feature in production (translation,
+expense OCR, page editor copilot, admin assistant, recruitment
+screening), an OpenAI outage or a billing card decline takes all of
+them down at once. Configure a real organisation-level monthly budget
+in the OpenAI dashboard once spend stabilises after launch.
+</Callout>
+
 ## Where it lives in the codebase
 
 OpenAI is consumed in four places:

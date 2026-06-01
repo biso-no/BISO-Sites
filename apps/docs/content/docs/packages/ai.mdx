@@ -13,11 +13,14 @@ layer.
 
 The split between this package and the model SDKs is worth noting:
 `@repo/ai` itself depends on **`@ai-sdk/openai`** (it ships an OpenAI
-client and defaults to `gpt-5`). The admin app's page-editor copilot
-and assistant endpoints, however, talk to **Anthropic Claude** via
-`@ai-sdk/anthropic` directly, because those flows want tool-use
-behavior tuned for Claude. So this package isn't the *only* AI surface
-in the codebase — it's the *shared* one.
+client and defaults to `gpt-5`). In some places the admin app also
+references `@ai-sdk/anthropic` directly — these were exploratory paths
+intended to wire Claude up for tool-use heavy flows, but **no BISO
+Anthropic account exists today**, so those code paths are effectively
+dormant. Every AI feature running in production goes through OpenAI.
+See [Integrations / Anthropic](/docs/integrations/anthropic) for the
+status note, and [Handover / Known limitations](/docs/handover/known-limitations)
+for the cleanup item.
 
 ## Entrypoints
 
@@ -184,4 +187,4 @@ calls can be trusted by the time they reach business logic.
 ## Related reading
 
 - [Admin handbook → AI assistant](/docs/admin-handbook/assistant) — user-facing description.
-- [Editor architecture](/docs/architecture/editor-architecture) — how the page copilot interacts with the block editor (Anthropic, not this package).
+- [Editor architecture](/docs/architecture/editor-architecture) — how the page copilot interacts with the block editor (currently OpenAI; the editor wires its own AI client rather than going through this package).

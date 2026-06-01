@@ -105,9 +105,12 @@ where to look. Verify `STRIPE_WEBHOOK_SECRET` /
 
 ### "AI features are slow or failing"
 
-Anthropic and OpenAI both have rate limits and the occasional outage.
-Check their status pages. Embedding workers will retry on transient
-failures; manual jobs in admin will surface an error in the UI.
+OpenAI has rate limits and the occasional outage; check its status
+page. (Anthropic's status page is also listed above as a precaution,
+but in practice nothing in production touches Anthropic today — see
+[Integrations / Anthropic](/docs/integrations/anthropic).) Embedding
+workers will retry on transient failures; manual jobs in admin will
+surface an error in the UI.
 
 ## Post-mortem template
 

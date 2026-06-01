@@ -42,6 +42,18 @@ turns out to be a known issue.
 
 ## Dead and dormant code
 
+- **Anthropic / Claude SDK references**. Some files import
+  `@ai-sdk/anthropic` and reference Claude as if it were a live
+  provider, but **BISO has no Anthropic account** and every AI feature
+  in production goes through OpenAI. Treat the Anthropic code paths as
+  dormant. Cleanup: either provision an Anthropic account and wire
+  them up against it, or remove the imports so future readers aren't
+  misled. See [Integrations / Anthropic](/docs/integrations/anthropic).
+- **Stripe payment integration**. `@repo/payment/stripe` and the
+  Stripe branch of the checkout flow are scaffolded, but BISO has no
+  Stripe account and every order goes through Vipps. Same cleanup
+  decision as above: enable the integration with a real account, or
+  remove the scaffolding. See [Integrations / Stripe](/docs/integrations/stripe).
 - **WooCommerce connector** (`@repo/connectors`'s WooCommerce piece) is
   effectively dead. The only place `apps/api` references it is as a
   string in a configuration map, with `WC_CONSUMER_KEY` and

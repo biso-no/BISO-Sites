@@ -1,22 +1,42 @@
 ---
 title: Anthropic (Claude)
-description: The LLM provider behind the page-editor copilot, the admin assistant, and recruitment screening.
+description: Scaffolded as the LLM provider for assistant-style features — present in code, but not enabled in production today.
 ---
 
 # Anthropic (Claude)
 
-[Anthropic](https://anthropic.com)'s Claude models power the longer-running,
-tool-using AI features in the admin app and the recruitment pipeline. Where
-[OpenAI](/docs/integrations/openai) is our utility model for one-shot
-translation and OCR, Claude is our assistant model for things that involve
-multi-turn reasoning, calling tools against our own data, or evaluating
-content qualitatively.
+<Callout type="warn">
+**Current status (handover snapshot): Anthropic is not in production.**
+BISO does not have an Anthropic account. All AI features running today
+— page translation, expense OCR, the page-editor copilot, the admin
+assistant, and recruitment resume screening — route through
+[OpenAI](/docs/integrations/openai) instead.
 
-## What it is
+The codebase contains some `@ai-sdk/anthropic` imports as a legacy or
+exploratory path. The next IT Manager should treat these as
+follow-up work: either provision an Anthropic account and wire them
+up against it, or remove them so future readers aren't misled.
 
-Claude is Anthropic's family of LLMs. We use it via `@ai-sdk/anthropic` —
-the Vercel AI SDK provider for Anthropic — so the call sites match the way
-we use OpenAI elsewhere.
+The pages elsewhere in these docs that mention "Claude" or "Anthropic"
+in the context of admin AI features describe the *intended* design
+that was explored. Read them as forward-looking — in production today,
+OpenAI is doing the work.
+</Callout>
+
+## Why it was scaffolded
+
+[Anthropic](https://anthropic.com)'s Claude models were considered as the
+assistant model for longer-running, tool-using features in the admin app
+and the recruitment pipeline — the rough division being [OpenAI](/docs/integrations/openai)
+for one-shot tasks (translation, OCR) and Claude for multi-turn reasoning
+and tool-use. In practice the platform consolidated on OpenAI alone for
+simplicity and to avoid running two separate AI billing relationships.
+
+## What it is (in code)
+
+Where present, the integration uses `@ai-sdk/anthropic` — the Vercel AI
+SDK provider for Anthropic — so the call sites match the way the
+platform uses OpenAI.
 
 ## Why we use it
 

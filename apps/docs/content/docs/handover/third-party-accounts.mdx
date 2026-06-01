@@ -26,37 +26,43 @@ looking at the right account.
 
 | Field | Value |
 |-------|-------|
-| Account name | [FILL IN] |
-| Login email | [FILL IN] |
-| Plan / tier | [FILL IN: e.g. Pay-as-you-go, Tier 3] |
-| Monthly spend (average) | [FILL IN: NOK] |
-| Hard cap configured? | [FILL IN: yes/no, at what level] |
-| Billing email | [FILL IN] |
-| Payment method | [FILL IN: which card on file] |
+| Organisation ID | `org-OYbnzkHo28huLcXHylKJvlsB` |
+| Login email | `markus@biso.no` (planned to migrate to `it@biso.no`) |
+| Plan / tier | Usage tier 4 (pay-as-you-go) |
+| Monthly spend (average) | ~USD $10 (≈ NOK 110) — expected to rise once the new public site goes live |
+| Hard cap configured | Soft limit set at USD $120/month; no enforced organisation-level budget yet |
+| Billing email | `invoice@biso.no` |
+| Payment method | **Markus Heien's personal card** — being transitioned to Simen (Administrasjonsleder) imminently |
+
+See [Ownership and accounts → OpenAI](/docs/handover/ownership-and-accounts#openai)
+for the continuity risk this introduces.
 
 ### Anthropic
 
+**Not in production.** All AI features today route through OpenAI.
+The codebase has some `@ai-sdk/anthropic` imports as a legacy or
+exploratory path, but no BISO Anthropic account is funded and no
+production traffic is sent to Anthropic. Treat the `ANTHROPIC_API_KEY`
+env var as optional / unset.
+
 | Field | Value |
 |-------|-------|
-| Account name | [FILL IN] |
-| Login email | [FILL IN] |
-| Plan / tier | [FILL IN] |
-| Monthly spend (average) | [FILL IN: NOK / USD] |
-| Hard cap configured? | [FILL IN] |
-| Billing email | [FILL IN] |
-| Payment method | [FILL IN] |
+| Account name | n/a — no account |
+| Plan / tier | n/a |
+| Monthly spend | NOK 0 |
+| Billing email | n/a |
 
 ### Pinecone
 
 | Field | Value |
 |-------|-------|
-| Account name | [FILL IN] |
-| Login email | [FILL IN] |
-| Plan / tier | [FILL IN: Starter / Standard / etc.] |
-| Index used | matches `PINECONE_INDEX_NAME` |
-| Monthly spend | [FILL IN] |
-| Renewal | [FILL IN: monthly / annual] |
-| Billing email | [FILL IN] |
+| Project / org ID | `-NWdHeAIHBzZGIyAhn9H` |
+| Login email | `markus@biso.no` |
+| Plan / tier | Starter (free tier) |
+| Index used | `bisoai` (matches `PINECONE_INDEX_NAME`) |
+| Monthly spend | NOK 0 |
+| Renewal | n/a (no paid subscription) |
+| Account ownership | **Markus Heien's personal Pinecone account** — needs migration to a BISO-owned account before Markus leaves. See [Ownership and accounts → Pinecone](/docs/handover/ownership-and-accounts#pinecone). |
 
 ## Payments
 

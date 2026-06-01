@@ -113,9 +113,9 @@ description: Quick lookup for every acronym, product name, and proper noun used 
 
 - **`@ai-sdk/openai`** / **`@ai-sdk/anthropic`** — The Vercel AI SDK
   provider packages. Used in `@repo/ai` and inside the admin page editor.
-- **Anthropic Claude** — Used for the page editor copilot, the admin
+- **Anthropic Claude** — Scaffolded in the codebase but **not in production**. Originally intended for the page editor copilot, the admin
   assistant, and the recruitment resume screening.
-- **OpenAI** — Used for page translation and expense receipt OCR.
+- **OpenAI** — The only AI provider in production today. Used for page translation, expense receipt OCR, the page-editor copilot, the admin assistant, and recruitment resume screening (including the embeddings stored in Pinecone).
 - **Pinecone** — Vector database used to store and query resume embeddings.
 - **Capability** — A permission name used by the admin assistant runtime to
   decide whether a given tool is exposed to a given user.

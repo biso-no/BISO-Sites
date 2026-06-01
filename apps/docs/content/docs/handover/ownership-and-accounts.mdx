@@ -177,9 +177,27 @@ it would break the shop's checkout pipeline.
 
 | Item | Detail |
 |------|--------|
-| Sites integrated with the platform (`SHAREPOINT_SITES`) | [FILL IN: list of site IDs and human names] |
-| Site collection admin | [FILL IN] |
+| Tenant | `bistudentorganisasjon.sharepoint.com` |
+| Site collection admin | Markus Heien (`markus@biso.no`) — only person who can grant the Azure app access to new sites |
 | Azure app used for Graph access | Same as `AZURE_APP_ID` in env vars |
+
+`SHAREPOINT_SITES` value currently deployed (a JSON array of comma-joined
+`hostname,siteId,webId` triplets):
+
+```json
+[
+  "bistudentorganisasjon.sharepoint.com,9b233671-4951-4443-9c6d-9afaa1b8f454,f9f79275-37c3-4acd-b054-50a6ec0eeebe",
+  "bistudentorganisasjon.sharepoint.com,6c0148df-d449-472b-84e8-63fb0ee53f8b,35456f57-cab6-48b6-a005-a2330dbbaedb"
+]
+```
+
+These are the two SharePoint sites whose documents the public site can
+stream. Adding a third site requires (a) granting the Azure app access
+to it (Sites.Selected model) and (b) appending it to this array.
+
+There is no specific "secret" file or folder — the platform's
+`/documents` library surfaces whatever the admin team uploads via the
+Documents screen in the admin app.
 
 ## AI providers
 
@@ -187,28 +205,70 @@ it would break the shop's checkout pipeline.
 
 | Item | Detail |
 |------|--------|
-| Organisation ID | [FILL IN] |
-| Billing email | [FILL IN] |
-| Plan | [FILL IN: tier, monthly cap if any] |
-| Account owner | [FILL IN] |
+| Organisation ID | `org-OYbnzkHo28huLcXHylKJvlsB` |
+| Login email / account owner | `markus@biso.no` *(planned to move to `it@biso.no` when feasible)* |
+| Plan / tier | Usage tier 4 (pay-as-you-go) |
+| Approximate monthly spend | ~USD $10 today; no enforced budget yet (to be set when the new public site goes live) |
+| Hard cap configured | Soft limit set at USD $120/month |
+| Billing email | `invoice@biso.no` |
+| Payment method | **Currently Markus Heien's personal card** — being transitioned to Simen (Administrasjonsleder) imminently |
+
+<Callout type="warn">
+**Open continuity risk #1**: OpenAI billing is on Markus Heien's personal
+card. When Markus leaves, the card either stops paying or has to be
+manually changed mid-transition. The next IT Manager — or whoever takes
+over before then — must get a BISO-controlled card on file (Simen's,
+per the plan above) **before** Markus's departure. If the card is
+cancelled before being replaced, every AI feature stops working:
+translation, expense OCR, page editor copilot, admin assistant.
+</Callout>
 
 ### Anthropic
 
+**Not in production.** All AI features today route through OpenAI. The
+codebase contains `@ai-sdk/anthropic` imports in some places (legacy
+exploration / scaffolding), but no BISO Anthropic account is funded and
+no production traffic is sent to Anthropic.
+
 | Item | Detail |
 |------|--------|
-| Organisation ID | [FILL IN] |
-| Billing email | [FILL IN] |
-| Plan | [FILL IN] |
-| Account owner | [FILL IN] |
+| Organisation ID | n/a — no account |
+| Billing email | n/a |
+| Plan | n/a |
+| Account owner | n/a |
+
+<Callout type="info">
+The next IT Manager should audit the codebase for `@ai-sdk/anthropic`
+references and either remove them or wire them up against a real
+account — leaving dead-code paths to a paid API surface is a future
+debugging trap. See [Integrations / Anthropic](/docs/integrations/anthropic)
+for the dormant-code-path note.
+</Callout>
 
 ### Pinecone
 
 | Item | Detail |
 |------|--------|
-| Project / org ID | [FILL IN] |
-| Index name (matches `PINECONE_INDEX_NAME`) | [FILL IN] |
-| Billing email | [FILL IN] |
-| Plan | [FILL IN] |
+| Project / org ID | `-NWdHeAIHBzZGIyAhn9H` |
+| Index name (matches `PINECONE_INDEX_NAME`) | `bisoai` |
+| Billing email | `markus@biso.no` |
+| Plan | **Starter (free tier)** |
+| Account owner | Markus Heien |
+
+<Callout type="warn">
+**Open continuity risk #2**: the Pinecone index `bisoai` lives on
+Markus Heien's **personal** Pinecone account, not a BISO-owned
+account. When Markus leaves, access to the index goes with him unless
+ownership is transferred or the index is recreated under a
+BISO-controlled account beforehand. The recruitment AI screening
+feature depends on this index — without it, embeddings can't be
+written or queried.
+
+Action for the outgoing IT Manager: create a BISO-owned Pinecone
+account (`it@biso.no`), provision a new index under it, migrate
+existing embeddings or accept a one-time re-embedding pass, and rotate
+`PINECONE_API_KEY` + (if changed) `PINECONE_INDEX_NAME`.
+</Callout>
 
 ## Hosting
 

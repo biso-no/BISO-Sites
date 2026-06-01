@@ -44,6 +44,30 @@ Both are required wherever the recruitment screener runs. The index has
 to be created in the Pinecone console before the platform can use it; we
 don't auto-provision.
 
+For BISO specifically (handover snapshot):
+
+- **Project / org ID**: `-NWdHeAIHBzZGIyAhn9H`
+- **Index name** (`PINECONE_INDEX_NAME` value): `bisoai`
+- **Plan**: Starter (free tier) — NOK 0/month at current scale
+- **Account owner**: Markus Heien (`markus@biso.no`)
+
+<Callout type="warn">
+**The Pinecone index `bisoai` currently lives on Markus Heien's
+*personal* Pinecone account, not a BISO-owned account.** When Markus
+leaves, that access goes with him. This is one of the loudest
+continuity risks in the platform.
+
+Before any handover: create a BISO-owned Pinecone account (e.g. owned
+by `it@biso.no`), provision a new index under it, decide whether to
+migrate the existing vectors or accept a one-time re-embedding pass
+(the recruitment screener can rebuild embeddings from
+`job_applications` rows), and rotate `PINECONE_API_KEY` plus
+`PINECONE_INDEX_NAME` if the new index has a different name.
+
+If the personal account is shut down before this is done, AI
+recruitment screening stops working until a new index is created.
+</Callout>
+
 ## Where it lives in the codebase
 
 - `@repo/ai/server/recruitment-screener` — all read/write access to the

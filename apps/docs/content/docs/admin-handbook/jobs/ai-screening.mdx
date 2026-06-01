@@ -38,7 +38,7 @@ A screened application has two separate numbers attached to it. They measure dif
 
 ### Screening score
 
-The screening score is produced by an AI model (Claude, via Anthropic — see [Anthropic integration](/docs/integrations/anthropic)) that reads the candidate's resume and answers and grades them against the **rubric you wrote** on the vacancy.
+The screening score is produced by an AI model (currently OpenAI — see [OpenAI integration](/docs/integrations/openai)) that reads the candidate's resume and answers and grades them against the **rubric you wrote** on the vacancy.
 
 So if your rubric says "experience organising student events" weighs heavily, candidates who clearly have that experience score higher. If your rubric says "comfortable presenting in English" matters, candidates who demonstrate that score higher.
 
@@ -75,8 +75,8 @@ The screener processes resume content and the candidate's answers. Both are uplo
 
 For the underlying integrations:
 
-- [Anthropic](/docs/integrations/anthropic) — the model that produces the screening score against your rubric.
-- [Pinecone](/docs/integrations/pinecone) — the vector index that stores the embeddings used for similarity scoring.
+- [OpenAI](/docs/integrations/openai) — the model that produces the screening score against your rubric, and the embeddings used for similarity.
+- [Pinecone](/docs/integrations/pinecone) — the vector index that stores those embeddings.
 
 ## When screening fails
 
