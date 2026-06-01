@@ -67,7 +67,7 @@ export function resolveApproverTeamId(
   campusId?: string
 ): string {
   if (action === "jobs.publish" || action === "jobs.create") {
-    return "sg-app-dept-operations-unit";
+    return "sg-app-dept-operationsunit";
   }
   if (campusId) {
     return getCampusManagementTeamId(campusId) ?? "admin";

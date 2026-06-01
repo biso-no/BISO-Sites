@@ -28,7 +28,7 @@
  * using these actions in production.
  */
 
-import { ID, Query } from "@repo/api";
+import { ID, Permission, Query, Role } from "@repo/api";
 import { createAdminClient, createSessionClient } from "@repo/api/server";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -96,21 +96,33 @@ export async function createApprovalRequest(
     const { db } = await createAdminClient();
     const id = ID.unique();
 
-    await db.createRow(DATABASE_ID, TABLE, id, {
-      requester_id: ctx.userId,
-      requester_email: ctx.email ?? "",
-      action: input.action,
-      resource_type: input.resourceType,
-      resource_id: input.resourceId ?? null,
-      payload: JSON.stringify(input.payload),
-      campus_id: input.campusId ?? null,
-      department_id: input.departmentId ?? null,
-      approver_team_id: input.approverTeamId,
-      status: "pending",
-      decided_by: null,
-      decided_at: null,
-      reason: null,
-    });
+    await db.createRow(
+      DATABASE_ID,
+      TABLE,
+      id,
+      {
+        requester_id: ctx.userId,
+        requester_email: ctx.email ?? "",
+        action: input.action,
+        resource_type: input.resourceType,
+        resource_id: input.resourceId ?? null,
+        payload: JSON.stringify(input.payload),
+        campus_id: input.campusId ?? null,
+        department_id: input.departmentId ?? null,
+        approver_team_id: input.approverTeamId,
+        status: "pending",
+        decided_by: null,
+        decided_at: null,
+        reason: null,
+      },
+      [
+        Permission.read(Role.team(input.approverTeamId)),
+        Permission.update(Role.team(input.approverTeamId)),
+        Permission.read(Role.team("admin")),
+        Permission.update(Role.team("admin")),
+        Permission.read(Role.user(ctx.userId)),
+      ]
+    );
 
     await logAuditEvent(ctx, "approval.request.create", {
       resourceId: id,
@@ -177,10 +189,10 @@ export async function approveRequest(
   }
 
   try {
-    const { db } = await createAdminClient();
-
-    // Fetch the request to get the stored payload
-    const request = await db.getRow<ApprovalRequest>(
+    // Use session client for getRow so Appwrite row security prevents a
+    // campus admin from approving requests scoped to another team.
+    const { db: sessionDb } = await createSessionClient();
+    const request = await sessionDb.getRow<ApprovalRequest>(
       DATABASE_ID,
       TABLE,
       requestId
@@ -192,6 +204,7 @@ export async function approveRequest(
       return { error: `Request is already ${request.status}` };
     }
 
+    const { db } = await createAdminClient();
     // Mark approved
     await db.updateRow(DATABASE_ID, TABLE, requestId, {
       status: "approved",
@@ -236,9 +249,8 @@ export async function rejectRequest(
   }
 
   try {
-    const { db } = await createAdminClient();
-
-    const request = await db.getRow<ApprovalRequest>(
+    const { db: sessionDb } = await createSessionClient();
+    const request = await sessionDb.getRow<ApprovalRequest>(
       DATABASE_ID,
       TABLE,
       requestId
@@ -250,6 +262,7 @@ export async function rejectRequest(
       return { error: `Request is already ${request.status}` };
     }
 
+    const { db } = await createAdminClient();
     await db.updateRow(DATABASE_ID, TABLE, requestId, {
       status: "rejected",
       decided_by: ctx.userId,

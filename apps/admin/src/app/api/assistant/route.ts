@@ -288,12 +288,33 @@ function buildDeps(_activeFormSchemaId?: string): AssistantActionDeps {
             campusId,
             departmentId
           );
-        case "events":
-          return await createEvent({ ...payload, status } as never);
-        case "news":
-          return await createNews({ ...payload, status } as never);
-        case "shop":
-          return await createProduct({ ...payload, status } as never);
+        case "events": {
+          const result = await createEvent({ ...payload } as never);
+          if (publish && result && !("error" in result)) {
+            await publishEvent(result.data);
+          }
+          return result;
+        }
+        case "news": {
+          const result = await createNews({ ...payload } as never);
+          if (publish && result && !("error" in result)) {
+            const { db } = await createSessionClient();
+            await db.updateRow("app", DOMAIN_PUBLISH_TABLE.news, result.data, {
+              status: "published",
+            });
+          }
+          return result;
+        }
+        case "shop": {
+          const result = await createProduct({ ...payload } as never);
+          if (publish && result && !("error" in result)) {
+            const { db } = await createSessionClient();
+            await db.updateRow("app", DOMAIN_PUBLISH_TABLE.shop, result.data, {
+              status: "published",
+            });
+          }
+          return result;
+        }
         case "benefits":
           return await createBenefit({ ...payload } as never);
         default:
