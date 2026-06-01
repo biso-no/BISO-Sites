@@ -13,30 +13,39 @@ this one apex.
 | Item | Value |
 |------|-------|
 | Apex domain | `biso.no` |
-| Registrar | [FILL IN: see [ownership-and-accounts](/docs/handover/ownership-and-accounts)] |
-| DNS provider | [FILL IN: often the same as the registrar] |
-| WHOIS contact email | [FILL IN] |
-| Renewal date | [FILL IN] |
+| Registrar | **proisp.no** (account ID `19676`, login `pr@biso.no`) |
+| DNS provider | proisp.no (same as registrar) |
+| WHOIS contact email | `it@biso.no` |
+| Renewal date | 19 December annually (next: 2026-12-19) |
 
 <Callout type="warn">
-**To be filled in by the current IT Manager**: confirm the renewal is on
-auto-renew with a credit card that BISO controls (not a personal card),
-and that WHOIS contact emails are role-based rather than personal.
+**Confirmed gap**: the proisp account has **no 2FA**. Adding 2FA is the
+single highest-leverage security task for the next IT Manager.
+WHOIS contact and registrar login are already role-based (not
+personal) emails, which is good.
 </Callout>
 
 ## Subdomains in use
 
-| Subdomain | Points to | Purpose |
-|-----------|----------|---------|
-| `biso.no` | `apps/web` | Public student-facing site |
-| `public.biso.no` | `apps/web` (or alias) | Historical / alternate entry point [FILL IN: confirm current use] |
-| `admin.biso.no` | `apps/admin` | Production CMS |
-| `admin-dev.biso.no` | `apps/admin` (dev build) | Dev / staging CMS |
-| `appwrite.biso.no` | Self-hosted Appwrite | Backend |
-| `api.biso.no` | `apps/api` | JWT REST service ([FILL IN: confirm — may not yet be the production hostname]) |
+State as of the current handover snapshot:
 
-The exact hostnames for the API service and any preview/staging
-environments should be re-verified at handover.
+| Subdomain | Points to | Purpose / status |
+|-----------|----------|------------------|
+| `biso.no` | `apps/web` (planned cutover) | Reserved for the new public site. Will replace the legacy WordPress site at cutover. **Not yet live as the primary host.** |
+| `web.biso.no` | `apps/web` (Appwrite Sites self-hosted) | **Current production** for the new public site. Will be retired in favour of `biso.no` once the WordPress cutover is complete. |
+| `public.biso.no` | — | **Not in use.** |
+| `admin.biso.no` | `apps/admin` (Appwrite Sites self-hosted) | Production CMS. |
+| `admin-dev.biso.no` | — | **Not in use.** |
+| `appwrite.biso.no` | Self-hosted Appwrite | The Appwrite instance, running on a Webdock VM. |
+| `api.biso.no` | `apps/api` (Appwrite Sites self-hosted) | JWT REST service. |
+
+<Callout type="info">
+**Cutover note**: at the time of this handover, the new public site is
+live at `web.biso.no` but the apex `biso.no` still points at the legacy
+WordPress site. The cutover to make `biso.no` serve `apps/web` directly
+is imminent. Once that happens, `web.biso.no` will be retired (either
+removed or aliased to the apex).
+</Callout>
 
 ## DNS records to be aware of
 
@@ -67,16 +76,20 @@ a mix of:
 - **Vercel-style hosting** — supported because the apps are stock
   Next.js with `output: "standalone"`.
 
-<Callout type="warn">
-**To be filled in by the current IT Manager**: the *current* provider
-for each app, the deployment URL on that provider, and how a deploy is
-triggered (git push to which branch? manual click? GitHub Action?).
+### Current hosting per app
 
-- `apps/web`: [FILL IN: provider, URL, deploy mechanism]
-- `apps/admin`: [FILL IN]
-- `apps/api`: [FILL IN]
-- `apps/docs`: [FILL IN]
-- `appwrite.biso.no`: [FILL IN: host VM provider, OS, who has SSH]
+| App | Hosting | Production URL | Notes |
+|-----|---------|----------------|-------|
+| `apps/web` | Appwrite Sites (self-hosted) | `web.biso.no` (becoming `biso.no` at cutover) | |
+| `apps/admin` | Appwrite Sites (self-hosted) | `admin.biso.no` | |
+| `apps/api` | Appwrite Sites (self-hosted) | `api.biso.no` | |
+| `apps/docs` | [FILL IN: provider + URL once published] | | |
+| Appwrite backend | Webdock VM | `appwrite.biso.no` | Markus Heien has sole SSH root. See [ownership-and-accounts](/docs/handover/ownership-and-accounts#appwrite). |
+
+<Callout type="warn">
+**To be filled in by the current IT Manager**: the deploy mechanism per
+app (push to `main`? manual Appwrite Sites publish? GitHub Action?) and
+the docs site's hosting (if/when it is published).
 </Callout>
 
 ## SSL / TLS

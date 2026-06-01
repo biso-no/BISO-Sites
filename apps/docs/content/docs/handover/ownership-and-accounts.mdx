@@ -22,51 +22,102 @@ will lose if you don't write it down.
 
 | Item | Where | Account holder | Backup access |
 |------|-------|----------------|---------------|
-| GitHub organisation `biso-no` | github.com/biso-no | [FILL IN: org owner email] | [FILL IN: second owner] |
+| GitHub organisation `biso-no` | github.com/biso-no | MHEien (Markus Heien, `markus@biso.no`) | **None — single-owner risk** |
 | Repository: `BISO-Sites` (this monorepo) | github.com/biso-no/BISO-Sites | Org-owned | — |
-| Any other repos under the org | — | Org-owned | — |
+| Repository: `BISO-Flutter` (native mobile app for iOS / Android) | github.com/biso-no/BISO-Flutter | Org-owned | — |
 
-Action: confirm at least **two** humans have GitHub org Owner access.
-Single-owner GitHub orgs are a continuity risk.
+<Callout type="warn">
+**Open continuity risk**: the GitHub organisation `biso-no` has a single
+Owner today. Before the current IT Manager leaves, **add a second human
+as Owner**. Suggested candidates: another current Operations Unit
+member, or a board member with sufficient technical literacy. Without
+a second Owner, the organisation cannot recover if the sole Owner's
+account is lost.
+</Callout>
+
+The Flutter mobile app (`BISO-Flutter`) is a separate codebase but
+shares this platform's Appwrite project — see
+[Architecture / Apps](/docs/architecture/apps#native-mobile-app) for
+context.
 
 ## Domain
 
 | Item | Detail |
 |------|--------|
 | Primary domain | `biso.no` |
-| Registrar | [FILL IN: e.g. domeneshop.no / one.com / GoDaddy] |
-| Registrar account email | [FILL IN] |
-| Registrar account holder | [FILL IN: name] |
-| Renewal date | [FILL IN: YYYY-MM-DD] |
-| DNS provider | [FILL IN: same as registrar, or Cloudflare, etc.] |
-| Two-factor recovery codes stored | [FILL IN: yes/no, where] |
+| Registrar | **proisp.no** |
+| Registrar account ID | 19676 |
+| Registrar account login email | `pr@biso.no` |
+| Registrar account holder | BI Student Organisation (BISO) |
+| Renewal date | **19 December** (annual) — next renewal 2026-12-19 |
+| DNS provider | proisp.no (same as registrar) |
+| Two-factor recovery codes stored | **No 2FA configured at proisp** — see warning below |
+| WHOIS contact email | `it@biso.no` |
+
+<Callout type="warn">
+**Open security risk**: the proisp.no registrar account does **not** have
+two-factor authentication enabled. The domain `biso.no` is the most
+critical single asset BISO owns digitally — every subdomain, the
+admin app's OAuth callbacks, and email all depend on it. The next IT
+Manager should enable 2FA on this account immediately and store the
+recovery codes in the password manager.
+</Callout>
 
 ## Appwrite
 
 | Item | Detail |
 |------|--------|
 | Production instance URL | `https://appwrite.biso.no` |
-| Self-hosted on | [FILL IN: which VM / provider] |
-| Server admin SSH access | [FILL IN: who has root] |
-| Appwrite Console admin user | [FILL IN: email] |
-| Secondary Console admin | [FILL IN: email] |
-| Dev instance | [FILL IN: URL or "Appwrite Cloud project ID"] |
+| Self-hosted on | Webdock VM (see [Webdock](#webdock-if-used) below) |
+| Server admin SSH access | Markus Heien (`markus@biso.no`) — sole holder of root |
+| Appwrite Console admin user | `markus@biso.no` (primary) |
+| Secondary Console admin | `it@biso.no` |
+| Production project ID | `biso` |
+| Dev project ID | `dev` (same Appwrite instance, separate project) |
+
+<Callout type="warn">
+**Open continuity risk**: only one person currently has SSH root access
+to the Appwrite VM. Before handover, the outgoing IT Manager must
+arrange SSH access for the incoming person (or a documented role
+account) and verify they can log in.
+</Callout>
 
 ## Microsoft 365 / Azure AD
 
 | Item | Detail |
 |------|--------|
-| Tenant ID | [FILL IN] |
-| Tenant primary domain | [FILL IN: e.g. biso.no] |
-| Global Admin #1 | [FILL IN: account, name] |
-| Global Admin #2 | [FILL IN: account, name] |
-| Subscription | [FILL IN: e.g. Microsoft 365 Business Standard, X seats] |
-| Renewal date | [FILL IN] |
-| Billing email | [FILL IN] |
+| Tenant ID | `74a117b9-9343-4c86-b44d-398c88ba1ed8` |
+| Tenant primary domain | `biso.no` |
+| Global Admin #1 | Markus Heien — `markus@biso.no` |
+| Global Admin #2 | `simen@biso.no` |
+| Subscription | **None purchased by BISO** — see license model below |
+| Billing email (for invoices that do arrive) | `payments@biso.no` / `invoice@biso.no` |
+| CSP / reseller | None |
 
 Azure AD doubles as the identity provider for staff logins to `admin`.
 Losing global admin access to the tenant is more disruptive than losing
 any other single account.
+
+### License model — important context
+
+BISO does **not** pay for Microsoft 365 licenses. Instead, the
+organisation relies on BI Norwegian Business School's tenant
+licensing. The flow:
+
+1. A new BISO staff member is a BI student, so they already have a
+   Microsoft 365 license attached to their **student email**.
+2. When they take a BISO role, they first activate / verify their
+   license using that student account.
+3. The BISO account (`name@biso.no`) is created under BISO's tenant
+   (`biso.no`) and can sign in for organisational use — including the
+   admin app at admin.biso.no.
+
+This means there is no monthly Microsoft 365 subscription cost for the
+~300 BISO accounts. It also means the platform's authentication is
+indirectly dependent on BI maintaining its student-license programme.
+If BI ever changed that arrangement, BISO would need to acquire its own
+licenses. The next IT Manager should keep BI's IT contact in their
+phone for this reason.
 
 ## Payment providers
 

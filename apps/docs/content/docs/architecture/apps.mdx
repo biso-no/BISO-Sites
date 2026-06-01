@@ -204,6 +204,33 @@ deployment.
 
 ---
 
+## Native mobile app
+
+The four Next.js apps above are not the entire BISO digital surface.
+There is also a **native iOS / Android mobile app** built with
+**Flutter**, living in a separate repository:
+
+| Item | Detail |
+|------|--------|
+| Repository | [`biso-no/BISO-Flutter`](https://github.com/biso-no/BISO-Flutter) |
+| Stack | Flutter (Dart) |
+| Backend | The same Appwrite project this platform uses |
+| Auth | Same Appwrite sessions; the mobile app authenticates against the same identity pool as the web site |
+| Relationship to this monorepo | Independent codebase, **shared data layer** |
+
+The mobile app is intentionally not part of this monorepo — Flutter
+and the Bun/Next.js toolchain don't share enough to make that worth
+it — but it consumes the same `appwrite.biso.no` backend and the same
+collections. When you change a row shape in
+`packages/api/appwrite.config.json`, you may also need to update the
+Flutter app's data layer to match.
+
+If you're maintaining the platform and you make a breaking schema or
+auth change, **check with whoever maintains BISO-Flutter** before
+shipping. There is no automated coupling between the two repos.
+
+---
+
 ## Where to read next
 
 - **[Packages](/docs/architecture/packages)** — the shared library

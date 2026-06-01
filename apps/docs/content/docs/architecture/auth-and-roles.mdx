@@ -99,6 +99,19 @@ security groups. The admin app reads team memberships to compute
 roles. **Appwrite user labels are no longer used for role decisions**
 (some legacy code reads them, but it's effectively dead).
 
+<Callout type="info">
+**A note on the M365 licenses behind this**: BISO does not pay for
+Microsoft 365 licenses directly. Staff who sign in to admin.biso.no
+are typically BI students with an active license attached to their
+**student email** (via BI Norwegian Business School's tenant). Their
+BISO account (`name@biso.no`) is a separate identity under BISO's own
+tenant — `biso.no`, tenant ID `74a117b9-9343-4c86-b44d-398c88ba1ed8` —
+but the underlying licensing is BI's. The auth flow above doesn't
+care about this, but it matters at handover: if BI ever changes its
+student-license programme, BISO would need to acquire its own
+licenses. See [Handover → Ownership and accounts](/docs/handover/ownership-and-accounts#microsoft-365--azure-ad).
+</Callout>
+
 ### Role derivation
 
 Roles are **derived**, not stored. Three roles matter:

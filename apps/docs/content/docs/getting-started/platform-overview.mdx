@@ -22,6 +22,15 @@ All four are Next.js 15 (App Router) projects. The fact that `api` is also
 Next.js — rather than Express or Hono — is worth knowing: it uses route
 handlers and standard middleware patterns just like the others.
 
+### The mobile app (separate repo)
+
+There is also a **Flutter** native mobile app for iOS and Android at
+[`biso-no/BISO-Flutter`](https://github.com/biso-no/BISO-Flutter). It
+lives outside this monorepo but talks to the same Appwrite backend —
+same auth, same database, same storage. When you change the data
+layer here, check whether the Flutter app needs a matching update.
+See [Architecture / Apps → Native mobile app](/docs/architecture/apps#native-mobile-app).
+
 ## The shared packages
 
 Everything reusable lives in `packages/`. Apps consume them as workspace
