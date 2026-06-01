@@ -6,7 +6,7 @@ import {
   chatModel,
 } from "@repo/ai/assistant";
 import type { AssistantActionDeps } from "@repo/ai/assistant/types";
-import { Query } from "@repo/api";
+import { type Models, Query } from "@repo/api";
 import { createSessionClient } from "@repo/api/server";
 import type { UIMessage } from "ai";
 import { convertToModelMessages, stepCountIs, streamText } from "ai";
@@ -69,7 +69,9 @@ import {
 } from "@/app/(portal)/_actions/shop";
 import { getLocale } from "@/app/actions/locale";
 import { requireApiAuth } from "@/lib/api-auth";
+import type { UserAuthContext } from "@/lib/authorization";
 import { CAMPUS_ID_TO_NAME } from "@/lib/campus-constants";
+import { assertPublishAccess } from "@/lib/utils/authorization";
 
 export const maxDuration = 60;
 
@@ -129,7 +131,7 @@ export async function POST(request: NextRequest) {
     : null;
 
   // 6. Build deps — normalised interface over all server actions
-  const deps = buildDeps(activeFormSchemaId);
+  const deps = buildDeps(activeFormSchemaId, ctx);
 
   // 7. Build permission-gated tool set
   const tools = buildAssistantTools(capabilities, deps);
@@ -174,6 +176,172 @@ const DOMAIN_PUBLISH_TABLE: Record<string, string> = {
   pages: "pages",
   shop: "webshop_products",
 };
+type GenericRow = Models.Row & Record<string, unknown>;
+
+const DOMAIN_RESOURCE_TYPE: Record<string, string> = {
+  benefits: "benefit",
+  documents: "document",
+  events: "event",
+  jobs: "job",
+  news: "news",
+  pages: "page",
+  shop: "product",
+};
+
+function getStringValue(value: unknown): string | null {
+  return typeof value === "string" && value.length > 0 ? value : null;
+}
+
+function getRecordValue(value: unknown): Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+function resultDataId(result: unknown): string | null {
+  const record = getRecordValue(result);
+  return getStringValue(record.data);
+}
+
+function canPublishForCampus(
+  ctx: UserAuthContext,
+  campusId: string | null
+): boolean {
+  if (ctx.roles.includes("globaladmin")) {
+    return true;
+  }
+  return Boolean(campusId && ctx.managedCampusIds.includes(campusId));
+}
+
+function approvalRequiredResult(input: {
+  domain: string;
+  id: string;
+  payload: Record<string, unknown>;
+}) {
+  return {
+    action: `${input.domain}.publish`,
+    error: "Publish requires campus or global admin approval",
+    payload: { domain: input.domain, id: input.id },
+    requiresApproval: true,
+    resourceId: input.id,
+    resourceType: DOMAIN_RESOURCE_TYPE[input.domain] ?? input.domain,
+    sourcePayload: input.payload,
+  };
+}
+
+interface AssistantCreateContentInput {
+  campusId?: string;
+  departmentId?: string;
+  domain: string;
+  payload: Record<string, unknown>;
+  publish?: boolean;
+}
+
+interface AssistantCreateContentContext extends AssistantCreateContentInput {
+  createDraftForApproval: boolean;
+  status: "draft" | "published";
+}
+
+function toCreateContentContext(
+  input: unknown,
+  ctx: UserAuthContext
+): AssistantCreateContentContext {
+  const parsed = input as AssistantCreateContentInput;
+  const payloadCampusId =
+    parsed.campusId ??
+    getStringValue(parsed.payload.campus_id) ??
+    getStringValue(parsed.payload.campusId);
+  const createDraftForApproval =
+    Boolean(parsed.publish) && !canPublishForCampus(ctx, payloadCampusId);
+
+  return {
+    ...parsed,
+    createDraftForApproval,
+    status: parsed.publish && !createDraftForApproval ? "published" : "draft",
+  };
+}
+
+function approvalRequiredForCreatedContent(
+  context: AssistantCreateContentContext,
+  result: unknown
+) {
+  const id = resultDataId(result);
+  if (!(context.createDraftForApproval && id)) {
+    return null;
+  }
+  return approvalRequiredResult({
+    domain: context.domain,
+    id,
+    payload: context.payload,
+  });
+}
+
+function hasActionError(result: unknown): boolean {
+  return "error" in getRecordValue(result);
+}
+
+async function publishCreatedContent(
+  context: AssistantCreateContentContext,
+  result: unknown
+) {
+  if (!(context.publish && !context.createDraftForApproval)) {
+    return;
+  }
+  const id = resultDataId(result);
+  if (!id || hasActionError(result)) {
+    return;
+  }
+  if (context.domain === "events") {
+    await publishEvent(id);
+    return;
+  }
+  const table = DOMAIN_PUBLISH_TABLE[context.domain];
+  if (!table) {
+    return;
+  }
+  const { db } = await createSessionClient();
+  await db.updateRow("app", table, id, { status: "published" });
+}
+
+async function createAssistantContent(
+  input: unknown,
+  ctx: UserAuthContext
+): Promise<unknown> {
+  const context = toCreateContentContext(input, ctx);
+  let result: unknown;
+
+  switch (context.domain) {
+    case "jobs":
+      result = await createJobContent(
+        context.payload,
+        context.status,
+        context.campusId,
+        context.departmentId
+      );
+      break;
+    case "events":
+      result = await createEvent({ ...context.payload } as never);
+      break;
+    case "news":
+      result = await createNews({ ...context.payload } as never);
+      break;
+    case "shop":
+      result = await createProduct({ ...context.payload } as never);
+      break;
+    case "benefits":
+      result = await createBenefit({ ...context.payload } as never);
+      break;
+    default:
+      throw new Error(`Create not supported for domain: ${context.domain}`);
+  }
+
+  const approval = approvalRequiredForCreatedContent(context, result);
+  if (approval) {
+    return approval;
+  }
+  await publishCreatedContent(context, result);
+  return result;
+}
 
 async function createJobContent(
   payload: Record<string, unknown>,
@@ -203,7 +371,10 @@ async function createJobContent(
   } as never);
 }
 
-function buildDeps(_activeFormSchemaId?: string): AssistantActionDeps {
+function buildDeps(
+  _activeFormSchemaId: string | undefined,
+  ctx: UserAuthContext
+): AssistantActionDeps {
   return {
     // -------------------------------------------------------------------------
     // READ
@@ -271,56 +442,7 @@ function buildDeps(_activeFormSchemaId?: string): AssistantActionDeps {
     // -------------------------------------------------------------------------
     // WRITE — create (complexity extracted to createJobContent helper)
     // -------------------------------------------------------------------------
-    createContent: async (input) => {
-      const { domain, payload, publish, campusId, departmentId } = input as {
-        campusId?: string;
-        departmentId?: string;
-        domain: string;
-        payload: Record<string, unknown>;
-        publish?: boolean;
-      };
-      const status = publish ? "published" : "draft";
-      switch (domain) {
-        case "jobs":
-          return await createJobContent(
-            payload,
-            status,
-            campusId,
-            departmentId
-          );
-        case "events": {
-          const result = await createEvent({ ...payload } as never);
-          if (publish && result && !("error" in result)) {
-            await publishEvent(result.data);
-          }
-          return result;
-        }
-        case "news": {
-          const result = await createNews({ ...payload } as never);
-          if (publish && result && !("error" in result)) {
-            const { db } = await createSessionClient();
-            await db.updateRow("app", DOMAIN_PUBLISH_TABLE.news, result.data, {
-              status: "published",
-            });
-          }
-          return result;
-        }
-        case "shop": {
-          const result = await createProduct({ ...payload } as never);
-          if (publish && result && !("error" in result)) {
-            const { db } = await createSessionClient();
-            await db.updateRow("app", DOMAIN_PUBLISH_TABLE.shop, result.data, {
-              status: "published",
-            });
-          }
-          return result;
-        }
-        case "benefits":
-          return await createBenefit({ ...payload } as never);
-        default:
-          throw new Error(`Create not supported for domain: ${domain}`);
-      }
-    },
+    createContent: async (input) => await createAssistantContent(input, ctx),
 
     // -------------------------------------------------------------------------
     // WRITE — update
@@ -362,6 +484,8 @@ function buildDeps(_activeFormSchemaId?: string): AssistantActionDeps {
         throw new Error(`Publish not supported for domain: ${domain}`);
       }
       const { db } = await createSessionClient();
+      const row = await db.getRow<GenericRow>("app", table, id);
+      assertPublishAccess(ctx, getStringValue(row.campus_id));
       await db.updateRow("app", table, id, { status: "published" });
       return { data: id };
     },

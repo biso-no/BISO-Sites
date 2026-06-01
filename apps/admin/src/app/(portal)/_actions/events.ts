@@ -20,6 +20,7 @@ import { z } from "zod";
 import { getUserAuthContext, type UserAuthContext } from "@/lib/authorization";
 import {
   applyScopeQueries,
+  assertPublishAccess,
   assertWriteAccess,
 } from "@/lib/utils/authorization";
 import { logAuditEvent } from "./audit-log";
@@ -317,20 +318,6 @@ export async function createEvent(values: EventFormValues) {
       },
     });
 
-    if (validated.data.notify_push) {
-      try {
-        const { messaging } = await createAdminClient();
-        await messaging.createPush(
-          ID.unique(),
-          validated.data.title_en,
-          validated.data.short_description_en ?? "",
-          [EVENTS_PUSH_TOPIC_ID]
-        );
-      } catch (messagingError) {
-        console.error("Failed to send push notification:", messagingError);
-      }
-    }
-
     revalidatePath("/events");
     return { data: event.$id };
   } catch (error) {
@@ -365,6 +352,10 @@ export async function updateEvent(id: string, values: EventFormValues) {
       validated.data.campus_id,
       validated.data.department_id ?? null
     );
+    if (event.status === "published" || validated.data.status === "published") {
+      assertPublishAccess(ctx, event.campus_id);
+      assertPublishAccess(ctx, validated.data.campus_id);
+    }
 
     await db.updateRow("app", "events", id, {
       ...buildEventColumns(validated.data),
@@ -394,7 +385,7 @@ export async function updateEvent(id: string, values: EventFormValues) {
       },
     });
 
-    if (validated.data.notify_push) {
+    if (validated.data.status === "published" && validated.data.notify_push) {
       try {
         const { messaging } = await createAdminClient();
         await messaging.createPush(
@@ -481,7 +472,7 @@ export async function publishEvent(id: string) {
       return { error: "Event not found" };
     }
 
-    assertWriteAccess(ctx, event.campus_id, event.department_id);
+    assertPublishAccess(ctx, event.campus_id);
 
     await db.updateRow("app", "events", id, {
       status: "published" as EventsStatus,

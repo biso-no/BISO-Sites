@@ -17,7 +17,6 @@ const baseConfig: NextConfig = {
     "@repo/typescript-config",
   ],
   serverExternalPackages: ["node-appwrite"],
-  typescript: { ignoreBuildErrors: true },
   reactStrictMode: true,
   output: "standalone",
   outputFileTracingRoot: path.join(import.meta.dirname, "../../"),

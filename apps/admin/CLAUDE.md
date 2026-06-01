@@ -1,6 +1,6 @@
 # apps/admin
 
-Next.js 15 (App Router) CMS for BI Student Organisation (BISO). Used internally by
+Next.js 16 (App Router) CMS for BI Student Organisation (BISO). Used internally by
 IT, editors, and campus/department operations staff — assume non-technical users.
 Runs on port `3001` (`bun run dev --filter=admin`).
 
@@ -26,8 +26,6 @@ auth/check, campus-leadership, expense, health, notifications, page-editor,
 recruitment, translate-page, units/sync, upload). There is **no `middleware.ts`** —
 auth is enforced in route-group layouts and inside each server action / route
 handler. Any new top-level route segment must add its own auth check.
-
-The `apps/admin/README.md` describes a Puck-based editor — that is outdated.
 
 ## Auth
 
@@ -125,5 +123,6 @@ bun --filter=admin lint             # biome lint
 bun x ultracite fix                 # format + autofix (repo-wide)
 ```
 
-Note: `next.config.ts` sets `typescript: { ignoreBuildErrors: true }`, so
-`build` will not catch type errors — always run `check-types` before merging.
+`next.config.ts` must not suppress TypeScript build errors. Still run
+`check-types` explicitly before merging because it gives faster, clearer output
+than a full Next build.

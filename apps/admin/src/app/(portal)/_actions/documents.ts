@@ -23,6 +23,7 @@ import {
 } from "@/lib/documents/sharepoint-mapping";
 import {
   applyScopeQueries,
+  assertPublishAccess,
   assertWriteAccess,
 } from "@/lib/utils/authorization";
 import { logAuditEvent } from "./audit-log";
@@ -44,6 +45,25 @@ async function requireAuth(): Promise<UserAuthContext> {
 
 function getSharePointService() {
   return new SharePointService(getSharePointConfig());
+}
+
+function getDocumentCreateAccessError(
+  ctx: UserAuthContext,
+  data: DocumentCreateFormValues
+): string | null {
+  if (data.scope === "national" && !ctx.roles.includes("globaladmin")) {
+    return "Only global admins can create national documents";
+  }
+
+  try {
+    assertWriteAccess(ctx, data.campus_id ?? null);
+    if (data.status === "published") {
+      assertPublishAccess(ctx, data.campus_id ?? null);
+    }
+    return null;
+  } catch (error) {
+    return error instanceof Error ? error.message : "Document access denied";
+  }
 }
 
 export async function listDocuments(opts?: { status?: string; page?: number }) {
@@ -93,15 +113,13 @@ export async function createDocument(
 
   const { campus_id, scope, category, language } = validated.data;
 
-  // National documents can only be created by global admins
-  if (scope === "national" && !ctx.roles.includes("globaladmin")) {
+  const accessError = getDocumentCreateAccessError(ctx, validated.data);
+  if (accessError) {
     return {
-      error: "Only global admins can create national documents",
+      error: accessError,
       sharePointError: false,
     };
   }
-
-  assertWriteAccess(ctx, campus_id ?? null);
 
   const file = formData.get("file");
   if (!(file instanceof File) || file.size === 0) {
@@ -212,6 +230,10 @@ export async function updateDocumentMetadata(
   }
 
   assertWriteAccess(ctx, doc.campus_id);
+  if (doc.status === "published" || validated.data.status === "published") {
+    assertPublishAccess(ctx, doc.campus_id);
+    assertPublishAccess(ctx, validated.data.campus_id ?? null);
+  }
 
   await db.updateRow("app", "documents", id, {
     title: validated.data.title,

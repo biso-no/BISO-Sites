@@ -165,7 +165,7 @@
     "build": "turbo run build",
     "dev": "turbo run dev",
     "build:admin": "turbo run build --filter=admin",
-    "build:admin:appwrite": "bun run build:admin && rm -rf .next && mkdir -p .next/standalone && cp -r apps/admin/.next/standalone/* .next/standalone/ && cp -r apps/admin/public .next/standalone/apps/admin/public && cp -r apps/admin/.next/static .next/standalone/apps/admin/.next/static && echo \"require('./apps/admin/server.js')\" > .next/standalone/server.js",
+    "build:admin:appwrite": "bun run build:admin && rm -rf .next && mkdir -p .next/standalone && tar -C apps/admin/.next/standalone -cf - . | tar -C .next/standalone -xf - && cp -R apps/admin/public .next/standalone/apps/admin/public && cp -R apps/admin/.next/static .next/standalone/apps/admin/.next/static && echo \"require('./apps/admin/server.js')\" > .next/standalone/server.js",
     "build:web": "turbo run build --filter=web",
     "build:web:appwrite": "bun run build:web && rm -rf .next && mkdir -p .next/standalone && cp -r apps/web/.next/standalone/* .next/standalone/ && cp -r apps/web/public .next/standalone/apps/web/public && cp -r apps/web/.next/static .next/standalone/apps/web/.next/static && echo \"require('./apps/web/server.js')\" > .next/standalone/server.js",
     "build:api": "turbo run build --filter=api",

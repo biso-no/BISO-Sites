@@ -26,6 +26,17 @@ const BILINGUAL_DRAFT_SCHEMA = z.object({
     .describe("URL slug: lowercase, hyphens, based on English title"),
 });
 
+function isApprovalRequiredResult(
+  value: unknown
+): value is Record<string, unknown> & { requiresApproval: true } {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    !Array.isArray(value) &&
+    (value as Record<string, unknown>).requiresApproval === true
+  );
+}
+
 export function buildContentTools(deps: AssistantActionDeps) {
   return {
     /**
@@ -114,6 +125,9 @@ ${additionalContext ? `Additional context: ${additionalContext}` : ""}`,
             campusId,
             departmentId,
           });
+          if (isApprovalRequiredResult(result)) {
+            return { success: false, ...result };
+          }
           return { success: true, data: result };
         } catch (error) {
           const msg = error instanceof Error ? error.message : "Create failed";

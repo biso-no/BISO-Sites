@@ -190,6 +190,8 @@ function renderApprovalPart(
 ) {
   const cardResult = approvalResults[toolCallId];
   const result = resolved ? (outputData as { submitted: boolean }) : cardResult;
+  const campusId = resolveApprovalCampusId(inputData);
+  const resourceId = resolveApprovalResourceId(inputData);
 
   return (
     <ApprovalRequestCard
@@ -212,10 +214,11 @@ function renderApprovalPart(
           action: inputData.action as string,
           approverTeamId: resolveApproverTeamId(
             inputData.action as string,
-            (inputData.campusId as string) ?? undefined
+            campusId ?? undefined
           ),
+          campusId: campusId ?? undefined,
           payload: inputData.payload as Record<string, unknown>,
-          resourceId: inputData.resourceId as string | undefined,
+          resourceId: resourceId ?? undefined,
           resourceType: inputData.resourceType as string,
         });
         if ("error" in approvalResult) {
@@ -235,6 +238,42 @@ function renderApprovalPart(
       resourceType={inputData.resourceType as string}
       result={result}
     />
+  );
+}
+
+function getRecord(value: unknown): Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+function getString(value: unknown): string | null {
+  return typeof value === "string" && value.length > 0 ? value : null;
+}
+
+function resolveApprovalCampusId(
+  inputData: Record<string, unknown>
+): string | null {
+  const payload = getRecord(inputData.payload);
+  const sourcePayload = getRecord(inputData.sourcePayload);
+  return (
+    getString(inputData.campusId) ??
+    getString(payload.campus_id) ??
+    getString(payload.campusId) ??
+    getString(sourcePayload.campus_id) ??
+    getString(sourcePayload.campusId)
+  );
+}
+
+function resolveApprovalResourceId(
+  inputData: Record<string, unknown>
+): string | null {
+  const payload = getRecord(inputData.payload);
+  return (
+    getString(inputData.resourceId) ??
+    getString(payload.id) ??
+    getString(payload.resourceId) ??
+    getString(payload.$id)
   );
 }
 

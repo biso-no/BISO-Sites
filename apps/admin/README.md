@@ -1,100 +1,101 @@
 ## BISO Sites Admin App (`apps/admin`)
 
-The **Admin App** is the CMS and control center for BISO Sites. It is used by IT, editors, and operations staff to manage users, content, events, shop data, units, jobs, and expenses.
+The admin app is the internal CMS and operations console for BISO Sites. It is
+used by IT, global admins, campus admins, and department staff to manage content,
+recruitment, events, documents, shop products, approvals, Microsoft 365 users,
+and page publishing.
 
-For a full overview, see `/docs/applications/admin-app` in the docs app.
+For the longer operator-facing guide, see
+`apps/docs/content/docs/applications/admin-app`.
 
-### Features
+### Current Scope
 
-- **Authentication & RBAC** – login, role-based access control (admin/editor/viewer).
-- **User management** – manage accounts, roles, and invitations.
-- **Content management** – posts/news, pages, events, units, jobs.
-- **Page builder** – Puck-powered visual editor for landing pages and content blocks.
-- **Shop & payments** – products, orders, integration with Vipps via `@repo/payment`.
-- **Internal tools** – expense tracking and operational dashboards.
+- **Authentication and RBAC**: Microsoft/Appwrite sessions with roles derived
+  from Appwrite team memberships synced from Azure AD security groups.
+- **Content operations**: jobs, events, news, benefits, documents, shop products,
+  pages, submissions, drafts, and activity.
+- **Publishing controls**: department users can draft/update in scope; publishing
+  requires campus-admin or global-admin access. Assistant-driven publish
+  escalations use `/approvals`.
+- **Settings**: global admins can save their own admin locale, timezone, and
+  notification preferences; integration/security rows report configured status.
+- **Integrations**: Appwrite, Microsoft 365, SharePoint documents, Vipps
+  MobilePay, and the assistant stack from `@repo/ai`.
 
 ### Tech Stack
 
-- Next.js 15 (App Router) with React 19 and Server Components.
+- Next.js 16 App Router with React 19 and Server Components.
 - TypeScript with shared config from `@repo/typescript-config`.
-- Tailwind CSS + shared components from `@repo/ui`.
-- Appwrite for auth, database, and storage via `@repo/api`.
-- Puck (`@measured/puck`) and `@repo/editor` for visual page building.
-- Vipps payments via `@repo/payment`.
+- Appwrite auth, Teams, TablesDB, Storage, Functions, and Messaging via
+  `@repo/api`.
+- `next-intl` messages from `packages/i18n/messages`.
+- In-house page editor from `@repo/editor`; this app does not use Puck.
+- Tailwind CSS and local studio components under `(portal)/_components`.
 
 ### Local Development
 
 From the monorepo root:
 
 ```bash
-# Install dependencies (once)
 bun install
-
-# Run only the admin app (port 3001)
 bun run dev --filter=admin
 ```
 
-Visit `http://localhost:3001`. Authentication, roles, and collections are configured in Appwrite – see `/docs/operations/appwrite-setup` and `/docs/applications/admin-app/auth`.
+The dev server runs on `http://localhost:3001`.
 
-### Directory Structure
+### Route Structure
 
 ```text
-apps/admin/
-├── src/
-│  ├── app/
-│  │  ├── (admin)/          # Protected admin routes
-│  │  │  └── admin/
-│  │  │     ├── page.tsx    # Dashboard
-│  │  │     ├── users/      # User management
-│  │  │     ├── posts/      # News/posts
-│  │  │     ├── events/     # Events
-│  │  │     ├── pages/      # Page builder
-│  │  │     ├── shop/       # E‑commerce
-│  │  │     ├── units/      # Departments
-│  │  │     ├── jobs/       # Job board
-│  │  │     └── expenses/   # Expense system
-│  │  ├── (auth)/           # Login and auth routes
-│  │  ├── (protected)/      # Other protected routes
-│  │  ├── actions/          # Server actions
-│  │  ├── api/              # Route handlers
-│  │  └── ...
-│  ├── components/          # Admin UI components
-│  ├── lib/                 # Utilities, hooks, server helpers
-│  ├── i18n/                # Localization helpers
-│  └── proxy.ts
-├── messages/               # `en`/`no` translation JSON files
-├── public/                 # Static assets
-├── next.config.ts
-├── tailwind.config.cjs
-├── tsconfig.json
-└── package.json
+apps/admin/src/app/
+├── (auth)/auth/             # login, callback, OAuth, invite
+├── (portal)/                # primary admin UI
+│   ├── _actions/            # domain server actions
+│   ├── _components/         # portal shell, studio UI, assistant UI
+│   ├── activity/
+│   ├── approvals/
+│   ├── benefits/
+│   ├── departments/
+│   ├── documents/
+│   ├── drafts/
+│   ├── events/
+│   ├── it/users/
+│   ├── jobs/
+│   ├── news/
+│   ├── pages/
+│   ├── settings/
+│   ├── shop/
+│   └── submissions/
+├── (editor)/pages/[id]/     # page editor
+├── (protected)/profile/
+└── api/                     # assistant, auth, health, upload, sync, etc.
 ```
 
-See `/docs/applications/admin-app` for detailed module and route documentation.
+There is no `middleware.ts`; route-group layouts, server actions, and route
+handlers enforce auth.
 
-### Shared Packages
+### Production Checks
 
-- `@repo/api` – Appwrite clients for server actions and dashboards.
-- `@repo/editor` – Puck editor configuration and renderer used in the page builder.
-- `@repo/ui` – shared design system (tables, forms, navigation, etc.).
-- `@repo/payment` – Vipps-related order and payment handling.
-
-### Scripts
-
-Defined in `apps/admin/package.json`:
+Use root commands so Turborepo runs the package task with the right graph:
 
 ```bash
-bun run dev      # next dev -p 3001
-bun run build    # next build
-bun run start    # next start
-bun run lint     # next lint
+bun x turbo run check-types --filter=admin --force
+bun x ultracite check apps/admin package.json
+bun run build:admin
+bun run build:admin:appwrite
 ```
 
-Prefer running repo-wide commands from the root (`bun run dev`, `bun run build`, etc.) when working across apps.
+Focused admin regression tests can be run with:
 
-### Further Reading
+```bash
+bun test 'apps/admin/src/app/(portal)/_actions/approval-execution.test.ts' \
+  'apps/admin/src/app/(portal)/settings/settings-model.test.ts'
+```
 
-- Admin overview: `/docs/applications/admin-app`
-- Auth & RBAC: `/docs/applications/admin-app/auth`
-- User management: `/docs/applications/admin-app/user-management`
-- Page builder: `/docs/packages/editor/overview`
+### Deployment Notes
+
+- Appwrite standalone packaging uses `bun run build:admin:appwrite`.
+- The container entrypoint is `apps/admin/server.js` from the Next standalone
+  output.
+- Required environment variables are documented in `apps/admin/.env.example`.
+- Docker builds need a running Docker daemon; local `next build` and standalone
+  smoke tests are still required when Docker is unavailable.

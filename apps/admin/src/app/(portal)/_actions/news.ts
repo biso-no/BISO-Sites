@@ -13,6 +13,7 @@ import { getUserAuthContext, type UserAuthContext } from "@/lib/authorization";
 import { buildContentTranslationPermissions } from "@/lib/utils";
 import {
   applyScopeQueries,
+  assertPublishAccess,
   assertWriteAccess,
 } from "@/lib/utils/authorization";
 import { logAuditEvent } from "./audit-log";
@@ -173,6 +174,10 @@ export async function updateNews(id: string, values: NewsFormValues) {
   }
 
   assertWriteAccess(ctx, article.campus_id, article.department_id);
+  if (article.status === "published" || validated.data.status === "published") {
+    assertPublishAccess(ctx, article.campus_id);
+    assertPublishAccess(ctx, validated.data.campus_id);
+  }
 
   await db.updateRow("app", "news", id, {
     slug: validated.data.slug,

@@ -845,6 +845,7 @@
     "title": "Settings",
     "description": "Configure your admin preferences.",
     "save": "Save Preferences",
+    "saving": "Saving...",
     "sections": {
       "general": "General",
       "brand": "Brand",
@@ -868,16 +869,18 @@
     "integrations": {
       "title": "Integrations",
       "appwrite": "Appwrite",
-      "stripe": "Stripe",
-      "slack": "Slack",
+      "microsoft365": "Microsoft 365",
+      "sharepoint": "SharePoint",
+      "vipps": "Vipps MobilePay",
       "connected": "Connected",
-      "notConnected": "Not connected",
-      "comingSoon": "Coming soon"
+      "notConfigured": "Not configured"
     },
     "security": {
       "title": "Security",
       "twoFactor": "Two-factor authentication",
       "sessions": "Active sessions",
+      "managedExternally": "Managed by Microsoft 365",
+      "sessionsManaged": "Managed by Appwrite sessions",
       "restricted": "Security settings are restricted to national administrators."
     },
     "team": {

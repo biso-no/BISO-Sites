@@ -13,6 +13,7 @@ import { redirect } from "next/navigation";
 import { getUserAuthContext, type UserAuthContext } from "@/lib/authorization";
 import {
   applyScopeQueries,
+  assertPublishAccess,
   assertWriteAccess,
 } from "@/lib/utils/authorization";
 import { type ProductFormValues, productSchema } from "./schemas";
@@ -209,6 +210,10 @@ export async function updateProduct(id: string, values: ProductFormValues) {
   }
 
   assertWriteAccess(ctx, product.campus_id, product.departmentId);
+  if (product.status === "published" || validated.data.status === "published") {
+    assertPublishAccess(ctx, product.campus_id);
+    assertPublishAccess(ctx, validated.data.campus_id);
+  }
 
   await db.updateRow("app", "webshop_products", id, {
     ...buildProductFields(validated.data),

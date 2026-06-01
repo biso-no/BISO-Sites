@@ -117,6 +117,10 @@ export const clientTools = {
         .describe(
           "Team name / ID that must approve, e.g. 'sg-app-dept-ledelsen-oslo'"
         ),
+      campusId: z
+        .string()
+        .optional()
+        .describe("Numeric campus_id for campus-scoped approval routing"),
       payload: z
         .record(z.string(), z.unknown())
         .describe("The full validated payload to execute if approved"),

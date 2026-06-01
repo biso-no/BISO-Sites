@@ -1,14 +1,27 @@
 "use client";
 
-import { Bell, Globe, Lock, Shield, Users, Zap } from "lucide-react";
-import { useState } from "react";
+import { Bell, Globe, Lock, Shield, Zap } from "lucide-react";
+import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { STUDIO, StudioButton, studioSurface } from "../../_components/studio";
+import { saveAdminPortalSettings } from "../actions";
+import type { AdminPortalSettings, AdminTimezone } from "../settings-model";
+
+interface IntegrationStatus {
+  connected: boolean;
+  id: string;
+  name: string;
+}
 
 interface SettingsClientProps {
+  initialSettings: AdminPortalSettings;
+  integrations: IntegrationStatus[];
   isGlobalAdmin: boolean;
   labels: {
     save: string;
+    saveError: string;
+    saveSuccess: string;
+    saving: string;
     sections: Record<string, string>;
     general: { title: string; locale: string; timezone: string };
     notifications: {
@@ -19,29 +32,22 @@ interface SettingsClientProps {
     };
     integrations: {
       title: string;
-      appwrite: string;
-      stripe: string;
-      slack: string;
       connected: string;
-      notConnected: string;
-      comingSoon: string;
+      notConfigured: string;
     };
     security: {
       title: string;
       twoFactor: string;
       sessions: string;
+      managedExternally: string;
       restricted: string;
+      sessionsManaged: string;
     };
-    saveSuccess: string;
   };
+  timezoneOptions: AdminTimezone[];
 }
 
-type Section =
-  | "general"
-  | "notifications"
-  | "integrations"
-  | "security"
-  | "team";
+type Section = "general" | "notifications" | "integrations" | "security";
 
 const SECTION_ICONS: Record<
   Section,
@@ -51,7 +57,6 @@ const SECTION_ICONS: Record<
   notifications: Bell,
   integrations: Zap,
   security: Shield,
-  team: Users,
 };
 
 function Toggle({
@@ -63,6 +68,7 @@ function Toggle({
 }) {
   return (
     <button
+      aria-pressed={checked}
       className="relative h-6 w-10 shrink-0 rounded-full transition-all"
       onClick={() => onChange(!checked)}
       style={{
@@ -105,14 +111,14 @@ function ToggleRow({
   checked,
   onChange,
 }: {
-  label: string;
-  description?: string;
   checked: boolean;
+  description?: string;
+  label: string;
   onChange: (v: boolean) => void;
 }) {
   return (
     <div
-      className="flex items-center justify-between py-3"
+      className="flex items-center justify-between gap-4 py-3"
       style={{ borderBottom: `0.5px solid ${STUDIO.rule}` }}
     >
       <div>
@@ -130,27 +136,114 @@ function ToggleRow({
   );
 }
 
-export function SettingsClient({ isGlobalAdmin, labels }: SettingsClientProps) {
+function StatusRow({
+  label,
+  value,
+  tone = "neutral",
+}: {
+  label: string;
+  tone?: "good" | "neutral";
+  value: string;
+}) {
+  return (
+    <div
+      className="flex items-center justify-between gap-4 py-3"
+      style={{ borderBottom: `0.5px solid ${STUDIO.rule}` }}
+    >
+      <p className="text-sm" style={{ color: STUDIO.ink2 }}>
+        {label}
+      </p>
+      <span
+        className="rounded-full px-2.5 py-0.5 text-xs"
+        style={
+          tone === "good"
+            ? {
+                background: "rgba(47,93,58,0.08)",
+                color: STUDIO.leaf,
+              }
+            : {
+                background: STUDIO.paper2,
+                color: STUDIO.ink4,
+              }
+        }
+      >
+        {value}
+      </span>
+    </div>
+  );
+}
+
+function settingsEqual(
+  left: AdminPortalSettings,
+  right: AdminPortalSettings
+): boolean {
+  return (
+    left.locale === right.locale &&
+    left.timezone === right.timezone &&
+    left.notifications.newApplications ===
+      right.notifications.newApplications &&
+    left.notifications.newDrafts === right.notifications.newDrafts &&
+    left.notifications.systemAlerts === right.notifications.systemAlerts
+  );
+}
+
+export function SettingsClient({
+  initialSettings,
+  integrations,
+  isGlobalAdmin,
+  labels,
+  timezoneOptions,
+}: SettingsClientProps) {
   const [activeSection, setActiveSection] = useState<Section>("general");
-  const [notifApplications, setNotifApplications] = useState(true);
-  const [notifDrafts, setNotifDrafts] = useState(true);
-  const [notifAlerts, setNotifAlerts] = useState(false);
-  const [twoFactor, setTwoFactor] = useState(false);
+  const [settings, setSettings] =
+    useState<AdminPortalSettings>(initialSettings);
+  const [savedSettings, setSavedSettings] =
+    useState<AdminPortalSettings>(initialSettings);
+  const [isPending, startTransition] = useTransition();
 
   const sections = Object.entries(labels.sections).filter(([key]) => {
     if ((key === "security" || key === "integrations") && !isGlobalAdmin) {
       return false;
     }
-    return true;
+    return key in SECTION_ICONS;
   }) as [Section, string][];
 
+  const hasChanges = !settingsEqual(settings, savedSettings);
+  const isEditableSection =
+    activeSection === "general" || activeSection === "notifications";
+
+  function updateSettings(next: Partial<AdminPortalSettings>) {
+    setSettings((current) => ({ ...current, ...next }));
+  }
+
+  function updateNotification(
+    key: keyof AdminPortalSettings["notifications"],
+    value: boolean
+  ) {
+    setSettings((current) => ({
+      ...current,
+      notifications: {
+        ...current.notifications,
+        [key]: value,
+      },
+    }));
+  }
+
   function handleSave() {
-    toast.success(labels.saveSuccess);
+    startTransition(async () => {
+      const result = await saveAdminPortalSettings(settings);
+      if ("error" in result) {
+        toast.error(result.error || labels.saveError);
+        return;
+      }
+      setSettings(result.data);
+      setSavedSettings(result.data);
+      toast.success(labels.saveSuccess);
+    });
   }
 
   return (
     <div className="flex gap-8">
-      {/* Left nav */}
       <div className="w-44 shrink-0">
         <nav className="space-y-1">
           {sections.map(([key, label]) => {
@@ -168,14 +261,12 @@ export function SettingsClient({ isGlobalAdmin, labels }: SettingsClientProps) {
                 }
                 type="button"
               >
-                {Icon && (
-                  <Icon
-                    size={15}
-                    style={{
-                      color: isActive ? STUDIO.paper : STUDIO.ink4,
-                    }}
-                  />
-                )}
+                <Icon
+                  size={15}
+                  style={{
+                    color: isActive ? STUDIO.paper : STUDIO.ink4,
+                  }}
+                />
                 {label}
               </button>
             );
@@ -183,7 +274,6 @@ export function SettingsClient({ isGlobalAdmin, labels }: SettingsClientProps) {
         </nav>
       </div>
 
-      {/* Right content */}
       <div className="flex-1 space-y-5">
         {activeSection === "general" && (
           <SectionCard title={labels.general.title}>
@@ -199,17 +289,24 @@ export function SettingsClient({ isGlobalAdmin, labels }: SettingsClientProps) {
                 <select
                   className="rounded-xl px-3 py-2 text-sm outline-none"
                   id="settings-locale"
+                  onChange={(event) =>
+                    updateSettings({
+                      locale: event.target
+                        .value as AdminPortalSettings["locale"],
+                    })
+                  }
                   style={{
                     background: "rgba(255,255,255,0.62)",
                     border: `0.5px solid ${STUDIO.rule2}`,
                     color: STUDIO.ink,
                   }}
+                  value={settings.locale}
                 >
-                  <option style={{ background: STUDIO.paper }} value="en">
-                    English
-                  </option>
                   <option style={{ background: STUDIO.paper }} value="no">
                     Norwegian
+                  </option>
+                  <option style={{ background: STUDIO.paper }} value="en">
+                    English
                   </option>
                 </select>
               </div>
@@ -224,21 +321,27 @@ export function SettingsClient({ isGlobalAdmin, labels }: SettingsClientProps) {
                 <select
                   className="rounded-xl px-3 py-2 text-sm outline-none"
                   id="settings-timezone"
+                  onChange={(event) =>
+                    updateSettings({
+                      timezone: event.target.value as AdminTimezone,
+                    })
+                  }
                   style={{
                     background: "rgba(255,255,255,0.62)",
                     border: `0.5px solid ${STUDIO.rule2}`,
                     color: STUDIO.ink,
                   }}
+                  value={settings.timezone}
                 >
-                  <option
-                    style={{ background: STUDIO.paper }}
-                    value="Europe/Oslo"
-                  >
-                    Europe/Oslo (UTC+1)
-                  </option>
-                  <option style={{ background: STUDIO.paper }} value="UTC">
-                    UTC
-                  </option>
+                  {timezoneOptions.map((timezone) => (
+                    <option
+                      key={timezone}
+                      style={{ background: STUDIO.paper }}
+                      value={timezone}
+                    >
+                      {timezone}
+                    </option>
+                  ))}
                 </select>
               </div>
             </div>
@@ -248,76 +351,50 @@ export function SettingsClient({ isGlobalAdmin, labels }: SettingsClientProps) {
         {activeSection === "notifications" && (
           <SectionCard title={labels.notifications.title}>
             <ToggleRow
-              checked={notifApplications}
+              checked={settings.notifications.newApplications}
               label={labels.notifications.newApplications}
-              onChange={setNotifApplications}
+              onChange={(value) => updateNotification("newApplications", value)}
             />
             <ToggleRow
-              checked={notifDrafts}
+              checked={settings.notifications.newDrafts}
               label={labels.notifications.newDrafts}
-              onChange={setNotifDrafts}
+              onChange={(value) => updateNotification("newDrafts", value)}
             />
             <ToggleRow
-              checked={notifAlerts}
+              checked={settings.notifications.systemAlerts}
               label={labels.notifications.systemAlerts}
-              onChange={setNotifAlerts}
+              onChange={(value) => updateNotification("systemAlerts", value)}
             />
           </SectionCard>
         )}
 
         {activeSection === "integrations" && isGlobalAdmin && (
           <SectionCard title={labels.integrations.title}>
-            {[
-              { name: labels.integrations.appwrite, connected: true },
-              { name: labels.integrations.stripe, connected: false },
-              { name: labels.integrations.slack, connected: false },
-            ].map((integration) => (
-              <div
-                className="flex items-center justify-between py-3"
-                key={integration.name}
-                style={{ borderBottom: `0.5px solid ${STUDIO.rule}` }}
-              >
-                <p className="text-sm" style={{ color: STUDIO.ink2 }}>
-                  {integration.name}
-                </p>
-                <span
-                  className="rounded-full px-2.5 py-0.5 text-xs"
-                  style={
-                    integration.connected
-                      ? {
-                          background: "rgba(47,93,58,0.08)",
-                          color: STUDIO.leaf,
-                        }
-                      : {
-                          background: STUDIO.paper2,
-                          color: STUDIO.ink4,
-                        }
-                  }
-                >
-                  {integration.connected
+            {integrations.map((integration) => (
+              <StatusRow
+                key={integration.id}
+                label={integration.name}
+                tone={integration.connected ? "good" : "neutral"}
+                value={
+                  integration.connected
                     ? labels.integrations.connected
-                    : labels.integrations.comingSoon}
-                </span>
-              </div>
+                    : labels.integrations.notConfigured
+                }
+              />
             ))}
           </SectionCard>
         )}
 
         {activeSection === "security" && isGlobalAdmin && (
           <SectionCard title={labels.security.title}>
-            <ToggleRow
-              checked={twoFactor}
+            <StatusRow
               label={labels.security.twoFactor}
-              onChange={setTwoFactor}
+              value={labels.security.managedExternally}
             />
-            <div className="py-3">
-              <p className="text-sm" style={{ color: STUDIO.ink2 }}>
-                {labels.security.sessions}
-              </p>
-              <p className="mt-1 text-xs" style={{ color: STUDIO.ink4 }}>
-                1 active session
-              </p>
-            </div>
+            <StatusRow
+              label={labels.security.sessions}
+              value={labels.security.sessionsManaged}
+            />
           </SectionCard>
         )}
 
@@ -338,11 +415,18 @@ export function SettingsClient({ isGlobalAdmin, labels }: SettingsClientProps) {
           </div>
         )}
 
-        <div className="flex justify-end">
-          <StudioButton onClick={handleSave} variant="primary">
-            {labels.save}
-          </StudioButton>
-        </div>
+        {isEditableSection && (
+          <div className="flex justify-end">
+            <StudioButton
+              className={!hasChanges || isPending ? "opacity-50" : ""}
+              disabled={!hasChanges || isPending}
+              onClick={handleSave}
+              variant="primary"
+            >
+              {isPending ? labels.saving : labels.save}
+            </StudioButton>
+          </div>
+        )}
       </div>
     </div>
   );

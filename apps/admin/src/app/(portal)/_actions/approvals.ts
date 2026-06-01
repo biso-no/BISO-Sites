@@ -28,15 +28,22 @@
  * using these actions in production.
  */
 
-import { ID, Permission, Query, Role } from "@repo/api";
+import { ID, type Models, Permission, Query, Role } from "@repo/api";
 import { createAdminClient, createSessionClient } from "@repo/api/server";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getUserAuthContext } from "@/lib/authorization";
+import { assertPublishAccess } from "@/lib/utils/authorization";
+import {
+  type ApprovalPublishPlan,
+  buildApprovalPublishPlan,
+} from "./approval-execution";
 import { logAuditEvent } from "./audit-log";
+import { publishEvent } from "./events";
 
 const DATABASE_ID = "app";
 const TABLE = "approval_requests";
+type GenericRow = Models.Row & Record<string, unknown>;
 
 async function requireAuth() {
   const ctx = await getUserAuthContext();
@@ -204,8 +211,10 @@ export async function approveRequest(
       return { error: `Request is already ${request.status}` };
     }
 
+    const executionPlan = buildApprovalPublishPlan(request);
+    await executeApprovalPublish(executionPlan, sessionDb, ctx);
+
     const { db } = await createAdminClient();
-    // Mark approved
     await db.updateRow(DATABASE_ID, TABLE, requestId, {
       status: "approved",
       decided_by: ctx.userId,
@@ -217,6 +226,8 @@ export async function approveRequest(
       resourceType: request.resource_type,
       payload: {
         action: request.action,
+        executedResourceId: executionPlan.resourceId,
+        executedTable: executionPlan.table,
         requesterId: request.requester_id,
       },
     });
@@ -227,6 +238,46 @@ export async function approveRequest(
     return {
       error: error instanceof Error ? error.message : "Approval failed",
     };
+  }
+}
+
+async function executeApprovalPublish(
+  plan: ApprovalPublishPlan,
+  sessionDb: Awaited<ReturnType<typeof createSessionClient>>["db"],
+  ctx: Awaited<ReturnType<typeof requireAuth>>
+) {
+  if (plan.domain === "events") {
+    const result = await publishEvent(plan.resourceId);
+    if ("error" in result) {
+      throw new Error(result.error);
+    }
+    return;
+  }
+
+  const row = await sessionDb.getRow<GenericRow>(
+    DATABASE_ID,
+    plan.table,
+    plan.resourceId
+  );
+  const campusId =
+    typeof row.campus_id === "string" && row.campus_id.length > 0
+      ? row.campus_id
+      : null;
+
+  assertPublishAccess(ctx, campusId);
+  await sessionDb.updateRow(DATABASE_ID, plan.table, plan.resourceId, {
+    status: "published",
+  });
+
+  revalidateApprovalPublishPaths(plan);
+}
+
+function revalidateApprovalPublishPaths(plan: ApprovalPublishPlan) {
+  for (const path of plan.paths) {
+    revalidatePath(path);
+    if (path !== "/") {
+      revalidatePath(`${path}/${plan.resourceId}`);
+    }
   }
 }
 

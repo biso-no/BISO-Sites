@@ -102,3 +102,23 @@ export function assertWriteAccess(
   }
   throw new Error("Unauthorized: no write access to this department");
 }
+
+/**
+ * Publishing is stricter than drafting/updating. Department members can manage
+ * drafts in their scope, but live publication requires a campus admin for the
+ * target campus or a global admin.
+ */
+export function assertPublishAccess(
+  ctx: UserAuthContext,
+  campusId?: string | null
+): void {
+  if (isGlobalAdminContext(ctx)) {
+    return;
+  }
+
+  if (campusId && ctx.managedCampusIds.includes(campusId)) {
+    return;
+  }
+
+  throw new Error("Forbidden: publish requires campus or global admin access");
+}

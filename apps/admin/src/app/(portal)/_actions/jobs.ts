@@ -47,6 +47,7 @@ import {
   toRecruitmentAdminScope,
 } from "@/lib/recruitment";
 import { buildContentTranslationPermissions } from "@/lib/utils";
+import { assertPublishAccess } from "@/lib/utils/authorization";
 import { logAuditEvent } from "./audit-log";
 
 // Shorthand type for the db accessor — both admin and session clients return the same shape.
@@ -335,6 +336,9 @@ export async function createJob(values: RecruitmentVacancyUpsertInput) {
       campus_id: validated.data.campus_id,
       department_id: validated.data.department_id ?? null,
     });
+    if (validated.data.status === "published") {
+      assertPublishAccess(ctx, validated.data.campus_id);
+    }
 
     const jobId = ID.unique();
     const audience = validated.data.audience ?? "public";
@@ -412,6 +416,13 @@ export async function updateJob(
       campus_id: validated.data.campus_id,
       department_id: validated.data.department_id ?? null,
     });
+    if (
+      vacancy.status === "published" ||
+      validated.data.status === "published"
+    ) {
+      assertPublishAccess(ctx, vacancy.campus_id);
+      assertPublishAccess(ctx, validated.data.campus_id);
+    }
 
     const audience = validated.data.audience ?? "public";
     const jobPerms = buildJobRowPermissions(

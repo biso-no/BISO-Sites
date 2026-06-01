@@ -10,7 +10,10 @@ import type {
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getUserAuthContext, type UserAuthContext } from "@/lib/authorization";
-import { assertWriteAccess } from "@/lib/utils/authorization";
+import {
+  assertPublishAccess,
+  assertWriteAccess,
+} from "@/lib/utils/authorization";
 import { type BenefitFormValues, benefitSchema } from "./schemas";
 
 async function requireAuth(): Promise<UserAuthContext> {
@@ -128,6 +131,10 @@ export async function updateBenefit(id: string, values: BenefitFormValues) {
   }
 
   assertWriteAccess(ctx, benefit.campus_id);
+  if (benefit.status === "published" || validated.data.status === "published") {
+    assertPublishAccess(ctx, benefit.campus_id);
+    assertPublishAccess(ctx, validated.data.campus_id);
+  }
 
   await db.updateRow("app", "campus_benefits", id, {
     campus_id: validated.data.campus_id,

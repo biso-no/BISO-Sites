@@ -845,6 +845,7 @@
     "title": "Innstillinger",
     "description": "Konfigurer adminpreferansene dine.",
     "save": "Lagre innstillinger",
+    "saving": "Lagrer...",
     "sections": {
       "general": "Generelt",
       "brand": "Merkevare",
@@ -868,16 +869,18 @@
     "integrations": {
       "title": "Integrasjoner",
       "appwrite": "Appwrite",
-      "stripe": "Stripe",
-      "slack": "Slack",
+      "microsoft365": "Microsoft 365",
+      "sharepoint": "SharePoint",
+      "vipps": "Vipps MobilePay",
       "connected": "Tilkoblet",
-      "notConnected": "Ikke tilkoblet",
-      "comingSoon": "Kommer snart"
+      "notConfigured": "Ikke konfigurert"
     },
     "security": {
       "title": "Sikkerhet",
       "twoFactor": "To-faktor-autentisering",
       "sessions": "Aktive sesjoner",
+      "managedExternally": "Administreres i Microsoft 365",
+      "sessionsManaged": "Administreres av Appwrite-økter",
       "restricted": "Sikkerhetsinnstillinger er begrenset til nasjonale administratorer."
     },
     "team": {
