@@ -1,7 +1,0 @@
-{
-  "title": "Development",
-  "description": "Development guides and workflows",
-  "root": true,
-  "icon": "Code",
-  "pages": ["index", "guides"]
-}

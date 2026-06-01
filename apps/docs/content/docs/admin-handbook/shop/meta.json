@@ -1,0 +1,10 @@
+{
+  "title": "Shop",
+  "pages": [
+    "index",
+    "products",
+    "orders",
+    "approval-queue",
+    "checkout-and-payments"
+  ]
+}

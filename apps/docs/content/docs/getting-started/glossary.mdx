@@ -1,0 +1,155 @@
+---
+title: Glossary
+description: Quick lookup for every acronym, product name, and proper noun used in these docs.
+---
+
+# Glossary
+
+## Organisation
+
+- **BISO** — BI Student Organisation. The student body at BI Norwegian
+  Business School and the owner of this platform.
+- **BI** — Handelshøyskolen BI, the Norwegian business school whose students
+  BISO represents.
+- **Campus** — A BI location (Oslo, Bergen, Trondheim, Stavanger) plus the
+  cross-cutting "National" scope.
+- **Department / Unit** — A sub-team within a campus. Stored in the
+  `departments` table.
+- **Operations Unit** — A specific national department; one of the two
+  group memberships that unlocks `globaladmin`.
+- **Ledelsen{City}** — Norwegian for "the leadership"; the leadership team
+  of a specific campus.
+
+## Roles & access
+
+- **`globaladmin`** — Full access everywhere. Derived from `SG-App-Campus-National`
+  + `SG-App-Dept-OperationsUnit`.
+- **`campusadmin`** — Full access within a managed campus. Derived from
+  `SG-App-Campus-{City}` + `SG-App-Dept-Ledelsen{City}`.
+- **`department`** — Pseudo-role for any user with a department membership.
+  Lets them manage their department's content.
+- **Campus context** — The "I'm currently working in Bergen" choice a global
+  admin makes via the sidebar. Stored in the `admin_campus_ctx` cookie.
+
+## Identity & directory
+
+- **AAD / Azure AD** — Azure Active Directory; Microsoft's identity service.
+  Now called **Entra ID**, but the SG-App-* group names predate the rename.
+- **M365** — Microsoft 365.
+- **SG-App-*** — Naming prefix for Azure AD security groups used by this
+  platform. `SG-App-Campus-{City}` and `SG-App-Dept-{Name}` are the two
+  families that matter.
+- **Tenant** — A single Azure AD organisation (BISO has one).
+- **Microsoft Graph** — Microsoft's API for reading/writing data in M365
+  (users, calendar, SharePoint, etc.).
+- **Sites.Selected** — A SharePoint permission model where the app only has
+  access to specific sites; configured via `SHAREPOINT_SITES`.
+
+## Apps
+
+- **`web`** — The public site (`apps/web`). Port 3000 in dev.
+- **`admin`** — The internal CMS (`apps/admin`). Port 3001 in dev.
+- **`docs`** — This documentation site (`apps/docs`). Port 3002 in dev.
+- **`api`** — The standalone JWT-authenticated REST service
+  (`apps/api`). Port 3003 in dev.
+
+## Packages
+
+- **`@repo/api`** — Appwrite wrappers + the page-builder draft/publish flow.
+- **`@repo/editor`** — In-house block editor (replaces Puck).
+- **`@repo/ui`** — Shared component library.
+- **`@repo/ai`** — AI SDK setup and the admin assistant.
+- **`@repo/connectors`** — External integrations (Azure, SharePoint, 24SO).
+- **`@repo/payment`** — Vipps + Stripe.
+- **`@repo/i18n`** — next-intl config + message bundles.
+- **`@repo/shared`** — Cross-cutting utilities and types.
+- **`@repo/typescript-config`** — Shared tsconfig presets.
+
+## Backend / Appwrite
+
+- **Appwrite** — The open-source backend-as-a-service that powers auth, DB,
+  storage, teams, functions, and messaging.
+- **TablesDB** — Appwrite's database API used by this platform. Operations
+  on tables/rows: `db.listRows`, `db.getRow`, `db.createRow`, `db.updateRow`,
+  `db.deleteRow`.
+- **Table / Collection** — Equivalent terms; "table" is the newer name.
+- **Row / Document** — Equivalent terms; a single record.
+- **`createSessionClient(jwt?)`** — Server-side Appwrite client scoped to a
+  user. From `@repo/api/server`.
+- **`createAdminClient()`** — Server-side Appwrite client using the
+  `APPWRITE_API_KEY` service key. Bypasses row security; gate behind your
+  own auth checks.
+- **`$permissions`** — Appwrite's row-level ACL field. Read/write/update/delete
+  scoped to specific Roles (teams, users).
+- **`a_session_biso`** / **`a_session_biso_admin`** — Session cookies for
+  the public and admin apps respectively.
+
+## Page editor
+
+- **PageDoc** — The JSON shape `{ blocks, meta }` representing one locale of
+  one page.
+- **Block** — A unit of layout (hero, text, gallery, ...). 37 types in the
+  registry.
+- **`draft_document`** / **`puck_document`** — The two JSON columns on
+  `page_translations`. Draft is work in progress; `puck_document` (named
+  historically) holds the published version.
+- **`EditorShell`** — The editor UI entry component (admin only).
+- **`PageDoc` renderer** — The read-only renderer used by the public site.
+
+## Payments & members
+
+- **Vipps / Vipps MobilePay** — Norway's dominant mobile-payment provider.
+  Primary checkout option.
+- **Stripe** — Fallback / secondary payment provider.
+- **24SevenOffice** — BISO's accounting system. Also marketed as **Finago**;
+  the two names refer to the same vendor.
+- **Finago category** — A customer-category code in 24SevenOffice that
+  drives membership status. Read via the membership-status route.
+- **Member** — A user with an active row in `memberships`. Eligible for
+  member pricing on events and shop products.
+- **NOK** — Norwegian kroner.
+
+## AI
+
+- **`@ai-sdk/openai`** / **`@ai-sdk/anthropic`** — The Vercel AI SDK
+  provider packages. Used in `@repo/ai` and inside the admin page editor.
+- **Anthropic Claude** — Used for the page editor copilot, the admin
+  assistant, and the recruitment resume screening.
+- **OpenAI** — Used for page translation and expense receipt OCR.
+- **Pinecone** — Vector database used to store and query resume embeddings.
+- **Capability** — A permission name used by the admin assistant runtime to
+  decide whether a given tool is exposed to a given user.
+
+## Norway-specific
+
+- **Entur** — The Norwegian national journey planner. Real-time departures
+  shown on campus pages come from Entur's GraphQL API.
+- **Norwegian (`no`)** / **English (`en`)** — The two supported locales.
+
+## Infrastructure & tooling
+
+- **Turborepo** — The monorepo build system. Run with `bun run` (which
+  delegates to `turbo`).
+- **Bun** — The package manager and runtime used throughout. Version 1.3.1.
+- **`catalog:`** — Bun's dependency-version-pinning protocol. Shared
+  versions are declared in the root `package.json#catalog` block.
+- **Fumadocs** — The docs site framework (powers `apps/docs`).
+- **Ultracite** — The Biome-based linter/formatter preset used here.
+- **Biome** — The underlying lint/format engine.
+- **Plate.js** — The rich-text editor library used inside content blocks.
+- **Radix UI** — The accessible primitives that `@repo/ui` is built on.
+- **next-intl** — The i18n library used in the Next.js apps.
+- **lefthook** + **lint-staged** — Git hook tooling that runs Biome on
+  staged files before commit.
+
+## Other proper nouns you'll see
+
+- **Webdock** — Cloud hosting provider; `WEBDOCK_API_KEY` is its API key
+  env var. Used for some infra automation.
+- **WordPress / WooCommerce** — Legacy systems that pre-date this platform.
+  `apps/api` proxies a few endpoints for backward compatibility but the
+  WooCommerce connector in `@repo/connectors` is otherwise dead code.
+- **Puck** — A page-builder library this platform used historically. The
+  `page_translations.puck_document` column name is the only thing left of it
+  in the schema; everything else has moved to `@repo/editor`. **Do not
+  re-introduce Puck.**

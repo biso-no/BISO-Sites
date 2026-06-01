@@ -1,7 +1,15 @@
 {
   "title": "Packages",
-  "description": "Shared package documentation",
-  "root": true,
-  "icon": "Package",
-  "pages": ["index", "ai", "api", "editor", "payment", "ui"]
+  "pages": [
+    "index",
+    "api",
+    "editor",
+    "ui",
+    "ai",
+    "connectors",
+    "payment",
+    "i18n",
+    "shared",
+    "typescript-config"
+  ]
 }

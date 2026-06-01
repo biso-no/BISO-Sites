@@ -1,0 +1,17 @@
+{
+  "title": "Integrations",
+  "pages": [
+    "index",
+    "appwrite",
+    "azure-ad",
+    "microsoft-graph",
+    "sharepoint",
+    "24sevenoffice",
+    "vipps-mobilepay",
+    "stripe",
+    "openai",
+    "anthropic",
+    "pinecone",
+    "entur"
+  ]
+}
