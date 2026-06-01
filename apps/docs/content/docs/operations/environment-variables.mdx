@@ -123,14 +123,21 @@ The standalone JWT REST service.
 | Environment | Where the values go |
 |-------------|----------------------|
 | Local dev | `apps/<app>/.env.local` (gitignored) |
-| Production | The hosting provider's secret manager (Appwrite Sites env, Webdock environment, Vercel env, etc.) |
-| CI (GitHub Actions) | Repository or org-level secrets — only the ones the workflow actually needs |
+| Production | **Appwrite Sites env-var UI**, configured per site. This is the only place production values live. |
+| CI (GitHub Actions) | Repository variables (`APPWRITE_ENDPOINT`, `APPWRITE_PROJECT_ID`, `WEB_SITE_ID`, `ADMIN_SITE_ID`, `API_SITE_ID`, `DOCS_SITE_ID`) + the `APPWRITE_API_KEY` secret. Nothing else. |
 
 <Callout type="warn">
-**To be filled in by the current IT Manager**: a sealed reference of the
-current production values for each variable above, stored in
-[FILL IN: password manager — e.g. 1Password vault "BISO Production"], with
-access granted to [FILL IN: who].
+**Open continuity risk**: production env values exist only inside
+Appwrite Sites today. There is **no off-Appwrite backup** — no
+password manager, no sealed file in a private repo, no second copy in
+1Password. If the Appwrite project is lost or wiped, every secret has
+to be re-issued from each provider.
+
+Recommended remediation (also called out in
+[Handover / Ownership and accounts → Secrets vault](/docs/handover/ownership-and-accounts#secrets-vault)):
+provision a password manager for BISO IT and store one
+production-env entry per app (`web`, `admin`, `api`, `docs`). Update
+each entry whenever you rotate a key.
 </Callout>
 
 ## When you add a new env var

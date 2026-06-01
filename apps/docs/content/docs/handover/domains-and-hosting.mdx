@@ -58,23 +58,37 @@ removed or aliased to the apex).
   Vipps if applicable).
 
 <Callout type="warn">
-**To be filled in by the current IT Manager**: a snapshot of the current
-DNS zone (export from the DNS provider) attached to this page, or a link
-to where the zone export is stored.
+**No DNS zone export is currently saved off-platform.** If proisp.no
+ever loses BISO's zone (or BISO loses access to proisp), the live
+configuration would have to be rebuilt from memory and from the
+records the platform / M365 require.
+
+Action for the next IT Manager: log into proisp.no, export the
+`biso.no` zone file (or take a full screenshot of every record),
+and store it alongside the production env vars in the password
+manager once one is deployed. Repeat after any non-trivial DNS
+change.
 </Callout>
 
 ## Hosting topology
 
-The platform is provider-agnostic. Historically it has been served from
-a mix of:
+Today the platform runs on a fixed combination:
 
-- **Appwrite Sites** — referenced by the `build:web:appwrite`,
-  `build:admin:appwrite`, `build:api:appwrite`, `build:docs:appwrite`
-  scripts in the root `package.json`.
-- **Webdock** — referenced by the `WEBDOCK_API_KEY` env var. Used at
-  some points for the Appwrite host and possibly the Node apps.
-- **Vercel-style hosting** — supported because the apps are stock
-  Next.js with `output: "standalone"`.
+- **Appwrite Sites** (self-hosted) serves every Next.js app —
+  `web`, `admin`, `api`, `docs`. Each is a separate Appwrite Site
+  with its own site ID and its own per-site env vars. The
+  `build:web:appwrite`, `build:admin:appwrite`, `build:api:appwrite`,
+  and `build:docs:appwrite` scripts in the root `package.json` are
+  the Appwrite Sites build commands.
+- **Webdock** hosts the two VMs underneath. Server 1 runs the
+  Appwrite instance (`appwrite.biso.no`) plus the Appwrite Sites
+  deployments. Server 2 runs the legacy WordPress site at the apex
+  `biso.no` until the cutover. The `WEBDOCK_API_KEY` env var is for
+  Webdock automation rather than runtime hosting.
+
+Because the apps are stock Next.js with `output: "standalone"`,
+moving to a Vercel-style or container hosting provider is possible
+in principle, but no such migration is in progress.
 
 ### Current hosting per app
 
@@ -83,13 +97,29 @@ a mix of:
 | `apps/web` | Appwrite Sites (self-hosted) | `web.biso.no` (becoming `biso.no` at cutover) | |
 | `apps/admin` | Appwrite Sites (self-hosted) | `admin.biso.no` | |
 | `apps/api` | Appwrite Sites (self-hosted) | `api.biso.no` | |
-| `apps/docs` | [FILL IN: provider + URL once published] | | |
+| `apps/docs` | Appwrite Sites (self-hosted) | Configured behind `DOCS_SITE_ID` in the deploy workflow; confirm the public URL in the Appwrite Console | |
 | Appwrite backend | Webdock VM | `appwrite.biso.no` | Markus Heien has sole SSH root. See [ownership-and-accounts](/docs/handover/ownership-and-accounts#appwrite). |
 
+### Deploy mechanism
+
+Every app deploys from a **single GitHub Actions workflow** —
+[`.github/workflows/deploy-production.yml`](https://github.com/biso-no/BISO-Sites/blob/main/.github/workflows/deploy-production.yml).
+It triggers on `push` to `main`, uses `turbo query affected --packages`
+to detect which apps changed, and uploads the monorepo source to the
+matching Appwrite Site for each. Appwrite runs `bun install` plus the
+site's configured build command on its own side.
+
+So the answer for every app is the same: **push to `main` → only the
+affected apps redeploy**. There is no manual deploy button and no
+per-app difference in the trigger.
+
+The full walkthrough — including site-ID mapping, what gets uploaded,
+and rollback — is at [Operations / Deployment](/docs/operations/deployment).
+
 <Callout type="warn">
-**To be filled in by the current IT Manager**: the deploy mechanism per
-app (push to `main`? manual Appwrite Sites publish? GitHub Action?) and
-the docs site's hosting (if/when it is published).
+**No staging environment today.** Every push to `main` goes straight
+to production. A staging tier is a known follow-up — see
+[Handover / Known limitations](/docs/handover/known-limitations).
 </Callout>
 
 ## SSL / TLS

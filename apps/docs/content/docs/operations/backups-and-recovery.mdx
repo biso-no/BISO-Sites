@@ -35,13 +35,19 @@ For BISO's self-hosted Appwrite at `appwrite.biso.no`:
 - A backup strategy must cover the **MariaDB data volume** and the
   **storage volume** for the Storage buckets.
 
-<Callout type="warn">
-**To be filled in by the current IT Manager**: the exact backup mechanism
-in use for production Appwrite — daily snapshots from the hosting
-provider? `mariadb-dump` on a cron? Off-site copy location? Restore test
-date? Test the restore at least once a year; document the test below.
+<Callout type="info">
+**Last verified restore test**: recently — restored an Appwrite backup
+into a fresh project and confirmed it worked. The exact date and the
+specific commands used should be re-captured the next time the test
+runs; aim for at least once a year.
+</Callout>
 
-Last verified restore test: [FILL IN: date, who, outcome].
+<Callout type="warn">
+**Action for the current IT Manager** at handover: document the
+backup mechanism specifically (Webdock snapshots? `mariadb-dump`
+on a cron? Where the off-site copy lives?), and run a fresh restore
+test with the incoming person so they have hands-on familiarity
+with the procedure. Capture the test date and outcome here.
 </Callout>
 
 ## Code backups

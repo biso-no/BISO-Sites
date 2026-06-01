@@ -31,19 +31,15 @@ down. See [/docs/integrations/appwrite](/docs/integrations/appwrite).
 
 ## Hosting
 
-The platform is provider-agnostic. It has been deployed via:
+Production today runs on **Appwrite Sites** (self-hosted), which in turn
+runs on a **Webdock** VM. Every Next.js app — `web`, `admin`, `api`,
+`docs` — is a separate Appwrite Site on that instance. Deploys are
+driven by a single GitHub Actions workflow that detects which apps
+changed and uploads only those.
 
-- **Appwrite Sites** (using the `build:web:appwrite`, `build:admin:appwrite`,
-  etc. scripts in the root `package.json`)
-- **Webdock** (referenced by `WEBDOCK_API_KEY` and used historically)
-- Anything else that can run a Node 20+ standalone bundle (Vercel, Fly, a
-  bare VM, etc.)
-
-<Callout type="warn">
-**To be filled in by the current IT Manager**: confirm which hosting provider
-is *currently* serving production, the account holder, and the billing email.
-Cross-reference with [/docs/handover/domains-and-hosting](/docs/handover/domains-and-hosting).
-</Callout>
+For the full deployment walkthrough see
+[Deployment](/docs/operations/deployment). For ownership and billing
+detail see [Handover / Domains and hosting](/docs/handover/domains-and-hosting).
 
 ## Build pipeline
 

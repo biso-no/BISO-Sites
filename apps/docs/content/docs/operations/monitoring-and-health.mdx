@@ -32,27 +32,28 @@ The endpoint is liveness-style: it returns OK if the Node process is
 serving requests. It does **not** check Appwrite connectivity. A 200 here
 means "the app is up", not "the app can serve users".
 
-For each of the three apps:
+For each app:
 
-- `https://[FILL IN: web URL]/api/health`
-- `https://[FILL IN: admin URL]/api/health`
-- `https://[FILL IN: api URL]/api/health`
+- `https://web.biso.no/api/health` *(will become `https://biso.no/api/health` after the WordPress cutover)*
+- `https://admin.biso.no/api/health`
+- `https://api.biso.no/api/health`
+- `https://[the docs URL]/api/health` — confirm in the Appwrite Console under the `docs` Site
 
-## Recommended uptime monitoring
+## Uptime monitoring — current state
 
-Pick any uptime service (UptimeRobot, BetterStack, Cronitor, healthchecks.io).
-Configure it to hit each `/api/health` every 1–5 minutes. Add an extra
-check that fetches the home page of the public site and asserts a string
-that should always be present — this catches "process is up but rendering
-is broken" scenarios.
-
-Suggested alert routing: SMS / push to the IT Manager on duty; email to
-the rest of the leadership chain.
+**Better Stack** (`betterstack.com`) pings each `/api/health` endpoint
+on a regular interval. Alerts route to Markus Heien via Microsoft
+Teams. The dashboard URL is in Better Stack's "Uptime" section under
+the BISO account.
 
 <Callout type="warn">
-**To be filled in by the current IT Manager**: which uptime service is
-currently in use, the dashboard URL, the on-call rotation, and the alert
-destinations.
+**Open continuity risk**: Better Stack's alert routing currently
+points at one person (Markus). When that person is unavailable, the
+platform has no first responder. Adding a second alert destination
+(another BISO IT email, or a Teams channel ping) is a five-minute
+configuration change in Better Stack and the single highest-leverage
+operational hardening available. See
+[Incident response](/docs/operations/incident-response#current-contact-list-handover-snapshot).
 </Callout>
 
 ## Appwrite's own dashboards
@@ -69,19 +70,29 @@ Most of the operational signal lives in the Appwrite Console at
 - **Storage**: bucket usage; useful when résumé uploads or page assets
   start filling up disk.
 
+## Error tracking — Sentry
+
+**Sentry** is wired into all four Next.js apps for error monitoring.
+Unhandled exceptions, server-side errors, and significant client-side
+issues are reported to the BISO Sentry project. Use Sentry's dashboard
+as the first place to look when an error report comes in but you can't
+reproduce the bug locally — chances are the stack trace, breadcrumbs,
+and request context are already there.
+
+Sentry's alerting and dashboard URL are in the BISO Sentry account.
+For ownership and billing detail see
+[Handover / Third-party accounts](/docs/handover/third-party-accounts).
+
 ## What's intentionally missing
 
-- **No Sentry / error-tracking provider** is currently wired up. The
-  platform is *ready* for one — adding `@sentry/nextjs` to each app is a
-  one-evening job — but historically the team has preferred to read
-  Appwrite logs and hosting-provider logs directly.
 - **No analytics.** The `/api/analytics/page-view` endpoint exists on
   `apps/web` and returns 204 No Content as a deliberate no-op. See
   [/docs/handover/design-decisions](/docs/handover/design-decisions) for
   why, and [/docs/handover/known-limitations](/docs/handover/known-limitations)
   for the future-work note.
-- **No APM.** Performance is measured ad-hoc with browser devtools and
-  hosting provider built-ins.
+- **No dedicated APM.** Performance is measured ad-hoc with browser
+  devtools, Sentry's slow-transaction signal where applicable, and the
+  hosting provider's built-ins.
 
 ## The audit log
 

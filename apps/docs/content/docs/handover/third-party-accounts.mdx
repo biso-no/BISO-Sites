@@ -128,56 +128,57 @@ licenses rather than direct purchase.
 
 ## Hosting
 
-### Appwrite (self-hosted or cloud)
+### Appwrite (self-hosted)
 
 | Field | Value |
 |-------|-------|
-| Hosting model | [FILL IN: self-hosted on VM / Appwrite Cloud] |
-| If self-hosted: VM provider + plan | [FILL IN] |
-| Monthly hosting cost | [FILL IN] |
-| If cloud: Appwrite plan tier | [FILL IN] |
+| Hosting model | Self-hosted on Webdock |
+| Monthly cost | Bundled into the Webdock line below (no separate Appwrite licensing) |
 
-### Webdock (if used)
+### Webdock
 
 | Field | Value |
 |-------|-------|
-| Account login | [FILL IN] |
-| Servers in use | [FILL IN] |
-| Monthly cost | [FILL IN] |
-| Renewal | [FILL IN] |
+| Account login | GitHub OAuth — Markus Heien (`MHEien`) only |
+| Servers in use | Two VMs: (1) Appwrite + all turborepo apps via Appwrite Sites, (2) the legacy WordPress site that still serves `biso.no` until the cutover |
+| Monthly cost | ~NOK 550 total across both servers |
+| Renewal | Monthly |
 
 ### Other hosting providers
 
-| Field | Value |
-|-------|-------|
-| Provider | [FILL IN: e.g. Vercel, Fly] |
-| Plan | [FILL IN] |
-| Monthly cost | [FILL IN] |
+None. Every Next.js app deploys to Appwrite Sites on Webdock Server 1.
+There is no Vercel / Netlify / Fly / Render account.
 
 ## Developer tooling
 
 | Service | Plan | Monthly cost | Renewal | Notes |
 |---------|------|-------------|---------|-------|
-| GitHub organisation | [FILL IN: Free / Team / Enterprise] | [FILL IN] | [FILL IN] | Required for the org account. |
-| Domain registrar | [FILL IN] | [FILL IN] | [FILL IN] | See [domains-and-hosting](/docs/handover/domains-and-hosting). |
-| Password manager | [FILL IN] | [FILL IN] | [FILL IN] | |
-| Uptime monitor | [FILL IN] | [FILL IN] | [FILL IN] | See [monitoring-and-health](/docs/operations/monitoring-and-health). |
-| Other | [FILL IN] | — | — | — |
+| GitHub organisation `biso-no` | Free (public repos) — confirm in the org settings | NOK 0 (today) | n/a | Single Owner (`MHEien`) — see [Ownership](/docs/handover/ownership-and-accounts#source-code). |
+| Domain registrar (proisp.no) | Standard | Included in domain renewal (annual, billed Dec 19) | Annual | See [Domains and hosting](/docs/handover/domains-and-hosting). |
+| Password manager | **None deployed** | NOK 0 | — | Major operational gap — see [Ownership / Secrets vault](/docs/handover/ownership-and-accounts#secrets-vault). |
+| Uptime monitoring | **Better Stack (Betterstack)** | [FILL IN: current plan tier and monthly cost] | [FILL IN] | Pings `/api/health` on each app. |
+| Error monitoring | **Sentry** | [FILL IN: plan + monthly cost] | [FILL IN] | Used by all four Next.js apps for error tracking. |
+| SMTP for transactional email | **Microsoft 365 SMTP relay** (uses BI's tenant) | NOK 0 | n/a | Configured at the Appwrite instance level. |
 
 ## Total
 
 It's worth maintaining a running total of monthly platform spend so
 leadership can see what the platform actually costs.
 
-| Category | Monthly NOK |
-|----------|-------------|
-| AI providers (OpenAI + Anthropic + Pinecone) | [FILL IN] |
-| Payment provider monthly fees | [FILL IN] |
-| Hosting | [FILL IN] |
-| Microsoft 365 | [FILL IN] |
-| 24SevenOffice | [FILL IN] |
-| Developer tooling | [FILL IN] |
-| **Total** | **[FILL IN]** |
+| Category | Monthly NOK (snapshot) |
+|----------|------------------------|
+| AI providers (OpenAI only — Anthropic not used) | ~110 NOK (≈ USD $10 — expected to rise after public-site launch) |
+| Pinecone | 0 (Starter tier on Markus's personal account — see continuity risk in [Ownership / Pinecone](/docs/handover/ownership-and-accounts#pinecone)) |
+| Payment provider monthly fees (Vipps) | 0 (Vipps Checkout has no monthly fixed fee at our scale) |
+| Hosting (Webdock — both servers) | ~550 NOK |
+| Microsoft 365 | 0 (BISO uses BI Norwegian Business School's student licenses) |
+| 24SevenOffice (Finago) | 0 (sponsored — may change) |
+| Uptime monitoring (Better Stack) | [FILL IN] |
+| Error monitoring (Sentry) | [FILL IN] |
+| Password manager | 0 (not deployed) |
+| **Total (recurring infra + AI)** | **~660 NOK + Better Stack + Sentry** |
 
-Transaction fees (Vipps / Stripe per-order) scale with revenue and are
-excluded from the monthly total above.
+Transaction fees (Vipps per-order) scale with revenue and are excluded
+from the monthly total above. Once Sentry and Better Stack tier costs
+are filled in, this is the complete recurring spend picture for the
+platform.

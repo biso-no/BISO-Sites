@@ -11,9 +11,9 @@ goal is to restore service first and understand the cause second.
 ## Triage checklist
 
 1. **Is `/api/health` returning OK on all three apps?**
-   - `web`: `https://[FILL IN]/api/health`
-   - `admin`: `https://[FILL IN]/api/health`
-   - `api`: `https://[FILL IN]/api/health`
+   - `web`: `https://web.biso.no/api/health` (will become `https://biso.no/api/health` after the WordPress cutover)
+   - `admin`: `https://admin.biso.no/api/health`
+   - `api`: `https://api.biso.no/api/health`
    - Any non-200 here narrows the problem to that app's host.
 
 2. **Is Appwrite up?**
@@ -65,14 +65,27 @@ broken (not just slow). Notify in this order:
 4. **External vendors** — only when you've localised the problem to
    their service.
 
-<Callout type="warn">
-**To be filled in by the current IT Manager**: who to call, in order,
-when production is on fire. Include name, role, phone, email, and the
-escalation path (Slack channel? WhatsApp group? Phone tree?).
+### Current contact list (handover snapshot)
 
-Current on-call: [FILL IN].
-Escalation #1: [FILL IN].
-Escalation #2 (board contact): [FILL IN].
+| Role | Person | Contact channel |
+|------|--------|------------------|
+| **On-call (sole)** | Markus Heien — IT Manager | `markus@biso.no`, **Microsoft Teams** (primary), phone if needed |
+| Escalation #1 | Simen — Administrasjonsleder | `simen@biso.no`, Teams |
+| Escalation #2 (leadership / board) | Generalsekretær / President — confirm current postholder before escalating | Teams or email |
+
+**Channel for incident coordination**: Microsoft Teams. There is no
+dedicated #incidents channel today — coordinate in whichever IT /
+leadership channel is most appropriate to the audience.
+
+<Callout type="warn">
+**Open continuity risk**: there is exactly one person on-call (Markus
+Heien). When Markus is unavailable, asleep, on holiday, or no longer
+at BISO, the platform has no first responder. **Adding a second
+on-call rotation** — even part-time, even just for "site is down"
+alerts — is the single highest-leverage operational change the next
+IT Manager could make. Better Stack (the uptime monitor) supports
+multi-recipient alerts; configuring it to also page a second person
+takes minutes.
 </Callout>
 
 ## Common scenarios
