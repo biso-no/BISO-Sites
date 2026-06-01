@@ -1,0 +1,112 @@
+---
+title: Domains and hosting
+description: DNS, the subdomains in use, and where each part of the platform actually runs.
+---
+
+# Domains and hosting
+
+## The domain
+
+BISO owns **`biso.no`**. Every subdomain the platform uses sits under
+this one apex.
+
+| Item | Value |
+|------|-------|
+| Apex domain | `biso.no` |
+| Registrar | [FILL IN: see [ownership-and-accounts](/docs/handover/ownership-and-accounts)] |
+| DNS provider | [FILL IN: often the same as the registrar] |
+| WHOIS contact email | [FILL IN] |
+| Renewal date | [FILL IN] |
+
+<Callout type="warn">
+**To be filled in by the current IT Manager**: confirm the renewal is on
+auto-renew with a credit card that BISO controls (not a personal card),
+and that WHOIS contact emails are role-based rather than personal.
+</Callout>
+
+## Subdomains in use
+
+| Subdomain | Points to | Purpose |
+|-----------|----------|---------|
+| `biso.no` | `apps/web` | Public student-facing site |
+| `public.biso.no` | `apps/web` (or alias) | Historical / alternate entry point [FILL IN: confirm current use] |
+| `admin.biso.no` | `apps/admin` | Production CMS |
+| `admin-dev.biso.no` | `apps/admin` (dev build) | Dev / staging CMS |
+| `appwrite.biso.no` | Self-hosted Appwrite | Backend |
+| `api.biso.no` | `apps/api` | JWT REST service ([FILL IN: confirm — may not yet be the production hostname]) |
+
+The exact hostnames for the API service and any preview/staging
+environments should be re-verified at handover.
+
+## DNS records to be aware of
+
+- **A / AAAA / CNAME** for each subdomain above, pointing at the
+  appropriate host.
+- **MX records** for `biso.no` (handled by Microsoft 365 — see Azure AD).
+  These are independent of the platform but live in the same DNS zone.
+- **TXT records** for SPF, DKIM, DMARC (M365 setup) and any provider
+  domain-verification tokens (Stripe, SendGrid-like services if added,
+  Vipps if applicable).
+
+<Callout type="warn">
+**To be filled in by the current IT Manager**: a snapshot of the current
+DNS zone (export from the DNS provider) attached to this page, or a link
+to where the zone export is stored.
+</Callout>
+
+## Hosting topology
+
+The platform is provider-agnostic. Historically it has been served from
+a mix of:
+
+- **Appwrite Sites** — referenced by the `build:web:appwrite`,
+  `build:admin:appwrite`, `build:api:appwrite`, `build:docs:appwrite`
+  scripts in the root `package.json`.
+- **Webdock** — referenced by the `WEBDOCK_API_KEY` env var. Used at
+  some points for the Appwrite host and possibly the Node apps.
+- **Vercel-style hosting** — supported because the apps are stock
+  Next.js with `output: "standalone"`.
+
+<Callout type="warn">
+**To be filled in by the current IT Manager**: the *current* provider
+for each app, the deployment URL on that provider, and how a deploy is
+triggered (git push to which branch? manual click? GitHub Action?).
+
+- `apps/web`: [FILL IN: provider, URL, deploy mechanism]
+- `apps/admin`: [FILL IN]
+- `apps/api`: [FILL IN]
+- `apps/docs`: [FILL IN]
+- `appwrite.biso.no`: [FILL IN: host VM provider, OS, who has SSH]
+</Callout>
+
+## SSL / TLS
+
+Whichever provider hosts each app handles certificate issuance — usually
+Let's Encrypt automatic renewals, or a provider-managed certificate.
+There is no manually-managed cert in the platform.
+
+If a cert fails to renew, the symptom is browser warnings on the
+affected subdomain. Most providers auto-renew 30 days before expiry; the
+failure mode is usually a DNS record having been changed.
+
+## CDN / edge
+
+Next.js' built-in image optimisation and static file serving handle the
+edge concerns. The platform does not currently sit behind a third-party
+CDN (Cloudflare, Fastly, etc.). The `next.config.ts` files allow
+`appwrite.biso.no` as a remote image source — adding new image hosts
+requires editing `remotePatterns` and redeploying.
+
+## Email
+
+The platform itself does **not** send much email. Transactional
+notifications go through Appwrite Messaging (and Appwrite uses whatever
+SMTP is configured at the instance level). User-facing communications
+(newsletters, marketing) go through whatever tool BISO's communications
+team uses — outside the scope of this docs site.
+
+<Callout type="warn">
+**To be filled in by the current IT Manager**: the SMTP provider
+configured on the Appwrite instance (Mailgun? SendGrid? Microsoft 365
+SMTP relay?) and where its credentials live.
+</Callout>
