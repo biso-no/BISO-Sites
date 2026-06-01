@@ -111,48 +111,61 @@ export async function createNews(values: NewsFormValues) {
     return { error: validated.error.flatten().fieldErrors };
   }
 
-  assertWriteAccess(ctx, validated.data.campus_id);
+  try {
+    // News is reachable by department users (see NAV_ACCESS), so authorize
+    // against both the target campus and department — matching the
+    // update/delete paths, which pass the row's department_id.
+    assertWriteAccess(
+      ctx,
+      validated.data.campus_id,
+      validated.data.department_id ?? null
+    );
 
-  const { db } = await createSessionClient();
+    const { db } = await createSessionClient();
 
-  const article = await db.createRow("app", "news", "unique()", {
-    slug: validated.data.slug,
-    status: "draft" as NewsStatus,
-    campus_id: validated.data.campus_id,
-    department_id: validated.data.department_id ?? null,
-    image: validated.data.image || null,
-    sticky: validated.data.sticky ?? false,
-    author: validated.data.author ?? null,
-  });
+    const article = await db.createRow("app", "news", "unique()", {
+      slug: validated.data.slug,
+      status: "draft" as NewsStatus,
+      campus_id: validated.data.campus_id,
+      department_id: validated.data.department_id ?? null,
+      image: validated.data.image || null,
+      sticky: validated.data.sticky ?? false,
+      author: validated.data.author ?? null,
+    });
 
-  await db.createRow(
-    "app",
-    "content_translations",
-    "unique()",
-    {
-      content_id: article.$id,
-      content_type: "news",
-      locale: validated.data.locale,
-      title: validated.data.title,
-      description: validated.data.description ?? "",
-      additional_fields: JSON.stringify({
-        category: validated.data.category,
-        author: validated.data.author,
-      }),
-    },
-    buildContentTranslationPermissions({
-      audience: "public",
-      ownerUserId: ctx.userId,
-      writeTeams: [],
-    })
-  );
+    await db.createRow(
+      "app",
+      "content_translations",
+      "unique()",
+      {
+        content_id: article.$id,
+        content_type: "news",
+        locale: validated.data.locale,
+        title: validated.data.title,
+        description: validated.data.description ?? "",
+        additional_fields: JSON.stringify({
+          category: validated.data.category,
+          author: validated.data.author,
+        }),
+      },
+      buildContentTranslationPermissions({
+        audience: "public",
+        ownerUserId: ctx.userId,
+        writeTeams: [],
+      })
+    );
 
-  await logAuditEvent(ctx, "news_created", {
-    resourceId: article.$id,
-    resourceType: "news",
-  });
-  revalidatePath("/news");
-  return { data: article.$id };
+    await logAuditEvent(ctx, "news_created", {
+      resourceId: article.$id,
+      resourceType: "news",
+    });
+    revalidatePath("/news");
+    return { data: article.$id };
+  } catch (error) {
+    return {
+      error: error instanceof Error ? error.message : "Failed to save article",
+    };
+  }
 }
 
 export async function updateNews(id: string, values: NewsFormValues) {
@@ -173,74 +186,83 @@ export async function updateNews(id: string, values: NewsFormValues) {
     return { error: "Article not found" };
   }
 
-  assertWriteAccess(ctx, article.campus_id, article.department_id);
-  if (article.status === "published" || validated.data.status === "published") {
-    assertPublishAccess(ctx, article.campus_id);
-    assertPublishAccess(ctx, validated.data.campus_id);
-  }
+  try {
+    assertWriteAccess(ctx, article.campus_id, article.department_id);
+    if (
+      article.status === "published" ||
+      validated.data.status === "published"
+    ) {
+      assertPublishAccess(ctx, article.campus_id);
+      assertPublishAccess(ctx, validated.data.campus_id);
+    }
 
-  await db.updateRow("app", "news", id, {
-    slug: validated.data.slug,
-    status: validated.data.status as NewsStatus,
-    campus_id: validated.data.campus_id,
-    department_id: validated.data.department_id ?? null,
-    image: validated.data.image || null,
-    sticky: validated.data.sticky ?? false,
-    author: validated.data.author ?? null,
-  });
+    await db.updateRow("app", "news", id, {
+      slug: validated.data.slug,
+      status: validated.data.status as NewsStatus,
+      campus_id: validated.data.campus_id,
+      department_id: validated.data.department_id ?? null,
+      image: validated.data.image || null,
+      sticky: validated.data.sticky ?? false,
+      author: validated.data.author ?? null,
+    });
 
-  const existingTranslation = await db.listRows<ContentTranslations>(
-    "app",
-    "content_translations",
-    [
-      Query.equal("content_type", "news"),
-      Query.equal("content_id", id),
-      Query.equal("locale", validated.data.locale),
-      Query.limit(1),
-    ]
-  );
-
-  const translationData = {
-    content_id: id,
-    content_type: "news",
-    locale: validated.data.locale,
-    title: validated.data.title,
-    description: validated.data.description ?? "",
-    additional_fields: JSON.stringify({
-      category: validated.data.category,
-      author: validated.data.author,
-    }),
-  };
-
-  if (existingTranslation.rows[0]) {
-    await db.updateRow(
+    const existingTranslation = await db.listRows<ContentTranslations>(
       "app",
       "content_translations",
-      existingTranslation.rows[0].$id,
-      translationData
+      [
+        Query.equal("content_type", "news"),
+        Query.equal("content_id", id),
+        Query.equal("locale", validated.data.locale),
+        Query.limit(1),
+      ]
     );
-  } else {
-    await db.createRow(
-      "app",
-      "content_translations",
-      "unique()",
-      translationData,
-      buildContentTranslationPermissions({
-        audience: "public",
-        ownerUserId: ctx.userId,
-        writeTeams: [],
-      })
-    );
-  }
 
-  await logAuditEvent(ctx, "news_updated", {
-    resourceId: id,
-    resourceType: "news",
-    payload: { status: validated.data.status },
-  });
-  revalidatePath("/news");
-  revalidatePath(`/admin/news/${id}`);
-  return { data: id };
+    const translationData = {
+      content_id: id,
+      content_type: "news",
+      locale: validated.data.locale,
+      title: validated.data.title,
+      description: validated.data.description ?? "",
+      additional_fields: JSON.stringify({
+        category: validated.data.category,
+        author: validated.data.author,
+      }),
+    };
+
+    if (existingTranslation.rows[0]) {
+      await db.updateRow(
+        "app",
+        "content_translations",
+        existingTranslation.rows[0].$id,
+        translationData
+      );
+    } else {
+      await db.createRow(
+        "app",
+        "content_translations",
+        "unique()",
+        translationData,
+        buildContentTranslationPermissions({
+          audience: "public",
+          ownerUserId: ctx.userId,
+          writeTeams: [],
+        })
+      );
+    }
+
+    await logAuditEvent(ctx, "news_updated", {
+      resourceId: id,
+      resourceType: "news",
+      payload: { status: validated.data.status },
+    });
+    revalidatePath("/news");
+    revalidatePath(`/news/${id}`);
+    return { data: id };
+  } catch (error) {
+    return {
+      error: error instanceof Error ? error.message : "Failed to save article",
+    };
+  }
 }
 
 export async function deleteNews(id: string) {
@@ -256,23 +278,30 @@ export async function deleteNews(id: string) {
     return { error: "Article not found" };
   }
 
-  assertWriteAccess(ctx, article.campus_id, article.department_id);
+  try {
+    assertWriteAccess(ctx, article.campus_id, article.department_id);
 
-  const translations = await db.listRows("app", "content_translations", [
-    Query.equal("content_type", "news"),
-    Query.equal("content_id", id),
-  ]);
-  await Promise.all(
-    translations.rows.map((t) =>
-      db.deleteRow("app", "content_translations", t.$id)
-    )
-  );
-  await db.deleteRow("app", "news", id);
+    const translations = await db.listRows("app", "content_translations", [
+      Query.equal("content_type", "news"),
+      Query.equal("content_id", id),
+    ]);
+    await Promise.all(
+      translations.rows.map((t) =>
+        db.deleteRow("app", "content_translations", t.$id)
+      )
+    );
+    await db.deleteRow("app", "news", id);
 
-  await logAuditEvent(ctx, "news_deleted", {
-    resourceId: id,
-    resourceType: "news",
-  });
-  revalidatePath("/news");
-  return { data: true };
+    await logAuditEvent(ctx, "news_deleted", {
+      resourceId: id,
+      resourceType: "news",
+    });
+    revalidatePath("/news");
+    return { data: true };
+  } catch (error) {
+    return {
+      error:
+        error instanceof Error ? error.message : "Failed to delete article",
+    };
+  }
 }

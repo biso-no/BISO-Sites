@@ -5,6 +5,7 @@ import { createSessionClient } from "@repo/api/server";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getUserAuthContext, type UserAuthContext } from "@/lib/authorization";
+import { applyScopeQueries } from "@/lib/utils/authorization";
 
 async function requireAuth(): Promise<UserAuthContext> {
   const ctx = await getUserAuthContext();
@@ -59,19 +60,16 @@ export async function listSubmissionTopics(): Promise<SubmissionTopic[]> {
 
   const { db } = await createSessionClient();
 
+  // Scope by campus so a campus admin only sees their own campuses'
+  // submissions. applyScopeQueries returns the managed-campus filter for
+  // campus admins and an empty/active-campus filter for global admins
+  // (department users never reach here — the role gate above returns early).
   const queries = [
     Query.orderDesc("$createdAt"),
     Query.limit(500),
     Query.notEqual("status", "archived"),
+    ...applyScopeQueries(ctx),
   ];
-
-  if (
-    ctx.roles.includes("campusadmin") &&
-    !ctx.roles.includes("globaladmin") &&
-    ctx.activeCampusId
-  ) {
-    queries.push(Query.equal("campus_id", ctx.activeCampusId));
-  }
 
   const result = await db.listRows("app", "form_submissions", queries);
 
@@ -119,10 +117,13 @@ export async function listSubmissions(opts: {
 
   const { db } = await createSessionClient();
 
+  // Scope by campus (same rule as listSubmissionTopics) so a campus admin
+  // cannot read another campus's submissions by opening a topic directly.
   const queries = [
     Query.equal("topic", opts.topic),
     Query.orderDesc("$createdAt"),
     Query.limit(opts.limit ?? 50),
+    ...applyScopeQueries(ctx),
   ];
 
   if (opts.offset) {

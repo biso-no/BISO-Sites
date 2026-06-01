@@ -96,15 +96,6 @@ export default async function DepartmentsPage() {
                   <span className="text-xs" style={{ color: STUDIO.ink4 }}>
                     {t("fields.members")}: {dept.users?.length ?? 0}
                   </span>
-                  <div className="flex items-center gap-2">
-                    <a
-                      className="text-xs transition-colors hover:text-[#3DA9E0]"
-                      href={`/units/${dept.$id}`}
-                      style={{ color: STUDIO.claret }}
-                    >
-                      {t("actions.editPage")} →
-                    </a>
-                  </div>
                 </div>
               </div>
             </div>
