@@ -42,7 +42,7 @@ every integration choice on this page:
 | [SharePoint](/docs/integrations/sharepoint) | Document library backing admin Documents | `SHAREPOINT_*` | `admin`, `web` |
 | [24SevenOffice](/docs/integrations/24sevenoffice) | Accounting, invoicing, membership status | `TFSO_*` tokens stored in DB | `web`, `admin`, `api` |
 | [Vipps MobilePay](/docs/integrations/vipps-mobilepay) | Primary payment provider (Norway) | `VIPPS_*` | `web` shop checkout |
-| [Stripe](/docs/integrations/stripe) | Secondary / fallback payment provider | `STRIPE_*` | `web` shop checkout |
+| [Stripe](/docs/integrations/stripe) | Scaffolded but **not enabled in production** | `STRIPE_*` (unset in prod) | `web` shop checkout (dormant code path) |
 | [OpenAI](/docs/integrations/openai) | Translation, OCR, copy generation | `OPENAI_API_KEY` | `admin`, `api` |
 | [Anthropic](/docs/integrations/anthropic) | Editor copilot, admin assistant, recruitment screener | `ANTHROPIC_API_KEY` | `admin`, `api` |
 | [Pinecone](/docs/integrations/pinecone) | Vector store for resume embeddings | `PINECONE_API_KEY`, `PINECONE_INDEX_NAME` | `@repo/ai` recruitment screener |

@@ -45,6 +45,20 @@ All five non-toggle vars come from the Vipps merchant portal for our
 account. `VIPPS_TEST_MODE=true` switches every API base URL to the sandbox
 — use it for development, never in production.
 
+For BISO specifically (snapshot at handover):
+
+- **Product**: Vipps Checkout (under a Vipps Bedrift agreement).
+- **Production MSN**: `737898`. **Test MSN**: `232894`.
+- **Transaction fee**: 2.99% + NOK 1.00 per order. No monthly fixed fee.
+- **Legal entity on the agreement**: BI STUDENT ORGANISASJON.
+- **Logging into the merchant portal**: administrators sign in with
+  **BankID** (Norway's electronic ID), not with an email/password.
+  This means you can't add a "team account" — every administrator
+  needs their own BankID. Make sure at least two BISO administrators
+  have access at any given time.
+- See [Handover → Ownership and accounts](/docs/handover/ownership-and-accounts#vipps-mobilepay)
+  for the operational ownership record.
+
 ## Where it lives in the codebase
 
 - `@repo/payment/vipps` — all client-side and server-side helpers:

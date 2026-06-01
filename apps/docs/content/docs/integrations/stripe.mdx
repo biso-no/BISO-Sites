@@ -1,15 +1,33 @@
 ---
 title: Stripe
-description: Our secondary / fallback card payment provider for the BISO shop.
+description: Scaffolded as a secondary card payment provider — present in code, but not enabled in production today.
 ---
 
 # Stripe
 
-[Stripe](https://stripe.com) is the secondary payment provider for the BISO
-shop. We default to [Vipps MobilePay](/docs/integrations/vipps-mobilepay)
-because most of our buyers are Norwegian, but Stripe is offered at checkout
-for users who'd rather pay with a card, or who aren't in a Vipps-supported
-market.
+<Callout type="warn">
+**Current status (handover snapshot): Stripe is not in production.**
+BISO does not have a live Stripe account. The `@repo/payment/stripe`
+module, the checkout-flow branch that picks Stripe, and the env vars
+listed below are all scaffolded so the path can be turned on quickly
+if international card payments become a priority — but nothing on
+biso.no calls Stripe today. Vipps handles every order.
+
+If you're picking up this codebase: do **not** spend time provisioning
+a Stripe account unless leadership has decided to offer card payments.
+And before enabling it, sanity-check the checkout UI, the return URL,
+and the order status flow end-to-end in test mode — the scaffold has
+not been exercised against a real account in a while.
+</Callout>
+
+## Why it's scaffolded
+
+[Stripe](https://stripe.com) is in the codebase as the obvious "what if
+we ever need international card payments" answer. We default to
+[Vipps MobilePay](/docs/integrations/vipps-mobilepay) because effectively
+all BISO shop buyers are Norwegian students, and Vipps is the dominant
+local payment method. Stripe would only matter if BISO started selling
+to non-Norwegian audiences at scale.
 
 ## What it is
 

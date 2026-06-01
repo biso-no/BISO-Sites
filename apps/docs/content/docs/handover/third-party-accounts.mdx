@@ -64,36 +64,47 @@ looking at the right account.
 
 | Field | Value |
 |-------|-------|
-| Merchant Serial Number | [FILL IN] |
-| Plan | [FILL IN] |
-| Transaction fee | [FILL IN: e.g. 1.75% + NOK 1] |
-| Monthly fixed fee | [FILL IN] |
-| Settlement bank account | [FILL IN: last 4 digits] |
-| Account holder (BISO entity) | [FILL IN] |
-| Sales contact at Vipps | [FILL IN] |
+| Production Merchant Serial Number | `737898` |
+| Test Merchant Serial Number | `232894` (used only when `VIPPS_TEST_MODE=true`) |
+| Plan | Vipps Bedrift — using the Vipps Checkout product |
+| Transaction fee | **2.99% + NOK 1.00 per order** |
+| Monthly fixed fee | None |
+| Settlement bank account | `15061115010` |
+| Account holder (BISO entity) | BI STUDENT ORGANISASJON |
+| Portal login | BankID (no email/password) |
+| Sales contact at Vipps | None on record — go through general Vipps merchant support if needed |
 
 ### Stripe
 
+**Not in production.** BISO has no Stripe account, no contract, and no
+recurring spend. Treat the `STRIPE_*` rows in
+[Environment variables](/docs/operations/environment-variables) as
+optional / unset. The integration is scaffolded so it can be turned
+on if leadership decides to offer card payments later.
+
 | Field | Value |
 |-------|-------|
-| Stripe account ID | [FILL IN: `acct_…`] |
-| Country | [FILL IN: usually NO] |
-| Pricing | [FILL IN: standard EEA rate] |
-| Payout cadence | [FILL IN] |
-| Connected bank account | [FILL IN: last 4 digits] |
+| Stripe account ID | Not yet created |
+| Country | n/a |
+| Pricing | n/a |
+| Payout cadence | n/a |
+| Connected bank account | n/a |
 
 ## Accounting
 
-### 24SevenOffice
+### 24SevenOffice (Finago)
 
 | Field | Value |
 |-------|-------|
-| Tenant ID | [FILL IN] |
-| Subscription tier | [FILL IN] |
-| Monthly cost | [FILL IN: NOK] |
-| Renewal date | [FILL IN] |
-| Contract length | [FILL IN] |
-| Sales contact | [FILL IN] |
+| Organisation ID | `266330540180206` |
+| Subscription tier | **Sponsored by Finago** — no paid tier today |
+| Monthly cost | NOK 0 currently (subject to change) |
+| Contract length | Multi-year |
+| Sales contact | Håvard Høllen Sjøen (`hh@24sevenoffice.com`) |
+
+The sponsored arrangement means there is no monthly invoice to track.
+If it ends, expect to see standard 24SevenOffice tenant pricing — at
+which point this row needs updating with the actual cost.
 
 ## Microsoft 365
 

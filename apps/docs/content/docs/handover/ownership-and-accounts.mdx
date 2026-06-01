@@ -125,32 +125,51 @@ phone for this reason.
 
 | Item | Detail |
 |------|--------|
-| Merchant Serial Number (MSN) | [FILL IN] |
-| Account holder (legal entity) | [FILL IN: BISO's full legal name] |
-| Login email | [FILL IN] |
-| Account admin | [FILL IN] |
-| Sales agreement contact at Vipps | [FILL IN] |
+| Product in use | Vipps Checkout (under the Vipps Bedrift agreement) |
+| Production MSN (Merchant Serial Number) | `737898` |
+| Test MSN | `232894` (selected when `VIPPS_TEST_MODE=true` in dev) |
+| Account holder (legal entity) | **BI STUDENT ORGANISASJON** |
+| Portal login | **BankID** (Norwegian electronic ID). There is no email/password login — administrators sign in with their personal BankID. |
+| Account admin | Markus Heien |
+| Sales / account contact at Vipps | None on record |
+| Settlement bank account | `15061115010` |
 
 ### Stripe
 
+**Not in production.** BISO has no Stripe account today. The code in
+`@repo/payment/stripe` is scaffolded for a future need but is not
+configured or used. If the next IT Manager wants to enable Stripe:
+provision the account, set the `STRIPE_*` env vars, and test the full
+checkout flow end-to-end before enabling it for real orders.
+
 | Item | Detail |
 |------|--------|
-| Stripe account ID | [FILL IN: `acct_…`] |
-| Account legal entity | [FILL IN] |
-| Owner login | [FILL IN] |
-| Team members with access | [FILL IN] |
+| Stripe account ID | Not yet created |
+| Account legal entity | n/a |
+| Owner login | n/a |
+| Team members with access | n/a |
 
 ## Accounting
 
-### 24SevenOffice
+### 24SevenOffice (Finago)
 
 | Item | Detail |
 |------|--------|
-| Tenant / client ID | [FILL IN] |
-| Admin user | [FILL IN] |
-| API credentials holder | [FILL IN] |
-| Subscription tier | [FILL IN] |
-| Renewal date | [FILL IN] |
+| Organisation ID in Finago | `266330540180206` |
+| Primary admin user | Markus Heien — usually the person who assigns new administrators in Finago |
+| API credentials holder | Markus Heien |
+| Subscription tier | **Sponsored by Finago** (no direct cost today; may change in the future) |
+| Contract length | Multi-year |
+| Sales / account contact | Håvard Høllen Sjøen (`hh@24sevenoffice.com`) |
+
+<Callout type="info">
+The Finago / 24SevenOffice subscription is sponsored, which means there
+is currently no recurring invoice. If that arrangement ends, the next
+IT Manager should contact Håvard Høllen Sjøen at 24SevenOffice to
+negotiate a paid tier or assess alternatives. The platform depends on
+this connection for membership verification and ledger posting — losing
+it would break the shop's checkout pipeline.
+</Callout>
 
 ## Storage / docs
 

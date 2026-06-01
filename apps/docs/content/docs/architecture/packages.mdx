@@ -154,9 +154,10 @@ package keeps token handling, retry logic, and types out of app code.
 
 ## `@repo/payment`
 
-**Purpose.** Payment providers: **Vipps MobilePay** (the primary,
-Norwegian, mobile-first checkout) and **Stripe** (fallback /
-international).
+**Purpose.** Payment providers: **Vipps MobilePay** (the Norwegian,
+mobile-first checkout — the only one actually used in production today)
+and **Stripe** (scaffolded for international card payments but
+**not currently enabled** — no BISO Stripe account exists).
 
 **Key abstractions.** A provider-agnostic `createCheckoutSession()` /
 `verifyReturn()` API where possible. Vipps-specific helpers

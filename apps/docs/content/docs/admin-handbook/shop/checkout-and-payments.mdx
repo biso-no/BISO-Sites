@@ -13,20 +13,20 @@ Here is what a student goes through on biso.no/shop:
 
 1. **Add to cart.** The product is added to their cart. Behind the scenes a row is created in the cart reservations table, which holds the stock for a short while so two people can't buy the last item at once.
 2. **Open checkout.** They fill in name, email, and any required fields.
-3. **Pick a payment provider.** Either **Vipps MobilePay** (primary, used by most Norwegian students) or **Stripe** (card payment, used by international students).
+3. **Pay with Vipps MobilePay.** Today every order goes through Vipps. (Stripe is scaffolded in the codebase as a future option but is **not enabled in production** — BISO has no Stripe account.)
 4. **Member discount is calculated.** Before the total is shown, the site asks 24SevenOffice whether this buyer is a paying BISO member. If they are, and the product has member discount enabled, the discount is applied automatically.
-5. **External payment.** The customer is redirected to Vipps or Stripe to actually pay.
-6. **Return to biso.no.** When the payment finishes (or is cancelled), the provider redirects the customer back to the BISO site. The return URL is what tells us the result — it's how the order moves from `pending` to `paid` (or `cancelled`/`failed`).
+5. **External payment.** The customer is redirected to Vipps to actually pay.
+6. **Return to biso.no.** When the payment finishes (or is cancelled), Vipps redirects the customer back to the BISO site. The return URL is what tells us the result — it's how the order moves from `pending` to `paid` (or `cancelled`/`failed`).
 7. **Posting to the ledger.** A paid order is posted to 24SevenOffice using the product's ledger account number. The Finago transaction ID is then stored on the order.
 
 For the customer-facing version of this with screenshots, see [Shop and checkout (public site)](/docs/public-website/shop-and-checkout).
 
 ## How payments are wired
 
-| Provider | When it's used | Where to log in for back-office tasks |
-|----------|----------------|---------------------------------------|
-| **Vipps MobilePay** | Default for Norwegian users — most orders go through here. | The Vipps merchant portal. See [Vipps MobilePay](/docs/integrations/vipps-mobilepay). |
-| **Stripe** | Card payments, mainly for international students. | The Stripe dashboard. See [Stripe](/docs/integrations/stripe). |
+| Provider | Status today | Where to log in for back-office tasks |
+|----------|--------------|---------------------------------------|
+| **Vipps MobilePay** | **In production.** Every order goes through Vipps. | The Vipps merchant portal — administrators sign in with BankID. See [Vipps MobilePay](/docs/integrations/vipps-mobilepay). |
+| **Stripe** | **Scaffolded but not enabled.** No live account; not offered at checkout. | n/a. See [Stripe](/docs/integrations/stripe) for the dormant code path. |
 
 Refunds, dispute handling, payouts, and downloading settlement reports all happen in the provider's portal — not in the BISO admin app. The admin app only **reflects** what the provider tells us.
 
