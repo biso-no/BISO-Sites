@@ -153,6 +153,10 @@ export async function getNewsBySlug(
 
     const response = await db.listRows<News>("app", "news", [
       Query.equal("slug", slug),
+      // `news` grants row read to `any`; keep unpublished articles from
+      // surfacing on the public detail route (the page guards too — this is the
+      // data-layer backstop so a future caller can't regress it).
+      Query.equal("status", "published"),
       Query.equal("translation_refs.locale", locale),
       Query.select([
         "$id",
