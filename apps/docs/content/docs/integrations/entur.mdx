@@ -1,0 +1,127 @@
+---
+title: Entur
+description: Norwegian national journey-planner data — real-time public-transit departures on BISO campus pages.
+---
+
+# Entur
+
+[Entur](https://entur.no) is Norway's national public-transit data
+provider. It publishes a GraphQL API covering every bus, tram, metro, and
+train in the country, along with real-time departure data for each stop.
+We use it to power live departure boards on the campus pages of the
+public website.
+
+## What it is
+
+Entur is run by the Norwegian state and aggregates schedule and real-time
+data from every Norwegian transit operator. Their **JourneyPlanner** API
+is a GraphQL endpoint that doesn't require an API key for ordinary
+queries — they just ask you to send a polite `ET-Client-Name` header
+identifying your application so they can rate-limit fairly.
+
+## Why we use it
+
+Each BISO campus has a "how to get here" affordance on its campus page,
+and showing real upcoming departures for the nearest stop is much more
+useful than embedding a static timetable. Entur is the canonical, free,
+authoritative source — using anything else would just be a worse
+re-implementation of Entur.
+
+## Cost shape
+
+**Free.** Entur publishes the data as a public service. We're polite
+about request volumes; we don't pay them anything.
+
+## What "no key required" actually means
+
+The Entur read APIs are open. There is **one** env var on our side, and
+it has nothing to do with authenticating against Entur:
+
+| Var | Purpose |
+|---|---|
+| `ENTUR_SYNC_SECRET` | Bearer token used to gate **our own** Entur-sync endpoint, so random people can't trigger ingestion |
+
+That secret protects our `apps/api/api/departures/sync` route, not the
+Entur API itself. If you're rotating secrets, this one matters for
+preventing junk traffic from triggering background jobs, not for keeping
+Entur happy.
+
+## Where it lives in the codebase
+
+- `apps/api/src/lib/entur-departures.ts` — the GraphQL client wrapper:
+  query construction, response parsing, error handling. Includes the
+  `ET-Client-Name` header.
+- `apps/api/api/departures/sync` — the sync route. Triggered on a
+  schedule (or manually with the right Bearer token), it queries Entur
+  for the configured stops and ingests results into the database.
+- The public web app reads the ingested data on campus pages — it
+  doesn't hit Entur live on every page load. That gives us caching and
+  protects us from making the page break when Entur has a hiccup.
+
+## Sync flow
+
+1. A scheduled job (or an authorised manual `POST`) hits
+   `/api/departures/sync` with the `ENTUR_SYNC_SECRET` as a Bearer
+   token.
+2. The route iterates the configured stop IDs for each campus.
+3. For each stop, it queries Entur's JourneyPlanner GraphQL endpoint for
+   upcoming departures.
+4. Results are written to the database, replacing the previous snapshot.
+5. The public campus page reads from the DB, not from Entur, so render
+   latency is independent of Entur's response time.
+
+Refresh cadence is set by however often the sync is scheduled — see
+[Operations](/docs/operations/environment-variables) for the schedule
+configuration.
+
+## Failure modes
+
+- **Entur GraphQL schema changes** — Entur evolves their schema
+  occasionally. When they make a breaking change, the sync route's
+  queries start returning errors or unexpected shapes. Symptom: stale
+  data on campus pages because the last sync failed. Fix: update the
+  query in `entur-departures.ts` to match the current schema, then
+  re-deploy.
+- **Entur API down** — the sync route fails, but cached data in the DB
+  keeps serving the public pages until either Entur comes back or the
+  data is too stale to be useful.
+- **Unauthorised sync attempts** — without `ENTUR_SYNC_SECRET`, the sync
+  route returns 401. It's the only line of defense against someone
+  finding the URL.
+- **Wrong stop ID** — Entur returns an empty departure list. The page
+  renders "no upcoming departures" rather than erroring.
+
+## Configuration changes
+
+To add departures to a new campus, or change the stop a campus shows:
+
+1. Look up the Entur stop ID (e.g. `NSR:StopPlace:…`) for the new stop —
+   easiest via Entur's documented stop-place lookup.
+2. Update the campus configuration (see `entur-departures.ts` for the
+   current source-of-truth list) with the new stop ID.
+3. Either wait for the next scheduled sync or trigger one manually.
+
+We deliberately don't expose stop-picking through the admin UI yet —
+it's an annual change at most, and Entur stop IDs are stable enough
+that hardcoding is fine for now.
+
+## Rotation
+
+Rotate `ENTUR_SYNC_SECRET` the same way as any other shared secret:
+
+1. Generate a new random value.
+2. Update the env var on the api app.
+3. Update whatever scheduler invokes the sync route to use the new
+   secret.
+4. Restart.
+
+There's nothing on Entur's side to rotate — we have no account with
+them.
+
+## Swapping the vendor
+
+Practically, you wouldn't. Entur is the official source for Norwegian
+transit data, it's free, and every alternative is downstream of Entur
+anyway. If they ever did stop publishing the API, you'd be looking at
+falling back to per-operator data feeds, which is a substantial step
+down in quality.

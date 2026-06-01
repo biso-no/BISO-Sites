@@ -1,0 +1,186 @@
+---
+title: Ownership and accounts
+description: Master list of every account the platform depends on, who holds it, and who has access.
+---
+
+# Ownership and accounts
+
+This page is the answer to the question "what does BISO actually own, and
+who has the keys?" It is a template. The current IT Manager must fill it
+in before handing over.
+
+If any row below is blank or stale at handover, the platform has a
+single-person dependency that needs fixing.
+
+<Callout type="warn">
+**To be filled in by the current IT Manager** before leaving the role.
+Every `[FILL IN]` below is a piece of institutional knowledge that BISO
+will lose if you don't write it down.
+</Callout>
+
+## Source code
+
+| Item | Where | Account holder | Backup access |
+|------|-------|----------------|---------------|
+| GitHub organisation `biso-no` | github.com/biso-no | [FILL IN: org owner email] | [FILL IN: second owner] |
+| Repository: `BISO-Sites` (this monorepo) | github.com/biso-no/BISO-Sites | Org-owned | — |
+| Any other repos under the org | — | Org-owned | — |
+
+Action: confirm at least **two** humans have GitHub org Owner access.
+Single-owner GitHub orgs are a continuity risk.
+
+## Domain
+
+| Item | Detail |
+|------|--------|
+| Primary domain | `biso.no` |
+| Registrar | [FILL IN: e.g. domeneshop.no / one.com / GoDaddy] |
+| Registrar account email | [FILL IN] |
+| Registrar account holder | [FILL IN: name] |
+| Renewal date | [FILL IN: YYYY-MM-DD] |
+| DNS provider | [FILL IN: same as registrar, or Cloudflare, etc.] |
+| Two-factor recovery codes stored | [FILL IN: yes/no, where] |
+
+## Appwrite
+
+| Item | Detail |
+|------|--------|
+| Production instance URL | `https://appwrite.biso.no` |
+| Self-hosted on | [FILL IN: which VM / provider] |
+| Server admin SSH access | [FILL IN: who has root] |
+| Appwrite Console admin user | [FILL IN: email] |
+| Secondary Console admin | [FILL IN: email] |
+| Dev instance | [FILL IN: URL or "Appwrite Cloud project ID"] |
+
+## Microsoft 365 / Azure AD
+
+| Item | Detail |
+|------|--------|
+| Tenant ID | [FILL IN] |
+| Tenant primary domain | [FILL IN: e.g. biso.no] |
+| Global Admin #1 | [FILL IN: account, name] |
+| Global Admin #2 | [FILL IN: account, name] |
+| Subscription | [FILL IN: e.g. Microsoft 365 Business Standard, X seats] |
+| Renewal date | [FILL IN] |
+| Billing email | [FILL IN] |
+
+Azure AD doubles as the identity provider for staff logins to `admin`.
+Losing global admin access to the tenant is more disruptive than losing
+any other single account.
+
+## Payment providers
+
+### Vipps MobilePay
+
+| Item | Detail |
+|------|--------|
+| Merchant Serial Number (MSN) | [FILL IN] |
+| Account holder (legal entity) | [FILL IN: BISO's full legal name] |
+| Login email | [FILL IN] |
+| Account admin | [FILL IN] |
+| Sales agreement contact at Vipps | [FILL IN] |
+
+### Stripe
+
+| Item | Detail |
+|------|--------|
+| Stripe account ID | [FILL IN: `acct_…`] |
+| Account legal entity | [FILL IN] |
+| Owner login | [FILL IN] |
+| Team members with access | [FILL IN] |
+
+## Accounting
+
+### 24SevenOffice
+
+| Item | Detail |
+|------|--------|
+| Tenant / client ID | [FILL IN] |
+| Admin user | [FILL IN] |
+| API credentials holder | [FILL IN] |
+| Subscription tier | [FILL IN] |
+| Renewal date | [FILL IN] |
+
+## Storage / docs
+
+### SharePoint
+
+| Item | Detail |
+|------|--------|
+| Sites integrated with the platform (`SHAREPOINT_SITES`) | [FILL IN: list of site IDs and human names] |
+| Site collection admin | [FILL IN] |
+| Azure app used for Graph access | Same as `AZURE_APP_ID` in env vars |
+
+## AI providers
+
+### OpenAI
+
+| Item | Detail |
+|------|--------|
+| Organisation ID | [FILL IN] |
+| Billing email | [FILL IN] |
+| Plan | [FILL IN: tier, monthly cap if any] |
+| Account owner | [FILL IN] |
+
+### Anthropic
+
+| Item | Detail |
+|------|--------|
+| Organisation ID | [FILL IN] |
+| Billing email | [FILL IN] |
+| Plan | [FILL IN] |
+| Account owner | [FILL IN] |
+
+### Pinecone
+
+| Item | Detail |
+|------|--------|
+| Project / org ID | [FILL IN] |
+| Index name (matches `PINECONE_INDEX_NAME`) | [FILL IN] |
+| Billing email | [FILL IN] |
+| Plan | [FILL IN] |
+
+## Hosting
+
+### Webdock (if used)
+
+| Item | Detail |
+|------|--------|
+| Account login | [FILL IN] |
+| Billing email | [FILL IN] |
+| Servers in use | [FILL IN: hostname, role, plan] |
+| Renewal cycle | [FILL IN: monthly / yearly] |
+
+### Other hosting (Appwrite Sites, Vercel, etc.)
+
+| Item | Detail |
+|------|--------|
+| Provider | [FILL IN] |
+| Account login | [FILL IN] |
+| Billing email | [FILL IN] |
+
+## Secrets vault
+
+| Item | Detail |
+|------|--------|
+| Password manager in use | [FILL IN: 1Password / Bitwarden / etc.] |
+| Vault name | [FILL IN] |
+| Vault owner | [FILL IN] |
+| Members with read access | [FILL IN] |
+| Members with admin access | [FILL IN] |
+
+## Handover checklist (sign-off)
+
+At the moment of handover, the outgoing IT Manager should walk the
+incoming person through each section and tick:
+
+- [ ] Incoming person has tested login to every row above.
+- [ ] Two-person redundancy exists for every "critical" row (domain,
+      Appwrite, Azure AD Global Admin, GitHub org owner, password
+      manager).
+- [ ] Outgoing person's personal accounts have been *removed* from team
+      memberships (replaced with role accounts where possible).
+- [ ] Any personal devices with cached secrets / SSH keys have been
+      wiped of BISO material.
+- [ ] Signed off by: [FILL IN: outgoing IT Manager] and [FILL IN:
+      incoming IT Manager]. Date: [FILL IN].
