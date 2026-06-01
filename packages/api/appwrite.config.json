@@ -268,7 +268,7 @@
     },
     {
       "$id": "department_board",
-      "$permissions": ["create(\"any\")", "read(\"any\")", "update(\"any\")"],
+      "$permissions": ["read(\"any\")", "create(\"team:admin\")", "update(\"team:admin\")", "delete(\"team:admin\")"],
       "databaseId": "app",
       "name": "Department Board",
       "enabled": true,
@@ -3376,7 +3376,7 @@
     },
     {
       "$id": "memberships",
-      "$permissions": ["read(\"users\")", "update(\"users\")"],
+      "$permissions": ["read(\"users\")"],
       "databaseId": "app",
       "name": "Memberships",
       "enabled": true,
