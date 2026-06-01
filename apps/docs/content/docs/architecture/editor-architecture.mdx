@@ -1,0 +1,347 @@
+---
+title: Editor architecture
+description: How the in-house block editor is built — registry, store, EditorShell, AI copilot, and the contract with apps that host it.
+---
+
+# Editor architecture
+
+`@repo/editor` is the in-house block editor that powers page editing
+in `apps/admin` and page rendering in `apps/web`. It is the largest
+single package in the monorepo and the most opinionated piece of
+the platform. This page covers its shape in enough depth that you
+could rewrite a block, add a new one, or wire the editor into a new
+host app without getting lost.
+
+If you're new: read [Editor architecture overview in the package
+docs](/docs/packages/editor) first; this page assumes you know what a
+"block" is.
+
+## Why it exists
+
+The admin used to edit pages with [Puck](https://puckeditor.com), an
+open-source block editor. We replaced it for four reasons:
+
+1. **Block type control.** Our block library has 37+ types with strong
+   variants and AI metadata. Defining them in our own registry is
+   simpler than fitting Puck's API.
+2. **AI integration.** The page copilot needs to know about block
+   types, their props, and which fields are translatable. That's
+   easier when the registry is ours.
+3. **Draft / publish state.** Per-locale `draft_document` and
+   `puck_document` columns require coordinated save/publish actions
+   that didn't map cleanly onto Puck's model.
+4. **Multi-locale workflow.** Switching locales mid-edit, translating,
+   and tracking `translation_status` is built in from the start.
+
+The renaming of the published column (`puck_document`) is a leftover
+from the migration. The package and its API are entirely ours.
+
+## Package surface
+
+`packages/editor/package.json#exports`:
+
+```jsonc
+{
+  ".":         // Editor entry: EditorShell, registry helpers, store, types
+  "./render":  // Read-only renderer used by apps/web
+  "./blocks":  // Side-effecting block-registration imports
+  "./theme":   // CSS variables + theme utilities
+  "./ai":      // Copilot helpers (system prompt, tools)
+  "./types":   // Full TypeScript schema
+}
+```
+
+The split matters because `apps/web` should not pull in the editor UI
+(dnd-kit, Zustand store, inspector code). It imports only `./render`
+and `./blocks` — the latter for the side-effect of registering block
+components on the renderer's registry.
+
+### Root export
+
+```ts
+import {
+  EditorShell,
+  BLOCK_LIBRARY,
+  allBlocks,
+  getBlock,
+  EditorCallbacks,
+  EditorCallbacksContext,
+  useEditorCallbacks,
+  useEditorStore,
+  type PageDoc,
+  type PageMeta,
+  type Block,
+} from "@repo/editor";
+```
+
+### Tech stack
+
+| Concern | Library |
+|---|---|
+| State | `zustand` + `immer` middleware |
+| Drag and drop | `@dnd-kit/core`, `@dnd-kit/sortable`, `@dnd-kit/modifiers` |
+| Forms / schema | `zod` |
+| AI | `@ai-sdk/react`, `ai` |
+| CSS | Custom theme using CSS variables |
+
+No CSS-in-JS, no styled-components, no Emotion. Theme tokens are CSS
+variables defined in `./theme` and consumed via class names.
+
+## The PageDoc shape
+
+The persisted unit of work is a `PageDoc`:
+
+```ts
+interface PageDoc {
+  blocks: Block[]; // discriminated union over ~37 block types
+  meta: PageMeta;
+}
+
+interface PageMeta {
+  title: string;
+  slug: string;
+  description?: string;
+  department: string;
+  accentColor: string;
+  status: "draft" | "published";
+}
+```
+
+`Block` is a discriminated union with `type` as the discriminator.
+Each block carries its own props plus shared fields (id, optional
+variant, optional visibility rules).
+
+`PageDoc` is serialized as JSON and stored in
+`page_translations.draft_document` or `.puck_document`. The same
+shape is read back by `getPage()` for rendering.
+
+## Block registry
+
+Every block type is registered via `registerBlock()`. The registry
+lives in `packages/editor/src/blocks/registry.ts` and is populated by
+side-effect imports under `packages/editor/src/blocks/`. The host app
+imports `@repo/editor/blocks` once at module load and gets the whole
+library registered.
+
+A registry entry looks like this:
+
+```ts
+registerBlock({
+  type: "hero",
+  label: "Hero",
+  description: "Top-of-page banner with heading, subheading, and CTA.",
+  category: "Top of page",
+
+  // Optional UI variants (e.g. "Centered", "Split", "Image right")
+  variants: [
+    { id: "centered", label: "Centered" },
+    { id: "split",    label: "Split" },
+  ],
+
+  // For the AI copilot
+  aiHint: "Use for the first block on a page. Don't use more than once.",
+  aiProps: [
+    { path: "heading",    translatable: true },
+    { path: "subheading", translatable: true },
+    { path: "cta.label",  translatable: true },
+  ],
+
+  // Default props when the user drops the block onto the canvas
+  empty: () => ({ /* default block */ }),
+
+  // Three components:
+  Render:       HeroRender,       // What's drawn in the canvas + on the public site
+  Inspector:    HeroInspector,    // Props editor in the right pane
+  PaletteThumb: HeroPaletteThumb, // Thumbnail in the left palette
+});
+```
+
+`aiProps` is the contract with the copilot and the AI translator:
+
+- `translatable: true` paths are walked by the AI translation
+  pipeline.
+- The list also tells the copilot which props it's allowed to modify
+  via tool calls.
+
+The category (`"Top of page"`, `"Content"`, `"Media"`, `"Embeds"`,
+`"Lists"`, …) groups blocks in the palette.
+
+### Adding a new block
+
+1. Implement `Render`, `Inspector`, `PaletteThumb` under
+   `packages/editor/src/blocks/<name>/`.
+2. Add a Zod schema for its props.
+3. Call `registerBlock({...})` in the block's `index.ts`.
+4. Re-export from `packages/editor/src/blocks/index.ts` so it loads
+   when the host imports `@repo/editor/blocks`.
+
+That's it. No central manifest to update, no enums to widen — the
+discriminated union of block types is computed from the registry.
+
+## State: the Zustand+Immer store
+
+`packages/editor/src/store.ts` holds everything the editor needs at
+runtime.
+
+```ts
+interface EditorState {
+  // Document
+  doc: PageDoc;
+
+  // Selection / UI
+  selection: string | null;       // selected block id
+  mode: "edit" | "preview";
+  viewport: "desk" | "tab" | "mob";
+  inspectorTab: "props" | "design" | "visibility";
+  hoveredId: string | null;
+  copilotOpen: boolean;
+
+  // Save lifecycle
+  saving: boolean;
+
+  // History
+  past: PageDoc[];
+  future: PageDoc[];
+
+  // ~20 mutation methods, all written with Immer drafts
+  setMeta: (patch: Partial<PageMeta>) => void;
+  addBlock: (block: Block, atIndex?: number) => void;
+  updateBlock: (id: string, recipe: (b: Block) => void) => void;
+  removeBlock: (id: string) => void;
+  moveBlock: (id: string, toIndex: number) => void;
+  duplicateBlock: (id: string) => void;
+  setSelection: (id: string | null) => void;
+  // ...
+}
+```
+
+Mutations use Immer drafts, so block handlers can write
+`b.props.heading = "..."` directly without spreading. Every mutation
+also pushes the previous `doc` onto `past` for undo/redo.
+
+`useEditorStore` exposes the store to React. Components subscribe
+with selectors for fine-grained re-renders.
+
+## `EditorShell` — the host contract
+
+`EditorShell` is the React component the host (`apps/admin`) drops
+into a route. It does not own the document on disk — the host does.
+The shell calls back into the host for every persistence operation.
+
+```ts
+interface Props {
+  initial: PageEditorState;       // metadata + all locale translations
+  activeLocale: Locale;
+  locales: Locale[];
+  departments: Department[];
+
+  // Persistence callbacks
+  savePage:     (doc: PageDoc, locale: Locale) => Promise<void>;
+  uploadFile:   (file: File) => Promise<{ url: string; id: string }>;
+  onDocChange:  (doc: PageDoc) => void;          // for auto-save / dirty tracking
+  onPublish:    (locale: Locale) => Promise<void>;
+  onUnpublish:  (locale: Locale) => Promise<void>;
+  onLocaleChange:    (locale: Locale) => void;
+  onTranslateLocale: (target: Locale) => Promise<void>;
+  translatingLocale: Locale | null;
+  onExit: () => void;
+}
+```
+
+This contract is intentional: the editor is host-agnostic. The host
+decides what "save" means (the admin app upserts
+`page_translations`), what "publish" means (copies
+`draft_document` → `puck_document`), and what "translate" means
+(calls the `/api/translate-page` endpoint).
+
+### The 4-pane layout
+
+```
+┌──────────────────────────────────────────────────────────┐
+│  Topbar: title, slug, locale switcher, save state, publish│
+├────────┬──────────────────────────────────────┬──────────┤
+│        │                                      │          │
+│ Palette│            Canvas (dnd-kit)          │ Inspector│
+│ (left) │                                      │ (right)  │
+│        │                                      │          │
+└────────┴──────────────────────────────────────┴──────────┘
+```
+
+- **Topbar.** Document metadata, save indicator, publish/unpublish
+  buttons, locale switcher (including "Translate this locale" for the
+  AI pipeline).
+- **Palette.** Block library, grouped by category, with thumbnails.
+  Drag from here onto the canvas.
+- **Canvas.** Renders blocks in order. `dnd-kit` provides drag-drop
+  with sortable. Clicking a block sets `selection`; the inspector
+  switches to that block's `Inspector` component.
+- **Inspector.** Three tabs — "Props" (the block's `Inspector`),
+  "Design" (variants + accent color), "Visibility" (visibility
+  rules).
+
+### Auto-save
+
+`EditorShell` debounces calls to `savePage()` at **800 ms** after the
+last change. The host's `savePage` writes to `draft_document`. The
+"Save" button in the topbar flushes immediately.
+
+There is **no auto-publish**. Publishing always requires an explicit
+button press because it's a state change with consequences (visibility
+on `biso.no`, audit log entry, possibly notifications).
+
+## The AI copilot
+
+`@repo/editor/ai` exports the copilot's building blocks:
+
+```ts
+import {
+  buildSystemPrompt,
+  pageEditorTools,
+  type PageEditorToolName,
+} from "@repo/editor/ai";
+```
+
+- **`buildSystemPrompt({ doc, locale, ... })`** assembles the system
+  prompt with the current document's block summary, the registered
+  blocks' `aiHint`s and `aiProps`, and the active locale.
+- **`pageEditorTools`** is the tool registry exposed to the model.
+  It includes tools for adding blocks, updating block props, moving
+  blocks, removing blocks, and reading the current document.
+- **`PageEditorToolName`** is the union of tool names — useful for
+  typed routing on the host's side.
+
+When the copilot calls a tool, the host (admin) executes it against
+the same Zustand store the user is editing. The user can see and undo
+the result like any other change.
+
+## Render path
+
+`apps/web` imports from `@repo/editor/render`:
+
+```tsx
+import { renderPage } from "@repo/editor/render";
+import "@repo/editor/blocks";  // side-effect: registers block renderers
+
+// In a Server Component:
+const page = await getPage(slug, locale);
+return renderPage(page.doc);
+```
+
+`renderPage` walks the `PageDoc.blocks` array and renders each
+block's `Render` component. Server Components by default; only blocks
+that *need* client interactivity (e.g. carousels) opt in with a
+`"use client"` boundary inside the `Render` component.
+
+Importantly: `apps/web` does **not** pull in `EditorShell`, the
+Zustand store, or `dnd-kit`. The export split keeps the bundle clean.
+
+## Where to read next
+
+- **[Pages publish flow](/docs/architecture/pages-publish-flow)** —
+  how the host wires draft / publish into Appwrite.
+- **[Translations](/docs/architecture/translations)** — how
+  `aiProps[].translatable` feeds the AI translator.
+- **[`@repo/editor`](/docs/packages/editor)** — the full reference,
+  including each block type's props.
+- **[Pages handbook](/docs/admin-handbook/pages)** — the user-facing
+  view of the editor.

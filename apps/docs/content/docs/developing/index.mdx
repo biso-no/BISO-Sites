@@ -1,0 +1,57 @@
+---
+title: Developing
+description: How to set up, ship, and not break BISO Sites — the developer's section of the handbook.
+---
+
+# Developing
+
+This section is for developers working on BISO Sites — both the new IT Manager
+taking over and external consultants brought in for a slice of work.
+
+It's practical and code-heavy. If you want the conceptual map first, read
+[Architecture / Overview](/docs/architecture/overview) and
+[Getting started / Platform overview](/docs/getting-started/platform-overview).
+If you've never run the repo locally before, start with
+[Local setup](/docs/developing/local-setup).
+
+## What's in here
+
+- [Local setup](/docs/developing/local-setup) — clone, install, env files, first `bun run dev`.
+- [Daily workflow](/docs/developing/daily-workflow) — commands you'll run every day, branches, PRs.
+- [Conventions](/docs/developing/conventions) — the load-bearing rules. Read this before your first PR.
+- [Working with Appwrite](/docs/developing/working-with-appwrite) — `@repo/api`, queries, ACLs, types.
+- [Adding a route](/docs/developing/adding-a-route) — pages, route groups, nav, sitemap.
+- [Adding a server action](/docs/developing/adding-a-server-action) — auth, scope, audit, revalidate.
+- [Adding an editor block](/docs/developing/adding-an-editor-block) — registration, render, inspector.
+- [i18n](/docs/developing/i18n) — `next-intl`, namespaces, `bun run translate`.
+- [Styling](/docs/developing/styling) — Tailwind v4, tokens, `cn()`, variants.
+- [Testing](/docs/developing/testing) — what's covered, what isn't, how to add tests.
+- [Troubleshooting](/docs/developing/troubleshooting) — the bugs you'll hit and how to unstick them.
+
+## Related sections
+
+- [Packages](/docs/packages) — reference for `@repo/api`, `@repo/editor`, `@repo/ui`, etc.
+- [Operations](/docs/operations/overview) — env vars, deployment, secrets, cron, monitoring.
+- [Integrations](/docs/integrations) — Appwrite, Azure AD, Vipps, SharePoint, WooCommerce.
+
+## Quick orientation
+
+```text
+apps/
+  web/    — public site         (Next.js 15, port 3000)
+  admin/  — internal CMS        (Next.js 15, port 3001)
+  docs/   — these docs          (Fumadocs,   port 3002)
+  api/    — JWT REST service    (Next.js 15, port 3003)
+
+packages/
+  api/         — Appwrite SDK wrapper + generated types (source of truth)
+  editor/      — block editor used by web + admin
+  ui/          — shared Radix + Tailwind components
+  ai/          — AI SDK config and tool schemas
+  connectors/  — Azure, 24SO, SharePoint, WooCommerce
+  payment/     — Vipps, Stripe
+  i18n/        — next-intl config + messages
+  shared/      — cross-cutting utils
+```
+
+Package manager is **Bun 1.3.1** — pinned. Don't use npm or pnpm.

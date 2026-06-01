@@ -1,0 +1,129 @@
+---
+title: Monitoring and health
+description: How to tell if the platform is up, where to look for errors, and what telemetry exists (and doesn't).
+---
+
+# Monitoring and health
+
+The platform is intentionally lightweight on telemetry. There are health
+endpoints, an audit log, and Appwrite's own dashboards — that's the whole
+picture. This page tells you how to make the most of what's there and what
+to add if you want more.
+
+## Health endpoints
+
+Each operational app exposes `/api/health`:
+
+```http
+GET /api/health
+```
+
+Response:
+
+```json
+{
+  "status": "ok",
+  "timestamp": "2026-06-01T12:34:56.789Z",
+  "environment": "production"
+}
+```
+
+The endpoint is liveness-style: it returns OK if the Node process is
+serving requests. It does **not** check Appwrite connectivity. A 200 here
+means "the app is up", not "the app can serve users".
+
+For each app:
+
+- `https://web.biso.no/api/health` *(will become `https://biso.no/api/health` after the WordPress cutover)*
+- `https://admin.biso.no/api/health`
+- `https://api.biso.no/api/health`
+- `https://[the docs URL]/api/health` — confirm in the Appwrite Console under the `docs` Site
+
+## Uptime monitoring — current state
+
+**Better Stack** (`betterstack.com`) pings each `/api/health` endpoint
+on a regular interval. Alerts route to Markus Heien via Microsoft
+Teams. The dashboard URL is in Better Stack's "Uptime" section under
+the BISO account.
+
+<Callout type="warning">
+**Open continuity risk**: Better Stack's alert routing currently
+points at one person (Markus). When that person is unavailable, the
+platform has no first responder. Adding a second alert destination
+(another BISO IT email, or a Teams channel ping) is a five-minute
+configuration change in Better Stack and the single highest-leverage
+operational hardening available. See
+[Incident response](/docs/operations/incident-response#current-contact-list-handover-snapshot).
+</Callout>
+
+## Appwrite's own dashboards
+
+Most of the operational signal lives in the Appwrite Console at
+`appwrite.biso.no/console`:
+
+- **Auth → Users**: anonymous session count (should stay small with the
+  cleanup cron running), failed login attempts.
+- **Databases → audit_logs**: every write the platform makes. A spike here
+  is either a campaign launch or an incident — read it to find out which.
+- **Functions**: invocations and errors for Appwrite Functions
+  (notifications, campus board, etc.).
+- **Storage**: bucket usage; useful when résumé uploads or page assets
+  start filling up disk.
+
+## Error tracking — Sentry
+
+**Sentry** is wired into all four Next.js apps for error monitoring.
+Unhandled exceptions, server-side errors, and significant client-side
+issues are reported to the BISO Sentry project. Use Sentry's dashboard
+as the first place to look when an error report comes in but you can't
+reproduce the bug locally — chances are the stack trace, breadcrumbs,
+and request context are already there.
+
+Sentry's alerting and dashboard URL are in the BISO Sentry account.
+For ownership and billing detail see
+[Handover / Third-party accounts](/docs/handover/third-party-accounts).
+
+## What's intentionally missing
+
+- **No analytics.** The `/api/analytics/page-view` endpoint exists on
+  `apps/web` and returns 204 No Content as a deliberate no-op. See
+  [/docs/handover/design-decisions](/docs/handover/design-decisions) for
+  why, and [/docs/handover/known-limitations](/docs/handover/known-limitations)
+  for the future-work note.
+- **No dedicated APM.** Performance is measured ad-hoc with browser
+  devtools, Sentry's slow-transaction signal where applicable, and the
+  hosting provider's built-ins.
+
+## The audit log
+
+The `audit_logs` table is the closest thing the platform has to a unified
+event log. Every CMS write, every order, every recruitment action lands
+there with `who`, `what`, `when`, and `which campus`. When investigating
+"who did this?" it is the first place to look.
+
+See [/docs/admin-handbook](/docs/admin-handbook) for the schema and query
+patterns.
+
+## Domain-specific signals
+
+A few feature areas have their own status fields worth knowing:
+
+- **Recruitment AI screening**: `job_applications.embedding_status` shows
+  whether each résumé has been embedded into Pinecone. Stuck on `pending`
+  for many minutes implies the screening worker is failing — check the
+  admin's logs.
+- **Shop orders**: `orders.status` and the Vipps / Stripe webhook history
+  in those providers' dashboards.
+- **Page publishing**: `pages.published` and `pages.draft` columns; if
+  these diverge in ways you don't expect, the draft/publish flow in
+  [/docs/packages/editor](/docs/packages/editor) is misbehaving.
+
+## What good looks like
+
+A healthy week on the platform shows:
+
+- All three `/api/health` endpoints green for the full week.
+- Anonymous user count stable (the cleanup cron is running).
+- Audit log rate steady, with spikes only around scheduled campaigns.
+- No `embedding_status = "failed"` rows accumulating.
+- No `orders.status = "pending"` rows older than ~24 hours.

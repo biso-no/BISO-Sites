@@ -1,0 +1,150 @@
+---
+title: Vipps MobilePay
+description: The primary payment provider for the BISO shop — used by basically every Norwegian student who buys anything from us.
+---
+
+# Vipps MobilePay
+
+[Vipps MobilePay](https://vippsmobilepay.com) is the dominant mobile payment
+service in Norway and Denmark, and the default payment provider for BISO's
+shop. If a student is buying a membership, a ticket, or merch, they're
+almost certainly paying with Vipps.
+
+## What it is
+
+Originally two separate services (Vipps in Norway, MobilePay in Denmark)
+that merged. From our integration's point of view it's one API. Users get
+redirected to the Vipps app or web flow, confirm the payment with their
+phone, and come back.
+
+## Why we use it
+
+Vipps is what Norwegian students actually use. Card payments work but Vipps
+is the path of least friction — most people complete a Vipps checkout in
+seconds. Picking it as the default for the shop dropped checkout
+abandonment substantially.
+
+## Cost shape
+
+Per-transaction fees set by Vipps for organisations (small flat fee +
+percentage of transaction value, lower than typical card processing). No
+fixed monthly cost.
+
+## Configuration
+
+| Var | Purpose |
+|---|---|
+| `VIPPS_CLIENT_ID` | API client ID for our merchant account |
+| `VIPPS_CLIENT_SECRET` | API client secret |
+| `VIPPS_SUBSCRIPTION_KEY` | Vipps API subscription key |
+| `VIPPS_MERCHANT_SERIAL_NUMBER` | Our MSN (merchant serial number) |
+| `VIPPS_CALLBACK_TOKEN` | Shared secret used to HMAC-verify callbacks |
+| `VIPPS_TEST_MODE` | Set to `true` to hit Vipps' sandbox instead of production |
+
+All five non-toggle vars come from the Vipps merchant portal for our
+account. `VIPPS_TEST_MODE=true` switches every API base URL to the sandbox
+— use it for development, never in production.
+
+For BISO specifically (snapshot at handover):
+
+- **Product**: Vipps Checkout (under a Vipps Bedrift agreement).
+- **Production MSN**: `737898`. **Test MSN**: `232894`.
+- **Transaction fee**: 2.99% + NOK 1.00 per order. No monthly fixed fee.
+- **Legal entity on the agreement**: BI STUDENT ORGANISASJON.
+- **Logging into the merchant portal**: administrators sign in with
+  **BankID** (Norway's electronic ID), not with an email/password.
+  This means you can't add a "team account" — every administrator
+  needs their own BankID. Make sure at least two BISO administrators
+  have access at any given time.
+- See [Handover → Ownership and accounts](/docs/handover/ownership-and-accounts#vipps-mobilepay)
+  for the operational ownership record.
+
+## Where it lives in the codebase
+
+- `@repo/payment/vipps` — all client-side and server-side helpers:
+  - `createVippsCheckoutSession()` — start a session, return the redirect
+    URL.
+  - `getVippsSession()` — look up a session by ID (used on return).
+  - `verifyVippsCallbackToken()` — HMAC verification for inbound callbacks.
+
+The shop in `apps/web` is the only consumer.
+
+## Checkout flow
+
+1. User clicks "Pay with Vipps" in the shop.
+2. Server calls `createVippsCheckoutSession()` with the cart total, order
+   reference, and the return URL `/api/checkout/return?orderId=<id>`.
+3. Server stores the session reference against the order and redirects the
+   user to the Vipps-hosted checkout URL.
+4. User completes payment in the Vipps app or web flow.
+5. Vipps redirects the browser back to `/api/checkout/return?orderId=<id>`.
+6. The return handler calls `getVippsSession()` to confirm the session is
+   `PAID`, marks the order paid, posts the transaction to
+   [24SevenOffice](/docs/integrations/24sevenoffice), and shows the
+   confirmation page.
+
+The return URL is the **source of truth** for whether the order is paid.
+We don't trust the browser redirect on its own — we always re-verify with
+Vipps' API.
+
+## The deprecated webhook
+
+There used to be a webhook handler at `/api/checkout/webhook` for inbound
+Vipps notifications. **It now returns HTTP 410 Gone** and is intentionally
+inert. The return-URL polling model proved more reliable, and the webhook
+was a source of duplicate-processing bugs. Do not add new logic to that
+route; if you need server-initiated payment processing, build a new route
+with a different path so it's obvious in the logs.
+
+## Refunds
+
+Refunds are **handled in the Vipps merchant portal**, not by our app.
+There is no refund button in the admin. This is a deliberate scoping
+choice — refunds are accounting events and should be initiated by the
+people doing accounting, with the audit trail living in Vipps' system, not
+ours.
+
+If you refund in the portal, also reverse the corresponding journal entry
+in 24SO. We don't do that automatically.
+
+## Test mode
+
+With `VIPPS_TEST_MODE=true`, the SDK routes to Vipps' sandbox. You'll need
+sandbox credentials from the merchant portal for our account, and you'll
+need to install the Vipps test app on a phone (or use the web sandbox
+flow). Test-mode payments don't post to 24SO if your `TFSO_*` config also
+points at the dev environment.
+
+## Failure modes
+
+- **Vipps API down** — checkout button shows an error; users can fall back
+  to [Stripe](/docs/integrations/stripe).
+- **Callback verification fails** — return handler refuses to mark orders
+  paid. Usually means `VIPPS_CALLBACK_TOKEN` is wrong.
+- **Session expired before return** — user took too long in the Vipps app;
+  the return handler reports the session as not paid and the cart is kept
+  for retry.
+- **MSN mismatch** — `VIPPS_MERCHANT_SERIAL_NUMBER` doesn't match the
+  account the keys belong to. Every API call returns auth errors.
+
+## Rotation
+
+Rotate `VIPPS_CLIENT_SECRET`, `VIPPS_SUBSCRIPTION_KEY`, and
+`VIPPS_CALLBACK_TOKEN` from the Vipps merchant portal:
+
+1. Generate a new value in the portal.
+2. Update the env var.
+3. Restart the web app.
+4. Revoke the old value in the portal.
+
+`VIPPS_CLIENT_ID` and `VIPPS_MERCHANT_SERIAL_NUMBER` are stable identifiers
+— don't rotate them.
+
+## Swapping the vendor
+
+Achievable. The integration is reasonably self-contained in
+`@repo/payment/vipps`. We already coexist with Stripe, so the precedent for
+having a second provider exists. Migrating away entirely would mean
+rewriting the checkout-session-creation path and the return handler — a
+few days of work plus testing — but you'd be giving up a lot of UX in
+Norway.

@@ -1,13 +1,13 @@
 {
   "title": "Operations",
-  "description": "Deployments, environments, and external services",
-  "root": true,
-  "icon": "ServerCog",
   "pages": [
     "overview",
     "environment-variables",
-    "docker",
-    "appwrite-setup",
-    "vipps"
+    "deployment",
+    "secrets-and-keys",
+    "cron-and-scheduled-tasks",
+    "monitoring-and-health",
+    "backups-and-recovery",
+    "incident-response"
   ]
 }

@@ -1,0 +1,215 @@
+---
+title: Campus and department scoping
+description: How multi-tenancy is enforced at the data layer (not the UI) and the pattern every list query must follow.
+---
+
+# Campus and department scoping
+
+BISO operates four physical campuses (Oslo, Bergen, Trondheim,
+Stavanger) plus a National layer. Each campus has its own departments,
+events, jobs, expenses, applications, and pages. A Bergen campus
+admin must never see Oslo's data. That is a hard data-isolation
+requirement — not a UX preference.
+
+This page is about how that requirement is enforced.
+
+## The core rule
+
+> Multi-tenancy is enforced at the **data layer**, not the UI.
+
+The UI hides things it shouldn't show. The data layer **refuses to
+return them**. If the UI is wrong, users see "missing" items —
+annoying. If the data layer is wrong, users see other campuses' data
+— a breach. The data-layer rule is what protects us.
+
+In practice, that means every list/get server action in the admin app
+that returns multi-tenant data **must** apply scope filters before
+hitting Appwrite. The canonical helper for this is
+`applyScopeQueries()`.
+
+## The auth context
+
+`getUserAuthContext()` returns these fields (among others):
+
+```ts
+type AuthContext = {
+  roles: Role[];
+  managedCampusIds: string[];     // campuses the user actually administers
+  resolvedCampusIds: string[];    // managedCampusIds, optionally narrowed by activeCampusId
+  activeCampusId: string | null;  // global-admin's chosen scope, from cookie
+};
+```
+
+The distinction between `managedCampusIds` and `resolvedCampusIds`
+matters.
+
+- **`managedCampusIds`** is the truth: "these are the campuses this
+  user is allowed to act on." For a campus admin, it's one item. For
+  a global admin, it's every campus.
+- **`resolvedCampusIds`** is the truth filtered by the user's current
+  context. Global admins can pick a campus in the topbar; that sets
+  the `admin_campus_ctx` cookie; `resolvedCampusIds` then narrows to
+  just that campus. The UI uses this for "what should I show now".
+
+99% of the time you want **`resolvedCampusIds`**. Use
+`managedCampusIds` only when you're computing a permission ("does
+this user have *any* claim on Bergen?") rather than a current view.
+
+## `applyScopeQueries()`
+
+The helper that wraps Appwrite queries with the right campus filter:
+
+```ts
+import { applyScopeQueries } from "@/lib/scope-queries";
+import { getUserAuthContext } from "@/lib/authorization";
+import { db } from "@repo/api/server";
+import { Query } from "@repo/api";
+import type { Pages } from "@repo/api/types";
+
+export async function listPages() {
+  const ctx = await getUserAuthContext();
+
+  // Start with your domain filters.
+  const baseQueries = [
+    Query.equal("status", "published"),
+    Query.orderDesc("$updatedAt"),
+    Query.limit(50),
+  ];
+
+  // applyScopeQueries adds the campus_id filter unless the user is
+  // a global admin without an active campus context (in which case
+  // it adds nothing and the user sees everything).
+  const queries = applyScopeQueries(ctx, baseQueries);
+
+  return db.listRows<Pages>("app", "pages", queries);
+}
+```
+
+The canonical call-site is `listPages()` in
+`apps/admin/src/app/(portal)/_actions/pages.ts`. Read that file when
+adding a new scoped list query — copy the pattern.
+
+### What it does, more precisely
+
+1. If `ctx.resolvedCampusIds.length === 0`, the user has no scope —
+   throw or return empty (no untrusted code should reach here, but
+   defence in depth).
+2. If the user is a global admin with no `activeCampusId`, return
+   `baseQueries` unchanged (they see everything).
+3. Otherwise, prepend
+   `Query.equal("campus_id", ctx.resolvedCampusIds)` (or
+   `Query.contains` on tables where the column is array-typed).
+
+The function lives in `apps/admin/src/lib/scope-queries.ts`. It's
+small — read it before writing a new variation.
+
+## What this looks like in practice
+
+A campus admin in Bergen calls `listPages()`. Their context:
+
+```ts
+{
+  roles: ["campusadmin"],
+  managedCampusIds: ["bergen"],
+  resolvedCampusIds: ["bergen"],
+  activeCampusId: null,
+}
+```
+
+The resulting Appwrite query is:
+
+```
+Query.equal("status", "published")
+Query.orderDesc("$updatedAt")
+Query.limit(50)
+Query.equal("campus_id", ["bergen"])   // added by applyScopeQueries
+```
+
+Appwrite returns Bergen rows only. There is no path where Oslo rows
+appear in the result set, including via a malicious client (the query
+is built server-side).
+
+A global admin in National calls the same action. Their context:
+
+```ts
+{
+  roles: ["globaladmin"],
+  managedCampusIds: ["oslo","bergen","trondheim","stavanger","national"],
+  resolvedCampusIds: ["oslo","bergen","trondheim","stavanger","national"],
+  activeCampusId: null,
+}
+```
+
+The query gets no `campus_id` filter (they see everything). If they
+then click "Switch to Bergen" in the topbar, the cookie sets
+`activeCampusId = "bergen"` and `resolvedCampusIds = ["bergen"]`, and
+the next call adds the same filter as a Bergen campus admin.
+
+## Department scoping
+
+Department scoping uses the same pattern with a `department_id`
+filter. The relevant fields on `AuthContext`:
+
+```ts
+{
+  managedDepartmentIds: string[];
+  resolvedDepartmentIds: string[];
+}
+```
+
+`applyScopeQueries()` handles department filtering when the table has
+a `department_id` column. The pattern is otherwise identical.
+
+Department-scoped resources include:
+
+- `jobs`
+- `job_applications`
+- `expense` (and `expense_attachments`)
+- `form_submissions`
+- `events` (when a department owns the event)
+
+## Things that can leak
+
+Past incidents and near-misses on this codebase have all looked the
+same:
+
+- A new list endpoint forgot to call `applyScopeQueries()`. Result:
+  campus admins seeing other campuses' data.
+- A `getById` returned a row without checking that the row belongs to
+  the user's scope. Result: a campus admin could fetch any row if
+  they guessed (or knew) the ID.
+- A `revalidatePath()` invalidated a cache populated by another
+  campus's request. Result: cache poisoning across tenants.
+
+Review checklist for any new server action that reads or writes
+multi-tenant data:
+
+1. Does it call `getUserAuthContext()`?
+2. For list queries: does it wrap queries through
+   `applyScopeQueries(ctx, ...)`?
+3. For get-by-id queries: after fetching, does it verify the row's
+   `campus_id` (and `department_id` where relevant) against
+   `ctx.resolvedCampusIds` (or `managedCampusIds` if that's the
+   relevant boundary)?
+4. For writes: does it explicitly set `campus_id` and
+   `department_id` from `ctx`, not from client input?
+
+If any of these is missing, the action is presumed broken until it
+isn't.
+
+## The exception: data that's intentionally cross-campus
+
+Some data is global by design: `tax_codes`, `feature_flags`, the
+National `campus` row, BISO-wide news. Those routes don't apply scope
+filters — but they're also gated to global-admin roles or read-only.
+If you find a route that's both writable and unscoped, double-check
+that it should be.
+
+## Where to read next
+
+- **[Auth and roles](/docs/architecture/auth-and-roles)** — how
+  `getUserAuthContext()` is populated.
+- **[Data model](/docs/architecture/data-model)** — which tables
+  carry `campus_id` and `department_id`.
+- **[Campus context](/docs/admin-handbook/campus-context)** — the
+  user-facing handbook view of the same concept.

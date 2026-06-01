@@ -1,50 +1,241 @@
 ---
-title: Applications in the Monorepo
-description: The three Next.js apps — roles, ports, and links to full application guides.
+title: Apps
+description: The four Next.js apps that make up the platform and how they differ.
 ---
 
-import Link from 'next/link';
-import { Callout } from 'components/callout';
+# Apps
 
-# Applications in the Monorepo
+The `apps/` directory holds four Next.js 15 applications. They share
+packages and the same Appwrite project, but each has a distinct
+audience, threat model, and runtime profile.
 
-Three Next.js applications share **@repo/*** packages and (for web and admin) the same Appwrite project. This page summarizes **how they differ** and **where the detailed guides live**. It intentionally avoids duplicating the Applications section.
+| App     | Port | Audience                     | Role |
+|---------|------|------------------------------|------|
+| `web`   | 3000 | Students, members, the public | Public marketing + commerce |
+| `admin` | 3001 | BISO staff (IT, editors)      | Internal CMS |
+| `docs`  | 3002 | Developers, consultants       | This documentation site |
+| `api`   | 3003 | `apps/web` (server-to-server) | JWT REST service |
 
-## Summary
+All four use the **App Router**, React Server Components by default,
+`output: "standalone"` for monorepo-friendly Docker/Appwrite deploys,
+and `outputFileTracingRoot: "../../"` so the standalone bundler walks
+the workspace correctly.
 
-| App | Port (typical) | Audience | Canonical docs |
-|-----|----------------|----------|----------------|
-| **web** | 3000 | Public visitors | <Link href="/docs/applications/web-app">Web app</Link> |
-| **admin** | 3001 | Editors and operators | <Link href="/docs/applications/admin-app">Admin app</Link> |
-| **docs** | 3002 | Developers (this site) | Content under `apps/docs/content/docs/` |
+Both Next.js apps also set:
 
-## Comparison
-
-| | Web | Admin | Docs |
-|---|-----|-------|------|
-| **Primary job** | Serve public pages and flows | Create and manage content | Document the monorepo |
-| **Auth** | User-facing (e.g. magic link) | Required for dashboard | None for static reading |
-| **Data** | Reads (and writes where needed) | Read/write against Appwrite | Mostly static MDX |
-| **i18n** | Yes (locales in routes) | Yes | English-first |
-| **Payments** | Checkout and webhooks | Configuration, not checkout UI | N/A |
-| **Page builder** | Renders published JSON | Edits with Puck | N/A |
-
-## Shared behavior
-
-- **Direct Appwrite access** — Web and admin each use **@repo/api** (session or admin clients). There is no private app-to-app HTTP API for normal CRUD; both talk to the same backend. See <Link href="/docs/architecture/data-flow">Data flow</Link>.
-- **Shared UI** — **@repo/ui** is used across web, admin, and docs.
-- **Independent deploys** — Each app can be built and deployed on its own (separate domains or paths).
-
-## Local development
-
-```bash
-bun run dev --filter=web
-bun run dev --filter=admin
-bun run dev --filter=docs
+```ts
+typescript: { ignoreBuildErrors: true }
 ```
 
-Repository layout for apps: see <Link href="/docs/repository/project-structure">Project structure</Link>.
+`next build` will not fail on TS errors — `bun run check-types` is the
+only signal that does. See [Monorepo](/docs/architecture/monorepo) for
+why.
 
-<Callout type="info" title="Go deeper">
-  Use <Link href="/docs/applications/overview">Applications overview</Link> for role-based entry points, then open the web or admin guides for routing, features, and implementation notes.
-</Callout>
+---
+
+## `apps/web` — Public site
+
+Port 3000. The student-facing site at `biso.no`. Designed to be usable
+by **anyone**, including unauthenticated visitors.
+
+### Anonymous-friendly via proxy middleware
+
+The single most important thing to know about `web` is that **every
+visitor has an Appwrite session**, anonymous or not. `apps/web/src/proxy.ts`
+is a Next middleware that runs before every page request. If the
+`a_session_biso` cookie is missing, it redirects the visitor to
+`/api/auth/anonymous`, which calls `createAdminClient()` to mint an
+anonymous Appwrite session and sets the cookie, then bounces them back
+to where they were going.
+
+Why: it lets data-fetching server actions assume a valid Appwrite
+client, removes branching for "logged out" cases, and makes things like
+cart reservations possible for anonymous users.
+
+### Real auth
+
+On top of the anonymous floor, users can sign in with:
+
+- Email + password
+- Magic link (Appwrite "email token")
+- OAuth: Microsoft, Google, Facebook, Apple
+
+`getAuthStatus()` considers a user "really" authenticated if
+`hasEmail || (hasRealName && emailVerification)` — that filter
+distinguishes anonymous sessions from registered members. See
+[Auth and roles](/docs/architecture/auth-and-roles).
+
+### Image domains
+
+`next.config.ts#images.remotePatterns` restricts Next's image
+optimizer to known hosts (Appwrite storage, BISO CDN, WooCommerce
+products). Adding a new image source means adding it there.
+
+### Where the code lives
+
+```
+apps/web/src/
+├─ proxy.ts                       # Anonymous-session middleware
+├─ app/
+│  ├─ (public)/                   # Marketing routes (catch-all page renderer)
+│  ├─ (protected)/                # Authenticated student area
+│  ├─ (auth)/                     # Sign-in flows
+│  ├─ actions/                    # Server actions (top level)
+│  └─ api/                        # Route handlers (auth callbacks, checkout)
+└─ lib/actions/                   # More server actions, grouped by feature
+```
+
+---
+
+## `apps/admin` — CMS
+
+Port 3001. The internal site at `admin.biso.no`. Audience: BISO staff,
+campus board members, IT.
+
+### No middleware — layouts gate auth
+
+Unlike `web`, **there is no `middleware.ts` in `admin`**. Auth is
+enforced inside route-group layouts and inside every server action.
+
+```
+apps/admin/src/app/
+├─ (auth)/        # Sign-in routes; no auth required
+├─ (portal)/      # All authenticated routes — layout calls getUserAuthContext()
+├─ (editor)/      # Page editor routes — same auth gate as (portal)
+└─ (protected)/   # Sub-set with stricter gating
+```
+
+The `(portal)/layout.tsx` calls `getUserAuthContext()` and redirects
+to `/auth/login` if it returns null. Every server action in
+`_actions/` also calls `requireAuth()` (or equivalent) before doing
+anything — defence in depth.
+
+### Force-dynamic
+
+Most admin routes are `export const dynamic = "force-dynamic"`. The
+data changes constantly, the user set is small, and the cost of stale
+data is much worse than the cost of re-rendering on every request.
+
+### Sign-in flow
+
+The canonical sign-in is **Microsoft OAuth** via
+`account.createOAuth2Token`. The handler at
+`(auth)/auth/oauth/route.ts` `await`s `syncM365Permissions()` —
+which mirrors Azure AD security groups into Appwrite teams — **before**
+setting the cookie. That way the user's first authenticated request
+already has the correct role context.
+
+Magic-link sign-in (`(auth)/auth/callback/route.ts`) calls
+`syncM365Permissions()` best-effort but doesn't await it, because
+magic-link users are usually external (not in Azure AD).
+
+### Where the code lives
+
+```
+apps/admin/src/
+├─ app/(portal)/_actions/         # Server actions for the portal area
+├─ app/(editor)/                  # Page editor host (wraps EditorShell)
+├─ app/api/                       # Route handlers (translate-page, AI tools)
+├─ lib/
+│  ├─ roles.ts                    # Role derivation + NAV_ACCESS
+│  ├─ authorization.ts            # getUserAuthContext, scope helpers
+│  └─ scope-queries.ts            # applyScopeQueries
+└─ components/
+```
+
+See `apps/admin/CLAUDE.md` and the
+[Admin handbook](/docs/admin-handbook) for the user-facing view.
+
+---
+
+## `apps/docs` — This site
+
+Port 3002. [Fumadocs](https://fumadocs.dev) reads MDX from
+`apps/docs/content/docs/`. The site has no Appwrite dependency — it's
+a pure static-ish content site. Customizations:
+
+- MDX components in `apps/docs/components/mdx/` (Mermaid, Callout,
+  Steps, FileTree, Tabs).
+- The `mdx-components.tsx` file registers them so they're available
+  inside any MDX file without an explicit import.
+
+When you add a new page, add it to the nearest `meta.json` so the
+sidebar picks it up.
+
+---
+
+## `apps/api` — REST/JWT service
+
+Port 3003. Production runs at a dedicated origin. See the
+[API service](/docs/architecture/api-service) page for the full story.
+
+The short version:
+
+- Standalone Next.js 15 app, route handlers only (`src/app/api/*`).
+- Authenticated by Appwrite **JWTs** in the `Authorization: Bearer`
+  header. JWTs are minted by `apps/web` via the `createJWT()` server
+  action (Appwrite `account.createJWT()`, cached for 14 minutes).
+- CORS allow-list lives in `src/lib/cors.ts` — localhost ports for dev
+  plus `biso.no` subdomains for prod.
+- Three-tier admin authorization (`src/lib/admin-auth.ts`): global,
+  campus, department.
+- Vitest tests run in CI for the higher-stakes routes (Entur
+  departures, expense payload validation, expense summary, recruitment).
+
+### Why a separate service
+
+Two reasons, both pragmatic:
+
+1. **Workload isolation.** OCR (`/expenses/ocr`), PDF generation, bulk
+   user imports, and Entur sync should not run on the same Node
+   process that serves student page loads. A separate service lets ops
+   scale and restart them independently.
+2. **Clean external surface.** If a mobile client or external partner
+   ever needs to call BISO services, they call `api.biso.no` with a
+   JWT — not the public site's internal server actions. The
+   admin-tier endpoints in particular (`/admin/users`, bulk imports)
+   benefit from a stable, versionable shape.
+
+### Build and deploy
+
+`output: "standalone"` plus a `deploy:prep` script that flattens
+`.next/standalone` and copies it to the monorepo root for container
+deployment.
+
+---
+
+## Native mobile app
+
+The four Next.js apps above are not the entire BISO digital surface.
+There is also a **native iOS / Android mobile app** built with
+**Flutter**, living in a separate repository:
+
+| Item | Detail |
+|------|--------|
+| Repository | [`biso-no/BISO-Flutter`](https://github.com/biso-no/BISO-Flutter) |
+| Stack | Flutter (Dart) |
+| Backend | The same Appwrite project this platform uses |
+| Auth | Same Appwrite sessions; the mobile app authenticates against the same identity pool as the web site |
+| Relationship to this monorepo | Independent codebase, **shared data layer** |
+
+The mobile app is intentionally not part of this monorepo — Flutter
+and the Bun/Next.js toolchain don't share enough to make that worth
+it — but it consumes the same `appwrite.biso.no` backend and the same
+collections. When you change a row shape in
+`packages/api/appwrite.config.json`, you may also need to update the
+Flutter app's data layer to match.
+
+If you're maintaining the platform and you make a breaking schema or
+auth change, **check with whoever maintains BISO-Flutter** before
+shipping. There is no automated coupling between the two repos.
+
+---
+
+## Where to read next
+
+- **[Packages](/docs/architecture/packages)** — the shared library
+  layer all four apps depend on.
+- **[Auth and roles](/docs/architecture/auth-and-roles)** — both
+  `web`'s and `admin`'s sign-in stories in depth.
+- **[API service](/docs/architecture/api-service)** — every endpoint
+  on `apps/api`.

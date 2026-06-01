@@ -1,0 +1,155 @@
+---
+title: Domains and hosting
+description: DNS, the subdomains in use, and where each part of the platform actually runs.
+---
+
+# Domains and hosting
+
+## The domain
+
+BISO owns **`biso.no`**. Every subdomain the platform uses sits under
+this one apex.
+
+| Item | Value |
+|------|-------|
+| Apex domain | `biso.no` |
+| Registrar | **proisp.no** (account ID `19676`, login `pr@biso.no`) |
+| DNS provider | proisp.no (same as registrar) |
+| WHOIS contact email | `it@biso.no` |
+| Renewal date | 19 December annually (next: 2026-12-19) |
+
+<Callout type="warning">
+**Confirmed gap**: the proisp account has **no 2FA**. Adding 2FA is the
+single highest-leverage security task for the next IT Manager.
+WHOIS contact and registrar login are already role-based (not
+personal) emails, which is good.
+</Callout>
+
+## Subdomains in use
+
+State as of the current handover snapshot:
+
+| Subdomain | Points to | Purpose / status |
+|-----------|----------|------------------|
+| `biso.no` | `apps/web` (planned cutover) | Reserved for the new public site. Will replace the legacy WordPress site at cutover. **Not yet live as the primary host.** |
+| `web.biso.no` | `apps/web` (Appwrite Sites self-hosted) | **Current production** for the new public site. Will be retired in favour of `biso.no` once the WordPress cutover is complete. |
+| `public.biso.no` | — | **Not in use.** |
+| `admin.biso.no` | `apps/admin` (Appwrite Sites self-hosted) | Production CMS. |
+| `admin-dev.biso.no` | — | **Not in use.** |
+| `appwrite.biso.no` | Self-hosted Appwrite | The Appwrite instance, running on a Webdock VM. |
+| `api.biso.no` | `apps/api` (Appwrite Sites self-hosted) | JWT REST service. |
+
+<Callout type="info">
+**Cutover note**: at the time of this handover, the new public site is
+live at `web.biso.no` but the apex `biso.no` still points at the legacy
+WordPress site. The cutover to make `biso.no` serve `apps/web` directly
+is imminent. Once that happens, `web.biso.no` will be retired (either
+removed or aliased to the apex).
+</Callout>
+
+## DNS records to be aware of
+
+- **A / AAAA / CNAME** for each subdomain above, pointing at the
+  appropriate host.
+- **MX records** for `biso.no` (handled by Microsoft 365 — see Azure AD).
+  These are independent of the platform but live in the same DNS zone.
+- **TXT records** for SPF, DKIM, DMARC (M365 setup) and any provider
+  domain-verification tokens (Stripe, SendGrid-like services if added,
+  Vipps if applicable).
+
+<Callout type="warning">
+**No DNS zone export is currently saved off-platform.** If proisp.no
+ever loses BISO's zone (or BISO loses access to proisp), the live
+configuration would have to be rebuilt from memory and from the
+records the platform / M365 require.
+
+Action for the next IT Manager: log into proisp.no, export the
+`biso.no` zone file (or take a full screenshot of every record),
+and store it alongside the production env vars in the password
+manager once one is deployed. Repeat after any non-trivial DNS
+change.
+</Callout>
+
+## Hosting topology
+
+Today the platform runs on a fixed combination:
+
+- **Appwrite Sites** (self-hosted) serves every Next.js app —
+  `web`, `admin`, `api`, `docs`. Each is a separate Appwrite Site
+  with its own site ID and its own per-site env vars. The
+  `build:web:appwrite`, `build:admin:appwrite`, `build:api:appwrite`,
+  and `build:docs:appwrite` scripts in the root `package.json` are
+  the Appwrite Sites build commands.
+- **Webdock** hosts the two VMs underneath. Server 1 runs the
+  Appwrite instance (`appwrite.biso.no`) plus the Appwrite Sites
+  deployments. Server 2 runs the legacy WordPress site at the apex
+  `biso.no` until the cutover. The `WEBDOCK_API_KEY` env var is for
+  Webdock automation rather than runtime hosting.
+
+Because the apps are stock Next.js with `output: "standalone"`,
+moving to a Vercel-style or container hosting provider is possible
+in principle, but no such migration is in progress.
+
+### Current hosting per app
+
+| App | Hosting | Production URL | Notes |
+|-----|---------|----------------|-------|
+| `apps/web` | Appwrite Sites (self-hosted) | `web.biso.no` (becoming `biso.no` at cutover) | |
+| `apps/admin` | Appwrite Sites (self-hosted) | `admin.biso.no` | |
+| `apps/api` | Appwrite Sites (self-hosted) | `api.biso.no` | |
+| `apps/docs` | Appwrite Sites (self-hosted) | Configured behind `DOCS_SITE_ID` in the deploy workflow; confirm the public URL in the Appwrite Console | |
+| Appwrite backend | Webdock VM | `appwrite.biso.no` | Markus Heien has sole SSH root. See [ownership-and-accounts](/docs/handover/ownership-and-accounts#appwrite). |
+
+### Deploy mechanism
+
+Every app deploys from a **single GitHub Actions workflow** —
+[`.github/workflows/deploy-production.yml`](https://github.com/biso-no/BISO-Sites/blob/main/.github/workflows/deploy-production.yml).
+It triggers on `push` to `main`, uses `turbo query affected --packages`
+to detect which apps changed, and uploads the monorepo source to the
+matching Appwrite Site for each. Appwrite runs `bun install` plus the
+site's configured build command on its own side.
+
+So the answer for every app is the same: **push to `main` → only the
+affected apps redeploy**. There is no manual deploy button and no
+per-app difference in the trigger.
+
+The full walkthrough — including site-ID mapping, what gets uploaded,
+and rollback — is at [Operations / Deployment](/docs/operations/deployment).
+
+<Callout type="warning">
+**No staging environment today.** Every push to `main` goes straight
+to production. A staging tier is a known follow-up — see
+[Handover / Known limitations](/docs/handover/known-limitations).
+</Callout>
+
+## SSL / TLS
+
+Whichever provider hosts each app handles certificate issuance — usually
+Let's Encrypt automatic renewals, or a provider-managed certificate.
+There is no manually-managed cert in the platform.
+
+If a cert fails to renew, the symptom is browser warnings on the
+affected subdomain. Most providers auto-renew 30 days before expiry; the
+failure mode is usually a DNS record having been changed.
+
+## CDN / edge
+
+Next.js' built-in image optimisation and static file serving handle the
+edge concerns. The platform does not currently sit behind a third-party
+CDN (Cloudflare, Fastly, etc.). The `next.config.ts` files allow
+`appwrite.biso.no` as a remote image source — adding new image hosts
+requires editing `remotePatterns` and redeploying.
+
+## Email
+
+The platform itself does **not** send much email. Transactional
+notifications go through Appwrite Messaging (and Appwrite uses whatever
+SMTP is configured at the instance level). User-facing communications
+(newsletters, marketing) go through whatever tool BISO's communications
+team uses — outside the scope of this docs site.
+
+<Callout type="warning">
+**To be filled in by the current IT Manager**: the SMTP provider
+configured on the Appwrite instance (Mailgun? SendGrid? Microsoft 365
+SMTP relay?) and where its credentials live.
+</Callout>

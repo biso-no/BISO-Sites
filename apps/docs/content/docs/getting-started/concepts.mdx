@@ -1,0 +1,246 @@
+---
+title: Key concepts
+description: The vocabulary that admins and developers share. Read this once and the rest of the docs make sense.
+---
+
+# Key concepts
+
+These are the words you'll see again and again. Some are organisational, some
+are technical — but the platform blurs the line, so everyone should know all
+of them.
+
+## Organisation
+
+### BISO
+
+**BI Student Organisation** — the student organisation at BI Norwegian
+Business School. The owner and audience of this platform.
+
+### Campus
+
+A physical BI location: Oslo, Bergen, Trondheim, Stavanger, plus the
+**National** scope which represents the central / cross-campus organisation.
+Every piece of content belongs to exactly one campus.
+
+In the data model: `campus_id` (relationship to the `campus` table).
+
+### Department / Unit
+
+A sub-organisation within a campus — e.g. *Sales & Marketing*, *Career*,
+*Sports*, *Operations Unit*. Most public content (pages, events, jobs, news)
+is created **by a department**, scoped to a campus.
+
+In the data model: `department_id` (relationship to the `departments`
+table). The terms "department" and "unit" are used interchangeably in the
+codebase and UI.
+
+### Operations Unit
+
+A specific department at the National level. Membership in `SG-App-Dept-OperationsUnit`
+(combined with `SG-App-Campus-National`) is what grants the `globaladmin`
+role.
+
+### Ledelsen
+
+Norwegian for "the leadership". `SG-App-Dept-Ledelsen{City}` is the campus
+leadership team for a given city. Membership (combined with
+`SG-App-Campus-{City}`) is what grants the `campusadmin` role for that
+campus.
+
+## Authentication & roles
+
+### Anonymous session
+
+The public website (`apps/web`) wraps every visitor in an anonymous Appwrite
+session via middleware (`src/proxy.ts`). This lets the cart, locale
+preference, and other per-visitor state work without forcing a login.
+**Anonymous ≠ authenticated**: gated features require a real user.
+
+### Real authentication
+
+A user is treated as authenticated when their Appwrite account has either an
+email, or a real name plus a verified email. See `getAuthStatus()` in
+`apps/web/src/lib/auth-utils.ts`.
+
+### Security Group (SG-App-*)
+
+Azure AD security groups whose membership is mirrored into Appwrite teams by
+`syncM365Permissions()` on every login. They are the **only** source of
+truth for admin authorization. Two naming patterns matter:
+
+- `SG-App-Campus-{Location}` — Oslo, Bergen, Trondheim, Stavanger, National
+- `SG-App-Dept-{Name}` — OperationsUnit, LedelsenOslo, Career, etc.
+
+### Roles
+
+Computed at login by combining your group memberships:
+
+| Role | Required groups |
+|---|---|
+| `globaladmin` | `SG-App-Campus-National` + `SG-App-Dept-OperationsUnit` |
+| `campusadmin` | `SG-App-Campus-{City}` + `SG-App-Dept-Ledelsen{City}` |
+| `department` (pseudo) | Any `SG-App-Dept-*` membership |
+
+These are **derived**, not stored as Appwrite labels. The old label-based
+gating is gone — don't re-introduce it.
+
+### Campus context
+
+Global admins can scope themselves to a specific campus using the campus
+switcher in the admin sidebar. The choice is stored in the `admin_campus_ctx`
+cookie and read as `ctx.activeCampusId`. This is what lets the IT Manager
+"see what Bergen sees" without juggling accounts.
+
+## Content
+
+### Page
+
+A composable, block-based page rendered by the public site. Created in the
+admin's pages editor, stored in two tables:
+
+- `pages` — the metadata: slug, status, visibility, campus, department,
+  permissions.
+- `page_translations` — the locale-specific content: title, description, and
+  the actual block document. One row per locale.
+
+### Block
+
+A unit of layout inside a page. There are 37 block types (hero, text,
+gallery, eventList, etc.) registered in `packages/editor/src/blocks/`. Each
+block has an `Inspector` (the right-hand sidebar UI for editing) and a
+`Render` component.
+
+See [Pages editor → Blocks reference](/docs/admin-handbook/pages/blocks-reference)
+for the admin-facing list and [Editor architecture](/docs/architecture/editor-architecture)
+for the developer view.
+
+### PageDoc
+
+The serialised JSON shape that represents the editor state for one locale of
+one page — `{ blocks: Block[], meta: PageMeta }`. Stored in the
+`draft_document` (work in progress) or `puck_document` (published; field is
+named historically) column of `page_translations`.
+
+> **Note on the `puck_document` column**: The column is still named that for
+> historical reasons — it pre-dates the Puck → `@repo/editor` migration and
+> the schema was kept stable. The column holds the published block document
+> for the in-house editor.
+
+### Draft / Published
+
+Pages, news, events, and jobs all go through a draft → published
+lifecycle. The admin can preview drafts; only published content is visible
+on the public site (and only when `visibility=public` for pages).
+
+### Translation ref
+
+A relationship column on a content row (`pages.translation_refs`,
+`news.translation_refs`, etc.) pointing to its locale-specific rows in
+`page_translations` or `content_translations`. The shared
+`content_translations` table is generic and keyed by content type.
+
+### Approval request
+
+A workflow row in `approval_requests` representing a change that needs to be
+signed off before it goes live. Used for sensitive content. See the
+[Approvals](/docs/admin-handbook/approvals) screen.
+
+### Audit log
+
+Every mutation in the admin app writes to `audit_logs` via `logAuditEvent()`.
+The [Activity](/docs/admin-handbook/activity) screen is a live feed of this
+table.
+
+## Editor & rendering
+
+### `@repo/editor`
+
+The in-house block editor package. Built on `@dnd-kit` (drag-drop), `immer`
+(immutable updates), and `zustand` (state). Used by `admin` to edit and by
+`web` to render the same blocks read-only.
+
+### `EditorShell` / `PageDoc` render
+
+The two main entry points of `@repo/editor`. `EditorShell` is the editing
+UI (admin only); the render entry is what the public site uses to display a
+published `PageDoc`.
+
+### `getPage(slug, locale)` / `getPageEditorById(id)`
+
+The data-layer entrypoints (in `@repo/api/page-builder`) used by the public
+site and admin respectively to load a page.
+
+### `savePageDraft()` / `publishPage()`
+
+The two mutations that drive the page lifecycle. `savePageDraft` upserts
+both the `pages` row and the matching `page_translations` row's
+`draft_document`. `publishPage` copies `draft_document` into
+`puck_document` and flips `is_published`.
+
+## Backend mechanics
+
+### Appwrite
+
+The backend platform that handles auth, database, storage, teams, messaging,
+and functions for the whole project. See [Integrations → Appwrite](/docs/integrations/appwrite).
+
+### TablesDB
+
+Appwrite's newer database API (alongside the older `Databases.listDocuments`).
+The data layer in this platform uses TablesDB exclusively — that's why you
+see `db.listRows()` / `db.getRow()` everywhere rather than
+`db.listDocuments()`. The wrapping in `@repo/api/server` adds a JSON-clone
+proxy so results can cross the React Server Components boundary safely.
+
+### Server Action
+
+A Next.js server-side function callable from client components via a
+type-safe boundary. The platform uses server actions as its primary
+mutation path; in admin they live in `apps/admin/src/app/(portal)/_actions/`.
+
+### Route Group
+
+A Next.js App Router feature: `apps/admin/src/app/(portal)/`, `(editor)`,
+`(auth)`, `(protected)`. The parentheses mean the segment doesn't appear in
+the URL but still gets its own `layout.tsx`. Auth gates live in those
+layouts.
+
+### RSC / Server Component
+
+A React component that runs on the server. The default in this codebase.
+You only add `"use client"` when you need state, effects, or browser APIs.
+
+## Payments & members
+
+### Member
+
+A user with an active row in the `memberships` table. Members get
+event/shop discounts and access to certain pages. Membership status is
+sourced from 24SevenOffice's customer categories.
+
+### Vipps
+
+Norwegian mobile-payment provider (now Vipps MobilePay). The primary payment
+method for the BISO shop.
+
+### Finago / 24SevenOffice
+
+BISO's accounting platform. Shop purchases are posted to the Finago ledger,
+and membership verification reads back from there.
+
+## Norway-specific
+
+### Entur
+
+The Norwegian national journey planner. Used by the platform to render
+real-time public-transport departures on campus pages.
+
+### NOK
+
+Norwegian kroner — the currency for every order and price.
+
+### Norwegian / English
+
+The platform supports two locales: `no` (default) and `en`. Both are
+first-class — page editors localise content per locale, and the OpenAI-backed
+translation tool auto-fills the secondary locale from the primary.

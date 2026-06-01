@@ -1,0 +1,97 @@
+---
+title: Welcome
+description: Documentation for the BISO Sites platform — for administrators, developers, and whoever takes over next.
+---
+
+# BISO Sites
+
+This is the documentation for the **BI Student Organisation (BISO)** digital
+platform: the public website at [biso.no](https://biso.no), the internal admin
+CMS, the JWT-authenticated API service that powers them, and all the shared
+code that holds the whole thing together.
+
+The platform is a single [Turborepo](https://turbo.build) monorepo with four
+Next.js apps and nine shared packages, backed by a single
+[Appwrite](https://appwrite.io) project. It was built and is maintained by
+BISO's IT function.
+
+There is also a separate **Flutter mobile app** at
+[`biso-no/BISO-Flutter`](https://github.com/biso-no/BISO-Flutter) that
+consumes the same Appwrite backend. It's out of scope for most of these
+docs but worth knowing about — see [Architecture / Apps](/docs/architecture/apps#native-mobile-app).
+
+## Who these docs are for
+
+These docs serve two audiences side-by-side. Pick the path that matches you.
+
+### I administer the platform
+
+You work for BISO and use the admin app to publish pages, run recruitment,
+manage the shop, approve content, or look after members. You probably aren't
+a developer.
+
+Start with the [**Admin Handbook**](/docs/admin-handbook) for a tour of every
+screen in the admin app, then dip into the [**Public Website**](/docs/public-website)
+section to understand what students see.
+
+### I'm maintaining or extending the code
+
+You are taking over from the previous IT Manager, you're a consultant brought
+in for a piece of work, or you're an internal developer adding a feature.
+
+Start with the [**Architecture**](/docs/architecture/overview) overview to
+get the big picture, then [**Developing**](/docs/developing) for setup and
+conventions. The [**Packages**](/docs/packages), [**Integrations**](/docs/integrations),
+and [**Operations**](/docs/operations/overview) sections are the day-to-day reference.
+
+If you're literally inheriting the platform, read [**Handover**](/docs/handover)
+first — it explains what accounts exist, who owns what, and the conscious
+trade-offs the original author made.
+
+## What's inside
+
+| Section | For | What you'll find |
+|---|---|---|
+| [Getting Started](/docs/getting-started) | Everyone | The big picture, terminology, and where to go next. |
+| [Admin Handbook](/docs/admin-handbook) | Admin app users | Every screen of the admin app, with the business reason for each. |
+| [Public Website](/docs/public-website) | Admins & developers | The student-facing site: pages, membership, shop, jobs, events. |
+| [Architecture](/docs/architecture/overview) | Developers | How the apps, packages, and Appwrite project fit together. |
+| [Developing](/docs/developing) | Developers | Local setup, conventions, and "how do I add X" guides. |
+| [Packages](/docs/packages) | Developers | Reference docs for each `@repo/*` package. |
+| [Integrations](/docs/integrations) | Developers & ops | Every external service the platform talks to. |
+| [Operations](/docs/operations/overview) | Ops / IT | Env vars, deployment, secrets, cron, monitoring. |
+| [Handover](/docs/handover) | The next IT Manager | Accounts, ownership, history, working with consultants. |
+
+## The stack at a glance
+
+- **Frontend**: Next.js 15 (App Router, React Server Components) + React 19
+- **UI**: Tailwind CSS + Radix UI primitives in `@repo/ui`
+- **Page editor**: In-house block editor `@repo/editor` (built on `@dnd-kit`,
+  `immer`, `zustand`). Replaced Puck in 2025.
+- **Backend**: Appwrite — auth, database (TablesDB), storage, functions, teams
+- **Auth**: Microsoft / Azure AD OAuth + Appwrite anonymous sessions for the
+  public site
+- **Payments**: Vipps MobilePay (in production); Stripe scaffolded but not currently enabled
+- **AI**: OpenAI for everything in production today — translation,
+  expense OCR, page editor copilot, admin assistant, recruitment resume
+  screening. The repo contains some `@ai-sdk/anthropic` imports as a
+  legacy / exploratory path; no BISO Anthropic account exists today.
+- **External systems**: Microsoft 365 / Graph, SharePoint, 24SevenOffice
+  (Finago), Pinecone, Entur (Norwegian public transit)
+- **Package manager**: Bun 1.3.1 (workspaces + `catalog:` protocol)
+- **Build**: Turborepo
+
+## A note from the original author
+
+> This platform exists because BISO needed a digital home that the organisation
+> itself owned and could iterate on. It replaced a patchwork of WordPress
+> sites, hand-built signup forms, and spreadsheet-driven membership tracking.
+>
+> The organisation has decided not to employ a permanent IT Manager going
+> forward, so these docs are written to be **complete**: not just "how the
+> code is laid out", but the operational knowledge a new person — or an
+> external consultant — needs to keep things running and to extend the
+> platform safely.
+>
+> If something in the docs is wrong, it's a bug. Fix it in `apps/docs/content/`
+> and open a PR.

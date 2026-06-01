@@ -1,0 +1,85 @@
+---
+title: Authentication and sessions
+description: How anonymous sessions, login providers, and the "anonymous vs authenticated" distinction work on biso.no.
+---
+
+# Authentication and sessions
+
+The public site treats everyone as a session holder — even visitors who have never logged in. This lets the data layer work the same way for guests and members, and means the cart, locale preference, and view history follow a single Appwrite account. Logging in promotes that anonymous account to a real one.
+
+## Two states a visitor can be in
+
+| State | Has session cookie? | Has a real email / verified name? | What they can do |
+|-------|---------------------|-----------------------------------|------------------|
+| **Anonymous** | Yes (minted automatically) | No | Browse, add to cart, register for events, buy from the shop. |
+| **Authenticated** | Yes | Yes | Everything above, plus `/profile`, `/applications`, `/fs`. |
+
+The classification is done by `getAuthStatus()`, which calls a session authenticated only when `hasEmail || (hasRealName && emailVerification)`. An anonymous session is *not* authenticated even though it has a cookie.
+
+## Anonymous sessions
+
+When a visitor hits any non-API page without a session cookie, `apps/web/src/proxy.ts` (the Next.js middleware) redirects them to:
+
+```
+/api/auth/anonymous?redirect=<their-original-url>
+```
+
+That route hits Appwrite with the admin key, mints an anonymous account, sets the session cookie, and redirects the user back to where they were going. It happens once, takes a few hundred milliseconds, and is invisible to the user.
+
+### The session cookie
+
+| Setting | Value |
+|---------|-------|
+| Cookie name | `a_session_biso` (override via `APPWRITE_SESSION_COOKIE`) |
+| Domain (prod) | `.biso.no` — shared across `biso.no`, `admin.biso.no`, and any other subdomain. |
+| SameSite | `lax` in local dev, stricter in prod. |
+| Lifetime | Long — Appwrite manages expiry. |
+
+Because the cookie is on `.biso.no`, a user logged in on the admin site is also "logged in" on the public site (subject to roles). In dev, the apps run on different ports but share `localhost`.
+
+## Logging in
+
+The login page is `/auth/login`. It offers four OAuth providers plus a magic link:
+
+| Method | Provider | Notes |
+|--------|----------|-------|
+| Microsoft | Azure AD | The primary path for BI students using their `@bi.no` accounts. |
+| Google | Google OAuth | For external accounts. |
+| Facebook | Meta | Legacy but supported. |
+| Apple | Sign in with Apple | iOS users. |
+| Magic link | Appwrite | Emailed login link, no OAuth needed. |
+
+All five flows are configured in `apps/web/src/lib/server.ts`. The OAuth handshake comes back through `apps/web/src/app/(auth)/auth/callback/route.ts`, which converts the OAuth code into an Appwrite session and replaces the anonymous cookie with the authenticated one.
+
+For the admin app's auth flow (which is Microsoft-only and group-gated), see [Admin Handbook → Signing in](/docs/admin-handbook/signing-in).
+
+## Protected routes
+
+The protected route group (`/profile`, `/applications`, `/fs/*`) is gated by `apps/web/src/app/(protected)/layout.tsx`. That layout calls `getLoggedInUser()` and, if no real account is present, triggers Next's `unauthorized()`. With `authInterrupts` enabled, this renders `apps/web/src/app/unauthorized.tsx` — a 401 page that prompts the visitor to log in and bounces them back afterwards.
+
+## Where the user's identity is used
+
+| Surface | What it does with the user |
+|---------|----------------------------|
+| Cart / checkout | Anonymous accounts can have a cart. The Appwrite user ID owns the cart reservations and order rows. |
+| Event registration | Anonymous OK. Member pricing only applies if the account is verified and matches a Finago customer. |
+| Job applications | Requires login. The applicant's user ID is stored on the `job_applications` row. |
+| Locale preference | Persisted to `prefs.locale` on the Appwrite account, anonymous or not. |
+| Membership check | The `/api/membership` endpoint matches the account email against Finago — only meaningful once authenticated. |
+
+## Logout
+
+Logging out clears the session cookie. The next page load triggers the middleware again, mints a fresh anonymous session, and continues. There is no in-between "logged out" state from the data layer's perspective.
+
+## Server-side helpers
+
+For developers, the relevant helpers live in `@repo/api/server`:
+
+| Helper | Use |
+|--------|-----|
+| `createSessionClient()` | User-scoped Appwrite client. Reads the cookie. |
+| `createAdminClient()` | Service-key client. Used by `/api/auth/anonymous` and other privileged routes. |
+| `getLoggedInUser()` | Returns the current Appwrite `User` or throws. |
+| `getAuthStatus()` | Returns `{ isAuthenticated, hasEmail, … }` for nuanced gates. |
+
+Never instantiate the Appwrite SDK directly in app code — see the [`@repo/api` package docs](/docs/packages/api).

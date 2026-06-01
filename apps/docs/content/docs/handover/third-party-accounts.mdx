@@ -1,0 +1,184 @@
+---
+title: Third-party accounts
+description: Every SaaS subscription the platform depends on, with billing details, plan tiers, and renewal cycles.
+---
+
+# Third-party accounts
+
+This page complements [ownership-and-accounts](/docs/handover/ownership-and-accounts).
+That page is about *who holds the master credentials*. This page is about
+*what BISO is paying for* — subscriptions, plan tiers, monthly rates,
+renewal cycles.
+
+Like the ownership page, this is a template. Every row needs to be filled
+in by the current IT Manager at handover.
+
+<Callout type="warning">
+**To be filled in by the current IT Manager**: every `[FILL IN]` below.
+For each row, attach a screenshot or PDF of the most recent invoice in
+BISO's shared finance folder so the next person can verify they're
+looking at the right account.
+</Callout>
+
+## AI providers
+
+### OpenAI
+
+| Field | Value |
+|-------|-------|
+| Organisation ID | `org-OYbnzkHo28huLcXHylKJvlsB` |
+| Login email | `markus@biso.no` (planned to migrate to `it@biso.no`) |
+| Plan / tier | Usage tier 4 (pay-as-you-go) |
+| Monthly spend (average) | ~USD $10 (≈ NOK 110) — expected to rise once the new public site goes live |
+| Hard cap configured | Soft limit set at USD $120/month; no enforced organisation-level budget yet |
+| Billing email | `invoice@biso.no` |
+| Payment method | **Markus Heien's personal card** — being transitioned to Simen (Administrasjonsleder) imminently |
+
+See [Ownership and accounts → OpenAI](/docs/handover/ownership-and-accounts#openai)
+for the continuity risk this introduces.
+
+### Anthropic
+
+**Not in production.** All AI features today route through OpenAI.
+The codebase has some `@ai-sdk/anthropic` imports as a legacy or
+exploratory path, but no BISO Anthropic account is funded and no
+production traffic is sent to Anthropic. Treat the `ANTHROPIC_API_KEY`
+env var as optional / unset.
+
+| Field | Value |
+|-------|-------|
+| Account name | n/a — no account |
+| Plan / tier | n/a |
+| Monthly spend | NOK 0 |
+| Billing email | n/a |
+
+### Pinecone
+
+| Field | Value |
+|-------|-------|
+| Project / org ID | `-NWdHeAIHBzZGIyAhn9H` |
+| Login email | `markus@biso.no` |
+| Plan / tier | Starter (free tier) |
+| Index used | `bisoai` (matches `PINECONE_INDEX_NAME`) |
+| Monthly spend | NOK 0 |
+| Renewal | n/a (no paid subscription) |
+| Account ownership | **Markus Heien's personal Pinecone account** — needs migration to a BISO-owned account before Markus leaves. See [Ownership and accounts → Pinecone](/docs/handover/ownership-and-accounts#pinecone). |
+
+## Payments
+
+### Vipps MobilePay
+
+| Field | Value |
+|-------|-------|
+| Production Merchant Serial Number | `737898` |
+| Test Merchant Serial Number | `232894` (used only when `VIPPS_TEST_MODE=true`) |
+| Plan | Vipps Bedrift — using the Vipps Checkout product |
+| Transaction fee | **2.99% + NOK 1.00 per order** |
+| Monthly fixed fee | None |
+| Settlement bank account | `15061115010` |
+| Account holder (BISO entity) | BI STUDENT ORGANISASJON |
+| Portal login | BankID (no email/password) |
+| Sales contact at Vipps | None on record — go through general Vipps merchant support if needed |
+
+### Stripe
+
+**Not in production.** BISO has no Stripe account, no contract, and no
+recurring spend. Treat the `STRIPE_*` rows in
+[Environment variables](/docs/operations/environment-variables) as
+optional / unset. The integration is scaffolded so it can be turned
+on if leadership decides to offer card payments later.
+
+| Field | Value |
+|-------|-------|
+| Stripe account ID | Not yet created |
+| Country | n/a |
+| Pricing | n/a |
+| Payout cadence | n/a |
+| Connected bank account | n/a |
+
+## Accounting
+
+### 24SevenOffice (Finago)
+
+| Field | Value |
+|-------|-------|
+| Organisation ID | `266330540180206` |
+| Subscription tier | **Sponsored by Finago** — no paid tier today |
+| Monthly cost | NOK 0 currently (subject to change) |
+| Contract length | Multi-year |
+| Sales contact | Håvard Høllen Sjøen (`hh@24sevenoffice.com`) |
+
+The sponsored arrangement means there is no monthly invoice to track.
+If it ends, expect to see standard 24SevenOffice tenant pricing — at
+which point this row needs updating with the actual cost.
+
+## Microsoft 365
+
+| Field | Value |
+|-------|-------|
+| Tenant primary domain | `biso.no` |
+| SKU(s) | **None purchased by BISO** |
+| Monthly / annual cost | NOK 0 — BISO uses BI Norwegian Business School's student-license programme |
+| Billing email (for invoices that do arrive) | `payments@biso.no` / `invoice@biso.no` |
+| CSP (reseller) if any | None |
+
+See [ownership-and-accounts → Microsoft 365 / Azure AD](/docs/handover/ownership-and-accounts#microsoft-365--azure-ad)
+for the full explanation of how BISO's M365 access works through BI's
+licenses rather than direct purchase.
+
+## Hosting
+
+### Appwrite (self-hosted)
+
+| Field | Value |
+|-------|-------|
+| Hosting model | Self-hosted on Webdock |
+| Monthly cost | Bundled into the Webdock line below (no separate Appwrite licensing) |
+
+### Webdock
+
+| Field | Value |
+|-------|-------|
+| Account login | GitHub OAuth — Markus Heien (`MHEien`) only |
+| Servers in use | Two VMs: (1) Appwrite + all turborepo apps via Appwrite Sites, (2) the legacy WordPress site that still serves `biso.no` until the cutover |
+| Monthly cost | ~NOK 550 total across both servers |
+| Renewal | Monthly |
+
+### Other hosting providers
+
+None. Every Next.js app deploys to Appwrite Sites on Webdock Server 1.
+There is no Vercel / Netlify / Fly / Render account.
+
+## Developer tooling
+
+| Service | Plan | Monthly cost | Renewal | Notes |
+|---------|------|-------------|---------|-------|
+| GitHub organisation `biso-no` | Free (public repos) — confirm in the org settings | NOK 0 (today) | n/a | Single Owner (`MHEien`) — see [Ownership](/docs/handover/ownership-and-accounts#source-code). |
+| Domain registrar (proisp.no) | Standard | Included in domain renewal (annual, billed Dec 19) | Annual | See [Domains and hosting](/docs/handover/domains-and-hosting). |
+| Password manager | **None deployed** | NOK 0 | — | Major operational gap — see [Ownership / Secrets vault](/docs/handover/ownership-and-accounts#secrets-vault). |
+| Uptime monitoring | **Better Stack (Betterstack)** | [FILL IN: current plan tier and monthly cost] | [FILL IN] | Pings `/api/health` on each app. |
+| Error monitoring | **Sentry** | [FILL IN: plan + monthly cost] | [FILL IN] | Used by all four Next.js apps for error tracking. |
+| SMTP for transactional email | **Microsoft 365 SMTP relay** (uses BI's tenant) | NOK 0 | n/a | Configured at the Appwrite instance level. |
+
+## Total
+
+It's worth maintaining a running total of monthly platform spend so
+leadership can see what the platform actually costs.
+
+| Category | Monthly NOK (snapshot) |
+|----------|------------------------|
+| AI providers (OpenAI only — Anthropic not used) | ~110 NOK (≈ USD $10 — expected to rise after public-site launch) |
+| Pinecone | 0 (Starter tier on Markus's personal account — see continuity risk in [Ownership / Pinecone](/docs/handover/ownership-and-accounts#pinecone)) |
+| Payment provider monthly fees (Vipps) | 0 (Vipps Checkout has no monthly fixed fee at our scale) |
+| Hosting (Webdock — both servers) | ~550 NOK |
+| Microsoft 365 | 0 (BISO uses BI Norwegian Business School's student licenses) |
+| 24SevenOffice (Finago) | 0 (sponsored — may change) |
+| Uptime monitoring (Better Stack) | [FILL IN] |
+| Error monitoring (Sentry) | [FILL IN] |
+| Password manager | 0 (not deployed) |
+| **Total (recurring infra + AI)** | **~660 NOK + Better Stack + Sentry** |
+
+Transaction fees (Vipps per-order) scale with revenue and are excluded
+from the monthly total above. Once Sentry and Better Stack tier costs
+are filled in, this is the complete recurring spend picture for the
+platform.

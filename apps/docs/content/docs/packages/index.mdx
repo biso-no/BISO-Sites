@@ -1,119 +1,101 @@
 ---
 title: Packages
-description: Shared packages and libraries used across the BISO Sites monorepo
+description: Reference for the shared packages that the BISO Sites apps build on top of.
 ---
 
 # Packages
 
-Welcome to the packages documentation. This section covers all shared packages used across the BISO Sites monorepo.
+Every app in this monorepo composes itself out of the same set of
+internal packages under `packages/*`. Each package is published to the
+workspace as `@repo/<name>` and consumed via the `workspace:*` protocol;
+nothing ever leaves the repository. This section is the **reference**
+for those packages — what they export, what they depend on, and how to
+use them from app code.
 
-## Available Packages
+## Package map
 
-### @repo/ai
+| Package                                                    | Purpose                                                                      | Consumed by                          |
+|------------------------------------------------------------|------------------------------------------------------------------------------|--------------------------------------|
+| [`@repo/api`](/docs/packages/api)                          | Appwrite SDK wrappers + generated row types. Single source of truth for data | All apps                             |
+| [`@repo/editor`](/docs/packages/editor)                    | In-house block editor (`EditorShell`, `PageDoc`) used to edit and render pages | `apps/admin`, `apps/web`           |
+| [`@repo/ui`](/docs/packages/ui)                            | Shared React component library (Radix + Tailwind + Plate.js editor kits)     | All apps                             |
+| [`@repo/ai`](/docs/packages/ai)                            | AI SDK config, prompts, document utilities, recruitment screening            | `apps/admin`                         |
+| [`@repo/connectors`](/docs/packages/connectors)            | External integrations: Azure AD/Graph, 24SevenOffice, SharePoint, WooCommerce | `apps/web`, `apps/admin`, `apps/api` |
+| [`@repo/payment`](/docs/packages/payment)                  | Payment providers: Vipps MobilePay, Stripe                                   | `apps/web`                           |
+| [`@repo/i18n`](/docs/packages/i18n)                        | `next-intl` config, locale detection, message bundles                        | `apps/web`, `apps/admin`             |
+| [`@repo/shared`](/docs/packages/shared)                    | Cross-cutting utilities, types, and recruitment helpers                      | All apps                             |
+| [`@repo/typescript-config`](/docs/packages/typescript-config) | Shared `tsconfig` presets                                                  | All apps and packages                |
 
-AI-powered features using the Vercel AI SDK for intelligent assistants and form automation.
+## Dependency direction
 
-**Key Features:**
-- Streaming AI chat interfaces
-- Navigation tools for AI-guided workflows
-- Form autopilot for AI-assisted data entry
-- Shared prompts and configuration
-
-[View AI Documentation →](/docs/packages/ai/overview)
-
-### @repo/api
-
-Appwrite client wrapper providing type-safe access to database, authentication, and storage services.
-
-**Key Features:**
-- Type-safe database operations
-- Client and server-side implementations
-- Storage helpers for file uploads
-- Authentication utilities
-
-[View API Documentation →](/docs/packages/api/overview)
-
-### @repo/payment
-
-Vipps MobilePay integration for handling payments and checkout flows.
-
-**Key Features:**
-- Vipps Checkout integration
-- Payment session management
-- Webhook handling
-- Type-safe API
-
-[View Payment Documentation →](/docs/packages/payment/overview)
-
-### @repo/ui
-
-Shared UI component library built with React, Tailwind CSS, and shadcn/ui.
-
-**Key Features:**
-- Reusable React components
-- Consistent design tokens
-- Dark mode support
-- Accessible components
-
-[View UI Documentation →](/docs/packages/ui/overview)
-
-### @repo/editor
-
-Page builder components using Puck for visual content editing.
-
-**Key Features:**
-- Drag-and-drop page builder
-- Custom content blocks
-- Visual editing interface
-- JSON-based storage
-
-[View Editor Documentation →](/docs/packages/editor/overview)
-
-## Package Architecture
-
-All packages are located in the `packages/` directory at the monorepo root:
+The dependency graph is mostly downward: apps depend on packages, and a
+small number of packages depend on each other. There are no cycles.
 
 ```
-packages/
-├── ai/            # AI assistants and tools
-├── api/           # Appwrite client wrapper
-├── payment/       # Vipps integration
-├── ui/            # Shared components
-├── editor/        # Page builder
-├── eslint-config/ # ESLint configurations
-└── typescript-config/ # TypeScript configurations
+apps/web ──┐
+apps/admin ┼──► @repo/api ─────────► node-appwrite
+apps/api ──┤    @repo/editor ──────► @repo/ui, @repo/api
+apps/docs ─┘    @repo/ui ──────────► (leaf)
+                @repo/ai ──────────► ai, @ai-sdk/openai
+                @repo/connectors ──► @microsoft/microsoft-graph-client, msal-node
+                @repo/payment ─────► (leaf)
+                @repo/i18n ────────► next-intl
+                @repo/shared ──────► @repo/api
+                @repo/typescript-config (leaf)
 ```
 
-## Using Packages
+The two notable internal edges:
 
-Packages are consumed by apps using workspace dependencies:
+- **`@repo/editor`** depends on `@repo/ui` (for primitive components
+  inside blocks) and `@repo/api` (for the page-builder draft/publish
+  helpers it wraps).
+- **`@repo/shared`** depends on `@repo/api` because most of its
+  recruitment helpers translate Appwrite rows into client DTOs.
 
-```json title="apps/web/package.json"
+Everything else is a leaf as far as internal packages are concerned.
+
+## Adding a workspace dependency
+
+From the repo root:
+
+```bash
+bun add @repo/ui --filter=admin
+bun add @repo/shared --filter=web
+```
+
+In a package's own `package.json`, the version pin is always
+`workspace:*`:
+
+```json
 {
   "dependencies": {
     "@repo/api": "workspace:*",
-    "@repo/payment": "workspace:*",
     "@repo/ui": "workspace:*"
   }
 }
 ```
 
-## Development
+Catalog-managed dependencies (`react`, `next`, `zod`, `zustand`,
+`@dnd-kit/*`, etc.) are pinned once in the root `package.json` `catalog`
+block and referenced as `"<pkg>": "catalog:"` from every consumer. See
+[Monorepo](/docs/architecture/monorepo) for the full set.
 
-Each package has its own `package.json` and TypeScript configuration. Changes to packages are automatically detected by Turbo's caching system.
+## Conventions across packages
 
-To work on a package:
+- **Exports** are explicit in each package's `package.json#exports`
+  field — there are no barrel `index.ts` files that re-export
+  everything, on purpose. Import the entrypoint you need
+  (`@repo/api/server`, `@repo/editor/render`) rather than the package
+  root when an entrypoint exists.
+- **Server vs. browser** code is segregated by entrypoint. `@repo/api`
+  has separate `/server` and `/client` exports; `@repo/ai` has a
+  `/server` export for Node-only modules (PDF extraction, OpenAI
+  clients). Mixing them is a build error.
+- **Types are first-class.** Every public function has explicit
+  parameter and return types. Row types under `@repo/api/types/appwrite`
+  are auto-generated and re-exported verbatim — do not hand-edit.
+- **TypeScript config** comes from `@repo/typescript-config`. Packages
+  extend `react-library.json` or `base.json`; apps extend `nextjs.json`.
 
-1. Navigate to the package directory
-2. Make your changes
-3. Build the package if needed: `bun run build`
-4. Test in consuming apps
-
-## Next Steps
-
-- Explore [AI Package](/docs/packages/ai/overview) for intelligent assistants
-- Explore [API Package](/docs/packages/api/overview) for backend integration
-- Check [Payment Package](/docs/packages/payment/overview) for Vipps integration
-- Browse [UI Package](/docs/packages/ui/overview) for component library
-- Learn about [Editor Package](/docs/packages/editor/overview) for page building
-
+Read the individual package pages for export tables, signatures, and
+usage examples.

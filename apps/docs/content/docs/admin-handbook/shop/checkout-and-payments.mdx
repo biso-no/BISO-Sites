@@ -1,0 +1,73 @@
+---
+title: Checkout and payments
+description: How the customer checkout journey works on biso.no, how member discounts are applied, and what to do when payments get stuck.
+---
+
+# Checkout and payments
+
+This page is the admin-side view of what happens between "a student adds something to their cart" and "the order shows up in the ledger." You usually don't touch checkout directly — it runs itself — but when something breaks, knowing the journey makes the difference between a one-minute fix and an hour of guesswork.
+
+## The customer journey
+
+Here is what a student goes through on biso.no/shop:
+
+1. **Add to cart.** The product is added to their cart. Behind the scenes a row is created in the cart reservations table, which holds the stock for a short while so two people can't buy the last item at once.
+2. **Open checkout.** They fill in name, email, and any required fields.
+3. **Pay with Vipps MobilePay.** Today every order goes through Vipps. (Stripe is scaffolded in the codebase as a future option but is **not enabled in production** — BISO has no Stripe account.)
+4. **Member discount is calculated.** Before the total is shown, the site asks 24SevenOffice whether this buyer is a paying BISO member. If they are, and the product has member discount enabled, the discount is applied automatically.
+5. **External payment.** The customer is redirected to Vipps to actually pay.
+6. **Return to biso.no.** When the payment finishes (or is cancelled), Vipps redirects the customer back to the BISO site. The return URL is what tells us the result — it's how the order moves from `pending` to `paid` (or `cancelled`/`failed`).
+7. **Posting to the ledger.** A paid order is posted to 24SevenOffice using the product's ledger account number. The Finago transaction ID is then stored on the order.
+
+For the customer-facing version of this with screenshots, see [Shop and checkout (public site)](/docs/public-website/shop-and-checkout).
+
+## How payments are wired
+
+| Provider | Status today | Where to log in for back-office tasks |
+|----------|--------------|---------------------------------------|
+| **Vipps MobilePay** | **In production.** Every order goes through Vipps. | The Vipps merchant portal — administrators sign in with BankID. See [Vipps MobilePay](/docs/integrations/vipps-mobilepay). |
+| **Stripe** | **Scaffolded but not enabled.** No live account; not offered at checkout. | n/a. See [Stripe](/docs/integrations/stripe) for the dormant code path. |
+
+Refunds, dispute handling, payouts, and downloading settlement reports all happen in the provider's portal — not in the BISO admin app. The admin app only **reflects** what the provider tells us.
+
+## Member discounts at checkout
+
+Member discounts are not applied by the admin — they're resolved live at checkout:
+
+- The product has **member discount enabled** and a **member discount percent** (set in the product editor).
+- When the buyer reaches checkout, the public site looks them up in 24SevenOffice by email.
+- If they have an active membership for the current academic year, the percent is taken off the price.
+- The resulting order has `membership_applied: true` and the discounted total, so you can later tell which orders used the discount.
+
+If a member tells you they didn't get their discount, the usual cause is that their membership status in 24SevenOffice is out of date (a payment hasn't been recorded yet). Check there first.
+
+## Stock and cart reservations
+
+When a product is added to a cart, a temporary reservation is created. This keeps the item out of other carts so two students can't both check out the last hoodie. The reservation has a short time-to-live; if the customer abandons the cart, a scheduled job (`/api/cron/cleanup-reservations`) clears it.
+
+You don't have to do anything for this to work. If you notice a product with a stuck reservation that the cleanup job hasn't released, tell BISO IT.
+
+## What to do when things go wrong
+
+### Order is stuck at `pending`
+
+This usually means the customer started the payment but never finished it, or the return URL didn't fire. Steps:
+
+1. Open the order in [Orders](/docs/admin-handbook/shop/orders).
+2. Look at the payment provider and payment session ID.
+3. Check the provider's portal to see whether the customer actually paid.
+4. If they paid but our system still says `pending`, raise it with BISO IT — the return-URL pipeline probably needs a nudge.
+
+The old webhook endpoint at `/api/checkout/webhook` is deprecated and returns 410. All current flows use the return URL pattern at `/api/checkout/return`.
+
+### Customer asks for a refund
+
+Refunds are processed in the provider's portal:
+
+1. Find the order, note the provider and the payment intent / session ID.
+2. Go to the relevant portal (Vipps or Stripe) and refund there.
+3. Once the refund is processed, the admin app reflects the new status as `refunded` within a few minutes.
+
+### Order is paid but not in the ledger
+
+If the order says `paid` but the **Finago transaction ID** field is empty, posting to 24SevenOffice failed. Check the product's ledger account number is set — that's the most common cause. If it's there and the posting still didn't happen, escalate to BISO IT.

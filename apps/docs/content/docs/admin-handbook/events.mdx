@@ -1,0 +1,119 @@
+---
+title: Events
+description: How to create, price, and publish BISO events — from social gatherings and workshops to career talks and trips.
+---
+
+# Events
+
+The **Events** area is where you run everything from a Tuesday-night pub quiz to a flagship career fair. One event record holds the description, the date, the pricing, the capacity, the registration questions, and decides what goes live on biso.no.
+
+The screen lives at `/events`, with `/events/new` to create a fresh one and `/events/[id]` to edit an existing one.
+
+## Lifecycle
+
+An event has three states:
+
+| Status | Meaning |
+|--------|---------|
+| Draft | Being prepared. Not visible on biso.no. |
+| Published | Live on biso.no and accepting registrations. |
+| Cancelled | Called off. The event remains in the system for records, but is no longer registerable or shown. |
+
+Once an event is published, you can keep editing details (date changes, capacity bumps, clarifications) without unpublishing.
+
+## What you set on an event
+
+### The basics
+
+| Field | What it does |
+|-------|--------------|
+| Title and slug | The event name and its URL on biso.no. |
+| Category | One of: social, career, workshop, talk, party, sport, academic, trip. Drives filtering on the public site. |
+| Start and end date | When the event runs. |
+| Registration deadline | The cut-off for sign-ups. |
+| Capacity and waitlist | The cap on attendees and whether overflow goes onto a waitlist. |
+| Campus | Which campus the event belongs to. |
+| Department | Which BISO unit is hosting. |
+
+### Location
+
+Events can be physical, online, or hybrid:
+
+| Location mode | What attendees see |
+|---------------|--------------------|
+| Physical | A venue address. |
+| Online | An online URL (revealed to registered attendees). |
+| Hybrid | Both — attendees pick how they are joining. |
+
+### Pricing
+
+Pricing has two modes. Free events have no charge; paid events take payment at registration.
+
+Where it gets interesting is **member pricing**. If you turn on member pricing:
+
+- BISO members pay the **member price**.
+- Non-members pay the regular price.
+- Whether the buyer is a member is verified at checkout, so a non-member cannot grab a member ticket.
+
+You can also mark an event as **member only**, in which case non-members cannot register at all.
+
+### Custom registration questions
+
+Like jobs, events can carry custom questions that attendees answer when they register. Use them for the practical things you actually need: dietary requirements, t-shirt sizes for a sport event, prior experience for a workshop. Three to five focused questions are better than a long list.
+
+### Cover pattern
+
+Each event has a stylised background pattern that you pick from a set. The pattern is what appears behind the event title on biso.no and in event cards. It is a visual choice, not a functional one — pick something that fits the vibe of the event.
+
+## Publishing — now or scheduled
+
+Events have two publishing modes:
+
+| Mode | What it does |
+|------|--------------|
+| Now | Publishes immediately when you save. |
+| Scheduled | Stays in draft and goes live automatically at a date and time you pick. |
+
+Scheduled publishing is what you use when announcements have a fixed embargo — for example, a launch coordinated with a social post. Set the scheduled time, save, and walk away.
+
+## Roles and scope
+
+Events are scoped by campus and department.
+
+| Role | Can manage |
+|------|------------|
+| Global admin | Every event on every campus. |
+| Campus admin | Every event in their campus, across departments. |
+| Department | Their own department's events for their campus. |
+
+So a department lead in Oslo can create and run their own department's events, but cannot edit the careers event being run by a different department on the same campus.
+
+## A typical event run
+
+A full event lifecycle in the admin normally looks like this.
+
+1. Create a new event from `/events/new`. Fill in the basics, pick a category, set the dates.
+2. Set capacity and decide whether a waitlist makes sense.
+3. Add pricing (free, paid, or member pricing) — if it is paid, double-check the numbers.
+4. Add any custom registration questions.
+5. Save as draft and preview the event on biso.no to make sure the cover pattern, description, and details look right.
+6. Publish — either *now* or *scheduled* for a specific announcement time.
+7. Registrations roll in. Communicate any changes by editing the event in place.
+8. After the event, leave the record as is — it stays as a record of what BISO ran.
+
+## Cancelling
+
+If an event has to be called off, set its status to **cancelled**. This removes it from the public site, signals to registered attendees that it is no longer happening, and preserves the record so the cancellation is auditable. Issue refunds for paid events through your usual payments process.
+
+## Tips that save you time
+
+- **Set the registration deadline earlier than the event date**, especially for catered events. It gives you time to confirm numbers.
+- **Use the waitlist** rather than overbooking — it is what keeps the cap meaningful.
+- **For series of events** (weekly meetings, a workshop run multiple times), create each as its own event with a clear date in the title. There is no recurring-event feature.
+- **Coordinate with [News](/docs/admin-handbook/news)** if you want a longer-form announcement to accompany a big event.
+
+## Where to go next
+
+- [News](/docs/admin-handbook/news) — for announcement articles that pair with events.
+- [Roles and permissions](/docs/admin-handbook/roles-and-permissions) — to understand who in your department can publish events.
+- [Vipps MobilePay integration](/docs/integrations/vipps-mobilepay) and [Stripe integration](/docs/integrations/stripe) — for how paid events are charged.

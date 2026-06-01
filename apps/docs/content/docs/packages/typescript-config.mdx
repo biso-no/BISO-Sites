@@ -1,0 +1,162 @@
+---
+title: "@repo/typescript-config"
+description: Shared tsconfig presets — base, Next.js, and React library.
+---
+
+# @repo/typescript-config
+
+`@repo/typescript-config` is the smallest package in the repo: three
+`tsconfig.json` files plus a manifest that exports them. Every app
+and package in the monorepo extends one of these presets so the
+compiler flags (target, module resolution, strictness) stay
+consistent.
+
+## Presets
+
+| Preset                                       | Extends      | For                                  |
+|----------------------------------------------|--------------|--------------------------------------|
+| `@repo/typescript-config/base.json`          | —            | Plain TypeScript packages            |
+| `@repo/typescript-config/nextjs.json`        | `base.json`  | Next.js apps (App Router)            |
+| `@repo/typescript-config/react-library.json` | `base.json`  | React component libraries            |
+
+## Usage
+
+In a consumer's `tsconfig.json`:
+
+```jsonc
+// apps/admin/tsconfig.json
+{
+  "extends": "@repo/typescript-config/nextjs.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*", "../../packages/editor/src/*"]
+    }
+  },
+  "include": ["src", "next-env.d.ts"],
+  "exclude": ["node_modules", ".next"]
+}
+```
+
+```jsonc
+// packages/ui/tsconfig.json
+{
+  "extends": "@repo/typescript-config/react-library.json",
+  "include": ["src"],
+  "exclude": ["node_modules", "dist"]
+}
+```
+
+```jsonc
+// packages/shared/tsconfig.json
+{
+  "extends": "@repo/typescript-config/base.json",
+  "include": ["src"],
+  "exclude": ["node_modules"]
+}
+```
+
+## Who extends what
+
+| Project                    | Preset             |
+|----------------------------|--------------------|
+| `apps/web`                 | `nextjs.json`      |
+| `apps/admin`               | `nextjs.json`      |
+| `apps/api`                 | `nextjs.json`      |
+| `apps/docs`                | `nextjs.json`      |
+| `packages/ui`              | `react-library.json` |
+| `packages/editor`          | `react-library.json` |
+| `packages/api`             | `base.json`        |
+| `packages/ai`              | `base.json`        |
+| `packages/connectors`      | `base.json`        |
+| `packages/payment`         | `base.json`        |
+| `packages/i18n`            | `base.json`        |
+| `packages/shared`          | `base.json`        |
+
+## What `base.json` enforces
+
+The compiler defaults shared across every project:
+
+| Flag                  | Value           |
+|-----------------------|-----------------|
+| `target`              | `ES2022`        |
+| `module`              | `Preserve`      |
+| `moduleResolution`    | `Bundler`       |
+| `lib`                 | `["es2022", "DOM", "DOM.Iterable"]` |
+| `strict`              | `true`          |
+| `strictNullChecks`    | `true`          |
+| `isolatedModules`     | `true`          |
+| `declaration`         | `true`          |
+| `declarationMap`      | `true`          |
+| `esModuleInterop`     | `true`          |
+| `skipLibCheck`        | `true`          |
+| `forceConsistentCasingInFileNames` | `true` |
+| `noUncheckedIndexedAccess` | `true`      |
+| `resolveJsonModule`   | `true`          |
+
+A few of these have meaningful consequences:
+
+- **`module: Preserve` + `moduleResolution: Bundler`** — TypeScript
+  emits the source `import`/`export` syntax as-is and resolves
+  modules the way a modern bundler would. This matches what
+  Turbo / Next / Bun do at runtime; using `NodeNext` here would
+  cause subtle resolution mismatches on `package.json#exports`.
+- **`isolatedModules`** — required because each file is compiled
+  independently by transformer pipelines (SWC inside Next, Bun's
+  transpiler in tests). It bans constructs (like `const enum`) that
+  rely on cross-file type info at emit time.
+- **`declaration` + `declarationMap`** — every package emits `.d.ts`
+  files with source maps so go-to-definition jumps to the original
+  source rather than the compiled output.
+- **`noUncheckedIndexedAccess`** — `arr[0]` is `T | undefined`, not
+  `T`. This propagates into the codebase: do not pretend an index
+  access can't be `undefined`.
+
+## What `nextjs.json` adds
+
+Inherits everything from `base.json` and adds Next.js / App Router
+specific tweaks:
+
+- `jsx: "preserve"` — Next handles JSX transformation itself.
+- `allowJs: true` — Next.js still scans `.js` files.
+- `incremental: true` — speeds up rebuilds via `tsbuildinfo`.
+- `plugins: [{ "name": "next" }]` — Next's TypeScript plugin for
+  route-typed `Link` and metadata checks.
+- Adds `next-env.d.ts` semantics that Next regenerates per project.
+
+## What `react-library.json` adds
+
+Inherits everything from `base.json` and adds JSX library settings:
+
+- `jsx: "react-jsx"` — the React 17+ automatic runtime, so libraries
+  do not have to import `React` for JSX.
+- Output settings appropriate for a library package: no `noEmit`,
+  emits `.d.ts` so consumers get rich types.
+
+## Notes on `next build` and type checking
+
+Both Next.js apps set `typescript.ignoreBuildErrors: true` in
+`next.config.ts`. This means `next build` will **not** fail on type
+errors — the bundler keeps going even if `tsc` would complain.
+
+The signal for type correctness is therefore:
+
+```bash
+bun run check-types
+```
+
+This runs `tsc --noEmit` across every package and app in the
+correct order via Turbo. It is the gate that catches type
+regressions before they ship.
+
+## Maintenance
+
+The package has no source files and no build step. Changing a flag
+ripples to every consumer immediately. Before tweaking, run:
+
+```bash
+bun run check-types
+```
+
+…to see what breaks in the rest of the repo. Strictness changes in
+particular tend to surface latent issues.

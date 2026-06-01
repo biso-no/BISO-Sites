@@ -1,0 +1,89 @@
+---
+title: AI screening
+description: How the optional AI screener ranks applications against your rubric — what it does, what it does not do, and how to read the scores.
+---
+
+# AI screening
+
+AI screening is an **optional** feature that helps you triage a large pool of applications. When you turn it on for a vacancy, every incoming application gets two automatically-generated numbers — a screening score and an embedding score — that you can use to sort and filter before you start reading in detail.
+
+It is a pre-processor, not a decision-maker. The final call always belongs to you.
+
+## Turning it on
+
+AI screening is enabled per vacancy on the job editor — see [Auto-screen toggle](/docs/admin-handbook/jobs/creating-vacancies#auto-screen-toggle). Two things have to be true for it to actually do anything useful:
+
+1. The toggle is **on** for this vacancy.
+2. The [screening rubric](/docs/admin-handbook/jobs/creating-vacancies#screening-rubric) on the vacancy has actual criteria in it.
+
+An empty rubric means the AI has nothing concrete to evaluate against, and the score loses most of its meaning.
+
+You can turn screening on or off at any time. It only affects applications submitted while it is on.
+
+## What happens to an application
+
+When auto-screen is on and a new application arrives, the screener runs in the background. Each application carries an embedding status while this happens.
+
+| Embedding status | What it means |
+|------------------|---------------|
+| pending | The application has arrived and the screener is still working on it. |
+| ready | The application has been processed and the scores are available. |
+| failed | Something went wrong. The application is still fully usable — you just review it manually. |
+
+You do not have to wait around for this. By the time you next open the applications list, the scores will normally already be there.
+
+## The two scores
+
+A screened application has two separate numbers attached to it. They measure different things, and reading them together is more useful than picking one.
+
+### Screening score
+
+The screening score is produced by an AI model (currently OpenAI — see [OpenAI integration](/docs/integrations/openai)) that reads the candidate's resume and answers and grades them against the **rubric you wrote** on the vacancy.
+
+So if your rubric says "experience organising student events" weighs heavily, candidates who clearly have that experience score higher. If your rubric says "comfortable presenting in English" matters, candidates who demonstrate that score higher.
+
+It is, in effect, a structured first-pass review against the criteria you defined.
+
+### Embedding score
+
+The embedding score is a similarity ranking. The candidate's resume and answers are turned into a vector — a numeric fingerprint of the content — and stored in a vector index (Pinecone — see [Pinecone integration](/docs/integrations/pinecone)). The score reflects how similar that fingerprint is to the ideal profile for the role.
+
+It is less explainable than the screening score (it is just a similarity number) but it is good at surfacing candidates whose backgrounds look like the kind of people you would normally want for this role, even if they did not use the exact keywords from your rubric.
+
+## How to read the scores
+
+A few honest guidelines.
+
+- **Treat them as a sort order, not a verdict.** A high score means "worth reading first", not "hire them". A low score means "read them last", not "reject them".
+- **Look at the screening score for *why***. Because it follows your rubric, it tends to track the things you said you cared about. If it ranks someone unexpectedly, that is interesting information.
+- **Look at the embedding score for *fit***. It catches candidates whose CVs look like the role even when their cover letter is weak.
+- **Always read the top of the pile manually.** AI is good at "promising" and "clearly not a match"; it is less reliable in the middle. The interesting candidates are usually in the middle.
+- **Always read a few from the bottom of the pile too.** If the AI is consistently right about who is at the bottom, your rubric is solid. If you spot someone obviously qualified down there, the rubric is missing something.
+
+## What AI screening does not do
+
+It does not:
+
+- Reject or hide any applications. Every applicant remains visible in the list.
+- Change the application status. Candidates stay on **applied** until you move them.
+- Send anything to the candidate. They never see the score or know one exists.
+- See anything they did not submit. It works only with the resume and the answers in the application form.
+
+## Privacy and data
+
+The screener processes resume content and the candidate's answers. Both are uploaded by the candidate as part of applying, and BISO's privacy notice covers their use for recruitment purposes. The vector embeddings stored in Pinecone are linked to the application record, not to the candidate's account, and are cleaned up alongside the application when a vacancy is permanently archived.
+
+For the underlying integrations:
+
+- [OpenAI](/docs/integrations/openai) — the model that produces the screening score against your rubric, and the embeddings used for similarity.
+- [Pinecone](/docs/integrations/pinecone) — the vector index that stores those embeddings.
+
+## When screening fails
+
+If processing fails for an individual application (network hiccup, a malformed resume, anything else), its embedding status is marked **failed** and the scores are simply absent. The application itself is unaffected — you can open it, read it, score it manually, and move it through the pipeline as normal. If failures pile up, ask BISO IT to take a look.
+
+## Where to go next
+
+- [Creating vacancies](/docs/admin-handbook/jobs/creating-vacancies) — to define a good rubric.
+- [The applications workspace](/docs/admin-handbook/jobs/applications-workspace) — to actually act on the scored applications.
+- [AI Assistant](/docs/admin-handbook/ai-assistant) — for the other AI features available across the admin.

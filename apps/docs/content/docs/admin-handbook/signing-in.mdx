@@ -1,0 +1,50 @@
+---
+title: Signing in
+description: How to log into the BISO admin app with your Microsoft account, and when to use the magic-link option.
+---
+
+# Signing in
+
+The admin app is at **admin.biso.no**. You will not be able to do anything until you sign in, and you will only see the screens your role gives you access to.
+
+## Sign in with Microsoft (recommended)
+
+This is the path almost everyone uses.
+
+1. Go to **admin.biso.no**.
+2. Click **Sign in with Microsoft**.
+3. You are sent to the BI Microsoft login page. Use your normal BI account.
+4. If your account has multi-factor authentication, approve the prompt on your phone.
+5. You are sent back to the admin app and dropped on the dashboard.
+
+The first time you sign in, the app reads your Azure AD security groups and works out your role. This happens automatically, before you reach the dashboard, so the menu on the left will already be correct on the very first page load.
+
+If your role changes later (for example you join the Bergen leadership group), sign out and back in to pick up the new permissions.
+
+## Sign in with a magic link
+
+If Microsoft sign-in is unavailable — for example you are testing as a guest account, or your BI account is temporarily locked — you can request a one-time email link.
+
+1. On the sign-in page, choose **Sign in with email**.
+2. Enter your work email address.
+3. Check your inbox for a message from BISO Admin with a sign-in link.
+4. Click the link. It is single-use and expires after a few minutes.
+
+Magic-link sign-in still goes through the same role check, but Microsoft sign-in is preferred because it keeps your session in sync with your BI account.
+
+## Signing out
+
+Open the avatar menu in the top right and click **Sign out**. This clears your session cookie. The next time you visit admin.biso.no you will be sent back to the sign-in page.
+
+## When sign-in fails
+
+A few common situations:
+
+| What you see | What it usually means |
+|--------------|----------------------|
+| "You don't have access to this app" | You signed in, but you are not in any BISO Azure AD group yet. Ask BISO IT to add you. |
+| Microsoft login loops back to the sign-in page | Your browser blocked third-party cookies. Try a different browser or allow cookies for admin.biso.no. |
+| The magic-link email never arrives | Check spam. If still missing, try again — links expire quickly and can only be used once. |
+| You sign in but the menu is almost empty | You have a department role but no campus admin role. This is expected — see [Roles and permissions](/docs/admin-handbook/roles-and-permissions). |
+
+If you keep hitting a wall, contact BISO IT. They can see which security groups your account is actually in.

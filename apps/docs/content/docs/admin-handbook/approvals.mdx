@@ -1,0 +1,60 @@
+---
+title: Approvals
+description: The approvals queue — review, approve, or reject sensitive content changes that need a second pair of eyes.
+---
+
+# Approvals
+
+Some changes in the admin app are sensitive enough that they shouldn't go live on one person's say-so. Publishing a job, cancelling an event, removing a benefit — actions like these go into the **Approvals** queue, where someone with the right permissions reviews them and either approves or rejects.
+
+It is available to global admins and campus admins.
+
+## How a request gets here
+
+When an editor performs an action that needs approval, the app does **not** apply the change right away. Instead it creates an approval request with the proposed change attached. The request shows up in this screen, and a notification goes to the people allowed to action it.
+
+Every request has:
+
+- A **campus** it belongs to.
+- A **department** that owns the underlying content.
+- An **approver team** — the only people who can approve or reject it.
+- A **status**: pending, approved, rejected, or cancelled.
+
+If you are not in the approver team for a given request, you can see it in the list but the Approve and Reject buttons will be disabled.
+
+## Working through the queue
+
+The screen shows pending requests at the top. The sidebar shows a badge with the current count so you don't forget.
+
+For each request you can:
+
+1. **Open it** to see exactly what change is being proposed. The before-and-after is laid out so you can quickly see what differs from the live version.
+2. **Approve** — the change is applied immediately to the underlying content. You can attach an approval note for context.
+3. **Reject** — the change is dropped. You must give a reason, which is sent back to the person who requested it.
+
+A request can also be **cancelled** by the original requester (for example if they realise they made a mistake before anyone got around to reviewing). Cancelled requests stay in history but are no longer actionable.
+
+## Statuses
+
+| Status | What it means |
+|--------|---------------|
+| **Pending** | Waiting for someone in the approver team to action it. |
+| **Approved** | Reviewed and applied. The change is live (or scheduled, depending on what it was). |
+| **Rejected** | Reviewed and turned down. The requester sees the reason you gave. |
+| **Cancelled** | Withdrawn by the requester before anyone approved or rejected. |
+
+## Filtering and history
+
+You can filter the screen by status, campus, department, and date range. Approved and rejected requests stay searchable indefinitely, which makes Approvals a useful audit trail in its own right — though for the canonical record of changes, use [Activity](/docs/admin-handbook/activity).
+
+## Tips for reviewers
+
+- Read the diff before approving. The note attached by the requester is helpful but not a substitute for actually looking at what changed.
+- If something is almost right, **reject with a clear reason** rather than approving and fixing it yourself. The requester learns more that way.
+- For time-sensitive items (cancelling an event tonight, publishing a job that closes tomorrow), check the queue at least once a day.
+
+## Related screens
+
+- [Drafts](/docs/admin-handbook/drafts) — work that isn't ready for approval yet.
+- [Notifications](/docs/admin-handbook/notifications) — the bell that pings you when a new request lands.
+- [Activity](/docs/admin-handbook/activity) — the full historical record of every approval action.

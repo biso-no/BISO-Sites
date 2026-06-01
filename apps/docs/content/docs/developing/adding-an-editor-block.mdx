@@ -1,0 +1,244 @@
+---
+title: Adding an editor block
+description: How to add a new block type to the page editor — registration, render, inspector, AI hints.
+---
+
+# Adding an editor block
+
+The page editor (`@repo/editor`) renders block-based pages. Both `apps/admin` (edit mode)
+and `apps/web` (read-only) use the same block definitions, so a block you add appears in
+the palette in admin and renders on the live site.
+
+For the editor architecture overview, see [Packages / `@repo/editor`](/docs/packages/editor).
+
+## 1. Create the block folder
+
+```bash
+packages/editor/src/blocks/<my-block>/
+  index.tsx       # block definition + registration
+  Render.tsx      # what the block looks like on the page
+  Inspector.tsx   # right-rail config UI in edit mode
+  types.ts        # block-specific types (optional)
+```
+
+For very small blocks, you can put everything in `index.tsx`. For anything substantial,
+split for readability.
+
+## 2. Define the block
+
+```tsx
+// packages/editor/src/blocks/my-block/index.tsx
+import { registerBlock } from "../../registry";
+import { Render } from "./Render";
+import { Inspector } from "./Inspector";
+import { SparklesIcon } from "lucide-react";
+
+export type MyBlockProps = {
+  title: string;
+  variant: "default" | "subtle";
+};
+
+registerBlock<MyBlockProps>({
+  type: "my-block",
+  category: "content",
+  label: "My block",
+  icon: SparklesIcon,
+  empty: (): MyBlockProps => ({
+    title: "Hello",
+    variant: "default",
+  }),
+  Render,
+  Inspector,
+  PaletteThumb: () => (
+    <div className="rounded-md border p-2 text-xs">My block</div>
+  ),
+  aiHint:
+    "A simple title block with an optional subtle variant. Use when the user " +
+    "wants a section heading without rich text.",
+  aiProps: {
+    title: "string — the heading text",
+    variant: "default | subtle — visual treatment",
+  },
+});
+```
+
+The registration call self-registers the block on module import. That's why step 4
+matters.
+
+## 3. Implement `Render` and `Inspector`
+
+`Render` is what the user sees — both in edit mode and on the live site:
+
+```tsx
+// packages/editor/src/blocks/my-block/Render.tsx
+import type { MyBlockProps } from "./index";
+
+export function Render({ data }: { data: MyBlockProps }) {
+  return (
+    <h2
+      className={
+        data.variant === "subtle"
+          ? "text-muted-foreground text-2xl"
+          : "text-foreground text-3xl font-semibold"
+      }
+    >
+      {data.title}
+    </h2>
+  );
+}
+```
+
+`Inspector` is the right-rail config UI in admin:
+
+```tsx
+// packages/editor/src/blocks/my-block/Inspector.tsx
+"use client";
+
+import { Input } from "@repo/ui/components/input";
+import { Label } from "@repo/ui/components/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@repo/ui/components/select";
+import type { MyBlockProps } from "./index";
+
+export function Inspector({
+  data,
+  onChange,
+}: {
+  data: MyBlockProps;
+  onChange: (next: Partial<MyBlockProps>) => void;
+}) {
+  return (
+    <div className="space-y-4">
+      <div className="space-y-2">
+        <Label htmlFor="title">Title</Label>
+        <Input
+          id="title"
+          value={data.title}
+          onChange={(e) => onChange({ title: e.target.value })}
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="variant">Variant</Label>
+        <Select
+          value={data.variant}
+          onValueChange={(value) =>
+            onChange({ variant: value as MyBlockProps["variant"] })
+          }
+        >
+          <SelectTrigger id="variant">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="default">Default</SelectItem>
+            <SelectItem value="subtle">Subtle</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+    </div>
+  );
+}
+```
+
+## 4. Import for side effects
+
+The block won't show up in the palette until something imports its module and triggers
+the `registerBlock(...)` call. Add a side-effect import to
+`packages/editor/src/blocks/index.ts`:
+
+```ts
+// packages/editor/src/blocks/index.ts
+import "./hero";
+import "./rich-text";
+import "./my-block"; // ← add this
+// ...
+```
+
+That's the most common reason a new block doesn't appear: forgotten side-effect import.
+
+## 5. Data-fetching blocks
+
+If your block displays Appwrite data (latest events, jobs in a campus, …), don't fetch in
+`Render`. Two patterns:
+
+### Pattern A — server action invoked from a wrapper
+
+`Render` accepts the resolved data; a server wrapper in the page resolves it. Used for
+admin previews where the wrapper runs server-side.
+
+### Pattern B — `source` config + data resolver
+
+The block stores a `source` config in its data (`{ kind: "events", campus_id, limit }`),
+and the editor's data resolver pipeline materializes it before render. This is the
+pattern used by the dynamic listing blocks (events, jobs, news). Look at
+`packages/editor/src/blocks/events-list/` for the precedent.
+
+Either way: do not call Appwrite from a client-side `Render`.
+
+## 6. Form blocks
+
+If your block accepts user input (a form), think about the submission target:
+
+- **Email** — render a `mailto:` or send via a server action that uses the SharePoint /
+  SMTP integration.
+- **Database** — persist as a `form_submissions` row.
+
+See `multiStepForm` block for the canonical multi-step form precedent, including
+validation, progress UI, and submission routing.
+
+Submission routing lives in `apps/web/src/app/api/form-submissions/` — register your new
+form type there if the existing routes don't cover it.
+
+## 7. AI hints
+
+`aiHint` and `aiProps` let the editor copilot suggest your block when the user describes
+what they want in natural language. Be specific:
+
+```ts
+aiHint:
+  "A countdown timer block. Use when the user mentions deadlines, " +
+  "countdowns, or 'X days until'. Don't use it for static dates.",
+aiProps: {
+  targetDate: "ISO 8601 string — when the countdown ends",
+  label: "string — text shown above the timer",
+  expiredText: "string — what to show after the deadline",
+},
+```
+
+See [Packages / `@repo/ai`](/docs/packages/ai) for how the copilot consumes these.
+
+## 8. Type-check and verify
+
+```bash
+bun run check-types --filter=admin
+bun run dev --filter=admin
+```
+
+Open `http://localhost:3001`, navigate to a page in the editor, and verify:
+
+- Your block appears in the palette.
+- Dragging it onto the canvas works.
+- The `Inspector` updates props live.
+- The block renders the same in `apps/web` read-only mode (open the live page on
+  `http://localhost:3000`).
+
+## Common mistakes
+
+- **Block doesn't appear in palette** — missing side-effect import in
+  `packages/editor/src/blocks/index.ts`.
+- **`Inspector` crashes on first render** — `empty()` returned an incomplete object;
+  make sure every field in `MyBlockProps` is initialized.
+- **Renders fine in admin, broken on web** — you used a client-only API in `Render`
+  without marking it `"use client"`. Either mark it, or refactor to server-safe code.
+- **Copilot won't suggest it** — `aiHint` too vague or absent.
+
+## Where to go next
+
+- [Packages / `@repo/editor`](/docs/packages/editor) — full block contract reference.
+- [Packages / `@repo/ai`](/docs/packages/ai) — copilot integration.
+- [Working with Appwrite](/docs/developing/working-with-appwrite) — data resolver patterns.

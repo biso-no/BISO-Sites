@@ -1,0 +1,217 @@
+---
+title: Monorepo
+description: How Turborepo, Bun workspaces, and the catalog protocol are wired together.
+---
+
+# Monorepo
+
+BISO Sites is a single Git repository that ships four Next.js apps and nine
+shared packages. It uses [Turborepo](https://turborepo.com) for task
+orchestration and [Bun](https://bun.sh) for package management and script
+execution. The structure is deliberately conservative — no clever build
+system on top of Turbo, no custom CLI wrappers — so anyone with a
+working Node.js mental model can follow it.
+
+## Why a monorepo
+
+The platform has two user-facing apps (`web` and `admin`) that need to share:
+
+- **Data access** — both talk to the same Appwrite project, so they share
+  `@repo/api` (typed wrappers + generated row types).
+- **The block editor** — `apps/admin` edits `PageDoc` objects and
+  `apps/web` renders them. Both import from `@repo/editor`.
+- **UI primitives** — buttons, dialogs, inputs (`@repo/ui`).
+- **Connectors** — Azure AD, Microsoft Graph, 24SevenOffice, SharePoint
+  (`@repo/connectors`); Vipps and Stripe (`@repo/payment`).
+- **i18n bundles** — both apps share message namespaces (`@repo/i18n`).
+
+Keeping these in separate repos would either mean publishing internal
+packages to a registry (operational overhead) or duplicating the code
+(drift). A monorepo eliminates that trade-off.
+
+A small standalone REST service (`apps/api`) lives alongside for
+JWT-authenticated endpoints, and a documentation site (`apps/docs`)
+hosts what you're reading right now. Both benefit from the same shared
+packages.
+
+## Bun and the `catalog:` protocol
+
+The repo uses **Bun 1.3.1** exclusively. `bun.lock` is the lockfile;
+there is no `package-lock.json` or `pnpm-lock.yaml`.
+
+Two Bun features matter for day-to-day work:
+
+1. **Workspaces** — `package.json#workspaces` lists `"apps/*"` and
+   `"packages/*"`. Internal packages can be referenced as
+   `"@repo/api": "workspace:*"` from any app or other package.
+2. **Catalogs** — shared dependency versions are pinned once in the root
+   `package.json` under a `catalog` block and referenced as
+   `"react": "catalog:"` from every consumer. This keeps `react`,
+   `next`, `@dnd-kit/*`, `zod`, `zustand`, and similar dependencies on
+   exactly one version across the entire monorepo. Drift is a class of
+   bug we don't want.
+
+Adding dependencies:
+
+```bash
+# Add to a specific app
+bun add lucide-react --filter=admin
+
+# Add a workspace package as a dep
+bun add @repo/ui --filter=admin
+
+# Add a shared dep via the catalog
+# 1. Pin the version in root package.json under "catalog"
+# 2. In the consumer manifest, reference it as "catalog:"
+```
+
+Never use `npm` or `pnpm` — Bun-specific protocols (`catalog:`,
+`workspace:*` resolution semantics, and the lockfile format) won't
+survive a switch.
+
+## Turborepo task graph
+
+`turbo.json` defines five tasks: `dev`, `build`, `lint`, `check-types`,
+and `fix`. The interesting wiring lives in `tasks.build.env` and the
+`_transit` shim.
+
+### Remote cache is disabled
+
+```json
+"remoteCache": { "enabled": false }
+```
+
+This is intentional. Builds happen locally and on Appwrite's deploy
+runners; we don't want stale artifacts shared across environments.
+Local Turbo caching (`.turbo/`) still works.
+
+### The `_transit` shim for type checking
+
+`check-types` runs `tsc --noEmit` for every workspace. Because internal
+packages export `.ts` source (not pre-built `.d.ts` files), an app's
+type check needs its dependency packages' type information to be ready
+before it runs. Turbo's task graph alone isn't enough — we need every
+package's transitive `tsc` to fire first.
+
+`turbo.json` defines a `_transit` task that each package's
+`check-types` `dependsOn`. The result: type checking propagates
+**through** the dependency graph rather than running flat. If you ever
+see a package import resolving to `any` during type checks, the first
+suspect is a missing `_transit` entry on a new package.
+
+```json
+"check-types": {
+  "dependsOn": ["^_transit", "_transit"]
+}
+```
+
+Don't remove that shim without understanding what it's doing.
+
+### Build env allow-list
+
+```json
+"build": {
+  "env": [
+    "NEXT_PUBLIC_API_BASE_URL",
+    "APPWRITE_API_KEY",
+    "...",
+  ]
+}
+```
+
+Turbo treats `tasks.build.env` as part of the cache hash. If you
+reference a new env var from a build-time path (`next.config.ts`,
+`getStaticProps`-equivalents, server-side render) and **don't** add it
+to that allow-list, Turbo will happily reuse a stale cache that didn't
+see the new value. The build will look healthy and ship broken
+configuration.
+
+Rule: **every new build-time env var must be added to
+`turbo.json#tasks.build.env`.** If you only read the var at request
+time inside a server action, you're fine — but err on the safe side.
+
+### `dev` is persistent and uncached
+
+```json
+"dev": { "persistent": true, "cache": false }
+```
+
+`bun run dev` starts `web`, `admin`, `docs`, and `api` in parallel.
+Caching dev output would be both wrong and confusing — keep it that
+way.
+
+## Root scripts
+
+```bash
+bun run dev          # Start every app (web:3000, admin:3001, docs:3002, api:3003)
+bun run build        # Build every app
+bun run lint         # Biome (via Ultracite) across the repo
+bun run check-types  # The only signal that catches TS errors — see below
+bun run fix          # Auto-fix lint + formatting
+bun x ultracite fix  # Repo-wide format + autofix (same as `bun run fix`)
+```
+
+Filter to one app:
+
+```bash
+bun run dev --filter=admin
+bun run build --filter=web
+```
+
+App-specific Appwrite deploy scripts (`build:web:appwrite`,
+`build:admin:appwrite`, …) live in the root `package.json` scripts
+block. They flatten Next's `standalone` output into a structure
+Appwrite's container runtime expects.
+
+## `ignoreBuildErrors: true` and what to do about it
+
+Both Next.js apps set `typescript: { ignoreBuildErrors: true }` in
+`next.config.ts`. That means `next build` will **not** fail on type
+errors. This isn't laziness — it's because Next's type checker
+sometimes disagrees with the workspace's, and we don't want deploys
+held hostage to those disagreements.
+
+The trade-off: `bun run check-types` is the **only** signal that
+catches type errors. CI runs it on every PR, and `lefthook` runs it on
+push. If you skip pre-push hooks, you can ship type errors. Don't.
+
+## Lint, format, and pre-commit
+
+- **Ultracite** wraps Biome with project conventions. See
+  `biome.jsonc` and `.claude/CLAUDE.md` for the rule set.
+- **Lefthook** (`lefthook.yml`) runs `lint-staged` on commit:
+  - `bun x ultracite fix` on staged files
+  - `bun run check-types` on push
+- `bun x ultracite fix` is idempotent — run it before committing and
+  the pre-commit hook will be a no-op.
+
+## File layout reference
+
+```
+BISO-Sites/
+├─ apps/
+│  ├─ web/        # Public site (port 3000)
+│  ├─ admin/      # CMS (port 3001)
+│  ├─ docs/       # Fumadocs (port 3002)
+│  └─ api/        # REST/JWT service (port 3003)
+├─ packages/
+│  ├─ api/        # Appwrite wrappers + generated types
+│  ├─ editor/     # Block editor
+│  ├─ ui/         # Component library
+│  ├─ ai/         # AI SDK config + tools
+│  ├─ connectors/ # Azure AD, 24SO, SharePoint, WooCommerce
+│  ├─ payment/    # Vipps, Stripe
+│  ├─ i18n/       # next-intl messages
+│  ├─ shared/     # Cross-cutting utils
+│  └─ typescript-config/
+├─ turbo.json
+├─ bun.lock
+└─ package.json
+```
+
+## Where to read next
+
+- **[Apps](/docs/architecture/apps)** — what each app actually does.
+- **[Packages](/docs/architecture/packages)** — the shared library
+  layer with cross-links into the full package reference under
+  `/docs/packages/`.

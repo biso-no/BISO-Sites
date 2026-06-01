@@ -1,0 +1,11 @@
+{
+  "title": "Pages editor",
+  "pages": [
+    "index",
+    "creating-and-editing",
+    "blocks-reference",
+    "translations",
+    "drafts-and-publishing",
+    "ai-copilot"
+  ]
+}

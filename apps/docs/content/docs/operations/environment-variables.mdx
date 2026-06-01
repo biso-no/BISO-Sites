@@ -1,126 +1,152 @@
 ---
-title: Environment Variables
-description: Complete list of environment variables required for each application in BISO Sites.
+title: Environment variables
+description: The full matrix of environment variables for every app, what they do, whether they're public, and where they need to be set.
 ---
 
-import { Callout } from 'components/callout';
-import { Tabs } from 'components/tabs';
-import { Steps, Step } from 'components/steps';
+# Environment variables
 
-# Environment Variables
+This page is the canonical list of every environment variable the platform
+reads. If you're standing up a new environment (staging, replacement
+hosting, etc.) you need every variable on this page to match the app you're
+configuring.
 
-This guide lists all required environment variables for each application.
+## Rules
 
-## Variables per app
+- `NEXT_PUBLIC_*` is the only prefix that crosses to the browser. Everything
+  else is **server-only** — never reference it from a Client Component.
+- New build-time env vars **must** be added to `turbo.json#tasks.build.env`,
+  or Turborepo will treat them as undeclared inputs and silently produce a
+  miscached build. This is the single most common operational footgun.
+- Secrets do not belong in git. Use the hosting provider's secret manager.
+- Each app has its **own** session cookie name (`APPWRITE_SESSION_COOKIE`).
+  `web` uses `a_session_biso`; `admin` uses `a_session_biso_admin`. Mixing
+  them logs users out across the platform.
 
-<Tabs
-  tabs={[
-    {
-      label: 'Web App',
-      value: 'web',
-      content: (
-        <pre>
-{`# Appwrite Configuration
-NEXT_PUBLIC_APPWRITE_PROJECT_ID=your_project_id
-NEXT_PUBLIC_APPWRITE_ENDPOINT=https://cloud.appwrite.io/v1
-APPWRITE_API_KEY=your_server_api_key
+## `apps/web`
 
-# Vipps Payment
-VIPPS_CLIENT_ID=your_client_id
-VIPPS_CLIENT_SECRET=your_client_secret
-VIPPS_SUBSCRIPTION_KEY=your_subscription_key
-VIPPS_MERCHANT_SERIAL_NUMBER=your_merchant_serial
-VIPPS_SYSTEM_NAME=BISO-Sites
-VIPPS_SYSTEM_VERSION=1.0.0
+The public site.
 
-# Application
-NEXT_PUBLIC_BASE_URL=http://localhost:3000
-NEXT_PUBLIC_APPWRITE_DATABASE_ID=your_database_id
+### Public (bundled into the browser)
 
-# Optional: AI Features
-OPENAI_API_KEY=your_openai_key`}
-        </pre>
-      ),
-    },
-    {
-      label: 'Admin App',
-      value: 'admin',
-      content: (
-        <pre>
-{`# Appwrite Configuration
-NEXT_PUBLIC_APPWRITE_PROJECT_ID=your_project_id
-NEXT_PUBLIC_APPWRITE_ENDPOINT=https://cloud.appwrite.io/v1
-APPWRITE_API_KEY=your_server_api_key
+| Variable | Purpose |
+|----------|---------|
+| `NEXT_PUBLIC_APPWRITE_ENDPOINT` | Appwrite REST endpoint, e.g. `https://appwrite.biso.no/v1` |
+| `NEXT_PUBLIC_APPWRITE_PROJECT` | Appwrite project ID |
+| `NEXT_PUBLIC_BASE_URL` | The site's own canonical URL, e.g. `https://biso.no` |
+| `NEXT_PUBLIC_API_BASE_URL` | The base URL of the `apps/api` service |
 
-# Admin URLs
-NEXT_PUBLIC_ADMIN_URL=http://localhost:3001
+### Server-only
 
-# Optional: AI Features
-OPENAI_API_KEY=your_openai_key`}
-        </pre>
-      ),
-    },
-    {
-      label: 'Docs App',
-      value: 'docs',
-      content: (
-        <pre>
-{`# Basic Setup (most docs are static)
-NEXT_PUBLIC_SITE_URL=http://localhost:3002`}
-        </pre>
-      ),
-    },
-  ]}
-/>
+| Variable | Purpose |
+|----------|---------|
+| `APPWRITE_API_KEY` | Service key for `createAdminClient()` calls |
+| `APPWRITE_SESSION_COOKIE` | Set to `a_session_biso` |
+| `APPWRITE_BUCKET_ID` | Default storage bucket for web uploads |
+| `APPWRITE_CAMPUS_BOARD_FUNCTION_ID` | Appwrite Function ID for campus board operations |
+| `OPENAI_API_KEY` | OpenAI for site-side AI features |
+| `SHAREPOINT_CLIENT_ID` / `SHAREPOINT_CLIENT_SECRET` / `SHAREPOINT_TENANT_ID` | Graph app credentials |
+| `SHAREPOINT_SITES` | Comma-separated SharePoint site IDs |
+| `VIPPS_CLIENT_ID` / `VIPPS_CLIENT_SECRET` | Vipps OAuth client |
+| `VIPPS_CALLBACK_TOKEN` | Webhook auth token |
+| `VIPPS_MERCHANT_SERIAL_NUMBER` | MSN issued by Vipps |
+| `VIPPS_SUBSCRIPTION_KEY` | Vipps API subscription key |
+| `VIPPS_TEST_MODE` | `true` in non-prod, `false` in prod |
+| `STRIPE_PUBLISHABLE_KEY` / `STRIPE_SECRET_KEY` | Stripe keys |
+| `STRIPE_WEBHOOK_SECRET` | Used to verify Stripe webhook signatures |
+| `AZURE_APP_ID` / `AZURE_TENANT_ID` | Azure AD application identity |
+| `AZURE_CERT_THUMBPRINT` / `AZURE_CERT_PASS` | Certificate-based auth to Graph |
+| `AZURE_ORG` | Azure DevOps / Graph org name |
+| `WEBDOCK_API_KEY` | Webdock API access (only if hosted on Webdock) |
+| `PINECONE_API_KEY` / `PINECONE_INDEX_NAME` | Pinecone vector store |
+| `CRON_SECRET` | Bearer token for `/api/cron/cleanup-reservations` |
 
-<Callout type="warning" title="Security">
-Never commit `.env.local` files to version control. Use `.env.example` as a template.
+## `apps/admin`
+
+The CMS.
+
+### Public
+
+| Variable | Purpose |
+|----------|---------|
+| `NEXT_PUBLIC_APPWRITE_ENDPOINT` | Same Appwrite endpoint as `web` |
+| `NEXT_PUBLIC_APPWRITE_PROJECT` | Same project ID |
+| `NEXT_PUBLIC_BASE_URL` | The admin's own URL, e.g. `https://admin.biso.no` |
+
+### Server-only
+
+| Variable | Purpose |
+|----------|---------|
+| `APPWRITE_API_KEY` | Service key |
+| `APPWRITE_SESSION_COOKIE` | Set to `a_session_biso_admin` |
+| `ANTHROPIC_API_KEY` | Claude for the page-editor copilot and admin assistant |
+| `OPENAI_API_KEY` | OpenAI for embeddings / fallback models |
+| `RECRUITMENT_RESUME_BUCKET_ID` | Storage bucket for uploaded résumés |
+| `APPWRITE_CAMPUS_BOARD_FUNCTION_ID` | Function ID for campus board operations |
+| `SHAREPOINT_*` | Same SharePoint vars as `web` |
+| `AZURE_*` | Same Azure vars as `web` |
+| `VIPPS_*` | Same Vipps vars as `web` |
+| `STRIPE_*` | Same Stripe vars as `web` |
+| `PINECONE_*` | Same Pinecone vars as `web` |
+
+## `apps/api`
+
+The standalone JWT REST service.
+
+### Public
+
+| Variable | Purpose |
+|----------|---------|
+| `NEXT_PUBLIC_BASE_URL` | The API's own canonical URL |
+| `NEXT_PUBLIC_API_BASE_URL` | Used in some self-referential URLs |
+
+### Server-only
+
+| Variable | Purpose |
+|----------|---------|
+| `NEXT_PUBLIC_APPWRITE_ENDPOINT` / `NEXT_PUBLIC_APPWRITE_PROJECT` | Same as the other apps |
+| `APPWRITE_API_KEY` | Service key for backend-only operations |
+| `APPWRITE_DATABASE_ID` | The TablesDB database ID |
+| `APPWRITE_BUCKET_ID` | Default bucket |
+| `OPENAI_API_KEY` | OpenAI |
+| `AZURE_*` | Azure AD + Graph |
+| `SHAREPOINT_*` | SharePoint |
+| `VIPPS_*` | Vipps payment provider |
+| `STRIPE_*` | Stripe |
+| `PINECONE_API_KEY` / `PINECONE_INDEX_NAME` | Pinecone |
+| `WEBDOCK_API_KEY` | Webdock (if used) |
+| `WC_CONSUMER_KEY` / `WC_CONSUMER_SECRET` | WordPress/WooCommerce proxy credentials (legacy, see [known limitations](/docs/handover/known-limitations)) |
+| `ENTUR_SYNC_SECRET` | Bearer for `/api/departures/sync` |
+| `CRON_SECRET` | Bearer for `/api/cleanup-anon-users` |
+
+## Where these need to live
+
+| Environment | Where the values go |
+|-------------|----------------------|
+| Local dev | `apps/<app>/.env.local` (gitignored) |
+| Production | **Appwrite Sites env-var UI**, configured per site. This is the only place production values live. |
+| CI (GitHub Actions) | Repository variables (`APPWRITE_ENDPOINT`, `APPWRITE_PROJECT_ID`, `WEB_SITE_ID`, `ADMIN_SITE_ID`, `API_SITE_ID`, `DOCS_SITE_ID`) + the `APPWRITE_API_KEY` secret. Nothing else. |
+
+<Callout type="warning">
+**Open continuity risk**: production env values exist only inside
+Appwrite Sites today. There is **no off-Appwrite backup** — no
+password manager, no sealed file in a private repo, no second copy in
+1Password. If the Appwrite project is lost or wiped, every secret has
+to be re-issued from each provider.
+
+Recommended remediation (also called out in
+[Handover / Ownership and accounts → Secrets vault](/docs/handover/ownership-and-accounts#secrets-vault)):
+provision a password manager for BISO IT and store one
+production-env entry per app (`web`, `admin`, `api`, `docs`). Update
+each entry whenever you rotate a key.
 </Callout>
 
-## Verify your setup
+## When you add a new env var
 
-<Steps>
-  <Step title="Copy the templates">
-    Run `cp apps/web/.env.example apps/web/.env.local` (and similar for `admin`) so you never edit the example files directly.
-  </Step>
-  <Step title="Start the dev servers">
-    Run `bun run dev --filter=web` and check the terminal. Missing environment variables are logged immediately.
-  </Step>
-  <Step title="Trigger a real request">
-    Visit an authenticated route or make a payment test call—Appwrite or Vipps errors will confirm whether secrets are valid.
-  </Step>
-</Steps>
-
-## Obtaining Credentials
-
-### Appwrite
-
-1. Sign up at [cloud.appwrite.io](https://cloud.appwrite.io) or self-host
-2. Create a project
-3. Get Project ID from project settings
-4. Create API key with required scopes
-
-### Vipps
-
-1. Register at [Vipps Developer Portal](https://developer.vippsmobilepay.com/)
-2. Create merchant account
-3. Obtain API credentials from portal
-
-## Production Setup
-
-Use your hosting provider's environment variable settings:
-- Vercel: Project Settings → Environment Variables
-- Netlify: Site Settings → Build & Deploy → Environment
-- Docker: Use `.env` file or docker-compose environment
-
-## Storage recommendations
-
-- **Local development:** `.env.local` files kept out of Git—share updates through 1Password or another secure vault.
-- **Secrets management:** Mirror production values in a shared vault and note who has access to Appwrite, Vipps, and hosting consoles.
-- **Rotation checklist:** Update this page and the vault whenever keys rotate so the next maintainer can trace changes.
-
-## Related Documentation
-
-- [Deployment Overview](/docs/operations/overview)
-- [Appwrite Setup](/docs/operations/appwrite-setup)
-
+1. Read it in code via `process.env.MY_NEW_VAR`.
+2. If it's accessed during `next build` (i.e. anywhere outside a request
+   handler), add it to `turbo.json#tasks.build.env`.
+3. Document it on this page.
+4. Add the production value to the hosting provider's secret manager.
+5. Add the dev value to your local `.env.local`.
+6. If it's a secret, add a rotation note to
+   [/docs/operations/secrets-and-keys](/docs/operations/secrets-and-keys).

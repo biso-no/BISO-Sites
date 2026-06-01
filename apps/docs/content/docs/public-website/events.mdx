@@ -1,0 +1,86 @@
+---
+title: Events
+description: How event listings, registration, capacity, waitlists, and member pricing work on the public site.
+---
+
+# Events
+
+Events are the busiest content type on biso.no. Every social, career talk, party, sports activity, workshop, and trip lives in the `events` table and gets a public page at `/events/[slug]`.
+
+## What the user sees
+
+| Surface | Shows |
+|---------|-------|
+| `/events` | All upcoming events, with filters by category and campus. Each card shows date, location, price, and a member badge if applicable. |
+| `/events/[slug]` | Cover image, description, time, location, registration questions, and the register button. |
+
+Past events drop off the listing automatically.
+
+## Event fields the user notices
+
+| Field | What it does |
+|-------|--------------|
+| `title`, `description` | The headline content, translated via `content_translations`. |
+| `start_at`, `end_at` | When it happens. |
+| `location_mode` | One of `physical`, `online`, `hybrid`. Controls whether a location or join link is shown. |
+| `online_url` | Shown to registered attendees for online/hybrid events. |
+| `capacity` | Max attendees. |
+| `waitlist` | If full, new registrations join the waitlist. |
+| `registration_deadline` | Cut-off time after which the register button disappears. |
+| `member_only` | If true, only members can register (everyone can still see the page). |
+| `member_price`, `price` | Two prices — the lower one shown to members. |
+| `cover_pattern` | A visual pattern used for the event card when there's no cover image. |
+| `category` | One of `social`, `career`, `workshop`, `talk`, `party`, `sport`, `academic`, `trip`. |
+| `custom_questions` | JSON list of questions asked at registration (e.g., dietary preferences). |
+
+## Categories
+
+The eight categories are used both for filtering on `/events` and for assigning a default visual style. They're a closed set — editors pick from a dropdown in the admin app rather than typing free text. See [Admin Handbook → Events](/docs/admin-handbook/pages).
+
+## Member-only and member-priced events
+
+Member-only events show on the listing for everyone but reject registration from non-members at the action step. Member-priced events show two prices side-by-side; the member price is applied automatically if the user's account is verified as a member at registration time. See [Membership](/docs/public-website/membership) for how that verification works.
+
+## Capacity and waitlist
+
+When capacity is reached:
+
+- The register button label changes to "Join waitlist" (if waitlist is enabled) or "Sold out" (if not).
+- New registrations go onto the waitlist in order.
+- When someone cancels, the next person on the waitlist is promoted. Promotion is currently driven by admin action — see [Admin Handbook → Submissions](/docs/admin-handbook/submissions).
+
+## Registration
+
+Registration is a server action that:
+
+1. Verifies the user is signed in (anonymous accounts can register if the event allows — most do).
+2. Re-checks capacity and member status at submit time.
+3. Captures answers to `custom_questions`.
+4. For paid events, kicks off the same payment pipeline as the shop. See [Shop and checkout](/docs/public-website/shop-and-checkout).
+5. For free events, creates the registration row immediately.
+
+## Server actions
+
+| Action | Where |
+|--------|-------|
+| `listEvents()` | `apps/web/src/app/actions/events.ts` |
+| Registration submit | Same file, alongside the form route. |
+
+## Related tables
+
+| Table | Purpose |
+|-------|---------|
+| `events` | Event records. |
+| `event_registrations` | One row per attendee per event. |
+| `content_translations` | Per-locale text for events (and other content). |
+| `departments` | Owning department for the event. |
+
+The full schema lives in `packages/api/appwrite.config.json`.
+
+## For admins
+
+Events are created in the admin app under Events. The same form lets you set capacity, member pricing, deadlines, and custom questions. See [Admin Handbook → Events](/docs/admin-handbook/pages) for the editor flow and approval rules. The submissions screen lists registrations and lets you export them.
+
+## Localization
+
+Events have translated `title` and `description` via `content_translations`. If a translation is missing in the visitor's locale, the site falls back to the default locale. See [Localization](/docs/public-website/localization).

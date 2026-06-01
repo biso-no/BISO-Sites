@@ -1,0 +1,154 @@
+---
+title: Appwrite
+description: The backend platform under the entire BISO stack — auth, database, storage, functions, and messaging in one project.
+---
+
+# Appwrite
+
+[Appwrite](https://appwrite.io) is the backend platform that the entire BISO
+platform sits on. Auth, the database, file storage, server functions, and
+messaging all run in a single Appwrite project. If Appwrite is down, the
+platform is down.
+
+## What it is
+
+Appwrite is an open-source backend-as-a-service. Think of it as Firebase you
+can self-host. It bundles:
+
+- **Auth** — user accounts, sessions, OAuth, teams.
+- **TablesDB** — the SQL-ish document database we use for every row of data,
+  from pages and shop orders to recruitment applications.
+- **Storage** — buckets for binary files (page assets, uploaded resumes).
+- **Functions** — small server-side handlers we trigger from app code.
+- **Messaging** — transactional email and push (used sparingly).
+
+BISO runs a **self-hosted Appwrite at `appwrite.biso.no`** for production, with
+a separate dev project for development. Both are reached through the same SDK
+with different env-var values.
+
+## Why we use it
+
+The honest answer is "one vendor for almost everything that isn't payments
+or M365." Appwrite gives us auth + DB + storage + serverless functions in a
+single SDK, with a permission model that maps cleanly onto the campus /
+department scoping we need. That matters when staff turns over: a new IT
+Manager learns one console, not five.
+
+## Cost shape
+
+Self-hosted, so the bill is hosting (VM + storage + bandwidth) rather than
+per-request SaaS pricing. That keeps costs flat and predictable as the
+platform grows.
+
+## Configuration
+
+All apps share the same Appwrite project. The env vars are:
+
+| Var | Purpose |
+|---|---|
+| `NEXT_PUBLIC_APPWRITE_ENDPOINT` | API endpoint (e.g. `https://appwrite.biso.no/v1`) |
+| `NEXT_PUBLIC_APPWRITE_PROJECT` | Project ID |
+| `APPWRITE_API_KEY` | Server-only admin key. Never expose to the browser. |
+| `APPWRITE_SESSION_COOKIE` | Optional per-app override for the session-cookie name |
+| `APPWRITE_BUCKET_ID` | Storage bucket for page assets |
+| `RECRUITMENT_RESUME_BUCKET_ID` | Storage bucket for uploaded resumes |
+| `APPWRITE_CAMPUS_BOARD_FUNCTION_ID` | Function ID for the campus-board lookup |
+
+Session cookies are app-scoped:
+
+- `a_session_biso` — public web
+- `a_session_biso_admin` — admin app
+
+Each app can override its cookie name with `APPWRITE_SESSION_COOKIE` if you
+need to run multiple environments against the same browser without collisions.
+
+## Database layout
+
+One database named `app` with around **60 tables**. The schema is the source
+of truth for the whole platform and is checked into the repo:
+
+- `packages/api/appwrite.config.json` — every table, attribute, index, and
+  permission. Auto-generated; do not edit by hand.
+- `packages/api/types/appwrite.ts` — generated TypeScript row types. Use them
+  as the type parameter on `db.getRow<T>(…)` / `db.listRows<T>(…)`.
+
+The schema lifecycle is:
+
+1. Edit the schema in the Appwrite Console (or the Appwrite CLI).
+2. Run `appwrite pull` locally — this regenerates `appwrite.config.json`.
+3. Run `appwrite types -l ts ./types` from `packages/api` — this regenerates
+   the row types.
+4. Commit both files.
+
+Do not edit either generated file by hand.
+
+## Where it lives in the codebase
+
+All Appwrite access goes through [`@repo/api`](/docs/packages/api). App code
+must never import `appwrite` or `node-appwrite` directly.
+
+Entrypoints:
+
+- `@repo/api/server` — `createSessionClient()` (user-scoped, reads the session
+  cookie) and `createAdminClient()` (uses `APPWRITE_API_KEY`). Server-only.
+- `@repo/api/client` — browser-side Appwrite client for the rare cases where
+  client-side calls are appropriate.
+- `@repo/api` — runtime helpers: `ID`, `Query`, `Permission`, `Role`,
+  `OAuthProvider`, and the `Models` types.
+- `@repo/api/page-builder` — the draft/publish flow used by the block editor.
+
+## Storage
+
+Two buckets you'll care about:
+
+- **Page assets** (`APPWRITE_BUCKET_ID`) — images uploaded through the block
+  editor, public-readable.
+- **Resumes** (`RECRUITMENT_RESUME_BUCKET_ID`) — applicant CVs, locked down
+  to recruitment staff.
+
+## Functions
+
+A few Appwrite Functions handle work that doesn't belong in a Next.js route:
+
+- `APPWRITE_CAMPUS_BOARD_FUNCTION_ID` — campus board members lookup.
+- Membership-related helpers triggered by the admin app.
+
+Function IDs are passed in via env so the same code can target dev or prod
+functions without rebuilds.
+
+## Failure modes
+
+When Appwrite is unhealthy:
+
+- **All apps** return 500s on data-fetch paths. There is no read-through
+  cache that can mask a full outage.
+- **Sessions** can't be created or validated, so sign-in breaks across both
+  `web` and `admin`.
+- **Storage uploads** (page images, resumes) fail; the rest of the editor
+  still works, but you can't save new assets.
+
+Anonymous-session middleware on the public site will retry session creation,
+so a transient Appwrite blip can manifest as slow page loads rather than hard
+errors.
+
+## Rotation
+
+To rotate the service key:
+
+1. Generate a new API key in the Appwrite Console with the same scopes.
+2. Update `APPWRITE_API_KEY` in the deploy environment for each app.
+3. Restart the apps. Existing user sessions are unaffected (they live in
+   cookies, not in the service key).
+4. Revoke the old key in the Console once you've confirmed the apps are
+   healthy.
+
+Changing the **session cookie name** (`APPWRITE_SESSION_COOKIE`) invalidates
+all current sessions for that app — users will be signed out and have to log
+in again. Useful as an emergency "log everyone out" lever.
+
+## Swapping the vendor
+
+There isn't a good answer here. Appwrite is load-bearing across every app
+and every package. Replacing it would mean rewriting `@repo/api` end-to-end
+and re-modelling every table. Treat it as the foundation, not a swappable
+component.

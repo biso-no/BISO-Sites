@@ -1,0 +1,250 @@
+---
+title: Data model
+description: The Appwrite schema, the tables that matter, and the relationship patterns you must know.
+---
+
+# Data model
+
+All persistent data lives in **one Appwrite project** with **one
+database** (`app`) and roughly **60 tables**. The schema is the source
+of truth for the platform: row shapes, enum values, indexes,
+relationships, and per-row permissions all live there.
+
+This page covers the tables you'll touch most, the relationship
+patterns to recognize, and a few historical quirks to be aware of.
+
+## The two files you must know
+
+- **`packages/api/appwrite.config.json`** — the full schema. Generated
+  by `appwrite pull`. Read it whenever you need to know an attribute
+  name, enum value, index, or `$permissions` template. **Never
+  hand-edit it.** Edit the schema in the Appwrite Console and
+  regenerate.
+- **`packages/api/types/appwrite.ts`** — generated TypeScript row
+  types and enums. Pass them as the type parameter to every
+  `db.getRow<T>()` / `db.listRows<T>()` call so the columns you read
+  are checked at compile time.
+
+```ts
+import type { Pages } from "@repo/api/types";
+
+const row = await db.getRow<Pages>("app", "pages", pageId);
+```
+
+If you're tempted to type something as `any` because the row type
+"isn't quite right", regenerate `types/appwrite.ts` first
+(`appwrite types -l ts ./types`). The mismatch is almost always
+stale generated output.
+
+## Tables by responsibility
+
+The collections cluster into nine functional groups.
+
+### Content
+
+| Table | Purpose |
+|---|---|
+| `pages` | Page metadata — slug, status, visibility, campus, department |
+| `page_translations` | Per-locale content for each page (see [Pages publish flow](/docs/architecture/pages-publish-flow)) |
+| `events` | Events (single events; `large_event` is unused — see below) |
+| `jobs` | Job postings (recruitment-enabled) |
+| `news` | News articles |
+| `benefits` | Member benefits |
+| `large_event` | Experimental batch-event structure — not in active use |
+
+### Translations
+
+Two patterns, deliberately different:
+
+| Table | Used by | Why |
+|---|---|---|
+| `page_translations` | Pages only | Pages carry a 30 KB+ JSON document — they get their own translation table with both `draft_document` and `puck_document` columns. |
+| `content_translations` | Everything else | Generic table keyed by `content_type`, `target_locale`, `source_locale`, `translation_status` (`source`, `manual`, `ai`, `stale`). |
+
+See [Translations](/docs/architecture/translations) for the full
+mechanic.
+
+### Shop
+
+| Table | Purpose |
+|---|---|
+| `webshop_products` | Local product catalogue (synced with WooCommerce for merch) |
+| `orders` | Orders (cart contents, customer, payment status) |
+| `cart_reservations` | Server-side carts (anonymous sessions included) |
+| `payments` | Payment-attempt history (Vipps / Stripe) |
+
+### Users and accounts
+
+| Table | Purpose |
+|---|---|
+| `user` | Profile data for an Appwrite user (the Appwrite `users` collection holds auth) |
+| `memberships` | Membership status (verified against 24SevenOffice for discounts) |
+
+### Recruitment
+
+| Table | Purpose |
+|---|---|
+| `job_applications` | Submitted applications |
+| `recruitment_*` | Interview slot tables, booking-token tables (the booking-token tables are not currently exposed) |
+
+### Expense
+
+| Table | Purpose |
+|---|---|
+| `expense` | Expense claims |
+| `expense_attachments` | File metadata for receipts / OCR runs |
+
+### Organisations
+
+| Table | Purpose |
+|---|---|
+| `departments` | A department (e.g. "Career Oslo") |
+| `department_board` | Board members for a department |
+| `department_socials` | Social media links for a department |
+| `campus` | A campus (Oslo, Bergen, Trondheim, Stavanger, National) |
+| `campus_data` | Per-campus content (board, contact info) |
+
+### Forms
+
+| Table | Purpose |
+|---|---|
+| `form_submissions` | Generic form submissions — `$permissions` set per row, scoped to the receiving team |
+
+### Workflow and infrastructure
+
+| Table | Purpose |
+|---|---|
+| `approval_requests` | Approval inboxes (expense, large publication, etc.) |
+| `audit_logs` | Append-only audit trail; admin server actions write here |
+| `notifications` | In-app notifications |
+| `subs` | Subscription / push-notification subscribers |
+| `feature_flags` | Runtime feature toggles |
+| `tax_codes` | Norwegian tax-code reference data |
+| `24so_tokens` | 24SevenOffice OAuth refresh tokens |
+
+## Relationship patterns
+
+A few patterns repeat across the schema. Recognizing them speeds up
+everything.
+
+### 1. Translation refs
+
+Content tables carry a `translation_refs` column (string array). Each
+entry is the `$id` of a translation row in `content_translations` (or
+`page_translations` for pages). One row per locale.
+
+```ts
+// Reading the Norwegian translation of an event
+const event = await db.getRow<Events>("app", "events", id);
+const noTranslation = await db.listRows<ContentTranslations>(
+  "app",
+  "content_translations",
+  [
+    Query.equal("content_type", "event"),
+    Query.equal("content_id", event.$id),
+    Query.equal("target_locale", "no"),
+  ],
+);
+```
+
+`page_translations` is the only exception — pages have so much content
+per locale that they get their own dedicated table.
+
+### 2. Campus and department scoping
+
+Practically every non-global table has `campus_id` and/or
+`department_id`. They drive [multi-tenancy](/docs/architecture/campus-and-department-scoping):
+a Bergen campus admin must never see Oslo's expenses, jobs, or
+applications.
+
+Treat these as **non-optional filters** for any list query that isn't
+explicitly global-admin. The `applyScopeQueries()` helper in
+`apps/admin` is the canonical enforcement point.
+
+### 3. Per-row `$permissions`
+
+Appwrite supports per-row ACLs. We use them in two main places:
+
+- **`form_submissions`** — granted to the team that owns the form, so
+  submissions are visible only to that department.
+- **Some draft documents** — restricted while an approval is in
+  flight.
+
+You set them at create time via the `Permission` and `Role` helpers
+re-exported from `@repo/api`.
+
+```ts
+import { Permission, Role } from "@repo/api";
+
+await db.createRow<FormSubmissions>("app", "form_submissions", {
+  rowId: ID.unique(),
+  data: { /* ... */ },
+  permissions: [
+    Permission.read(Role.team("Career-Oslo")),
+    Permission.update(Role.team("Career-Oslo")),
+  ],
+});
+```
+
+## Historical quirks
+
+A few names and concepts pre-date their current implementation.
+They're documented so you don't fix what isn't broken.
+
+### `puck_document`
+
+`page_translations` has two JSON columns:
+
+- `draft_document` — work-in-progress page (the editor saves here).
+- `puck_document` — **the published page**.
+
+`puck_document` is named for the previous editor library
+([Puck](https://puckeditor.com)) we used before building `@repo/editor`.
+The column kept its name through the migration because renaming an
+Appwrite attribute is operationally expensive (live data, indexes,
+permissions). When you read code that says `puck_document`, read
+"published page JSON". See [Pages publish flow](/docs/architecture/pages-publish-flow).
+
+### Inactive tables
+
+A handful of tables exist in the schema but are not exposed in either
+app:
+
+- `large_event`, `large_event_item` — experimental batched-event
+  structure; the simple `events` table is still in use.
+- `recruitment_booking_tokens` — not exposed yet.
+- `chat_*`, `typing_indicators` — real-time chat infrastructure that
+  was scaffolded but isn't shipped.
+- `benefit_reveals` — unused.
+- `page_view_events` — analytics collection is currently disabled.
+
+Don't read from these tables in new code. If you need the data they
+were designed for, ask before building on top of them — they may need
+schema changes first.
+
+## Regenerating the schema
+
+Workflow:
+
+1. Edit the schema in the [Appwrite Console](https://cloud.appwrite.io)
+   or via the Appwrite CLI.
+2. `appwrite pull collections` — refreshes
+   `packages/api/appwrite.config.json`.
+3. `appwrite types -l ts ./types` — refreshes
+   `packages/api/types/appwrite.ts`.
+4. Commit both files in the same PR. Reviewers can see schema and
+   type changes together.
+
+Never edit these files by hand. They will be overwritten on the next
+pull.
+
+## Where to read next
+
+- **[Auth and roles](/docs/architecture/auth-and-roles)** — how
+  Appwrite teams drive role checks.
+- **[Campus and department scoping](/docs/architecture/campus-and-department-scoping)** —
+  the multi-tenancy filter that goes on top of these tables.
+- **[Pages publish flow](/docs/architecture/pages-publish-flow)** — the
+  `pages` + `page_translations` lifecycle.
+- **[`@repo/api`](/docs/packages/api)** — the wrapper you use to read
+  and write these tables.

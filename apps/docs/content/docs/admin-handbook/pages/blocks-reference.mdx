@@ -1,0 +1,105 @@
+---
+title: Blocks reference
+description: Every block in the page editor, what it shows, when to use it, and the data it pulls from.
+---
+
+# Blocks reference
+
+The block palette is split into eight categories. Below is the full list — 37 blocks in total — with a short description of each. Use this page as a lookup, not a tutorial: for how to actually add and edit blocks, see [Creating and editing](/docs/admin-handbook/pages/creating-and-editing).
+
+For blocks that pull live data (events, jobs, news, partners, products, documents, departments), the **Source** column shows what you're choosing in the inspector. Almost all of them accept a campus filter and a department filter, plus presets like "upcoming events" or "newest first".
+
+## Top of page
+
+The opening of a page. Pick one of these as your first block.
+
+| Block | What it does | Notes |
+|-------|--------------|-------|
+| `hero` | Large banner at the top of the page with a heading, subheading, and call-to-action button. | Three variants: **split** (image on one side, text on the other), **centred** (text over a background image), **full** (full-bleed media with overlay text). |
+| `marquee` | A horizontal ticker that scrolls a short phrase or set of phrases across the screen. | Good for announcements ("Event tonight!") above or below a hero. Keep the text short. |
+
+## Tell a story
+
+The bread-and-butter content blocks. Most pages use several of these.
+
+| Block | What it does | Notes |
+|-------|--------------|-------|
+| `text` | A rich-text block: headings, paragraphs, lists, links, bold and italic. | The main way to write actual prose. Backed by a Plate.js editor. |
+| `quote` | A pulled quotation with attribution and optional avatar. | Use for testimonials or a striking line from someone. |
+| `callout` | A coloured box that draws attention to one piece of information (info / warning / success). | Don't overuse — one or two per page is plenty. |
+| `twoCol` | A two-column layout you can drop other blocks into. | Great for "text on the left, image on the right". |
+
+## Show people & numbers
+
+For pages that introduce a team or showcase impact.
+
+| Block | What it does | Notes |
+|-------|--------------|-------|
+| `team` | A grid of team members with photo, name, role, and contact. | Used on departmental and campus board pages. |
+| `stats` | A row of large numbers with labels ("3 200 members", "12 events"). | Keep to three or four stats. |
+| `timeline` | A vertical or horizontal list of dated milestones. | Use for "our history" or "what's happened this year" pages. |
+
+## Media
+
+Images, galleries, and video.
+
+| Block | What it does | Notes |
+|-------|--------------|-------|
+| `image` | A single image with optional caption and alt text. | Always fill in alt text — it's how screen readers describe the image. |
+| `gallery` | A grid of images, clickable to enlarge. | Files are uploaded into the BISO media library and the editor stores their IDs. |
+| `video` | An embedded video. | Accepts an uploaded file or a YouTube / Vimeo URL. |
+
+## Pull from BISO
+
+Live data blocks. They read from elsewhere in the admin so you don't have to copy-paste.
+
+| Block | What it does | Source |
+|-------|--------------|--------|
+| `events` | A list of events as cards. | Pick a campus, a department, "upcoming only", or a manual selection. |
+| `jobs` | A list of open job postings. | Same source picker — filter by campus or department. |
+| `news` | A list of news articles. | Newest-first by default; can be limited to a department's news. |
+
+## Engage
+
+Calls to action and ways for visitors to respond.
+
+| Block | What it does | Notes |
+|-------|--------------|-------|
+| `cta` | A prominent block with a heading and a button (or two) pointing somewhere. | Use at the bottom of a page to nudge visitors to apply, sign up, or visit another page. |
+| `faq` | A list of expandable question/answer rows. | Good for membership pages, event info, "how do I…" content. |
+| `contact` | A contact card with email, phone, address, and optional map. | For campus offices and departmental contacts. |
+| `signup` | A short newsletter / signup form. | Submissions appear in [Submissions](/docs/admin-handbook/submissions) with source `signup`. |
+| `multiStepForm` | A multi-step form builder with conditional logic ("if they pick X, show Y"). | Submissions land in [Submissions](/docs/admin-handbook/submissions). Conditional logic is still maturing — keep flows simple for now. |
+
+## Layout
+
+Containers and grids that organise other content.
+
+| Block | What it does | Notes |
+|-------|--------------|-------|
+| `featureGrid` | A grid of feature cards, each with an icon, title, and short blurb. | Use for "what we offer" sections. |
+| `linkTileGrid` | A grid of tiles that each link somewhere. | A friendly way to point visitors to several sub-pages. |
+| `tabs` | A tabbed container — other blocks go inside each tab. | Use sparingly; visitors often miss content hidden in tabs. |
+| `scrollRow` | A horizontally scrolling row of items. | Used on the home page for "what's on". |
+| `featuredCards` | A larger, highlight-style cards row. | Heavier visual weight than `linkTileGrid`. |
+| `stepGrid` | Numbered steps ("1. Sign up. 2. Pick a department. 3. Show up."). | For walkthroughs and "how it works" sections. |
+| `filterBar` | A search and filter UI for the list blocks above it. | Pair with `events`, `jobs`, or `news`. Advanced search options are still evolving — basic filters work well. |
+
+## Data
+
+Blocks that pull from structured records elsewhere in the admin.
+
+| Block | What it does | Source |
+|-------|--------------|--------|
+| `partners` | A grid of partner logos. | Filter by campus or partner tier. |
+| `departmentGrid` | A grid of department cards. | Filter by campus; useful on a campus landing page. |
+| `documents` | A list of downloadable documents (PDFs, statutes, minutes). | Filter by department or document category. |
+| `productGrid` | A grid of shop products. | Filter by campus, category, or pick specific products. |
+| `campusSelector` | The "pick your campus" UI. | Used on the public homepage; rarely needed elsewhere. |
+| `profileHeader` | Shows the logged-in member's name, photo, and details. | Only meaningful on pages that require sign-in. Full data integration is still evolving — treat as early. |
+
+<Callout type="info">
+Some blocks (`multiStepForm` conditional logic, `filterBar` advanced search, `profileHeader` data integration) are still being expanded. They work, but expect them to grow more options over the coming releases.
+</Callout>
+
+For the technical side — how blocks are defined, validated, and rendered on the public site — see [Editor architecture](/docs/architecture/editor-architecture).

@@ -1,0 +1,64 @@
+---
+title: Translations
+description: How to edit the Norwegian and English versions of a page, and how the auto-translate button works.
+---
+
+# Translations
+
+Every page on biso.no exists in **two languages**: Norwegian (the default) and English. The editor treats them as two independent versions of the same page — so you can publish the Norwegian version today and the English version next week, and they don't have to look identical.
+
+For the broader story of how the site handles languages, see [Translations](/docs/architecture/translations) in the architecture section.
+
+## Switching language in the editor
+
+The **locale switcher** is in the topbar. It shows the language you're currently editing — `NO` or `EN` — and clicking it flips to the other one. The canvas updates immediately to show that language's content.
+
+A few things to know:
+
+- **Each language has its own draft.** Editing the Norwegian draft doesn't touch the English draft, and vice versa.
+- **Each language has its own published version.** You can have Norwegian published and English still in draft. The public site shows whichever languages are published, and falls back to Norwegian if English isn't.
+- **The page-level fields (title and description) are per-language.** The Norwegian title can be "Om oss" and the English one "About us". The **slug**, **department**, and **accent colour** are shared — they don't change between languages.
+
+## Editing a translation manually
+
+Switch to the language you want to edit, and work on the canvas exactly as you would on the Norwegian version. Add blocks, fill in text, save, publish. Everything you've already learned applies.
+
+The block structure doesn't have to match between languages — you might have an extra callout in Norwegian that you skipped in English, and that's fine.
+
+<Callout type="info">
+If your page has a `team`, `events`, or other live-data block, the items themselves come from elsewhere in the admin and are translated there (on the team member, on the event). The page editor just chooses which items to show.
+</Callout>
+
+## Auto-translating with AI
+
+The fastest way to start an English version is to translate the Norwegian one automatically.
+
+1. Make sure the Norwegian version is in good shape — finished or close to finished.
+2. Switch to the English locale in the topbar.
+3. Click **Translate from Norwegian** (the translate button in the topbar).
+4. Wait a few seconds. The English draft is replaced with an AI translation of the Norwegian page.
+5. **Read through it.** The translator is good but not perfect, especially with names, acronyms, and BISO-specific terminology.
+6. Fix anything that needs fixing, save, and publish when ready.
+
+The translation runs OpenAI under the hood. It translates each block's text content while leaving the block structure, images, and data sources alone — so a `news` block stays a `news` block, just with its heading rewritten.
+
+<Callout type="warning">
+The translate button **replaces** the current English draft. If you've already written an English version by hand, translating from Norwegian will overwrite it. You can undo within the same session (`Ctrl + Z`), but once you refresh the editor the previous draft is gone.
+</Callout>
+
+## When to translate vs. when to write fresh
+
+- **Translate**: factual content, long articles, descriptions of programs or benefits. These read fine after a quick polish.
+- **Write fresh**: anything with marketing voice, jokes, idioms, or BISO-internal language. Direct translations rarely land well.
+
+## Publishing translations
+
+Each language publishes independently — see [Drafts and publishing](/docs/admin-handbook/pages/drafts-and-publishing). It's common to publish Norwegian first and circle back to publish English a few days later once it's been reviewed.
+
+If only one language is published, visitors who pick the other language fall back to the published one rather than seeing a blank page.
+
+## Slugs and URLs
+
+A page has **one slug** that's shared between languages. On the public site, the URL is prefixed with the language code — for example `biso.no/no/about-us` and `biso.no/en/about-us`. You don't manage that prefix in the editor; it's handled automatically.
+
+If you change the slug after the page has been live for a while, the old URL stops working. Coordinate with whoever links to the page (often the marketing team) before changing it.

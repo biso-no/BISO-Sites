@@ -1,0 +1,156 @@
+---
+title: Anthropic (Claude)
+description: Scaffolded as the LLM provider for assistant-style features — present in code, but not enabled in production today.
+---
+
+# Anthropic (Claude)
+
+<Callout type="warning">
+**Current status (handover snapshot): Anthropic is not in production.**
+BISO does not have an Anthropic account. All AI features running today
+— page translation, expense OCR, the page-editor copilot, the admin
+assistant, and recruitment resume screening — route through
+[OpenAI](/docs/integrations/openai) instead.
+
+The codebase contains some `@ai-sdk/anthropic` imports as a legacy or
+exploratory path. The next IT Manager should treat these as
+follow-up work: either provision an Anthropic account and wire them
+up against it, or remove them so future readers aren't misled.
+
+The pages elsewhere in these docs that mention "Claude" or "Anthropic"
+in the context of admin AI features describe the *intended* design
+that was explored. Read them as forward-looking — in production today,
+OpenAI is doing the work.
+</Callout>
+
+## Why it was scaffolded
+
+[Anthropic](https://anthropic.com)'s Claude models were considered as the
+assistant model for longer-running, tool-using features in the admin app
+and the recruitment pipeline — the rough division being [OpenAI](/docs/integrations/openai)
+for one-shot tasks (translation, OCR) and Claude for multi-turn reasoning
+and tool-use. In practice the platform consolidated on OpenAI alone for
+simplicity and to avoid running two separate AI billing relationships.
+
+## What it is (in code)
+
+Where present, the integration uses `@ai-sdk/anthropic` — the Vercel AI
+SDK provider for Anthropic — so the call sites match the way the
+platform uses OpenAI.
+
+## Why we use it
+
+Three reasons, by use case:
+
+1. **Streaming + tool use** — Claude's tool-use protocol holds up well in
+   the block-editor copilot, where the model is making many small edits
+   to the page through tools rather than emitting one big chunk of text.
+2. **Long context** — admin assistant queries can pull in a lot of
+   surrounding org data; Claude's context window handles that without
+   aggressive trimming.
+3. **Behaviour on qualitative judgement tasks** — the recruitment screener
+   asks the model to summarise and rate candidate fit. We've consistently
+   preferred Claude's outputs on that workload.
+
+## Cost shape
+
+Per-token billing, like every hosted LLM. The page-editor copilot and the
+admin assistant are the highest-volume Claude callers because they stream
+long completions in interactive sessions. Recruitment screening is bursty
+— quiet for weeks, then heavy during application windows.
+
+## Configuration
+
+| Var | Purpose |
+|---|---|
+| `ANTHROPIC_API_KEY` | API key from the Anthropic console for our account. Server-only. |
+
+The model identifier is configured inside `@repo/ai`, not in env. As with
+OpenAI, we don't pin a specific version in these docs — by the time
+you're reading this, the latest Claude generation has probably bumped.
+
+## Where it lives in the codebase
+
+Three concrete consumers, all routed through `@repo/ai`:
+
+1. **Page editor copilot** — `apps/admin/.../api/page-editor/ai/chat`.
+   Streaming chat that can call tools to mutate the current page document
+   (add a block, change copy, restructure a section, etc.). The
+   tool-authorisation here is scoped to the page being edited.
+
+2. **Admin assistant** — `apps/admin/.../api/assistant`. A general
+   admin-side assistant that can look up shop orders, members, recruitment
+   applications, finance entries, and more. **Capability-based tool
+   authorisation**: which tools are exposed to the assistant depends on
+   the signed-in user's Appwrite team membership. An IT admin sees tools
+   that a finance volunteer doesn't, and vice versa.
+
+3. **Recruitment screener** — `@repo/ai/server/recruitment-screener`. Used
+   in the recruitment pipeline to summarise and screen resumes against a
+   role description. The screener pairs Claude (for reasoning over the
+   resume) with [Pinecone](/docs/integrations/pinecone) (for embedding
+   storage and retrieval).
+
+## Tool authorisation model
+
+The admin assistant deserves a few extra words. Every tool the assistant
+can call is registered with a capability requirement — for example, a
+"refund a shop order" tool requires the user to be in a finance-related
+team. At runtime, when the assistant is initialised for a request, only
+the tools the current user is authorised to invoke are passed to the
+model. The model literally cannot call a tool it wasn't given.
+
+That gives us two layers of safety:
+
+- The model can't decide to do something out of scope, because it doesn't
+  know the option exists.
+- Server-side, each tool also re-checks the caller's permissions before
+  doing anything, so prompt injection can't bypass authorisation.
+
+## Embeddings
+
+We don't use Claude for embeddings. Embedding generation for resumes uses
+a separate provider through the AI SDK, and the vectors live in
+[Pinecone](/docs/integrations/pinecone). Claude's role in the recruitment
+screener is reasoning over the retrieved candidate, not creating the
+vectors.
+
+## Failure modes
+
+- **API key revoked** — page editor copilot, admin assistant, and
+  recruitment screener all fail at once. The admin app's basic CRUD UI
+  still works — the copilot is additive, not load-bearing — and the
+  assistant has a graceful-degradation path that shows a "temporarily
+  unavailable" state.
+- **Rate limits** — bursts during the admin assistant's busy hours can
+  trigger 429s. The SDK respects retry-after; visible impact is slower
+  responses, not total failure.
+- **Model deprecation** — same story as OpenAI. Bump the model ID in
+  `@repo/ai` when Anthropic retires a generation.
+- **Tool-use protocol bugs** — when Anthropic ships changes to tool
+  schemas, the page editor copilot is the first place issues show up
+  because it leans hardest on tool calls. Run the editor through a couple
+  of common flows after upgrading the SDK.
+
+## Rotation
+
+1. In the Anthropic console for our account, create a new API key.
+2. Update `ANTHROPIC_API_KEY` in the deploy environment for `admin` and
+   `api`.
+3. Restart the apps.
+4. Revoke the old key in the console.
+
+Zero-downtime; no usage-bound state on the key itself.
+
+## Swapping the vendor
+
+Because everything routes through `@repo/ai`, swapping providers for the
+admin assistant or page-editor copilot is in principle a config change.
+In practice you'd want to retune the system prompts, retest the
+tool-use behaviour, and re-evaluate streaming quality before flipping the
+default. The recruitment screener is more model-sensitive — switching
+providers there should come with a side-by-side eval on a real candidate
+batch before going live.
+
+See [`@repo/ai`](/docs/packages/ai) for the package surface and provider
+configuration.

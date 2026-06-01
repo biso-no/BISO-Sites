@@ -1,0 +1,68 @@
+---
+title: Job board
+description: How the open-positions board, application form, and resume upload work.
+---
+
+# Job board
+
+The job board lists open positions inside BISO — department leads recruiting their next team, board roles, internal job ads. It's distinct from the recruitment booking flow ([Recruitment booking](/docs/public-website/recruitment-booking)), which kicks in after an applicant has been shortlisted.
+
+## What the user sees
+
+| Route | Shows |
+|-------|-------|
+| `/jobs` | All published positions, with a campus filter. |
+| `/jobs/[slug]` | A single job ad with the apply button. |
+
+Only jobs with `status = published` appear. Drafts, archived, and closed positions are hidden from the public site.
+
+## Filtering
+
+The list page filters by campus. A user who navigated in via a campus landing page may see the list pre-filtered to their campus. There is no free-text search on the public side; admins have richer filtering in the admin app.
+
+## Application flow
+
+1. The user opens a job page and clicks **Apply**.
+2. If they're not signed in, they're sent to `/auth/login` and bounced back afterwards.
+3. The application form asks for the position's `custom_questions` (JSON-defined per job — e.g., "why do you want this role?") and a resume upload.
+4. On submit, `submitJobApplication()` validates inputs, stores the resume in Appwrite Storage, and creates a `job_applications` row.
+5. The user is redirected to `/applications` where their submission appears with status `submitted`.
+
+The applicant can later see the status of every application they've made under `/applications`. They can't edit a submitted application from the public site.
+
+## Server actions
+
+| Action | What it does |
+|--------|--------------|
+| `listJobs()` | Returns published jobs, optionally filtered by campus. |
+| `getJobBySlug()` | Returns one job by slug with translations. |
+| `submitJobApplication()` | Validates and stores a new application. |
+
+These live under `apps/web/src/app/actions/` and are called from the corresponding pages.
+
+## Data model
+
+| Table | Key fields | Purpose |
+|-------|-----------|---------|
+| `jobs` | `slug`, `status`, `campus_id`, `department_id`, `custom_questions`, `deadline` | The position itself. |
+| `job_applications` | `job_id`, `user_id`, `answers`, `resume_file_id`, `status` | One row per submitted application. |
+
+Resumes are stored in Appwrite Storage; the row holds the file ID. Only the applicant and the assigned reviewers can read the file (Appwrite permissions enforce this).
+
+## What happens after applying
+
+The site doesn't push the applicant forward — the admin app does. Reviewers read applications in [Admin Handbook → Submissions](/docs/admin-handbook/submissions), shortlist candidates, and (for roles that use interviews) send out booking tokens that take the applicant to [`/recruitment/book/[token]`](/docs/public-website/recruitment-booking).
+
+If an application is rejected or accepted, the public site reflects that on `/applications` the next time the user opens it.
+
+## Auth
+
+Reading `/jobs` and `/jobs/[slug]` does not require login. Applying does. `/applications` is in the protected route group.
+
+## Localization
+
+Jobs have translated `title` and `description` via `content_translations`. The application form's `custom_questions` are stored per-language in the JSON.
+
+## SEO
+
+The job index and job detail pages are in the sitemap and indexable. The applicant-facing `/applications` page is excluded from search engines — see [SEO and sitemap](/docs/public-website/seo-and-sitemap).

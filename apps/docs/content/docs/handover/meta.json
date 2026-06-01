@@ -1,0 +1,13 @@
+{
+  "title": "Handover",
+  "pages": [
+    "index",
+    "ownership-and-accounts",
+    "domains-and-hosting",
+    "third-party-accounts",
+    "working-with-consultants",
+    "design-decisions",
+    "known-limitations",
+    "history"
+  ]
+}

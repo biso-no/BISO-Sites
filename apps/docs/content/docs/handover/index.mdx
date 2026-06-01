@@ -1,0 +1,94 @@
+---
+title: Handover
+description: A letter from the previous IT Manager to whoever inherits the BISO platform — what's covered, what isn't, and where to start.
+---
+
+# Handover
+
+This section is the most important part of these docs, and it's the one I
+hope you never need urgently. It exists so that BISO doesn't lose
+institutional memory every time the IT Manager rotates out. The platform
+is small enough that one person can keep it running; it's complex enough
+that one person starting from zero will spend months learning things that
+could have been written down.
+
+So I wrote them down.
+
+## Who this is for
+
+- **The next IT Manager** — full-time, part-time, or volunteer. You're
+  the primary reader. Start with this page, then read every other page in
+  this section in order. After that, the rest of the docs (especially
+  [/docs/architecture/overview](/docs/architecture/overview) and
+  [/docs/operations/overview](/docs/operations/overview)) will make a lot more sense.
+- **External consultants** brought in for specific work — read
+  [working-with-consultants](/docs/handover/working-with-consultants)
+  first, then whichever architecture / integration pages are relevant to
+  the scope.
+- **BISO leadership / the board** — you don't need the technical depth,
+  but you should at least skim
+  [ownership-and-accounts](/docs/handover/ownership-and-accounts),
+  [third-party-accounts](/docs/handover/third-party-accounts), and
+  [known-limitations](/docs/handover/known-limitations) so you know what
+  BISO actually owns and what it relies on.
+
+## What's covered
+
+| Page | What it tells you |
+|------|--------------------|
+| [Ownership and accounts](/docs/handover/ownership-and-accounts) | Who holds the master credentials for every service. **Template to fill in.** |
+| [Domains and hosting](/docs/handover/domains-and-hosting) | DNS, subdomains, where each app is hosted. |
+| [Third-party accounts](/docs/handover/third-party-accounts) | SaaS subscriptions, billing rates, renewal dates. **Template to fill in.** |
+| [Working with consultants](/docs/handover/working-with-consultants) | How to scope, brief, and onboard external help without losing your shirt. |
+| [Design decisions](/docs/handover/design-decisions) | Why the platform is the way it is. Decisions and what was considered and rejected. |
+| [Known limitations](/docs/handover/known-limitations) | Honest list of what doesn't work or isn't finished. |
+| [History](/docs/handover/history) | How we got here, what we tried, what we abandoned. |
+
+## What's *not* covered
+
+Some pages here are **templates with placeholders** rather than finished
+documents. That's intentional. I won't fabricate account holders, billing
+rates, or vendor contacts — those need to be filled in by whoever is
+currently in the role. Look for the warning callouts on each page and the
+inline `[FILL IN: …]` markers.
+
+If you are the current IT Manager reading this and preparing to hand over:
+**finishing those pages is the single highest-leverage thing you can do
+for your successor**. A complete template-with-gaps is more valuable
+than a polished but vague narrative.
+
+## Where to start
+
+If you're a brand-new IT Manager opening this for the first time:
+
+1. Read this page (you're doing it).
+2. Read [ownership-and-accounts](/docs/handover/ownership-and-accounts)
+   and verify you have access to each item. If you don't, fix that before
+   doing anything else.
+3. Read [domains-and-hosting](/docs/handover/domains-and-hosting).
+4. Skim [design-decisions](/docs/handover/design-decisions). This is the
+   "why" page — it'll save you from re-litigating decisions that have
+   already been made.
+5. Skim [known-limitations](/docs/handover/known-limitations) so you
+   don't get blindsided.
+6. Then move on to [/docs/operations/overview](/docs/operations/overview) to learn how to
+   actually run the thing.
+
+## A note on the spirit of these docs
+
+The platform is built for a student organisation. That means turnover is
+high, budgets are tight, and continuity depends on documentation more
+than on individuals. I've tried to bias toward:
+
+- **Saying the boring thing out loud.** "The session cookie name is
+  literally a secret because changing it logs everyone out" is the kind
+  of fact that takes a week to discover and a sentence to write down.
+- **Marking unknowns.** If I don't know something, it says `[FILL IN]`
+  rather than a plausible guess.
+- **Naming alternatives.** Wherever a major decision is documented,
+  there's a list of what was considered. The next person will look at
+  some of those decisions and want to revisit them. That's fine.
+
+Good luck. You're going to do great.
+
+— *the previous IT Manager*

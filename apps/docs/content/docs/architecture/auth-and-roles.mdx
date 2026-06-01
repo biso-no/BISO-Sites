@@ -1,0 +1,260 @@
+---
+title: Auth and roles
+description: Sign-in flows, anonymous sessions, Azure AD sync, and how roles are derived for the admin app.
+---
+
+# Auth and roles
+
+Authentication has two surfaces (public and admin) and authorization
+has three (web user, admin user, API service). All of them ultimately
+talk to one Appwrite project, but the rules differ.
+
+This page is the canonical reference for:
+
+- How sessions are minted on `apps/web` and `apps/admin`.
+- How roles are derived from Azure AD security groups.
+- Where the gatekeepers live (no middleware in admin!).
+- How `apps/api` checks the three admin tiers.
+
+The canonical implementations are in `apps/admin/src/lib/roles.ts`
+and `apps/admin/src/lib/authorization.ts`. `apps/api` has its own
+abridged copy at `apps/api/src/lib/admin-auth.ts`.
+
+---
+
+## Public site (`apps/web`)
+
+### Anonymous sessions
+
+Every visitor to `biso.no` has an Appwrite session before they hit any
+page. `apps/web/src/proxy.ts` is a Next middleware that runs on every
+request:
+
+1. If `a_session_biso` cookie is present, let the request through.
+2. If it's missing, redirect to
+   `/api/auth/anonymous?redirect=<original-url>`.
+3. The handler calls `createAdminClient()` (service-key), creates an
+   anonymous session, sets the cookie, and redirects back.
+
+This means server actions never have to branch on "is there a
+session". There is always a session; the only question is whether
+it's anonymous or signed-in.
+
+### Real authentication
+
+On top of the anonymous floor, users can register / sign in with:
+
+- Email + password (Appwrite `account.createEmailPasswordSession`).
+- Magic link (Appwrite "email token").
+- OAuth: Microsoft, Google, Facebook, Apple
+  (`account.createOAuth2Token`).
+
+### What counts as "authenticated"
+
+`getAuthStatus()` (in `apps/web/src/lib/`) uses this rule:
+
+```ts
+authenticated = hasEmail || (hasRealName && emailVerification);
+```
+
+A bare anonymous session has neither — so it isn't authenticated.
+Once the user adds an email or completes OAuth, the rule flips.
+Server actions that need a real user call `getLoggedInUser()` and
+redirect to `/login` if the result is anonymous.
+
+---
+
+## Admin (`apps/admin`)
+
+### Sign-in flows
+
+There are two paths:
+
+1. **Microsoft OAuth (primary).** `account.createOAuth2Token` →
+   redirects to Microsoft → callback at `(auth)/auth/oauth/route.ts`.
+   The handler `await`s `syncM365Permissions()` **before** setting the
+   cookie. By the time the user sees their first authenticated page,
+   their Appwrite team memberships already mirror their Azure AD
+   security groups.
+2. **Magic link (secondary).** `(auth)/auth/callback/route.ts`. For
+   external users who don't have an Azure AD account. This handler
+   calls `syncM365Permissions()` best-effort (does **not** await),
+   because external users typically aren't in Azure AD and the call is
+   a no-op.
+
+The session cookie is `a_session_biso_admin` (distinct from the public
+site's `a_session_biso`).
+
+### `syncM365Permissions()` — what it actually does
+
+For an authenticated Microsoft user, it:
+
+1. Fetches the user's `transitiveMemberOf` groups from Microsoft Graph.
+2. Looks at groups prefixed `SG-App-` (campus, department, role).
+3. Diffs against the user's current Appwrite team memberships.
+4. Adds/removes team memberships to match Azure AD.
+
+Result: Appwrite teams are an exact mirror of relevant Azure AD
+security groups. The admin app reads team memberships to compute
+roles. **Appwrite user labels are no longer used for role decisions**
+(some legacy code reads them, but it's effectively dead).
+
+<Callout type="info">
+**A note on the M365 licenses behind this**: BISO does not pay for
+Microsoft 365 licenses directly. Staff who sign in to admin.biso.no
+are typically BI students with an active license attached to their
+**student email** (via BI Norwegian Business School's tenant). Their
+BISO account (`name@biso.no`) is a separate identity under BISO's own
+tenant — `biso.no`, tenant ID `74a117b9-9343-4c86-b44d-398c88ba1ed8` —
+but the underlying licensing is BI's. The auth flow above doesn't
+care about this, but it matters at handover: if BI ever changes its
+student-license programme, BISO would need to acquire its own
+licenses. See [Handover → Ownership and accounts](/docs/handover/ownership-and-accounts#microsoft-365--azure-ad).
+</Callout>
+
+### Role derivation
+
+Roles are **derived**, not stored. Three roles matter:
+
+| Role | Membership trigger |
+|---|---|
+| `globaladmin` | `SG-App-Campus-National` **and** `SG-App-Dept-OperationsUnit` |
+| `campusadmin` | `SG-App-Campus-{City}` **and** `SG-App-Dept-Ledelsen{City}` (for that city) |
+| `department` (pseudo) | Any `SG-App-Dept-*` membership |
+
+Old role groups (`SG-App-Role-Finance`, `-HR`, `-PR`, `-Controller`)
+are **deprecated**. If you encounter them in code review, replace the
+check with a department-membership check.
+
+### Nav access
+
+`NAV_ACCESS` in `apps/admin/src/lib/roles.ts` is the lookup table:
+
+```ts
+NAV_ACCESS: Record<NavKey, (roles, hasDeptMembership) => boolean>;
+```
+
+`hasNavAccess(navKey, userRoles, hasDepartmentMembership)` returns
+whether the current user can see (and route to) a given nav item.
+The sidebar in `(portal)/sidebar.tsx` filters items through this.
+
+### Where auth is enforced — not where you'd guess
+
+**There is no `middleware.ts` in `apps/admin`.** Auth is enforced in
+two places:
+
+1. **Route-group layouts.** `(portal)/layout.tsx` and
+   `(editor)/layout.tsx` call `getUserAuthContext()` and redirect to
+   `/auth/login` if it returns `null`.
+2. **Every server action.** They call `requireAuth()` or
+   `getUserAuthContext()` before doing anything else. Defence in
+   depth: if a layout-less RSC ever leaks (e.g. a parallel route), the
+   action still refuses to run.
+
+`getUserAuthContext()` returns the canonical context object:
+
+```ts
+type AuthContext = {
+  user: AppwriteUser;
+  roles: Role[];                  // ["globaladmin"] | ["campusadmin"] | [...]
+  managedCampusIds: string[];     // campuses this user actually administers
+  resolvedCampusIds: string[];    // managedCampusIds + active context
+  activeCampusId: string | null;  // global-admins can scope themselves via a cookie
+  hasDepartmentMembership: boolean;
+};
+```
+
+See [Campus and department scoping](/docs/architecture/campus-and-department-scoping)
+for the difference between `managedCampusIds` and
+`resolvedCampusIds`.
+
+### Active campus context (global admins only)
+
+Global admins manage every campus. To make their UX manageable, they
+can "scope themselves" into a campus via the `admin_campus_ctx`
+cookie. The UI sets this when they pick a campus in the topbar; every
+server action then sees `ctx.activeCampusId` set and applies the same
+filters a campus admin would.
+
+This is a UI affordance, not a security boundary. A global admin can
+unset the cookie and see everything again.
+
+---
+
+## `apps/api`
+
+`apps/api` has its own admin auth module at
+`apps/api/src/lib/admin-auth.ts`. It uses the **same Azure AD group
+prefixes** as the admin app, but reads them via the JWT-authenticated
+Appwrite client rather than relying on `syncM365Permissions()` having
+run.
+
+### JWT flow
+
+1. `apps/web` calls the `createJWT()` server action when it needs to
+   talk to `apps/api`. That action calls
+   `account.createJWT()` against the **user-scoped** Appwrite client
+   and caches the result for 14 minutes (Appwrite JWTs expire at 15
+   minutes).
+2. `apps/web` includes the JWT in the `Authorization: Bearer <jwt>`
+   header on the upstream request.
+3. `apps/api/src/lib/auth.ts` extracts it with
+   `extractJwtFromRequest(req)`.
+4. The route handler builds an Appwrite client with
+   `createSessionClient(jwt)` from `@repo/api/server`. That client now
+   acts as the user — including their Appwrite team memberships.
+
+### The three admin tiers
+
+```
+┌─────────────────────────────────────────────┐
+│ Tier 1: Global admin                        │
+│   National + OperationsUnit teams           │
+│   → can act on any campus                   │
+├─────────────────────────────────────────────┤
+│ Tier 2: Campus admin                        │
+│   Campus-{City} + Ledelsen{City} teams      │
+│   → can act on their campus only            │
+├─────────────────────────────────────────────┤
+│ Tier 3: Department admin                    │
+│   Any Dept-* team                           │
+│   → can act on their unit only              │
+└─────────────────────────────────────────────┘
+```
+
+Each admin route in `apps/api/src/app/api/admin/*` declares the
+minimum tier it requires. Sub-campus/department checks happen inside
+the handler against the JWT-decoded team list.
+
+### Service-key endpoints
+
+A couple of routes don't use JWTs at all:
+
+- `/departures/sync` requires `Authorization: Bearer
+  $ENTUR_SYNC_SECRET`.
+- `/cleanup-anon-users` requires `Authorization: Bearer
+  $CRON_SECRET`.
+
+These are called by cron jobs / scheduled tasks, not by users.
+
+---
+
+## Quick reference: where each gate lives
+
+| Surface | Gate | File |
+|---|---|---|
+| Public-site anonymous session | Middleware | `apps/web/src/proxy.ts` |
+| Public-site "real" auth | Server action / route handler | `apps/web/src/lib/...` (`getLoggedInUser`, `getAuthStatus`) |
+| Admin auth | Route-group layout + every server action | `apps/admin/src/app/(portal)/layout.tsx`, `apps/admin/src/lib/authorization.ts` |
+| Admin role derivation | Sync at sign-in | `apps/admin/src/lib/syncM365Permissions.ts` |
+| Admin nav access | Lookup table | `apps/admin/src/lib/roles.ts` (`NAV_ACCESS`) |
+| API service auth | Per-route check | `apps/api/src/lib/admin-auth.ts`, `apps/api/src/lib/auth.ts` |
+
+## Where to read next
+
+- **[Campus and department scoping](/docs/architecture/campus-and-department-scoping)** —
+  the data-layer enforcement on top of these roles.
+- **[API service](/docs/architecture/api-service)** — endpoint
+  catalogue with per-tier requirements.
+- **[Roles and permissions](/docs/admin-handbook/roles-and-permissions)** —
+  user-facing view from the admin handbook.

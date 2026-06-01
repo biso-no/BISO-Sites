@@ -1,0 +1,73 @@
+---
+title: Jobs and recruitment
+description: How BISO recruits — vacancies, applications, AI screening, and interview booking, all from one workspace.
+---
+
+# Jobs and recruitment
+
+The **Jobs** area is where BISO runs its recruitment cycles end-to-end. You write the vacancy, accept applications, screen candidates, book interviews, and decide who joins. Everything sits under a single sidebar entry, and what you see is scoped to your campus and department.
+
+If you have ever managed a recruitment round on paper or in a shared spreadsheet, this section replaces all of that.
+
+## What lives here
+
+The Jobs area is built around two main lists and a per-job workspace.
+
+| Screen | What it is |
+|--------|------------|
+| **Jobs list** (`/jobs`) | Every vacancy you are allowed to manage. Filterable by status, campus, and department. |
+| **Applications dashboard** (`/jobs/applications`) | Every application across every job you can manage, in one place. Useful for IT and campus leadership. |
+| **Job editor** (`/jobs/[id]`) | One vacancy: its details, custom questions, screening rubric, interview template, and the per-job applications list. |
+| **Per-job applications** (`/jobs/[id]/applications`) | The applications for a single vacancy, with the candidate drawer for in-depth review. |
+
+When you open a candidate from any list, a side drawer slides in with their answers, resume, screening score, and the controls to move them through the pipeline.
+
+## How a vacancy moves through life
+
+A vacancy has three states:
+
+| Status | Meaning |
+|--------|---------|
+| Draft | Being written. Not visible on the public site. |
+| Published | Live on biso.no and accepting applications. |
+| Closed | No longer accepting applications. The applications you already received remain manageable. |
+
+You can move a vacancy back and forth between draft and published while you tweak details. Closing is normally what you do after the application deadline has passed and you have moved everyone you want into interviews.
+
+## How an application moves through life
+
+Every application has its own status that you change as you make decisions.
+
+| Status | What it means in practice |
+|--------|---------------------------|
+| Applied | Just submitted. Untouched by you so far. |
+| Screened | Reviewed (manually or by [AI screening](/docs/admin-handbook/jobs/ai-screening)) and considered worth taking further. |
+| Interview | Scheduled for or completed an interview. |
+| Offer | You have offered the position to the candidate. |
+| Hired | They accepted and joined BISO. |
+| Rejected | They will not be moving forward. |
+
+Candidates only ever see whether their application is still open, on hold, or closed — never the internal label.
+
+## Who can do what
+
+Job records are scoped by campus and department. Your role decides what you can manage.
+
+| Role | Can manage |
+|------|------------|
+| Global admin | Every vacancy and every application on every campus. |
+| Campus admin | Every vacancy and application **within their campus**, across departments. |
+| Department | Vacancies and applications belonging to **their department**, for their campus. |
+
+So if you are the HR lead in Bergen, you see your own department's vacancies for the Bergen campus and nothing else. If you are a campus admin in Bergen, you see every department's vacancies in Bergen.
+
+## Where to go next
+
+Pick the page that matches what you are trying to do:
+
+- **Posting a new role?** Start with [Creating vacancies](/docs/admin-handbook/jobs/creating-vacancies).
+- **Reviewing who applied?** [The applications workspace](/docs/admin-handbook/jobs/applications-workspace).
+- **Letting AI rank candidates for you?** [AI screening](/docs/admin-handbook/jobs/ai-screening).
+- **Setting up interviews?** [Interviews and booking](/docs/admin-handbook/jobs/interviews-and-booking).
+
+If you are configuring access for a new recruiter, that is decided by Azure AD groups — see [Roles and permissions](/docs/admin-handbook/roles-and-permissions).

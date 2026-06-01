@@ -1,0 +1,89 @@
+---
+title: Expense portal
+description: How the FS (Fond Søknad) expense and reimbursement flow works — receipt OCR, submission, and PDF generation.
+---
+
+# Expense portal
+
+The expense portal — internally called **FS** for "Fond Søknad" — is how BISO members get reimbursed for things they paid out of pocket: event supplies, travel, materials, refreshments. It lives at `/fs` and is part of the protected route group, so users must be signed in.
+
+## What the user sees
+
+| Route | Purpose |
+|-------|---------|
+| `/fs` | The user's list of expense claims with status. |
+| `/fs/new` | Form for a new claim — upload a receipt and review the OCR'd fields. |
+| `/fs/[id]` | View or edit a single claim. |
+
+The user can only see their own claims. Admins see all claims via the admin app.
+
+## Submitting an expense — the user flow
+
+1. User opens `/fs/new` and uploads a photo or PDF of their receipt.
+2. The browser sends the receipt to `apps/api` for OCR — see [Receipt OCR](#receipt-ocr) below.
+3. The API returns extracted fields: vendor, date, amount, currency, suggested category.
+4. The user reviews and corrects the fields, fills in a description, picks the department to charge, and attaches additional files if needed.
+5. They submit. The server action `submitExpense()` creates the `expense` row and any `expense_attachments`.
+6. The claim appears on `/fs` with status `submitted` (or `pending` depending on the configured flow).
+
+## Claim status flow
+
+| Status | Meaning |
+|--------|---------|
+| `draft` | Started but not yet submitted. The user can still edit. |
+| `submitted` | User has submitted; waiting for review. |
+| `pending` | Under review by an approver. |
+| `success` | Approved and (eventually) paid. |
+| `rejected` | Denied. User sees a reason. |
+
+Status transitions are driven by admin action, not user action.
+
+## Receipt OCR
+
+The OCR is **not** done in the Next.js app — it's done by the standalone JWT-authenticated `apps/api` service. The flow:
+
+1. The client component uses `apiClient.fetch` to POST the receipt file to `${API_BASE}/api/expenses/ocr`.
+2. The `apps/api` service authenticates the request with the user's JWT, extracts the receipt text using OpenAI, and returns structured fields.
+3. The user reviews the fields client-side and submits.
+
+Routing OCR through the API service keeps the OpenAI key out of `apps/web` and out of the browser, and means the same OCR endpoint could be reused elsewhere.
+
+`API_BASE` comes from `NEXT_PUBLIC_API_BASE_URL`.
+
+## PDF generation
+
+Once an expense is approved, the system generates a PDF (using `@react-pdf/renderer` on the `apps/api` side) that becomes the audit trail. Admins can download the PDF; finance attaches it to the reimbursement record.
+
+## Data model
+
+| Table | Key fields | Purpose |
+|-------|-----------|---------|
+| `expense` | `user_id`, `department_id`, `amount`, `currency`, `vendor`, `description`, `status`, `created_at` | One row per claim. |
+| `expense_attachments` | `expense_id`, `file_id`, `kind` | Receipt and additional file attachments. |
+
+Files are stored in Appwrite Storage. The `expense` row references the storage IDs through `expense_attachments`.
+
+## Auth
+
+The whole `/fs/*` tree is protected. An anonymous user hitting `/fs` is sent to login first. Once logged in, they only see rows they own — enforced by Appwrite permissions.
+
+For OCR, the `apps/api` call uses a JWT derived from the user's Appwrite session, so the API service can attribute the request to the right user.
+
+## For admins
+
+Admins review and approve expenses in the admin app under Expenses (or via Submissions, depending on the user's role). See [Admin Handbook → Submissions](/docs/admin-handbook/submissions).
+
+## For developers
+
+| File | Role |
+|------|------|
+| `apps/web/src/app/(protected)/fs/*` | All FS pages and the new-expense form. |
+| `apps/web/src/app/actions/expenses.ts` (typical location) | `submitExpense()` and helpers. |
+| `apps/api/` | The OCR endpoint and PDF generation. |
+
+See the `apps/api` docs in [Architecture](/docs/architecture/overview) for the service's request shape and JWT handling.
+
+## What's intentionally not here
+
+- **Direct bank reimbursement.** The portal records claims and generates the paper trail; actual transfers happen in the finance team's tools.
+- **Multi-step approval routing.** Approval is a single step from "submitted" to "success/rejected." More complex routing can be added later if needed.

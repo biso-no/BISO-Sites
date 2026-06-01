@@ -1,0 +1,85 @@
+---
+title: Membership
+description: How BISO membership is sold, how member status is verified against Finago, and how member discounts are applied.
+---
+
+# Membership
+
+A BISO membership is what unlocks member pricing on events and shop products, and access to certain member-only events. It's sold as a regular shop product and verified against BISO's accounting system (Finago, formerly 24SevenOffice). The site never trusts a row in Appwrite alone — the truth is in Finago.
+
+## Buying a membership
+
+From the user's point of view, a membership is just a product:
+
+1. They go to `/membership` (the marketing page) and click through to the membership product in `/shop`.
+2. They check out with Vipps or Stripe like any other purchase. See [Shop and checkout](/docs/public-website/shop-and-checkout).
+3. On successful payment, the order's post-processing step calls `createMembershipInvoice()` against Finago for the campus the user belongs to. This creates the membership invoice on the accounting side and registers the customer with the right "customer category" — that category *is* the membership.
+4. A row is created in the Appwrite `memberships` table (with `user_id`, `status`, `start_date`, `expiry_date`) so the site can show "you're a member" instantly without round-tripping to Finago.
+5. Future visits revalidate against Finago periodically (see below).
+
+This indirection means an admin can issue or revoke a membership directly in Finago — say, for a comped student rep — and the site picks it up on the next refresh. The Appwrite `memberships` table is a cache and an audit log, not the source of truth.
+
+## How "are you a member?" is answered
+
+The endpoint is:
+
+```
+GET /api/membership
+GET /api/membership?refresh=true
+```
+
+It does three things:
+
+1. Calls `getCustomerCategories()` on `@repo/connectors/24sevenoffice` with the user's email.
+2. Returns `{ isMember, memberships[], finagoCategoryIds[] }`.
+3. Caches the result in a cookie for **10 minutes**.
+
+`?refresh=true` bypasses the cache and forces a fresh Finago lookup. The membership page and the checkout flow both call this implicitly.
+
+For details on the connector itself, see [Integrations → 24SevenOffice / Finago](/docs/integrations).
+
+## Cached on the public layout
+
+`(public)/layout.tsx` fetches membership status server-side on every page load (using the cached value when it's fresh). That means the header, member badges, and member pricing are all consistent on the first render — no client-side flash.
+
+## Where membership affects the user experience
+
+| Surface | What changes for members |
+|---------|--------------------------|
+| Event listing | Events flagged `member_only` are visible to everyone but only registerable by members. Events with `member_price` show two prices, with the member price highlighted. |
+| Event registration | The lower price is applied automatically at registration time. |
+| Shop product page | Products with `member_discount_enabled` show the discounted price next to the regular price. |
+| Shop checkout | `member_discount_percent` is applied to the cart line in `resolvePricing()` — but only if Finago confirms membership at checkout time. |
+| Member-only pages | Editor-built pages with audience set to "members" are hidden from non-members. |
+| Member section | `/member` shows member-specific content. |
+
+The "verified at checkout" step is important: a stale membership cache cannot grant a discount the user isn't actually entitled to.
+
+## The data model
+
+| Table | Key fields | Purpose |
+|-------|------------|---------|
+| `memberships` | `user_id`, `status`, `start_date`, `expiry_date`, `campus_id` | Cached membership state and history. |
+| `payments` | `order_id`, `user_id`, `amount`, `provider`, `status` | Payment records — including the membership purchase. |
+
+The schema and full attribute list live in `packages/api/appwrite.config.json`.
+
+## What can go wrong (and how the site handles it)
+
+| Scenario | What the user sees |
+|----------|---------------------|
+| Finago is down when the user opens the site. | Cached membership cookie is used. If no cookie, the user is treated as non-member. The page still renders. |
+| User just paid for membership but Finago hasn't synced yet. | Order confirmation says "membership activating" — next visit revalidates. |
+| User's membership has expired in Finago. | Next `/api/membership` call returns `isMember: false`, and the cache is replaced. |
+| User has multiple Finago records (e.g., changed email). | Currently matches on the email on file in Appwrite. Admins can fix mismatches directly in Finago. |
+
+## For developers
+
+| File | Role |
+|------|------|
+| `apps/web/src/app/api/membership/route.ts` | The endpoint. |
+| `apps/web/src/app/(public)/layout.tsx` | Calls it on every public page. |
+| `packages/connectors/24sevenoffice/*` | The Finago client and `createMembershipInvoice()`. |
+| `packages/api` collections `memberships`, `payments` | Cache and payment history. |
+
+For the admin side of membership management, see [Admin Handbook → Settings](/docs/admin-handbook/settings).

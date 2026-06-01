@@ -1,0 +1,151 @@
+---
+title: Testing
+description: What's tested today, what isn't, and how to add tests where they matter.
+---
+
+# Testing
+
+A frank assessment: testing on this platform is **uneven**. The data-heavy `apps/api`
+service has Vitest coverage for pure helpers; the Next.js apps don't have unit tests
+checked in. Type-checking and manual QA carry the weight.
+
+This page tells you what exists, where to add tests, and where coverage is a known gap.
+
+## What runs in CI
+
+Every PR runs:
+
+- `bun run check-types` — the most important signal. `next build` does not type-check
+  (`typescript.ignoreBuildErrors: true`), so this catches the type errors that would
+  otherwise ship.
+- `bun run lint` — Biome via Ultracite.
+- `bun run build` — production build for each app.
+- `bun --filter=api test` — Vitest on the `apps/api` package (when changes touch it).
+
+A failing type-check or build blocks merge. Lint warnings are surfaced; treat them as
+blockers anyway.
+
+## Where tests live today
+
+Only `apps/api` has Vitest tests checked in:
+
+```text
+apps/api/
+  vitest.config.ts
+  src/
+    ...
+    *.test.ts
+      entur-departures.test.ts    — transit feed parsing
+      expense-payload.test.ts     — expense submission shape
+      expense-summary.test.ts     — expense aggregation
+      recruitment.test.ts         — candidate scoring helpers
+```
+
+Run them:
+
+```bash
+bun --filter=api test           # all api tests
+bun --filter=api test -- --watch
+bun --filter=api test -- entur  # match by file name
+```
+
+## What's *not* covered
+
+- **`apps/web`** — no unit tests. Manual QA + type checks.
+- **`apps/admin`** — no unit tests. Manual QA + type checks.
+- **`packages/editor`** — no unit tests for blocks. Visual verification in the editor.
+- **`packages/ui`** — no tests. Components are thin wrappers over Radix.
+- **E2E** — no Playwright / Cypress setup. Not blocking, but a known gap.
+
+Be honest about this in PR descriptions. If you touch payment flow, auth, or
+campus-scoping logic, manual QA notes in the PR description are non-negotiable — the
+type-checker can't catch a missing scope query.
+
+## Writing a new test
+
+For pure helpers in `apps/api` (or anywhere else with a `vitest.config.ts`):
+
+```ts
+// apps/api/src/scoring/score-candidate.test.ts
+import { describe, expect, it } from "vitest";
+import { scoreCandidate } from "./score-candidate";
+
+describe("scoreCandidate", () => {
+  it("scores a perfect match at 100", () => {
+    expect(
+      scoreCandidate(
+        { skills: ["typescript", "react"] },
+        { required: ["typescript", "react"] },
+      ),
+    ).toBe(100);
+  });
+
+  it("returns 0 when no required skills present", () => {
+    expect(scoreCandidate({ skills: [] }, { required: ["typescript"] })).toBe(0);
+  });
+});
+```
+
+Place test files next to the source (`foo.ts` + `foo.test.ts`) — that's the convention in
+`apps/api`.
+
+## What's worth testing
+
+When you write a test, prioritize:
+
+1. **Pure parsers/transformers** — input → output, no I/O. High value, low cost.
+   (See `entur-departures.test.ts` for a good example.)
+2. **Scoring / ranking / pricing** — anything where a bug means wrong numbers in
+   production.
+3. **Permission helpers** — `applyScopeQueries`, role checks. Bugs here are silent data
+   leaks.
+4. **Regression tests** — when you fix a bug, write the test that would have caught it.
+
+What *not* to spend time on:
+
+- Components that just render props — type checks cover most regressions.
+- One-line wrappers around `@repo/api` — you'd be testing Appwrite.
+- Mocked tests that pretend to exercise Appwrite — you'll mock the bug in.
+
+## Adding Vitest to another package
+
+To turn on tests in a package that doesn't have them yet:
+
+```bash
+bun add -d vitest --filter=<package>
+```
+
+Add `vitest.config.ts` mirroring `apps/api/vitest.config.ts`. Add a `test` script to the
+package's `package.json`:
+
+```json
+{
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest"
+  }
+}
+```
+
+Then `bun --filter=<package> test`. If you wire it into the root `turbo.json` test
+pipeline, CI will pick it up automatically.
+
+## Manual QA checklist
+
+Before merging a non-trivial change, walk through these in dev:
+
+- Sign in to admin, verify the sidebar shows what you expect for your role.
+- Sign in to web as a member, verify member-only routes work.
+- For new server actions: invoke them, verify the audit log entry, verify
+  `revalidatePath()` actually updated the UI.
+- For editor changes: drag a block on the canvas, save, publish, verify it renders on the
+  live site.
+- For i18n changes: switch the locale, verify both `no` and `en` render correctly.
+- For payment / Vipps changes: walk through a sandbox payment to `/api/checkout/return`.
+
+## Where to go next
+
+- [Daily workflow](/docs/developing/daily-workflow) — pre-push checklist.
+- [Troubleshooting](/docs/developing/troubleshooting) — when manual QA fails.
+- [Operations / Monitoring and health](/docs/operations/monitoring-and-health) — what
+  production tells you when tests didn't.

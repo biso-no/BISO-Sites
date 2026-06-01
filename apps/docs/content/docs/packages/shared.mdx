@@ -1,0 +1,222 @@
+---
+title: "@repo/shared"
+description: Cross-cutting utilities, types, and recruitment helpers shared by every app.
+---
+
+# @repo/shared
+
+`@repo/shared` is the catch-all package for code that doesn't fit
+elsewhere but is used by more than one app: payment helpers that
+straddle the boundary between order parsing and Vipps API calls,
+typed scope objects for permission checks, and the recruitment
+helpers that turn raw Appwrite rows into the shaped DTOs the admin
+and public site both consume.
+
+Anything in here that *could* live in a more specific package (the
+Vipps helpers in particular have overlap with `@repo/payment`) does
+so for one of two reasons:
+
+1. It encodes business logic that depends on the project's row
+   shapes, so it has to import `@repo/api`.
+2. It is consumed by code paths that don't otherwise depend on the
+   more specific package.
+
+## Entrypoints
+
+| Subpath                  | Purpose                                                      |
+|--------------------------|--------------------------------------------------------------|
+| `@repo/shared/utils/*`   | Vipps helpers, membership-sync utilities, benefit-scope, order parsing |
+| `@repo/shared/types/*`   | Shared TypeScript types: recruitment, vipps, user-management, events |
+| `@repo/shared/recruitment` | Recruitment DTO builders and permission checks            |
+
+## Utilities
+
+### Vipps helpers
+
+```ts
+import {
+  vippsClient,
+  // ... see source for the full export set
+} from "@repo/shared/utils/vipps-client";
+
+import {
+  // pure functions: signature building, amount conversion
+} from "@repo/shared/utils/vipps-pure";
+
+import {
+  // higher-level order operations
+} from "@repo/shared/utils/vipps-order-ops";
+```
+
+These three files split along the same line as `@repo/payment/vipps`,
+but with project context baked in:
+
+- `vipps-client.ts` — authenticated HTTP client (OAuth token cache,
+  base URL switching between test and prod).
+- `vipps-pure.ts` — pure helpers: HMAC signing, minor-unit
+  conversion, callback URL building.
+- `vipps-order-ops.ts` — operations that span Vipps + Appwrite —
+  starting a checkout from an order row, reconciling a webhook into
+  the order status.
+
+The split between this and `@repo/payment/vipps`: `@repo/payment`
+contains pure session creation; `@repo/shared` adds the order-row
+integration. Net result is that `apps/web` typically imports from
+`@repo/shared` and only reaches into `@repo/payment` when it needs
+the low-level primitive.
+
+### Membership sync
+
+```ts
+import { ... } from "@repo/shared/utils/membership-sync";
+```
+
+The Appwrite-side counterpart to
+`@repo/connectors/24sevenoffice`'s `syncMembershipsFrom24SO()`.
+Handles diffing 24SO customers against Appwrite members and applying
+the deltas. Lives here rather than in `@repo/connectors` because it
+writes to Appwrite via `@repo/api`.
+
+### Benefit scope
+
+```ts
+import { computeBenefitScope } from "@repo/shared/utils/benefit-scope";
+```
+
+Tier-based access calculation. Given a member's tier
+(`free | standard | premium`) and a benefit's tier requirement,
+returns whether the member can see / claim the benefit. Used by both
+the public benefits page and admin's preview tooling.
+
+### Order parsing
+
+```ts
+import { ... } from "@repo/shared/utils/order-parsing";
+```
+
+Normalizes order data between provider-specific shapes (Vipps,
+Stripe) and the Appwrite `orders` row. Decoders for line items,
+shipping addresses, and refunds.
+
+## Types
+
+`@repo/shared/types/*` exports plain TypeScript types that don't
+belong in `@repo/api/types/appwrite` (those are auto-generated row
+types — anything hand-authored goes here).
+
+| Module                              | What's in it                                     |
+|-------------------------------------|--------------------------------------------------|
+| `@repo/shared/types/recruitment`    | `RecruitmentVacancy`, `RecruitmentApplication`, `RecruitmentRubric`, `InterviewTemplate` |
+| `@repo/shared/types/vipps`          | Vipps API request/response shapes used by the helpers |
+| `@repo/shared/types/user-management`| `AdminScope`, role / capability types            |
+| `@repo/shared/types/events`         | Event DTOs used by both admin and web            |
+
+### `AdminScope`
+
+`AdminScope` deserves a callout. It is the typed object that
+represents what an admin can do. Both `@repo/ai`'s assistant tool
+gating and the admin app's route guards consult it:
+
+```ts
+type AdminScope = {
+  isGlobalAdmin: boolean;
+  campusIds: string[];
+  departmentIds: string[];
+  capabilities: Set<Capability>;
+};
+```
+
+See [Auth and roles](/docs/architecture/auth-and-roles) for how
+`AdminScope` is derived from Azure AD groups + Appwrite teams at
+login.
+
+## Recruitment helpers
+
+`@repo/shared/recruitment` is the largest single area of the package.
+It is where the messy Appwrite rows (one row per job, separate rows
+for translations, custom questions, rubrics, and interview templates)
+get assembled into a single DTO the apps can consume.
+
+```ts
+import {
+  RecruitmentLookups,
+  canManageRecruitmentVacancy,
+  canReviewRecruitmentVacancy,
+  buildRecruitmentVacancy,
+  fetchRecruitmentListRows,
+  fetchRecruitmentJobsByIds,
+  getRecruitmentJobBySlug,
+  getRecruitmentJobById,
+  getRecruitmentVacancyTitle,
+  localizeVacancy,
+} from "@repo/shared/recruitment";
+```
+
+### `RecruitmentLookups`
+
+Bi-directional lookup maps for campus and department names ↔ IDs.
+Constructed once per request and passed around so DTO builders don't
+re-query Appwrite for the same metadata.
+
+```ts
+const lookups = await RecruitmentLookups.create(db);
+lookups.campusById("...");           // { id, name, ... }
+lookups.departmentByName("...");     // { id, name, campusId }
+```
+
+### Permission checks
+
+- `canManageRecruitmentVacancy(scope, vacancy)` — true if the admin
+  can edit the vacancy (write access to its department or campus).
+- `canReviewRecruitmentVacancy(scope, vacancy)` — true if the admin
+  can review applications (often a broader set than manage).
+
+Both take an `AdminScope` and return a boolean. Use them inside
+server actions to gate writes and in components to hide controls.
+
+### DTO builder
+
+```ts
+const vacancy = await buildRecruitmentVacancy({
+  jobRow,
+  db,
+  lookups,
+});
+```
+
+`buildRecruitmentVacancy()` accepts the raw `jobs` row plus
+ancillary data and returns a complete client-shaped
+`RecruitmentVacancy` with:
+
+- Metadata (campus, department, status, dates).
+- Translations (one entry per locale).
+- Custom questions.
+- Rubrics (with weights and per-criterion descriptions).
+- Interview templates.
+
+### Fetchers
+
+- `fetchRecruitmentListRows({ db, scope, filters })` — paginated
+  list, applying scope-based filtering.
+- `fetchRecruitmentJobsByIds(db, ids)` — bulk fetch by ID.
+- `getRecruitmentJobBySlug(db, slug, locale)` — public-site lookup.
+- `getRecruitmentJobById(db, id)` — admin lookup.
+
+### Locale helpers
+
+- `getRecruitmentVacancyTitle(vacancy, locale)` — picks the right
+  translation, falling back to Norwegian if the requested locale is
+  missing.
+- `localizeVacancy(vacancy, locale)` — returns a vacancy where all
+  translated fields are collapsed to a single locale.
+
+## Consumers
+
+All three Next.js apps depend on `@repo/shared`:
+
+- **`apps/web`** uses Vipps order ops, benefit scope, and the
+  recruitment fetchers (public job listings).
+- **`apps/admin`** uses recruitment helpers extensively, plus
+  membership sync and `AdminScope`.
+- **`apps/api`** uses the types and a subset of utilities for its
+  JWT-authenticated endpoints.

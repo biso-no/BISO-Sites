@@ -3,31 +3,36 @@ import {
   AppWindow,
   ArrowRight,
   BookOpen,
+  Boxes,
   FolderGit2,
+  KeySquare,
+  LifeBuoy,
   Package,
+  Plug,
   Server,
+  Users,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 
 const personaCards = [
   {
-    label: "New to the codebase",
-    title: "IT Manager Onboarding",
+    label: "I administer the platform",
+    title: "Admin Handbook",
     description:
-      "Use the structured onboarding checklist to understand the monorepo, run the apps locally, and review credentials — no deep coding experience required.",
-    link: "/docs/repository/onboarding",
-    action: "Start onboarding",
+      "A screen-by-screen guide to the admin app — sign in, pick your campus, publish pages, run recruitment, manage the shop, approve content. Written for non-technical BISO staff.",
+    link: "/docs/admin-handbook",
+    action: "Open the handbook",
     accent: "#3DA9E0" as const,
     accentBg: "rgba(61,169,224,0.10)" as const,
   },
   {
-    label: "Ready to ship",
-    title: "Developer Quickstart",
+    label: "I'm maintaining or extending the code",
+    title: "Architecture overview",
     description:
-      "Jump straight into the five-minute setup, dev workflow, and package references so you can contribute without guessing where things live.",
-    link: "/docs/repository/quickstart",
-    action: "Open quickstart",
+      "Start with the system shape, then move into local setup, conventions, and per-package reference. Designed so a new IT Manager or external consultant can ship safely.",
+    link: "/docs/architecture/overview",
+    action: "See the architecture",
     accent: "#F7D64A" as const,
     accentBg: "rgba(247,214,74,0.10)" as const,
   },
@@ -35,63 +40,99 @@ const personaCards = [
 
 const sectionCards = [
   {
-    icon: FolderGit2,
-    title: "Repository",
+    icon: BookOpen,
+    title: "Getting Started",
     description:
-      "Project structure, installation commands, contribution guides, and monorepo conventions.",
-    link: "/docs/repository/project-structure",
+      "Platform overview, key concepts, glossary, and audience-specific entry points.",
+    link: "/docs/getting-started",
+  },
+  {
+    icon: Users,
+    title: "Admin Handbook",
+    description:
+      "Every screen of admin.biso.no, from sign-in to settings, written for daily users.",
+    link: "/docs/admin-handbook",
   },
   {
     icon: AppWindow,
-    title: "Applications",
+    title: "Public Website",
     description:
-      "Deep dives for the web and admin apps — features, routing, and data flow.",
-    link: "/docs/applications/overview",
+      "What students see on biso.no — routes, membership, shop, events, jobs, expenses.",
+    link: "/docs/public-website",
+  },
+  {
+    icon: FolderGit2,
+    title: "Architecture",
+    description:
+      "Monorepo layout, data model, auth and roles, the in-house block editor, the API service.",
+    link: "/docs/architecture/overview",
+  },
+  {
+    icon: Boxes,
+    title: "Developing",
+    description:
+      "Local setup, daily workflow, conventions, and how-to guides for common changes.",
+    link: "/docs/developing",
   },
   {
     icon: Package,
     title: "Packages",
     description:
-      "Shared API, payment, editor, and UI packages with full usage examples.",
+      "Reference docs for every @repo/* package — api, editor, ui, ai, connectors, payment.",
     link: "/docs/packages",
+  },
+  {
+    icon: Plug,
+    title: "Integrations",
+    description:
+      "Appwrite, Azure AD, SharePoint, 24SevenOffice, Vipps, Stripe, OpenAI, Anthropic, and more.",
+    link: "/docs/integrations",
   },
   {
     icon: Server,
     title: "Operations",
     description:
-      "Deployments, environment variables, Appwrite, and external service playbooks.",
+      "Environment variables, deployment, secrets, cron jobs, monitoring, incident response.",
     link: "/docs/operations/overview",
+  },
+  {
+    icon: KeySquare,
+    title: "Handover",
+    description:
+      "Ownership, accounts, third-party billing, working with consultants, and the platform's history.",
+    link: "/docs/handover",
   },
 ];
 
 const statCards = [
   {
     icon: AppWindow,
-    stat: "3",
+    stat: "4",
     unit: "Applications",
-    detail: "Web (public), Admin (editors), and Docs — all Next.js App Router.",
+    detail:
+      "web (public), admin (CMS), api (JWT REST), docs — all Next.js 15 App Router.",
   },
   {
     icon: Package,
-    stat: "5",
+    stat: "9",
     unit: "Shared Packages",
-    detail: "API, UI, Editor, Payment, and Configs keep logic DRY.",
+    detail:
+      "api, editor, ui, ai, connectors, payment, i18n, shared, typescript-config.",
   },
   {
-    icon: Server,
-    stat: "1",
-    unit: "Operations Layer",
+    icon: Plug,
+    stat: "11",
+    unit: "External Services",
     detail:
-      "Playbooks for Appwrite, Vipps, environments, and deployment tooling.",
+      "Appwrite, Azure AD, M365, SharePoint, 24SO, Vipps, Stripe, OpenAI, Anthropic, Pinecone, Entur.",
   },
 ];
 
 export default function Home() {
   return (
     <div className="flex min-h-screen flex-col">
-      {/* ── Hero: product visual as background, text overlaid ── */}
+      {/* ── Hero ── */}
       <section className="relative overflow-hidden border-b">
-        {/* Background image — fills the section */}
         <Image
           alt=""
           aria-hidden
@@ -101,7 +142,6 @@ export default function Home() {
           src="/shots.png"
         />
 
-        {/* Radial overlay: dense at centre for legibility, fades out to reveal image at edges */}
         <div
           aria-hidden
           className="absolute inset-0"
@@ -111,7 +151,6 @@ export default function Home() {
           }}
         />
 
-        {/* Fade into page background at the bottom */}
         <div
           aria-hidden
           className="absolute right-0 bottom-0 left-0 h-28"
@@ -121,10 +160,8 @@ export default function Home() {
           }}
         />
 
-        {/* Text content */}
         <div className="container relative z-10 mx-auto max-w-3xl px-4 pt-20 pb-24 text-center md:pt-24 md:pb-32">
           <div className="flex flex-col items-center space-y-6">
-            {/* Badge */}
             <span
               className="inline-flex items-center gap-2 rounded-full border px-3.5 py-1.5 font-medium text-sm"
               style={{
@@ -137,7 +174,6 @@ export default function Home() {
               BISO Sites · Turborepo · Next.js · Appwrite
             </span>
 
-            {/* Headline */}
             <h1 className="font-bold text-4xl text-white leading-[1.1] tracking-tight sm:text-5xl md:text-6xl">
               Documentation for{" "}
               <span
@@ -148,21 +184,19 @@ export default function Home() {
                   backgroundClip: "text",
                 }}
               >
-                every maintainer
+                administrators and developers
               </span>
             </h1>
 
-            {/* Sub-copy */}
             <p
               className="max-w-2xl text-lg leading-relaxed"
               style={{ color: "rgba(255,255,255,0.65)" }}
             >
-              Opinionated guides, references, and playbooks so future IT
-              managers and contributors can understand, operate, and extend the
-              BISO Sites monorepo.
+              Everything BISO staff need to use the admin app, and everything a
+              maintainer or consultant needs to keep the platform running and
+              extend it safely.
             </p>
 
-            {/* CTAs */}
             <div className="flex flex-col gap-3 pt-1 sm:flex-row">
               <Button
                 asChild
@@ -170,8 +204,8 @@ export default function Home() {
                 size="lg"
                 style={{ background: "#3DA9E0" }}
               >
-                <Link href="/docs/repository/onboarding">
-                  New IT Manager: Start here
+                <Link href="/docs/admin-handbook">
+                  Open the Admin Handbook
                   <ArrowRight className="h-4 w-4" />
                 </Link>
               </Button>
@@ -186,8 +220,8 @@ export default function Home() {
                 }}
                 variant="outline"
               >
-                <Link href="/docs/repository/quickstart">
-                  Developers: 5-minute setup
+                <Link href="/docs/architecture/overview">
+                  Developers: Start with the architecture
                 </Link>
               </Button>
             </div>
@@ -261,13 +295,13 @@ export default function Home() {
                 Everything in its place
               </h2>
               <p className="max-w-2xl text-muted-foreground text-sm leading-relaxed">
-                Use these anchors to jump into the area you need — repository
-                basics, app-specific guides, shared packages, or operations
-                playbooks.
+                Nine sections covering use of the platform, the codebase, the
+                external services, and the operational knowledge needed to hand
+                over to a successor.
               </p>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {sectionCards.map((section) => {
                 const Icon = section.icon;
                 return (
@@ -297,6 +331,39 @@ export default function Home() {
                   </Link>
                 );
               })}
+            </div>
+          </section>
+
+          {/* ── Handover callout ── */}
+          <section
+            className="rounded-2xl border p-8"
+            style={{ background: "rgba(247,214,74,0.06)" }}
+          >
+            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <div className="flex gap-4">
+                <div
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg"
+                  style={{ background: "rgba(247,214,74,0.16)" }}
+                >
+                  <LifeBuoy className="h-5 w-5" style={{ color: "#92620d" }} />
+                </div>
+                <div>
+                  <p className="font-semibold text-base">
+                    Inheriting the platform?
+                  </p>
+                  <p className="mt-1 max-w-2xl text-muted-foreground text-sm leading-relaxed">
+                    The Handover section captures account ownership, vendor
+                    accounts, design decisions, and the platform's history —
+                    things that aren't in the code.
+                  </p>
+                </div>
+              </div>
+              <Button asChild size="sm" variant="outline">
+                <Link href="/docs/handover">
+                  Read the handover docs
+                  <ArrowRight className="ml-2 h-3.5 w-3.5" />
+                </Link>
+              </Button>
             </div>
           </section>
 

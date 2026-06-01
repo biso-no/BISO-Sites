@@ -1,0 +1,123 @@
+---
+title: For administrators
+description: The shortest path from "what is this thing" to publishing your first piece of content.
+---
+
+# For administrators
+
+You're going to spend your time in the admin app (admin.biso.no). This page
+is your warm-up; the [Admin Handbook](/docs/admin-handbook) is the real
+reference.
+
+## Step 1 — make sure you have access
+
+Admin access is granted by adding you to the right Azure AD security
+groups. **You can't sign up yourself.** Ask the current IT Manager (or
+whoever holds the M365 admin account) to add you to:
+
+- `SG-App-Campus-{YourCity}` — your campus, or `National` if you're a
+  cross-campus role
+- `SG-App-Dept-{YourDepartment}` — your department, or `OperationsUnit` if
+  you're national operations / IT, or `Ledelsen{YourCity}` if you're campus
+  leadership
+
+The combinations grant different role levels. See
+[Roles and permissions](/docs/admin-handbook/roles-and-permissions) for the
+full table.
+
+> If you ever log in and see a half-empty sidebar, that almost always means
+> your group memberships didn't sync — sign out and back in, or ask IT to
+> verify the groups in Azure AD.
+
+## Step 2 — sign in
+
+Go to **admin.biso.no** and sign in with **Microsoft** (your BI work
+account). The first sign-in syncs your groups; you'll land on the dashboard.
+
+If your organisation prefers magic links, the email option works too — but
+Microsoft sign-in is the recommended path because it picks up role changes
+in real time.
+
+[Signing in →](/docs/admin-handbook/signing-in)
+
+## Step 3 — orient yourself
+
+A quick tour of the sidebar (your version will be smaller than this if you
+aren't a global admin):
+
+| Group | Item | What you do here |
+|---|---|---|
+| **Operate** | Overview | Dashboard with KPIs and recent activity. |
+| | Departments | Read-only view of every department. |
+| | Documents | Documents stored in SharePoint, surfaced to the public site. |
+| | IT | M365 user management. Global admins only. |
+| | Submissions | Form submissions captured from public pages. |
+| **Publish** | Jobs | Vacancies and applications. |
+| | Events | Campus events. |
+| | News | News articles. |
+| | Benefits | Member benefits and partner discounts. |
+| | Shop | Webshop products and orders. |
+| | Pages | Block-based pages on the public site. |
+
+Above the sidebar nav, the **campus switcher** lets global admins pick which
+campus to view. It also shows your current scope.
+
+[Campus context →](/docs/admin-handbook/campus-context)
+
+## Step 4 — do something
+
+Pick one of these depending on your role:
+
+- **I want to publish a news article** → [News](/docs/admin-handbook/news)
+- **I want to post a job** → [Jobs / Creating vacancies](/docs/admin-handbook/jobs/creating-vacancies)
+- **I want to build a custom page** → [Pages / Creating and editing](/docs/admin-handbook/pages/creating-and-editing)
+- **I want to add an event** → [Events](/docs/admin-handbook/events)
+- **I want to put a product in the shop** → [Shop / Products](/docs/admin-handbook/shop/products)
+- **I want to review job applications** → [Jobs / Applications workspace](/docs/admin-handbook/jobs/applications-workspace)
+- **I want to approve a pending change** → [Approvals](/docs/admin-handbook/approvals)
+
+## Step 5 — understand what students see
+
+Many admin actions feed directly into pages on biso.no. Read the
+[Public Website](/docs/public-website) section to know how a page on the
+admin side maps to a page on the public side.
+
+The most common surprises:
+
+- **Drafts don't appear publicly.** A page is invisible to students until
+  someone hits *Publish*.
+- **Translations are per-locale.** A change in Norwegian is not a change in
+  English — the editor has a locale switcher and an AI-assisted translate
+  button.
+- **Membership-only content is hidden from anonymous visitors** when the
+  page's visibility is set accordingly.
+- **The campus filter on the public site mirrors the campus on the content
+  row.** If you published a Bergen event but it isn't appearing on the Bergen
+  page, double-check the `campus_id` on the event.
+
+## Step 6 — keep these tabs open
+
+You'll be coming back to:
+
+- [Pages editor reference](/docs/admin-handbook/pages) — the block-based
+  editor is the most-used feature.
+- [Notifications](/docs/admin-handbook/notifications) — applications,
+  pending approvals, system messages.
+- [Activity log](/docs/admin-handbook/activity) — audit trail of every
+  change.
+
+## When something goes wrong
+
+- **You can't log in.** Try a private window. Try email magic link as a
+  fallback. If neither works, your AD account may not be in the right
+  groups.
+- **You can see something but can't edit it.** Your scope (campus and
+  department) doesn't cover it. Ask a global admin, or check whether the
+  content was created for a different campus.
+- **A change isn't appearing on the public site.** It's almost always a
+  draft. Open the item again and look for the *Publish* button.
+- **Something is broken.** Tell the current IT contact and include: what
+  you were trying to do, the URL in your address bar, and a screenshot of
+  any error. The [Activity log](/docs/admin-handbook/activity) and the
+  developer's [Operations / Monitoring](/docs/operations/monitoring-and-health)
+  pages will help them triage.

@@ -1,0 +1,115 @@
+---
+title: Shop and checkout
+description: How the merch shop, cart, and Vipps/Stripe checkout work end to end.
+---
+
+# Shop and checkout
+
+The shop sells BISO merch, event tickets, memberships, and any other physical or digital item BISO needs to charge for. Everything is a `products` row, everything goes through the same cart, and the same two payment providers (Vipps and Stripe) handle the money.
+
+## What the user does
+
+1. Browse `/shop`.
+2. Open a product at `/shop/[slug]`. Member-discounted prices appear here if the visitor is a member — see [Membership](/docs/public-website/membership).
+3. Add to cart. Anonymous users can do this; the cart is tied to the Appwrite session (anonymous or real).
+4. Go to `/shop/cart` to review and adjust quantities.
+5. Click checkout. The site sends them to `/shop/checkout` for address/payment selection.
+6. Pick Vipps or Stripe. They get redirected to the provider.
+7. After payment, the provider redirects back to `/api/checkout/return?orderId=…`.
+8. The site verifies the payment with Vipps (or trusts Stripe's signed redirect), posts the invoice to Finago, and lands the user on `/shop/order/[orderId]` — the receipt page.
+
+The order confirmation page is the only "you bought this" surface — there's no email-based confirmation flow currently owned by the site (any emails are sent by the payment provider or by Finago).
+
+## The checkout pipeline (factual order)
+
+When checkout starts on the server, these steps run in order. Any one of them can fail and abort the order.
+
+| # | Step | What it does |
+|---|------|-------------|
+| 1 | `sanitizeCartItems()` | Validates each cart line, dedupes, drops anything malformed. |
+| 2 | `loadProduct()` | Fetches each product with translations. |
+| 3 | `ensureStockAvailability()` | Checks `cart_reservations` to make sure stock isn't oversold. |
+| 4 | `ensurePurchaseLimit()` | Enforces per-user caps (e.g., "max 2 tickets per person"). |
+| 5 | `resolvePricing()` | Applies member discount **after re-verifying membership against Finago**. |
+| 6 | `buildOrderItems()` | Builds a frozen snapshot of each line — price, name, image, options. |
+| 7 | Create order | Inserts the `orders` row in Appwrite. |
+| 8 | Call payment provider | Vipps or Stripe API. Returns a redirect URL. |
+| 9 | Redirect user | Browser leaves the site. |
+
+The order row exists in Appwrite from step 7 onwards in a "pending payment" state. If the user abandons checkout, the row stays pending and the reservation eventually expires (see below).
+
+## Returning from the payment provider
+
+The provider sends the user to:
+
+```
+GET /api/checkout/return?orderId={id}
+```
+
+This handler:
+
+1. Verifies the payment status with Vipps (or Stripe).
+2. If paid, marks the order paid and posts the invoice to Finago.
+3. Redirects the user to `/shop/order/{id}` — the receipt page.
+4. If not paid (cancelled, failed), redirects back to the cart or shows a failure state.
+
+The `/api/checkout/webhook` route is **deprecated** and returns `410 Gone`. The return URL is the only post-payment hook the site uses today.
+
+## Cart reservations
+
+When a user adds an item to their cart, the site inserts a `cart_reservations` row holding that stock. The reservation has a short TTL — **approximately 15 minutes** — so abandoned carts don't permanently lock inventory.
+
+A cron route cleans these up:
+
+```
+GET /api/cron/cleanup-reservations
+Authorization: Bearer ${CRON_SECRET}
+```
+
+In development the bearer check is skipped so it can be called locally. In production the cron is invoked on a schedule and removes any reservation past its TTL. See [Operations → Cron and scheduled tasks](/docs/operations/cron-and-scheduled-tasks).
+
+## Payment providers
+
+| Provider | What it handles | Package |
+|----------|-----------------|---------|
+| Vipps MobilePay | Norwegian mobile payments — the dominant flow. | `@repo/payment/vipps` |
+| Stripe | Card payments, especially for non-Norwegian users. | `@repo/payment/stripe` |
+
+For integration specifics (test cards, webhook history, env vars), see [Integrations → Vipps](/docs/integrations) and [Integrations → Stripe](/docs/integrations).
+
+## Refunds and order edits
+
+The public site does **not** offer self-service refunds. Refunds are issued via:
+
+- Finago directly (for invoiced items including membership), or
+- The payment provider's dashboard for card refunds.
+
+The Appwrite `orders` row is updated by admins via the admin app when a refund is processed. See [Admin Handbook → Shop](/docs/admin-handbook/shop).
+
+## What the user sees on the order page
+
+`/shop/order/[orderId]` shows:
+
+- Order number, date, items, totals.
+- Payment method.
+- Membership note if the order included a membership product.
+- Pickup or delivery information for physical merch.
+
+The page also re-verifies that the requesting user owns the order — orders aren't publicly indexable, and the route is in the `robots.txt` disallow list. See [SEO and sitemap](/docs/public-website/seo-and-sitemap).
+
+## Routes summary
+
+| Route | Method | Purpose |
+|-------|--------|---------|
+| `/shop` | GET | Product list |
+| `/shop/[slug]` | GET | Product detail |
+| `/shop/cart` | GET | Cart |
+| `/shop/checkout` | GET / POST | Address + payment selection |
+| `/shop/order/[orderId]` | GET | Receipt |
+| `/api/checkout/return` | GET | Post-payment return handler |
+| `/api/checkout/webhook` | * | Deprecated — returns 410 |
+| `/api/cron/cleanup-reservations` | GET | Cron-only cleanup |
+
+## For developers
+
+The checkout pipeline lives under `apps/web/src/app/(public)/shop/checkout` and its server actions. Each step is a separate function that takes the cart state and either returns the augmented state or throws. This makes the pipeline easy to test step-by-step. The `orders`, `cart_reservations`, `products`, and `product_translations` collections are defined in `packages/api/appwrite.config.json`.

@@ -1,0 +1,134 @@
+---
+title: Daily workflow
+description: The commands, branches, and review expectations you'll live in once the repo is set up.
+---
+
+# Daily workflow
+
+## Commands you'll run constantly
+
+```bash
+# Dev — all apps in parallel
+bun run dev
+
+# Dev — one app (faster to iterate)
+bun run dev --filter=admin
+bun run dev --filter=web
+bun run dev --filter=api
+
+# Type-check — REQUIRED before merging
+# next build does NOT type-check (ignoreBuildErrors=true), so this is the only signal.
+bun run check-types
+
+# Lint
+bun run lint
+
+# Format + autofix the whole repo (Biome via Ultracite)
+bun x ultracite fix
+
+# Auto-fix lint where possible
+bun run fix
+
+# Production builds
+bun run build
+bun run build --filter=web
+```
+
+Filter syntax matches every script. `--filter=admin` runs the script only for `apps/admin` and
+its dependencies; `--filter=...admin` runs only its dependents. See
+[Architecture / Monorepo](/docs/architecture/monorepo) for the dependency graph.
+
+## Adding dependencies
+
+```bash
+# App dependency
+bun add zod --filter=web
+
+# Workspace dependency
+bun add @repo/ui --filter=admin
+
+# Dev dependency
+bun add -d vitest --filter=api
+```
+
+For dependencies **shared across apps**, pin the version in the root `package.json`
+`catalog` block and reference it as `"catalog:"` from each manifest. This keeps versions
+in lockstep across the monorepo:
+
+```jsonc
+// root package.json
+{
+  "catalog": {
+    "react": "19.0.0",
+    "next": "15.0.0",
+    "@tanstack/react-query": "5.59.0"
+  }
+}
+
+// apps/admin/package.json
+{
+  "dependencies": {
+    "react": "catalog:",
+    "next": "catalog:"
+  }
+}
+```
+
+## Branching and PRs
+
+- Cut feature branches off `main`. Naming: `feat/<short-thing>`, `fix/<short-thing>`,
+  `chore/<short-thing>`.
+- One concern per PR. Smaller is faster to review.
+- PRs target `main`. Squash-merge is the default.
+- The pre-commit hook (lefthook + lint-staged) runs Biome on staged files. If you bypass it
+  with `--no-verify`, expect CI to fail.
+
+## What reviewers will check
+
+When you open a PR, expect comments on these in particular:
+
+1. **`bun run check-types` passes locally.** Reviewers will not chase a green CI for you —
+   if your branch fails type-check, that's a blocker.
+2. **`bun run lint` clean.** No `// biome-ignore` without a real reason in a comment.
+3. **No direct `appwrite` / `node-appwrite` imports.** All data access goes through
+   `@repo/api`. See [Conventions](/docs/developing/conventions).
+4. **Server actions scope by campus.** Any new action that lists or mutates campus-owned data
+   must call `applyScopeQueries()` or filter explicitly by `managedCampusIds`. Missing scope
+   is the most common data-leak class on the platform.
+5. **Audit log on mutation.** New write actions call `logAuditEvent()`.
+6. **`revalidatePath()` on affected routes.** Otherwise stale RSC caches will hide your changes.
+7. **No barrel files.** Don't add `index.ts` that re-exports a whole package.
+8. **Translation keys exist in both `no` and `en`.** Run `bun run translate` from the
+   relevant package after adding Norwegian strings.
+
+## CI
+
+Every PR runs (in GitHub Actions):
+
+- `bun install`
+- `bun run check-types`
+- `bun run lint`
+- `bun run build`
+
+A failing build blocks merge. A failing type-check blocks merge. Lint warnings are surfaced
+but don't block — fix them anyway.
+
+## Local QA before pushing
+
+A quick pre-push checklist that catches ~90% of review feedback:
+
+```bash
+bun x ultracite fix
+bun run check-types
+bun run lint
+bun run build --filter=<app-you-touched>
+```
+
+If you touched the editor or any block, also click through the editor in
+`http://localhost:3001` once — type-checks won't catch a runtime regression in a `Render`.
+
+## Where to go next
+
+- [Conventions](/docs/developing/conventions) — the rules.
+- [Working with Appwrite](/docs/developing/working-with-appwrite) — the data layer.
+- [Troubleshooting](/docs/developing/troubleshooting) — when things break.

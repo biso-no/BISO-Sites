@@ -1,0 +1,134 @@
+---
+title: Azure AD (Entra ID)
+description: BISO's identity provider for staff sign-in and the source of truth for who's allowed to do what in the admin app.
+---
+
+# Azure AD (Entra ID)
+
+Azure AD — now officially called **Microsoft Entra ID** — is BISO's identity
+provider for staff. Anyone who signs into the admin app does so via their
+BI / BISO Microsoft account. The security groups they belong to in Azure
+determine what they can see and do.
+
+## What it is
+
+Azure AD is the Microsoft identity service that backs every BISO email
+account. We use it for two distinct things:
+
+1. **Authentication** — OAuth sign-in to the admin app. No passwords are
+   stored or managed by us.
+2. **Authorisation** — security-group membership in Azure is mirrored into
+   Appwrite teams at every login, and the admin app reads those teams to
+   decide who is a campus admin, finance officer, IT admin, etc.
+
+## Why we use it
+
+Every staff member already has a BI Microsoft account. Using Azure AD means
+we never store passwords, we get MFA for free, and onboarding/offboarding
+happens in the same Azure admin portal that BISO IT already uses for
+mailboxes and Teams. When someone leaves the organisation and their Azure
+account is disabled, they lose access to the admin app automatically.
+
+## Cost shape
+
+Free as part of BISO's existing Microsoft 365 tenancy. No per-seat charge
+for using it as an identity provider on top of accounts you're already
+paying for.
+
+## Security groups
+
+Two patterns of group matter:
+
+- **`SG-App-Campus-*`** — campus scope. Membership puts a user in scope of
+  one specific campus (Bergen, Oslo, Trondheim, Stavanger).
+- **`SG-App-Dept-*`** — department scope. Membership grants department
+  rights (finance, HR, PR, IT, ...).
+
+The old **`SG-App-Role-*`** groups (e.g. finance / hr / pr / controller) are
+**deprecated**. Don't create new ones in that pattern; don't add users to
+them; and where you find code reading them, it's there for backwards
+compatibility only.
+
+See [admin auth and roles](/docs/admin-handbook) for how these groups map to
+visible permissions inside the admin app.
+
+## Configuration
+
+A single Azure AD **app registration** powers all our Azure work — sign-in,
+Microsoft Graph, and SharePoint share the same registration with both
+delegated and application permissions configured.
+
+Env vars:
+
+| Var | Purpose |
+|---|---|
+| `AZURE_APP_ID` | App registration (client) ID |
+| `AZURE_TENANT_ID` | Tenant ID |
+| `AZURE_CERT_THUMBPRINT` | Thumbprint of the certificate used for app-only auth |
+| `AZURE_CERT_PASS` | Password for the certificate |
+| `AZURE_ORG` | Organisation slug used by some sync routines |
+
+For app-only flows (background sync, Graph calls without a signed-in user)
+we authenticate with a certificate, not a client secret. The certificate
+itself lives in the deploy environment as a separately-managed secret — see
+[Secrets and keys](/docs/operations/secrets-and-keys).
+
+## Login flow
+
+1. User clicks **Sign in with Microsoft** in the admin app.
+2. They go through the standard OAuth redirect to Azure.
+3. Azure returns an ID token; the admin app exchanges it for an Appwrite
+   session.
+4. **`syncM365Permissions()`** runs: it reads the user's Azure security
+   groups via Microsoft Graph and mirrors them into Appwrite teams. Teams
+   they're no longer in get removed; new ones get added.
+5. The admin layout then renders based on Appwrite team membership.
+
+The mirroring step is what makes Azure the source of truth: as long as a
+user's groups are correct in Azure, their access in the admin app is
+correct on next login.
+
+## Where it lives in the codebase
+
+- `@repo/connectors/azure` — MSAL setup, certificate auth, the
+  `createGraphClient()` helper, and `syncM365Permissions()`.
+- Admin app sign-in route — kicks off the OAuth flow and calls
+  `syncM365Permissions()` on callback.
+
+## Failure modes
+
+- **App registration expires or is deleted** — sign-in breaks for every
+  staff user immediately.
+- **Certificate expires** — app-only Graph calls fail (Microsoft sends
+  warnings before this happens; watch the inbox the registration is owned
+  from).
+- **Permissions revoked in the admin consent screen** — Graph and SharePoint
+  calls start returning 403; sign-in itself can still work if the basic
+  `openid` / `profile` scopes are intact.
+- **Group sync breaks** — users sign in but with stale or empty permissions.
+  Symptom: "I can't see the finance section any more." Fix is usually
+  re-running the sync after correcting the underlying Azure permission.
+
+## Rotation
+
+Two things rotate independently:
+
+**Client secret rotation** (if one is in use): generate a new client secret
+in the Azure portal, update env, restart, remove the old one.
+
+**Certificate rotation** (the main path): generate a new certificate, upload
+the public key to the app registration in Azure, deploy the new private key
++ password to the runtime, update `AZURE_CERT_THUMBPRINT` and
+`AZURE_CERT_PASS`, restart apps, then remove the old certificate from the
+app registration.
+
+Do certificate rotation **before** the expiry date, not after. The
+expiration date is visible in the Azure portal for the app registration.
+
+## Swapping the vendor
+
+Replacing Azure AD as the staff IDP would mean rewriting the sign-in route,
+the Graph integration, the SharePoint integration, and the group-sync logic.
+Practically it's only worth doing if BISO migrates away from Microsoft 365
+as an organisation — at which point the platform follows whatever the new
+identity stack is.

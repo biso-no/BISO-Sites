@@ -1,0 +1,186 @@
+---
+title: Troubleshooting
+description: The bugs you'll hit and how to unstick them — type errors, scope leaks, editor saves, auth.
+---
+
+# Troubleshooting
+
+A field guide to the failure modes you'll actually encounter. Skim it once; come back to
+it when something breaks.
+
+## "Type error in build" but `next build` was green
+
+`next build` does **not** check types. Both Next.js apps set
+`typescript.ignoreBuildErrors: true`. The only signal is:
+
+```bash
+bun run check-types
+```
+
+Run this before opening a PR. If CI fails on type-check and your build was green
+locally, this is why.
+
+## "Objects with toJSON methods are not supported" / "Only plain objects can be passed"
+
+You bypassed `@repo/api`'s `db` proxy. Somewhere you reached for the raw `TablesDB` or
+called Appwrite directly, and the response (with `$id`, dates, etc.) doesn't serialize
+across the RSC boundary.
+
+**Fix**: use `db.listRows<T>()` / `db.getRow<T>()` from `createSessionClient()` (or
+`createAdminClient()`). The proxy JSON-clones results so they're plain objects.
+
+See [Working with Appwrite](/docs/developing/working-with-appwrite).
+
+## Cross-campus data is leaking into a list
+
+A list action is missing campus scope. Symptom: a campus-scoped editor sees rows from
+other campuses, or a count is wrong.
+
+**Fix**: wrap your queries with `applyScopeQueries(ctx, [...])` from
+`@/lib/scope`. For mutations, never trust `input.campus_id` from the client —
+derive it from `ctx.activeCampusId` and verify it's in `ctx.managedCampusIds` before
+writing.
+
+See [Adding a server action](/docs/developing/adding-a-server-action).
+
+## Sidebar items are missing in admin
+
+Azure AD groups didn't sync to the user's session.
+
+**Fix**:
+
+1. Sign out and back in (forces a fresh role pull).
+2. If still missing, verify the user's group membership in Azure AD.
+3. Check `NAV_ACCESS` in `apps/admin/src/lib/roles.ts` — the nav key must list a role the
+   user actually has.
+
+See [Admin handbook / Roles and permissions](/docs/admin-handbook/roles-and-permissions).
+
+## "Page not appearing on public site after publish"
+
+Walk through, in order:
+
+1. Is `visibility=public` on the page row?
+2. Is `status=published`?
+3. Was `revalidatePath()` called by the publish action? (If you wrote a custom publish
+   path, you may have missed it.)
+4. Hard reload the public page (Cmd-Shift-R) — RSC cache can be sticky.
+5. Check the response for a `cache-control` header; it should be short-lived for
+   editable pages.
+
+## Vipps payment stuck "pending"
+
+The `/api/checkout/return` route is what advances payment state — there is **no
+webhook**. If a user navigates away before returning, the order can stay pending.
+
+**Fix**:
+
+1. Look up the order in Appwrite by `orders.payment_session_id`.
+2. Cross-reference with the Vipps merchant portal — what state is the session in?
+3. If Vipps says "captured" but our row says "pending", the user never returned. Either
+   call the return endpoint server-side with the session id, or close the order
+   manually.
+
+See [Integrations / Vipps MobilePay](/docs/integrations/vipps-mobilepay).
+
+## Editor changes not saving
+
+Check, in order:
+
+1. The save indicator in the editor topbar. Is it "saved", "saving", or "error"?
+2. If "error": open the network tab, look for the `savePageDraft` call. Inspect the
+   response.
+3. 401 / 403 → auth or permissions on the page row. Verify the user is in a team with
+   `update` permission.
+4. 5xx → server log. Often a schema mismatch (you added a field to the document but
+   didn't update the Appwrite attribute, or vice versa).
+5. No request firing → the document state is invalid (probably a block with `empty()`
+   returning an incomplete shape). Reproduce in dev with the editor open and check the
+   console.
+
+## "Block doesn't appear in the palette"
+
+Side-effect import missing.
+
+**Fix**: in `packages/editor/src/blocks/index.ts`, add `import "./my-block";`. The
+`registerBlock()` call only runs when the module is imported.
+
+## Translation not appearing
+
+1. Did you add the Norwegian key first? Norwegian is the source of truth.
+2. Did you run `bun run translate` from the relevant package after adding the key?
+3. Is the namespace correct? (`useTranslations("home")` won't see a key you put in
+   `common.json`.)
+4. Restart the dev server — `next-intl` caches the message bundles per process.
+
+See [i18n](/docs/developing/i18n).
+
+## "Local Appwrite auth fails"
+
+1. **`APPWRITE_API_KEY` scopes** — server actions need a key with all the scopes the
+   app touches. The dev key should be full-access; if you minted a restricted one, you'll
+   see opaque 401s on specific tables.
+2. **Cookie domain mismatch** — `APPWRITE_SESSION_COOKIE` must be set per app and must
+   not collide across apps on the same host. `a_session_biso` for web,
+   `a_session_biso_admin` for admin. Mismatch causes sign-ins to clobber each other.
+3. **Appwrite project mismatch** — check `NEXT_PUBLIC_APPWRITE_PROJECT` is the project
+   you actually meant.
+
+See [Local setup](/docs/developing/local-setup).
+
+## `bun install` is mad about lockfile changes
+
+Rare, but: `bun.lock` conflicts on rebase can leave you with inconsistent peer deps.
+
+**Fix**:
+
+```bash
+rm -rf node_modules
+bun install
+```
+
+If that doesn't fix it, the rebase actually broke something — `git diff` the lockfile
+and reconcile by hand.
+
+## `turbo` cache is serving stale output
+
+Most often: you added a new build-time env var without registering it in
+`turbo.json#tasks.build.env`. Turbo doesn't know it's an input, so cache stays warm
+even when the var changes.
+
+**Fix**: add the var to the `env` allow-list. To force a clean run in the meantime:
+
+```bash
+bun run build -- --force
+```
+
+## "Module not found" on a `@repo/*` import in admin
+
+The `@/*` alias in `apps/admin` resolves into **both** `./src/*` and
+`../../packages/editor/src/*`. If you're importing `@/blocks/foo` and it isn't found,
+you may be hitting the editor package by accident, or vice versa.
+
+**Fix**: use the fully-qualified `@repo/editor/...` import for editor code; reserve
+`@/...` for `apps/admin/src/...`.
+
+See [Conventions / Imports](/docs/developing/conventions).
+
+## Image errors at runtime ("hostname is not configured")
+
+External image domain not allow-listed.
+
+**Fix**: add the host pattern to `apps/<app>/next.config.ts#images.remotePatterns`:
+
+```ts
+images: {
+  remotePatterns: [
+    { protocol: "https", hostname: "cdn.example.com" },
+  ],
+}
+```
+
+## Where to go next
+
+- [Conventions](/docs/developing/conventions) — most bugs above are convention violations.
+- [Operations / Monitoring and health](/docs/operations/monitoring-and-health) — production-side diagnostics.
+- [Operations / Incident response](/docs/operations/incident-response) — when it's a real outage, not a local bug.

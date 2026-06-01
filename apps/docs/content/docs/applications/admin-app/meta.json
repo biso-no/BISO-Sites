@@ -1,6 +1,0 @@
-{
-  "title": "Admin App",
-  "description": "Content management system documentation",
-  "icon": "Lock",
-  "pages": ["index", "auth", "user-management", "recruitment"]
-}

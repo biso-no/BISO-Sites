@@ -1,0 +1,187 @@
+---
+title: Adding a route
+description: How to add a new page or API route to admin or web — route groups, auth, nav, sitemap.
+---
+
+# Adding a route
+
+Both `apps/admin` and `apps/web` use the Next.js 15 App Router. Routes are
+folders under `src/app/`, with `page.tsx` rendering the page and `route.ts` rendering
+API handlers.
+
+## 1. Pick the route group
+
+Route groups (folders in parentheses) don't affect the URL but share a layout. In
+`apps/admin`:
+
+| Group | Purpose |
+|---|---|
+| `(auth)` | Sign-in flow |
+| `(portal)` | Default authenticated CMS — has the sidebar, requires role-based access |
+| `(editor)` | Full-screen page editor |
+| `(protected)` | Authenticated but outside the portal shell |
+
+In `apps/web`:
+
+| Group | Purpose |
+|---|---|
+| `(public)` | Anyone can view |
+| `(protected)` | Requires a signed-in member (layout calls `unauthorized()`) |
+
+Pick the group whose layout already provides what you need. Don't duplicate layouts.
+
+## 2. Create `page.tsx`
+
+```tsx
+// apps/admin/src/app/(portal)/my-thing/page.tsx
+import type { Metadata } from "next";
+import { getUserAuthContext } from "@/lib/authorization";
+import { listMyThings } from "./actions";
+
+export const metadata: Metadata = {
+  title: "My thing",
+};
+
+export default async function MyThingPage() {
+  const ctx = await getUserAuthContext();
+  if (!ctx) {
+    // The (portal) layout already throws on missing auth, but defense in depth.
+    throw new Error("Unauthorized");
+  }
+
+  const rows = await listMyThings();
+
+  return (
+    <div className="p-6">
+      <h1 className="text-2xl font-semibold">My thing</h1>
+      <ul>
+        {rows.map((row) => (
+          <li key={row.$id}>{row.title}</li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+```
+
+### Admin protected pages
+
+The `(portal)` and `(protected)` layouts call `getUserAuthContext()` and redirect to
+`/sign-in` if missing. You **do not** need to re-check auth in the page component —
+but you **do** need to re-check it inside any server action called from the page.
+Server actions are independently invokable; the layout doesn't protect them.
+
+### Web protected pages
+
+The `(protected)` layout in `apps/web` calls `unauthorized()` on missing session.
+Alternatively, in any RSC, you can short-circuit yourself:
+
+```ts
+import { getLoggedInUser } from "@/lib/auth";
+
+const user = await getLoggedInUser();
+if (!user) {
+  return <SignInPrompt />;
+}
+```
+
+## 3. Add a sidebar entry (admin only)
+
+If the new page should appear in the admin sidebar:
+
+**a.** Add a `NavItem` in `apps/admin/src/app/(portal)/sidebar.tsx`:
+
+```ts
+{
+  key: "my-thing",
+  href: "/my-thing",
+  icon: SparklesIcon,
+  labelKey: "myThing",
+},
+```
+
+**b.** Add the matching `NavKey` and role list in `apps/admin/src/lib/roles.ts`:
+
+```ts
+export const NAV_ACCESS = {
+  // ...existing
+  "my-thing": ["admin", "it", "editor"],
+} as const satisfies Record<NavKey, ReadonlyArray<BisoRole>>;
+```
+
+**c.** Add the translation in `packages/i18n/messages/no/admin.json` (Norwegian first,
+it's the source of truth):
+
+```json
+{
+  "nav": {
+    "myThing": "Min greie"
+  }
+}
+```
+
+Then run `bun run translate` from `packages/i18n` to fill in English.
+
+## 4. API route handlers
+
+For an admin-only handler, drop a `route.ts` under `apps/admin/src/app/api/<thing>/route.ts`.
+For a public/JWT-authenticated handler, put it under `apps/api/src/app/api/<thing>/route.ts`.
+
+```ts
+// apps/admin/src/app/api/my-thing/route.ts
+import { NextResponse } from "next/server";
+import { getUserAuthContext } from "@/lib/authorization";
+import { createSessionClient } from "@repo/api/server";
+import type { Pages } from "@repo/api/types/appwrite";
+
+export async function GET() {
+  const ctx = await getUserAuthContext();
+  if (!ctx) return new NextResponse("Unauthorized", { status: 401 });
+
+  const { db } = await createSessionClient();
+  const rows = await db.listRows<Pages>("app", "pages");
+  return NextResponse.json(rows);
+}
+```
+
+**Re-check auth in the handler.** Route handlers don't share the route-group layout —
+the layout's auth check does not run for them.
+
+For `apps/api`, see [Architecture / API service](/docs/architecture/overview) — JWT
+auth is handled by middleware, but you still need to verify scopes.
+
+## 5. Metadata
+
+Every user-facing page gets a `Metadata` export. At minimum a `title`. For SEO-sensitive
+pages on `apps/web`, also `description` and `openGraph`.
+
+```ts
+export const metadata: Metadata = {
+  title: "Membership benefits",
+  description: "What you get as a BISO member",
+  openGraph: {
+    title: "Membership benefits",
+    images: ["/og/membership.png"],
+  },
+};
+```
+
+## 6. Sitemap (web only)
+
+If the new route appears on the public site and should be indexed, add it to the
+sitemap generator at `apps/web/src/app/sitemap.ts`. Most dynamic content is already
+crawled there from Appwrite — only add hand-written static entries.
+
+## 7. Type-check
+
+```bash
+bun run check-types --filter=admin
+# or
+bun run check-types --filter=web
+```
+
+## Where to go next
+
+- [Adding a server action](/docs/developing/adding-a-server-action) — the mutation half.
+- [i18n](/docs/developing/i18n) — translation keys for the new page.
+- [Conventions](/docs/developing/conventions) — auth, scoping, audit.

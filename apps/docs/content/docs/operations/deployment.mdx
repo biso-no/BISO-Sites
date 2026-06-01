@@ -1,0 +1,206 @@
+---
+title: Deployment
+description: How a push to `main` becomes a live deploy on Appwrite Sites — the actual GitHub Actions pipeline that runs today.
+---
+
+# Deployment
+
+Every BISO Sites app — `web`, `admin`, `api`, `docs` — deploys to
+**Appwrite Sites** running on BISO's self-hosted Appwrite instance
+(`appwrite.biso.no`, on Webdock). The deploy mechanism is a single
+GitHub Actions workflow that detects which apps changed and uploads
+only those.
+
+## The pipeline at a glance
+
+```
+  push to main ──► .github/workflows/deploy-production.yml
+                            │
+                            ▼
+                   discover job
+                   (turbo query affected --packages)
+                            │
+                            ▼
+                   matrix: one job per affected app
+                            │
+                            ▼
+                   tar the whole monorepo source
+                   (exclude .git, node_modules, .next, etc.)
+                            │
+                            ▼
+                   POST to appwrite.biso.no
+                   /sites/{SITE_ID}/deployments
+                   with activate=true
+                            │
+                            ▼
+                   Appwrite runs `bun install` + the
+                   site's configured build command
+                   on its own infrastructure, then
+                   activates the new deployment.
+```
+
+The workflow file is committed at
+[`.github/workflows/deploy-production.yml`](https://github.com/biso-no/BISO-Sites/blob/main/.github/workflows/deploy-production.yml).
+
+## Triggers and concurrency
+
+- **Trigger**: `push` to the `main` branch only.
+- **Concurrency group**: `deploy-production`, with
+  `cancel-in-progress: true` — a newer push to `main` cancels any
+  in-flight deploy of an older commit, so the production state always
+  matches the latest green commit on `main`.
+
+There is no manual "deploy" button; the workflow is the only path to
+production. Reverting a deploy means landing a `git revert` commit on
+`main`.
+
+## Affected-only detection
+
+The `discover` job runs `bunx turbo query affected --packages` between
+the previous commit on `main` and the new HEAD. The results are
+filtered to packages whose `path` starts with `apps/`, and emitted as
+a JSON array consumed by the `deploy` job's matrix.
+
+What this means in practice:
+
+- Edit a file in `apps/web` only → only `web` redeploys.
+- Edit a file in `packages/api` → every app that depends on it
+  (effectively all of them) redeploys.
+- Edit `apps/docs/content/docs/foo.mdx` → only `docs` redeploys.
+- Touch only `README.md` at the repo root → nothing redeploys (no app
+  is affected).
+
+This is why edits to shared packages cause "big" deploys and edits to
+a single app are cheap.
+
+## What gets uploaded
+
+The deploy job tars the **entire monorepo source** for each affected
+app — minus `.git`, every `node_modules`, every `.next`, every
+`dist`, every `.turbo`, and `.vercel` — and POSTs the resulting
+gzipped archive to Appwrite's
+`/sites/{SITE_ID}/deployments` REST endpoint with `activate=true`.
+
+**Appwrite then runs `bun install` and the site's configured build
+command on its own infrastructure.** CI does *not* run
+`turbo run build`. The reason is intentional: building on Appwrite's
+side keeps the build environment identical to the runtime environment,
+and means CI is a thin orchestrator rather than a full Node/Bun build
+host.
+
+## Per-app Appwrite site IDs
+
+Each app is a separate Appwrite Site with its own site ID. The IDs
+are stored as GitHub Actions repository variables (not secrets — they
+are not sensitive on their own):
+
+| App | Variable | Production URL |
+|-----|----------|----------------|
+| `web` | `WEB_SITE_ID` | `web.biso.no` (will move to `biso.no` at the WordPress cutover) |
+| `admin` | `ADMIN_SITE_ID` | `admin.biso.no` |
+| `api` | `API_SITE_ID` | `api.biso.no` |
+| `docs` | `DOCS_SITE_ID` | (configured; confirm the live URL in the Appwrite Console) |
+
+The Appwrite endpoint and project ID are also repository variables
+(`APPWRITE_ENDPOINT`, `APPWRITE_PROJECT_ID`); the API key is a
+repository **secret** (`APPWRITE_API_KEY`).
+
+## Per-site env vars
+
+The `.env` values each app reads at runtime — Appwrite session cookie
+names, OAuth client IDs, third-party API keys, etc. — live in
+**Appwrite Sites' env-var UI**, configured per site. They are *not*
+checked in, *not* stored in any other secret manager, and *not*
+uploaded by CI.
+
+<Callout type="warning">
+**Single-store env risk**: production env vars live only inside
+Appwrite Sites today. There is no off-Appwrite backup (no password
+manager, no encrypted file in a private repo, no second copy in
+1Password). If the Appwrite project is lost or corrupted, every
+secret has to be re-issued from each provider. See
+[Secrets and keys](/docs/operations/secrets-and-keys) for the
+recommended remediation.
+</Callout>
+
+## Staging / preview
+
+**There is no staging environment today.** Every push to `main`
+deploys straight to production. The Appwrite project does have a
+separate `dev` project ID for development, but no app instance
+is wired to it as a "staging" target.
+
+Adding a staging tier is a known follow-up item — see
+[Known limitations](/docs/handover/known-limitations).
+
+## Build commands per site
+
+Each Appwrite Site has its own **Install command** and **Build
+command** configured in the Appwrite Console. As a snapshot:
+
+- **Install command**: `bun install --frozen-lockfile`
+- **Build command** for each app: `bun run build --filter=<app>`
+  (resolves the right Turbo task)
+- **Output directory**: the standalone Next.js output that each app
+  produces.
+
+If a build command changes, the Console is the source of truth — the
+GitHub Actions workflow doesn't know or care what runs on the
+Appwrite side.
+
+## Pre-flight checks
+
+Run these locally before pushing to `main`. They are not part of the
+deploy workflow today — once a green push reaches `main`, the deploy
+goes regardless of type errors.
+
+```bash
+bun run check-types        # the ONLY signal that catches TS errors;
+                           # next build ignores them by design
+bun run lint
+bun run build              # optional; CI doesn't run this either
+bun --filter=api test      # if you touched apps/api
+```
+
+Adding a PR-check workflow that runs `check-types` and `lint` on
+every pull request is a near-term improvement and would catch the
+type-safety gap before it lands on `main`.
+
+## Rollback
+
+Because Appwrite holds all data, code rollbacks are safe in isolation:
+
+1. `git revert <bad-commit>` on `main`. This triggers a fresh deploy
+   of the previous state.
+2. Wait for the matrix deploy job for the affected app(s) to finish.
+3. Verify `/api/health` on each.
+
+You can also roll back from the Appwrite Console directly — each
+site keeps a list of past deployments and you can re-activate an
+older one without going through git. Use this for "production is on
+fire right now" cases; use the `git revert` path for the recorded
+history.
+
+**Schema rollbacks are not safe.** If a deploy implied an Appwrite
+schema change and rows were written under the new schema, reverting
+the schema loses data. Treat Appwrite schema changes as forward-only;
+see [Backups and recovery](/docs/operations/backups-and-recovery)
+for the worst-case-recovery story.
+
+## Local development
+
+```bash
+bun install
+bun run dev                # all apps in parallel
+bun run dev --filter=web   # one app
+```
+
+See [Local setup](/docs/developing/local-setup) for first-time setup.
+
+## Related
+
+- [Environment variables](/docs/operations/environment-variables)
+- [Secrets and keys](/docs/operations/secrets-and-keys)
+- [Monitoring and health](/docs/operations/monitoring-and-health)
+- [Architecture / API service](/docs/architecture/api-service) — the
+  `apps/api`-specific build prep step

@@ -1,0 +1,49 @@
+---
+title: Pages editor
+description: An overview of the in-house block-based page builder used to create and update pages on biso.no.
+---
+
+# Pages editor
+
+The pages editor is the tool you use to build and update pages on the public BISO site. It's a visual, drag-and-drop builder: you pick blocks from a library, drop them on the canvas, fill in the content, and publish when you're happy. Anyone with admin access can open it, but what you can edit depends on your role — see [Roles and permissions](/docs/admin-handbook/roles-and-permissions).
+
+The editor is BISO's own tool. We built it in 2025 to replace an older third-party builder, so if you've heard of "Puck" from previous handovers — you can forget about it. Everything in this section refers to the current editor only.
+
+## Where to find it
+
+In the admin app's left sidebar, click **Pages**. You'll see three things:
+
+- `/pages` — the list of every page you're allowed to see (filtered by your campus and department).
+- `/pages/new` — a fresh page, ready to be filled in.
+- `/pages/[id]` — the editor itself, opened on a specific page.
+
+If you only see a handful of pages and you expected to see more, that's your campus scope at work. A global admin sees everything; a campus admin sees only their campus; a department lead sees only pages owned by their department.
+
+## What the screen looks like
+
+The editor has four areas you'll get to know quickly:
+
+| Area | Where | What it's for |
+|------|-------|---------------|
+| **Topbar** | Across the top | Locale switcher (Norwegian / English), edit ↔ preview toggle, viewport toggle (desktop / tablet / mobile), undo and redo, save, publish, AI copilot. |
+| **Palette** | Left pane | The block library. Browse by category or search by name. Drag a block onto the canvas to add it. |
+| **Canvas** | Centre pane | The page itself. Click a block to select it, drag its handle to reorder, and use Delete to remove it. |
+| **Inspector** | Right pane | Properties for whichever block is selected. With nothing selected, it shows page-level fields (title, slug, description, department, accent colour). |
+
+You don't need to learn every block on day one. Most pages on biso.no use the same six or seven blocks — a hero at the top, a couple of text sections, a list of news or events, and a call to action at the bottom.
+
+## What's in this section
+
+| Page | What you'll learn |
+|------|-------------------|
+| [Creating and editing](/docs/admin-handbook/pages/creating-and-editing) | Make a new page, find an existing one, and edit it block by block. |
+| [Blocks reference](/docs/admin-handbook/pages/blocks-reference) | Every block in the library, grouped by category, with a one-line description of when to use it. |
+| [Translations](/docs/admin-handbook/pages/translations) | Edit the Norwegian and English versions of a page, and use the auto-translate button. |
+| [Drafts and publishing](/docs/admin-handbook/pages/drafts-and-publishing) | How the save / publish / unpublish lifecycle works. |
+| [AI copilot](/docs/admin-handbook/pages/ai-copilot) | The chat assistant inside the editor — what it can do for you. |
+
+<Callout type="info">
+If something on the editor looks like it isn't working, refresh first. Your draft is auto-saved, so you won't lose your text — but you will lose your undo history. If it still misbehaves, tell BISO IT.
+</Callout>
+
+For the technical picture (what auto-save does behind the scenes, how the editor renders the same blocks on the public site), see [Editor architecture](/docs/architecture/editor-architecture).

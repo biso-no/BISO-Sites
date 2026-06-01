@@ -1,0 +1,355 @@
+---
+title: Ownership and accounts
+description: Master list of every account the platform depends on, who holds it, and who has access.
+---
+
+# Ownership and accounts
+
+This page is the answer to the question "what does BISO actually own, and
+who has the keys?" It is a template. The current IT Manager must fill it
+in before handing over.
+
+If any row below is blank or stale at handover, the platform has a
+single-person dependency that needs fixing.
+
+<Callout type="warning">
+**To be filled in by the current IT Manager** before leaving the role.
+Every `[FILL IN]` below is a piece of institutional knowledge that BISO
+will lose if you don't write it down.
+</Callout>
+
+## Source code
+
+| Item | Where | Account holder | Backup access |
+|------|-------|----------------|---------------|
+| GitHub organisation `biso-no` | github.com/biso-no | MHEien (Markus Heien, `markus@biso.no`) | **None — single-owner risk** |
+| Repository: `BISO-Sites` (this monorepo) | github.com/biso-no/BISO-Sites | Org-owned | — |
+| Repository: `BISO-Flutter` (native mobile app for iOS / Android) | github.com/biso-no/BISO-Flutter | Org-owned | — |
+
+<Callout type="warning">
+**Open continuity risk**: the GitHub organisation `biso-no` has a single
+Owner today. Before the current IT Manager leaves, **add a second human
+as Owner**. Suggested candidates: another current Operations Unit
+member, or a board member with sufficient technical literacy. Without
+a second Owner, the organisation cannot recover if the sole Owner's
+account is lost.
+</Callout>
+
+The Flutter mobile app (`BISO-Flutter`) is a separate codebase but
+shares this platform's Appwrite project — see
+[Architecture / Apps](/docs/architecture/apps#native-mobile-app) for
+context.
+
+## Domain
+
+| Item | Detail |
+|------|--------|
+| Primary domain | `biso.no` |
+| Registrar | **proisp.no** |
+| Registrar account ID | 19676 |
+| Registrar account login email | `pr@biso.no` |
+| Registrar account holder | BI Student Organisation (BISO) |
+| Renewal date | **19 December** (annual) — next renewal 2026-12-19 |
+| DNS provider | proisp.no (same as registrar) |
+| Two-factor recovery codes stored | **No 2FA configured at proisp** — see warning below |
+| WHOIS contact email | `it@biso.no` |
+
+<Callout type="warning">
+**Open security risk**: the proisp.no registrar account does **not** have
+two-factor authentication enabled. The domain `biso.no` is the most
+critical single asset BISO owns digitally — every subdomain, the
+admin app's OAuth callbacks, and email all depend on it. The next IT
+Manager should enable 2FA on this account immediately and store the
+recovery codes in the password manager.
+</Callout>
+
+## Appwrite
+
+| Item | Detail |
+|------|--------|
+| Production instance URL | `https://appwrite.biso.no` |
+| Self-hosted on | Webdock VM (see [Webdock](#webdock-if-used) below) |
+| Server admin SSH access | Markus Heien (`markus@biso.no`) — sole holder of root |
+| Appwrite Console admin user | `markus@biso.no` (primary) |
+| Secondary Console admin | `it@biso.no` |
+| Production project ID | `biso` |
+| Dev project ID | `dev` (same Appwrite instance, separate project) |
+
+<Callout type="warning">
+**Open continuity risk**: only one person currently has SSH root access
+to the Appwrite VM. Before handover, the outgoing IT Manager must
+arrange SSH access for the incoming person (or a documented role
+account) and verify they can log in.
+</Callout>
+
+## Microsoft 365 / Azure AD
+
+| Item | Detail |
+|------|--------|
+| Tenant ID | `74a117b9-9343-4c86-b44d-398c88ba1ed8` |
+| Tenant primary domain | `biso.no` |
+| Global Admin #1 | Markus Heien — `markus@biso.no` |
+| Global Admin #2 | `simen@biso.no` |
+| Subscription | **None purchased by BISO** — see license model below |
+| Billing email (for invoices that do arrive) | `payments@biso.no` / `invoice@biso.no` |
+| CSP / reseller | None |
+
+Azure AD doubles as the identity provider for staff logins to `admin`.
+Losing global admin access to the tenant is more disruptive than losing
+any other single account.
+
+### License model — important context
+
+BISO does **not** pay for Microsoft 365 licenses. Instead, the
+organisation relies on BI Norwegian Business School's tenant
+licensing. The flow:
+
+1. A new BISO staff member is a BI student, so they already have a
+   Microsoft 365 license attached to their **student email**.
+2. When they take a BISO role, they first activate / verify their
+   license using that student account.
+3. The BISO account (`name@biso.no`) is created under BISO's tenant
+   (`biso.no`) and can sign in for organisational use — including the
+   admin app at admin.biso.no.
+
+This means there is no monthly Microsoft 365 subscription cost for the
+~300 BISO accounts. It also means the platform's authentication is
+indirectly dependent on BI maintaining its student-license programme.
+If BI ever changed that arrangement, BISO would need to acquire its own
+licenses. The next IT Manager should keep BI's IT contact in their
+phone for this reason.
+
+## Payment providers
+
+### Vipps MobilePay
+
+| Item | Detail |
+|------|--------|
+| Product in use | Vipps Checkout (under the Vipps Bedrift agreement) |
+| Production MSN (Merchant Serial Number) | `737898` |
+| Test MSN | `232894` (selected when `VIPPS_TEST_MODE=true` in dev) |
+| Account holder (legal entity) | **BI STUDENT ORGANISASJON** |
+| Portal login | **BankID** (Norwegian electronic ID). There is no email/password login — administrators sign in with their personal BankID. |
+| Account admin | Markus Heien |
+| Sales / account contact at Vipps | None on record |
+| Settlement bank account | `15061115010` |
+
+### Stripe
+
+**Not in production.** BISO has no Stripe account today. The code in
+`@repo/payment/stripe` is scaffolded for a future need but is not
+configured or used. If the next IT Manager wants to enable Stripe:
+provision the account, set the `STRIPE_*` env vars, and test the full
+checkout flow end-to-end before enabling it for real orders.
+
+| Item | Detail |
+|------|--------|
+| Stripe account ID | Not yet created |
+| Account legal entity | n/a |
+| Owner login | n/a |
+| Team members with access | n/a |
+
+## Accounting
+
+### 24SevenOffice (Finago)
+
+| Item | Detail |
+|------|--------|
+| Organisation ID in Finago | `266330540180206` |
+| Primary admin user | Markus Heien — usually the person who assigns new administrators in Finago |
+| API credentials holder | Markus Heien |
+| Subscription tier | **Sponsored by Finago** (no direct cost today; may change in the future) |
+| Contract length | Multi-year |
+| Sales / account contact | Håvard Høllen Sjøen (`hh@24sevenoffice.com`) |
+
+<Callout type="info">
+The Finago / 24SevenOffice subscription is sponsored, which means there
+is currently no recurring invoice. If that arrangement ends, the next
+IT Manager should contact Håvard Høllen Sjøen at 24SevenOffice to
+negotiate a paid tier or assess alternatives. The platform depends on
+this connection for membership verification and ledger posting — losing
+it would break the shop's checkout pipeline.
+</Callout>
+
+## Storage / docs
+
+### SharePoint
+
+| Item | Detail |
+|------|--------|
+| Tenant | `bistudentorganisasjon.sharepoint.com` |
+| Site collection admin | Markus Heien (`markus@biso.no`) — only person who can grant the Azure app access to new sites |
+| Azure app used for Graph access | Same as `AZURE_APP_ID` in env vars |
+
+`SHAREPOINT_SITES` value currently deployed (a JSON array of comma-joined
+`hostname,siteId,webId` triplets):
+
+```json
+[
+  "bistudentorganisasjon.sharepoint.com,9b233671-4951-4443-9c6d-9afaa1b8f454,f9f79275-37c3-4acd-b054-50a6ec0eeebe",
+  "bistudentorganisasjon.sharepoint.com,6c0148df-d449-472b-84e8-63fb0ee53f8b,35456f57-cab6-48b6-a005-a2330dbbaedb"
+]
+```
+
+These are the two SharePoint sites whose documents the public site can
+stream. Adding a third site requires (a) granting the Azure app access
+to it (Sites.Selected model) and (b) appending it to this array.
+
+There is no specific "secret" file or folder — the platform's
+`/documents` library surfaces whatever the admin team uploads via the
+Documents screen in the admin app.
+
+## AI providers
+
+### OpenAI
+
+| Item | Detail |
+|------|--------|
+| Organisation ID | `org-OYbnzkHo28huLcXHylKJvlsB` |
+| Login email / account owner | `markus@biso.no` *(planned to move to `it@biso.no` when feasible)* |
+| Plan / tier | Usage tier 4 (pay-as-you-go) |
+| Approximate monthly spend | ~USD $10 today; no enforced budget yet (to be set when the new public site goes live) |
+| Hard cap configured | Soft limit set at USD $120/month |
+| Billing email | `invoice@biso.no` |
+| Payment method | **Currently Markus Heien's personal card** — being transitioned to Simen (Administrasjonsleder) imminently |
+
+<Callout type="warning">
+**Open continuity risk #1**: OpenAI billing is on Markus Heien's personal
+card. When Markus leaves, the card either stops paying or has to be
+manually changed mid-transition. The next IT Manager — or whoever takes
+over before then — must get a BISO-controlled card on file (Simen's,
+per the plan above) **before** Markus's departure. If the card is
+cancelled before being replaced, every AI feature stops working:
+translation, expense OCR, page editor copilot, admin assistant.
+</Callout>
+
+### Anthropic
+
+**Not in production.** All AI features today route through OpenAI. The
+codebase contains `@ai-sdk/anthropic` imports in some places (legacy
+exploration / scaffolding), but no BISO Anthropic account is funded and
+no production traffic is sent to Anthropic.
+
+| Item | Detail |
+|------|--------|
+| Organisation ID | n/a — no account |
+| Billing email | n/a |
+| Plan | n/a |
+| Account owner | n/a |
+
+<Callout type="info">
+The next IT Manager should audit the codebase for `@ai-sdk/anthropic`
+references and either remove them or wire them up against a real
+account — leaving dead-code paths to a paid API surface is a future
+debugging trap. See [Integrations / Anthropic](/docs/integrations/anthropic)
+for the dormant-code-path note.
+</Callout>
+
+### Pinecone
+
+| Item | Detail |
+|------|--------|
+| Project / org ID | `-NWdHeAIHBzZGIyAhn9H` |
+| Index name (matches `PINECONE_INDEX_NAME`) | `bisoai` |
+| Billing email | `markus@biso.no` |
+| Plan | **Starter (free tier)** |
+| Account owner | Markus Heien |
+
+<Callout type="warning">
+**Open continuity risk #2**: the Pinecone index `bisoai` lives on
+Markus Heien's **personal** Pinecone account, not a BISO-owned
+account. When Markus leaves, access to the index goes with him unless
+ownership is transferred or the index is recreated under a
+BISO-controlled account beforehand. The recruitment AI screening
+feature depends on this index — without it, embeddings can't be
+written or queried.
+
+Action for the outgoing IT Manager: create a BISO-owned Pinecone
+account (`it@biso.no`), provision a new index under it, migrate
+existing embeddings or accept a one-time re-embedding pass, and rotate
+`PINECONE_API_KEY` + (if changed) `PINECONE_INDEX_NAME`.
+</Callout>
+
+## Hosting
+
+### Webdock
+
+| Item | Detail |
+|------|--------|
+| Account login | **Sign-in via GitHub OAuth** — Markus Heien's GitHub account (`MHEien`) is the only one with access |
+| Billing email | `markus@biso.no` (tied to the GitHub-auth account) |
+| Servers in use | **Server 1**: Appwrite + the new turborepo apps (`appwrite.biso.no` plus the Appwrite Sites instances for `web`, `admin`, `api`, `docs`). **Server 2**: the legacy WordPress site (still serving `biso.no` until the cutover; will be repurposed for future services after) |
+| Approximate monthly cost | ~NOK 550 total across both servers |
+| Renewal cycle | Monthly (Webdock standard) |
+
+<Callout type="warning">
+**Open continuity risk**: Webdock access is GitHub-OAuth-only, and
+Markus Heien's GitHub account is the only one configured. When Markus
+leaves, root access to **the Appwrite VM** goes with him unless
+transferred first. Before any handover: add a second GitHub account
+(the incoming IT Manager's, or a BISO role account) to the Webdock
+team, verify they can log in, and confirm SSH key access on both
+servers.
+</Callout>
+
+### Other hosting (Appwrite Sites, Vercel, etc.)
+
+| Item | Detail |
+|------|--------|
+| Provider | Appwrite Sites (running on Webdock Server 1, above) — every Next.js app is deployed here |
+| Account login | Same as the Appwrite Console admin user — `markus@biso.no` primary, `it@biso.no` secondary |
+| Billing email | n/a (Appwrite Sites runs on BISO's self-hosted Appwrite instance) |
+
+## Secrets vault
+
+**There is no organisation-wide password manager today.** This is one
+of the most consequential gaps in the platform's operational setup.
+
+| Item | Current state |
+|------|---------------|
+| Password manager in use | **None.** No 1Password / Bitwarden / Keeper deployment exists. |
+| Where production env vars live | **Only inside Appwrite Sites' env-var UI** (per site). No offline backup. |
+| Where account credentials live | Each individual administrator's personal browser / phone. |
+| TOTP / second factor | **Microsoft Authenticator** is used for the M365 accounts. No shared TOTP backups for vendor accounts (Vipps, Stripe, OpenAI, Pinecone, registrar, etc.). |
+
+<Callout type="warning">
+**Open continuity risk (high priority)**: every production secret —
+Appwrite API keys, Vipps client secret, OAuth client secrets, AI API
+keys, the GitHub Actions `APPWRITE_API_KEY` repository secret — lives
+in exactly one place: the Appwrite Sites UI. If the Appwrite project
+is lost, corrupted, or accidentally wiped, **every secret has to be
+re-issued from each provider** (some of which involve waiting for
+account-recovery flows). And if Markus leaves before a replacement is
+fully onboarded, there is no out-of-Appwrite store to hand to a
+successor.
+
+Recommended remediation, in order:
+
+1. **Provision a password manager** for BISO IT (1Password Teams or
+   Bitwarden Organization). Cost is typically NOK 0–100/month.
+2. **Export and store every production env var** into a vault entry
+   per app — `web`, `admin`, `api`, `docs`. Update the entry whenever
+   you rotate a key.
+3. **Store vendor portal credentials** for every account named on
+   this page (registrar, Webdock, OpenAI, Pinecone, 24SO, Vipps,
+   Appwrite Console, Azure AD, GitHub) — at minimum a login URL,
+   account ID, and a one-time recovery code.
+4. **Grant read access** to the IT Manager + one board member as
+   redundancy. Reserve admin access to the IT Manager only.
+</Callout>
+
+## Handover checklist (sign-off)
+
+At the moment of handover, the outgoing IT Manager should walk the
+incoming person through each section and tick:
+
+- [ ] Incoming person has tested login to every row above.
+- [ ] Two-person redundancy exists for every "critical" row (domain,
+      Appwrite, Azure AD Global Admin, GitHub org owner, password
+      manager).
+- [ ] Outgoing person's personal accounts have been *removed* from team
+      memberships (replaced with role accounts where possible).
+- [ ] Any personal devices with cached secrets / SSH keys have been
+      wiped of BISO material.
+- [ ] Signed off by: [FILL IN: outgoing IT Manager] and [FILL IN:
+      incoming IT Manager]. Date: [FILL IN].

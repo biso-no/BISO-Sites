@@ -1,0 +1,190 @@
+---
+title: Local setup
+description: From a clean machine to a running dev environment in under fifteen minutes.
+---
+
+# Local setup
+
+## Prerequisites
+
+- **Bun 1.3.1** — exact version. Run `bun -v` to confirm.
+  - The repo uses Bun workspaces and the `catalog:` dependency protocol. npm and pnpm will not work.
+  - Install via `curl -fsSL https://bun.sh/install | bash -s "bun-v1.3.1"`.
+- **Node 22+** — Bun ships its own runtime, but some tools shell out to Node. Make sure your editor's
+  TypeScript server is using Node 22.
+- **Git** — with access to [biso-no/biso-sites](https://github.com/biso-no/biso-sites).
+- **An Appwrite project** — either the shared dev project (ask for keys) or a local Appwrite via
+  Docker, seeded from `packages/api/appwrite.config.json`. See
+  [Integrations / Appwrite](/docs/integrations/appwrite).
+
+## 1. Clone and install
+
+```bash
+git clone https://github.com/biso-no/biso-sites.git
+cd biso-sites
+bun install
+```
+
+Installation takes ~30 seconds on a warm cache. `bun install` runs `lefthook install`
+automatically via the `postinstall` hook — that wires up the pre-commit format check.
+
+## 2. Create `.env.local` files
+
+Each app reads from its own `apps/<app>/.env.local`. None of these files are committed.
+Full descriptions of every variable are in
+[Operations / Environment variables](/docs/operations/environment-variables) — this page lists
+only what you need to *start*.
+
+### `apps/web/.env.local`
+
+```bash
+# Appwrite — required
+NEXT_PUBLIC_APPWRITE_ENDPOINT=https://appwrite.biso.no/v1
+NEXT_PUBLIC_APPWRITE_PROJECT=<project-id>
+APPWRITE_API_KEY=<server-key>
+APPWRITE_SESSION_COOKIE=a_session_biso
+APPWRITE_BUCKET_ID=<default-bucket-id>
+APPWRITE_CAMPUS_BOARD_FUNCTION_ID=<function-id>
+
+# URLs
+NEXT_PUBLIC_BASE_URL=http://localhost:3000
+NEXT_PUBLIC_API_BASE_URL=http://localhost:3003
+
+# AI / search
+OPENAI_API_KEY=<key>
+PINECONE_API_KEY=<key>
+PINECONE_INDEX=<index>
+
+# Integrations (only what you'll touch)
+SHAREPOINT_TENANT_ID=...
+SHAREPOINT_CLIENT_ID=...
+SHAREPOINT_CLIENT_SECRET=...
+AZURE_TENANT_ID=...
+AZURE_CLIENT_ID=...
+AZURE_CLIENT_SECRET=...
+VIPPS_CLIENT_ID=...
+VIPPS_CLIENT_SECRET=...
+VIPPS_SUBSCRIPTION_KEY=...
+STRIPE_SECRET_KEY=...
+STRIPE_WEBHOOK_SECRET=...
+WEBDOCK_API_KEY=...
+CRON_SECRET=<random-string>
+```
+
+### `apps/admin/.env.local`
+
+Same Appwrite block as `web`, **but with a different session cookie name**:
+
+```bash
+NEXT_PUBLIC_APPWRITE_ENDPOINT=https://appwrite.biso.no/v1
+NEXT_PUBLIC_APPWRITE_PROJECT=<project-id>
+APPWRITE_API_KEY=<server-key>
+APPWRITE_SESSION_COOKIE=a_session_biso_admin
+APPWRITE_BUCKET_ID=<default-bucket-id>
+RECRUITMENT_RESUME_BUCKET_ID=<resume-bucket-id>
+
+NEXT_PUBLIC_BASE_URL=http://localhost:3001
+NEXT_PUBLIC_API_BASE_URL=http://localhost:3003
+
+# Page editor copilot + admin assistant
+ANTHROPIC_API_KEY=<key>
+OPENAI_API_KEY=<key>
+
+# Azure AD for role sync
+AZURE_TENANT_ID=...
+AZURE_CLIENT_ID=...
+AZURE_CLIENT_SECRET=...
+
+# Plus integrations as needed (SHAREPOINT_*, VIPPS_*, STRIPE_*)
+```
+
+<Callout type="warning">
+`APPWRITE_SESSION_COOKIE` **must differ** between `web` and `admin`, otherwise signing into one
+clobbers the other on the same hostname. Use `a_session_biso` for web and `a_session_biso_admin`
+for admin.
+</Callout>
+
+### `apps/api/.env.local`
+
+```bash
+NEXT_PUBLIC_APPWRITE_ENDPOINT=https://appwrite.biso.no/v1
+NEXT_PUBLIC_APPWRITE_PROJECT=<project-id>
+APPWRITE_API_KEY=<server-key>
+APPWRITE_BUCKET_ID=<default-bucket-id>
+
+OPENAI_API_KEY=<key>
+
+# Azure AD / SharePoint / Vipps / Stripe — same shape as web
+AZURE_TENANT_ID=...
+AZURE_CLIENT_ID=...
+AZURE_CLIENT_SECRET=...
+SHAREPOINT_TENANT_ID=...
+VIPPS_CLIENT_ID=...
+STRIPE_SECRET_KEY=...
+
+# Entur sync (public transport widget)
+ENTUR_CLIENT_NAME=biso-sites
+
+# WordPress/WooCommerce proxy
+WC_CONSUMER_KEY=...
+WC_CONSUMER_SECRET=...
+```
+
+### `apps/docs/.env.local`
+
+Not required for dev. The docs site is fully static for content.
+
+## 3. Run
+
+All apps in parallel:
+
+```bash
+bun run dev
+```
+
+Or one app:
+
+```bash
+bun run dev --filter=admin
+bun run dev --filter=web
+bun run dev --filter=api
+bun run dev --filter=docs
+```
+
+Ports:
+
+| App | URL |
+|---|---|
+| web | http://localhost:3000 |
+| admin | http://localhost:3001 |
+| docs | http://localhost:3002 |
+| api | http://localhost:3003 |
+
+## 4. Sign in
+
+- **Admin (`localhost:3001`)** — magic-link sign-in via Appwrite. Your account needs to be a
+  member of an Azure AD group that maps to a BISO role; otherwise the sidebar will be empty.
+  See [Admin handbook / Roles and permissions](/docs/admin-handbook/roles-and-permissions).
+- **Web (`localhost:3000`)** — public; sign in via the header to test member-only routes.
+
+## 5. Sanity check
+
+```bash
+bun run check-types
+bun run lint
+```
+
+Both should pass cleanly on `main`. If `check-types` fails, you have a bad clone or stale deps —
+re-run `bun install`.
+
+## Editor setup
+
+- **VS Code**: install the Biome extension (`biomejs.biome`). Disable ESLint/Prettier in this
+  workspace — they conflict with Ultracite's rules.
+- **WebStorm / Cursor**: same — point the formatter at Biome.
+
+## Where to go next
+
+- [Daily workflow](/docs/developing/daily-workflow) — the commands you'll run constantly.
+- [Conventions](/docs/developing/conventions) — read before your first PR.
+- [Working with Appwrite](/docs/developing/working-with-appwrite) — the data layer.

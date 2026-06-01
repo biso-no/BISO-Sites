@@ -1,0 +1,80 @@
+---
+title: Localization
+description: How Norwegian and English content is loaded and how the user's locale preference is stored.
+---
+
+# Localization
+
+The public site is bilingual: **Norwegian Bokmål** (`no`, default) and **English** (`en`). Every page, event, news article, product, and editor-built page can have content in both languages, and the user's preference follows them across visits.
+
+## How the user picks a language
+
+A **locale switcher** sits in the site header on every public page. Clicking it swaps to the other language and persists the choice. The change is server-rendered — no client-side flash.
+
+The user's locale is stored on their Appwrite account in `prefs.locale`. This works for anonymous accounts too, so a guest who switches to English keeps English on the next visit (as long as the session cookie survives).
+
+## How translated text is loaded
+
+There are two layers:
+
+### UI strings (labels, buttons, headings)
+
+These live in `@repo/i18n/messages` and are loaded by `apps/web/src/i18n/request.ts` using **`next-intl` v3**. There are 43 namespaces — one per feature area — so a page only loads the messages it needs.
+
+For developers: messages are JSON files in `packages/i18n/messages/{locale}/{namespace}.json`. New strings are added there, then referenced via the `useTranslations()` or `getTranslations()` hooks.
+
+### Content (titles, descriptions, bodies)
+
+Editor- and admin-managed content is translated through dedicated translation tables:
+
+| Table | What it translates |
+|-------|-------------------|
+| `content_translations` | Events, news, jobs, products, departments — anything with a slug. |
+| `page_translations` | Editor-built pages (the catch-all `[...slug]` route). |
+
+When a page renders, it fetches the row in the user's locale. If that row doesn't exist, it falls back to the default locale (Norwegian).
+
+This means an editor can ship Norwegian first and add English later without breaking anything — English users see Norwegian content for the missing pieces until the translation is added.
+
+## Locale APIs
+
+| Helper | Where | Purpose |
+|--------|-------|---------|
+| `getLocale()` | `apps/web/src/app/actions/locale.ts` | Returns the current locale (Server Component / server action). |
+| `setLocale()` | Same file | Persists a new locale to the user's Appwrite prefs. |
+| `useTranslations(namespace)` | `next-intl` | Client-side translation hook. |
+| `getTranslations(namespace)` | `next-intl` | Server-side equivalent. |
+
+## What gets translated and what doesn't
+
+| Surface | Translated? |
+|---------|-------------|
+| Header, footer, navigation | Yes — UI strings. |
+| Buttons, form labels, error messages | Yes — UI strings. |
+| Page bodies built in the editor | Yes — per-locale page document. |
+| News articles, events, jobs, products | Yes — `content_translations`. |
+| Email templates (transactional) | Where supported by the provider. |
+| Receipts and order numbers | Numbers and IDs stay the same; surrounding text is localized. |
+| External integrations (Vipps, Stripe checkout pages) | Out of our control — provider's locale logic applies. |
+
+## The default locale
+
+Norwegian (`no`) is the default. New visitors without a saved preference see Norwegian. The site is built primarily for BI students, most of whom speak Norwegian; English exists for exchange students, international staff, and applicants.
+
+## SEO
+
+The sitemap currently emits one URL per page (in the default locale). Search engines can still index English content via the locale switcher, but multi-locale hreflang setup is not configured. See [SEO and sitemap](/docs/public-website/seo-and-sitemap).
+
+## For admins
+
+When editing an event, news article, or page in the admin app, you'll see a language toggle that lets you fill in both Norwegian and English content. Saving creates rows in `content_translations` (or `page_translations`) for the locale you're editing. See [Admin Handbook → Pages](/docs/admin-handbook/pages).
+
+## For developers
+
+| File | Role |
+|------|------|
+| `apps/web/src/i18n/request.ts` | Loads message bundles per request. |
+| `apps/web/src/app/actions/locale.ts` | Get/set the user's locale. |
+| `packages/i18n/*` | Message JSON, `next-intl` config. |
+
+To add a new namespace, drop matching JSON files into `packages/i18n/messages/{locale}/` and register the namespace in the config. See [`@repo/i18n` package docs](/docs/packages).

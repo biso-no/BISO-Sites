@@ -1,0 +1,197 @@
+---
+title: Design decisions
+description: Why the platform is the way it is — the consequential choices, the alternatives we weighed, and why this won.
+---
+
+# Design decisions
+
+Every platform reaches a point where someone new looks at it and asks
+"why on earth is it this way?" This page is the answer for the
+non-obvious choices. Read it before you propose a major rewrite — there's
+a good chance the alternative you have in mind has already been
+considered.
+
+Each entry is structured the same way: the decision, what else was on the
+table, and why this one won.
+
+## Backend: Appwrite over Supabase, Firebase, or a hand-rolled Postgres
+
+**Decision.** All data, auth, storage, and server functions live in a
+single Appwrite project. See [/docs/integrations/appwrite](/docs/integrations/appwrite).
+
+**Alternatives considered.**
+
+- **Supabase.** Better SQL ergonomics, larger ecosystem, but the
+  multi-product surface (auth + storage + edge functions + realtime)
+  splits into separate services with separate dashboards.
+- **Firebase.** Excellent client SDKs, but Google lock-in, document
+  modelling is awkward for the relational shapes BISO has (campuses,
+  departments, members, orders), and pricing is opaque.
+- **Hand-rolled Postgres + NextAuth + S3-compatible storage.** Maximum
+  control. Maximum operational burden. BISO does not have the headcount
+  for this.
+
+**Why Appwrite won.** Self-hostable (BISO controls the data), single
+dashboard for auth + DB + storage + functions, permission model that
+maps cleanly to BISO's campus-scoped authorisation, and a SQL-ish
+TablesDB that handles BISO's relational shapes without forcing document
+modelling.
+
+## Framework: Next.js everywhere, including the API service
+
+**Decision.** All four apps — `web`, `admin`, `api`, `docs` — are Next.js.
+
+**Alternatives considered.**
+
+- A standalone Hono / Fastify / Express service for `apps/api`.
+- A pure SPA + standalone API split.
+
+**Why Next.js everywhere won.** One mental model for the whole monorepo.
+RSC means BISO benefits from server-side rendering with minimal client
+JavaScript on the public site. The cost of using Next.js for `apps/api`
+(slightly heavier runtime than Hono) is dwarfed by the developer-time
+savings of having one stack.
+
+## Page editor: in-house `@repo/editor`, not Puck/Builder.io/Plasmic
+
+**Decision.** BISO ships an in-house block editor at `@repo/editor`,
+built on `@dnd-kit`, `immer`, and `zustand`. Both `apps/web` (render)
+and `apps/admin` (edit) consume it.
+
+**Alternatives considered.**
+
+- **Puck.** Used historically — see [history](/docs/handover/history).
+- **Builder.io.** SaaS pricing scales painfully with seats; loss of
+  control over the block library and AI integration.
+- **Plasmic.** Similar concerns to Builder; also adds an external
+  authoring surface to learn.
+- **A heavyweight CMS (Sanity, Contentful, Strapi).** Would duplicate
+  the data layer BISO already has in Appwrite.
+
+**Why in-house won.** Tight integration with BISO's AI copilot,
+multi-locale (per-locale rows in `page_translations`, not a JSON-blob
+fudge), draft/publish flow integrated with Appwrite permissions, no
+licensing surprises, and a block library that can grow with BISO's
+exact needs rather than around someone else's abstractions.
+
+## Package manager: Bun
+
+**Decision.** Bun 1.3.1, pinned. The lockfile is `bun.lock`.
+
+**Alternatives considered.** pnpm (great workspaces, slightly slower),
+npm (no contest).
+
+**Why Bun won.** Workspaces with the `catalog:` protocol for pinning
+shared dependency versions across the monorepo without per-package
+duplication. Significantly faster installs in CI. The trade-off — Bun
+is younger than pnpm — has so far not bitten in practice.
+
+## Database surface: TablesDB, not Appwrite's older document API
+
+**Decision.** All access goes through Appwrite TablesDB
+(`db.getRow`, `db.listRows`, etc.), not the legacy
+Databases.getDocument / listDocuments API.
+
+**Alternatives considered.** The older Databases API, which still works
+and which earlier versions of the platform used.
+
+**Why TablesDB won.** Stronger typing (the generated row types live in
+`packages/api/types/appwrite.ts`), better query ergonomics, and
+Appwrite's own roadmap is on TablesDB.
+
+## A separate `apps/api` JWT service, instead of expanding `apps/web`'s API surface
+
+**Decision.** A standalone Next.js service at `apps/api` serves a
+JWT-authenticated REST API. `apps/web` consumes it through
+`NEXT_PUBLIC_API_BASE_URL`.
+
+**Alternatives considered.** Bake all the API logic into `apps/web`'s
+own `/api/*` routes.
+
+**Why a separate service won.** Some clients of the API are not the
+public website (Appwrite Functions, scheduled jobs, mobile or external
+consumers in the future). Coupling the API to `apps/web`'s deployment
+unit would mean restarting the public site to ship API changes. A
+standalone API service also has its own test suite (the only app that
+currently does).
+
+## Roles: derived from Azure AD groups, not Appwrite labels
+
+**Decision.** Staff roles inside `admin` come from Azure AD group
+membership (campus + department), resolved at login.
+
+**Alternatives considered.** Appwrite's built-in `labels` /
+`memberships`.
+
+**Why Azure AD won.** BISO already manages people in Azure AD. The
+single source of truth for "who is in the IT department at BI Oslo?"
+should be the same directory that controls their email and SharePoint
+access — not a separate system inside the platform. The trade-off is
+that role changes require a re-login to take effect.
+
+## Translations: per-locale rows, not a JSON blob
+
+**Decision.** `page_translations` has one row per (page, locale)
+combination. Adding a new locale is data, not a schema change.
+
+**Alternatives considered.** A single JSON column on `pages` like
+`{ "en": {...}, "no": {...} }`.
+
+**Why per-locale rows won.** Per-locale permissions become possible. A
+translator can be granted write access to Norwegian rows without
+needing access to English rows. Partial translation states are
+naturally representable. Querying "which pages don't have a Norwegian
+translation?" becomes a join rather than a JSON walk.
+
+## No `middleware.ts` in `apps/admin`
+
+**Decision.** The admin app does not use a Next.js middleware for auth.
+Auth is enforced inside each server component / route handler.
+
+**Alternatives considered.** A top-level `middleware.ts` that gates
+everything.
+
+**Why no middleware won.** Middleware runs on the edge runtime, which
+doesn't support the full Appwrite Node SDK. Pushing auth into server
+components keeps the same code path everywhere and avoids edge-runtime
+gymnastics. The trade-off is that every server component must
+explicitly call the auth helpers — see `apps/admin/CLAUDE.md`.
+
+## Analytics: intentionally disabled
+
+**Decision.** `apps/web` has an `/api/analytics/page-view` endpoint
+that returns 204. No analytics provider is wired up.
+
+**Alternatives considered.** Google Analytics 4, Plausible, Umami,
+PostHog.
+
+**Why disabled won (for now).** Each option carries privacy,
+performance, or cost trade-offs that BISO didn't want to lock in
+without a real product owner for analytics. The endpoint exists so the
+client can be updated independently when an analytics provider is
+chosen. See [known-limitations](/docs/handover/known-limitations).
+
+## Audit logs in Appwrite, not an external observability stack
+
+**Decision.** Every meaningful write is mirrored to an `audit_logs`
+collection in Appwrite.
+
+**Alternatives considered.** Sending events to Datadog, Honeycomb, or
+similar.
+
+**Why Appwrite-native won.** It works without another vendor. It's
+queryable in the same console BISO already uses. It's not a substitute
+for proper observability if BISO's scale grows significantly — at that
+point, *add* an external stack alongside, don't replace this.
+
+## Revisiting these decisions
+
+None of these decisions are sacred. If you read one and think "this is
+wrong for where BISO is now", that's a legitimate position. What's not
+legitimate is reverting a decision without reading the alternatives
+again. A lot of these were chosen because the alternative had a hidden
+cost that wasn't obvious from the outside.
+
+Before proposing a reversal, write a counter-design doc that addresses
+the "why this won" column above. If the reasoning still holds, leave
+the decision alone. If it doesn't, you have a real case to make.

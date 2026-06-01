@@ -1,0 +1,17 @@
+{
+  "title": "Developing",
+  "pages": [
+    "index",
+    "local-setup",
+    "daily-workflow",
+    "conventions",
+    "working-with-appwrite",
+    "adding-a-route",
+    "adding-a-server-action",
+    "adding-an-editor-block",
+    "i18n",
+    "styling",
+    "testing",
+    "troubleshooting"
+  ]
+}

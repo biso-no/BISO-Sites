@@ -1,0 +1,131 @@
+---
+title: 24SevenOffice
+description: BISO's accounting platform — membership verification, invoicing, and the ledger destination for every shop transaction.
+---
+
+# 24SevenOffice
+
+24SevenOffice (rebranded as **Finago** by the vendor — same product, two
+names you'll see in docs and emails) is BISO's accounting platform. Every
+membership invoice, every shop sale, and the department chart-of-accounts
+flow through it.
+
+## What it is
+
+A Norwegian SME accounting system. We use it as both a system of record
+(the ledger is authoritative; our DB is not) and a customer database
+(membership status lives there). It exposes a mix of REST and SOAP APIs;
+the SOAP ones are the older surface and unfortunately still required for
+some calls.
+
+## Why we use it
+
+BISO has been on 24SO long before this platform existed. The accounting
+team uses it daily, audits happen against it, and there is no scenario
+where we'd ask them to switch finance systems just to suit a website. So
+the platform integrates with what's there.
+
+## Cost shape
+
+Annual SaaS subscription, plus per-user pricing on the accounting side.
+The integration itself doesn't add cost beyond making more API calls.
+
+## What we use it for
+
+Four concrete jobs:
+
+1. **Membership verification.** When a student logs into the shop, we hit
+   24SO via `getCustomerCategories()` to check whether their account is in
+   the active-members category. If yes, member discounts apply at
+   checkout.
+2. **Membership invoicing.** `createMembershipInvoice()` posts an invoice
+   for a paid membership through 24SO so the accounting team doesn't have
+   to enter anything by hand.
+3. **Posting shop transactions.** When a shop order is paid (via Vipps or
+   Stripe), `postShopTransaction()` posts the journal entries into 24SO
+   against the right GL accounts.
+4. **Syncing departments.** The chart of departments in 24SO is mirrored
+   into the platform so admin shop products can be tagged with a GL
+   account and a department.
+
+## Configuration
+
+Authentication uses an OAuth-style token flow. We don't keep static API
+keys for 24SO — instead, refresh tokens are stored **encrypted in an
+Appwrite table** (`24so_tokens`) and rotated programmatically. The access
+token is exchanged for a refresh token on demand.
+
+That means there's no `TFSO_API_KEY=` env var to find. To re-authorise the
+platform (e.g. if tokens are invalidated):
+
+1. Sign into the 24SO portal for our account.
+2. Re-authorise the integration via the OAuth flow exposed by the admin
+   app.
+3. The new refresh token is written back to the `24so_tokens` table.
+
+## Where it lives in the codebase
+
+The 24SO client lives under `@repo/connectors` and is consumed across all
+three runtime apps:
+
+- **`apps/web`**
+  - Membership status check via `getCustomerCategories()` at shop
+    checkout — this is what powers the member discount.
+  - Checkout return handler posts the paid order to the ledger.
+- **`apps/admin`**
+  - Shop product editor — staff pick a GL account when creating a product
+    so the post-to-ledger step knows where to book the revenue.
+  - Membership-related admin operations (create invoice, look up customer
+    record).
+- **`apps/api`**
+  - Department sync — keeps the platform's department list aligned with
+    24SO.
+
+## Member discount flow
+
+This one comes up often, so it's worth spelling out:
+
+1. User adds items to the shop cart and proceeds to checkout.
+2. The web app calls 24SO with the logged-in user's email/identifier and
+   asks for their customer categories.
+3. If the response includes an active-membership category, the order's
+   pricing is recomputed with the member discount applied.
+4. The (possibly discounted) total is sent to Vipps or Stripe.
+5. After payment, the order is posted to 24SO with the discount line
+   itemised.
+
+If 24SO is unreachable during step 2, the user is treated as a non-member.
+That's the safe failure direction (don't give discounts to people who
+might not deserve them) but it does mean during a 24SO outage members pay
+full price.
+
+## Failure modes
+
+- **Token expired and refresh failed** — every 24SO call returns 401. The
+  shop still works (Vipps/Stripe don't go through 24SO), but the
+  post-to-ledger step at the end of checkout fails, leaving orders that
+  need manual reconciliation by the accounting team.
+- **24SO API down** — same as above, plus member discounts stop applying
+  and membership invoices can't be created.
+- **SOAP vs REST mismatch** — some calls still use the legacy SOAP
+  surface. If 24SO migrates a specific endpoint, that one call breaks
+  while the rest of the integration keeps working.
+- **Department sync stale** — new departments created in 24SO don't appear
+  in the admin shop-product picker until the sync runs.
+
+## Rotation
+
+There's nothing static to rotate routinely. The refresh-token flow handles
+itself. If you suspect a token has been compromised:
+
+1. Revoke the integration in the 24SO portal for our account.
+2. Truncate or invalidate the relevant row in the `24so_tokens` table.
+3. Re-authorise the integration through the admin app.
+
+## Swapping the vendor
+
+Plausible but expensive. The integration surface is wide (membership,
+invoicing, ledger posting, departments) and the accounting team would
+need to migrate their books to whatever the replacement is. If BISO ever
+changes accounting platforms, expect the integration rewrite to be a
+multi-week project rather than a swap.

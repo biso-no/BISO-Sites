@@ -1,0 +1,19 @@
+{
+  "title": "Public Website",
+  "pages": [
+    "index",
+    "routing-and-pages",
+    "authentication-and-sessions",
+    "membership",
+    "shop-and-checkout",
+    "events",
+    "job-board",
+    "news",
+    "campus-and-departments",
+    "documents-library",
+    "expense-portal",
+    "recruitment-booking",
+    "localization",
+    "seo-and-sitemap"
+  ]
+}

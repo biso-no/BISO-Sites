@@ -1,0 +1,68 @@
+---
+title: Orders
+description: View shop orders, follow the payment status flow, and look up the accounting transaction for any paid order.
+---
+
+# Orders
+
+The orders screen lists every purchase that has been started on the BISO webshop — paid, pending, cancelled, or anything in between. Open it from the sidebar under **Shop → Orders** (`/shop/orders`).
+
+What you see is scoped to your campus: global admins see every order across BISO, campus admins see only orders for their campus.
+
+## The status flow
+
+An order moves through a sequence of statuses from the moment a customer hits "Pay" until the money is in BISO's bank account. Most orders go straight down the happy path; a few drop out into one of the failure states.
+
+| Status | What it means | What happens next |
+|--------|---------------|-------------------|
+| `pending` | The customer has started checkout but the payment provider hasn't confirmed anything yet. | The provider (Vipps or Stripe) will move it to `authorized` once the customer has paid, or to `failed`/`cancelled` if they bail. |
+| `authorized` | The payment provider has the funds reserved but not captured. | Becomes `paid` once capture completes (usually within seconds). |
+| `paid` | Money received. The order is posted to 24SevenOffice. | This is the terminal happy state. |
+| `cancelled` | The customer abandoned checkout, or the order was cancelled in the provider portal. | Nothing further. Any stock reservations are released. |
+| `failed` | The payment provider rejected the payment (declined card, timeout, etc.). | Nothing further. The customer needs to try again. |
+| `refunded` | The order was paid then refunded. | The refund is recorded but the actual money movement happens in the provider portal — see [Checkout and payments](/docs/admin-handbook/shop/checkout-and-payments). |
+
+If an order has been stuck at `pending` or `authorized` for more than a few minutes, something has gone wrong. Skip to "Investigating a stuck order" below.
+
+## What's stored on an order
+
+Each order row keeps everything you need to answer customer questions without having to dig in the payment provider's portal:
+
+| Field | What it contains |
+|-------|------------------|
+| **Buyer name and email** | What the customer typed at checkout. |
+| **Items (snapshot)** | The list of products as they were at checkout — name, price, quantity. This is a snapshot, so even if you later edit the product or change its price, the order keeps the original values. |
+| **Subtotal, discount total, total** | The numbers shown to the customer, in NOK. |
+| **Payment provider** | Either `vipps` or `stripe`. |
+| **Payment session ID, intent ID, link** | The identifiers used to look the payment up in the provider's own portal. |
+| **Finago transaction ID** | After the order is posted to 24SevenOffice, this is the reference to the journal entry there. Empty if the order is not paid yet. |
+| **Campus ID** | Which campus the order belongs to. |
+| **Membership applied** | `true` if the buyer was a BISO member at checkout and got the member discount. |
+
+## Common tasks
+
+### Look up a specific order
+
+Use the search box at the top of the list to filter by buyer name, buyer email, or order ID. The list also supports filtering by status — useful for sweeping up everything that's `pending` or `failed`.
+
+### Find the accounting record
+
+Once an order is `paid`, the **Finago transaction ID** field links it to the journal entry in 24SevenOffice. If the finance team asks "where is order X in the ledger?", that's the number to give them. See [24SevenOffice integration](/docs/integrations/24sevenoffice) for the full posting flow.
+
+### Refund an order
+
+Refunds are **not executed inside the admin app**. The actual money movement happens in the payment provider's own portal:
+
+- For Vipps orders, log in to the Vipps merchant portal and refund the payment there. See [Vipps MobilePay](/docs/integrations/vipps-mobilepay).
+- For Stripe orders, log in to the Stripe dashboard. See [Stripe](/docs/integrations/stripe).
+
+Once the refund is processed by the provider, the order's status in the admin app will flip to `refunded`. If it doesn't update within a few minutes, ask BISO IT to look at the return-URL pipeline.
+
+### Investigating a stuck order
+
+If an order has been at `pending` for more than ten minutes:
+
+1. Find the order in the list.
+2. Note the payment provider and payment session ID.
+3. Log in to that provider's portal and look the session up directly. The portal will tell you whether the customer ever completed the payment.
+4. If the provider says it was paid but our system still says `pending`, that means our return-URL flow didn't complete — flag it with BISO IT. (The old webhook-based flow at `/api/checkout/webhook` is deprecated and returns 410; the live flow uses the return URL at `/api/checkout/return`.)

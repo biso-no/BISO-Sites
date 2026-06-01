@@ -1,0 +1,84 @@
+---
+title: Drafts and publishing
+description: How saving, publishing, and unpublishing work, and what visitors actually see at each stage.
+---
+
+# Drafts and publishing
+
+Every page in the editor has two states: the **draft** (what you're working on) and the **published version** (what the public sees on biso.no). They live side by side, so you can keep editing a page that's already live without those edits leaking out before you're ready.
+
+This is true per language. The Norwegian and English versions of a page each have their own draft and their own published version — see [Translations](/docs/admin-handbook/pages/translations).
+
+## The lifecycle
+
+A page moves through three meaningful states:
+
+| State | What it means | Who can see it |
+|-------|---------------|----------------|
+| **New draft** | A page exists in the admin but has never been published. | Only people with admin access. |
+| **Published** | The page is live on biso.no. | The public (or signed-in members, if the page is set to authenticated visibility). |
+| **Edited after publishing** | The page is published, but you've made unpublished changes to the draft. | Public sees the previously published version. You see the draft when you open the editor. |
+
+## Saving
+
+Saving happens automatically as you work, with a short delay after you stop typing or dragging. The save indicator in the topbar shows the state:
+
+- **Saved** — your draft is on the server.
+- **Saving…** — a save is in flight.
+- **Error** — something went wrong; use the **Save** button to retry.
+
+Saving is **not the same as publishing**. A saved draft is private to admin users. It writes an entry to the activity log so you can see who edited what, but it doesn't change biso.no.
+
+## Publishing
+
+When the draft looks right, hit **Publish** in the topbar. Behind the scenes:
+
+- The draft is copied into the published slot.
+- The page's status flips to **Published**.
+- The public site picks up the change on the next request — usually within a few seconds.
+
+After publishing, you can keep editing. Your edits become a fresh draft on top of the published version. Visitors continue to see the published version until you press **Publish** again.
+
+<Callout type="info">
+A page can be **published in Norwegian but still a draft in English**, or the other way round. The public site only shows languages that have been published, and falls back to Norwegian if a visitor's chosen language isn't published yet.
+</Callout>
+
+## Unpublishing
+
+If you need to take a page off the public site without deleting it, use **Unpublish**. The page goes back to draft state, the public URL stops working (or starts 404'ing, depending on the page), and the draft you had is preserved.
+
+Unpublishing is the safest way to "hide" a page. It's reversible: hit **Publish** again whenever you're ready.
+
+## Visibility: public vs. authenticated
+
+In the page metadata (inspector with nothing selected on the canvas), the **Visibility** field decides who can see a published page:
+
+- **Public** — anyone on the internet. This is the default.
+- **Authenticated** — only signed-in BISO members. Use this for pages with internal information, member-only benefits, etc.
+
+Visibility only matters once the page is published. A draft is never visible to anyone outside the admin app regardless of this setting.
+
+## Finding work-in-progress
+
+Two screens help you see what's still in draft:
+
+- The **Pages** list shows a **Status** column — filter by **Draft** to see everything in progress.
+- The [Drafts](/docs/admin-handbook/drafts) screen aggregates drafts across pages, news, events, and jobs into one place, so you can see what's outstanding at a glance.
+
+## Who did what
+
+Every save, publish, and unpublish writes an entry to the [Activity](/docs/admin-handbook/activity) log. If you ever wonder "who changed this page?", that's the screen to check.
+
+## A typical workflow
+
+A common pattern looks like this:
+
+1. Create a new page, fill in the metadata, drop a hero and a couple of text blocks on the canvas.
+2. Leave it for a day. Come back, polish the wording.
+3. Add an `events` or `news` block to make the page feel alive.
+4. Switch to **Preview** mode and check the desktop, tablet, and mobile views.
+5. Publish the Norwegian version.
+6. Click **Translate from Norwegian** to draft an English version. Edit, then publish.
+7. Weeks later, edit the page again. Your edits stay as a draft until you press **Publish**, so the live page doesn't flicker mid-edit.
+
+For the technical side — what gets written to the database when you save vs. publish — see [Pages publish flow](/docs/architecture/pages-publish-flow).

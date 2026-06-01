@@ -1,0 +1,174 @@
+---
+title: "@repo/ui"
+description: Shared React component library — Radix primitives, Tailwind, Plate.js editor kits, and design tokens.
+---
+
+# @repo/ui
+
+`@repo/ui` is the design system. It wraps Radix UI primitives with the
+project's Tailwind styling, ships the Plate.js editor kits used inside
+rich-text blocks, and exposes a token Proxy so blocks can read brand
+colors and typography without importing CSS variables manually. Every
+app in the monorepo depends on it.
+
+## Exports
+
+The package's `exports` field uses a wildcard, so any file under
+`src/` is importable, but the convention is to use the namespaced
+subpaths:
+
+| Subpath                | What lives there                                                            |
+|------------------------|------------------------------------------------------------------------------|
+| `@repo/ui/components/*`| React components — `button`, `input`, `dialog`, etc.                         |
+| `@repo/ui/lib/*`       | Utilities — `cn`, `tokens`, helpers                                          |
+| `@repo/ui/hooks/*`     | `use-hydration`, `use-mobile`, `use-mounted`, `use-debounce`                 |
+| `@repo/ui/styles/globals.css` | Tailwind layer + CSS variable definitions                              |
+
+```tsx
+import { Button } from "@repo/ui/components/button";
+import { cn } from "@repo/ui/lib/utils";
+import { tokens } from "@repo/ui/lib/tokens";
+import { useDebounce } from "@repo/ui/hooks/use-debounce";
+```
+
+Apps load the global stylesheet once in their root layout:
+
+```tsx
+import "@repo/ui/styles/globals.css";
+```
+
+## Component catalog
+
+The library has ~43 components grouped by function.
+
+### Form primitives
+
+| Component        | Notes                                                            |
+|------------------|------------------------------------------------------------------|
+| `Button`         | `variant` (default, outline, ghost, link, destructive), `size`   |
+| `Input`          | Standard text input                                              |
+| `Label`          | Radix `@radix-ui/react-label`                                    |
+| `Select`         | Radix Select with styled trigger and content                     |
+| `Checkbox`       | Radix Checkbox                                                   |
+| `RadioGroup`     | Radix RadioGroup                                                 |
+| `Toggle`         | Radix Toggle                                                     |
+| `Switch`         | Radix Switch                                                     |
+| `Textarea`       | Auto-resizing via `react-textarea-autosize`                      |
+| `AlertDialog`    | Radix AlertDialog with project styling                           |
+| `Popover`        | Radix Popover                                                    |
+| `DropdownMenu`   | Radix DropdownMenu                                               |
+| `DateTimePicker` | Wraps `DatePicker` + time selection                              |
+| `DatePicker`     | Built on `react-day-picker`                                      |
+| `FileUpload`     | Drop zone with progress; pairs with `@repo/api` Storage          |
+| `LinkPicker`     | Internal/external link selector used inside blocks               |
+| `TablePicker`    | Visual table-size selector for the editor                        |
+| `DataSourcePicker` | Selects a BISO data source (events, jobs, news, ...) for blocks|
+
+### Layout
+
+| Component         | Notes                                          |
+|-------------------|------------------------------------------------|
+| `Accordion`       | Radix Accordion                                |
+| `Tabs`            | Radix Tabs                                     |
+| `Separator`       | Radix Separator                                |
+| `ScrollArea`      | Radix ScrollArea with custom scrollbars        |
+| `Carousel`        | `embla-carousel-react`                         |
+| `ResizablePanels` | `react-resizable-panels`                       |
+
+### Data display
+
+- `Chart` — Recharts wrappers (`LineChart`, `BarChart`, `PieChart`)
+- Card, Badge, Avatar, Tooltip, Toast, Skeleton
+
+### Utilities
+
+- `ThemeProvider` — wraps `next-themes`; dark mode toggle via `ModeToggle`
+- `Image` — wraps Next.js `<Image>` with a `PLACEHOLDER_IMAGE` fallback
+  for null/empty `src`. Use this anywhere Appwrite-stored images are
+  rendered, since their URLs can be missing during a draft.
+
+## Editor kits (Plate.js)
+
+The rich-text experience inside blocks is built on
+[Plate.js](https://platejs.org). `@repo/ui` ships pre-configured
+"kits" — bundles of Plate plugins with the project's styling baked in
+— so blocks can compose only the features they need.
+
+| Kit                   | Adds                                                |
+|-----------------------|-----------------------------------------------------|
+| `EditorBaseKit`       | Core editor (always included)                       |
+| `BasicBlocksBaseKit`  | Paragraph, headings, blockquote, hr                 |
+| `BasicMarksBaseKit`   | Bold, italic, underline, code, strikethrough        |
+| `LinkBaseKit`         | Inline links                                        |
+| `ListBaseKit`         | Ordered, unordered, todo lists                      |
+| `CodeBlockBaseKit`    | Syntax-highlighted code blocks                      |
+| `MathBaseKit`         | LaTeX inline + block math                           |
+| `TableBaseKit`        | Inline tables                                       |
+| `DateBaseKit`         | Date inline elements                                |
+| `TocBaseKit`          | Table-of-contents block                             |
+| `MentionBaseKit`      | `@mentions`                                         |
+| `SuggestionBaseKit`   | Track-changes-style suggestions                     |
+| `CommentBaseKit`      | Comment threads anchored to ranges                  |
+| `CursorOverlayKit`    | Remote-cursor overlay (multi-user)                  |
+| `AlignBaseKit`        | Block alignment                                     |
+| `LineHeightBaseKit`   | Line-height controls                                |
+| `IndentBaseKit`       | Indent / outdent                                    |
+| `FontBaseKit`         | Font family / size                                  |
+| `MediaBaseKit`        | Images, videos, embeds inside the editor            |
+| `CalloutBaseKit`      | Callout blocks                                      |
+
+Higher-level bundles:
+
+- `ContentEditor` — opinionated editor with the standard kit selection.
+- `PortalBodyEditor` / `PortalEditorKit` — variant used in long-form portal pages.
+- `AiKit` — Plate AI integration (slash commands, completions).
+- `DiscussionKit` — comments + suggestions, for the admin's review flows.
+
+A typical block instantiates one of the editors with a kit list and
+passes its value back through props.
+
+## Design tokens
+
+`tokens` from `@repo/ui/lib/tokens` is a Proxy over the CSS variables
+defined in `globals.css`. Use it from block code instead of hard-coding
+hex values:
+
+```ts
+import { tokens } from "@repo/ui/lib/tokens";
+
+const style = {
+  backgroundColor: tokens.color.primary,
+  fontSize: tokens.fontSize.lg,
+  borderRadius: tokens.radius.md,
+  transitionDuration: tokens.duration.normal,
+  transitionTimingFunction: tokens.easing.standard,
+};
+```
+
+The token surface:
+
+| Group       | Count | Examples                                                |
+|-------------|-------|---------------------------------------------------------|
+| `color`     | 24    | `primary`, `accent`, `muted`, `destructive`, `success`  |
+| `radius`    | 5     | `sm`, `md`, `lg`, `xl`, `full`                          |
+| `fontSize`  | 8     | `xs` ... `4xl`                                          |
+| `lineHeight`| 3     | `tight`, `normal`, `relaxed`                            |
+| `duration`  | 3     | `fast`, `normal`, `slow`                                |
+| `easing`    | 4     | `linear`, `standard`, `accelerate`, `decelerate`        |
+
+## Utilities
+
+```ts
+import { cn } from "@repo/ui/lib/utils";
+
+<div className={cn("text-sm", isActive && "text-primary", className)} />
+```
+
+`cn` composes [`clsx`](https://github.com/lukeed/clsx) with
+[`tailwind-merge`](https://github.com/dcastil/tailwind-merge) so
+later Tailwind classes override earlier ones correctly.
+
+Component variants are defined with
+[`class-variance-authority`](https://cva.style/) (`cva`). Icons come
+from `lucide-react` and should always be imported by name, never as a
+namespace.

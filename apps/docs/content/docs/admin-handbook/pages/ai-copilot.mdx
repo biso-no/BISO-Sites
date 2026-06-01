@@ -1,0 +1,65 @@
+---
+title: AI copilot
+description: The chat assistant built into the page editor — what it can do, how to talk to it, and where its limits are.
+---
+
+# AI copilot
+
+The page editor has a built-in AI assistant — the **copilot** — that can help you build, rewrite, and translate pages. It's powered by OpenAI and it can actually do things in the editor, not just chat. If you ask it to add a hero, it adds a hero.
+
+This is separate from the general-purpose [AI Assistant](/docs/admin-handbook/ai-assistant) screen in the sidebar; the copilot only exists inside the page editor and only acts on the page you're editing.
+
+## Opening it
+
+Click the **AI copilot** button in the topbar. A chat panel slides out from the right. Type your request and press enter. Responses stream in as the model thinks — you don't have to wait for a full answer to start reading.
+
+You can keep the copilot open while you work. Each conversation is tied to the page you're editing.
+
+## What it can do
+
+The copilot has access to the editor and to your library of content. The things you'll use it for most:
+
+- **Add blocks for you.** "Add a hero with the headline 'Welcome to BISO Oslo' and a call-to-action button to the membership page." The copilot inserts the block with sensible defaults.
+- **Modify existing blocks.** Select a block first, then ask: "Make this heading shorter and punchier" or "Change the button label to 'Apply now'."
+- **Rewrite text in a different tone.** Useful when you've drafted something and want a more formal, more casual, or shorter version.
+- **Suggest translations.** Quick translations for a single block (the full-page translator is the [translate button](/docs/admin-handbook/pages/translations), but the copilot is handy for one-off paragraphs).
+- **Embed BISO content.** "Show the next three events at Oslo campus" — the copilot can fetch from the jobs, events, and news collections and drop the relevant list block onto the page.
+
+## How to talk to it
+
+Be specific. The copilot is better with concrete instructions than with vague ones:
+
+- Vague: "Make this page better."
+- Better: "Rewrite the intro paragraph to be friendlier, and add a stats block with our membership numbers."
+
+Mentioning the **block you mean** helps. "Change the hero heading…" is clearer than "Change the heading…" if the page has several headings.
+
+If something it does isn't quite right, just tell it. "Make that shorter." "Use a different verb." "Move it above the events list." The copilot remembers the conversation, so follow-ups work naturally.
+
+## What you stay in charge of
+
+The copilot is a helper, not a replacement. A few things to keep in mind:
+
+- **Always read what it produces.** It can hallucinate names, dates, and facts. Treat its output like a first draft from a colleague — useful, but it needs review.
+- **You still publish.** The copilot edits the draft, never the published version. Nothing it does shows up on biso.no until you hit **Publish** yourself.
+- **Undo works.** If the copilot does something you don't like, `Ctrl + Z` reverses it just like any manual edit.
+
+<Callout type="warning">
+The copilot can change a lot at once. If it rewrites three blocks and you only wanted one changed, undo and ask again more narrowly. It's quicker than fixing each block by hand.
+</Callout>
+
+## Privacy and data
+
+The copilot sees the page you're editing — including unpublished drafts — and the collection data it fetches to help you. It doesn't see other pages you haven't opened, and it doesn't get to read anything you wouldn't normally have access to in the admin app.
+
+Conversations aren't kept between sessions. Close the editor and the chat history is gone.
+
+## When the copilot can't help
+
+There are things the copilot won't do well, and you'll get better results going manual:
+
+- **Pixel-level layout decisions.** "Make this image 12px smaller" is not the copilot's strength — use the inspector directly.
+- **Long-form, voice-sensitive writing.** Anything with a particular BISO tone or campus humour is usually better written by you, with the copilot used for a final polish.
+- **Anything that depends on a person.** The copilot doesn't know your team's current priorities, who said what at the last board meeting, or which campaign is launching next week.
+
+For the broader story of how AI is used across the admin app — including the AI assistant outside the editor — see [AI assistant](/docs/admin-handbook/ai-assistant).

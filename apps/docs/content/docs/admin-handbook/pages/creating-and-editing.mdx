@@ -1,0 +1,79 @@
+---
+title: Creating and editing pages
+description: Step-by-step walkthrough of making a new page, finding an existing one, adding blocks, and saving your work.
+---
+
+# Creating and editing pages
+
+This page walks you through the day-to-day rhythm of working in the editor: starting a new page, opening an old one, adding and arranging blocks, and saving your changes.
+
+## Starting a new page
+
+1. From the sidebar, open **Pages**.
+2. Click **New page** in the top right. The editor opens on a blank canvas.
+3. With nothing selected in the canvas, the inspector on the right shows the page metadata. Fill in:
+   - **Title** — the heading that appears in the browser tab and on the page itself.
+   - **Slug** — the URL path on biso.no (e.g. `about-us` becomes `biso.no/about-us`). Keep it short and lowercase, no spaces.
+   - **Description** — one or two sentences. This is what Google and link previews show.
+   - **Department** — pick the department that owns this page. If you're a department lead, your own department is pre-selected.
+   - **Accent colour** — a tint used to theme buttons and highlights on the page.
+4. Hit **Save**. The page now exists as a draft. It's not visible to the public yet — see [Drafts and publishing](/docs/admin-handbook/pages/drafts-and-publishing).
+
+## Opening an existing page
+
+From the **Pages** list, click the page you want to edit. The list shows the page's title, slug, owning department, status (draft / published), and when it was last edited.
+
+If you can't find a page, check:
+
+- **Your campus scope** — a campus admin only sees their own campus's pages. A global admin can switch campus from the topbar to see another campus's pages.
+- **The search bar** — the list is filtered as you type.
+- **Drafts** — recently created pages that haven't been published yet also show up in [Drafts](/docs/admin-handbook/drafts).
+
+## Adding a block
+
+Open the **Palette** on the left. Blocks are grouped into categories — "Top of page", "Tell a story", "Show people & numbers", and so on. You can browse a category or type into the search box.
+
+To add a block, drag it from the palette onto the canvas. Drop it where you want it — between two existing blocks, or at the top or bottom. A blue insertion line shows where it will land.
+
+You can also click a block in the palette to drop it at the bottom of the canvas.
+
+For a full list of what each block does, see the [Blocks reference](/docs/admin-handbook/pages/blocks-reference).
+
+## Editing a block
+
+Click a block on the canvas to select it. A coloured outline appears around it, and the inspector on the right swaps from page metadata to that block's properties.
+
+What you'll find in the inspector depends on the block:
+
+- **Text blocks** — a rich-text editor (bold, italic, links, headings, lists).
+- **List blocks** (events, jobs, news, partners, etc.) — a "source" picker that decides which items to pull. You can filter by campus, by department, or pick a preset like "upcoming events".
+- **Media blocks** (image, gallery, video) — an upload area. Files are stored in the BISO media library.
+- **Layout blocks** (tabs, two-column, feature grid) — slots inside the block that hold further content.
+
+To get back to page-level fields, click an empty area of the canvas to deselect.
+
+## Rearranging and removing blocks
+
+- **Move**: hover over a block and grab its handle (the dots on the left edge). Drag it up or down.
+- **Delete**: select the block and press **Delete** or **Backspace**, or use the delete button in the inspector.
+- **Undo / redo**: `Ctrl + Z` (or `Cmd + Z` on Mac) and `Ctrl + Shift + Z` to redo.
+
+<Callout type="warning">
+Undo history lives in memory only. If you refresh the page, you lose the ability to undo — but your draft itself is safe, because it's auto-saved.
+</Callout>
+
+## Previewing
+
+In the topbar, switch from **Edit** to **Preview** to see the page as a visitor would, without the editor chrome. Use the **viewport toggle** (desktop / tablet / mobile) to check how it looks at different screen sizes.
+
+## Saving
+
+Saving is **automatic**. A few hundred milliseconds after you stop typing or dragging, the draft writes itself to the server. The save indicator in the topbar tells you the current state:
+
+- **Saved** — everything is on the server.
+- **Saving…** — a save is in flight.
+- **Error** — something went wrong. Try the **Save** button to retry; if it keeps failing, copy your text somewhere safe and tell IT.
+
+The **Save** button is still useful for forcing an immediate save (e.g. before closing the tab on a slow connection).
+
+When you're ready to publish, head to [Drafts and publishing](/docs/admin-handbook/pages/drafts-and-publishing).

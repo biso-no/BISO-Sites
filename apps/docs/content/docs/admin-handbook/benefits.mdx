@@ -1,0 +1,70 @@
+---
+title: Benefits
+description: How to manage member benefits and partner discounts shown to BISO members on biso.no.
+---
+
+# Benefits
+
+The **Benefits** area is where BISO publishes the perks of being a member: discounts at local businesses, partner offers, and any other deal negotiated for students. It is one of the most concrete reasons people pay for membership, so keeping it accurate and current matters.
+
+The screen lives at `/benefits`, with `/benefits/new` to add a new benefit, `/benefits/[id]` to edit one, and a dedicated `/benefits/partners` view for the businesses behind the offers.
+
+## What a benefit is
+
+A benefit is a single perk shown to members on biso.no. Typical examples are "10% off at a local coffee shop", "free entry to a venue on Wednesdays", or a discount code at an online store. Each benefit lives as its own record so it can be edited, hidden, or replaced independently.
+
+Benefits are **campus-scoped** — a Bergen-only discount is shown only to Bergen members, an Oslo-only one only to Oslo. That keeps the listing relevant for each campus.
+
+## Translations
+
+Benefits are translatable. Each benefit can carry content in multiple languages so members reading biso.no in Norwegian or English see the offer in their preferred language. If a translation is missing, biso.no falls back to whichever language is available.
+
+When adding a new benefit, try to provide both languages from the start — partial translations are confusing to members who switch language and find half the catalogue disappears.
+
+## The partners view
+
+`/benefits/partners` is a dedicated screen for the **businesses** behind the benefits, rather than the individual offers. It is where you manage:
+
+- The partner organisation's name.
+- Their logo (used on biso.no next to the offer).
+- Any discount codes or redemption details that members need.
+
+The partners view is useful when one partner offers multiple benefits, or when a single offer has its own discount code that you want managed centrally rather than baked into the benefit description.
+
+## Roles and scope
+
+Benefits are an administrative view, not an editorial one — only admins manage them.
+
+| Role | Can manage |
+|------|------------|
+| Global admin | Every benefit on every campus, and the full partners list. |
+| Campus admin | Every benefit in their campus, plus partners relevant to that campus. |
+| Department | No access. Department roles do not see Benefits in the sidebar — see [Roles and permissions](/docs/admin-handbook/roles-and-permissions). |
+
+This split exists because benefits are typically negotiated at the campus or national level, not by individual departments.
+
+## A typical update
+
+How a benefit usually gets added or changed:
+
+1. Negotiate the deal with the partner offline.
+2. In `/benefits/partners`, make sure the partner exists. Add them if not, with their logo and the headline details.
+3. In `/benefits`, add a new benefit (or edit an existing one) describing the offer.
+4. Provide content in both supported languages.
+5. Set the campus so it appears for the right members.
+6. Save. The offer shows up on biso.no for members on that campus.
+
+When an offer ends, either update the benefit to reflect the new terms or remove it so members do not show up at the partner expecting a discount that no longer exists.
+
+## Tips
+
+- **Date-stamp expirations in the description** for limited-time offers — for example, "valid until 31 May". It is the simplest way to avoid an awkward situation at the till.
+- **Keep partner logos consistent in size and quality.** They sit next to each other on the public benefits page and a low-quality logo stands out.
+- **Audit the catalogue once a semester.** Some partners change ownership or stop honouring deals; a quick check keeps the listing trustworthy.
+- **Coordinate with [News](/docs/admin-handbook/news)** when launching a major new partner — a news article highlighting the deal usually does more for awareness than just adding it to the benefits page.
+
+## Where to go next
+
+- [News](/docs/admin-handbook/news) — to announce a new partner.
+- [Roles and permissions](/docs/admin-handbook/roles-and-permissions) — for why department roles cannot see benefits.
+- [Campus context](/docs/admin-handbook/campus-context) — for how to switch campus as a global admin while editing benefits.

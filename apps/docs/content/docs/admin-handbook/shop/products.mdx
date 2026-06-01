@@ -1,0 +1,60 @@
+---
+title: Products
+description: Add and edit products in the BISO webshop — pricing, condition, ledger codes, member discounts, and translations.
+---
+
+# Products
+
+Every item for sale on biso.no/shop is a row in the products list. This page walks through the product editor field by field, and explains the bits that aren't obvious (the ledger account number, the member-discount toggle, and how translations work).
+
+## Finding products
+
+Click **Shop** in the sidebar. The shop home screen is the product list, filtered to the campus you have access to. To open a product, click its row — this takes you to `/shop/[id]`, the editor. To create a new one, use the **New product** button at the top of the list.
+
+Newly created products may not be visible to customers right away if they need to go through the [approval queue](/docs/admin-handbook/shop/approval-queue) first.
+
+## Fields, one by one
+
+| Field | What it does |
+|-------|--------------|
+| **Name** | The product title shown to customers. Keep it short — it has to fit on a card. |
+| **Description** | A paragraph or two explaining what the product is. Supports basic formatting. Has a Norwegian and an English version (see Translations below). |
+| **Price** | The price in Norwegian kroner (NOK). Whole kroner, no decimals. |
+| **Category** | Used to group products on the storefront (e.g. clothing, books, tickets). |
+| **Condition** | For second-hand items: `new`, `like_new`, `good`, `fair`, or `poor`. For brand-new BISO merch, set this to `new`. |
+| **Status** | `available` (on sale), `sold` (no stock left), `reserved` (held), or `inactive` (hidden from the storefront). |
+| **Images** | One or more product images. The first is used as the card thumbnail. |
+| **Seller name** and **seller ID** | For student-submitted listings, who is selling it. For BISO merch, this is BISO itself. |
+| **Contact method** | How a buyer can reach the seller for questions (mostly used for second-hand listings). |
+| **Is negotiable** | Tick this if the price is open to offers. |
+| **Custom fields** | Optional extra fields (size charts, colour variants, anything that doesn't fit elsewhere). Stored as a JSON list — most admins won't need this. |
+| **Variations** | Used when one product has multiple options (e.g. T-shirt in S/M/L). Set per variation: price, stock, and label. |
+
+## The ledger account number
+
+The field labelled **Finago account number** is the most important field you'll set, after the price. It is the general-ledger account code that BISO's accounting system (24SevenOffice / Finago) uses to file the revenue from this product.
+
+- Every paid order is automatically posted to 24SevenOffice using this code.
+- If the code is missing or wrong, the order will still complete on the customer's side, but the accounting team will have to fix it by hand.
+- If you're not sure which code to use, **ask the finance lead** — do not guess.
+
+For the bigger picture on how orders post to the ledger, see [24SevenOffice integration](/docs/integrations/24sevenoffice).
+
+## Member discounts
+
+BISO members can get a discount on certain products. To enable it on a product:
+
+1. Tick **Member discount enabled**.
+2. Set **Member discount percent** to a whole number (e.g. `15` for 15% off).
+
+You don't have to do anything else. When a customer checks out, the public site asks 24SevenOffice whether they're a paying member, and if they are, the discount is applied to the price automatically. The order record (`membership_applied: true`) tells you it happened.
+
+If member discount is disabled, everyone pays the same price regardless of membership.
+
+## Translations
+
+Descriptions are bilingual. The Norwegian text is the default; the English text is edited from the translations panel on the same page. If only the Norwegian version exists, the English storefront falls back to it — but you should always provide both for customer-facing products.
+
+## Deleting and deactivating
+
+You can't really delete a product that's already been ordered — the order history needs to keep its snapshot of what was sold. To take a product off the storefront, set **Status** to `inactive` instead. It will disappear from the public site immediately but stay in the admin list so historical orders still make sense.

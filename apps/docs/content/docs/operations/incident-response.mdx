@@ -1,0 +1,162 @@
+---
+title: Incident response
+description: A playbook for when something is broken in production — triage, communication, and post-mortem.
+---
+
+# Incident response
+
+When something is broken in production, work the checklist top-down. The
+goal is to restore service first and understand the cause second.
+
+## Triage checklist
+
+1. **Is `/api/health` returning OK on all three apps?**
+   - `web`: `https://web.biso.no/api/health` (will become `https://biso.no/api/health` after the WordPress cutover)
+   - `admin`: `https://admin.biso.no/api/health`
+   - `api`: `https://api.biso.no/api/health`
+   - Any non-200 here narrows the problem to that app's host.
+
+2. **Is Appwrite up?**
+   - Open `https://appwrite.biso.no/console` and confirm you can sign in.
+   - Try a simple read against any collection in the console.
+   - If Appwrite is down, every app is down regardless of their own
+     health.
+
+3. **Are upstream providers reporting issues?**
+   - [Vipps status](https://www.vipps.no/driftsstatus/)
+   - [Stripe status](https://status.stripe.com/)
+   - [Anthropic status](https://status.anthropic.com/)
+   - [OpenAI status](https://status.openai.com/)
+   - [Microsoft 365 / Graph status](https://admin.microsoft.com/) (admin login required)
+   - GitHub status if CI/deploys are also broken.
+
+4. **Recent deploys?**
+   - `git log --oneline -10` on `main`.
+   - Cross-reference with the hosting provider's deployment history.
+   - If the timing of the breakage matches a recent deploy, **roll back
+     first**, then investigate. See
+     [deployment → Rollback](/docs/operations/deployment#rollback).
+
+5. **Spike in `audit_logs`?**
+   - Query the `audit_logs` table for the last hour. A sudden spike from
+     a single user or service suggests automation gone wrong; a sudden
+     spike across many users suggests a campaign overload.
+
+6. **Spike in errors at the hosting provider?**
+   - Check the provider's log viewer for 5xx responses, OOM kills,
+     restarts.
+
+7. **Cron health?**
+   - Has the cron scheduler kept pinging? See
+     [monitoring-and-health](/docs/operations/monitoring-and-health).
+   - A stuck `cleanup-reservations` can manifest as "items appear sold
+     out".
+
+## Communication
+
+Open an incident channel as soon as you know something is genuinely
+broken (not just slow). Notify in this order:
+
+1. **Internal IT contact / on-call** — see contact list below.
+2. **BISO leadership** — Generalsekretær / President.
+3. **Affected user groups** — if the public site is down during a sale,
+   the marketing/comms lead may need to post on Instagram. If `admin`
+   is down during a recruitment cycle, the HR lead needs to know.
+4. **External vendors** — only when you've localised the problem to
+   their service.
+
+### Current contact list (handover snapshot)
+
+| Role | Person | Contact channel |
+|------|--------|------------------|
+| **On-call (sole)** | Markus Heien — IT Manager | `markus@biso.no`, **Microsoft Teams** (primary), phone if needed |
+| Escalation #1 | Simen — Administrasjonsleder | `simen@biso.no`, Teams |
+| Escalation #2 (leadership / board) | Generalsekretær / President — confirm current postholder before escalating | Teams or email |
+
+**Channel for incident coordination**: Microsoft Teams. There is no
+dedicated #incidents channel today — coordinate in whichever IT /
+leadership channel is most appropriate to the audience.
+
+<Callout type="warning">
+**Open continuity risk**: there is exactly one person on-call (Markus
+Heien). When Markus is unavailable, asleep, on holiday, or no longer
+at BISO, the platform has no first responder. **Adding a second
+on-call rotation** — even part-time, even just for "site is down"
+alerts — is the single highest-leverage operational change the next
+IT Manager could make. Better Stack (the uptime monitor) supports
+multi-recipient alerts; configuring it to also page a second person
+takes minutes.
+</Callout>
+
+## Common scenarios
+
+### "The public site won't load"
+
+Most likely: hosting provider issue or Appwrite. Hit `/api/health`. If
+it's 200, the Node app is up — the issue is downstream (Appwrite, an
+upstream API used during render, or DNS).
+
+### "Admins can't log in"
+
+Most likely: the `APPWRITE_SESSION_COOKIE` was changed accidentally, the
+`APPWRITE_API_KEY` was rotated but the deploy environment wasn't updated,
+or Appwrite Auth is down. Check `admin`'s logs for 401 chatter.
+
+### "A scheduled job stopped running"
+
+The platform has no built-in scheduler — the job is being triggered
+externally. See
+[cron-and-scheduled-tasks](/docs/operations/cron-and-scheduled-tasks) for
+where to look.
+
+### "Payments aren't going through"
+
+Distinguish Vipps from Stripe. Check the relevant provider's webhook
+delivery dashboard — a queued or repeatedly-failing webhook tells you
+where to look. Verify `STRIPE_WEBHOOK_SECRET` /
+`VIPPS_CALLBACK_TOKEN` haven't drifted from the provider configuration.
+
+### "AI features are slow or failing"
+
+OpenAI has rate limits and the occasional outage; check its status
+page. (Anthropic's status page is also listed above as a precaution,
+but in practice nothing in production touches Anthropic today — see
+[Integrations / Anthropic](/docs/integrations/anthropic).) Embedding
+workers will retry on transient failures; manual jobs in admin will
+surface an error in the UI.
+
+## Post-mortem template
+
+Within a week of any incident that affected users, write a short
+post-mortem. Don't make it elaborate — the value is in capturing what
+happened so the next person doesn't repeat it.
+
+```
+# Incident YYYY-MM-DD — short title
+
+**When**: start → end (timezone)
+**Severity**: low / medium / high
+**Detected by**: monitoring / user report / staff
+
+## What happened
+A factual narrative.
+
+## Why
+Root cause (or best hypothesis if not yet determined).
+
+## Fix
+What we did to restore service.
+
+## Prevention
+Specific actions to make this less likely or less painful next time.
+Each action gets an owner and a date.
+```
+
+Store post-mortems where the team can find them — probably the same
+SharePoint or Notion space as the rest of BISO's internal documents.
+
+<Callout type="warning">
+**To be filled in by the current IT Manager**: the location where
+post-mortems are filed, and a link to past incidents the new IT Manager
+should read to get a feel for the platform's failure modes.
+</Callout>

@@ -1,0 +1,65 @@
+---
+title: Settings
+description: The admin settings screen — general preferences, notifications, integrations, security, and team management.
+---
+
+# Settings
+
+The **Settings** screen is where global admins configure the platform itself: defaults that apply to everyone, notification rules, integrations to outside systems, and the teams that drive permissions inside the app.
+
+Settings are global-admin only. Campus admins and department users don't see this screen in the sidebar.
+
+## Layout
+
+The screen is divided into sections you can switch between using the tabs at the top.
+
+### General
+
+Platform-wide defaults that don't belong to any one campus.
+
+- **Locale** — default language for newly created content (typically Norwegian, with English as a secondary option).
+- **Timezone** — used when the app needs to display "today" or schedule something. Almost always Europe/Oslo.
+
+### Notifications
+
+Controls who gets pinged about what. Each notification type has its own toggle:
+
+- **Job applications** — notify when a new application is submitted.
+- **Drafts** — notify when a draft is created or updated.
+- **System alerts** — notify when a background job or integration fails.
+
+You can turn individual categories on or off without affecting the others.
+
+### Integrations
+
+A list of external systems the admin app talks to. For each one you can see whether it is currently connected and run a quick connection test.
+
+| Integration | What it's used for |
+|-------------|-------------------|
+| **24SevenOffice** | Finance and CRM data sync. |
+| **Vipps MobilePay** | Payments from the public site. |
+| **SharePoint** | Document storage and shared files. |
+
+A green status means the last check succeeded. A red status means the integration needs attention — usually a refreshed API key or a re-authorisation. Click **Test connection** to retry without leaving the page.
+
+### Security
+
+Platform-level security settings: session length, who can reach the IT screens, and other safety nets that protect sensitive data. Most BISO setups leave these at the defaults.
+
+### Team management
+
+The teams that exist inside Appwrite and are used to grant access to specific queues — for example which team can approve campus-board changes, or which team can read a given submissions topic. From here you can create a team, rename it, and add or remove members. Changing a team membership takes effect immediately on the next page load for that user.
+
+## Changes are audited
+
+Every change you make in Settings is written to the [Activity](/docs/admin-handbook/activity) log so other global admins can see when something changed and who changed it. If a colleague is confused why the platform behaves differently to last week, Activity is the first place to look.
+
+## When to escalate to engineering
+
+A few situations are not solvable from Settings alone:
+
+- Adding a brand-new integration that doesn't appear in the list.
+- Changing the rules that decide who is a campus admin (those live in Azure AD groups — see [Roles and permissions](/docs/admin-handbook/roles-and-permissions)).
+- Adjusting how a Settings screen itself works.
+
+For those, file a ticket with the engineering team.

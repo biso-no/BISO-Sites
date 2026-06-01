@@ -1,0 +1,143 @@
+---
+title: OpenAI
+description: The LLM provider behind page translation, expense OCR, and tooling that doesn't need the deeper Claude integration.
+---
+
+# OpenAI
+
+[OpenAI](https://openai.com) is one of two LLM providers we use. The other is
+[Anthropic](/docs/integrations/anthropic). The split is rough but
+deliberate: OpenAI handles the discrete utility tasks where any capable
+model would do — translation, OCR, short-form generation — while
+Anthropic handles the longer-running, tool-using assistants where Claude's
+behaviour is the better fit.
+
+## What it is
+
+OpenAI's hosted API for chat, vision, and embeddings. We talk to it
+through the [Vercel AI SDK](https://sdk.vercel.ai) via `@ai-sdk/openai`,
+not via OpenAI's own SDK directly. That keeps the call sites consistent
+between OpenAI and Anthropic features.
+
+## Why we use it
+
+For the specific jobs we throw at it (translation, OCR, generating an
+expense description from a receipt), OpenAI's models give us reliable
+outputs with low fuss. The vision pricing for OCR-style work is reasonable
+at our volume, and the structured-output support is solid.
+
+## Cost shape
+
+Per-token billing on every request. Two patterns to be aware of:
+
+- **Translation** is cheap. Page-content translation runs through with
+  modest token counts.
+- **OCR / vision** is **noticeably more expensive** per request because
+  vision inputs are billed differently from text. Expense receipt
+  processing is the most expensive single feature in the platform on a
+  per-call basis.
+
+There's no fixed monthly fee. Costs scale linearly with use, which is
+mostly fine because the heavy paths (OCR, translation) are user-initiated
+rather than background.
+
+## Configuration
+
+| Var | Purpose |
+|---|---|
+| `OPENAI_API_KEY` | API key from the OpenAI dashboard for our account. Server-only. |
+
+That's it. The model identifier is configured inside `@repo/ai` (the
+package defaults to a current OpenAI model) and not pinned in env, so
+upgrading to a newer generation is a code change, not an ops change.
+
+For BISO specifically (handover snapshot):
+
+- **Organisation ID**: `org-OYbnzkHo28huLcXHylKJvlsB`
+- **Account owner**: Markus Heien (`markus@biso.no`); planned to move to
+  `it@biso.no` when feasible
+- **Usage tier**: 4 (pay-as-you-go)
+- **Typical monthly spend**: ~USD $10 today; expected to rise once the
+  new public site goes live
+- **Soft cap**: USD $120/month — no enforced organisation budget yet
+- **Billing email**: `invoice@biso.no`
+- **Payment method**: **Markus Heien's personal card today** — being
+  transitioned to a BISO-owned card (Simen, the Administrasjonsleder)
+  imminently. See the warning at [Handover / Ownership and accounts →
+  OpenAI](/docs/handover/ownership-and-accounts#openai).
+
+<Callout type="warning">
+Because OpenAI handles every AI feature in production (translation,
+expense OCR, page editor copilot, admin assistant, recruitment
+screening), an OpenAI outage or a billing card decline takes all of
+them down at once. Configure a real organisation-level monthly budget
+in the OpenAI dashboard once spend stabilises after launch.
+</Callout>
+
+## Where it lives in the codebase
+
+OpenAI is consumed in four places:
+
+1. **Admin page translation** — `apps/admin/.../api/translate-page`. The
+   block editor's "Translate to English" action sends the current page
+   doc through OpenAI and returns translated copy block-by-block.
+2. **Expense receipt OCR** — `apps/api/.../api/expenses/ocr`. Volunteers
+   upload a receipt; OpenAI's vision model extracts amount, date,
+   merchant, and line items.
+3. **Expense description generation** — `apps/admin/.../api/expense/generate-description`.
+   Given parsed receipt data, generates a tidy human-readable description
+   for the expense entry.
+4. **Message-bundle translation** — `bun run translate` at the repo root.
+   Uses `@parvineyvazov/json-translator`, which calls OpenAI under the
+   hood, to keep i18n message bundles in sync across languages.
+
+All four go through `@repo/ai` (or, for the translate script, the dedicated
+CLI tool). App code doesn't import `@ai-sdk/openai` directly.
+
+## Model selection
+
+`@repo/ai`'s config picks the model. The current default is a current
+OpenAI generation. We deliberately don't pin a hyper-specific version in
+docs here — by the time you're reading this, the model name has probably
+changed. Look at `packages/ai/src/config` for the current value.
+
+If you upgrade, regression-test all four use cases: translation tone, OCR
+field extraction accuracy, description quality, and i18n keys.
+
+## Failure modes
+
+- **API key revoked or rate-limited** — every feature listed above breaks.
+  Most of them fail closed: the page editor's translate button errors,
+  expense OCR returns a manual-entry prompt.
+- **Model deprecation** — if OpenAI retires the model we're on, requests
+  start returning 404 / model-not-found errors. Bump the model identifier
+  in `@repo/ai`.
+- **Vision response timeouts** — large or messy receipt scans can take a
+  while. The OCR route has its own timeout handling; if the request times
+  out, the volunteer is asked to enter the expense manually.
+- **Rate limit hit** — bursts of translations or OCR can hit per-minute
+  caps. The SDK respects retry-after headers; impact is slower response
+  for affected users.
+
+## Rotation
+
+1. Create a new API key in the OpenAI dashboard for our account, scoped to
+   our project.
+2. Update `OPENAI_API_KEY` in the deploy environment for both `admin` and
+   `api`.
+3. Restart the apps.
+4. Revoke the old key from the OpenAI dashboard.
+
+There's no usage-bound state attached to the key, so rotation is
+zero-downtime.
+
+## Swapping the vendor
+
+All four use cases go through `@repo/ai`, which already supports multiple
+providers via the Vercel AI SDK abstraction. Switching translation /
+description to Anthropic, or to a new provider entirely, is largely a
+configuration change inside `@repo/ai`. The OCR path is more
+provider-specific because vision quality varies — you'd want to
+re-validate accuracy on a stack of real receipts before swapping.
+
+See [`@repo/ai`](/docs/packages/ai) for the package surface.

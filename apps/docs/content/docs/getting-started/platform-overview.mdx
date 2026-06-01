@@ -1,0 +1,125 @@
+---
+title: Platform overview
+description: A bird's-eye view of every app, package, and external service that makes up BISO Sites.
+---
+
+# Platform overview
+
+The BISO Sites platform is a single monorepo that produces four deployable
+apps and a handful of shared packages, all backed by one Appwrite project
+and a small number of external services.
+
+## The four apps
+
+| App | Port (dev) | Audience | What it is |
+|---|---|---|---|
+| **`web`** | 3000 | Students, members, visitors | The public-facing site at [biso.no](https://biso.no). Pages, events, jobs, news, shop, membership, the expense/reimbursement portal, document library. Built with Next.js App Router; default to Server Components. |
+| **`admin`** | 3001 | BISO staff | The internal CMS at admin.biso.no. Editors create pages, publish news/events, post jobs and review applications, run the shop, manage benefits, approve content, audit changes. |
+| **`docs`** | 3002 | Everyone | This documentation site, powered by [Fumadocs](https://fumadocs.dev). |
+| **`api`** | 3003 | The `web` and `admin` apps | A separate JWT-authenticated REST service that handles expense submission, OCR, admin-user CRUD against Azure AD, public transit (Entur) sync, and a few WordPress/WooCommerce proxies. |
+
+All four are Next.js 15 (App Router) projects. The fact that `api` is also
+Next.js — rather than Express or Hono — is worth knowing: it uses route
+handlers and standard middleware patterns just like the others.
+
+### The mobile app (separate repo)
+
+There is also a **Flutter** native mobile app for iOS and Android at
+[`biso-no/BISO-Flutter`](https://github.com/biso-no/BISO-Flutter). It
+lives outside this monorepo but talks to the same Appwrite backend —
+same auth, same database, same storage. When you change the data
+layer here, check whether the Flutter app needs a matching update.
+See [Architecture / Apps → Native mobile app](/docs/architecture/apps#native-mobile-app).
+
+## The shared packages
+
+Everything reusable lives in `packages/`. Apps consume them as workspace
+dependencies (`"@repo/api": "workspace:*"`).
+
+| Package | What it does |
+|---|---|
+| [`@repo/api`](/docs/packages/api) | The **only** way the apps talk to Appwrite. Wraps the Appwrite SDK, exposes a JSON-cloning `db` proxy, and contains the page-builder draft/publish logic plus the generated row types. |
+| [`@repo/editor`](/docs/packages/editor) | The in-house block-based page editor that replaced Puck in 2025. 37 block types, drag-and-drop, drafts, translations, AI copilot. Used by `admin` to edit and by `web` to render. |
+| [`@repo/ui`](/docs/packages/ui) | Shared React component library — Radix primitives, Tailwind tokens, form/layout/data-display components, the Plate.js-based rich text editor used inside blocks. |
+| [`@repo/ai`](/docs/packages/ai) | AI SDK configuration, system prompts, document utilities, and the admin assistant runtime (capability-gated tools). |
+| [`@repo/connectors`](/docs/packages/connectors) | External integrations: Azure / Microsoft Graph, SharePoint, 24SevenOffice (Finago). |
+| [`@repo/payment`](/docs/packages/payment) | Vipps MobilePay and Stripe checkout helpers. |
+| [`@repo/i18n`](/docs/packages/i18n) | `next-intl` config + Norwegian and English message bundles (43 namespaces). |
+| [`@repo/shared`](/docs/packages/shared) | Cross-cutting utilities and types — recruitment helpers, Vipps order parsing, benefit scoping. |
+| [`@repo/typescript-config`](/docs/packages/typescript-config) | Shared `tsconfig` presets. |
+
+## The Appwrite backend
+
+A single Appwrite project hosts the entire data layer:
+
+- **Database**: One database (`app`) with ~60 tables (or "collections" in older
+  Appwrite terminology). Source of truth is `packages/api/appwrite.config.json`;
+  generated row types live in `packages/api/types/appwrite.ts`.
+- **Auth**: Email/password, magic links, OAuth (Microsoft, Google, Facebook,
+  Apple). Anonymous sessions for the public site, real sessions for admins.
+- **Teams**: Used for two things — **role derivation** (Appwrite teams mirror
+  Azure AD security groups) and **row-level permissions** (read/write granted
+  to specific teams).
+- **Storage**: File buckets for page assets, recruitment resumes, etc.
+- **Functions**: A handful of server-side functions invoked from the apps
+  (campus board members, membership verification, etc.).
+- **Messaging**: Outbound email and push notifications.
+
+## External services
+
+The platform integrates with a number of third parties. Each has a dedicated
+page in the [Integrations](/docs/integrations) section.
+
+| Service | Role |
+|---|---|
+| **Azure AD (Entra ID) / Microsoft 365** | Identity for staff; security-group membership drives admin roles. |
+| **Microsoft Graph** | Used to read M365 users, calendar events, and SharePoint files. |
+| **SharePoint** | Stores the public-facing document library; files are downloaded through the web app. |
+| **24SevenOffice (Finago)** | BISO's accounting system. Used for membership verification and to post shop transactions to the ledger. |
+| **Vipps MobilePay** | Primary payment provider for shop checkout. |
+| **Stripe** | Scaffolded as a fallback provider but **not enabled in production today**. No live Stripe account exists. |
+| **OpenAI** | Page translation (Norwegian ↔ English), expense receipt OCR, expense description rewriting. |
+| **Anthropic Claude** | **Scaffolded only — not in production.** The repo references `@ai-sdk/anthropic` in places, but BISO has no Anthropic account; OpenAI handles every live AI feature today. |
+| **Pinecone** | Vector embeddings used for resume similarity search. |
+| **Entur** | Norwegian public transit API; used to render real-time departures on campus pages. |
+
+## Roles in one paragraph
+
+Roles in the admin app are **derived**, not assigned. The platform reads your
+Azure AD security-group membership at login, mirrors those groups into
+Appwrite teams, and computes one of three role buckets:
+
+- **`globaladmin`** — you belong to both `SG-App-Campus-National` and
+  `SG-App-Dept-OperationsUnit`. Full access everywhere.
+- **`campusadmin`** — you belong to `SG-App-Campus-{City}` and
+  `SG-App-Dept-Ledelsen{City}`. Full access scoped to your campus.
+- **`department`** — you belong to any `SG-App-Dept-*` group. You can manage
+  jobs, events, news, and pages owned by your department.
+
+See [Roles and permissions](/docs/admin-handbook/roles-and-permissions) for
+the admin-facing version, and [Auth and roles](/docs/architecture/auth-and-roles)
+for the architectural details.
+
+## Multi-tenancy: campus & department
+
+Every piece of content carries `campus_id` (and often `department_id`). The
+admin app filters everything you see by your scope — a campus admin in Oslo
+does not see Bergen pages, period. Global admins can simulate any campus via
+the **campus context** switcher in the sidebar.
+
+This is enforced at the **data layer**, not in the UI. Server actions apply
+scope queries before hitting Appwrite. See
+[Campus and department scoping](/docs/architecture/campus-and-department-scoping)
+for the implementation.
+
+## What this means for you
+
+- **Administrators**: most of what you'll do happens in the admin app. The
+  [Admin Handbook](/docs/admin-handbook) is your reference.
+- **Developers**: when you add a feature, you almost always need to think
+  about campus scoping, role gating, and translations. The
+  [Conventions](/docs/developing/conventions) page is required reading before
+  your first PR.
+- **Whoever takes over**: read [Handover](/docs/handover) for the
+  non-technical context — who owns the domains, who pays the bills, which
+  trade-offs were intentional.

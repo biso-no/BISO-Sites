@@ -1,0 +1,152 @@
+---
+title: SharePoint
+description: Where BISO's document library actually lives — surfaced to the public site through the admin Documents section.
+---
+
+# SharePoint
+
+SharePoint is where BISO's document library — bylaws, meeting minutes,
+policy documents, board packets — actually lives. The admin app uploads and
+manages files there; the public website exposes a subset for download. We
+never store the files in Appwrite storage.
+
+## What it is
+
+Microsoft 365's document management system. Each "site" is a container of
+document libraries, lists, and pages. BISO has a set of SharePoint sites
+that hold organisational documents, and our platform reads from / writes to
+a curated allowlist of them.
+
+## Why we use it
+
+The documents already live in SharePoint. Staff edit them in Word and
+SharePoint version-tracks every change automatically. Re-storing them in
+Appwrite would mean duplicating files and losing version history. Going
+through Graph means we get SharePoint's permissioning and audit trail for
+free.
+
+## Cost shape
+
+Included in the M365 tenancy. Storage counts against the M365 SharePoint
+quota, not against our hosting costs.
+
+## Configuration
+
+SharePoint shares the Azure app registration with the rest of our M365
+integration, but uses its own env vars so the credentials and site
+allowlist can be managed independently:
+
+| Var | Purpose |
+|---|---|
+| `SHAREPOINT_CLIENT_ID` | App registration (client) ID |
+| `SHAREPOINT_CLIENT_SECRET` | Client secret for the registration |
+| `SHAREPOINT_TENANT_ID` | Tenant ID |
+| `SHAREPOINT_SITES` | JSON array of site IDs the app is allowed to touch |
+
+`SHAREPOINT_SITES` is the key one. We use the **`Sites.Selected`**
+permission model: the app has zero access to SharePoint by default, and an
+M365 admin must explicitly grant it permission to each site we list. That
+allowlist lives both in Azure (granted per site) and in `SHAREPOINT_SITES`
+(so the platform knows which sites to surface).
+
+If you add a new site to `SHAREPOINT_SITES` without granting `Sites.Selected`
+permission in Azure, calls to it will return 403.
+
+For BISO specifically (handover snapshot):
+
+- **Tenant**: `bistudentorganisasjon.sharepoint.com`
+- **Site collection admin** (the only person who can grant the Azure
+  app access to new sites): Markus Heien (`markus@biso.no`)
+- **`SHAREPOINT_SITES` value currently deployed** — a JSON array of
+  comma-joined `hostname,siteId,webId` triplets:
+
+```json
+[
+  "bistudentorganisasjon.sharepoint.com,9b233671-4951-4443-9c6d-9afaa1b8f454,f9f79275-37c3-4acd-b054-50a6ec0eeebe",
+  "bistudentorganisasjon.sharepoint.com,6c0148df-d449-472b-84e8-63fb0ee53f8b,35456f57-cab6-48b6-a005-a2330dbbaedb"
+]
+```
+
+These are the two SharePoint sites whose documents the public site can
+stream. The admin's Documents screen surfaces files uploaded to either
+site. To add a third site: ask the site collection admin to grant the
+Azure app `Sites.Selected` permission on it, then append the new
+`hostname,siteId,webId` triplet to this env var and redeploy.
+
+## Where it lives in the codebase
+
+- `@repo/connectors` exports a `SharePointService` class with the
+  user-facing operations:
+  - `listSites()` — sites the app has access to (intersection of allowlist
+    and granted permissions).
+  - `listDocuments(siteId)` — files in a site's default document library.
+  - `downloadDocument(siteId, itemId)` — stream a file's bytes.
+  - `uploadNewFile(siteId, name, bytes)` — upload a brand-new file.
+  - `replaceFileInPlace(siteId, itemId, bytes)` — replace contents, keeping
+    version history.
+
+Consumed by:
+
+- **Admin app** — the `/documents` screen, where staff browse sites,
+  upload, and replace files.
+- **Public web app** — `/api/documents/[id]/download`, which streams a
+  published document to a student's browser.
+
+## Version history
+
+`replaceFileInPlace` is deliberately used over delete-and-reupload so that
+SharePoint's version history is preserved. When you "replace" a document
+through the admin UI, the previous version remains in SharePoint and can
+be rolled back from the SharePoint UI.
+
+When a document row is **deleted from the admin app**, only the metadata
+row in Appwrite is removed. The underlying file and version history stay
+in SharePoint until someone deletes them from there. That's intentional —
+it gives us a safety net against accidental admin-side deletions.
+
+## Failure modes
+
+- **403 on a specific site** — usually missing `Sites.Selected` grant for
+  that site. Check the Azure portal app-registration view.
+- **Site missing from `listSites()`** — site ID isn't in `SHAREPOINT_SITES`
+  even if it's granted in Azure. Update the env var.
+- **Upload fails with quota error** — the M365 tenancy's SharePoint storage
+  is full. Out-of-band fix in the SharePoint admin centre.
+- **Client secret expired** — every SharePoint call breaks. Symptoms: blank
+  document list in admin, 500s on download endpoint.
+
+User-facing impact when SharePoint is down: documents listed in the admin
+disappear from the public site (they aren't cached aggressively), and new
+uploads fail. Existing draft pages and unrelated admin sections are fine.
+
+## Rotation
+
+**Client secret rotation:**
+
+1. Generate a new client secret in the Azure portal under the SharePoint
+   app registration.
+2. Update `SHAREPOINT_CLIENT_SECRET` in deploy envs.
+3. Restart apps.
+4. Delete the old secret in Azure.
+
+**Adding a site:**
+
+1. Get the site ID from SharePoint (e.g. via the Graph Explorer).
+2. Have an M365 admin grant the app `Sites.Selected` permission for that
+   site.
+3. Append the site ID to `SHAREPOINT_SITES`.
+4. Restart apps.
+
+**Removing a site:**
+
+1. Remove from `SHAREPOINT_SITES`.
+2. Restart apps.
+3. Optionally, revoke the `Sites.Selected` grant in Azure if you want to be
+   thorough.
+
+## Swapping the vendor
+
+Tightly coupled to the rest of the M365 stack. Replacing SharePoint would
+mean migrating every document plus its version history into a new system
+and reworking the `SharePointService` class and both consumer endpoints.
+Not realistic unless BISO leaves M365 entirely.

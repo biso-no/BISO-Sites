@@ -1,0 +1,80 @@
+---
+title: Documents
+description: Manage the BISO document library — upload, update, and publish files that live in SharePoint and are listed on biso.no.
+---
+
+# Documents
+
+The documents screen is the back office for the public document library on biso.no. Anything that BISO publishes for students to download — statutes, meeting minutes, policy documents, year reports, election results, forms — is managed here.
+
+Open it from the sidebar under **Documents** (`/documents`).
+
+## Where the files actually live
+
+The files themselves are **not stored in the admin app**. They live in **SharePoint**, BISO's official document store. What this screen manages is the **metadata** — title, campus, who can see it, whether it's published — and a friendly UI for uploading, replacing, and deleting the underlying file in SharePoint.
+
+This split matters for two reasons:
+
+1. **Version history is preserved.** SharePoint keeps every version of every file. If you delete a document from the admin app, the metadata row is removed but the file's version history stays in SharePoint. BISO IT can recover an old file even after deletion.
+2. **Access control is layered.** SharePoint controls who can read raw files; the admin app controls which files are listed on biso.no and what metadata they carry.
+
+For the technical side, see [SharePoint integration](/docs/integrations/sharepoint).
+
+## The screen layout
+
+| Sub-screen | What it's for |
+|------------|---------------|
+| `/documents` | The list of every document you can see, filtered by your campus. |
+| `/documents/new` | Upload a new document. |
+| `/documents/[id]` | Edit a document's metadata, replace the file, or delete it. |
+
+A campus admin sees documents for their campus. A global admin sees everything.
+
+## What's stored on each document
+
+| Field | What it means |
+|-------|---------------|
+| **Title** | The display title on biso.no. |
+| **Campus** | Which campus the document belongs to. National documents have a "national" campus value. |
+| **Status** | `published` (visible on biso.no) or `draft` (hidden, only visible in admin). |
+| **SharePoint drive ID** and **item ID** | The internal references to the file in SharePoint. You don't edit these; they're set when you upload. |
+| **Permissions** | Who can see this document on the public site (e.g. everyone, members only). |
+
+## Uploading a new document
+
+From `/documents/new`:
+
+1. **Pick the file.** Standard PDFs, Word documents, and spreadsheets are all fine.
+2. **Fill in the title and campus.** These are mandatory.
+3. **Set permissions.** Decide whether the document is public or restricted.
+4. **Save.**
+
+What happens under the hood: the file is uploaded to SharePoint through Microsoft Graph, BISO's app only has access to the specific SharePoint sites configured in the environment (this is the "Sites.Selected" permission model — the app cannot read every SharePoint site in the tenant, only the ones BISO has explicitly granted). Once the upload completes, a row is created in the documents table with the drive and item IDs so the public site knows where to fetch the file from.
+
+## Replacing or deleting a file
+
+To **replace** a file — for example, when a policy is updated and you want the same URL to point at the new version — open the document and use the upload button. The old version stays in SharePoint's version history; the new one becomes the live file.
+
+To **delete** a document, open it and use the delete action. The metadata row is removed and the document disappears from biso.no within seconds. The file's version history remains in SharePoint, so a delete here is not catastrophic — BISO IT can pull the file back if needed.
+
+## Drafts vs. published
+
+A document with status **draft** is invisible on biso.no but visible in the admin list. Use draft status when:
+
+- You're uploading a document ahead of time and want to publish it on a specific date.
+- You're not yet sure the content is final.
+- You've taken something down temporarily without wanting to lose its metadata.
+
+To go live, change the status to **published** and save.
+
+## How students download the file
+
+On biso.no, when a student clicks a document, they don't talk to SharePoint directly. The download goes through the public site's `/api/documents/[id]/download` endpoint, which streams the file from SharePoint to the browser. This means:
+
+- Students never see the raw SharePoint URL.
+- Access control can be enforced on the BISO side (members-only documents, for example).
+- If the file is missing in SharePoint, students get a clean error rather than a Microsoft login page.
+
+<Callout type="info">
+If you need to add a brand-new SharePoint site to the list the app can read from, that's a BISO IT job — it requires updating the SHAREPOINT_SITES configuration and granting the app access at the tenant level. See [SharePoint integration](/docs/integrations/sharepoint).
+</Callout>
