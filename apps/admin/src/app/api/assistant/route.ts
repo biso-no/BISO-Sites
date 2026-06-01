@@ -10,7 +10,7 @@ import { type Models, Query } from "@repo/api";
 import { createSessionClient } from "@repo/api/server";
 import type { UIMessage } from "ai";
 import { convertToModelMessages, stepCountIs, streamText } from "ai";
-import type { NextRequest } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import {
   approveRequest,
   listPendingApprovals,
@@ -92,9 +92,23 @@ export async function POST(request: NextRequest) {
   // 2. Locale
   const locale = await getLocale();
 
-  // 3. Parse body
-  const body = (await request.json()) as AssistantRequestBody;
+  // 3. Parse + validate body
+  let body: AssistantRequestBody;
+  try {
+    body = (await request.json()) as AssistantRequestBody;
+  } catch (_error) {
+    return NextResponse.json(
+      { error: "Invalid JSON payload" },
+      { status: 400 }
+    );
+  }
   const { messages, currentPath = "/", activeFormSchemaId } = body;
+  if (!Array.isArray(messages)) {
+    return NextResponse.json(
+      { error: "Invalid request: 'messages' must be an array" },
+      { status: 400 }
+    );
+  }
 
   // 4. Build capabilities from auth context
   const capabilities = buildAssistantCapabilities({

@@ -25,6 +25,7 @@ import {
   applyScopeQueries,
   assertPublishAccess,
   assertWriteAccess,
+  hasRowAccess,
 } from "@/lib/utils/authorization";
 import { logAuditEvent } from "./audit-log";
 import {
@@ -88,14 +89,19 @@ export async function listDocuments(opts?: { status?: string; page?: number }) {
 }
 
 export async function getDocument(id: string) {
-  await requireAuth();
+  const ctx = await requireAuth();
   const { db } = await createSessionClient();
 
   const response = await db.listRows<Documents>("app", "documents", [
     Query.equal("$id", id),
     Query.limit(1),
   ]);
-  return response.rows[0] ?? null;
+  const doc = response.rows[0] ?? null;
+  // Treat a row outside the caller's campus scope as not found.
+  if (!(doc && hasRowAccess(ctx, doc.campus_id))) {
+    return null;
+  }
+  return doc;
 }
 
 export async function createDocument(
@@ -360,6 +366,7 @@ export async function deleteDocument(
 }
 
 export async function listCampusesForDocuments() {
+  await requireAuth();
   const { db } = await createSessionClient();
   const response = await db.listRows<Campus>("app", "campus", [
     Query.orderAsc("name"),

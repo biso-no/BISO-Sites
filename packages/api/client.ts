@@ -15,8 +15,11 @@ export {
   Storage,
 } from "appwrite";
 
-const APPWRITE_PROJECT = "biso";
-const NEXT_PUBLIC_APPWRITE_ENDPOINT = "https://appwrite.biso.no/v1";
+// Env-driven so the browser client can target staging/preview Appwrite,
+// matching server.ts. Falls back to the production project/endpoint.
+const APPWRITE_PROJECT = process.env.NEXT_PUBLIC_APPWRITE_PROJECT || "biso";
+const NEXT_PUBLIC_APPWRITE_ENDPOINT =
+  process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || "https://appwrite.biso.no/v1";
 
 export const clientSideClient = new Client()
   .setEndpoint(NEXT_PUBLIC_APPWRITE_ENDPOINT)

@@ -20,7 +20,9 @@ function getCampusId(deptNum: number): string {
   return "5";
 }
 
-export async function GET(_request: NextRequest): Promise<NextResponse> {
+// POST (not GET) because this upserts department rows — a mutation must not
+// be triggerable by prefetch/crawlers. Any external trigger must use POST.
+export async function POST(_request: NextRequest): Promise<NextResponse> {
   const auth = await requireApiGlobalAdmin();
   if (auth.response) {
     return auth.response;

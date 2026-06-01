@@ -592,8 +592,24 @@ export interface ScorecardWithSummary {
 export async function listScorecardsForInterview(
   interviewId: string
 ): Promise<ScorecardWithSummary[]> {
-  await requireAuth();
+  const ctx = await requireAuth();
   const { db } = await createSessionClient();
+
+  // Scorecards hold interviewer scores/notes/recommendations — authorize
+  // against the parent interview before returning them, mirroring the
+  // access check every other interview action performs.
+  const scope = toRecruitmentAdminScope(ctx);
+  const lookups = await loadRecruitmentLookups(db);
+  const interview = await db.getRow<JobInterviews>(
+    DATABASE_ID,
+    "job_interviews",
+    interviewId
+  );
+  assertInterviewWriteAccess(scope, lookups, {
+    campus_id: interview.campus_id,
+    department_id: interview.department_id,
+  });
+
   const response = await db.listRows<JobInterviewScorecards>(
     DATABASE_ID,
     "job_interview_scorecards",

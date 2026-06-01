@@ -15,7 +15,9 @@ import {
   applyScopeQueries,
   assertPublishAccess,
   assertWriteAccess,
+  hasRowAccess,
 } from "@/lib/utils/authorization";
+import { logAuditEvent } from "./audit-log";
 import { type ProductFormValues, productSchema } from "./schemas";
 
 async function requireAuth(): Promise<UserAuthContext> {
@@ -123,7 +125,7 @@ export async function listProducts(opts?: {
 }
 
 export async function getProduct(id: string) {
-  await requireAuth();
+  const ctx = await requireAuth();
   const { db } = await createSessionClient();
 
   const response = await db.listRows<WebshopProducts>(
@@ -132,7 +134,10 @@ export async function getProduct(id: string) {
     [Query.equal("$id", id), Query.limit(1)]
   );
   const product = response.rows[0];
-  if (!product) {
+  // Treat a row outside the caller's campus/department scope as not found.
+  if (
+    !(product && hasRowAccess(ctx, product.campus_id, product.departmentId))
+  ) {
     return null;
   }
 
@@ -156,38 +161,48 @@ export async function createProduct(values: ProductFormValues) {
     return { error: validated.error.flatten().fieldErrors };
   }
 
-  assertWriteAccess(ctx, validated.data.campus_id);
+  try {
+    assertWriteAccess(ctx, validated.data.campus_id);
 
-  const { db } = await createSessionClient();
+    const { db } = await createSessionClient();
 
-  const product = await db.createRow("app", "webshop_products", "unique()", {
-    ...buildProductFields(validated.data),
-    status: "draft" as WebshopProductsStatus,
-  });
+    const product = await db.createRow("app", "webshop_products", "unique()", {
+      ...buildProductFields(validated.data),
+      status: "draft" as WebshopProductsStatus,
+    });
 
-  await db.createRow("app", "content_translations", "unique()", {
-    content_id: product.$id,
-    content_type: "product",
-    locale: "no",
-    title: validated.data.name,
-    description: validated.data.description ?? "",
-    short_description: validated.data.short_description ?? null,
-  });
-
-  if (validated.data.name_en || validated.data.description_en) {
     await db.createRow("app", "content_translations", "unique()", {
       content_id: product.$id,
       content_type: "product",
-      locale: "en",
-      title: validated.data.name_en ?? validated.data.name,
-      description:
-        validated.data.description_en ?? validated.data.description ?? "",
+      locale: "no",
+      title: validated.data.name,
+      description: validated.data.description ?? "",
       short_description: validated.data.short_description ?? null,
     });
-  }
 
-  revalidatePath("/shop");
-  return { data: product.$id };
+    if (validated.data.name_en || validated.data.description_en) {
+      await db.createRow("app", "content_translations", "unique()", {
+        content_id: product.$id,
+        content_type: "product",
+        locale: "en",
+        title: validated.data.name_en ?? validated.data.name,
+        description:
+          validated.data.description_en ?? validated.data.description ?? "",
+        short_description: validated.data.short_description ?? null,
+      });
+    }
+
+    await logAuditEvent(ctx, "product_created", {
+      resourceId: product.$id,
+      resourceType: "product",
+    });
+    revalidatePath("/shop");
+    return { data: product.$id };
+  } catch (error) {
+    return {
+      error: error instanceof Error ? error.message : "Failed to save product",
+    };
+  }
 }
 
 export async function updateProduct(id: string, values: ProductFormValues) {
@@ -209,58 +224,72 @@ export async function updateProduct(id: string, values: ProductFormValues) {
     return { error: "Product not found" };
   }
 
-  assertWriteAccess(ctx, product.campus_id, product.departmentId);
-  if (product.status === "published" || validated.data.status === "published") {
-    assertPublishAccess(ctx, product.campus_id);
-    assertPublishAccess(ctx, validated.data.campus_id);
-  }
+  try {
+    assertWriteAccess(ctx, product.campus_id, product.departmentId);
+    if (
+      product.status === "published" ||
+      validated.data.status === "published"
+    ) {
+      assertPublishAccess(ctx, product.campus_id);
+      assertPublishAccess(ctx, validated.data.campus_id);
+    }
 
-  await db.updateRow("app", "webshop_products", id, {
-    ...buildProductFields(validated.data),
-    status: validated.data.status as WebshopProductsStatus,
-  });
+    await db.updateRow("app", "webshop_products", id, {
+      ...buildProductFields(validated.data),
+      status: validated.data.status as WebshopProductsStatus,
+    });
 
-  const existingTranslations = await db.listRows<ContentTranslations>(
-    "app",
-    "content_translations",
-    [
-      Query.equal("content_type", "product"),
-      Query.equal("content_id", id),
-      Query.limit(5),
-    ]
-  );
+    const existingTranslations = await db.listRows<ContentTranslations>(
+      "app",
+      "content_translations",
+      [
+        Query.equal("content_type", "product"),
+        Query.equal("content_id", id),
+        Query.limit(5),
+      ]
+    );
 
-  const noTranslation = existingTranslations.rows.find(
-    (t) => t.locale === "no"
-  );
-  const enTranslation = existingTranslations.rows.find(
-    (t) => t.locale === "en"
-  );
+    const noTranslation = existingTranslations.rows.find(
+      (t) => t.locale === "no"
+    );
+    const enTranslation = existingTranslations.rows.find(
+      (t) => t.locale === "en"
+    );
 
-  await upsertTranslation(db, noTranslation, {
-    content_id: id,
-    content_type: "product",
-    locale: "no",
-    title: validated.data.name,
-    description: validated.data.description ?? "",
-    short_description: validated.data.short_description ?? null,
-  });
-
-  if (validated.data.name_en || validated.data.description_en) {
-    await upsertTranslation(db, enTranslation, {
+    await upsertTranslation(db, noTranslation, {
       content_id: id,
       content_type: "product",
-      locale: "en",
-      title: validated.data.name_en ?? validated.data.name,
-      description:
-        validated.data.description_en ?? validated.data.description ?? "",
+      locale: "no",
+      title: validated.data.name,
+      description: validated.data.description ?? "",
       short_description: validated.data.short_description ?? null,
     });
-  }
 
-  revalidatePath("/shop");
-  revalidatePath(`/shop/${id}`);
-  return { data: id };
+    if (validated.data.name_en || validated.data.description_en) {
+      await upsertTranslation(db, enTranslation, {
+        content_id: id,
+        content_type: "product",
+        locale: "en",
+        title: validated.data.name_en ?? validated.data.name,
+        description:
+          validated.data.description_en ?? validated.data.description ?? "",
+        short_description: validated.data.short_description ?? null,
+      });
+    }
+
+    await logAuditEvent(ctx, "product_updated", {
+      resourceId: id,
+      resourceType: "product",
+      payload: { status: validated.data.status },
+    });
+    revalidatePath("/shop");
+    revalidatePath(`/shop/${id}`);
+    return { data: id };
+  } catch (error) {
+    return {
+      error: error instanceof Error ? error.message : "Failed to save product",
+    };
+  }
 }
 
 export async function deleteProduct(id: string) {
@@ -277,21 +306,32 @@ export async function deleteProduct(id: string) {
     return { error: "Product not found" };
   }
 
-  assertWriteAccess(ctx, product.campus_id, product.departmentId);
+  try {
+    assertWriteAccess(ctx, product.campus_id, product.departmentId);
 
-  const translations = await db.listRows("app", "content_translations", [
-    Query.equal("content_type", "product"),
-    Query.equal("content_id", id),
-  ]);
-  await Promise.all(
-    translations.rows.map((t) =>
-      db.deleteRow("app", "content_translations", t.$id)
-    )
-  );
-  await db.deleteRow("app", "webshop_products", id);
+    const translations = await db.listRows("app", "content_translations", [
+      Query.equal("content_type", "product"),
+      Query.equal("content_id", id),
+    ]);
+    await Promise.all(
+      translations.rows.map((t) =>
+        db.deleteRow("app", "content_translations", t.$id)
+      )
+    );
+    await db.deleteRow("app", "webshop_products", id);
 
-  revalidatePath("/shop");
-  return { data: true };
+    await logAuditEvent(ctx, "product_deleted", {
+      resourceId: id,
+      resourceType: "product",
+    });
+    revalidatePath("/shop");
+    return { data: true };
+  } catch (error) {
+    return {
+      error:
+        error instanceof Error ? error.message : "Failed to delete product",
+    };
+  }
 }
 
 export async function listOrders(opts?: {

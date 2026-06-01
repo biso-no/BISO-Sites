@@ -11,7 +11,10 @@ import type {
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getUserAuthContext, type UserAuthContext } from "@/lib/authorization";
-import { applyScopeQueries } from "@/lib/utils/authorization";
+import {
+  applyScopeQueries,
+  assertPublishAccess,
+} from "@/lib/utils/authorization";
 import { logAuditEvent } from "./audit-log";
 
 export interface DraftItem {
@@ -146,15 +149,33 @@ export async function approveDraft(id: string, type: "job" | "event" | "news") {
     return { error: "Unauthorized: only admins can approve drafts" };
   }
 
-  const { db } = await createSessionClient();
   const tableMap = { job: "jobs", event: "events", news: "news" } as const;
   const table = tableMap[type];
 
-  await db.updateRow("app", table, id, { status: "published" });
+  try {
+    const { db } = await createSessionClient();
 
-  revalidatePath("/drafts");
-  revalidatePath(`/admin/${table}`);
-  return { data: true };
+    // Load the draft and verify the caller may publish for its campus.
+    // A campus admin must manage the draft's campus; campus team membership
+    // alone grants nothing (publishing is enforced at the app layer).
+    const row = await db.getRow<Jobs | Events | News>("app", table, id);
+    assertPublishAccess(ctx, row.campus_id);
+
+    await db.updateRow("app", table, id, { status: "published" });
+
+    await logAuditEvent(ctx, "draft_approved", {
+      resourceId: id,
+      resourceType: type,
+    });
+
+    revalidatePath("/drafts");
+    revalidatePath(`/${table}`);
+    return { data: true };
+  } catch (error) {
+    return {
+      error: error instanceof Error ? error.message : "Failed to approve draft",
+    };
+  }
 }
 
 export async function rejectDraft(

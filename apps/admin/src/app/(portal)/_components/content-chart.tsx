@@ -18,7 +18,7 @@ interface ActivityEntry {
   resource_type?: string | null;
 }
 
-interface ContentActivityChartProps {
+export interface ContentActivityChartProps {
   activity: ActivityEntry[];
   days?: number;
 }

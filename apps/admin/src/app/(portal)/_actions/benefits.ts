@@ -13,7 +13,9 @@ import { getUserAuthContext, type UserAuthContext } from "@/lib/authorization";
 import {
   assertPublishAccess,
   assertWriteAccess,
+  hasRowAccess,
 } from "@/lib/utils/authorization";
+import { logAuditEvent } from "./audit-log";
 import { type BenefitFormValues, benefitSchema } from "./schemas";
 
 async function requireAuth(): Promise<UserAuthContext> {
@@ -65,14 +67,19 @@ export async function listBenefits(opts?: {
 }
 
 export async function getBenefit(id: string) {
-  await requireAuth();
+  const ctx = await requireAuth();
   const { db } = await createSessionClient();
 
   const response = await db.listRows<CampusBenefits>("app", "campus_benefits", [
     Query.equal("$id", id),
     Query.limit(1),
   ]);
-  return response.rows[0] ?? null;
+  const benefit = response.rows[0] ?? null;
+  // Treat a row outside the caller's campus scope as not found.
+  if (!(benefit && hasRowAccess(ctx, benefit.campus_id))) {
+    return null;
+  }
+  return benefit;
 }
 
 export async function createBenefit(values: BenefitFormValues) {
@@ -82,34 +89,44 @@ export async function createBenefit(values: BenefitFormValues) {
     return { error: validated.error.flatten().fieldErrors };
   }
 
-  assertWriteAccess(ctx, validated.data.campus_id);
+  try {
+    assertWriteAccess(ctx, validated.data.campus_id);
 
-  const { db } = await createSessionClient();
+    const { db } = await createSessionClient();
 
-  const benefit = await db.createRow("app", "campus_benefits", "unique()", {
-    campus_id: validated.data.campus_id,
-    status: "draft" as CampusBenefitsStatus,
-    kind: validated.data.kind,
-    redemption_type: validated.data.redemption_type,
-    redemption_value: validated.data.redemption_value ?? null,
-    category: validated.data.category,
-    partner_name: validated.data.partner_name ?? null,
-    title_nb: validated.data.title_nb,
-    title_en: validated.data.title_en,
-    description_nb: validated.data.description_nb,
-    description_en: validated.data.description_en,
-    teaser_nb: validated.data.teaser_nb ?? null,
-    teaser_en: validated.data.teaser_en ?? null,
-    image_url: validated.data.image_url || null,
-    is_featured: validated.data.is_featured ?? false,
-    is_member_only: validated.data.is_member_only ?? true,
-    publish_start: validated.data.publish_start ?? null,
-    publish_end: validated.data.publish_end ?? null,
-    sort_order: validated.data.sort_order ?? 0,
-  });
+    const benefit = await db.createRow("app", "campus_benefits", "unique()", {
+      campus_id: validated.data.campus_id,
+      status: "draft" as CampusBenefitsStatus,
+      kind: validated.data.kind,
+      redemption_type: validated.data.redemption_type,
+      redemption_value: validated.data.redemption_value ?? null,
+      category: validated.data.category,
+      partner_name: validated.data.partner_name ?? null,
+      title_nb: validated.data.title_nb,
+      title_en: validated.data.title_en,
+      description_nb: validated.data.description_nb,
+      description_en: validated.data.description_en,
+      teaser_nb: validated.data.teaser_nb ?? null,
+      teaser_en: validated.data.teaser_en ?? null,
+      image_url: validated.data.image_url || null,
+      is_featured: validated.data.is_featured ?? false,
+      is_member_only: validated.data.is_member_only ?? true,
+      publish_start: validated.data.publish_start ?? null,
+      publish_end: validated.data.publish_end ?? null,
+      sort_order: validated.data.sort_order ?? 0,
+    });
 
-  revalidatePath("/benefits");
-  return { data: benefit.$id };
+    await logAuditEvent(ctx, "benefit_created", {
+      resourceId: benefit.$id,
+      resourceType: "campus_benefit",
+    });
+    revalidatePath("/benefits");
+    return { data: benefit.$id };
+  } catch (error) {
+    return {
+      error: error instanceof Error ? error.message : "Failed to save benefit",
+    };
+  }
 }
 
 export async function updateBenefit(id: string, values: BenefitFormValues) {
@@ -130,37 +147,51 @@ export async function updateBenefit(id: string, values: BenefitFormValues) {
     return { error: "Benefit not found" };
   }
 
-  assertWriteAccess(ctx, benefit.campus_id);
-  if (benefit.status === "published" || validated.data.status === "published") {
-    assertPublishAccess(ctx, benefit.campus_id);
-    assertPublishAccess(ctx, validated.data.campus_id);
+  try {
+    assertWriteAccess(ctx, benefit.campus_id);
+    if (
+      benefit.status === "published" ||
+      validated.data.status === "published"
+    ) {
+      assertPublishAccess(ctx, benefit.campus_id);
+      assertPublishAccess(ctx, validated.data.campus_id);
+    }
+
+    await db.updateRow("app", "campus_benefits", id, {
+      campus_id: validated.data.campus_id,
+      status: validated.data.status as CampusBenefitsStatus,
+      kind: validated.data.kind,
+      redemption_type: validated.data.redemption_type,
+      redemption_value: validated.data.redemption_value ?? null,
+      category: validated.data.category,
+      partner_name: validated.data.partner_name ?? null,
+      title_nb: validated.data.title_nb,
+      title_en: validated.data.title_en,
+      description_nb: validated.data.description_nb,
+      description_en: validated.data.description_en,
+      teaser_nb: validated.data.teaser_nb ?? null,
+      teaser_en: validated.data.teaser_en ?? null,
+      image_url: validated.data.image_url || null,
+      is_featured: validated.data.is_featured ?? false,
+      is_member_only: validated.data.is_member_only ?? true,
+      publish_start: validated.data.publish_start ?? null,
+      publish_end: validated.data.publish_end ?? null,
+      sort_order: validated.data.sort_order ?? 0,
+    });
+
+    await logAuditEvent(ctx, "benefit_updated", {
+      resourceId: id,
+      resourceType: "campus_benefit",
+      payload: { status: validated.data.status },
+    });
+    revalidatePath("/benefits");
+    revalidatePath(`/benefits/${id}`);
+    return { data: id };
+  } catch (error) {
+    return {
+      error: error instanceof Error ? error.message : "Failed to save benefit",
+    };
   }
-
-  await db.updateRow("app", "campus_benefits", id, {
-    campus_id: validated.data.campus_id,
-    status: validated.data.status as CampusBenefitsStatus,
-    kind: validated.data.kind,
-    redemption_type: validated.data.redemption_type,
-    redemption_value: validated.data.redemption_value ?? null,
-    category: validated.data.category,
-    partner_name: validated.data.partner_name ?? null,
-    title_nb: validated.data.title_nb,
-    title_en: validated.data.title_en,
-    description_nb: validated.data.description_nb,
-    description_en: validated.data.description_en,
-    teaser_nb: validated.data.teaser_nb ?? null,
-    teaser_en: validated.data.teaser_en ?? null,
-    image_url: validated.data.image_url || null,
-    is_featured: validated.data.is_featured ?? false,
-    is_member_only: validated.data.is_member_only ?? true,
-    publish_start: validated.data.publish_start ?? null,
-    publish_end: validated.data.publish_end ?? null,
-    sort_order: validated.data.sort_order ?? 0,
-  });
-
-  revalidatePath("/benefits");
-  revalidatePath(`/admin/benefits/${id}`);
-  return { data: id };
 }
 
 async function _deleteBenefit(id: string) {

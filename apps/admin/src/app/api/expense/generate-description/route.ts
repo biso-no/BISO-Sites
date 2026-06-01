@@ -1,5 +1,10 @@
+import { createSessionClient } from "@repo/api/server";
 import { NextResponse } from "next/server";
 import { requireApiAuth } from "@/lib/api-auth";
+
+const FUNCTION_ID =
+  process.env.APPWRITE_GENERATE_DESCRIPTION_FUNCTION_ID ||
+  "generateDescription";
 
 export async function POST(request: Request) {
   const auth = await requireApiAuth();
@@ -7,32 +12,34 @@ export async function POST(request: Request) {
     return auth.response;
   }
 
+  let payload: { descriptions?: unknown; event?: unknown };
   try {
-    const { descriptions, event } = await request.json();
-
-    const response = await fetch(
-      "https://appwrite.biso.no/v1/functions/generateDescription/executions",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          // Add any required Appwrite authentication headers here
-          "X-Appwrite-Project": process.env.NEXT_PUBLIC_APPWRITE_PROJECT ?? "",
-          "X-Appwrite-Key": process.env.APPWRITE_API_KEY ?? "",
-        },
-        body: JSON.stringify({
-          descriptions,
-          event,
-        }),
-      }
+    payload = await request.json();
+  } catch (_error) {
+    return NextResponse.json(
+      { error: "Invalid JSON payload" },
+      { status: 400 }
     );
+  }
 
-    if (!response.ok) {
-      throw new Error("Failed to generate description");
-    }
+  const { descriptions, event } = payload ?? {};
+  if (descriptions === undefined && event === undefined) {
+    return NextResponse.json(
+      { error: "Missing required parameter: descriptions or event" },
+      { status: 400 }
+    );
+  }
 
-    const data = await response.json();
-    return NextResponse.json(data);
+  try {
+    // Invoke the Appwrite function through the user-scoped client so it runs
+    // under the caller's permissions. The service API key must never be
+    // attached to a hand-built request (it bypasses row security entirely).
+    const { functions } = await createSessionClient();
+    const execution = await functions.createExecution(
+      FUNCTION_ID,
+      JSON.stringify({ descriptions, event })
+    );
+    return NextResponse.json(execution);
   } catch (error) {
     console.error("Error in generate-description:", error);
     return NextResponse.json(

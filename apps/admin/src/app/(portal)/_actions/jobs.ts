@@ -979,6 +979,7 @@ export async function draftRecruitmentEmail(
 }
 
 export async function listCampuses() {
+  await requireAuth();
   const { db } = await createSessionClient();
   const response = await db.listRows<Campus>("app", "campus", [
     Query.orderAsc("name"),
@@ -988,6 +989,7 @@ export async function listCampuses() {
 }
 
 export async function listDepartmentsForCampus(campusId: string) {
+  await requireAuth();
   const { db } = await createSessionClient();
   const response = await db.listRows<Departments>("app", "departments", [
     Query.equal("campus_id", campusId),
