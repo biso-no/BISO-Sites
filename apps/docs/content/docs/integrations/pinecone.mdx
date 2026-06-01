@@ -1,0 +1,128 @@
+---
+title: Pinecone
+description: The vector database backing resume embeddings for AI-assisted recruitment screening.
+---
+
+# Pinecone
+
+[Pinecone](https://www.pinecone.io) is the vector database we use to store
+resume embeddings for the AI-assisted recruitment screener. It's a narrow
+integration — only one feature depends on it — but it's the kind of
+integration that's silently load-bearing for the team that does depend on
+it.
+
+## What it is
+
+A managed vector database. You hand it high-dimensional vectors (the
+output of an embedding model) plus arbitrary metadata, and you can query
+for nearest-neighbour vectors against a query embedding. We use it as
+long-term storage for the embeddings we compute from candidate resumes,
+so recruitment screening can do semantic search across applications.
+
+## Why we use it
+
+We need a vector store and we don't want to run one ourselves. Pinecone
+gives us hosted indexes, predictable query latency, and a tiny API that
+the AI SDK can wrap cleanly. At our scale, this is a "stop thinking about
+it" decision rather than a deeply considered architecture choice.
+
+## Cost shape
+
+Pinecone bills per index per month (storage / pod size) plus per-query
+costs. **At BISO's scale this is minimal** — we're talking hundreds of
+resumes per recruitment cycle, not millions of documents. The cost is
+small enough that we don't track it carefully.
+
+## Configuration
+
+| Var | Purpose |
+|---|---|
+| `PINECONE_API_KEY` | API key from the Pinecone console for our account. |
+| `PINECONE_INDEX_NAME` | The name of the index we read and write to. |
+
+Both are required wherever the recruitment screener runs. The index has
+to be created in the Pinecone console before the platform can use it; we
+don't auto-provision.
+
+## Where it lives in the codebase
+
+- `@repo/ai/server/recruitment-screener` — all read/write access to the
+  index.
+- The `job_applications` table in Appwrite has two relevant columns:
+  - `embedding_id` — the Pinecone vector ID this application's embedding
+    lives at. Null if the embedding hasn't been computed yet.
+  - `embedding_status` — `pending` / `ready` / `failed`. Lets the admin
+    UI show a status pill, and lets a re-run job find the applications
+    that need retrying.
+
+The relationship is one Appwrite row to one Pinecone vector. We don't
+shard a single application's resume across multiple vectors.
+
+## Embedding lifecycle
+
+1. A candidate submits an application; the resume PDF lands in the
+   resume storage bucket. The new `job_applications` row is created with
+   `embedding_status = pending`.
+2. The screener picks up pending applications, extracts text from the
+   resume, computes an embedding (via the AI SDK), and writes the vector
+   to Pinecone with metadata pointing back at the application row.
+3. The application row is updated with `embedding_id` and
+   `embedding_status = ready`.
+4. When recruitment staff query the screener (e.g. "find candidates
+   strong on data analysis for this role"), the screener embeds the
+   query, asks Pinecone for nearest-neighbour vectors, then loads the
+   corresponding `job_applications` rows from Appwrite to render results.
+5. If anything fails in step 2, the row's `embedding_status` is set to
+   `failed` so it can be retried.
+
+The Claude-driven reasoning step from
+[Anthropic](/docs/integrations/anthropic) happens on top of these Pinecone
+results — Pinecone tells us *which* candidates are relevant, Claude tells
+us *why*.
+
+## Failure modes
+
+- **Pinecone unavailable** — recruitment screener queries fail. The rest
+  of the admin app's recruitment section (browsing applications, manual
+  shortlisting) still works. AI-assisted search is the only thing that
+  breaks.
+- **Index out of sync with `job_applications` rows** — if rows are
+  deleted in Appwrite without removing the corresponding Pinecone vector,
+  queries can return ghost results that don't resolve back to a row. The
+  screener defends against this by filtering out missing rows post-query.
+  The opposite (vector missing for a row marked `ready`) is rare and
+  surfaces as a "this candidate has no embedding" error.
+- **Embedding provider drift** — if the embedding model changes
+  dimensions, old vectors and new vectors become incomparable. A
+  re-index from scratch fixes it.
+
+## Re-indexing
+
+You'll occasionally need to re-embed everything — after a model change,
+after a metadata schema change, or after a serious data-integrity issue.
+The flow is:
+
+1. Mark all `job_applications` rows `embedding_status = pending`.
+2. Either delete the existing index or create a new one and update
+   `PINECONE_INDEX_NAME`.
+3. Let the screener's background processing chew through the pending
+   applications.
+4. Spot-check a handful of queries before relying on results.
+
+We don't have a one-click re-index button. It's a deliberate manual
+process because re-embedding has real cost implications.
+
+## Rotation
+
+1. Create a new API key in the Pinecone console for our account.
+2. Update `PINECONE_API_KEY` in the deploy environment.
+3. Restart the apps that run the screener (admin and api).
+4. Revoke the old key.
+
+## Swapping the vendor
+
+The vector-store interface in `@repo/ai/server/recruitment-screener` is
+thin and could be retargeted at a different vector DB (Qdrant, Weaviate,
+pgvector in Appwrite if that ever lands, etc.) without touching the
+caller code. The bigger cost is recomputing every embedding — at BISO
+scale, an afternoon's work, not a multi-week migration.

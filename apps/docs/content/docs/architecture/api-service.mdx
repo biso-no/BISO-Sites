@@ -1,0 +1,240 @@
+---
+title: API service
+description: Why apps/api exists separately, how JWT auth flows in from the public site, and the full endpoint catalogue.
+---
+
+# API service
+
+`apps/api` is the standalone REST/JWT service that runs on port 3003
+in development and at its own origin in production. It exists
+alongside the public site (`apps/web`) and the CMS (`apps/admin`) but
+serves a different role: it hosts the workloads we don't want on
+the path of student page loads, and it exposes a stable, JWT-
+authenticated surface that mobile clients or external partners could
+in principle consume.
+
+## Why a separate service
+
+Two reasons:
+
+1. **Workload isolation.** Some operations are heavy or long-running:
+   expense OCR (`/expenses/ocr`), PDF generation, bulk user imports,
+   Entur transit-departure sync. Putting them on the same Node
+   process as the public site would mean a spike in OCR jobs could
+   slow down student page loads. A separate service can be scaled,
+   restarted, and deployed independently.
+2. **A clean external surface.** Mobile or partner clients should
+   never call internal server actions. They call
+   `https://api.biso.no` with a JWT in `Authorization: Bearer`.
+   That's an API contract you can version, document, and rate-limit.
+
+## Architecture
+
+`apps/api` is a Next.js 15 app, but it uses **route handlers only**
+(`src/app/api/*/route.ts`). There are no pages. No SSR. No
+client-side React. Just JSON in, JSON out.
+
+```
+apps/api/src/
+├─ app/api/                # All routes
+│  ├─ health/
+│  ├─ config/
+│  ├─ events/
+│  ├─ wc-products/
+│  ├─ jobs/
+│  ├─ news/
+│  ├─ expenses/{draft,submit,summary,ocr}/
+│  ├─ campus/[campusId]/[departmentId]/board/
+│  ├─ admin/users/{,bulk}/
+│  ├─ admin/departments/
+│  ├─ admin/campuses/
+│  ├─ admin/admin-groups/
+│  ├─ admin/account-turnover/{,bulk}/
+│  ├─ departures/sync/      # service-key only
+│  └─ cleanup-anon-users/   # service-key only
+└─ lib/
+   ├─ auth.ts               # JWT extraction
+   ├─ admin-auth.ts         # 3-tier admin authorization
+   └─ cors.ts               # CORS allow-list
+```
+
+It depends on the same `@repo/api` package as the other apps, so
+typing and Appwrite access are identical. The interesting code is in
+`src/lib/`.
+
+## JWT flow
+
+`apps/api` does **not** mint JWTs. It only verifies and uses them.
+JWTs are minted by `apps/web` via the `createJWT()` server action,
+which:
+
+1. Calls Appwrite `account.createJWT()` against the user-scoped
+   client (the user is identified by `a_session_biso`).
+2. Caches the result for **14 minutes** (Appwrite JWTs expire at 15).
+3. Returns the JWT to the calling server action, which puts it in the
+   `Authorization: Bearer <jwt>` header on the upstream request.
+
+On the API side, `apps/api/src/lib/auth.ts` exports:
+
+```ts
+function extractJwtFromRequest(req: Request): string | null;
+```
+
+The route handler then builds an Appwrite client with
+`createSessionClient(jwt)` from `@repo/api/server`. The client now
+acts as the user, including their Appwrite team memberships — which
+is how `admin-auth.ts` knows what tier they're at.
+
+<Mermaid chart={`sequenceDiagram
+  participant Student as Student browser
+  participant Web as apps/web
+  participant API as apps/api
+  participant Appwrite
+
+  Student->>Web: GET /expenses
+  Web->>Web: createJWT() (cached 14 min)
+  Web->>API: POST /expenses/submit\nAuthorization: Bearer <jwt>
+  API->>API: extractJwtFromRequest()
+  API->>Appwrite: createSessionClient(jwt)
+  Appwrite-->>API: user + team memberships
+  API->>API: tier check
+  API->>Appwrite: db.createRow(...)
+  Appwrite-->>API: row
+  API-->>Web: 200 OK
+  Web-->>Student: rendered page
+`} />
+
+## CORS
+
+`src/lib/cors.ts` defines an allow-list:
+
+- `http://localhost:3000`, `:3001`, `:3002` (the three dev apps)
+- `https://biso.no`, `https://admin.biso.no`, `https://docs.biso.no`
+  (production subdomains)
+
+Requests from other origins are blocked at the handler level. Adding
+a new client (e.g. a mobile app domain) means adding it here.
+
+## The three admin tiers
+
+`apps/api/src/lib/admin-auth.ts` mirrors the role logic from
+`apps/admin/src/lib/roles.ts` but reads memberships from the JWT
+context:
+
+| Tier | Trigger | Can act on |
+|---|---|---|
+| 1 — Global admin | `SG-App-Campus-National` + `SG-App-Dept-OperationsUnit` | any campus, any department |
+| 2 — Campus admin | `SG-App-Campus-{City}` + `SG-App-Dept-Ledelsen{City}` | their campus only |
+| 3 — Department admin | any `SG-App-Dept-*` | their unit only |
+
+Every `/admin/*` route declares the minimum tier it requires. Within
+the handler, finer checks (e.g. "is the target user actually in this
+campus?") happen against the JWT-decoded team list.
+
+See [Auth and roles](/docs/architecture/auth-and-roles) for the
+broader auth picture.
+
+## Endpoint catalogue
+
+Sixteen endpoints, grouped by auth requirement.
+
+### Public (no auth)
+
+| Method + path | Purpose |
+|---|---|
+| `GET /health` | Liveness probe. |
+| `GET /config` | Non-sensitive runtime config (locales, feature flags). |
+| `POST /events` | Event proxy (typically a public list query, POST is used for body-based filters). |
+| `GET /wc-products` | WooCommerce merch product list. |
+
+### JWT-authenticated (user-scope)
+
+| Method + path | Purpose |
+|---|---|
+| `GET /jobs` | List jobs the user can see (scoped). |
+| `GET /news` | News list. |
+| `POST /expenses/draft` | Create / update an expense draft. |
+| `POST /expenses/submit` | Submit an expense for approval. |
+| `GET /expenses/summary` | Summary view for the user's expenses. |
+| `POST /expenses/ocr` | OCR a receipt image into structured fields. |
+| `GET /campus/[campusId]/[departmentId]/board` | Department board listing. |
+
+### Admin (JWT + tier check)
+
+| Method + path | Required tier |
+|---|---|
+| `GET /admin/users` | campus or higher |
+| `POST /admin/users` | campus or higher |
+| `POST /admin/users/bulk` | global only |
+| `GET /admin/departments` | global / campus |
+| `GET /admin/campuses` | global / campus |
+| `GET /admin/admin-groups` | global / campus |
+| `GET /admin/account-turnover` | campus admin or higher for their scope |
+| `POST /admin/account-turnover` | campus admin or higher for their scope |
+| `POST /admin/account-turnover/bulk` | global only |
+
+### Service-key only (no JWT)
+
+These accept a static bearer secret instead of a user JWT — they're
+called by scheduled tasks, not users.
+
+| Method + path | Header |
+|---|---|
+| `POST /departures/sync` | `Authorization: Bearer $ENTUR_SYNC_SECRET` |
+| `POST /cleanup-anon-users` | `Authorization: Bearer $CRON_SECRET` |
+
+`/departures/sync` pulls transit-departure data from Entur into
+Appwrite for the front-page widget. `/cleanup-anon-users` reaps
+abandoned anonymous Appwrite users to keep the user table from
+growing unboundedly.
+
+## Build and deploy
+
+`apps/api` uses `output: "standalone"` and a custom `deploy:prep`
+script that:
+
+1. Builds the standalone Next bundle into `.next/standalone`.
+2. Flattens the workspace structure (the standalone output references
+   `node_modules` via deep paths that need rearranging).
+3. Copies the prepared bundle to the monorepo root for container
+   deployment.
+
+That script lives in the root `package.json` scripts block alongside
+`build:web:appwrite` and `build:admin:appwrite`. See
+[Operations](/docs/operations) for the deployment story.
+
+## Tests
+
+`apps/api/vitest.config.ts` configures Vitest for the higher-stakes
+routes. Tests cover:
+
+- `entur-departures` — parsing and normalisation of Entur's response
+  shape.
+- `expense-payload` — validation of expense-submission bodies.
+- `expense-summary` — computed aggregates for the summary endpoint.
+- `recruitment` — applicant-flow helpers.
+
+CI runs `bun test --filter=api` on every PR that touches `apps/api/`.
+
+## When to add an endpoint here vs in `apps/admin`
+
+Rule of thumb:
+
+- If only the admin UI calls it and the work is fast: add a **server
+  action** in `apps/admin/src/app/(portal)/_actions/`. No round-trip
+  needed.
+- If it's called by `apps/web` (the public site) and reaches into
+  Appwrite with the user's identity: add it as a JWT-authenticated
+  route on `apps/api`.
+- If it's CPU-heavy, IO-heavy, or long-running: add it on
+  `apps/api`, regardless of caller, so it can scale separately.
+- If it needs to be callable by a cron job or external system: add
+  it on `apps/api` with a service-key check.
+
+## Where to read next
+
+- **[Auth and roles](/docs/architecture/auth-and-roles)** — the
+  tier-1/2/3 model and JWT lifecycle in depth.
+- **[Apps](/docs/architecture/apps)** — how the API service sits
+  alongside the other Next apps.
+- **[Operations](/docs/operations)** — how `apps/api` is deployed.
