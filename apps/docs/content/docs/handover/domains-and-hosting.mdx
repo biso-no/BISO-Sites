@@ -18,7 +18,7 @@ this one apex.
 | WHOIS contact email | `it@biso.no` |
 | Renewal date | 19 December annually (next: 2026-12-19) |
 
-<Callout type="warn">
+<Callout type="warning">
 **Confirmed gap**: the proisp account has **no 2FA**. Adding 2FA is the
 single highest-leverage security task for the next IT Manager.
 WHOIS contact and registrar login are already role-based (not
@@ -57,7 +57,7 @@ removed or aliased to the apex).
   domain-verification tokens (Stripe, SendGrid-like services if added,
   Vipps if applicable).
 
-<Callout type="warn">
+<Callout type="warning">
 **No DNS zone export is currently saved off-platform.** If proisp.no
 ever loses BISO's zone (or BISO loses access to proisp), the live
 configuration would have to be rebuilt from memory and from the
@@ -116,7 +116,7 @@ per-app difference in the trigger.
 The full walkthrough — including site-ID mapping, what gets uploaded,
 and rollback — is at [Operations / Deployment](/docs/operations/deployment).
 
-<Callout type="warn">
+<Callout type="warning">
 **No staging environment today.** Every push to `main` goes straight
 to production. A staging tier is a known follow-up — see
 [Handover / Known limitations](/docs/handover/known-limitations).
@@ -148,7 +148,7 @@ SMTP is configured at the instance level). User-facing communications
 (newsletters, marketing) go through whatever tool BISO's communications
 team uses — outside the scope of this docs site.
 
-<Callout type="warn">
+<Callout type="warning">
 **To be filled in by the current IT Manager**: the SMTP provider
 configured on the Appwrite instance (Mailgun? SendGrid? Microsoft 365
 SMTP relay?) and where its credentials live.

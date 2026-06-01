@@ -12,7 +12,7 @@ in before handing over.
 If any row below is blank or stale at handover, the platform has a
 single-person dependency that needs fixing.
 
-<Callout type="warn">
+<Callout type="warning">
 **To be filled in by the current IT Manager** before leaving the role.
 Every `[FILL IN]` below is a piece of institutional knowledge that BISO
 will lose if you don't write it down.
@@ -26,7 +26,7 @@ will lose if you don't write it down.
 | Repository: `BISO-Sites` (this monorepo) | github.com/biso-no/BISO-Sites | Org-owned | — |
 | Repository: `BISO-Flutter` (native mobile app for iOS / Android) | github.com/biso-no/BISO-Flutter | Org-owned | — |
 
-<Callout type="warn">
+<Callout type="warning">
 **Open continuity risk**: the GitHub organisation `biso-no` has a single
 Owner today. Before the current IT Manager leaves, **add a second human
 as Owner**. Suggested candidates: another current Operations Unit
@@ -54,7 +54,7 @@ context.
 | Two-factor recovery codes stored | **No 2FA configured at proisp** — see warning below |
 | WHOIS contact email | `it@biso.no` |
 
-<Callout type="warn">
+<Callout type="warning">
 **Open security risk**: the proisp.no registrar account does **not** have
 two-factor authentication enabled. The domain `biso.no` is the most
 critical single asset BISO owns digitally — every subdomain, the
@@ -75,7 +75,7 @@ recovery codes in the password manager.
 | Production project ID | `biso` |
 | Dev project ID | `dev` (same Appwrite instance, separate project) |
 
-<Callout type="warn">
+<Callout type="warning">
 **Open continuity risk**: only one person currently has SSH root access
 to the Appwrite VM. Before handover, the outgoing IT Manager must
 arrange SSH access for the incoming person (or a documented role
@@ -213,7 +213,7 @@ Documents screen in the admin app.
 | Billing email | `invoice@biso.no` |
 | Payment method | **Currently Markus Heien's personal card** — being transitioned to Simen (Administrasjonsleder) imminently |
 
-<Callout type="warn">
+<Callout type="warning">
 **Open continuity risk #1**: OpenAI billing is on Markus Heien's personal
 card. When Markus leaves, the card either stops paying or has to be
 manually changed mid-transition. The next IT Manager — or whoever takes
@@ -255,7 +255,7 @@ for the dormant-code-path note.
 | Plan | **Starter (free tier)** |
 | Account owner | Markus Heien |
 
-<Callout type="warn">
+<Callout type="warning">
 **Open continuity risk #2**: the Pinecone index `bisoai` lives on
 Markus Heien's **personal** Pinecone account, not a BISO-owned
 account. When Markus leaves, access to the index goes with him unless
@@ -282,7 +282,7 @@ existing embeddings or accept a one-time re-embedding pass, and rotate
 | Approximate monthly cost | ~NOK 550 total across both servers |
 | Renewal cycle | Monthly (Webdock standard) |
 
-<Callout type="warn">
+<Callout type="warning">
 **Open continuity risk**: Webdock access is GitHub-OAuth-only, and
 Markus Heien's GitHub account is the only one configured. When Markus
 leaves, root access to **the Appwrite VM** goes with him unless
@@ -312,7 +312,7 @@ of the most consequential gaps in the platform's operational setup.
 | Where account credentials live | Each individual administrator's personal browser / phone. |
 | TOTP / second factor | **Microsoft Authenticator** is used for the M365 accounts. No shared TOTP backups for vendor accounts (Vipps, Stripe, OpenAI, Pinecone, registrar, etc.). |
 
-<Callout type="warn">
+<Callout type="warning">
 **Open continuity risk (high priority)**: every production secret —
 Appwrite API keys, Vipps client secret, OAuth client secrets, AI API
 keys, the GitHub Actions `APPWRITE_API_KEY` repository secret — lives
