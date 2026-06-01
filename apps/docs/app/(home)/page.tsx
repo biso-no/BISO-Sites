@@ -296,8 +296,8 @@ export default function Home() {
               </h2>
               <p className="max-w-2xl text-muted-foreground text-sm leading-relaxed">
                 Nine sections covering use of the platform, the codebase, the
-                external services, and the operational knowledge needed to
-                hand over to a successor.
+                external services, and the operational knowledge needed to hand
+                over to a successor.
               </p>
             </div>
 
