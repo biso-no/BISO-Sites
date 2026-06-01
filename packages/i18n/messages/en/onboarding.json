@@ -1,0 +1,111 @@
+{
+  "page": {
+    "title": "Set up your profile | BISO",
+    "description": "Set up your BISO profile to access events, benefits, and more."
+  },
+  "header": {
+    "subtitle": "Profile setup",
+    "subtitleDone": "Welcome aboard"
+  },
+  "popout": {
+    "title": "Complete your profile",
+    "subtitle": "2 minutes to set up",
+    "description": "Access events, expense reports, and member benefits by completing your BISO profile.",
+    "getStarted": "Get started",
+    "later": "Later",
+    "dismiss": "Dismiss"
+  },
+  "persona": {
+    "title": "Welcome to BISO",
+    "description": "Tell us a bit about yourself so we can tailor your experience. Select everything that applies.",
+    "hint": "Not sure? You can always update this later in your profile settings.",
+    "student": {
+      "label": "BI Student",
+      "description": "I'm enrolled at BI Business School"
+    },
+    "volunteer": {
+      "label": "Volunteer / Committee Member",
+      "description": "I'm active in a BISO committee or project group"
+    },
+    "financial": {
+      "label": "Financial Services",
+      "description": "I'll submit expense reports or request reimbursements"
+    }
+  },
+  "student": {
+    "title": "Link your BI account",
+    "description": "Connect your BI Business School account to verify your semester registration and unlock member benefits and discounts.",
+    "benefits": {
+      "title": "What you unlock",
+      "membership": "Verified member status and semester discounts",
+      "events": "Access to student-only events",
+      "sso": "Single sign-on with your BI credentials"
+    },
+    "linkButton": "Link BI Student Account",
+    "skip": "Skip for now"
+  },
+  "personal": {
+    "title": "Your details",
+    "description": "Just the basics. You can fill in more later.",
+    "descriptionFinancial": "We need your contact and address details for expense reimbursements.",
+    "fields": {
+      "name": "Full name",
+      "namePlaceholder": "Your full name",
+      "phone": "Phone number",
+      "phonePlaceholder": "+47 000 00 000",
+      "street": "Street address",
+      "streetPlaceholder": "Eksempelgata 1",
+      "city": "City",
+      "cityPlaceholder": "Oslo",
+      "zip": "ZIP code",
+      "zipPlaceholder": "0001"
+    },
+    "address": {
+      "title": "Address",
+      "optional": "(optional)"
+    }
+  },
+  "banking": {
+    "title": "Banking information",
+    "description": "Required for expense reimbursements. Stored securely and only used for payments.",
+    "norwegian": "🇳🇴 Norwegian",
+    "international": "🌍 International",
+    "fields": {
+      "bankAccount": "Norwegian bank account number",
+      "bankAccountHint": "11-digit Norwegian account number",
+      "bankAccountPlaceholder": "0000 00 00000",
+      "iban": "IBAN",
+      "ibanHint": "International Bank Account Number",
+      "ibanPlaceholder": "NO12 3456 7890 123",
+      "swift": "SWIFT / BIC code",
+      "swiftHint": "8 or 11 character SWIFT/BIC code",
+      "swiftPlaceholder": "DNBANOKK"
+    }
+  },
+  "done": {
+    "title": "You're all set!",
+    "description": "Your BISO profile is ready.",
+    "biLinked": "Your BI student account is linked.",
+    "financialSaved": "Your banking details are saved for reimbursements.",
+    "updateNote": "You can update everything anytime from your profile.",
+    "goToProfile": "Go to my profile",
+    "backToHome": "Back to home"
+  },
+  "nav": {
+    "back": "Back",
+    "continue": "Continue",
+    "complete": "Complete setup",
+    "saving": "Saving…"
+  },
+  "errors": {
+    "nameRequired": "Full name is required",
+    "phoneRequired": "Phone number is required",
+    "addressRequired": "Required for financial services",
+    "cityRequired": "Required",
+    "zipRequired": "Required",
+    "bankAccountRequired": "Account number is required",
+    "swiftRequired": "SWIFT/BIC code is required",
+    "saveFailed": "Failed to save profile. Please try again.",
+    "unknown": "Something went wrong. Please try again."
+  }
+}

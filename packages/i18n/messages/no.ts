@@ -1,4 +1,5 @@
 import about from "./no/about.json";
+import onboarding from "./no/onboarding.json";
 import academicsContact from "./no/academicsContact.json";
 import admin from "./no/admin.json";
 import adminEvents from "./no/adminEvents.json";
@@ -70,4 +71,5 @@ export default {
   adminSettings,
   adminPosts,
   adminPortal,
+  onboarding,
 };

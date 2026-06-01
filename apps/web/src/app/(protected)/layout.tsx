@@ -1,4 +1,4 @@
-import { unauthorized } from "next/navigation";
+import { redirect, unauthorized } from "next/navigation";
 import { getLoggedInUser } from "@/lib/actions/user";
 
 export default async function ProtectedLayout({
@@ -6,10 +6,12 @@ export default async function ProtectedLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const user = await getLoggedInUser();
+  const userData = await getLoggedInUser();
 
-  if (!user) {
+  if (!userData) {
     unauthorized();
+  } else if (!userData.profile) {
+    redirect("/onboarding?required=1");
   }
 
   return <>{children}</>;
