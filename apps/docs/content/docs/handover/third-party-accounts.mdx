@@ -1,0 +1,163 @@
+---
+title: Third-party accounts
+description: Every SaaS subscription the platform depends on, with billing details, plan tiers, and renewal cycles.
+---
+
+# Third-party accounts
+
+This page complements [ownership-and-accounts](/docs/handover/ownership-and-accounts).
+That page is about *who holds the master credentials*. This page is about
+*what BISO is paying for* — subscriptions, plan tiers, monthly rates,
+renewal cycles.
+
+Like the ownership page, this is a template. Every row needs to be filled
+in by the current IT Manager at handover.
+
+<Callout type="warn">
+**To be filled in by the current IT Manager**: every `[FILL IN]` below.
+For each row, attach a screenshot or PDF of the most recent invoice in
+BISO's shared finance folder so the next person can verify they're
+looking at the right account.
+</Callout>
+
+## AI providers
+
+### OpenAI
+
+| Field | Value |
+|-------|-------|
+| Account name | [FILL IN] |
+| Login email | [FILL IN] |
+| Plan / tier | [FILL IN: e.g. Pay-as-you-go, Tier 3] |
+| Monthly spend (average) | [FILL IN: NOK] |
+| Hard cap configured? | [FILL IN: yes/no, at what level] |
+| Billing email | [FILL IN] |
+| Payment method | [FILL IN: which card on file] |
+
+### Anthropic
+
+| Field | Value |
+|-------|-------|
+| Account name | [FILL IN] |
+| Login email | [FILL IN] |
+| Plan / tier | [FILL IN] |
+| Monthly spend (average) | [FILL IN: NOK / USD] |
+| Hard cap configured? | [FILL IN] |
+| Billing email | [FILL IN] |
+| Payment method | [FILL IN] |
+
+### Pinecone
+
+| Field | Value |
+|-------|-------|
+| Account name | [FILL IN] |
+| Login email | [FILL IN] |
+| Plan / tier | [FILL IN: Starter / Standard / etc.] |
+| Index used | matches `PINECONE_INDEX_NAME` |
+| Monthly spend | [FILL IN] |
+| Renewal | [FILL IN: monthly / annual] |
+| Billing email | [FILL IN] |
+
+## Payments
+
+### Vipps MobilePay
+
+| Field | Value |
+|-------|-------|
+| Merchant Serial Number | [FILL IN] |
+| Plan | [FILL IN] |
+| Transaction fee | [FILL IN: e.g. 1.75% + NOK 1] |
+| Monthly fixed fee | [FILL IN] |
+| Settlement bank account | [FILL IN: last 4 digits] |
+| Account holder (BISO entity) | [FILL IN] |
+| Sales contact at Vipps | [FILL IN] |
+
+### Stripe
+
+| Field | Value |
+|-------|-------|
+| Stripe account ID | [FILL IN: `acct_…`] |
+| Country | [FILL IN: usually NO] |
+| Pricing | [FILL IN: standard EEA rate] |
+| Payout cadence | [FILL IN] |
+| Connected bank account | [FILL IN: last 4 digits] |
+
+## Accounting
+
+### 24SevenOffice
+
+| Field | Value |
+|-------|-------|
+| Tenant ID | [FILL IN] |
+| Subscription tier | [FILL IN] |
+| Monthly cost | [FILL IN: NOK] |
+| Renewal date | [FILL IN] |
+| Contract length | [FILL IN] |
+| Sales contact | [FILL IN] |
+
+## Microsoft 365
+
+| Field | Value |
+|-------|-------|
+| Tenant primary domain | [FILL IN] |
+| SKU(s) | [FILL IN: e.g. Business Standard × 12 seats] |
+| Monthly / annual cost | [FILL IN] |
+| Renewal date | [FILL IN] |
+| Billing email | [FILL IN] |
+| CSP (reseller) if any | [FILL IN] |
+
+## Hosting
+
+### Appwrite (self-hosted or cloud)
+
+| Field | Value |
+|-------|-------|
+| Hosting model | [FILL IN: self-hosted on VM / Appwrite Cloud] |
+| If self-hosted: VM provider + plan | [FILL IN] |
+| Monthly hosting cost | [FILL IN] |
+| If cloud: Appwrite plan tier | [FILL IN] |
+
+### Webdock (if used)
+
+| Field | Value |
+|-------|-------|
+| Account login | [FILL IN] |
+| Servers in use | [FILL IN] |
+| Monthly cost | [FILL IN] |
+| Renewal | [FILL IN] |
+
+### Other hosting providers
+
+| Field | Value |
+|-------|-------|
+| Provider | [FILL IN: e.g. Vercel, Fly] |
+| Plan | [FILL IN] |
+| Monthly cost | [FILL IN] |
+
+## Developer tooling
+
+| Service | Plan | Monthly cost | Renewal | Notes |
+|---------|------|-------------|---------|-------|
+| GitHub organisation | [FILL IN: Free / Team / Enterprise] | [FILL IN] | [FILL IN] | Required for the org account. |
+| Domain registrar | [FILL IN] | [FILL IN] | [FILL IN] | See [domains-and-hosting](/docs/handover/domains-and-hosting). |
+| Password manager | [FILL IN] | [FILL IN] | [FILL IN] | |
+| Uptime monitor | [FILL IN] | [FILL IN] | [FILL IN] | See [monitoring-and-health](/docs/operations/monitoring-and-health). |
+| Other | [FILL IN] | — | — | — |
+
+## Total
+
+It's worth maintaining a running total of monthly platform spend so
+leadership can see what the platform actually costs.
+
+| Category | Monthly NOK |
+|----------|-------------|
+| AI providers (OpenAI + Anthropic + Pinecone) | [FILL IN] |
+| Payment provider monthly fees | [FILL IN] |
+| Hosting | [FILL IN] |
+| Microsoft 365 | [FILL IN] |
+| 24SevenOffice | [FILL IN] |
+| Developer tooling | [FILL IN] |
+| **Total** | **[FILL IN]** |
+
+Transaction fees (Vipps / Stripe per-order) scale with revenue and are
+excluded from the monthly total above.

@@ -1,0 +1,146 @@
+---
+title: History
+description: How the BISO platform got to where it is — what came before, what was tried, what stuck, and what was let go.
+---
+
+# History
+
+A short, honest narrative of the platform's evolution. The point isn't
+nostalgia — it's that knowing *why* something looks the way it does
+saves the next person from re-litigating the same choices.
+
+## Before the platform: WordPress + WooCommerce + spreadsheets
+
+For a long time, BISO ran on a fairly typical student-org stack: a
+WordPress public site, WooCommerce for the shop, and a sprawl of Google
+Sheets and Excel files for everything else — members, applications,
+campus rosters, internal coordination.
+
+It worked, in the way that any organisation's accumulated tools work:
+imperfectly, slowly, and with a lot of human glue. WordPress was hard
+to keep up to date. The WooCommerce integration with 24SevenOffice was
+brittle. Every new academic year, important spreadsheets got copied,
+renamed, and lost.
+
+The artefacts of that era still show up in the codebase as the
+WooCommerce connector (`@repo/connectors`'s WC piece, now effectively
+dead — see [known-limitations](/docs/handover/known-limitations)) and as
+the `WC_CONSUMER_KEY` / `WC_CONSUMER_SECRET` env vars that `apps/api`
+still references for historical reasons.
+
+## The Next.js + Appwrite stack
+
+The migration to the current platform happened over a stretch where the
+team decided the WordPress site was a liability and that BISO needed a
+proper data layer it could reason about.
+
+The shape that emerged:
+
+- **Appwrite** as the data layer. Self-hosted at `appwrite.biso.no` so
+  BISO controls the data.
+- **Next.js everywhere.** First just the public site, then the admin
+  CMS, eventually a standalone JWT REST API at `apps/api`.
+- A **monorepo** to share code (UI, the API SDK, the editor) across
+  apps without copy-pasting.
+
+This phase is when most of the architectural decisions documented in
+[design-decisions](/docs/handover/design-decisions) were made.
+
+## The Puck-to-in-house editor switch (2025)
+
+For a while, the CMS used [Puck](https://puckeditor.com/) as the page
+editor. It worked, and it got the team off the ground quickly. But two
+things became friction:
+
+1. **AI integration.** As BISO started building a copilot for the
+   editor (powered by Claude), the friction of bolting AI behaviour
+   onto a third-party editor's block model became significant.
+2. **Multi-locale and draft/publish.** BISO needed per-locale rows in
+   `page_translations` with their own permissions, plus a clean
+   draft/publish flow tied to Appwrite. Doing this *around* Puck's
+   model was harder than doing it inside a model the team controlled.
+
+The in-house editor at `@repo/editor` replaced Puck during 2025. The
+`puck_document` column name on `pages` is the most visible legacy of
+that era — it now stores the in-house editor's `PageDoc` blob despite
+the name.
+
+## The role-model rework
+
+The platform's first role model used Azure AD groups named
+`SG-App-Role-*` and treated them as opaque permission tokens. That
+worked, but it made cross-campus role inheritance hard ("a board member
+at BI Oslo IT is also a member of BI Oslo, who is also a BISO
+all-campuses member") and it tied the platform to a naming convention
+that the directory team didn't love.
+
+The current model derives roles from the **combination of campus and
+department** an Azure AD account belongs to. That's a cleaner mapping
+to how BISO is actually organised, and it survives directory renames
+without code changes. Some admin route group names still reflect the
+older labels — those are tidy-ups for a future quiet week.
+
+## The AI additions
+
+Two AI capabilities landed in roughly the same window:
+
+- **Page editor copilot and admin assistant.** Anthropic's Claude
+  powers contextual help inside the editor and a general-purpose admin
+  assistant. See [`@repo/ai`](/docs/packages/ai) if present.
+- **Recruitment AI screening.** Pinecone holds vector embeddings of
+  job applications. The admin can rank candidates against role
+  descriptions semantically rather than by keyword.
+
+Both required adding `ANTHROPIC_API_KEY` (admin only), `OPENAI_API_KEY`
+(everywhere — used for embeddings), and `PINECONE_API_KEY` /
+`PINECONE_INDEX_NAME` (everywhere). The `job_applications.embedding_status`
+column tracks where each application is in the embedding pipeline.
+
+## Things tried and let go
+
+Not everything attempted made it into the platform. A short list, so
+the next person doesn't waste time reviving them without thought:
+
+- **Real-time chat / messaging.** Tables prefixed `chat_*` and
+  `typing_indicators` are scaffolding from an attempt at building
+  in-platform chat between members. It didn't ship and the tables sit
+  unused. Removing them is fine; just be sure no app references them
+  first.
+- **Analytics.** Multiple analytics providers were considered (see
+  [design-decisions](/docs/handover/design-decisions)). No provider was
+  chosen. The `/api/analytics/page-view` endpoint exists as a no-op
+  204 so the integration can be done later without changing the
+  client.
+- **The `large_event` / `large_event_item` tables.** An experimental
+  alternative event model that didn't fully land. Treat as
+  experimental until someone decides to either complete or remove
+  them.
+
+## The choice to not staff this full-time
+
+The most consequential *organisational* decision baked into the
+platform is the choice to keep IT Manager as a rotating, often
+part-time role rather than a permanent full-time staff position. This
+shapes everything: the bias toward documentation, the preference for
+self-hosted-but-bounded services, the deliberate "no exotic
+infrastructure" stance.
+
+The cost of that choice is that the platform must be operable by
+someone new every year or two. That's why this docs site exists. The
+benefit is that BISO doesn't carry a permanent salary line for a
+specialist role most student orgs don't need full-time.
+
+Whichever way that decision goes in the future, the platform should
+remain operable by a small, rotating team. That's a constraint, not a
+goal — but it's a constraint worth respecting when designing the next
+big change.
+
+## Where we are now
+
+A solid, opinionated stack on a backend BISO controls. A small set of
+deliberate gaps (analytics, error tracking, search) waiting for a
+future owner to fill them with intent rather than reflex. A
+documentation set that, with luck, will outlive any single IT Manager.
+
+That last sentence is the one this whole `/docs/handover` section is
+written for. Good luck.

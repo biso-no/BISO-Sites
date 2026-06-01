@@ -1,0 +1,134 @@
+---
+title: Known limitations
+description: An honest list of what doesn't work, isn't finished, or is held together with intent rather than implementation.
+---
+
+# Known limitations
+
+The platform is in good shape, but it isn't finished and isn't perfect.
+This page is the honest list of rough edges. If you're new to the
+platform, read this **before** you spend a day debugging something that
+turns out to be a known issue.
+
+## Type safety
+
+- **`next build` ignores type errors.** Both `apps/web` and `apps/admin`
+  have `typescript.ignoreBuildErrors: true` in `next.config.ts`. A
+  broken build will deploy. The only signal that catches type
+  regressions is `bun run check-types`, which must be wired into CI.
+- The `_transit` task in `turbo.json` exists specifically to propagate
+  package `tsc` runs through the dependency graph before app-level
+  type-checks. Don't remove it.
+
+## Testing
+
+- **No automated end-to-end tests.** Manual QA is the safety net.
+- **`apps/web` and `apps/admin` have no unit tests.** Only `apps/api`
+  ships with tests.
+- This is a deliberate trade-off (the team has been too small to
+  maintain a meaningful E2E suite without it rotting), not a bug. But
+  it means changes to user-facing flows need explicit manual
+  verification.
+
+## Analytics
+
+- The platform has no analytics implementation. `/api/analytics/page-view`
+  exists on `apps/web` and returns 204 No Content — a deliberate no-op
+  so the client integration can be added later without changing the
+  schema of incoming requests.
+- See [design-decisions](/docs/handover/design-decisions) for the
+  reasoning and [history](/docs/handover/history) for what was tried
+  before.
+
+## Dead and dormant code
+
+- **WooCommerce connector** (`@repo/connectors`'s WooCommerce piece) is
+  effectively dead. The only place `apps/api` references it is as a
+  string in a configuration map, with `WC_CONSUMER_KEY` and
+  `WC_CONSUMER_SECRET` env vars retained for historical reasons. The
+  WordPress shop it talked to has been migrated away from.
+- **Chat / real-time infrastructure**: tables prefixed `chat_*` and
+  `typing_indicators` exist in the schema but no app currently uses
+  them. They were a future-feature scaffold that didn't ship.
+- **`large_event` / `large_event_item`** tables are experimental. They
+  were added to explore a different event model and aren't part of the
+  production flow.
+
+## Naming legacy
+
+- The `puck_document` column on `pages` is named after the *previous*
+  page editor (Puck). It now stores the in-house editor's `PageDoc`
+  blob. The name is misleading; renaming it would be a schema change
+  that requires care.
+- Some admin route group names still reflect older role labels
+  (`SG-App-Role-*`) before the move to campus+department combinations.
+  See [history](/docs/handover/history).
+
+## Editor block maturity
+
+The in-house editor at `@repo/editor` is solid for the common cases but
+several blocks are still maturing:
+
+- **`filterBar`** — works but has edge cases around filter-state
+  persistence across navigations.
+- **`multiStepForm`** — conditional logic between steps is limited.
+- **`profileHeader`** — not yet fully wired into the live member data;
+  some fields are placeholders.
+
+If you're building on these blocks, expect to fill in gaps as you go.
+
+## Search
+
+- The platform has **no first-class search across content**. The CMS
+  has list filtering and the public site has navigation, but there is
+  no Algolia / Typesense / Meilisearch layer.
+- This becomes a problem as the page count grows. A future IT Manager
+  is likely to want to add one.
+
+## Observability gaps
+
+- **No error-tracking provider** (Sentry, Bugsnag, Rollbar) is wired
+  up. The platform is *ready* for one — adding `@sentry/nextjs` would
+  be a one-evening job per app — but the choice was deferred.
+- **No APM.** Performance regressions are usually caught by users
+  reporting slowness, not by alerting.
+
+## Scheduling
+
+- There is **no built-in scheduler**. Cron jobs are external HTTP
+  triggers — see
+  [/docs/operations/cron-and-scheduled-tasks](/docs/operations/cron-and-scheduled-tasks).
+  If the external scheduler is unconfigured, the jobs silently don't
+  run.
+
+## Permissions edges
+
+- **Role changes require re-login.** Roles are resolved from Azure AD
+  groups at session creation; changing someone's Azure AD group
+  membership won't affect their existing session until they log out and
+  back in.
+- **Campus scoping is enforced at the app layer, not in Appwrite
+  permissions** for every collection. This works but means a careless
+  `db.listRows` without the right filter could return cross-campus data
+  to a campus-scoped admin. Code reviewers should watch for this.
+
+## Documentation gaps
+
+- Several places in these docs say `[FILL IN]` — they're templates for
+  the current IT Manager to complete. If you've inherited this and
+  those gaps are still there, the previous handover wasn't completed.
+- Some integration pages under `/docs/integrations` are sparser than
+  others. Filling them out is good first-week work for a new IT
+  Manager.
+
+## What's *not* a limitation
+
+A few things look like limitations but are deliberate:
+
+- The 24SevenOffice integration is **read/write only** for the platform
+  — financial truth is in 24SO, not in Appwrite. This is intentional.
+- The platform does **not** send marketing email. That's a different
+  tool and a different team's responsibility.
+- `apps/web` does not have a middleware that gates access; the public
+  site is genuinely public. (Anonymous sessions are created for
+  visitors, but that's a different mechanism.)

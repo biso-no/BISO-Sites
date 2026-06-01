@@ -1,0 +1,160 @@
+---
+title: Working with consultants
+description: How to hire, scope, and brief external developers without losing money, secrets, or institutional control of the platform.
+---
+
+# Working with consultants
+
+BISO has historically used external consultants for bounded pieces of work
+— feature builds, production triage, integration work. This page is the
+playbook for doing that well.
+
+## When to hire a consultant
+
+Good fits:
+
+- **Bounded feature work** with a clear deliverable. "Add a new payment
+  method", "build the new alumni dashboard", "integrate X with the
+  recruitment pipeline".
+- **Production triage** when something is broken and the in-house team
+  can't fix it in time. Bring in a Next.js / Appwrite specialist for a
+  few hours.
+- **Specialist domains** the team doesn't have — security review,
+  accessibility audit, performance optimisation.
+
+Bad fits:
+
+- "Rebuild the platform." If you're considering this, talk to the board
+  and reread [design-decisions](/docs/handover/design-decisions) first.
+- Vague open-ended retainers without specific deliverables.
+- Anything that requires deep institutional knowledge of BISO's
+  governance — consultants rarely catch up on that fast enough.
+
+## Cost discipline
+
+- **Always agree on scope and price in writing before any code is
+  written.** Either fixed-price-fixed-scope, or capped hours with a
+  clear "stop and check in" point.
+- **Ask for a written design doc before code starts.** A short doc
+  describing what they intend to build and how. Approve it. Pay for it
+  if needed. Skipping this step is the most expensive mistake you can
+  make.
+- **Pay on delivery, not on hours.** Where possible, tie payment to
+  acceptance of the work, not to time spent.
+- **Beware "while I'm in there" expansion.** Consultants are often
+  tempted to tidy code adjacent to the work. Get explicit sign-off
+  before any change outside the scope.
+
+## What to share on day 1
+
+In order of escalating trust:
+
+1. **These docs**. Link them to [/docs/getting-started](/docs/getting-started),
+   [/docs/architecture/overview](/docs/architecture/overview), and the
+   integration page(s) relevant to the scope.
+2. **Read access to the repo.** Add them to the GitHub org as an outside
+   collaborator on the specific repo, not as an org member.
+3. **A dev Appwrite project**, separate from production. Give them an
+   API key scoped only to that project.
+4. **Dev environment variables** — enough to run the relevant app
+   locally against the dev Appwrite. Never production secrets at this
+   stage.
+5. A **point of contact** inside BISO who can answer "is this acceptable
+   to BISO?" questions quickly.
+
+## What *not* to share until trust is established
+
+- Production API keys. Never. Not even for "just looking".
+- The `APPWRITE_API_KEY` for the production project.
+- The Azure AD admin credentials.
+- Production database access.
+- The password manager vault containing production secrets.
+
+If a consultant genuinely needs production access (e.g. they're doing
+on-prod triage), grant a time-limited, scoped credential. Rotate it the
+moment the engagement ends.
+
+## Repository conventions to surface
+
+A consultant who skims the repo will miss conventions that matter to the
+platform's long-term health. Call these out explicitly in the briefing:
+
+- **Never import `appwrite` / `node-appwrite` directly.** All data
+  access goes through `@repo/api`. See
+  [/docs/packages/api](/docs/packages/api).
+- **Use the in-house editor.** Do not re-introduce Puck or any other
+  block editor. See
+  [/docs/packages/editor](/docs/packages/editor).
+- **Always scope by campus.** Most rows have a `campus_id` and admin
+  permissions are scoped by campus. New features must respect this. See
+  the admin handbook.
+- **`bun run check-types` is the only signal that catches type errors.**
+  `next build` ignores them. CI must run check-types and a consultant's
+  PR must be green on it.
+- **Bun, not pnpm/npm.** The lockfile is `bun.lock` and the workspaces
+  rely on Bun's catalog protocol.
+- **No new env vars without updating `turbo.json`.** Otherwise the build
+  cache becomes incorrect.
+
+## Onboarding email template
+
+A pre-baked email to copy-paste when bringing a consultant on. Replace
+the bracketed bits.
+
+```text
+Hi [name],
+
+Welcome to the BISO platform engagement. Here's everything you need to
+get started.
+
+Scope of work: [link to signed SOW / design doc]
+Primary contact at BISO: [name, email, phone]
+Engagement window: [start] – [end]
+
+Repository
+- GitHub org: https://github.com/biso-no
+- Main repo: https://github.com/biso-no/BISO-Sites
+- You'll receive an invite as an outside collaborator. Please enable 2FA
+  on your GitHub account before accepting.
+
+Documentation
+- Start at /docs/getting-started.
+- Architecture overview: /docs/architecture/overview.
+- Conventions you must follow: /docs/handover/working-with-consultants
+  (the "Repository conventions" section).
+
+Development environment
+- Use Bun 1.3.1 (`bun --version`).
+- Clone the repo, then `bun install`.
+- We'll send dev environment variables in a separate password-manager
+  share — please do not store them in plain text.
+- Run `bun run dev --filter=<app>` for whichever app you're working on.
+
+What we'll need from you before code starts
+1. A short design doc describing the proposed approach. Doesn't need to
+   be more than a page.
+2. Confirmation you've read /docs/handover/working-with-consultants and
+   are happy with the conventions.
+
+What we'll need from you at delivery
+1. PR(s) against `main` with a clear description.
+2. Green on `bun run check-types`, `bun run lint`, and `bun run build`.
+3. A short handoff note describing what changed and any follow-ups.
+
+Looking forward to working together.
+
+— [your name]
+```
+
+## Off-boarding checklist
+
+When the engagement ends:
+
+- [ ] Remove their GitHub access (outside-collaborator status revoked).
+- [ ] Revoke any API keys, OAuth client secrets, or service accounts
+      issued for the engagement.
+- [ ] Rotate any production secrets they were temporarily given.
+- [ ] Confirm their final deliverables are merged or archived; nothing
+      sits in an orphaned branch.
+- [ ] File the final invoice and the signed SOW in BISO's records.
+- [ ] Capture a short "what we learned" note for the next engagement.
