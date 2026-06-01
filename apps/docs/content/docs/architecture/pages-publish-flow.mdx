@@ -1,0 +1,251 @@
+---
+title: Pages publish flow
+description: The draft → published lifecycle of a page, per-locale, with every server action you need to know.
+---
+
+# Pages publish flow
+
+This page is the canonical reference for how a page goes from "blank
+slate in the editor" to "live on biso.no". It covers the data model,
+the server actions in `@repo/api/page-builder`, the per-locale
+independence of draft and publish state, and what the public site
+actually reads.
+
+If you're new, [Editor architecture](/docs/architecture/editor-architecture)
+explains the editor that drives this flow.
+
+## Two tables, four states
+
+Pages are split across two Appwrite tables:
+
+```
+pages                              page_translations
+─────                              ─────────────────
+$id            (PK)                $id              (PK)
+slug                               page_id          → pages.$id
+status                             locale           "no" | "en"
+visibility                         draft_document   PageDoc JSON
+campus_id                          puck_document    PageDoc JSON (published)
+department_id                      is_published     boolean
+translation_refs[]                 status           "draft" | "published"
+...                                ...
+```
+
+A single page (`pages.$id`) typically has two `page_translations`
+rows — one for `no`, one for `en`. Each translation row carries
+**both** `draft_document` and `puck_document` columns.
+
+The four columns/flags together encode the lifecycle:
+
+| State | `draft_document` | `puck_document` | `is_published` |
+|---|---|---|---|
+| Brand new | empty `PageDoc` | empty | `false` |
+| Editing | latest editor state | empty | `false` |
+| First publish | (copied below) | published `PageDoc` | `true` |
+| Editing a published page | new draft in progress | last-published `PageDoc` | `true` |
+| Republish | (copied below) | new `PageDoc` | `true` |
+| Unpublish | unchanged | unchanged | `false` |
+
+The key idea: `draft_document` is what the editor is writing to;
+`puck_document` is what the public site reads. Publishing copies one
+to the other.
+
+## Why two documents
+
+You might ask: "Why not just edit the published JSON in place?"
+Because:
+
+1. **Atomicity.** A multi-hour editing session shouldn't be
+   half-visible on biso.no. The draft is invisible to the public
+   until publish.
+2. **Rollback.** When you unpublish, the last-published JSON stays in
+   `puck_document` — you can re-publish the same revision without
+   re-doing work.
+3. **Per-locale independence.** Norwegian and English are separate
+   rows. You can publish Norwegian today, keep editing English, and
+   publish English next week.
+
+## Why "puck_document"
+
+The column kept its name from before we replaced
+[Puck](https://puckeditor.com) with `@repo/editor`. Renaming an
+Appwrite column with live data, indexes, and ACLs is expensive; the
+name stuck. Read "the published page JSON" whenever you see it.
+
+## The server actions
+
+All of these live in `@repo/api/page-builder`:
+
+```ts
+// Public site — render a published page by slug + locale
+getPage(slug: string, locale: Locale): Promise<{ doc: PageDoc; ... } | null>
+
+// Admin reads — page metadata only or by id
+getPageById(id: string, locale: Locale): Promise<...>
+
+// Admin editor — full state for the editor (metadata + every locale's
+// draft and puck documents)
+getPageEditorById(id: string): Promise<PageEditorState>
+
+// Editor save
+savePageDraft({ id, doc, locale, ctx }): Promise<void>
+
+// Publish one locale
+publishPage({ id, locale }): Promise<void>
+
+// Unpublish one locale
+unpublishPage({ id, locale }): Promise<void>
+```
+
+### `getPage(slug, locale)` — the public read
+
+The public catch-all `(public)/[...slug]/page.tsx` calls this. It:
+
+1. Looks up the `pages` row by `slug`.
+2. Filters by `status = "published"` and `visibility = "public"`.
+3. Finds the matching `page_translations` row for the locale.
+4. Returns `puck_document` deserialized into a `PageDoc`.
+
+If any check fails, returns `null` → 404. **The public site never
+reads `draft_document`.**
+
+### `getPageEditorById(id)` — the editor's load
+
+The admin's editor route calls this. It returns the whole edit state:
+
+```ts
+type PageEditorState = {
+  page: PagesRow;                            // metadata
+  translations: Record<Locale, {
+    draftDoc: PageDoc | null;
+    puckDoc:  PageDoc | null;
+    isPublished: boolean;
+    status: "draft" | "published";
+  }>;
+};
+```
+
+The editor hydrates `<EditorShell initial={...}>` from this.
+
+### `savePageDraft({ id, doc, locale, ctx })`
+
+Called by `EditorShell` via the `savePage` callback, debounced at
+800 ms. The action:
+
+1. Calls `requireAuth()` / `getUserAuthContext()`.
+2. Checks `ctx.resolvedCampusIds` includes the page's `campus_id`.
+3. Upserts the `pages` row (metadata changes).
+4. Upserts the `page_translations` row for `(page_id, locale)`,
+   writing `doc` to `draft_document`.
+5. Writes to `audit_logs`.
+6. `revalidatePath()` on relevant routes.
+
+It does **not** touch `puck_document` or `is_published`. Saving a
+draft is invisible to the public site.
+
+### `publishPage({ id, locale })`
+
+What "publish" really does:
+
+1. Auth + scope check.
+2. Reads `draft_document` from the matching
+   `page_translations` row.
+3. Writes that JSON to `puck_document`.
+4. Sets `is_published = true`, `status = "published"`.
+5. Updates the parent `pages.status` if needed.
+6. Audit log + revalidate.
+
+After this call, `getPage()` will return the freshly published
+content on the next read.
+
+### `unpublishPage({ id, locale })`
+
+Flips `is_published = false` and `status = "draft"` on the
+translation row. **Does not** clear `puck_document` — that means a
+later re-publish without changes can just flip the flag back.
+
+The parent `pages.status` may also be flipped to `draft` if no locale
+is published.
+
+## The flow as a diagram
+
+<Mermaid chart={`stateDiagram-v2
+  [*] --> NewPage: createPage()
+  NewPage --> Editing: savePageDraft()
+  Editing --> Editing: savePageDraft()
+  Editing --> Published: publishPage(locale)
+  Published --> EditingPublished: savePageDraft()
+  EditingPublished --> EditingPublished: savePageDraft()
+  EditingPublished --> Published: publishPage(locale)
+  Published --> Unpublished: unpublishPage(locale)
+  Unpublished --> Published: publishPage(locale)
+  Unpublished --> EditingPublished: savePageDraft()
+  note right of Published
+    puck_document = last-published JSON
+    public site reads this
+  end note
+  note right of Editing
+    draft_document = work in progress
+    public site cannot see this
+  end note
+`} />
+
+## Per-locale independence
+
+Each call to `publishPage` and `unpublishPage` takes a `locale`.
+There is no "publish all locales" primitive. That's deliberate:
+
+- A common workflow is to publish Norwegian immediately and run
+  AI translation for English, then human-review English before
+  publishing it separately.
+- Translation status is tracked per locale (see
+  [Translations](/docs/architecture/translations)).
+- A campus admin who only writes Norwegian shouldn't accidentally
+  publish stale English.
+
+If you ever build an "publish all" UI affordance, implement it as a
+loop over locales — don't bypass `publishPage`.
+
+## What the public site filters
+
+The catch-all renders a page only when:
+
+```ts
+page.status === "published" &&
+page.visibility === "public" &&
+translation.is_published === true &&
+translation.puck_document !== null
+```
+
+`visibility` lets us mark a page as `internal` or `member` (the
+admin handbook describes these). Internal pages render only when the
+viewer is signed in to admin; member pages render only for verified
+members.
+
+## Common pitfalls
+
+- **Editing `puck_document` directly.** Don't. The editor only writes
+  to `draft_document`. If you patch `puck_document` from a server
+  action, you bypass the publish lifecycle and the audit trail.
+- **Bumping `status` without copying the doc.** If you flip
+  `is_published = true` but didn't copy `draft_document` into
+  `puck_document`, the public site renders the *previous* publish.
+  Always go through `publishPage()`.
+- **Forgetting `revalidatePath()`.** The public site uses Next's
+  cache. After a publish, you must invalidate `/`, the slug path, and
+  any list pages that include the slug.
+- **Cross-locale assumptions.** A page being "published" is not a
+  single boolean — it's per locale. Code that says
+  `page.isPublished` is a smell; the truth lives on
+  `page_translations`.
+
+## Where to read next
+
+- **[Editor architecture](/docs/architecture/editor-architecture)** —
+  the editor that produces `draft_document`.
+- **[Translations](/docs/architecture/translations)** — why each
+  locale has its own translation row.
+- **[Pages handbook](/docs/admin-handbook/pages)** — the user-facing
+  guide to publishing.
+- **[`@repo/api/page-builder`](/docs/packages/api)** — full
+  reference for these server actions.

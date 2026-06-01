@@ -1,0 +1,158 @@
+---
+title: i18n
+description: next-intl, the two locales, namespaces, and the bun run translate flow.
+---
+
+# i18n
+
+## Stack
+
+- **`next-intl` v3** — drives locale negotiation, message loading, and the
+  `useTranslations()` / `getTranslations()` hooks.
+- **Locales**: `no` (Norwegian Bokmål — default and source of truth) and `en` (English).
+- **User preference**: stored on the Appwrite account as `prefs.locale`. Helper:
+  `getLocale()` in each app's `src/app/actions/locale.ts`.
+
+## Where messages live
+
+```text
+packages/i18n/
+  messages/
+    no/
+      common.json
+      home.json
+      about.json
+      admin.json
+      adminEvents.json
+      adminExpenses.json
+      adminJobs.json
+      adminShop.json
+      adminUsers.json
+      adminUnits.json
+      adminSettings.json
+      memberPortal.json
+      shop.json
+      jobs.json
+      volunteer.json
+      projects.json
+      projectDetail.json
+      events.json
+      membership.json
+      press.json
+      partner.json
+      contact.json
+      businessHotspot.json
+      academicsContact.json
+      cookies.json
+      privacy.json
+      policies.json
+      terms.json
+      students.json
+      fundingProgram.json
+      ...
+    en/
+      <same shape>
+```
+
+43 namespaces in total. Pick the most specific one — don't dump page-level strings into
+`common.json`.
+
+## Using messages
+
+### In a Server Component
+
+```tsx
+import { getTranslations } from "next-intl/server";
+
+export default async function HomePage() {
+  const t = await getTranslations("home");
+
+  return (
+    <main>
+      <h1>{t("hero.title")}</h1>
+      <p>{t("hero.subtitle")}</p>
+    </main>
+  );
+}
+```
+
+### In a Client Component
+
+```tsx
+"use client";
+
+import { useTranslations } from "next-intl";
+
+export function SignInButton() {
+  const t = useTranslations("common");
+  return <button type="button">{t("auth.signIn")}</button>;
+}
+```
+
+### With interpolation
+
+`messages/no/events.json`:
+
+```json
+{
+  "count": "{count, plural, =0 {Ingen arrangementer} one {# arrangement} other {# arrangementer}}"
+}
+```
+
+```tsx
+t("count", { count: events.length });
+```
+
+## Adding a new string
+
+1. **Pick the right namespace**. If it doesn't fit any existing one, create a new file
+   under `messages/no/` and add the namespace to `packages/i18n/src/index.ts`.
+2. **Add the Norwegian key first.** Norwegian is the source of truth.
+3. **Run `bun run translate`** to auto-fill the English version.
+
+```bash
+cd packages/i18n
+bun run translate
+```
+
+This shells out to `@parvineyvazov/json-translator` using `OPENAI_API_KEY`. It only fills
+missing keys — your manually-tuned English strings won't be overwritten. Review the
+diff; LLM translations of marketing copy in particular often need a human edit.
+
+4. **Type-check** — `next-intl` infers types from the JSON files. If the type-checker
+   doesn't pick up your new key, restart your editor's TypeScript server (sometimes
+   needed after JSON edits).
+
+## Content vs. interface translations
+
+There are two flavours of "translated content" on the platform, and they live in
+different places:
+
+| What | Where |
+|---|---|
+| UI labels (buttons, navigation, page titles, error messages) | `packages/i18n/messages/<locale>/*.json` |
+| Long-form content (event descriptions, job posts, news, page content) | Appwrite — `events_translations`, `jobs_translations`, `page_translations`, etc. |
+
+For an event with `event.title` in Norwegian, the English translation lives in
+`events_translations` keyed by `event_id + locale`. The page editor (`@repo/editor`)
+edits the per-locale row directly — there is no "translate this draft" action.
+
+Page translations specifically live in the `page_translations` table, one row per
+(page, locale).
+
+## Locale switching
+
+User locale is persisted on `account.prefs.locale`. The header includes a `LocaleSwitcher`
+that calls a server action to update `prefs` and `revalidatePath("/")`.
+
+The URL is **not** prefixed with the locale. We use cookie-based negotiation, not path
+segments — this means external links work uniformly across locales and search engines
+get a single canonical URL. The tradeoff is that you can't link directly to "this page
+in English" from outside; the user has to switch.
+
+## Where to go next
+
+- [Adding a route](/docs/developing/adding-a-route) — wiring nav translations.
+- [Adding an editor block](/docs/developing/adding-an-editor-block) — block-level content
+  translations.
+- [Packages / `@repo/i18n`](/docs/packages/i18n) — the package internals.

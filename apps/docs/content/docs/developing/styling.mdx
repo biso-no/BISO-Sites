@@ -1,0 +1,185 @@
+---
+title: Styling
+description: Tailwind v4, design tokens, cn(), variants, themes.
+---
+
+# Styling
+
+## Stack
+
+- **Tailwind CSS v4** — no `tailwind.config.js`. Tailwind v4 uses the `@theme` directive
+  in CSS to declare tokens.
+- **`@repo/ui`** — the shared component library (Radix primitives + Tailwind).
+- **`next-themes`** — dark/light mode toggle.
+- **`lucide-react`** — icons (tree-shakable, prefer over `react-icons`).
+- **`class-variance-authority` (CVA)** — component variants.
+- **`cn()`** — class merger from `@repo/ui/lib/utils` (wraps `clsx` + `tailwind-merge`).
+- **Plate.js** — rich text inside editor blocks.
+
+## Design tokens
+
+Tokens are defined as CSS variables in `@repo/ui/src/styles/globals.css` and re-exported as
+a typed Proxy from `@repo/ui/lib/tokens`.
+
+| Category | Count | Examples |
+|---|---|---|
+| Semantic colors | 24 | `--background`, `--foreground`, `--primary`, `--muted`, `--destructive`, … |
+| Radius tokens | 5 | `--radius-sm`, `--radius-md`, `--radius-lg`, … |
+| Font sizes | 8 | `--text-xs` through `--text-4xl` |
+| Line heights | 3 | `--leading-tight`, `--leading-normal`, `--leading-relaxed` |
+| Motion durations | 3 | `--duration-fast`, `--duration-default`, `--duration-slow` |
+| Easing curves | 4 | `--ease-in`, `--ease-out`, `--ease-in-out`, `--ease-spring` |
+
+All colors are HSL-based, so dark mode flips a small set of vars rather than redefining
+the palette.
+
+### Using tokens from TypeScript
+
+```ts
+import { tokens } from "@repo/ui/lib/tokens";
+
+tokens.colors.primary;       // "var(--primary)"
+tokens.radius.md;            // "var(--radius-md)"
+tokens.motion.duration.fast; // "var(--duration-fast)"
+```
+
+This matters for inline styles, motion configs, and charts — places where you can't use a
+Tailwind class.
+
+### Using tokens in classes
+
+Just use Tailwind. The classes already map to the vars:
+
+```tsx
+<div className="bg-background text-foreground rounded-md">
+  <button className="bg-primary text-primary-foreground rounded-sm">
+    Save
+  </button>
+</div>
+```
+
+## `cn()` — the class merger
+
+Always use `cn()` when conditionally combining classes. It merges Tailwind classes
+intelligently (later `bg-red-500` wins over earlier `bg-blue-500` — `clsx` alone would
+emit both).
+
+```tsx
+import { cn } from "@repo/ui/lib/utils";
+
+<div
+  className={cn(
+    "rounded-md border p-4",
+    isActive && "border-primary bg-primary/5",
+    isDisabled && "opacity-50 pointer-events-none",
+    className, // accept consumer overrides last
+  )}
+/>;
+```
+
+## Component variants with CVA
+
+```tsx
+import { cva, type VariantProps } from "class-variance-authority";
+import { cn } from "@repo/ui/lib/utils";
+
+const badgeVariants = cva(
+  "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium",
+  {
+    variants: {
+      variant: {
+        default: "bg-primary text-primary-foreground",
+        secondary: "bg-secondary text-secondary-foreground",
+        destructive: "bg-destructive text-destructive-foreground",
+        outline: "border text-foreground",
+      },
+    },
+    defaultVariants: {
+      variant: "default",
+    },
+  },
+);
+
+type BadgeProps = React.HTMLAttributes<HTMLSpanElement> &
+  VariantProps<typeof badgeVariants>;
+
+export function Badge({ className, variant, ...props }: BadgeProps) {
+  return (
+    <span className={cn(badgeVariants({ variant }), className)} {...props} />
+  );
+}
+```
+
+Most components in `@repo/ui` follow this pattern. When extending one, expose the same
+`variant`/`size` props rather than wrapping with custom classes.
+
+## Theming (dark / light)
+
+`next-themes` is mounted at the root of each app. Use `useTheme()` in Client Components:
+
+```tsx
+"use client";
+
+import { useTheme } from "next-themes";
+
+export function ThemeToggle() {
+  const { theme, setTheme } = useTheme();
+  return (
+    <button
+      type="button"
+      onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+    >
+      Toggle
+    </button>
+  );
+}
+```
+
+Components should never check `theme` directly to swap classes — let the CSS vars do the
+work. If you find yourself writing `theme === "dark" ? "bg-black" : "bg-white"`, the
+right answer is `bg-background`.
+
+## Icons
+
+Use `lucide-react`:
+
+```tsx
+import { ChevronRight, Sparkles } from "lucide-react";
+
+<ChevronRight className="size-4 text-muted-foreground" />;
+```
+
+Don't import the whole `lucide-react` namespace — it kills tree-shaking.
+
+## Rich text
+
+Inside editor blocks, use Plate.js for rich text fields. The `RichText` block in
+`@repo/editor` is the precedent — copy its setup if you need rich text in a new block.
+
+For static prose (marketing pages, blog posts), use plain JSX with Tailwind typography
+classes. Don't reach for Plate unless the user needs to edit.
+
+## Images
+
+Always `next/image`, never `<img>`:
+
+```tsx
+import Image from "next/image";
+
+<Image
+  src="/logo.svg"
+  alt="BISO"
+  width={120}
+  height={40}
+  className="h-10 w-auto"
+/>;
+```
+
+External hosts must be allow-listed in `next.config.ts#images.remotePatterns`. If you
+forget, you'll get a runtime error on the first request.
+
+## Where to go next
+
+- [Packages / `@repo/ui`](/docs/packages/ui) — full component reference.
+- [Adding an editor block](/docs/developing/adding-an-editor-block) — styling inside blocks.
+- [Conventions](/docs/developing/conventions) — image domain rules.

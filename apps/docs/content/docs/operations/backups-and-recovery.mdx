@@ -1,0 +1,118 @@
+---
+title: Backups and recovery
+description: What is backed up, by whom, and how to recover from the realistic worst-case scenarios.
+---
+
+# Backups and recovery
+
+The short version: Appwrite is the database of record, so Appwrite's
+backup configuration is the single most important thing to verify. Code
+lives in git and is reproducible. Customer-facing files live in
+SharePoint and in Appwrite Storage.
+
+## What's backed up where
+
+| Data | Lives in | Backup responsibility |
+|------|----------|------------------------|
+| Pages, orders, applications, members, audit logs | Appwrite TablesDB | Appwrite (self-hosted: BISO; cloud: Appwrite) |
+| Uploaded files (page assets, résumés) | Appwrite Storage | Same as above |
+| Schema definition | `packages/api/appwrite.config.json` | Git |
+| Source code | GitHub `biso-no/*` | GitHub |
+| Accounting record of every paid order | 24SevenOffice | 24SevenOffice |
+| Static documents | SharePoint | Microsoft 365 (native versioning + recycle bin) |
+| Vector embeddings | Pinecone | Pinecone (and trivially rebuildable from `job_applications`) |
+
+## Appwrite backups
+
+This is the critical one. If the Appwrite instance is lost without a
+backup, every row of every table is lost — the schema can be rebuilt from
+`appwrite.config.json` but the data cannot.
+
+For BISO's self-hosted Appwrite at `appwrite.biso.no`:
+
+- Appwrite stores its data in a set of underlying services (MariaDB,
+  Redis, etc.) running on the host.
+- A backup strategy must cover the **MariaDB data volume** and the
+  **storage volume** for the Storage buckets.
+
+<Callout type="warn">
+**To be filled in by the current IT Manager**: the exact backup mechanism
+in use for production Appwrite — daily snapshots from the hosting
+provider? `mariadb-dump` on a cron? Off-site copy location? Restore test
+date? Test the restore at least once a year; document the test below.
+
+Last verified restore test: [FILL IN: date, who, outcome].
+</Callout>
+
+## Code backups
+
+GitHub is the canonical source. Every developer with the repo cloned is
+implicitly a warm backup. If GitHub itself were lost, a recent clone plus
+the sealed secrets reference would be enough to rebuild.
+
+## Disaster recovery scenarios
+
+### "We lost the Appwrite project"
+
+1. Provision a new Appwrite instance (self-hosted or cloud).
+2. Restore the most recent backup of the MariaDB volume and the storage
+   volume.
+3. Update `NEXT_PUBLIC_APPWRITE_ENDPOINT` and `NEXT_PUBLIC_APPWRITE_PROJECT`
+   in every deploy environment.
+4. Redeploy all three apps.
+5. If there is no usable backup: push the schema from
+   `packages/api/appwrite.config.json` using the Appwrite CLI
+   (`appwrite push`), accept that all row data is gone, and communicate
+   the loss to BISO leadership.
+
+### "A key leaked"
+
+See [secrets-and-keys → If a key leaks](/docs/operations/secrets-and-keys#if-a-key-leaks).
+No data is lost; rotate and move on.
+
+### "A bad deploy went out"
+
+1. Identify the bad revision in git.
+2. `git revert <bad-commit>` on `main`, or redeploy the previous build
+   from the hosting provider's deployment history.
+3. Verify `/api/health` returns OK on the rolled-back deploy.
+4. Verify the broken feature is working again.
+5. Open an issue for the underlying problem so the fix isn't lost.
+
+Schema-change deploys are special: if the bad deploy added columns and
+data has been written to them, reverting the schema **loses that data**.
+Treat schema changes as forward-only and fix forward instead.
+
+### "Someone deleted important rows from Appwrite"
+
+1. Stop further writes if it's an active incident (revoke the offending
+   user / API key).
+2. Restore the affected table(s) from the most recent Appwrite backup to
+   a *staging* project — never directly over production.
+3. Re-import only the missing rows.
+4. Open an incident — see
+   [/docs/operations/incident-response](/docs/operations/incident-response).
+
+### "SharePoint files are missing"
+
+SharePoint has native versioning and a recycle bin. Microsoft 365 admins
+can restore deleted files for at least 93 days (and longer with retention
+policies). See the SharePoint admin centre.
+
+### "24SevenOffice access is lost"
+
+24SevenOffice retains the financial record independent of the platform.
+Even if the platform is offline, the accounting truth is in 24SO. This is
+deliberate — see
+[/docs/handover/design-decisions](/docs/handover/design-decisions).
+
+## Backup verification
+
+A backup you haven't restored is a backup you don't have. At least once
+per academic year, perform a restore drill:
+
+1. Provision a throwaway Appwrite project.
+2. Restore the most recent backup into it.
+3. Point a local `apps/web` and `apps/admin` at it.
+4. Confirm a page renders and an admin user can log in.
+5. Document the date and outcome in the callout above.

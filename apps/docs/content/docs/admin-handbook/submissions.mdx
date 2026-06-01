@@ -1,0 +1,65 @@
+---
+title: Submissions
+description: Form submissions from the public site — collected by topic, ACL'd by team, and ready to action.
+---
+
+# Submissions
+
+The **Submissions** screen collects everything students and members send through forms on the public site. Sign-up forms, multi-step forms, application forms — when a visitor on biso.no clicks submit, the result lands here for the right team to action.
+
+It is available to global admins and campus admins.
+
+## How submissions are organised
+
+Submissions are grouped by **topic**. A topic is essentially "what was this form for?" — for example *housing*, *kickoff signups*, or *board applications*. The main Submissions screen shows the list of topics with a count of new and total submissions for each. Click a topic to drill into its detail page at **/submissions/[topic]**.
+
+Inside a topic you see one row per submission, with:
+
+- The **page** the submission came from.
+- The **form heading** as it was shown to the visitor.
+- The **submitter's data** as captured (name, email, free-text answers, etc.).
+- A **status**: new, read, actioned, or archived.
+- A **source**: whether it came from a multi-step form or a signup block.
+
+## Statuses
+
+Use status as a lightweight workflow:
+
+| Status | When to set it |
+|--------|----------------|
+| **New** | Default. Nobody has looked at it yet. |
+| **Read** | You've opened it and seen it, but haven't done anything yet. |
+| **Actioned** | The submission has been handled — for example you replied, added the person to a list, or processed their payment. |
+| **Archived** | Old or no longer relevant. Hidden from the default view but searchable. |
+
+Statuses are visible to anyone with access to the topic, so the team can split work without stepping on each other.
+
+## Who can see what
+
+Submissions are access-controlled in two layers:
+
+1. **Campus** — submissions are tagged with the campus the page they came from belongs to. Campus admins only see submissions for their own campus.
+2. **Topic team** — a topic can also be restricted to a specific team. Only members of that team see the submissions; everyone else doesn't even see the topic in the list.
+
+The combination keeps sensitive data (for example housing applications) in the hands of the team that actually owns it.
+
+## Working through a queue
+
+The most common pattern:
+
+1. Open Submissions.
+2. Pick the topic with the largest **new** count.
+3. Walk the list, opening each new submission.
+4. Mark it **actioned** when you've handled it, or **archived** if it's no longer relevant.
+5. Repeat until the new count is zero.
+
+## When something is missing
+
+- If a topic you expect doesn't appear, you may not be in the team that owns it. Ask a global admin to add you, or check that the form on the public site is configured with the right topic.
+- If a submission you expect isn't there, check the campus context — you might be scoped to a different campus.
+- If a submission's data looks empty, the form on the public site may be misconfigured. Open the page in the [pages editor](/docs/admin-handbook/pages) to inspect the form block.
+
+## Related screens
+
+- [Notifications](/docs/admin-handbook/notifications) — the bell pings you when new submissions arrive in a topic you can access.
+- [Activity](/docs/admin-handbook/activity) — historical record of who set which status when.

@@ -1,0 +1,246 @@
+---
+title: Translations
+description: Two locales, three translation systems, and how next-intl, page_translations, and content_translations work together.
+---
+
+# Translations
+
+BISO operates in two locales: **Norwegian (`no`, default)** and
+**English (`en`)**. Locale handling has to cover three different
+classes of content, each with its own mechanism:
+
+1. **UI strings** — buttons, labels, error messages. Handled by
+   `next-intl`.
+2. **Page content** — the long-form, block-based pages. Stored in
+   `page_translations` with their own per-locale documents.
+3. **Other content** — events, jobs, news, benefits, products,
+   departments, member benefits. Stored in a generic
+   `content_translations` table.
+
+These three look similar from the outside ("translation") but their
+implementation is intentionally different. Understanding the
+differences is the point of this page.
+
+## The user's locale preference
+
+The user's locale lives in the Appwrite account
+`prefs.locale` field. Switching language in either app writes back
+to `prefs.locale` so the next request — even from a different device
+— picks up the new locale.
+
+Anonymous visitors fall back to the default (`no`) unless their
+browser locale negotiation picks `en`.
+
+---
+
+## 1. UI strings via `next-intl`
+
+UI text is handled by [`next-intl`](https://next-intl.dev) v3,
+configured in `@repo/i18n`. Messages live as JSON under
+`packages/i18n/messages/{locale}/{namespace}.json`. There are
+**43 namespaces** at the time of writing — one per major feature area
+(`auth`, `editor`, `expense`, `recruitment`, etc.).
+
+A component reads strings via the `useTranslations()` hook:
+
+```tsx
+import { useTranslations } from "next-intl";
+
+export function PublishButton() {
+  const t = useTranslations("editor");
+  return <Button>{t("publish")}</Button>;
+}
+```
+
+Or on the server, `getTranslations()`:
+
+```ts
+import { getTranslations } from "next-intl/server";
+
+export async function generateMetadata() {
+  const t = await getTranslations("pages.events");
+  return { title: t("metaTitle") };
+}
+```
+
+`next-intl` handles `<NextIntlClientProvider>` setup, message loading
+per request, locale routing, and the formatter helpers.
+
+**This system is for the application chrome.** It is **not** for
+user-authored content. Don't put event titles or news bodies in a
+namespace.
+
+---
+
+## 2. Page content via `page_translations`
+
+Pages are the heavyweight case. A single page can be 30 KB+ of JSON
+(`PageDoc` — block list plus metadata). Storing two locales as a
+single column with a `{ no: ..., en: ... }` shape would balloon the
+row size on every read.
+
+So pages get their own dedicated translation table:
+
+```
+pages (one row per page)
+  ├─ id, slug, status, visibility, campus_id, department_id, ...
+  └─ translation_refs: [page_translations.$id, page_translations.$id]
+
+page_translations (one row per locale per page)
+  ├─ page_id
+  ├─ locale: "no" | "en"
+  ├─ draft_document: PageDoc (JSON) — work in progress
+  └─ puck_document: PageDoc (JSON) — published (historical name)
+```
+
+**Both `draft_document` and `puck_document` exist per locale.** That
+means you can publish Norwegian today and English tomorrow — they
+have independent draft and published states. See
+[Pages publish flow](/docs/architecture/pages-publish-flow) for the
+full lifecycle.
+
+`puck_document` is named for [Puck](https://puckeditor.com), the
+editor library we used before building `@repo/editor`. The column
+kept its name through the migration.
+
+### Reading
+
+```ts
+import { getPage } from "@repo/api/page-builder";
+
+// Public site
+const page = await getPage("oslo/career", "no");
+// page.doc is the PageDoc from puck_document for the matching locale
+```
+
+### Writing
+
+The editor calls `savePageDraft({ id, doc, locale, ctx })`. It locates
+the `page_translations` row for `(page_id, locale)`, upserts it, and
+writes `doc` to `draft_document`. Publishing copies it to
+`puck_document`.
+
+---
+
+## 3. Other content via `content_translations`
+
+Everything else — events, jobs, news, benefits, webshop products,
+departments, member benefits — uses a single generic table:
+
+```ts
+type ContentTranslations = {
+  content_type: "event" | "job" | "news" | "benefit" | "product" | ...;
+  content_id: string;            // FK to the source row
+  source_locale: "no" | "en";    // which locale is the "original"
+  target_locale: "no" | "en";    // which locale this row holds
+  translation_status: "source" | "manual" | "ai" | "stale";
+  fields: Record<string, string>;
+  // ...
+};
+```
+
+Why generic? Because the translation needs are similar across all
+these types ("title", "description", "body") and a generic shape lets
+us:
+
+- Share the translation UI (one form for all content types).
+- Share the AI translation pipeline (one endpoint, one prompt).
+- Track the `source_locale` and `translation_status` consistently —
+  so the editor knows when a translation has drifted from its
+  original.
+
+### Translation statuses
+
+| Status | Meaning |
+|---|---|
+| `source` | This row holds the original-language content. There's exactly one per `content_id`. |
+| `manual` | Translated by a human editor. |
+| `ai` | Translated by the AI pipeline (OpenAI). |
+| `stale` | The source has been edited since this translation was made; needs review. |
+
+When a source row is edited, all non-source translations are flagged
+`stale`. The editor UI surfaces this so people don't show outdated
+content.
+
+### Reading
+
+```ts
+const event = await db.getRow<Events>("app", "events", id);
+
+const translations = await db.listRows<ContentTranslations>(
+  "app",
+  "content_translations",
+  [
+    Query.equal("content_id", event.$id),
+    Query.equal("target_locale", currentLocale),
+  ],
+);
+```
+
+Higher-level helpers in `@repo/api` wrap this and merge the
+`fields` blob onto the row for you. Use those rather than
+re-implementing the join.
+
+---
+
+## AI translation
+
+The admin app exposes an AI translation endpoint at
+`POST /api/translate-page` (in `apps/admin/src/app/api/translate-page/route.ts`).
+It uses OpenAI via `@repo/ai` and is tailored for the page case
+specifically — it walks a `PageDoc`'s blocks, finds translatable
+string fields, translates them in place, and writes the result back to
+the target locale's `draft_document`.
+
+### Deep translation paths
+
+A `PageDoc` is a tree, not flat. Blocks can have:
+
+- Top-level translatable props (e.g. `heading`, `subheading`).
+- Nested translatable strings inside variant configs.
+- Items in arrays (e.g. an FAQ block has a list of `{ question,
+  answer }` pairs, each needing translation).
+
+The translation walk uses metadata defined in each block's registry
+entry (`aiProps`) to know which paths to translate. Blocks register
+this when calling `registerBlock()` in
+`packages/editor/src/blocks/registry.ts`.
+
+If you add a new block with translatable content, declare the paths
+in `aiProps`. Otherwise the AI translator will skip those fields.
+
+### For non-page content
+
+The other content types (events, jobs, news, …) use the same OpenAI
+provider but a simpler translator that operates on the
+`content_translations.fields` blob directly. No tree walking needed.
+
+---
+
+## The locale switcher contract
+
+When the user changes locale in either app:
+
+1. The UI writes the new value to `prefs.locale` on the Appwrite
+   account.
+2. `next-intl` re-renders the chrome with messages from the new
+   locale.
+3. The next data fetch for `page_translations` / `content_translations`
+   reads the matching locale's row.
+
+If a translation row doesn't exist for the requested locale, the read
+helpers fall back to the source locale's content — better to show
+something in Norwegian than to show nothing.
+
+---
+
+## Where to read next
+
+- **[Editor architecture](/docs/architecture/editor-architecture)** —
+  how the editor handles multi-locale workflow and the AI copilot.
+- **[Pages publish flow](/docs/architecture/pages-publish-flow)** —
+  the per-locale draft / publish cycle.
+- **[`@repo/i18n`](/docs/packages/i18n)** — full reference for the
+  next-intl wiring.
+- **[Data model](/docs/architecture/data-model)** — the two
+  translation tables in the broader schema.

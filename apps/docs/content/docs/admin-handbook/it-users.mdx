@@ -1,0 +1,59 @@
+---
+title: IT — Users
+description: The user directory for BISO admin access — search Microsoft 365, view profiles, and onboard new admins.
+---
+
+# IT — Users
+
+The **IT — Users** screen is where BISO IT manages who has access to the admin app. It is a global-admin-only area: nobody else sees it in the sidebar.
+
+You'll find it at **IT → Users**.
+
+## What you can do here
+
+### Search Microsoft 365
+
+The main screen is a search box wired up to your organisation's Microsoft 365 directory through an Appwrite function. Type a name, an email address, or part of a department, and matching M365 users appear.
+
+This is mostly used as a read-only directory: you can confirm someone's account exists, see their display name and email, and check what role the admin app would give them based on their Azure AD groups.
+
+### Open a user profile
+
+Click a result to open that user's profile page. It shows:
+
+- Their basic M365 info (display name, email, job title).
+- The Azure AD groups they belong to — this is what decides their admin role.
+- A history of admin actions they have performed, where available.
+
+### Create a new admin user
+
+Use the **New user** button (top right) to onboard someone who doesn't yet exist in the system. The form collects the essentials and, when you submit it, triggers the create-user flow on the API side. The new account is linked back to M365 so the next time they sign in, the standard role resolution kicks in.
+
+### Bulk import from Azure AD
+
+For larger changes — for example onboarding an entire new campus board at the start of the academic year — there is a bulk import option that reads a group from Azure AD and pulls in all of its members at once.
+
+## What this screen is **not**
+
+A few things to be aware of:
+
+- This is **not** where you assign roles. Roles are decided by Azure AD security groups (see [Roles and permissions](/docs/admin-handbook/roles-and-permissions)). To change someone's role, change their AD group membership and ask them to sign out and back in.
+- This is **not** where students or members are managed. The public-site member database is separate. This screen is only for people who need to use the admin app itself.
+- This is **not** where you set a password. All real authentication goes through Microsoft.
+
+## Typical workflows
+
+| Goal | Steps |
+|------|-------|
+| Confirm a person can sign in | Search for them by name. If they appear in the M365 directory and have at least one `SG-App-Dept-*` group, they can sign in. |
+| Add a brand-new staff member | Click **New user**, fill in the form, ask them to sign in with Microsoft once. |
+| Onboard a whole new campus board | Use bulk import against the matching `SG-App-Dept-*` group. |
+| Diagnose a "I can't see X" complaint | Open the user's profile and check their Azure AD groups against the [permissions table](/docs/admin-handbook/roles-and-permissions). |
+
+## Sub-pages
+
+- **/it/users** — the search and list view.
+- **/it/users/new** — the create-user form.
+- **/it/users/[userId]** — the per-user profile.
+
+Every change made here is written to the [Activity](/docs/admin-handbook/activity) log.

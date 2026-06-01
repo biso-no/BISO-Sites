@@ -1,0 +1,195 @@
+---
+title: "@repo/connectors"
+description: External integrations — Azure AD/Graph, 24SevenOffice, SharePoint, and (deprecated) WooCommerce.
+---
+
+# @repo/connectors
+
+`@repo/connectors` is the single place where BISO Sites talks to
+third-party APIs. Each integration lives in its own subpath so apps
+only pull in the deps they need, and each connector is a small,
+focused module — no megaclient.
+
+## Entrypoints
+
+| Entrypoint                  | Integration                                          | Status     |
+|-----------------------------|------------------------------------------------------|------------|
+| `@repo/connectors/azure`    | Microsoft Graph (users, calendar) via MSAL           | Active     |
+| `@repo/connectors/24sevenoffice` | 24SevenOffice / Finago (membership, invoicing)  | Active     |
+| `@repo/connectors/sharepoint` | SharePoint document library via Graph              | Active     |
+| `@repo/connectors/woocommerce`| Legacy WordPress shop                              | **Deprecated** |
+
+For app-level configuration (env vars, redirect URLs, webhook secrets),
+see the integration pages under [Integrations](/docs/integrations).
+
+## Azure / Microsoft Graph
+
+```ts
+import {
+  createGraphClient,
+  GraphClient,
+  GraphUserService,
+} from "@repo/connectors/azure";
+```
+
+Application-only authentication via
+[`@azure/msal-node`](https://learn.microsoft.com/en-us/entra/identity-platform/msal-node-overview).
+The Graph client is created once per request and used to read users
+and calendars.
+
+```ts
+const graph = await createGraphClient();
+const users = new GraphUserService(graph);
+
+const user = await users.getByEmail("ola@biso.no");
+const events = await graph.api("/me/calendar/events").get();
+```
+
+### Used for
+
+- Resolving Azure AD security group membership at login (drives
+  admin role assignment).
+- Reading staff calendar events for surface in admin dashboards.
+- Querying user profile data for staff directory blocks.
+
+See [Integrations → Azure AD](/docs/integrations/azure-ad) for env
+vars (`AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`)
+and the consent flow.
+
+## 24SevenOffice (Finago)
+
+```ts
+import {
+  // Membership sync
+  syncMembershipsFrom24SO,
+  previewMembershipSync,
+  // Customers
+  createStudentCustomer,
+  findOrCreateCompany,
+  searchCustomerByStudentId,
+  // Invoicing
+  createMembershipInvoice,
+  // Categories
+  getCustomerCategories,
+  saveCustomerCategories,
+  assignMembershipCategory,
+  // Products
+  getProducts,
+  getMembershipProducts,
+  // REST (Finago)
+  getDepartments,
+  postShopTransaction,
+} from "@repo/connectors/24sevenoffice";
+```
+
+24SevenOffice is BISO's ERP — it owns the customer ledger and issues
+invoices. The connector bridges Appwrite (where members live) and
+24SO (where invoices live).
+
+### Membership sync
+
+- `previewMembershipSync()` returns the diff between Appwrite members
+  and 24SO customers without applying changes.
+- `syncMembershipsFrom24SO()` runs the actual sync. Scheduled by an
+  Appwrite Function; also exposed as a button in the admin tools.
+
+### Customer management
+
+- `createStudentCustomer({ studentId, name, email, campus })` —
+  upserts a customer for a student. Returns the 24SO customer ID
+  written back to the Appwrite member row.
+- `findOrCreateCompany(name)` — idempotent company lookup, used for
+  partner organizations.
+- `searchCustomerByStudentId(studentId)` — read-only lookup.
+
+### Invoicing
+
+- `createMembershipInvoice({ memberId, productCode, campus, period })`
+  — campus-specific; the connector knows the department dimension IDs
+  for each campus and tags the invoice line correctly.
+
+### REST (Finago)
+
+A subset of operations talks to the newer Finago REST API rather than
+the SOAP 24SO API:
+
+- `getDepartments()` — list all departments (used to populate dropdowns
+  in admin).
+- `postShopTransaction({ orderId, lines, customerId })` — posts a
+  completed shop order into the ledger. Called from the public site's
+  checkout success path.
+
+See [Integrations → 24SevenOffice](/docs/integrations/24sevenoffice)
+for credentials and product code mapping.
+
+## SharePoint
+
+```ts
+import { SharePointService } from "@repo/connectors/sharepoint";
+```
+
+`SharePointService` is a class that wraps the Graph SharePoint
+endpoints. Used to read and write files in the BISO document
+libraries.
+
+```ts
+const sp = new SharePointService(graphClient);
+
+await sp.listSites();
+await sp.listDocuments(siteId, folderPath);
+const file = await sp.downloadDocument(siteId, itemId);
+await sp.uploadNewFile(siteId, folderPath, "report.pdf", buffer);
+await sp.replaceFileInPlace(siteId, itemId, buffer);
+```
+
+### Methods
+
+| Method                | Purpose                                                  |
+|-----------------------|----------------------------------------------------------|
+| `listSites()`         | Lists sites the app principal has access to              |
+| `listDocuments()`     | Lists files in a folder                                  |
+| `downloadDocument()`  | Streams file content as a buffer                         |
+| `uploadNewFile()`     | Creates a new file in a folder                           |
+| `replaceFileInPlace()`| Replaces the content of an existing item, keeping its ID |
+
+### Permission model
+
+Authorization uses the **Sites.Selected** model: the app principal
+only has access to sites it has been explicitly granted access to.
+The set of granted sites is configured via the `SHAREPOINT_SITES`
+environment variable (newline- or comma-separated site IDs). Trying
+to read a site outside this set fails with a 403 from Graph.
+
+Used by the admin document library and the public site's policy /
+contract downloads.
+
+## WooCommerce (deprecated)
+
+```ts
+import {
+  fetchProductById,
+  fetchProducts,
+} from "@repo/connectors/woocommerce";
+```
+
+A legacy connector to the older WordPress/WooCommerce shop. The shop
+itself has been replaced by the in-house shop on `apps/web`, and
+these functions are no longer called from any app code. The string
+`"woocommerce"` still appears as a literal in `apps/api/config/route.ts`
+but is otherwise dead.
+
+> **Deprecation note.** Treat this connector as a removal candidate.
+> Do not build new functionality against it. If the literal reference
+> in `apps/api/config/route.ts` is removed, this subpath should be
+> deleted entirely.
+
+## Consumers
+
+- **`apps/web`** — 24SO via `postShopTransaction()` in checkout success;
+  SharePoint for public document downloads.
+- **`apps/admin`** — Azure Graph for user/group lookups; 24SO for
+  membership sync and invoicing actions; SharePoint for the document
+  library.
+- **`apps/api`** — none of the connectors are first-line dependencies
+  for the JWT REST service, but it may call 24SO indirectly via
+  Appwrite Functions.

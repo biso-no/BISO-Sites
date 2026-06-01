@@ -1,0 +1,96 @@
+---
+title: Cron and scheduled tasks
+description: The endpoints that need to be hit on a schedule, what they do, and how to wire up a scheduler since the platform doesn't have one.
+---
+
+# Cron and scheduled tasks
+
+The platform has no built-in scheduler. The scheduled jobs are plain HTTP
+endpoints that need to be hit from *somewhere external* on a recurring
+basis. Pick a scheduler (Appwrite Functions cron, Webdock cron, Vercel
+Cron, GitHub Actions cron, or a third-party uptime-style service) and
+configure it to call the endpoints below.
+
+## The endpoints
+
+### `apps/web` — `/api/cron/cleanup-reservations`
+
+Clears expired cart reservations from the shop. Items get reserved for a
+short period after being added to a cart so two students can't buy the
+last ticket simultaneously — this endpoint releases reservations whose TTL
+has elapsed.
+
+| Field | Value |
+|-------|-------|
+| Method | `POST` (or `GET`, see route) |
+| Auth | `Authorization: Bearer ${CRON_SECRET}` |
+| Recommended frequency | every 15 minutes |
+| Failure mode | Stuck reservations — items appear "sold out" when they aren't |
+
+### `apps/api` — `/api/cleanup-anon-users`
+
+Deletes anonymous Appwrite sessions that haven't converted into real
+accounts. `apps/web` creates anonymous sessions for every visitor (see
+[/docs/public-website](/docs/public-website)) so this table grows fast if
+left alone.
+
+| Field | Value |
+|-------|-------|
+| Method | `POST` |
+| Auth | `Authorization: Bearer ${CRON_SECRET}` |
+| Recommended frequency | once per hour, off-peak |
+| Failure mode | Appwrite Auth user list grows without bound; performance degrades |
+
+### `apps/api` — `/api/departures/sync`
+
+Pulls fresh public-transit data from Entur and caches it for the campus
+"how do I get here" feature.
+
+| Field | Value |
+|-------|-------|
+| Method | `POST` |
+| Auth | `Authorization: Bearer ${ENTUR_SYNC_SECRET}` |
+| Recommended frequency | every 1–5 minutes depending on freshness requirements |
+| Failure mode | Stale departure boards on the public site |
+
+## A note on dev
+
+In `NODE_ENV !== "production"`, these endpoints allow unauthenticated calls
+so you can hit them locally without a bearer token. In production they
+require the bearer header; if you forget to set `CRON_SECRET` /
+`ENTUR_SYNC_SECRET` in the deploy environment, the endpoint will start
+rejecting your scheduler. Always confirm 200s after a deploy.
+
+## Choosing a scheduler
+
+| Option | Pros | Cons |
+|--------|------|------|
+| Appwrite Functions (with cron schedule) | Co-located with the data; no extra service | Need to write a small wrapper function per endpoint |
+| Provider-side cron (Webdock cron, Vercel Cron) | Native, simple | Lock-in to the host |
+| GitHub Actions cron (`schedule:` workflow) | Free, version-controlled | Minute-resolution only, GH outages do happen |
+| Uptime-style service (e.g. cron-job.org) | Free tier, also acts as a heartbeat monitor | One more vendor, one more login |
+
+<Callout type="warn">
+**To be filled in by the current IT Manager**: which scheduler is currently
+configured for each of the three endpoints, the schedule, and where to log
+in to change it.
+</Callout>
+
+## Health of your scheduler
+
+The cron endpoints don't currently emit telemetry on success/failure beyond
+HTTP status. The pragmatic way to monitor them is to point your scheduler
+at a "dead man's switch" service like cronitor.io or healthchecks.io —
+those alert *when a scheduled ping stops arriving*, which is what you
+want.
+
+## Adding a new scheduled job
+
+1. Create a new route handler in the appropriate app:
+   `apps/<app>/src/app/api/cron/<name>/route.ts`.
+2. Guard it with a bearer-token check against an env var (existing or
+   new).
+3. If it's a new env var, follow the rules in
+   [environment-variables](/docs/operations/environment-variables).
+4. Configure your scheduler to hit it.
+5. Document it on this page.

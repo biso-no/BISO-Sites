@@ -1,0 +1,164 @@
+---
+title: "@repo/payment"
+description: Payment providers — Vipps MobilePay and Stripe.
+---
+
+# @repo/payment
+
+`@repo/payment` packages the two payment providers BISO Sites uses:
+**Vipps MobilePay** (default for Norwegian users) and **Stripe** (used
+where Vipps is not available, primarily for non-Norwegian card
+payments). Both are active. The package exposes thin server-side
+helpers — checkout session creation and webhook verification — and
+leaves business logic (order creation, fulfillment) to the consuming
+app.
+
+## Entrypoints
+
+| Entrypoint              | Provider          |
+|-------------------------|-------------------|
+| `@repo/payment/vipps`   | Vipps MobilePay   |
+| `@repo/payment/stripe`  | Stripe            |
+
+Both are server-only.
+
+## Vipps
+
+```ts
+import {
+  createVippsCheckoutSession,
+  getVippsSession,
+  verifyVippsCallbackToken,
+} from "@repo/payment/vipps";
+```
+
+### `createVippsCheckoutSession`
+
+Creates a Vipps Checkout session and returns the redirect URL plus the
+session token. Call this from a server action when the user clicks
+"Pay with Vipps."
+
+```ts
+const session = await createVippsCheckoutSession({
+  amount: 49900,                  // minor units (NOK øre)
+  orderId: order.$id,
+  callbackUrl: "https://biso.no/api/vipps/callback",
+  returnUrl: "https://biso.no/checkout/success",
+  customer: { phoneNumber, email },
+  // ... line items, shipping
+});
+
+// session.redirectUrl — send the user here
+// session.token       — used to poll session status
+```
+
+### `getVippsSession`
+
+Polls Vipps for the current state of a session. Used by the success
+page to confirm the payment before showing the receipt, in case the
+webhook hasn't arrived yet.
+
+```ts
+const status = await getVippsSession(sessionId);
+// status.sessionState: "SessionStarted" | "PaymentSuccessful" | ...
+```
+
+### `verifyVippsCallbackToken`
+
+Validates the HMAC token Vipps includes in webhook callbacks. Reject
+the request if this returns `false`.
+
+```ts
+const valid = verifyVippsCallbackToken(token, rawBody);
+if (!valid) return new Response("invalid signature", { status: 401 });
+```
+
+### Environment variables
+
+| Var                              | Purpose                                          |
+|----------------------------------|--------------------------------------------------|
+| `VIPPS_CLIENT_ID`                | OAuth client ID                                  |
+| `VIPPS_CLIENT_SECRET`            | OAuth client secret                              |
+| `VIPPS_CALLBACK_TOKEN`           | Shared secret for webhook HMAC verification      |
+| `VIPPS_MERCHANT_SERIAL_NUMBER`   | MSN issued by Vipps                              |
+| `VIPPS_SUBSCRIPTION_KEY`         | API subscription key                             |
+| `VIPPS_TEST_MODE`                | `"true"` to hit the Vipps MT (test) environment  |
+
+All are server-only. When `VIPPS_TEST_MODE` is set, every helper
+targets `https://apitest.vipps.no` instead of production.
+
+## Stripe
+
+```ts
+import {
+  createStripeCheckoutSession,
+  constructStripeWebhookEvent,
+} from "@repo/payment/stripe";
+```
+
+The Stripe client is initialized lazily in `stripe/client.ts` so the
+SDK isn't loaded unless Stripe is actually used.
+
+### `createStripeCheckoutSession`
+
+Wraps `stripe.checkout.sessions.create` with project-specific
+defaults (currency, automatic tax rules, success/cancel URL pattern).
+
+```ts
+const session = await createStripeCheckoutSession({
+  amount: 49900,                  // minor units (NOK øre)
+  orderId: order.$id,
+  currency: "nok",
+  customerEmail,
+  lineItems: [
+    { name: "BISO Membership 2025", quantity: 1, amount: 49900 },
+  ],
+  successUrl: "https://biso.no/checkout/success?orderId={CHECKOUT_SESSION_ID}",
+  cancelUrl: "https://biso.no/checkout/cancel",
+});
+```
+
+Returns `{ id, url }` — redirect the user to `url`.
+
+### `constructStripeWebhookEvent`
+
+Verifies the Stripe-Signature header on webhook deliveries and
+returns the parsed event. Throws if verification fails — let the
+error bubble to a 400 in your route handler.
+
+```ts
+export async function POST(req: Request) {
+  const sig = req.headers.get("stripe-signature")!;
+  const raw = await req.text();
+  const event = constructStripeWebhookEvent(raw, sig, process.env.STRIPE_WEBHOOK_SECRET!);
+  // event.type: "checkout.session.completed" | ...
+}
+```
+
+### Environment variables
+
+| Var                       | Purpose                                  |
+|---------------------------|------------------------------------------|
+| `STRIPE_SECRET_KEY`       | Server-side Stripe key                   |
+| `STRIPE_WEBHOOK_SECRET`   | Webhook signing secret                   |
+
+## Where it's used
+
+The only consumer is `apps/web`. The checkout server action
+`src/app/actions/orders.ts` defaults to Vipps, and the checkout UI
+lets the user pick between Vipps and Stripe. The two are kept
+behind a small adapter in `apps/web` so the order pipeline doesn't
+care which provider settled the transaction.
+
+The full purchase flow — from cart to ledger posting — is documented
+in [Shop and checkout](/docs/public-website/shop-and-checkout) and
+[Integrations → Vipps](/docs/integrations/vipps).
+
+## What this package does *not* do
+
+- It does not create or persist orders. The consuming app builds the
+  order row first, then asks `@repo/payment` to create a session.
+- It does not call 24SevenOffice. Posting a completed order to the
+  ledger uses `@repo/connectors/24sevenoffice`.
+- It does not handle subscriptions. Membership renewal currently uses
+  one-off checkouts.

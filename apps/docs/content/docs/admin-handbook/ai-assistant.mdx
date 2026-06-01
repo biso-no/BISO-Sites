@@ -1,0 +1,62 @@
+---
+title: AI Assistant
+description: A chat helper inside the admin app that can answer questions, draft content, and take actions on your behalf — within the limits of your role.
+---
+
+# AI Assistant
+
+The AI Assistant is a chat panel built into the admin app. You can ask it questions about your content, ask it to help draft something, or ask it to perform a task — and it will either do it or hand you a confirmation step first.
+
+It uses Anthropic Claude in the background, and it is **capability-gated**: it can only do the things your role allows you to do. A department user will get a different (smaller) set of abilities than a global admin.
+
+## Opening the assistant
+
+Look for the chat button at the bottom right of any admin screen. Click it to open the panel. You can keep working in the main screen while the assistant is open — it is designed for short, interactive exchanges.
+
+The conversation is stateful: the assistant remembers what you have said earlier in the same session, so you can follow up without repeating yourself.
+
+## What it can do
+
+The assistant is built around a set of **tools**. Some run entirely in your browser, others reach into the database on your behalf.
+
+### Browser tools (everyone)
+
+| Tool | What it does |
+|------|--------------|
+| **Navigate** | Takes you straight to a screen — "open the jobs list for Bergen" or "go to settings". |
+| **Confirm action** | Pops up a confirmation step before doing something that has a real-world effect. |
+| **Fill form** | Streams suggested values into the form you are currently looking at, so you can review and tweak before saving. |
+| **Show draft preview** | Renders a bilingual (Norwegian / English) preview of a piece of content you are drafting. |
+| **Request approval** | Submits a request into the approvals queue for someone with higher rights to action. |
+
+### Server tools (gated by your role)
+
+The assistant can also reach into the data layer, but only for the things your role normally lets you see.
+
+| Capability | Who can use it |
+|------------|----------------|
+| **Read** jobs, events, news, pages, documents, benefits, products | Everyone with admin access (scoped to their campus / department) |
+| **Write** content (create, update) | Anyone with write or publish rights in that area |
+| **Approve / reject** approval requests | Campus admin and above |
+| **Manage M365 users and system settings** | Global admin only |
+
+If you ask the assistant to do something outside your capabilities, it will tell you clearly that it can't, and suggest the right person to ask instead.
+
+## Typical things to ask it
+
+- "Find all draft jobs in Bergen that haven't been touched this month."
+- "Draft a news post announcing the next kickoff, in both Norwegian and English."
+- "Summarise the last week's submissions for the housing topic."
+- "Open the approvals queue."
+- "Help me fill out this event form — it's a panel discussion on Friday at 18:00."
+
+## Things to keep in mind
+
+- The assistant will always show you a confirmation step before publishing, deleting, or otherwise making a change you can't easily undo. Read it before clicking through.
+- Drafting is the assistant's strongest skill. Use it to get a first version, then polish by hand.
+- The assistant respects the [campus context](/docs/admin-handbook/campus-context) you have set. If you scoped yourself to Bergen, it will only see Bergen.
+- Treat anything it generates as a draft. Check facts, dates, and names before publishing.
+
+## When it isn't enough
+
+If you want to do something more complex — bulk-editing dozens of records, importing data from a spreadsheet, fixing a broken state — the assistant is not the right tool. Use the relevant screen directly, or ask BISO IT.

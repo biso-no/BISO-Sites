@@ -1,0 +1,64 @@
+---
+title: Activity
+description: The full audit log — every change anyone has made in the admin app, who made it, and when.
+---
+
+# Activity
+
+The **Activity** screen is the audit log for the admin app. Every time someone creates, updates, publishes, or deletes a piece of content, an entry is written here. It is read-only — you can't edit or remove entries — and it is one of your most useful screens when something looks off.
+
+It is available to global admins and campus admins.
+
+## What an entry looks like
+
+Each row in the activity feed shows:
+
+| Field | What it tells you |
+|-------|-------------------|
+| **Actor** | The admin user who performed the action. |
+| **Action** | What was done — create, update, publish, unpublish, delete, approve, reject, etc. |
+| **Resource type** | What kind of thing was changed — page, job, event, news, submission, approval, settings. |
+| **Timestamp** | When it happened (in your local timezone). |
+| **Payload diff** | A summary of what actually changed — for example which fields moved from one value to another. |
+
+Click a row to expand it and see the full payload. This is often the fastest way to answer "what did they actually change?"
+
+## What you can do
+
+The activity feed is searchable and filterable. Typical things to do:
+
+- **Filter by actor** to see everything one admin has done — useful at handover time, or when investigating a mistake.
+- **Filter by resource type** to see only changes to, say, jobs, or only changes to settings.
+- **Filter by action** to see only publishes, or only deletes.
+- **Filter by date range** for a weekly or monthly review.
+
+Filters can be combined: "everything Marie published in the last 7 days" is a single query.
+
+## What gets logged
+
+In short, every mutation. Read operations (just viewing a page) are **not** logged — only changes are. Specifically:
+
+- All content changes (pages, news, events, jobs, shop, benefits, documents).
+- All status changes (publish, unpublish, archive).
+- All approval actions (request, approve, reject, cancel).
+- All settings changes.
+- All user-management changes from [IT — Users](/docs/admin-handbook/it-users).
+
+If something appears to be missing — for example a page that changed but has no log entry — that is unusual and worth reporting.
+
+## Things people use Activity for
+
+A few common scenarios:
+
+- **"Who unpublished the kickoff page?"** Filter by resource type "page" and action "unpublish" around the time it happened.
+- **"What did the new admin do in their first week?"** Filter by actor and a date range.
+- **"Did this approval really go through?"** Search the approval request's ID.
+- **"When did settings last change?"** Filter by resource type "settings".
+
+## Campus scoping
+
+Like the rest of the admin app, the activity feed is **campus-scoped** for non-global admins. A Bergen campus admin sees only Bergen activity. A global admin sees everything across all campuses unless they scope themselves with the [campus switcher](/docs/admin-handbook/campus-context).
+
+## Activity is not the same as Notifications
+
+[Notifications](/docs/admin-handbook/notifications) tell you what needs your attention right now. Activity is the full historical record. They use the same underlying events but answer very different questions.
