@@ -13,7 +13,9 @@ import { getUserAuthContext, type UserAuthContext } from "@/lib/authorization";
 import {
   assertPublishAccess,
   assertWriteAccess,
+  hasRowAccess,
 } from "@/lib/utils/authorization";
+import { logAuditEvent } from "./audit-log";
 import { type BenefitFormValues, benefitSchema } from "./schemas";
 
 async function requireAuth(): Promise<UserAuthContext> {
@@ -65,14 +67,19 @@ export async function listBenefits(opts?: {
 }
 
 export async function getBenefit(id: string) {
-  await requireAuth();
+  const ctx = await requireAuth();
   const { db } = await createSessionClient();
 
   const response = await db.listRows<CampusBenefits>("app", "campus_benefits", [
     Query.equal("$id", id),
     Query.limit(1),
   ]);
-  return response.rows[0] ?? null;
+  const benefit = response.rows[0] ?? null;
+  // Treat a row outside the caller's campus scope as not found.
+  if (!(benefit && hasRowAccess(ctx, benefit.campus_id))) {
+    return null;
+  }
+  return benefit;
 }
 
 export async function createBenefit(values: BenefitFormValues) {
@@ -109,6 +116,10 @@ export async function createBenefit(values: BenefitFormValues) {
       sort_order: validated.data.sort_order ?? 0,
     });
 
+    await logAuditEvent(ctx, "benefit_created", {
+      resourceId: benefit.$id,
+      resourceType: "campus_benefit",
+    });
     revalidatePath("/benefits");
     return { data: benefit.$id };
   } catch (error) {
@@ -168,6 +179,11 @@ export async function updateBenefit(id: string, values: BenefitFormValues) {
       sort_order: validated.data.sort_order ?? 0,
     });
 
+    await logAuditEvent(ctx, "benefit_updated", {
+      resourceId: id,
+      resourceType: "campus_benefit",
+      payload: { status: validated.data.status },
+    });
     revalidatePath("/benefits");
     revalidatePath(`/benefits/${id}`);
     return { data: id };

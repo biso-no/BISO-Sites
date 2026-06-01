@@ -145,29 +145,45 @@ export async function updateSubmissionStatus(
   id: string,
   status: FormSubmission["status"],
   topic: string
-): Promise<void> {
+): Promise<{ success: true } | { error: string }> {
   const ctx = await requireAuth();
   if (
     !(ctx.roles.includes("globaladmin") || ctx.roles.includes("campusadmin"))
   ) {
-    throw new Error("Unauthorized");
+    return { error: "Unauthorized" };
   }
 
-  const { db } = await createSessionClient();
-  await db.updateRow("app", "form_submissions", id, { status });
-  revalidatePath(`/submissions/${topic}`);
+  try {
+    const { db } = await createSessionClient();
+    await db.updateRow("app", "form_submissions", id, { status });
+    revalidatePath(`/submissions/${topic}`);
+    return { success: true };
+  } catch (error) {
+    return {
+      error:
+        error instanceof Error ? error.message : "Failed to update submission",
+    };
+  }
 }
 
 export async function deleteSubmission(
   id: string,
   topic: string
-): Promise<void> {
+): Promise<{ success: true } | { error: string }> {
   const ctx = await requireAuth();
   if (!ctx.roles.includes("globaladmin")) {
-    throw new Error("Unauthorized");
+    return { error: "Unauthorized" };
   }
 
-  const { db } = await createSessionClient();
-  await db.deleteRow("app", "form_submissions", id);
-  revalidatePath(`/submissions/${topic}`);
+  try {
+    const { db } = await createSessionClient();
+    await db.deleteRow("app", "form_submissions", id);
+    revalidatePath(`/submissions/${topic}`);
+    return { success: true };
+  } catch (error) {
+    return {
+      error:
+        error instanceof Error ? error.message : "Failed to delete submission",
+    };
+  }
 }

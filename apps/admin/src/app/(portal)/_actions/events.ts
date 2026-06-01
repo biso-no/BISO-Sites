@@ -22,6 +22,7 @@ import {
   applyScopeQueries,
   assertPublishAccess,
   assertWriteAccess,
+  hasRowAccess,
 } from "@/lib/utils/authorization";
 import { logAuditEvent } from "./audit-log";
 import {
@@ -249,7 +250,7 @@ export async function listEvents(opts?: {
 }
 
 export async function getEvent(id: string) {
-  await requireAuth();
+  const ctx = await requireAuth();
   const { db } = await createSessionClient();
 
   const response = await db.listRows<Events>("app", "events", [
@@ -257,7 +258,8 @@ export async function getEvent(id: string) {
     Query.limit(1),
   ]);
   const event = response.rows[0];
-  if (!event) {
+  // Treat a row outside the caller's campus/department scope as not found.
+  if (!(event && hasRowAccess(ctx, event.campus_id, event.department_id))) {
     return null;
   }
 

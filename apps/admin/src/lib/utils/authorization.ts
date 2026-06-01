@@ -104,6 +104,38 @@ export function assertWriteAccess(
 }
 
 /**
+ * Non-throwing counterpart of assertWriteAccess for read paths.
+ *
+ * Returns true when the current user may access a row identified by its
+ * campusId/departmentId. Single-row getters use this to return null (→ the
+ * edit page 404s) instead of leaking a row from another campus/department.
+ *
+ * Mirrors assertWriteAccess: global admins see everything; campus admins are
+ * gated by managed campus; department users by campus + resolved department.
+ * Campus team membership alone grants nothing.
+ */
+export function hasRowAccess(
+  ctx: UserAuthContext,
+  campusId?: string | null,
+  departmentId?: string | null
+): boolean {
+  if (isGlobalAdminContext(ctx)) {
+    return true;
+  }
+
+  if (ctx.managedCampusIds.length > 0) {
+    return Boolean(campusId && ctx.managedCampusIds.includes(campusId));
+  }
+
+  if (campusId && !ctx.resolvedCampusIds.includes(campusId)) {
+    return false;
+  }
+  return Boolean(
+    departmentId && ctx.resolvedDepartmentIds.includes(departmentId)
+  );
+}
+
+/**
  * Publishing is stricter than drafting/updating. Department members can manage
  * drafts in their scope, but live publication requires a campus admin for the
  * target campus or a global admin.

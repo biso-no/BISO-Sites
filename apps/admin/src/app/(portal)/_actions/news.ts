@@ -15,6 +15,7 @@ import {
   applyScopeQueries,
   assertPublishAccess,
   assertWriteAccess,
+  hasRowAccess,
 } from "@/lib/utils/authorization";
 import { logAuditEvent } from "./audit-log";
 import { NEWS_PAGE_SIZE, type NewsFormValues, newsSchema } from "./schemas";
@@ -79,7 +80,7 @@ export async function listNews(opts?: {
 }
 
 export async function getNewsArticle(id: string) {
-  await requireAuth();
+  const ctx = await requireAuth();
   const { db } = await createSessionClient();
 
   const response = await db.listRows<News>("app", "news", [
@@ -87,7 +88,10 @@ export async function getNewsArticle(id: string) {
     Query.limit(1),
   ]);
   const article = response.rows[0];
-  if (!article) {
+  // Treat a row outside the caller's campus/department scope as not found.
+  if (
+    !(article && hasRowAccess(ctx, article.campus_id, article.department_id))
+  ) {
     return null;
   }
 

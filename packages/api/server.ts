@@ -92,10 +92,15 @@ export async function createSessionClient(jwt?: string) {
 
 // biome-ignore lint/suspicious/useAwait: Needs to be async.
 export async function createAdminClient() {
+  if (!APPWRITE_API_KEY) {
+    throw new Error(
+      "APPWRITE_API_KEY is not configured — admin Appwrite operations cannot run."
+    );
+  }
   const client = new Client()
     .setEndpoint(NEXT_PUBLIC_APPWRITE_ENDPOINT)
     .setProject(APPWRITE_PROJECT)
-    .setKey(APPWRITE_API_KEY!);
+    .setKey(APPWRITE_API_KEY);
 
   return {
     get account() {

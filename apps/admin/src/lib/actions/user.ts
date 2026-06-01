@@ -5,7 +5,7 @@ import type { Users } from "@repo/api/types/appwrite";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { getUserAuthContext, isGlobalAdmin } from "@/lib/authorization";
-import { isAuthenticatedAppwriteUser } from "@/lib/utils";
+import { isAuthenticatedAppwriteUser, isProd } from "@/lib/utils";
 
 export async function getLoggedInUser(): Promise<{
   user: Models.User<Models.Preferences>;
@@ -179,8 +179,22 @@ export async function createJWT(): Promise<string | null> {
 export async function signOut(): Promise<void> {
   const { account } = await createSessionClient();
 
-  (await cookies()).delete("a_session_biso_admin");
-  await account.deleteSession("current");
+  // Revoke the server-side session best-effort, then always clear the cookie —
+  // a stale/expired session must not block sign-out.
+  try {
+    await account.deleteSession("current");
+  } catch (error) {
+    console.error("Failed to delete Appwrite session on sign-out", error);
+  }
+
+  // Delete using the same domain/path the cookie was set with. A host-only
+  // deletion does not clear the domain-scoped (.biso.no) production cookie,
+  // which would leave the user appearing signed-in after logout.
+  (await cookies()).delete({
+    name: "a_session_biso_admin",
+    path: "/",
+    domain: isProd ? ".biso.no" : "localhost",
+  });
 
   redirect("/auth/login");
 }

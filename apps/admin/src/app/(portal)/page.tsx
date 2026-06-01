@@ -13,7 +13,7 @@ import { getTranslations } from "next-intl/server";
 import { requireNavAccess } from "@/lib/authorization";
 import { listActivityLog } from "./_actions/activity";
 import { getDashboardStats } from "./_actions/pages";
-import { ContentActivityChart } from "./_components/content-chart";
+import { ContentActivityChart } from "./_components/content-chart-lazy";
 import {
   SERIF_STACK,
   STUDIO,

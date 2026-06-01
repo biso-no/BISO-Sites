@@ -15,7 +15,9 @@ import {
   applyScopeQueries,
   assertPublishAccess,
   assertWriteAccess,
+  hasRowAccess,
 } from "@/lib/utils/authorization";
+import { logAuditEvent } from "./audit-log";
 import { type ProductFormValues, productSchema } from "./schemas";
 
 async function requireAuth(): Promise<UserAuthContext> {
@@ -123,7 +125,7 @@ export async function listProducts(opts?: {
 }
 
 export async function getProduct(id: string) {
-  await requireAuth();
+  const ctx = await requireAuth();
   const { db } = await createSessionClient();
 
   const response = await db.listRows<WebshopProducts>(
@@ -132,7 +134,10 @@ export async function getProduct(id: string) {
     [Query.equal("$id", id), Query.limit(1)]
   );
   const product = response.rows[0];
-  if (!product) {
+  // Treat a row outside the caller's campus/department scope as not found.
+  if (
+    !(product && hasRowAccess(ctx, product.campus_id, product.departmentId))
+  ) {
     return null;
   }
 
@@ -187,6 +192,10 @@ export async function createProduct(values: ProductFormValues) {
       });
     }
 
+    await logAuditEvent(ctx, "product_created", {
+      resourceId: product.$id,
+      resourceType: "product",
+    });
     revalidatePath("/shop");
     return { data: product.$id };
   } catch (error) {
@@ -268,6 +277,11 @@ export async function updateProduct(id: string, values: ProductFormValues) {
       });
     }
 
+    await logAuditEvent(ctx, "product_updated", {
+      resourceId: id,
+      resourceType: "product",
+      payload: { status: validated.data.status },
+    });
     revalidatePath("/shop");
     revalidatePath(`/shop/${id}`);
     return { data: id };
@@ -306,6 +320,10 @@ export async function deleteProduct(id: string) {
     );
     await db.deleteRow("app", "webshop_products", id);
 
+    await logAuditEvent(ctx, "product_deleted", {
+      resourceId: id,
+      resourceType: "product",
+    });
     revalidatePath("/shop");
     return { data: true };
   } catch (error) {

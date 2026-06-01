@@ -8,6 +8,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { useState, useTransition } from "react";
+import { toast } from "sonner";
 import {
   deleteSubmission,
   type FormSubmission,
@@ -58,7 +59,14 @@ export function SubmissionsList({ rows, topic, page, total }: Props) {
   const totalPages = Math.ceil(total / pageSize);
 
   function handleStatus(id: string, status: FormSubmission["status"]) {
-    startTransition(() => updateSubmissionStatus(id, status, topic));
+    startTransition(async () => {
+      const result = await updateSubmissionStatus(id, status, topic);
+      if ("error" in result) {
+        toast.error(result.error);
+      } else {
+        toast.success("Submission updated");
+      }
+    });
   }
 
   function handleDelete(id: string) {
@@ -66,9 +74,14 @@ export function SubmissionsList({ rows, topic, page, total }: Props) {
       setPendingDeleteId(id);
       return;
     }
-    startTransition(() => {
+    startTransition(async () => {
       setPendingDeleteId(null);
-      return deleteSubmission(id, topic);
+      const result = await deleteSubmission(id, topic);
+      if ("error" in result) {
+        toast.error(result.error);
+      } else {
+        toast.success("Submission deleted");
+      }
     });
   }
 

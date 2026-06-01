@@ -64,15 +64,15 @@ export async function GET(
       status: 200,
     });
   } catch (error) {
+    // Don't leak raw Appwrite error messages (bucket/table ids, not-found
+    // semantics) to the client — log server-side, return a generic message.
+    const isForbidden = error instanceof Error && error.message === "Forbidden";
+    if (!isForbidden) {
+      console.error("Failed to download resume:", error);
+    }
     return NextResponse.json(
-      {
-        error:
-          error instanceof Error ? error.message : "Failed to download resume",
-      },
-      {
-        status:
-          error instanceof Error && error.message === "Forbidden" ? 403 : 500,
-      }
+      { error: isForbidden ? "Forbidden" : "Failed to download resume" },
+      { status: isForbidden ? 403 : 500 }
     );
   }
 }
