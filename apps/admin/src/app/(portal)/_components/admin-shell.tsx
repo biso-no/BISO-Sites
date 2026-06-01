@@ -7,6 +7,7 @@ import { useTranslations } from "next-intl";
 import { NotificationsPanel } from "@/components/notifications/notifications-panel";
 import type { UserRolesForClient } from "@/lib/authorization";
 import { NAV_ITEMS, Sidebar } from "../sidebar";
+import { AssistantWidget } from "./assistant/assistant-widget";
 import { CommandPalette } from "./command-palette";
 import { STUDIO } from "./studio";
 
@@ -141,6 +142,7 @@ export function AdminShell({ children, user, roles }: AdminShellProps) {
       </div>
 
       <CommandPalette roles={roles} />
+      <AssistantWidget roles={roles} user={user} />
 
       <style>{`
         .portal-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }

@@ -21,6 +21,7 @@ import jobs from "./en/jobs.json";
 import memberPortal from "./en/memberPortal.json";
 import membership from "./en/membership.json";
 import news from "./en/news.json";
+import onboarding from "./en/onboarding.json";
 import partner from "./en/partner.json";
 import policies from "./en/policies.json";
 import press from "./en/press.json";
@@ -70,4 +71,5 @@ export default {
   adminSettings,
   adminPosts,
   adminPortal,
+  onboarding,
 };

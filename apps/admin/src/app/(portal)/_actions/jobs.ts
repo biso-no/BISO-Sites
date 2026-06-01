@@ -435,13 +435,7 @@ export async function updateJob(
       translationPerms,
       vacancy.metadata
     );
-    await adminDb.upsertRow(
-      "app",
-      "jobs",
-      id,
-      payload,
-      jobPerms
-    );
+    await adminDb.upsertRow("app", "jobs", id, payload, jobPerms);
 
     await logAuditEvent(ctx, "recruitment.vacancy.update", {
       payload: {

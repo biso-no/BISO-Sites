@@ -4,7 +4,7 @@ import { Query } from "@repo/api";
 import { createAdminClient, createSessionClient } from "@repo/api/server";
 import type { Departments } from "@repo/api/types/appwrite";
 import { cookies } from "next/headers";
-import { notFound, redirect } from "next/navigation";
+import { notFound, redirect, unauthorized } from "next/navigation";
 import { cache } from "react";
 import { CAMPUS_ID_TO_NAME, CAMPUS_NAME_TO_ID } from "./campus-constants";
 
@@ -499,6 +499,27 @@ export async function requireNavAccess(
   }
   if (!hasNavAccess(navKey, ctx.roles, ctx.departmentTeamIds.length > 0)) {
     notFound();
+  }
+  return ctx;
+}
+
+/**
+ * Top-level portal/editor guard. Distinguishes two failure states:
+ * - No session at all → redirect to /auth/login
+ * - Valid session but no admin team membership → unauthorized() (401 page)
+ *
+ * This prevents the confusing behaviour where a freshly OAuth'd user with no
+ * provisioned SG-App groups silently bounces back to the login screen.
+ */
+export async function requireAdminAccess(): Promise<UserAuthContext> {
+  const ctx = await getUserAuthContext();
+  if (!ctx) {
+    redirect("/auth/login");
+  }
+  const hasTeam =
+    ctx.campusTeamIds.length > 0 || ctx.departmentTeamIds.length > 0;
+  if (!hasTeam) {
+    unauthorized();
   }
   return ctx;
 }

@@ -237,26 +237,16 @@
   },
   "auth": {
     "welcomeBack": "Welcome Back",
-    "signInSubtitle": "Sign in to your BISO account",
-    "emailLabel": "Email Address",
-    "sendLoginLink": "Send Login Link",
-    "sending": "Sending...",
-    "or": "Or",
+    "signInSubtitle": "Sign in to access the BISO admin portal",
+    "tagline": "Dare to be more.",
     "signInWithBISO": "Sign in with BISO account",
+    "signInError": "Sign-in failed. Please try again or contact support.",
     "noAccount": "Don't have an account yet?",
     "contactForAccess": "Contact us for access",
     "privacyNoticeBefore": "By signing in, you agree to our",
     "privacyPolicy": "Privacy Policy",
     "privacyNoticeAfter": "and consent to the processing of your personal data as described therein. We comply with GDPR regulations and you can manage your data preferences and request data deletion from your profile settings.",
-    "copyright": "All rights reserved.",
-    "errors": {
-      "usePersonalEmail": "Please use your personal email address.",
-      "enterEmail": "Please enter your email address.",
-      "sendFailed": "Failed to send login link. Please try again."
-    },
-    "success": {
-      "linkSent": "Login link sent! Please check your email."
-    }
+    "copyright": "All rights reserved."
   },
   "roles": {
     "globalAdmin": "Global Admin",

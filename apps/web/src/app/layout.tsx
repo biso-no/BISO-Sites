@@ -10,7 +10,7 @@ export const metadata: Metadata = {
   title: "BI Student Organisation",
   description: "BISO Apps",
   icons: {
-    icon: [{ url: "/favicon.ico" }, { url: "/favico.png", type: "image/png" }],
+    icon: [{ url: "/favico.png" }, { url: "/favico.png", type: "image/png" }],
     apple: [{ url: "/apple-touch-icon.png", sizes: "180x180" }],
   },
 };

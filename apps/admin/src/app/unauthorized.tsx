@@ -1,9 +1,12 @@
-import { Button } from "@repo/ui/components/ui/button";
-import { cn } from "@repo/ui/lib/utils";
-import { Home, LogIn, ShieldAlert } from "lucide-react";
+import { LogIn, ShieldAlert } from "lucide-react";
 import type { Metadata } from "next";
-import Link from "next/link";
 import { getTranslations } from "next-intl/server";
+import {
+  MONO_STACK,
+  SERIF_STACK,
+  STUDIO,
+  StudioLinkButton,
+} from "./(portal)/_components/studio";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("adminPortal.unauthorized");
@@ -18,84 +21,85 @@ export default async function Unauthorized() {
 
   return (
     <main
-      className={cn(
-        "relative flex min-h-screen flex-col items-center justify-center overflow-hidden",
-        "bg-linear-to-br from-primary-100 via-blue-strong to-blue-accent text-white"
-      )}
+      className="flex min-h-screen flex-col items-center justify-center px-6 py-16"
+      style={{ background: STUDIO.paper }}
     >
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.12),transparent_50%),radial-gradient(circle_at_bottom_left,rgba(247,214,74,0.15),transparent_55%)]" />
-
-      <div className="absolute inset-0 opacity-[0.03]">
-        <div className="mask-[radial-gradient(ellipse_60%_50%_at_50%_50%,#000_70%,transparent_100%)] h-full w-full bg-[linear-gradient(to_right,#fff_1px,transparent_1px),linear-gradient(to_bottom,#fff_1px,transparent_1px)] bg-size-[4rem_4rem]" />
-      </div>
-
-      <div className="relative z-10 flex flex-col items-center gap-8 px-6 text-center">
-        <div className="flex items-center gap-3 rounded-full border border-white/20 bg-white/10 px-5 py-2.5 text-xs uppercase tracking-[0.2em] backdrop-blur-sm">
-          <ShieldAlert className="h-4 w-4" />
-          <span>{t("tagline")}</span>
+      <div className="flex w-full max-w-md flex-col items-center gap-8 text-center">
+        {/* Eyebrow */}
+        <div
+          className="inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-[11px] uppercase tracking-[0.1em]"
+          style={{
+            background: "rgba(107,30,30,0.06)",
+            borderColor: "rgba(107,30,30,0.2)",
+            color: STUDIO.claret,
+            fontFamily: MONO_STACK,
+          }}
+        >
+          <ShieldAlert size={12} />
+          <span>401 · {t("tagline")}</span>
         </div>
 
-        <div className="space-y-5">
-          <div className="inline-flex rounded-2xl border border-white/15 bg-white/10 p-4 backdrop-blur-sm">
-            <ShieldAlert className="h-12 w-12 text-white" />
-          </div>
-
-          <div className="space-y-4">
-            <p className="font-medium text-sm text-white/70 uppercase tracking-[0.25em]">
-              401
-            </p>
-            <h1 className="max-w-xl font-semibold text-4xl text-white leading-tight md:text-5xl">
-              {t("title")}
-            </h1>
-            <p className="max-w-2xl text-base text-white/80 md:text-lg">
-              {t("description")}
-            </p>
-          </div>
+        {/* Icon */}
+        <div
+          className="grid h-16 w-16 place-items-center rounded-2xl border"
+          style={{
+            background: "rgba(107,30,30,0.06)",
+            borderColor: "rgba(107,30,30,0.18)",
+            color: STUDIO.claret,
+          }}
+        >
+          <ShieldAlert size={28} />
         </div>
 
-        <div className="flex flex-wrap items-center justify-center gap-3">
-          <Button
-            asChild
-            className="bg-white text-primary-100 shadow-black/10 shadow-lg hover:bg-white/90"
-            size="lg"
+        {/* Heading + body */}
+        <div className="space-y-3">
+          <h1
+            className="text-4xl leading-tight md:text-5xl"
+            style={{
+              color: STUDIO.ink,
+              fontFamily: SERIF_STACK,
+              fontWeight: 400,
+            }}
           >
-            <Link href="/auth/login">
-              <LogIn className="mr-2 h-5 w-5" />
-              {t("signIn")}
-            </Link>
-          </Button>
-          <Button
-            asChild
-            className="border border-white/40 bg-white/10 text-white backdrop-blur-sm hover:bg-white/20"
-            size="lg"
-            variant="ghost"
-          >
-            <Link href="/">
-              <Home className="mr-2 h-5 w-5" />
-              {t("goToFrontPage")}
-            </Link>
-          </Button>
-        </div>
-
-        <div className="mt-4 rounded-3xl border border-white/15 bg-white/10 px-6 py-4 text-sm text-white/80 shadow-lg backdrop-blur-sm">
-          <p>
-            {t.rich("help", {
-              link: (chunks) => (
-                <a
-                  className="font-semibold underline-offset-4 hover:underline"
-                  href="mailto:contact@biso.no"
-                >
-                  {chunks}
-                </a>
-              ),
-            })}
+            {t("title")}
+          </h1>
+          <p className="text-sm leading-6" style={{ color: STUDIO.ink3 }}>
+            {t("description")}
           </p>
         </div>
-      </div>
 
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute -top-24 left-1/4 h-48 w-48 rounded-full bg-white/5 blur-3xl" />
-        <div className="absolute right-1/3 -bottom-24 h-64 w-64 rounded-full bg-gold-default/5 blur-3xl" />
+        {/* Actions */}
+        <div className="flex flex-wrap items-center justify-center gap-3">
+          <StudioLinkButton href="/auth/login" variant="primary">
+            <LogIn size={15} />
+            {t("signIn")}
+          </StudioLinkButton>
+          <StudioLinkButton href="/" variant="secondary">
+            {t("goToFrontPage")}
+          </StudioLinkButton>
+        </div>
+
+        {/* Help */}
+        <p
+          className="max-w-xs rounded-xl border px-5 py-3.5 text-xs leading-relaxed"
+          style={{
+            background: "rgba(255,255,255,0.46)",
+            borderColor: STUDIO.rule,
+            color: STUDIO.ink3,
+          }}
+        >
+          {t.rich("help", {
+            link: (chunks) => (
+              <a
+                className="underline-offset-2 hover:underline"
+                href="mailto:contact@biso.no"
+                style={{ color: STUDIO.claret }}
+              >
+                {chunks}
+              </a>
+            ),
+          })}
+        </p>
       </div>
     </main>
   );

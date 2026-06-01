@@ -1,0 +1,111 @@
+{
+  "page": {
+    "title": "Sett opp profilen din | BISO",
+    "description": "Sett opp din BISO-profil for å få tilgang til arrangementer, fordeler og mer."
+  },
+  "header": {
+    "subtitle": "Profiloppsett",
+    "subtitleDone": "Velkommen ombord"
+  },
+  "popout": {
+    "title": "Fullfør profilen din",
+    "subtitle": "2 minutter å sette opp",
+    "description": "Få tilgang til arrangementer, utleggsrapporter og medlemsfordeler ved å fullføre BISO-profilen din.",
+    "getStarted": "Kom i gang",
+    "later": "Senere",
+    "dismiss": "Lukk"
+  },
+  "persona": {
+    "title": "Velkommen til BISO",
+    "description": "Fortell oss litt om deg selv slik at vi kan tilpasse opplevelsen din. Velg alt som gjelder.",
+    "hint": "Ikke sikker? Du kan alltid oppdatere dette senere i profilinnstillingene.",
+    "student": {
+      "label": "BI-student",
+      "description": "Jeg er registrert ved BI Business School"
+    },
+    "volunteer": {
+      "label": "Frivillig / Komitémedlem",
+      "description": "Jeg er aktiv i en BISO-komité eller prosjektgruppe"
+    },
+    "financial": {
+      "label": "Finansielle tjenester",
+      "description": "Jeg vil sende inn utleggsrapporter eller be om refusjon"
+    }
+  },
+  "student": {
+    "title": "Koble til BI-kontoen din",
+    "description": "Koble til din BI Business School-konto for å bekrefte semesterregistreringen din og låse opp fordeler og rabatter.",
+    "benefits": {
+      "title": "Hva du låser opp",
+      "membership": "Bekreftet medlemsstatus og semesterrabatter",
+      "events": "Tilgang til arrangementer kun for studenter",
+      "sso": "Enkel pålogging med BI-legitimasjonen din"
+    },
+    "linkButton": "Koble til BI-studentkonto",
+    "skip": "Hopp over for nå"
+  },
+  "personal": {
+    "title": "Dine opplysninger",
+    "description": "Bare det viktigste. Du kan fylle inn mer senere.",
+    "descriptionFinancial": "Vi trenger kontakt- og adresseopplysningene dine for utleggsrefusjoner.",
+    "fields": {
+      "name": "Fullt navn",
+      "namePlaceholder": "Ditt fulle navn",
+      "phone": "Telefonnummer",
+      "phonePlaceholder": "+47 000 00 000",
+      "street": "Gateadresse",
+      "streetPlaceholder": "Eksempelgata 1",
+      "city": "By",
+      "cityPlaceholder": "Oslo",
+      "zip": "Postnummer",
+      "zipPlaceholder": "0001"
+    },
+    "address": {
+      "title": "Adresse",
+      "optional": "(valgfritt)"
+    }
+  },
+  "banking": {
+    "title": "Bankopplysninger",
+    "description": "Nødvendig for utleggsrefusjoner. Lagres sikkert og brukes kun til betalinger.",
+    "norwegian": "🇳🇴 Norsk",
+    "international": "🌍 Internasjonal",
+    "fields": {
+      "bankAccount": "Norsk kontonummer",
+      "bankAccountHint": "11-sifret norsk kontonummer",
+      "bankAccountPlaceholder": "0000 00 00000",
+      "iban": "IBAN",
+      "ibanHint": "Internasjonalt bankkontonummer",
+      "ibanPlaceholder": "NO12 3456 7890 123",
+      "swift": "SWIFT / BIC-kode",
+      "swiftHint": "8 eller 11 tegn SWIFT/BIC-kode",
+      "swiftPlaceholder": "DNBANOKK"
+    }
+  },
+  "done": {
+    "title": "Alt er klart!",
+    "description": "BISO-profilen din er klar.",
+    "biLinked": "BI-studentkontoen din er tilkoblet.",
+    "financialSaved": "Bankopplysningene dine er lagret for refusjoner.",
+    "updateNote": "Du kan oppdatere alt når som helst fra profilen din.",
+    "goToProfile": "Gå til profilen min",
+    "backToHome": "Tilbake til forsiden"
+  },
+  "nav": {
+    "back": "Tilbake",
+    "continue": "Fortsett",
+    "complete": "Fullfør oppsett",
+    "saving": "Lagrer…"
+  },
+  "errors": {
+    "nameRequired": "Fullt navn er påkrevd",
+    "phoneRequired": "Telefonnummer er påkrevd",
+    "addressRequired": "Påkrevd for finansielle tjenester",
+    "cityRequired": "Påkrevd",
+    "zipRequired": "Påkrevd",
+    "bankAccountRequired": "Kontonummer er påkrevd",
+    "swiftRequired": "SWIFT/BIC-kode er påkrevd",
+    "saveFailed": "Kunne ikke lagre profilen. Prøv igjen.",
+    "unknown": "Noe gikk galt. Prøv igjen."
+  }
+}

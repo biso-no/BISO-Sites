@@ -1,14 +1,12 @@
 "use server";
-import { ID, type Models, OAuthProvider } from "@repo/api";
+import type { Models } from "@repo/api";
 import { createAdminClient, createSessionClient } from "@repo/api/server";
 import type { Users } from "@repo/api/types/appwrite";
-import { cookies, headers } from "next/headers";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { getUserAuthContext, isGlobalAdmin } from "@/lib/authorization";
 import { isAuthenticatedAppwriteUser } from "@/lib/utils";
 
-const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL;
-//
 export async function getLoggedInUser(): Promise<{
   user: Models.User<Models.Preferences>;
   profile: Users | null;
@@ -67,36 +65,6 @@ export async function getUserById(userId: string): Promise<Users | null> {
     console.error("Failed to fetch user by id");
     return null;
   }
-}
-
-async function _signIn(email: string) {
-  try {
-    const { account } = await createSessionClient();
-    const user = await account.createMagicURLToken(
-      ID.unique(),
-      email,
-      `${BASE_URL}/auth/callback`
-    );
-    return user;
-  } catch (error) {
-    console.error(error);
-    return null;
-  }
-}
-
-async function _signInWithOauth() {
-  const { account } = await createSessionClient();
-
-  const origin = (await headers()).get("origin");
-
-  const redirectUrl = await account.createOAuth2Token(
-    OAuthProvider.Microsoft,
-    `${origin}/auth/oauth`,
-    `${origin}/auth/login`,
-    ["openid", "email", "profile"]
-  );
-
-  return redirect(redirectUrl);
 }
 
 export async function listIdentities() {
