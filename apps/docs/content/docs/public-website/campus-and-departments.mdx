@@ -30,7 +30,7 @@ All of this is driven by a single `campus_data` row per campus. The relevant fie
 
 Board member photos and titles aren't stored in Appwrite directly. They're fetched on demand via the Appwrite function `get_board_members`. That function pulls fresh data from BISO's source of truth so a leadership change is reflected automatically the next time the page renders.
 
-The function ID is configured by the env var `APPWRITE_CAMPUS_BOARD_FUNCTION_ID`. See [Operations](/docs/operations) for env management.
+The function ID is configured by the env var `APPWRITE_CAMPUS_BOARD_FUNCTION_ID`. See [Operations → Environment variables](/docs/operations/environment-variables) for env management.
 
 ### Live transit departures
 

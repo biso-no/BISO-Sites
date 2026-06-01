@@ -66,7 +66,7 @@ GET /api/cron/cleanup-reservations
 Authorization: Bearer ${CRON_SECRET}
 ```
 
-In development the bearer check is skipped so it can be called locally. In production the cron is invoked on a schedule and removes any reservation past its TTL. See [Operations → Cron](/docs/operations).
+In development the bearer check is skipped so it can be called locally. In production the cron is invoked on a schedule and removes any reservation past its TTL. See [Operations → Cron and scheduled tasks](/docs/operations/cron-and-scheduled-tasks).
 
 ## Payment providers
 
