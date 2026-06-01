@@ -1,0 +1,68 @@
+---
+title: Integrations
+description: Every external service the BISO platform depends on — what it does, where it lives in the codebase, and how to keep it healthy.
+---
+
+# Integrations
+
+The BISO platform is a thin layer of product code on top of a lot of other
+people's infrastructure. We don't run our own auth server, our own accounting
+system, or our own LLM. We don't want to. The point of this section is to give
+the next IT Manager a single map of every external service the platform talks
+to, why we picked it, where in the codebase it lives, and what to do when it
+breaks or when the keys need rotating.
+
+## Philosophy
+
+BISO is a student organisation. Volunteers turn over every year. The platform
+needs to keep working when the people who built it have graduated. That shapes
+every integration choice on this page:
+
+- **Buy boring, well-documented services.** Stripe, Appwrite, Microsoft —
+  things a new IT Manager can google their way through.
+- **One integration per concern.** We don't run two accounting systems. We
+  don't have three identity providers. When something fails, it's obvious
+  which vendor to call.
+- **All secrets live in environment variables**, never in the repo. See
+  [Secrets and keys](/docs/operations/secrets-and-keys) for the secret
+  inventory and rotation runbook, and [Environment variables](/docs/operations/environment-variables)
+  for what each one does.
+- **All third-party SDK access is wrapped in a `@repo/*` package.** App code
+  never imports `node-appwrite` or `@ai-sdk/openai` directly — it goes through
+  `@repo/api`, `@repo/connectors`, `@repo/payment`, or `@repo/ai`. That gives
+  us a single seam to swap a vendor without combing the whole codebase.
+
+## At a glance
+
+| Integration | Role | Key env vars | Used by |
+|---|---|---|---|
+| [Appwrite](/docs/integrations/appwrite) | Backend platform (auth, DB, storage, functions) | `NEXT_PUBLIC_APPWRITE_*`, `APPWRITE_API_KEY` | All apps |
+| [Azure AD (Entra)](/docs/integrations/azure-ad) | Staff identity provider, group-based authorisation | `AZURE_APP_ID`, `AZURE_TENANT_ID`, `AZURE_CERT_*` | `admin`, `api` |
+| [Microsoft Graph](/docs/integrations/microsoft-graph) | M365 user lookup, calendar, SharePoint access | Shares Azure AD creds | `admin`, `api` |
+| [SharePoint](/docs/integrations/sharepoint) | Document library backing admin Documents | `SHAREPOINT_*` | `admin`, `web` |
+| [24SevenOffice](/docs/integrations/24sevenoffice) | Accounting, invoicing, membership status | `TFSO_*` tokens stored in DB | `web`, `admin`, `api` |
+| [Vipps MobilePay](/docs/integrations/vipps-mobilepay) | Primary payment provider (Norway) | `VIPPS_*` | `web` shop checkout |
+| [Stripe](/docs/integrations/stripe) | Secondary / fallback payment provider | `STRIPE_*` | `web` shop checkout |
+| [OpenAI](/docs/integrations/openai) | Translation, OCR, copy generation | `OPENAI_API_KEY` | `admin`, `api` |
+| [Anthropic](/docs/integrations/anthropic) | Editor copilot, admin assistant, recruitment screener | `ANTHROPIC_API_KEY` | `admin`, `api` |
+| [Pinecone](/docs/integrations/pinecone) | Vector store for resume embeddings | `PINECONE_API_KEY`, `PINECONE_INDEX_NAME` | `@repo/ai` recruitment screener |
+| [Entur](/docs/integrations/entur) | Public-transit departure data | `ENTUR_SYNC_SECRET` (for our own sync route) | `api`, `web` campus pages |
+
+## How to read each page
+
+Every integration page follows the same shape:
+
+1. **What it is** — a paragraph for the non-developer reader.
+2. **Why we use it** — the BISO-specific reason, not the marketing reason.
+3. **Cost shape** — directionally, where the bill comes from. We don't pin
+   numbers because rates change.
+4. **Configuration** — env vars, how to provision a fresh instance, where the
+   credentials come from.
+5. **Where it lives in the codebase** — package, files, routes.
+6. **Failure modes** — what breaks when this vendor is down, and what users
+   see.
+7. **Rotation / swap** — how to roll the credentials, and what would be
+   involved in replacing the vendor entirely.
+
+If a page is missing information you needed, that's a documentation bug. Open
+an issue.

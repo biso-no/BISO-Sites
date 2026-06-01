@@ -1,0 +1,53 @@
+---
+title: Shop
+description: Run the BISO student webshop — products, orders, approvals, customers, and settings — from the admin app.
+---
+
+# Shop
+
+The shop section is where you manage the BISO student webshop. Every product, every order, and every refund question lands here. The customer-facing storefront lives on the public site at biso.no/shop; this is the back office that keeps it running.
+
+The shop is **campus-scoped**: each product belongs to one campus, and what you see depends on your role. Global admins see the whole webshop; campus admins see their own campus. Department leads do not have access to the shop at all — if you're a department lead and the sidebar entry is missing, that is by design.
+
+## Who can see what
+
+| Sub-screen | Path | Who can see it |
+|------------|------|----------------|
+| Shop home | `/shop` | Global admin, campus admin |
+| Products | `/shop` (lists) and `/shop/[id]` | Global admin, campus admin |
+| Orders | `/shop/orders` | Global admin, campus admin |
+| Approval queue | `/shop/approval-queue` | Global admin, campus admin |
+| Customers | `/shop/customers` | Global admin, campus admin |
+| Settings | `/shop/settings` | Global admin only |
+
+If a sub-screen is missing from your sidebar, your Azure AD groups don't include it. Ask BISO IT to check your roles — see [Roles and permissions](/docs/admin-handbook/roles-and-permissions).
+
+## How the shop fits together
+
+The shop is more than a list of products. A handful of moving parts work together every time a student buys something:
+
+- **Products** are the catalogue. They include a price in NOK, a ledger account number for accounting, and optional member-discount settings.
+- **Orders** are what gets created when a student checks out. Each order moves through a status flow (pending → authorized → paid) and is posted to BISO's accounting system once it's paid.
+- **Approval queue** is where new product listings sit until a campus admin says yes. Some products go live straight away; others — typically student second-hand listings or high-value items — wait here.
+- **Checkout and payments** is the customer journey from cart to confirmation. As an admin you usually only touch this when something has gone wrong: a stuck order, a refund question, or a missing transaction in the ledger.
+- **Customers** is a read-only list of everyone who has bought something. Useful for looking up a buyer's email when they email you about an order.
+
+## What's in this section
+
+| Page | What you'll learn |
+|------|-------------------|
+| [Products](/docs/admin-handbook/shop/products) | The product editor — every field, what it means, and how member discounts work. |
+| [Orders](/docs/admin-handbook/shop/orders) | The order list, the status flow, and how to investigate a paid order. |
+| [Approval queue](/docs/admin-handbook/shop/approval-queue) | Approving or rejecting student-submitted listings before they go live. |
+| [Checkout and payments](/docs/admin-handbook/shop/checkout-and-payments) | The customer's checkout journey, how refunds work, and what to do when an order gets stuck. |
+
+## Things to know before you start
+
+- Every product needs a **ledger account number** (the Finago account code). Without it, the order can be taken but it cannot be posted to accounting. If you're unsure which number to use, ask the finance lead.
+- Prices are always in **Norwegian kroner (NOK)**.
+- The two payment providers in production are **Vipps MobilePay** and **Stripe** (card). See [Vipps MobilePay](/docs/integrations/vipps-mobilepay) and [Stripe](/docs/integrations/stripe) for how they're wired up.
+- Membership-based discounts are resolved automatically at checkout by checking the buyer's membership status in 24SevenOffice. You don't have to apply them by hand.
+
+<Callout type="info">
+For the customer-facing view of how the shop and checkout work on biso.no, see [Shop and checkout (public site)](/docs/public-website/shop-and-checkout).
+</Callout>

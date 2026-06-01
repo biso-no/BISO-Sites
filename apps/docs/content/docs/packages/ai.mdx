@@ -1,0 +1,187 @@
+---
+title: "@repo/ai"
+description: AI SDK configuration, prompts, document utilities, and the admin assistant runtime.
+---
+
+# @repo/ai
+
+`@repo/ai` houses the project's AI configuration: model defaults,
+system prompts, document parsing utilities, the recruitment screening
+pipeline, and the assistant runtime that powers the admin chat surface.
+It uses the [Vercel AI SDK](https://sdk.vercel.ai/) as its abstraction
+layer.
+
+The split between this package and the model SDKs is worth noting:
+`@repo/ai` itself depends on **`@ai-sdk/openai`** (it ships an OpenAI
+client and defaults to `gpt-5`). The admin app's page-editor copilot
+and assistant endpoints, however, talk to **Anthropic Claude** via
+`@ai-sdk/anthropic` directly, because those flows want tool-use
+behavior tuned for Claude. So this package isn't the *only* AI surface
+in the codebase — it's the *shared* one.
+
+## Entrypoints
+
+| Entrypoint                        | Environment | Purpose                                                  |
+|-----------------------------------|-------------|----------------------------------------------------------|
+| `@repo/ai/config`                 | Universal   | Model defaults, max duration, shared constants           |
+| `@repo/ai/prompts`                | Universal   | System prompts for public and admin assistants           |
+| `@repo/ai/utils`                  | Universal   | Document utilities (MIME, content type mapping, vector store types) |
+| `@repo/ai/server/pdf-text-extractor` | Server   | PDF text extraction via `pdfjs-dist`                     |
+| `@repo/ai/server/recruitment-screener` | Server | AI resume screening pipeline                             |
+| `@repo/ai/server/recruitment-emails` | Server   | Email generation for recruitment touchpoints             |
+| `@repo/ai/assistant`              | Server      | Admin assistant runtime — tool registry, message types   |
+
+## Config
+
+```ts
+import { AI_CONFIG } from "@repo/ai/config";
+```
+
+Centralizes defaults the rest of the codebase reads:
+
+- Default model — currently `gpt-5`.
+- Max duration for streaming responses.
+- Token / message ceilings.
+
+Override per-call by passing explicit options to the SDK; do not
+hardcode model names elsewhere.
+
+## Prompts
+
+`@repo/ai/prompts` exports the system prompts used by the assistants.
+Two top-level prompts and several specialized ones:
+
+- **Public assistant prompt** — used by the chatbot on `apps/web`.
+  Restricted to read-only tools and student-facing language.
+- **Admin assistant prompt** — used by the staff assistant on
+  `apps/admin`. Aware of campus context and admin tool capabilities.
+
+Prompts are plain template strings with `{{placeholder}}` slots; the
+assistant runtime interpolates context (current user, campus, locale)
+before sending.
+
+## Document utilities
+
+```ts
+import {
+  detectMimeType,
+  mapContentType,
+  type VectorStoreFile,
+} from "@repo/ai/utils";
+```
+
+- `detectMimeType(file)` — sniffs the MIME type from buffer headers,
+  falling back to file extension. Used for upload validation.
+- `mapContentType(mime)` — normalizes MIMEs into the
+  `pdf | excel | word | text | image` buckets the screener cares
+  about.
+- Vector store types — shape contracts for the resume embeddings
+  stored in Pinecone.
+
+Server-only extractors (PDF, Excel, Word) live under
+`@repo/ai/server/*` because they pull in Node-only deps like
+`pdfjs-dist` and `xlsx`.
+
+### PDF extraction
+
+```ts
+import { extractPdfText } from "@repo/ai/server/pdf-text-extractor";
+
+const text = await extractPdfText(buffer);
+```
+
+Uses `pdfjs-dist` to render pages into a text-only representation.
+Output is plain text with form-feeds between pages — good enough for
+embedding and LLM input.
+
+## Recruitment screener
+
+```ts
+import {
+  screenApplication,
+  type ScreeningResult,
+} from "@repo/ai/server/recruitment-screener";
+```
+
+The screener accepts a recruitment application (resume buffer +
+metadata + vacancy rubric) and returns a structured `ScreeningResult`
+with per-criterion scores, an overall recommendation, and a short
+rationale. It chains:
+
+1. Document parsing (PDF/Word/text → plain text).
+2. Embedding into Pinecone for similarity search across past hires.
+3. Structured-output LLM call against the vacancy's rubric.
+
+Used inside admin's recruitment flow — surfaced as a "Screen with AI"
+action on each application card.
+
+## Recruitment emails
+
+```ts
+import { draftRecruitmentEmail } from "@repo/ai/server/recruitment-emails";
+```
+
+Generates draft emails for recruitment touchpoints (invite to
+interview, rejection, offer). Drafts are returned to the admin UI for
+review before sending — nothing is dispatched directly.
+
+## Assistant runtime
+
+`@repo/ai/assistant` is the engine behind the admin chat surface. It
+exports:
+
+- **UI message types** — shape contracts for messages exchanged with
+  the frontend (`UIMessage`, `UIToolInvocation`).
+- **Tool registry** — the set of tools the assistant can call, each
+  gated by a capability check.
+
+The assistant separates tools into two groups by *where they run*:
+
+### Client tools
+
+Resolved in the browser. The server returns the tool call; the
+client UI executes it (typically by navigating, opening a dialog, or
+mutating local form state).
+
+| Tool                | What it does                                              |
+|---------------------|-----------------------------------------------------------|
+| `navigate`          | Pushes a route                                            |
+| `confirmAction`     | Opens a confirm dialog and resolves with the user's choice|
+| `showDraftPreview`  | Displays a generated draft (e.g. an email)                |
+| `fillForm`          | Pre-fills a form by id with structured data               |
+| `requestApproval`   | Routes a draft into the approvals queue                   |
+
+### Server tools
+
+Resolved on the server. Each is gated by **capability** — the
+assistant runtime consults the current user's `AdminScope` (from
+`@repo/shared`) and only registers tools the user is allowed to
+invoke:
+
+| Capability group         | Tools                                                   |
+|--------------------------|---------------------------------------------------------|
+| Read (all admins)        | List/get: jobs, events, news, pages, documents, benefits, shop products |
+| Content writes           | Create/update content (when scope includes write/publish) |
+| Approvals                | Approve/reject pending changes (campus admins, global admins) |
+| M365                     | Microsoft Graph queries (global admin only)             |
+| Settings                 | Read/write tenant settings (global admin only)          |
+
+Tool definitions follow the AI SDK's tool schema: a `description`, a
+Zod `parameters` schema, and an `execute` function. The runtime
+enforces the schema before invoking `execute`, so the model's tool
+calls can be trusted by the time they reach business logic.
+
+## Consumers
+
+- **`apps/admin`** — the only consumer. The admin's
+  `/api/assistant` route imports the assistant runtime; recruitment
+  pages call the screener; document upload paths call the PDF
+  extractor.
+- `apps/web` does not currently consume `@repo/ai` directly. Its
+  public chatbot lives in `apps/web` itself and uses the prompts but
+  no server-only modules.
+
+## Related reading
+
+- [Admin handbook → AI assistant](/docs/admin-handbook/assistant) — user-facing description.
+- [Editor architecture](/docs/architecture/editor-architecture) — how the page copilot interacts with the block editor (Anthropic, not this package).

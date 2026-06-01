@@ -1,0 +1,48 @@
+---
+title: Admin Handbook
+description: A practical guide to running the BISO admin app — sign-in, roles, campus context, and the day-to-day screens.
+---
+
+# Admin Handbook
+
+This handbook is for the people who actually use the BISO admin app: IT staff, campus leadership, department leads, and editors. It explains what each screen does, who can see it, and how the most common tasks work.
+
+The admin app lives at **admin.biso.no** and is separate from the public student site at biso.no. You sign in with your BI Microsoft account, and the role you get is decided by which Azure AD security groups you belong to — there is nothing to assign manually inside the app.
+
+## How this handbook is organised
+
+The first few pages cover the basics that apply to everyone:
+
+| Page | What you'll learn |
+|------|-------------------|
+| [Signing in](/docs/admin-handbook/signing-in) | How to log in with Microsoft, and what magic-link sign-in is for. |
+| [Roles and permissions](/docs/admin-handbook/roles-and-permissions) | The three roles (global admin, campus admin, department), and what each can do. |
+| [Campus context](/docs/admin-handbook/campus-context) | How a global admin can "see Bergen" without switching accounts. |
+| [Dashboard](/docs/admin-handbook/dashboard) | The first screen you land on, and how to read it. |
+| [Notifications](/docs/admin-handbook/notifications) | The bell in the top bar and what it tells you. |
+
+The rest of the handbook is one page per area of the app:
+
+| Area | Who can see it |
+|------|----------------|
+| [Pages, News, Events, Jobs](/docs/admin-handbook/pages) | Global admin, campus admin, department |
+| [Shop, Benefits, Departments, Documents](/docs/admin-handbook/shop) | Global admin, campus admin |
+| [Submissions](/docs/admin-handbook/submissions) | Global admin, campus admin |
+| [Approvals](/docs/admin-handbook/approvals) | Global admin, campus admin |
+| [Drafts](/docs/admin-handbook/drafts) | Global admin, campus admin |
+| [Activity](/docs/admin-handbook/activity) | Global admin, campus admin |
+| [AI Assistant](/docs/admin-handbook/ai-assistant) | Everyone with admin access (features unlock with role) |
+| [IT — Users](/docs/admin-handbook/it-users) | Global admin only |
+| [Settings](/docs/admin-handbook/settings) | Global admin only |
+
+## Conventions used in this handbook
+
+- **Global admin** means BISO IT and the national operations unit. They can do anything on any campus.
+- **Campus admin** means the leadership team for a specific campus (Oslo, Bergen, Trondheim, Stavanger). They can do anything **inside their campus**.
+- **Department** means a BISO unit lead (PR, HR, Finance, Marketing, etc.). They can manage their own jobs, events, news, and pages — nothing else.
+
+If you ever wonder "should I be able to see this?" the answer almost always comes down to your Azure AD groups. Ask BISO IT to check what groups you are in — that decides everything else.
+
+## Where to go from here
+
+If you've never signed in before, start with [Signing in](/docs/admin-handbook/signing-in). If you already use the app and want to understand why a screen is hidden from you, jump to [Roles and permissions](/docs/admin-handbook/roles-and-permissions). For the technical side of how roles are wired up, see [Auth and roles](/docs/architecture/auth-and-roles) in the architecture section.

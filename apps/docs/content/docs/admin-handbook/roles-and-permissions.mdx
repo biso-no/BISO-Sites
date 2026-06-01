@@ -1,0 +1,80 @@
+---
+title: Roles and permissions
+description: The three admin roles, what each one can do, and how your role is decided.
+---
+
+# Roles and permissions
+
+Your role in the admin app is not set inside the app. It is **derived** from the Azure AD security groups your BI account belongs to. When you sign in, the app reads those groups and grants you the matching role automatically.
+
+There are three roles.
+
+## The three roles
+
+### Global admin
+
+Full access to everything across every campus. Typically BISO IT and the national operations unit.
+
+You are a global admin if your account is in **both**:
+
+- `SG-App-Campus-National`
+- `SG-App-Dept-OperationsUnit`
+
+Global admins can manage settings, IT users, every campus's content, and every approval queue.
+
+### Campus admin
+
+Full access to one or more campuses. Typically the leadership team for Oslo, Bergen, Trondheim, or Stavanger.
+
+You are a campus admin for a campus if your account is in **both**:
+
+- `SG-App-Campus-{City}` (for example `SG-App-Campus-Bergen`)
+- `SG-App-Dept-Ledelsen{City}` (for example `SG-App-Dept-LedelsenBergen`)
+
+You can be a campus admin for several campuses at once if you are in several pairs.
+
+### Department
+
+Limited access to the content your department is responsible for: jobs, events, news, and pages. Typically PR, HR, Finance, Marketing, or any other BISO unit lead.
+
+You have the department pseudo-role if your account is in **any** `SG-App-Dept-*` security group (other than `OperationsUnit`, which makes you a global admin instead).
+
+Department users do not see shop, benefits, the documents library, submissions, approvals, drafts, or activity — those are administrative views, not editorial ones.
+
+## What each role sees in the sidebar
+
+| Screen | Global admin | Campus admin | Department |
+|--------|:------------:|:------------:|:----------:|
+| Dashboard | Yes | Yes | No |
+| Pages | Yes | Yes | Yes |
+| News | Yes | Yes | Yes |
+| Events | Yes | Yes | Yes |
+| Jobs | Yes | Yes | Yes |
+| Shop | Yes | Yes | No |
+| Benefits | Yes | Yes | No |
+| Departments | Yes | Yes | No |
+| Documents | Yes | Yes | No |
+| Submissions | Yes | Yes | No |
+| Approvals | Yes | Yes | No |
+| Drafts | Yes | Yes | No |
+| Activity | Yes | Yes | No |
+| AI Assistant | Yes | Yes | Yes |
+| IT — Users | Yes | No | No |
+| Settings | Yes | No | No |
+
+## How scope works
+
+Roles also control **which records** you see, not just which screens.
+
+- A **global admin** sees everything by default and can [scope themselves to a single campus](/docs/admin-handbook/campus-context) using the campus switcher in the sidebar.
+- A **campus admin** is fixed to the campus(es) they manage. Lists, dashboards, and approvals only show that campus's data.
+- A **department** user sees content for their department across whichever campus it belongs to, but cannot manage campus-wide settings.
+
+## Things this app does **not** use
+
+A few notes for people who have worked with the old setup:
+
+- Roles are **not** stored as Appwrite user labels. Even if a label is set, the app ignores it for role decisions.
+- The old `SG-App-Role-*` groups (finance, hr, pr, controller) are no longer used. Only the `SG-App-Campus-*` and `SG-App-Dept-*` groups matter.
+
+For the technical detail of how this all hangs together, see [Auth and roles](/docs/architecture/auth-and-roles).

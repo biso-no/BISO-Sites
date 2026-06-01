@@ -1,0 +1,113 @@
+---
+title: News
+description: How to write and publish news articles on biso.no, with translations, scheduling, and opt-in subscriber notifications.
+---
+
+# News
+
+**News** is for articles: announcements, recaps, statements, anything that reads like a written post rather than a structured page. It is simpler than the page editor — there are no blocks to arrange — but it carries everything that matters for publishing properly, including translations, scheduling, and notifications.
+
+The screen lives at `/news`, with `/news/new` to start a fresh article and `/news/[id]` to edit an existing one.
+
+## How a news article is different from a page
+
+If you have used the [pages editor](/docs/admin-handbook/pages), the comparison is straightforward.
+
+| | News article | Page |
+|--|--------------|------|
+| Content | A single rich-text body. | A structured layout of blocks. |
+| Audience | Time-sensitive announcements and stories. | Evergreen content like "About us", "Contact". |
+| Notifications | Subscribers can be notified on publish. | No notifications. |
+| Editor | A rich-text editor with formatting, links, and embeds. | A block-based layout editor. |
+
+If you find yourself trying to build a complex layout inside a news article, the right answer is usually a page instead.
+
+## What you set on an article
+
+### The basics
+
+| Field | What it does |
+|-------|--------------|
+| Title and slug | The headline and its URL on biso.no. |
+| Body | The article itself, written in a rich-text editor. |
+| Campus | Which campus the article belongs to. |
+| Department | Which BISO unit wrote it. |
+| Status | Draft or published. |
+| Published at | When the article was (or will be) published. |
+
+### Status
+
+News has two states:
+
+| Status | Meaning |
+|--------|---------|
+| Draft | In progress. Not on biso.no. |
+| Published | Live, visible to readers. |
+
+You can move freely between the two while editing.
+
+## Translations
+
+BISO publishes in more than one language, and news articles are translatable.
+
+Each article can have a translation per supported locale. The translations are linked to the original article so that biso.no can serve the right language to the right reader without losing the connection between versions. When you create a new translation, you give the article its title and body in that language; the metadata (campus, department, dates) stays shared.
+
+A few practical points:
+
+- If a translation is missing, biso.no falls back to the original language for that reader.
+- Updating one language does not automatically update the others — translations are independent edits.
+- Publish translations together when you can. Staggered releases can confuse readers who switch languages.
+
+## Scheduling
+
+You can publish a news article immediately, or schedule it for a specific date and time. Scheduled articles stay in draft and flip to published automatically when the time arrives. This is what you use for embargoed announcements, coordinated launches, or articles you write on Friday but want to go live Monday morning.
+
+The "published at" timestamp is what biso.no uses to order articles, so make sure it matches the moment you actually want the article to be the newest one shown.
+
+## Notifications
+
+Readers can opt in to be notified when BISO publishes news. When you publish an article (immediately or via scheduled publish), opted-in subscribers receive a notification pointing to the new piece.
+
+This means:
+
+- Publishing is not just "putting it on biso.no" — it can also push to people.
+- Republishing the same article (toggling draft → published → draft → published) is **not** a reliable way to re-notify. Treat the first publish as the real one.
+- If you spot a typo after publishing, just edit in place. Subscribers were notified once and the article URL stays the same.
+
+## Roles and scope
+
+News is scoped by campus and department.
+
+| Role | Can manage |
+|------|------------|
+| Global admin | Every article on every campus. |
+| Campus admin | Every article in their campus, across departments. |
+| Department | Their own department's articles for their campus. |
+
+If your department has a dedicated comms person, news is typically theirs to own. Anyone else editing on top of them should at least give them a heads-up.
+
+## A typical publishing flow
+
+A short article from start to finish:
+
+1. Open `/news/new`.
+2. Fill in the title and slug. The slug should be short, readable, and stable — once you have published, do not change it.
+3. Write the body. Use headings, lists, and links sparingly; news articles are short.
+4. Set campus and department.
+5. If the article needs translations, add them now. Keep titles consistent across languages.
+6. Save as draft. Preview on biso.no to make sure formatting reads cleanly.
+7. Publish — either immediately, or schedule for a specific time.
+8. Subscribers are notified. The article appears at the top of news listings on biso.no.
+
+## Tips
+
+- **Lead with the point.** News readers skim. The first sentence should tell them why they should care.
+- **Translate before publishing**, not after. Notifications go out on publish, and readers in other languages are best served by having their version ready when they click through.
+- **Pair big announcements with [Events](/docs/admin-handbook/events)** when appropriate. A news article about a launch event can link to the event page for sign-up.
+- **Keep the slug honest.** A slug like `recruitment-2026-results` is much better than `untitled-1`.
+
+## Where to go next
+
+- [Pages editor](/docs/admin-handbook/pages) — for evergreen, layout-driven content.
+- [Events](/docs/admin-handbook/events) — to pair news with sign-up pages.
+- [Notifications](/docs/admin-handbook/notifications) — for the notifications side of the admin app.

@@ -1,0 +1,110 @@
+---
+title: Applications workspace
+description: How to review, score, and move applications through the recruitment pipeline — the global dashboard, the per-job list, and the candidate drawer.
+---
+
+# Applications workspace
+
+Once a vacancy is published and applications start coming in, the applications workspace is where you spend most of your time. It is built to help you go from "twenty new applicants" to "five we want to interview" without losing track of anyone.
+
+There are two ways into the workspace, and one shared candidate drawer that opens from both.
+
+## Two entry points
+
+| Screen | When to use it |
+|--------|----------------|
+| **All applications** (`/jobs/applications`) | A cross-job view of every application you can manage. Best when you are coordinating multiple rounds or want to see what is happening across departments. |
+| **Per-job applications** (`/jobs/[id]/applications`) | Just the applications for one vacancy. Best when you are running an individual round and want to focus. |
+
+Both screens use the same table layout, the same filters, and the same candidate drawer — so once you know one, you know the other.
+
+## What you see in the list
+
+Each row is one application. The columns you can rely on:
+
+| Column | What it tells you |
+|--------|-------------------|
+| Candidate | Name and the role they applied for. |
+| Status | Where they are in the pipeline (applied, screened, interview, offer, hired, rejected). |
+| Screening score | The AI-generated score against the rubric, if [AI screening](/docs/admin-handbook/jobs/ai-screening) is enabled. |
+| Embedding score | A similarity ranking based on resume content — useful for sorting candidates by closeness to an ideal profile. |
+| Interview | Whether an interview has been scheduled, completed, or declined. |
+| Submitted | When the application arrived. |
+
+You can filter and sort by any of these. Sorting by screening score is a fast way to see the AI's top picks; sorting by submitted date is the right move if you want to handle everything in arrival order.
+
+## The candidate drawer
+
+Clicking a row opens a side drawer with everything about that candidate. The URL updates to include `?candidate={id}`, so you can share a link directly to a specific candidate's drawer.
+
+(If you ever land on `/jobs/[id]/applications/[applicationId]` from an older link or notification, the admin will automatically redirect you to the per-job list with the right candidate drawer open.)
+
+The drawer has four things you will care about:
+
+### 1. The application
+
+Their answers to your [custom questions](/docs/admin-handbook/jobs/creating-vacancies#custom-application-questions), shown alongside each prompt. This is where you spend most of your reading time — it is what the candidate actually wrote about why they want the role.
+
+### 2. The resume
+
+The candidate uploaded a resume when they applied. From the drawer you can download it directly. The download is private, scoped to admins who can manage this vacancy, and never cached — every download is a fresh, authorised request. The file is delivered as an attachment so your browser saves it instead of opening it inline.
+
+If a candidate did not upload a resume (rare but possible), the drawer simply omits this section.
+
+### 3. Scores
+
+If [AI screening](/docs/admin-handbook/jobs/ai-screening) is enabled on the vacancy, the drawer shows the screening score and the embedding similarity score. Treat them as a starting point, not a verdict — they help you triage, but the final call is always yours.
+
+### 4. Status controls
+
+This is where you actually move the candidate through the pipeline. The lifecycle is:
+
+```
+applied → screened → interview → offer → hired
+                         ↓
+                     rejected (from any step)
+```
+
+A candidate can move forward step by step, jump ahead if the round is moving fast, or be rejected from any state. There is no "undo" requirement — you can move someone back to a previous status if you change your mind.
+
+## A typical review session
+
+A common way to use the workspace looks like this.
+
+1. Open **per-job applications** for the vacancy you are reviewing.
+2. Sort by submitted date (or screening score if you trust the AI rubric for this role).
+3. Open each candidate's drawer in turn, read their answers, download the resume.
+4. Move strong candidates to **screened**, weak ones to **rejected**, anything you are unsure about stays on **applied**.
+5. Come back to the still-on-applied pile after a break, or with a colleague, and make a second pass.
+6. For everyone you screened in, move them to **interview** and set up scheduling — see [Interviews and booking](/docs/admin-handbook/jobs/interviews-and-booking).
+7. After interviews, mark **offer** for the people you want, then **hired** when they accept.
+8. Everyone else moves to **rejected**.
+
+Doing this in one or two focused sessions, rather than in dribs and drabs, makes it much easier to compare candidates fairly.
+
+## Roles and scope
+
+What you see in the workspace mirrors what you can manage in [Jobs](/docs/admin-handbook/jobs):
+
+| Role | Sees in `/jobs/applications` |
+|------|------------------------------|
+| Global admin | Every application on every campus. |
+| Campus admin | Every application within their campus. |
+| Department | Applications for their own department's vacancies. |
+
+The same scoping applies to the resume download and to status changes — you can only act on applications that belong to vacancies you are allowed to manage.
+
+## Practical tips
+
+A few habits that pay off over the course of a recruitment round:
+
+- **Decide on a rubric before you start reviewing**, even if you are not using AI screening. Writing down what "good" looks like, even informally, makes the rejected pile easier to justify.
+- **Resist the urge to leave everyone on "applied"**. The longer it sits, the more daunting it gets.
+- **Use the cross-job dashboard** if you are a campus admin coordinating several recruitment rounds at once — it is the only view that shows everything in one place.
+- **Be honest in rejection emails** if you send them. Candidates remember how they were treated, and BISO has a reputation to maintain.
+
+## Where to go next
+
+- [AI screening](/docs/admin-handbook/jobs/ai-screening) — how the scores are produced and how to read them.
+- [Interviews and booking](/docs/admin-handbook/jobs/interviews-and-booking) — what happens after you move someone to *interview*.
+- [Notifications](/docs/admin-handbook/notifications) — to be alerted when new applications come in.

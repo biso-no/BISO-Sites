@@ -1,0 +1,50 @@
+---
+title: Campus context
+description: How the campus switcher works, and how a global admin can browse the app as a single campus.
+---
+
+# Campus context
+
+The admin app is multi-campus. Oslo, Bergen, Trondheim, and Stavanger each have their own pages, events, jobs, approvals, and submissions. To keep things from being noisy, the app always shows you content for **one campus at a time** — your "active campus".
+
+How that campus is picked depends on your role.
+
+## If you are a campus admin
+
+You don't need to do anything. You are fixed to the campus(es) you manage, and the app sets that as your active campus automatically. If you manage several campuses, use the campus switcher in the sidebar to flip between them.
+
+## If you are a global admin
+
+By default you see everything across all campuses. But sometimes you want to look at the app the way a Bergen admin sees it — for example to check a draft, audit a publishing queue, or troubleshoot a problem someone reported.
+
+That is what the **campus switcher** is for.
+
+1. Open the sidebar.
+2. Click the campus name at the top (it usually reads "All campuses" for a global admin).
+3. Pick the campus you want to scope to — for example **Bergen**.
+
+From that moment on, every list, dashboard, and approval queue is filtered as if you only managed Bergen. The submissions screen only shows Bergen submissions. The drafts view only shows Bergen drafts. The dashboard KPIs are Bergen-only.
+
+To go back, open the campus switcher again and choose **All campuses**.
+
+<Callout type="info">
+The campus switcher does **not** change your role. You are still a global admin and can still edit anything. It just narrows what you see so you can work without distraction.
+</Callout>
+
+## If you are a department user
+
+Department users don't have a campus switcher in the sidebar — they only see content their department owns, regardless of campus.
+
+## How the choice is remembered
+
+Your active campus is stored in a small browser cookie (`admin_campus_ctx`). This means:
+
+- The choice survives a page refresh and a re-login from the same browser.
+- It is per-browser. If you switch from your laptop to a different device, you start fresh.
+- It is reset to "All campuses" if you clear cookies for admin.biso.no.
+
+## When something looks wrong
+
+If you are a global admin and a list looks suspiciously short — for example "We only have two jobs?" — check the campus switcher in the sidebar. You probably scoped yourself to one campus and forgot. Switch back to **All campuses**.
+
+If you are a campus admin and you see content from a campus that isn't yours, contact BISO IT. That should never happen, and most likely means your Azure AD groups need correcting. See [Roles and permissions](/docs/admin-handbook/roles-and-permissions) for the groups that decide your scope.

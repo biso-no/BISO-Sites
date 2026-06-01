@@ -1,0 +1,199 @@
+---
+title: "@repo/api"
+description: Appwrite SDK wrappers, generated row types, and the page-builder draft/publish helpers.
+---
+
+# @repo/api
+
+`@repo/api` is the **only** way app code talks to Appwrite. It bundles
+the official `node-appwrite` and `appwrite` SDKs behind a thin
+ergonomic layer, exposes generated row types, and provides higher-level
+helpers for the page builder. Importing `appwrite` or `node-appwrite`
+directly from an app is a project-wide convention violation — always go
+through this package.
+
+## Entrypoints
+
+| Entrypoint                | Environment    | What it exports                                                                 |
+|---------------------------|----------------|---------------------------------------------------------------------------------|
+| `@repo/api`               | Universal      | Runtime helpers and `Models` types re-exported from `node-appwrite`             |
+| `@repo/api/server`        | Server-only    | `createSessionClient`, `createAdminClient`                                      |
+| `@repo/api/client`        | Browser-only   | `clientSideClient`, `clientDatabase`, `clientAccount`, `clientStorage`, `clientFunctions` |
+| `@repo/api/page-builder`  | Server-only    | Page draft/publish helpers                                                       |
+| `@repo/api/file`          | Server-only    | `InputFile` helper for multipart uploads                                         |
+| `@repo/api/write`         | Server-only    | Bulk row operations                                                              |
+| `@repo/api/types/appwrite`| Universal      | Auto-generated row types and enums                                               |
+
+### Root export (`@repo/api`)
+
+Re-exports from `node-appwrite` plus a few storage URL builders:
+
+```ts
+import {
+  Account, Client, Functions, ID, Messaging, Models,
+  OAuthProvider, Permission, Query, Role, Storage,
+  TablesDB, Teams, Users,
+} from "@repo/api";
+```
+
+Use `ID.unique()` to generate row IDs, `Query.equal(...)` and friends
+to build list queries, and `Permission` / `Role` to compose row-level
+permissions. `Models` carries the SDK's structural types (`Models.User`,
+`Models.Session`, `Models.File`, etc.) — your row types live in
+`@repo/api/types/appwrite`.
+
+### Server entrypoint (`@repo/api/server`)
+
+```ts
+import { createSessionClient, createAdminClient } from "@repo/api/server";
+
+// User-scoped: respects row-level permissions for the current session
+const session = await createSessionClient(jwt);
+
+// Service key: bypasses row-level permissions, used for trusted server work
+const admin = await createAdminClient();
+```
+
+Both return an object with lazy getters so unused services aren't
+instantiated:
+
+| Property     | Type                                       | Available on session | Available on admin |
+|--------------|--------------------------------------------|----------------------|--------------------|
+| `account`    | `Account`                                  | yes                  | yes                |
+| `db`         | `TablesDB` (proxied — see below)           | yes                  | yes                |
+| `teams`      | `Teams`                                    | yes                  | yes                |
+| `storage`    | `Storage`                                  | yes                  | yes                |
+| `functions`  | `Functions`                                | yes                  | yes                |
+| `messaging`  | `Messaging`                                | yes                  | yes                |
+| `users`      | `Users`                                    | —                    | yes                |
+
+#### The `db` Proxy
+
+`db` is not the raw `TablesDB` instance. It is a Proxy that intercepts
+`listRows` and `getRow` and runs the result through
+`JSON.parse(JSON.stringify(...))` before returning it. The reason is
+React Server Components: the Appwrite SDK attaches non-serializable
+prototype methods to row objects, which trip the RSC serialization
+boundary when a server component returns them to a client component.
+Cloning into plain objects makes the data trivially serializable.
+
+```ts
+function plainDb(db: TablesDB): TablesDB {
+  return new Proxy(db, {
+    get(target, prop, receiver) {
+      const value = Reflect.get(target, prop, receiver);
+      if ((prop === "listRows" || prop === "getRow") && typeof value === "function") {
+        return async (...args) => {
+          const result = await value.apply(target, args);
+          return JSON.parse(JSON.stringify(result));
+        };
+      }
+      if (typeof value === "function") return value.bind(target);
+      return value;
+    },
+  });
+}
+```
+
+Writes (`createRow`, `updateRow`, `deleteRow`) are not cloned because
+their return values are usually discarded.
+
+### Client entrypoint (`@repo/api/client`)
+
+```ts
+"use client";
+import { clientAccount, clientDatabase } from "@repo/api/client";
+```
+
+Browser-only Appwrite SDK (`appwrite`). Use this from Client
+Components for things that genuinely belong on the browser (OAuth
+redirects, real-time subscriptions). For data fetching, prefer a
+server action that calls `@repo/api/server` and returns a serialized
+result.
+
+### Page builder (`@repo/api/page-builder`)
+
+```ts
+import {
+  getPage,
+  getPageById,
+  getPageEditorById,
+  savePageDraft,
+  publishPage,
+  unpublishPage,
+} from "@repo/api/page-builder";
+```
+
+The page builder operates on two collections:
+
+- `pages` — one row per slug, contains routing metadata
+  (`is_published`, `status`, `campus`, etc.).
+- `page_translations` — one row per `(page_id, locale)`. Holds the
+  block document in two columns: `draft_document` (working copy) and
+  `puck_document` (published copy — column name is historical and is
+  not edited).
+
+Typical usage from a server action:
+
+```ts
+"use server";
+import { savePageDraft, publishPage } from "@repo/api/page-builder";
+
+export async function saveDraft(id: string, doc: PageDoc, locale: Locale) {
+  await savePageDraft({ id, doc, locale, ctx });
+}
+
+export async function publish(id: string, locale: Locale) {
+  await publishPage({ id, locale });
+}
+```
+
+The flow:
+
+1. **`savePageDraft({ id, doc, locale, ctx })`** upserts the `pages`
+   row and writes `doc` into the matching `page_translations` row's
+   `draft_document` column. `ctx` carries the author identity for
+   audit columns.
+2. **`publishPage({ id, locale })`** copies `draft_document` into
+   `puck_document`, sets `is_published = true`, and bumps `status` to
+   `"published"`.
+3. **`unpublishPage({ id, locale })`** reverses (2) — clears
+   `is_published` and sets `status` back to `"draft"`. The draft is
+   left untouched.
+
+For the read path, `apps/web` calls `getPage(slug, locale)` which
+returns the **published** document; the admin editor calls
+`getPageEditorById(id)` which returns the **draft** document.
+
+See [Pages publish flow](/docs/architecture/pages-publish-flow) for
+the full lifecycle.
+
+## Generated types
+
+Run `appwrite types -l ts ./types` from `packages/api/` to regenerate
+`types/appwrite.ts` whenever the Appwrite schema changes. Use them as
+the type parameter on every database call:
+
+```ts
+import type { Jobs, Events } from "@repo/api/types/appwrite";
+import { Query } from "@repo/api";
+
+const jobs = await db.listRows<Jobs>({
+  databaseId: "main",
+  tableId: "jobs",
+  queries: [Query.equal("status", "open"), Query.limit(50)],
+});
+```
+
+## Schema source of truth
+
+`packages/api/appwrite.config.json` is the canonical schema — ~60
+tables with all attributes, indexes, and `$permissions`. It is
+auto-generated by the Appwrite CLI (`appwrite pull`). Do not hand-edit
+it. To change the schema, edit it in the Appwrite console and pull.
+
+## Related reading
+
+- [Data model](/docs/architecture/data-model) — what each collection is for.
+- [Auth and roles](/docs/architecture/auth-and-roles) — how sessions, JWTs, and teams compose.
+- [Pages publish flow](/docs/architecture/pages-publish-flow) — full lifecycle of a page.

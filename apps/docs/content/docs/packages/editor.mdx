@@ -1,0 +1,198 @@
+---
+title: "@repo/editor"
+description: In-house block editor — EditorShell, PageDoc, block registry, and the read-only renderer.
+---
+
+# @repo/editor
+
+`@repo/editor` is the block-based page editor that powers the admin
+CMS and the public site's page rendering. The admin app embeds
+`EditorShell` to edit a `PageDoc`; the public site imports the
+read-only renderer to display the same document. Both sides use the
+same block registry, so a block authored in the admin renders
+identically in production.
+
+The package replaced an earlier integration of Puck — that name still
+shows up in the `puck_document` column name in `page_translations`,
+which is kept for backward compatibility.
+
+For the conceptual model (block tree, drag-and-drop, undo/redo,
+persistence), see [Editor architecture](/docs/architecture/editor-architecture).
+This page is the API reference.
+
+## Entrypoints
+
+| Entrypoint            | Purpose                                                                 |
+|-----------------------|-------------------------------------------------------------------------|
+| `@repo/editor`        | Editor runtime: `EditorShell`, store, callbacks, block registry helpers |
+| `@repo/editor/render` | Read-only renderer used by `apps/web`                                   |
+| `@repo/editor/blocks` | Side-effect import that registers every block in `BLOCK_LIBRARY`        |
+| `@repo/editor/theme`  | CSS variables consumed by blocks and the shell                          |
+| `@repo/editor/ai`     | `buildSystemPrompt()`, `pageEditorTools` for the assistant integration  |
+| `@repo/editor/types`  | TypeScript schema for `PageDoc`, blocks, and block definitions          |
+
+### Root export
+
+```ts
+import {
+  EditorShell,
+  BLOCK_LIBRARY,
+  allBlocks,
+  getBlock,
+  useEditorStore,
+  useEditorCallbacks,
+  type EditorCallbacks,
+  type PageDoc,
+  type Block,
+} from "@repo/editor";
+```
+
+`EditorShell` is the only top-level component. Everything else is
+either a registry helper, a hook into the underlying Zustand store, or
+a type.
+
+## `EditorShell`
+
+The mounting component. Render it in a Client Component inside the
+admin's page editor route:
+
+```tsx
+"use client";
+import { EditorShell } from "@repo/editor";
+import "@repo/editor/blocks"; // registers blocks once per bundle
+
+export function PageEditor({ doc, callbacks }: Props) {
+  return (
+    <EditorShell
+      initialDoc={doc}
+      callbacks={callbacks}
+      locale="no"
+    />
+  );
+}
+```
+
+### Props
+
+| Prop          | Type                | Notes                                                      |
+|---------------|---------------------|------------------------------------------------------------|
+| `initialDoc`  | `PageDoc`           | Loaded from `getPageEditorById()` server-side              |
+| `callbacks`   | `EditorCallbacks`   | Save, publish, asset upload, AI bridge                     |
+| `locale`      | `"no" \| "en"`      | Selects which translation row is being edited              |
+| `readOnly`    | `boolean?`          | Disables editing affordances; still renders the toolbar    |
+
+`EditorCallbacks` is how the shell stays decoupled from Appwrite:
+
+```ts
+type EditorCallbacks = {
+  onSaveDraft: (doc: PageDoc) => Promise<void>;
+  onPublish: () => Promise<void>;
+  onUnpublish: () => Promise<void>;
+  onAssetUpload: (file: File) => Promise<{ url: string; id: string }>;
+  // ...
+};
+```
+
+The admin app wires these to server actions that call
+`@repo/api/page-builder`.
+
+## The block registry
+
+Blocks register themselves by importing `@repo/editor/blocks`, which
+populates `BLOCK_LIBRARY`. Use the helpers to introspect:
+
+```ts
+import { BLOCK_LIBRARY, allBlocks, getBlock } from "@repo/editor";
+
+allBlocks();            // BlockDefinition[]
+getBlock("hero");       // BlockDefinition | undefined
+BLOCK_LIBRARY.hero;     // same
+```
+
+A `BlockDefinition` carries the type id, JSON schema for props, the
+React component used in the editor preview, and the renderer used by
+`@repo/editor/render`.
+
+### Built-in blocks
+
+There are **37 blocks**, organized into 8 categories so the inserter
+menu is navigable:
+
+| Category              | Blocks                                                                                 |
+|-----------------------|----------------------------------------------------------------------------------------|
+| Top of page           | Hero, Page header, Breadcrumb                                                          |
+| Tell a story          | Rich text, Quote, Callout, Image with caption, Side-by-side                            |
+| Show people & numbers | People grid, Stat row, Logo wall, Department leadership                                |
+| Media                 | Image, Image gallery, Video, Embed                                                     |
+| Pull from BISO        | Events list, News list, Jobs list, Benefits list, Shop products, Document list         |
+| Engage                | CTA, Newsletter signup, Form, FAQ, Membership upsell                                   |
+| Layout                | Columns, Section, Divider, Spacer, Tabs, Accordion                                     |
+| Data                  | Table, Chart, KPI card                                                                 |
+
+The "Pull from BISO" category is the bridge between authored content
+and live data — those blocks query `@repo/api` at render time.
+
+## Read-only renderer
+
+`apps/web` imports the renderer to display published pages without the
+editor chrome:
+
+```tsx
+import { PageRenderer } from "@repo/editor/render";
+import "@repo/editor/blocks";
+
+export default function Page({ doc }: { doc: PageDoc }) {
+  return <PageRenderer doc={doc} locale="no" />;
+}
+```
+
+The renderer is a pure function of `(doc, locale)`; it does not pull
+in any of the editor's DnD or store machinery, so the public bundle
+stays small.
+
+## Zustand store and hooks
+
+`useEditorStore` is the underlying Zustand store; `useEditorCallbacks`
+exposes the callbacks passed to `EditorShell`. Custom blocks rarely
+need to touch the store directly — block components receive props and
+a setter via their definition. Reach for the store only when you're
+building an editor extension (a custom panel, a keyboard shortcut,
+etc.).
+
+## AI integration
+
+```ts
+import { buildSystemPrompt, pageEditorTools } from "@repo/editor/ai";
+```
+
+- `buildSystemPrompt(doc)` produces the system prompt for the page
+  copilot — it includes a compressed description of the current block
+  tree so the model can reference specific blocks.
+- `pageEditorTools` is the AI SDK tool definition set the copilot
+  invokes (insert block, update block, delete block, move block, set
+  page metadata).
+
+These run inside the admin app's assistant route. See
+[Editor architecture](/docs/architecture/editor-architecture) for the
+end-to-end flow.
+
+## Types
+
+`@repo/editor/types` is the TypeScript schema. The two types you'll
+import most often:
+
+```ts
+type PageDoc = {
+  blocks: Block[];
+  meta: { title?: string; description?: string; /* ... */ };
+};
+
+type Block = {
+  id: string;       // stable, persisted
+  type: string;     // matches a key in BLOCK_LIBRARY
+  props: Record<string, unknown>;
+  children?: Block[];
+};
+```
+
+Block-specific prop types live next to their definitions.

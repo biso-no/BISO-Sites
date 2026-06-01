@@ -1,0 +1,136 @@
+---
+title: Routing and pages
+description: Every URL on biso.no, grouped by area, plus how editor-built pages and route groups work.
+---
+
+# Routing and pages
+
+The public site uses Next.js App Router. Every URL maps to a folder under `apps/web/src/app/`. Folders wrapped in parentheses are **route groups** — they don't appear in the URL but let us share a layout across a set of pages.
+
+There are three route groups on the public site:
+
+| Group | Layout does | Used for |
+|-------|-------------|----------|
+| `(public)` | Fetches membership status server-side, renders the public header/footer. | Anything an anonymous visitor can reach. |
+| `(protected)` | Calls `getLoggedInUser()` and triggers `unauthorized()` if there's no real account. | Profile, applications, expense portal. |
+| `(auth)` | Just renders the login surface. | `/auth/login` and the OAuth/magic-link/invite handlers. |
+
+The 401 UI for protected routes lives at `src/app/unauthorized.tsx` and is shown automatically when `unauthorized()` is called (Next.js `authInterrupts` is enabled).
+
+## Public routes
+
+These are reachable without logging in. Anonymous visitors get an Appwrite session via middleware before they ever see a page — see [Authentication and sessions](/docs/public-website/authentication-and-sessions).
+
+### Landing and editor-built pages
+
+| Route | What's there |
+|-------|--------------|
+| `/` | Homepage. |
+| `/[...slug]` | Catch-all for editor-built pages — anything an editor publishes in the admin app shows up here. |
+
+The catch-all calls `getPage(slug, locale)` from [`@repo/api/page-builder`](/docs/packages/api), filters for documents that are both **published** and have visibility set to **public**, and then renders them with the block editor's read-only render entry point. Anything else 404s. This is how pages like `/about/history` or `/business-hotspot` exist as URLs without anyone touching the codebase — they're rows in Appwrite.
+
+For the admin side of this, see [Admin Handbook → Pages](/docs/admin-handbook/pages).
+
+### Events, jobs, news, shop
+
+| Route | What it shows |
+|-------|---------------|
+| `/events` | All upcoming events. |
+| `/events/[slug]` | A single event with registration. |
+| `/jobs` | Open positions. |
+| `/jobs/[slug]` | A job ad with the apply button. |
+| `/news` | News list. |
+| `/news/[slug]` | A news article. |
+| `/shop` | Merch product list. |
+| `/shop/[slug]` | A product detail page. |
+| `/shop/cart` | The user's cart. |
+| `/shop/checkout` | Address + payment selection. |
+| `/shop/order/[orderId]` | Order confirmation after returning from Vipps or Stripe. |
+
+Each of these has its own page in this section.
+
+### Membership and member area
+
+| Route | Purpose |
+|-------|---------|
+| `/membership` | Public marketing page for the BISO membership product. |
+| `/member` | Member-only landing (still public route — content varies by member status). |
+| `/onboarding` | Post-signup onboarding flow. |
+
+### Campus, departments, projects
+
+| Route | Purpose |
+|-------|---------|
+| `/campus` | Campus overview — focus areas, services, benefits, board. |
+| `/units` | List of student departments. |
+| `/units/[id]` | A single department's page. |
+| `/projects` | Project list. |
+| `/projects/[slug]` | Project detail. |
+
+See [Campus and departments](/docs/public-website/campus-and-departments).
+
+### About, policy, info
+
+| Route | Purpose |
+|-------|---------|
+| `/about` | About hub. |
+| `/about/what-is-biso` | Mission overview. |
+| `/about/history` | Org history. |
+| `/about/politics` | Political stance. |
+| `/about/study-quality` | Study quality work. |
+| `/about/operations` | How BISO operates. |
+| `/about/academics-contact` | Academics contact info. |
+| `/about/alumni` | Alumni network. |
+| `/about/bylaws` | Bylaws. |
+| `/about/saih` | SAIH partnership. |
+| `/business`, `/business-hotspot` | Business audience landing. |
+| `/bi-fondet` | BI-fondet info. |
+| `/press` | Press contact. |
+| `/students` | Student audience landing. |
+| `/safety` | Safety and reporting. |
+| `/contact` | Contact form. |
+| `/privacy`, `/terms` | Legal. |
+| `/policies/drugs-policy` | Drugs policy. |
+| `/documents` | Public document library. |
+
+Most of these are editor-built; the route exists in the codebase as a thin server component that fetches the corresponding page document.
+
+### Recruitment booking
+
+| Route | Purpose |
+|-------|---------|
+| `/recruitment/book/[token]` | Token-gated interview slot picker — no login required. |
+
+See [Recruitment booking](/docs/public-website/recruitment-booking).
+
+## Protected routes
+
+These require a real (non-anonymous) account. The `(protected)/layout.tsx` calls `getLoggedInUser()` and triggers Next's `unauthorized()` if the visitor doesn't have one. The 401 page invites them to log in.
+
+| Route | What it does |
+|-------|--------------|
+| `/profile` | The signed-in user's profile, locale preference, etc. |
+| `/applications` | The user's own job applications and statuses. |
+| `/fs` | Expense / reimbursement portal — list of the user's expense claims. |
+| `/fs/new` | Start a new expense with OCR receipt upload. |
+| `/fs/[id]` | View or edit a single expense. |
+
+The expense portal is documented in [Expense portal](/docs/public-website/expense-portal).
+
+## Auth routes
+
+| Route | Purpose |
+|-------|---------|
+| `/auth/login` | Login page (Microsoft, Google, Facebook, Apple, magic link). |
+| `/auth/oauth` | OAuth initiator. |
+| `/auth/callback` | OAuth callback handler. |
+| `/auth/invite` | Invite / magic-link landing. |
+
+## Middleware
+
+All routing is filtered through `apps/web/src/proxy.ts` (exported as `proxy`) before a page renders. The matcher excludes `/api/*`, `_next/*`, images, and favicons. If the visitor has no session cookie, the middleware redirects to `/api/auth/anonymous?redirect=<original-url>` which mints an anonymous Appwrite session and sets the cookie. See [Authentication and sessions](/docs/public-website/authentication-and-sessions) for the cookie name and domain rules.
+
+## Legacy stubs
+
+`apps/web/appwrite.json` and `apps/web/database.json` are leftover stubs from an earlier iteration of the platform. The real Appwrite schema lives in `packages/api/appwrite.config.json` — see [Architecture overview](/docs/architecture/overview). Don't edit the stubs.

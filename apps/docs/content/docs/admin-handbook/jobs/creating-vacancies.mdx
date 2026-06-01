@@ -1,0 +1,96 @@
+---
+title: Creating vacancies
+description: How to write, configure, and publish a job posting — from the basic details to custom questions, screening rubric, and interview template.
+---
+
+# Creating vacancies
+
+A vacancy is the public-facing job posting *plus* the back-office settings that decide how applications are collected, screened, and scheduled. You set everything up once on the job editor, and the rest of the recruitment round runs from there.
+
+## Opening the editor
+
+From the Jobs list, open an existing vacancy to edit it, or create a new one. The editor lives at `/jobs/[id]` and is organised into sections you can fill in at your own pace. A vacancy starts as a **draft**, which means it is invisible on biso.no until you publish it.
+
+## What you fill in
+
+A vacancy has more configuration than a typical news article because it has to drive the whole application flow. The sections below are the ones that matter most.
+
+### Basic details
+
+The headline metadata that defines the role.
+
+| Field | What it does |
+|-------|--------------|
+| Title | The role name shown on biso.no. |
+| Campus | Which campus the role belongs to. Locked to your campus if you are not a global admin. |
+| Department | Which BISO department owns this role. |
+| Application deadline | The cut-off date and time. After this, the public form is closed. |
+| Status | Draft, published, or closed. |
+
+### Description
+
+A rich-text description of the role: responsibilities, requirements, the team, why someone should apply. This is what candidates read before deciding to apply. Keep it honest and specific — vague descriptions get vague applications.
+
+### Custom application questions
+
+You can add **custom questions** that applicants must answer in addition to uploading a resume. These are the prompts you actually care about ("Why this role?", "Describe a time you led a project", "Which campus events have you been to?").
+
+Each question is stored on the vacancy and the answers come back attached to every application, so the whole pipeline knows what to display. Keep questions focused — three to six good prompts get better answers than a long list of generic ones.
+
+### Screening rubric
+
+The **screening rubric** is how you tell the AI what a good candidate looks like for *this specific* role. It is a list of criteria with weights — for example, "experience organising student events", "comfortable with public speaking", "available evenings during the semester".
+
+The rubric is only used if you turn on auto-screening (see below). You can still define it and leave auto-screening off — it then acts as a written reminder of what you are evaluating against.
+
+For the full story of how the rubric translates into a score, see [AI screening](/docs/admin-handbook/jobs/ai-screening).
+
+### Auto-screen toggle
+
+A simple on/off switch. When **on**, every incoming application is automatically screened against the rubric and given a score before you ever open it. When **off**, applications arrive untouched and you review them yourself.
+
+You can leave this off during the first few applications, look at them manually, and then turn it on once you have a feel for the role.
+
+### Interview template
+
+The interview template controls how interviews for this vacancy work:
+
+- The default **duration** of an interview slot.
+- The **questions** you plan to ask, so every interviewer covers the same ground.
+
+The template is what powers the candidate's booking experience later — see [Interviews and booking](/docs/admin-handbook/jobs/interviews-and-booking) for the full flow.
+
+## Publishing
+
+Once the vacancy is written, switch it from **draft** to **published**. From that moment:
+
+- The posting appears on biso.no under the campus's open positions.
+- The application form goes live, with your custom questions.
+- Resumes uploaded by applicants are stored securely and only accessible to admins who can manage this vacancy.
+
+If you spot a typo after publishing, just edit the vacancy in place — there is no separate draft cycle for jobs.
+
+## Closing a vacancy
+
+When the application deadline passes (or you have found the person you want), move the vacancy to **closed**. Closing:
+
+- Removes the role from biso.no.
+- Stops new applications from being accepted.
+- Leaves all existing applications fully manageable — you can still move them through to offer and hired.
+
+Closed vacancies stay searchable in the Jobs list, so the round is never lost.
+
+## Common pitfalls
+
+A few things worth checking before you publish:
+
+- **Campus and department** are set correctly. Once applications start arriving, they inherit the scoping, which decides who can see them.
+- **Application deadline** is in the right time zone. The deadline is stored exactly as you set it.
+- **Custom questions** are answerable in a paragraph or two. Multi-part questions tend to get partial answers.
+- If you turn on **auto-screen**, the rubric is filled in. An empty rubric means the AI has nothing to score against.
+
+## Where to go next
+
+- [The applications workspace](/docs/admin-handbook/jobs/applications-workspace) — once applications start arriving.
+- [AI screening](/docs/admin-handbook/jobs/ai-screening) — to understand the screening score.
+- [Interviews and booking](/docs/admin-handbook/jobs/interviews-and-booking) — to set up scheduling.

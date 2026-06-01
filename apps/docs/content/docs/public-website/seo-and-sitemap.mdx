@@ -1,0 +1,75 @@
+---
+title: SEO and sitemap
+description: How robots.txt, the sitemap, dynamic metadata, and allowed image hosts are configured for biso.no.
+---
+
+# SEO and sitemap
+
+The public site is built to be indexable where it should be and invisible where it shouldn't. SEO is mostly handled by Next.js features — `robots.ts`, `sitemap.ts`, and per-page metadata — with sensible defaults.
+
+## `robots.txt`
+
+Generated from `apps/web/src/app/robots.ts`. The following paths are **disallowed** for crawlers:
+
+| Path | Why |
+|------|-----|
+| `/api/` | Server endpoints, not content. |
+| `/auth/` | Login flows. |
+| `/applications` | User-specific protected data. |
+| `/fs` | Protected expense portal. |
+| `/profile` | User-specific. |
+| `/shop/order/` | Order receipts. |
+| `/shop/checkout` | Transient checkout state. |
+| `/shop/cart` | User-specific. |
+| `/recruitment/book/` | Token-gated; tokens must never leak to search engines. |
+
+Everything else is allowed.
+
+## Sitemap
+
+Generated from `apps/web/src/app/sitemap.ts`. It revalidates every **3600 seconds (1 hour)** and includes:
+
+- Static routes (homepage, about pages, etc.).
+- Dynamic detail pages: editor-built pages, events, news, products, jobs.
+
+Each entry sets a `changeFrequency` and `priority` appropriate for the content type — news weekly with medium priority, the homepage daily with high priority, etc.
+
+The sitemap is **best-effort**: if one data source fails (e.g., Appwrite is slow listing events), the other sections still render. The user-visible result is "some entries are missing this hour" rather than a 500.
+
+## Dynamic metadata
+
+Detail pages (events, news, jobs, products, editor-built pages) generate per-page metadata via `generateMetadata()`:
+
+| Field | Source |
+|-------|--------|
+| `title` | The content's title (translated). |
+| `description` | The content's summary or first paragraph. |
+| `openGraph.image` | The cover image. |
+
+This makes link previews on Slack, LinkedIn, and social platforms show the right title and image without configuration.
+
+## Image hosts
+
+Configured in `apps/web/next.config.ts` under `images.remotePatterns`:
+
+| Host | Used for |
+|------|----------|
+| `appwrite.biso.no` | Files stored in Appwrite Storage. |
+| `biso.no` | Self-hosted images. |
+| `via.placeholder.com` | Placeholder images in dev. |
+
+Any image not on one of these hosts will be rejected by the Next.js Image component. Adding a new host means editing `next.config.ts` and shipping the change.
+
+## What's intentionally not here
+
+- **Hreflang tags.** The sitemap doesn't currently emit per-locale URLs. See [Localization](/docs/public-website/localization).
+- **Analytics.** The `/api/analytics/page-view` endpoint returns `204 No Content` — analytics are intentionally disabled for GDPR reasons, pending a proper analytics service decision.
+- **Structured data.** No JSON-LD is emitted today. This is a possible future enhancement.
+
+## For developers
+
+| File | What it does |
+|------|--------------|
+| `apps/web/src/app/robots.ts` | The disallow list above. |
+| `apps/web/src/app/sitemap.ts` | Dynamic sitemap with 1h revalidation. |
+| `apps/web/next.config.ts` | Image hosts and other config. |

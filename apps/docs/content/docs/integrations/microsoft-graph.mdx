@@ -1,0 +1,117 @@
+---
+title: Microsoft Graph
+description: The API surface we use to read and write Microsoft 365 data — users, calendars, and SharePoint files.
+---
+
+# Microsoft Graph
+
+Microsoft Graph is the unified API for everything in Microsoft 365. It sits
+on top of the same Azure AD identity we use for staff sign-in (see
+[Azure AD](/docs/integrations/azure-ad)) and gives us programmatic access to
+users, calendars, and SharePoint sites.
+
+## What it is
+
+A single REST API rooted at `https://graph.microsoft.com` that talks to
+every M365 service. We use it for three concrete jobs at BISO:
+
+1. **M365 user search.** The admin IT page lets administrators look up
+   accounts by name or email.
+2. **Calendar availability.** Recruitment booking checks interviewers'
+   calendars before offering candidates a slot.
+3. **SharePoint file operations.** The Documents section in the admin and
+   the public download endpoint both go through Graph — see
+   [SharePoint](/docs/integrations/sharepoint) for the file-specific story.
+
+## Why we use it
+
+We already pay for Microsoft 365. Graph is the only sensible way to
+programmatically reach the data inside it, and it consolidates user
+directory, calendar, and SharePoint access behind one auth model so we
+don't juggle three sets of credentials.
+
+## Cost shape
+
+Included in the existing M365 tenancy. Graph itself has generous rate
+limits but no per-call charge. The risk is hitting throttle ceilings if
+something starts hammering it in a loop — keep an eye on retries-after.
+
+## Authentication
+
+Microsoft Graph uses the same Azure AD app registration as sign-in, but for
+background work we authenticate **application-only with a certificate**:
+
+- `AZURE_APP_ID`, `AZURE_TENANT_ID` — identify the app and tenancy.
+- `AZURE_CERT_THUMBPRINT`, `AZURE_CERT_PASS` — the certificate used to mint
+  app-only tokens via MSAL.
+
+App-only auth means our calls aren't acting "as" a logged-in user — they
+act as the platform itself, with whatever **application permissions** the
+app registration was granted in the Azure admin consent screen. That's a
+deliberate choice: it lets server-side jobs run without a user session.
+
+## Where it lives in the codebase
+
+- `@repo/connectors/azure` — exports `createGraphClient()`, which returns an
+  authenticated Graph SDK client.
+- `GraphUserService` — user search and lookup. Used by the admin IT page.
+- Calendar helpers — used by the recruitment booking flow to read free/busy
+  data for interviewers.
+
+Always go through `createGraphClient()`. Don't instantiate the Graph SDK
+yourself; it bypasses our auth setup.
+
+```ts
+import { createGraphClient } from "@repo/connectors/azure";
+
+const graph = await createGraphClient();
+const me = await graph.api("/users/someone@bi.no").get();
+```
+
+## Permissions
+
+The Azure app registration is granted a set of **application permissions**
+(not delegated). Each one must be admin-consented in the Azure portal.
+The ones we care about are roughly:
+
+- `User.Read.All` — for user search.
+- `Calendars.Read` or similar — for booking calendar availability.
+- `Sites.Selected` — for SharePoint file ops (see the SharePoint page).
+
+If you add a feature that needs a new permission, you need both a code
+change **and** an Azure admin to grant consent. Don't expect calls to start
+working just because you updated the SDK call.
+
+## Failure modes
+
+- **Token request fails** — usually a certificate problem (expired,
+  thumbprint mismatch, password wrong). Every Graph-backed feature breaks
+  at once.
+- **403 on a specific endpoint** — missing or unconsented application
+  permission. The rest of the platform is fine; just that feature fails.
+- **Throttling (429)** — Graph is asking you to slow down. The SDK respects
+  `Retry-After`. If you see this regularly, look for a loop calling Graph
+  without batching.
+- **Schema drift** — Microsoft changes Graph endpoints occasionally. Watch
+  for deprecation notices in the M365 admin centre.
+
+User-facing impact:
+
+- Admin user search returns no results.
+- Recruitment booking can't show available interview slots.
+- SharePoint document downloads break (covered in the SharePoint page).
+
+## Rotation
+
+The credentials are shared with Azure AD sign-in — see the
+[Azure AD rotation section](/docs/integrations/azure-ad#rotation). The same
+certificate rotation procedure covers Graph.
+
+If a single Graph permission needs to be tightened or expanded, do that in
+the Azure portal app-registration view; no code or env change is needed
+unless you're calling new endpoints.
+
+## Swapping the vendor
+
+Practically not separable from Azure AD. If we leave Microsoft 365, Graph
+goes with it.

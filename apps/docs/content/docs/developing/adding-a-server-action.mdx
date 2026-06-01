@@ -1,0 +1,227 @@
+---
+title: Adding a server action
+description: The canonical mutation pattern — auth, campus scope, audit, revalidate.
+---
+
+# Adding a server action
+
+Server actions are the preferred mutation path on the platform. Every action follows the
+same five-step shape; if one step is missing, that's the review comment you'll get.
+
+## The template
+
+```ts
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { ID, Permission, Query, Role } from "@repo/api";
+import { createSessionClient } from "@repo/api/server";
+import type { Pages } from "@repo/api/types/appwrite";
+import { getUserAuthContext } from "@/lib/authorization";
+import { applyScopeQueries } from "@/lib/scope";
+import { logAuditEvent } from "./audit-log";
+
+export async function createMyThing(input: { title: string }) {
+  // 1. Auth
+  const ctx = await getUserAuthContext();
+  if (!ctx) throw new Error("Unauthorized");
+
+  // 2. Scope + 3. Typed db call
+  const { db } = await createSessionClient();
+  const row = await db.createRow<Pages>(
+    "app",
+    "pages",
+    ID.unique(),
+    {
+      title: input.title,
+      campus_id: ctx.activeCampusId ?? ctx.managedCampusIds[0],
+      status: "draft",
+    },
+    [
+      Permission.read(Role.team("admin")),
+      Permission.update(Role.team("admin")),
+    ]
+  );
+
+  // 4. Audit
+  await logAuditEvent({
+    action: "page.create",
+    actor: ctx.userId,
+    resourceId: row.$id,
+  });
+
+  // 5. Revalidate
+  revalidatePath("/pages");
+  return row;
+}
+```
+
+## Step-by-step
+
+### 1. `"use server"` directive
+
+First line of the file (or top of the export, but file-level is cleaner). All exports
+from a `"use server"` file become server actions, callable from Client Components.
+
+### 2. Auth
+
+Always re-check auth inside the action, even if the calling page is gated:
+
+```ts
+const ctx = await getUserAuthContext();
+if (!ctx) throw new Error("Unauthorized");
+```
+
+`ctx` is the user auth context — `userId`, `email`, `bisoRoles`, `managedCampusIds`,
+`resolvedCampusIds`, `activeCampusId`. See `apps/admin/src/lib/authorization.ts`.
+
+For role-gated actions, also check the role:
+
+```ts
+import { hasRole } from "@/lib/roles";
+
+if (!hasRole(ctx, ["admin", "it"])) {
+  throw new Error("Forbidden");
+}
+```
+
+### 3. Campus scope
+
+For list actions, scope by campus:
+
+```ts
+const queries = applyScopeQueries(ctx, [
+  Query.equal("status", "published"),
+]);
+const rows = await db.listRows<Pages>("app", "pages", queries);
+```
+
+For mutations, derive the campus from `ctx` rather than trusting client input:
+
+```ts
+const row = await db.createRow<Pages>("app", "pages", ID.unique(), {
+  title: input.title,
+  campus_id: ctx.activeCampusId ?? ctx.managedCampusIds[0],  // never input.campus_id from client
+});
+```
+
+If the client *needs* to choose a campus (cross-campus admin creating a Bergen event from
+the Oslo dashboard), verify it's in `managedCampusIds`:
+
+```ts
+if (!ctx.managedCampusIds.includes(input.campus_id)) {
+  throw new Error("Forbidden");
+}
+```
+
+### 4. Typed db call
+
+Always parameterize `db.listRows` / `db.getRow` / `db.createRow` with the generated row
+type:
+
+```ts
+import type { Events, Jobs, Pages } from "@repo/api/types/appwrite";
+
+await db.listRows<Events>("app", "events", queries);
+```
+
+### 5. Audit log
+
+Every write action logs:
+
+```ts
+await logAuditEvent({
+  action: "events.create",
+  actor: ctx.userId,
+  resourceId: row.$id,
+  metadata: { campus_id: row.campus_id },
+});
+```
+
+`action` is dotted: `"<table>.<verb>"` — `pages.create`, `events.update`,
+`jobs.delete`, `expenses.approve`. Be specific; this powers the audit-log UI and
+incident response.
+
+### 6. Revalidate
+
+Tell Next.js to invalidate the RSC cache for affected routes:
+
+```ts
+revalidatePath("/pages");          // the list
+revalidatePath(`/pages/${row.$id}`); // the detail page, if you have one
+```
+
+For tag-based revalidation (less common in this codebase), use `revalidateTag()`. Most
+admin lists are short and re-fetched per request, so `revalidatePath` is enough.
+
+## Returning errors
+
+Don't throw raw strings — throw `Error`:
+
+```ts
+if (!ctx) throw new Error("Unauthorized");
+```
+
+For user-facing form errors, return a structured result rather than throwing:
+
+```ts
+type Result<T> =
+  | { ok: true; data: T }
+  | { ok: false; error: string };
+
+export async function createMyThing(input: Input): Promise<Result<Pages>> {
+  // ...
+  if (!input.title.trim()) {
+    return { ok: false, error: "Title is required" };
+  }
+  // ...
+  return { ok: true, data: row };
+}
+```
+
+## Calling from a Client Component
+
+```tsx
+"use client";
+
+import { useTransition } from "react";
+import { createMyThing } from "./actions";
+
+export function CreateButton() {
+  const [isPending, startTransition] = useTransition();
+
+  return (
+    <button
+      type="button"
+      disabled={isPending}
+      onClick={() => {
+        startTransition(async () => {
+          await createMyThing({ title: "Untitled" });
+        });
+      }}
+    >
+      {isPending ? "Creating…" : "Create"}
+    </button>
+  );
+}
+```
+
+For form submissions, prefer `<form action={createMyThing}>` over wiring it up by hand —
+React handles the pending state and progressive enhancement for you.
+
+## Common mistakes
+
+| Mistake | What goes wrong |
+|---|---|
+| Forgetting `requireAuth()` | Action callable by anyone with the URL |
+| Trusting `input.campus_id` from client | Cross-campus data leak |
+| Missing `applyScopeQueries()` on list | Cross-campus data leak |
+| Missing `logAuditEvent()` | Incident response can't trace the actor |
+| Missing `revalidatePath()` | UI shows stale data until next hard reload |
+| Untyped `db.listRows(...)` | No autocomplete; runtime errors on missing fields |
+
+## Where to go next
+
+- [Working with Appwrite](/docs/developing/working-with-appwrite) — query/permission reference.
+- [Conventions](/docs/developing/conventions) — the rules this action satisfies.
+- [Adding a route](/docs/developing/adding-a-route) — the page that calls this action.

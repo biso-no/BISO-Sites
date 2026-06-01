@@ -1,0 +1,106 @@
+---
+title: Interviews and booking
+description: How candidates book interviews into your real calendar, what the interview template controls, and how to track who has been seen.
+---
+
+# Interviews and booking
+
+Once a candidate has been moved to **interview** in the [applications workspace](/docs/admin-handbook/jobs/applications-workspace), the next job is getting them in front of you. BISO does this with self-service booking: candidates pick a slot from your real Microsoft 365 calendar via a private link, and the booking lands on both their and your calendars automatically.
+
+This page explains how that flow works and how to keep track of interviews after they are scheduled.
+
+## What controls the interview flow
+
+Two things on the vacancy decide how interviews work for that round.
+
+### The interview template
+
+The interview template is defined on the [vacancy editor](/docs/admin-handbook/jobs/creating-vacancies#interview-template). It carries:
+
+- The **default duration** of an interview slot (for example, 30 minutes).
+- The **questions** you plan to ask, so every interviewer covers the same ground.
+
+The duration is what the booking page actually uses when offering slots, so setting it sensibly matters.
+
+### The responsible admin's calendar
+
+The booking page reads availability from the calendar of the admin who is responsible for the vacancy, via Microsoft Graph (see [Microsoft Graph integration](/docs/integrations/microsoft-graph) and [Azure AD integration](/docs/integrations/azure-ad)). That means:
+
+- Slots already blocked on your calendar are not offered.
+- New bookings appear on your calendar automatically.
+- If you move your existing meetings around, the available slots update accordingly.
+
+You do not maintain a separate "interview availability" — your normal calendar *is* the source of truth.
+
+## How the candidate books
+
+When you move a candidate to **interview**, the system generates a unique, tokenised link for them and they are pointed to it. The link looks like `/recruitment/book/{token}` on the public site. Only the candidate it was generated for can use it — the token is the access control.
+
+From the candidate's perspective the flow is short:
+
+1. They open their personal booking link.
+2. They see open slots on the responsible admin's calendar.
+3. They pick a slot.
+4. The booking is confirmed and lands on both calendars.
+
+## What gets stored on the application
+
+When a slot is booked, the application record updates with everything you need to track the interview.
+
+| Field | What it stores |
+|-------|----------------|
+| Interview status | Whether the interview is scheduled, completed, or has been declined. |
+| Starts at | The chosen date and time. |
+| Duration | How long the slot is, taken from the interview template. |
+| Location | Where the interview is — a meeting room, a campus address, or an online link, depending on how the round is being run. |
+
+All of this is visible from the candidate drawer in the [applications workspace](/docs/admin-handbook/jobs/applications-workspace), so you always know who is coming in next.
+
+## Interview statuses
+
+The interview status is separate from the **application status**. It tracks the appointment specifically.
+
+| Interview status | What it means |
+|------------------|---------------|
+| Scheduled | A slot has been booked, the interview has not happened yet. |
+| Completed | The interview is over — usually paired with moving the application to **offer** or **rejected**. |
+| Declined | The candidate declined to interview, or you cancelled it on their behalf. |
+
+Keeping interview status up to date is the easy way to see, at a glance, how many candidates are still in the pipeline versus how many have been seen and need a decision.
+
+## A typical flow
+
+A full round normally looks like this once you start interviewing.
+
+1. In the candidate drawer, move the candidate from **screened** to **interview**.
+2. The candidate receives their personal booking link.
+3. They pick a slot. It appears on both calendars; the application is updated to *scheduled*.
+4. You conduct the interview. Afterwards, mark the interview as *completed*.
+5. Decide: move the candidate's application status to **offer** if you want them, or **rejected** if not.
+6. Repeat for the rest of the shortlist.
+
+If a candidate stops responding or pulls out, mark the interview as *declined* and move the application to *rejected*. This keeps the workspace accurate for everyone else who looks at it.
+
+## When things go wrong
+
+- **The candidate's link does not work.** The token is unique and one-time-issued — if it has been invalidated, regenerate the candidate's interview state by toggling them back through the workflow.
+- **No slots are showing up on the booking page.** That means the responsible admin's calendar has no availability of the required duration, or the calendar integration cannot read it. Free up time, or check with BISO IT that Microsoft Graph is still connected.
+- **The booking did not appear on my calendar.** Microsoft Graph occasionally has a short delay. If a booking is missing more than a few minutes after confirmation, IT can verify the integration.
+
+## Who can do this
+
+Interview management follows the same scoping as the rest of [Jobs](/docs/admin-handbook/jobs):
+
+| Role | Can manage interviews for |
+|------|---------------------------|
+| Global admin | Any vacancy on any campus. |
+| Campus admin | Any vacancy in their campus. |
+| Department | Their own department's vacancies. |
+
+The calendar the booking page reads is the **responsible admin**'s calendar for that specific vacancy, regardless of who is opening the candidate drawer.
+
+## Where to go next
+
+- [The applications workspace](/docs/admin-handbook/jobs/applications-workspace) — to drive candidates through the pipeline.
+- [Microsoft Graph integration](/docs/integrations/microsoft-graph) — for how calendar availability is read.
+- [Azure AD integration](/docs/integrations/azure-ad) — for how admins are authenticated against Microsoft 365.

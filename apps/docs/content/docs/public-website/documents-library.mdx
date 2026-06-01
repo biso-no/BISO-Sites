@@ -1,0 +1,72 @@
+---
+title: Documents library
+description: How public document downloads work, including the SharePoint streaming download route.
+---
+
+# Documents library
+
+BISO publishes governance documents, policy PDFs, annual reports, meeting minutes, and other formal records. They live in SharePoint (where staff already work) and are exposed to the public site through a thin download endpoint.
+
+## What the user sees
+
+`/documents` lists all documents with `status = published`. Each entry shows:
+
+- Title and short description.
+- File type and size.
+- A download link.
+
+There's no in-browser preview — clicking download streams the file to the user.
+
+## Where the files actually live
+
+The files are stored in **SharePoint**. The public site never copies them into Appwrite Storage; instead, the download endpoint streams the file through on demand.
+
+| Step | What happens |
+|------|--------------|
+| 1 | User clicks a download link on `/documents`. |
+| 2 | Browser hits `/api/documents/[id]/download`. |
+| 3 | The route reads the document row, finds the SharePoint file path, authenticates with Microsoft Graph, and streams the file back to the user. |
+| 4 | Browser saves or opens the file. |
+
+This means:
+
+- Removing a document from SharePoint immediately breaks the public download — there's no second copy.
+- Updating a document in SharePoint instantly updates what users get on biso.no.
+- Permissions are inherited from the SharePoint side. Anything an admin doesn't want public must not be `status = published` in the document record.
+
+## Integration
+
+The SharePoint client lives in `@repo/connectors/sharepoint`. It uses Microsoft Graph with service-principal credentials. Env vars all begin with `SHAREPOINT_*` — see [Operations](/docs/operations) for the list.
+
+For SharePoint setup details, see [Integrations → SharePoint](/docs/integrations).
+
+## Data model
+
+| Table | Key fields | Purpose |
+|-------|-----------|---------|
+| `documents` | `title`, `description`, `status`, `sharepoint_path`, `file_type`, `visibility` | One row per document. |
+
+The actual file bytes are never in Appwrite. Only metadata and the SharePoint path are stored.
+
+## What can go wrong
+
+| Scenario | What the user sees |
+|----------|---------------------|
+| SharePoint file moved or renamed. | The download fails with an error page. Admin needs to fix the path in the document record. |
+| SharePoint outage. | Same — failure with an error message. List page still renders. |
+| Document marked `published` but never uploaded. | 404 from SharePoint, error page. |
+
+## For admins
+
+Documents are managed in the admin app under Documents. You upload the PDF (or DOCX/etc.) to SharePoint as usual, then create the document record pointing at the file. The public download appears immediately once the record is set to `published`. See [Admin Handbook → Documents](/docs/admin-handbook/shop).
+
+## For developers
+
+| File | Role |
+|------|------|
+| `apps/web/src/app/api/documents/[id]/download/route.ts` | The streaming download route. |
+| `packages/connectors/sharepoint/*` | The Microsoft Graph client. |
+
+## Privacy and indexing
+
+The `/documents` index is indexable. Individual file URLs under `/api/documents/...` are excluded from the sitemap and not crawled — see [SEO and sitemap](/docs/public-website/seo-and-sitemap).

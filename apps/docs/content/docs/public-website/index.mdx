@@ -1,0 +1,43 @@
+---
+title: Public Website
+description: What students see at biso.no — pages, membership, shop, events, jobs, and everything else the public site does.
+---
+
+# Public Website
+
+The public website is what people land on when they type **[biso.no](https://biso.no)** — students looking for events, applicants reading job ads, members buying merch, alumni reading news. Internally it's the Next.js app at `apps/web` and runs on port 3000 in development.
+
+This section explains the site from two angles in the same page:
+
+- **What does the user see?** — for admins who publish content and want to know how it shows up.
+- **How does it work?** — a quick technical pointer for developers, with links into the architecture docs for depth.
+
+If you only have time for one page, read [Routing and pages](/docs/public-website/routing-and-pages) — it lists every URL on the site and what lives there.
+
+## What's in this section
+
+| Page | What it covers |
+|------|----------------|
+| [Routing and pages](/docs/public-website/routing-and-pages) | Every URL on biso.no, grouped by area, plus how editor-built pages work. |
+| [Authentication and sessions](/docs/public-website/authentication-and-sessions) | Anonymous sessions, login providers, and the difference between "has a cookie" and "is logged in". |
+| [Membership](/docs/public-website/membership) | How BISO membership is sold, verified against Finago, and applied to discounts. |
+| [Shop and checkout](/docs/public-website/shop-and-checkout) | The merch shop, cart, Vipps/Stripe checkout, and order confirmation. |
+| [Events](/docs/public-website/events) | Event listings, registration, capacity, waitlists, and member pricing. |
+| [Job board](/docs/public-website/job-board) | Open positions, applications, and resume uploads. |
+| [News](/docs/public-website/news) | News articles and how they're rendered. |
+| [Campus and departments](/docs/public-website/campus-and-departments) | Per-campus landing pages, department pages, and live transit departures. |
+| [Documents library](/docs/public-website/documents-library) | Public document downloads streamed from SharePoint. |
+| [Expense portal](/docs/public-website/expense-portal) | The internal "Fond Søknad" (FS) reimbursement flow at `/fs`. |
+| [Recruitment booking](/docs/public-website/recruitment-booking) | Token-gated interview booking for applicants. |
+| [Localization](/docs/public-website/localization) | Norwegian and English, and how translated content is loaded. |
+| [SEO and sitemap](/docs/public-website/seo-and-sitemap) | `robots.txt`, sitemap, metadata, and image hosts. |
+
+## How the site is built (in one paragraph)
+
+`apps/web` is a Next.js 15 App Router project with React 19. Almost everything is a Server Component — pages fetch data directly from Appwrite (through [`@repo/api`](/docs/packages/api)) and render HTML. Interactive bits (cart, locale switcher, forms) opt into Client Components with `"use client"`. Editor-built pages are stored as a JSON block document and rendered by [`@repo/editor`](/docs/packages/editor). Everyone who visits the site gets an Appwrite session immediately — anonymous if they haven't logged in — so the site can safely use the same data layer for guests and members alike. See [Authentication and sessions](/docs/public-website/authentication-and-sessions) for the details.
+
+## Cross-references
+
+- For the admin side of any feature (publishing pages, adding products, reviewing applications), see the [Admin Handbook](/docs/admin-handbook).
+- For the data model behind these features, see [Architecture](/docs/architecture/overview) and `packages/api/appwrite.config.json`.
+- For external services (Finago, Vipps, Stripe, SharePoint, Microsoft Graph), see [Integrations](/docs/integrations).

@@ -1,0 +1,59 @@
+---
+title: News
+description: How news articles are listed and rendered on the public site.
+---
+
+# News
+
+News articles are BISO's announcement channel — election results, partnership launches, board statements, and the occasional "we're hiring" piece. The feature is intentionally simple: a list page, a detail page, and rich text in the middle.
+
+## What the user sees
+
+| Route | Shows |
+|-------|-------|
+| `/news` | All published news, sorted by publish date. Each card has a thumbnail, title, summary, and date. |
+| `/news/[slug]` | The article: cover image, title, byline, date, and rich-text body. |
+
+Older articles stay visible indefinitely. There is no archive cut-off.
+
+## What's in an article
+
+| Field | Purpose |
+|-------|---------|
+| `title`, `summary`, `body` | The text, all translated via `content_translations`. |
+| `slug` | URL part. |
+| `cover_image` | Hero image. |
+| `published_at` | Sort key and display date. |
+| `status` | Only `published` appears on the site. |
+| `author` | Byline. |
+| `department_id` / `campus_id` | For filtering and attribution. |
+
+The schema is in `packages/api/appwrite.config.json` under the `news` table.
+
+## Rich-text body
+
+The article body is stored as rich text and rendered server-side. Images, headings, lists, links, and embeds work the way an editor expects in the admin app. There's no client-side hydration for the body — it's static HTML by the time the browser sees it.
+
+## Server actions
+
+The relevant server actions live in `apps/web/src/app/actions/news.ts`. They're plain functions that read from Appwrite via [`@repo/api`](/docs/packages/api) and return typed rows.
+
+## Localization
+
+Each article has translations in `content_translations`. If a translation is missing in the user's locale, the site falls back to the default locale. See [Localization](/docs/public-website/localization).
+
+## SEO
+
+Both `/news` and `/news/[slug]` are indexable. The article detail page contributes dynamic metadata — the page title is the article title, the description is the summary, and `og:image` is the cover. The sitemap includes one entry per published article. See [SEO and sitemap](/docs/public-website/seo-and-sitemap).
+
+## For admins
+
+News articles are authored in the admin app under News. The editor is the same block editor used for pages, scoped down to what makes sense for an article. See [Admin Handbook → News](/docs/admin-handbook/pages).
+
+## What's intentionally not here
+
+- **Comments.** The public site doesn't host article comments.
+- **Reactions.** No likes or shares (other than standard OG tags).
+- **Newsletter.** News articles don't trigger an automated email blast; that lives elsewhere.
+
+These are conscious simplifications — see [Handover](/docs/handover) for the rationale.

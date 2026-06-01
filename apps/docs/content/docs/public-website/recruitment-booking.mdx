@@ -1,0 +1,83 @@
+---
+title: Recruitment booking
+description: How applicants pick an interview time slot via a token-gated public route, backed by Microsoft Graph calendars.
+---
+
+# Recruitment booking
+
+When an applicant has been shortlisted for an interview, BISO sends them a unique link by email. The link lands on `/recruitment/book/[token]` — a token-gated page that lets them pick a time slot without creating an account.
+
+## What the applicant sees
+
+1. They click the link in the recruitment email.
+2. The page shows the role they applied for, the interviewer, and a calendar grid of available slots.
+3. They pick a time.
+4. They confirm. The slot is booked, the calendar invite goes out, and they see a confirmation screen.
+
+No login is needed. The token in the URL is the only thing proving they're allowed to book.
+
+## How available slots are calculated
+
+The booking record (created in the admin app when a recruiter shortlists a candidate) stores:
+
+| Field | Meaning |
+|-------|---------|
+| `window_from`, `window_to` | The earliest and latest times the interview can happen. |
+| `duration_minutes` | How long each slot is (e.g., 30 or 45). |
+| Interviewer's account | Whose calendar to look at. |
+
+When the page renders, it calls Microsoft Graph against the interviewer's M365 calendar, finds free time inside the window, splits it into `duration_minutes` slots, and shows the result. Already-booked or otherwise busy times are skipped.
+
+This means the calendar is **always live** — the interviewer can block out their morning in Outlook and the change is reflected the next time the page renders.
+
+## Server actions
+
+| Action | What it does |
+|--------|--------------|
+| `getBookingContext(token)` | Resolves the token, returns the booking metadata, and computes free slots. Defined in `apps/web/src/app/actions/booking.ts`. |
+| `bookSlot()` | Commits the selected slot — creates the calendar event, sends invites, marks the booking record as scheduled. |
+
+## Tokens
+
+Tokens are single-use and tied to one booking record. Once a slot is booked, the token can't be used again. Tokens have a server-side expiry tied to the booking window.
+
+If a token is invalid (expired, already used, malformed), the page shows an error and a link to contact the recruiter.
+
+## What can go wrong
+
+| Scenario | What the applicant sees |
+|----------|-------------------------|
+| Microsoft Graph is unreachable. | The page shows "no slots available right now, try again later" with a contact link. |
+| Interviewer has no free time in the window. | The page shows "no slots available" with instructions to reach out. |
+| Token expired or already used. | Error page with a contact link. |
+| Slot was taken between page load and confirm. | The confirm step fails gracefully and re-renders the slot list. |
+
+## Privacy
+
+This route is **excluded from search engines** via `robots.txt` — tokens should never end up in Google. See [SEO and sitemap](/docs/public-website/seo-and-sitemap).
+
+The route is also excluded from the public sitemap.
+
+## Integration
+
+The Microsoft Graph integration lives in `@repo/connectors/azure` (alongside Azure AD auth used by the admin app). Required env vars start with `AZURE_*`. See [Integrations → Azure AD and Microsoft Graph](/docs/integrations).
+
+## Data model
+
+| Table | Key fields | Purpose |
+|-------|-----------|---------|
+| `recruitment_bookings` (or similar) | `token`, `application_id`, `interviewer_user_id`, `window_from`, `window_to`, `duration_minutes`, `status` | The booking record. |
+
+Exact table name and columns are in `packages/api/appwrite.config.json`.
+
+## For admins
+
+The booking record is created from the application review screen in the admin app. Once a candidate is shortlisted, you set the interviewer, the window, and the slot length, and the email is sent. See [Admin Handbook → Submissions](/docs/admin-handbook/submissions).
+
+## For developers
+
+This is one of the few public pages with no membership or auth check — the token is the only credential. If you're touching this route, be careful about:
+
+- **Token enumeration.** Tokens must be cryptographically random and long enough to resist guessing.
+- **Rate limiting.** A single token shouldn't be hammerable.
+- **PII.** The page should never expose more than the applicant already knows about themselves.

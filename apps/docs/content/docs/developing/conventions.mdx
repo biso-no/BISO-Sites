@@ -1,0 +1,205 @@
+---
+title: Conventions
+description: The load-bearing rules. Read this before opening your first PR.
+---
+
+# Conventions
+
+These are the rules that hold the platform together. Most have a specific reason in the
+codebase's history — break them and something downstream breaks.
+
+## Data access
+
+### All Appwrite access goes through `@repo/api`
+
+Never import `appwrite` or `node-appwrite` directly in app code. The `@repo/api` package
+wraps both, adds typed query helpers, and (critically) JSON-clones results so they
+serialize across the RSC boundary.
+
+```ts
+// ✅ correct
+import { createSessionClient } from "@repo/api/server";
+import type { Pages } from "@repo/api/types/appwrite";
+
+const { db } = await createSessionClient();
+const result = await db.listRows<Pages>("app", "pages");
+
+// ❌ wrong
+import { Client, Databases } from "node-appwrite"; // never
+```
+
+If you find yourself wanting to import the SDK directly, the answer is almost always to
+extend `@repo/api` instead. Ask before adding a workaround.
+
+See [Working with Appwrite](/docs/developing/working-with-appwrite) and
+[Packages / `@repo/api`](/docs/packages/api).
+
+### Type every db call
+
+`db.listRows` and `db.getRow` accept a row-type generic. Use it.
+
+```ts
+import type { Events, Jobs, Pages } from "@repo/api/types/appwrite";
+
+await db.listRows<Pages>("app", "pages", [Query.equal("status", "published")]);
+await db.getRow<Events>("app", "events", eventId);
+```
+
+Untyped calls return `Models.Row` and you'll lose autocomplete on every downstream
+property access. Types are generated from `packages/api/appwrite.config.json` — do not
+hand-edit them.
+
+## Server-first
+
+Default to React Server Components and server actions. Mark a file `"use client"` only
+when you need:
+
+- React state (`useState`, `useReducer`)
+- Effects (`useEffect`, `useLayoutEffect`)
+- Browser-only APIs (`window`, `document`, `navigator`, `IntersectionObserver`, etc.)
+- Event handlers that depend on the above
+
+If a component just renders props, it's a Server Component. If it fetches data, it's a
+Server Component. If it's a form with a Server Action, it can still be a Server Component
+(actions can be called from forms without `"use client"`).
+
+## Server actions
+
+The preferred mutation path. Shape:
+
+```ts
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { ID, Permission, Query, Role } from "@repo/api";
+import { createSessionClient } from "@repo/api/server";
+import type { Pages } from "@repo/api/types/appwrite";
+import { getUserAuthContext } from "@/lib/authorization";
+import { applyScopeQueries } from "@/lib/scope";
+import { logAuditEvent } from "./audit-log";
+
+export async function createMyThing(input: { title: string }) {
+  const ctx = await getUserAuthContext();
+  if (!ctx) throw new Error("Unauthorized");
+
+  const { db } = await createSessionClient();
+  const row = await db.createRow<Pages>(
+    "app",
+    "pages",
+    ID.unique(),
+    {
+      title: input.title,
+      campus_id: ctx.activeCampusId ?? ctx.managedCampusIds[0],
+      status: "draft",
+    },
+    [
+      Permission.read(Role.team("admin")),
+      Permission.update(Role.team("admin")),
+    ]
+  );
+
+  await logAuditEvent({
+    action: "page.create",
+    actor: ctx.userId,
+    resourceId: row.$id,
+  });
+  revalidatePath("/pages");
+  return row;
+}
+```
+
+Five things, every time:
+
+1. `requireAuth()` / `getUserAuthContext()` at the top — even if the page that calls it
+   already gates auth. Defense in depth.
+2. Scope queries by campus (`applyScopeQueries()` or explicit `managedCampusIds` /
+   `resolvedCampusIds` filter).
+3. Type the db call.
+4. `logAuditEvent()` on every write.
+5. `revalidatePath()` on routes that show the affected data.
+
+Full walkthrough: [Adding a server action](/docs/developing/adding-a-server-action).
+
+## Roles and permissions
+
+Roles are derived from **Azure AD teams**, not from Appwrite labels. The mapping lives in
+`apps/admin/src/lib/roles.ts`. Use the helpers, never hard-code role checks:
+
+```ts
+import { checkNavAccess, hasNavAccess } from "@/lib/roles";
+
+// In a server component / action
+if (!(await hasNavAccess("events"))) {
+  // hide it, or throw
+}
+
+// In layouts that should hard-fail
+await checkNavAccess("events");
+```
+
+For content-translation permission strings, use the builder rather than constructing them
+by hand:
+
+```ts
+import { buildContentTranslationPermissions } from "@/lib/utils";
+
+const perms = buildContentTranslationPermissions(campusId, ctx);
+await db.createRow("app", "page_translations", ID.unique(), data, perms);
+```
+
+## Imports
+
+- **Prefer named imports**: `import { foo } from "bar"` over `import * as bar from "bar"`.
+- **Avoid barrel files.** No new `index.ts` that re-exports a whole directory — it defeats
+  tree-shaking and slows the type-checker.
+- **Path aliases in `apps/admin`**: the `@/*` alias resolves into **both** `./src/*` AND
+  `../../packages/editor/src/*`. That means `@/blocks/foo` could be either app code or
+  editor package code, depending on which exists. Be explicit; if there's any ambiguity,
+  use the full `@repo/editor/...` import.
+
+## Environment variables
+
+- Only `NEXT_PUBLIC_*` vars cross to the browser. Server-only secrets
+  (`APPWRITE_API_KEY`, `VIPPS_*`, `AZURE_*`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`,
+  `SHAREPOINT_*`, `CRON_SECRET`, …) must never be referenced from a Client Component.
+- New build-time env vars **must** be added to `turbo.json#tasks.build.env`, otherwise
+  Turbo treats them as undeclared inputs and the cache becomes incorrect.
+- The full matrix lives at [Operations / Environment variables](/docs/operations/environment-variables).
+
+## TypeScript
+
+- `strict: true` everywhere.
+- Shared presets from `@repo/typescript-config`.
+- Both Next.js apps set `typescript.ignoreBuildErrors: true` in `next.config.ts`. This is
+  intentional — but it means `next build` will **not** catch type errors. Run
+  `bun run check-types` before merging. Every time.
+
+## The page editor
+
+- The page editor is `@repo/editor`. It is the only block editor.
+- **Do not re-introduce Puck.** The DB column `pages.puck_document` exists for historical
+  reasons and is read-only. Writes happen to `pages.document` via `@repo/api/page-builder`.
+- See [Adding an editor block](/docs/developing/adding-an-editor-block).
+
+## Images
+
+External image hosts must be added to `next.config.ts#images.remotePatterns` in the app
+that loads them. If you `<Image src="https://example.com/foo.png" />` without registering
+the domain, Next.js will throw at runtime.
+
+Use `next/image` over `<img>` everywhere. Yes, even in editor blocks.
+
+## Formatting
+
+- Biome (via Ultracite) governs formatting and linting. Run `bun x ultracite fix` before
+  committing.
+- The pre-commit hook (lefthook + lint-staged) enforces it. If you bypass with
+  `--no-verify`, CI will catch you.
+- Style rules: see the Ultracite section in the repo `CLAUDE.md`, or run
+  `bun x ultracite doctor` for a per-file diagnosis.
+
+## Where to go next
+
+- [Daily workflow](/docs/developing/daily-workflow) — commands and PR flow.
+- [Adding a server action](/docs/developing/adding-a-server-action) — the canonical mutation pattern.
+- [Working with Appwrite](/docs/developing/working-with-appwrite) — full data-layer reference.

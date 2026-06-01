@@ -1,0 +1,64 @@
+---
+title: Departments
+description: Look up BISO departments, their board members, and contact details — a read-only directory backed by Azure AD.
+---
+
+# Departments
+
+The departments screen is the BISO organisation chart, in a form you can actually use. It lists every department on every campus, shows the board members for each one, and gives you the contact details you need when you want to reach the head of, say, the PR department in Trondheim.
+
+Open it from the sidebar under **Departments** (`/departments`).
+
+## Read-only by design
+
+This screen is **read-only**. You cannot create a department here, you cannot edit a department's name, and you cannot add someone as a board member. That is on purpose.
+
+Departments and their board members are managed in **Azure AD** by BISO IT. Every department is an Azure AD security group; every board role (leader, deputy, finance, etc.) is decided by membership of that group. A scheduled sync pulls the current state from Azure AD into the admin app, so when IT promotes someone to lead a department, that change shows up here automatically — usually within an hour or two.
+
+If you spot something that looks wrong (a former leader still listed, a department missing entirely), the fix is to **tell BISO IT**, not to look for an edit button.
+
+## What you see
+
+Each department is shown as a card. A card has:
+
+| Element | What it is |
+|---------|------------|
+| **Logo** | The department's logo, if one has been uploaded. |
+| **Name** | The department name (e.g. PR, HR, Finance, Marketing, BISO IT). |
+| **Type** | One of `academic`, `social`, or `functional`. Used to group departments on the public site. |
+| **Campus** | Which campus the department belongs to. Some departments exist on every campus; some are national. |
+| **Board members** | The people currently in board roles, with their role title and contact details. |
+| **Socials** | Links to the department's Instagram, Facebook, LinkedIn, etc. (where provided). |
+
+A campus admin sees the departments on their campus. A global admin sees everything.
+
+## What it's good for
+
+This is a directory, not an editor. Typical uses:
+
+- "Who leads the PR department in Bergen this year?" — open the card, look at the board members list.
+- "How do I email the finance lead in Oslo?" — same.
+- "Does Trondheim have a Cultural department?" — check whether a card exists.
+- "How many departments do we have nationally?" — count the cards (or filter by type).
+
+If you need to **assign** something to a department (for example, set the owning department on a page or a job listing), you do that from the page or job editor — not from here.
+
+## How the data is structured
+
+For curiosity (and for when something looks off): the screen reads from three tables behind the scenes.
+
+| Table | What it holds |
+|-------|---------------|
+| `departments` | The list of departments, their names, types, campuses, and logos. |
+| `department_board` | The board members of each department, with role titles and contact info. |
+| `department_socials` | Instagram / Facebook / LinkedIn / etc. links per department. |
+
+All three are populated by the Azure AD sync — see [Azure AD integration](/docs/integrations/azure-ad) for the full sync details.
+
+## What happens on the public site
+
+Departments are visible to students on biso.no, on each campus's department index. The same cards you see here are what students see there — minus the email addresses and any other private contact fields. That's another reason the data has to be accurate: a wrong leader name on the admin screen means a wrong leader name on the public site.
+
+<Callout type="info">
+If a department needs a new logo, send it to BISO IT. They will upload it through the Azure AD-managed source so it sticks across syncs.
+</Callout>

@@ -1,0 +1,101 @@
+---
+title: Packages
+description: Reference for the shared packages that the BISO Sites apps build on top of.
+---
+
+# Packages
+
+Every app in this monorepo composes itself out of the same set of
+internal packages under `packages/*`. Each package is published to the
+workspace as `@repo/<name>` and consumed via the `workspace:*` protocol;
+nothing ever leaves the repository. This section is the **reference**
+for those packages — what they export, what they depend on, and how to
+use them from app code.
+
+## Package map
+
+| Package                                                    | Purpose                                                                      | Consumed by                          |
+|------------------------------------------------------------|------------------------------------------------------------------------------|--------------------------------------|
+| [`@repo/api`](/docs/packages/api)                          | Appwrite SDK wrappers + generated row types. Single source of truth for data | All apps                             |
+| [`@repo/editor`](/docs/packages/editor)                    | In-house block editor (`EditorShell`, `PageDoc`) used to edit and render pages | `apps/admin`, `apps/web`           |
+| [`@repo/ui`](/docs/packages/ui)                            | Shared React component library (Radix + Tailwind + Plate.js editor kits)     | All apps                             |
+| [`@repo/ai`](/docs/packages/ai)                            | AI SDK config, prompts, document utilities, recruitment screening            | `apps/admin`                         |
+| [`@repo/connectors`](/docs/packages/connectors)            | External integrations: Azure AD/Graph, 24SevenOffice, SharePoint, WooCommerce | `apps/web`, `apps/admin`, `apps/api` |
+| [`@repo/payment`](/docs/packages/payment)                  | Payment providers: Vipps MobilePay, Stripe                                   | `apps/web`                           |
+| [`@repo/i18n`](/docs/packages/i18n)                        | `next-intl` config, locale detection, message bundles                        | `apps/web`, `apps/admin`             |
+| [`@repo/shared`](/docs/packages/shared)                    | Cross-cutting utilities, types, and recruitment helpers                      | All apps                             |
+| [`@repo/typescript-config`](/docs/packages/typescript-config) | Shared `tsconfig` presets                                                  | All apps and packages                |
+
+## Dependency direction
+
+The dependency graph is mostly downward: apps depend on packages, and a
+small number of packages depend on each other. There are no cycles.
+
+```
+apps/web ──┐
+apps/admin ┼──► @repo/api ─────────► node-appwrite
+apps/api ──┤    @repo/editor ──────► @repo/ui, @repo/api
+apps/docs ─┘    @repo/ui ──────────► (leaf)
+                @repo/ai ──────────► ai, @ai-sdk/openai
+                @repo/connectors ──► @microsoft/microsoft-graph-client, msal-node
+                @repo/payment ─────► (leaf)
+                @repo/i18n ────────► next-intl
+                @repo/shared ──────► @repo/api
+                @repo/typescript-config (leaf)
+```
+
+The two notable internal edges:
+
+- **`@repo/editor`** depends on `@repo/ui` (for primitive components
+  inside blocks) and `@repo/api` (for the page-builder draft/publish
+  helpers it wraps).
+- **`@repo/shared`** depends on `@repo/api` because most of its
+  recruitment helpers translate Appwrite rows into client DTOs.
+
+Everything else is a leaf as far as internal packages are concerned.
+
+## Adding a workspace dependency
+
+From the repo root:
+
+```bash
+bun add @repo/ui --filter=admin
+bun add @repo/shared --filter=web
+```
+
+In a package's own `package.json`, the version pin is always
+`workspace:*`:
+
+```json
+{
+  "dependencies": {
+    "@repo/api": "workspace:*",
+    "@repo/ui": "workspace:*"
+  }
+}
+```
+
+Catalog-managed dependencies (`react`, `next`, `zod`, `zustand`,
+`@dnd-kit/*`, etc.) are pinned once in the root `package.json` `catalog`
+block and referenced as `"<pkg>": "catalog:"` from every consumer. See
+[Monorepo](/docs/architecture/monorepo) for the full set.
+
+## Conventions across packages
+
+- **Exports** are explicit in each package's `package.json#exports`
+  field — there are no barrel `index.ts` files that re-export
+  everything, on purpose. Import the entrypoint you need
+  (`@repo/api/server`, `@repo/editor/render`) rather than the package
+  root when an entrypoint exists.
+- **Server vs. browser** code is segregated by entrypoint. `@repo/api`
+  has separate `/server` and `/client` exports; `@repo/ai` has a
+  `/server` export for Node-only modules (PDF extraction, OpenAI
+  clients). Mixing them is a build error.
+- **Types are first-class.** Every public function has explicit
+  parameter and return types. Row types under `@repo/api/types/appwrite`
+  are auto-generated and re-exported verbatim — do not hand-edit.
+- **TypeScript config** comes from `@repo/typescript-config`. Packages
+  extend `react-library.json` or `base.json`; apps extend `nextjs.json`.
+
+Read the individual package pages for export tables, signatures, and
+usage examples.

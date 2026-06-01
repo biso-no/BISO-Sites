@@ -1,0 +1,126 @@
+---
+title: Deployment
+description: How to build, package, and ship each app to production.
+---
+
+# Deployment
+
+The platform is provider-agnostic. Each app builds to a `output: "standalone"`
+Node bundle that runs anywhere Node 20+ runs.
+
+## Build
+
+```bash
+# Build everything
+bun run build
+
+# Build a single app
+bun run build --filter=web
+bun run build --filter=admin
+bun run build --filter=api
+bun run build --filter=docs
+```
+
+Turbo's pipeline (see `turbo.json`) handles the dependency graph — packages
+build before apps. **Remote cache is disabled**, so every build is local.
+
+## Provider-specific build scripts
+
+Root `package.json` exposes Appwrite-Sites-compatible bundle scripts:
+
+```bash
+bun run build:web:appwrite
+bun run build:admin:appwrite
+bun run build:api:appwrite
+bun run build:docs:appwrite
+```
+
+These wrap the standard `next build` with the flattening step required for
+Appwrite Sites' expected layout.
+
+`apps/api` additionally has its own `deploy:prep` script that:
+
+1. Runs `next build` with standalone output.
+2. Flattens `apps/api/.next/standalone/apps/api/` to a top-level structure.
+3. Copies static assets and the public folder.
+4. Stages the result at the monorepo root for upload.
+
+If you're deploying `api` manually, run `bun run deploy:prep --filter=api`
+and ship the resulting bundle.
+
+## Hosting
+
+Production is currently served from [FILL IN: provider — Appwrite Sites,
+Webdock, Vercel, or other]. The platform has run on more than one of these
+historically, so don't assume.
+
+<Callout type="warn">
+**To be filled in by the current IT Manager**: which provider, which
+account, the dashboard URL, the production deployment pipeline (push to
+`main` auto-deploys? manual button click? GitHub Action?), and the rollback
+procedure specific to that provider.
+</Callout>
+
+Generic deploy steps that apply regardless of provider:
+
+1. **Pre-flight**: `bun run check-types` must pass. `next build` ignores
+   type errors — this is the only signal.
+2. **Build**: `bun run build --filter=<app>` (or the provider-specific
+   variant).
+3. **Configure**: set every env var listed in
+   [environment-variables](/docs/operations/environment-variables) in the
+   provider's secret manager.
+4. **Push**: upload the standalone bundle / container / git revision the
+   provider expects.
+5. **Migrate**: Appwrite schema changes are *not* migrated by app deploys.
+   If the schema changed, push it from `packages/api/appwrite.config.json`
+   using the Appwrite CLI **before** the new app deploys.
+6. **Verify**: hit `/api/health` on the new deploy. See
+   [monitoring-and-health](/docs/operations/monitoring-and-health).
+7. **Smoke test**: log into `admin`, edit a draft page, log out. Place a
+   test order via Stripe in test mode if there's been any payment-flow
+   change.
+
+## CI
+
+CI lives in GitHub Actions.
+
+<Callout type="warn">
+**To be filled in by the current IT Manager**: the exact workflow file(s)
+in `.github/workflows/`, what they trigger on, and the GitHub Actions
+secrets they consume. Confirm whether CI auto-deploys to production or
+whether deploys are manual.
+</Callout>
+
+What CI **should** run at minimum on every PR:
+
+- `bun install --frozen-lockfile`
+- `bun run lint`
+- `bun run check-types`
+- `bun run build`
+
+For the `api` package, also `bun test --filter=api`.
+
+## Rollback
+
+Because Appwrite holds all data, code rollbacks are safe in isolation:
+
+1. `git revert <bad-commit>` on `main` (or redeploy the previous tagged
+   build via the provider).
+2. Wait for the deploy.
+3. Verify `/api/health`.
+
+Schema rollbacks are **not** safe — if a deploy added new columns and rows
+have been written to them, reverting the schema loses data. Treat Appwrite
+schema changes as forward-only.
+
+## Local development
+
+```bash
+bun install
+bun run dev                # all apps in parallel
+bun run dev --filter=web   # one app
+```
+
+See [/docs/developing/local-setup](/docs/developing/local-setup) for the
+full first-time setup.

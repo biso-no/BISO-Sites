@@ -1,0 +1,86 @@
+---
+title: Campus and departments
+description: Per-campus landing pages, the department directory, board listings, and live transit departures.
+---
+
+# Campus and departments
+
+BISO has student organisations on each BI campus (Oslo, Bergen, Trondheim, Stavanger). The public site has one landing page per campus and a directory of every student department, with detail pages that show team, events, news, and contact info.
+
+## Campus landing page
+
+`/campus` is the main campus overview page. It shows a lot in one place:
+
+| Section | What's in it |
+|---------|-------------|
+| Hero | Campus name, tagline, hero image. |
+| Focus areas | High-level pillars the campus emphasises this year. |
+| Services | What BISO offers students at this campus. |
+| Student benefits | Concrete perks for being a member. |
+| Career advantages | Why employers care about BISO involvement. |
+| Social network | Departments and social groups. |
+| Safety | Reporting and well-being info, with links to `/safety`. |
+| Business benefits | For business partners. |
+| Location | Address and a map. |
+| Department board | The campus board members. |
+
+All of this is driven by a single `campus_data` row per campus. The relevant fields include `name_en`/`name_nb`, `description`, `tagline`, `highlights`, `focusAreas`, `services`, `studentBenefits`, `careerAdvantages`, `socialNetwork`, `safety`, `businessBenefits`, `location`, and a relationship to the `departmentBoard`. Editing happens in the admin app — see [Admin Handbook → Settings](/docs/admin-handbook/settings).
+
+### Board members
+
+Board member photos and titles aren't stored in Appwrite directly. They're fetched on demand via the Appwrite function `get_board_members`. That function pulls fresh data from BISO's source of truth so a leadership change is reflected automatically the next time the page renders.
+
+The function ID is configured by the env var `APPWRITE_CAMPUS_BOARD_FUNCTION_ID`. See [Operations](/docs/operations) for env management.
+
+### Live transit departures
+
+The location section includes **real-time public transit departures** for the campus, fetched from the Norwegian [Entur](https://entur.org) API. Students checking the page right before leaving home see actual upcoming buses, trams, or trains. The widget falls back to a static schedule if Entur is unreachable.
+
+See [Integrations → Entur](/docs/integrations).
+
+## Departments
+
+| Route | Shows |
+|-------|-------|
+| `/units` | All student departments, optionally filtered by campus. |
+| `/units/[id]` | A single department. |
+
+Department detail pages show:
+
+- The department's name, description, and logo.
+- Team members.
+- Upcoming events organised by the department.
+- Recent news from the department.
+- Social links (Instagram, Facebook, LinkedIn, etc.).
+- Contact info.
+
+The data lives in the `departments` table, with related rows in `events`, `news`, and team membership tables.
+
+## Why the split between campus and departments matters
+
+The campus page tells "what does BISO at this campus look like overall?" The department pages tell "what does this specific student group do?" Together they cover every BISO unit a student might want to discover or join.
+
+## Localization
+
+Campus and department content is bilingual via `name_en` / `name_nb` fields and `content_translations`. The text on `/campus` switches based on the user's locale — see [Localization](/docs/public-website/localization).
+
+## For admins
+
+| Surface | Where to edit |
+|---------|---------------|
+| Campus data (hero, services, benefits, etc.) | Admin → Settings → Campus |
+| Departments (list, members, contact) | Admin → Departments |
+| Board members | Edited at the upstream source, refreshed via the Appwrite function |
+
+See [Admin Handbook → Campus context](/docs/admin-handbook/campus-context) for how a global admin can "view as Bergen" while editing.
+
+## For developers
+
+| Key files | Purpose |
+|-----------|---------|
+| `apps/web/src/app/(public)/campus/page.tsx` | Campus landing |
+| `apps/web/src/app/(public)/units/page.tsx` | Department list |
+| `apps/web/src/app/(public)/units/[id]/page.tsx` | Department detail |
+| `packages/connectors/*` | Entur and Microsoft Graph integrations |
+
+The full schema for `campus_data` and `departments` is in `packages/api/appwrite.config.json`.

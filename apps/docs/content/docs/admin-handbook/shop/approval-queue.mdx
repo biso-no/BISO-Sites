@@ -1,0 +1,66 @@
+---
+title: Approval queue
+description: Review and approve student-submitted product listings before they appear in the BISO webshop.
+---
+
+# Approval queue
+
+Not every product appears on the storefront the moment it's created. Some listings — especially second-hand items submitted by students and anything above a certain price — wait in the approval queue until a campus admin reviews them. This screen is where that review happens.
+
+Find it in the sidebar under **Shop → Approval queue** (`/shop/approval-queue`).
+
+## Who uses it
+
+| Role | What they can do |
+|------|------------------|
+| Global admin | Approve or reject anything, across all campuses. |
+| Campus admin | Approve or reject items belonging to their campus. |
+| Department lead | No access — the queue isn't visible in the sidebar. |
+
+If you're a campus admin and an item is sitting in the queue for another campus, you won't be able to act on it. That's intentional.
+
+## What's in the queue
+
+Any product whose status is `pending_approval` shows up here. That includes:
+
+- Second-hand listings submitted by students through the public site.
+- High-value items where someone (a department, a campus admin, or BISO itself) wants a second pair of eyes before it goes live.
+- Anything created with explicit approval-required flags.
+
+Products with status `available`, `sold`, `reserved`, or `inactive` are **not** in the queue — they are already live (or have been taken down) and are managed from the regular [Products](/docs/admin-handbook/shop/products) list.
+
+## What to look at before approving
+
+The queue is a quality gate, not a rubber stamp. Before you approve a listing, take a minute to check:
+
+| Check | What to look for |
+|-------|------------------|
+| **Title and description** | Clear, not misleading, free of profanity, in correct Norwegian or English. |
+| **Price** | Reasonable for the item. Wildly underpriced or overpriced items are usually a mistake or a test listing. |
+| **Images** | At least one image, showing the actual item. No copyrighted material, no screenshots of other shops. |
+| **Condition** | Honest. A "like_new" T-shirt with visible stains in the photo is a "good" at best. |
+| **Ledger account number** | Filled in. Without it, accounting will have to fix it after the fact. If the field is blank, do not approve — open the product, set the account code (ask finance if you're unsure), then come back. |
+| **Seller info** | If it's a student listing, there should be a name and a contact method. |
+
+## Approving or rejecting
+
+Each row in the queue has two buttons:
+
+- **Approve** — the product's status flips from `pending_approval` to `available` and it appears on the storefront within seconds.
+- **Reject** — the product is marked inactive. The submitter (if there is one) gets a notification telling them it wasn't approved. You can write a short reason for the rejection — please do, it saves a back-and-forth later.
+
+If you're not sure, you can leave a product in the queue and ask the submitter to fix something specific (a better photo, the missing account number) before you come back. The item stays in `pending_approval` until you act.
+
+## After approval
+
+An approved product behaves exactly like one created directly:
+
+- It's visible on biso.no/shop immediately.
+- It can be bought, paid for, and posted to 24SevenOffice.
+- It can be edited later from the regular product editor — see [Products](/docs/admin-handbook/shop/products).
+
+If you approve something by mistake, open the product and switch its **Status** to `inactive`. That removes it from the storefront without losing the data.
+
+<Callout type="info">
+The approval queue is one of the few places where you'll regularly handle content submitted by students rather than by staff. Be a little stricter than you would be with internal listings — the storefront is the public face of BISO.
+</Callout>

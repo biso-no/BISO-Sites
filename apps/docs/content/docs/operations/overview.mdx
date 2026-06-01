@@ -1,0 +1,98 @@
+---
+title: Operations overview
+description: What it takes to run the BISO platform in production — the apps, their dependencies, and the moving parts that need a human to keep an eye on them.
+---
+
+# Operations overview
+
+This section is the runbook for keeping BISO's platform alive in production.
+If you've inherited this stack and you're trying to figure out what actually
+needs to be running and where, start here.
+
+## What's deployed
+
+The platform is a Turborepo monorepo. In production there are **four Next.js
+apps** plus a backend:
+
+| App | Port (dev) | Purpose | Notes |
+|-----|-----------|---------|-------|
+| `apps/web` | 3000 | Public student-facing site (biso.no) | `output: "standalone"` |
+| `apps/admin` | 3001 | Internal CMS for BISO staff | `output: "standalone"` |
+| `apps/api` | 3003 | JWT REST service consumed by `web` | `output: "standalone"` |
+| `apps/docs` | 3002 | Developer documentation (this site) | Static-deployable |
+
+All three operational apps (`web`, `admin`, `api`) are built with
+`output: "standalone"` so they ship as self-contained Node bundles suitable
+for containerised hosting.
+
+The fifth piece — and the one whose uptime matters most — is the
+**Appwrite backend** at `appwrite.biso.no`. If Appwrite is down, every app is
+down. See [/docs/integrations/appwrite](/docs/integrations/appwrite).
+
+## Hosting
+
+The platform is provider-agnostic. It has been deployed via:
+
+- **Appwrite Sites** (using the `build:web:appwrite`, `build:admin:appwrite`,
+  etc. scripts in the root `package.json`)
+- **Webdock** (referenced by `WEBDOCK_API_KEY` and used historically)
+- Anything else that can run a Node 20+ standalone bundle (Vercel, Fly, a
+  bare VM, etc.)
+
+<Callout type="warn">
+**To be filled in by the current IT Manager**: confirm which hosting provider
+is *currently* serving production, the account holder, and the billing email.
+Cross-reference with [/docs/handover/domains-and-hosting](/docs/handover/domains-and-hosting).
+</Callout>
+
+## Build pipeline
+
+```bash
+bun run build                  # build everything
+bun run build --filter=web     # build a single app
+bun run check-types            # the only signal that catches type errors
+```
+
+Important: both Next.js apps set `typescript.ignoreBuildErrors: true` in
+`next.config.ts`. **`next build` will succeed with broken types.** Always run
+`bun run check-types` in CI before shipping.
+
+App-specific scripts for Appwrite Sites builds live in the root
+`package.json` (`build:web:appwrite`, `build:admin:appwrite`,
+`build:api:appwrite`, `build:docs:appwrite`).
+
+`apps/api` additionally has a `deploy:prep` script that flattens the
+standalone output and copies it to the monorepo root — see
+[deployment](/docs/operations/deployment).
+
+## Recurring operational concerns
+
+| Concern | Where to look |
+|---------|---------------|
+| Env vars (every app, every secret) | [/docs/operations/environment-variables](/docs/operations/environment-variables) |
+| How to deploy a change | [/docs/operations/deployment](/docs/operations/deployment) |
+| Rotating API keys / secrets | [/docs/operations/secrets-and-keys](/docs/operations/secrets-and-keys) |
+| Cron jobs (cart cleanup, anon-user purge, Entur sync) | [/docs/operations/cron-and-scheduled-tasks](/docs/operations/cron-and-scheduled-tasks) |
+| Health / uptime monitoring | [/docs/operations/monitoring-and-health](/docs/operations/monitoring-and-health) |
+| Backups + disaster recovery | [/docs/operations/backups-and-recovery](/docs/operations/backups-and-recovery) |
+| Something is broken right now | [/docs/operations/incident-response](/docs/operations/incident-response) |
+
+## Mental model
+
+The platform is best thought of as **three Next.js apps in front of one
+Appwrite project**. If you can reason about Appwrite (collections,
+permissions, sessions, functions) and you can keep three Node apps running
+behind their respective domains, you can run BISO.
+
+What the platform does *not* have:
+
+- No external message queue. Background work runs either as Appwrite
+  Functions or as cron-triggered Next.js routes.
+- No separate database. Appwrite TablesDB is the entire data layer.
+- No external auth provider. Appwrite is the identity provider, with Azure
+  AD as an OAuth source for staff.
+- No external file storage. Appwrite Storage holds uploaded files.
+- No built-in scheduler. Cron is external (see
+  [cron-and-scheduled-tasks](/docs/operations/cron-and-scheduled-tasks)).
+- No first-party telemetry. Health endpoints exist; everything else is
+  Appwrite logs + your hosting provider's logs.
