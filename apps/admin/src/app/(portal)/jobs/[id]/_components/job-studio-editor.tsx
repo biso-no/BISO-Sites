@@ -43,6 +43,10 @@ import {
 } from "../../../_actions/jobs";
 import { type JobFormValues, jobSchema } from "../../../_actions/schemas";
 import { uploadMediaFile } from "../../../_actions/upload";
+import {
+  JOB_STUDIO_SCHEMA_ID,
+  registerAssistantFormTarget,
+} from "../../../_components/assistant/form-bridge";
 
 interface JobStudioEditorProps {
   allowedDepartmentIds?: string[];
@@ -1228,6 +1232,16 @@ export function JobStudioEditor({
     setForm((current) => ({ ...current, [key]: value }));
     setDirty(true);
   }
+
+  // Keep a ref to the latest setValue so the form bridge effect registers once on mount
+  // but always calls the current setter (which is recreated each render).
+  const setValueRef = useRef(setValue);
+  setValueRef.current = setValue;
+  useEffect(() => {
+    return registerAssistantFormTarget(JOB_STUDIO_SCHEMA_ID, (path, value) =>
+      setValueRef.current(path as keyof JobFormValues, value as never)
+    );
+  }, []);
 
   async function handleCampusChange(campusId: string) {
     setValue("campus_id", campusId);

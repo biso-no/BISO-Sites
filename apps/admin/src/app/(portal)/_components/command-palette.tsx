@@ -17,6 +17,7 @@ import {
   Search,
   Settings,
   ShoppingCart,
+  Sparkles,
   X,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -28,7 +29,8 @@ import { hasNavAccess, type NavKey } from "@/lib/roles";
 import { MONO_STACK, SERIF_STACK, STUDIO } from "./studio";
 
 interface PaletteCommand {
-  group: "navigate" | "create" | "account";
+  action?: () => void;
+  group: "navigate" | "create" | "ai" | "account";
   href?: string;
   icon: React.ComponentType<{ size?: number }>;
   id: string;
@@ -167,12 +169,21 @@ const ALL_COMMANDS: PaletteCommand[] = [
     href: "/news/new",
     navKey: "portal.news",
   },
+  // AI Assistant
+  {
+    id: "open-assistant",
+    group: "ai",
+    label: "Open BISO Assistant",
+    icon: Sparkles,
+    action: () => window.dispatchEvent(new Event("admin:open-assistant")),
+  },
   // Account
   { id: "sign-out", group: "account", label: "Sign Out", icon: LogOut },
 ];
 
 const GROUP_LABELS: Record<PaletteCommand["group"], string> = {
   account: "Account",
+  ai: "AI",
   create: "Create",
   navigate: "Navigate",
 };
@@ -244,7 +255,7 @@ export function CommandPalette({ roles }: { roles: UserRolesForClient }) {
       )
     : visible;
 
-  const groups = (["navigate", "create", "account"] as const)
+  const groups = (["navigate", "create", "ai", "account"] as const)
     .map((group) => ({
       group,
       items: filtered.filter((cmd) => cmd.group === group),
@@ -259,6 +270,10 @@ export function CommandPalette({ roles }: { roles: UserRolesForClient }) {
     if (cmd.id === "sign-out") {
       await signOut();
       router.push("/auth/login");
+      return;
+    }
+    if (cmd.action) {
+      cmd.action();
       return;
     }
     if (cmd.href) {

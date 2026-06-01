@@ -13,6 +13,7 @@
     "settings": "Innstillinger",
     "activity": "Aktivitet",
     "drafts": "Gjennomgå utkast",
+    "approvals": "Godkjenninger",
     "publishGroup": "Publiser",
     "operateGroup": "Administrer",
     "submissions": "Skjemainnsendinger"
@@ -34,6 +35,7 @@
       "Send massee-post til kandidater direkte fra rekrutteringspipelinen med én handling."
     ],
     "openCommandPalette": "Åpne kommandopaletten",
+    "openAssistant": "Spør BISO Assistant",
     "allCampuses": "Alle campuser",
     "back": "Tilbake",
     "signOut": "Logg ut"
@@ -893,5 +895,55 @@
     "signIn": "Logg inn",
     "goToFrontPage": "Gå til forsiden",
     "help": "Har du problemer med å logge inn? <link>Kontakt oss</link> så hjelper vi deg."
+  },
+  "approvals": {
+    "title": "Godkjenninger",
+    "description": "Gjennomgå og behandle godkjenningsforespørsler fra teammedlemmer.",
+    "empty": "Ingen ventende forespørsler",
+    "emptyDescription": "Alle godkjenningsforespørsler er behandlet.",
+    "pending": "{count} ventende",
+    "requester": "Anmodet av",
+    "action": "Handling",
+    "resourceType": "Type",
+    "payload": "Innhold",
+    "submitAt": "Innsendt",
+    "reason": "Årsak til avvisning",
+    "reasonPlaceholder": "Gi en kort begrunnelse…",
+    "actions": {
+      "approve": "Godkjenn",
+      "reject": "Avvis",
+      "viewResource": "Se ressurs"
+    },
+    "approveSuccess": "Forespørsel godkjent",
+    "approveError": "Kunne ikke godkjenne forespørselen",
+    "rejectSuccess": "Forespørsel avvist",
+    "rejectError": "Kunne ikke avvise forespørselen"
+  },
+  "assistant": {
+    "title": "BISO Assistant",
+    "placeholder": "Spør BISO Assistant…",
+    "emptyTitle": "Hva kan jeg hjelpe med?",
+    "emptyDescription": "Be meg opprette, søke eller administrere hva som helst i BISO Studio. Jeg spør alltid før jeg gjør endringer.",
+    "sendLabel": "Send",
+    "enterHint": "Enter for å sende • Shift+Enter for linjeskift",
+    "approveAndSave": "Godkjenn og lagre",
+    "draftCancelled": "Utkast avbrutt",
+    "draftApproved": "Utkast godkjent",
+    "approvalRequired": "Godkjenning kreves",
+    "sendApprovalRequest": "Send godkjenningsforespørsel",
+    "approvalSent": "Godkjenningsforespørsel sendt",
+    "confirmed": "Bekreftet",
+    "cancelled": "Avbrutt",
+    "navigatingTo": "Navigerer til",
+    "suggestions": {
+      "showDrafts": "Vis mine utkast",
+      "createJob": "Opprett en stillingsannonse",
+      "showApprovals": "Vis ventende godkjenninger",
+      "dashboardOverview": "Vis dashboardoversikt",
+      "createEvent": "Opprett et arrangement",
+      "createNews": "Opprett en nyhetsartikkel",
+      "createM365User": "Opprett M365-bruker",
+      "whatCanYouDo": "Hva kan du hjelpe meg med?"
+    }
   }
 }

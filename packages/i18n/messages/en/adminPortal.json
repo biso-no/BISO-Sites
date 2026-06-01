@@ -13,6 +13,7 @@
     "settings": "Settings",
     "activity": "Activity",
     "drafts": "Review Drafts",
+    "approvals": "Approvals",
     "publishGroup": "Publish",
     "operateGroup": "Operate",
     "submissions": "Form Submissions"
@@ -34,6 +35,7 @@
       "Bulk-email candidates directly from the recruitment pipeline in one action."
     ],
     "openCommandPalette": "Open command palette",
+    "openAssistant": "Ask BISO Assistant",
     "allCampuses": "All Campuses",
     "back": "Back",
     "signOut": "Sign out"
@@ -893,5 +895,55 @@
     "signIn": "Sign in",
     "goToFrontPage": "Go to front page",
     "help": "Having trouble signing in? <link>Contact us</link> and we will help you."
+  },
+  "approvals": {
+    "title": "Approvals",
+    "description": "Review and action approval requests from team members.",
+    "empty": "No pending requests",
+    "emptyDescription": "All approval requests have been actioned.",
+    "pending": "{count} pending",
+    "requester": "Requested by",
+    "action": "Action",
+    "resourceType": "Type",
+    "payload": "Content",
+    "submitAt": "Submitted",
+    "reason": "Reason for rejection",
+    "reasonPlaceholder": "Give a short reason…",
+    "actions": {
+      "approve": "Approve",
+      "reject": "Reject",
+      "viewResource": "View resource"
+    },
+    "approveSuccess": "Request approved",
+    "approveError": "Failed to approve request",
+    "rejectSuccess": "Request rejected",
+    "rejectError": "Failed to reject request"
+  },
+  "assistant": {
+    "title": "BISO Assistant",
+    "placeholder": "Ask BISO Assistant…",
+    "emptyTitle": "What can I help with?",
+    "emptyDescription": "Ask me to create, search, or manage anything in BISO Studio. I'll always ask before making changes.",
+    "sendLabel": "Send",
+    "enterHint": "Enter to send • Shift+Enter for newline",
+    "approveAndSave": "Approve & save",
+    "draftCancelled": "Draft cancelled",
+    "draftApproved": "Draft approved",
+    "approvalRequired": "Approval required",
+    "sendApprovalRequest": "Send approval request",
+    "approvalSent": "Approval request sent",
+    "confirmed": "Confirmed",
+    "cancelled": "Cancelled",
+    "navigatingTo": "Navigating to",
+    "suggestions": {
+      "showDrafts": "Show my draft content",
+      "createJob": "Create a job posting",
+      "showApprovals": "Show pending approvals",
+      "dashboardOverview": "Show dashboard overview",
+      "createEvent": "Create an event",
+      "createNews": "Create a news article",
+      "createM365User": "Create M365 user",
+      "whatCanYouDo": "What can you help me with?"
+    }
   }
 }

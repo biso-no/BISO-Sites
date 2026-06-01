@@ -54,3 +54,23 @@ export function getCampusManagementTeamId(campusId: string): string | null {
   }
   return `sg-app-dept-ledelsen${campusName.toLowerCase()}`;
 }
+
+/**
+ * Resolves the approver team ID for a given action + context.
+ * Centralises the routing logic so the assistant and other callers agree.
+ *
+ * Lives here (not in _actions/approvals.ts) because "use server" files may
+ * only export async functions; this is a synchronous utility.
+ */
+export function resolveApproverTeamId(
+  action: string,
+  campusId?: string
+): string {
+  if (action === "jobs.publish" || action === "jobs.create") {
+    return "sg-app-dept-operations-unit";
+  }
+  if (campusId) {
+    return getCampusManagementTeamId(campusId) ?? "admin";
+  }
+  return "admin";
+}

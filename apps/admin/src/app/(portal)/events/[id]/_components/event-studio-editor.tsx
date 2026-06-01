@@ -50,6 +50,10 @@ import {
   updateEvent,
 } from "../../../_actions/events";
 import { uploadMediaFile } from "../../../_actions/upload";
+import {
+  EVENT_STUDIO_SCHEMA_ID,
+  registerAssistantFormTarget,
+} from "../../../_components/assistant/form-bridge";
 import { DepartmentCombobox } from "../../../_components/department-combobox";
 
 /* -------------------------------------------------------------------------- */
@@ -4114,6 +4118,31 @@ export function EventStudioEditor({
     }));
     setDirty(true);
   }
+
+  // Form bridge — lets the assistant fill fields in this studio via the fillForm tool.
+  // Refs capture the latest function pointers; the effect registers only once on mount.
+  const setRef = useRef(set);
+  setRef.current = set;
+  const onChangeBlocksEnRef = useRef(onChangeBlocksEn);
+  onChangeBlocksEnRef.current = onChangeBlocksEn;
+  const onChangeBlocksNoRef = useRef(onChangeBlocksNo);
+  onChangeBlocksNoRef.current = onChangeBlocksNo;
+  useEffect(() => {
+    return registerAssistantFormTarget(
+      EVENT_STUDIO_SCHEMA_ID,
+      (path, value) => {
+        if (path === "description_en") {
+          onChangeBlocksEnRef.current(htmlToDescriptionBlocks(value));
+          return;
+        }
+        if (path === "description_no") {
+          onChangeBlocksNoRef.current(htmlToDescriptionBlocks(value));
+          return;
+        }
+        setRef.current(path as keyof EventUpsertInput, value as never);
+      }
+    );
+  }, []);
 
   async function handleUploadCover(file: File) {
     const formData = new FormData();

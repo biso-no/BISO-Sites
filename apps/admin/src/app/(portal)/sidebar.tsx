@@ -5,6 +5,7 @@ import {
   Briefcase,
   Building2,
   Calendar,
+  ClipboardList,
   Command,
   FileStack,
   FileText,
@@ -166,6 +167,11 @@ export function Sidebar({ user, roles }: SidebarProps) {
     roles.roles,
     roles.hasDepartmentMembership
   );
+  const canViewApprovals = hasNavAccess(
+    "portal.approvals",
+    roles.roles,
+    roles.hasDepartmentMembership
+  );
   const canViewDrafts = hasNavAccess(
     "portal.drafts",
     roles.roles,
@@ -297,6 +303,14 @@ export function Sidebar({ user, roles }: SidebarProps) {
               label={t(item.labelKey)}
             />
           ))}
+          {canViewApprovals && (
+            <SidebarLink
+              active={isActive("/approvals")}
+              href="/approvals"
+              icon={ClipboardList}
+              label={t("approvals")}
+            />
+          )}
           {canViewActivity && (
             <SidebarLink
               active={isActive("/activity")}
@@ -317,6 +331,27 @@ export function Sidebar({ user, roles }: SidebarProps) {
       </nav>
 
       <div className="mt-4 space-y-3">
+        <button
+          className="flex w-full items-center gap-2 rounded-xl border px-3 py-2.5 text-left text-[13px] transition hover:bg-white/70"
+          onClick={() =>
+            window.dispatchEvent(new Event("admin:open-assistant"))
+          }
+          style={{
+            background: "rgba(255,255,255,0.48)",
+            borderColor: STUDIO.rule2,
+            color: STUDIO.ink2,
+          }}
+          type="button"
+        >
+          <Sparkles size={14} style={{ color: STUDIO.ink3, flexShrink: 0 }} />
+          <span className="flex-1 truncate">{tSidebar("openAssistant")}</span>
+          <kbd
+            className="rounded border px-1 font-mono text-[9px]"
+            style={{ borderColor: STUDIO.rule2, color: STUDIO.ink4 }}
+          >
+            ✦
+          </kbd>
+        </button>
         <StudioHintCarousel
           hints={tSidebar.raw("hints") as string[]}
           label={tSidebar("studioHint")}
