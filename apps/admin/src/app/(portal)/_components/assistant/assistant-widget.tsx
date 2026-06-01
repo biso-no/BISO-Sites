@@ -79,7 +79,11 @@ interface ToolPartRecord {
   type: string;
 }
 
-type AddToolResult = (params: { result: unknown; toolCallId: string }) => void;
+type AddToolResult = (params: {
+  output: unknown;
+  tool: string;
+  toolCallId: string;
+}) => void;
 
 type SetApprovalResults = React.Dispatch<
   React.SetStateAction<Record<string, { error?: string; submitted: boolean }>>
@@ -118,8 +122,20 @@ function renderConfirmPart(
       danger={inputData.danger as boolean | undefined}
       description={inputData.description as string}
       key={key}
-      onCancel={() => addResult({ toolCallId, result: { confirmed: false } })}
-      onConfirm={() => addResult({ toolCallId, result: { confirmed: true } })}
+      onCancel={() =>
+        addResult({
+          tool: "confirmAction",
+          toolCallId,
+          output: { confirmed: false },
+        })
+      }
+      onConfirm={() =>
+        addResult({
+          tool: "confirmAction",
+          toolCallId,
+          output: { confirmed: true },
+        })
+      }
       result={result}
     />
   );
@@ -142,9 +158,19 @@ function renderDraftPreviewPart(
       key={key}
       meta={inputData.meta as Record<string, string> | undefined}
       onApprove={(editedDraft) =>
-        addResult({ toolCallId, result: { approved: true, editedDraft } })
+        addResult({
+          tool: "showDraftPreview",
+          toolCallId,
+          output: { approved: true, editedDraft },
+        })
       }
-      onCancel={() => addResult({ toolCallId, result: { approved: false } })}
+      onCancel={() =>
+        addResult({
+          tool: "showDraftPreview",
+          toolCallId,
+          output: { approved: false },
+        })
+      }
       result={result}
       titleEN={inputData.titleEN as string}
       titleNO={inputData.titleNO as string}
@@ -175,7 +201,11 @@ function renderApprovalPart(
           ...prev,
           [toolCallId]: { submitted: false },
         }));
-        addResult({ toolCallId, result: { submitted: false } });
+        addResult({
+          tool: "requestApproval",
+          toolCallId,
+          output: { submitted: false },
+        });
       }}
       onSubmit={async () => {
         const approvalResult = await createApprovalRequest({
@@ -196,8 +226,9 @@ function renderApprovalPart(
           [toolCallId]: { submitted: true },
         }));
         addResult({
+          tool: "requestApproval",
           toolCallId,
-          result: { submitted: true, requestId: approvalResult.data },
+          output: { submitted: true, requestId: approvalResult.data },
         });
       }}
       payload={inputData.payload as Record<string, unknown>}
@@ -348,14 +379,24 @@ export function AssistantWidget({ roles, user: _user }: AssistantWidgetProps) {
         if (path) {
           router.push(path);
         }
-        return { navigated: true, path };
+        addToolResult({
+          tool: "navigate",
+          toolCallId: toolCall.toolCallId,
+          output: { navigated: true, path },
+        });
+        return;
       }
 
       if (toolName === "fillForm") {
         const schemaId = toolInput.schemaId as string;
         const activeId = getActiveFormSchemaId();
         if (!activeId || activeId !== schemaId) {
-          return { filled: false, reason: "No matching form registered" };
+          addToolResult({
+            tool: "fillForm",
+            toolCallId: toolCall.toolCallId,
+            output: { filled: false, reason: "No matching form registered" },
+          });
+          return;
         }
         const fields =
           (toolInput.fields as Array<{ path: string; value: string }>) ?? [];
@@ -363,21 +404,23 @@ export function AssistantWidget({ roles, user: _user }: AssistantWidgetProps) {
         fillFormFieldsWithDelay(schemaId, fields, 80)
           .then((count) => {
             addToolResult({
+              tool: "fillForm",
               toolCallId: toolCall.toolCallId,
-              result: { filled: true, count },
+              output: { filled: true, count },
             });
           })
           .catch(() => {
             addToolResult({
+              tool: "fillForm",
               toolCallId: toolCall.toolCallId,
-              result: { filled: false },
+              output: { filled: false },
             });
           });
-        return undefined; // keep pending
+        // keep pending — async fill resolves the tool result above
+        return;
       }
 
       // confirmAction, showDraftPreview, requestApproval: stay pending
-      return undefined;
     },
     onError: () => {
       // Error shown via failed stream in message list

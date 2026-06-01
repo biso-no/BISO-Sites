@@ -150,7 +150,7 @@ export async function POST(request: NextRequest) {
   const result = streamText({
     model: chatModel,
     system,
-    messages: convertToModelMessages(messages),
+    messages: await convertToModelMessages(messages),
     tools,
     stopWhen: stepCountIs(12),
   });
@@ -209,14 +209,8 @@ function buildDeps(_activeFormSchemaId?: string): AssistantActionDeps {
     // READ
     // -------------------------------------------------------------------------
     searchContent: async (input) => {
-      const {
-        domain,
-        query,
-        status,
-        limit = 10,
-      } = input as {
+      const { domain, query, status } = input as {
         domain: string;
-        limit?: number;
         query?: string;
         status?: string;
       };
@@ -226,13 +220,13 @@ function buildDeps(_activeFormSchemaId?: string): AssistantActionDeps {
         case "events":
           return await listEvents({ status, search: query });
         case "news":
-          return await listNews({ status, search: query });
+          return await listNews({ status });
         case "pages":
           return await listPages({ status });
         case "shop":
-          return await listProducts({ status, limit });
+          return await listProducts({ status });
         case "benefits":
-          return await listBenefits({ status, limit });
+          return await listBenefits({ status });
         case "documents":
           return await listDocuments({ status });
         default:
@@ -377,7 +371,7 @@ function buildDeps(_activeFormSchemaId?: string): AssistantActionDeps {
     // -------------------------------------------------------------------------
     searchM365Users: async (input) => {
       const { query, limit } = input as { limit?: number; query: string };
-      return await searchM365Users({ search: query, limit });
+      return await searchM365Users({ query, limit });
     },
 
     createM365User: async (input) => {
@@ -403,7 +397,7 @@ function buildDeps(_activeFormSchemaId?: string): AssistantActionDeps {
 
     getM365UserProfile: async (input) => {
       const { userId } = input as { userId: string };
-      return await searchM365Users({ search: userId, limit: 1 });
+      return await searchM365Users({ query: userId, limit: 1 });
     },
 
     // -------------------------------------------------------------------------

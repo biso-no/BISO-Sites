@@ -69,7 +69,7 @@ export const clientTools = {
       descriptionNO: z.string(),
       descriptionEN: z.string(),
       /** Optional extra metadata to show (deadline, campus, etc.) */
-      meta: z.record(z.string()).optional(),
+      meta: z.record(z.string(), z.string()).optional(),
     }),
   }),
 
@@ -118,7 +118,7 @@ export const clientTools = {
           "Team name / ID that must approve, e.g. 'sg-app-dept-ledelsen-oslo'"
         ),
       payload: z
-        .record(z.unknown())
+        .record(z.string(), z.unknown())
         .describe("The full validated payload to execute if approved"),
       resourceType: z.string().describe("e.g. 'job'"),
       resourceId: z

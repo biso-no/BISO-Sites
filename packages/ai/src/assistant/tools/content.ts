@@ -88,7 +88,7 @@ ${additionalContext ? `Additional context: ${additionalContext}` : ""}`,
       inputSchema: z.object({
         domain: CONTENT_DOMAIN,
         payload: z
-          .record(z.unknown())
+          .record(z.string(), z.unknown())
           .describe("The validated content payload from the approved draft"),
         publish: z
           .boolean()
@@ -144,7 +144,7 @@ ${additionalContext ? `Additional context: ${additionalContext}` : ""}`,
       inputSchema: z.object({
         domain: CONTENT_DOMAIN,
         id: z.string().describe("Entity $id"),
-        payload: z.record(z.unknown()).describe("Fields to update"),
+        payload: z.record(z.string(), z.unknown()).describe("Fields to update"),
       }),
       execute: async ({ domain, id, payload }) => {
         try {
