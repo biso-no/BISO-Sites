@@ -3,10 +3,10 @@
 import { AlertTriangle, RotateCcw } from "lucide-react";
 import { useEffect } from "react";
 import {
+  buttonStyle,
   MONO_STACK,
   SERIF_STACK,
   STUDIO,
-  buttonStyle,
 } from "./(portal)/_components/studio";
 
 export default function RootError({

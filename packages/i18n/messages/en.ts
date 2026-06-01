@@ -1,5 +1,4 @@
 import about from "./en/about.json";
-import onboarding from "./en/onboarding.json";
 import academicsContact from "./en/academicsContact.json";
 import admin from "./en/admin.json";
 import adminEvents from "./en/adminEvents.json";
@@ -22,6 +21,7 @@ import jobs from "./en/jobs.json";
 import memberPortal from "./en/memberPortal.json";
 import membership from "./en/membership.json";
 import news from "./en/news.json";
+import onboarding from "./en/onboarding.json";
 import partner from "./en/partner.json";
 import policies from "./en/policies.json";
 import press from "./en/press.json";

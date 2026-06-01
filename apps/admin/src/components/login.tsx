@@ -4,13 +4,13 @@ import { Key, ShieldCheck } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useTransition } from "react";
-import { signInWithAzure } from "@/lib/server";
 import {
+  buttonStyle,
   MONO_STACK,
   SERIF_STACK,
   STUDIO,
-  buttonStyle,
 } from "@/app/(portal)/_components/studio";
+import { signInWithAzure } from "@/lib/server";
 
 export function Login() {
   const t = useTranslations("admin.auth");

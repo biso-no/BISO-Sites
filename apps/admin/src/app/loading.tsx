@@ -19,8 +19,8 @@ export default function RootLoading() {
         <div className="flex gap-1.5">
           {[0, 1, 2].map((i) => (
             <span
-              key={i}
               className="inline-block h-1.5 w-1.5 animate-bounce rounded-full"
+              key={i}
               style={{
                 animationDelay: `${i * 120}ms`,
                 background: STUDIO.ink4,

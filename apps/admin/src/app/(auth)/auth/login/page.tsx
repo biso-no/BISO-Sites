@@ -1,11 +1,11 @@
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
-import { Login } from "@/components/login";
 import {
   MONO_STACK,
   SERIF_STACK,
   STUDIO,
 } from "@/app/(portal)/_components/studio";
+import { Login } from "@/components/login";
 import { getAuthStatus } from "@/lib/auth-utils";
 import { sanitizeRedirectTarget } from "@/lib/utils";
 
@@ -23,10 +23,7 @@ export default async function LoginPage({
   }
 
   return (
-    <div
-      className="flex min-h-screen"
-      style={{ background: STUDIO.paper }}
-    >
+    <div className="flex min-h-screen" style={{ background: STUDIO.paper }}>
       {/* ─── Left branding panel (desktop only) ─────────────────────────── */}
       <div
         className="relative hidden w-[45%] flex-col justify-between overflow-hidden p-12 lg:flex"
@@ -124,10 +121,7 @@ export default async function LoginPage({
           >
             B
           </span>
-          <span
-            className="font-semibold text-sm"
-            style={{ color: STUDIO.ink }}
-          >
+          <span className="font-semibold text-sm" style={{ color: STUDIO.ink }}>
             BISO Studio
           </span>
         </div>

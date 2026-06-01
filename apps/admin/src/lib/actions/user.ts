@@ -67,7 +67,6 @@ export async function getUserById(userId: string): Promise<Users | null> {
   }
 }
 
-
 export async function listIdentities() {
   try {
     const { account } = await createSessionClient();

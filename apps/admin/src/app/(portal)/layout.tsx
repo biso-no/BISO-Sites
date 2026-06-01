@@ -1,8 +1,5 @@
 import { getTranslations } from "next-intl/server";
-import {
-  getUserRolesForClient,
-  requireAdminAccess,
-} from "@/lib/authorization";
+import { getUserRolesForClient, requireAdminAccess } from "@/lib/authorization";
 import { AdminShell } from "./_components/admin-shell";
 
 type UserRoles = Awaited<ReturnType<typeof getUserRolesForClient>>;
