@@ -6,6 +6,7 @@ import { useEffect } from "react";
  * Catches errors thrown by the root layout itself (where the regular
  * error.tsx boundary cannot run because it lives inside that layout).
  * Renders its own <html><body> tree per Next.js requirements.
+ * Uses inline styles only — Tailwind/CSS modules are not available here.
  */
 export default function GlobalError({
   error,
@@ -25,11 +26,11 @@ export default function GlobalError({
       <body
         style={{
           alignItems: "center",
-          background: "#0b1226",
-          color: "#fff",
+          background: "#faf7f2",
+          color: "#1a1814",
           display: "flex",
           fontFamily:
-            "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+            '"Cormorant Garamond", "EB Garamond", Georgia, Times New Roman, serif',
           justifyContent: "center",
           margin: 0,
           minHeight: "100vh",
@@ -40,39 +41,75 @@ export default function GlobalError({
         <div style={{ maxWidth: "32rem" }}>
           <p
             style={{
-              fontSize: "0.75rem",
-              letterSpacing: "0.25em",
-              opacity: 0.6,
+              color: "#6b1e1e",
+              fontFamily:
+                '"IBM Plex Mono", "JetBrains Mono", ui-monospace, monospace',
+              fontSize: "0.7rem",
+              letterSpacing: "0.18em",
+              marginBottom: "1rem",
               textTransform: "uppercase",
             }}
           >
-            500
+            500 · Application error
           </p>
           <h1
             style={{
-              fontSize: "2rem",
-              fontWeight: 600,
-              marginTop: "0.5rem",
+              fontSize: "2.25rem",
+              fontWeight: 400,
+              lineHeight: 1.1,
+              marginBottom: "0.75rem",
             }}
           >
             The application failed to start
           </h1>
-          <p style={{ marginTop: "0.75rem", opacity: 0.8 }}>
-            Please refresh the page. If the problem persists, contact
-            contact@biso.no.
+          <p
+            style={{
+              color: "#6b6357",
+              fontSize: "0.875rem",
+              lineHeight: 1.65,
+              marginBottom: "1.5rem",
+            }}
+          >
+            Please refresh the page. If the problem persists, contact{" "}
+            <a
+              href="mailto:contact@biso.no"
+              style={{ color: "#6b1e1e", textDecoration: "underline" }}
+            >
+              contact@biso.no
+            </a>
+            .
           </p>
           {error.digest ? (
             <p
               style={{
-                fontFamily: "ui-monospace, SFMono-Regular, monospace",
-                fontSize: "0.75rem",
-                marginTop: "1rem",
-                opacity: 0.5,
+                color: "#9c9385",
+                fontFamily:
+                  '"IBM Plex Mono", "JetBrains Mono", ui-monospace, monospace',
+                fontSize: "0.7rem",
+                marginTop: "0.5rem",
               }}
             >
               Reference: {error.digest}
             </p>
           ) : null}
+          <div style={{ marginTop: "2rem" }}>
+            <a
+              href="/"
+              style={{
+                background: "#1a1814",
+                borderRadius: "0.625rem",
+                color: "#faf7f2",
+                display: "inline-block",
+                fontSize: "0.875rem",
+                fontFamily: "system-ui, sans-serif",
+                fontWeight: 500,
+                padding: "0.625rem 1.25rem",
+                textDecoration: "none",
+              }}
+            >
+              Back to dashboard
+            </a>
+          </div>
         </div>
       </body>
     </html>

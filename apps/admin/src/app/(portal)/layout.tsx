@@ -1,10 +1,12 @@
-import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
-import { getUserAuthContext, getUserRolesForClient } from "@/lib/authorization";
+import {
+  getUserRolesForClient,
+  requireAdminAccess,
+} from "@/lib/authorization";
 import { AdminShell } from "./_components/admin-shell";
 
 type UserRoles = Awaited<ReturnType<typeof getUserRolesForClient>>;
-type AuthContext = NonNullable<Awaited<ReturnType<typeof getUserAuthContext>>>;
+type AuthContext = Awaited<ReturnType<typeof requireAdminAccess>>;
 
 async function getRoleLabel(
   roles: UserRoles,
@@ -25,11 +27,7 @@ export default async function PortalAdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const ctx = await getUserAuthContext();
-  if (!ctx) {
-    redirect("/auth/login");
-  }
-
+  const ctx = await requireAdminAccess();
   const roles = await getUserRolesForClient();
 
   const user = {

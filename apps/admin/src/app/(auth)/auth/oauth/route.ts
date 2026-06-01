@@ -1,4 +1,3 @@
-// app/auth/callback/route.ts (or wherever your file is)
 import { createAdminClient } from "@repo/api/server";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";

@@ -1,6 +1,5 @@
-import { LogIn, ShieldAlert } from "lucide-react";
+import { ShieldOff } from "lucide-react";
 import type { Metadata } from "next";
-import { getTranslations } from "next-intl/server";
 import {
   MONO_STACK,
   SERIF_STACK,
@@ -8,17 +7,18 @@ import {
   StudioLinkButton,
 } from "./(portal)/_components/studio";
 
-export async function generateMetadata(): Promise<Metadata> {
-  const t = await getTranslations("adminPortal.unauthorized");
-  return {
-    title: `${t("tagline")} | BISO`,
-    description: t("description"),
-  };
-}
+export const metadata: Metadata = {
+  title: "Access Forbidden | BISO",
+  description: "You do not have permission to access this area.",
+};
 
-export default async function Unauthorized() {
-  const t = await getTranslations("adminPortal.unauthorized");
-
+/**
+ * 403 Forbidden — rendered when Next.js fires the forbidden() interrupt
+ * (authInterrupts: true is enabled in next.config.ts).
+ * Reached when an authenticated, provisioned admin tries to access a section
+ * they don't have role access to.
+ */
+export default function Forbidden() {
   return (
     <main
       className="flex min-h-screen flex-col items-center justify-center px-6 py-16"
@@ -29,26 +29,26 @@ export default async function Unauthorized() {
         <div
           className="inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-[11px] uppercase tracking-[0.1em]"
           style={{
-            background: "rgba(107,30,30,0.06)",
-            borderColor: "rgba(107,30,30,0.2)",
-            color: STUDIO.claret,
+            background: "rgba(176,138,62,0.07)",
+            borderColor: "rgba(176,138,62,0.24)",
+            color: "#6a5118",
             fontFamily: MONO_STACK,
           }}
         >
-          <ShieldAlert size={12} />
-          <span>401 · {t("tagline")}</span>
+          <ShieldOff size={12} />
+          <span>403 · Access forbidden</span>
         </div>
 
         {/* Icon */}
         <div
           className="grid h-16 w-16 place-items-center rounded-2xl border"
           style={{
-            background: "rgba(107,30,30,0.06)",
-            borderColor: "rgba(107,30,30,0.18)",
-            color: STUDIO.claret,
+            background: "rgba(176,138,62,0.07)",
+            borderColor: "rgba(176,138,62,0.2)",
+            color: "#6a5118",
           }}
         >
-          <ShieldAlert size={28} />
+          <ShieldOff size={28} />
         </div>
 
         {/* Heading + body */}
@@ -61,21 +61,21 @@ export default async function Unauthorized() {
               fontWeight: 400,
             }}
           >
-            {t("title")}
+            You don't have access
           </h1>
           <p className="text-sm leading-6" style={{ color: STUDIO.ink3 }}>
-            {t("description")}
+            Your account does not have permission to view this section. If you
+            think this is a mistake, contact your administrator.
           </p>
         </div>
 
         {/* Actions */}
         <div className="flex flex-wrap items-center justify-center gap-3">
-          <StudioLinkButton href="/auth/login" variant="primary">
-            <LogIn size={15} />
-            {t("signIn")}
+          <StudioLinkButton href="/" variant="primary">
+            Back to dashboard
           </StudioLinkButton>
-          <StudioLinkButton href="/" variant="secondary">
-            {t("goToFrontPage")}
+          <StudioLinkButton href="/auth/login" variant="secondary">
+            Sign in with a different account
           </StudioLinkButton>
         </div>
 
@@ -88,17 +88,14 @@ export default async function Unauthorized() {
             color: STUDIO.ink3,
           }}
         >
-          {t.rich("help", {
-            link: (chunks) => (
-              <a
-                className="underline-offset-2 hover:underline"
-                href="mailto:contact@biso.no"
-                style={{ color: STUDIO.claret }}
-              >
-                {chunks}
-              </a>
-            ),
-          })}
+          Need help?{" "}
+          <a
+            className="underline-offset-2 hover:underline"
+            href="mailto:contact@biso.no"
+            style={{ color: STUDIO.claret }}
+          >
+            contact@biso.no
+          </a>
         </p>
       </div>
     </main>
