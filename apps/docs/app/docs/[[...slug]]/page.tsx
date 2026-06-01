@@ -9,7 +9,7 @@ import {
 import { getPageImage, source } from "lib/source";
 import { getMDXComponents } from "mdx-components";
 import type { Metadata } from "next";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import type { ElementType } from "react";
 
 interface Param {
@@ -24,11 +24,6 @@ interface MDX extends PageData {
 
 export default async function Page(props: { params: Promise<Param> }) {
   const params = await props.params;
-
-  // Redirect /docs to /docs/repository
-  if (!params.slug || params.slug.length === 0) {
-    redirect("/docs/repository");
-  }
 
   const page = source.getPage(params.slug);
   if (!page) {
