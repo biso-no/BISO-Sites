@@ -73,10 +73,10 @@ function getTitle(job: RecruitmentVacancy, locale: "en" | "no") {
 
 function getDescription(job: RecruitmentVacancy, locale: "en" | "no") {
   return (
-    job.metadata.short_description ??
     job.translations.find((translation) => translation.locale === locale)
       ?.short_description ??
     job.translations[0]?.short_description ??
+    job.metadata.short_description ??
     ""
   );
 }

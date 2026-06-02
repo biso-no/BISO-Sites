@@ -126,7 +126,14 @@ function buildDefaultValues(job: RecruitmentVacancy | null): JobFormValues {
     publication_mode: fallback(metadata?.publication_mode, "now"),
     push_to_inboxes: Boolean(metadata?.push_to_inboxes),
     scheduled_publish_at: fallback(metadata?.scheduled_publish_at, null),
-    short_description: fallback(metadata?.short_description, null),
+    short_description_en: fallback(
+      en?.short_description ?? metadata?.short_description,
+      null
+    ),
+    short_description_no: fallback(
+      no?.short_description ?? metadata?.short_description,
+      null
+    ),
     slug: fallback(job?.slug, ""),
     start_date: fallback(metadata?.start_date, null),
     status: fallback(job?.status, JobsStatus.DRAFT),
@@ -325,7 +332,7 @@ export function JobEditorClient({
           </div>
 
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <form.Field name="short_description">
+            <form.Field name="short_description_no">
               {(field) => (
                 <PortalField label={labels.shortDescription}>
                   <PortalTextarea

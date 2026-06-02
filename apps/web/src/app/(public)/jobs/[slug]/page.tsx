@@ -74,8 +74,8 @@ export async function generateMetadata({ params }: JobPageProps) {
   const translation = job.translations[0];
   const title = translation?.title ?? "Position";
   const description =
-    job.metadata.short_description ??
     translation?.short_description ??
+    job.metadata.short_description ??
     translation?.description?.slice(0, 160) ??
     "";
   const campus = job.campus?.name ? ` · ${job.campus.name}` : "";

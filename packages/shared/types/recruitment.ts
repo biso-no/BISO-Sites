@@ -212,7 +212,8 @@ export const recruitmentVacancyUpsertSchema = z.object({
   company: nullableTrimmedString(200),
   employment_type: nullableTrimmedString(100),
   paid: z.boolean().default(false),
-  short_description: nullableTrimmedString(280),
+  short_description_no: nullableTrimmedString(280),
+  short_description_en: nullableTrimmedString(280),
   location: nullableTrimmedString(200),
   application_deadline: nullableDateString,
   contact_name: nullableTrimmedString(200),
@@ -566,7 +567,9 @@ export function serializeRecruitmentApplicationReviewMetadata(
 }
 
 export function buildRecruitmentVacancyMetadata(
-  input: Partial<RecruitmentVacancyUpsertInput>,
+  input: Partial<RecruitmentVacancyUpsertInput> & {
+    short_description?: string | null;
+  },
   existing?: unknown
 ): RecruitmentVacancyMetadata {
   const current = parseRecruitmentVacancyMetadata(existing);

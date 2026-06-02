@@ -22,8 +22,8 @@ export function JobCard({ job, index, onViewDetails }: JobCardProps) {
   const translation = job.translations[0];
   const title = translation?.title ?? "Untitled";
   const shortDescription =
-    job.metadata.short_description ||
     translation?.short_description ||
+    job.metadata.short_description ||
     translation?.description ||
     "No vacancy description available.";
   const department = job.department?.Name || "BISO";

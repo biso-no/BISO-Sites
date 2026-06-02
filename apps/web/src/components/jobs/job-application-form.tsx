@@ -13,6 +13,39 @@ import Link from "next/link";
 import { useState, useTransition } from "react";
 import { submitJobApplication } from "@/app/actions/jobs";
 
+const COUNTRY_CODES: { code: string; label: string }[] = [
+  { code: "+47", label: "🇳🇴 +47" },
+  { code: "+46", label: "🇸🇪 +46" },
+  { code: "+45", label: "🇩🇰 +45" },
+  { code: "+358", label: "🇫🇮 +358" },
+  { code: "+354", label: "🇮🇸 +354" },
+  { code: "+44", label: "🇬🇧 +44" },
+  { code: "+49", label: "🇩🇪 +49" },
+  { code: "+33", label: "🇫🇷 +33" },
+  { code: "+34", label: "🇪🇸 +34" },
+  { code: "+39", label: "🇮🇹 +39" },
+  { code: "+31", label: "🇳🇱 +31" },
+  { code: "+32", label: "🇧🇪 +32" },
+  { code: "+41", label: "🇨🇭 +41" },
+  { code: "+43", label: "🇦🇹 +43" },
+  { code: "+48", label: "🇵🇱 +48" },
+  { code: "+420", label: "🇨🇿 +420" },
+  { code: "+1", label: "🇺🇸 +1" },
+  { code: "+61", label: "🇦🇺 +61" },
+  { code: "+91", label: "🇮🇳 +91" },
+  { code: "+86", label: "🇨🇳 +86" },
+  { code: "+81", label: "🇯🇵 +81" },
+  { code: "+82", label: "🇰🇷 +82" },
+  { code: "+55", label: "🇧🇷 +55" },
+  { code: "+52", label: "🇲🇽 +52" },
+  { code: "+7", label: "🇷🇺 +7" },
+  { code: "+90", label: "🇹🇷 +90" },
+  { code: "+92", label: "🇵🇰 +92" },
+  { code: "+234", label: "🇳🇬 +234" },
+  { code: "+27", label: "🇿🇦 +27" },
+  { code: "+20", label: "🇪🇬 +20" },
+];
+
 interface JobApplicationFormProps {
   applicantEmail?: string;
   applicantName?: string;
@@ -191,7 +224,8 @@ export function JobApplicationForm({
 
   const [step, setStep] = useState<Step>("contact");
   const [name, setName] = useState(applicantName);
-  const [phone, setPhone] = useState("");
+  const [countryCode, setCountryCode] = useState("+47");
+  const [localPhone, setLocalPhone] = useState("");
   const [linkedinUrl, setLinkedinUrl] = useState("");
   const [currentRole, setCurrentRole] = useState("");
   const [currentEmployer, setCurrentEmployer] = useState("");
@@ -224,40 +258,41 @@ export function JobApplicationForm({
     }
   }
 
+  function buildFormData(): FormData {
+    const formData = new FormData();
+    formData.set("applicant_name", name);
+    const phone = localPhone.trim() ? `${countryCode}${localPhone.trim()}` : "";
+    formData.set("applicant_phone", phone);
+    formData.set("cover_letter", coverLetter);
+    formData.set("availability", availability);
+    formData.set("gdpr_consent", "true");
+    if (linkedinUrl.trim()) {
+      formData.set("linkedin_url", linkedinUrl.trim());
+    }
+    if (currentRole.trim()) {
+      formData.set("current_role", currentRole.trim());
+    }
+    if (currentEmployer.trim()) {
+      formData.set("current_employer", currentEmployer.trim());
+    }
+    for (const q of customQuestions) {
+      formData.set(`answer.${q.id}`, answers[q.id] ?? "");
+      formData.set(`answer_label.${q.id}`, q.label);
+      formData.set(`answer_type.${q.id}`, q.type);
+    }
+    if (resume) {
+      formData.set("resume", resume);
+    }
+    return formData;
+  }
+
   function handleSubmit() {
     if (!consent) {
       return;
     }
     setMessage(null);
-
     startTransition(async () => {
-      const formData = new FormData();
-      formData.set("applicant_name", name);
-      formData.set("applicant_phone", phone);
-      formData.set("cover_letter", coverLetter);
-      formData.set("availability", availability);
-      formData.set("gdpr_consent", "true");
-      if (linkedinUrl.trim()) {
-        formData.set("linkedin_url", linkedinUrl.trim());
-      }
-      if (currentRole.trim()) {
-        formData.set("current_role", currentRole.trim());
-      }
-      if (currentEmployer.trim()) {
-        formData.set("current_employer", currentEmployer.trim());
-      }
-
-      for (const q of customQuestions) {
-        formData.set(`answer.${q.id}`, answers[q.id] ?? "");
-        formData.set(`answer_label.${q.id}`, q.label);
-        formData.set(`answer_type.${q.id}`, q.type);
-      }
-
-      if (resume) {
-        formData.set("resume", resume);
-      }
-
-      const result = await submitJobApplication(jobId, formData);
+      const result = await submitJobApplication(jobId, buildFormData());
       setIsSuccess(result.success);
       setMessage(
         result.success ? "Application submitted successfully." : result.error
@@ -342,12 +377,29 @@ export function JobApplicationForm({
             </div>
             <div className="space-y-2">
               <Label htmlFor="applicant_phone">Phone (optional)</Label>
-              <Input
-                id="applicant_phone"
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder="+47 …"
-                value={phone}
-              />
+              <div className="flex gap-2">
+                <select
+                  aria-label="Country code"
+                  className="h-9 rounded-md border border-input bg-background px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                  onChange={(e) => setCountryCode(e.target.value)}
+                  value={countryCode}
+                >
+                  {COUNTRY_CODES.map(({ code, label }) => (
+                    <option key={code} value={code}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+                <Input
+                  className="flex-1"
+                  id="applicant_phone"
+                  inputMode="tel"
+                  onChange={(e) => setLocalPhone(e.target.value)}
+                  placeholder="123 45 678"
+                  type="tel"
+                  value={localPhone}
+                />
+              </div>
             </div>
             <Separator />
             <div className="space-y-2">
@@ -541,10 +593,13 @@ export function JobApplicationForm({
                 <span className="text-muted-foreground">Email</span>
                 <span className="font-medium">{applicantEmail}</span>
               </div>
-              {phone && (
+              {localPhone && (
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Phone</span>
-                  <span className="font-medium">{phone}</span>
+                  <span className="font-medium">
+                    {countryCode}
+                    {localPhone}
+                  </span>
                 </div>
               )}
               {resume && (

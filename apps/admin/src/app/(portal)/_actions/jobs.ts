@@ -128,7 +128,8 @@ async function buildJobTranslationsPayload(
     title_en: string;
     description_no: string;
     description_en: string;
-    short_description?: string | null;
+    short_description_no?: string | null;
+    short_description_en?: string | null;
   },
   translationPerms: string[]
 ): Promise<
@@ -163,7 +164,8 @@ async function buildJobTranslationsPayload(
   const buildEntry = (
     locale: "no" | "en",
     title: string,
-    description: string
+    description: string,
+    shortDescription: string | null
   ) => {
     const existingRow = byLocale.get(locale);
     return {
@@ -174,14 +176,24 @@ async function buildJobTranslationsPayload(
       content_type: "job" as const,
       description,
       locale,
-      short_description: input.short_description ?? null,
+      short_description: shortDescription,
       title,
     };
   };
 
   return [
-    buildEntry("no", input.title_no, input.description_no),
-    buildEntry("en", input.title_en, input.description_en),
+    buildEntry(
+      "no",
+      input.title_no,
+      input.description_no,
+      input.short_description_no ?? null
+    ),
+    buildEntry(
+      "en",
+      input.title_en,
+      input.description_en,
+      input.short_description_en ?? null
+    ),
   ];
 }
 
@@ -285,7 +297,17 @@ async function buildJobUpsertPayload(
   existingMetadata?: RecruitmentVacancyMetadata
 ): Promise<Record<string, unknown>> {
   const metadata = serializeRecruitmentVacancyMetadata(
-    buildRecruitmentVacancyMetadata(data, existingMetadata)
+    buildRecruitmentVacancyMetadata(
+      {
+        ...data,
+        // Keep a locale-agnostic teaser fallback on metadata for any consumer
+        // that reads metadata directly; the per-locale teaser is authoritative
+        // and lives on each content_translations row.
+        short_description:
+          data.short_description_no ?? data.short_description_en ?? null,
+      },
+      existingMetadata
+    )
   );
   const translations = await buildJobTranslationsPayload(
     db,

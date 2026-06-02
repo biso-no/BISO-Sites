@@ -141,8 +141,8 @@ export function JobsListClient({
         const title = (t0?.title ?? "").toLowerCase();
         const desc = (t0?.description ?? "").toLowerCase();
         const short = (
-          job.metadata.short_description ??
           t0?.short_description ??
+          job.metadata.short_description ??
           ""
         ).toLowerCase();
         const dept = (job.department?.Name ?? "").toLowerCase();

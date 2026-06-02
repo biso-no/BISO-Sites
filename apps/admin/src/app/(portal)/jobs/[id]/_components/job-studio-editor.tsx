@@ -287,7 +287,14 @@ function buildDefaultValues(
     publication_mode: fallback(metadata?.publication_mode, "now"),
     push_to_inboxes: Boolean(metadata?.push_to_inboxes),
     scheduled_publish_at: fallback(metadata?.scheduled_publish_at, null),
-    short_description: fallback(metadata?.short_description, null),
+    short_description_en: fallback(
+      en?.short_description ?? metadata?.short_description,
+      null
+    ),
+    short_description_no: fallback(
+      no?.short_description ?? metadata?.short_description,
+      null
+    ),
     slug: fallback(job?.slug, ""),
     start_date: fallback(metadata?.start_date, null),
     status: fallback(job?.status, JobsStatus.DRAFT),
@@ -1018,7 +1025,7 @@ function PhonePreview({
     [body]
   );
   const teaser =
-    form.short_description ??
+    (locale === "no" ? form.short_description_no : form.short_description_en) ??
     stripHtml(body).slice(0, 150) ??
     "Add a teaser to show students why this role matters.";
   const crest = departmentName.charAt(0).toUpperCase() || "B";
@@ -1279,7 +1286,7 @@ export function JobStudioEditor({
     setIsTranslating(true);
     const result = await generateJobNorwegianDraft({
       description_en: form.description_en,
-      short_description: form.short_description,
+      short_description: form.short_description_en,
       title_en: form.title_en,
     });
     setIsTranslating(false);
@@ -1297,7 +1304,7 @@ export function JobStudioEditor({
       ...current,
       auto_translate: true,
       description_no: result.data.description_no,
-      short_description: result.data.short_description,
+      short_description_no: result.data.short_description,
       title_no: result.data.title_no,
     }));
     setDirty(true);
@@ -1552,7 +1559,7 @@ export function JobStudioEditor({
                   </div>
 
                   <Field
-                    help={`${Math.max(0, 280 - (form.short_description?.length ?? 0))} characters left`}
+                    help={`${Math.max(0, 280 - ((locale === "no" ? form.short_description_no : form.short_description_en)?.length ?? 0))} characters left · ${locale.toUpperCase()}`}
                     label="One-line teaser"
                     required
                   >
@@ -1560,12 +1567,18 @@ export function JobStudioEditor({
                       className={inputClass("min-h-24 resize-none text-base")}
                       onChange={(event) =>
                         setValue(
-                          "short_description",
+                          locale === "no"
+                            ? "short_description_no"
+                            : "short_description_en",
                           event.target.value || null
                         )
                       }
                       placeholder="Why should someone apply for this role?"
-                      value={form.short_description ?? ""}
+                      value={
+                        (locale === "no"
+                          ? form.short_description_no
+                          : form.short_description_en) ?? ""
+                      }
                     />
                   </Field>
 
@@ -2395,7 +2408,8 @@ export function JobStudioEditor({
                       ["Title (EN)", form.title_en, 0],
                       ["Title (NO)", form.title_no, 0],
                       ["Department", `${departmentName} · ${campusName}`, 0],
-                      ["Teaser", form.short_description, 0],
+                      ["Teaser (EN)", form.short_description_en, 0],
+                      ["Teaser (NO)", form.short_description_no, 0],
                       [
                         "Description",
                         `${stripHtml(form.description_en).length} EN characters`,
