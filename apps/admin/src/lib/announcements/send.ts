@@ -2,8 +2,12 @@ import "server-only";
 
 import { ID, Permission, Query, Role } from "@repo/api";
 import type { createAdminClient } from "@repo/api/server";
-import type { SegmentMembers } from "../segments/types";
-import type { Announcements, UserNotifications } from "./types";
+import {
+  type Announcements,
+  AnnouncementsAudienceType,
+  type SegmentMembers,
+  type UserNotifications,
+} from "@repo/api/types/appwrite";
 
 /** Appwrite list pagination ceiling for a single `Query.limit` call. */
 const SEGMENT_MEMBER_PAGE_SIZE = 200;
@@ -38,7 +42,7 @@ export function buildPushData(
     announcement_id: announcement.$id,
     event_id: announcement.event_id ?? "",
     segment_id:
-      announcement.audience_type === "segment"
+      announcement.audience_type === AnnouncementsAudienceType.SEGMENT
         ? (announcement.audience_value ?? "")
         : "",
     deep_link: announcement.deep_link ?? buildDeepLink(announcement),
@@ -205,11 +209,11 @@ export async function dispatchAnnouncement(
   const messageId = ID.unique();
 
   if (
-    announcement.audience_type === "topic" ||
-    announcement.audience_type === "broadcast"
+    announcement.audience_type === AnnouncementsAudienceType.TOPIC ||
+    announcement.audience_type === AnnouncementsAudienceType.BROADCAST
   ) {
     const topic =
-      announcement.audience_type === "topic"
+      announcement.audience_type === AnnouncementsAudienceType.TOPIC
         ? announcement.audience_value?.trim() || DEFAULT_BROADCAST_TOPIC
         : DEFAULT_BROADCAST_TOPIC;
 
@@ -236,7 +240,7 @@ export async function dispatchAnnouncement(
   // `segment` resolves audience_value as a segment_id → its assigned members.
   // `users` treats audience_value as a JSON array of user ids.
   const userIds =
-    announcement.audience_type === "segment"
+    announcement.audience_type === AnnouncementsAudienceType.SEGMENT
       ? await collectSegmentUserIds(db, announcement.audience_value ?? "")
       : parseUserIds(announcement.audience_value);
 

@@ -1,5 +1,6 @@
 "use client";
 
+import type { EventAttendees } from "@repo/api/types/appwrite";
 import {
   ArrowLeft,
   MapPin,
@@ -13,7 +14,6 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import type { EventAttendees } from "@/lib/segments/types";
 import { parseSegmentMetadata } from "@/lib/segments/types";
 import {
   createSegment,

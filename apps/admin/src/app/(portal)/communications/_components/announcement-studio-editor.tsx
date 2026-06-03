@@ -1,5 +1,6 @@
 "use client";
 
+import type { Announcements } from "@repo/api/types/appwrite";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -22,7 +23,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
-import type { Announcements } from "@/lib/announcements/types";
 import {
   createAnnouncement,
   generateAnnouncementNorwegianDraft,

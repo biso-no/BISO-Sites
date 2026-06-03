@@ -3,12 +3,12 @@
 import { openai } from "@ai-sdk/openai";
 import { ID, Query } from "@repo/api";
 import { createAdminClient, createSessionClient } from "@repo/api/server";
+import type { Announcements } from "@repo/api/types/appwrite";
 import { generateObject } from "ai";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { buildDeepLink, dispatchAnnouncement } from "@/lib/announcements/send";
-import type { Announcements } from "@/lib/announcements/types";
 import { getUserAuthContext, type UserAuthContext } from "@/lib/authorization";
 import {
   applyScopeQueries,

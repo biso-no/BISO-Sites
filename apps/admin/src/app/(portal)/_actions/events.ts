@@ -13,12 +13,12 @@ import {
 
 const EVENTS_PUSH_TOPIC_ID = "events";
 
+import type { Announcements } from "@repo/api/types/appwrite";
 import { generateObject } from "ai";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { dispatchAnnouncement } from "@/lib/announcements/send";
-import type { Announcements } from "@/lib/announcements/types";
 import { getUserAuthContext, type UserAuthContext } from "@/lib/authorization";
 import {
   applyScopeQueries,

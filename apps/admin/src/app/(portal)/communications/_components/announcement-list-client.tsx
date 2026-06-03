@@ -1,11 +1,11 @@
 "use client";
 
+import type { Announcements } from "@repo/api/types/appwrite";
 import { Megaphone, Pencil, Send, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
-import type { Announcements } from "@/lib/announcements/types";
 import {
   deleteAnnouncement,
   sendAnnouncement,

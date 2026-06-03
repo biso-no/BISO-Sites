@@ -2,16 +2,19 @@
 
 import { ID, Permission, Query, Role } from "@repo/api";
 import { createAdminClient, createSessionClient } from "@repo/api/server";
-import type { Events, Users } from "@repo/api/types/appwrite";
+import {
+  type Announcements,
+  AnnouncementsAudienceType,
+  AnnouncementsStatus,
+  type EventAttendees,
+  type EventSegments,
+  type Events,
+  type SegmentMembers,
+  type Users,
+} from "@repo/api/types/appwrite";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import type { Announcements } from "@/lib/announcements/types";
 import { getUserAuthContext, type UserAuthContext } from "@/lib/authorization";
-import type {
-  EventAttendees,
-  EventSegments,
-  SegmentMembers,
-} from "@/lib/segments/types";
 import { assertWriteAccess, hasRowAccess } from "@/lib/utils/authorization";
 import { sendAnnouncement } from "./announcements";
 import { logAuditEvent } from "./audit-log";
@@ -880,9 +883,9 @@ export async function messageSegment(
       "announcements",
       ID.unique(),
       {
-        status: "draft",
+        status: AnnouncementsStatus.DRAFT,
         category: validated.data.category,
-        audience_type: "segment",
+        audience_type: AnnouncementsAudienceType.SEGMENT,
         audience_value: segmentId,
         title_en: validated.data.title_en,
         title_no: validated.data.title_no ?? null,

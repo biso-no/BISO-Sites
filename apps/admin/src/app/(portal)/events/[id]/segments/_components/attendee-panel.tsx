@@ -1,8 +1,8 @@
 "use client";
 
+import type { EventAttendees } from "@repo/api/types/appwrite";
 import { Check, Upload, X } from "lucide-react";
 import { useRef, useState } from "react";
-import type { EventAttendees } from "@/lib/segments/types";
 import {
   assignToSegment,
   autoAssign,
