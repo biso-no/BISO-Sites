@@ -398,8 +398,12 @@ async function matchAttendeeUser(
     return { userId: null, campusId: null };
   }
   try {
-    const found = await admin.users.list([Query.limit(1)], email);
-    const user = found.users[0];
+    // `users.list(search)` is a fuzzy search — verify exact email equality so a
+    // partial/typo'd address can't match (and assign PII to) the wrong account.
+    const found = await admin.users.list([Query.limit(5)], email);
+    const user = found.users.find(
+      (candidate) => candidate.email?.toLowerCase() === email.toLowerCase()
+    );
     if (!user) {
       return { userId: null, campusId: null };
     }
@@ -609,19 +613,25 @@ export async function assignToSegment(
         result.rejected += 1;
         continue;
       }
-      await db.createRow(
-        "app",
-        "segment_members",
-        ID.unique(),
-        {
-          segment_id: segmentId,
-          event_id: segment.event_id,
-          user_id: userId,
-          assigned_at: new Date().toISOString(),
-        },
-        memberPermissions(userId)
-      );
-      result.assigned += 1;
+      try {
+        await db.createRow(
+          "app",
+          "segment_members",
+          ID.unique(),
+          {
+            segment_id: segmentId,
+            event_id: segment.event_id,
+            user_id: userId,
+            assigned_at: new Date().toISOString(),
+          },
+          memberPermissions(userId)
+        );
+        result.assigned += 1;
+      } catch {
+        // Likely a unique (segment_id, user_id) violation from a concurrent
+        // assign — treat as already-a-member and keep processing the batch.
+        result.skipped += 1;
+      }
     }
 
     await logAuditEvent(ctx, "event_segment.assign", {

@@ -19,11 +19,11 @@ function readBearerToken(request: NextRequest) {
 }
 
 function hasValidSyncSecret(request: NextRequest, secret: string) {
+  // Header-only — avoid the secret landing in access logs / referrers.
   const candidates = [
     readBearerToken(request),
     request.headers.get("x-cron-secret"),
     request.headers.get("x-sync-secret"),
-    request.nextUrl.searchParams.get("secret"),
   ];
   return candidates.some((candidate) => candidate === secret);
 }
@@ -67,8 +67,12 @@ async function handleSync(request: NextRequest) {
       config,
       fromPurchase,
       matchUser: async (email) => {
-        const found = await users.list([Query.limit(1)], email);
-        return found.users[0]?.$id ?? null;
+        // Exact-match guard: `search` is fuzzy, so verify the email equals.
+        const found = await users.list([Query.limit(5)], email);
+        const user = found.users.find(
+          (candidate) => candidate.email?.toLowerCase() === email.toLowerCase()
+        );
+        return user?.$id ?? null;
       },
       logger: {
         error: (message) => console.error(`[tickster/sync] ${message}`),

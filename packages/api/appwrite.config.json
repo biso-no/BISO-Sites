@@ -343,11 +343,11 @@
     },
     {
       "$id": "announcements",
-      "$permissions": ["read(\"users\")", "create(\"users\")"],
+      "$permissions": ["create(\"users\")"],
       "databaseId": "app",
       "name": "Announcements",
       "enabled": true,
-      "rowSecurity": false,
+      "rowSecurity": true,
       "columns": [
         {
           "key": "status",

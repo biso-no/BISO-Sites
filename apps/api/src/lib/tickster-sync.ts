@@ -277,6 +277,9 @@ export async function syncTicksterPurchases(
     lastCursor: fromPurchase || null,
   };
 
+  // Guard against a cursor that never advances (e.g. an inclusive/ignored
+  // `fromPurchase`) re-fetching the same page until maxPages.
+  const seenCursors = new Set<string>();
   let cursor = fromPurchase;
   for (let page = 0; page < maxPages; page += 1) {
     const { purchases, nextCursor } = await client.getCrmPurchases(cursor);
@@ -293,9 +296,10 @@ export async function syncTicksterPurchases(
     );
 
     result.lastCursor = nextCursor ?? cursor;
-    if (!nextCursor || nextCursor === cursor) {
+    if (!nextCursor || nextCursor === cursor || seenCursors.has(nextCursor)) {
       break;
     }
+    seenCursors.add(nextCursor);
     cursor = nextCursor;
   }
 

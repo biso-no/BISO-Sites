@@ -14,10 +14,10 @@ function readBearerToken(request: NextRequest) {
 }
 
 function hasValidSecret(request: NextRequest, secret: string) {
+  // Header-only — avoid the secret landing in access logs / referrers.
   const candidates = [
     readBearerToken(request),
     request.headers.get("x-cron-secret"),
-    request.nextUrl.searchParams.get("secret"),
   ];
   return candidates.some((candidate) => candidate === secret);
 }

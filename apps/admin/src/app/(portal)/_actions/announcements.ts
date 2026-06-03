@@ -2,7 +2,7 @@
 
 import { openai } from "@ai-sdk/openai";
 import { ID, Query } from "@repo/api";
-import { createAdminClient, createSessionClient } from "@repo/api/server";
+import { createAdminClient } from "@repo/api/server";
 import type { Announcements } from "@repo/api/types/appwrite";
 import { generateObject } from "ai";
 import { revalidatePath } from "next/cache";
@@ -91,8 +91,12 @@ async function normalizeAudienceValue(
       const { users } = await createAdminClient();
       await Promise.all(
         emails.map(async (email) => {
-          const found = await users.list([Query.limit(1)], email);
-          const user = found.users[0];
+          // `search` is fuzzy — require an exact email match before targeting.
+          const found = await users.list([Query.limit(5)], email);
+          const user = found.users.find(
+            (candidate) =>
+              candidate.email?.toLowerCase() === email.toLowerCase()
+          );
           if (user) {
             ids.push(user.$id);
           }
@@ -132,7 +136,7 @@ export async function listAnnouncements(opts?: {
   page?: number;
 }) {
   const ctx = await requireAuth();
-  const { db } = await createSessionClient();
+  const { db } = await createAdminClient();
   const page = Math.max(1, opts?.page ?? 1);
 
   const queries: string[] = [
@@ -159,7 +163,7 @@ export async function listAnnouncements(opts?: {
 
 export async function getAnnouncement(id: string) {
   const ctx = await requireAuth();
-  const { db } = await createSessionClient();
+  const { db } = await createAdminClient();
 
   const response = await db.listRows<Announcements>("app", "announcements", [
     Query.equal("$id", id),
@@ -188,7 +192,7 @@ export async function createAnnouncement(values: AnnouncementFormValues) {
   }
 
   try {
-    const { db } = await createSessionClient();
+    const { db } = await createAdminClient();
     const audienceValue = await normalizeAudienceValue(
       validated.data.audience_type,
       validated.data.audience_value
@@ -238,7 +242,7 @@ export async function updateAnnouncement(
   }
 
   try {
-    const { db } = await createSessionClient();
+    const { db } = await createAdminClient();
     const existing = await db.listRows<Announcements>("app", "announcements", [
       Query.equal("$id", id),
       Query.limit(1),
@@ -291,7 +295,7 @@ export async function deleteAnnouncement(id: string) {
   const ctx = await requireAuth();
 
   try {
-    const { db } = await createSessionClient();
+    const { db } = await createAdminClient();
     const existing = await db.listRows<Announcements>("app", "announcements", [
       Query.equal("$id", id),
       Query.limit(1),
@@ -326,12 +330,13 @@ export async function sendAnnouncement(id: string) {
   const ctx = await requireAuth();
 
   try {
-    const { db: sessionDb } = await createSessionClient();
-    const existing = await sessionDb.listRows<Announcements>(
-      "app",
-      "announcements",
-      [Query.equal("$id", id), Query.limit(1)]
-    );
+    // Announcements use row security; admin operations go through the
+    // service-key client (authorization enforced here via assertPublishAccess).
+    const { db, messaging, users } = await createAdminClient();
+    const existing = await db.listRows<Announcements>("app", "announcements", [
+      Query.equal("$id", id),
+      Query.limit(1),
+    ]);
     const announcement = existing.rows[0];
     if (!announcement) {
       return { error: "Announcement not found" };
@@ -340,12 +345,12 @@ export async function sendAnnouncement(id: string) {
     // Sending is a publish-grade action: require campus/global admin.
     assertPublishAccess(ctx, announcement.campus_id);
 
-    // Future-dated: just mark as scheduled. A Phase 2 cron/worker dispatches it.
+    // Future-dated: just mark as scheduled. The scheduled-dispatch cron sends it.
     if (
       announcement.scheduled_at &&
       new Date(announcement.scheduled_at).getTime() > Date.now()
     ) {
-      await sessionDb.updateRow("app", "announcements", id, {
+      await db.updateRow("app", "announcements", id, {
         status: "scheduled",
       });
       await logAuditEvent(ctx, "announcement.schedule", {
@@ -356,8 +361,6 @@ export async function sendAnnouncement(id: string) {
       revalidatePath("/communications");
       return { data: { status: "scheduled" as const } };
     }
-
-    const { db, messaging, users } = await createAdminClient();
 
     // Persist the data payload contract on the row before dispatch so the
     // helper and downstream consumers read a consistent value.
@@ -378,14 +381,14 @@ export async function sendAnnouncement(id: string) {
       recipients = result.recipients;
     } catch (error) {
       console.error("Failed to dispatch announcement:", error);
-      await sessionDb.updateRow("app", "announcements", id, {
+      await db.updateRow("app", "announcements", id, {
         status: "failed",
         data: dataPayload,
       });
       return { error: "Failed to send announcement" };
     }
 
-    await sessionDb.updateRow("app", "announcements", id, {
+    await db.updateRow("app", "announcements", id, {
       status: "sent",
       sent_at: new Date().toISOString(),
       data: dataPayload,

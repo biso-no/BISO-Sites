@@ -194,6 +194,33 @@ async function fanOutUserNotifications(
 }
 
 /**
+ * Set the row-level read permissions on a (row-secured) announcement so the
+ * Flutter app can read exactly the right rows: broadcasts for everyone,
+ * targeted/segment sends only for their recipients. Best-effort — failures are
+ * logged and don't abort the send.
+ */
+async function applyAnnouncementReadPermissions(
+  db: DispatchClients["db"],
+  announcementId: string,
+  permissions: string[]
+): Promise<void> {
+  try {
+    await db.updateRow(
+      "app",
+      "announcements",
+      announcementId,
+      undefined,
+      permissions
+    );
+  } catch (error) {
+    console.error(
+      `Failed to set read permissions for announcement ${announcementId}:`,
+      error
+    );
+  }
+}
+
+/**
  * Send the push for an announcement and (for user-targeted sends) fan out
  * in-app `user_notifications` rows. Resolves recipients by `audience_type`.
  *
@@ -233,6 +260,11 @@ export async function dispatchAnnouncement(
         console.error("Failed to send announcement push:", error);
       }
     }
+    // Broadcasts are readable by any signed-in student so they surface in the
+    // in-app feed (the row carries the body, which is non-sensitive here).
+    await applyAnnouncementReadPermissions(db, announcement.$id, [
+      Permission.read(Role.users()),
+    ]);
     // Topic/broadcast pushes are surfaced in-app by querying announcements,
     // so we do not fan out user_notifications rows here.
     return { recipients: 0 };
@@ -258,6 +290,14 @@ export async function dispatchAnnouncement(
   }
 
   await fanOutUserNotifications(db, announcement.$id, userIds);
+
+  // Targeted/segment bodies are personal — restrict row read to the recipients
+  // so they are not world-readable (row security is on for announcements).
+  await applyAnnouncementReadPermissions(
+    db,
+    announcement.$id,
+    userIds.map((userId) => Permission.read(Role.user(userId)))
+  );
 
   return { recipients: userIds.length };
 }
