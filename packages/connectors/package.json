@@ -15,6 +15,7 @@
     "./azure/users": "./src/azure/users.ts",
     "./24sevenoffice": "./src/24sevenoffice/index.ts",
     "./sharepoint": "./src/sharepoint/index.ts",
+    "./tickster": "./src/tickster/index.ts",
     "./woocommerce": "./src/woocommerce/index.ts"
   },
   "devDependencies": {
