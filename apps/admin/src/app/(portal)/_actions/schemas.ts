@@ -97,6 +97,27 @@ export const productSchema = z.object({
 const _PRODUCTS_PAGE_SIZE = 20;
 export type ProductFormValues = z.infer<typeof productSchema>;
 
+export const announcementSchema = z.object({
+  title_en: z.string().min(1, "Title (EN) is required"),
+  title_no: z.string().optional().nullable(),
+  body_en: z.string().optional().nullable(),
+  body_no: z.string().optional().nullable(),
+  category: z.enum(["general", "trip", "urgent", "event"]).default("general"),
+  audience_type: z
+    .enum(["topic", "users", "segment", "broadcast"])
+    .default("broadcast"),
+  // For "topic": a topic id. For "users": comma-separated user ids or emails
+  // (resolved server-side). For "segment": a segment id. For "broadcast": empty.
+  audience_value: z.string().optional().nullable(),
+  event_id: z.string().optional().nullable(),
+  campus_id: z.string().optional().nullable(),
+  push: z.boolean().default(true),
+  scheduled_at: z.string().optional().nullable(),
+});
+
+export const ANNOUNCEMENTS_PAGE_SIZE = 20;
+export type AnnouncementFormValues = z.infer<typeof announcementSchema>;
+
 export const MEDIA_BUCKET_ID = "media";
 
 export const DOCUMENTS_PAGE_SIZE = 25;

@@ -68,6 +68,11 @@ export const NAV_ACCESS = {
   "portal.benefits": [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
   "portal.benefitsPartners": [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
   "portal.news": [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN, DEPARTMENT_ROLE],
+  "portal.communications": [
+    ROLES.GLOBAL_ADMIN,
+    ROLES.CAMPUS_ADMIN,
+    DEPARTMENT_ROLE,
+  ],
   "portal.activity": [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
   "portal.drafts": [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
   "portal.settings": [ROLES.GLOBAL_ADMIN],

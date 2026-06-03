@@ -15,6 +15,7 @@ import {
   Layers,
   LayoutDashboard,
   LogOut,
+  Megaphone,
   Newspaper,
   Settings,
   ShoppingCart,
@@ -80,6 +81,13 @@ export const NAV_ITEMS: NavItem[] = [
     labelKey: "news",
     navKey: "portal.news",
     path: "/news",
+  },
+  {
+    group: "publish",
+    icon: Megaphone,
+    labelKey: "communications",
+    navKey: "portal.communications",
+    path: "/communications",
   },
   {
     group: "publish",
