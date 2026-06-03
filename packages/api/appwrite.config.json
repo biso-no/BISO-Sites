@@ -343,7 +343,7 @@
     },
     {
       "$id": "announcements",
-      "$permissions": ["create(\"users\")"],
+      "$permissions": [],
       "databaseId": "app",
       "name": "Announcements",
       "enabled": true,
@@ -658,7 +658,7 @@
     },
     {
       "$id": "segment_members",
-      "$permissions": ["create(\"users\")"],
+      "$permissions": [],
       "databaseId": "app",
       "name": "Segment Members",
       "enabled": true,

@@ -673,7 +673,11 @@ export async function removeFromSegment(segmentId: string, userId: string) {
     }
     assertWriteAccess(ctx, event.campus_id, event.department_id);
 
-    const existing = await db.listRows<SegmentMembers>(
+    // member rows are readable/deletable only by their assigned user (row
+    // security), so the admin both finds and removes them with the service-key
+    // client — a session read would return nothing and silently no-op.
+    const { db: adminDb } = await createAdminClient();
+    const existing = await adminDb.listRows<SegmentMembers>(
       "app",
       "segment_members",
       [
@@ -684,9 +688,6 @@ export async function removeFromSegment(segmentId: string, userId: string) {
     );
     const member = existing.rows[0];
     if (member) {
-      // The member row's delete permission belongs to the assigned user, so an
-      // admin removes it via the service-key client.
-      const { db: adminDb } = await createAdminClient();
       await adminDb.deleteRow("app", "segment_members", member.$id);
     }
 
@@ -897,8 +898,11 @@ export async function messageSegment(
     }
     assertWriteAccess(ctx, event.campus_id, event.department_id);
 
+    // announcements are service-key-only to create (so app users can't forge
+    // them); author via the admin client after the access check above.
+    const { db: adminDb } = await createAdminClient();
     const eventId = segment.event_id ?? null;
-    const announcement = await db.createRow<Announcements>(
+    const announcement = await adminDb.createRow<Announcements>(
       "app",
       "announcements",
       ID.unique(),
