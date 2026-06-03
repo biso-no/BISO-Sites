@@ -373,10 +373,9 @@
         },
         {
           "key": "audience_value",
-          "type": "string",
+          "type": "mediumtext",
           "required": false,
           "array": false,
-          "size": 8000,
           "default": null,
           "encrypt": false
         },
@@ -400,19 +399,17 @@
         },
         {
           "key": "body_en",
-          "type": "string",
+          "type": "mediumtext",
           "required": false,
           "array": false,
-          "size": 4000,
           "default": null,
           "encrypt": false
         },
         {
           "key": "body_no",
-          "type": "string",
+          "type": "mediumtext",
           "required": false,
           "array": false,
-          "size": 4000,
           "default": null,
           "encrypt": false
         },
@@ -445,10 +442,9 @@
         },
         {
           "key": "data",
-          "type": "string",
+          "type": "mediumtext",
           "required": false,
           "array": false,
-          "size": 4000,
           "default": null,
           "encrypt": false
         },
