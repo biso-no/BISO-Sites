@@ -53,14 +53,44 @@ export function buildDeepLink(announcement: Announcements): string {
   return `biso://announcement?id=${announcement.$id}`;
 }
 
-/** Norwegian-first localized title/body, falling back to English. */
+const HTML_TAG_PATTERN = /<[^>]*>/g;
+const WHITESPACE_PATTERN = /\s+/g;
+
+/**
+ * Strip HTML tags, decode a handful of common entities, and collapse
+ * whitespace. Announcement bodies are now stored as rich HTML, but pushes
+ * carry plain text, so dispatch flattens them here.
+ */
+export function htmlToPlainText(html: string | null | undefined): string {
+  if (!html) {
+    return "";
+  }
+  return html
+    .replace(/<\/(p|div|h[1-6]|li|br)>/gi, "$& ")
+    .replace(/<br\s*\/?>/gi, " ")
+    .replace(HTML_TAG_PATTERN, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#0?39;/g, "'")
+    .replace(WHITESPACE_PATTERN, " ")
+    .trim();
+}
+
+/**
+ * Norwegian-first localized title/body, falling back to English. Titles are
+ * plain text already; bodies are rich HTML and are flattened to plain text for
+ * the push payload.
+ */
 function localizedContent(announcement: Announcements): {
   title: string;
   body: string;
 } {
   return {
     title: announcement.title_no?.trim() || announcement.title_en,
-    body: (announcement.body_no?.trim() || announcement.body_en) ?? "",
+    body: htmlToPlainText(announcement.body_no?.trim() || announcement.body_en),
   };
 }
 

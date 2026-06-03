@@ -1,9 +1,12 @@
 "use server";
 
+import { openai } from "@ai-sdk/openai";
 import { ID, Query } from "@repo/api";
 import { createAdminClient, createSessionClient } from "@repo/api/server";
+import { generateObject } from "ai";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { z } from "zod";
 import { buildDeepLink, dispatchAnnouncement } from "@/lib/announcements/send";
 import type { Announcements } from "@/lib/announcements/types";
 import { getUserAuthContext, type UserAuthContext } from "@/lib/authorization";
@@ -21,6 +24,20 @@ import {
 } from "./schemas";
 
 const EMAIL_PATTERN = /@/;
+
+const announcementTranslationDraftSchema = z.object({
+  title_en: z.string().trim().min(1),
+  body_en: z.string().trim().optional().default(""),
+});
+
+const announcementTranslationResultSchema = z.object({
+  title_no: z.string().describe("Norwegian Bokmål announcement title"),
+  body_no: z
+    .string()
+    .describe(
+      "Natural Norwegian Bokmål HTML preserving p, h3, ul, li, strong and em tags"
+    ),
+});
 
 async function requireAuth(): Promise<UserAuthContext> {
   const ctx = await getUserAuthContext();
@@ -391,6 +408,43 @@ export async function sendAnnouncement(id: string) {
     return {
       error:
         error instanceof Error ? error.message : "Failed to send announcement",
+    };
+  }
+}
+
+export async function generateAnnouncementNorwegianDraft(input: {
+  title_en: string;
+  body_en?: string;
+}) {
+  await requireAuth();
+  const validated = announcementTranslationDraftSchema.safeParse(input);
+  if (!validated.success) {
+    return { error: "Add an English title first." };
+  }
+
+  try {
+    const { object } = await generateObject({
+      model: openai("gpt-5-nano"),
+      schema: announcementTranslationResultSchema,
+      prompt: `Translate this push announcement to Norwegian Bokmål. Return a natural-sounding translation appropriate for Norwegian students.
+Keep the tone clear, concise, and student-facing.
+Preserve the simple HTML structure in the body. Only use p, h3, ul, li, strong and em tags.
+Do not add information that is not present in the source.
+
+Title:
+${validated.data.title_en}
+
+Body HTML:
+${validated.data.body_en}`,
+    });
+
+    return { data: object };
+  } catch (error) {
+    return {
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to generate Norwegian draft",
     };
   }
 }

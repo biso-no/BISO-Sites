@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { requireNavAccess } from "@/lib/authorization";
 import { getAnnouncement } from "../../_actions/announcements";
 import { listCampuses } from "../../_actions/lookups";
-import { AnnouncementEditor } from "../_components/announcement-editor";
+import { AnnouncementStudioEditor } from "../_components/announcement-studio-editor";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -44,7 +44,7 @@ export default async function AnnouncementEditorPage({ params }: Props) {
   }
 
   return (
-    <AnnouncementEditor
+    <AnnouncementStudioEditor
       allowGlobalCampus={isGlobalAdmin}
       announcement={announcement}
       campuses={filteredCampuses.map((campus) => ({
