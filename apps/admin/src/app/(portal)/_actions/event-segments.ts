@@ -129,10 +129,14 @@ export async function listSegments(
     Query.limit(200),
   ]);
 
+  // segment_members rows are readable only by their assigned user (row
+  // security), so counts must come from the service-key client or every
+  // segment shows 0 members to admins.
+  const { db: adminDb } = await createAdminClient();
   return await Promise.all(
     response.rows.map(async (segment) => ({
       ...segment,
-      member_count: await countSegmentMembers(db, segment.$id),
+      member_count: await countSegmentMembers(adminDb, segment.$id),
     }))
   );
 }

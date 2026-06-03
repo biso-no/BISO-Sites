@@ -539,13 +539,14 @@ function SelectCard({
 }) {
   return (
     <button
-      onClick={onClick}
+      disabled={disabled}
+      onClick={disabled ? undefined : onClick}
       style={{
         background: active ? BRAND.ink : "rgba(255,255,255,.55)",
         border: `0.5px solid ${active ? BRAND.ink : BRAND.rule2}`,
         borderRadius: 12,
         color: active ? BRAND.paper : BRAND.ink,
-        cursor: "pointer",
+        cursor: disabled ? "not-allowed" : "pointer",
         opacity: disabled ? 0.7 : 1,
         padding: "16px 18px",
         position: "relative",
