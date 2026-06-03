@@ -68,6 +68,10 @@ export const NAV_ACCESS = {
   "portal.benefits": [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
   "portal.benefitsPartners": [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
   "portal.news": [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN, DEPARTMENT_ROLE],
+  // Announcements are campus-scoped (no department_id column), so department
+  // users are excluded — applyScopeQueries would otherwise filter by a column
+  // the announcements collection doesn't have.
+  "portal.communications": [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
   "portal.activity": [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
   "portal.drafts": [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
   "portal.settings": [ROLES.GLOBAL_ADMIN],

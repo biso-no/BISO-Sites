@@ -13,10 +13,12 @@ import {
 
 const EVENTS_PUSH_TOPIC_ID = "events";
 
+import type { Announcements } from "@repo/api/types/appwrite";
 import { generateObject } from "ai";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { dispatchAnnouncement } from "@/lib/announcements/send";
 import { getUserAuthContext, type UserAuthContext } from "@/lib/authorization";
 import {
   applyScopeQueries,
@@ -77,6 +79,54 @@ async function requireAuth(): Promise<UserAuthContext> {
     redirect("/auth/login");
   }
   return ctx;
+}
+
+/**
+ * Send a published-event push through the unified announcement delivery path.
+ * Creates a transient `announcement` row (category "event", topic audience on
+ * the "events" topic) and dispatches it. Resilient by design: any failure is
+ * logged and never blocks publishing.
+ */
+async function sendEventAnnouncement(input: {
+  eventId: string;
+  titleEn: string;
+  titleNo: string | null;
+  bodyEn: string | null;
+  bodyNo: string | null;
+  campusId: string | null;
+}): Promise<void> {
+  try {
+    const { db, messaging, users } = await createAdminClient();
+    const deepLink = `biso://event?id=${input.eventId}`;
+    const announcement = await db.createRow(
+      "app",
+      "announcements",
+      ID.unique(),
+      {
+        status: "sent",
+        category: "event",
+        audience_type: "topic",
+        audience_value: EVENTS_PUSH_TOPIC_ID,
+        title_en: input.titleEn,
+        title_no: input.titleNo,
+        body_en: input.bodyEn,
+        body_no: input.bodyNo,
+        event_id: input.eventId,
+        campus_id: input.campusId,
+        deep_link: deepLink,
+        push: true,
+        sent_at: new Date().toISOString(),
+      }
+    );
+
+    await dispatchAnnouncement(announcement as unknown as Announcements, {
+      db,
+      messaging,
+      users,
+    });
+  } catch (error) {
+    console.error("Failed to send event push notification:", error);
+  }
 }
 
 function serializeAdditionalFields(payload: {
@@ -388,17 +438,14 @@ export async function updateEvent(id: string, values: EventFormValues) {
     });
 
     if (validated.data.status === "published" && validated.data.notify_push) {
-      try {
-        const { messaging } = await createAdminClient();
-        await messaging.createPush(
-          ID.unique(),
-          validated.data.title_en,
-          validated.data.short_description_en ?? "",
-          [EVENTS_PUSH_TOPIC_ID]
-        );
-      } catch (messagingError) {
-        console.error("Failed to send push notification:", messagingError);
-      }
+      await sendEventAnnouncement({
+        eventId: id,
+        titleEn: validated.data.title_en,
+        titleNo: validated.data.title_no || null,
+        bodyEn: validated.data.short_description_en ?? null,
+        bodyNo: validated.data.short_description_no ?? null,
+        campusId: validated.data.campus_id ?? null,
+      });
     }
 
     revalidatePath("/events");
@@ -487,28 +534,30 @@ export async function publishEvent(id: string) {
     });
 
     if (event.notify_push) {
-      try {
-        const translationsResult = await db.listRows<ContentTranslations>(
-          "app",
-          "content_translations",
-          [
-            Query.equal("content_type", "event"),
-            Query.equal("content_id", id),
-            Query.equal("locale", "en"),
-            Query.limit(1),
-          ]
-        );
-        const translation = translationsResult.rows[0];
-        const { messaging } = await createAdminClient();
-        await messaging.createPush(
-          ID.unique(),
-          translation?.title ?? event.slug ?? "New Event",
-          translation?.short_description ?? "",
-          [EVENTS_PUSH_TOPIC_ID]
-        );
-      } catch (messagingError) {
-        console.error("Failed to send push notification:", messagingError);
-      }
+      const translationsResult = await db.listRows<ContentTranslations>(
+        "app",
+        "content_translations",
+        [
+          Query.equal("content_type", "event"),
+          Query.equal("content_id", id),
+          Query.limit(2),
+        ]
+      );
+      const enTranslation = translationsResult.rows.find(
+        (row) => row.locale === "en"
+      );
+      const noTranslation = translationsResult.rows.find(
+        (row) => row.locale === "no"
+      );
+
+      await sendEventAnnouncement({
+        eventId: id,
+        titleEn: enTranslation?.title ?? event.slug ?? "New Event",
+        titleNo: noTranslation?.title ?? null,
+        bodyEn: enTranslation?.short_description ?? null,
+        bodyNo: noTranslation?.short_description ?? null,
+        campusId: event.campus_id ?? null,
+      });
     }
 
     revalidatePath("/events");

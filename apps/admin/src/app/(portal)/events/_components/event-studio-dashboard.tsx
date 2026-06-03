@@ -1140,6 +1140,25 @@ function EventRow({
         <StatusPill status={event.status} />
         <div style={{ alignItems: "center", display: "flex", gap: 4 }}>
           <Link
+            aria-label="Logistics"
+            href={`/events/${event.$id}/segments`}
+            style={{
+              alignItems: "center",
+              background: "rgba(255,255,255,.7)",
+              border: `0.5px solid ${BRAND.rule2}`,
+              borderRadius: 7,
+              color: BRAND.ink2,
+              cursor: "pointer",
+              display: "grid",
+              height: 28,
+              justifyItems: "center",
+              width: 28,
+            }}
+            title="Logistics"
+          >
+            <MapPin size={13} />
+          </Link>
+          <Link
             aria-label={labels.edit}
             href={`/events/${event.$id}`}
             style={{

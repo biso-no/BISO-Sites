@@ -1,0 +1,8 @@
+{
+  "name": "scheduled-dispatch",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Cron Appwrite Function that pings the app's secret-gated dispatch/sync endpoints.",
+  "main": "src/main.js",
+  "type": "commonjs"
+}
