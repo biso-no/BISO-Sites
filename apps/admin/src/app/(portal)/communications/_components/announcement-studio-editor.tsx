@@ -1,6 +1,5 @@
 "use client";
 
-import { ContentEditor } from "@repo/ui/components/content-editor";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -34,6 +33,7 @@ import {
   type AnnouncementFormValues,
   announcementSchema,
 } from "../../_actions/schemas";
+import { DescriptionBlockEditor } from "../../_components/description-block-editor";
 
 /* -------------------------------------------------------------------------- */
 /*                              Brand + constants                             */
@@ -164,6 +164,11 @@ export type { AnnouncementStudioEditorProps };
 const HTML_TAG_PATTERN = /<[^>]*>/g;
 const WHITESPACE_PATTERN = /\s+/g;
 
+/**
+ * Flatten the editor's HTML body to a single line of plain text for the push
+ * previews and audience checks. Matches the dispatch-side flattening in
+ * `lib/announcements/send.ts`.
+ */
 function htmlToPlainText(html: string | null | undefined): string {
   if (!html) {
     return "";
@@ -845,8 +850,7 @@ function ContentStep({
         pendingNo={!values.body_no?.trim()}
         setLocale={setLocale}
       />
-      <ContentEditor
-        minHeight={240}
+      <DescriptionBlockEditor
         onChange={(value) => set(bodyKey, value || null)}
         placeholder={
           locale === "en"
@@ -854,7 +858,6 @@ function ContentStep({
             : "Skriv kunngjøringen. Hold den kort — push viser de første linjene."
         }
         value={bodyValue ?? ""}
-        variant="news"
       />
 
       <div style={{ marginTop: 22 }}>
