@@ -268,7 +268,12 @@
     },
     {
       "$id": "department_board",
-      "$permissions": ["read(\"any\")", "create(\"team:admin\")", "update(\"team:admin\")", "delete(\"team:admin\")"],
+      "$permissions": [
+        "read(\"any\")",
+        "create(\"team:admin\")",
+        "update(\"team:admin\")",
+        "delete(\"team:admin\")"
+      ],
       "databaseId": "app",
       "name": "Department Board",
       "enabled": true,

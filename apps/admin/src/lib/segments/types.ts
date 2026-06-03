@@ -7,7 +7,7 @@
 // `db.getRow<T>(...)` type-check.
 //
 // The generated types import `Models` from "appwrite" — match that here.
-import type { Models } from "appwrite";
+import type { Models } from "@repo/api";
 
 export type EventSegments = Models.Row & {
   event_id: string | null;

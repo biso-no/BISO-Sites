@@ -7,7 +7,7 @@
 // `db.getRow<Announcements>(...)` type-check.
 //
 // The generated types import `Models` from "appwrite" — match that here.
-import type { Models } from "appwrite";
+import type { Models } from "@repo/api";
 
 export type Announcements = Models.Row & {
   status: string;

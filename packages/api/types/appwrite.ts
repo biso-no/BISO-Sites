@@ -21,6 +21,20 @@ export enum NotificationsStatus {
   UNREAD = "unread",
 }
 
+export enum AnnouncementsStatus {
+  DRAFT = "draft",
+  SCHEDULED = "scheduled",
+  SENT = "sent",
+  FAILED = "failed",
+}
+
+export enum AnnouncementsAudienceType {
+  TOPIC = "topic",
+  USERS = "users",
+  SEGMENT = "segment",
+  BROADCAST = "broadcast",
+}
+
 export enum PagesStatus {
   DRAFT = "draft",
   PUBLISHED = "published",
@@ -410,6 +424,61 @@ export type DepartmentBoard = Models.Row & {
 
 export type Notifications = Models.Row & {
   status: NotificationsStatus;
+};
+
+export type Announcements = Models.Row & {
+  status: AnnouncementsStatus;
+  category: string;
+  audience_type: AnnouncementsAudienceType;
+  audience_value: string | null;
+  title_en: string;
+  title_no: string | null;
+  body_en: string | null;
+  body_no: string | null;
+  event_id: string | null;
+  campus_id: string | null;
+  deep_link: string | null;
+  data: string | null;
+  push: boolean;
+  scheduled_at: string | null;
+  sent_at: string | null;
+  created_by: string | null;
+};
+
+export type UserNotifications = Models.Row & {
+  user_id: string;
+  announcement_id: string;
+  read: boolean;
+};
+
+export type EventSegments = Models.Row & {
+  event_id: string | null;
+  kind: string | null;
+  name: string;
+  campus_id: string | null;
+  capacity: number;
+  metadata: string | null;
+  topic_id: string | null;
+};
+
+export type SegmentMembers = Models.Row & {
+  segment_id: string;
+  event_id: string | null;
+  user_id: string;
+  attendee_id: string | null;
+  assigned_at: string | null;
+};
+
+export type EventAttendees = Models.Row & {
+  event_id: string;
+  email: string | null;
+  name: string | null;
+  phone: string | null;
+  ticket_type: string | null;
+  order_ref: string | null;
+  source: string;
+  matched_user_id: string | null;
+  campus_id: string | null;
 };
 
 export type Pages = Models.Row & {
