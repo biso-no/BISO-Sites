@@ -589,7 +589,11 @@ export async function assignToSegment(
     }
     assertWriteAccess(ctx, event.campus_id, event.department_id);
 
-    const existing = await db.listRows<SegmentMembers>(
+    // segment_members rows are readable only by their assigned user (row
+    // security), so an admin must read/write them with the service-key client —
+    // otherwise existing members are invisible and capacity/dedup break.
+    const { db: adminDb } = await createAdminClient();
+    const existing = await adminDb.listRows<SegmentMembers>(
       "app",
       "segment_members",
       [Query.equal("segment_id", segmentId), Query.limit(1000)]
@@ -614,7 +618,7 @@ export async function assignToSegment(
         continue;
       }
       try {
-        await db.createRow(
+        await adminDb.createRow(
           "app",
           "segment_members",
           ID.unique(),
@@ -748,7 +752,9 @@ export async function autoAssign(
     const assignedUsers = new Set<string>();
     const segmentState = await Promise.all(
       segments.map(async (segment) => {
-        const members = await db.listRows<SegmentMembers>(
+        // Row security hides members from the admin's session client; read
+        // them with the service-key client so counts/dedup are accurate.
+        const members = await admin.db.listRows<SegmentMembers>(
           "app",
           "segment_members",
           [Query.equal("segment_id", segment.$id), Query.limit(1000)]
@@ -788,7 +794,7 @@ export async function autoAssign(
         continue;
       }
 
-      await db.createRow(
+      await admin.db.createRow(
         "app",
         "segment_members",
         ID.unique(),
