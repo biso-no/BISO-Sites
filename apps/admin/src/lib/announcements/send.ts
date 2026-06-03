@@ -1,8 +1,12 @@
 import "server-only";
 
-import { ID, Permission, Role } from "@repo/api";
+import { ID, Permission, Query, Role } from "@repo/api";
 import type { createAdminClient } from "@repo/api/server";
+import type { SegmentMembers } from "../segments/types";
 import type { Announcements, UserNotifications } from "./types";
+
+/** Appwrite list pagination ceiling for a single `Query.limit` call. */
+const SEGMENT_MEMBER_PAGE_SIZE = 200;
 
 type AdminClients = Awaited<ReturnType<typeof createAdminClient>>;
 
@@ -110,6 +114,47 @@ function parseUserIds(value: string | null): string[] {
   return [];
 }
 
+/**
+ * Collect every `user_id` assigned to a segment, paginating through
+ * `segment_members` with a cursor so we capture all members regardless of size.
+ */
+async function collectSegmentUserIds(
+  db: DispatchClients["db"],
+  segmentId: string
+): Promise<string[]> {
+  const userIds: string[] = [];
+  let cursor: string | null = null;
+
+  for (;;) {
+    const queries: string[] = [
+      Query.equal("segment_id", segmentId),
+      Query.limit(SEGMENT_MEMBER_PAGE_SIZE),
+    ];
+    if (cursor) {
+      queries.push(Query.cursorAfter(cursor));
+    }
+
+    const page = await db.listRows<SegmentMembers>(
+      "app",
+      "segment_members",
+      queries
+    );
+    for (const member of page.rows) {
+      userIds.push(member.user_id);
+    }
+
+    if (page.rows.length < SEGMENT_MEMBER_PAGE_SIZE) {
+      break;
+    }
+    cursor = page.rows.at(-1)?.$id ?? null;
+    if (!cursor) {
+      break;
+    }
+  }
+
+  return Array.from(new Set(userIds));
+}
+
 async function fanOutUserNotifications(
   db: DispatchClients["db"],
   announcementId: string,
@@ -188,11 +233,12 @@ export async function dispatchAnnouncement(
     return { recipients: 0 };
   }
 
-  // `users` and (Phase 1 fallback) `segment` both treat audience_value as a
-  // JSON array of user ids.
-  // TODO(phase2): resolve segment_members for audience_type "segment" instead
-  // of treating audience_value as a user-id list.
-  const userIds = parseUserIds(announcement.audience_value);
+  // `segment` resolves audience_value as a segment_id → its assigned members.
+  // `users` treats audience_value as a JSON array of user ids.
+  const userIds =
+    announcement.audience_type === "segment"
+      ? await collectSegmentUserIds(db, announcement.audience_value ?? "")
+      : parseUserIds(announcement.audience_value);
 
   if (userIds.length === 0) {
     return { recipients: 0 };

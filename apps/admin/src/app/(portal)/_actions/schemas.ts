@@ -118,6 +118,39 @@ export const announcementSchema = z.object({
 export const ANNOUNCEMENTS_PAGE_SIZE = 20;
 export type AnnouncementFormValues = z.infer<typeof announcementSchema>;
 
+export const segmentMetadataSchema = z.object({
+  departure_time: z.string().optional().nullable(),
+  pickup_location: z.string().optional().nullable(),
+  hotel: z.string().optional().nullable(),
+  room_number: z.string().optional().nullable(),
+  schedule: z.string().optional().nullable(),
+  notes: z.string().optional().nullable(),
+});
+
+export const segmentSchema = z.object({
+  event_id: z.string().min(1, "Event is required"),
+  kind: z.string().trim().optional().default(""),
+  name: z.string().min(1, "Name is required"),
+  campus_id: z.string().optional().nullable(),
+  capacity: z.coerce.number().int().nonnegative().default(0),
+  metadata: segmentMetadataSchema.optional(),
+  topic_id: z.string().optional().nullable(),
+});
+
+export type SegmentMetadataValues = z.infer<typeof segmentMetadataSchema>;
+export type SegmentFormValues = z.infer<typeof segmentSchema>;
+
+export const messageSegmentSchema = z.object({
+  title_en: z.string().min(1, "Title (EN) is required"),
+  title_no: z.string().optional().nullable(),
+  body_en: z.string().optional().nullable(),
+  body_no: z.string().optional().nullable(),
+  category: z.enum(["general", "trip", "urgent", "event"]).default("trip"),
+  push: z.boolean().default(true),
+});
+
+export type MessageSegmentValues = z.infer<typeof messageSegmentSchema>;
+
 export const MEDIA_BUCKET_ID = "media";
 
 export const DOCUMENTS_PAGE_SIZE = 25;
