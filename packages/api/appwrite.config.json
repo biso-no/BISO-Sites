@@ -564,6 +564,292 @@
       ]
     },
     {
+      "$id": "event_segments",
+      "$permissions": ["read(\"users\")", "create(\"users\")"],
+      "databaseId": "app",
+      "name": "Event Segments",
+      "enabled": true,
+      "rowSecurity": false,
+      "columns": [
+        {
+          "key": "event_id",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 50,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "kind",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 50,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "name",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 128,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "campus_id",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 50,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "capacity",
+          "type": "integer",
+          "required": false,
+          "array": false,
+          "default": 0,
+          "min": 0,
+          "max": 100000
+        },
+        {
+          "key": "metadata",
+          "type": "mediumtext",
+          "required": false,
+          "array": false,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "topic_id",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 50,
+          "default": null,
+          "encrypt": false
+        }
+      ],
+      "indexes": [
+        {
+          "key": "idx_event_id",
+          "type": "key",
+          "status": "available",
+          "columns": ["event_id"],
+          "orders": ["ASC"]
+        },
+        {
+          "key": "idx_campus_id",
+          "type": "key",
+          "status": "available",
+          "columns": ["campus_id"],
+          "orders": ["ASC"]
+        }
+      ]
+    },
+    {
+      "$id": "segment_members",
+      "$permissions": ["create(\"users\")"],
+      "databaseId": "app",
+      "name": "Segment Members",
+      "enabled": true,
+      "rowSecurity": true,
+      "columns": [
+        {
+          "key": "segment_id",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 50,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "event_id",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 50,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "user_id",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 50,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "attendee_id",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 50,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "assigned_at",
+          "type": "datetime",
+          "required": false,
+          "array": false,
+          "default": null,
+          "format": ""
+        }
+      ],
+      "indexes": [
+        {
+          "key": "uniq_segment_user",
+          "type": "unique",
+          "status": "available",
+          "columns": ["segment_id", "user_id"],
+          "orders": ["ASC", "ASC"]
+        },
+        {
+          "key": "idx_user_id",
+          "type": "key",
+          "status": "available",
+          "columns": ["user_id"],
+          "orders": ["ASC"]
+        },
+        {
+          "key": "idx_segment_id",
+          "type": "key",
+          "status": "available",
+          "columns": ["segment_id"],
+          "orders": ["ASC"]
+        },
+        {
+          "key": "idx_event_user",
+          "type": "key",
+          "status": "available",
+          "columns": ["event_id", "user_id"],
+          "orders": ["ASC", "ASC"]
+        }
+      ]
+    },
+    {
+      "$id": "event_attendees",
+      "$permissions": [],
+      "databaseId": "app",
+      "name": "Event Attendees",
+      "enabled": true,
+      "rowSecurity": false,
+      "columns": [
+        {
+          "key": "event_id",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 50,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "email",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 255,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "name",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 255,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "phone",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 50,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "ticket_type",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 100,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "order_ref",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 100,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "source",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 50,
+          "default": "csv",
+          "encrypt": false
+        },
+        {
+          "key": "matched_user_id",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 50,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "campus_id",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 50,
+          "default": null,
+          "encrypt": false
+        }
+      ],
+      "indexes": [
+        {
+          "key": "uniq_event_order",
+          "type": "unique",
+          "status": "available",
+          "columns": ["event_id", "order_ref"],
+          "orders": ["ASC", "ASC"]
+        },
+        {
+          "key": "idx_event_id",
+          "type": "key",
+          "status": "available",
+          "columns": ["event_id"],
+          "orders": ["ASC"]
+        },
+        {
+          "key": "idx_matched_user_id",
+          "type": "key",
+          "status": "available",
+          "columns": ["matched_user_id"],
+          "orders": ["ASC"]
+        }
+      ]
+    },
+    {
       "$id": "pages",
       "$permissions": ["read(\"any\")", "create(\"users\")"],
       "databaseId": "app",
