@@ -43,7 +43,30 @@ set by `buildJobRowPermissions` (public vacancies → `read(any)`, members-only 
 
 **Fix direction (chosen): mirror the jobs pattern.** See Phase 2.
 
-### B — Divergent campus/department scoping (MEDIUM, needs a product decision)
+### B — Divergent campus/department scoping (RESOLVED in Phase 1: department-only)
+
+**Decision: department users are scoped to their department.** `pages.ts` (`listPages`,
+`getDashboardStats`) now routes through `applyScopeQueries(ctx)` — the single source of truth —
+which also fixes the global-admin `activeCampusId` switcher that the old inline code ignored.
+`savePageEditorDoc` now defaults a page's `department_id` to the saver's department when they
+belong to exactly one and haven't picked one, so a department user never creates a page they
+immediately can't see.
+
+**⚠️ Required pre-prod data audit:** `pages` has no owner field — `department_id` is the only
+scoping handle. Existing pages with a null or non-matching `department_id` will become invisible
+to department users under department-only scoping (global/campus admins are unaffected). Before
+promoting to prod, audit `pages` for rows with `department_id` null / not matching any Departments
+`$id`, and assign departments where appropriate (needs human attribution — there is no automatic
+owner mapping). Verify on staging with a real department account first.
+
+Remaining inline scopers intentionally left as-is (verified safe):
+- `activity.ts` → `audit_logs` has neither `campus_id` nor `department_id`; must not use the helper.
+- `benefits.ts`/`departments.ts` → campus-only collections, campus-admin-only nav (no department
+  branch reachable). Consolidating is optional and behavior-neutral; deferred to avoid churn.
+- `events.ts`, `news.ts`, `documents.ts`, `announcements.ts`, `drafts.ts`, `shop.ts`,
+  `submissions.ts` already use `applyScopeQueries`.
+
+#### Original analysis (for context)
 
 `applyScopeQueries()` scopes department users by **`department_id`**, but `listPages` /
 `getDashboardStats` in `_actions/pages.ts` scope them by **`campus_id`** (whole campus).
@@ -101,13 +124,10 @@ those IDs, or row `$permissions` referencing them silently grant nothing.
 ## Phase 1 — applied
 
 - **F:** removed `labels` from `UserAuthContext` and its population.
+- **B:** `pages.ts` consolidated onto `applyScopeQueries` (department-only scoping +
+  global-admin `activeCampusId` fix); `savePageEditorDoc` defaults `department_id` for
+  single-department users. **Pending pre-prod: the data audit described in finding B.**
 - This document.
-
-## Phase 1 — pending your decision
-
-- **B:** consolidate list-action scoping onto `applyScopeQueries` once the
-  department-vs-campus semantics is chosen, including the global-admin `activeCampusId` fix and
-  explicit null-`department_id` handling.
 
 ## Phase 2 — planned (Appwrite changes + backfill, run on staging first)
 
