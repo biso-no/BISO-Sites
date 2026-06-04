@@ -11,6 +11,12 @@ import type {
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getUserAuthContext, type UserAuthContext } from "@/lib/authorization";
+import { loadRecruitmentLookups } from "@/lib/recruitment";
+import {
+  buildContentRowPermissions,
+  buildContentTranslationPermissions,
+  deriveContentRowTeams,
+} from "@/lib/utils";
 import {
   applyScopeQueries,
   assertPublishAccess,
@@ -40,12 +46,25 @@ interface TranslationData {
 async function upsertTranslation(
   db: Awaited<ReturnType<typeof createSessionClient>>["db"],
   existing: ContentTranslations | undefined,
-  data: TranslationData
+  data: TranslationData,
+  permissions: string[]
 ) {
   if (existing) {
-    await db.updateRow("app", "content_translations", existing.$id, data);
+    await db.updateRow(
+      "app",
+      "content_translations",
+      existing.$id,
+      data,
+      permissions
+    );
   } else {
-    await db.createRow("app", "content_translations", "unique()", data);
+    await db.createRow(
+      "app",
+      "content_translations",
+      "unique()",
+      data,
+      permissions
+    );
   }
 }
 
@@ -166,30 +185,68 @@ export async function createProduct(values: ProductFormValues) {
 
     const { db } = await createSessionClient();
 
-    const product = await db.createRow("app", "webshop_products", "unique()", {
-      ...buildProductFields(validated.data),
-      status: "draft" as WebshopProductsStatus,
+    const lookups = await loadRecruitmentLookups(db);
+    const status = "draft";
+    const audience = validated.data.member_only ? "members" : "public";
+    const { campusTeam, deptTeam } = deriveContentRowTeams(lookups, {
+      campus_id: validated.data.campus_id,
+      department_id: validated.data.department_id ?? null,
+    });
+    const rowPermissions = buildContentRowPermissions({
+      status,
+      audience,
+      campusTeam,
+      deptTeam,
+    });
+    const translationPermissions = buildContentTranslationPermissions({
+      audience,
+      status,
+      writeTeams: deptTeam ? [deptTeam] : [],
+      readTeams: campusTeam ? [campusTeam] : [],
     });
 
-    await db.createRow("app", "content_translations", "unique()", {
-      content_id: product.$id,
-      content_type: "product",
-      locale: "no",
-      title: validated.data.name,
-      description: validated.data.description ?? "",
-      short_description: validated.data.short_description ?? null,
-    });
+    const product = await db.createRow(
+      "app",
+      "webshop_products",
+      "unique()",
+      {
+        ...buildProductFields(validated.data),
+        status: status as WebshopProductsStatus,
+      },
+      rowPermissions
+    );
 
-    if (validated.data.name_en || validated.data.description_en) {
-      await db.createRow("app", "content_translations", "unique()", {
+    await db.createRow(
+      "app",
+      "content_translations",
+      "unique()",
+      {
         content_id: product.$id,
         content_type: "product",
-        locale: "en",
-        title: validated.data.name_en ?? validated.data.name,
-        description:
-          validated.data.description_en ?? validated.data.description ?? "",
+        locale: "no",
+        title: validated.data.name,
+        description: validated.data.description ?? "",
         short_description: validated.data.short_description ?? null,
-      });
+      },
+      translationPermissions
+    );
+
+    if (validated.data.name_en || validated.data.description_en) {
+      await db.createRow(
+        "app",
+        "content_translations",
+        "unique()",
+        {
+          content_id: product.$id,
+          content_type: "product",
+          locale: "en",
+          title: validated.data.name_en ?? validated.data.name,
+          description:
+            validated.data.description_en ?? validated.data.description ?? "",
+          short_description: validated.data.short_description ?? null,
+        },
+        translationPermissions
+      );
     }
 
     await logAuditEvent(ctx, "product_created", {
@@ -234,10 +291,35 @@ export async function updateProduct(id: string, values: ProductFormValues) {
       assertPublishAccess(ctx, validated.data.campus_id);
     }
 
-    await db.updateRow("app", "webshop_products", id, {
-      ...buildProductFields(validated.data),
-      status: validated.data.status as WebshopProductsStatus,
+    const lookups = await loadRecruitmentLookups(db);
+    const audience = validated.data.member_only ? "members" : "public";
+    const { campusTeam, deptTeam } = deriveContentRowTeams(lookups, {
+      campus_id: validated.data.campus_id,
+      department_id: validated.data.department_id ?? null,
     });
+    const rowPermissions = buildContentRowPermissions({
+      status: validated.data.status,
+      audience,
+      campusTeam,
+      deptTeam,
+    });
+    const translationPermissions = buildContentTranslationPermissions({
+      audience,
+      status: validated.data.status,
+      writeTeams: deptTeam ? [deptTeam] : [],
+      readTeams: campusTeam ? [campusTeam] : [],
+    });
+
+    await db.updateRow(
+      "app",
+      "webshop_products",
+      id,
+      {
+        ...buildProductFields(validated.data),
+        status: validated.data.status as WebshopProductsStatus,
+      },
+      rowPermissions
+    );
 
     const existingTranslations = await db.listRows<ContentTranslations>(
       "app",
@@ -256,25 +338,45 @@ export async function updateProduct(id: string, values: ProductFormValues) {
       (t) => t.locale === "en"
     );
 
-    await upsertTranslation(db, noTranslation, {
-      content_id: id,
-      content_type: "product",
-      locale: "no",
-      title: validated.data.name,
-      description: validated.data.description ?? "",
-      short_description: validated.data.short_description ?? null,
-    });
-
-    if (validated.data.name_en || validated.data.description_en) {
-      await upsertTranslation(db, enTranslation, {
+    await upsertTranslation(
+      db,
+      noTranslation,
+      {
         content_id: id,
         content_type: "product",
-        locale: "en",
-        title: validated.data.name_en ?? validated.data.name,
-        description:
-          validated.data.description_en ?? validated.data.description ?? "",
+        locale: "no",
+        title: validated.data.name,
+        description: validated.data.description ?? "",
         short_description: validated.data.short_description ?? null,
-      });
+      },
+      translationPermissions
+    );
+
+    if (validated.data.name_en || validated.data.description_en) {
+      await upsertTranslation(
+        db,
+        enTranslation,
+        {
+          content_id: id,
+          content_type: "product",
+          locale: "en",
+          title: validated.data.name_en ?? validated.data.name,
+          description:
+            validated.data.description_en ?? validated.data.description ?? "",
+          short_description: validated.data.short_description ?? null,
+        },
+        translationPermissions
+      );
+    } else if (enTranslation) {
+      // English content was not edited this time; still re-stamp its
+      // permissions so a status transition never leaves a stale read(any).
+      await db.updateRow(
+        "app",
+        "content_translations",
+        enTranslation.$id,
+        {},
+        translationPermissions
+      );
     }
 
     await logAuditEvent(ctx, "product_updated", {

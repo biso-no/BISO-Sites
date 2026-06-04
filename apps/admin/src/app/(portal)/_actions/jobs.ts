@@ -46,7 +46,10 @@ import {
   loadRecruitmentLookups,
   toRecruitmentAdminScope,
 } from "@/lib/recruitment";
-import { buildContentTranslationPermissions } from "@/lib/utils";
+import {
+  buildContentTranslationPermissions,
+  deriveContentRowTeams,
+} from "@/lib/utils";
 import { assertPublishAccess } from "@/lib/utils/authorization";
 import { logAuditEvent } from "./audit-log";
 
@@ -370,13 +373,20 @@ export async function createJob(values: RecruitmentVacancyUpsertInput) {
         campus_id: validated.data.campus_id,
         department_id: validated.data.department_id ?? null,
       },
-      audience
+      audience,
+      validated.data.status
     );
+    const { campusTeam } = deriveContentRowTeams(lookups, {
+      campus_id: validated.data.campus_id,
+      department_id: validated.data.department_id ?? null,
+    });
     const translationPerms = buildContentTranslationPermissions({
       audience,
+      status: validated.data.status,
       writeTeams: jobPerms
         .filter((p) => p.startsWith('update("team:'))
         .map((p) => p.slice('update("team:'.length, -2)),
+      readTeams: campusTeam ? [campusTeam] : [],
     });
     const payload = await buildJobUpsertPayload(
       sessionDb,
@@ -453,13 +463,20 @@ export async function updateJob(
         campus_id: validated.data.campus_id,
         department_id: validated.data.department_id ?? null,
       },
-      audience
+      audience,
+      validated.data.status
     );
+    const { campusTeam } = deriveContentRowTeams(lookups, {
+      campus_id: validated.data.campus_id,
+      department_id: validated.data.department_id ?? null,
+    });
     const translationPerms = buildContentTranslationPermissions({
       audience,
+      status: validated.data.status,
       writeTeams: jobPerms
         .filter((p) => p.startsWith('update("team:'))
         .map((p) => p.slice('update("team:'.length, -2)),
+      readTeams: campusTeam ? [campusTeam] : [],
     });
     const payload = await buildJobUpsertPayload(
       sessionDb,

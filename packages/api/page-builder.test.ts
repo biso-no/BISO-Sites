@@ -37,6 +37,10 @@ const doc: PageDoc = {
 describe("page builder", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Default for any un-queued listRows call (e.g. the campus/department
+    // lookups used to derive row permissions). `mockResolvedValueOnce` queued
+    // in individual tests still takes precedence over this default.
+    db.listRows.mockResolvedValue({ rows: [] });
   });
 
   it("loads editor pages with translation relationship rows selected", async () => {
@@ -94,14 +98,16 @@ describe("page builder", () => {
       "app",
       "pages",
       expect.any(String),
-      expect.not.objectContaining({ title: expect.anything() })
+      expect.not.objectContaining({ title: expect.anything() }),
+      expect.any(Array)
     );
     expect(db.upsertRow).toHaveBeenNthCalledWith(
       2,
       "app",
       "page_translations",
       expect.any(String),
-      expect.not.objectContaining({ slug: expect.anything() })
+      expect.not.objectContaining({ slug: expect.anything() }),
+      expect.any(Array)
     );
   });
 
@@ -122,7 +128,8 @@ describe("page builder", () => {
       "app",
       "pages",
       expect.any(String),
-      expect.objectContaining({ slug: "shared-slug-2" })
+      expect.objectContaining({ slug: "shared-slug-2" }),
+      expect.any(Array)
     );
     expect(db.upsertRow).toHaveBeenNthCalledWith(
       2,
@@ -131,7 +138,8 @@ describe("page builder", () => {
       expect.any(String),
       expect.objectContaining({
         draft_document: expect.stringContaining('"slug":"shared-slug-2"'),
-      })
+      }),
+      expect.any(Array)
     );
   });
 
@@ -139,9 +147,14 @@ describe("page builder", () => {
     db.upsertRow
       .mockResolvedValueOnce({ $id: "page-1" })
       .mockResolvedValueOnce({ $id: "tr-no" });
-    db.listRows.mockResolvedValueOnce({
-      rows: [{ $id: "tr-no", is_published: false }],
-    });
+    db.listRows
+      // campus + department lookups (loadPageRowTeams)
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      // existing translation lookup
+      .mockResolvedValueOnce({
+        rows: [{ $id: "tr-no", is_published: false }],
+      });
 
     await savePageDraft({ id: "page-1", doc, locale: "no", ctx });
 
@@ -149,7 +162,8 @@ describe("page builder", () => {
       "app",
       "page_translations",
       "tr-no",
-      expect.objectContaining({ title: "Hei" })
+      expect.objectContaining({ title: "Hei" }),
+      expect.any(Array)
     );
     expect(db.createRow).not.toHaveBeenCalled();
   });

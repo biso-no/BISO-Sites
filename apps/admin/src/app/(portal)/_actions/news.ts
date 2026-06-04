@@ -10,7 +10,12 @@ import type {
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getUserAuthContext, type UserAuthContext } from "@/lib/authorization";
-import { buildContentTranslationPermissions } from "@/lib/utils";
+import { loadRecruitmentLookups } from "@/lib/recruitment";
+import {
+  buildContentRowPermissions,
+  buildContentTranslationPermissions,
+  deriveContentRowTeams,
+} from "@/lib/utils";
 import {
   applyScopeQueries,
   assertPublishAccess,
@@ -127,15 +132,33 @@ export async function createNews(values: NewsFormValues) {
 
     const { db } = await createSessionClient();
 
-    const article = await db.createRow("app", "news", "unique()", {
-      slug: validated.data.slug,
-      status: "draft" as NewsStatus,
+    const lookups = await loadRecruitmentLookups(db);
+    const status = "draft";
+    const { campusTeam, deptTeam } = deriveContentRowTeams(lookups, {
       campus_id: validated.data.campus_id,
       department_id: validated.data.department_id ?? null,
-      image: validated.data.image || null,
-      sticky: validated.data.sticky ?? false,
-      author: validated.data.author ?? null,
     });
+
+    const article = await db.createRow(
+      "app",
+      "news",
+      "unique()",
+      {
+        slug: validated.data.slug,
+        status: status as NewsStatus,
+        campus_id: validated.data.campus_id,
+        department_id: validated.data.department_id ?? null,
+        image: validated.data.image || null,
+        sticky: validated.data.sticky ?? false,
+        author: validated.data.author ?? null,
+      },
+      buildContentRowPermissions({
+        status,
+        audience: "public",
+        campusTeam,
+        deptTeam,
+      })
+    );
 
     await db.createRow(
       "app",
@@ -154,8 +177,10 @@ export async function createNews(values: NewsFormValues) {
       },
       buildContentTranslationPermissions({
         audience: "public",
+        status,
         ownerUserId: ctx.userId,
-        writeTeams: [],
+        writeTeams: deptTeam ? [deptTeam] : [],
+        readTeams: campusTeam ? [campusTeam] : [],
       })
     );
 
@@ -200,15 +225,39 @@ export async function updateNews(id: string, values: NewsFormValues) {
       assertPublishAccess(ctx, validated.data.campus_id);
     }
 
-    await db.updateRow("app", "news", id, {
-      slug: validated.data.slug,
-      status: validated.data.status as NewsStatus,
+    const lookups = await loadRecruitmentLookups(db);
+    const { campusTeam, deptTeam } = deriveContentRowTeams(lookups, {
       campus_id: validated.data.campus_id,
       department_id: validated.data.department_id ?? null,
-      image: validated.data.image || null,
-      sticky: validated.data.sticky ?? false,
-      author: validated.data.author ?? null,
     });
+    const translationPermissions = buildContentTranslationPermissions({
+      audience: "public",
+      status: validated.data.status,
+      ownerUserId: ctx.userId,
+      writeTeams: deptTeam ? [deptTeam] : [],
+      readTeams: campusTeam ? [campusTeam] : [],
+    });
+
+    await db.updateRow(
+      "app",
+      "news",
+      id,
+      {
+        slug: validated.data.slug,
+        status: validated.data.status as NewsStatus,
+        campus_id: validated.data.campus_id,
+        department_id: validated.data.department_id ?? null,
+        image: validated.data.image || null,
+        sticky: validated.data.sticky ?? false,
+        author: validated.data.author ?? null,
+      },
+      buildContentRowPermissions({
+        status: validated.data.status,
+        audience: "public",
+        campusTeam,
+        deptTeam,
+      })
+    );
 
     const existingTranslation = await db.listRows<ContentTranslations>(
       "app",
@@ -238,7 +287,8 @@ export async function updateNews(id: string, values: NewsFormValues) {
         "app",
         "content_translations",
         existingTranslation.rows[0].$id,
-        translationData
+        translationData,
+        translationPermissions
       );
     } else {
       await db.createRow(
@@ -246,13 +296,34 @@ export async function updateNews(id: string, values: NewsFormValues) {
         "content_translations",
         "unique()",
         translationData,
-        buildContentTranslationPermissions({
-          audience: "public",
-          ownerUserId: ctx.userId,
-          writeTeams: [],
-        })
+        translationPermissions
       );
     }
+
+    // Re-stamp permissions on translations for other locales so a status
+    // transition (publish/unpublish) keeps every translation row in sync and
+    // never leaves a stale read(any) on an unpublished article.
+    const otherTranslations = await db.listRows<ContentTranslations>(
+      "app",
+      "content_translations",
+      [
+        Query.equal("content_type", "news"),
+        Query.equal("content_id", id),
+        Query.notEqual("locale", validated.data.locale),
+        Query.limit(10),
+      ]
+    );
+    await Promise.all(
+      otherTranslations.rows.map((translation) =>
+        db.updateRow(
+          "app",
+          "content_translations",
+          translation.$id,
+          {},
+          translationPermissions
+        )
+      )
+    );
 
     await logAuditEvent(ctx, "news_updated", {
       resourceId: id,

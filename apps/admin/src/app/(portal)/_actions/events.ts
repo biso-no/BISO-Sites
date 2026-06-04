@@ -20,6 +20,12 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { dispatchAnnouncement } from "@/lib/announcements/send";
 import { getUserAuthContext, type UserAuthContext } from "@/lib/authorization";
+import { loadRecruitmentLookups } from "@/lib/recruitment";
+import {
+  buildContentRowPermissions,
+  buildContentTranslationPermissions,
+  deriveContentRowTeams,
+} from "@/lib/utils";
 import {
   applyScopeQueries,
   assertPublishAccess,
@@ -146,7 +152,8 @@ async function upsertEventTranslation(
     title: string;
     description: string;
     shortDescription: string | null;
-  }
+  },
+  permissions: string[]
 ): Promise<void> {
   const existing = await db.listRows<ContentTranslations>(
     "app",
@@ -176,12 +183,55 @@ async function upsertEventTranslation(
       "app",
       "content_translations",
       existing.rows[0].$id,
-      data
+      data,
+      permissions
     );
     return;
   }
 
-  await db.createRow("app", "content_translations", ID.unique(), data);
+  await db.createRow(
+    "app",
+    "content_translations",
+    ID.unique(),
+    data,
+    permissions
+  );
+}
+
+/**
+ * Compute the row and translation $permissions for an event from its status,
+ * member-only flag, and owning campus/department. Loads recruitment lookups
+ * to derive team IDs.
+ */
+async function buildEventPermissions(
+  db: SessionDb,
+  opts: {
+    status: string;
+    memberOnly: boolean;
+    campusId: string | null;
+    departmentId: string | null;
+  }
+): Promise<{ rowPermissions: string[]; translationPermissions: string[] }> {
+  const lookups = await loadRecruitmentLookups(db);
+  const audience = opts.memberOnly ? "members" : "public";
+  const { campusTeam, deptTeam } = deriveContentRowTeams(lookups, {
+    campus_id: opts.campusId,
+    department_id: opts.departmentId,
+  });
+  return {
+    rowPermissions: buildContentRowPermissions({
+      status: opts.status,
+      audience,
+      campusTeam,
+      deptTeam,
+    }),
+    translationPermissions: buildContentTranslationPermissions({
+      audience,
+      status: opts.status,
+      writeTeams: deptTeam ? [deptTeam] : [],
+      readTeams: campusTeam ? [campusTeam] : [],
+    }),
+  };
 }
 
 function buildEventColumns(values: EventFormValues): Record<string, unknown> {
@@ -342,22 +392,49 @@ export async function createEvent(values: EventFormValues) {
   try {
     const { db } = await createSessionClient();
 
-    const event = await db.createRow("app", "events", ID.unique(), {
-      ...buildEventColumns(validated.data),
-      status: "draft" as EventsStatus,
-    });
+    const status = "draft";
+    const { rowPermissions, translationPermissions } =
+      await buildEventPermissions(db, {
+        status,
+        memberOnly: validated.data.member_only,
+        campusId: validated.data.campus_id,
+        departmentId: validated.data.department_id ?? null,
+      });
+
+    const event = await db.createRow(
+      "app",
+      "events",
+      ID.unique(),
+      {
+        ...buildEventColumns(validated.data),
+        status: status as EventsStatus,
+      },
+      rowPermissions
+    );
 
     await Promise.all([
-      upsertEventTranslation(db, event.$id, "no", {
-        title: validated.data.title_no,
-        description: validated.data.description_no ?? "",
-        shortDescription: validated.data.short_description_no ?? null,
-      }),
-      upsertEventTranslation(db, event.$id, "en", {
-        title: validated.data.title_en,
-        description: validated.data.description_en ?? "",
-        shortDescription: validated.data.short_description_en ?? null,
-      }),
+      upsertEventTranslation(
+        db,
+        event.$id,
+        "no",
+        {
+          title: validated.data.title_no,
+          description: validated.data.description_no ?? "",
+          shortDescription: validated.data.short_description_no ?? null,
+        },
+        translationPermissions
+      ),
+      upsertEventTranslation(
+        db,
+        event.$id,
+        "en",
+        {
+          title: validated.data.title_en,
+          description: validated.data.description_en ?? "",
+          shortDescription: validated.data.short_description_en ?? null,
+        },
+        translationPermissions
+      ),
     ]);
 
     await logAuditEvent(ctx, "event.create", {
@@ -409,22 +486,48 @@ export async function updateEvent(id: string, values: EventFormValues) {
       assertPublishAccess(ctx, validated.data.campus_id);
     }
 
-    await db.updateRow("app", "events", id, {
-      ...buildEventColumns(validated.data),
-      status: validated.data.status,
-    });
+    const { rowPermissions, translationPermissions } =
+      await buildEventPermissions(db, {
+        status: validated.data.status,
+        memberOnly: validated.data.member_only,
+        campusId: validated.data.campus_id,
+        departmentId: validated.data.department_id ?? null,
+      });
+
+    await db.updateRow(
+      "app",
+      "events",
+      id,
+      {
+        ...buildEventColumns(validated.data),
+        status: validated.data.status,
+      },
+      rowPermissions
+    );
 
     await Promise.all([
-      upsertEventTranslation(db, id, "no", {
-        title: validated.data.title_no,
-        description: validated.data.description_no ?? "",
-        shortDescription: validated.data.short_description_no ?? null,
-      }),
-      upsertEventTranslation(db, id, "en", {
-        title: validated.data.title_en,
-        description: validated.data.description_en ?? "",
-        shortDescription: validated.data.short_description_en ?? null,
-      }),
+      upsertEventTranslation(
+        db,
+        id,
+        "no",
+        {
+          title: validated.data.title_no,
+          description: validated.data.description_no ?? "",
+          shortDescription: validated.data.short_description_no ?? null,
+        },
+        translationPermissions
+      ),
+      upsertEventTranslation(
+        db,
+        id,
+        "en",
+        {
+          title: validated.data.title_en,
+          description: validated.data.description_en ?? "",
+          shortDescription: validated.data.short_description_en ?? null,
+        },
+        translationPermissions
+      ),
     ]);
 
     await logAuditEvent(ctx, "event.update", {
@@ -523,9 +626,44 @@ export async function publishEvent(id: string) {
 
     assertPublishAccess(ctx, event.campus_id);
 
-    await db.updateRow("app", "events", id, {
-      status: "published" as EventsStatus,
-    });
+    const { rowPermissions, translationPermissions } =
+      await buildEventPermissions(db, {
+        status: "published",
+        memberOnly: event.member_only,
+        campusId: event.campus_id,
+        departmentId: event.department_id ?? null,
+      });
+
+    await db.updateRow(
+      "app",
+      "events",
+      id,
+      {
+        status: "published" as EventsStatus,
+      },
+      rowPermissions
+    );
+
+    const publishTranslations = await db.listRows<ContentTranslations>(
+      "app",
+      "content_translations",
+      [
+        Query.equal("content_type", "event"),
+        Query.equal("content_id", id),
+        Query.limit(10),
+      ]
+    );
+    await Promise.all(
+      publishTranslations.rows.map((translation) =>
+        db.updateRow(
+          "app",
+          "content_translations",
+          translation.$id,
+          {},
+          translationPermissions
+        )
+      )
+    );
 
     await logAuditEvent(ctx, "event.update", {
       resourceId: id,

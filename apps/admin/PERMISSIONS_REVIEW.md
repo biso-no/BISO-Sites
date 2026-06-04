@@ -38,10 +38,30 @@ Two first-pass concerns were **false positives** and are not bugs:
 row — **including drafts and archived rows** — is readable by anyone who queries the API with
 `status=draft`. The `status` filter in app queries is cosmetic for access control.
 
-`jobs` already does this correctly: no collection `read("any")`; per-row read permissions are
-set by `buildJobRowPermissions` (public vacancies → `read(any)`, members-only → team reads).
+**RESOLVED.** Implemented the per-row pattern across all content write/publish flows and
+removed the collection-level `read("any")` from the schema. The public `apps/web` reads these
+collections via an anonymous **session** client (respects RLS), so published rows now carry a
+per-row `read(any)` while drafts/archived get team-only reads.
 
-**Fix direction (chosen): mirror the jobs pattern.** See Phase 2.
+- New helpers in `lib/utils.ts`: `buildContentRowPermissions` (main rows) and
+  `deriveContentRowTeams`; `buildContentTranslationPermissions` is now status-aware.
+  Published+public → `read(any)`; otherwise team-only (admin + owning campus team [read] +
+  owning department team [read+write]; `biso-members` only when published+member-only). Drafts
+  are never `read(any)` and never member-readable.
+- Applied at create/update/publish/unpublish for `events`, `news`, `webshop_products`
+  (`_actions/*.ts`) and `pages`/`page_translations` (`packages/api/page-builder.ts`).
+- **`jobs` was NOT actually safe** — `buildJobRowPermissions` set `read(any)` for any public
+  vacancy regardless of status, so draft vacancies (and their translations) were world-readable
+  too. Made `buildJobRowPermissions` status-aware and threaded `status` through `jobs.ts`.
+- Schema (`packages/api/appwrite.config.json`): removed `read("any")` from `events`, `news`,
+  `pages`, `webshop_products`, `page_translations` collection permissions (left
+  `stop_places`/`departures` public — they are reference data).
+
+**Two bugs fixed during review of the generated code:** the draft translation read set was
+(1) including `read(team:biso-members)` — leaking draft titles/descriptions to all members — and
+(2) omitting the owning campus team, so a campus admin could list a cross-department draft but
+not read its translation. Both corrected by gating `members` on published and adding a
+`readTeams` (campus) parameter; the `page-builder` mirror was already correct.
 
 ### B — Divergent campus/department scoping (RESOLVED in Phase 1: department-only)
 
@@ -145,30 +165,30 @@ those IDs, or row `$permissions` referencing them silently grant nothing.
   single-department users. No data backfill needed (no production data yet).
 - This document.
 
-## Phase 2 — planned (Appwrite changes + backfill, run on staging first)
+## Phase 2
 
-Goal: make Appwrite a real backstop for A and D by mirroring the `jobs` pattern.
+- **A — DONE** (code + schema). No backfill was needed: there is no production data, and the
+  write-side helpers stamp `$permissions` on every create/update/publish/unpublish. Because the
+  schema is edited directly here (`appwrite.config.json`), the collection-permission change and
+  the row-permission writers ship together. The original sequencing caveat ("don't remove
+  `read("any")` before row perms exist") only matters if existing rows are present — they aren't.
+- **D — REMAINING.** See finding D above for the verified 4-step sequence. It touches the public
+  `apps/web` submission flow (`buildVacancyRowPerms` / `interviewPerms`) and `interviews.ts`, so
+  it is the next focused task, not part of this change.
 
-**Sequencing matters — do not remove `read("any")` before row permissions exist, or public
-reads break.**
+### Staging verification checklist (before prod)
 
-1. **Add row-permission writers.** Extend the content create/publish/unpublish flow so each
-   row's `$permissions` are set on every write:
-   - published → `read(any)` (+ owning campus/dept/admin write teams)
-   - draft / archived → team-only reads (owning campus/dept + `admin`), no `read(any)`
-   Reuse / generalize `buildJobRowPermissions`.
-2. **Backfill migration** (guarded, `isGlobalAdmin`, `createAdminClient`): iterate existing rows
-   in `events`/`news`/`pages`/`webshop_products` (and recruitment tables for D) and write the
-   correct per-row `$permissions` based on current `status` + `campus_id`/`department_id`.
-3. **Verify on staging:** anonymous read of a draft returns 404/empty; published still readable;
-   admin/campus/department reads unchanged.
-4. **Tighten collection permissions in Appwrite** (console or guarded migration): remove
-   `read("any")` from the four content tables; narrow recruitment table grants to `create`-only.
-   `appwrite.config.json` is auto-generated — change in Appwrite, then regenerate.
-5. **Add regression tests:** cross-campus read returns empty; draft not world-readable.
+- Anonymous (logged-out) read of a **draft** event/news/page/product via the API returns nothing;
+  a **published** one is readable.
+- A draft is not readable by a plain `biso-members` user.
+- A campus admin can see drafts across departments in their campus (rows **and** translations).
+- A department user sees only their department's content.
+- **E:** confirm the teams `admin`, `biso-members`, `sg-app-dept-hr` exist in Appwrite with those
+  exact IDs (row `$permissions` reference them).
 
 ## Recommendation
 
-Keep the hybrid model. Prioritize **A** (draft exposure) and **D** (PII) for Phase 2 — these are
-the genuine production-readiness gaps. **B** is correctness/consistency. **E** is a one-time
-operational check. The retracted items (migration gating, content grants) need no action.
+Keep the hybrid model. **A** (draft exposure) is now closed. **D** (recruitment PII) is the
+remaining genuine production gap — do it next via the documented 4-step sequence. **B** (scoping)
+and **F** (labels) are done. **E** is a one-time operational check. The retracted items
+(migration gating, content grants) need no action.
