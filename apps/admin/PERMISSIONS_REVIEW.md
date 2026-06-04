@@ -133,14 +133,37 @@ is open for sensitive PII.
   2. `job_interview_participants` and `recruitment_booking_tokens` are created in
      `interviews.ts` with **no** per-row `$permissions` — they depend entirely on the table grant.
 
-**Required fix sequence (separate task — touches the public web submission flow):**
-1. Extend `buildVacancyRowPerms` / `interviewPerms` to also grant read to the owning campus's
-   leadership team (`sg-app-dept-ledelsen{city}`) so campus admins keep review access per-row.
-2. Add per-row `$permissions` to the `job_interview_participants`, `recruitment_booking_tokens`
-   (and any scorecard) creates in `interviews.ts`.
-3. Only then narrow `grantTeamRecruitmentAccess` to `create`-only (drop blanket read/update/delete).
-4. Verify on staging: a department user cannot read another department's applications; campus
-   admins still can within their campus.
+**PARTIALLY RESOLVED.** The highest-PII, firmly per-row-stamped tables are now isolated; the
+un-stamped interview/pool tables are documented as remaining.
+
+Done:
+- `buildVacancyRowPerms` (`apps/web/.../jobs.ts`) now also grants **read** to the owning campus's
+  leadership team (`sg-app-dept-ledelsen{city}`) so campus admins keep per-row review access, and
+  its department-team derivation was corrected from spaces→hyphens to the canonical spaces→removed
+  rule (`sg-app-dept-operationsunit`), matching `m365-sync` and the admin helpers.
+- `grantTeamRecruitmentAccess` now grants **create-only** on `job_applications` and
+  `job_application_answers` (the cover-letter/answer/contact PII). Read/update/delete on those is
+  governed per row (ops + hr + owning department + owning campus leadership). Department teams can
+  no longer read another department's or campus's applications.
+- Resume files are already safe: the `recruitment_resumes` bucket has `fileSecurity: true` with no
+  bucket-level read, and uploads pass no file perms, so resumes are reachable only via the
+  admin-gated download route — never via team grants.
+
+Remaining (follow-up):
+- `candidate_profiles`, `job_interviews`, `job_interview_participants`, `job_interview_scorecards`,
+  `recruitment_booking_tokens` still get full table-level CRUD because they are created **without**
+  per-row `$permissions` (and profiles are cross-vacancy). Stamp them per row (campus-leadership +
+  owning dept + ops/hr), then move them to create-only too.
+- `grantTeamRecruitmentAccess` only **adds** perms; for any already-provisioned team it would not
+  strip a prior read/update/delete on the PII tables. N/A now (no teams/data yet); if teams exist
+  before deploy, run a one-time cleanup.
+
+**Staging dependency to verify:** the per-row *department* grant resolves `department_id` →
+`Departments.Name` → `sg-app-dept-{name}`. This is the **same invariant** `resolveDepartmentIds`
+(core auth) already relies on (Azure dept name == 24SevenOffice `Departments.Name`). The
+`grantDeptTeamAccess` comment hints some Names may be campus-prefixed (`"OSL Operations Unit"`),
+which would break the dept-level grant (ops/hr/campus-admin are unaffected). Confirm on staging
+that a plain department reviewer can read their own department's applications.
 
 ### E — Literal team IDs must exist in Appwrite (verify)
 
@@ -172,9 +195,11 @@ those IDs, or row `$permissions` referencing them silently grant nothing.
   schema is edited directly here (`appwrite.config.json`), the collection-permission change and
   the row-permission writers ship together. The original sequencing caveat ("don't remove
   `read("any")` before row perms exist") only matters if existing rows are present — they aren't.
-- **D — REMAINING.** See finding D above for the verified 4-step sequence. It touches the public
-  `apps/web` submission flow (`buildVacancyRowPerms` / `interviewPerms`) and `interviews.ts`, so
-  it is the next focused task, not part of this change.
+- **D — PARTIALLY DONE.** The high-PII application tables (`job_applications`,
+  `job_application_answers`) are now create-only at the table level with complete per-row reads
+  (ops + hr + owning dept + owning campus leadership), and resumes were already locked to the
+  admin-gated route. Remaining: stamp the interview/pool tables per row, then narrow them too
+  (see finding D). Touched `apps/web/.../jobs.ts` and `lib/team-provisioning.ts`.
 
 ### Staging verification checklist (before prod)
 
@@ -183,12 +208,17 @@ those IDs, or row `$permissions` referencing them silently grant nothing.
 - A draft is not readable by a plain `biso-members` user.
 - A campus admin can see drafts across departments in their campus (rows **and** translations).
 - A department user sees only their department's content.
-- **E:** confirm the teams `admin`, `biso-members`, `sg-app-dept-hr` exist in Appwrite with those
-  exact IDs (row `$permissions` reference them).
+- **D:** a department reviewer can read **their own** department's applications, but **not**
+  another department's or campus's; ops/hr/global and campus admins can review within scope. (This
+  exercises the `department_id → Departments.Name → team` invariant — see finding D.)
+- **E:** confirm the teams `admin`, `biso-members`, `sg-app-dept-hr`, and the `sg-app-dept-*` /
+  `sg-app-dept-ledelsen*` teams exist in Appwrite with those exact IDs (row `$permissions`
+  reference them).
 
 ## Recommendation
 
-Keep the hybrid model. **A** (draft exposure) is now closed. **D** (recruitment PII) is the
-remaining genuine production gap — do it next via the documented 4-step sequence. **B** (scoping)
-and **F** (labels) are done. **E** is a one-time operational check. The retracted items
-(migration gating, content grants) need no action.
+Keep the hybrid model. **A** (draft exposure) is closed. **D** (recruitment PII) — the worst
+exposure (applications + answers, plus resumes already safe) is closed; finishing it means
+stamping the interview/pool tables per row, then narrowing their grants. **B** (scoping) and **F**
+(labels) are done. **E** is a one-time operational check (now a hard dependency for D's dept-level
+reviews). The retracted items (migration gating, content grants) need no action.

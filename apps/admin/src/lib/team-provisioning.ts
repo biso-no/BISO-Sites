@@ -27,19 +27,33 @@ const CONTENT_TABLES = [
 ] as const;
 
 /**
- * Recruitment tables that SG-App-Dept-* teams need full CRUD on so HR users
- * within a department can manage interviews, scorecards, and the candidate
- * pool scoped to vacancies they own. Row-level isolation across campuses is
- * enforced separately by `assertRecruitmentApplicationReviewAccess` and
- * `assertInterviewWriteAccess` in `lib/recruitment.ts`.
+ * Recruitment tables carrying applicant PII (cover letters, custom answers,
+ * applicant contact details). Every row in these is written with explicit
+ * per-row $permissions (`buildVacancyRowPerms` in apps/web), granting read to
+ * ops, hr, the owning department team, and the owning campus leadership team.
+ * Department teams therefore only need CREATE at the table level — read/update/
+ * delete is governed per row, so one department cannot read another department's
+ * or campus's applicants. (Resume files live in a fileSecurity bucket and are
+ * served only through the admin-gated download route, not via these grants.)
  */
-const RECRUITMENT_TABLES = [
+const RECRUITMENT_PII_TABLES = [
   "job_applications",
+  "job_application_answers",
+] as const;
+
+/**
+ * Interview, scheduling and candidate-pool tables that are NOT yet stamped with
+ * per-row $permissions (e.g. job_interview_participants and
+ * recruitment_booking_tokens are created without a permissions argument), so
+ * department teams still require full CRUD at the table level. Tightening these
+ * to create-only requires per-row stamping first — see PERMISSIONS_REVIEW.md
+ * (finding D, remaining work).
+ */
+const RECRUITMENT_SHARED_TABLES = [
   "job_interviews",
   "job_interview_participants",
   "job_interview_scorecards",
   "candidate_profiles",
-  "job_application_answers",
   "recruitment_booking_tokens",
 ] as const;
 
@@ -87,14 +101,15 @@ export async function grantTeamRecruitmentAccess(
 ): Promise<void> {
   const { db } = await createAdminClient();
   const role = Role.team(teamId);
-  const perms = [
+  const createOnly = [Permission.create(role)];
+  const fullCrud = [
     Permission.read(role),
     Permission.create(role),
     Permission.update(role),
     Permission.delete(role),
   ];
 
-  for (const tableId of RECRUITMENT_TABLES) {
+  const grant = async (tableId: string, perms: string[]): Promise<void> => {
     try {
       const table = await db.getTable({ databaseId: DATABASE_ID, tableId });
       const existing = table.$permissions as string[];
@@ -116,6 +131,15 @@ export async function grantTeamRecruitmentAccess(
         err
       );
     }
+  };
+
+  // PII tables: create-only (read/update/delete governed per row).
+  for (const tableId of RECRUITMENT_PII_TABLES) {
+    await grant(tableId, createOnly);
+  }
+  // Interview/scheduling/pool tables: full CRUD until they are stamped per row.
+  for (const tableId of RECRUITMENT_SHARED_TABLES) {
+    await grant(tableId, fullCrud);
   }
 }
 
