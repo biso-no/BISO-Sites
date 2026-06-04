@@ -52,12 +52,10 @@ which also fixes the global-admin `activeCampusId` switcher that the old inline 
 belong to exactly one and haven't picked one, so a department user never creates a page they
 immediately can't see.
 
-**⚠️ Required pre-prod data audit:** `pages` has no owner field — `department_id` is the only
-scoping handle. Existing pages with a null or non-matching `department_id` will become invisible
-to department users under department-only scoping (global/campus admins are unaffected). Before
-promoting to prod, audit `pages` for rows with `department_id` null / not matching any Departments
-`$id`, and assign departments where appropriate (needs human attribution — there is no automatic
-owner mapping). Verify on staging with a real department account first.
+**Note:** `pages` has no owner field — `department_id` is the only scoping handle. Pages with a
+null/non-matching `department_id` are invisible to department users under department-only scoping
+(global/campus admins are unaffected). There is **no production data yet**, so no backfill is
+needed; the write-side default ensures new department-user pages carry a real `department_id`.
 
 Remaining inline scopers intentionally left as-is (verified safe):
 - `activity.ts` → `audit_logs` has neither `campus_id` nor `department_id`; must not use the helper.
@@ -102,9 +100,27 @@ Campus isolation is enforced **only** in app code (`assertRecruitmentApplication
 read every applicant's data (incl. resumes) across all campuses. App-gated, but the DB backstop
 is open for sensitive PII.
 
-**Fix direction:** narrow recruitment table grants to `create`-only (like content tables) and
-set per-row read/write `$permissions` keyed to the owning campus + department + `admin`/`hr`
-teams at insert time (extend `buildJobRowPermissions` to applications/interviews). Phase 2.
+**Verified detail (why this needs care):**
+- `job_applications`, `candidate_profiles`, `job_application_answers`, `job_interviews` **are**
+  created with correct per-row `$permissions` (`buildVacancyRowPerms` in `apps/web/.../jobs.ts`,
+  `interviewPerms` in `booking.ts`). Collection perms are `read("team:admin")` only — no `read(any)`.
+- The hole: `grantTeamRecruitmentAccess` (`lib/team-provisioning.ts`) grants **table-level
+  read/update/delete to every department team**, which overrides those per-row restrictions.
+- But two things block a naive grant removal:
+  1. `buildVacancyRowPerms` grants read only to `sg-app-dept-operationsunit`, `sg-app-dept-hr`,
+     and the vacancy's **owning department** team — **not** the campus team. So **campus admins**
+     (Ledelsen{City}) review applications across their campus only via the blanket table grant.
+  2. `job_interview_participants` and `recruitment_booking_tokens` are created in
+     `interviews.ts` with **no** per-row `$permissions` — they depend entirely on the table grant.
+
+**Required fix sequence (separate task — touches the public web submission flow):**
+1. Extend `buildVacancyRowPerms` / `interviewPerms` to also grant read to the owning campus's
+   leadership team (`sg-app-dept-ledelsen{city}`) so campus admins keep review access per-row.
+2. Add per-row `$permissions` to the `job_interview_participants`, `recruitment_booking_tokens`
+   (and any scorecard) creates in `interviews.ts`.
+3. Only then narrow `grantTeamRecruitmentAccess` to `create`-only (drop blanket read/update/delete).
+4. Verify on staging: a department user cannot read another department's applications; campus
+   admins still can within their campus.
 
 ### E — Literal team IDs must exist in Appwrite (verify)
 
@@ -126,7 +142,7 @@ those IDs, or row `$permissions` referencing them silently grant nothing.
 - **F:** removed `labels` from `UserAuthContext` and its population.
 - **B:** `pages.ts` consolidated onto `applyScopeQueries` (department-only scoping +
   global-admin `activeCampusId` fix); `savePageEditorDoc` defaults `department_id` for
-  single-department users. **Pending pre-prod: the data audit described in finding B.**
+  single-department users. No data backfill needed (no production data yet).
 - This document.
 
 ## Phase 2 — planned (Appwrite changes + backfill, run on staging first)
