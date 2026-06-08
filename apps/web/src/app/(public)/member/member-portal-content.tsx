@@ -24,8 +24,8 @@ interface MembershipStatus {
 }
 
 interface AccountSummary {
-  name: string;
   email: string;
+  name: string;
 }
 
 interface LoggedInUser {
@@ -129,7 +129,10 @@ export async function MemberPortalContent({
           profile={profile || user?.profile || null}
           profileAccount={
             user?.user
-              ? ({ name: user.user.name, email: user.user.email } satisfies AccountSummary)
+              ? ({
+                  name: user.user.name,
+                  email: user.user.email,
+                } satisfies AccountSummary)
               : null
           }
           publicProfile={publicProfile}

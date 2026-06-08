@@ -6,7 +6,6 @@ import { NextIntlClientProvider } from "next-intl";
 import { getMessages } from "next-intl/server";
 import { getLocale } from "@/app/actions/locale";
 import { AnalyticsTracker } from "@/components/analytics-tracker";
-import { getUserDetails } from "@/lib/auth-utils";
 export const metadata: Metadata = {
   title: "BI Student Organisation",
   description: "BISO Apps",
