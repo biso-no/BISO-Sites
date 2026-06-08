@@ -91,18 +91,3 @@ export function MatchRing({
     </span>
   );
 }
-
-export function PulseDot({ color = "var(--leaf)" }: { color?: string }) {
-  return (
-    <i
-      style={{
-        animation: "rcr-pulse 2s infinite",
-        background: color,
-        borderRadius: "50%",
-        display: "inline-block",
-        height: 6,
-        width: 6,
-      }}
-    />
-  );
-}

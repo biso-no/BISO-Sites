@@ -1,6 +1,9 @@
 {
   "$schema": "https://unpkg.com/knip@latest/schema.json",
   "ignoreExportsUsedInFile": true,
+  "tags": ["-public"],
+  "ignoreBinaries": ["tar"],
+  "ignoreUnresolved": ["\\*\\*/\\*\\.\\{ts,tsx\\}$"],
   "ignore": [
     "**/public/**",
     "**/*-temp.*",
@@ -8,7 +11,6 @@
     ".claude/**",
 
     "apps/admin/src/app/actions/migration/**",
-    "apps/admin/src/lib/types/**",
     "apps/admin/src/app/(admin)/**/shared/**",
 
     "apps/web/src/components/expense/**",
@@ -16,36 +18,28 @@
     "apps/web/src/components/shop/product/**",
     "apps/web/src/components/member-portal/**",
     "apps/web/src/lib/types/**",
+    "apps/web/src/lib/actions/expense-ocr.ts",
 
     "packages/editor/src/fields/**"
   ],
   "ignoreDependencies": [
     "classnames",
-
-    "@repo/shared",
-    "@repo/hooks",
     "postcss",
     "@tailwindcss/postcss",
-    "react-day-picker",
-    "node-appwrite",
     "@json-render/core",
-    "@ai-sdk/gateway",
-    "zod",
     "next",
-
-    "@/registry/components/editor/use-chat",
-    "@/registry/components/editor/editor-base-kit",
-    "@/registry/lib/markdown-joiner-transform",
-    "@/lib/types/user"
+    "@types/react"
   ],
   "workspaces": {
-    "apps/admin": { "next": {} },
-    "apps/web": { "next": {} },
+    "apps/admin": { "next": {}, "entry": ["src/**/*.test.{ts,tsx}"] },
+    "apps/web": { "next": {}, "entry": ["src/**/*.test.{ts,tsx,js}"] },
     "apps/api": { "next": {} },
     "apps/docs": { "next": {} },
+    "functions/*": { "entry": ["src/main.{js,ts}"] },
     "packages/ui": {
-      "entry": ["components/**/*.tsx", "lib/**/*.ts", "app/api/**/*.ts"]
+      "entry": ["components/**/*.tsx", "lib/**/*.ts"]
     },
+    "packages/api": { "entry": ["**/*.test.ts"] },
     "packages/*": {}
   }
 }

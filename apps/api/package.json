@@ -20,8 +20,6 @@
     "@react-pdf/renderer": "catalog:",
     "@repo/api": "workspace:*",
     "@repo/connectors": "workspace:*",
-    "@repo/payment": "workspace:*",
-    "@repo/ai": "workspace:*",
     "@repo/shared": "workspace:*",
     "ai": "catalog:",
     "next": "catalog:",

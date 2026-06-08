@@ -87,11 +87,6 @@ export function serializePageForAI(
   return lines.join("\n");
 }
 
-/** Serialize the full PageDoc to a JSON string for storage. */
-export function toJSON(doc: PageDoc): string {
-  return JSON.stringify(doc);
-}
-
 /** Deserialize a PageDoc from a JSON string. */
 export function fromJSON(json: string): PageDoc {
   return JSON.parse(json) as PageDoc;

@@ -767,19 +767,6 @@ export async function setCandidateStarred(
 }
 
 // ---------------------------------------------------------------------------
-// Resume URL (admin-signed) for the drawer
-// ---------------------------------------------------------------------------
-
-export async function getResumeViewUrl(
-  applicationId: string
-): Promise<{ url?: string; error?: string }> {
-  await requireCtx();
-  // The resume download is served by the existing API route which performs
-  // its own scope check. We just hand the client the route.
-  return { url: `/api/recruitment/applications/${applicationId}/resume` };
-}
-
-// ---------------------------------------------------------------------------
 // Form & rubric persistence (updates only the relevant jobs columns)
 // ---------------------------------------------------------------------------
 

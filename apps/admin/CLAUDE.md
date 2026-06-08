@@ -48,7 +48,7 @@ handler. Any new top-level route segment must add its own auth check.
 - Use `getUserAuthContext()` (server) as the canonical auth read, and
   `getUserRolesForClient()` when passing roles to client components.
   Nav access is gated by `NAV_ACCESS` + `hasNavAccess()` in `lib/roles.ts`;
-  server-side gate is `checkNavAccess(navKey)`.
+  page-level server gate is `requireNavAccess(navKey)` (redirects/notFound).
 - Global admins can scope themselves to a campus via the `admin_campus_ctx`
   cookie (`ctx.activeCampusId`). Non-global-admin queries must filter by
   `ctx.managedCampusIds` or `ctx.resolvedCampusIds` — see `_actions/pages.ts`

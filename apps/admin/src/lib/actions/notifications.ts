@@ -1,6 +1,6 @@
 "use server";
 
-import { ID, Query } from "@repo/api";
+import { Query } from "@repo/api";
 import { createSessionClient } from "@repo/api/server";
 import type {
   AppNotices,
@@ -167,51 +167,6 @@ export async function fetchPendingItems(): Promise<PendingItem[]> {
     return items.slice(0, 30);
   } catch {
     return [];
-  }
-}
-
-export async function createNotification(data: {
-  title: string;
-  description: string;
-  color?: string;
-  priority?: number;
-  link?: string;
-  isActive?: boolean;
-}): Promise<{ success: boolean; notificationId?: string; error?: string }> {
-  const ctx = await getUserAuthContext();
-  if (!ctx) {
-    return { success: false, error: "Unauthorized" };
-  }
-  if (!ctx.roles.includes("globaladmin")) {
-    return { success: false, error: "Forbidden" };
-  }
-
-  try {
-    const { db } = await createSessionClient();
-
-    const response = await db.createRow(
-      DATABASE_ID,
-      NOTICES_TABLE,
-      ID.unique(),
-      {
-        title: data.title,
-        description: data.description,
-        color: data.color || "blue",
-        priority: data.priority || 1,
-        link: data.link || null,
-        isActive: data.isActive !== false,
-      }
-    );
-
-    return { success: true, notificationId: response.$id };
-  } catch (error) {
-    return {
-      success: false,
-      error:
-        error instanceof Error
-          ? error.message
-          : "Failed to create notification",
-    };
   }
 }
 

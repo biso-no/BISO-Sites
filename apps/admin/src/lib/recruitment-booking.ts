@@ -29,35 +29,3 @@ export function issueBookingToken(): IssuedBookingToken {
   const hash = createHash("sha256").update(token).digest("hex");
   return { hash, token };
 }
-
-export function hashBookingToken(token: string): string {
-  return createHash("sha256").update(token).digest("hex");
-}
-
-export function verifyBookingTokenSignature(token: string): boolean {
-  const [random, signature] = token.split(".");
-  if (!(random && signature)) {
-    return false;
-  }
-  try {
-    const secret = readSecret();
-    const expected = createHmac("sha256", secret)
-      .update(random)
-      .digest("base64url");
-    return safeStringEquals(expected, signature);
-  } catch {
-    return false;
-  }
-}
-
-function safeStringEquals(a: string, b: string): boolean {
-  if (a.length !== b.length) {
-    return false;
-  }
-  let result = 0;
-  for (let i = 0; i < a.length; i++) {
-    // biome-ignore lint/suspicious/noBitwiseOperators: constant-time comparison to prevent timing attacks
-    result |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  }
-  return result === 0;
-}

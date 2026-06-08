@@ -26,19 +26,6 @@ const LANGUAGE_SUBFOLDER: Record<DocumentLanguage, string> = {
 };
 
 /**
- * Categories that are auto-mapped to the main Organisational Documents site.
- * Business Regulations and Communication Guidelines live on different SharePoint
- * sites and are excluded from auto-mapping for now.
- */
-export const AUTO_MAPPED_CATEGORIES = new Set<DocumentsCategory>([
-  DocumentsCategory.NATIONAL_STATUTES,
-  DocumentsCategory.CAMPUS_BYLAWS,
-  DocumentsCategory.CODE_OF_CONDUCT,
-  DocumentsCategory.AUTHORIZATION_MATRIX,
-  DocumentsCategory.TARGET_DOCUMENTS,
-]);
-
-/**
  * Builds the full SharePoint folder path for a document based on its category,
  * language, and (for campus-bylaws) the campus name.
  *

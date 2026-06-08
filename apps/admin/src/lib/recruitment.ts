@@ -9,7 +9,6 @@ import type {
 import {
   canManageRecruitmentVacancy,
   canReviewRecruitmentVacancy,
-  getManagedCampusIds,
   type RecruitmentLookups,
 } from "@repo/shared/recruitment";
 import {
@@ -206,34 +205,6 @@ export function assertScorecardWriteAccess(
   participantUserIds: ReadonlySet<string>
 ): void {
   if (!canSubmitScorecard(scope, currentUserId, participantUserIds)) {
-    throw new Error("Forbidden");
-  }
-}
-
-export interface CandidateProfileScopeTarget {
-  campus_id: string | null;
-}
-
-export function canReadCandidateProfile(
-  scope: AdminScope,
-  lookups: RecruitmentLookups,
-  profile: CandidateProfileScopeTarget
-): boolean {
-  if (scope.canManageAnyCampus) {
-    return true;
-  }
-  if (!profile.campus_id) {
-    return false;
-  }
-  return getManagedCampusIds(scope, lookups).includes(profile.campus_id);
-}
-
-export function assertCandidateProfileReadAccess(
-  scope: AdminScope,
-  lookups: RecruitmentLookups,
-  profile: CandidateProfileScopeTarget
-): void {
-  if (!canReadCandidateProfile(scope, lookups, profile)) {
     throw new Error("Forbidden");
   }
 }

@@ -341,36 +341,6 @@ function isGlobalAdminContext(ctx: UserAuthContext): boolean {
 }
 
 /**
- * Check if user has write (update) access based on $permissions array
- */
-export async function canWriteDocument(
-  permissions: string[]
-): Promise<boolean> {
-  const ctx = await getUserAuthContext();
-  if (!ctx) {
-    return false;
-  }
-
-  if (isGlobalAdminContext(ctx)) {
-    return true;
-  }
-
-  for (const perm of permissions) {
-    const parsed = parsePermission(perm);
-    if (!parsed) {
-      continue;
-    }
-
-    const isWriteType = parsed.type === "update" || parsed.type === "write";
-    if (isWriteType && targetMatchesContext(parsed.target, ctx)) {
-      return true;
-    }
-  }
-
-  return false;
-}
-
-/**
  * Check if user has read access based on $permissions array
  */
 async function _canReadDocument(permissions: string[]): Promise<boolean> {
@@ -459,23 +429,6 @@ export async function getUserRolesForClient(): Promise<UserRolesForClient> {
     managedCampuses: ctx.managedCampuses,
     roles: ctx.roles,
   };
-}
-
-/**
- * Check if user has access to a specific navigation item.
- * Server-side helper for route protection.
- */
-export async function checkNavAccess(navKey: NavKey): Promise<boolean> {
-  const ctx = await getUserAuthContext();
-  if (!ctx) {
-    return false;
-  }
-
-  if (ctx.roles.includes(ROLES.GLOBAL_ADMIN)) {
-    return true;
-  }
-
-  return hasNavAccess(navKey, ctx.roles, ctx.departmentTeamIds.length > 0);
 }
 
 /**

@@ -5,7 +5,6 @@ import {
   PAGE_LOCALES,
   type PageDoc,
   type PageEditorLocale,
-  getPage as pbGetPage,
   getPageById as pbGetPageById,
   getPageEditorById as pbGetPageEditorById,
   publishPage as pbPublishPage,
@@ -136,11 +135,6 @@ async function _getPageViewStats(days = 14): Promise<PageViewDay[]> {
   } catch {
     return [];
   }
-}
-
-export async function getPageBySlug(slug: string, locale: "no" | "en" = "no") {
-  await requireAuth();
-  return pbGetPage(slug, locale);
 }
 
 export async function getPageById(id: string, locale: "no" | "en" = "no") {

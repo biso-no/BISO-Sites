@@ -35,12 +35,6 @@ export interface CheckoutSessionParams {
   userId: string;
 }
 
-export interface VippsCheckoutResponse {
-  checkoutUrl: string;
-  orderId: string;
-  sessionId: string;
-}
-
 export interface VippsPaymentState {
   amount?: {
     value: number;

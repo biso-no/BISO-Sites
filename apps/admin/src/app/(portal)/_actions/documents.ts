@@ -30,9 +30,7 @@ import {
 import { logAuditEvent } from "./audit-log";
 import {
   DOCUMENTS_PAGE_SIZE,
-  type DocumentCreateFormValues,
   type DocumentMetadataFormValues,
-  documentCreateSchema,
   documentMetadataSchema,
 } from "./schemas";
 
@@ -50,7 +48,7 @@ function getSharePointService() {
 
 function getDocumentCreateAccessError(
   ctx: UserAuthContext,
-  data: DocumentCreateFormValues
+  data: DocumentMetadataFormValues
 ): string | null {
   if (data.scope === "national" && !ctx.roles.includes("globaladmin")) {
     return "Only global admins can create national documents";
@@ -105,14 +103,14 @@ export async function getDocument(id: string) {
 }
 
 export async function createDocument(
-  metadata: DocumentCreateFormValues,
+  metadata: DocumentMetadataFormValues,
   formData: FormData
 ): Promise<
   | { data: string; error?: never; sharePointError?: never }
   | { error: string; sharePointError: boolean; data?: never }
 > {
   const ctx = await requireAuth();
-  const validated = documentCreateSchema.safeParse(metadata);
+  const validated = documentMetadataSchema.safeParse(metadata);
   if (!validated.success) {
     return { error: "Invalid form data", sharePointError: false };
   }

@@ -113,6 +113,7 @@ export async function getCampuses({
 
 /**
  * Get a single campus with its departments
+ * @public — consumed by the expense/expense-v2 client flow (knip-ignored dir).
  */
 export async function getCampusWithDepartments(campusId: string) {
   try {

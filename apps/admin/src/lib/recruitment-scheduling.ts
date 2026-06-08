@@ -2,7 +2,6 @@
 
 import { createGraphClient } from "@repo/connectors/azure";
 import {
-  cancelCalendarEvent,
   createCalendarEvent,
   createTeamsMeeting,
   type FreeBusyResult,
@@ -138,17 +137,4 @@ export async function scheduleInterviewOnGraph(
     teamsMeetingId: meeting?.id ?? null,
     webLink: event?.webLink ?? null,
   };
-}
-
-// biome-ignore lint/suspicious/useAwait: async required by "use server" — delegates to cancelCalendarEvent promise
-export async function cancelInterviewOnGraph(
-  organizerUpn: string,
-  outlookEventId: string,
-  reason?: string
-): Promise<{ ok: boolean }> {
-  const graph = lazyGraphClient();
-  if (!graph) {
-    return { ok: false };
-  }
-  return cancelCalendarEvent(graph, organizerUpn, outlookEventId, reason);
 }
