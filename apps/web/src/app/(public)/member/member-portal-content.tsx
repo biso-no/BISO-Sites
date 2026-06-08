@@ -1,4 +1,3 @@
-import type { Models } from "@repo/api";
 import type { Users } from "@repo/api/types/appwrite";
 import { getTranslations } from "next-intl/server";
 import {
@@ -24,9 +23,14 @@ interface MembershipStatus {
   studentId?: number | null;
 }
 
+interface AccountSummary {
+  name: string;
+  email: string;
+}
+
 interface LoggedInUser {
   profile: Users | null;
-  user: Models.User<Models.Preferences>;
+  user: { $id: string; name: string; email: string };
 }
 
 interface MemberPortalContentProps {
@@ -123,7 +127,11 @@ export async function MemberPortalContent({
           isMember={isMember}
           membershipType={membershipType}
           profile={profile || user?.profile || null}
-          profileAccount={user?.user ?? null}
+          profileAccount={
+            user?.user
+              ? ({ name: user.user.name, email: user.user.email } satisfies AccountSummary)
+              : null
+          }
           publicProfile={publicProfile}
           revealedBenefits={revealedBenefits}
           startDate={startDate}

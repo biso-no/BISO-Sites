@@ -17,6 +17,7 @@ import type { Pages, PageViewEvents } from "@repo/api/types/appwrite";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getUserAuthContext, type UserAuthContext } from "@/lib/authorization";
+import { applyScopeQueries } from "@/lib/utils/authorization";
 import { logAuditEvent } from "./audit-log";
 
 async function requireAuth(): Promise<UserAuthContext> {
@@ -41,14 +42,10 @@ export async function listPages(opts?: { status?: string; campusId?: string }) {
     queries.push(Query.equal("status", opts.status));
   }
 
-  // Scope by campus if not global admin
-  if (!ctx.roles.includes("globaladmin")) {
-    if (ctx.managedCampusIds.length > 0) {
-      queries.push(Query.equal("campus_id", ctx.managedCampusIds));
-    } else if (ctx.resolvedCampusIds.length > 0) {
-      queries.push(Query.equal("campus_id", ctx.resolvedCampusIds));
-    }
-  }
+  // Single source of truth for campus/department scoping: campus admins see
+  // their managed campuses, department users see their department(s), and
+  // global admins see everything (or their active-campus filter if set).
+  queries.push(...applyScopeQueries(ctx));
 
   const response = await db.listRows<Pages>("app", "pages", queries);
   return response.rows;
@@ -58,14 +55,7 @@ export async function getDashboardStats() {
   const ctx = await requireAuth();
   const { db } = await createSessionClient();
 
-  const scopeFilter: string[] = [];
-  if (!ctx.roles.includes("globaladmin")) {
-    if (ctx.managedCampusIds.length > 0) {
-      scopeFilter.push(Query.equal("campus_id", ctx.managedCampusIds));
-    } else if (ctx.resolvedCampusIds.length > 0) {
-      scopeFilter.push(Query.equal("campus_id", ctx.resolvedCampusIds));
-    }
-  }
+  const scopeFilter = applyScopeQueries(ctx);
 
   const [jobsRes, eventsRes, newsRes, draftsRes] = await Promise.allSettled([
     db.listRows("app", "jobs", [
@@ -168,6 +158,32 @@ export async function getPageEditorLocales(): Promise<PageEditorLocale[]> {
   return [...PAGE_LOCALES];
 }
 
+/**
+ * Department users are scoped to pages whose department_id matches one of their
+ * departments (see applyScopeQueries). Default a saved page's department to the
+ * saver's department when they belong to exactly one and haven't picked one, so
+ * a department user never creates a page they immediately can't see again.
+ * Admins (global/campus) are left untouched — they routinely manage pages that
+ * belong to other departments or none.
+ */
+function ensureDepartmentForScoping(
+  doc: PageDoc,
+  ctx: UserAuthContext
+): PageDoc {
+  const isAdmin =
+    ctx.roles.includes("globaladmin") || ctx.managedCampusIds.length > 0;
+  if (isAdmin || doc.meta.department) {
+    return doc;
+  }
+  if (ctx.resolvedDepartmentIds.length !== 1) {
+    return doc;
+  }
+  return {
+    ...doc,
+    meta: { ...doc.meta, department: ctx.resolvedDepartmentIds[0] },
+  };
+}
+
 export async function savePageEditorDoc({
   id,
   doc,
@@ -179,7 +195,13 @@ export async function savePageEditorDoc({
 }): Promise<{ pageId: string; slug: string } | { error: string }> {
   const ctx = await requireAuth();
   try {
-    const { pageId, slug } = await savePageDraft({ id, doc, locale, ctx });
+    const scopedDoc = ensureDepartmentForScoping(doc, ctx);
+    const { pageId, slug } = await savePageDraft({
+      id,
+      doc: scopedDoc,
+      locale,
+      ctx,
+    });
     await logAuditEvent(ctx, "page_saved", {
       resourceId: pageId,
       resourceType: "page",

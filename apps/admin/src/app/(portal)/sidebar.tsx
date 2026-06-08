@@ -457,11 +457,16 @@ function StudioHintCarousel({
     [hints, roles]
   );
 
-  const [initialIdx] = useState(() =>
-    Math.floor(Math.random() * Math.max(allowedHints.length, 1))
-  );
-  const [idx, setIdx] = useState(initialIdx);
+  const [idx, setIdx] = useState(0);
   const [visible, setVisible] = useState(true);
+
+  // Randomize the starting hint only on the client after hydration to avoid
+  // server/client mismatch from Math.random() producing different values.
+  useEffect(() => {
+    if (allowedHints.length > 1) {
+      setIdx(Math.floor(Math.random() * allowedHints.length));
+    }
+  }, [allowedHints.length]);
 
   useEffect(() => {
     if (allowedHints.length <= 1) {

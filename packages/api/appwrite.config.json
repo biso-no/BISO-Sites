@@ -856,7 +856,7 @@
     },
     {
       "$id": "pages",
-      "$permissions": ["read(\"any\")", "create(\"users\")"],
+      "$permissions": ["create(\"users\")"],
       "databaseId": "app",
       "name": "Pages",
       "enabled": true,
@@ -1235,7 +1235,7 @@
     },
     {
       "$id": "events",
-      "$permissions": ["read(\"any\")", "create(\"users\")"],
+      "$permissions": ["create(\"users\")"],
       "databaseId": "app",
       "name": "Events",
       "enabled": true,
@@ -4263,7 +4263,7 @@
     },
     {
       "$id": "webshop_products",
-      "$permissions": ["read(\"any\")", "create(\"users\")"],
+      "$permissions": ["create(\"users\")"],
       "databaseId": "app",
       "name": "Webshop Products",
       "enabled": true,
@@ -5319,7 +5319,7 @@
     },
     {
       "$id": "page_translations",
-      "$permissions": ["read(\"any\")", "create(\"users\")"],
+      "$permissions": ["create(\"users\")"],
       "databaseId": "app",
       "name": "Page translations",
       "enabled": true,
@@ -5888,7 +5888,7 @@
     },
     {
       "$id": "news",
-      "$permissions": ["read(\"any\")", "create(\"users\")"],
+      "$permissions": ["create(\"users\")"],
       "databaseId": "app",
       "name": "News",
       "enabled": true,

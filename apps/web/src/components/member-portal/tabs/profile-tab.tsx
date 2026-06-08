@@ -1,6 +1,5 @@
 "use client";
 
-import type { Models } from "@repo/api";
 import type { PublicProfiles, Users } from "@repo/api/types/appwrite";
 import {
   Avatar,
@@ -22,7 +21,7 @@ import { useState, useTransition } from "react";
 import { updatePublicProfile, uploadAvatar } from "@/app/actions/member-portal";
 
 interface ProfileTabProps {
-  accountUser: Models.User<Models.Preferences> | null;
+  accountUser: { name: string; email: string } | null;
   biEmail: string;
   publicProfile: PublicProfiles | null;
   user: Users | null;

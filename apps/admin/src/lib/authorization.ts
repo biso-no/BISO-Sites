@@ -21,7 +21,6 @@ export interface UserAuthContext {
   departmentNames: string[]; // Parsed department names (e.g., "OperationsUnit", "LedelsenOslo")
   departmentTeamIds: string[]; // Azure GUIDs for SG-App-Dept-* teams
   email: string | null;
-  labels: string[]; // Appwrite user labels (legacy, kept for read-only checks)
   managedCampuses: string[]; // Campus names this user manages (for campus admins)
   managedCampusIds: string[]; // Numeric campus_id values for managedCampuses
   name: string | null;
@@ -187,7 +186,6 @@ export const getUserAuthContext = cache(
       const teamMemberships = await teams.list();
 
       const parsed = parseTeamMemberships(teamMemberships.teams);
-      const labels = user.labels || [];
       const { roles, managedCampuses } = deriveRoles(parsed);
 
       const managedCampusIds = managedCampuses
@@ -217,7 +215,6 @@ export const getUserAuthContext = cache(
         departmentTeamIds: parsed.departmentTeamIds,
         email: user.email ?? null,
         name: user.name ?? null,
-        labels,
         managedCampusIds,
         managedCampuses,
         resolvedCampusIds,

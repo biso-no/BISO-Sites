@@ -1,6 +1,5 @@
 "use client";
 
-import type { Models } from "@repo/api";
 import type {
   CampusBenefits,
   PublicProfiles,
@@ -28,7 +27,7 @@ interface MemberPortalTabsProps {
   isMember: boolean;
   membershipType: string;
   profile: Users | null;
-  profileAccount: Models.User<Models.Preferences> | null;
+  profileAccount: { name: string; email: string } | null;
   publicProfile: PublicProfiles | null;
   revealedBenefits: Set<string>;
   startDate: string;

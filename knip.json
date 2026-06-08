@@ -5,6 +5,7 @@
     "**/public/**",
     "**/*-temp.*",
     "**/i18n/**",
+    ".claude/**",
 
     "apps/admin/src/app/actions/migration/**",
     "apps/admin/src/lib/types/**",

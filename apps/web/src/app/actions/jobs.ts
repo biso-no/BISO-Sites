@@ -155,23 +155,42 @@ const AVAILABILITY_SPLIT_PATTERN = /\r?\n|,/;
 const DEPT_NAME_SPACE_RE = /\s+/g;
 
 function buildVacancyRowPerms(
-  vacancy: { department?: unknown } | null | undefined
+  vacancy:
+    | { department?: unknown; campus?: { name?: string } | null }
+    | null
+    | undefined
 ): string[] {
   const teams = ["sg-app-dept-operationsunit", "sg-app-dept-hr"];
   const deptName = (vacancy?.department as { Name?: string } | null)?.Name;
   if (deptName) {
+    // Team IDs are the lowercased, space-stripped Azure group suffix
+    // (e.g. "Operations Unit" -> "sg-app-dept-operationsunit"), matching how
+    // m365-sync creates them and how the admin app derives them.
     teams.push(
-      `sg-app-dept-${deptName.replace(DEPT_NAME_SPACE_RE, "-").toLowerCase()}`
+      `sg-app-dept-${deptName.replace(DEPT_NAME_SPACE_RE, "").toLowerCase()}`
     );
   }
+
+  // Campus leadership (Ledelsen{City}) reviews applications for their own
+  // campus. Read-only — campus/leadership teams never receive write on
+  // recruitment rows. National has no city leadership team (ops covers it).
+  const campusName = (vacancy?.campus as { name?: string } | null)?.name;
+  const leadershipTeam =
+    campusName && campusName !== "National"
+      ? `sg-app-dept-ledelsen${campusName
+          .replace(DEPT_NAME_SPACE_RE, "")
+          .toLowerCase()}`
+      : null;
+
   return [
-    ...new Set(
-      teams.flatMap((t) => [
+    ...new Set([
+      ...teams.flatMap((t) => [
         Permission.read(Role.team(t)),
         Permission.update(Role.team(t)),
         Permission.delete(Role.team(t)),
-      ])
-    ),
+      ]),
+      ...(leadershipTeam ? [Permission.read(Role.team(leadershipTeam))] : []),
+    ]),
   ];
 }
 
