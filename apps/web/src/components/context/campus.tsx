@@ -27,7 +27,7 @@ const STORAGE_KEY = "biso-active-campus";
 export const CampusProvider = ({ children }: { children: React.ReactNode }) => {
   const [campuses, setCampuses] = useState<Campus[]>([]);
   const [activeCampusId, setActiveCampusId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const isHydrated = useHydration();
   const router = useRouter();
 
@@ -50,6 +50,7 @@ export const CampusProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     let isMounted = true;
     const loadCampuses = async () => {
+      setLoading(true);
       try {
         const response = (await getCampuses()) as Campus[];
         if (!isMounted) {
