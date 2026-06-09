@@ -476,6 +476,61 @@ export class GraphUserService {
   }
 
   /**
+   * List every directory user, following Graph pagination (@odata.nextLink) so
+   * the full tenant is returned rather than a single capped page. Applies the
+   * same allowed-domain / licensed-only filtering as `searchUsers`.
+   */
+  async listLicensedUsers(
+    options: GraphUserSearchOptions = {}
+  ): Promise<GraphUser[]> {
+    const rows: Record<string, unknown>[] = [];
+    let useSignInActivity = true;
+    let nextLink: string | undefined;
+
+    const buildInitialRequest = () =>
+      this.client
+        .api("/users")
+        .select(
+          (useSignInActivity ? USER_SELECT_WITH_SIGN_IN : USER_SELECT).join(",")
+        )
+        .top(999);
+
+    const collect = async () => {
+      let response: {
+        "@odata.nextLink"?: string;
+        value: Record<string, unknown>[];
+      } = await buildInitialRequest().get();
+      rows.push(...response.value);
+      nextLink = response["@odata.nextLink"];
+      while (nextLink) {
+        response = await this.client.api(nextLink).get();
+        rows.push(...response.value);
+        nextLink = response["@odata.nextLink"];
+      }
+    };
+
+    try {
+      await collect();
+    } catch (error) {
+      if (getStatusCode(error) !== 403 && getStatusCode(error) !== 400) {
+        throw normalizeGraphError(error);
+      }
+      // signInActivity requires Entra ID P1; retry without it.
+      useSignInActivity = false;
+      rows.length = 0;
+      nextLink = undefined;
+      await collect();
+    }
+
+    return rows
+      .map((user) => toGraphUser(user))
+      .filter((user) => hasAllowedDomain(user, options.allowedDomain))
+      .filter((user) =>
+        options.licensedOnly ? hasAssignedLicense(user) : true
+      );
+  }
+
+  /**
    * Check Graph-visible users and groups for a proxy address/mail conflict.
    * Exchange Online remains the authority for mailbox-only recipient types.
    */
