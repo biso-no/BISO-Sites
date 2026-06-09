@@ -18,6 +18,7 @@ import {
   type CanonicalDepartment,
   type ClassifierContext,
   classifyDepartmentValue,
+  extractCampusPrefix,
   isClosedName,
 } from "@/lib/it/department-matching";
 import { requireItPermission } from "@/lib/it-permissions";
@@ -178,28 +179,53 @@ export async function applyDepartmentFixes(
   try {
     const ctx = await requireItPermission("it.users.editProfile");
     const data = await loadCanonicalData();
-    const validNames = new Set(
-      data.canonical.filter((d) => !isClosedName(d.name)).map((d) => d.name)
-    );
-    const validCampusNames = new Set(data.campusIdToName.values());
+
+    // Authoritative department -> campus-name resolution. The campus written to
+    // M365 is derived from the department here; the client-supplied campusName
+    // is never trusted for the write.
+    const prefixToId = buildCampusPrefixToId(data.canonical);
+    const activeByName = new Map<string, CanonicalDepartment>();
+    for (const dept of data.canonical) {
+      if (!isClosedName(dept.name)) {
+        activeByName.set(dept.name, dept);
+      }
+    }
+    const resolveCampusName = (departmentName: string): string | null => {
+      const dept = activeByName.get(departmentName);
+      if (!dept) {
+        return null;
+      }
+      const prefix = extractCampusPrefix(dept.name);
+      const mappedId = prefix ? prefixToId.get(prefix) : undefined;
+      const campusId = mappedId ?? dept.campusId;
+      return data.campusIdToName.get(campusId) ?? null;
+    };
 
     const updates: Array<{
       id: string;
       patch: { department: string; officeLocation: string };
     }> = [];
+    const applied: Array<{
+      department: string;
+      campus: string;
+      users: number;
+    }> = [];
     for (const decision of decisions) {
-      if (!validNames.has(decision.department)) {
+      const campusName = resolveCampusName(decision.department);
+      if (!campusName) {
         throw new Error(`"${decision.department}" is not a valid department.`);
       }
-      if (!validCampusNames.has(decision.campusName)) {
-        throw new Error(`"${decision.campusName}" is not a valid campus.`);
-      }
+      applied.push({
+        department: decision.department,
+        campus: campusName,
+        users: decision.userIds.length,
+      });
       for (const userId of decision.userIds) {
         updates.push({
           id: userId,
           patch: {
             department: decision.department,
-            officeLocation: decision.campusName,
+            officeLocation: campusName,
           },
         });
       }
@@ -217,6 +243,8 @@ export async function applyDepartmentFixes(
         succeeded,
         failedCount: failed.length,
         decisionCount: decisions.length,
+        userCount: updates.length,
+        applied,
       },
     });
 
