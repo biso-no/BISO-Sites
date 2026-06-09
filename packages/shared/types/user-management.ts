@@ -423,28 +423,6 @@ export interface UserManagementAuditLog {
 }
 
 // ============================================================================
-// M365 Department Audit Types
-// ============================================================================
-
-export type DepartmentAuditIssue =
-  | "campusMismatch"
-  | "missingDepartment"
-  | "missingOffice"
-  | "unknownDepartment"
-  | "unknownOffice";
-
-export interface M365DepartmentAuditEntry {
-  expectedCampuses: string[];
-  issues: DepartmentAuditIssue[];
-  user: M365UserListItem;
-}
-
-export interface M365DepartmentAuditResult {
-  entries: M365DepartmentAuditEntry[];
-  scannedCount: number;
-}
-
-// ============================================================================
 // Department Remediation Types
 // ============================================================================
 

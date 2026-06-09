@@ -2,6 +2,7 @@ import { getTranslations } from "next-intl/server";
 import { requireItPagePermission } from "@/lib/it-permissions";
 import { searchM365Users } from "../../_actions/it-users";
 import { PageHeader } from "../../_components/page-header";
+import { ItUsersTabs } from "./_components/it-users-tabs";
 import { UsersListClient } from "./_components/users-list-client";
 
 interface ItUsersPageProps {
@@ -18,6 +19,13 @@ export default async function ItUsersPage({ searchParams }: ItUsersPageProps) {
   return (
     <div className="pb-12">
       <PageHeader description={t("description")} title={t("title")} />
+      <ItUsersTabs
+        labels={{
+          audit: t("tabs.audit"),
+          dataHealth: t("tabs.dataHealth"),
+          users: t("tabs.users"),
+        }}
+      />
 
       {result.error ? (
         <div
