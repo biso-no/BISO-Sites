@@ -1,14 +1,16 @@
 import { describe, expect, test } from "bun:test";
 import {
   buildCampusPrefixToId,
+  type ClassifierContext,
   classifyDepartmentValue,
   diceCoefficient,
   extractCampusPrefix,
   isClosedName,
   normalizeForCompare,
   stripClosedSuffix,
-  type ClassifierContext,
 } from "./department-matching";
+
+const REVIEW_TIER_REGEX = /^review-/;
 
 describe("normalizeForCompare", () => {
   test("lowercases, folds Norwegian diacritics, collapses whitespace", () => {
@@ -84,7 +86,10 @@ describe("buildCampusPrefixToId", () => {
 
 function makeContext(): ClassifierContext {
   const canonical = [
-    { name: "OSL DIGI-KOMM - Digital kommunikasjon og markedsf.", campusId: "1" },
+    {
+      name: "OSL DIGI-KOMM - Digital kommunikasjon og markedsf.",
+      campusId: "1",
+    },
     { name: "OSL Markedsforing", campusId: "1" },
     { name: "OSL Markedsanalyse", campusId: "1" },
     { name: "OSL Naringsliv og Konsulent", campusId: "1" },
@@ -128,7 +133,10 @@ describe("classifyDepartmentValue", () => {
   });
 
   test("user on a closed department -> closed", () => {
-    const r = classifyDepartmentValue("OSL DataAnalytisk Utvalg", makeContext());
+    const r = classifyDepartmentValue(
+      "OSL DataAnalytisk Utvalg",
+      makeContext()
+    );
     expect(r.tier).toBe("closed");
   });
 
@@ -150,11 +158,14 @@ describe("classifyDepartmentValue", () => {
 
   test("ambiguous near-tie prefix -> demoted to review", () => {
     const r = classifyDepartmentValue("OSL Markeds", makeContext());
-    expect(r.tier).toMatch(/^review-/);
+    expect(r.tier).toMatch(REVIEW_TIER_REGEX);
   });
 
   test("nothing close -> review-no-match", () => {
-    const r = classifyDepartmentValue("OSL Completely Unrelated Xyz", makeContext());
+    const r = classifyDepartmentValue(
+      "OSL Completely Unrelated Xyz",
+      makeContext()
+    );
     expect(r.tier).toBe("review-no-match");
   });
 });
