@@ -323,6 +323,64 @@ export class GraphUserService {
   }
 
   /**
+   * Patch many users in one round-trip group using Microsoft Graph $batch
+   * (max 20 requests per batch). Returns a per-user result; failures do not
+   * abort the run.
+   */
+  async batchUpdateUsers(
+    updates: Array<{ id: string; patch: GraphUserProfileUpdate }>
+  ): Promise<Array<{ error?: string; id: string }>> {
+    const BATCH_SIZE = 20;
+    const results: Array<{ error?: string; id: string }> = [];
+
+    for (let start = 0; start < updates.length; start += BATCH_SIZE) {
+      const chunk = updates.slice(start, start + BATCH_SIZE);
+      const requests = chunk.map((update, index) => ({
+        id: String(start + index),
+        method: "PATCH",
+        url: `/users/${encodeGraphPathSegment(update.id)}`,
+        headers: { "Content-Type": "application/json" },
+        body: update.patch,
+      }));
+
+      let response: {
+        responses?: Array<{ id: string; status: number; body?: unknown }>;
+      };
+      try {
+        response = await this.client.api("/$batch").post({ requests });
+      } catch (error) {
+        const message = normalizeGraphError(error).message;
+        for (const update of chunk) {
+          results.push({ id: update.id, error: message });
+        }
+        continue;
+      }
+
+      const byId = new Map(
+        (response.responses ?? []).map((item) => [item.id, item])
+      );
+      for (const [index, update] of chunk.entries()) {
+        const item = byId.get(String(start + index));
+        if (item && item.status >= 200 && item.status < 300) {
+          results.push({ id: update.id });
+        } else {
+          const body = item?.body as
+            | { error?: { message?: string } }
+            | undefined;
+          results.push({
+            id: update.id,
+            error:
+              body?.error?.message ??
+              `Graph batch failed (status ${item?.status ?? "unknown"})`,
+          });
+        }
+      }
+    }
+
+    return results;
+  }
+
+  /**
    * Replace the proxyAddresses array for a user (Exchange mailbox must be provisioned).
    * Send the full desired array — Graph replaces it entirely.
    */
