@@ -33,15 +33,8 @@ import {
   hasRowAccess,
 } from "@/lib/utils/authorization";
 import { logAuditEvent } from "./audit-log";
-import {
-  listCampuses as _listCampuses,
-  listDepartmentsForCampus as _listDepartmentsForCampus,
-} from "./lookups";
+import { listDepartmentsForCampus as _listDepartmentsForCampus } from "./lookups";
 import { EVENTS_PAGE_SIZE, type EventFormValues, eventSchema } from "./schemas";
-
-export async function listCampuses() {
-  return await _listCampuses();
-}
 
 export async function listDepartmentsForCampus(campusId: string) {
   return await _listDepartmentsForCampus(campusId);

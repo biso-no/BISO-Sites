@@ -27,29 +27,15 @@
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",
     "@types/react": "catalog:",
-    "@types/turndown": "catalog:",
-    "@types/xml2js": "catalog:",
-    "react-hook-form": "catalog:",
     "typescript": "catalog:"
   },
   "dependencies": {
     "@ai-sdk/openai": "catalog:",
-    "@json-render/react": "catalog:",
-    "@pinecone-database/pinecone": "catalog:",
-    "@repo/connectors": "workspace:*",
     "@repo/shared": "workspace:*",
     "ai": "catalog:",
-    "gpt-tokenizer": "catalog:",
-    "jszip": "catalog:",
-    "mammoth": "catalog:",
     "pdfjs-dist": "catalog:",
     "server-only": "catalog:",
-    "turndown": "catalog:",
-    "uuid": "catalog:",
-    "xlsx": "catalog:",
-    "xml2js": "catalog:",
-    "zod": "catalog:",
-    "zustand": "catalog:"
+    "zod": "catalog:"
   },
   "peerDependencies": {
     "next": ">=16.2.2",

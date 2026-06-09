@@ -25,11 +25,9 @@
   "dependencies": {
     "@ai-sdk/react": "catalog:",
     "@dnd-kit/core": "catalog:",
-    "@dnd-kit/modifiers": "catalog:",
     "@dnd-kit/sortable": "catalog:",
     "@dnd-kit/utilities": "catalog:",
     "ai": "catalog:",
-    "@repo/api": "workspace:*",
     "immer": "catalog:",
     "zod": "catalog:",
     "zustand": "catalog:"

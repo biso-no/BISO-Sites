@@ -130,6 +130,7 @@ export async function getExpenseById(expenseId: string) {
 
 /**
  * Create a new expense
+ * @public — consumed by the expense-v2 client flow (knip-ignored dir).
  */
 export async function createExpense(data: {
   campus: string;
@@ -238,6 +239,7 @@ export async function uploadExpenseAttachment(formData: FormData) {
 
 /**
  * Create an expense attachment record in the database
+ * @public — consumed by the expense-v2 client flow (knip-ignored dir).
  */
 export async function createExpenseAttachment(data: {
   date: string;

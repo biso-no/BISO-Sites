@@ -178,14 +178,6 @@ export interface Product {
   Price?: number;
 }
 
-export interface ProductSearchParams {
-  CategoryId?: number;
-  Id?: number;
-  Name?: string;
-  No?: string;
-  ProductIds?: number[];
-}
-
 export interface GetProductsResult {
   GetProductsResult?: {
     Product?: Product | Product[];

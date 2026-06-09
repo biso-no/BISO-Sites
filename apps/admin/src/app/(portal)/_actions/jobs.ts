@@ -725,36 +725,6 @@ export async function listJobApplications(opts?: {
   };
 }
 
-export async function getJobApplication(id: string) {
-  const ctx = await requireAuth();
-  const scope = toRecruitmentAdminScope(ctx);
-  if (
-    !(
-      scope.isGlobalAdmin ||
-      scope.isCampusAdmin ||
-      scope.managedDepartmentNames.length > 0
-    )
-  ) {
-    throw new Error("Forbidden");
-  }
-
-  const { db } = await createSessionClient();
-  const lookups = await loadRecruitmentLookups(db);
-  const application = await db.getRow<JobApplications>(
-    "app",
-    "job_applications",
-    id,
-    [Query.select([...APPLICATION_SELECT])]
-  );
-  const job = application.job as Jobs | null;
-  if (!job) {
-    throw new Error("Vacancy not found");
-  }
-
-  assertRecruitmentApplicationReviewAccess(scope, lookups, job);
-  return buildRecruitmentApplicationRecord(application);
-}
-
 export async function listRecruitmentReviewers(jobId?: string): Promise<
   | {
       data: RecruitmentReviewerOption[];

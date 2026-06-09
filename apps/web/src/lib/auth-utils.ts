@@ -68,13 +68,3 @@ export async function getUserPreferences(): Promise<UserPreferences | null> {
     return null;
   }
 }
-
-export async function getUserDetails(): Promise<Models.User<Models.Preferences> | null> {
-  try {
-    const { account } = await createSessionClient();
-    const user = await account.get();
-    return user;
-  } catch {
-    return null;
-  }
-}

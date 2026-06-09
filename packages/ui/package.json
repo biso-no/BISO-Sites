@@ -12,8 +12,7 @@
     "./styles/globals.css": "./styles/globals.css",
     "./components/date-time-picker": "./components/date-time-picker.tsx",
     "./components/file-upload": "./components/file-upload.tsx",
-    "./components/link-picker": "./components/link-picker.tsx",
-    "./components/table-picker": "./components/table-picker.tsx"
+    "./components/link-picker": "./components/link-picker.tsx"
   },
   "scripts": {
     "build": "tsc --noEmit",

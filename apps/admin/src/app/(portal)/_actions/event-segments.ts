@@ -658,54 +658,6 @@ export async function assignToSegment(
   }
 }
 
-export async function removeFromSegment(segmentId: string, userId: string) {
-  const ctx = await requireAuth();
-
-  try {
-    const { db } = await createSessionClient();
-    const segment = await loadSegment(db, segmentId);
-    if (!segment) {
-      return { error: "Segment not found" };
-    }
-    const event = await loadScopedEvent(db, ctx, segment.event_id ?? "");
-    if (!event) {
-      return { error: "Event not found" };
-    }
-    assertWriteAccess(ctx, event.campus_id, event.department_id);
-
-    // member rows are readable/deletable only by their assigned user (row
-    // security), so the admin both finds and removes them with the service-key
-    // client — a session read would return nothing and silently no-op.
-    const { db: adminDb } = await createAdminClient();
-    const existing = await adminDb.listRows<SegmentMembers>(
-      "app",
-      "segment_members",
-      [
-        Query.equal("segment_id", segmentId),
-        Query.equal("user_id", userId),
-        Query.limit(1),
-      ]
-    );
-    const member = existing.rows[0];
-    if (member) {
-      await adminDb.deleteRow("app", "segment_members", member.$id);
-    }
-
-    await logAuditEvent(ctx, "event_segment.remove", {
-      resourceId: segmentId,
-      resourceType: "event_segment",
-      payload: { user_id: userId },
-    });
-
-    revalidatePath(`/events/${segment.event_id}/segments`);
-    return { data: true };
-  } catch (error) {
-    return {
-      error: error instanceof Error ? error.message : "Failed to remove member",
-    };
-  }
-}
-
 // ---------------------------------------------------------------------------
 // Auto-assign
 // ---------------------------------------------------------------------------

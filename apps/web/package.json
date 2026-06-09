@@ -10,7 +10,6 @@
     "check-types": "tsc --noEmit"
   },
   "dependencies": {
-    "@ai-sdk/openai": "catalog:",
     "@hookform/resolvers": "catalog:",
     "@repo/ai": "workspace:*",
     "@repo/api": "workspace:*",
@@ -22,7 +21,6 @@
     "@repo/ui": "workspace:*",
     "@tailwindcss/postcss": "catalog:",
     "@vippsmobilepay/sdk": "catalog:",
-    "ai": "catalog:",
     "date-fns": "catalog:",
     "embla-carousel-autoplay": "catalog:",
     "framer-motion": "catalog:",
@@ -35,7 +33,6 @@
     "react-dom": "catalog:",
     "react-hook-form": "catalog:",
     "sonner": "catalog:",
-    "tailwindcss-animate": "catalog:",
     "tw-animate-css": "catalog:",
     "uuid": "catalog:",
     "zod": "catalog:",
@@ -48,7 +45,8 @@
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
     "tailwindcss": "catalog:",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   },
   "overrides": {
     "@types/react": "19.2.7",

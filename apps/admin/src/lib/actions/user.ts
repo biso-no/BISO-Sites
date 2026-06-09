@@ -4,7 +4,7 @@ import { createAdminClient, createSessionClient } from "@repo/api/server";
 import type { Users } from "@repo/api/types/appwrite";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { getUserAuthContext, isGlobalAdmin } from "@/lib/authorization";
+import { isGlobalAdmin } from "@/lib/authorization";
 import { isAuthenticatedAppwriteUser, isProd } from "@/lib/utils";
 
 export async function getLoggedInUser(): Promise<{
@@ -43,28 +43,6 @@ async function _getCurrentSession() {
   const { account } = await createSessionClient();
   const session = await account.getSession("current");
   return session;
-}
-
-export async function getUserById(userId: string): Promise<Users | null> {
-  const ctx = await getUserAuthContext();
-  if (!ctx) {
-    return null;
-  }
-  // Only admins may look up arbitrary user rows by id; everyone else may only
-  // resolve their own profile through this server action.
-  const isAdmin =
-    ctx.roles.includes("globaladmin") || ctx.roles.includes("campusadmin");
-  if (!(isAdmin || ctx.userId === userId)) {
-    return null;
-  }
-  try {
-    const { db } = await createAdminClient();
-    const user = await db.getRow<Users>("app", "user", userId);
-    return user;
-  } catch {
-    console.error("Failed to fetch user by id");
-    return null;
-  }
 }
 
 export async function listIdentities() {
@@ -163,17 +141,6 @@ async function _updateUserPreferences(
 
   const updatedPrefs = await account.updatePrefs(mergedPrefs);
   return updatedPrefs;
-}
-
-export async function createJWT(): Promise<string | null> {
-  try {
-    const { account } = await createSessionClient();
-    const jwt = await account.createJWT();
-    return jwt.jwt;
-  } catch (error) {
-    console.error(error);
-    return null;
-  }
 }
 
 export async function signOut(): Promise<void> {

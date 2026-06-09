@@ -21,14 +21,14 @@
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",
     "ts-node": "catalog:",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   },
   "dependencies": {
     "@types/node": "catalog:",
     "appwrite": "catalog:",
     "next": "catalog:",
     "node-appwrite": "catalog:",
-    "react": "catalog:",
-    "server-only": "*"
+    "react": "catalog:"
   }
 }

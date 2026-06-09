@@ -1,7 +1,5 @@
 import { type Models, Permission, Role } from "@repo/api";
 import type { RecruitmentLookups } from "@repo/shared/recruitment";
-import { type ClassValue, clsx } from "clsx";
-import { twMerge } from "tailwind-merge";
 
 const GUEST_NAME_PREFIX = "guest_";
 
@@ -30,10 +28,6 @@ export function isAuthenticatedAppwriteUser(
     user.name.length > 0 &&
     !user.name.startsWith(GUEST_NAME_PREFIX);
   return hasEmail || (hasRealName && user.emailVerification);
-}
-
-export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
 }
 
 export const isProd =

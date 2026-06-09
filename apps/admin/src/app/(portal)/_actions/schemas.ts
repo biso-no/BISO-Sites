@@ -37,7 +37,6 @@ export const EVENTS_PAGE_SIZE = 20;
 export type EventFormValues = EventUpsertInput;
 
 export const jobSchema = recruitmentVacancyUpsertSchema;
-export const JOBS_PAGE_SIZE = 20;
 export type JobFormValues = RecruitmentVacancyUpsertInput;
 
 export const newsSchema = z.object({
@@ -137,7 +136,6 @@ export const segmentSchema = z.object({
   topic_id: z.string().optional().nullable(),
 });
 
-export type SegmentMetadataValues = z.infer<typeof segmentMetadataSchema>;
 export type SegmentFormValues = z.infer<typeof segmentSchema>;
 
 export const messageSegmentSchema = z.object({
@@ -169,8 +167,6 @@ export const DOCUMENT_FORM_CATEGORIES = [
   "target-documents",
 ] as const;
 
-export type DocumentFormCategory = (typeof DOCUMENT_FORM_CATEGORIES)[number];
-
 export const documentMetadataSchema = z.object({
   title: z.string().min(1, "Title is required"),
   description: z.string().optional().nullable(),
@@ -193,9 +189,3 @@ export const documentMetadataSchema = z.object({
 });
 
 export type DocumentMetadataFormValues = z.infer<typeof documentMetadataSchema>;
-
-// Create uses the same schema — SharePoint drive ID and folder path are
-// now resolved automatically on the server based on category + language.
-export const documentCreateSchema = documentMetadataSchema;
-
-export type DocumentCreateFormValues = z.infer<typeof documentCreateSchema>;

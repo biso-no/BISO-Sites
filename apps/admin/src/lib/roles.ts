@@ -19,8 +19,6 @@ export const ROLES = {
   CAMPUS_ADMIN: "campusadmin", // Ledelsen{City} + Campus-{City}
 } as const;
 
-export type Role = (typeof ROLES)[keyof typeof ROLES];
-
 // Pseudo-role for any user with at least one SG-App-Dept-* membership
 export const DEPARTMENT_ROLE = "department" as const;
 
