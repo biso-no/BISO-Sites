@@ -421,3 +421,79 @@ export interface UserManagementAuditLog {
   timestamp: string;
   webhookResponse?: unknown;
 }
+
+// ============================================================================
+// M365 Department Audit Types
+// ============================================================================
+
+export type DepartmentAuditIssue =
+  | "campusMismatch"
+  | "missingDepartment"
+  | "missingOffice"
+  | "unknownDepartment"
+  | "unknownOffice";
+
+export interface M365DepartmentAuditEntry {
+  expectedCampuses: string[];
+  issues: DepartmentAuditIssue[];
+  user: M365UserListItem;
+}
+
+export interface M365DepartmentAuditResult {
+  entries: M365DepartmentAuditEntry[];
+  scannedCount: number;
+}
+
+// ============================================================================
+// Department Remediation Types
+// ============================================================================
+
+export type RemediationTier =
+  | "safe-exact"
+  | "safe-truncation"
+  | "review-suggested"
+  | "review-no-match"
+  | "closed";
+
+// One distinct M365 department value and the fix proposed for everyone on it.
+export interface RemediationGroup {
+  affectedUsers: M365UserListItem[];
+  score: number | null; // similarity 0-1 when applicable
+  suggestedCampusName: string | null; // campus the suggestion belongs to
+  suggestedDepartment: string | null; // canonical name to write
+  tier: RemediationTier;
+  value: string; // the raw M365 department string ("" = blank department)
+}
+
+export interface DepartmentRemediationPlan {
+  closed: RemediationGroup[];
+  compliantCount: number;
+  review: RemediationGroup[];
+  safe: RemediationGroup[];
+  totalScanned: number;
+}
+
+// A single accepted fix decision sent to applyDepartmentFixes.
+export interface DepartmentFixDecision {
+  campusName: string; // office location to write
+  department: string; // exact canonical name to write
+  userIds: string[];
+}
+
+export interface DepartmentFixSummary {
+  failed: Array<{ userId: string; error: string }>;
+  succeeded: number;
+}
+
+// 24SO data-health report.
+export type DepartmentDataIssue =
+  | "trailingWhitespace"
+  | "duplicateName"
+  | "activeClosed";
+
+export interface DepartmentDataHealthEntry {
+  campusName: string;
+  id: string;
+  issues: DepartmentDataIssue[];
+  name: string;
+}
