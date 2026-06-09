@@ -21,9 +21,9 @@ import {
   extractCampusPrefix,
   isClosedName,
 } from "@/lib/it/department-matching";
+import { getGraphService, M365_DOMAIN, toListItem } from "@/lib/it/graph";
 import { requireItPermission } from "@/lib/it-permissions";
 import { logAuditEvent } from "./audit-log";
-import { getGraphService, M365_DOMAIN, toListItem } from "./it-users";
 
 type ActionResult<T> =
   | { data: T; error?: never }

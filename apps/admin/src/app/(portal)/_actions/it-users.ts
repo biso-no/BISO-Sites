@@ -4,7 +4,7 @@ import { Query } from "@repo/api";
 import { createAdminClient } from "@repo/api/server";
 import type { Campus, Departments } from "@repo/api/types/appwrite";
 import {
-  GraphUserService,
+  type GraphUserService,
   generateTemporaryPassword,
   generateUpn,
 } from "@repo/connectors/azure/users";
@@ -36,15 +36,10 @@ import {
   m365UserSearchSchema,
 } from "@repo/shared/types/user-management";
 import { revalidatePath } from "next/cache";
+import { getGraphService, M365_DOMAIN, toListItem } from "@/lib/it/graph";
 import { requireItPermission } from "@/lib/it-permissions";
 import { logAuditEvent } from "./audit-log";
 
-const AZURE_GRAPH_TENANT_ID =
-  process.env.AZURE_GRAPH_TENANT_ID || process.env.AZURE_TENANT_ID || "";
-const AZURE_GRAPH_CLIENT_ID =
-  process.env.AZURE_GRAPH_CLIENT_ID || process.env.AZURE_APP_ID || "";
-const AZURE_GRAPH_CLIENT_SECRET = process.env.AZURE_GRAPH_CLIENT_SECRET || "";
-export const M365_DOMAIN = process.env.M365_DOMAIN || "biso.no";
 const LEADING_AT_REGEX = /^@/;
 const GRAPH_DUPLICATE_USER_REGEX = /already exists|objectConflict/i;
 const SMTP_PREFIX_REGEX = /^smtp:/i;
@@ -64,56 +59,12 @@ interface LookupValidationResult {
   options: ItLookupOptions;
 }
 
-export function getGraphService(): GraphUserService {
-  if (
-    !(
-      AZURE_GRAPH_TENANT_ID &&
-      AZURE_GRAPH_CLIENT_ID &&
-      AZURE_GRAPH_CLIENT_SECRET
-    )
-  ) {
-    throw new Error("Missing Microsoft Graph server credentials");
-  }
-
-  return new GraphUserService(
-    AZURE_GRAPH_TENANT_ID,
-    AZURE_GRAPH_CLIENT_ID,
-    AZURE_GRAPH_CLIENT_SECRET
-  );
-}
-
 function getErrorMessage(error: unknown): string {
   const message = error instanceof Error ? error.message : "Unknown error";
   if (GRAPH_DUPLICATE_USER_REGEX.test(message)) {
     return "A Microsoft 365 user with this UPN or mail nickname already exists.";
   }
   return message;
-}
-
-export function toListItem(user: {
-  accountEnabled?: boolean;
-  createdDateTime?: string;
-  department?: string;
-  displayName: string;
-  id: string;
-  jobTitle?: string;
-  lastSignInDateTime?: string;
-  mail?: string;
-  officeLocation?: string;
-  userPrincipalName: string;
-}): M365UserListItem {
-  return {
-    accountEnabled: user.accountEnabled ?? null,
-    createdDateTime: user.createdDateTime ?? null,
-    department: user.department ?? null,
-    displayName: user.displayName,
-    id: user.id,
-    jobTitle: user.jobTitle ?? null,
-    lastSignInDateTime: user.lastSignInDateTime ?? null,
-    mail: user.mail ?? null,
-    officeLocation: user.officeLocation ?? null,
-    userPrincipalName: user.userPrincipalName,
-  };
 }
 
 function toDetail(
