@@ -1,8 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import {
+  buildCampusPrefixToId,
   diceCoefficient,
   extractCampusPrefix,
+  isClosedName,
   normalizeForCompare,
+  stripClosedSuffix,
 } from "./department-matching";
 
 describe("normalizeForCompare", () => {
@@ -45,5 +48,34 @@ describe("diceCoefficient", () => {
     expect(
       diceCoefficient("naeringsliv og konsulent", "naeringsliv & konsulent")
     ).toBeGreaterThan(0.8);
+  });
+});
+
+describe("isClosedName / stripClosedSuffix", () => {
+  test("detects the nedlagt suffix case-insensitively", () => {
+    expect(isClosedName("OSL DataAnalytisk Utvalg - nedlagt")).toBe(true);
+    expect(isClosedName("OSL DataAnalytisk Utvalg - NEDLAGT")).toBe(true);
+    expect(isClosedName("OSL DataAnalytisk Utvalg")).toBe(false);
+  });
+
+  test("strips the nedlagt suffix to recover the base name", () => {
+    expect(stripClosedSuffix("OSL DataAnalytisk Utvalg - nedlagt")).toBe(
+      "OSL DataAnalytisk Utvalg"
+    );
+    expect(stripClosedSuffix("OSL Marked")).toBe("OSL Marked");
+  });
+});
+
+describe("buildCampusPrefixToId", () => {
+  test("maps each prefix to the campus id most common among its departments", () => {
+    const map = buildCampusPrefixToId([
+      { name: "OSL Marked", campusId: "1" },
+      { name: "OSL Drift", campusId: "1" },
+      { name: "BRG Marked", campusId: "2" },
+      { name: "Sentralt utvalg", campusId: "5" }, // no prefix, ignored
+    ]);
+    expect(map.get("OSL")).toBe("1");
+    expect(map.get("BRG")).toBe("2");
+    expect(map.has("TRD")).toBe(false);
   });
 });
