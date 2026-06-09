@@ -216,6 +216,52 @@
         "enabled": "Aktivert",
         "disabled": "Deaktivert",
         "unknown": "Ukjent"
+      },
+      "tabs": {
+        "users": "Brukere",
+        "audit": "Avdelingskontroll",
+        "dataHealth": "24SO datakvalitet"
+      }
+    },
+    "audit": {
+      "title": "Avdelingskontroll",
+      "description": "Match M365-avdelinger mot den offisielle 24SevenOffice-listen og rett opp avvik i bulk.",
+      "summary": "{flagged} grupper trenger oppfølging · {compliant} av {total} brukere i orden",
+      "segments": {
+        "safe": "Trygge rettelser",
+        "review": "Trenger gjennomgang",
+        "closed": "Nedlagte avdelinger"
+      },
+      "safeDescription": "Deterministiske treff (eksakt, store/små bokstaver, eller forkortelse). Kan brukes uten gjennomgang per bruker.",
+      "reviewDescription": "Antatte treff som krever en menneskelig beslutning.",
+      "closedDescription": "Brukere på avdelinger som er nedlagt. Må flyttes manuelt.",
+      "applyAllSafe": "Bruk alle trygge rettelser",
+      "applyGroup": "Bruk",
+      "affectedUsers": "{count} brukere",
+      "writes": "Setter avdeling → {department}",
+      "writesWithOffice": "Setter avdeling → {department}, kontor → {office}",
+      "suggestion": "Forslag: {department} ({score}%)",
+      "selectDepartment": "Velg avdeling",
+      "noSuggestion": "Ingen sikker match — velg en avdeling",
+      "applied": "{succeeded} oppdatert, {failed} feilet",
+      "allClear": "Ingenting å rette",
+      "allClearDescription": "Alle lisensierte brukere matcher en gyldig avdeling og campus.",
+      "blankDepartment": "(ingen avdeling)"
+    },
+    "dataHealth": {
+      "title": "24SO datakvalitet",
+      "description": "Avdelingsoppføringer med feil som må rettes i 24SevenOffice.",
+      "empty": "Ingen datafeil funnet",
+      "emptyDescription": "Alle avdelingsnavn er rene.",
+      "column": {
+        "name": "Avdeling",
+        "campus": "Campus",
+        "issues": "Feil"
+      },
+      "issues": {
+        "trailingWhitespace": "Mellomrom på slutten",
+        "duplicateName": "Duplikatnavn",
+        "activeClosed": "Aktiv men merket nedlagt"
       }
     }
   },

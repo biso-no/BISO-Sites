@@ -216,6 +216,52 @@
         "enabled": "Enabled",
         "disabled": "Disabled",
         "unknown": "Unknown"
+      },
+      "tabs": {
+        "users": "Users",
+        "audit": "Department audit",
+        "dataHealth": "24SO data health"
+      }
+    },
+    "audit": {
+      "title": "Department audit",
+      "description": "Match M365 departments to the canonical 24SevenOffice list and fix drift in bulk.",
+      "summary": "{flagged} groups need attention · {compliant} of {total} users compliant",
+      "segments": {
+        "safe": "Safe fixes",
+        "review": "Needs review",
+        "closed": "Closed departments"
+      },
+      "safeDescription": "Deterministic matches (exact, case, or truncation). Apply without per-user review.",
+      "reviewDescription": "Best-guess matches that need a human decision.",
+      "closedDescription": "Users on departments that have been closed (nedlagt). Reassign manually.",
+      "applyAllSafe": "Apply all safe fixes",
+      "applyGroup": "Apply",
+      "affectedUsers": "{count} users",
+      "writes": "Sets department → {department}",
+      "writesWithOffice": "Sets department → {department}, office → {office}",
+      "suggestion": "Suggested: {department} ({score}%)",
+      "selectDepartment": "Choose department",
+      "noSuggestion": "No confident match — choose a department",
+      "applied": "{succeeded} updated, {failed} failed",
+      "allClear": "Nothing to remediate",
+      "allClearDescription": "Every licensed user matches a canonical department and campus.",
+      "blankDepartment": "(no department)"
+    },
+    "dataHealth": {
+      "title": "24SO data health",
+      "description": "Canonical department records with defects to fix in 24SevenOffice.",
+      "empty": "No data issues found",
+      "emptyDescription": "All canonical department names are clean.",
+      "column": {
+        "name": "Department",
+        "campus": "Campus",
+        "issues": "Issues"
+      },
+      "issues": {
+        "trailingWhitespace": "Trailing space",
+        "duplicateName": "Duplicate name",
+        "activeClosed": "Active but marked nedlagt"
       }
     }
   },
