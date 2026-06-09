@@ -1,11 +1,13 @@
 import { describe, expect, test } from "bun:test";
 import {
   buildCampusPrefixToId,
+  classifyDepartmentValue,
   diceCoefficient,
   extractCampusPrefix,
   isClosedName,
   normalizeForCompare,
   stripClosedSuffix,
+  type ClassifierContext,
 } from "./department-matching";
 
 describe("normalizeForCompare", () => {
@@ -77,5 +79,82 @@ describe("buildCampusPrefixToId", () => {
     expect(map.get("OSL")).toBe("1");
     expect(map.get("BRG")).toBe("2");
     expect(map.has("TRD")).toBe(false);
+  });
+});
+
+function makeContext(): ClassifierContext {
+  const canonical = [
+    { name: "OSL DIGI-KOMM - Digital kommunikasjon og markedsf.", campusId: "1" },
+    { name: "OSL Markedsforing", campusId: "1" },
+    { name: "OSL Markedsanalyse", campusId: "1" },
+    { name: "OSL Naringsliv og Konsulent", campusId: "1" },
+    { name: "BRG Marked", campusId: "2" },
+    { name: "OSL DataAnalytisk Utvalg - nedlagt", campusId: "1" },
+    { name: "Sentralstyret", campusId: "5" },
+  ];
+  return {
+    canonical,
+    campusPrefixToId: buildCampusPrefixToId(canonical),
+    reviewThreshold: 0.8,
+    minPrefixLength: 20,
+    tieMargin: 0.1,
+  };
+}
+
+describe("classifyDepartmentValue", () => {
+  test("blank value -> review-no-match", () => {
+    const r = classifyDepartmentValue("", makeContext());
+    expect(r.tier).toBe("review-no-match");
+    expect(r.suggestedDepartment).toBeNull();
+  });
+
+  test("exact (case/whitespace) -> safe-exact with canonical casing", () => {
+    const r = classifyDepartmentValue("  brg marked ", makeContext());
+    expect(r.tier).toBe("safe-exact");
+    expect(r.suggestedDepartment).toBe("BRG Marked");
+    expect(r.suggestedCampusId).toBe("2");
+  });
+
+  test("truncated full name -> safe-truncation to the canonical truncated value", () => {
+    const r = classifyDepartmentValue(
+      "OSL DIGI-KOMM - Digital kommunikasjon og markedsføring",
+      makeContext()
+    );
+    expect(r.tier).toBe("safe-truncation");
+    expect(r.suggestedDepartment).toBe(
+      "OSL DIGI-KOMM - Digital kommunikasjon og markedsf."
+    );
+    expect(r.suggestedCampusId).toBe("1");
+  });
+
+  test("user on a closed department -> closed", () => {
+    const r = classifyDepartmentValue("OSL DataAnalytisk Utvalg", makeContext());
+    expect(r.tier).toBe("closed");
+  });
+
+  test("diacritic/& typo within a campus -> review-suggested", () => {
+    const r = classifyDepartmentValue(
+      "OSL Næringsliv & Konsulent",
+      makeContext()
+    );
+    expect(r.tier).toBe("review-suggested");
+    expect(r.suggestedDepartment).toBe("OSL Naringsliv og Konsulent");
+    expect(r.score).toBeGreaterThan(0.8);
+  });
+
+  test("cross-campus high similarity is never auto -> review at best", () => {
+    const r = classifyDepartmentValue("BRG Markedsforing", makeContext());
+    expect(r.tier).not.toBe("safe-exact");
+    expect(r.tier).not.toBe("safe-truncation");
+  });
+
+  test("ambiguous near-tie prefix -> demoted to review", () => {
+    const r = classifyDepartmentValue("OSL Markeds", makeContext());
+    expect(r.tier).toMatch(/^review-/);
+  });
+
+  test("nothing close -> review-no-match", () => {
+    const r = classifyDepartmentValue("OSL Completely Unrelated Xyz", makeContext());
+    expect(r.tier).toBe("review-no-match");
   });
 });
