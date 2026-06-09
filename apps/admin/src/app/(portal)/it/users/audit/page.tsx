@@ -40,33 +40,6 @@ export default async function ItUsersAuditPage() {
         <RemediationClient
           departmentNames={departmentNames}
           departmentToCampus={departmentToCampus}
-          labels={{
-            affectedUsers: t("audit.affectedUsers"),
-            allClear: t("audit.allClear"),
-            allClearDescription: t("audit.allClearDescription"),
-            applied: t("audit.applied"),
-            applyAllSafe: t("audit.applyAllSafe"),
-            applyGroup: t("audit.applyGroup"),
-            blankDepartment: t("audit.blankDepartment"),
-            closed: t("audit.segments.closed"),
-            closedDescription: t("audit.closedDescription"),
-            noSuggestion: t("audit.noSuggestion"),
-            review: t("audit.segments.review"),
-            reviewDescription: t("audit.reviewDescription"),
-            safe: t("audit.segments.safe"),
-            safeDescription: t("audit.safeDescription"),
-            selectDepartment: t("audit.selectDepartment"),
-            suggestion: t("audit.suggestion"),
-            summary: t("audit.summary", {
-              compliant: result.data.compliantCount,
-              flagged:
-                result.data.safe.length +
-                result.data.review.length +
-                result.data.closed.length,
-              total: result.data.totalScanned,
-            }),
-            writesWithOffice: t("audit.writesWithOffice"),
-          }}
           plan={result.data}
         />
       ) : (

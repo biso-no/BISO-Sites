@@ -7,6 +7,7 @@ import type {
 } from "@repo/shared/types/user-management";
 import { AlertTriangle, Check, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useEffect, useState, useTransition } from "react";
 import { applyDepartmentFixes } from "../../../_actions/it-remediation";
 import { EmptyState } from "../../../_components/empty-state";
@@ -14,31 +15,9 @@ import { STUDIO, StudioButton } from "../../../_components/studio";
 
 type Segment = "safe" | "review" | "closed";
 
-interface RemediationLabels {
-  affectedUsers: string;
-  allClear: string;
-  allClearDescription: string;
-  applied: string;
-  applyAllSafe: string;
-  applyGroup: string;
-  blankDepartment: string;
-  closed: string;
-  closedDescription: string;
-  noSuggestion: string;
-  review: string;
-  reviewDescription: string;
-  safe: string;
-  safeDescription: string;
-  selectDepartment: string;
-  suggestion: string;
-  summary: string;
-  writesWithOffice: string;
-}
-
 interface RemediationClientProps {
   departmentNames: string[];
   departmentToCampus: Record<string, string>;
-  labels: RemediationLabels;
   plan: DepartmentRemediationPlan;
 }
 
@@ -60,9 +39,9 @@ function groupDecision(
 export function RemediationClient({
   departmentNames,
   departmentToCampus,
-  labels,
   plan,
 }: RemediationClientProps) {
+  const t = useTranslations("adminPortal.it.audit");
   const router = useRouter();
   const [segment, setSegment] = useState<Segment>("safe");
   const [pending, startTransition] = useTransition();
@@ -72,15 +51,15 @@ export function RemediationClient({
   );
 
   const segments: Array<{ count: number; key: Segment; label: string }> = [
-    { count: plan.safe.length, key: "safe", label: labels.safe },
-    { count: plan.review.length, key: "review", label: labels.review },
-    { count: plan.closed.length, key: "closed", label: labels.closed },
+    { count: plan.safe.length, key: "safe", label: t("segments.safe") },
+    { count: plan.review.length, key: "review", label: t("segments.review") },
+    { count: plan.closed.length, key: "closed", label: t("segments.closed") },
   ];
 
   const segmentDescriptions: Record<Segment, string> = {
-    closed: labels.closedDescription,
-    review: labels.reviewDescription,
-    safe: labels.safeDescription,
+    closed: t("closedDescription"),
+    review: t("reviewDescription"),
+    safe: t("safeDescription"),
   };
 
   function apply(decisions: DepartmentFixDecision[]) {
@@ -94,9 +73,10 @@ export function RemediationClient({
         setMessageType("error");
       } else if (result.data) {
         setMessage(
-          labels.applied
-            .replace("{succeeded}", String(result.data.succeeded))
-            .replace("{failed}", String(result.data.failed.length))
+          t("applied", {
+            failed: result.data.failed.length,
+            succeeded: result.data.succeeded,
+          })
         );
         setMessageType("success");
         router.refresh();
@@ -122,7 +102,11 @@ export function RemediationClient({
   return (
     <div>
       <p className="mb-4 text-sm" style={{ color: STUDIO.ink3 }}>
-        {labels.summary}
+        {t("summary", {
+          compliant: plan.compliantCount,
+          flagged: plan.safe.length + plan.review.length + plan.closed.length,
+          total: plan.totalScanned,
+        })}
       </p>
 
       <div
@@ -176,16 +160,16 @@ export function RemediationClient({
             ) : (
               <Check size={15} />
             )}
-            {labels.applyAllSafe}
+            {t("applyAllSafe")}
           </StudioButton>
         </div>
       )}
 
       {active.length === 0 ? (
         <EmptyState
-          description={labels.allClearDescription}
+          description={t("allClearDescription")}
           icon={<Check size={28} />}
-          title={labels.allClear}
+          title={t("allClear")}
         />
       ) : (
         <div className="space-y-2">
@@ -195,7 +179,6 @@ export function RemediationClient({
               departmentToCampus={departmentToCampus}
               group={group}
               key={group.value || "__blank__"}
-              labels={labels}
               onApply={apply}
               pending={pending}
               segment={segment}
@@ -211,7 +194,6 @@ function GroupRow({
   departmentNames,
   departmentToCampus,
   group,
-  labels,
   onApply,
   pending,
   segment,
@@ -219,11 +201,11 @@ function GroupRow({
   departmentNames: string[];
   departmentToCampus: Record<string, string>;
   group: RemediationGroup;
-  labels: RemediationLabels;
   onApply: (decisions: DepartmentFixDecision[]) => void;
   pending: boolean;
   segment: Segment;
 }) {
+  const t = useTranslations("adminPortal.it.audit");
   const [chosen, setChosen] = useState<string | null>(
     group.suggestedDepartment
   );
@@ -232,20 +214,22 @@ function GroupRow({
     setChosen(group.suggestedDepartment);
   }, [group.suggestedDepartment]);
 
-  const displayValue = group.value || labels.blankDepartment;
+  const displayValue = group.value || t("blankDepartment");
   const count = group.affectedUsers.length;
 
   let infoSuffix = "";
   if (segment === "safe" && group.suggestedDepartment) {
-    infoSuffix = labels.writesWithOffice
-      .replace("{department}", group.suggestedDepartment)
-      .replace("{office}", group.suggestedCampusName ?? "");
+    infoSuffix = t("writesWithOffice", {
+      department: group.suggestedDepartment,
+      office: group.suggestedCampusName ?? "",
+    });
   } else if (segment === "review") {
     infoSuffix = group.suggestedDepartment
-      ? labels.suggestion
-          .replace("{department}", group.suggestedDepartment)
-          .replace("{score}", String(Math.round((group.score ?? 0) * 100)))
-      : labels.noSuggestion;
+      ? t("suggestion", {
+          department: group.suggestedDepartment,
+          score: Math.round((group.score ?? 0) * 100),
+        })
+      : t("noSuggestion");
   }
 
   return (
@@ -265,7 +249,7 @@ function GroupRow({
             {displayValue}
           </p>
           <p className="mt-1 text-xs" style={{ color: STUDIO.ink4 }}>
-            {labels.affectedUsers.replace("{count}", String(count))}
+            {t("affectedUsers", { count })}
             {infoSuffix ? ` · ${infoSuffix}` : ""}
           </p>
         </div>
@@ -273,13 +257,13 @@ function GroupRow({
         {segment === "review" && (
           <div className="flex items-center gap-2">
             <select
-              aria-label={labels.selectDepartment}
+              aria-label={t("selectDepartment")}
               className="rounded-lg border px-3 py-2 text-sm"
               onChange={(e) => setChosen(e.target.value || null)}
               style={{ borderColor: STUDIO.rule2, color: STUDIO.ink2 }}
               value={chosen ?? ""}
             >
-              <option value="">{labels.selectDepartment}</option>
+              <option value="">{t("selectDepartment")}</option>
               {departmentNames.map((name) => (
                 <option key={name} value={name}>
                   {name}
@@ -299,7 +283,7 @@ function GroupRow({
               }}
               variant="secondary"
             >
-              {labels.applyGroup}
+              {t("applyGroup")}
             </StudioButton>
           </div>
         )}
@@ -310,7 +294,7 @@ function GroupRow({
             style={{ background: "rgba(107,30,30,0.08)", color: STUDIO.claret }}
           >
             <AlertTriangle size={12} />
-            {labels.closed}
+            {t("segments.closed")}
           </span>
         )}
       </div>
