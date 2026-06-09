@@ -6,6 +6,7 @@ import type {
   RemediationGroup,
 } from "@repo/shared/types/user-management";
 import { AlertTriangle, Check, Loader2 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 import { applyDepartmentFixes } from "../../../_actions/it-remediation";
 import { EmptyState } from "../../../_components/empty-state";
@@ -22,11 +23,16 @@ interface RemediationLabels {
   applyGroup: string;
   blankDepartment: string;
   closed: string;
+  closedDescription: string;
+  noSuggestion: string;
   review: string;
+  reviewDescription: string;
   safe: string;
+  safeDescription: string;
   selectDepartment: string;
   suggestion: string;
   summary: string;
+  writesWithOffice: string;
 }
 
 interface RemediationClientProps {
@@ -57,6 +63,7 @@ export function RemediationClient({
   labels,
   plan,
 }: RemediationClientProps) {
+  const router = useRouter();
   const [segment, setSegment] = useState<Segment>("safe");
   const [pending, startTransition] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
@@ -69,6 +76,12 @@ export function RemediationClient({
     { count: plan.review.length, key: "review", label: labels.review },
     { count: plan.closed.length, key: "closed", label: labels.closed },
   ];
+
+  const segmentDescriptions: Record<Segment, string> = {
+    closed: labels.closedDescription,
+    review: labels.reviewDescription,
+    safe: labels.safeDescription,
+  };
 
   function apply(decisions: DepartmentFixDecision[]) {
     if (decisions.length === 0) {
@@ -86,6 +99,7 @@ export function RemediationClient({
             .replace("{failed}", String(result.data.failed.length))
         );
         setMessageType("success");
+        router.refresh();
       }
     });
   }
@@ -134,6 +148,10 @@ export function RemediationClient({
           </button>
         ))}
       </div>
+
+      <p className="mb-4 text-xs" style={{ color: STUDIO.ink4 }}>
+        {segmentDescriptions[segment]}
+      </p>
 
       {message && (
         <p
@@ -217,6 +235,19 @@ function GroupRow({
   const displayValue = group.value || labels.blankDepartment;
   const count = group.affectedUsers.length;
 
+  let infoSuffix = "";
+  if (segment === "safe" && group.suggestedDepartment) {
+    infoSuffix = labels.writesWithOffice
+      .replace("{department}", group.suggestedDepartment)
+      .replace("{office}", group.suggestedCampusName ?? "");
+  } else if (segment === "review") {
+    infoSuffix = group.suggestedDepartment
+      ? labels.suggestion
+          .replace("{department}", group.suggestedDepartment)
+          .replace("{score}", String(Math.round((group.score ?? 0) * 100)))
+      : labels.noSuggestion;
+  }
+
   return (
     <div
       className="rounded-2xl px-5 py-4"
@@ -235,14 +266,7 @@ function GroupRow({
           </p>
           <p className="mt-1 text-xs" style={{ color: STUDIO.ink4 }}>
             {labels.affectedUsers.replace("{count}", String(count))}
-            {group.suggestedDepartment
-              ? ` · ${labels.suggestion
-                  .replace("{department}", group.suggestedDepartment)
-                  .replace(
-                    "{score}",
-                    String(Math.round((group.score ?? 0) * 100))
-                  )}`
-              : ""}
+            {infoSuffix ? ` · ${infoSuffix}` : ""}
           </p>
         </div>
 

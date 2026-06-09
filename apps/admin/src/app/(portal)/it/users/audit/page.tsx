@@ -49,8 +49,12 @@ export default async function ItUsersAuditPage() {
             applyGroup: t("audit.applyGroup"),
             blankDepartment: t("audit.blankDepartment"),
             closed: t("audit.segments.closed"),
+            closedDescription: t("audit.closedDescription"),
+            noSuggestion: t("audit.noSuggestion"),
             review: t("audit.segments.review"),
+            reviewDescription: t("audit.reviewDescription"),
             safe: t("audit.segments.safe"),
+            safeDescription: t("audit.safeDescription"),
             selectDepartment: t("audit.selectDepartment"),
             suggestion: t("audit.suggestion"),
             summary: t("audit.summary", {
@@ -61,6 +65,7 @@ export default async function ItUsersAuditPage() {
                 result.data.closed.length,
               total: result.data.totalScanned,
             }),
+            writesWithOffice: t("audit.writesWithOffice"),
           }}
           plan={result.data}
         />

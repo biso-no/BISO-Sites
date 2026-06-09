@@ -238,7 +238,6 @@
       "applyAllSafe": "Bruk alle trygge rettelser",
       "applyGroup": "Bruk",
       "affectedUsers": "{count} brukere",
-      "writes": "Setter avdeling → {department}",
       "writesWithOffice": "Setter avdeling → {department}, kontor → {office}",
       "suggestion": "Forslag: {department} ({score}%)",
       "selectDepartment": "Velg avdeling",

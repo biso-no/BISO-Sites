@@ -238,7 +238,6 @@
       "applyAllSafe": "Apply all safe fixes",
       "applyGroup": "Apply",
       "affectedUsers": "{count} users",
-      "writes": "Sets department → {department}",
       "writesWithOffice": "Sets department → {department}, office → {office}",
       "suggestion": "Suggested: {department} ({score}%)",
       "selectDepartment": "Choose department",
