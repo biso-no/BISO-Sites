@@ -44,7 +44,7 @@ const AZURE_GRAPH_TENANT_ID =
 const AZURE_GRAPH_CLIENT_ID =
   process.env.AZURE_GRAPH_CLIENT_ID || process.env.AZURE_APP_ID || "";
 const AZURE_GRAPH_CLIENT_SECRET = process.env.AZURE_GRAPH_CLIENT_SECRET || "";
-const M365_DOMAIN = process.env.M365_DOMAIN || "biso.no";
+export const M365_DOMAIN = process.env.M365_DOMAIN || "biso.no";
 const LEADING_AT_REGEX = /^@/;
 const GRAPH_DUPLICATE_USER_REGEX = /already exists|objectConflict/i;
 const SMTP_PREFIX_REGEX = /^smtp:/i;
@@ -64,7 +64,7 @@ interface LookupValidationResult {
   options: ItLookupOptions;
 }
 
-function getGraphService(): GraphUserService {
+export function getGraphService(): GraphUserService {
   if (
     !(
       AZURE_GRAPH_TENANT_ID &&
@@ -90,7 +90,7 @@ function getErrorMessage(error: unknown): string {
   return message;
 }
 
-function toListItem(user: {
+export function toListItem(user: {
   accountEnabled?: boolean;
   createdDateTime?: string;
   department?: string;
