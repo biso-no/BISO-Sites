@@ -224,28 +224,33 @@
       }
     },
     "audit": {
-      "title": "Avdelingskontroll",
-      "description": "Match M365-avdelinger mot den offisielle 24SevenOffice-listen og rett opp avvik i bulk.",
-      "summary": "{flagged} grupper trenger oppfølging · {compliant} av {total} brukere i orden",
-      "segments": {
-        "safe": "Trygge rettelser",
-        "review": "Trenger gjennomgang",
-        "closed": "Nedlagte avdelinger"
-      },
-      "safeDescription": "Deterministiske treff (eksakt, store/små bokstaver, eller forkortelse). Kan brukes uten gjennomgang per bruker.",
-      "reviewDescription": "Antatte treff som krever en menneskelig beslutning.",
-      "closedDescription": "Brukere på avdelinger som er nedlagt. Må flyttes manuelt.",
-      "applyAllSafe": "Bruk alle trygge rettelser",
-      "applyGroup": "Bruk",
+      "title": "Avdelingsrevisjon",
+      "description": "AI-assistert gjennomgang av avdelingen til hver lisensierte M365-bruker mot fasiten i 24SO.",
+      "runAnalysis": "Kjør analyse",
+      "reRunAnalysis": "Kjør analyse på nytt",
+      "noSnapshot": "Ingen analyse ennå",
+      "noSnapshotDescription": "Kjør analysen for å klassifisere hver lisensierte bruker mot rolle-e-posten deres.",
+      "lastGenerated": "Sist generert {when}",
+      "summary": "{flagged} grupper trenger oppfølging · {compliant} av {total} brukere er korrekte",
+      "applied": "{succeeded} oppdatert, {failed} feilet",
       "affectedUsers": "{count} brukere",
       "writesWithOffice": "Setter avdeling → {department}, kontor → {office}",
-      "suggestion": "Forslag: {department} ({score}%)",
+      "applyAllSafe": "Bruk alle trygge rettelser",
+      "applyGroup": "Bruk",
       "selectDepartment": "Velg avdeling",
-      "noSuggestion": "Ingen sikker match — velg en avdeling",
-      "applied": "{succeeded} oppdatert, {failed} feilet",
-      "allClear": "Ingenting å rette",
-      "allClearDescription": "Alle lisensierte brukere matcher en gyldig avdeling og campus.",
-      "blankDepartment": "(ingen avdeling)"
+      "blankDepartment": "(tom avdeling)",
+      "allClear": "Alt i orden",
+      "allClearDescription": "Ingenting trenger oppfølging i denne fanen.",
+      "segments": {
+        "safe": "Trygg",
+        "review": "Gjennomgang",
+        "manual": "Manuell",
+        "closed": "Nedlagt"
+      },
+      "safeDescription": "Treff med høy sikkerhet. Se gjennom medlemmene, og bruk deretter.",
+      "reviewDescription": "AI-en foreslo en avdeling, men var usikker — bekreft eller endre hver enkelt.",
+      "manualDescription": "Personlige eller nasjonale postbokser AI-en ikke kunne plassere. Tildel hver enkelt selv.",
+      "closedDescription": "Brukere som fortsatt er knyttet til en nedlagt avdeling. Flytt dem i 24SO."
     },
     "dataHealth": {
       "title": "24SO datakvalitet",
