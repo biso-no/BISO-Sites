@@ -175,7 +175,6 @@ async function resolveChunkSafe(
       campusLabel: chunk.campusLabel,
       candidates: chunk.candidates,
       users: chunk.users.map((u) => ({
-        department: u.department ?? "",
         email: emailLocalPart(u.mail ?? u.userPrincipalName),
         office: u.officeLocation ?? "",
         ref: u.id,
