@@ -350,6 +350,7 @@ export async function deleteNews(id: string) {
     const translations = await db.listRows("app", "content_translations", [
       Query.equal("content_type", "news"),
       Query.equal("content_id", id),
+      Query.limit(100),
     ]);
     await Promise.all(
       translations.rows.map((t) =>

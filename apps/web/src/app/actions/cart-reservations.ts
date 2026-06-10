@@ -1,7 +1,7 @@
 "use server";
 
 import { type Models, Query } from "@repo/api";
-import { createSessionClient } from "@repo/api/server";
+import { createAdminClient, createSessionClient } from "@repo/api/server";
 import type {
   ContentTranslations,
   WebshopProducts,
@@ -31,11 +31,17 @@ export async function getAvailableStock(productId: string): Promise<number> {
 
     const totalStock = product.stock as number;
 
-    // Get active reservations (not expired)
+    // Reservation rows are row-secured to their creator, so a session client
+    // only sees the current user's rows. The availability sum must cover ALL
+    // users' reservations, so this read-only aggregation uses the admin
+    // client (no row data leaves the server — only the computed number).
     const now = new Date().toISOString();
-    const reservations = await db.listRows("app", "cart_reservations", [
+    const { db: adminDb } = await createAdminClient();
+    const reservations = await adminDb.listRows("app", "cart_reservations", [
       Query.equal("product_id", productId),
       Query.greaterThan("expires_at", now),
+      Query.select(["quantity"]),
+      Query.limit(1000),
     ]);
 
     // Sum reserved quantities
@@ -74,6 +80,7 @@ export async function createOrUpdateReservation(
     // Check if user already has a reservation for this product (RLS filters by user automatically)
     const existingReservations = await db.listRows("app", "cart_reservations", [
       Query.equal("product_id", productId),
+      Query.limit(1),
     ]);
 
     if (existingReservations.rows.length > 0) {
@@ -118,6 +125,7 @@ export async function deleteReservation(
     // RLS automatically filters to current user's reservations
     const reservations = await db.listRows("app", "cart_reservations", [
       Query.equal("product_id", productId),
+      Query.limit(100),
     ]);
 
     for (const reservation of reservations.rows) {
@@ -140,7 +148,9 @@ export async function deleteAllReservations(): Promise<void> {
     const { db } = await createSessionClient();
 
     // RLS ensures we only see/delete current user's reservations
-    const reservations = await db.listRows("app", "cart_reservations", []);
+    const reservations = await db.listRows("app", "cart_reservations", [
+      Query.limit(1000),
+    ]);
 
     for (const reservation of reservations.rows) {
       await db.deleteRow("app", "cart_reservations", reservation.$id);
@@ -162,6 +172,7 @@ export async function cleanupExpiredReservations(): Promise<number> {
     // RLS ensures we only see current user's expired reservations
     const expiredReservations = await db.listRows("app", "cart_reservations", [
       Query.lessThan("expires_at", now),
+      Query.limit(1000),
     ]);
 
     let deletedCount = 0;
@@ -173,6 +184,46 @@ export async function cleanupExpiredReservations(): Promise<number> {
     return deletedCount;
   } catch (error) {
     console.error("Error cleaning up expired reservations:", error);
+    return 0;
+  }
+}
+
+const CLEANUP_PAGE_SIZE = 500;
+const CLEANUP_MAX_PAGES = 20;
+
+/**
+ * Clean up expired reservations across ALL users. Reservation rows are
+ * row-secured to their creator, so the cron route (which has no user
+ * session) must use the admin client — a session client there sees zero
+ * rows and the cleanup silently does nothing.
+ *
+ * Only call this from trusted contexts (the CRON_SECRET-gated route).
+ */
+export async function cleanupAllExpiredReservations(): Promise<number> {
+  try {
+    const { db } = await createAdminClient();
+    let deletedCount = 0;
+
+    for (let page = 0; page < CLEANUP_MAX_PAGES; page++) {
+      const now = new Date().toISOString();
+      const expired = await db.listRows("app", "cart_reservations", [
+        Query.lessThan("expires_at", now),
+        Query.limit(CLEANUP_PAGE_SIZE),
+      ]);
+
+      for (const reservation of expired.rows) {
+        await db.deleteRow("app", "cart_reservations", reservation.$id);
+        deletedCount += 1;
+      }
+
+      if (expired.rows.length < CLEANUP_PAGE_SIZE) {
+        break;
+      }
+    }
+
+    return deletedCount;
+  } catch (error) {
+    console.error("Error cleaning up all expired reservations:", error);
     return 0;
   }
 }
@@ -192,6 +243,7 @@ async function _getUserReservation(
     const reservations = await db.listRows("app", "cart_reservations", [
       Query.equal("product_id", productId),
       Query.greaterThan("expires_at", now),
+      Query.limit(1),
     ]);
 
     if (reservations.rows.length === 0) {
@@ -227,7 +279,7 @@ async function getUserCartReservations(): Promise<CartReservationRow[]> {
     const reservations = await db.listRows<CartReservationRow>(
       "app",
       "cart_reservations",
-      [Query.greaterThan("expires_at", now)]
+      [Query.greaterThan("expires_at", now), Query.limit(1000)]
     );
 
     return reservations.rows;

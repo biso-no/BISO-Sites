@@ -76,6 +76,9 @@ async function checkMaxPerUser(
     const orders = await db.listRows<Orders>("app", "orders", [
       Query.equal("userId", userId),
       ORDER_STATUS_FILTER,
+      // Without an explicit limit Appwrite returns max 25 rows, which would
+      // under-count purchases and let users bypass per-customer limits.
+      Query.limit(1000),
     ]);
 
     const { totalPurchased } = summarizePurchases(orders.rows, productId);
@@ -193,6 +196,9 @@ async function _getPurchaseHistory(
     const orders = await db.listRows<Orders>("app", "orders", [
       Query.equal("userId", userId),
       ORDER_STATUS_FILTER,
+      // Without an explicit limit Appwrite returns max 25 rows, which would
+      // under-count purchases and let users bypass per-customer limits.
+      Query.limit(1000),
     ]);
 
     return summarizePurchases(orders.rows, productId);

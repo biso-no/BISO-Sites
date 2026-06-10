@@ -22,6 +22,7 @@ export async function getExpenses(filters?: {
     const queries = [
       Query.equal("userId", user.$id),
       Query.orderDesc("$createdAt"),
+      Query.limit(100),
     ];
 
     if (filters?.status) {

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { cleanupExpiredReservations } from "@/app/actions/cart-reservations";
+import { cleanupAllExpiredReservations } from "@/app/actions/cart-reservations";
 import { isProd } from "@/lib/utils";
 
 /**
@@ -37,7 +37,7 @@ export async function GET(request: Request) {
   }
 
   try {
-    const deletedCount = await cleanupExpiredReservations();
+    const deletedCount = await cleanupAllExpiredReservations();
 
     return NextResponse.json(
       {

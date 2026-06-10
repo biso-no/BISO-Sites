@@ -11,8 +11,7 @@
     ".claude/**",
 
     "apps/web/src/components/member-portal/**",
-    "apps/web/src/lib/types/**",
-    "apps/web/src/lib/actions/expense-ocr.ts"
+    "apps/web/src/lib/types/**"
   ],
   "ignoreDependencies": [
     "classnames",

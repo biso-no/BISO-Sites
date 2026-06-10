@@ -22,12 +22,12 @@ import { getOrder, verifyOrder } from "@/app/actions/orders";
 import { OrderActionsClient } from "@/components/shop/order-details-client"; // New, smaller Client Component
 
 interface OrderPageProps {
-  params: {
+  params: Promise<{
     orderId: string;
-  };
-  searchParams: {
+  }>;
+  searchParams: Promise<{
     success?: string;
-  };
+  }>;
 }
 
 // --- Status Configuration (moved to server component) ---
@@ -461,12 +461,17 @@ async function OrderDetails({
 }
 
 // --- Next.js Page Wrapper ---
-export default function OrderPage({ params, searchParams }: OrderPageProps) {
-  const isSuccess = searchParams.success === "true";
+export default async function OrderPage({
+  params,
+  searchParams,
+}: OrderPageProps) {
+  const { orderId } = await params;
+  const { success } = await searchParams;
+  const isSuccess = success === "true";
 
   return (
     <Suspense fallback={<OrderDetailsSkeleton />}>
-      <OrderDetails isSuccess={isSuccess} orderId={params.orderId} />
+      <OrderDetails isSuccess={isSuccess} orderId={orderId} />
     </Suspense>
   );
 }
@@ -497,7 +502,8 @@ function OrderDetailsSkeleton() {
 
 // Generate metadata for SEO
 export async function generateMetadata({ params }: OrderPageProps) {
-  const order = await getOrder(params.orderId);
+  const { orderId } = await params;
+  const order = await getOrder(orderId);
 
   if (!order) {
     return {
