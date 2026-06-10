@@ -1,5 +1,5 @@
+import { ID } from "@repo/api";
 import { type Orders, OrdersStatus } from "@repo/api/types/appwrite";
-import { ID } from "node-appwrite";
 import type { CheckoutSessionParams, VippsPaymentState } from "../types/vipps";
 import { type ParsedOrderItem, parseOrderItems } from "./order-parsing";
 import { determineStatusFromPaymentState } from "./vipps-pure";

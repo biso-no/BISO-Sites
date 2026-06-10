@@ -123,7 +123,8 @@ async function _getPageViewStats(days = 14): Promise<PageViewDay[]> {
     }
 
     return Object.entries(buckets).map(([date, views]) => ({ date, views }));
-  } catch {
+  } catch (error) {
+    console.error("Failed to load page-view stats:", error);
     return [];
   }
 }

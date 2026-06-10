@@ -410,7 +410,8 @@ async function matchAttendeeUser(
       // No profile row yet — leave campus null.
     }
     return { userId: user.$id, campusId };
-  } catch {
+  } catch (error) {
+    console.error("Failed to resolve attendee user context:", error);
     return { userId: null, campusId: null };
   }
 }

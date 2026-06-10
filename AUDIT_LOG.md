@@ -167,3 +167,38 @@ generated at build time). `bun x ultracite fix` clean on touched files.
   (admin announcements dispatch, web cron route).
 - Double-casts in `booking.ts` and admin events page (type-safety smell,
   not a runtime bug today).
+
+## Phase 3 — Consistency & conventions
+
+### Already consistent (verified, no action)
+
+- File naming: uniformly kebab-case across every app and package.
+- Env access: uniformly direct `process.env.X`; no typed config module
+  anywhere. Left as-is — introducing one is a refactor without a defect.
+- Admin server-action result shape: uniform `{ data } | { error }`.
+- Loading/pending state gating on forms and studio editors (verified in
+  Phase 2).
+- `@repo/api` data-access abstraction (verified in Phases 0 and 2).
+
+### Fixed
+
+- C1: `packages/shared/utils/vipps-order-ops.ts` imported `ID` from
+  `node-appwrite` directly — now imports from `@repo/api` like everything
+  else.
+- C2: the only two silent bare catches in admin `_actions`
+  (`event-segments.ts` attendee-context fallback, `pages.ts` page-view
+  stats) now `console.error` before returning their fallbacks, matching
+  the dominant admin pattern.
+- C4 docs: root `CLAUDE.md` corrected ("Next.js 15" → 16; admin does NOT
+  ignore TS build errors — only web and api do); `apps/web/CLAUDE.md`
+  corrected ("Puck" → block-editor pages) and now records the canonical
+  result shape (`{ success, data?, error? }`) for new web server actions.
+
+### Noted, intentionally left
+
+- Web action result shapes are mixed per-feature (`{success}` vs
+  `{error}` vs raw data). Unifying would churn dozens of call sites with
+  zero behavior change; convention documented for new code instead.
+- Admin `src/i18n/config.ts` is a deliberate re-export shim of
+  `@repo/i18n/config` (2 importers) — harmless alias kept.
+- `console.log` cleanup deferred to Phase 4 (scoped there).

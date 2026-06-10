@@ -1,6 +1,6 @@
 # apps/web
 
-Public-facing BISO website (Next.js 15 App Router, React 19, RSC by default).
+Public-facing BISO website (Next.js 16 App Router, React 19, RSC by default).
 Audience: students, members, visitors. Sister app `apps/admin` shares the same
 Appwrite backend through `@repo/api` — read `apps/admin/CLAUDE.md` for cross-app
 context if you're touching shared data shapes.
@@ -18,7 +18,7 @@ Route groups under `src/app/`:
 
 - `(public)/` — anonymous-friendly. Wrapped by `(public)/layout.tsx` which
   fetches membership status server-side. Includes catch-all
-  `(public)/[...slug]/page.tsx` that pulls Puck pages via
+  `(public)/[...slug]/page.tsx` that pulls block-editor pages via
   `getPage(slug, locale)` from `@repo/api/page-builder` and renders with
   `@repo/editor`'s `PageDoc`.
 - `(protected)/` — gated by `(protected)/layout.tsx` which calls
@@ -113,6 +113,11 @@ All consumed server-side only:
 - Locale comes from the Appwrite account prefs via `getLocale()` in
   `src/app/actions/locale.ts`; messages are loaded by `src/i18n/request.ts`
   and provided through `NextIntlClientProvider` in `app/layout.tsx`.
+- Server-action result shape for **new** actions: return a discriminated
+  `{ success: boolean; data?: T; error?: string }` object instead of throwing
+  or returning raw rows/null. Existing actions use a mix of shapes
+  (`{ success }`, `{ error }`, raw data) — each feature is internally
+  consistent; don't churn them, but follow the canonical shape going forward.
 
 ## Gotchas
 
@@ -131,7 +136,7 @@ All consumed server-side only:
 
 - `next-env.d.ts`, `.next/`, `node_modules/`.
 - `apps/web/appwrite.json` and `apps/web/database.json` are stubs (project id
-  + a Puck seed). The real Appwrite schema lives in
+  + a legacy page seed). The real Appwrite schema lives in
   `packages/api/appwrite.config.json`; types live in
   `packages/api/types/appwrite.ts` (regenerated, not hand-edited).
 - `public/pdf.worker.min.js`, `public/Voter_Template.xlsx`, font binaries.

@@ -10,8 +10,8 @@ apps share one Appwrite backend through `@repo/api`.
 
 | App     | Port | Audience                  | What it is |
 |---------|------|---------------------------|------------|
-| `web`   | 3000 | Students, members, public | Next.js 15 public site (App Router, RSC). See `apps/web/CLAUDE.md`. |
-| `admin` | 3001 | BISO staff (IT, editors)  | Next.js 15 CMS with block-based page editor. See `apps/admin/CLAUDE.md`. |
+| `web`   | 3000 | Students, members, public | Next.js 16 public site (App Router, RSC). See `apps/web/CLAUDE.md`. |
+| `admin` | 3001 | BISO staff (IT, editors)  | Next.js 16 CMS with block-based page editor. See `apps/admin/CLAUDE.md`. |
 | `docs`  | 3002 | Developers                | Fumadocs-based developer documentation. |
 | `api`   | 3003 | `web` (server-to-server)  | Standalone JWT-authenticated REST service consumed via `NEXT_PUBLIC_API_BASE_URL`. |
 
@@ -94,10 +94,10 @@ Entrypoints:
   `.claude/CLAUDE.md` (Ultracite Code Standards). Run `bun x ultracite fix`
   before committing; `lefthook` + `lint-staged` enforce it on pre-commit.
 - **TypeScript**: `strict` everywhere. `tsconfig` presets come from
-  `@repo/typescript-config`. Both Next.js apps set
-  `typescript.ignoreBuildErrors: true` in `next.config.ts`, so `next build` will
-  **not** catch type errors — `bun run check-types` is the only signal that
-  matters.
+  `@repo/typescript-config`. `web` and `api` set
+  `typescript.ignoreBuildErrors: true` in `next.config.ts` (admin does not),
+  so their `next build` will **not** catch type errors — `bun run check-types`
+  is the only signal that matters.
 - **Imports**: prefer named imports over namespace imports; avoid barrel files
   that re-export everything (perf). In `apps/admin`, the `@/*` alias resolves
   into **both** `./src/*` and `../../packages/editor/src/*` — see
