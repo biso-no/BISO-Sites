@@ -2,23 +2,27 @@
 
 import type {
   DepartmentFixDecision,
-  DepartmentRemediationPlan,
+  ManualRemediationUser,
   RemediationGroup,
+  RemediationSnapshot,
 } from "@repo/shared/types/user-management";
-import { AlertTriangle, Check, Loader2 } from "lucide-react";
+import { AlertTriangle, Check, Loader2, RefreshCw } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect, useState, useTransition } from "react";
-import { applyDepartmentFixes } from "../../../_actions/it-remediation";
+import {
+  applyDepartmentFixes,
+  runDepartmentAnalysis,
+} from "../../../_actions/it-remediation";
 import { EmptyState } from "../../../_components/empty-state";
 import { STUDIO, StudioButton } from "../../../_components/studio";
 
-type Segment = "safe" | "review" | "closed";
+type Segment = "safe" | "review" | "manual" | "closed";
 
 interface RemediationClientProps {
   departmentNames: string[];
   departmentToCampus: Record<string, string>;
-  plan: DepartmentRemediationPlan;
+  snapshot: RemediationSnapshot | null;
 }
 
 function groupDecision(
@@ -39,28 +43,67 @@ function groupDecision(
 export function RemediationClient({
   departmentNames,
   departmentToCampus,
-  plan,
+  snapshot,
 }: RemediationClientProps) {
   const t = useTranslations("adminPortal.it.audit");
   const router = useRouter();
   const [segment, setSegment] = useState<Segment>("safe");
   const [pending, startTransition] = useTransition();
+  const [analyzing, startAnalysis] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
   const [messageType, setMessageType] = useState<"success" | "error" | null>(
     null
   );
 
-  const segments: Array<{ count: number; key: Segment; label: string }> = [
-    { count: plan.safe.length, key: "safe", label: t("segments.safe") },
-    { count: plan.review.length, key: "review", label: t("segments.review") },
-    { count: plan.closed.length, key: "closed", label: t("segments.closed") },
-  ];
+  function runAnalysis() {
+    startAnalysis(async () => {
+      const result = await runDepartmentAnalysis();
+      if (result.error) {
+        setMessage(result.error);
+        setMessageType("error");
+      } else {
+        setMessage(null);
+        setMessageType(null);
+        router.refresh();
+      }
+    });
+  }
 
-  const segmentDescriptions: Record<Segment, string> = {
-    closed: t("closedDescription"),
-    review: t("reviewDescription"),
-    safe: t("safeDescription"),
-  };
+  if (!snapshot) {
+    return (
+      <div>
+        <EmptyState
+          description={t("noSnapshotDescription")}
+          icon={<RefreshCw size={28} />}
+          title={t("noSnapshot")}
+        />
+        <div className="mt-4 flex justify-center">
+          <StudioButton
+            disabled={analyzing}
+            onClick={runAnalysis}
+            variant="primary"
+          >
+            {analyzing ? (
+              <Loader2 className="animate-spin" size={15} />
+            ) : (
+              <RefreshCw size={15} />
+            )}
+            {t("runAnalysis")}
+          </StudioButton>
+        </div>
+        {message && messageType === "error" && (
+          <p
+            className="mt-3 text-center text-sm"
+            style={{ color: STUDIO.claret }}
+          >
+            {message}
+          </p>
+        )}
+      </div>
+    );
+  }
+
+  const plan = snapshot.plan;
 
   function apply(decisions: DepartmentFixDecision[]) {
     if (decisions.length === 0) {
@@ -97,17 +140,54 @@ export function RemediationClient({
     apply(decisions);
   }
 
-  const active = plan[segment];
+  const segments: Array<{ count: number; key: Segment; label: string }> = [
+    { count: plan.safe.length, key: "safe", label: t("segments.safe") },
+    { count: plan.review.length, key: "review", label: t("segments.review") },
+    { count: plan.manual.length, key: "manual", label: t("segments.manual") },
+    { count: plan.closed.length, key: "closed", label: t("segments.closed") },
+  ];
+
+  const segmentDescriptions: Record<Segment, string> = {
+    closed: t("closedDescription"),
+    manual: t("manualDescription"),
+    review: t("reviewDescription"),
+    safe: t("safeDescription"),
+  };
 
   return (
     <div>
-      <p className="mb-4 text-sm" style={{ color: STUDIO.ink3 }}>
-        {t("summary", {
-          compliant: plan.compliantCount,
-          flagged: plan.safe.length + plan.review.length + plan.closed.length,
-          total: plan.totalScanned,
-        })}
-      </p>
+      <div className="mb-4 flex items-center justify-between gap-4">
+        <p className="text-sm" style={{ color: STUDIO.ink3 }}>
+          {t("summary", {
+            compliant: plan.compliantCount,
+            flagged:
+              plan.safe.length +
+              plan.review.length +
+              plan.manual.length +
+              plan.closed.length,
+            total: plan.totalScanned,
+          })}
+        </p>
+        <div className="flex items-center gap-3">
+          <span className="text-xs" style={{ color: STUDIO.ink4 }}>
+            {t("lastGenerated", {
+              when: new Date(snapshot.generatedAt).toLocaleString(),
+            })}
+          </span>
+          <StudioButton
+            disabled={analyzing}
+            onClick={runAnalysis}
+            variant="secondary"
+          >
+            {analyzing ? (
+              <Loader2 className="animate-spin" size={15} />
+            ) : (
+              <RefreshCw size={15} />
+            )}
+            {t("reRunAnalysis")}
+          </StudioButton>
+        </div>
+      </div>
 
       <div
         className="mb-5 flex items-center gap-1 border-b"
@@ -165,27 +245,66 @@ export function RemediationClient({
         </div>
       )}
 
-      {active.length === 0 ? (
-        <EmptyState
-          description={t("allClearDescription")}
-          icon={<Check size={28} />}
-          title={t("allClear")}
+      {segment === "manual" ? (
+        <ManualList
+          departmentNames={departmentNames}
+          departmentToCampus={departmentToCampus}
+          onApply={apply}
+          pending={pending}
+          users={plan.manual}
         />
       ) : (
-        <div className="space-y-2">
-          {active.map((group) => (
-            <GroupRow
-              departmentNames={departmentNames}
-              departmentToCampus={departmentToCampus}
-              group={group}
-              key={group.value || "__blank__"}
-              onApply={apply}
-              pending={pending}
-              segment={segment}
-            />
-          ))}
-        </div>
+        <GroupList
+          departmentNames={departmentNames}
+          departmentToCampus={departmentToCampus}
+          groups={plan[segment]}
+          onApply={apply}
+          pending={pending}
+          segment={segment}
+        />
       )}
+    </div>
+  );
+}
+
+function GroupList({
+  departmentNames,
+  departmentToCampus,
+  groups,
+  onApply,
+  pending,
+  segment,
+}: {
+  departmentNames: string[];
+  departmentToCampus: Record<string, string>;
+  groups: RemediationGroup[];
+  onApply: (decisions: DepartmentFixDecision[]) => void;
+  pending: boolean;
+  segment: Segment;
+}) {
+  const t = useTranslations("adminPortal.it.audit");
+  if (groups.length === 0) {
+    return (
+      <EmptyState
+        description={t("allClearDescription")}
+        icon={<Check size={28} />}
+        title={t("allClear")}
+      />
+    );
+  }
+  return (
+    <div className="space-y-2">
+      {groups.map((group) => (
+        <GroupRow
+          departmentNames={departmentNames}
+          departmentToCampus={departmentToCampus}
+          group={group}
+          key={group.value || "__blank__"}
+          onApply={onApply}
+          pending={pending}
+          segment={segment}
+        />
+      ))}
     </div>
   );
 }
@@ -223,13 +342,8 @@ function GroupRow({
       department: group.suggestedDepartment,
       office: group.suggestedCampusName ?? "",
     });
-  } else if (segment === "review") {
-    infoSuffix = group.suggestedDepartment
-      ? t("suggestion", {
-          department: group.suggestedDepartment,
-          score: Math.round((group.score ?? 0) * 100),
-        })
-      : t("noSuggestion");
+  } else if (segment === "review" && group.reasoning) {
+    infoSuffix = group.reasoning;
   }
 
   return (
@@ -297,6 +411,118 @@ function GroupRow({
             {t("segments.closed")}
           </span>
         )}
+      </div>
+    </div>
+  );
+}
+
+function ManualList({
+  departmentNames,
+  departmentToCampus,
+  onApply,
+  pending,
+  users,
+}: {
+  departmentNames: string[];
+  departmentToCampus: Record<string, string>;
+  onApply: (decisions: DepartmentFixDecision[]) => void;
+  pending: boolean;
+  users: ManualRemediationUser[];
+}) {
+  const t = useTranslations("adminPortal.it.audit");
+  if (users.length === 0) {
+    return (
+      <EmptyState
+        description={t("allClearDescription")}
+        icon={<Check size={28} />}
+        title={t("allClear")}
+      />
+    );
+  }
+  return (
+    <div className="space-y-2">
+      {users.map((entry) => (
+        <ManualRow
+          departmentNames={departmentNames}
+          departmentToCampus={departmentToCampus}
+          entry={entry}
+          key={entry.user.id}
+          onApply={onApply}
+          pending={pending}
+        />
+      ))}
+    </div>
+  );
+}
+
+function ManualRow({
+  departmentNames,
+  departmentToCampus,
+  entry,
+  onApply,
+  pending,
+}: {
+  departmentNames: string[];
+  departmentToCampus: Record<string, string>;
+  entry: ManualRemediationUser;
+  onApply: (decisions: DepartmentFixDecision[]) => void;
+  pending: boolean;
+}) {
+  const t = useTranslations("adminPortal.it.audit");
+  const [chosen, setChosen] = useState<string>("");
+  const { user } = entry;
+
+  return (
+    <div
+      className="rounded-2xl px-5 py-4"
+      style={{
+        background: "rgba(255,255,255,0.46)",
+        border: `0.5px solid ${STUDIO.rule}`,
+      }}
+    >
+      <div className="flex items-center justify-between gap-4">
+        <div className="min-w-0">
+          <p
+            className="truncate font-medium text-sm"
+            style={{ color: STUDIO.ink }}
+          >
+            {user.displayName}
+          </p>
+          <p className="mt-1 truncate text-xs" style={{ color: STUDIO.ink4 }}>
+            {user.userPrincipalName}
+            {entry.reasoning ? ` · ${entry.reasoning}` : ""}
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <select
+            aria-label={t("selectDepartment")}
+            className="rounded-lg border px-3 py-2 text-sm"
+            onChange={(e) => setChosen(e.target.value)}
+            style={{ borderColor: STUDIO.rule2, color: STUDIO.ink2 }}
+            value={chosen}
+          >
+            <option value="">{t("selectDepartment")}</option>
+            {departmentNames.map((name) => (
+              <option key={name} value={name}>
+                {name}
+              </option>
+            ))}
+          </select>
+          <StudioButton
+            disabled={pending || !chosen}
+            onClick={() => {
+              const campusName = departmentToCampus[chosen] ?? null;
+              if (chosen && campusName) {
+                onApply([
+                  { campusName, department: chosen, userIds: [user.id] },
+                ]);
+              }
+            }}
+            variant="secondary"
+          >
+            {t("applyGroup")}
+          </StudioButton>
+        </div>
       </div>
     </div>
   );
