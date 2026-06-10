@@ -50,6 +50,20 @@ interface CanonicalData {
   departments: Departments[];
 }
 
+interface CanonicalLookups {
+  allCandidates: Set<string>;
+  campusNames: Set<string>;
+  candidatesByCampus: Map<string, Set<string>>;
+  closedBaseNames: Set<string>;
+  tokenToCampus: Map<string, string>;
+}
+
+interface ResolutionChunk {
+  campusLabel: string;
+  candidates: string[];
+  users: M365UserListItem[];
+}
+
 async function loadCanonicalData(): Promise<CanonicalData> {
   const { db } = await createAdminClient();
   const [campuses, departments] = await Promise.all([
@@ -74,6 +88,125 @@ async function loadCanonicalData(): Promise<CanonicalData> {
   return { canonical, campusIdToName, departments: departments.rows };
 }
 
+function buildCanonicalLookups(data: CanonicalData): CanonicalLookups {
+  const campusNames = new Set(data.campusIdToName.values());
+  const tokenToCampus = new Map<string, string>();
+  for (const name of campusNames) {
+    tokenToCampus.set(name.toLowerCase(), name);
+  }
+  const candidatesByCampus = new Map<string, Set<string>>();
+  const allCandidates = new Set<string>();
+  for (const dept of data.canonical) {
+    if (isClosedName(dept.name)) {
+      continue;
+    }
+    const campusName = data.campusIdToName.get(dept.campusId);
+    if (!campusName) {
+      continue;
+    }
+    const set = candidatesByCampus.get(campusName) ?? new Set<string>();
+    set.add(dept.name);
+    candidatesByCampus.set(campusName, set);
+    allCandidates.add(dept.name);
+  }
+  const closedBaseNames = new Set(
+    data.canonical
+      .filter((d) => isClosedName(d.name))
+      .map((d) => normalizeForCompare(stripClosedSuffix(d.name)))
+  );
+  return {
+    campusNames,
+    tokenToCampus,
+    candidatesByCampus,
+    allCandidates,
+    closedBaseNames,
+  };
+}
+
+function batchUsersByCampus(
+  listItems: M365UserListItem[],
+  tokenToCampus: Map<string, string>
+): Map<string, M365UserListItem[]> {
+  const batches = new Map<string, M365UserListItem[]>();
+  for (const item of listItems) {
+    const hint =
+      extractCampusHint(
+        item.mail ?? item.userPrincipalName,
+        item.officeLocation,
+        tokenToCampus
+      ) ?? NATIONAL_KEY;
+    const list = batches.get(hint) ?? [];
+    list.push(item);
+    batches.set(hint, list);
+  }
+  return batches;
+}
+
+function buildResolutionChunks(
+  batches: Map<string, M365UserListItem[]>,
+  candidatesByCampus: Map<string, Set<string>>,
+  allCandidates: Set<string>
+): ResolutionChunk[] {
+  const chunks: ResolutionChunk[] = [];
+  for (const [hint, batchUsers] of batches) {
+    const isNational = hint === NATIONAL_KEY;
+    const campusLabel = isNational ? "National/unknown" : hint;
+    const candidates = isNational
+      ? [...allCandidates]
+      : [...(candidatesByCampus.get(hint) ?? new Set<string>())];
+    for (let i = 0; i < batchUsers.length; i += AI_CHUNK_SIZE) {
+      chunks.push({
+        campusLabel,
+        candidates,
+        users: batchUsers.slice(i, i + AI_CHUNK_SIZE),
+      });
+    }
+  }
+  return chunks;
+}
+
+async function resolveChunkSafe(
+  chunk: ResolutionChunk
+): Promise<DepartmentResolution[]> {
+  try {
+    return await resolveDepartments({
+      campusLabel: chunk.campusLabel,
+      candidates: chunk.candidates,
+      users: chunk.users.map((u) => ({
+        department: u.department ?? "",
+        email: emailLocalPart(u.mail ?? u.userPrincipalName),
+        office: u.officeLocation ?? "",
+        ref: u.id,
+      })),
+    });
+  } catch {
+    // Degrade a failed batch to manual rather than aborting the run.
+    return chunk.users.map((u) => ({
+      ref: u.id,
+      classification: "manual" as const,
+      department: null,
+      campus: null,
+      confidence: "low" as const,
+      reasoning: "AI resolution failed for this batch",
+    }));
+  }
+}
+
+async function persistSnapshot(snapshot: RemediationSnapshot): Promise<void> {
+  const { db } = await createAdminClient();
+  const { plan } = snapshot;
+  await db.createRow("app", SNAPSHOT_TABLE, ID.unique(), {
+    generated_at: snapshot.generatedAt,
+    generated_by: snapshot.generatedBy,
+    total_scanned: plan.totalScanned,
+    safe_count: plan.safe.length,
+    review_count: plan.review.length,
+    manual_count: plan.manual.length,
+    closed_count: plan.closed.length,
+    result: JSON.stringify(plan),
+  });
+}
+
 export async function runDepartmentAnalysis(): Promise<
   ActionResult<RemediationSnapshot>
 > {
@@ -89,97 +222,25 @@ export async function runDepartmentAnalysis(): Promise<
     ]);
 
     const listItems = users.map(toListItem);
+    const {
+      campusNames,
+      tokenToCampus,
+      candidatesByCampus,
+      allCandidates,
+      closedBaseNames,
+    } = buildCanonicalLookups(data);
 
-    // Build canonical lookups.
-    const campusNames = new Set(data.campusIdToName.values());
-    const tokenToCampus = new Map<string, string>();
-    for (const name of campusNames) {
-      tokenToCampus.set(name.toLowerCase(), name);
-    }
-    const candidatesByCampus = new Map<string, Set<string>>();
-    const allCandidates = new Set<string>();
-    for (const dept of data.canonical) {
-      if (isClosedName(dept.name)) {
-        continue;
-      }
-      const campusName = data.campusIdToName.get(dept.campusId);
-      if (!campusName) {
-        continue;
-      }
-      const set = candidatesByCampus.get(campusName) ?? new Set<string>();
-      set.add(dept.name);
-      candidatesByCampus.set(campusName, set);
-      allCandidates.add(dept.name);
-    }
-    const closedBaseNames = new Set(
-      data.canonical
-        .filter((d) => isClosedName(d.name))
-        .map((d) => normalizeForCompare(stripClosedSuffix(d.name)))
+    const batches = batchUsersByCampus(listItems, tokenToCampus);
+    const chunks = buildResolutionChunks(
+      batches,
+      candidatesByCampus,
+      allCandidates
     );
-
-    // Batch users by campus hint.
-    const batches = new Map<string, M365UserListItem[]>();
-    for (const item of listItems) {
-      const hint =
-        extractCampusHint(
-          item.mail ?? item.userPrincipalName,
-          item.officeLocation,
-          tokenToCampus
-        ) ?? NATIONAL_KEY;
-      const list = batches.get(hint) ?? [];
-      list.push(item);
-      batches.set(hint, list);
-    }
-
-    // Chunk every batch and resolve with bounded concurrency.
-    interface Chunk {
-      campusLabel: string;
-      candidates: string[];
-      users: M365UserListItem[];
-    }
-    const chunks: Chunk[] = [];
-    for (const [hint, batchUsers] of batches) {
-      const isNational = hint === NATIONAL_KEY;
-      const campusLabel = isNational ? "National/unknown" : hint;
-      const candidates = isNational
-        ? [...allCandidates]
-        : [...(candidatesByCampus.get(hint) ?? new Set<string>())];
-      for (let i = 0; i < batchUsers.length; i += AI_CHUNK_SIZE) {
-        chunks.push({
-          campusLabel,
-          candidates,
-          users: batchUsers.slice(i, i + AI_CHUNK_SIZE),
-        });
-      }
-    }
 
     const chunkResults = await mapWithConcurrency(
       chunks,
       AI_CONCURRENCY,
-      async (chunk): Promise<DepartmentResolution[]> => {
-        try {
-          return await resolveDepartments({
-            campusLabel: chunk.campusLabel,
-            candidates: chunk.candidates,
-            users: chunk.users.map((u) => ({
-              department: u.department ?? "",
-              email: emailLocalPart(u.mail ?? u.userPrincipalName),
-              office: u.officeLocation ?? "",
-              ref: u.id,
-            })),
-          });
-        } catch {
-          // Degrade a failed batch to manual rather than aborting the run.
-          return chunk.users.map((u) => ({
-            ref: u.id,
-            classification: "manual" as const,
-            department: null,
-            campus: null,
-            confidence: "low" as const,
-            reasoning: "AI resolution failed for this batch",
-          }));
-        }
-      }
+      resolveChunkSafe
     );
 
     const resolutions = new Map<string, DepartmentResolution>();
@@ -203,17 +264,7 @@ export async function runDepartmentAnalysis(): Promise<
       plan,
     };
 
-    const { db } = await createAdminClient();
-    await db.createRow("app", SNAPSHOT_TABLE, ID.unique(), {
-      generated_at: snapshot.generatedAt,
-      generated_by: snapshot.generatedBy,
-      total_scanned: plan.totalScanned,
-      safe_count: plan.safe.length,
-      review_count: plan.review.length,
-      manual_count: plan.manual.length,
-      closed_count: plan.closed.length,
-      result: JSON.stringify(snapshot.plan),
-    });
+    await persistSnapshot(snapshot);
 
     await logAuditEvent(ctx, "it.m365.department.analysis", {
       resourceType: "m365.user",
