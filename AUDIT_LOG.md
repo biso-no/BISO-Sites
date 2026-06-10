@@ -105,3 +105,65 @@ generated at build time). `bun x ultracite fix` clean on touched files.
   Phase 2.
 - 1 TODO remains: `event-studio-editor.tsx` (wire useAssistant) —
   intentional, references planned work.
+
+## Phase 2 — Runtime bug hunt
+
+### Confirmed bugs fixed (`d2896d1`)
+
+1. **Order confirmation page broken (HIGH)** —
+   `apps/web/src/app/(public)/shop/order/[orderId]/page.tsx` read
+   `params.orderId` / `searchParams.success` synchronously; Next 16 passes
+   Promises, so every post-payment landing rendered with
+   `orderId: undefined`. Plain `tsc` cannot catch this and web sets
+   `ignoreBuildErrors`. Fixed by awaiting both (page + generateMetadata).
+2. **Purchase-limit bypass (HIGH)** — `purchase-limits.ts` scanned user
+   orders without `Query.limit`; Appwrite caps unbounded queries at 25
+   rows, so quota checks under-counted for users with >25 orders. Added
+   `Query.limit(1000)` to both scans.
+3. **Cart reservation oversell (HIGH)** — `cart_reservations` rows are
+   row-secured to their creator (`create("any")` + rowSecurity), but
+   `getAvailableStock` summed reservations through the session client, so
+   it only ever saw the current user's rows — cross-user oversell
+   protection was nonfunctional. The aggregation now uses the admin
+   client (read-only; only the computed number leaves the server).
+4. **Cron cleanup was a no-op (HIGH)** — `/api/cron/cleanup-reservations`
+   called the session-client cleanup with no session cookie; it silently
+   deleted nothing. Added `cleanupAllExpiredReservations` (admin client,
+   paginated, capped) for the cron path; the session-scoped version
+   remains for the cart page.
+5. **Truncation limits (MED/LOW)** — explicit `Query.limit` added to the
+   remaining cart-reservation queries, `getCollectionEvents` (public
+   collection listings), `getBenefitReveals` (reveals beyond 25 appeared
+   unrevealed), `getExpenses`, and admin news translation deletes.
+6. **Dead stub deleted** — `apps/web/src/lib/actions/expense-ocr.ts`
+   (`processReceipt` was a no-op stub; zero importers after Phase 1) plus
+   its knip ignore entry.
+
+### Verified-acceptable (documented, not changed)
+
+- Finago double-post window in `/api/checkout/return`: sentinel +
+  rollback mitigation in place; Appwrite has no atomic check-and-set, so
+  a millisecond race remains. Accepted.
+- Page-editor collection routes use the admin client with a caller-chosen
+  `dept` param but return published-only content behind an auth check.
+- JWT cache in web `api-client.ts` is race-safe (promise cleared in
+  `finally`); 14-min expiry with 1-min refresh buffer is correct.
+- All other dynamic routes await `params`; `cookies()`/`headers()`
+  properly awaited; no server-only imports leak into client bundles;
+  studio editors and forms have double-submit guards; admin actions
+  audit-log and campus-scope consistently.
+
+### Agent findings rejected during verification
+
+- "Invalid model names" (`gpt-5.1-codex`, `gpt-5-nano`,
+  `claude-opus-4-7`) — all are real, current models; reviewer knowledge
+  was stale. Left untouched.
+- "segment_members delete loop unbounded" — already `Query.limit(1000)`.
+- "JWT rejections cached" / "await revalidatePath" — incorrect.
+
+### Deferred to Phase 4 / checklist
+
+- Timing-safe comparison for `CRON_SECRET`-style shared secrets
+  (admin announcements dispatch, web cron route).
+- Double-casts in `booking.ts` and admin events page (type-safety smell,
+  not a runtime bug today).
