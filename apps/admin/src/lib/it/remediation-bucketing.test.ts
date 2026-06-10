@@ -132,6 +132,18 @@ describe("buildRemediationPlan", () => {
     expect(plan.review[0].suggestedDepartment).toBe("OSL Næringslivsutvalget");
   });
 
+  test("low confidence → review, not safe", () => {
+    const users = [user("a")];
+    const resolutions = new Map([
+      ["a", res({ ref: "a", classification: "department", department: "OSL Næringslivsutvalget", campus: "Oslo", confidence: "low" })],
+    ]);
+    const plan = buildRemediationPlan({
+      users, resolutions, candidatesByCampus: CANDIDATES, closedBaseNames: NO_CLOSED, campusNames: CAMPUS_NAMES,
+    });
+    expect(plan.safe).toHaveLength(0);
+    expect(plan.review).toHaveLength(1);
+  });
+
   test("off-list department → manual", () => {
     const users = [user("a")];
     const resolutions = new Map([
@@ -177,5 +189,21 @@ describe("buildRemediationPlan", () => {
     });
     expect(plan.closed).toHaveLength(1);
     expect(plan.manual).toHaveLength(0);
+  });
+
+  test("empty users array → empty plan", () => {
+    const plan = buildRemediationPlan({
+      users: [],
+      resolutions: new Map(),
+      candidatesByCampus: CANDIDATES,
+      closedBaseNames: NO_CLOSED,
+      campusNames: CAMPUS_NAMES,
+    });
+    expect(plan.totalScanned).toBe(0);
+    expect(plan.safe).toHaveLength(0);
+    expect(plan.review).toHaveLength(0);
+    expect(plan.manual).toHaveLength(0);
+    expect(plan.closed).toHaveLength(0);
+    expect(plan.compliantCount).toBe(0);
   });
 });

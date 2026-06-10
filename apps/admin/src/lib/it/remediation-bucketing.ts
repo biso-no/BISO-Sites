@@ -20,6 +20,9 @@ interface Target {
   department: string;
 }
 
+// U+241F (unit separator) joins the "{department}{SEP}{campus}" group key.
+// Canonical department names never contain this control char, so key collisions
+// are not a practical concern.
 const GROUP_SEP = "␟";
 
 // Returns the canonical write target when the AI answer is on-list for a valid
@@ -113,10 +116,11 @@ export function buildRemediationPlan(
       continue;
     }
 
-    // 4) Already compliant → counted, not shown.
+    // 4) Already compliant → counted, not shown. Trim both sides so a
+    // trailing-whitespace M365 value doesn't trigger a needless re-write.
     if (
-      user.department === target.department &&
-      user.officeLocation === target.campus
+      (user.department ?? "").trim() === target.department &&
+      (user.officeLocation ?? "").trim() === target.campus
     ) {
       compliantCount += 1;
       continue;
