@@ -10,7 +10,7 @@ import { generateObject } from "ai";
 export interface ResolveDepartmentsInput {
   campusLabel: string; // e.g. "Oslo" or "National/unknown" (context only)
   candidates: string[]; // canonical department names the model may choose from
-  model?: string; // defaults to gpt-5-nano
+  model?: string; // defaults to gpt-5.4-mini
   users: Array<{
     department: string; // current freeform M365 department (may be wrong/blank)
     email: string; // local-part of the role mailbox, e.g. "finance.nu.oslo"
@@ -70,7 +70,10 @@ export async function resolveDepartments(
   if (input.users.length === 0) {
     return [];
   }
-  const model = input.model ?? "gpt-5-nano";
+  const model = input.model ?? "gpt-5.4-mini";
+  console.info(
+    `[dept-resolver] generateObject(${model}) for ${input.campusLabel}: ${input.users.length} users, ${input.candidates.length} candidates`
+  );
   const result = await generateObject({
     model: openai(model),
     prompt: buildPrompt(input),

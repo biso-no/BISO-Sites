@@ -39,6 +39,7 @@ const SNAPSHOT_TABLE = "m365_remediation_snapshot";
 const AI_CHUNK_SIZE = 30;
 const AI_CONCURRENCY = 5;
 const NATIONAL_KEY = "__national__";
+const LOG = "[dept-analysis]";
 
 function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : "Unknown error";
@@ -166,10 +167,11 @@ function buildResolutionChunks(
 }
 
 async function resolveChunkSafe(
-  chunk: ResolutionChunk
+  chunk: ResolutionChunk,
+  index: number
 ): Promise<DepartmentResolution[]> {
   try {
-    return await resolveDepartments({
+    const result = await resolveDepartments({
       campusLabel: chunk.campusLabel,
       candidates: chunk.candidates,
       users: chunk.users.map((u) => ({
@@ -179,8 +181,18 @@ async function resolveChunkSafe(
         ref: u.id,
       })),
     });
-  } catch {
-    // Degrade a failed batch to manual rather than aborting the run.
+    console.info(
+      `${LOG} chunk #${index + 1} resolved (${chunk.campusLabel}, ${chunk.users.length} users → ${result.length} resolutions)`
+    );
+    return result;
+  } catch (error) {
+    // Degrade a failed batch to manual rather than aborting the run — but make
+    // the failure visible: a silent catch here looks identical to "nothing
+    // happening" when the model name or API key is wrong.
+    console.error(
+      `${LOG} chunk #${index + 1} (${chunk.campusLabel}, ${chunk.users.length} users) FAILED:`,
+      error instanceof Error ? error.message : error
+    );
     return chunk.users.map((u) => ({
       ref: u.id,
       classification: "manual" as const,
@@ -212,6 +224,8 @@ export async function runDepartmentAnalysis(): Promise<
 > {
   try {
     const ctx = await requireItPermission("it.users.editProfile");
+    console.info(`${LOG} starting; fetching licensed M365 users + canonical data…`);
+    const fetchStart = Date.now();
     const graph = getGraphService();
     const [users, data] = await Promise.all([
       graph.listLicensedUsers({
@@ -220,6 +234,9 @@ export async function runDepartmentAnalysis(): Promise<
       }),
       loadCanonicalData(),
     ]);
+    console.info(
+      `${LOG} fetched ${users.length} licensed users + ${data.departments.length} departments in ${Date.now() - fetchStart}ms`
+    );
 
     const listItems = users.map(toListItem);
     const {
@@ -235,6 +252,9 @@ export async function runDepartmentAnalysis(): Promise<
       batches,
       candidatesByCampus,
       allCandidates
+    );
+    console.info(
+      `${LOG} prepared ${chunks.length} AI chunk(s) across ${batches.size} campus batch(es) for ${listItems.length} users; resolving (concurrency ${AI_CONCURRENCY})…`
     );
 
     const chunkResults = await mapWithConcurrency(
@@ -258,6 +278,10 @@ export async function runDepartmentAnalysis(): Promise<
       campusNames,
     });
 
+    console.info(
+      `${LOG} plan ready: ${plan.safe.length} safe · ${plan.review.length} review · ${plan.manual.length} manual · ${plan.closed.length} closed · ${plan.compliantCount} compliant (of ${plan.totalScanned})`
+    );
+
     const snapshot: RemediationSnapshot = {
       generatedAt: new Date().toISOString(),
       generatedBy: ctx.email ?? ctx.userId,
@@ -265,6 +289,7 @@ export async function runDepartmentAnalysis(): Promise<
     };
 
     await persistSnapshot(snapshot);
+    console.info(`${LOG} snapshot persisted; analysis complete`);
 
     await logAuditEvent(ctx, "it.m365.department.analysis", {
       resourceType: "m365.user",
