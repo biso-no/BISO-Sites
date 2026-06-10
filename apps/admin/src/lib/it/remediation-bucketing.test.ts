@@ -14,6 +14,7 @@ const CANDIDATES = new Map<string, Set<string>>([
   ["Bergen", new Set(["Ledelsen Bergen"])],
 ]);
 const NO_CLOSED = new Set<string>();
+const NO_INACTIVE = new Set<string>();
 
 function user(
   id: string,
@@ -122,6 +123,7 @@ describe("buildRemediationPlan", () => {
       resolutions,
       candidatesByCampus: CANDIDATES,
       closedBaseNames: NO_CLOSED,
+      inactiveDepartments: NO_INACTIVE,
       campusNames: CAMPUS_NAMES,
     });
     expect(plan.safe).toHaveLength(1);
@@ -149,6 +151,7 @@ describe("buildRemediationPlan", () => {
       resolutions,
       candidatesByCampus: CANDIDATES,
       closedBaseNames: NO_CLOSED,
+      inactiveDepartments: NO_INACTIVE,
       campusNames: CAMPUS_NAMES,
     });
     expect(plan.safe).toHaveLength(0);
@@ -175,6 +178,7 @@ describe("buildRemediationPlan", () => {
       resolutions,
       candidatesByCampus: CANDIDATES,
       closedBaseNames: NO_CLOSED,
+      inactiveDepartments: NO_INACTIVE,
       campusNames: CAMPUS_NAMES,
     });
     expect(plan.safe).toHaveLength(0);
@@ -201,6 +205,7 @@ describe("buildRemediationPlan", () => {
       resolutions,
       candidatesByCampus: CANDIDATES,
       closedBaseNames: NO_CLOSED,
+      inactiveDepartments: NO_INACTIVE,
       campusNames: CAMPUS_NAMES,
     });
     expect(plan.safe).toHaveLength(0);
@@ -225,6 +230,7 @@ describe("buildRemediationPlan", () => {
       resolutions,
       candidatesByCampus: CANDIDATES,
       closedBaseNames: NO_CLOSED,
+      inactiveDepartments: NO_INACTIVE,
       campusNames: CAMPUS_NAMES,
     });
     expect(plan.manual).toHaveLength(1);
@@ -236,6 +242,7 @@ describe("buildRemediationPlan", () => {
       resolutions: new Map(),
       candidatesByCampus: CANDIDATES,
       closedBaseNames: NO_CLOSED,
+      inactiveDepartments: NO_INACTIVE,
       campusNames: CAMPUS_NAMES,
     });
     expect(plan.manual).toHaveLength(1);
@@ -263,6 +270,7 @@ describe("buildRemediationPlan", () => {
       resolutions,
       candidatesByCampus: CANDIDATES,
       closedBaseNames: NO_CLOSED,
+      inactiveDepartments: NO_INACTIVE,
       campusNames: CAMPUS_NAMES,
     });
     expect(plan.safe).toHaveLength(0);
@@ -278,6 +286,7 @@ describe("buildRemediationPlan", () => {
       ]),
       candidatesByCampus: CANDIDATES,
       closedBaseNames: new Set(["dataanalytisk utvalg"]),
+      inactiveDepartments: NO_INACTIVE,
       campusNames: CAMPUS_NAMES,
     });
     expect(plan.closed).toHaveLength(1);
@@ -290,6 +299,7 @@ describe("buildRemediationPlan", () => {
       resolutions: new Map(),
       candidatesByCampus: CANDIDATES,
       closedBaseNames: NO_CLOSED,
+      inactiveDepartments: NO_INACTIVE,
       campusNames: CAMPUS_NAMES,
     });
     expect(plan.totalScanned).toBe(0);
@@ -298,5 +308,32 @@ describe("buildRemediationPlan", () => {
     expect(plan.manual).toHaveLength(0);
     expect(plan.closed).toHaveLength(0);
     expect(plan.compliantCount).toBe(0);
+  });
+
+  test("high-confidence match to an INACTIVE department → closed, not safe", () => {
+    const users = [user("a")];
+    const resolutions = new Map([
+      [
+        "a",
+        res({
+          ref: "a",
+          classification: "department",
+          department: "OSL Næringslivsutvalget",
+          campus: "Oslo",
+          confidence: "high",
+        }),
+      ],
+    ]);
+    const plan = buildRemediationPlan({
+      users,
+      resolutions,
+      candidatesByCampus: CANDIDATES,
+      closedBaseNames: NO_CLOSED,
+      inactiveDepartments: new Set(["OSL Næringslivsutvalget"]),
+      campusNames: CAMPUS_NAMES,
+    });
+    expect(plan.safe).toHaveLength(0);
+    expect(plan.closed).toHaveLength(1);
+    expect(plan.closed[0].suggestedDepartment).toBe("OSL Næringslivsutvalget");
   });
 });

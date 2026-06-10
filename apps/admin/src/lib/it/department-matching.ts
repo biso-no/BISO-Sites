@@ -28,6 +28,7 @@ export function normalizeForCompare(name: string): string {
 const CLOSED_REGEX = /\s*-\s*nedlagt\s*$/i;
 
 export interface CanonicalDepartment {
+  active?: boolean; // false = inactive/closed in 24SO (undefined = active)
   campusId: string;
   name: string; // exact stored canonical name (the write target)
 }

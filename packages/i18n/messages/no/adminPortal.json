@@ -262,7 +262,7 @@
       "safeDescription": "Treff med høy sikkerhet. Se gjennom medlemmene, og bruk deretter.",
       "reviewDescription": "AI-en foreslo en avdeling, men var usikker — bekreft eller endre hver enkelt.",
       "manualDescription": "Personlige eller nasjonale postbokser AI-en ikke kunne plassere. Tildel hver enkelt selv.",
-      "closedDescription": "Brukere som fortsatt er knyttet til en nedlagt avdeling. Flytt dem i 24SO."
+      "closedDescription": "Brukere i en nedlagt eller inaktiv avdeling. Flytt dem i 24SO."
     },
     "dataHealth": {
       "title": "24SO datakvalitet",

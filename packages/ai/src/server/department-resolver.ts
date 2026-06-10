@@ -19,28 +19,45 @@ export interface ResolveDepartmentsInput {
 }
 
 const SYSTEM_PROMPT = `You normalise Microsoft 365 user records for BISO, a Norwegian
-student organisation. Each licensed mailbox is provisioned per ROLE, not per person,
-and the email local-part encodes the role:
+student organisation. Each licensed mailbox is provisioned per ROLE, not per person.
+Decide each user's department from the email local-part; officeLocation is only a campus
+hint and the existing department is NOT provided (earlier data is unreliable).
 
-- "role.campus" (two segments, e.g. "president.oslo", "controller.oslo") usually means
-  a CAMPUS MANAGEMENT role → classification "management", department "Ledelsen {Campus}".
-  BUT a two-segment address can also be a function (e.g. "hr.oslo") or a person
-  (e.g. "adrian.oslo", a first name). Only classify as management when the first
-  segment is clearly a leadership role (president, controller, vice president, etc.).
-- "...deptabbrev.campus" (three+ segments, e.g. "finance.nu.oslo", "arezu.businessambassador.kd")
-  where a segment is an ad-hoc abbreviation of a department → classification "department".
-  Choose the ONE candidate department whose name the abbreviation contracts. Abbreviations are
-  usually initials or a contraction of the department's words — e.g. "nu" = Næringslivsutvalget,
-  "kd" = Karrieredagene, "mu" = Markedsutvalget. Match the abbreviation against the candidate
-  list for this campus even when the rest of the local-part is a person name or a role word.
-  Candidate names may themselves be truncated.
+Candidate departments are prefixed with a campus code: OSL = Oslo, BRG = Bergen,
+TRD = Trondheim, STV = Stavanger. Always set "campus" to the full campus name of the
+chosen department's prefix (e.g. "BRG Bergensbaneløpet" → campus "Bergen"). The email's
+LAST segment is often the campus (oslo/bergen/trondheim/stavanger), but NOT always — when
+the email has no campus token, infer the campus from the matched department's prefix.
+
+Known department abbreviations (ad-hoc; the local-part contracts the department name):
+- fr = Fadderullan
+- kd = Karrieredagene
+- nu = Næringslivsutvalget
+- vl = Vinterlekene (Winter Games)
+- bbl = Bergensbaneløpet
+- mu = Markedsutvalget
+
+Classification:
+- A segment is a department abbreviation or department word (e.g. "finance.nu.oslo",
+  "ambassador.fr.oslo", "ailo.business.bbl", "alexander.accounting") → "department".
+  Choose the ONE candidate whose name the abbreviation/word contracts, using the glossary.
+  The abbreviation may be the LAST segment with no campus token — then infer the campus
+  from the matched department's prefix. confidence "high" when the match is clear.
+- A campus leadership or support role with NO department abbreviation (e.g. "president.oslo",
+  "controller.oslo", "academics.bergen", "advisor.business.oslo", "advisor.operations.oslo",
+  "academics.assistant.bergen") → "management", department "Ledelsen {Campus}". Use
+  confidence "high" for clear leadership titles (president, vice president, controller) and
+  "medium" for assistant/advisor/academics/business/operations support roles (an assumption
+  to confirm).
 - A bare first name or "firstname.lastname" (e.g. "markus", "adrian.heien"), or an email whose
-  abbreviation matches no candidate, → classification "manual" with department null.
+  abbreviation matches no candidate and is not a leadership/support role → "manual", null.
 
 Rules:
-- The user's EXISTING M365 department is NOT provided and must NOT be assumed — earlier data is
-  unreliable. Decide ONLY from the email local-part; use officeLocation solely as a campus hint.
 - department MUST be exactly one of the provided candidate names, or null. Never invent one.
+  Some candidates are inactive/closed (their name may end with "- nedlagt") — still choose them
+  when the email clearly belongs there.
+- Prefer a department match over "management"; only use "Ledelsen {Campus}" when no candidate
+  department fits and the role is clearly leadership/support.
 - confidence "high" only when the email clearly determines the answer.
 - Echo each user's ref unchanged. Keep reasoning to one short sentence.`;
 

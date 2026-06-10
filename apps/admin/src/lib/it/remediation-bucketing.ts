@@ -9,8 +9,9 @@ import { normalizeForCompare } from "./department-matching";
 
 export interface BucketingInput {
   campusNames: Set<string>;
-  candidatesByCampus: Map<string, Set<string>>; // campus name -> canonical active dept names
+  candidatesByCampus: Map<string, Set<string>>; // campus name -> canonical dept names
   closedBaseNames: Set<string>; // normalizeForCompare(stripClosedSuffix(name)) of nedlagt depts
+  inactiveDepartments: Set<string>; // exact names of inactive/closed canonical depts
   resolutions: Map<string, DepartmentResolution>; // keyed by user id
   users: M365UserListItem[];
 }
@@ -63,6 +64,23 @@ function pushGroup(
   map.set(key, { ...meta, affectedUsers: [user] });
 }
 
+// Picks the destination bucket for an on-list resolved user.
+function pickBucket(
+  resolution: DepartmentResolution,
+  target: Target,
+  inactiveDepartments: Set<string>,
+  buckets: {
+    closed: Map<string, RemediationGroup>;
+    review: Map<string, RemediationGroup>;
+    safe: Map<string, RemediationGroup>;
+  }
+): Map<string, RemediationGroup> {
+  if (inactiveDepartments.has(target.department)) {
+    return buckets.closed;
+  }
+  return resolution.confidence === "high" ? buckets.safe : buckets.review;
+}
+
 export function buildRemediationPlan(
   input: BucketingInput
 ): DepartmentRemediationPlan {
@@ -71,12 +89,13 @@ export function buildRemediationPlan(
     resolutions,
     candidatesByCampus,
     closedBaseNames,
+    inactiveDepartments,
     campusNames,
   } = input;
 
   const safeByTarget = new Map<string, RemediationGroup>();
   const reviewByTarget = new Map<string, RemediationGroup>();
-  const closedByValue = new Map<string, RemediationGroup>();
+  const closedGroups = new Map<string, RemediationGroup>();
   const manual: ManualRemediationUser[] = [];
   let compliantCount = 0;
 
@@ -86,7 +105,7 @@ export function buildRemediationPlan(
     // 1) Closed: current value corresponds to a "- nedlagt" department.
     if (currentDept && closedBaseNames.has(normalizeForCompare(currentDept))) {
       pushGroup(
-        closedByValue,
+        closedGroups,
         currentDept,
         {
           classification: "manual",
@@ -141,18 +160,22 @@ export function buildRemediationPlan(
     };
     const key = `${target.department}${GROUP_SEP}${target.campus}`;
 
-    if (resolution.confidence === "high") {
-      pushGroup(safeByTarget, key, meta, user);
-    } else {
-      pushGroup(reviewByTarget, key, meta, user);
-    }
+    // Target department is inactive/closed → Closed bucket (don't auto-apply a
+    // shut-down department; surface the users as belonging to it). Otherwise
+    // high confidence → safe, else → review.
+    const bucket = pickBucket(resolution, target, inactiveDepartments, {
+      closed: closedGroups,
+      review: reviewByTarget,
+      safe: safeByTarget,
+    });
+    pushGroup(bucket, key, meta, user);
   }
 
   const byCount = (a: RemediationGroup, b: RemediationGroup) =>
     b.affectedUsers.length - a.affectedUsers.length;
 
   return {
-    closed: [...closedByValue.values()].sort(byCount),
+    closed: [...closedGroups.values()].sort(byCount),
     compliantCount,
     manual,
     review: [...reviewByTarget.values()].sort(byCount),

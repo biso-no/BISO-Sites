@@ -62,6 +62,7 @@ interface CanonicalLookups {
   campusNames: Set<string>;
   candidatesByCampus: Map<string, Set<string>>;
   closedBaseNames: Set<string>;
+  inactiveDeptNames: Set<string>;
   tokenToCampus: Map<string, string>;
 }
 
@@ -90,6 +91,7 @@ async function loadCanonicalData(): Promise<CanonicalData> {
   const canonical = departments.rows.map((department) => ({
     name: department.Name,
     campusId: department.campus_id,
+    active: department.active !== false,
   }));
 
   return { canonical, campusIdToName, departments: departments.rows };
@@ -103,10 +105,11 @@ function buildCanonicalLookups(data: CanonicalData): CanonicalLookups {
   }
   const candidatesByCampus = new Map<string, Set<string>>();
   const allCandidates = new Set<string>();
+  const inactiveDeptNames = new Set<string>();
+  // Include ALL departments — active and inactive/closed — as candidates so the
+  // AI can still place users whose unit was shut down. Inactive ones are routed
+  // to the Closed bucket in buildRemediationPlan via inactiveDeptNames.
   for (const dept of data.canonical) {
-    if (isClosedName(dept.name)) {
-      continue;
-    }
     const campusName = data.campusIdToName.get(dept.campusId);
     if (!campusName) {
       continue;
@@ -115,6 +118,9 @@ function buildCanonicalLookups(data: CanonicalData): CanonicalLookups {
     set.add(dept.name);
     candidatesByCampus.set(campusName, set);
     allCandidates.add(dept.name);
+    if (dept.active === false || isClosedName(dept.name)) {
+      inactiveDeptNames.add(dept.name);
+    }
   }
   const closedBaseNames = new Set(
     data.canonical
@@ -127,6 +133,7 @@ function buildCanonicalLookups(data: CanonicalData): CanonicalLookups {
     candidatesByCampus,
     allCandidates,
     closedBaseNames,
+    inactiveDeptNames,
   };
 }
 
@@ -279,6 +286,7 @@ export async function runDepartmentAnalysis(): Promise<
       candidatesByCampus,
       allCandidates,
       closedBaseNames,
+      inactiveDeptNames,
     } = buildCanonicalLookups(data);
 
     const batches = batchUsersByCampus(listItems, tokenToCampus);
@@ -309,6 +317,7 @@ export async function runDepartmentAnalysis(): Promise<
       resolutions,
       candidatesByCampus,
       closedBaseNames,
+      inactiveDepartments: inactiveDeptNames,
       campusNames,
     });
 

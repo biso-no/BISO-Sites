@@ -262,7 +262,7 @@
       "safeDescription": "High-confidence matches. Review the members, then apply.",
       "reviewDescription": "The AI suggested a department but wasn't certain — confirm or change each one.",
       "manualDescription": "Personal or national mailboxes the AI couldn't place. Assign each one yourself.",
-      "closedDescription": "Users still attached to a closed (nedlagt) department. Reassign them in 24SO."
+      "closedDescription": "Users in a closed or inactive department (e.g. nedlagt). Reassign them in 24SO."
     },
     "dataHealth": {
       "title": "24SO data health",
