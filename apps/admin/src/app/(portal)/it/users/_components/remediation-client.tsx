@@ -14,6 +14,7 @@ import { useEffect, useState, useTransition } from "react";
 import {
   applyDepartmentFixes,
   deactivateM365Account,
+  deactivateM365Accounts,
   runDepartmentAnalysis,
 } from "../../../_actions/it-remediation";
 import { EmptyState } from "../../../_components/empty-state";
@@ -567,6 +568,11 @@ function ManualRow({
 
 function InactiveList({ users }: { users: M365UserListItem[] }) {
   const t = useTranslations("adminPortal.it.audit");
+  const router = useRouter();
+  const [working, setWorking] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const [result, setResult] = useState<string | null>(null);
+
   if (users.length === 0) {
     return (
       <EmptyState
@@ -576,11 +582,57 @@ function InactiveList({ users }: { users: M365UserListItem[] }) {
       />
     );
   }
+
+  async function deactivateAll() {
+    if (!confirming) {
+      setConfirming(true);
+      return;
+    }
+    setWorking(true);
+    const res = await deactivateM365Accounts(users.map((u) => u.id));
+    setWorking(false);
+    setConfirming(false);
+    if (res.error) {
+      setResult(res.error);
+    } else if (res.data) {
+      setResult(
+        t("deactivatedSummary", {
+          failed: res.data.failed,
+          succeeded: res.data.succeeded,
+        })
+      );
+      router.refresh();
+    }
+  }
+
   return (
-    <div className="space-y-2">
-      {users.map((user) => (
-        <InactiveRow key={user.id} user={user} />
-      ))}
+    <div>
+      <div className="mb-4 flex items-center gap-3">
+        <StudioButton
+          disabled={working}
+          onClick={deactivateAll}
+          variant="primary"
+        >
+          {working ? (
+            <Loader2 className="animate-spin" size={15} />
+          ) : (
+            <Ban size={15} />
+          )}
+          {confirming
+            ? t("confirmDeactivateAll", { count: users.length })
+            : t("deactivateAll", { count: users.length })}
+        </StudioButton>
+        {result && (
+          <span className="text-sm" style={{ color: STUDIO.ink3 }}>
+            {result}
+          </span>
+        )}
+      </div>
+      <div className="space-y-2">
+        {users.map((user) => (
+          <InactiveRow key={user.id} user={user} />
+        ))}
+      </div>
     </div>
   );
 }

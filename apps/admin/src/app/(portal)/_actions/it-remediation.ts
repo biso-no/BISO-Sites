@@ -41,6 +41,10 @@ const AI_CHUNK_SIZE = 30;
 const AI_CONCURRENCY = 5;
 const NATIONAL_KEY = "__national__";
 const INACTIVE_MONTHS = 6;
+const DEACTIVATE_CONCURRENCY = 5;
+// Mailbox userPurpose values that are NOT individual user accounts — excluded
+// from the "inactive accounts" list (they never sign in by design).
+const RESOURCE_PURPOSES = new Set(["room", "equipment", "shared"]);
 const LOG = "[dept-analysis]";
 
 function getErrorMessage(error: unknown): string {
@@ -220,6 +224,35 @@ async function persistSnapshot(snapshot: RemediationSnapshot): Promise<void> {
   });
 }
 
+// Drops resource mailboxes (rooms / equipment / shared) from a user list using
+// each account's mailbox userPurpose. Best-effort: unreadable mailboxes are
+// kept (treated as real users) rather than silently removed.
+async function excludeResourceMailboxes(
+  graph: ReturnType<typeof getGraphService>,
+  users: M365UserListItem[]
+): Promise<M365UserListItem[]> {
+  const purposes = await mapWithConcurrency(users, 10, (user) =>
+    graph.getMailboxUserPurpose(user.id)
+  );
+  return users.filter(
+    (_, index) => !RESOURCE_PURPOSES.has((purposes[index] ?? "").toLowerCase())
+  );
+}
+
+async function deactivateOneAccount(
+  graph: ReturnType<typeof getGraphService>,
+  userId: string
+): Promise<number> {
+  // Remove licenses first (frees the seat), then block sign-in.
+  const licenses = await graph.getUserLicenseDetails(userId);
+  const skuIds = licenses.map((license) => license.skuId);
+  if (skuIds.length > 0) {
+    await graph.manageLicense(userId, [], skuIds);
+  }
+  await graph.updateUser(userId, { accountEnabled: false });
+  return skuIds.length;
+}
+
 export async function runDepartmentAnalysis(): Promise<
   ActionResult<RemediationSnapshot>
 > {
@@ -279,10 +312,15 @@ export async function runDepartmentAnalysis(): Promise<
       campusNames,
     });
 
-    const inactive = findInactiveAccounts(listItems, Date.now(), INACTIVE_MONTHS);
+    const inactiveCandidates = findInactiveAccounts(
+      listItems,
+      Date.now(),
+      INACTIVE_MONTHS
+    );
+    const inactive = await excludeResourceMailboxes(graph, inactiveCandidates);
 
     console.info(
-      `${LOG} plan ready: ${plan.safe.length} safe · ${plan.review.length} review · ${plan.manual.length} manual · ${plan.closed.length} closed · ${plan.compliantCount} compliant · ${inactive.length} inactive (of ${plan.totalScanned})`
+      `${LOG} plan ready: ${plan.safe.length} safe · ${plan.review.length} review · ${plan.manual.length} manual · ${plan.closed.length} closed · ${plan.compliantCount} compliant · ${inactive.length} inactive (${inactiveCandidates.length - inactive.length} resource mailboxes excluded) (of ${plan.totalScanned})`
     );
 
     const snapshot: RemediationSnapshot = {
@@ -355,23 +393,55 @@ export async function deactivateM365Account(
   try {
     const ctx = await requireItPermission("it.users.disable");
     const graph = getGraphService();
-
-    // Remove licenses first (frees the seat), then block sign-in.
-    const licenses = await graph.getUserLicenseDetails(userId);
-    const skuIds = licenses.map((license) => license.skuId);
-    if (skuIds.length > 0) {
-      await graph.manageLicense(userId, [], skuIds);
-    }
-    await graph.updateUser(userId, { accountEnabled: false });
+    const removedLicenses = await deactivateOneAccount(graph, userId);
 
     await logAuditEvent(ctx, "it.m365.user.deactivate", {
       resourceType: "m365.user",
       resourceId: userId,
-      payload: { removedLicenses: skuIds.length },
+      payload: { removedLicenses },
     });
 
     revalidatePath("/it/users/audit");
     return { data: { ok: true } };
+  } catch (error) {
+    return { error: getErrorMessage(error) };
+  }
+}
+
+export async function deactivateM365Accounts(
+  userIds: string[]
+): Promise<ActionResult<{ failed: number; succeeded: number }>> {
+  try {
+    const ctx = await requireItPermission("it.users.disable");
+    const graph = getGraphService();
+
+    const results = await mapWithConcurrency(
+      userIds,
+      DEACTIVATE_CONCURRENCY,
+      async (userId) => {
+        try {
+          await deactivateOneAccount(graph, userId);
+          return true;
+        } catch (error) {
+          console.error(
+            `${LOG} deactivate failed for ${userId}:`,
+            error instanceof Error ? error.message : error
+          );
+          return false;
+        }
+      }
+    );
+
+    const succeeded = results.filter(Boolean).length;
+    const failed = results.length - succeeded;
+
+    await logAuditEvent(ctx, "it.m365.user.deactivate.bulk", {
+      resourceType: "m365.user",
+      payload: { requested: userIds.length, succeeded, failed },
+    });
+
+    revalidatePath("/it/users/audit");
+    return { data: { failed, succeeded } };
   } catch (error) {
     return { error: getErrorMessage(error) };
   }

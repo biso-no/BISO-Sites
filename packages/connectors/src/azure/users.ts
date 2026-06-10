@@ -427,6 +427,26 @@ export class GraphUserService {
   }
 
   /**
+   * Returns the mailbox `userPurpose` for an account (`user`, `shared`, `room`,
+   * `equipment`, `linked`, `others`) — used to tell real user accounts apart
+   * from resource mailboxes. Best-effort: returns null if the mailbox can't be
+   * read (e.g. missing MailboxSettings.Read consent) so callers can keep the
+   * account rather than silently dropping it.
+   */
+  async getMailboxUserPurpose(userId: string): Promise<string | null> {
+    try {
+      const response = await this.client
+        .api(`/users/${encodeGraphPathSegment(userId)}/mailboxSettings`)
+        .select("userPurpose")
+        .get();
+      const purpose = (response as { userPurpose?: unknown })?.userPurpose;
+      return typeof purpose === "string" ? purpose : null;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
    * Search users by display name or UPN
    */
   async searchUsers(
