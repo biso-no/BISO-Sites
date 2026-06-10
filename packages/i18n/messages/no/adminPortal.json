@@ -250,7 +250,7 @@
       "confirmDeactivateSelected": "Deaktiver {count} valgte? Klikk for å bekrefte",
       "selectForDeactivation": "Velg {user} for deaktivering",
       "deactivatedSummary": "{succeeded} deaktivert, {failed} feilet",
-      "inactiveDescription": "Lisensierte kontoer uten innlogging på 6+ måneder. Deaktivering fjerner lisensene og blokkerer innlogging.",
+      "inactiveDescription": "Lisensierte kontoer uten innlogging på 6+ måneder. Deaktivering blokkerer innlogging (setter kontoen deaktivert).",
       "selectDepartment": "Velg avdeling",
       "blankDepartment": "(tom avdeling)",
       "allClear": "Alt i orden",

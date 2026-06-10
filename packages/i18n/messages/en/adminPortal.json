@@ -250,7 +250,7 @@
       "confirmDeactivateSelected": "Disable {count} selected? Click to confirm",
       "selectForDeactivation": "Select {user} for deactivation",
       "deactivatedSummary": "{succeeded} disabled, {failed} failed",
-      "inactiveDescription": "Licensed accounts with no sign-in for 6+ months. Disabling removes their licenses and blocks sign-in.",
+      "inactiveDescription": "Licensed accounts with no sign-in for 6+ months. Disabling blocks sign-in (sets the account disabled).",
       "selectDepartment": "Select department",
       "blankDepartment": "(blank department)",
       "allClear": "All clear",

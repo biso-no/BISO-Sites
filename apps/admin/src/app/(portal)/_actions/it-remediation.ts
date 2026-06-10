@@ -249,15 +249,10 @@ async function excludeResourceMailboxes(
 async function deactivateOneAccount(
   graph: ReturnType<typeof getGraphService>,
   userId: string
-): Promise<number> {
-  // Remove licenses first (frees the seat), then block sign-in.
-  const licenses = await graph.getUserLicenseDetails(userId);
-  const skuIds = licenses.map((license) => license.skuId);
-  if (skuIds.length > 0) {
-    await graph.manageLicense(userId, [], skuIds);
-  }
+): Promise<void> {
+  // Licenses are inherited from group membership and can't be removed per-user,
+  // so just block sign-in by setting the account disabled.
   await graph.updateUser(userId, { accountEnabled: false });
-  return skuIds.length;
 }
 
 export async function runDepartmentAnalysis(): Promise<
@@ -402,12 +397,12 @@ export async function deactivateM365Account(
   try {
     const ctx = await requireItPermission("it.users.disable");
     const graph = getGraphService();
-    const removedLicenses = await deactivateOneAccount(graph, userId);
+    await deactivateOneAccount(graph, userId);
 
     await logAuditEvent(ctx, "it.m365.user.deactivate", {
       resourceType: "m365.user",
       resourceId: userId,
-      payload: { removedLicenses },
+      payload: { disabled: true },
     });
 
     revalidatePath("/it/users/audit");
