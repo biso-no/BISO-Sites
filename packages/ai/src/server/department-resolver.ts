@@ -1,10 +1,10 @@
 import "server-only";
 
+import { openai } from "@ai-sdk/openai";
 import {
   type DepartmentResolution,
   departmentResolutionBatchSchema,
 } from "@repo/shared/types/user-management";
-import { openai } from "@ai-sdk/openai";
 import { generateObject } from "ai";
 
 export interface ResolveDepartmentsInput {

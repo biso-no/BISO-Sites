@@ -3,7 +3,10 @@ import type {
   DepartmentResolution,
   M365UserListItem,
 } from "@repo/shared/types/user-management";
-import { buildRemediationPlan, validateResolution } from "./remediation-bucketing";
+import {
+  buildRemediationPlan,
+  validateResolution,
+} from "./remediation-bucketing";
 
 const CAMPUS_NAMES = new Set(["Oslo", "Bergen"]);
 const CANDIDATES = new Map<string, Set<string>>([
@@ -12,7 +15,10 @@ const CANDIDATES = new Map<string, Set<string>>([
 ]);
 const NO_CLOSED = new Set<string>();
 
-function user(id: string, over: Partial<M365UserListItem> = {}): M365UserListItem {
+function user(
+  id: string,
+  over: Partial<M365UserListItem> = {}
+): M365UserListItem {
   return {
     accountEnabled: true,
     createdDateTime: null,
@@ -54,7 +60,11 @@ describe("validateResolution", () => {
   test("department off-list returns null (forced to manual)", () => {
     expect(
       validateResolution(
-        res({ classification: "department", department: "Made Up Dept", campus: "Oslo" }),
+        res({
+          classification: "department",
+          department: "Made Up Dept",
+          campus: "Oslo",
+        }),
         CANDIDATES,
         CAMPUS_NAMES
       )
@@ -64,7 +74,11 @@ describe("validateResolution", () => {
   test("department on-list resolves", () => {
     expect(
       validateResolution(
-        res({ classification: "department", department: "OSL Næringslivsutvalget", campus: "Oslo" }),
+        res({
+          classification: "department",
+          department: "OSL Næringslivsutvalget",
+          campus: "Oslo",
+        }),
         CANDIDATES,
         CAMPUS_NAMES
       )
@@ -86,8 +100,22 @@ describe("buildRemediationPlan", () => {
   test("high-confidence management → safe, grouped by Ledelsen Oslo", () => {
     const users = [user("president.oslo"), user("controller.oslo")];
     const resolutions = new Map([
-      ["president.oslo", res({ ref: "president.oslo", classification: "management", campus: "Oslo" })],
-      ["controller.oslo", res({ ref: "controller.oslo", classification: "management", campus: "Oslo" })],
+      [
+        "president.oslo",
+        res({
+          ref: "president.oslo",
+          classification: "management",
+          campus: "Oslo",
+        }),
+      ],
+      [
+        "controller.oslo",
+        res({
+          ref: "controller.oslo",
+          classification: "management",
+          campus: "Oslo",
+        }),
+      ],
     ]);
     const plan = buildRemediationPlan({
       users,
@@ -105,7 +133,16 @@ describe("buildRemediationPlan", () => {
   test("a non-management user the model marks manual never lands in Ledelsen (the 29-bug)", () => {
     const users = [user("hr.oslo", { department: "Ledelse" })];
     const resolutions = new Map([
-      ["hr.oslo", res({ ref: "hr.oslo", classification: "manual", campus: null, department: null, reasoning: "HR function" })],
+      [
+        "hr.oslo",
+        res({
+          ref: "hr.oslo",
+          classification: "manual",
+          campus: null,
+          department: null,
+          reasoning: "HR function",
+        }),
+      ],
     ]);
     const plan = buildRemediationPlan({
       users,
@@ -122,10 +159,23 @@ describe("buildRemediationPlan", () => {
   test("medium confidence → review, not safe", () => {
     const users = [user("a")];
     const resolutions = new Map([
-      ["a", res({ ref: "a", classification: "department", department: "OSL Næringslivsutvalget", campus: "Oslo", confidence: "medium" })],
+      [
+        "a",
+        res({
+          ref: "a",
+          classification: "department",
+          department: "OSL Næringslivsutvalget",
+          campus: "Oslo",
+          confidence: "medium",
+        }),
+      ],
     ]);
     const plan = buildRemediationPlan({
-      users, resolutions, candidatesByCampus: CANDIDATES, closedBaseNames: NO_CLOSED, campusNames: CAMPUS_NAMES,
+      users,
+      resolutions,
+      candidatesByCampus: CANDIDATES,
+      closedBaseNames: NO_CLOSED,
+      campusNames: CAMPUS_NAMES,
     });
     expect(plan.safe).toHaveLength(0);
     expect(plan.review).toHaveLength(1);
@@ -135,10 +185,23 @@ describe("buildRemediationPlan", () => {
   test("low confidence → review, not safe", () => {
     const users = [user("a")];
     const resolutions = new Map([
-      ["a", res({ ref: "a", classification: "department", department: "OSL Næringslivsutvalget", campus: "Oslo", confidence: "low" })],
+      [
+        "a",
+        res({
+          ref: "a",
+          classification: "department",
+          department: "OSL Næringslivsutvalget",
+          campus: "Oslo",
+          confidence: "low",
+        }),
+      ],
     ]);
     const plan = buildRemediationPlan({
-      users, resolutions, candidatesByCampus: CANDIDATES, closedBaseNames: NO_CLOSED, campusNames: CAMPUS_NAMES,
+      users,
+      resolutions,
+      candidatesByCampus: CANDIDATES,
+      closedBaseNames: NO_CLOSED,
+      campusNames: CAMPUS_NAMES,
     });
     expect(plan.safe).toHaveLength(0);
     expect(plan.review).toHaveLength(1);
@@ -147,10 +210,22 @@ describe("buildRemediationPlan", () => {
   test("off-list department → manual", () => {
     const users = [user("a")];
     const resolutions = new Map([
-      ["a", res({ ref: "a", classification: "department", department: "Ghost Unit", campus: "Oslo" })],
+      [
+        "a",
+        res({
+          ref: "a",
+          classification: "department",
+          department: "Ghost Unit",
+          campus: "Oslo",
+        }),
+      ],
     ]);
     const plan = buildRemediationPlan({
-      users, resolutions, candidatesByCampus: CANDIDATES, closedBaseNames: NO_CLOSED, campusNames: CAMPUS_NAMES,
+      users,
+      resolutions,
+      candidatesByCampus: CANDIDATES,
+      closedBaseNames: NO_CLOSED,
+      campusNames: CAMPUS_NAMES,
     });
     expect(plan.manual).toHaveLength(1);
   });
@@ -167,12 +242,28 @@ describe("buildRemediationPlan", () => {
   });
 
   test("already-compliant user is counted and dropped from safe", () => {
-    const users = [user("president.oslo", { department: "Ledelsen Oslo", officeLocation: "Oslo" })];
+    const users = [
+      user("president.oslo", {
+        department: "Ledelsen Oslo",
+        officeLocation: "Oslo",
+      }),
+    ];
     const resolutions = new Map([
-      ["president.oslo", res({ ref: "president.oslo", classification: "management", campus: "Oslo" })],
+      [
+        "president.oslo",
+        res({
+          ref: "president.oslo",
+          classification: "management",
+          campus: "Oslo",
+        }),
+      ],
     ]);
     const plan = buildRemediationPlan({
-      users, resolutions, candidatesByCampus: CANDIDATES, closedBaseNames: NO_CLOSED, campusNames: CAMPUS_NAMES,
+      users,
+      resolutions,
+      candidatesByCampus: CANDIDATES,
+      closedBaseNames: NO_CLOSED,
+      campusNames: CAMPUS_NAMES,
     });
     expect(plan.safe).toHaveLength(0);
     expect(plan.compliantCount).toBe(1);
@@ -182,7 +273,9 @@ describe("buildRemediationPlan", () => {
     const users = [user("a", { department: "DataAnalytisk Utvalg" })];
     const plan = buildRemediationPlan({
       users,
-      resolutions: new Map([["a", res({ ref: "a", classification: "manual" })]]),
+      resolutions: new Map([
+        ["a", res({ ref: "a", classification: "manual" })],
+      ]),
       candidatesByCampus: CANDIDATES,
       closedBaseNames: new Set(["dataanalytisk utvalg"]),
       campusNames: CAMPUS_NAMES,

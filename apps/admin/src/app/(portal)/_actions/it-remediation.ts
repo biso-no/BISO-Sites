@@ -1,13 +1,10 @@
 "use server";
 
 import { resolveDepartments } from "@repo/ai/server/department-resolver";
+import type { Models } from "@repo/api";
 import { ID, Query } from "@repo/api";
 import { createAdminClient } from "@repo/api/server";
-import type {
-  Campus,
-  Departments,
-  M365RemediationSnapshot,
-} from "@repo/api/types/appwrite";
+import type { Campus, Departments } from "@repo/api/types/appwrite";
 import type {
   DepartmentDataHealthEntry,
   DepartmentDataIssue,
@@ -243,11 +240,13 @@ export async function getLatestRemediationSnapshot(): Promise<
   try {
     await requireItPermission("it.users.view");
     const { db } = await createAdminClient();
-    const rows = await db.listRows<M365RemediationSnapshot>(
-      "app",
-      SNAPSHOT_TABLE,
-      [Query.orderDesc("generated_at"), Query.limit(1)]
-    );
+    const rows = await db.listRows<
+      Models.Row & {
+        generated_at: string;
+        generated_by: string | null;
+        result: string | null;
+      }
+    >("app", SNAPSHOT_TABLE, [Query.orderDesc("generated_at"), Query.limit(1)]);
     const latest = rows.rows[0];
     if (!latest?.result) {
       return { data: null };

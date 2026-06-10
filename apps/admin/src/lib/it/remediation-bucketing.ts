@@ -66,8 +66,13 @@ function pushGroup(
 export function buildRemediationPlan(
   input: BucketingInput
 ): DepartmentRemediationPlan {
-  const { users, resolutions, candidatesByCampus, closedBaseNames, campusNames } =
-    input;
+  const {
+    users,
+    resolutions,
+    candidatesByCampus,
+    closedBaseNames,
+    campusNames,
+  } = input;
 
   const safeByTarget = new Map<string, RemediationGroup>();
   const reviewByTarget = new Map<string, RemediationGroup>();

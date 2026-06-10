@@ -35,7 +35,9 @@ describe("extractCampusHint", () => {
   });
 
   test("returns null when neither email nor office resolves a campus", () => {
-    expect(extractCampusHint("markus@biso.no", null, TOKEN_TO_CAMPUS)).toBeNull();
+    expect(
+      extractCampusHint("markus@biso.no", null, TOKEN_TO_CAMPUS)
+    ).toBeNull();
     expect(
       extractCampusHint("markus@biso.no", "National", TOKEN_TO_CAMPUS)
     ).toBeNull();

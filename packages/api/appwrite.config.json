@@ -1956,10 +1956,9 @@
         },
         {
           "key": "result",
-          "type": "string",
+          "type": "mediumtext",
           "required": false,
           "array": false,
-          "size": 5000000,
           "default": null,
           "encrypt": false
         }
