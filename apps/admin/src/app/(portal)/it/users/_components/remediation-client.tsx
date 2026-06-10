@@ -569,6 +569,10 @@ function ManualRow({
 function InactiveList({ users }: { users: M365UserListItem[] }) {
   const t = useTranslations("adminPortal.it.audit");
   const router = useRouter();
+  // Every inactive account starts selected; the admin unchecks the ones to keep.
+  const [selected, setSelected] = useState<Set<string>>(
+    () => new Set(users.map((u) => u.id))
+  );
   const [working, setWorking] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [result, setResult] = useState<string | null>(null);
@@ -583,13 +587,45 @@ function InactiveList({ users }: { users: M365UserListItem[] }) {
     );
   }
 
-  async function deactivateAll() {
+  function toggle(id: string) {
+    setConfirming(false);
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  }
+
+  function selectAll() {
+    setConfirming(false);
+    setSelected(new Set(users.map((u) => u.id)));
+  }
+
+  function clearSelection() {
+    setConfirming(false);
+    setSelected(new Set());
+  }
+
+  const selectedCount = users.reduce(
+    (n, u) => (selected.has(u.id) ? n + 1 : n),
+    0
+  );
+
+  async function deactivateSelected() {
+    const ids = users.map((u) => u.id).filter((id) => selected.has(id));
+    if (ids.length === 0) {
+      return;
+    }
     if (!confirming) {
       setConfirming(true);
       return;
     }
     setWorking(true);
-    const res = await deactivateM365Accounts(users.map((u) => u.id));
+    const res = await deactivateM365Accounts(ids);
     setWorking(false);
     setConfirming(false);
     if (res.error) {
@@ -607,10 +643,16 @@ function InactiveList({ users }: { users: M365UserListItem[] }) {
 
   return (
     <div>
-      <div className="mb-4 flex items-center gap-3">
+      <div className="mb-4 flex flex-wrap items-center gap-3">
+        <StudioButton onClick={selectAll} variant="secondary">
+          {t("selectAll")}
+        </StudioButton>
+        <StudioButton onClick={clearSelection} variant="secondary">
+          {t("clearSelection")}
+        </StudioButton>
         <StudioButton
-          disabled={working}
-          onClick={deactivateAll}
+          disabled={working || selectedCount === 0}
+          onClick={deactivateSelected}
           variant="primary"
         >
           {working ? (
@@ -619,8 +661,8 @@ function InactiveList({ users }: { users: M365UserListItem[] }) {
             <Ban size={15} />
           )}
           {confirming
-            ? t("confirmDeactivateAll", { count: users.length })
-            : t("deactivateAll", { count: users.length })}
+            ? t("confirmDeactivateSelected", { count: selectedCount })
+            : t("deactivateSelected", { count: selectedCount })}
         </StudioButton>
         {result && (
           <span className="text-sm" style={{ color: STUDIO.ink3 }}>
@@ -630,14 +672,27 @@ function InactiveList({ users }: { users: M365UserListItem[] }) {
       </div>
       <div className="space-y-2">
         {users.map((user) => (
-          <InactiveRow key={user.id} user={user} />
+          <InactiveRow
+            checked={selected.has(user.id)}
+            key={user.id}
+            onToggle={() => toggle(user.id)}
+            user={user}
+          />
         ))}
       </div>
     </div>
   );
 }
 
-function InactiveRow({ user }: { user: M365UserListItem }) {
+function InactiveRow({
+  checked,
+  onToggle,
+  user,
+}: {
+  checked: boolean;
+  onToggle: () => void;
+  user: M365UserListItem;
+}) {
   const t = useTranslations("adminPortal.it.audit");
   const router = useRouter();
   const [working, setWorking] = useState(false);
@@ -659,16 +714,28 @@ function InactiveRow({ user }: { user: M365UserListItem }) {
       }}
     >
       <div className="flex items-center justify-between gap-4">
-        <div className="min-w-0">
-          <p
-            className="truncate font-medium text-sm"
-            style={{ color: STUDIO.ink }}
-          >
-            {user.displayName}
-          </p>
-          <p className="mt-1 truncate text-xs" style={{ color: STUDIO.ink4 }}>
-            {user.userPrincipalName} · {lastSeen}
-          </p>
+        <div className="flex min-w-0 items-center gap-3">
+          {!disabled && (
+            <input
+              aria-label={t("selectForDeactivation", {
+                user: user.userPrincipalName,
+              })}
+              checked={checked}
+              onChange={onToggle}
+              type="checkbox"
+            />
+          )}
+          <div className="min-w-0">
+            <p
+              className="truncate font-medium text-sm"
+              style={{ color: STUDIO.ink }}
+            >
+              {user.displayName}
+            </p>
+            <p className="mt-1 truncate text-xs" style={{ color: STUDIO.ink4 }}>
+              {user.userPrincipalName} · {lastSeen}
+            </p>
+          </div>
         </div>
 
         {disabled ? (
