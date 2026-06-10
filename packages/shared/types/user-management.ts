@@ -423,37 +423,63 @@ export interface UserManagementAuditLog {
 }
 
 // ============================================================================
-// Department Remediation Types
+// Department Remediation Types (AI-driven)
 // ============================================================================
 
-export type RemediationTier =
-  | "safe-exact"
-  | "safe-truncation"
-  | "review-suggested"
-  | "review-no-match"
-  | "closed";
+export type RemediationClassification = "management" | "department" | "manual";
+export type RemediationConfidence = "high" | "medium" | "low";
 
-// One distinct M365 department value and the fix proposed for everyone on it.
+// One AI judgement for a single user. `ref` echoes the M365 user id.
+export const departmentResolutionSchema = z.object({
+  ref: z.string(),
+  classification: z.enum(["management", "department", "manual"]),
+  department: z.string().nullable(),
+  campus: z.string().nullable(),
+  confidence: z.enum(["high", "medium", "low"]),
+  reasoning: z.string().max(200),
+});
+export type DepartmentResolution = z.infer<typeof departmentResolutionSchema>;
+
+export const departmentResolutionBatchSchema = z.object({
+  resolutions: z.array(departmentResolutionSchema),
+});
+
+// A bucket of users that share one resolved write target (department + campus).
 export interface RemediationGroup {
   affectedUsers: M365UserListItem[];
-  score: number | null; // similarity 0-1 when applicable
-  suggestedCampusName: string | null; // campus the suggestion belongs to
+  classification: RemediationClassification;
+  confidence: RemediationConfidence | null;
+  reasoning: string | null;
+  suggestedCampusName: string | null; // office location to write
   suggestedDepartment: string | null; // canonical name to write
-  tier: RemediationTier;
-  value: string; // the raw M365 department string ("" = blank department)
+  value: string; // group label (resolved target department, or raw value for closed)
+}
+
+// A single user the model could not place; assigned manually in the UI.
+export interface ManualRemediationUser {
+  reasoning: string | null;
+  user: M365UserListItem;
 }
 
 export interface DepartmentRemediationPlan {
   closed: RemediationGroup[];
   compliantCount: number;
+  manual: ManualRemediationUser[];
   review: RemediationGroup[];
   safe: RemediationGroup[];
   totalScanned: number;
 }
 
+// Persisted snapshot wrapper (stored as JSON in m365_remediation_snapshot.result).
+export interface RemediationSnapshot {
+  generatedAt: string;
+  generatedBy: string;
+  plan: DepartmentRemediationPlan;
+}
+
 // A single accepted fix decision sent to applyDepartmentFixes.
 export interface DepartmentFixDecision {
-  campusName: string; // office location to write
+  campusName: string; // office location hint (campus is re-derived server-side)
   department: string; // exact canonical name to write
   userIds: string[];
 }
@@ -463,7 +489,7 @@ export interface DepartmentFixSummary {
   succeeded: number;
 }
 
-// 24SO data-health report.
+// 24SO data-health report (unchanged).
 export type DepartmentDataIssue =
   | "trailingWhitespace"
   | "duplicateName"
