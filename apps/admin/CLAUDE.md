@@ -120,6 +120,15 @@ handler. Any new top-level route segment must add its own auth check.
 - **Path alias `@/*`** resolves into **both** `./src/*` and
   `../../packages/editor/src/*` (see `tsconfig.json`). An `@/foo` import may
   resolve into the editor package — keep that in mind when adding files.
+- **AI department remediation**: `/it/users/audit` runs an AI pass
+  (`@repo/ai/server/department-resolver`, `gpt-5-nano`) over every licensed M365
+  user, fenced to the canonical department list (off-list answers are forced to
+  the Manual tab — never written). Results are persisted as a JSON snapshot in
+  the `m365_remediation_snapshot` table and rendered by `remediation-client.tsx`;
+  the heavy run happens only on the explicit "Run analysis" action (the audit
+  page sets `maxDuration = 300`). Pure logic lives in
+  `src/lib/it/{email-classify,remediation-bucketing,concurrency}.ts` and is
+  unit-tested with `bun:test`.
 
 ## Do-not-touch
 
