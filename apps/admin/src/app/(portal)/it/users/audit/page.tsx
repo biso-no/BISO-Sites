@@ -1,16 +1,19 @@
 import { getTranslations } from "next-intl/server";
 import { requireItPagePermission } from "@/lib/it-permissions";
 import { listDepartments } from "../../../_actions/departments";
-import { getDepartmentRemediationPlan } from "../../../_actions/it-remediation";
+import { getLatestRemediationSnapshot } from "../../../_actions/it-remediation";
 import { PageHeader } from "../../../_components/page-header";
 import { ItUsersTabs } from "../_components/it-users-tabs";
 import { RemediationClient } from "../_components/remediation-client";
 
+// The analysis pass fans out to the AI for ~1800 users; give the run action room.
+export const maxDuration = 300;
+
 export default async function ItUsersAuditPage() {
   await requireItPagePermission("it.users.view");
   const t = await getTranslations("adminPortal.it");
-  const [result, departments] = await Promise.all([
-    getDepartmentRemediationPlan(),
+  const [snapshotResult, departments] = await Promise.all([
+    getLatestRemediationSnapshot(),
     listDepartments(),
   ]);
 
@@ -36,13 +39,7 @@ export default async function ItUsersAuditPage() {
         }}
       />
 
-      {result.data ? (
-        <RemediationClient
-          departmentNames={departmentNames}
-          departmentToCampus={departmentToCampus}
-          plan={result.data}
-        />
-      ) : (
+      {snapshotResult.error ? (
         <div
           className="rounded-2xl p-5 text-sm"
           style={{
@@ -51,8 +48,14 @@ export default async function ItUsersAuditPage() {
             color: "#fca5a5",
           }}
         >
-          {result.error}
+          {snapshotResult.error}
         </div>
+      ) : (
+        <RemediationClient
+          departmentNames={departmentNames}
+          departmentToCampus={departmentToCampus}
+          snapshot={snapshotResult.data ?? null}
+        />
       )}
     </div>
   );
