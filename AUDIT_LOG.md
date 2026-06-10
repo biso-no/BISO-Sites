@@ -202,3 +202,31 @@ generated at build time). `bun x ultracite fix` clean on touched files.
 - Admin `src/i18n/config.ts` is a deliberate re-export shim of
   `@repo/i18n/config` (2 importers) — harmless alias kept.
 - `console.log` cleanup deferred to Phase 4 (scoped there).
+
+## Phase 4 — Production hardening (`6c7ba8c`)
+
+- **console.log**: deleted 7 debug logs (5× `[DEBUG]` in the api Graph
+  board route, a browser-console response dump in
+  `membership-provider.tsx`, a per-view `"Fetched event"` log); converted
+  the 7 operational logs (checkout-return payment tracing, sync and
+  provisioning progress) to `console.info`. Zero `console.log` remains in
+  production paths.
+- **Timing-safe secrets**: new `@repo/shared/utils/secrets.ts`
+  (`safeSecretCompare`, `crypto.timingSafeEqual`-based) now used by all
+  four shared-secret routes: admin `announcements/dispatch`, api
+  `departures/sync`, api `tickster/sync`, web `cron/cleanup-reservations`.
+- **Images**: added `sizes` to the two `<Image fill>` usages missing it
+  (benefit card logo 56px; news article hero).
+- **Metadata**: homepage now has a real title/description;
+  `recruitment/book/[token]` is `noindex,nofollow` (tokenized one-off
+  links). The `about/*` subtree and `safety` were already covered by
+  layout-level metadata from earlier work; all other public pages have
+  `generateMetadata`/`metadata` exports.
+- **Checked, no change needed**: error boundaries present at sensible
+  levels in both apps; mutations gate on pending state; no hardcoded
+  secrets; CORS allowlist correctly scopes credentialed origins;
+  `generateStaticParams` is N/A (web root layout forces dynamic
+  rendering).
+
+Verification: `bun run check-types` green for all workspaces except the
+pre-existing `docs` failure; `bun x ultracite fix` clean.
