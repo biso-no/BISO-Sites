@@ -113,10 +113,6 @@ export async function GET(
     // Using 'startswith' is more robust for department matching.
     const combinedFilterValue = `officeLocation eq '${campusInfo.officeFilter}' and startswith(department, '${departmentName}') and accountEnabled eq true`;
 
-    console.log("[DEBUG] Campus Office Filter:", campusInfo.officeFilter);
-    console.log("[DEBUG] Target Department Name (TRIMMED):", departmentName);
-    console.log("[DEBUG] Combined Filter Value (CLEAN):", combinedFilterValue);
-
     const response = await graphClient
       .api("/users")
       .header("ConsistencyLevel", "eventual") // Required for filtering on officeLocation
@@ -132,9 +128,6 @@ export async function GET(
 
     // 4. Map Users (Filtering is done by Graph)
     const matchedUsers = response.value || [];
-    console.log("[DEBUG] Users returned from Graph:", matchedUsers.length);
-    console.log("[DEBUG] @odata.count:", response["@odata.count"]);
-
     const members: DepartmentMember[] = matchedUsers.map(
       (user: Record<string, unknown>) => {
         const businessPhones = Array.isArray(user.businessPhones)

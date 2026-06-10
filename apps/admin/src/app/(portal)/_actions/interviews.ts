@@ -30,8 +30,7 @@ import {
   recruitmentInterviewCreateSchema,
   recruitmentScorecardSubmitSchema,
 } from "@repo/shared/types/recruitment";
-import { redirect } from "next/navigation";
-import { getUserAuthContext, type UserAuthContext } from "@/lib/authorization";
+import { requireAuth, type UserAuthContext } from "@/lib/authorization";
 import {
   assertInterviewWriteAccess,
   assertScorecardWriteAccess,
@@ -69,14 +68,6 @@ function toParticipantRole(role: string): JobInterviewParticipantsRole {
     default:
       return JobInterviewParticipantsRole.INTERVIEWER;
   }
-}
-
-async function requireAuth(): Promise<UserAuthContext> {
-  const ctx = await getUserAuthContext();
-  if (!ctx) {
-    redirect("/auth/login");
-  }
-  return ctx;
 }
 
 export interface InterviewWithParticipants {

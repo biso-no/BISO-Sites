@@ -1,6 +1,11 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import {
+  type ProfileFormInitialData,
+  type ProfileFormValues,
+  profileFormSchema,
+} from "@repo/shared/types/profile-form";
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -9,31 +14,7 @@ import {
   type UseFormRegister,
   useForm,
 } from "react-hook-form";
-import { z } from "zod";
 import { updateProfile } from "@/lib/actions/user";
-
-// Profile form schema
-const profileSchema = z.object({
-  name: z.string().min(2, "Name must be at least 2 characters"),
-  email: z.string().email("Please enter a valid email address").optional(),
-  phone: z
-    .string()
-    .min(8, "Phone number must be at least 8 characters")
-    .optional(),
-  address: z.string().min(3, "Address is required").optional(),
-  city: z.string().min(2, "City is required").optional(),
-  zip: z.string().min(4, "ZIP/Postal code is required").optional(),
-  bank_account: z
-    .string()
-    .min(8, "Bank account must be at least 8 characters")
-    .optional(),
-  swift: z.string().optional(),
-});
-
-type ProfileFormValues = z.infer<typeof profileSchema>;
-type ProfileFormInitialData = {
-  [Key in keyof ProfileFormValues]?: ProfileFormValues[Key] | null;
-};
 
 interface ProfileFormProps {
   email: string;
@@ -132,7 +113,7 @@ export function ProfileForm({ initialData, email }: ProfileFormProps) {
     handleSubmit,
     formState: { errors },
   } = useForm<ProfileFormValues>({
-    resolver: zodResolver(profileSchema),
+    resolver: zodResolver(profileFormSchema),
     defaultValues: {
       name: initialData?.name || "",
       email: email || "",

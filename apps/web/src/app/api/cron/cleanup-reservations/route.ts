@@ -1,5 +1,6 @@
+import { safeSecretCompare } from "@repo/shared/utils/secrets";
 import { NextResponse } from "next/server";
-import { cleanupExpiredReservations } from "@/app/actions/cart-reservations";
+import { cleanupAllExpiredReservations } from "@/app/actions/cart-reservations";
 import { isProd } from "@/lib/utils";
 
 /**
@@ -31,13 +32,16 @@ export async function GET(request: Request) {
 
   if (cronSecret) {
     const authHeader = request.headers.get("authorization");
-    if (authHeader !== `Bearer ${cronSecret}`) {
+    const token = authHeader?.startsWith("Bearer ")
+      ? authHeader.slice(7)
+      : null;
+    if (!safeSecretCompare(token, cronSecret)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
   }
 
   try {
-    const deletedCount = await cleanupExpiredReservations();
+    const deletedCount = await cleanupAllExpiredReservations();
 
     return NextResponse.json(
       {

@@ -1,10 +1,8 @@
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { requireNavAccess } from "@/lib/authorization";
-import {
-  getDocument,
-  listCampusesForDocuments,
-} from "../../_actions/documents";
+import { getDocument } from "../../_actions/documents";
+import { listCampuses } from "../../_actions/lookups";
 import { DocumentEditorClient } from "./_components/document-editor-client";
 
 interface Props {
@@ -20,7 +18,7 @@ export default async function DocumentEditorPage({ params }: Props) {
   const isNew = id === "new";
   const [document, campuses] = await Promise.all([
     isNew ? null : getDocument(id),
-    listCampusesForDocuments(),
+    listCampuses(),
   ]);
 
   if (!(isNew || document)) {

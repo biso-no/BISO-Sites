@@ -295,6 +295,7 @@ export async function getCollectionEvents(
         "translation_refs.locale",
         locale as ContentTranslationsLocale
       ),
+      Query.limit(100),
       Query.select([
         "$id",
         "$createdAt",

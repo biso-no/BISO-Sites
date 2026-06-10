@@ -1,4 +1,5 @@
 import { createAdminClient } from "@repo/api/server";
+import { safeSecretCompare } from "@repo/shared/utils/secrets";
 import { type NextRequest, NextResponse } from "next/server";
 import { dispatchDueAnnouncements } from "@/lib/announcements/send";
 
@@ -19,7 +20,7 @@ function hasValidSecret(request: NextRequest, secret: string) {
     readBearerToken(request),
     request.headers.get("x-cron-secret"),
   ];
-  return candidates.some((candidate) => candidate === secret);
+  return candidates.some((candidate) => safeSecretCompare(candidate, secret));
 }
 
 /**

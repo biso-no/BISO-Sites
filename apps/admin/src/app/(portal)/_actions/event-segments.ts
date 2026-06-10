@@ -13,8 +13,7 @@ import {
   type Users,
 } from "@repo/api/types/appwrite";
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
-import { getUserAuthContext, type UserAuthContext } from "@/lib/authorization";
+import { requireAuth, type UserAuthContext } from "@/lib/authorization";
 import { assertWriteAccess, hasRowAccess } from "@/lib/utils/authorization";
 import { sendAnnouncement } from "./announcements";
 import { logAuditEvent } from "./audit-log";
@@ -28,14 +27,6 @@ import {
 const EMAIL_PATTERN = /@/;
 const CSV_LINE_SPLIT = /\r?\n/;
 const ATTENDEE_PAGE_SIZE = 200;
-
-async function requireAuth(): Promise<UserAuthContext> {
-  const ctx = await getUserAuthContext();
-  if (!ctx) {
-    redirect("/auth/login");
-  }
-  return ctx;
-}
 
 type SessionDb = Awaited<ReturnType<typeof createSessionClient>>["db"];
 
@@ -419,7 +410,8 @@ async function matchAttendeeUser(
       // No profile row yet — leave campus null.
     }
     return { userId: user.$id, campusId };
-  } catch {
+  } catch (error) {
+    console.error("Failed to resolve attendee user context:", error);
     return { userId: null, campusId: null };
   }
 }

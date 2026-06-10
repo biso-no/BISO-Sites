@@ -23,7 +23,7 @@ export async function GET(_req: Request) {
   );
 
   if (deletedUsers.length > 0) {
-    console.log(`Deleted ${deletedUsers.length} anonymous users`);
+    console.info(`Deleted ${deletedUsers.length} anonymous users`);
   }
   return Response.json(`Deleted ${deletedUsers.length} anonymous users`);
 }

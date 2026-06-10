@@ -1,4 +1,5 @@
 import { createAdminClient } from "@repo/api/server";
+import { safeSecretCompare } from "@repo/shared/utils/secrets";
 import { type NextRequest, NextResponse } from "next/server";
 import { getDepartureSyncSecret, syncDepartures } from "@/lib/entur-departures";
 
@@ -22,7 +23,7 @@ function hasValidSyncSecret(request: NextRequest, secret: string) {
     request.nextUrl.searchParams.get("secret"),
   ];
 
-  return candidates.some((candidate) => candidate === secret);
+  return candidates.some((candidate) => safeSecretCompare(candidate, secret));
 }
 
 async function handleSync(request: NextRequest) {

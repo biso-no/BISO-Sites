@@ -14,18 +14,9 @@ import {
 import { createAdminClient, createSessionClient } from "@repo/api/server";
 import type { Pages, PageViewEvents } from "@repo/api/types/appwrite";
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
-import { getUserAuthContext, type UserAuthContext } from "@/lib/authorization";
+import { requireAuth, type UserAuthContext } from "@/lib/authorization";
 import { applyScopeQueries } from "@/lib/utils/authorization";
 import { logAuditEvent } from "./audit-log";
-
-async function requireAuth(): Promise<UserAuthContext> {
-  const ctx = await getUserAuthContext();
-  if (!ctx) {
-    redirect("/auth/login");
-  }
-  return ctx;
-}
 
 export async function listPages(opts?: { status?: string; campusId?: string }) {
   const ctx = await requireAuth();
@@ -132,7 +123,8 @@ async function _getPageViewStats(days = 14): Promise<PageViewDay[]> {
     }
 
     return Object.entries(buckets).map(([date, views]) => ({ date, views }));
-  } catch {
+  } catch (error) {
+    console.error("Failed to load page-view stats:", error);
     return [];
   }
 }

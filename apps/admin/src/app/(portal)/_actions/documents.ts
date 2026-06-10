@@ -15,8 +15,7 @@ import {
   SharePointService,
 } from "@repo/connectors/sharepoint";
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
-import { getUserAuthContext, type UserAuthContext } from "@/lib/authorization";
+import { requireAuth, type UserAuthContext } from "@/lib/authorization";
 import {
   resolveDocumentsDriveId,
   resolveFolderPath,
@@ -33,14 +32,6 @@ import {
   type DocumentMetadataFormValues,
   documentMetadataSchema,
 } from "./schemas";
-
-async function requireAuth(): Promise<UserAuthContext> {
-  const ctx = await getUserAuthContext();
-  if (!ctx) {
-    redirect("/auth/login");
-  }
-  return ctx;
-}
 
 function getSharePointService() {
   return new SharePointService(getSharePointConfig());
@@ -361,14 +352,4 @@ export async function deleteDocument(
   });
   revalidatePath("/documents");
   return { data: true };
-}
-
-export async function listCampusesForDocuments() {
-  await requireAuth();
-  const { db } = await createSessionClient();
-  const response = await db.listRows<Campus>("app", "campus", [
-    Query.orderAsc("name"),
-    Query.limit(50),
-  ]);
-  return response.rows;
 }

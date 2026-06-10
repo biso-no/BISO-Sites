@@ -3,6 +3,10 @@
 import { Query } from "@repo/api";
 import { createAdminClient, createSessionClient } from "@repo/api/server";
 import type { Departments } from "@repo/api/types/appwrite";
+import {
+  getManagedCampuses,
+  isNationalOperations,
+} from "@repo/shared/utils/team-roles";
 import { cookies } from "next/headers";
 import { notFound, redirect, unauthorized } from "next/navigation";
 import { cache } from "react";
@@ -28,45 +32,6 @@ export interface UserAuthContext {
   resolvedDepartmentIds: string[]; // Appwrite Departments row $ids matching departmentNames
   roles: string[]; // Computed roles (e.g., "globaladmin", "campusadmin")
   userId: string;
-}
-
-/**
- * Determine if a user is a global admin based on their team memberships.
- * National campus + Operations Unit department = Global Admin
- * Department name is now expanded from camelCase: "OperationsUnit" -> "Operations Unit"
- */
-function isNationalOperations(
-  campusNames: string[],
-  departmentNames: string[]
-): boolean {
-  return (
-    campusNames.includes("National") &&
-    departmentNames.includes("Operations Unit")
-  );
-}
-
-/**
- * Determine which campuses a user manages based on their memberships.
- * Being in "Ledelsen {City}" dept + Campus "{City}" = Campus admin for that city.
- * Department name is now expanded from camelCase: "LedelsenOslo" -> "Ledelsen Oslo"
- */
-function getManagedCampuses(
-  campusNames: string[],
-  departmentNames: string[]
-): string[] {
-  const managedCampuses: string[] = [];
-  const cityNames = ["Oslo", "Bergen", "Stavanger", "Trondheim"];
-
-  for (const city of cityNames) {
-    const hasCampus = campusNames.includes(city);
-    const hasManagement = departmentNames.includes(`Ledelsen ${city}`);
-
-    if (hasCampus && hasManagement) {
-      managedCampuses.push(city);
-    }
-  }
-
-  return managedCampuses;
 }
 
 interface TeamParseResult {
@@ -230,17 +195,6 @@ export const getUserAuthContext = cache(
 );
 
 /**
- * Check if user has a specific role
- */
-async function _hasRole(role: string): Promise<boolean> {
-  const ctx = await getUserAuthContext();
-  if (!ctx) {
-    return false;
-  }
-  return ctx.roles.includes(role.toLowerCase());
-}
-
-/**
  * Check if user is a global admin (National + OperationsUnit team membership)
  */
 export async function isGlobalAdmin(): Promise<boolean> {
@@ -249,130 +203,6 @@ export async function isGlobalAdmin(): Promise<boolean> {
     return false;
   }
   return ctx.roles.includes("globaladmin");
-}
-
-/**
- * Check if user is a campus admin (manages at least one campus).
- */
-async function _isCampusAdmin(): Promise<boolean> {
-  const ctx = await getUserAuthContext();
-  if (!ctx) {
-    return false;
-  }
-  return ctx.managedCampuses.length > 0;
-}
-
-/**
- * Check if user belongs to a specific campus team
- */
-async function _belongsToCampus(campusTeamId: string): Promise<boolean> {
-  const ctx = await getUserAuthContext();
-  if (!ctx) {
-    return false;
-  }
-  if (ctx.roles.includes("globaladmin")) {
-    return true;
-  }
-  return ctx.campusTeamIds.includes(campusTeamId);
-}
-
-/**
- * Check if user belongs to a specific department team
- */
-async function _belongsToDepartment(
-  departmentTeamId: string
-): Promise<boolean> {
-  const ctx = await getUserAuthContext();
-  if (!ctx) {
-    return false;
-  }
-  if (ctx.roles.includes("globaladmin")) {
-    return true;
-  }
-  return ctx.departmentTeamIds.includes(departmentTeamId);
-}
-
-// ============================================================================
-// Permission Checking Utilities (for $permissions arrays)
-// ============================================================================
-
-const PERMISSION_REGEX = /^(\w+)\("([^"]+)"\)$/;
-
-/**
- * Parse a permission string to extract the type and target
- * Example: 'update("team:abc123")' -> { type: "update", target: "team:abc123" }
- */
-function parsePermission(
-  perm: string
-): { type: string; target: string } | null {
-  const match = perm.match(PERMISSION_REGEX);
-  if (!match) {
-    return null;
-  }
-  return { type: match[1], target: match[2] };
-}
-
-/**
- * Check if a permission target matches the user's context.
- * Only team-based and user-based targets are checked — label targets are ignored.
- */
-function targetMatchesContext(target: string, ctx: UserAuthContext): boolean {
-  if (target.startsWith("team:")) {
-    const teamId = target.replace("team:", "");
-    return (
-      ctx.campusTeamIds.includes(teamId) ||
-      ctx.departmentTeamIds.includes(teamId)
-    );
-  }
-
-  if (target.startsWith("user:")) {
-    const userId = target.replace("user:", "");
-    return userId === ctx.userId;
-  }
-
-  return target === "any";
-}
-
-/**
- * Check if user is a global admin based on context (team membership only)
- */
-function isGlobalAdminContext(ctx: UserAuthContext): boolean {
-  return ctx.roles.includes("globaladmin");
-}
-
-/**
- * Check if user has read access based on $permissions array
- */
-async function _canReadDocument(permissions: string[]): Promise<boolean> {
-  const ctx = await getUserAuthContext();
-  if (!ctx) {
-    return false;
-  }
-
-  if (isGlobalAdminContext(ctx)) {
-    return true;
-  }
-
-  for (const perm of permissions) {
-    const parsed = parsePermission(perm);
-    if (!parsed) {
-      continue;
-    }
-
-    if (parsed.type !== "read") {
-      continue;
-    }
-
-    if (parsed.target === "users" || parsed.target === "any") {
-      return true;
-    }
-
-    if (targetMatchesContext(parsed.target, ctx)) {
-      return true;
-    }
-  }
-
-  return false;
 }
 
 // ============================================================================
@@ -429,6 +259,18 @@ export async function getUserRolesForClient(): Promise<UserRolesForClient> {
     managedCampuses: ctx.managedCampuses,
     roles: ctx.roles,
   };
+}
+
+/**
+ * Server-action guard: redirects unauthenticated users to login and returns
+ * the auth context. Canonical auth check for (portal)/_actions modules.
+ */
+export async function requireAuth(): Promise<UserAuthContext> {
+  const ctx = await getUserAuthContext();
+  if (!ctx) {
+    redirect("/auth/login");
+  }
+  return ctx;
 }
 
 /**

@@ -9,8 +9,7 @@ import type {
   News,
 } from "@repo/api/types/appwrite";
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
-import { getUserAuthContext, type UserAuthContext } from "@/lib/authorization";
+import { requireAuth } from "@/lib/authorization";
 import {
   applyScopeQueries,
   assertPublishAccess,
@@ -25,14 +24,6 @@ export interface DraftItem {
   title: string;
   type: "job" | "event" | "news";
   updatedAt: string;
-}
-
-async function requireAuth(): Promise<UserAuthContext> {
-  const ctx = await getUserAuthContext();
-  if (!ctx) {
-    redirect("/auth/login");
-  }
-  return ctx;
 }
 
 export async function listDrafts(): Promise<DraftItem[]> {

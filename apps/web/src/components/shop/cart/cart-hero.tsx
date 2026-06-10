@@ -1,9 +1,9 @@
 "use client";
 
 import { ImageWithFallback } from "@repo/ui/components/image";
+import { PLACEHOLDER_IMAGE } from "@repo/ui/lib/placeholder-images";
 import { ArrowLeft, ShoppingCart } from "lucide-react";
 import Link from "next/link";
-import { PLACEHOLDER_IMAGE } from "@/lib/constants/placeholder-images";
 import { useCart } from "@/lib/contexts/cart-context";
 
 export function CartHero() {

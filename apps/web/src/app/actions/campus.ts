@@ -111,38 +111,6 @@ export async function getCampuses({
   return campuses.rows;
 }
 
-/**
- * Get a single campus with its departments
- * @public — consumed by the expense/expense-v2 client flow (knip-ignored dir).
- */
-export async function getCampusWithDepartments(campusId: string) {
-  try {
-    const { db } = await createSessionClient();
-
-    const campus = await db.getRow<Campus>("app", "campus", campusId, [
-      Query.select([
-        "$id",
-        "name",
-        "departments.$id",
-        "departments.Name",
-        "departments.active",
-      ]),
-    ]);
-
-    return {
-      success: true,
-      campus,
-    };
-  } catch (error) {
-    console.error("Error fetching campus with departments:", error);
-    return {
-      success: false,
-      campus: null,
-      error: error instanceof Error ? error.message : "Failed to fetch campus",
-    };
-  }
-}
-
 export async function getCampusData(_campusId?: string) {
   const { db } = await createSessionClient();
   const campuses = await db.listRows<CampusData>("app", "campus_data");

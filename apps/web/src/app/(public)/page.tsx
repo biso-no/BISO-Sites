@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { Suspense } from "react";
 import { AboutSection } from "@/components/home/about-section";
 import { EventsSection } from "@/components/home/events-section";
@@ -18,6 +19,12 @@ import { listEvents } from "../actions/events";
 import { listJobs } from "../actions/jobs";
 import { getLocale } from "../actions/locale";
 import { listNews } from "../actions/news";
+
+export const metadata: Metadata = {
+  title: "BISO – BI Student Organisation",
+  description:
+    "BI Student Organisation (BISO) is the student association at BI Norwegian Business School — events, volunteer opportunities, student benefits, and campus life across Oslo, Bergen, Trondheim, and Stavanger.",
+};
 
 export default async function HomePage() {
   const prefs = await getUserPreferences();

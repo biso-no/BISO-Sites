@@ -499,7 +499,6 @@ export function ExpenseSplitView({
       store.addReceipt(receipt);
 
       // Removed auto-selection and view switching to keep user in current context
-      // store.setSelectedReceiptId(tempId);
       // setMobileView("report");
 
       try {

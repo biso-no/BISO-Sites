@@ -1,44 +1,12 @@
 import "server-only";
 import { createAdminClient, createSessionClient } from "@repo/api/server";
 import type { AdminScope } from "@repo/shared/types/user-management";
+import {
+  getManagedCampuses,
+  isNationalOperations,
+  normalizeTeamName,
+} from "@repo/shared/utils/team-roles";
 import type { NextRequest } from "next/server";
-
-const KNOWN_CAMPUSES = new Set([
-  "National",
-  "Oslo",
-  "Bergen",
-  "Stavanger",
-  "Trondheim",
-]);
-
-function expandDepartmentName(name: string): string {
-  return name.replace(/([a-z])([A-Z])/g, "$1 $2").trim();
-}
-
-function normalizeTeamName(name: string): {
-  kind: "campus" | "department";
-  value: string;
-} | null {
-  if (name.startsWith("SG-App-Campus-")) {
-    return {
-      kind: "campus",
-      value: name.replace("SG-App-Campus-", "").trim(),
-    };
-  }
-
-  if (name.startsWith("SG-App-Dept-")) {
-    return {
-      kind: "department",
-      value: expandDepartmentName(name.replace("SG-App-Dept-", "")),
-    };
-  }
-
-  if (KNOWN_CAMPUSES.has(name)) {
-    return { kind: "campus", value: name };
-  }
-
-  return { kind: "department", value: name.trim() };
-}
 
 // Helper to reduce complexity
 function computeManagedCampusNames(
@@ -53,27 +21,6 @@ function computeManagedCampusNames(
     return managed;
   }
   return all;
-}
-
-// Helper to compute managed campuses based on city membership
-function computeManagedCampuses(
-  campusNames: string[],
-  departmentNames: string[]
-): string[] {
-  const cityNames = ["Oslo", "Bergen", "Stavanger", "Trondheim"];
-  const managedCampuses: string[] = [];
-
-  for (const city of cityNames) {
-    const hasCampus = campusNames.includes(city);
-    const hasManagement =
-      departmentNames.includes(`Ledelsen${city}`) ||
-      departmentNames.includes(`Ledelsen ${city}`);
-    if (hasCampus && hasManagement) {
-      managedCampuses.push(city);
-    }
-  }
-
-  return managedCampuses;
 }
 
 /**
@@ -121,20 +68,14 @@ export async function getAdminScope(
       }
     }
 
-    // Check for global admin (National + OperationsUnit OR admin label)
-    const hasNational = campusNames.includes("National");
-    const hasOperationsUnit =
-      departmentNames.includes("OperationsUnit") ||
-      departmentNames.includes("Operations Unit");
+    // Check for global admin (National + Operations Unit OR admin label)
     const hasAdminLabel =
       labels.includes("admin") || labels.includes("globaladmin");
-    const isGlobalAdmin = (hasNational && hasOperationsUnit) || hasAdminLabel;
+    const isGlobalAdmin =
+      isNationalOperations(campusNames, departmentNames) || hasAdminLabel;
 
     // Check for campus admin (Ledelsen{City} + Campus-{City})
-    const managedCampuses = computeManagedCampuses(
-      campusNames,
-      departmentNames
-    );
+    const managedCampuses = getManagedCampuses(campusNames, departmentNames);
 
     const isCampusAdmin = managedCampuses.length > 0;
 
@@ -171,55 +112,6 @@ export function canManageCampus(
 }
 
 /**
- * Check if the admin scope allows managing a specific department
- */
-function _canManageDepartment(
-  scope: AdminScope,
-  campusName: string,
-  departmentName: string
-): boolean {
-  if (scope.canManageAnyCampus) {
-    return true;
-  }
-
-  // Campus admin can manage any department in their campus
-  if (scope.isCampusAdmin && scope.managedCampusNames.includes(campusName)) {
-    return true;
-  }
-
-  // Department-level admin
-  if (
-    scope.managedCampusNames.includes(campusName) &&
-    scope.managedDepartmentNames.includes(departmentName)
-  ) {
-    return true;
-  }
-
-  return false;
-}
-
-/**
- * Filter items by campus scope
- */
-function _filterByCampusScope<T>(
-  items: T[],
-  scope: AdminScope,
-  getCampusName: (item: T) => string | null | undefined
-): T[] {
-  if (scope.canManageAnyCampus) {
-    return items;
-  }
-
-  return items.filter((item) => {
-    const campusName = getCampusName(item);
-    if (!campusName) {
-      return false;
-    }
-    return canManageCampus(scope, campusName);
-  });
-}
-
-/**
  * Create an audit log entry for admin actions
  */
 export async function createAuditLog(data: {
@@ -243,15 +135,4 @@ export async function createAuditLog(data: {
   } catch (error) {
     console.error("Failed to create audit log:", error);
   }
-}
-
-/**
- * Validate that request has valid admin session
- */
-async function _requireAdminScope(req: NextRequest): Promise<AdminScope> {
-  const scope = await getAdminScope(req);
-  if (!scope) {
-    throw new Error("Unauthorized: No valid admin session");
-  }
-  return scope;
 }

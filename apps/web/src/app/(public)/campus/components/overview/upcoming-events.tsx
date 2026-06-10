@@ -4,10 +4,10 @@ import { ImageWithFallback } from "@repo/ui/components/image";
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Button } from "@repo/ui/components/ui/button";
 import { Card } from "@repo/ui/components/ui/card";
+import { PLACEHOLDER_IMAGE } from "@repo/ui/lib/placeholder-images";
 import { Calendar, ChevronRight } from "lucide-react";
 import { motion } from "motion/react";
 import Link from "next/link";
-import { PLACEHOLDER_IMAGE } from "@/lib/constants/placeholder-images";
 
 interface UpcomingEventsProps {
   events: Events[];

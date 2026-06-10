@@ -3,11 +3,11 @@ import type { ContentTranslations, News } from "@repo/api/types/appwrite";
 import { ImageWithFallback } from "@repo/ui/components/image";
 import { Button } from "@repo/ui/components/ui/button";
 import { Card } from "@repo/ui/components/ui/card";
+import { PLACEHOLDER_IMAGE } from "@repo/ui/lib/placeholder-images";
 import { ArrowRight, Clock } from "lucide-react";
 import { motion } from "motion/react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { PLACEHOLDER_IMAGE } from "@/lib/constants/placeholder-images";
 
 interface NewsClientProps {
   news: News[];

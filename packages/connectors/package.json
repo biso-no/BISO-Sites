@@ -15,8 +15,7 @@
     "./azure/users": "./src/azure/users.ts",
     "./24sevenoffice": "./src/24sevenoffice/index.ts",
     "./sharepoint": "./src/sharepoint/index.ts",
-    "./tickster": "./src/tickster/index.ts",
-    "./woocommerce": "./src/woocommerce/index.ts"
+    "./tickster": "./src/tickster/index.ts"
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",
@@ -32,7 +31,6 @@
     "openapi-fetch": "catalog:",
     "server-only": "catalog:",
     "soap": "catalog:",
-    "woocommerce-rest-ts-api": "catalog:",
     "zod": "catalog:"
   }
 }

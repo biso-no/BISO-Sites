@@ -1,5 +1,6 @@
 import { Query } from "@repo/api";
 import { createAdminClient } from "@repo/api/server";
+import { safeSecretCompare } from "@repo/shared/utils/secrets";
 import { type NextRequest, NextResponse } from "next/server";
 import {
   getTicksterSyncConfig,
@@ -25,7 +26,7 @@ function hasValidSyncSecret(request: NextRequest, secret: string) {
     request.headers.get("x-cron-secret"),
     request.headers.get("x-sync-secret"),
   ];
-  return candidates.some((candidate) => candidate === secret);
+  return candidates.some((candidate) => safeSecretCompare(candidate, secret));
 }
 
 async function handleSync(request: NextRequest) {
@@ -76,7 +77,7 @@ async function handleSync(request: NextRequest) {
       },
       logger: {
         error: (message) => console.error(`[tickster/sync] ${message}`),
-        log: (message) => console.log(`[tickster/sync] ${message}`),
+        log: (message) => console.info(`[tickster/sync] ${message}`),
       },
     });
 

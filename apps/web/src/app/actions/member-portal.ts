@@ -277,7 +277,7 @@ export async function getBenefitReveals(userId: string): Promise<Set<string>> {
     const response = await db.listRows<BenefitReveals>(
       "app",
       "benefit_reveals",
-      [Query.equal("user_id", userId)]
+      [Query.equal("user_id", userId), Query.limit(500)]
     );
 
     return new Set(response.rows?.map((r) => r.benefit_id) || []);

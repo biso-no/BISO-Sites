@@ -9,8 +9,7 @@
     "check-types": "tsc --noEmit"
   },
   "exports": {
-    "./vipps": "./src/vipps/index.ts",
-    "./stripe": "./src/stripe/index.ts"
+    "./vipps": "./src/vipps/index.ts"
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",
@@ -19,7 +18,6 @@
   "dependencies": {
     "@repo/shared": "workspace:*",
     "@types/node": "catalog:",
-    "@vippsmobilepay/sdk": "catalog:",
-    "stripe": "catalog:"
+    "@vippsmobilepay/sdk": "catalog:"
   }
 }

@@ -9,10 +9,7 @@
     "./hooks/*": "./hooks/*.ts",
     "./hooks/use-mobile": "./hooks/use-mobile.ts",
     "./hooks/use-hydration": "./hooks/use-hydration.ts",
-    "./styles/globals.css": "./styles/globals.css",
-    "./components/date-time-picker": "./components/date-time-picker.tsx",
-    "./components/file-upload": "./components/file-upload.tsx",
-    "./components/link-picker": "./components/link-picker.tsx"
+    "./styles/globals.css": "./styles/globals.css"
   },
   "scripts": {
     "build": "tsc --noEmit",

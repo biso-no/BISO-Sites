@@ -78,7 +78,7 @@ export async function grantTeamContentAccess(teamId: string): Promise<void> {
           tableId,
           permissions: [...table.$permissions, createPerm],
         });
-        console.log(`Granted create on ${tableId} to team ${teamId}`);
+        console.info(`Granted create on ${tableId} to team ${teamId}`);
       }
     } catch (err) {
       console.error(
@@ -121,7 +121,7 @@ export async function grantTeamRecruitmentAccess(
           tableId,
           permissions: next,
         });
-        console.log(
+        console.info(
           `Granted recruitment access on ${tableId} to team ${teamId}`
         );
       }
@@ -189,7 +189,7 @@ export async function grantDeptTeamAccess(
       const deduped = [...new Set(newPerms)];
 
       await db.updateRow(DATABASE_ID, "departments", dept.$id, {}, deduped);
-      console.log(
+      console.info(
         `Granted update/delete on dept "${dept.Name}" to team ${teamId}`
       );
     }

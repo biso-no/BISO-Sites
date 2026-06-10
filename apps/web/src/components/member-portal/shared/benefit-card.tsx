@@ -115,6 +115,7 @@ export function BenefitCard({
                     alt={benefit.partner_name || ""}
                     className="object-cover"
                     fill
+                    sizes="56px"
                     src={benefit.partner_logo_url}
                   />
                 </div>

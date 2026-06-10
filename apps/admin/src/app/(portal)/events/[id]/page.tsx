@@ -2,8 +2,8 @@ import type { EventRecord } from "@repo/shared/types/events";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { requireNavAccess } from "@/lib/authorization";
-import { getEvent, listDepartmentsForCampus } from "../../_actions/events";
-import { listCampuses } from "../../_actions/lookups";
+import { getEvent } from "../../_actions/events";
+import { listCampuses, listDepartmentsForCampus } from "../../_actions/lookups";
 import { EventStudioEditor } from "./_components/event-studio-editor";
 
 interface EventEditorPageProps {

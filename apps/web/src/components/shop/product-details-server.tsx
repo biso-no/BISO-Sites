@@ -5,9 +5,9 @@ import type {
 import { ImageWithFallback } from "@repo/ui/components/image";
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Card } from "@repo/ui/components/ui/card";
+import { PLACEHOLDER_IMAGE } from "@repo/ui/lib/placeholder-images";
 import { ArrowLeft, MapPin, Tag, Users } from "lucide-react";
 import Link from "next/link";
-import { PLACEHOLDER_IMAGE } from "@/lib/constants/placeholder-images";
 import {
   calculateSavings,
   formatPrice,

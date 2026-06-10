@@ -10,17 +10,8 @@
     "**/i18n/**",
     ".claude/**",
 
-    "apps/admin/src/app/actions/migration/**",
-    "apps/admin/src/app/(admin)/**/shared/**",
-
-    "apps/web/src/components/expense/**",
-    "apps/web/src/components/expense-v2/**",
-    "apps/web/src/components/shop/product/**",
     "apps/web/src/components/member-portal/**",
-    "apps/web/src/lib/types/**",
-    "apps/web/src/lib/actions/expense-ocr.ts",
-
-    "packages/editor/src/fields/**"
+    "apps/web/src/lib/types/**"
   ],
   "ignoreDependencies": [
     "classnames",

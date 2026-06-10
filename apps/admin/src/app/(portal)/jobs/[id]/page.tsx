@@ -1,11 +1,8 @@
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { requireNavAccess } from "@/lib/authorization";
-import {
-  getJob,
-  listCampuses,
-  listDepartmentsForCampus,
-} from "../../_actions/jobs";
+import { getJob } from "../../_actions/jobs";
+import { listCampuses, listDepartmentsForCampus } from "../../_actions/lookups";
 import { JobStudioEditor } from "./_components/job-studio-editor";
 
 interface JobEditorPageProps {

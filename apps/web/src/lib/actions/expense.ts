@@ -1,36 +1,12 @@
 "use server";
 
-import { ID, type Models, Query } from "@repo/api";
+import { ID, Query } from "@repo/api";
 import { createSessionClient } from "@repo/api/server";
-import {
-  type ExpenseAttachments,
-  type Expenses,
-  ExpensesStatus,
-} from "@repo/api/types/appwrite";
-import { revalidatePath } from "next/cache";
+import type { Expenses, ExpensesStatus } from "@repo/api/types/appwrite";
 
 const APPWRITE_ENDPOINT = process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT;
 const APPWRITE_PROJECT =
   process.env.NEXT_PUBLIC_APPWRITE_PROJECT || process.env.APPWRITE_PROJECT_ID;
-
-// Type for creating an expense - omits relational fields that are populated by the database
-type CreateExpenseInput = Omit<
-  Expenses,
-  | keyof import("@repo/api").Models.Row
-  | "user"
-  | "campusRel"
-  | "departmentRel"
-  | "expenseAttachments"
-> & {
-  campusRel: string;
-  expenseAttachments: string[];
-};
-
-// Type for creating an expense attachment
-type CreateExpenseAttachmentInput = Omit<
-  ExpenseAttachments,
-  keyof import("@repo/api").Models.Row
->;
 
 /**
  * Get all expenses for the current user with optional filters
@@ -46,6 +22,7 @@ export async function getExpenses(filters?: {
     const queries = [
       Query.equal("userId", user.$id),
       Query.orderDesc("$createdAt"),
+      Query.limit(100),
     ];
 
     if (filters?.status) {
@@ -129,63 +106,6 @@ export async function getExpenseById(expenseId: string) {
 }
 
 /**
- * Create a new expense
- * @public — consumed by the expense-v2 client flow (knip-ignored dir).
- */
-export async function createExpense(data: {
-  campus: string;
-  department: string;
-  bank_account: string;
-  description?: string;
-  expenseAttachments: string[]; // Array of attachment IDs
-  total: number;
-  prepayment_amount?: number;
-  eventName?: string;
-}) {
-  try {
-    const { db, account } = await createSessionClient();
-    const user = await account.get();
-
-    const expenseData: CreateExpenseInput = {
-      campus: data.campus,
-      campusRel: data.campus,
-      department: data.department,
-      bank_account: data.bank_account,
-      description: data.description || null,
-      expenseAttachments: data.expenseAttachments,
-      total: data.total,
-      prepayment_amount: data.prepayment_amount || null,
-      status: ExpensesStatus.PENDING,
-      userId: user.$id,
-      eventName: data.eventName || null,
-      invoice_id: null,
-    };
-
-    const expense = (await db.createRow<Models.DefaultRow>(
-      "app",
-      "expense",
-      ID.unique(),
-      expenseData as Record<string, unknown>
-    )) as unknown as Expenses;
-
-    revalidatePath("/fs");
-
-    return {
-      success: true,
-      expense,
-    };
-  } catch (error) {
-    console.error("Error creating expense:", error);
-    return {
-      success: false,
-      expense: null,
-      error:
-        error instanceof Error ? error.message : "Failed to create expense",
-    };
-  }
-}
-
-/**
  * Upload an expense attachment to Appwrite storage
  */
 export async function uploadExpenseAttachment(formData: FormData) {
@@ -233,140 +153,6 @@ export async function uploadExpenseAttachment(formData: FormData) {
       success: false,
       error:
         error instanceof Error ? error.message : "Failed to upload attachment",
-    };
-  }
-}
-
-/**
- * Create an expense attachment record in the database
- * @public — consumed by the expense-v2 client flow (knip-ignored dir).
- */
-export async function createExpenseAttachment(data: {
-  date: string;
-  url: string;
-  amount: number;
-  description: string;
-  type: string;
-}) {
-  try {
-    const { db } = await createSessionClient();
-
-    const attachmentData: CreateExpenseAttachmentInput = {
-      date: data.date,
-      url: data.url,
-      amount: data.amount,
-      description: data.description,
-      type: data.type,
-    };
-
-    const attachment = (await db.createRow<Models.DefaultRow>(
-      "app",
-      "expense_attachments",
-      ID.unique(),
-      attachmentData as Record<string, unknown>
-    )) as unknown as ExpenseAttachments;
-
-    return {
-      success: true,
-      attachment,
-    };
-  } catch (error) {
-    console.error("Error creating attachment record:", error);
-    return {
-      success: false,
-      attachment: null,
-      error:
-        error instanceof Error
-          ? error.message
-          : "Failed to create attachment record",
-    };
-  }
-}
-
-/**
- * Update an existing expense
- */
-async function _updateExpense(
-  expenseId: string,
-  data: Partial<CreateExpenseInput>
-) {
-  try {
-    const { db, account } = await createSessionClient();
-    const user = await account.get();
-
-    // Verify ownership
-    const existingExpense = await db.getRow<Expenses>(
-      "app",
-      "expense",
-      expenseId
-    );
-
-    if (existingExpense.userId !== user.$id) {
-      return {
-        success: false,
-        error: "Unauthorized access",
-      };
-    }
-
-    const updatedExpense = await db.updateRow<Expenses>(
-      "app",
-      "expense",
-      expenseId,
-      data as Record<string, unknown>
-    );
-
-    revalidatePath("/fs");
-    revalidatePath(`/fs/${expenseId}`);
-
-    return {
-      success: true,
-      expense: updatedExpense,
-    };
-  } catch (error) {
-    console.error("Error updating expense:", error);
-    return {
-      success: false,
-      error:
-        error instanceof Error ? error.message : "Failed to update expense",
-    };
-  }
-}
-
-/**
- * Delete an expense
- */
-async function _deleteExpense(expenseId: string) {
-  try {
-    const { db, account } = await createSessionClient();
-    const user = await account.get();
-
-    // Verify ownership
-    const existingExpense = await db.getRow<Expenses>(
-      "app",
-      "expense",
-      expenseId
-    );
-
-    if (existingExpense.userId !== user.$id) {
-      return {
-        success: false,
-        error: "Unauthorized access",
-      };
-    }
-
-    await db.deleteRow("app", "expense", expenseId);
-
-    revalidatePath("/fs");
-
-    return {
-      success: true,
-    };
-  } catch (error) {
-    console.error("Error deleting expense:", error);
-    return {
-      success: false,
-      error:
-        error instanceof Error ? error.message : "Failed to delete expense",
     };
   }
 }

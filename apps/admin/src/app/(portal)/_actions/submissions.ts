@@ -3,17 +3,8 @@
 import { Query } from "@repo/api";
 import { createSessionClient } from "@repo/api/server";
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
-import { getUserAuthContext, type UserAuthContext } from "@/lib/authorization";
+import { requireAuth } from "@/lib/authorization";
 import { applyScopeQueries } from "@/lib/utils/authorization";
-
-async function requireAuth(): Promise<UserAuthContext> {
-  const ctx = await getUserAuthContext();
-  if (!ctx) {
-    redirect("/auth/login");
-  }
-  return ctx;
-}
 
 export interface FormSubmission {
   $createdAt: string;

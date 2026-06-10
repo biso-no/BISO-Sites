@@ -46,7 +46,6 @@ export const MembershipProvider = ({
       const response = await fetch(url);
       const data: MembershipStatus = await response.json();
 
-      console.log("[MembershipProvider] Response:", data);
       setStatus(data);
     } catch (error) {
       console.error("Error checking membership:", error);
