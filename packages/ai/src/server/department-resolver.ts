@@ -6,6 +6,11 @@ import {
   departmentResolutionBatchSchema,
 } from "@repo/shared/types/user-management";
 import { generateObject } from "ai";
+import { DEPARTMENT_ABBREVIATIONS } from "./department-abbreviations";
+
+const GLOSSARY_BLOCK = Object.entries(DEPARTMENT_ABBREVIATIONS)
+  .map(([abbr, name]) => `- ${abbr} = ${name}`)
+  .join("\n");
 
 export interface ResolveDepartmentsInput {
   campusLabel: string; // e.g. "Oslo" or "National/unknown" (context only)
@@ -29,13 +34,9 @@ chosen department's prefix (e.g. "BRG Bergensbaneløpet" → campus "Bergen"). T
 LAST segment is often the campus (oslo/bergen/trondheim/stavanger), but NOT always — when
 the email has no campus token, infer the campus from the matched department's prefix.
 
-Known department abbreviations (ad-hoc; the local-part contracts the department name):
-- fr = Fadderullan
-- kd = Karrieredagene
-- nu = Næringslivsutvalget
-- vl = Vinterlekene (Winter Games)
-- bbl = Bergensbaneløpet
-- mu = Markedsutvalget
+Known department abbreviations (ad-hoc; the local-part contracts the department name —
+match each to the campus-prefixed candidate, e.g. "kd" → "OSL Karrieredagene"):
+${GLOSSARY_BLOCK}
 
 Classification:
 - A segment is a department abbreviation or department word (e.g. "finance.nu.oslo",
@@ -68,8 +69,7 @@ function buildPrompt(input: ResolveDepartmentsInput): string {
       : "(none — classify these as manual unless clearly management)";
   const userList = input.users
     .map(
-      (u) =>
-        `ref=${u.ref} | email=${u.email} | office=${u.office || "(blank)"}`
+      (u) => `ref=${u.ref} | email=${u.email} | office=${u.office || "(blank)"}`
     )
     .join("\n");
 
