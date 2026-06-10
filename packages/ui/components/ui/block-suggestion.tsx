@@ -404,7 +404,6 @@ export const useResolveSuggestion = (
 
       if (!nodeData) return;
 
-      // const comments = data?.discussions.find((d) => d.id === id)?.comments;
       const comments =
         discussions.find((s: TDiscussion) => s.id === id)?.comments || [];
       const createdAt = new Date(nodeData.createdAt);

@@ -91,7 +91,7 @@ export function ProfileTabs({
       </TabsContent>
 
       <TabsContent className="space-y-6" value="privacy">
-        <PrivacyControls userId={userData.user.$id} />
+        <PrivacyControls />
       </TabsContent>
 
       <TabsContent className="space-y-6" value="identities">

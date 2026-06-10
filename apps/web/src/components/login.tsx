@@ -49,13 +49,6 @@ export function Login() {
       return;
     }
 
-    /*
- if (email.toLowerCase().includes("@biso.no")) {
- setMessage({ type: "error", text: "Please use your personal email address." })
- return
- }
- */
-
     setIsLoading(true);
     try {
       await signInWithMagicLink(email);

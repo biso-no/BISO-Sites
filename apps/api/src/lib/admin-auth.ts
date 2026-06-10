@@ -171,55 +171,6 @@ export function canManageCampus(
 }
 
 /**
- * Check if the admin scope allows managing a specific department
- */
-function _canManageDepartment(
-  scope: AdminScope,
-  campusName: string,
-  departmentName: string
-): boolean {
-  if (scope.canManageAnyCampus) {
-    return true;
-  }
-
-  // Campus admin can manage any department in their campus
-  if (scope.isCampusAdmin && scope.managedCampusNames.includes(campusName)) {
-    return true;
-  }
-
-  // Department-level admin
-  if (
-    scope.managedCampusNames.includes(campusName) &&
-    scope.managedDepartmentNames.includes(departmentName)
-  ) {
-    return true;
-  }
-
-  return false;
-}
-
-/**
- * Filter items by campus scope
- */
-function _filterByCampusScope<T>(
-  items: T[],
-  scope: AdminScope,
-  getCampusName: (item: T) => string | null | undefined
-): T[] {
-  if (scope.canManageAnyCampus) {
-    return items;
-  }
-
-  return items.filter((item) => {
-    const campusName = getCampusName(item);
-    if (!campusName) {
-      return false;
-    }
-    return canManageCampus(scope, campusName);
-  });
-}
-
-/**
  * Create an audit log entry for admin actions
  */
 export async function createAuditLog(data: {
@@ -243,15 +194,4 @@ export async function createAuditLog(data: {
   } catch (error) {
     console.error("Failed to create audit log:", error);
   }
-}
-
-/**
- * Validate that request has valid admin session
- */
-async function _requireAdminScope(req: NextRequest): Promise<AdminScope> {
-  const scope = await getAdminScope(req);
-  if (!scope) {
-    throw new Error("Unauthorized: No valid admin session");
-  }
-  return scope;
 }

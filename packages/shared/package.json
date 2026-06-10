@@ -22,7 +22,6 @@
     "@repo/api": "workspace:*",
     "@repo/connectors": "workspace:*",
     "node-appwrite": "catalog:",
-    "@vippsmobilepay/sdk": "catalog:",
     "zod": "catalog:"
   }
 }
