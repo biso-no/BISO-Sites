@@ -237,6 +237,7 @@
       "writesWithOffice": "Sets department → {department}, office → {office}",
       "applyAllSafe": "Apply all safe fixes",
       "applyGroup": "Apply",
+      "done": "Updated",
       "selectDepartment": "Select department",
       "blankDepartment": "(blank department)",
       "allClear": "All clear",

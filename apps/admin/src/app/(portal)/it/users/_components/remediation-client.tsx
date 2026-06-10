@@ -40,6 +40,18 @@ function groupDecision(
   };
 }
 
+function DoneBadge({ label }: { label: string }) {
+  return (
+    <span
+      className="inline-flex items-center gap-1 text-xs"
+      style={{ color: STUDIO.leaf }}
+    >
+      <Check size={14} />
+      {label}
+    </span>
+  );
+}
+
 export function RemediationClient({
   departmentNames,
   departmentToCampus,
@@ -105,26 +117,33 @@ export function RemediationClient({
 
   const plan = snapshot.plan;
 
-  function apply(decisions: DepartmentFixDecision[]) {
+  // Returns whether every targeted user was updated. The campus written to M365
+  // is re-derived server-side from the department, so the client only needs a
+  // department + user ids — a campusName hint is optional.
+  async function apply(
+    decisions: DepartmentFixDecision[]
+  ): Promise<{ ok: boolean }> {
     if (decisions.length === 0) {
-      return;
+      return { ok: false };
     }
-    startTransition(async () => {
-      const result = await applyDepartmentFixes(decisions);
-      if (result.error) {
-        setMessage(result.error);
-        setMessageType("error");
-      } else if (result.data) {
-        setMessage(
-          t("applied", {
-            failed: result.data.failed.length,
-            succeeded: result.data.succeeded,
-          })
-        );
-        setMessageType("success");
-        router.refresh();
-      }
-    });
+    const result = await applyDepartmentFixes(decisions);
+    if (result.error) {
+      setMessage(result.error);
+      setMessageType("error");
+      return { ok: false };
+    }
+    if (result.data) {
+      setMessage(
+        t("applied", {
+          failed: result.data.failed.length,
+          succeeded: result.data.succeeded,
+        })
+      );
+      setMessageType("success");
+      router.refresh();
+      return { ok: result.data.failed.length === 0 };
+    }
+    return { ok: false };
   }
 
   function applyAllSafe() {
@@ -137,7 +156,9 @@ export function RemediationClient({
         )
       )
       .filter((d): d is DepartmentFixDecision => d !== null);
-    apply(decisions);
+    startTransition(async () => {
+      await apply(decisions);
+    });
   }
 
   const segments: Array<{ count: number; key: Segment; label: string }> = [
@@ -248,9 +269,7 @@ export function RemediationClient({
       {segment === "manual" ? (
         <ManualList
           departmentNames={departmentNames}
-          departmentToCampus={departmentToCampus}
           onApply={apply}
-          pending={pending}
           users={plan.manual}
         />
       ) : (
@@ -259,7 +278,6 @@ export function RemediationClient({
           departmentToCampus={departmentToCampus}
           groups={plan[segment]}
           onApply={apply}
-          pending={pending}
           segment={segment}
         />
       )}
@@ -272,14 +290,12 @@ function GroupList({
   departmentToCampus,
   groups,
   onApply,
-  pending,
   segment,
 }: {
   departmentNames: string[];
   departmentToCampus: Record<string, string>;
   groups: RemediationGroup[];
-  onApply: (decisions: DepartmentFixDecision[]) => void;
-  pending: boolean;
+  onApply: (decisions: DepartmentFixDecision[]) => Promise<{ ok: boolean }>;
   segment: Segment;
 }) {
   const t = useTranslations("adminPortal.it.audit");
@@ -301,7 +317,6 @@ function GroupList({
           group={group}
           key={group.value || "__blank__"}
           onApply={onApply}
-          pending={pending}
           segment={segment}
         />
       ))}
@@ -314,23 +329,24 @@ function GroupRow({
   departmentToCampus,
   group,
   onApply,
-  pending,
   segment,
 }: {
   departmentNames: string[];
   departmentToCampus: Record<string, string>;
   group: RemediationGroup;
-  onApply: (decisions: DepartmentFixDecision[]) => void;
-  pending: boolean;
+  onApply: (decisions: DepartmentFixDecision[]) => Promise<{ ok: boolean }>;
   segment: Segment;
 }) {
   const t = useTranslations("adminPortal.it.audit");
   const [chosen, setChosen] = useState<string | null>(
     group.suggestedDepartment
   );
+  const [applying, setApplying] = useState(false);
+  const [done, setDone] = useState(false);
 
   useEffect(() => {
     setChosen(group.suggestedDepartment);
+    setDone(false);
   }, [group.suggestedDepartment]);
 
   const displayValue = group.value || t("blankDepartment");
@@ -370,10 +386,14 @@ function GroupRow({
 
         {segment === "review" && (
           <div className="flex items-center gap-2">
+            {done && <DoneBadge label={t("done")} />}
             <select
               aria-label={t("selectDepartment")}
               className="rounded-lg border px-3 py-2 text-sm"
-              onChange={(e) => setChosen(e.target.value || null)}
+              onChange={(e) => {
+                setChosen(e.target.value || null);
+                setDone(false);
+              }}
               style={{ borderColor: STUDIO.rule2, color: STUDIO.ink2 }}
               value={chosen ?? ""}
             >
@@ -385,18 +405,30 @@ function GroupRow({
               ))}
             </select>
             <StudioButton
-              disabled={pending || !chosen}
-              onClick={() => {
-                const campusName =
-                  group.suggestedCampusName ??
-                  (chosen ? (departmentToCampus[chosen] ?? null) : null);
-                const decision = groupDecision(group, chosen, campusName);
-                if (decision) {
-                  onApply([decision]);
+              disabled={applying || !chosen}
+              onClick={async () => {
+                if (!chosen) {
+                  return;
                 }
+                setApplying(true);
+                const res = await onApply([
+                  {
+                    campusName:
+                      group.suggestedCampusName ??
+                      departmentToCampus[chosen] ??
+                      "",
+                    department: chosen,
+                    userIds: group.affectedUsers.map((u) => u.id),
+                  },
+                ]);
+                setApplying(false);
+                setDone(res.ok);
               }}
               variant="secondary"
             >
+              {applying ? (
+                <Loader2 className="animate-spin" size={15} />
+              ) : null}
               {t("applyGroup")}
             </StudioButton>
           </div>
@@ -418,15 +450,11 @@ function GroupRow({
 
 function ManualList({
   departmentNames,
-  departmentToCampus,
   onApply,
-  pending,
   users,
 }: {
   departmentNames: string[];
-  departmentToCampus: Record<string, string>;
-  onApply: (decisions: DepartmentFixDecision[]) => void;
-  pending: boolean;
+  onApply: (decisions: DepartmentFixDecision[]) => Promise<{ ok: boolean }>;
   users: ManualRemediationUser[];
 }) {
   const t = useTranslations("adminPortal.it.audit");
@@ -444,11 +472,9 @@ function ManualList({
       {users.map((entry) => (
         <ManualRow
           departmentNames={departmentNames}
-          departmentToCampus={departmentToCampus}
           entry={entry}
           key={entry.user.id}
           onApply={onApply}
-          pending={pending}
         />
       ))}
     </div>
@@ -457,19 +483,17 @@ function ManualList({
 
 function ManualRow({
   departmentNames,
-  departmentToCampus,
   entry,
   onApply,
-  pending,
 }: {
   departmentNames: string[];
-  departmentToCampus: Record<string, string>;
   entry: ManualRemediationUser;
-  onApply: (decisions: DepartmentFixDecision[]) => void;
-  pending: boolean;
+  onApply: (decisions: DepartmentFixDecision[]) => Promise<{ ok: boolean }>;
 }) {
   const t = useTranslations("adminPortal.it.audit");
   const [chosen, setChosen] = useState<string>("");
+  const [applying, setApplying] = useState(false);
+  const [done, setDone] = useState(false);
   const { user } = entry;
 
   return (
@@ -494,10 +518,14 @@ function ManualRow({
           </p>
         </div>
         <div className="flex items-center gap-2">
+          {done && <DoneBadge label={t("done")} />}
           <select
             aria-label={t("selectDepartment")}
             className="rounded-lg border px-3 py-2 text-sm"
-            onChange={(e) => setChosen(e.target.value)}
+            onChange={(e) => {
+              setChosen(e.target.value);
+              setDone(false);
+            }}
             style={{ borderColor: STUDIO.rule2, color: STUDIO.ink2 }}
             value={chosen}
           >
@@ -509,17 +537,23 @@ function ManualRow({
             ))}
           </select>
           <StudioButton
-            disabled={pending || !chosen || !departmentToCampus[chosen]}
-            onClick={() => {
-              const campusName = departmentToCampus[chosen] ?? null;
-              if (chosen && campusName) {
-                onApply([
-                  { campusName, department: chosen, userIds: [user.id] },
-                ]);
+            disabled={applying || !chosen}
+            onClick={async () => {
+              if (!chosen) {
+                return;
               }
+              setApplying(true);
+              // campusName is a hint only — the server re-derives the office
+              // from the department, so it never needs to be correct here.
+              const res = await onApply([
+                { campusName: "", department: chosen, userIds: [user.id] },
+              ]);
+              setApplying(false);
+              setDone(res.ok);
             }}
             variant="secondary"
           >
+            {applying ? <Loader2 className="animate-spin" size={15} /> : null}
             {t("applyGroup")}
           </StudioButton>
         </div>
