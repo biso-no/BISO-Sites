@@ -11,12 +11,14 @@
     "build": "tsc --noEmit",
     "clean": "rm -rf dist node_modules .turbo",
     "lint": "biome lint .",
-    "check-types": "tsc --noEmit"
+    "check-types": "tsc --noEmit",
+    "test": "vitest run"
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",
     "@types/node": "catalog:",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   },
   "dependencies": {
     "@repo/api": "workspace:*",

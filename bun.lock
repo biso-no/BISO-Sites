@@ -277,6 +277,7 @@
         "@repo/typescript-config": "workspace:*",
         "@types/node": "catalog:",
         "typescript": "catalog:",
+        "vitest": "catalog:",
       },
     },
     "packages/typescript-config": {

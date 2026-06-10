@@ -1,7 +1,7 @@
 import { type Orders, OrdersStatus } from "@repo/api/types/appwrite";
 import type { CheckoutSessionParams, VippsPaymentState } from "../types/vipps";
 
-interface VippsSessionData {
+export interface VippsSessionData {
   payment?: {
     aggregate?: {
       authorizedAmount?: {
