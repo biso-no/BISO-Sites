@@ -33,8 +33,12 @@ person**, and the local-part encodes the role:
 model provides. Department abbreviations are **ad-hoc** (no registry), so
 resolving `nu` → `OSL Næringslivsutvalget` also needs the model.
 
-`Departments.Name` is capped at 50 chars, so some canonical names are stored
-truncated — the resolver must tolerate that.
+Some canonical names are **truncated at the source in 24SO/Finago** (e.g. a long
+unit name abbreviated there). Appwrite mirrors 24SO faithfully — the same
+truncated string is stored in the `departments` table — so the Appwrite canonical
+name *is* the exact write target; there is no 24SO↔Appwrite drift to reconcile.
+The resolver matches the email against these names as-is (the model tolerates
+that a canonical name may itself be a 24SO-truncated form).
 
 ## Goals
 
