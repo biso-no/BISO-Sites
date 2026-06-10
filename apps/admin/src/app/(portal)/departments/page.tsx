@@ -6,6 +6,7 @@ import { listCampuses, listDepartments } from "../_actions/departments";
 import { EmptyState } from "../_components/empty-state";
 import { PageHeader } from "../_components/page-header";
 import { SERIF_STACK, STUDIO, StudioIconBox } from "../_components/studio";
+import { SyncDepartmentsButton } from "./sync-button";
 
 export default async function DepartmentsPage() {
   await requireNavAccess("portal.departments");
@@ -21,6 +22,9 @@ export default async function DepartmentsPage() {
   return (
     <div className="pb-12">
       <PageHeader description={t("description")} title={t("title")} />
+      <div className="mb-6 flex items-center justify-end">
+        <SyncDepartmentsButton />
+      </div>
 
       {departments.length === 0 ? (
         <EmptyState
