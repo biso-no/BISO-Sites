@@ -1,4 +1,5 @@
 import { Card } from "@repo/ui/components/ui/card";
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getBookingContext } from "@/app/actions/booking";
 import { BookingClient } from "./booking-client";
@@ -6,6 +7,12 @@ import { BookingClient } from "./booking-client";
 interface PageProps {
   params: Promise<{ token: string }>;
 }
+
+export const metadata: Metadata = {
+  title: "Interview Booking | BISO",
+  // Tokenized one-off links must not end up in search indexes.
+  robots: { index: false, follow: false },
+};
 
 export default async function CandidateBookingPage({ params }: PageProps) {
   const { token } = await params;

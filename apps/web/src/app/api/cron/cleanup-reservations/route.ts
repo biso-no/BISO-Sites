@@ -1,3 +1,4 @@
+import { safeSecretCompare } from "@repo/shared/utils/secrets";
 import { NextResponse } from "next/server";
 import { cleanupAllExpiredReservations } from "@/app/actions/cart-reservations";
 import { isProd } from "@/lib/utils";
@@ -31,7 +32,10 @@ export async function GET(request: Request) {
 
   if (cronSecret) {
     const authHeader = request.headers.get("authorization");
-    if (authHeader !== `Bearer ${cronSecret}`) {
+    const token = authHeader?.startsWith("Bearer ")
+      ? authHeader.slice(7)
+      : null;
+    if (!safeSecretCompare(token, cronSecret)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
   }

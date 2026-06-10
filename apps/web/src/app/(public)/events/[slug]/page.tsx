@@ -27,7 +27,6 @@ async function EventDetails({ slug }: { slug: string }) {
   const locale = await getLocale();
 
   const event = await getEventBySlug(slug, locale);
-  console.log("Fetched event:", event);
   if (!event) {
     notFound();
   }

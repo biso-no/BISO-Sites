@@ -35,7 +35,7 @@ export async function GET(request: Request) {
       );
     }
 
-    console.log(`[Checkout Return] Verifying order status for: ${orderId}`);
+    console.info(`[Checkout Return] Verifying order status for: ${orderId}`);
 
     const { db } = await createSessionClient();
     const order = await db.getRow<Orders>("app", "orders", orderId);
@@ -64,7 +64,7 @@ export async function GET(request: Request) {
     const updatedOrder = await db.getRow<Orders>("app", "orders", orderId);
     const status = updatedOrder?.status ?? order.status;
 
-    console.log(`[Checkout Return] Order ${orderId} status: ${status}`);
+    console.info(`[Checkout Return] Order ${orderId} status: ${status}`);
 
     if (
       (status === "authorized" || status === "paid") &&

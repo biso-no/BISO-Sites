@@ -85,7 +85,13 @@ export default async function PublicNewsDetailBySlug({
       />
       {item.image && (
         <div className="relative h-64 w-full overflow-hidden rounded-lg">
-          <Image alt={title} className="object-cover" fill src={item.image} />
+          <Image
+            alt={title}
+            className="object-cover"
+            fill
+            sizes="(max-width: 768px) 100vw, 768px"
+            src={item.image}
+          />
         </div>
       )}
       <PlateContentRenderer value={description} />
