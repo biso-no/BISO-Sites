@@ -474,6 +474,9 @@ export interface DepartmentRemediationPlan {
 export interface RemediationSnapshot {
   generatedAt: string;
   generatedBy: string;
+  // Licensed accounts with no sign-in for the inactivity threshold, oldest
+  // first. Independent of the department buckets (a user can be in both).
+  inactive: M365UserListItem[];
   plan: DepartmentRemediationPlan;
 }
 

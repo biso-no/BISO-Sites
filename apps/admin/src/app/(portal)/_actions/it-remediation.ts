@@ -26,6 +26,7 @@ import {
 } from "@/lib/it/department-matching";
 import { emailLocalPart, extractCampusHint } from "@/lib/it/email-classify";
 import { getGraphService, M365_DOMAIN, toListItem } from "@/lib/it/graph";
+import { findInactiveAccounts } from "@/lib/it/inactivity";
 import { buildRemediationPlan } from "@/lib/it/remediation-bucketing";
 import { requireItPermission } from "@/lib/it-permissions";
 import { logAuditEvent } from "./audit-log";
@@ -39,6 +40,7 @@ const SNAPSHOT_TABLE = "m365_remediation_snapshot";
 const AI_CHUNK_SIZE = 30;
 const AI_CONCURRENCY = 5;
 const NATIONAL_KEY = "__national__";
+const INACTIVE_MONTHS = 6;
 const LOG = "[dept-analysis]";
 
 function getErrorMessage(error: unknown): string {
@@ -205,7 +207,7 @@ async function resolveChunkSafe(
 
 async function persistSnapshot(snapshot: RemediationSnapshot): Promise<void> {
   const { db } = await createAdminClient();
-  const { plan } = snapshot;
+  const { plan, inactive } = snapshot;
   await db.createRow("app", SNAPSHOT_TABLE, ID.unique(), {
     generated_at: snapshot.generatedAt,
     generated_by: snapshot.generatedBy,
@@ -214,7 +216,7 @@ async function persistSnapshot(snapshot: RemediationSnapshot): Promise<void> {
     review_count: plan.review.length,
     manual_count: plan.manual.length,
     closed_count: plan.closed.length,
-    result: JSON.stringify(plan),
+    result: JSON.stringify({ plan, inactive }),
   });
 }
 
@@ -277,13 +279,16 @@ export async function runDepartmentAnalysis(): Promise<
       campusNames,
     });
 
+    const inactive = findInactiveAccounts(listItems, Date.now(), INACTIVE_MONTHS);
+
     console.info(
-      `${LOG} plan ready: ${plan.safe.length} safe · ${plan.review.length} review · ${plan.manual.length} manual · ${plan.closed.length} closed · ${plan.compliantCount} compliant (of ${plan.totalScanned})`
+      `${LOG} plan ready: ${plan.safe.length} safe · ${plan.review.length} review · ${plan.manual.length} manual · ${plan.closed.length} closed · ${plan.compliantCount} compliant · ${inactive.length} inactive (of ${plan.totalScanned})`
     );
 
     const snapshot: RemediationSnapshot = {
       generatedAt: new Date().toISOString(),
       generatedBy: ctx.email ?? ctx.userId,
+      inactive,
       plan,
     };
 
@@ -299,6 +304,7 @@ export async function runDepartmentAnalysis(): Promise<
         manual: plan.manual.length,
         closed: plan.closed.length,
         compliant: plan.compliantCount,
+        inactive: inactive.length,
       },
     });
 
@@ -326,13 +332,46 @@ export async function getLatestRemediationSnapshot(): Promise<
     if (!latest?.result) {
       return { data: null };
     }
+    // Newer rows store { plan, inactive }; older rows stored the plan directly.
+    const parsed = JSON.parse(latest.result);
+    const plan = parsed.plan ?? parsed;
+    const inactive = parsed.inactive ?? [];
     return {
       data: {
         generatedAt: latest.generated_at,
         generatedBy: latest.generated_by ?? "unknown",
-        plan: JSON.parse(latest.result),
+        inactive,
+        plan,
       },
     };
+  } catch (error) {
+    return { error: getErrorMessage(error) };
+  }
+}
+
+export async function deactivateM365Account(
+  userId: string
+): Promise<ActionResult<{ ok: true }>> {
+  try {
+    const ctx = await requireItPermission("it.users.disable");
+    const graph = getGraphService();
+
+    // Remove licenses first (frees the seat), then block sign-in.
+    const licenses = await graph.getUserLicenseDetails(userId);
+    const skuIds = licenses.map((license) => license.skuId);
+    if (skuIds.length > 0) {
+      await graph.manageLicense(userId, [], skuIds);
+    }
+    await graph.updateUser(userId, { accountEnabled: false });
+
+    await logAuditEvent(ctx, "it.m365.user.deactivate", {
+      resourceType: "m365.user",
+      resourceId: userId,
+      payload: { removedLicenses: skuIds.length },
+    });
+
+    revalidatePath("/it/users/audit");
+    return { data: { ok: true } };
   } catch (error) {
     return { error: getErrorMessage(error) };
   }

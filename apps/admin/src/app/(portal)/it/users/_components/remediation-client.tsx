@@ -2,22 +2,25 @@
 
 import type {
   DepartmentFixDecision,
+  M365UserListItem,
   ManualRemediationUser,
   RemediationGroup,
   RemediationSnapshot,
 } from "@repo/shared/types/user-management";
-import { AlertTriangle, Check, Loader2, RefreshCw } from "lucide-react";
+import { AlertTriangle, Ban, Check, Loader2, RefreshCw } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect, useState, useTransition } from "react";
 import {
   applyDepartmentFixes,
+  deactivateM365Account,
   runDepartmentAnalysis,
 } from "../../../_actions/it-remediation";
 import { EmptyState } from "../../../_components/empty-state";
 import { STUDIO, StudioButton } from "../../../_components/studio";
+import { DepartmentNameCombobox } from "./department-name-combobox";
 
-type Segment = "safe" | "review" | "manual" | "closed";
+type Segment = "safe" | "review" | "manual" | "inactive" | "closed";
 
 interface RemediationClientProps {
   departmentNames: string[];
@@ -165,11 +168,17 @@ export function RemediationClient({
     { count: plan.safe.length, key: "safe", label: t("segments.safe") },
     { count: plan.review.length, key: "review", label: t("segments.review") },
     { count: plan.manual.length, key: "manual", label: t("segments.manual") },
+    {
+      count: snapshot.inactive.length,
+      key: "inactive",
+      label: t("segments.inactive"),
+    },
     { count: plan.closed.length, key: "closed", label: t("segments.closed") },
   ];
 
   const segmentDescriptions: Record<Segment, string> = {
     closed: t("closedDescription"),
+    inactive: t("inactiveDescription"),
     manual: t("manualDescription"),
     review: t("reviewDescription"),
     safe: t("safeDescription"),
@@ -266,13 +275,19 @@ export function RemediationClient({
         </div>
       )}
 
-      {segment === "manual" ? (
+      {segment === "manual" && (
         <ManualList
           departmentNames={departmentNames}
           onApply={apply}
           users={plan.manual}
         />
-      ) : (
+      )}
+
+      {segment === "inactive" && <InactiveList users={snapshot.inactive} />}
+
+      {(segment === "safe" ||
+        segment === "review" ||
+        segment === "closed") && (
         <GroupList
           departmentNames={departmentNames}
           departmentToCampus={departmentToCampus}
@@ -387,23 +402,17 @@ function GroupRow({
         {segment === "review" && (
           <div className="flex items-center gap-2">
             {done && <DoneBadge label={t("done")} />}
-            <select
-              aria-label={t("selectDepartment")}
-              className="rounded-lg border px-3 py-2 text-sm"
-              onChange={(e) => {
-                setChosen(e.target.value || null);
+            <DepartmentNameCombobox
+              ariaLabel={t("selectDepartment")}
+              names={departmentNames}
+              onChange={(name) => {
+                setChosen(name);
                 setDone(false);
               }}
-              style={{ borderColor: STUDIO.rule2, color: STUDIO.ink2 }}
-              value={chosen ?? ""}
-            >
-              <option value="">{t("selectDepartment")}</option>
-              {departmentNames.map((name) => (
-                <option key={name} value={name}>
-                  {name}
-                </option>
-              ))}
-            </select>
+              placeholder={t("selectDepartment")}
+              searchPlaceholder={t("searchDepartments")}
+              value={chosen}
+            />
             <StudioButton
               disabled={applying || !chosen}
               onClick={async () => {
@@ -519,23 +528,17 @@ function ManualRow({
         </div>
         <div className="flex items-center gap-2">
           {done && <DoneBadge label={t("done")} />}
-          <select
-            aria-label={t("selectDepartment")}
-            className="rounded-lg border px-3 py-2 text-sm"
-            onChange={(e) => {
-              setChosen(e.target.value);
+          <DepartmentNameCombobox
+            ariaLabel={t("selectDepartment")}
+            names={departmentNames}
+            onChange={(name) => {
+              setChosen(name ?? "");
               setDone(false);
             }}
-            style={{ borderColor: STUDIO.rule2, color: STUDIO.ink2 }}
-            value={chosen}
-          >
-            <option value="">{t("selectDepartment")}</option>
-            {departmentNames.map((name) => (
-              <option key={name} value={name}>
-                {name}
-              </option>
-            ))}
-          </select>
+            placeholder={t("selectDepartment")}
+            searchPlaceholder={t("searchDepartments")}
+            value={chosen || null}
+          />
           <StudioButton
             disabled={applying || !chosen}
             onClick={async () => {
@@ -557,6 +560,95 @@ function ManualRow({
             {t("applyGroup")}
           </StudioButton>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function InactiveList({ users }: { users: M365UserListItem[] }) {
+  const t = useTranslations("adminPortal.it.audit");
+  if (users.length === 0) {
+    return (
+      <EmptyState
+        description={t("allClearDescription")}
+        icon={<Check size={28} />}
+        title={t("allClear")}
+      />
+    );
+  }
+  return (
+    <div className="space-y-2">
+      {users.map((user) => (
+        <InactiveRow key={user.id} user={user} />
+      ))}
+    </div>
+  );
+}
+
+function InactiveRow({ user }: { user: M365UserListItem }) {
+  const t = useTranslations("adminPortal.it.audit");
+  const router = useRouter();
+  const [working, setWorking] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const [disabled, setDisabled] = useState(false);
+
+  const lastSeen = user.lastSignInDateTime
+    ? t("lastSignIn", {
+        when: new Date(user.lastSignInDateTime).toLocaleDateString(),
+      })
+    : t("neverSignedIn");
+
+  return (
+    <div
+      className="rounded-2xl px-5 py-4"
+      style={{
+        background: "rgba(255,255,255,0.46)",
+        border: `0.5px solid ${STUDIO.rule}`,
+      }}
+    >
+      <div className="flex items-center justify-between gap-4">
+        <div className="min-w-0">
+          <p
+            className="truncate font-medium text-sm"
+            style={{ color: STUDIO.ink }}
+          >
+            {user.displayName}
+          </p>
+          <p className="mt-1 truncate text-xs" style={{ color: STUDIO.ink4 }}>
+            {user.userPrincipalName} · {lastSeen}
+          </p>
+        </div>
+
+        {disabled ? (
+          <DoneBadge label={t("disabled")} />
+        ) : (
+          <StudioButton
+            disabled={working}
+            onClick={async () => {
+              if (!confirming) {
+                setConfirming(true);
+                return;
+              }
+              setWorking(true);
+              const res = await deactivateM365Account(user.id);
+              setWorking(false);
+              if (res.error) {
+                setConfirming(false);
+              } else {
+                setDisabled(true);
+                router.refresh();
+              }
+            }}
+            variant="secondary"
+          >
+            {working ? (
+              <Loader2 className="animate-spin" size={15} />
+            ) : (
+              <Ban size={15} />
+            )}
+            {confirming ? t("confirmDisable") : t("disable")}
+          </StudioButton>
+        )}
       </div>
     </div>
   );
