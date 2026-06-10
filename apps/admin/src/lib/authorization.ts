@@ -3,6 +3,10 @@
 import { Query } from "@repo/api";
 import { createAdminClient, createSessionClient } from "@repo/api/server";
 import type { Departments } from "@repo/api/types/appwrite";
+import {
+  getManagedCampuses,
+  isNationalOperations,
+} from "@repo/shared/utils/team-roles";
 import { cookies } from "next/headers";
 import { notFound, redirect, unauthorized } from "next/navigation";
 import { cache } from "react";
@@ -28,45 +32,6 @@ export interface UserAuthContext {
   resolvedDepartmentIds: string[]; // Appwrite Departments row $ids matching departmentNames
   roles: string[]; // Computed roles (e.g., "globaladmin", "campusadmin")
   userId: string;
-}
-
-/**
- * Determine if a user is a global admin based on their team memberships.
- * National campus + Operations Unit department = Global Admin
- * Department name is now expanded from camelCase: "OperationsUnit" -> "Operations Unit"
- */
-function isNationalOperations(
-  campusNames: string[],
-  departmentNames: string[]
-): boolean {
-  return (
-    campusNames.includes("National") &&
-    departmentNames.includes("Operations Unit")
-  );
-}
-
-/**
- * Determine which campuses a user manages based on their memberships.
- * Being in "Ledelsen {City}" dept + Campus "{City}" = Campus admin for that city.
- * Department name is now expanded from camelCase: "LedelsenOslo" -> "Ledelsen Oslo"
- */
-function getManagedCampuses(
-  campusNames: string[],
-  departmentNames: string[]
-): string[] {
-  const managedCampuses: string[] = [];
-  const cityNames = ["Oslo", "Bergen", "Stavanger", "Trondheim"];
-
-  for (const city of cityNames) {
-    const hasCampus = campusNames.includes(city);
-    const hasManagement = departmentNames.includes(`Ledelsen ${city}`);
-
-    if (hasCampus && hasManagement) {
-      managedCampuses.push(city);
-    }
-  }
-
-  return managedCampuses;
 }
 
 interface TeamParseResult {

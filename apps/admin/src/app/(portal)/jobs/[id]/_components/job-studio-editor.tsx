@@ -47,6 +47,14 @@ import {
   JOB_STUDIO_SCHEMA_ID,
   registerAssistantFormTarget,
 } from "../../../_components/assistant/form-bridge";
+import {
+  type DescriptionBlock,
+  type DescriptionBlockType,
+  descriptionBlocksToHtml,
+  htmlToDescriptionBlocks,
+  newBlock,
+  stripHtml,
+} from "../../../_components/description-blocks";
 
 interface JobStudioEditorProps {
   allowedDepartmentIds?: string[];
@@ -116,13 +124,6 @@ const TAG_OPTIONS = [
 ] as const;
 
 type LocaleCode = "en" | "no";
-type DescriptionBlockType = "h" | "l" | "p";
-
-interface DescriptionBlock {
-  id: string;
-  text: string;
-  type: DescriptionBlockType;
-}
 
 function getTranslation(job: RecruitmentVacancy | null, locale: "en" | "no") {
   return job?.translations.find((translation) => translation.locale === locale);
@@ -158,95 +159,6 @@ function formatDate(value: string | null | undefined) {
     month: "short",
     year: "numeric",
   }).format(date);
-}
-
-function stripHtml(value: string) {
-  return value
-    .replace(/<[^>]*>/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function escapeHtml(value: string) {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
-}
-
-function decodeHtml(value: string) {
-  return value
-    .replace(/&nbsp;/g, " ")
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&#039;/g, "'");
-}
-
-function newBlock(type: DescriptionBlockType, text = ""): DescriptionBlock {
-  return {
-    id: globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`,
-    text,
-    type,
-  };
-}
-
-function htmlToDescriptionBlocks(value: string): DescriptionBlock[] {
-  const blocks: DescriptionBlock[] = [];
-  const pattern = /<(h[1-6]|p|li)[^>]*>(.*?)<\/\1>/gis;
-  let match = pattern.exec(value);
-
-  while (match) {
-    const [, tag, rawText] = match;
-    const text = decodeHtml(stripHtml(rawText ?? ""));
-    let type: DescriptionBlockType = "p";
-    if (tag?.startsWith("h")) {
-      type = "h";
-    } else if (tag === "li") {
-      type = "l";
-    }
-    blocks.push(newBlock(type, text));
-    match = pattern.exec(value);
-  }
-
-  if (blocks.length > 0) {
-    return blocks;
-  }
-
-  const plain = stripHtml(value);
-  return [newBlock("p", plain)];
-}
-
-function descriptionBlocksToHtml(blocks: DescriptionBlock[]) {
-  const html: string[] = [];
-  let listItems: string[] = [];
-
-  const flushList = () => {
-    if (listItems.length === 0) {
-      return;
-    }
-    html.push(`<ul>${listItems.join("")}</ul>`);
-    listItems = [];
-  };
-
-  for (const block of blocks) {
-    const text = escapeHtml(block.text.trim());
-    if (!text) {
-      continue;
-    }
-    if (block.type === "l") {
-      listItems.push(`<li>${text}</li>`);
-      continue;
-    }
-    flushList();
-    html.push(block.type === "h" ? `<h3>${text}</h3>` : `<p>${text}</p>`);
-  }
-
-  flushList();
-  return html.join("");
 }
 
 function fallback<T>(value: T | null | undefined, fallbackValue: T): T {

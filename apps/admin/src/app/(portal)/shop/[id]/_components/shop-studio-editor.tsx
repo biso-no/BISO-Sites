@@ -28,6 +28,13 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { createProduct, updateProduct } from "../../../_actions/shop";
 import { uploadMediaFile } from "../../../_actions/upload";
+import {
+  type DescriptionBlock,
+  type DescriptionBlockType,
+  descriptionBlocksToHtml,
+  htmlToDescriptionBlocks,
+  newBlock,
+} from "../../../_components/description-blocks";
 
 /* -------------------------------------------------------------------------- */
 /*                              Types                                          */
@@ -54,14 +61,6 @@ interface ShopStudioEditorProps {
   departments: Departments[];
   isNew: boolean;
   product: ProductWithTranslations | null;
-}
-
-type DescriptionBlockType = "h" | "l" | "p";
-
-interface DescriptionBlock {
-  id: string;
-  text: string;
-  type: DescriptionBlockType;
 }
 
 type LocaleCode = "en" | "no";
@@ -139,95 +138,6 @@ function generateSlug(title: string): string {
     .trim()
     .replace(/\s+/g, "-")
     .replace(/-+/g, "-");
-}
-
-function newBlock(type: DescriptionBlockType, text = ""): DescriptionBlock {
-  return {
-    id: globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`,
-    text,
-    type,
-  };
-}
-
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
-}
-
-function decodeHtml(value: string): string {
-  return value
-    .replace(/&nbsp;/g, " ")
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&#039;/g, "'");
-}
-
-function stripHtml(value: string): string {
-  return value
-    .replace(/<[^>]*>/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function htmlToDescriptionBlocks(value: string): DescriptionBlock[] {
-  const blocks: DescriptionBlock[] = [];
-  const pattern = /<(h[1-6]|p|li)[^>]*>(.*?)<\/\1>/gis;
-  let match = pattern.exec(value);
-
-  while (match) {
-    const [, tag, rawText] = match;
-    const text = decodeHtml(stripHtml(rawText ?? ""));
-    let type: DescriptionBlockType = "p";
-    if (tag?.startsWith("h")) {
-      type = "h";
-    } else if (tag === "li") {
-      type = "l";
-    }
-    blocks.push(newBlock(type, text));
-    match = pattern.exec(value);
-  }
-
-  if (blocks.length > 0) {
-    return blocks;
-  }
-
-  const plain = stripHtml(value);
-  return [newBlock("p", plain)];
-}
-
-function descriptionBlocksToHtml(blocks: DescriptionBlock[]): string {
-  const html: string[] = [];
-  let listItems: string[] = [];
-
-  const flushList = () => {
-    if (listItems.length === 0) {
-      return;
-    }
-    html.push(`<ul>${listItems.join("")}</ul>`);
-    listItems = [];
-  };
-
-  for (const block of blocks) {
-    const text = escapeHtml(block.text.trim());
-    if (!text) {
-      continue;
-    }
-    if (block.type === "l") {
-      listItems.push(`<li>${text}</li>`);
-      continue;
-    }
-    flushList();
-    html.push(block.type === "h" ? `<h3>${text}</h3>` : `<p>${text}</p>`);
-  }
-
-  flushList();
-  return html.join("");
 }
 
 /* -------------------------------------------------------------------------- */
