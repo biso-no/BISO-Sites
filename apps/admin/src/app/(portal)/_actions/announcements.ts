@@ -6,10 +6,9 @@ import { createAdminClient } from "@repo/api/server";
 import type { Announcements } from "@repo/api/types/appwrite";
 import { generateObject } from "ai";
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { z } from "zod";
 import { buildDeepLink, dispatchAnnouncement } from "@/lib/announcements/send";
-import { getUserAuthContext, type UserAuthContext } from "@/lib/authorization";
+import { requireAuth } from "@/lib/authorization";
 import {
   applyScopeQueries,
   assertPublishAccess,
@@ -38,14 +37,6 @@ const announcementTranslationResultSchema = z.object({
       "Natural Norwegian Bokmål HTML preserving p, h3, ul, li, strong and em tags"
     ),
 });
-
-async function requireAuth(): Promise<UserAuthContext> {
-  const ctx = await getUserAuthContext();
-  if (!ctx) {
-    redirect("/auth/login");
-  }
-  return ctx;
-}
 
 function buildDataPayload(announcement: Announcements): string {
   return JSON.stringify({

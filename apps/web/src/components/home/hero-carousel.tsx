@@ -13,6 +13,7 @@ import {
   CarouselNext,
   CarouselPrevious,
 } from "@repo/ui/components/ui/carousel";
+import { PLACEHOLDER_IMAGE } from "@repo/ui/lib/placeholder-images";
 import Autoplay from "embla-carousel-autoplay";
 import { Calendar, ChevronDown, Sparkles, Users } from "lucide-react";
 import { motion } from "motion/react";
@@ -20,7 +21,6 @@ import Image, { type ImageProps } from "next/image";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
-import { PLACEHOLDER_IMAGE } from "@/lib/constants/placeholder-images";
 
 /**
  * Drop-in robust ImageWithFallback that does NOT force 100x100.

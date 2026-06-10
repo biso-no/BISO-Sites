@@ -8,8 +8,7 @@ import type {
   NewsStatus,
 } from "@repo/api/types/appwrite";
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
-import { getUserAuthContext, type UserAuthContext } from "@/lib/authorization";
+import { requireAuth } from "@/lib/authorization";
 import { loadRecruitmentLookups } from "@/lib/recruitment";
 import {
   buildContentRowPermissions,
@@ -24,14 +23,6 @@ import {
 } from "@/lib/utils/authorization";
 import { logAuditEvent } from "./audit-log";
 import { NEWS_PAGE_SIZE, type NewsFormValues, newsSchema } from "./schemas";
-
-async function requireAuth(): Promise<UserAuthContext> {
-  const ctx = await getUserAuthContext();
-  if (!ctx) {
-    redirect("/auth/login");
-  }
-  return ctx;
-}
 
 export async function listNews(opts?: {
   campusId?: string;

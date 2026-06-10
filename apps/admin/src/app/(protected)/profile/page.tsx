@@ -1,3 +1,4 @@
+import { ProfileHead } from "@repo/ui/components/profile-head";
 import { Avatar, AvatarFallback } from "@repo/ui/components/ui/avatar";
 import {
   Card,
@@ -6,7 +7,6 @@ import {
   CardTitle,
 } from "@repo/ui/components/ui/card";
 import type { Metadata } from "next";
-import { ProfileHead } from "@/components/profile/profile-head";
 import { ProfileTabs } from "@/components/profile/profile-tabs";
 import { getLoggedInUser, listIdentities } from "@/lib/actions/user";
 import { checkMembership } from "@/lib/profile";

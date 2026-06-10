@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { requireNavAccess } from "@/lib/authorization";
-import { listCampuses } from "../../_actions/jobs";
+import { listCampuses } from "../../_actions/lookups";
 import { getNewsArticle } from "../../_actions/news";
 import { NewsEditorClient } from "./_components/news-editor-client";
 

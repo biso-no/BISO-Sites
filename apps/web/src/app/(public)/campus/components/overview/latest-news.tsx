@@ -3,10 +3,10 @@ import type { Locale } from "@repo/i18n/config";
 import { ImageWithFallback } from "@repo/ui/components/image";
 import { Button } from "@repo/ui/components/ui/button";
 import { Card } from "@repo/ui/components/ui/card";
+import { PLACEHOLDER_IMAGE } from "@repo/ui/lib/placeholder-images";
 import { ChevronRight, Newspaper } from "lucide-react";
 import { motion } from "motion/react";
 import Link from "next/link";
-import { PLACEHOLDER_IMAGE } from "@/lib/constants/placeholder-images";
 
 interface LatestNewsProps {
   locale: Locale;

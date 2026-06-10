@@ -8,8 +8,7 @@ import type {
   Partners,
 } from "@repo/api/types/appwrite";
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
-import { getUserAuthContext, type UserAuthContext } from "@/lib/authorization";
+import { requireAuth } from "@/lib/authorization";
 import {
   assertPublishAccess,
   assertWriteAccess,
@@ -17,14 +16,6 @@ import {
 } from "@/lib/utils/authorization";
 import { logAuditEvent } from "./audit-log";
 import { type BenefitFormValues, benefitSchema } from "./schemas";
-
-async function requireAuth(): Promise<UserAuthContext> {
-  const ctx = await getUserAuthContext();
-  if (!ctx) {
-    redirect("/auth/login");
-  }
-  return ctx;
-}
 
 export async function listBenefits(opts?: {
   campusId?: string;

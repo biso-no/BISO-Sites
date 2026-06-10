@@ -31,8 +31,7 @@
 import { ID, type Models, Permission, Query, Role } from "@repo/api";
 import { createAdminClient, createSessionClient } from "@repo/api/server";
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
-import { getUserAuthContext } from "@/lib/authorization";
+import { requireAuth } from "@/lib/authorization";
 import { assertPublishAccess } from "@/lib/utils/authorization";
 import {
   type ApprovalPublishPlan,
@@ -44,14 +43,6 @@ import { publishEvent } from "./events";
 const DATABASE_ID = "app";
 const TABLE = "approval_requests";
 type GenericRow = Models.Row & Record<string, unknown>;
-
-async function requireAuth() {
-  const ctx = await getUserAuthContext();
-  if (!ctx) {
-    redirect("/auth/login");
-  }
-  return ctx;
-}
 
 // ---------------------------------------------------------------------------
 // Types

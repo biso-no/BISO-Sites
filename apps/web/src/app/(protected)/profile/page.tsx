@@ -1,3 +1,4 @@
+import { ProfileHead } from "@repo/ui/components/profile-head";
 import { Avatar, AvatarFallback } from "@repo/ui/components/ui/avatar";
 import { Button } from "@repo/ui/components/ui/button";
 import {
@@ -11,7 +12,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import type { MembershipCheckResult } from "@/components/profile/membership-status-card";
 import MembershipStatusCard from "@/components/profile/membership-status-card";
-import { ProfileHead } from "@/components/profile/profile-head";
 import { ProfileTabs } from "@/components/profile/profile-tabs";
 import { getLoggedInUser, listIdentities } from "@/lib/actions/user";
 import { checkMembership } from "@/lib/profile";

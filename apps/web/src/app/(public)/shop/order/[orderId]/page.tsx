@@ -5,6 +5,7 @@ import { Badge } from "@repo/ui/components/ui/badge";
 import { Card } from "@repo/ui/components/ui/card";
 import { Separator } from "@repo/ui/components/ui/separator";
 import { Skeleton } from "@repo/ui/components/ui/skeleton";
+import { PLACEHOLDER_IMAGE } from "@repo/ui/lib/placeholder-images";
 import { format } from "date-fns";
 import {
   ArrowLeft,
@@ -19,7 +20,6 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { getOrder, verifyOrder } from "@/app/actions/orders";
 import { OrderActionsClient } from "@/components/shop/order-details-client"; // New, smaller Client Component
-import { PLACEHOLDER_IMAGE } from "@/lib/constants/placeholder-images";
 
 interface OrderPageProps {
   params: {

@@ -297,6 +297,18 @@ export async function getUserRolesForClient(): Promise<UserRolesForClient> {
 }
 
 /**
+ * Server-action guard: redirects unauthenticated users to login and returns
+ * the auth context. Canonical auth check for (portal)/_actions modules.
+ */
+export async function requireAuth(): Promise<UserAuthContext> {
+  const ctx = await getUserAuthContext();
+  if (!ctx) {
+    redirect("/auth/login");
+  }
+  return ctx;
+}
+
+/**
  * Page-level guard: redirects unauthenticated users to login and
  * notFound()s authenticated users who lack access to the given nav key.
  * Returns the auth context so callers can reuse it without a second

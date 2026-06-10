@@ -9,8 +9,7 @@ import type {
   WebshopProductsStatus,
 } from "@repo/api/types/appwrite";
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
-import { getUserAuthContext, type UserAuthContext } from "@/lib/authorization";
+import { requireAuth } from "@/lib/authorization";
 import { loadRecruitmentLookups } from "@/lib/recruitment";
 import {
   buildContentRowPermissions,
@@ -25,14 +24,6 @@ import {
 } from "@/lib/utils/authorization";
 import { logAuditEvent } from "./audit-log";
 import { type ProductFormValues, productSchema } from "./schemas";
-
-async function requireAuth(): Promise<UserAuthContext> {
-  const ctx = await getUserAuthContext();
-  if (!ctx) {
-    redirect("/auth/login");
-  }
-  return ctx;
-}
 
 interface TranslationData {
   content_id: string;

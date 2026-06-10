@@ -2,17 +2,8 @@
 
 import { Query } from "@repo/api";
 import { createSessionClient } from "@repo/api/server";
-import type { Campus, Departments } from "@repo/api/types/appwrite";
-import { redirect } from "next/navigation";
-import { getUserAuthContext, type UserAuthContext } from "@/lib/authorization";
-
-async function requireAuth(): Promise<UserAuthContext> {
-  const ctx = await getUserAuthContext();
-  if (!ctx) {
-    redirect("/auth/login");
-  }
-  return ctx;
-}
+import type { Departments } from "@repo/api/types/appwrite";
+import { requireAuth } from "@/lib/authorization";
 
 export async function listDepartments(opts?: {
   campusId?: string;
@@ -53,14 +44,4 @@ async function _getDepartment(id: string) {
     Query.limit(1),
   ]);
   return response.rows[0] ?? null;
-}
-
-export async function listCampuses() {
-  await requireAuth();
-  const { db } = await createSessionClient();
-  const response = await db.listRows<Campus>("app", "campus", [
-    Query.orderAsc("name"),
-    Query.limit(50),
-  ]);
-  return response.rows;
 }

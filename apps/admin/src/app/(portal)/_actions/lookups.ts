@@ -3,15 +3,7 @@
 import { Query } from "@repo/api";
 import { createSessionClient } from "@repo/api/server";
 import type { Campus, Departments } from "@repo/api/types/appwrite";
-import { redirect } from "next/navigation";
-import { getUserAuthContext } from "@/lib/authorization";
-
-async function requireAuth(): Promise<void> {
-  const ctx = await getUserAuthContext();
-  if (!ctx) {
-    redirect("/auth/login");
-  }
-}
+import { requireAuth } from "@/lib/authorization";
 
 export async function listCampuses(): Promise<Campus[]> {
   await requireAuth();

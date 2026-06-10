@@ -3,6 +3,7 @@ import { ImageWithFallback } from "@repo/ui/components/image";
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Card } from "@repo/ui/components/ui/card";
 import { Separator } from "@repo/ui/components/ui/separator";
+import { PLACEHOLDER_IMAGE } from "@repo/ui/lib/placeholder-images";
 import {
   ArrowLeft,
   Building2,
@@ -17,7 +18,6 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { ExpenseDetailSkeleton } from "@/components/expense/expense-skeleton";
 import { getExpenseById } from "@/lib/actions/expense";
-import { PLACEHOLDER_IMAGE } from "@/lib/constants/placeholder-images";
 
 const statusConfig = {
   [ExpensesStatus.DRAFT]: {

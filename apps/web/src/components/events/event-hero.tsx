@@ -1,11 +1,11 @@
 import type { ContentTranslations, Events } from "@repo/api/types/appwrite";
 import { ImageWithFallback } from "@repo/ui/components/image";
 import { Badge } from "@repo/ui/components/ui/badge";
+import { PLACEHOLDER_IMAGE } from "@repo/ui/lib/placeholder-images";
 import { format } from "date-fns";
 import { ArrowLeft, Calendar, Clock, MapPin, Users } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { PLACEHOLDER_IMAGE } from "@/lib/constants/placeholder-images";
 import {
   type EventCategory,
   getEventCategory,

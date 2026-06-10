@@ -3,16 +3,7 @@
 import { Query } from "@repo/api";
 import { createAdminClient } from "@repo/api/server";
 import type { AuditLogs } from "@repo/api/types/appwrite";
-import { redirect } from "next/navigation";
-import { getUserAuthContext, type UserAuthContext } from "@/lib/authorization";
-
-async function requireAuth(): Promise<UserAuthContext> {
-  const ctx = await getUserAuthContext();
-  if (!ctx) {
-    redirect("/auth/login");
-  }
-  return ctx;
-}
+import { requireAuth } from "@/lib/authorization";
 
 export async function listActivityLog(opts?: {
   search?: string;

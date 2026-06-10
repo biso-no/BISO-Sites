@@ -11,6 +11,7 @@ import {
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Button } from "@repo/ui/components/ui/button";
 import { Card } from "@repo/ui/components/ui/card";
+import { PLACEHOLDER_IMAGE } from "@repo/ui/lib/placeholder-images";
 import { cn } from "@repo/ui/lib/utils";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -35,7 +36,6 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useMemo } from "react";
 import { useCampus } from "@/components/context/campus";
-import { PLACEHOLDER_IMAGE } from "@/lib/constants/placeholder-images";
 import type { CampusData } from "@/lib/types/campus-data";
 
 type BenefitKey = keyof Pick<

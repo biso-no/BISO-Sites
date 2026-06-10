@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { requireNavAccess } from "@/lib/authorization";
 import { getBenefit } from "../../_actions/benefits";
-import { listCampuses } from "../../_actions/jobs";
+import { listCampuses } from "../../_actions/lookups";
 import { BenefitEditorClient } from "./_components/benefit-editor-client";
 
 interface Props {

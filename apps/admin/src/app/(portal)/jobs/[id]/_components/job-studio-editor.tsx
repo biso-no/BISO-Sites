@@ -37,10 +37,10 @@ import { toast } from "sonner";
 import {
   createJob,
   generateJobNorwegianDraft,
-  listDepartmentsForCampus,
   suggestJobDescriptionSection,
   updateJob,
 } from "../../../_actions/jobs";
+import { listDepartmentsForCampus } from "../../../_actions/lookups";
 import { type JobFormValues, jobSchema } from "../../../_actions/schemas";
 import { uploadMediaFile } from "../../../_actions/upload";
 import {

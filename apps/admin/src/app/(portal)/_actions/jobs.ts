@@ -4,9 +4,7 @@ import { openai } from "@ai-sdk/openai";
 import { ID, Query } from "@repo/api";
 import { createAdminClient, createSessionClient } from "@repo/api/server";
 import type {
-  Campus,
   ContentTranslations,
-  Departments,
   JobApplications,
   Jobs,
   Users,
@@ -34,9 +32,8 @@ import {
 } from "@repo/shared/types/recruitment";
 import { generateObject } from "ai";
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { z } from "zod";
-import { getUserAuthContext, type UserAuthContext } from "@/lib/authorization";
+import { requireAuth } from "@/lib/authorization";
 import {
   assertRecruitmentApplicationReviewAccess,
   assertRecruitmentVacancyWriteAccess,
@@ -107,14 +104,6 @@ export interface RecruitmentReviewerOption {
   email: string | null;
   id: string;
   name: string;
-}
-
-async function requireAuth(): Promise<UserAuthContext> {
-  const ctx = await getUserAuthContext();
-  if (!ctx) {
-    redirect("/auth/login");
-  }
-  return ctx;
 }
 
 /**
@@ -985,25 +974,4 @@ export async function draftRecruitmentEmail(
       error: error instanceof Error ? error.message : "Failed to draft email",
     };
   }
-}
-
-export async function listCampuses() {
-  await requireAuth();
-  const { db } = await createSessionClient();
-  const response = await db.listRows<Campus>("app", "campus", [
-    Query.orderAsc("name"),
-    Query.limit(50),
-  ]);
-  return response.rows;
-}
-
-export async function listDepartmentsForCampus(campusId: string) {
-  await requireAuth();
-  const { db } = await createSessionClient();
-  const response = await db.listRows<Departments>("app", "departments", [
-    Query.equal("campus_id", campusId),
-    Query.orderAsc("Name"),
-    Query.limit(100),
-  ]);
-  return response.rows;
 }
