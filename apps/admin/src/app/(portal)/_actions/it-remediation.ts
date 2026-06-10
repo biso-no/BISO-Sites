@@ -1,27 +1,35 @@
 "use server";
 
-import { Query } from "@repo/api";
+import { resolveDepartments } from "@repo/ai/server/department-resolver";
+import { ID, Query } from "@repo/api";
 import { createAdminClient } from "@repo/api/server";
-import type { Campus, Departments } from "@repo/api/types/appwrite";
+import type {
+  Campus,
+  Departments,
+  M365RemediationSnapshot,
+} from "@repo/api/types/appwrite";
 import type {
   DepartmentDataHealthEntry,
   DepartmentDataIssue,
   DepartmentFixDecision,
   DepartmentFixSummary,
-  DepartmentRemediationPlan,
+  DepartmentResolution,
   M365UserListItem,
-  RemediationGroup,
+  RemediationSnapshot,
 } from "@repo/shared/types/user-management";
 import { revalidatePath } from "next/cache";
+import { mapWithConcurrency } from "@/lib/it/concurrency";
 import {
   buildCampusPrefixToId,
   type CanonicalDepartment,
-  type ClassifierContext,
-  classifyDepartmentValue,
   extractCampusPrefix,
   isClosedName,
+  normalizeForCompare,
+  stripClosedSuffix,
 } from "@/lib/it/department-matching";
+import { emailLocalPart, extractCampusHint } from "@/lib/it/email-classify";
 import { getGraphService, M365_DOMAIN, toListItem } from "@/lib/it/graph";
+import { buildRemediationPlan } from "@/lib/it/remediation-bucketing";
 import { requireItPermission } from "@/lib/it-permissions";
 import { logAuditEvent } from "./audit-log";
 
@@ -30,12 +38,11 @@ type ActionResult<T> =
   | { data?: never; error: string };
 
 const TRAILING_WHITESPACE_REGEX = /\s$/;
-const REVIEW_THRESHOLD = 0.8;
-const MIN_PREFIX_LENGTH = 20;
-const TIE_MARGIN = 0.1;
+const SNAPSHOT_TABLE = "m365_remediation_snapshot";
+const AI_CHUNK_SIZE = 30;
+const AI_CONCURRENCY = 5;
+const NATIONAL_KEY = "__national__";
 
-// Plain variant: bulk department fixes never create users, so the duplicate-UPN
-// augmentation in it-users.ts's getErrorMessage is not needed here.
 function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : "Unknown error";
 }
@@ -55,7 +62,7 @@ async function loadCanonicalData(): Promise<CanonicalData> {
     ]),
     db.listRows<Departments>("app", "departments", [
       Query.orderAsc("Name"),
-      Query.limit(1000), // includes closed (nedlagt) rows, unlike loadItLookupOptions
+      Query.limit(1000),
     ]),
   ]);
 
@@ -70,25 +77,11 @@ async function loadCanonicalData(): Promise<CanonicalData> {
   return { canonical, campusIdToName, departments: departments.rows };
 }
 
-function isCompliant(
-  user: M365UserListItem,
-  group: {
-    suggestedDepartment: string | null;
-    suggestedCampusName: string | null;
-  }
-): boolean {
-  return (
-    group.suggestedDepartment !== null &&
-    user.department === group.suggestedDepartment &&
-    user.officeLocation === group.suggestedCampusName
-  );
-}
-
-export async function getDepartmentRemediationPlan(): Promise<
-  ActionResult<DepartmentRemediationPlan>
+export async function runDepartmentAnalysis(): Promise<
+  ActionResult<RemediationSnapshot>
 > {
   try {
-    await requireItPermission("it.users.view");
+    const ctx = await requireItPermission("it.users.editProfile");
     const graph = getGraphService();
     const [users, data] = await Promise.all([
       graph.listLicensedUsers({
@@ -98,74 +91,172 @@ export async function getDepartmentRemediationPlan(): Promise<
       loadCanonicalData(),
     ]);
 
-    const context: ClassifierContext = {
-      canonical: data.canonical,
-      campusPrefixToId: buildCampusPrefixToId(data.canonical),
-      reviewThreshold: REVIEW_THRESHOLD,
-      minPrefixLength: MIN_PREFIX_LENGTH,
-      tieMargin: TIE_MARGIN,
+    const listItems = users.map(toListItem);
+
+    // Build canonical lookups.
+    const campusNames = new Set(data.campusIdToName.values());
+    const tokenToCampus = new Map<string, string>();
+    for (const name of campusNames) {
+      tokenToCampus.set(name.toLowerCase(), name);
+    }
+    const candidatesByCampus = new Map<string, Set<string>>();
+    const allCandidates = new Set<string>();
+    for (const dept of data.canonical) {
+      if (isClosedName(dept.name)) {
+        continue;
+      }
+      const campusName = data.campusIdToName.get(dept.campusId);
+      if (!campusName) {
+        continue;
+      }
+      const set = candidatesByCampus.get(campusName) ?? new Set<string>();
+      set.add(dept.name);
+      candidatesByCampus.set(campusName, set);
+      allCandidates.add(dept.name);
+    }
+    const closedBaseNames = new Set(
+      data.canonical
+        .filter((d) => isClosedName(d.name))
+        .map((d) => normalizeForCompare(stripClosedSuffix(d.name)))
+    );
+
+    // Batch users by campus hint.
+    const batches = new Map<string, M365UserListItem[]>();
+    for (const item of listItems) {
+      const hint =
+        extractCampusHint(
+          item.mail ?? item.userPrincipalName,
+          item.officeLocation,
+          tokenToCampus
+        ) ?? NATIONAL_KEY;
+      const list = batches.get(hint) ?? [];
+      list.push(item);
+      batches.set(hint, list);
+    }
+
+    // Chunk every batch and resolve with bounded concurrency.
+    interface Chunk {
+      campusLabel: string;
+      candidates: string[];
+      users: M365UserListItem[];
+    }
+    const chunks: Chunk[] = [];
+    for (const [hint, batchUsers] of batches) {
+      const isNational = hint === NATIONAL_KEY;
+      const campusLabel = isNational ? "National/unknown" : hint;
+      const candidates = isNational
+        ? [...allCandidates]
+        : [...(candidatesByCampus.get(hint) ?? new Set<string>())];
+      for (let i = 0; i < batchUsers.length; i += AI_CHUNK_SIZE) {
+        chunks.push({
+          campusLabel,
+          candidates,
+          users: batchUsers.slice(i, i + AI_CHUNK_SIZE),
+        });
+      }
+    }
+
+    const chunkResults = await mapWithConcurrency(
+      chunks,
+      AI_CONCURRENCY,
+      async (chunk): Promise<DepartmentResolution[]> => {
+        try {
+          return await resolveDepartments({
+            campusLabel: chunk.campusLabel,
+            candidates: chunk.candidates,
+            users: chunk.users.map((u) => ({
+              department: u.department ?? "",
+              email: emailLocalPart(u.mail ?? u.userPrincipalName),
+              office: u.officeLocation ?? "",
+              ref: u.id,
+            })),
+          });
+        } catch {
+          // Degrade a failed batch to manual rather than aborting the run.
+          return chunk.users.map((u) => ({
+            ref: u.id,
+            classification: "manual" as const,
+            department: null,
+            campus: null,
+            confidence: "low" as const,
+            reasoning: "AI resolution failed for this batch",
+          }));
+        }
+      }
+    );
+
+    const resolutions = new Map<string, DepartmentResolution>();
+    for (const list of chunkResults) {
+      for (const r of list) {
+        resolutions.set(r.ref, r);
+      }
+    }
+
+    const plan = buildRemediationPlan({
+      users: listItems,
+      resolutions,
+      candidatesByCampus,
+      closedBaseNames,
+      campusNames,
+    });
+
+    const snapshot: RemediationSnapshot = {
+      generatedAt: new Date().toISOString(),
+      generatedBy: ctx.email ?? ctx.userId,
+      plan,
     };
 
-    // Group users by their distinct (trimmed) department string.
-    const byValue = new Map<string, M365UserListItem[]>();
-    for (const user of users) {
-      const value = (user.department ?? "").trim();
-      const list = byValue.get(value) ?? [];
-      list.push(toListItem(user));
-      byValue.set(value, list);
+    const { db } = await createAdminClient();
+    await db.createRow("app", SNAPSHOT_TABLE, ID.unique(), {
+      generated_at: snapshot.generatedAt,
+      generated_by: snapshot.generatedBy,
+      total_scanned: plan.totalScanned,
+      safe_count: plan.safe.length,
+      review_count: plan.review.length,
+      manual_count: plan.manual.length,
+      closed_count: plan.closed.length,
+      result: JSON.stringify(snapshot.plan),
+    });
+
+    await logAuditEvent(ctx, "it.m365.department.analysis", {
+      resourceType: "m365.user",
+      payload: {
+        totalScanned: plan.totalScanned,
+        safe: plan.safe.length,
+        review: plan.review.length,
+        manual: plan.manual.length,
+        closed: plan.closed.length,
+        compliant: plan.compliantCount,
+      },
+    });
+
+    revalidatePath("/it/users/audit");
+    return { data: snapshot };
+  } catch (error) {
+    return { error: getErrorMessage(error) };
+  }
+}
+
+export async function getLatestRemediationSnapshot(): Promise<
+  ActionResult<RemediationSnapshot | null>
+> {
+  try {
+    await requireItPermission("it.users.view");
+    const { db } = await createAdminClient();
+    const rows = await db.listRows<M365RemediationSnapshot>(
+      "app",
+      SNAPSHOT_TABLE,
+      [Query.orderDesc("generated_at"), Query.limit(1)]
+    );
+    const latest = rows.rows[0];
+    if (!latest?.result) {
+      return { data: null };
     }
-
-    const safe: RemediationGroup[] = [];
-    const review: RemediationGroup[] = [];
-    const closed: RemediationGroup[] = [];
-    let compliantCount = 0;
-
-    for (const [value, groupUsers] of byValue) {
-      const classification = classifyDepartmentValue(value, context);
-      const suggestedCampusName = classification.suggestedCampusId
-        ? (data.campusIdToName.get(classification.suggestedCampusId) ?? null)
-        : null;
-      const group: RemediationGroup = {
-        value,
-        tier: classification.tier,
-        suggestedDepartment: classification.suggestedDepartment,
-        suggestedCampusName,
-        score: classification.score,
-        affectedUsers: groupUsers,
-      };
-
-      if (classification.tier === "closed") {
-        closed.push(group);
-        continue;
-      }
-      if (
-        classification.tier === "safe-exact" ||
-        classification.tier === "safe-truncation"
-      ) {
-        // Drop users who are already fully compliant; keep those needing a write.
-        const needsFix = groupUsers.filter((user) => !isCompliant(user, group));
-        compliantCount += groupUsers.length - needsFix.length;
-        if (needsFix.length > 0) {
-          safe.push({ ...group, affectedUsers: needsFix });
-        }
-        continue;
-      }
-      review.push(group);
-    }
-
-    const sortByCount = (a: RemediationGroup, b: RemediationGroup) =>
-      b.affectedUsers.length - a.affectedUsers.length;
-    safe.sort(sortByCount);
-    review.sort(sortByCount);
-    closed.sort(sortByCount);
-
     return {
       data: {
-        safe,
-        review,
-        closed,
-        totalScanned: users.length,
-        compliantCount,
+        generatedAt: latest.generated_at,
+        generatedBy: latest.generated_by ?? "unknown",
+        plan: JSON.parse(latest.result),
       },
     };
   } catch (error) {
@@ -248,7 +339,6 @@ export async function applyDepartmentFixes(
       },
     });
 
-    // The remediation hub lives at /it/users/audit; refresh it after writes.
     revalidatePath("/it/users/audit");
     return { data: { succeeded, failed } };
   } catch (error) {
