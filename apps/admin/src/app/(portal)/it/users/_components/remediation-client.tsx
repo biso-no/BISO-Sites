@@ -509,7 +509,7 @@ function ManualRow({
             ))}
           </select>
           <StudioButton
-            disabled={pending || !chosen}
+            disabled={pending || !chosen || !departmentToCampus[chosen]}
             onClick={() => {
               const campusName = departmentToCampus[chosen] ?? null;
               if (chosen && campusName) {
