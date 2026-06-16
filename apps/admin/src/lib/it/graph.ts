@@ -41,7 +41,9 @@ export function toListItem(user: {
   displayName: string;
   id: string;
   jobTitle?: string;
+  lastNonInteractiveSignInDateTime?: string;
   lastSignInDateTime?: string;
+  lastSuccessfulSignInDateTime?: string;
   mail?: string;
   officeLocation?: string;
   userPrincipalName: string;
@@ -53,7 +55,10 @@ export function toListItem(user: {
     displayName: user.displayName,
     id: user.id,
     jobTitle: user.jobTitle ?? null,
+    lastNonInteractiveSignInDateTime:
+      user.lastNonInteractiveSignInDateTime ?? null,
     lastSignInDateTime: user.lastSignInDateTime ?? null,
+    lastSuccessfulSignInDateTime: user.lastSuccessfulSignInDateTime ?? null,
     mail: user.mail ?? null,
     officeLocation: user.officeLocation ?? null,
     userPrincipalName: user.userPrincipalName,

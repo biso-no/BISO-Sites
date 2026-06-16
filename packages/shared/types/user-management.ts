@@ -317,7 +317,11 @@ export interface M365UserListItem {
   displayName: string;
   id: string;
   jobTitle: string | null;
+  // lastSignInDateTime is INTERACTIVE-only; the non-interactive/successful fields
+  // capture client (Outlook/Teams) access. Inactivity must consider all of them.
+  lastNonInteractiveSignInDateTime?: string | null;
   lastSignInDateTime: string | null;
+  lastSuccessfulSignInDateTime?: string | null;
   mail: string | null;
   officeLocation: string | null;
   userPrincipalName: string;

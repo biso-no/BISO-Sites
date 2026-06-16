@@ -31,7 +31,12 @@ export interface GraphUser {
   givenName?: string;
   id: string;
   jobTitle?: string;
+  // signInActivity timestamps. lastSignInDateTime is INTERACTIVE-only; the
+  // non-interactive/successful fields capture client (Outlook/Teams) access and
+  // must be considered together to avoid flagging actively-used accounts.
+  lastNonInteractiveSignInDateTime?: string;
   lastSignInDateTime?: string;
+  lastSuccessfulSignInDateTime?: string;
   mail?: string;
   mailNickname?: string;
   mobilePhone?: string;
@@ -196,7 +201,11 @@ export function normalizeGraphError(error: unknown): Error {
 
 function toGraphUser(user: Record<string, unknown>): GraphUser {
   const signInActivity = user.signInActivity as
-    | { lastSignInDateTime?: string }
+    | {
+        lastNonInteractiveSignInDateTime?: string;
+        lastSignInDateTime?: string;
+        lastSuccessfulSignInDateTime?: string;
+      }
     | undefined;
 
   return {
@@ -251,6 +260,9 @@ function toGraphUser(user: Record<string, unknown>): GraphUser {
         )
       : undefined,
     lastSignInDateTime: signInActivity?.lastSignInDateTime,
+    lastNonInteractiveSignInDateTime:
+      signInActivity?.lastNonInteractiveSignInDateTime,
+    lastSuccessfulSignInDateTime: signInActivity?.lastSuccessfulSignInDateTime,
   };
 }
 

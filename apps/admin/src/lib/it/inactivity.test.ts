@@ -58,6 +58,32 @@ describe("isInactive", () => {
     expect(isInactive(u({}), NOW, MONTHS)).toBe(false);
   });
 
+  test("recent NON-interactive sign-in keeps an account active despite stale interactive", () => {
+    expect(
+      isInactive(
+        u({
+          lastSignInDateTime: "2025-01-01T00:00:00Z", // stale interactive
+          lastNonInteractiveSignInDateTime: "2026-05-20T00:00:00Z", // recent client
+        }),
+        NOW,
+        MONTHS
+      )
+    ).toBe(false);
+  });
+
+  test("recent last-successful sign-in keeps an account active", () => {
+    expect(
+      isInactive(
+        u({
+          lastSignInDateTime: null,
+          lastSuccessfulSignInDateTime: "2026-06-01T00:00:00Z",
+        }),
+        NOW,
+        MONTHS
+      )
+    ).toBe(false);
+  });
+
   test("already-disabled account is never flagged, even if stale", () => {
     expect(
       isInactive(

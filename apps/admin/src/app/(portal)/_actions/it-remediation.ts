@@ -265,11 +265,13 @@ function trimPlan(
 }
 
 // Removes already-handled users from the persisted snapshot so a page refresh
-// never re-offers them. `scope` selects which part of the snapshot a successful
-// write affects: department buckets (apply) or the inactive list (deactivate).
+// never re-offers them. `scope` selects which parts of the snapshot to trim: a
+// department apply touches `plan`; a deactivation touches BOTH `inactive` and
+// `plan`, since a disabled account must not be re-offered for department
+// remediation either.
 async function removeUsersFromSnapshot(
   handledIds: Set<string>,
-  scope: "inactive" | "plan"
+  scope: { inactive: boolean; plan: boolean }
 ): Promise<void> {
   if (handledIds.size === 0) {
     return;
@@ -286,11 +288,10 @@ async function removeUsersFromSnapshot(
   const plan: DepartmentRemediationPlan = parsed.plan ?? parsed;
   const inactive: M365UserListItem[] = parsed.inactive ?? [];
 
-  const nextPlan = scope === "plan" ? trimPlan(plan, handledIds) : plan;
-  const nextInactive =
-    scope === "inactive"
-      ? inactive.filter((u) => !handledIds.has(u.id))
-      : inactive;
+  const nextPlan = scope.plan ? trimPlan(plan, handledIds) : plan;
+  const nextInactive = scope.inactive
+    ? inactive.filter((u) => !handledIds.has(u.id))
+    : inactive;
 
   await db.updateRow("app", SNAPSHOT_TABLE, latest.$id, {
     safe_count: nextPlan.safe.length,
@@ -481,7 +482,10 @@ export async function deactivateM365Account(
     const graph = getGraphService();
     await deactivateOneAccount(graph, userId);
 
-    await removeUsersFromSnapshot(new Set([userId]), "inactive");
+    await removeUsersFromSnapshot(new Set([userId]), {
+      inactive: true,
+      plan: true,
+    });
 
     await logAuditEvent(ctx, "it.m365.user.deactivate", {
       resourceType: "m365.user",
@@ -523,10 +527,11 @@ export async function deactivateM365Accounts(
     const succeeded = results.filter(Boolean).length;
     const failed = results.length - succeeded;
 
-    // Persist progress: drop the disabled users from the snapshot's inactive list.
+    // Persist progress: drop the disabled users from BOTH the inactive list and
+    // the department buckets — a disabled account must not be re-offered anywhere.
     await removeUsersFromSnapshot(
       new Set(userIds.filter((_, index) => results[index])),
-      "inactive"
+      { inactive: true, plan: true }
     );
 
     await logAuditEvent(ctx, "it.m365.user.deactivate.bulk", {
@@ -620,7 +625,7 @@ export async function applyDepartmentFixes(
     // a refresh doesn't re-offer them.
     await removeUsersFromSnapshot(
       new Set(results.filter((r) => r.error === undefined).map((r) => r.id)),
-      "plan"
+      { inactive: false, plan: true }
     );
 
     await logAuditEvent(ctx, "it.m365.user.department.bulkFix", {
