@@ -10,8 +10,10 @@ import type {
   DepartmentDataIssue,
   DepartmentFixDecision,
   DepartmentFixSummary,
+  DepartmentRemediationPlan,
   DepartmentResolution,
   M365UserListItem,
+  RemediationGroup,
   RemediationSnapshot,
 } from "@repo/shared/types/user-management";
 import { revalidatePath } from "next/cache";
@@ -21,13 +23,14 @@ import {
   type CanonicalDepartment,
   extractCampusPrefix,
   isClosedName,
-  normalizeForCompare,
+  normalizeWithCampus,
   stripClosedSuffix,
 } from "@/lib/it/department-matching";
 import { emailLocalPart, extractCampusHint } from "@/lib/it/email-classify";
 import { getGraphService, M365_DOMAIN, toListItem } from "@/lib/it/graph";
 import { findInactiveAccounts } from "@/lib/it/inactivity";
 import { buildRemediationPlan } from "@/lib/it/remediation-bucketing";
+import { getAllowedTenantUser } from "@/lib/it/tenant-guard";
 import { requireItPermission } from "@/lib/it-permissions";
 import { logAuditEvent } from "./audit-log";
 
@@ -61,7 +64,7 @@ interface CanonicalLookups {
   allCandidates: Set<string>;
   campusNames: Set<string>;
   candidatesByCampus: Map<string, Set<string>>;
-  closedBaseNames: Set<string>;
+  closedKeys: Set<string>;
   inactiveDeptNames: Set<string>;
   tokenToCampus: Map<string, string>;
 }
@@ -122,17 +125,22 @@ function buildCanonicalLookups(data: CanonicalData): CanonicalLookups {
       inactiveDeptNames.add(dept.name);
     }
   }
-  const closedBaseNames = new Set(
-    data.canonical
-      .filter((d) => isClosedName(d.name))
-      .map((d) => normalizeForCompare(stripClosedSuffix(d.name)))
-  );
+  // Campus-scoped keys for matching a user's CURRENT department against a
+  // shut-down/inactive unit. We add both the full inactive name and its
+  // suffix-stripped form (each campus-prefix-preserving) so a user sitting in
+  // either "OSL Foo - nedlagt" or its pre-closure "OSL Foo" is caught, while
+  // an active "BRG Foo" in another campus is not.
+  const closedKeys = new Set<string>();
+  for (const name of inactiveDeptNames) {
+    closedKeys.add(normalizeWithCampus(name));
+    closedKeys.add(normalizeWithCampus(stripClosedSuffix(name)));
+  }
   return {
     campusNames,
     tokenToCampus,
     candidatesByCampus,
     allCandidates,
-    closedBaseNames,
+    closedKeys,
     inactiveDeptNames,
   };
 }
@@ -231,6 +239,68 @@ async function persistSnapshot(snapshot: RemediationSnapshot): Promise<void> {
   });
 }
 
+function trimGroups(
+  groups: RemediationGroup[],
+  handledIds: Set<string>
+): RemediationGroup[] {
+  return groups
+    .map((group) => ({
+      ...group,
+      affectedUsers: group.affectedUsers.filter((u) => !handledIds.has(u.id)),
+    }))
+    .filter((group) => group.affectedUsers.length > 0);
+}
+
+function trimPlan(
+  plan: DepartmentRemediationPlan,
+  handledIds: Set<string>
+): DepartmentRemediationPlan {
+  return {
+    ...plan,
+    closed: trimGroups(plan.closed, handledIds),
+    manual: plan.manual.filter((m) => !handledIds.has(m.user.id)),
+    review: trimGroups(plan.review, handledIds),
+    safe: trimGroups(plan.safe, handledIds),
+  };
+}
+
+// Removes already-handled users from the persisted snapshot so a page refresh
+// never re-offers them. `scope` selects which part of the snapshot a successful
+// write affects: department buckets (apply) or the inactive list (deactivate).
+async function removeUsersFromSnapshot(
+  handledIds: Set<string>,
+  scope: "inactive" | "plan"
+): Promise<void> {
+  if (handledIds.size === 0) {
+    return;
+  }
+  const { db } = await createAdminClient();
+  const rows = await db.listRows<
+    Models.Row & { generated_at: string; result: string | null }
+  >("app", SNAPSHOT_TABLE, [Query.orderDesc("generated_at"), Query.limit(1)]);
+  const latest = rows.rows[0];
+  if (!latest?.result) {
+    return;
+  }
+  const parsed = JSON.parse(latest.result);
+  const plan: DepartmentRemediationPlan = parsed.plan ?? parsed;
+  const inactive: M365UserListItem[] = parsed.inactive ?? [];
+
+  const nextPlan = scope === "plan" ? trimPlan(plan, handledIds) : plan;
+  const nextInactive =
+    scope === "inactive"
+      ? inactive.filter((u) => !handledIds.has(u.id))
+      : inactive;
+
+  await db.updateRow("app", SNAPSHOT_TABLE, latest.$id, {
+    safe_count: nextPlan.safe.length,
+    review_count: nextPlan.review.length,
+    manual_count: nextPlan.manual.length,
+    closed_count: nextPlan.closed.length,
+    result: JSON.stringify({ plan: nextPlan, inactive: nextInactive }),
+  });
+}
+
 // Drops resource mailboxes (rooms / equipment / shared) from a user list using
 // each account's mailbox userPurpose. Best-effort: unreadable mailboxes are
 // kept (treated as real users) rather than silently removed.
@@ -250,6 +320,9 @@ async function deactivateOneAccount(
   graph: ReturnType<typeof getGraphService>,
   userId: string
 ): Promise<void> {
+  // Validate the target is a licensed @biso.no tenant user before mutating it —
+  // the userId is client-supplied, so never trust it straight to Graph.
+  await getAllowedTenantUser(graph, userId);
   // Licenses are inherited from group membership and can't be removed per-user,
   // so just block sign-in by setting the account disabled.
   await graph.updateUser(userId, { accountEnabled: false });
@@ -263,15 +336,16 @@ export async function runDepartmentAnalysis(): Promise<
     console.info(`${LOG} starting; fetching licensed M365 users + canonical data…`);
     const fetchStart = Date.now();
     const graph = getGraphService();
-    const [users, data] = await Promise.all([
+    const [licensed, data] = await Promise.all([
       graph.listLicensedUsers({
         allowedDomain: M365_DOMAIN,
         licensedOnly: true,
       }),
       loadCanonicalData(),
     ]);
+    const { users, signInActivityAvailable } = licensed;
     console.info(
-      `${LOG} fetched ${users.length} licensed users + ${data.departments.length} departments in ${Date.now() - fetchStart}ms`
+      `${LOG} fetched ${users.length} licensed users + ${data.departments.length} departments in ${Date.now() - fetchStart}ms (signInActivity ${signInActivityAvailable ? "available" : "UNAVAILABLE"})`
     );
 
     const listItems = users.map(toListItem);
@@ -280,7 +354,7 @@ export async function runDepartmentAnalysis(): Promise<
       tokenToCampus,
       candidatesByCampus,
       allCandidates,
-      closedBaseNames,
+      closedKeys,
       inactiveDeptNames,
     } = buildCanonicalLookups(data);
 
@@ -311,17 +385,25 @@ export async function runDepartmentAnalysis(): Promise<
       users: listItems,
       resolutions,
       candidatesByCampus,
-      closedBaseNames,
+      closedKeys,
       inactiveDepartments: inactiveDeptNames,
       campusNames,
     });
 
-    const inactiveCandidates = findInactiveAccounts(
-      listItems,
-      Date.now(),
-      INACTIVE_MONTHS
-    );
-    const inactive = await excludeResourceMailboxes(graph, inactiveCandidates);
+    // Only compute the inactive list when real sign-in data was available.
+    // Without it, every account's last activity falls back to its creation date,
+    // which would wrongly flag long-lived but active accounts as inactive.
+    const inactiveCandidates = signInActivityAvailable
+      ? findInactiveAccounts(listItems, Date.now(), INACTIVE_MONTHS)
+      : [];
+    const inactive = signInActivityAvailable
+      ? await excludeResourceMailboxes(graph, inactiveCandidates)
+      : [];
+    if (!signInActivityAvailable) {
+      console.warn(
+        `${LOG} signInActivity unavailable (no Entra ID P1?) — inactive-account detection suppressed`
+      );
+    }
 
     console.info(
       `${LOG} plan ready: ${plan.safe.length} safe · ${plan.review.length} review · ${plan.manual.length} manual · ${plan.closed.length} closed · ${plan.compliantCount} compliant · ${inactive.length} inactive (${inactiveCandidates.length - inactive.length} resource mailboxes excluded) (of ${plan.totalScanned})`
@@ -399,6 +481,8 @@ export async function deactivateM365Account(
     const graph = getGraphService();
     await deactivateOneAccount(graph, userId);
 
+    await removeUsersFromSnapshot(new Set([userId]), "inactive");
+
     await logAuditEvent(ctx, "it.m365.user.deactivate", {
       resourceType: "m365.user",
       resourceId: userId,
@@ -439,6 +523,12 @@ export async function deactivateM365Accounts(
     const succeeded = results.filter(Boolean).length;
     const failed = results.length - succeeded;
 
+    // Persist progress: drop the disabled users from the snapshot's inactive list.
+    await removeUsersFromSnapshot(
+      new Set(userIds.filter((_, index) => results[index])),
+      "inactive"
+    );
+
     await logAuditEvent(ctx, "it.m365.user.deactivate.bulk", {
       resourceType: "m365.user",
       payload: { requested: userIds.length, succeeded, failed },
@@ -464,7 +554,10 @@ export async function applyDepartmentFixes(
     const prefixToId = buildCampusPrefixToId(data.canonical);
     const activeByName = new Map<string, CanonicalDepartment>();
     for (const dept of data.canonical) {
-      if (!isClosedName(dept.name)) {
+      // Only active, non-closed departments are valid write targets — a closed
+      // (`- nedlagt`) or inactive (`active === false`) unit must never be
+      // assigned, even if a client supplies its exact name.
+      if (!(isClosedName(dept.name) || dept.active === false)) {
         activeByName.set(dept.name, dept);
       }
     }
@@ -509,11 +602,26 @@ export async function applyDepartmentFixes(
       }
     }
 
-    const results = await getGraphService().batchUpdateUsers(updates);
+    // Validate every target is a licensed @biso.no tenant user before writing —
+    // userIds are client-supplied and otherwise go straight to Graph.
+    const graph = getGraphService();
+    const targetIds = [...new Set(updates.map((u) => u.id))];
+    await mapWithConcurrency(targetIds, AI_CONCURRENCY, (id) =>
+      getAllowedTenantUser(graph, id)
+    );
+
+    const results = await graph.batchUpdateUsers(updates);
     const failed = results
       .filter((r): r is { id: string; error: string } => r.error !== undefined)
       .map((r) => ({ userId: r.id, error: r.error }));
     const succeeded = results.length - failed.length;
+
+    // Persist progress: drop the successfully-updated users from the snapshot so
+    // a refresh doesn't re-offer them.
+    await removeUsersFromSnapshot(
+      new Set(results.filter((r) => r.error === undefined).map((r) => r.id)),
+      "plan"
+    );
 
     await logAuditEvent(ctx, "it.m365.user.department.bulkFix", {
       resourceType: "m365.user",
@@ -528,6 +636,29 @@ export async function applyDepartmentFixes(
 
     revalidatePath("/it/users/audit");
     return { data: { succeeded, failed } };
+  } catch (error) {
+    return { error: getErrorMessage(error) };
+  }
+}
+
+// Departments an operator may assign during remediation: the full canonical set
+// (not the 200-capped portal list), excluding closed (`- nedlagt`) and inactive
+// (`active === false`) units — the same set the write path accepts, so every
+// visible option is applicable.
+export async function listAssignableDepartments(): Promise<
+  ActionResult<Array<{ campusName: string; name: string }>>
+> {
+  try {
+    await requireItPermission("it.users.view");
+    const data = await loadCanonicalData();
+    const departments = data.canonical
+      .filter((dept) => dept.active !== false && !isClosedName(dept.name))
+      .map((dept) => ({
+        name: dept.name,
+        campusName: data.campusIdToName.get(dept.campusId) ?? "",
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+    return { data: departments };
   } catch (error) {
     return { error: getErrorMessage(error) };
   }

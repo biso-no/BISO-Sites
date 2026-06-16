@@ -57,6 +57,19 @@ describe("isInactive", () => {
   test("no sign-in and no creation date => not flagged", () => {
     expect(isInactive(u({}), NOW, MONTHS)).toBe(false);
   });
+
+  test("already-disabled account is never flagged, even if stale", () => {
+    expect(
+      isInactive(
+        u({
+          accountEnabled: false,
+          lastSignInDateTime: "2024-01-01T00:00:00Z",
+        }),
+        NOW,
+        MONTHS
+      )
+    ).toBe(false);
+  });
 });
 
 describe("findInactiveAccounts", () => {

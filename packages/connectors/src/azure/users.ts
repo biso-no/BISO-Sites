@@ -108,6 +108,13 @@ export interface GraphUserSearchOptions {
   licensedOnly?: boolean;
 }
 
+export interface LicensedUsersResult {
+  // false when the tenant lacks Entra ID P1 and signInActivity could not be read
+  // (lastSignInDateTime is then absent on every user).
+  signInActivityAvailable: boolean;
+  users: GraphUser[];
+}
+
 const USER_SELECT = [
   "id",
   "displayName",
@@ -502,7 +509,7 @@ export class GraphUserService {
    */
   async listLicensedUsers(
     options: GraphUserSearchOptions = {}
-  ): Promise<GraphUser[]> {
+  ): Promise<LicensedUsersResult> {
     const rows: Record<string, unknown>[] = [];
     let useSignInActivity = true;
     let nextLink: string | undefined;
@@ -542,12 +549,17 @@ export class GraphUserService {
       await collect();
     }
 
-    return rows
+    const users = rows
       .map((user) => toGraphUser(user))
       .filter((user) => hasAllowedDomain(user, options.allowedDomain))
       .filter((user) =>
         options.licensedOnly ? hasAssignedLicense(user) : true
       );
+
+    // signInActivityAvailable is false when the tenant lacks Entra ID P1 and we
+    // fell back to the no-signInActivity select. Callers must NOT infer
+    // inactivity from creation date alone in that case.
+    return { users, signInActivityAvailable: useSignInActivity };
   }
 
   /**

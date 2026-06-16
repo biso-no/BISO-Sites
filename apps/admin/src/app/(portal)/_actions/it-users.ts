@@ -37,6 +37,7 @@ import {
 } from "@repo/shared/types/user-management";
 import { revalidatePath } from "next/cache";
 import { getGraphService, M365_DOMAIN, toListItem } from "@/lib/it/graph";
+import { getAllowedTenantUser } from "@/lib/it/tenant-guard";
 import { requireItPermission } from "@/lib/it-permissions";
 import { logAuditEvent } from "./audit-log";
 
@@ -88,23 +89,6 @@ function toDetail(
 function toNullableString(value: string | null | undefined): string | null {
   const trimmed = value?.trim();
   return trimmed ? trimmed : null;
-}
-
-function isAllowedTenantUser(user: {
-  assignedLicenses?: Array<{ skuId: string }>;
-  mail?: string;
-  userPrincipalName: string;
-}): boolean {
-  const allowedDomain = `@${M365_DOMAIN.toLowerCase().replace(
-    LEADING_AT_REGEX,
-    ""
-  )}`;
-  const hasDomain = [user.userPrincipalName, user.mail]
-    .filter((value): value is string => Boolean(value))
-    .some((value) => value.toLowerCase().endsWith(allowedDomain));
-  const hasLicense = (user.assignedLicenses?.length ?? 0) > 0;
-
-  return hasDomain && hasLicense;
 }
 
 function isAllowedDomainValue(value: string): boolean {
@@ -236,22 +220,6 @@ async function validateItLookupValues(input: {
   }
 
   return result;
-}
-
-async function getAllowedTenantUser(
-  graph: GraphUserService,
-  userId: string
-): Promise<NonNullable<Awaited<ReturnType<GraphUserService["getUser"]>>>> {
-  const user = await graph.getUser(userId);
-  if (!user) {
-    throw new Error("Microsoft 365 user not found");
-  }
-  if (!isAllowedTenantUser(user)) {
-    throw new Error(
-      "Only licensed @biso.no Microsoft 365 users are visible in IT admin."
-    );
-  }
-  return user;
 }
 
 function getAccountStatusChange(input: {

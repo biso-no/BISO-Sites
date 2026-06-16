@@ -1,7 +1,9 @@
 import { getTranslations } from "next-intl/server";
 import { requireItPagePermission } from "@/lib/it-permissions";
-import { listDepartments } from "../../../_actions/departments";
-import { getLatestRemediationSnapshot } from "../../../_actions/it-remediation";
+import {
+  getLatestRemediationSnapshot,
+  listAssignableDepartments,
+} from "../../../_actions/it-remediation";
 import { PageHeader } from "../../../_components/page-header";
 import { ItUsersTabs } from "../_components/it-users-tabs";
 import { RemediationClient } from "../_components/remediation-client";
@@ -12,16 +14,17 @@ export const maxDuration = 300;
 export default async function ItUsersAuditPage() {
   await requireItPagePermission("it.users.view");
   const t = await getTranslations("adminPortal.it");
-  const [snapshotResult, departments] = await Promise.all([
+  const [snapshotResult, departmentsResult] = await Promise.all([
     getLatestRemediationSnapshot(),
-    listDepartments(),
+    listAssignableDepartments(),
   ]);
 
-  const departmentNames = departments.map((d) => d.Name);
+  const departments = departmentsResult.data ?? [];
+  const departmentNames = departments.map((d) => d.name);
   const departmentToCampus: Record<string, string> = {};
   for (const d of departments) {
-    if (d.campus?.name) {
-      departmentToCampus[d.Name] = d.campus.name;
+    if (d.campusName) {
+      departmentToCampus[d.name] = d.campusName;
     }
   }
 

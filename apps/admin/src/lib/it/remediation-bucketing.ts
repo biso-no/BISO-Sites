@@ -5,12 +5,12 @@ import type {
   ManualRemediationUser,
   RemediationGroup,
 } from "@repo/shared/types/user-management";
-import { normalizeForCompare } from "./department-matching";
+import { normalizeWithCampus } from "./department-matching";
 
 export interface BucketingInput {
   campusNames: Set<string>;
   candidatesByCampus: Map<string, Set<string>>; // campus name -> canonical dept names
-  closedBaseNames: Set<string>; // normalizeForCompare(stripClosedSuffix(name)) of nedlagt depts
+  closedKeys: Set<string>; // campus-scoped normalizeWithCampus keys (full + suffix-stripped) of inactive/closed depts
   inactiveDepartments: Set<string>; // exact names of inactive/closed canonical depts
   resolutions: Map<string, DepartmentResolution>; // keyed by user id
   users: M365UserListItem[];
@@ -64,21 +64,13 @@ function pushGroup(
   map.set(key, { ...meta, affectedUsers: [user] });
 }
 
-// Picks the destination bucket for an on-list resolved user.
-function pickBucket(
-  resolution: DepartmentResolution,
-  target: Target,
-  inactiveDepartments: Set<string>,
-  buckets: {
-    closed: Map<string, RemediationGroup>;
-    review: Map<string, RemediationGroup>;
-    safe: Map<string, RemediationGroup>;
-  }
-): Map<string, RemediationGroup> {
-  if (inactiveDepartments.has(target.department)) {
-    return buckets.closed;
-  }
-  return resolution.confidence === "high" ? buckets.safe : buckets.review;
+// True when the user already sits in the resolved target (department + campus),
+// trimming both sides so a trailing-whitespace M365 value isn't a needless diff.
+function isCompliant(user: M365UserListItem, target: Target): boolean {
+  return (
+    (user.department ?? "").trim() === target.department &&
+    (user.officeLocation ?? "").trim() === target.campus
+  );
 }
 
 export function buildRemediationPlan(
@@ -88,7 +80,7 @@ export function buildRemediationPlan(
     users,
     resolutions,
     candidatesByCampus,
-    closedBaseNames,
+    closedKeys,
     inactiveDepartments,
     campusNames,
   } = input;
@@ -102,8 +94,10 @@ export function buildRemediationPlan(
   for (const user of users) {
     const currentDept = (user.department ?? "").trim();
 
-    // 1) Closed: current value corresponds to a "- nedlagt" department.
-    if (currentDept && closedBaseNames.has(normalizeForCompare(currentDept))) {
+    // 1) Closed: current value corresponds to an inactive/closed department in
+    //    the SAME campus (matched campus-scoped against both the full closed
+    //    name and its pre-closure base).
+    if (currentDept && closedKeys.has(normalizeWithCampus(currentDept))) {
       pushGroup(
         closedGroups,
         currentDept,
@@ -140,16 +134,6 @@ export function buildRemediationPlan(
       continue;
     }
 
-    // 4) Already compliant → counted, not shown. Trim both sides so a
-    // trailing-whitespace M365 value doesn't trigger a needless re-write.
-    if (
-      (user.department ?? "").trim() === target.department &&
-      (user.officeLocation ?? "").trim() === target.campus
-    ) {
-      compliantCount += 1;
-      continue;
-    }
-
     const meta: Omit<RemediationGroup, "affectedUsers"> = {
       classification: resolution.classification,
       confidence: resolution.confidence,
@@ -160,14 +144,23 @@ export function buildRemediationPlan(
     };
     const key = `${target.department}${GROUP_SEP}${target.campus}`;
 
-    // Target department is inactive/closed → Closed bucket (don't auto-apply a
-    // shut-down department; surface the users as belonging to it). Otherwise
-    // high confidence → safe, else → review.
-    const bucket = pickBucket(resolution, target, inactiveDepartments, {
-      closed: closedGroups,
-      review: reviewByTarget,
-      safe: safeByTarget,
-    });
+    // 4) Target department is inactive/closed → Closed bucket, BEFORE the
+    //    compliance check: a user already sitting in a shut-down unit must be
+    //    surfaced for reassignment, never silently counted as compliant.
+    if (inactiveDepartments.has(target.department)) {
+      pushGroup(closedGroups, key, meta, user);
+      continue;
+    }
+
+    // 5) Already compliant → counted, not shown.
+    if (isCompliant(user, target)) {
+      compliantCount += 1;
+      continue;
+    }
+
+    // 6) High confidence → safe, else → review.
+    const bucket =
+      resolution.confidence === "high" ? safeByTarget : reviewByTarget;
     pushGroup(bucket, key, meta, user);
   }
 

@@ -20,6 +20,9 @@ export function isInactive(
   nowMs: number,
   months: number
 ): boolean {
+  if (user.accountEnabled === false) {
+    return false; // already disabled — not a deactivation target
+  }
   const last = lastActivityMs(user);
   if (last === null) {
     return false; // insufficient data — don't flag

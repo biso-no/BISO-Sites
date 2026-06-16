@@ -25,6 +25,19 @@ export function normalizeForCompare(name: string): string {
     .trim();
 }
 
+// Like normalizeForCompare but KEEPS the campus prefix, so comparisons stay
+// campus-scoped (e.g. "OSL Foo" and "BRG Foo" are distinct). Used for closed-
+// department matching, where a closure in one campus must not capture an active
+// same-named unit in another.
+export function normalizeWithCampus(name: string): string {
+  return name
+    .trim()
+    .toLowerCase()
+    .replace(DIACRITIC_REGEX, (char) => DIACRITIC_MAP[char] ?? char)
+    .replace(WHITESPACE_REGEX, " ")
+    .trim();
+}
+
 const CLOSED_REGEX = /\s*-\s*nedlagt\s*$/i;
 
 export interface CanonicalDepartment {

@@ -122,7 +122,7 @@ describe("buildRemediationPlan", () => {
       users,
       resolutions,
       candidatesByCampus: CANDIDATES,
-      closedBaseNames: NO_CLOSED,
+      closedKeys: NO_CLOSED,
       inactiveDepartments: NO_INACTIVE,
       campusNames: CAMPUS_NAMES,
     });
@@ -150,7 +150,7 @@ describe("buildRemediationPlan", () => {
       users,
       resolutions,
       candidatesByCampus: CANDIDATES,
-      closedBaseNames: NO_CLOSED,
+      closedKeys: NO_CLOSED,
       inactiveDepartments: NO_INACTIVE,
       campusNames: CAMPUS_NAMES,
     });
@@ -177,7 +177,7 @@ describe("buildRemediationPlan", () => {
       users,
       resolutions,
       candidatesByCampus: CANDIDATES,
-      closedBaseNames: NO_CLOSED,
+      closedKeys: NO_CLOSED,
       inactiveDepartments: NO_INACTIVE,
       campusNames: CAMPUS_NAMES,
     });
@@ -204,7 +204,7 @@ describe("buildRemediationPlan", () => {
       users,
       resolutions,
       candidatesByCampus: CANDIDATES,
-      closedBaseNames: NO_CLOSED,
+      closedKeys: NO_CLOSED,
       inactiveDepartments: NO_INACTIVE,
       campusNames: CAMPUS_NAMES,
     });
@@ -229,7 +229,7 @@ describe("buildRemediationPlan", () => {
       users,
       resolutions,
       candidatesByCampus: CANDIDATES,
-      closedBaseNames: NO_CLOSED,
+      closedKeys: NO_CLOSED,
       inactiveDepartments: NO_INACTIVE,
       campusNames: CAMPUS_NAMES,
     });
@@ -241,7 +241,7 @@ describe("buildRemediationPlan", () => {
       users: [user("a")],
       resolutions: new Map(),
       candidatesByCampus: CANDIDATES,
-      closedBaseNames: NO_CLOSED,
+      closedKeys: NO_CLOSED,
       inactiveDepartments: NO_INACTIVE,
       campusNames: CAMPUS_NAMES,
     });
@@ -269,7 +269,7 @@ describe("buildRemediationPlan", () => {
       users,
       resolutions,
       candidatesByCampus: CANDIDATES,
-      closedBaseNames: NO_CLOSED,
+      closedKeys: NO_CLOSED,
       inactiveDepartments: NO_INACTIVE,
       campusNames: CAMPUS_NAMES,
     });
@@ -285,7 +285,7 @@ describe("buildRemediationPlan", () => {
         ["a", res({ ref: "a", classification: "manual" })],
       ]),
       candidatesByCampus: CANDIDATES,
-      closedBaseNames: new Set(["dataanalytisk utvalg"]),
+      closedKeys: new Set(["dataanalytisk utvalg"]),
       inactiveDepartments: NO_INACTIVE,
       campusNames: CAMPUS_NAMES,
     });
@@ -298,7 +298,7 @@ describe("buildRemediationPlan", () => {
       users: [],
       resolutions: new Map(),
       candidatesByCampus: CANDIDATES,
-      closedBaseNames: NO_CLOSED,
+      closedKeys: NO_CLOSED,
       inactiveDepartments: NO_INACTIVE,
       campusNames: CAMPUS_NAMES,
     });
@@ -328,12 +328,86 @@ describe("buildRemediationPlan", () => {
       users,
       resolutions,
       candidatesByCampus: CANDIDATES,
-      closedBaseNames: NO_CLOSED,
+      closedKeys: NO_CLOSED,
       inactiveDepartments: new Set(["OSL Næringslivsutvalget"]),
       campusNames: CAMPUS_NAMES,
     });
     expect(plan.safe).toHaveLength(0);
     expect(plan.closed).toHaveLength(1);
     expect(plan.closed[0].suggestedDepartment).toBe("OSL Næringslivsutvalget");
+  });
+
+  test("current value is the FULL closed name (with suffix) → closed bucket", () => {
+    const users = [user("a", { department: "OSL Foo - nedlagt" })];
+    const plan = buildRemediationPlan({
+      users,
+      resolutions: new Map([
+        ["a", res({ ref: "a", classification: "manual" })],
+      ]),
+      candidatesByCampus: CANDIDATES,
+      // closedKeys carries both the full name and its stripped base, campus-scoped.
+      closedKeys: new Set(["osl foo - nedlagt", "osl foo"]),
+      inactiveDepartments: NO_INACTIVE,
+      campusNames: CAMPUS_NAMES,
+    });
+    expect(plan.closed).toHaveLength(1);
+    expect(plan.manual).toHaveLength(0);
+  });
+
+  test("closed matching is campus-scoped: a same-base ACTIVE unit in another campus is not closed", () => {
+    // "BRG Foo" is active; only "OSL Foo" was closed. The Bergen user must not be
+    // swept into Closed.
+    const users = [user("a", { department: "BRG Foo" })];
+    const plan = buildRemediationPlan({
+      users,
+      resolutions: new Map([
+        [
+          "a",
+          res({
+            ref: "a",
+            classification: "department",
+            department: "Ledelsen Bergen",
+            campus: "Bergen",
+            confidence: "high",
+          }),
+        ],
+      ]),
+      candidatesByCampus: CANDIDATES,
+      closedKeys: new Set(["osl foo - nedlagt", "osl foo"]),
+      inactiveDepartments: NO_INACTIVE,
+      campusNames: CAMPUS_NAMES,
+    });
+    expect(plan.closed).toHaveLength(0);
+    expect(plan.safe).toHaveLength(1);
+  });
+
+  test("user already sitting in an INACTIVE target is surfaced as closed, not counted compliant", () => {
+    const users = [
+      user("a", {
+        department: "OSL Næringslivsutvalget",
+        officeLocation: "Oslo",
+      }),
+    ];
+    const plan = buildRemediationPlan({
+      users,
+      resolutions: new Map([
+        [
+          "a",
+          res({
+            ref: "a",
+            classification: "department",
+            department: "OSL Næringslivsutvalget",
+            campus: "Oslo",
+            confidence: "high",
+          }),
+        ],
+      ]),
+      candidatesByCampus: CANDIDATES,
+      closedKeys: NO_CLOSED,
+      inactiveDepartments: new Set(["OSL Næringslivsutvalget"]),
+      campusNames: CAMPUS_NAMES,
+    });
+    expect(plan.compliantCount).toBe(0);
+    expect(plan.closed).toHaveLength(1);
   });
 });
