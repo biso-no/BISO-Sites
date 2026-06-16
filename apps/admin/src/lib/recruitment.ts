@@ -39,19 +39,62 @@ interface DbClient {
   ) => Promise<{ rows: T[]; total: number }>;
 }
 
+const HR_DEPARTMENT_KEY = "hr";
+
+/**
+ * HR is the recruitment-gatekeeper department. Detected by normalizing the
+ * clean team name to "hr" (the suffix behind the `sg-app-dept-hr` team).
+ */
+export function isHrDepartment(departmentNames: string[]): boolean {
+  return departmentNames.some(
+    (name) => name.replace(/\s+/g, "").toLowerCase() === HR_DEPARTMENT_KEY
+  );
+}
+
+/**
+ * Recruitment access is HR-exclusive:
+ *  - Real global admins (National + Operations Unit) and HR + National manage
+ *    recruitment across ALL campuses.
+ *  - HR + a specific campus manage ALL recruitment for that campus (every
+ *    department in it).
+ *  - Everyone else gets no recruitment access.
+ * Campus is pure scoping and never enters row permissions.
+ */
 export function toRecruitmentAdminScope(ctx: UserAuthContext): AdminScope {
-  const isGlobalAdmin = ctx.roles.includes("globaladmin");
-  const isCampusAdmin = ctx.managedCampuses.length > 0;
-  const managedCampusNames =
-    ctx.managedCampuses.length > 0 ? ctx.managedCampuses : ctx.campusNames;
+  const isActualGlobalAdmin = ctx.roles.includes("globaladmin");
+  const isHr = isHrDepartment(ctx.departmentNames);
+  const isNational = ctx.campusNames.includes("National");
+
+  if (isActualGlobalAdmin || (isHr && isNational)) {
+    return {
+      canManageAnyCampus: true,
+      isCampusAdmin: false,
+      isGlobalAdmin: true,
+      managedCampusNames: [],
+      managedDepartmentNames: [],
+      userId: ctx.userId,
+    };
+  }
+
+  if (isHr) {
+    const campuses =
+      ctx.managedCampuses.length > 0 ? ctx.managedCampuses : ctx.campusNames;
+    return {
+      canManageAnyCampus: false,
+      isCampusAdmin: true,
+      isGlobalAdmin: false,
+      managedCampusNames: campuses,
+      managedDepartmentNames: [],
+      userId: ctx.userId,
+    };
+  }
 
   return {
-    canManageAnyCampus: isGlobalAdmin,
-    isCampusAdmin,
-    isGlobalAdmin,
-    managedCampusNames: isGlobalAdmin ? [] : managedCampusNames,
-    managedDepartmentNames:
-      isGlobalAdmin || isCampusAdmin ? [] : ctx.departmentNames,
+    canManageAnyCampus: false,
+    isCampusAdmin: false,
+    isGlobalAdmin: false,
+    managedCampusNames: [],
+    managedDepartmentNames: [],
     userId: ctx.userId,
   };
 }
