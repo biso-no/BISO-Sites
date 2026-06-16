@@ -615,23 +615,40 @@ export async function applyDepartmentFixes(
     }
 
     // Validate every target is a licensed @biso.no tenant user before writing —
-    // userIds are client-supplied and otherwise go straight to Graph.
+    // userIds are client-supplied and otherwise go straight to Graph. Re-read
+    // each target so a stale snapshot (user disabled after analysis, or one that
+    // predates the disabled-user filter) can't push a write to a blocked account.
     const graph = getGraphService();
     const targetIds = [...new Set(updates.map((u) => u.id))];
-    await mapWithConcurrency(targetIds, AI_CONCURRENCY, (id) =>
+    const targets = await mapWithConcurrency(targetIds, AI_CONCURRENCY, (id) =>
       getAllowedTenantUser(graph, id)
     );
+    const disabledIds = new Set(
+      targets.filter((u) => u.accountEnabled === false).map((u) => u.id)
+    );
+    const writableUpdates = updates.filter((u) => !disabledIds.has(u.id));
 
-    const results = await graph.batchUpdateUsers(updates);
+    const results = await graph.batchUpdateUsers(writableUpdates);
     const failed = results
       .filter((r): r is { id: string; error: string } => r.error !== undefined)
       .map((r) => ({ userId: r.id, error: r.error }));
     const succeeded = results.length - failed.length;
+    // Surface skipped disabled accounts as failures so the operator sees them.
+    const allFailed = [
+      ...failed,
+      ...[...disabledIds].map((userId) => ({
+        userId,
+        error: "Account is disabled; skipped.",
+      })),
+    ];
 
-    // Persist progress: drop the successfully-updated users from the snapshot so
-    // a refresh doesn't re-offer them.
+    // Persist progress: drop applied AND skipped-disabled users from the snapshot
+    // so neither is re-offered on refresh.
     await removeUsersFromSnapshot(
-      new Set(results.filter((r) => r.error === undefined).map((r) => r.id)),
+      new Set([
+        ...results.filter((r) => r.error === undefined).map((r) => r.id),
+        ...disabledIds,
+      ]),
       { inactive: false, plan: true }
     );
 
@@ -639,15 +656,16 @@ export async function applyDepartmentFixes(
       resourceType: "m365.user",
       payload: {
         succeeded,
-        failedCount: failed.length,
+        failedCount: allFailed.length,
+        disabledSkipped: disabledIds.size,
         decisionCount: decisions.length,
-        userCount: updates.length,
+        userCount: writableUpdates.length,
         applied,
       },
     });
 
     revalidatePath("/it/users/audit");
-    return { data: { succeeded, failed } };
+    return { data: { succeeded, failed: allFailed } };
   } catch (error) {
     return { error: getErrorMessage(error) };
   }
