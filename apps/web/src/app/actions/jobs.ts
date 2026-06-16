@@ -4,7 +4,7 @@ import {
   normalizeScreeningScore,
   screenApplication,
 } from "@repo/ai/server/recruitment-screener";
-import { ID, Permission, Query, Role } from "@repo/api";
+import { ID, Query } from "@repo/api";
 import { InputFile } from "@repo/api/file";
 import { createAdminClient, createSessionClient } from "@repo/api/server";
 import type {
@@ -23,6 +23,7 @@ import {
 import type { CandidateProfileWriteInput } from "@repo/api/types/inputs";
 import { createTypedRow, updateTypedRow } from "@repo/api/write";
 import {
+  buildRecruitmentStaffRowPermissions,
   fetchRecruitmentListRows,
   getRecruitmentJobById,
   getRecruitmentJobBySlug,
@@ -152,47 +153,6 @@ export async function getJobBySlug(
 // ---------- application submission (session auth + admin writes) ----------
 
 const AVAILABILITY_SPLIT_PATTERN = /\r?\n|,/;
-const DEPT_NAME_SPACE_RE = /\s+/g;
-
-function buildVacancyRowPerms(
-  vacancy:
-    | { department?: unknown; campus?: { name?: string } | null }
-    | null
-    | undefined
-): string[] {
-  const teams = ["sg-app-dept-operationsunit", "sg-app-dept-hr"];
-  const deptName = (vacancy?.department as { Name?: string } | null)?.Name;
-  if (deptName) {
-    // Team IDs are the lowercased, space-stripped Azure group suffix
-    // (e.g. "Operations Unit" -> "sg-app-dept-operationsunit"), matching how
-    // m365-sync creates them and how the admin app derives them.
-    teams.push(
-      `sg-app-dept-${deptName.replace(DEPT_NAME_SPACE_RE, "").toLowerCase()}`
-    );
-  }
-
-  // Campus leadership (Ledelsen{City}) reviews applications for their own
-  // campus. Read-only — campus/leadership teams never receive write on
-  // recruitment rows. National has no city leadership team (ops covers it).
-  const campusName = (vacancy?.campus as { name?: string } | null)?.name;
-  const leadershipTeam =
-    campusName && campusName !== "National"
-      ? `sg-app-dept-ledelsen${campusName
-          .replace(DEPT_NAME_SPACE_RE, "")
-          .toLowerCase()}`
-      : null;
-
-  return [
-    ...new Set([
-      ...teams.flatMap((t) => [
-        Permission.read(Role.team(t)),
-        Permission.update(Role.team(t)),
-        Permission.delete(Role.team(t)),
-      ]),
-      ...(leadershipTeam ? [Permission.read(Role.team(leadershipTeam))] : []),
-    ]),
-  ];
-}
 
 function readCustomAnswers(
   formData: FormData
@@ -401,14 +361,14 @@ export async function submitJobApplication(
             source: "public_apply",
             tags: null,
           },
-          buildVacancyRowPerms(vacancy)
+          buildRecruitmentStaffRowPermissions()
         );
         candidateProfileId = created.$id;
       }
     } catch (err) {
       console.warn("Candidate profile upsert failed:", err);
     }
-    const perms = buildVacancyRowPerms(vacancy);
+    const perms = buildRecruitmentStaffRowPermissions();
     const application = await db.createRow(
       "app",
       "job_applications",
@@ -457,7 +417,7 @@ export async function submitJobApplication(
             question_id: answer.question_id,
             question_label: answer.question_label,
           },
-          buildVacancyRowPerms(vacancy)
+          buildRecruitmentStaffRowPermissions()
         );
       } catch (err) {
         console.warn(

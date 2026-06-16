@@ -12,6 +12,7 @@ import type {
 import {
   fetchRecruitmentListRows,
   getRecruitmentJobById,
+  RECRUITMENT_STAFF_TEAMS,
 } from "@repo/shared/recruitment";
 import {
   assertRecruitmentApplicationTransition,
@@ -43,11 +44,7 @@ import {
   loadRecruitmentLookups,
   toRecruitmentAdminScope,
 } from "@/lib/recruitment";
-import {
-  buildContentTranslationPermissions,
-  deriveContentRowTeams,
-} from "@/lib/utils";
-import { assertPublishAccess } from "@/lib/utils/authorization";
+import { buildContentTranslationPermissions } from "@/lib/utils";
 import { logAuditEvent } from "./audit-log";
 
 // Shorthand type for the db accessor — both admin and session clients return the same shape.
@@ -350,32 +347,15 @@ export async function createJob(values: RecruitmentVacancyUpsertInput) {
       campus_id: validated.data.campus_id,
       department_id: validated.data.department_id ?? null,
     });
-    if (validated.data.status === "published") {
-      assertPublishAccess(ctx, validated.data.campus_id);
-    }
-
     const jobId = ID.unique();
     const audience = validated.data.audience ?? "public";
-    const jobPerms = buildJobRowPermissions(
-      lookups,
-      {
-        campus_id: validated.data.campus_id,
-        department_id: validated.data.department_id ?? null,
-      },
-      audience,
-      validated.data.status
-    );
-    const { campusTeam } = deriveContentRowTeams(lookups, {
-      campus_id: validated.data.campus_id,
-      department_id: validated.data.department_id ?? null,
-    });
+    const jobPerms = buildJobRowPermissions(audience, validated.data.status);
     const translationPerms = buildContentTranslationPermissions({
       audience,
       status: validated.data.status,
-      writeTeams: jobPerms
-        .filter((p) => p.startsWith('update("team:'))
-        .map((p) => p.slice('update("team:'.length, -2)),
-      readTeams: campusTeam ? [campusTeam] : [],
+      // Recruitment editors only: admin + HR. Campus is scoping, never a perm.
+      writeTeams: [...RECRUITMENT_STAFF_TEAMS],
+      readTeams: [],
     });
     const payload = await buildJobUpsertPayload(
       sessionDb,
@@ -437,35 +417,14 @@ export async function updateJob(
       campus_id: validated.data.campus_id,
       department_id: validated.data.department_id ?? null,
     });
-    if (
-      vacancy.status === "published" ||
-      validated.data.status === "published"
-    ) {
-      assertPublishAccess(ctx, vacancy.campus_id);
-      assertPublishAccess(ctx, validated.data.campus_id);
-    }
-
-    const audience = validated.data.audience ?? "public";
-    const jobPerms = buildJobRowPermissions(
-      lookups,
-      {
-        campus_id: validated.data.campus_id,
-        department_id: validated.data.department_id ?? null,
-      },
-      audience,
-      validated.data.status
-    );
-    const { campusTeam } = deriveContentRowTeams(lookups, {
-      campus_id: validated.data.campus_id,
-      department_id: validated.data.department_id ?? null,
-    });
+    const audience =
+      validated.data.audience ?? vacancy.metadata.audience ?? "public";
+    const jobPerms = buildJobRowPermissions(audience, validated.data.status);
     const translationPerms = buildContentTranslationPermissions({
       audience,
       status: validated.data.status,
-      writeTeams: jobPerms
-        .filter((p) => p.startsWith('update("team:'))
-        .map((p) => p.slice('update("team:'.length, -2)),
-      readTeams: campusTeam ? [campusTeam] : [],
+      writeTeams: [...RECRUITMENT_STAFF_TEAMS],
+      readTeams: [],
     });
     const payload = await buildJobUpsertPayload(
       sessionDb,

@@ -890,7 +890,17 @@
     },
     {
       "$id": "jobs",
-      "$permissions": ["create(\"users\")"],
+      "$permissions": [
+        "create(\"users\")",
+        "create(\"team:admin\")",
+        "read(\"team:admin\")",
+        "update(\"team:admin\")",
+        "delete(\"team:admin\")",
+        "create(\"team:sg-app-dept-hr\")",
+        "read(\"team:sg-app-dept-hr\")",
+        "update(\"team:sg-app-dept-hr\")",
+        "delete(\"team:sg-app-dept-hr\")"
+      ],
       "databaseId": "app",
       "name": "Jobs",
       "enabled": true,
@@ -2246,7 +2256,11 @@
         "create(\"users\")",
         "read(\"team:admin\")",
         "update(\"team:admin\")",
-        "delete(\"team:admin\")"
+        "delete(\"team:admin\")",
+        "create(\"team:sg-app-dept-hr\")",
+        "read(\"team:sg-app-dept-hr\")",
+        "update(\"team:sg-app-dept-hr\")",
+        "delete(\"team:sg-app-dept-hr\")"
       ],
       "databaseId": "app",
       "name": "Job Applications",
@@ -6694,7 +6708,11 @@
         "create(\"team:admin\")",
         "read(\"team:admin\")",
         "update(\"team:admin\")",
-        "delete(\"team:admin\")"
+        "delete(\"team:admin\")",
+        "create(\"team:sg-app-dept-hr\")",
+        "read(\"team:sg-app-dept-hr\")",
+        "update(\"team:sg-app-dept-hr\")",
+        "delete(\"team:sg-app-dept-hr\")"
       ],
       "databaseId": "app",
       "name": "Recruitment Booking Tokens",
@@ -6818,7 +6836,11 @@
         "create(\"users\")",
         "read(\"team:admin\")",
         "update(\"team:admin\")",
-        "delete(\"team:admin\")"
+        "delete(\"team:admin\")",
+        "create(\"team:sg-app-dept-hr\")",
+        "read(\"team:sg-app-dept-hr\")",
+        "update(\"team:sg-app-dept-hr\")",
+        "delete(\"team:sg-app-dept-hr\")"
       ],
       "databaseId": "app",
       "name": "Job Application Answers",
@@ -6922,7 +6944,11 @@
         "create(\"users\")",
         "read(\"team:admin\")",
         "update(\"team:admin\")",
-        "delete(\"team:admin\")"
+        "delete(\"team:admin\")",
+        "create(\"team:sg-app-dept-hr\")",
+        "read(\"team:sg-app-dept-hr\")",
+        "update(\"team:sg-app-dept-hr\")",
+        "delete(\"team:sg-app-dept-hr\")"
       ],
       "databaseId": "app",
       "name": "Job Interviews",
@@ -7160,7 +7186,11 @@
         "create(\"users\")",
         "read(\"team:admin\")",
         "update(\"team:admin\")",
-        "delete(\"team:admin\")"
+        "delete(\"team:admin\")",
+        "create(\"team:sg-app-dept-hr\")",
+        "read(\"team:sg-app-dept-hr\")",
+        "update(\"team:sg-app-dept-hr\")",
+        "delete(\"team:sg-app-dept-hr\")"
       ],
       "databaseId": "app",
       "name": "Job Interview Participants",
@@ -7263,7 +7293,11 @@
         "create(\"users\")",
         "read(\"team:admin\")",
         "update(\"team:admin\")",
-        "delete(\"team:admin\")"
+        "delete(\"team:admin\")",
+        "create(\"team:sg-app-dept-hr\")",
+        "read(\"team:sg-app-dept-hr\")",
+        "update(\"team:sg-app-dept-hr\")",
+        "delete(\"team:sg-app-dept-hr\")"
       ],
       "databaseId": "app",
       "name": "Candidate Profiles",
@@ -7460,7 +7494,11 @@
         "create(\"users\")",
         "read(\"team:admin\")",
         "update(\"team:admin\")",
-        "delete(\"team:admin\")"
+        "delete(\"team:admin\")",
+        "create(\"team:sg-app-dept-hr\")",
+        "read(\"team:sg-app-dept-hr\")",
+        "update(\"team:sg-app-dept-hr\")",
+        "delete(\"team:sg-app-dept-hr\")"
       ],
       "databaseId": "app",
       "name": "Job Interview Scorecards",
