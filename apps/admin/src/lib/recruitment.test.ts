@@ -1,6 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import type { UserAuthContext } from "@/lib/authorization";
-import { isHrDepartment, toRecruitmentAdminScope } from "./recruitment";
+import {
+  buildJobRowPermissions,
+  isHrDepartment,
+  toRecruitmentAdminScope,
+} from "./recruitment";
 
 function ctx(partial: Partial<UserAuthContext>): UserAuthContext {
   return {
@@ -78,5 +82,30 @@ describe("toRecruitmentAdminScope", () => {
     expect(scope.isCampusAdmin).toBe(false);
     expect(scope.managedCampusNames).toEqual([]);
     expect(scope.managedDepartmentNames).toEqual([]);
+  });
+});
+
+describe("buildJobRowPermissions", () => {
+  test("published + public is world-readable plus admin/HR staff grant", () => {
+    const perms = buildJobRowPermissions("public", "published");
+    expect(perms).toContain('read("any")');
+    expect(perms).toContain('read("team:sg-app-dept-hr")');
+    expect(perms).toContain('update("team:admin")');
+    expect(perms.join(" ")).not.toContain("sg-app-campus-");
+    expect(perms.join(" ")).not.toContain("sg-app-dept-operationsunit");
+  });
+
+  test("published + members swaps read(any) for biso-members", () => {
+    const perms = buildJobRowPermissions("members", "published");
+    expect(perms).not.toContain('read("any")');
+    expect(perms).toContain('read("team:biso-members")');
+    expect(perms).toContain('read("team:sg-app-dept-hr")');
+  });
+
+  test("draft is never public and never member-readable", () => {
+    const perms = buildJobRowPermissions("public", "draft");
+    expect(perms).not.toContain('read("any")');
+    expect(perms).not.toContain('read("team:biso-members")');
+    expect(perms).toContain('read("team:sg-app-dept-hr")');
   });
 });

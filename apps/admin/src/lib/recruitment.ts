@@ -7,6 +7,7 @@ import type {
   Jobs,
 } from "@repo/api/types/appwrite";
 import {
+  buildRecruitmentStaffRowPermissions,
   canManageRecruitmentVacancy,
   canReviewRecruitmentVacancy,
   type RecruitmentLookups,
@@ -123,68 +124,32 @@ export async function loadRecruitmentLookups(
   };
 }
 
-const ADMIN_TEAM = "admin";
-const HR_TEAM = "sg-app-dept-hr";
 const MEMBERS_TEAM = "biso-members";
 
 /**
- * Build Appwrite $permissions for a job row.
- *
- * Published + public vacancies: readable by anyone (`read(any)`).
- * Anything else (draft/archived, or member-only): team-scoped reads only —
- * admin, hr, the owning campus + department teams, plus biso-members ONLY when
- * the vacancy is published AND member-only. A draft is therefore never
- * `read(any)`. Write (update/delete): team:admin, team:sg-app-dept-hr, and the
- * owning department team (campus teams never get write).
- *
- * `status` is optional; when omitted the row is treated as published to
- * preserve the previous behavior for callers that don't pass it.
+ * Row permissions for a job. Staff access (admin + HR) comes from
+ * `buildRecruitmentStaffRowPermissions()`; the row additionally encodes public
+ * visibility:
+ *   - published + public  → read(any)
+ *   - published + members → read(team:biso-members)
+ *   - draft / closed      → no public read (staff only)
+ * Campus and owning-department teams are intentionally never granted.
  */
 export function buildJobRowPermissions(
-  lookups: RecruitmentLookups,
-  job: { campus_id: string; department_id: string | null },
   audience: "public" | "members",
   status?: string
 ): string[] {
   const published = status === undefined || status === "published";
-  const campusName = lookups.campusNamesById.get(job.campus_id);
-  const campusTeam = campusName
-    ? `sg-app-campus-${campusName.toLowerCase().replace(/\s+/g, "")}`
-    : null;
 
-  const deptName = job.department_id
-    ? lookups.departmentNamesById.get(job.department_id)
-    : null;
-  const deptTeam = deptName
-    ? `sg-app-dept-${deptName.toLowerCase().replace(/\s+/g, "")}`
-    : null;
-
-  // Campus teams must never receive write access — only department + admin + hr.
-  const writeTeams = [
-    ...new Set([ADMIN_TEAM, HR_TEAM, ...(deptTeam ? [deptTeam] : [])]),
-  ];
-
-  const readPerms =
-    published && audience === "public"
-      ? [Permission.read(Role.any())]
-      : [
-          Permission.read(Role.team(ADMIN_TEAM)),
-          Permission.read(Role.team(HR_TEAM)),
-          ...(campusTeam ? [Permission.read(Role.team(campusTeam))] : []),
-          ...(deptTeam ? [Permission.read(Role.team(deptTeam))] : []),
-          ...(published && audience === "members"
-            ? [Permission.read(Role.team(MEMBERS_TEAM))]
-            : []),
-        ];
+  const visibility: string[] = [];
+  if (published && audience === "public") {
+    visibility.push(Permission.read(Role.any()));
+  } else if (published && audience === "members") {
+    visibility.push(Permission.read(Role.team(MEMBERS_TEAM)));
+  }
 
   return [
-    ...new Set([
-      ...readPerms,
-      ...writeTeams.flatMap((t) => [
-        Permission.update(Role.team(t)),
-        Permission.delete(Role.team(t)),
-      ]),
-    ]),
+    ...new Set([...visibility, ...buildRecruitmentStaffRowPermissions()]),
   ];
 }
 
