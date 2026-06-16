@@ -7,6 +7,10 @@ import { expandDeptName } from "./campus-constants";
 
 const DATABASE_ID = "app";
 
+// Recruitment is HR-exclusive: only the HR department team is provisioned
+// recruitment table access. Matches RECRUITMENT_STAFF_TEAMS in @repo/shared.
+const HR_TEAM_ID = "sg-app-dept-hr";
+
 /**
  * All content and translation tables that SG-App-Dept-* teams need create
  * access on. Campus teams (SG-App-Campus-*) are never granted table-level
@@ -15,10 +19,16 @@ const DATABASE_ID = "app";
  * Both content tables (rowSecurity: true) and translation tables
  * (rowSecurity: true) get create-only here; update/delete is controlled
  * entirely at the row level via $permissions set at insert time.
+ *
+ * `jobs` is intentionally excluded: recruitment is HR-exclusive, so job
+ * table access is provisioned only to the HR team via
+ * `grantTeamRecruitmentAccess` — it is not part of the general dept content
+ * grant. (HR already holds table-level create on `jobs` in
+ * `packages/api/appwrite.config.json`, and job rows are written via the admin
+ * client which bypasses row security.)
  */
 const CONTENT_TABLES = [
   "events",
-  "jobs",
   "news",
   "webshop_products",
   "pages",
@@ -28,13 +38,16 @@ const CONTENT_TABLES = [
 
 /**
  * Recruitment tables carrying applicant PII (cover letters, custom answers,
- * applicant contact details). Every row in these is written with explicit
- * per-row $permissions (`buildVacancyRowPerms` in apps/web), granting read to
- * ops, hr, the owning department team, and the owning campus leadership team.
- * Department teams therefore only need CREATE at the table level — read/update/
- * delete is governed per row, so one department cannot read another department's
- * or campus's applicants. (Resume files live in a fileSecurity bucket and are
- * served only through the admin-gated download route, not via these grants.)
+ * applicant contact details). Recruitment is HR-exclusive: of the SG-App-Dept-*
+ * teams, only the HR team (`sg-app-dept-hr`) ever reaches the grant below — see
+ * the early return in `grantTeamRecruitmentAccess`. Application/answer/candidate
+ * rows are written with `buildRecruitmentStaffRowPermissions()` (from
+ * `@repo/shared`), granting read/update/delete to admin + HR only. The HR team
+ * therefore only needs CREATE at the table level here — read/update/delete is
+ * governed per row by those grants. Campus and owning-department teams are
+ * intentionally excluded: campus is scoping applied in app code, never a
+ * permission. (Resume files live in a fileSecurity bucket and are served only
+ * through the admin-gated download route, not via these grants.)
  */
 const RECRUITMENT_PII_TABLES = [
   "job_applications",
@@ -45,9 +58,12 @@ const RECRUITMENT_PII_TABLES = [
  * Interview, scheduling and candidate-pool tables that are NOT yet stamped with
  * per-row $permissions (e.g. job_interview_participants and
  * recruitment_booking_tokens are created without a permissions argument), so
- * department teams still require full CRUD at the table level. Tightening these
- * to create-only requires per-row stamping first — see PERMISSIONS_REVIEW.md
- * (finding D, remaining work).
+ * the HR team still requires full CRUD at the table level. As with the PII
+ * tables above, this grant only ever runs for the HR team (`sg-app-dept-hr`);
+ * recruitment is HR-exclusive, so admin + HR are the only teams with recruitment
+ * table access (admin holds its grants in `packages/api/appwrite.config.json`).
+ * Tightening these to create-only requires per-row stamping first — see
+ * PERMISSIONS_REVIEW.md (finding D, remaining work).
  */
 const RECRUITMENT_SHARED_TABLES = [
   "job_interviews",
@@ -90,15 +106,23 @@ export async function grantTeamContentAccess(teamId: string): Promise<void> {
 }
 
 /**
- * Grant a dept team full CRUD on all recruitment tables. Campus-level isolation
- * is enforced at the service layer (see `assertRecruitmentApplicationReviewAccess`
- * and `assertInterviewWriteAccess`). The candidate-facing booking endpoint is
- * the only path that operates without a session and validates HMAC tokens
- * directly.
+ * Provision recruitment table access for the HR team only. Recruitment is
+ * HR-exclusive, so this is a no-op for every non-HR team — even though
+ * `m365-sync.ts` calls it for every SG-App-Dept-* team at creation time. Only
+ * the admin team and the HR department team (`sg-app-dept-hr`) get recruitment
+ * table access; admin holds its table-level grants in
+ * `packages/api/appwrite.config.json`, and application/answer/candidate rows are
+ * written with `buildRecruitmentStaffRowPermissions()` (from `@repo/shared`)
+ * granting admin + HR only. Campus and owning-department teams are intentionally
+ * excluded — campus is scoping applied in app code, never a permission.
  */
 export async function grantTeamRecruitmentAccess(
   teamId: string
 ): Promise<void> {
+  if (teamId !== HR_TEAM_ID) {
+    return;
+  }
+
   const { db } = await createAdminClient();
   const role = Role.team(teamId);
   const createOnly = [Permission.create(role)];
