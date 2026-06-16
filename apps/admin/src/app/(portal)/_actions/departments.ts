@@ -16,6 +16,7 @@ async function requireAuth(): Promise<UserAuthContext> {
 
 export async function listDepartments(opts?: {
   campusId?: string;
+  includeInactive?: boolean;
   search?: string;
 }) {
   const ctx = await requireAuth();
@@ -41,7 +42,13 @@ export async function listDepartments(opts?: {
     "departments",
     queries
   );
-  return response.rows;
+  // The SOAP sync persists inactive 24SO units (active === false). By default
+  // keep them out of generic pickers (e.g. the page editor); the departments
+  // management view opts in via includeInactive to show/flag them.
+  if (opts?.includeInactive) {
+    return response.rows;
+  }
+  return response.rows.filter((dept) => dept.active !== false);
 }
 
 async function _getDepartment(id: string) {

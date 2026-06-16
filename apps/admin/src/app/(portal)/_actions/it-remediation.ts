@@ -349,7 +349,14 @@ export async function runDepartmentAnalysis(): Promise<
       `${LOG} fetched ${users.length} licensed users + ${data.departments.length} departments in ${Date.now() - fetchStart}ms (signInActivity ${signInActivityAvailable ? "available" : "UNAVAILABLE"})`
     );
 
-    const listItems = users.map(toListItem);
+    // Disabled-but-still-licensed accounts are dropped from the whole scan: they
+    // need neither department remediation (don't re-offer Graph profile writes
+    // for a blocked account) nor inactive deactivation (already disabled).
+    const allListItems = users.map(toListItem);
+    const listItems = allListItems.filter(
+      (item) => item.accountEnabled !== false
+    );
+    const disabledExcluded = allListItems.length - listItems.length;
     const {
       campusNames,
       tokenToCampus,
@@ -407,7 +414,7 @@ export async function runDepartmentAnalysis(): Promise<
     }
 
     console.info(
-      `${LOG} plan ready: ${plan.safe.length} safe · ${plan.review.length} review · ${plan.manual.length} manual · ${plan.closed.length} closed · ${plan.compliantCount} compliant · ${inactive.length} inactive (${inactiveCandidates.length - inactive.length} resource mailboxes excluded) (of ${plan.totalScanned})`
+      `${LOG} plan ready: ${plan.safe.length} safe · ${plan.review.length} review · ${plan.manual.length} manual · ${plan.closed.length} closed · ${plan.compliantCount} compliant · ${inactive.length} inactive (${inactiveCandidates.length - inactive.length} resource mailboxes excluded) (of ${plan.totalScanned}; ${disabledExcluded} disabled excluded)`
     );
 
     const snapshot: RemediationSnapshot = {

@@ -13,7 +13,7 @@ export default async function DepartmentsPage() {
   const t = await getTranslations("adminPortal.departments");
 
   const [departments, campuses] = await Promise.all([
-    listDepartments(),
+    listDepartments({ includeInactive: true }),
     listCampuses(),
   ]);
 
