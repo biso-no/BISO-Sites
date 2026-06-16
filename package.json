@@ -4,6 +4,7 @@
     "@biomejs/biome": "2.4.10",
     "lefthook": "^2.1.4",
     "turbo": "^2.9.3",
+    "typescript": "^5.9.3",
     "ultracite": "7.4.3"
   },
   "catalog": {

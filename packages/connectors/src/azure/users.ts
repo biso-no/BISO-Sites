@@ -31,7 +31,12 @@ export interface GraphUser {
   givenName?: string;
   id: string;
   jobTitle?: string;
+  // signInActivity timestamps. lastSignInDateTime is INTERACTIVE-only; the
+  // non-interactive/successful fields capture client (Outlook/Teams) access and
+  // must be considered together to avoid flagging actively-used accounts.
+  lastNonInteractiveSignInDateTime?: string;
   lastSignInDateTime?: string;
+  lastSuccessfulSignInDateTime?: string;
   mail?: string;
   mailNickname?: string;
   mobilePhone?: string;
@@ -106,6 +111,13 @@ export type GraphUserProfileUpdate = Partial<{
 export interface GraphUserSearchOptions {
   allowedDomain?: string;
   licensedOnly?: boolean;
+}
+
+export interface LicensedUsersResult {
+  // false when the tenant lacks Entra ID P1 and signInActivity could not be read
+  // (lastSignInDateTime is then absent on every user).
+  signInActivityAvailable: boolean;
+  users: GraphUser[];
 }
 
 const USER_SELECT = [
@@ -189,7 +201,11 @@ export function normalizeGraphError(error: unknown): Error {
 
 function toGraphUser(user: Record<string, unknown>): GraphUser {
   const signInActivity = user.signInActivity as
-    | { lastSignInDateTime?: string }
+    | {
+        lastNonInteractiveSignInDateTime?: string;
+        lastSignInDateTime?: string;
+        lastSuccessfulSignInDateTime?: string;
+      }
     | undefined;
 
   return {
@@ -244,6 +260,9 @@ function toGraphUser(user: Record<string, unknown>): GraphUser {
         )
       : undefined,
     lastSignInDateTime: signInActivity?.lastSignInDateTime,
+    lastNonInteractiveSignInDateTime:
+      signInActivity?.lastNonInteractiveSignInDateTime,
+    lastSuccessfulSignInDateTime: signInActivity?.lastSuccessfulSignInDateTime,
   };
 }
 
@@ -323,6 +342,64 @@ export class GraphUserService {
   }
 
   /**
+   * Patch many users in one round-trip group using Microsoft Graph $batch
+   * (max 20 requests per batch). Returns a per-user result; failures do not
+   * abort the run.
+   */
+  async batchUpdateUsers(
+    updates: Array<{ id: string; patch: GraphUserProfileUpdate }>
+  ): Promise<Array<{ error?: string; id: string }>> {
+    const BATCH_SIZE = 20;
+    const results: Array<{ error?: string; id: string }> = [];
+
+    for (let start = 0; start < updates.length; start += BATCH_SIZE) {
+      const chunk = updates.slice(start, start + BATCH_SIZE);
+      const requests = chunk.map((update, index) => ({
+        id: String(start + index),
+        method: "PATCH",
+        url: `/users/${encodeGraphPathSegment(update.id)}`,
+        headers: { "Content-Type": "application/json" },
+        body: update.patch,
+      }));
+
+      let response: {
+        responses?: Array<{ id: string; status: number; body?: unknown }>;
+      };
+      try {
+        response = await this.client.api("/$batch").post({ requests });
+      } catch (error) {
+        const message = normalizeGraphError(error).message;
+        for (const update of chunk) {
+          results.push({ id: update.id, error: message });
+        }
+        continue;
+      }
+
+      const byId = new Map(
+        (response.responses ?? []).map((item) => [item.id, item])
+      );
+      for (const [index, update] of chunk.entries()) {
+        const item = byId.get(String(start + index));
+        if (item && item.status >= 200 && item.status < 300) {
+          results.push({ id: update.id });
+        } else {
+          const body = item?.body as
+            | { error?: { message?: string } }
+            | undefined;
+          results.push({
+            id: update.id,
+            error:
+              body?.error?.message ??
+              `Graph batch failed (status ${item?.status ?? "unknown"})`,
+          });
+        }
+      }
+    }
+
+    return results;
+  }
+
+  /**
    * Replace the proxyAddresses array for a user (Exchange mailbox must be provisioned).
    * Send the full desired array — Graph replaces it entirely.
    */
@@ -365,6 +442,26 @@ export class GraphUserService {
         return toGraphUser(response);
       }
       throw normalizeGraphError(error);
+    }
+  }
+
+  /**
+   * Returns the mailbox `userPurpose` for an account (`user`, `shared`, `room`,
+   * `equipment`, `linked`, `others`) — used to tell real user accounts apart
+   * from resource mailboxes. Best-effort: returns null if the mailbox can't be
+   * read (e.g. missing MailboxSettings.Read consent) so callers can keep the
+   * account rather than silently dropping it.
+   */
+  async getMailboxUserPurpose(userId: string): Promise<string | null> {
+    try {
+      const response = await this.client
+        .api(`/users/${encodeGraphPathSegment(userId)}/mailboxSettings`)
+        .select("userPurpose")
+        .get();
+      const purpose = (response as { userPurpose?: unknown })?.userPurpose;
+      return typeof purpose === "string" ? purpose : null;
+    } catch {
+      return null;
     }
   }
 
@@ -415,6 +512,66 @@ export class GraphUserService {
         options.licensedOnly ? hasAssignedLicense(user) : true
       )
       .slice(0, limit);
+  }
+
+  /**
+   * List every directory user, following Graph pagination (@odata.nextLink) so
+   * the full tenant is returned rather than a single capped page. Applies the
+   * same allowed-domain / licensed-only filtering as `searchUsers`.
+   */
+  async listLicensedUsers(
+    options: GraphUserSearchOptions = {}
+  ): Promise<LicensedUsersResult> {
+    const rows: Record<string, unknown>[] = [];
+    let useSignInActivity = true;
+    let nextLink: string | undefined;
+
+    const buildInitialRequest = () =>
+      this.client
+        .api("/users")
+        .select(
+          (useSignInActivity ? USER_SELECT_WITH_SIGN_IN : USER_SELECT).join(",")
+        )
+        .top(999);
+
+    const collect = async () => {
+      let response: {
+        "@odata.nextLink"?: string;
+        value: Record<string, unknown>[];
+      } = await buildInitialRequest().get();
+      rows.push(...response.value);
+      nextLink = response["@odata.nextLink"];
+      while (nextLink) {
+        response = await this.client.api(nextLink).get();
+        rows.push(...response.value);
+        nextLink = response["@odata.nextLink"];
+      }
+    };
+
+    try {
+      await collect();
+    } catch (error) {
+      if (getStatusCode(error) !== 403 && getStatusCode(error) !== 400) {
+        throw normalizeGraphError(error);
+      }
+      // signInActivity requires Entra ID P1; retry without it.
+      useSignInActivity = false;
+      rows.length = 0;
+      nextLink = undefined;
+      await collect();
+    }
+
+    const users = rows
+      .map((user) => toGraphUser(user))
+      .filter((user) => hasAllowedDomain(user, options.allowedDomain))
+      .filter((user) =>
+        options.licensedOnly ? hasAssignedLicense(user) : true
+      );
+
+    // signInActivityAvailable is false when the tenant lacks Entra ID P1 and we
+    // fell back to the no-signInActivity select. Callers must NOT infer
+    // inactivity from creation date alone in that case.
+    return { users, signInActivityAvailable: useSignInActivity };
   }
 
   /**

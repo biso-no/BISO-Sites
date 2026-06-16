@@ -317,7 +317,11 @@ export interface M365UserListItem {
   displayName: string;
   id: string;
   jobTitle: string | null;
+  // lastSignInDateTime is INTERACTIVE-only; the non-interactive/successful fields
+  // capture client (Outlook/Teams) access. Inactivity must consider all of them.
+  lastNonInteractiveSignInDateTime?: string | null;
   lastSignInDateTime: string | null;
+  lastSuccessfulSignInDateTime?: string | null;
   mail: string | null;
   officeLocation: string | null;
   userPrincipalName: string;
@@ -420,4 +424,87 @@ export interface UserManagementAuditLog {
   targetUserIds: string[];
   timestamp: string;
   webhookResponse?: unknown;
+}
+
+// ============================================================================
+// Department Remediation Types (AI-driven)
+// ============================================================================
+
+export type RemediationClassification = "management" | "department" | "manual";
+export type RemediationConfidence = "high" | "medium" | "low";
+
+// One AI judgement for a single user. `ref` echoes the M365 user id.
+export const departmentResolutionSchema = z.object({
+  ref: z.string(),
+  classification: z.enum(["management", "department", "manual"]),
+  department: z.string().nullable(),
+  campus: z.string().nullable(),
+  confidence: z.enum(["high", "medium", "low"]),
+  reasoning: z.string().max(200),
+});
+export type DepartmentResolution = z.infer<typeof departmentResolutionSchema>;
+
+export const departmentResolutionBatchSchema = z.object({
+  resolutions: z.array(departmentResolutionSchema),
+});
+
+// A bucket of users that share one resolved write target (department + campus).
+export interface RemediationGroup {
+  affectedUsers: M365UserListItem[];
+  classification: RemediationClassification;
+  confidence: RemediationConfidence | null;
+  reasoning: string | null;
+  suggestedCampusName: string | null; // office location to write
+  suggestedDepartment: string | null; // canonical name to write
+  value: string; // group label (resolved target department, or raw value for closed)
+}
+
+// A single user the model could not place; assigned manually in the UI.
+export interface ManualRemediationUser {
+  reasoning: string | null;
+  user: M365UserListItem;
+}
+
+export interface DepartmentRemediationPlan {
+  closed: RemediationGroup[];
+  compliantCount: number;
+  manual: ManualRemediationUser[];
+  review: RemediationGroup[];
+  safe: RemediationGroup[];
+  totalScanned: number;
+}
+
+// Persisted snapshot wrapper (stored as JSON in m365_remediation_snapshot.result).
+export interface RemediationSnapshot {
+  generatedAt: string;
+  generatedBy: string;
+  // Licensed accounts with no sign-in for the inactivity threshold, oldest
+  // first. Independent of the department buckets (a user can be in both).
+  inactive: M365UserListItem[];
+  plan: DepartmentRemediationPlan;
+}
+
+// A single accepted fix decision sent to applyDepartmentFixes.
+export interface DepartmentFixDecision {
+  campusName: string; // office location hint (campus is re-derived server-side)
+  department: string; // exact canonical name to write
+  userIds: string[];
+}
+
+export interface DepartmentFixSummary {
+  failed: Array<{ userId: string; error: string }>;
+  succeeded: number;
+}
+
+// 24SO data-health report (unchanged).
+export type DepartmentDataIssue =
+  | "trailingWhitespace"
+  | "duplicateName"
+  | "activeClosed";
+
+export interface DepartmentDataHealthEntry {
+  campusName: string;
+  id: string;
+  issues: DepartmentDataIssue[];
+  name: string;
 }

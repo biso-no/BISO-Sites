@@ -14,6 +14,7 @@
     "./server/pdf-text-extractor": "./src/server/pdf-text-extractor.ts",
     "./server/recruitment-screener": "./src/server/recruitment-screener.ts",
     "./server/recruitment-emails": "./src/server/recruitment-emails.ts",
+    "./server/department-resolver": "./src/server/department-resolver.ts",
     "./assistant": "./src/assistant/index.ts",
     "./assistant/types": "./src/assistant/types.ts",
     "./assistant/tools": "./src/assistant/tools/index.ts"

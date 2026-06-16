@@ -216,6 +216,71 @@
         "enabled": "Aktivert",
         "disabled": "Deaktivert",
         "unknown": "Ukjent"
+      },
+      "tabs": {
+        "users": "Brukere",
+        "audit": "Avdelingskontroll",
+        "dataHealth": "24SO datakvalitet"
+      }
+    },
+    "audit": {
+      "title": "Avdelingsrevisjon",
+      "description": "AI-assistert gjennomgang av avdelingen til hver lisensierte M365-bruker mot fasiten i 24SO.",
+      "runAnalysis": "Kjør analyse",
+      "reRunAnalysis": "Kjør analyse på nytt",
+      "noSnapshot": "Ingen analyse ennå",
+      "noSnapshotDescription": "Kjør analysen for å klassifisere hver lisensierte bruker mot rolle-e-posten deres.",
+      "lastGenerated": "Sist generert {when}",
+      "summary": "{flagged} grupper trenger oppfølging · {compliant} av {total} brukere er korrekte",
+      "applied": "{succeeded} oppdatert, {failed} feilet",
+      "affectedUsers": "{count} brukere",
+      "writesWithOffice": "Setter avdeling → {department}, kontor → {office}",
+      "applyAllSafe": "Bruk alle trygge rettelser",
+      "applyGroup": "Bruk",
+      "done": "Oppdatert",
+      "searchDepartments": "Søk avdelinger…",
+      "lastSignIn": "Sist innlogget {when}",
+      "neverSignedIn": "Aldri innlogget",
+      "disable": "Deaktiver",
+      "confirmDisable": "Klikk for å bekrefte",
+      "disabled": "Deaktivert",
+      "selectAll": "Velg alle",
+      "clearSelection": "Fjern valg",
+      "deactivateSelected": "Deaktiver valgte ({count})",
+      "confirmDeactivateSelected": "Deaktiver {count} valgte? Klikk for å bekrefte",
+      "selectForDeactivation": "Velg {user} for deaktivering",
+      "deactivatedSummary": "{succeeded} deaktivert, {failed} feilet",
+      "inactiveDescription": "Lisensierte kontoer uten innlogging på 6+ måneder. Deaktivering blokkerer innlogging (setter kontoen deaktivert).",
+      "selectDepartment": "Velg avdeling",
+      "blankDepartment": "(tom avdeling)",
+      "allClear": "Alt i orden",
+      "allClearDescription": "Ingenting trenger oppfølging i denne fanen.",
+      "segments": {
+        "safe": "Trygg",
+        "review": "Gjennomgang",
+        "manual": "Manuell",
+        "inactive": "Inaktiv",
+        "closed": "Nedlagt"
+      },
+      "safeDescription": "Treff med høy sikkerhet. Se gjennom medlemmene, og bruk deretter.",
+      "reviewDescription": "AI-en foreslo en avdeling, men var usikker — bekreft eller endre hver enkelt.",
+      "manualDescription": "Personlige eller nasjonale postbokser AI-en ikke kunne plassere. Tildel hver enkelt selv.",
+      "closedDescription": "Brukere i en nedlagt eller inaktiv avdeling. Flytt dem i 24SO."
+    },
+    "dataHealth": {
+      "title": "24SO datakvalitet",
+      "description": "Avdelingsoppføringer med feil som må rettes i 24SevenOffice.",
+      "empty": "Ingen datafeil funnet",
+      "emptyDescription": "Alle avdelingsnavn er rene.",
+      "column": {
+        "name": "Avdeling",
+        "campus": "Campus",
+        "issues": "Feil"
+      },
+      "issues": {
+        "trailingWhitespace": "Mellomrom på slutten",
+        "duplicateName": "Duplikatnavn",
+        "activeClosed": "Aktiv men merket nedlagt"
       }
     }
   },

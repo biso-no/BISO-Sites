@@ -4,7 +4,7 @@ import { Query } from "@repo/api";
 import { createAdminClient } from "@repo/api/server";
 import type { Campus, Departments } from "@repo/api/types/appwrite";
 import {
-  GraphUserService,
+  type GraphUserService,
   generateTemporaryPassword,
   generateUpn,
 } from "@repo/connectors/azure/users";
@@ -36,15 +36,11 @@ import {
   m365UserSearchSchema,
 } from "@repo/shared/types/user-management";
 import { revalidatePath } from "next/cache";
+import { getGraphService, M365_DOMAIN, toListItem } from "@/lib/it/graph";
+import { getAllowedTenantUser } from "@/lib/it/tenant-guard";
 import { requireItPermission } from "@/lib/it-permissions";
 import { logAuditEvent } from "./audit-log";
 
-const AZURE_GRAPH_TENANT_ID =
-  process.env.AZURE_GRAPH_TENANT_ID || process.env.AZURE_TENANT_ID || "";
-const AZURE_GRAPH_CLIENT_ID =
-  process.env.AZURE_GRAPH_CLIENT_ID || process.env.AZURE_APP_ID || "";
-const AZURE_GRAPH_CLIENT_SECRET = process.env.AZURE_GRAPH_CLIENT_SECRET || "";
-const M365_DOMAIN = process.env.M365_DOMAIN || "biso.no";
 const LEADING_AT_REGEX = /^@/;
 const GRAPH_DUPLICATE_USER_REGEX = /already exists|objectConflict/i;
 const SMTP_PREFIX_REGEX = /^smtp:/i;
@@ -64,56 +60,12 @@ interface LookupValidationResult {
   options: ItLookupOptions;
 }
 
-function getGraphService(): GraphUserService {
-  if (
-    !(
-      AZURE_GRAPH_TENANT_ID &&
-      AZURE_GRAPH_CLIENT_ID &&
-      AZURE_GRAPH_CLIENT_SECRET
-    )
-  ) {
-    throw new Error("Missing Microsoft Graph server credentials");
-  }
-
-  return new GraphUserService(
-    AZURE_GRAPH_TENANT_ID,
-    AZURE_GRAPH_CLIENT_ID,
-    AZURE_GRAPH_CLIENT_SECRET
-  );
-}
-
 function getErrorMessage(error: unknown): string {
   const message = error instanceof Error ? error.message : "Unknown error";
   if (GRAPH_DUPLICATE_USER_REGEX.test(message)) {
     return "A Microsoft 365 user with this UPN or mail nickname already exists.";
   }
   return message;
-}
-
-function toListItem(user: {
-  accountEnabled?: boolean;
-  createdDateTime?: string;
-  department?: string;
-  displayName: string;
-  id: string;
-  jobTitle?: string;
-  lastSignInDateTime?: string;
-  mail?: string;
-  officeLocation?: string;
-  userPrincipalName: string;
-}): M365UserListItem {
-  return {
-    accountEnabled: user.accountEnabled ?? null,
-    createdDateTime: user.createdDateTime ?? null,
-    department: user.department ?? null,
-    displayName: user.displayName,
-    id: user.id,
-    jobTitle: user.jobTitle ?? null,
-    lastSignInDateTime: user.lastSignInDateTime ?? null,
-    mail: user.mail ?? null,
-    officeLocation: user.officeLocation ?? null,
-    userPrincipalName: user.userPrincipalName,
-  };
 }
 
 function toDetail(
@@ -137,23 +89,6 @@ function toDetail(
 function toNullableString(value: string | null | undefined): string | null {
   const trimmed = value?.trim();
   return trimmed ? trimmed : null;
-}
-
-function isAllowedTenantUser(user: {
-  assignedLicenses?: Array<{ skuId: string }>;
-  mail?: string;
-  userPrincipalName: string;
-}): boolean {
-  const allowedDomain = `@${M365_DOMAIN.toLowerCase().replace(
-    LEADING_AT_REGEX,
-    ""
-  )}`;
-  const hasDomain = [user.userPrincipalName, user.mail]
-    .filter((value): value is string => Boolean(value))
-    .some((value) => value.toLowerCase().endsWith(allowedDomain));
-  const hasLicense = (user.assignedLicenses?.length ?? 0) > 0;
-
-  return hasDomain && hasLicense;
 }
 
 function isAllowedDomainValue(value: string): boolean {
@@ -285,22 +220,6 @@ async function validateItLookupValues(input: {
   }
 
   return result;
-}
-
-async function getAllowedTenantUser(
-  graph: GraphUserService,
-  userId: string
-): Promise<NonNullable<Awaited<ReturnType<GraphUserService["getUser"]>>>> {
-  const user = await graph.getUser(userId);
-  if (!user) {
-    throw new Error("Microsoft 365 user not found");
-  }
-  if (!isAllowedTenantUser(user)) {
-    throw new Error(
-      "Only licensed @biso.no Microsoft 365 users are visible in IT admin."
-    );
-  }
-  return user;
 }
 
 function getAccountStatusChange(input: {

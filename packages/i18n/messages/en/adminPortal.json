@@ -216,6 +216,71 @@
         "enabled": "Enabled",
         "disabled": "Disabled",
         "unknown": "Unknown"
+      },
+      "tabs": {
+        "users": "Users",
+        "audit": "Department audit",
+        "dataHealth": "24SO data health"
+      }
+    },
+    "audit": {
+      "title": "Department audit",
+      "description": "AI-assisted review of every licensed M365 user's department against the 24SO source of truth.",
+      "runAnalysis": "Run analysis",
+      "reRunAnalysis": "Re-run analysis",
+      "noSnapshot": "No analysis yet",
+      "noSnapshotDescription": "Run the analysis to classify every licensed user against their role email.",
+      "lastGenerated": "Last generated {when}",
+      "summary": "{flagged} groups need attention · {compliant} of {total} users compliant",
+      "applied": "{succeeded} updated, {failed} failed",
+      "affectedUsers": "{count} users",
+      "writesWithOffice": "Sets department → {department}, office → {office}",
+      "applyAllSafe": "Apply all safe fixes",
+      "applyGroup": "Apply",
+      "done": "Updated",
+      "searchDepartments": "Search departments…",
+      "lastSignIn": "Last sign-in {when}",
+      "neverSignedIn": "Never signed in",
+      "disable": "Disable",
+      "confirmDisable": "Click to confirm",
+      "disabled": "Disabled",
+      "selectAll": "Select all",
+      "clearSelection": "Clear",
+      "deactivateSelected": "Deactivate selected ({count})",
+      "confirmDeactivateSelected": "Disable {count} selected? Click to confirm",
+      "selectForDeactivation": "Select {user} for deactivation",
+      "deactivatedSummary": "{succeeded} disabled, {failed} failed",
+      "inactiveDescription": "Licensed accounts with no sign-in for 6+ months. Disabling blocks sign-in (sets the account disabled).",
+      "selectDepartment": "Select department",
+      "blankDepartment": "(blank department)",
+      "allClear": "All clear",
+      "allClearDescription": "Nothing needs attention in this tab.",
+      "segments": {
+        "safe": "Safe",
+        "review": "Review",
+        "manual": "Manual",
+        "inactive": "Inactive",
+        "closed": "Closed"
+      },
+      "safeDescription": "High-confidence matches. Review the members, then apply.",
+      "reviewDescription": "The AI suggested a department but wasn't certain — confirm or change each one.",
+      "manualDescription": "Personal or national mailboxes the AI couldn't place. Assign each one yourself.",
+      "closedDescription": "Users in a closed or inactive department (e.g. nedlagt). Reassign them in 24SO."
+    },
+    "dataHealth": {
+      "title": "24SO data health",
+      "description": "Canonical department records with defects to fix in 24SevenOffice.",
+      "empty": "No data issues found",
+      "emptyDescription": "All canonical department names are clean.",
+      "column": {
+        "name": "Department",
+        "campus": "Campus",
+        "issues": "Issues"
+      },
+      "issues": {
+        "trailingWhitespace": "Trailing space",
+        "duplicateName": "Duplicate name",
+        "activeClosed": "Active but marked nedlagt"
       }
     }
   },

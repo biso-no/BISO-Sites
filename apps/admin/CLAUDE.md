@@ -94,6 +94,22 @@ handler. Any new top-level route segment must add its own auth check.
   `managedCampusIds` / `resolvedCampusIds` for non-globaladmins. Mutations call
   `logAuditEvent()` (`_actions/audit-log.ts`) and `revalidatePath()` on the
   affected route.
+- **`"use server"` files may export ONLY `async function`s.** This is a hard
+  Next.js/Turbopack rule. A `"use server"` module turns every *runtime value*
+  export into a server action, so exporting a `const`, a `class`, a non-async
+  `function`, or a `let`/`var` fails the build with
+  `Server Actions must be async functions`. (`export type` / `export interface`
+  are fine — they're erased at compile time.) When a server action needs to share
+  a constant or a sync helper (e.g. `getGraphService`, a domain constant, a pure
+  mapper like `toListItem`), put it in a **plain non-`"use server"` module** —
+  e.g. `src/lib/it/graph.ts` — and import it into the action files. Do **not**
+  add `export` to a private helper inside a `"use server"` file just to reuse it
+  elsewhere; that's exactly what breaks the build.
+- **`check-types` does NOT catch the rule above.** `tsc --noEmit` happily accepts
+  a non-async export from a `"use server"` file; only a real compile catches it.
+  After creating or editing any server-action file, verify with
+  `bun run build --filter=admin` (the `✓ Compiled` stage enforces it), not just
+  `check-types`.
 - **Translations data model**: most content tables have `translation_refs` →
   `content_translations` (or `page_translations` for pages). Building permission
   strings for translation rows goes through
@@ -104,6 +120,15 @@ handler. Any new top-level route segment must add its own auth check.
 - **Path alias `@/*`** resolves into **both** `./src/*` and
   `../../packages/editor/src/*` (see `tsconfig.json`). An `@/foo` import may
   resolve into the editor package — keep that in mind when adding files.
+- **AI department remediation**: `/it/users/audit` runs an AI pass
+  (`@repo/ai/server/department-resolver`, `gpt-5-nano`) over every licensed M365
+  user, fenced to the canonical department list (off-list answers are forced to
+  the Manual tab — never written). Results are persisted as a JSON snapshot in
+  the `m365_remediation_snapshot` table and rendered by `remediation-client.tsx`;
+  the heavy run happens only on the explicit "Run analysis" action (the audit
+  page sets `maxDuration = 300`). Pure logic lives in
+  `src/lib/it/{email-classify,remediation-bucketing,concurrency}.ts` and is
+  unit-tested with `bun:test`.
 
 ## Do-not-touch
 
@@ -125,4 +150,7 @@ bun x ultracite fix                 # format + autofix (repo-wide)
 
 `next.config.ts` must not suppress TypeScript build errors. Still run
 `check-types` explicitly before merging because it gives faster, clearer output
-than a full Next build.
+than a full Next build. **But `check-types` is not sufficient on its own** when
+you've touched a `"use server"` file: it cannot see the "exports must be async
+functions" rule (see "App-specific patterns"). Run `bun run build --filter=admin`
+to catch that before claiming a server-action change is done.
