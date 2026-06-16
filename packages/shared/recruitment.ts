@@ -1,5 +1,5 @@
 import type { Models } from "@repo/api";
-import { Query } from "@repo/api";
+import { Permission, Query, Role } from "@repo/api";
 import type { ContentTranslations, Jobs } from "@repo/api/types/appwrite";
 import {
   buildRecruitmentVacancyMetadata,
@@ -17,6 +17,22 @@ export interface RecruitmentLookups {
   campusNamesById: Map<string, string>;
   departmentIdsByName: Map<string, string>;
   departmentNamesById: Map<string, string>;
+}
+
+const RECRUITMENT_STAFF_TEAMS = ["admin", "sg-app-dept-hr"] as const;
+
+/**
+ * Row permissions for recruitment rows that are never public (applications,
+ * answers, candidate profiles) and the staff portion of job rows.
+ * HR-exclusive: only the admin team and the HR department team. Campus and
+ * owning-department teams are intentionally excluded — campus is scoping only.
+ */
+export function buildRecruitmentStaffRowPermissions(): string[] {
+  return RECRUITMENT_STAFF_TEAMS.flatMap((team) => [
+    Permission.read(Role.team(team)),
+    Permission.update(Role.team(team)),
+    Permission.delete(Role.team(team)),
+  ]);
 }
 
 export function getManagedCampusIds(
