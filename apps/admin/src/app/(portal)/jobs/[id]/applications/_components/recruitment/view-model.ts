@@ -119,6 +119,8 @@ export interface WorkspacePanelMember {
   id: string;
   name: string;
   role: string;
+  /** "primary" = in scope by default; "other" = other-campus HR (National only). */
+  scope: "primary" | "other";
 }
 
 export interface WorkspaceJob {
@@ -209,6 +211,8 @@ export interface PendingScorecard {
 }
 
 export interface RecruitmentWorkspaceData {
+  /** National vacancies allow extending the panel with other-campus HR. */
+  allowOtherCampusPanel: boolean;
   analytics: RecruitmentAnalytics;
   candidates: WorkspaceCandidate[];
   currentUserId: string;

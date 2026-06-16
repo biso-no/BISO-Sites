@@ -2562,6 +2562,19 @@
   font-size: 11.5px;
   color: var(--ink-4);
 }
+.sched-other-campus {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  font-size: 11.5px;
+  color: var(--ink-2);
+  cursor: pointer;
+  text-transform: none;
+  letter-spacing: normal;
+}
+.sched-other-campus input {
+  cursor: pointer;
+}
 .sched-cal-grid {
   display: grid;
   gap: 3px;

@@ -22,6 +22,7 @@ export interface RecruitmentActions {
 export interface RecruitmentContextValue {
   actions: RecruitmentActions;
   addToCompare: (id: string) => void;
+  allowOtherCampusPanel: boolean;
   candidates: WorkspaceCandidate[];
   clearCompare: () => void;
   compareIds: string[];

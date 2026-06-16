@@ -895,7 +895,9 @@ export function JobApplicationsClient({
         setReviewers([]);
         return;
       }
-      setReviewers(result.data);
+      // This legacy assign-reviewer view has no other-campus opt-in, so only
+      // surface the in-scope (primary) reviewers.
+      setReviewers(result.data.filter((item) => item.scope === "primary"));
     });
 
     return () => {

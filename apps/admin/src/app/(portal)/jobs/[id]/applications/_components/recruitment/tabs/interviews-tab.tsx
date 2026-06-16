@@ -44,6 +44,7 @@ export function InterviewsTab({
   pendingScorecards: PendingScorecard[];
 }) {
   const { panel, candidates, actions } = useRecruitment();
+  const primaryPanel = panel.filter((member) => member.scope === "primary");
   const days = useMemo(buildDays, []);
   const [duration, setDuration] = useState(30);
   const [bookingUrl, setBookingUrl] = useState<string | null>(null);
@@ -77,7 +78,7 @@ export function InterviewsTab({
       setBookingError("No candidate in the interview stage yet.");
       return;
     }
-    const panelIds = panel.slice(0, 4).map((member) => member.id);
+    const panelIds = primaryPanel.slice(0, 4).map((member) => member.id);
     if (panelIds.length === 0) {
       setBookingError("No panel members available to book against.");
       return;
@@ -282,10 +283,10 @@ export function InterviewsTab({
             <h3>Panel</h3>
           </div>
           <div className="iv-panel-list">
-            {panel.length === 0 ? (
+            {primaryPanel.length === 0 ? (
               <p className="iv-empty">No reviewers configured.</p>
             ) : (
-              panel.map((member) => (
+              primaryPanel.map((member) => (
                 <div className="iv-panel-member" key={member.id}>
                   <span>{member.name}</span>
                   <span className="iv-panel-role">{member.role}</span>

@@ -40,19 +40,24 @@ export function ScheduleModal({
   candidate: WorkspaceCandidate;
   onClose: () => void;
 }) {
-  const { panel, updateCandidate } = useRecruitment();
+  const { panel, allowOtherCampusPanel, updateCandidate } = useRecruitment();
   const days = useMemo(() => buildDays(6), []);
   const [round, setRound] = useState(candidate.interview?.round ?? 1);
   const [duration, setDuration] = useState(45);
   const [location, setLocation] = useState("Teams");
+  const [showOtherCampuses, setShowOtherCampuses] = useState(false);
   const [selectedPanel, setSelectedPanel] = useState<Set<string>>(
     new Set(
       panel
-        .filter((member) => member.email)
+        .filter((member) => member.scope === "primary" && member.email)
         .slice(0, 2)
         .map((m) => m.id)
     )
   );
+  const visiblePanel =
+    allowOtherCampusPanel && showOtherCampuses
+      ? panel
+      : panel.filter((member) => member.scope === "primary");
   const [slot, setSlot] = useState<{
     hour: number;
     iso: string;
@@ -241,11 +246,23 @@ export function ScheduleModal({
           </div>
           <div className="sched-field">
             <span>Panel</span>
+            {allowOtherCampusPanel ? (
+              <label className="sched-other-campus">
+                <input
+                  checked={showOtherCampuses}
+                  onChange={(event) =>
+                    setShowOtherCampuses(event.target.checked)
+                  }
+                  type="checkbox"
+                />
+                Include HR from other campuses
+              </label>
+            ) : null}
             <div className="sched-panel">
-              {panel.length === 0 ? (
+              {visiblePanel.length === 0 ? (
                 <p className="sched-empty">No reviewers configured.</p>
               ) : null}
-              {panel.map((member) => (
+              {visiblePanel.map((member) => (
                 <button
                   className={`sched-panelist${
                     selectedPanel.has(member.id) ? "on" : ""

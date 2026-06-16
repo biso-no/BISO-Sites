@@ -7,7 +7,6 @@ import type {
   ContentTranslations,
   JobApplications,
   Jobs,
-  Users,
 } from "@repo/api/types/appwrite";
 import {
   fetchRecruitmentListRows,
@@ -35,6 +34,7 @@ import { generateObject } from "ai";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireAuth } from "@/lib/authorization";
+import { CAMPUS_ID_TO_NAME } from "@/lib/campus-constants";
 import {
   assertRecruitmentApplicationReviewAccess,
   assertRecruitmentVacancyWriteAccess,
@@ -101,7 +101,18 @@ export interface RecruitmentReviewerOption {
   email: string | null;
   id: string;
   name: string;
+  /**
+   * "primary" = in scope for the vacancy by default (vacancy campus HR +
+   * national HR). "other" = HR from another campus, only surfaced for National
+   * vacancies when the recruiter opts to include other campuses.
+   */
+  scope: "primary" | "other";
 }
+
+/** HR department team — the source of recruitment-staff eligibility. */
+const HR_TEAM_ID = "sg-app-dept-hr";
+/** National campus team — its HR members are always in scope for any vacancy. */
+const NATIONAL_CAMPUS_TEAM_ID = "sg-app-campus-national";
 
 /**
  * Build the inline `translations` payload that `db.upsertRow("jobs", ...)`
@@ -673,58 +684,140 @@ export async function listJobApplications(opts?: {
   };
 }
 
+/** An HR team member, taken straight from the Appwrite team membership. */
+interface RecruitmentTeamMember {
+  email: string | null;
+  name: string;
+  userId: string;
+}
+
+/**
+ * List the members of an Appwrite team straight from its memberships (404 →
+ * empty). `userName` / `userEmail` are populated from the member's account, so
+ * no separate user-table lookup is needed.
+ */
+async function listTeamMembers(
+  teams: Awaited<ReturnType<typeof createAdminClient>>["teams"],
+  teamId: string
+): Promise<RecruitmentTeamMember[]> {
+  try {
+    const result = await teams.listMemberships(teamId, [Query.limit(200)]);
+    return result.memberships.map((membership) => ({
+      email: membership.userEmail || null,
+      name: membership.userName || membership.userEmail || "Unnamed HR member",
+      userId: membership.userId,
+    }));
+  } catch {
+    return [];
+  }
+}
+
+async function listTeamMemberUserIds(
+  teams: Awaited<ReturnType<typeof createAdminClient>>["teams"],
+  teamId: string
+): Promise<Set<string>> {
+  const members = await listTeamMembers(teams, teamId);
+  return new Set(members.map((member) => member.userId));
+}
+
+/**
+ * Turn HR team members into reviewer options, tagging `scope` from `primaryIds`
+ * and dropping any member who isn't in `eligibleIds`. Primary members sort first.
+ */
+function toReviewerOptions(
+  hrMembers: RecruitmentTeamMember[],
+  eligibleIds: Set<string>,
+  primaryIds: Set<string>
+): RecruitmentReviewerOption[] {
+  const options: RecruitmentReviewerOption[] = hrMembers
+    .filter((member) => eligibleIds.has(member.userId))
+    .map((member) => ({
+      email: member.email,
+      id: member.userId,
+      name: member.name,
+      scope: primaryIds.has(member.userId) ? "primary" : "other",
+    }));
+  options.sort((a, b) => {
+    if (a.scope === b.scope) {
+      return a.name.localeCompare(b.name);
+    }
+    return a.scope === "primary" ? -1 : 1;
+  });
+  return options;
+}
+
+/**
+ * Eligible interview-panel reviewers for a vacancy. Eligibility is defined by
+ * Appwrite Teams membership — HR-department team members (`sg-app-dept-hr`)
+ * scoped by campus team:
+ * - Campus vacancy: HR in `sg-app-campus-{campus}` + HR in national. No opt-in.
+ * - National vacancy: HR in national by default; the remaining HR members are
+ *   returned tagged `scope: "other"` and surfaced when `allowOtherCampuses` is
+ *   honoured by the UI checkbox.
+ */
 export async function listRecruitmentReviewers(jobId?: string): Promise<
   | {
+      allowOtherCampuses: boolean;
       data: RecruitmentReviewerOption[];
       error?: never;
     }
   | {
+      allowOtherCampuses?: never;
       data?: never;
       error: string;
     }
 > {
   const ctx = await requireAuth();
-  const { db } = await createAdminClient();
+  const { db, teams } = await createAdminClient();
   const scope = toRecruitmentAdminScope(ctx);
   const lookups = await loadRecruitmentLookups(db);
 
   try {
-    const queries = [Query.equal("isActive", true), Query.limit(100)];
+    const hrMembers = await listTeamMembers(teams, HR_TEAM_ID);
+    const hrIds = new Set(hrMembers.map((member) => member.userId));
 
-    if (jobId) {
-      const vacancy = await getRecruitmentJobById(db, jobId);
-      if (!vacancy) {
-        return { error: "Vacancy not found" };
-      }
-      assertRecruitmentApplicationReviewAccess(scope, lookups, vacancy);
-
-      if (vacancy.department_id) {
-        queries.unshift(Query.equal("department_ids", vacancy.department_id));
-      } else {
-        queries.unshift(Query.equal("campus_id", vacancy.campus_id));
-      }
-    } else if (!scope.isGlobalAdmin) {
-      const managedCampusIds = scope.managedCampusNames
-        .map((name) => lookups.campusIdsByName.get(name))
-        .filter((value): value is string => Boolean(value));
-      const managedDepartmentIds = scope.managedDepartmentNames
-        .map((name) => lookups.departmentIdsByName.get(name))
-        .filter((value): value is string => Boolean(value));
-
-      if (managedDepartmentIds.length > 0) {
-        queries.unshift(Query.equal("department_ids", managedDepartmentIds));
-      } else if (managedCampusIds.length > 0) {
-        queries.unshift(Query.equal("campus_id", managedCampusIds));
-      }
+    // Global fallback (no specific vacancy): every HR-team member.
+    if (!jobId) {
+      return {
+        allowOtherCampuses: false,
+        data: toReviewerOptions(hrMembers, hrIds, hrIds),
+      };
     }
 
-    const response = await db.listRows<Users>("app", "users", queries);
+    const vacancy = await getRecruitmentJobById(db, jobId);
+    if (!vacancy) {
+      return { error: "Vacancy not found" };
+    }
+    assertRecruitmentApplicationReviewAccess(scope, lookups, vacancy);
+
+    const nationalIds = await listTeamMemberUserIds(
+      teams,
+      NATIONAL_CAMPUS_TEAM_ID
+    );
+    const campusName = CAMPUS_ID_TO_NAME[vacancy.campus_id] ?? null;
+
+    // National vacancy: national HR is the default panel; the rest of HR is
+    // opt-in via the "include other campuses" checkbox.
+    if (campusName === "National") {
+      const primaryIds = intersectIds(hrIds, nationalIds);
+      return {
+        allowOtherCampuses: true,
+        data: toReviewerOptions(hrMembers, hrIds, primaryIds),
+      };
+    }
+
+    // Campus vacancy: HR in this campus + national HR. No opt-in.
+    const campusTeamId = campusName
+      ? `sg-app-campus-${campusName.toLowerCase().replace(/\s+/g, "")}`
+      : null;
+    const campusIds = campusTeamId
+      ? await listTeamMemberUserIds(teams, campusTeamId)
+      : new Set<string>();
+    const eligibleCampusIds = new Set<string>([...campusIds, ...nationalIds]);
+    const primaryIds = intersectIds(hrIds, eligibleCampusIds);
     return {
-      data: response.rows.map((user) => ({
-        email: user.email ?? null,
-        id: user.$id,
-        name: user.name ?? user.email ?? "Unnamed HR member",
-      })),
+      allowOtherCampuses: false,
+      data: toReviewerOptions(hrMembers, primaryIds, primaryIds),
     };
   } catch (error) {
     return {
@@ -732,6 +825,16 @@ export async function listRecruitmentReviewers(jobId?: string): Promise<
         error instanceof Error ? error.message : "Failed to load HR members",
     };
   }
+}
+
+function intersectIds(a: Set<string>, b: Set<string>): Set<string> {
+  const out = new Set<string>();
+  for (const id of a) {
+    if (b.has(id)) {
+      out.add(id);
+    }
+  }
+  return out;
 }
 
 export async function updateJobApplicationReview(

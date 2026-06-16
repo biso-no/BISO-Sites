@@ -180,6 +180,7 @@ export function RecruitShell({ data }: { data: RecruitmentWorkspaceData }) {
       value={{
         actions,
         addToCompare,
+        allowOtherCampusPanel: data.allowOtherCampusPanel,
         candidates,
         clearCompare,
         compareIds,

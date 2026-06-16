@@ -472,7 +472,10 @@ export async function getRecruitmentWorkspace(
       ]),
       loadJobInterviews(db, jobId),
       loadScorecards(db, jobId),
-      listRecruitmentReviewers(jobId).catch(() => ({ data: [] })),
+      listRecruitmentReviewers(jobId).catch(() => ({
+        allowOtherCampuses: false,
+        data: [],
+      })),
     ]);
 
   const candidates = applicationsResponse.rows.map((application) =>
@@ -561,6 +564,7 @@ export async function getRecruitmentWorkspace(
   };
 
   return {
+    allowOtherCampusPanel: reviewerResult.allowOtherCampuses ?? false,
     analytics: buildAnalytics(
       candidates,
       applicationsResponse.rows,
@@ -577,6 +581,7 @@ export async function getRecruitmentWorkspace(
       id: reviewer.id,
       name: reviewer.name,
       role: "Reviewer",
+      scope: reviewer.scope,
     })),
   };
 }
