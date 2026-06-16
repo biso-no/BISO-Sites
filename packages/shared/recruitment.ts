@@ -19,7 +19,13 @@ export interface RecruitmentLookups {
   departmentNamesById: Map<string, string>;
 }
 
-const RECRUITMENT_STAFF_TEAMS = ["admin", "sg-app-dept-hr"] as const;
+/**
+ * The teams that hold recruitment staff access: the admin team and the HR
+ * department team. Single source of truth — reused for row-level staff
+ * permissions (here) and for job translation write-teams in the admin app, so
+ * the two never drift apart.
+ */
+export const RECRUITMENT_STAFF_TEAMS = ["admin", "sg-app-dept-hr"] as const;
 
 /**
  * Row permissions for recruitment rows that are never public (applications,

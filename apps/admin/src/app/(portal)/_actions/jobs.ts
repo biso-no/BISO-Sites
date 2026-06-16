@@ -12,6 +12,7 @@ import type {
 import {
   fetchRecruitmentListRows,
   getRecruitmentJobById,
+  RECRUITMENT_STAFF_TEAMS,
 } from "@repo/shared/recruitment";
 import {
   assertRecruitmentApplicationTransition,
@@ -353,7 +354,7 @@ export async function createJob(values: RecruitmentVacancyUpsertInput) {
       audience,
       status: validated.data.status,
       // Recruitment editors only: admin + HR. Campus is scoping, never a perm.
-      writeTeams: ["admin", "sg-app-dept-hr"],
+      writeTeams: [...RECRUITMENT_STAFF_TEAMS],
       readTeams: [],
     });
     const payload = await buildJobUpsertPayload(
@@ -422,7 +423,7 @@ export async function updateJob(
     const translationPerms = buildContentTranslationPermissions({
       audience,
       status: validated.data.status,
-      writeTeams: ["admin", "sg-app-dept-hr"],
+      writeTeams: [...RECRUITMENT_STAFF_TEAMS],
       readTeams: [],
     });
     const payload = await buildJobUpsertPayload(
