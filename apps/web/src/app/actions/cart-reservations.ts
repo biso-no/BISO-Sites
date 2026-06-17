@@ -6,6 +6,7 @@ import type {
   ContentTranslations,
   WebshopProducts,
 } from "@repo/api/types/appwrite";
+import { ensureAnonymousSession } from "@/lib/anon-session";
 
 type CartReservationRow = Models.Row & {
   expires_at?: string;
@@ -68,6 +69,11 @@ export async function createOrUpdateReservation(
   quantity: number
 ): Promise<{ success: boolean; message?: string }> {
   try {
+    // Reserving stock is the first action that genuinely needs a per-user
+    // identity, so provision an anonymous session here (lazily) rather than
+    // eagerly for every page view. No-op if a session already exists.
+    await ensureAnonymousSession();
+
     const { db, account } = await createSessionClient();
 
     // Get session user ID (works for both authenticated and anonymous sessions)

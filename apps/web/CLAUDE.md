@@ -35,11 +35,25 @@ next-intl messages), `not-found.tsx`, `unauthorized.tsx`, `robots.ts`,
 ## Auth
 
 - Session cookie: `a_session_biso` (override with `APPWRITE_SESSION_COOKIE`).
-- `src/proxy.ts` is the Next middleware (exported as `proxy`, matcher excludes
-  `/api/`, `_next/*`, images, favicons). If no session cookie exists, it
-  redirects to `/api/auth/anonymous?redirect=…`, which uses `createAdminClient`
-  to mint an anonymous Appwrite session and sets the cookie (cross-subdomain
-  `.biso.no` in prod, `lax` locally).
+- **No anonymous sessions are minted on page view.** There is no `middleware.ts`
+  / `proxy.ts` — eager provisioning was removed because cookieless clients
+  (crawlers, link unfurlers, uptime monitors) each triggered a fresh anonymous
+  Appwrite user, accumulating thousands of junk accounts. Anonymous sessions are
+  now provisioned **lazily**, only inside actions that genuinely need a per-user
+  identity, via `ensureAnonymousSession()` in `src/lib/anon-session.ts` (no-op if
+  a session cookie already exists; sets the `a_session_biso` cookie cross-subdomain
+  `.biso.no` in prod, `lax` locally). Currently called from
+  `createOrUpdateReservation` (cart). Call it at the start of any new action that
+  must write rows owned by the visitor.
+- **Locale + selected campus live in cookies, not in an Appwrite user.** They are
+  non-sensitive UI state, so anonymous visitors keep their choice with no backend
+  identity. Cookie names + attributes are in `src/lib/cookie-prefs.ts`
+  (`NEXT_LOCALE`, `campusId`). `getLocale`/`setLocale` (`src/app/actions/locale.ts`)
+  and `getActiveCampus`/`setActiveCampus` (`src/app/actions/campus.ts`) are
+  cookie-first and only mirror to/read from an authenticated user's `prefs` as a
+  cross-device fallback. `getUserPreferences()` overlays the cookie values, so
+  the `(public)` pages that read `prefs.campusId`/`prefs.locale` respect anonymous
+  selection without change.
 - Anonymous ≠ authenticated. `getAuthStatus()` in `src/lib/auth-utils.ts` and
   `getLoggedInUser()` both classify a session as authenticated only if
   `hasEmail || (hasRealName && emailVerification)` — apply the same rule when
@@ -110,9 +124,11 @@ All consumed server-side only:
   writing rows that need row-level ACLs (see
   `src/app/api/form/submit/route.ts` for the pattern: admin team + optional
   per-team grants).
-- Locale comes from the Appwrite account prefs via `getLocale()` in
-  `src/app/actions/locale.ts`; messages are loaded by `src/i18n/request.ts`
-  and provided through `NextIntlClientProvider` in `app/layout.tsx`.
+- Locale comes from the `NEXT_LOCALE` cookie via `getLocale()` in
+  `src/app/actions/locale.ts` (falling back to an authenticated user's
+  `prefs.locale`); messages are loaded by `src/i18n/request.ts` and provided
+  through `NextIntlClientProvider` in `app/layout.tsx`. See the Auth section for
+  the cookie-based preference model.
 - Server-action result shape for **new** actions: return a discriminated
   `{ success: boolean; data?: T; error?: string }` object instead of throwing
   or returning raw rows/null. Existing actions use a mix of shapes
@@ -128,9 +144,11 @@ All consumed server-side only:
   packages must stay in `transpilePackages` in `next.config.ts`.
 - `images.remotePatterns` only allows `appwrite.biso.no`, `biso.no`, and
   `via.placeholder.com`. New image sources need an entry.
-- `src/proxy.ts` matcher already excludes `/api/`, so route handlers don't
-  receive the anonymous-session redirect — don't add auth assumptions there
-  that depend on the cookie always being present.
+- There is **no middleware** and sessions are provisioned lazily, so the
+  `a_session_biso` cookie is **not** guaranteed to exist on any given request.
+  Never assume an anonymous session is present — read it defensively, and call
+  `ensureAnonymousSession()` first in any action that needs a per-user identity
+  (see Auth section).
 
 ## Do not touch
 

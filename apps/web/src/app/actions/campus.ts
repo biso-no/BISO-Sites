@@ -7,6 +7,8 @@ import type {
   CampusData,
   CampusMetadata,
 } from "@repo/api/types/appwrite";
+import { cookies } from "next/headers";
+import { CAMPUS_COOKIE, prefCookieOptions } from "@/lib/cookie-prefs";
 
 export async function getCampusMetadata(): Promise<
   Record<string, CampusMetadata>
@@ -123,11 +125,18 @@ export async function getCampusData(_campusId?: string) {
  * Returns campus ID or null for "all campuses"
  */
 export async function getActiveCampus(): Promise<string | null> {
+  // Cookie is the source of truth — works for anonymous visitors with no
+  // Appwrite session at all.
+  const cookieCampus = (await cookies()).get(CAMPUS_COOKIE)?.value;
+  if (cookieCampus) {
+    return cookieCampus === "all" ? null : cookieCampus;
+  }
+
+  // Fall back to an authenticated user's stored preference (cross-device).
   try {
     const { account } = await createSessionClient();
     const user = await account.get();
     const campusId = user.prefs?.campusId;
-    // Return null for "all" or if not set
     return campusId === "all" || !campusId ? null : campusId;
   } catch (_error) {
     // Not logged in or error - return null (all campuses)
@@ -136,23 +145,21 @@ export async function getActiveCampus(): Promise<string | null> {
 }
 
 /**
- * Set the active campus in user preferences
- * Pass null or "all" for all campuses
+ * Set the active campus. Persists to a cookie (so anonymous visitors keep
+ * their selection) and, for authenticated users, mirrors to their prefs for
+ * cross-device continuity. Pass null or "all" for all campuses.
  */
 export async function setActiveCampus(campusId: string | null): Promise<void> {
+  const value = campusId === null ? "all" : campusId;
+
+  (await cookies()).set(CAMPUS_COOKIE, value, prefCookieOptions());
+
+  // Best-effort: never provisions a session for anonymous visitors.
   try {
     const { account } = await createSessionClient();
     const user = await account.get();
-    if (!user) {
-      return;
-    }
-    const prefs = user.prefs;
-    // Store "all" string or the actual campus ID
-    await account.updatePrefs({
-      ...prefs,
-      campusId: campusId === null ? "all" : campusId,
-    });
+    await account.updatePrefs({ ...user.prefs, campusId: value });
   } catch (error) {
-    console.error("Failed to set active campus:", error);
+    console.error("Failed to mirror active campus to user prefs:", error);
   }
 }
