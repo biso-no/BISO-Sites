@@ -18,7 +18,10 @@ complete — see `AUDIT_LOG.md` for the full record.
   `sg-app-dept-operationsunit`, and `sg-app-dept-hr` in the configured
   Appwrite project. Recruitment no longer depends on a literal `admin` team;
   production admins must instead have the National + Operations Unit team
-  memberships used by the code policy.
+  memberships used by the code policy. A global admin can now self-verify the
+  full required-team set at any time via `GET /api/health/teams` in the admin
+  app (returns `503` listing any missing team and its fix) — point the uptime
+  monitor at it so a team disappearing post-launch raises an alert.
 
 ## 2. CI / infrastructure configuration
 
