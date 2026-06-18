@@ -6,6 +6,10 @@ import type {
   ContentTranslations,
   WebshopProducts,
 } from "@repo/api/types/appwrite";
+import {
+  computeAvailableStock,
+  sumReservedQuantity,
+} from "@repo/shared/utils/stock-availability";
 import { ensureAnonymousSession } from "@/lib/anon-session";
 
 type CartReservationRow = Models.Row & {
@@ -45,13 +49,12 @@ export async function getAvailableStock(productId: string): Promise<number> {
       Query.limit(1000),
     ]);
 
-    // Sum reserved quantities
-    const reservedQuantity = reservations.rows.reduce(
-      (sum, reservation) => sum + (reservation.quantity as number),
-      0
+    // Sum reserved quantities across ALL users' active reservations.
+    const reservedQuantity = sumReservedQuantity(
+      reservations.rows as Array<{ quantity?: number | null }>
     );
 
-    return Math.max(0, totalStock - reservedQuantity);
+    return computeAvailableStock(totalStock, reservedQuantity);
   } catch (error) {
     console.error("Error getting available stock:", error);
     // Return 0 on error to be safe
