@@ -7,6 +7,7 @@ import {
   Calendar,
   FileStack,
   FileText,
+  Flag,
   Gift,
   HardDrive,
   Layers,
@@ -135,6 +136,14 @@ const ALL_COMMANDS: PaletteCommand[] = [
     icon: HardDrive,
     href: "/it",
     navKey: "portal.it",
+  },
+  {
+    id: "nav-feature-flags",
+    group: "navigate",
+    label: "Feature flags",
+    icon: Flag,
+    href: "/feature-flags",
+    navKey: "portal.settings",
   },
   {
     id: "nav-settings",

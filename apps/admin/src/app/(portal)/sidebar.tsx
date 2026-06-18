@@ -9,6 +9,7 @@ import {
   Command,
   FileStack,
   FileText,
+  Flag,
   Gift,
   HardDrive,
   Inbox,
@@ -325,6 +326,14 @@ export function Sidebar({ user, roles }: SidebarProps) {
               href="/activity"
               icon={Activity}
               label={t("activity")}
+            />
+          )}
+          {canViewSettings && (
+            <SidebarLink
+              active={isActive("/feature-flags")}
+              href="/feature-flags"
+              icon={Flag}
+              label={t("featureFlags")}
             />
           )}
           {canViewSettings && (

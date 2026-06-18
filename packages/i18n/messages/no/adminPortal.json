@@ -12,6 +12,7 @@
     "communications": "Kommunikasjon",
     "it": "IT",
     "settings": "Innstillinger",
+    "featureFlags": "Funksjonsbrytere",
     "activity": "Aktivitet",
     "drafts": "Gjennomgå utkast",
     "approvals": "Godkjenninger",
@@ -906,6 +907,29 @@
     "deleteSuccess": "Dokument slettet",
     "deleteError": "Kunne ikke slette dokumentet",
     "versionUploadHint": "Opplasting av ny versjon erstatter filen i SharePoint. SharePoints innebygde versjonshistorikk sporer forrige versjon."
+  },
+  "featureFlags": {
+    "title": "Funksjonsbrytere",
+    "description": "Slå plattformfunksjoner av eller på. Endringer trer i kraft umiddelbart og logges i revisjonsloggen.",
+    "empty": "Ingen funksjonsbrytere ennå.",
+    "emptyDescription": "Opprett én for å begynne å styre en funksjon.",
+    "columnFlag": "Bryter",
+    "columnState": "Tilstand",
+    "enabled": "På",
+    "disabled": "Av",
+    "create": {
+      "title": "Ny funksjonsbryter",
+      "key": "Nøkkel",
+      "keyHint": "Liten-bokstav id brukt i koden, f.eks. new_checkout",
+      "name": "Tittel",
+      "descriptionLabel": "Beskrivelse",
+      "submit": "Opprett bryter",
+      "creating": "Oppretter..."
+    },
+    "toggleError": "Kunne ikke oppdatere bryter",
+    "toggleSuccess": "Bryter oppdatert",
+    "createSuccess": "Bryter opprettet",
+    "createError": "Kunne ikke opprette bryter"
   },
   "settings": {
     "title": "Innstillinger",
