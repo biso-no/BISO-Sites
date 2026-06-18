@@ -21,7 +21,7 @@
  *
  * $permissions (suggested):
  *   read(team:<approver_team_id>), update(team:<approver_team_id>),
- *   read(team:admin), update(team:admin),
+ *   read(team:sg-app-dept-operationsunit), update(team:sg-app-dept-operationsunit),
  *   read(user:<requester_id>)
  *
  * Create the collection and regenerate packages/api/types/appwrite.ts before
@@ -42,6 +42,7 @@ import { publishEvent } from "./events";
 
 const DATABASE_ID = "app";
 const TABLE = "approval_requests";
+const OPERATIONS_UNIT_TEAM_ID = "sg-app-dept-operationsunit";
 type GenericRow = Models.Row & Record<string, unknown>;
 
 // ---------------------------------------------------------------------------
@@ -116,8 +117,8 @@ export async function createApprovalRequest(
       [
         Permission.read(Role.team(input.approverTeamId)),
         Permission.update(Role.team(input.approverTeamId)),
-        Permission.read(Role.team("admin")),
-        Permission.update(Role.team("admin")),
+        Permission.read(Role.team(OPERATIONS_UNIT_TEAM_ID)),
+        Permission.update(Role.team(OPERATIONS_UNIT_TEAM_ID)),
         Permission.read(Role.user(ctx.userId)),
       ]
     );

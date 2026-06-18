@@ -21,6 +21,7 @@ import type {
   JobInterviewWriteInput,
 } from "@repo/api/types/inputs";
 import { createTypedRow, updateTypedRow } from "@repo/api/write";
+import { buildRecruitmentStaffRowPermissions } from "@repo/shared/recruitment";
 import {
   RECRUITMENT_BOOKING_TOKEN_DEFAULT_TTL_DAYS,
   type RecruitmentBookingProposeInput,
@@ -177,58 +178,79 @@ export async function createInterview(
     const interview = await createTypedRow<
       JobInterviews,
       JobInterviewWriteInput
-    >(db, DATABASE_ID, "job_interviews", ID.unique(), {
-      application: input.application_id,
-      application_id: input.application_id,
-      cancelled_reason: null,
-      campus_id: job.campus_id,
-      created_by_user_id: ctx.userId,
-      department_id: job.department_id ?? null,
-      ends_at: endsAt.toISOString(),
-      job_id: application.job_id,
-      location: input.location ?? null,
-      meeting_url: input.meeting_url ?? null,
-      notes: input.notes ?? null,
-      outlook_event_id: null,
-      round: input.round,
-      starts_at: startsAt.toISOString(),
-      status: JobInterviewsStatus.SCHEDULED,
-      teams_meeting_id: null,
-      timezone: input.timezone,
-      title: input.title,
-    });
+    >(
+      db,
+      DATABASE_ID,
+      "job_interviews",
+      ID.unique(),
+      {
+        application: input.application_id,
+        application_id: input.application_id,
+        cancelled_reason: null,
+        campus_id: job.campus_id,
+        created_by_user_id: ctx.userId,
+        department_id: job.department_id ?? null,
+        ends_at: endsAt.toISOString(),
+        job_id: application.job_id,
+        location: input.location ?? null,
+        meeting_url: input.meeting_url ?? null,
+        notes: input.notes ?? null,
+        outlook_event_id: null,
+        round: input.round,
+        starts_at: startsAt.toISOString(),
+        status: JobInterviewsStatus.SCHEDULED,
+        teams_meeting_id: null,
+        timezone: input.timezone,
+        title: input.title,
+      },
+      buildRecruitmentStaffRowPermissions()
+    );
 
     const participants: JobInterviewParticipants[] = [];
     // Always seed the candidate as a participant.
     const candidate = await createTypedRow<
       JobInterviewParticipants,
       JobInterviewParticipantWriteInput
-    >(db, DATABASE_ID, "job_interview_participants", ID.unique(), {
-      display_name: application.applicant_name,
-      email: application.applicant_email,
-      interview: interview.$id,
-      interview_id: interview.$id,
-      is_lead: false,
-      response_status: JobInterviewParticipantsResponseStatus.PENDING,
-      role: JobInterviewParticipantsRole.CANDIDATE,
-      user_id: null,
-    });
+    >(
+      db,
+      DATABASE_ID,
+      "job_interview_participants",
+      ID.unique(),
+      {
+        display_name: application.applicant_name,
+        email: application.applicant_email,
+        interview: interview.$id,
+        interview_id: interview.$id,
+        is_lead: false,
+        response_status: JobInterviewParticipantsResponseStatus.PENDING,
+        role: JobInterviewParticipantsRole.CANDIDATE,
+        user_id: null,
+      },
+      buildRecruitmentStaffRowPermissions()
+    );
     participants.push(candidate);
 
     for (const participantInput of input.participants) {
       const participant = await createTypedRow<
         JobInterviewParticipants,
         JobInterviewParticipantWriteInput
-      >(db, DATABASE_ID, "job_interview_participants", ID.unique(), {
-        display_name: participantInput.display_name ?? null,
-        email: participantInput.email,
-        interview: interview.$id,
-        interview_id: interview.$id,
-        is_lead: participantInput.is_lead,
-        response_status: JobInterviewParticipantsResponseStatus.PENDING,
-        role: toParticipantRole(participantInput.role),
-        user_id: participantInput.user_id ?? null,
-      });
+      >(
+        db,
+        DATABASE_ID,
+        "job_interview_participants",
+        ID.unique(),
+        {
+          display_name: participantInput.display_name ?? null,
+          email: participantInput.email,
+          interview: interview.$id,
+          interview_id: interview.$id,
+          is_lead: participantInput.is_lead,
+          response_status: JobInterviewParticipantsResponseStatus.PENDING,
+          role: toParticipantRole(participantInput.role),
+          user_id: participantInput.user_id ?? null,
+        },
+        buildRecruitmentStaffRowPermissions()
+      );
       participants.push(participant);
     }
 
@@ -335,13 +357,21 @@ export async function submitScorecard(
         DATABASE_ID,
         "job_interview_scorecards",
         existing.rows[0].$id,
-        payload
+        payload,
+        buildRecruitmentStaffRowPermissions()
       );
     } else {
       saved = await createTypedRow<
         JobInterviewScorecards,
         JobInterviewScorecardWriteInput
-      >(db, DATABASE_ID, "job_interview_scorecards", ID.unique(), payload);
+      >(
+        db,
+        DATABASE_ID,
+        "job_interview_scorecards",
+        ID.unique(),
+        payload,
+        buildRecruitmentStaffRowPermissions()
+      );
     }
 
     await logAuditEvent(ctx, "recruitment.scorecard.submit", {
@@ -399,18 +429,24 @@ export async function createBookingToken(
       Date.now() + ttlDays * 24 * 60 * 60 * 1000
     ).toISOString();
 
-    await db.createRow(DATABASE_ID, "recruitment_booking_tokens", ID.unique(), {
-      application_id: input.application_id,
-      consumed_at: null,
-      created_by_user_id: ctx.userId,
-      duration_minutes: input.duration_minutes,
-      expires_at: expiresAt,
-      interview_id: null,
-      panel_user_ids: JSON.stringify(input.panel_user_ids),
-      token_hash: issued.hash,
-      window_from: new Date(input.window_from).toISOString(),
-      window_to: new Date(input.window_to).toISOString(),
-    });
+    await db.createRow(
+      DATABASE_ID,
+      "recruitment_booking_tokens",
+      ID.unique(),
+      {
+        application_id: input.application_id,
+        consumed_at: null,
+        created_by_user_id: ctx.userId,
+        duration_minutes: input.duration_minutes,
+        expires_at: expiresAt,
+        interview_id: null,
+        panel_user_ids: JSON.stringify(input.panel_user_ids),
+        token_hash: issued.hash,
+        window_from: new Date(input.window_from).toISOString(),
+        window_to: new Date(input.window_to).toISOString(),
+      },
+      buildRecruitmentStaffRowPermissions()
+    );
 
     await logAuditEvent(ctx, "recruitment.booking.issue", {
       payload: {

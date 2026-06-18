@@ -10,6 +10,10 @@ import {
 import { cookies } from "next/headers";
 import { notFound, redirect, unauthorized } from "next/navigation";
 import { cache } from "react";
+import {
+  parseTeamMemberships,
+  type TeamParseResult,
+} from "./authorization-team-memberships";
 import { CAMPUS_ID_TO_NAME, CAMPUS_NAME_TO_ID } from "./campus-constants";
 
 const CAMPUS_CTX_COOKIE = "admin_campus_ctx";
@@ -32,44 +36,6 @@ export interface UserAuthContext {
   resolvedDepartmentIds: string[]; // Appwrite Departments row $ids matching departmentNames
   roles: string[]; // Computed roles (e.g., "globaladmin", "campusadmin")
   userId: string;
-}
-
-interface TeamParseResult {
-  campusNames: string[];
-  campusTeamIds: string[];
-  departmentNames: string[];
-  departmentTeamIds: string[];
-  roles: string[];
-}
-
-/**
- * Parse team memberships into categorized arrays.
- * Teams now use clean names (e.g. "Oslo", "Operations Unit") rather than the
- * SG-App-* prefixed Azure displayNames. Campus teams are identified by matching
- * the team name against the known campus list (CAMPUS_NAME_TO_ID keys).
- */
-function parseTeamMemberships(
-  teams: Array<{ $id: string; name: string }>
-): TeamParseResult {
-  const result: TeamParseResult = {
-    campusTeamIds: [],
-    campusNames: [],
-    departmentTeamIds: [],
-    departmentNames: [],
-    roles: [],
-  };
-
-  for (const team of teams) {
-    if (CAMPUS_NAME_TO_ID[team.name] === undefined) {
-      result.departmentTeamIds.push(team.$id);
-      result.departmentNames.push(team.name);
-    } else {
-      result.campusTeamIds.push(team.$id);
-      result.campusNames.push(team.name);
-    }
-  }
-
-  return result;
 }
 
 /**

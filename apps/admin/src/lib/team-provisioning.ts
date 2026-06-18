@@ -7,8 +7,9 @@ import { expandDeptName } from "./campus-constants";
 
 const DATABASE_ID = "app";
 
-// Recruitment is HR-exclusive: only the HR department team is provisioned
-// recruitment table access. Matches RECRUITMENT_STAFF_TEAMS in @repo/shared.
+// Recruitment provisioning only adds HR create access. Operations Unit create
+// access is part of the base Appwrite schema; row access is stamped from
+// RECRUITMENT_STAFF_TEAMS in @repo/shared.
 const HR_TEAM_ID = "sg-app-dept-hr";
 
 /**
@@ -37,39 +38,21 @@ const CONTENT_TABLES = [
 ] as const;
 
 /**
- * Recruitment tables carrying applicant PII (cover letters, custom answers,
- * applicant contact details). Recruitment is HR-exclusive: of the SG-App-Dept-*
- * teams, only the HR team (`sg-app-dept-hr`) ever reaches the grant below — see
- * the early return in `grantTeamRecruitmentAccess`. Application/answer/candidate
- * rows are written with `buildRecruitmentStaffRowPermissions()` (from
- * `@repo/shared`), granting read/update/delete to admin + HR only. The HR team
- * therefore only needs CREATE at the table level here — read/update/delete is
- * governed per row by those grants. Campus and owning-department teams are
- * intentionally excluded: campus is scoping applied in app code, never a
- * permission. (Resume files live in a fileSecurity bucket and are served only
- * through the admin-gated download route, not via these grants.)
+ * Restricted recruitment tables carrying applicant PII, interview data, and
+ * booking-token data. The base schema grants create-only to Operations Unit;
+ * this provisioning path adds HR create-only when the HR department team is
+ * mirrored. Rows are written with `buildRecruitmentStaffRowPermissions()` (from
+ * `@repo/shared`), granting read/update/delete to Operations Unit + HR only.
+ * Campus and owning department teams are intentionally excluded:
+ * campus/department review is app scoping, not a DB permission.
  */
-const RECRUITMENT_PII_TABLES = [
+const RESTRICTED_RECRUITMENT_TABLES = [
   "job_applications",
   "job_application_answers",
-] as const;
-
-/**
- * Interview, scheduling and candidate-pool tables that are NOT yet stamped with
- * per-row $permissions (e.g. job_interview_participants and
- * recruitment_booking_tokens are created without a permissions argument), so
- * the HR team still requires full CRUD at the table level. As with the PII
- * tables above, this grant only ever runs for the HR team (`sg-app-dept-hr`);
- * recruitment is HR-exclusive, so admin + HR are the only teams with recruitment
- * table access (admin holds its grants in `packages/api/appwrite.config.json`).
- * Tightening these to create-only requires per-row stamping first — see
- * PERMISSIONS_REVIEW.md (finding D, remaining work).
- */
-const RECRUITMENT_SHARED_TABLES = [
+  "candidate_profiles",
   "job_interviews",
   "job_interview_participants",
   "job_interview_scorecards",
-  "candidate_profiles",
   "recruitment_booking_tokens",
 ] as const;
 
@@ -109,12 +92,13 @@ export async function grantTeamContentAccess(teamId: string): Promise<void> {
  * Provision recruitment table access for the HR team only. Recruitment is
  * HR-exclusive, so this is a no-op for every non-HR team — even though
  * `m365-sync.ts` calls it for every SG-App-Dept-* team at creation time. Only
- * the admin team and the HR department team (`sg-app-dept-hr`) get recruitment
- * table access; admin holds its table-level grants in
- * `packages/api/appwrite.config.json`, and application/answer/candidate rows are
- * written with `buildRecruitmentStaffRowPermissions()` (from `@repo/shared`)
- * granting admin + HR only. Campus and owning-department teams are intentionally
- * excluded — campus is scoping applied in app code, never a permission.
+ * the HR department team (`sg-app-dept-hr`) is added here. Operations Unit
+ * create access is held in `packages/api/appwrite.config.json`, and
+ * application/answer/candidate/interview rows are written with
+ * `buildRecruitmentStaffRowPermissions()` (from `@repo/shared`) granting
+ * Operations Unit + HR read/update/delete. Campus and owning-department teams
+ * are intentionally excluded — campus is scoping applied in app code, never a
+ * permission.
  */
 export async function grantTeamRecruitmentAccess(
   teamId: string
@@ -126,12 +110,6 @@ export async function grantTeamRecruitmentAccess(
   const { db } = await createAdminClient();
   const role = Role.team(teamId);
   const createOnly = [Permission.create(role)];
-  const fullCrud = [
-    Permission.read(role),
-    Permission.create(role),
-    Permission.update(role),
-    Permission.delete(role),
-  ];
 
   const grant = async (tableId: string, perms: string[]): Promise<void> => {
     try {
@@ -157,13 +135,9 @@ export async function grantTeamRecruitmentAccess(
     }
   };
 
-  // PII tables: create-only (read/update/delete governed per row).
-  for (const tableId of RECRUITMENT_PII_TABLES) {
+  // Restricted tables: create-only (read/update/delete governed per row).
+  for (const tableId of RESTRICTED_RECRUITMENT_TABLES) {
     await grant(tableId, createOnly);
-  }
-  // Interview/scheduling/pool tables: full CRUD until they are stamped per row.
-  for (const tableId of RECRUITMENT_SHARED_TABLES) {
-    await grant(tableId, fullCrud);
   }
 }
 

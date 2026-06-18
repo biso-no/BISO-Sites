@@ -12,6 +12,7 @@ import type {
 import { JobInterviewsStatus } from "@repo/api/types/appwrite";
 import type { JobInterviewWriteInput } from "@repo/api/types/inputs";
 import { createTypedRow } from "@repo/api/write";
+import { buildRecruitmentStaffRowPermissions } from "@repo/shared/recruitment";
 import { recruitmentBookingConfirmSchema } from "@repo/shared/types/recruitment";
 
 const SECRET = process.env.RECRUITMENT_BOOKING_SECRET;
@@ -156,26 +157,7 @@ export async function confirmBookingSlot(
   const typedJob = job as unknown as {
     campus_id: string;
     department_id: string | null;
-    campus?: { name: string };
-    department?: { Name?: string };
   };
-
-  const reviewTeams = ["admin", "sg-app-dept-hr"];
-  if (typedJob.campus?.name) {
-    reviewTeams.push(`sg-app-campus-${typedJob.campus.name.toLowerCase()}`);
-  }
-  if (typedJob.department?.Name) {
-    reviewTeams.push(`sg-app-dept-${typedJob.department.Name.toLowerCase()}`);
-  }
-  const interviewPerms = [
-    ...new Set(
-      reviewTeams.flatMap((t) => [
-        `read("team:${t}")`,
-        `update("team:${t}")`,
-        `delete("team:${t}")`,
-      ])
-    ),
-  ];
 
   const interview = await createTypedRow<JobInterviews, JobInterviewWriteInput>(
     db,
@@ -202,7 +184,7 @@ export async function confirmBookingSlot(
       timezone: "Europe/Oslo",
       title: "Interview",
     },
-    interviewPerms
+    buildRecruitmentStaffRowPermissions()
   );
 
   await db.updateRow<RecruitmentBookingTokens>(

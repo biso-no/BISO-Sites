@@ -16,6 +16,7 @@ interface SubmitPayload {
 const MAX_FIELD_LENGTH = 5000;
 const MAX_FIELDS = 100;
 const MAX_TOPIC_LENGTH = 200;
+const OPERATIONS_UNIT_TEAM_ID = "sg-app-dept-operationsunit";
 const HTML_ESCAPES: Record<string, string> = {
   "&": "&amp;",
   "<": "&lt;",
@@ -174,9 +175,9 @@ export async function POST(request: Request) {
 
     // Database mode — store submission with row-level permissions
     const rowPermissions: string[] = [
-      Permission.read(Role.team("admin")),
-      Permission.update(Role.team("admin")),
-      Permission.delete(Role.team("admin")),
+      Permission.read(Role.team(OPERATIONS_UNIT_TEAM_ID)),
+      Permission.update(Role.team(OPERATIONS_UNIT_TEAM_ID)),
+      Permission.delete(Role.team(OPERATIONS_UNIT_TEAM_ID)),
     ];
 
     if (accessTeamId) {

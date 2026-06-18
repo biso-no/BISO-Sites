@@ -9,7 +9,7 @@ import type {
 } from "./types/appwrite";
 import { PagesStatus, PagesVisibility } from "./types/appwrite";
 
-const ADMIN_TEAM = "admin";
+const OPERATIONS_UNIT_TEAM = "sg-app-dept-operationsunit";
 const MEMBERS_TEAM = "biso-members";
 
 interface PageRowTeams {
@@ -55,7 +55,8 @@ async function loadPageRowTeams(
  * Published + public pages get `read(any)`; everything else (draft/archived,
  * or authenticated-only visibility) is restricted to team-scoped reads, so an
  * unpublished page is never publicly readable. Write (update/delete) always
- * goes to team:admin plus the owning department team — never the campus team.
+ * goes to Operations Unit plus the owning department team — never the campus
+ * team.
  */
 function buildPageRowPermissions(opts: {
   isPublished: boolean;
@@ -66,14 +67,14 @@ function buildPageRowPermissions(opts: {
   const { isPublished, audience, campusTeam, deptTeam } = opts;
 
   const writeTeams = [
-    ...new Set([ADMIN_TEAM, ...(deptTeam ? [deptTeam] : [])]),
+    ...new Set([OPERATIONS_UNIT_TEAM, ...(deptTeam ? [deptTeam] : [])]),
   ];
 
   const readPerms =
     isPublished && audience === "public"
       ? [Permission.read(Role.any())]
       : [
-          Permission.read(Role.team(ADMIN_TEAM)),
+          Permission.read(Role.team(OPERATIONS_UNIT_TEAM)),
           ...(campusTeam ? [Permission.read(Role.team(campusTeam))] : []),
           ...(deptTeam ? [Permission.read(Role.team(deptTeam))] : []),
           ...(isPublished && audience === "members"

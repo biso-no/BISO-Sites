@@ -122,8 +122,8 @@ All consumed server-side only:
 - Server actions in `src/app/actions/` and `src/lib/actions/` are the
   preferred mutation path. Use `Permission` / `Role` from `@repo/api` when
   writing rows that need row-level ACLs (see
-  `src/app/api/form/submit/route.ts` for the pattern: admin team + optional
-  per-team grants).
+  `src/app/api/form/submit/route.ts` for the pattern: Operations Unit +
+  optional per-team grants).
 - Locale comes from the `NEXT_LOCALE` cookie via `getLocale()` in
   `src/app/actions/locale.ts` (falling back to an authenticated user's
   `prefs.locale`); messages are loaded by `src/i18n/request.ts` and provided

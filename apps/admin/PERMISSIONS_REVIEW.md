@@ -1,8 +1,8 @@
 # Permissions & Roles Review — admin app
 
 Status: living document. Phase 1 fixes applied on `claude/permissions-roles-review-nsjyA`.
-Phase 2 is planned but **not** executed (requires Appwrite-side changes + a backfill run
-against staging → prod).
+Phase 2 code/schema hardening is implemented; staging/prod still need team
+existence checks and any required row-permission backfill before cutover.
 
 ## TL;DR
 
@@ -122,8 +122,9 @@ is open for sensitive PII.
 
 **Verified detail (why this needs care):**
 - `job_applications`, `candidate_profiles`, `job_application_answers`, `job_interviews` **are**
-  created with correct per-row `$permissions` (`buildVacancyRowPerms` in `apps/web/.../jobs.ts`,
-  `interviewPerms` in `booking.ts`). Collection perms are `read("team:admin")` only — no `read(any)`.
+  created with per-row `$permissions` (now via `buildRecruitmentStaffRowPermissions()`).
+  Before this hardening, the collection grants used a literal `team:admin`
+  backstop; the current schema uses SG-App department teams instead.
 - The hole: `grantTeamRecruitmentAccess` (`lib/team-provisioning.ts`) grants **table-level
   read/update/delete to every department team**, which overrides those per-row restrictions.
 - But two things block a naive grant removal:
@@ -133,44 +134,51 @@ is open for sensitive PII.
   2. `job_interview_participants` and `recruitment_booking_tokens` are created in
      `interviews.ts` with **no** per-row `$permissions` — they depend entirely on the table grant.
 
-**PARTIALLY RESOLVED.** The highest-PII, firmly per-row-stamped tables are now isolated; the
-un-stamped interview/pool tables are documented as remaining.
+**RESOLVED.** Recruitment data is now staff-only at the Appwrite data layer:
+`sg-app-dept-operationsunit` and `sg-app-dept-hr` keep table-level create only,
+and read/update/delete are governed by per-row permissions stamped with
+`buildRecruitmentStaffRowPermissions()`.
+
+Public applications still work through the web server action: the applicant
+submits the form while signed in, the server validates the vacancy/payload, and
+then the admin client creates the application row with staff row permissions.
+Direct `create("users")` is intentionally absent from restricted recruitment
+tables so clients cannot self-write review/status/screening fields.
 
 Done:
-- `buildVacancyRowPerms` (`apps/web/.../jobs.ts`) now also grants **read** to the owning campus's
-  leadership team (`sg-app-dept-ledelsen{city}`) so campus admins keep per-row review access, and
-  its department-team derivation was corrected from spaces→hyphens to the canonical spaces→removed
-  rule (`sg-app-dept-operationsunit`), matching `m365-sync` and the admin helpers.
-- `grantTeamRecruitmentAccess` now grants **create-only** on `job_applications` and
-  `job_application_answers` (the cover-letter/answer/contact PII). Read/update/delete on those is
-  governed per row (ops + hr + owning department + owning campus leadership). Department teams can
-  no longer read another department's or campus's applications.
+- `grantTeamRecruitmentAccess` is a no-op for non-HR department teams and grants
+  HR create-only on `job_applications`, `job_application_answers`,
+  `candidate_profiles`, `job_interviews`, `job_interview_participants`,
+  `job_interview_scorecards`, and `recruitment_booking_tokens`.
+- `packages/api/appwrite.config.json` mirrors that contract: the restricted
+  recruitment tables have Operations Unit + HR create-only table grants, no
+  `create("users")`, no literal `admin` team grants, and
+  `recruitment_booking_tokens` now has row security.
+- Admin interview creation, participant creation, scorecard create/update,
+  booking-token issuance, candidate self-booking interview creation, and
+  existing candidate-profile updates now stamp rows with
+  `buildRecruitmentStaffRowPermissions()`.
 - Resume files are already safe: the `recruitment_resumes` bucket has `fileSecurity: true` with no
   bucket-level read, and uploads pass no file perms, so resumes are reachable only via the
   admin-gated download route — never via team grants.
 
-Remaining (follow-up):
-- `candidate_profiles`, `job_interviews`, `job_interview_participants`, `job_interview_scorecards`,
-  `recruitment_booking_tokens` still get full table-level CRUD because they are created **without**
-  per-row `$permissions` (and profiles are cross-vacancy). Stamp them per row (campus-leadership +
-  owning dept + ops/hr), then move them to create-only too.
-- `grantTeamRecruitmentAccess` only **adds** perms; for any already-provisioned team it would not
-  strip a prior read/update/delete on the PII tables. N/A now (no teams/data yet); if teams exist
-  before deploy, run a one-time cleanup.
-
-**Staging dependency to verify:** the per-row *department* grant resolves `department_id` →
-`Departments.Name` → `sg-app-dept-{name}`. This is the **same invariant** `resolveDepartmentIds`
-(core auth) already relies on (Azure dept name == 24SevenOffice `Departments.Name`). The
-`grantDeptTeamAccess` comment hints some Names may be campus-prefixed (`"OSL Operations Unit"`),
-which would break the dept-level grant (ops/hr/campus-admin are unaffected). Confirm on staging
-that a plain department reviewer can read their own department's applications.
+Remaining operational caveat:
+- If staging/prod already contains recruitment rows created before this change,
+  backfill their `$permissions` to `buildRecruitmentStaffRowPermissions()` before
+  removing HR table-level read/update/delete in Appwrite.
 
 ### E — Literal team IDs must exist in Appwrite (verify)
 
-Code references `Role.team("admin")`, `Role.team("biso-members")`, `Role.team("sg-app-dept-hr")`
-(in `lib/utils.ts`, `lib/recruitment.ts`). Provisioning only auto-creates `sg-app-campus-*` /
-`sg-app-dept-*` teams. Confirm `admin`, `biso-members`, and `sg-app-dept-hr` exist with exactly
-those IDs, or row `$permissions` referencing them silently grant nothing.
+Code references literal team IDs such as `Role.team("biso-members")`,
+`Role.team("sg-app-dept-operationsunit")`, and `Role.team("sg-app-dept-hr")`
+(in `lib/utils.ts`, `lib/recruitment.ts`). Provisioning auto-creates
+`sg-app-campus-*` / `sg-app-dept-*` teams, but production cutover should still
+confirm the exact required IDs exist, or row `$permissions` referencing them
+silently grant nothing.
+
+**CLI check on 2026-06-18:** `biso-members`, `sg-app-dept-operationsunit`, and
+`sg-app-dept-hr` exist in the configured Appwrite project. There is
+intentionally no literal `admin` team dependency.
 
 ### F — Dead `labels` field (FIXED in Phase 1)
 
@@ -195,11 +203,10 @@ those IDs, or row `$permissions` referencing them silently grant nothing.
   schema is edited directly here (`appwrite.config.json`), the collection-permission change and
   the row-permission writers ship together. The original sequencing caveat ("don't remove
   `read("any")` before row perms exist") only matters if existing rows are present — they aren't.
-- **D — PARTIALLY DONE.** The high-PII application tables (`job_applications`,
-  `job_application_answers`) are now create-only at the table level with complete per-row reads
-  (ops + hr + owning dept + owning campus leadership), and resumes were already locked to the
-  admin-gated route. Remaining: stamp the interview/pool tables per row, then narrow them too
-  (see finding D). Touched `apps/web/.../jobs.ts` and `lib/team-provisioning.ts`.
+- **D — DONE.** Restricted recruitment tables now use Operations Unit + HR
+  create-only table grants, with row-level read/update/delete stamped by shared
+  recruitment staff permissions. `recruitment_booking_tokens` now uses row
+  security. Resumes remain locked to the admin-gated download route.
 
 ### Staging verification checklist (before prod)
 
@@ -208,17 +215,18 @@ those IDs, or row `$permissions` referencing them silently grant nothing.
 - A draft is not readable by a plain `biso-members` user.
 - A campus admin can see drafts across departments in their campus (rows **and** translations).
 - A department user sees only their department's content.
-- **D:** a department reviewer can read **their own** department's applications, but **not**
-  another department's or campus's; ops/hr/global and campus admins can review within scope. (This
-  exercises the `department_id → Departments.Name → team` invariant — see finding D.)
-- **E:** confirm the teams `admin`, `biso-members`, `sg-app-dept-hr`, and the `sg-app-dept-*` /
-  `sg-app-dept-ledelsen*` teams exist in Appwrite with those exact IDs (row `$permissions`
-  reference them).
+- **D:** HR/global-admin users can create/review recruitment data through the
+  app, and non-HR department/campus teams cannot read restricted recruitment
+  rows directly through Appwrite table grants. If pre-existing rows exist,
+  backfill row `$permissions` before removing legacy table grants.
+- **E:** confirm required literal teams exist before cutover. `biso-members`,
+  `sg-app-dept-operationsunit`, and `sg-app-dept-hr` exist in the configured
+  Appwrite project as of 2026-06-18; no literal `admin` team is required.
 
 ## Recommendation
 
-Keep the hybrid model. **A** (draft exposure) is closed. **D** (recruitment PII) — the worst
-exposure (applications + answers, plus resumes already safe) is closed; finishing it means
-stamping the interview/pool tables per row, then narrowing their grants. **B** (scoping) and **F**
-(labels) are done. **E** is a one-time operational check (now a hard dependency for D's dept-level
-reviews). The retracted items (migration gating, content grants) need no action.
+Keep the hybrid model. **A** (draft exposure), **B** (scoping), **D**
+(recruitment PII), and **F** (labels) are closed in code/schema. **E** remains
+a production cutover task to confirm the required SG-App and membership team IDs
+exist in the target project. The retracted items (migration gating, content
+grants) need no action.

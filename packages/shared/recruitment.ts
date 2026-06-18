@@ -20,18 +20,21 @@ export interface RecruitmentLookups {
 }
 
 /**
- * The teams that hold recruitment staff access: the admin team and the HR
- * department team. Single source of truth — reused for row-level staff
- * permissions (here) and for job translation write-teams in the admin app, so
- * the two never drift apart.
+ * Department teams that hold recruitment staff access. Operations Unit is the
+ * platform/global-admin department; HR owns recruitment operations. There is
+ * intentionally no literal Appwrite `admin` team in this policy.
  */
-export const RECRUITMENT_STAFF_TEAMS = ["admin", "sg-app-dept-hr"] as const;
+export const RECRUITMENT_STAFF_TEAMS = [
+  "sg-app-dept-operationsunit",
+  "sg-app-dept-hr",
+] as const;
 
 /**
  * Row permissions for recruitment rows that are never public (applications,
  * answers, candidate profiles) and the staff portion of job rows.
- * HR-exclusive: only the admin team and the HR department team. Campus and
- * owning-department teams are intentionally excluded — campus is scoping only.
+ * Staff-only: Operations Unit + HR get row access. Campus and owning-department
+ * teams are intentionally excluded — campus/department review is app-code
+ * scoping, not a DB permission.
  */
 export function buildRecruitmentStaffRowPermissions(): string[] {
   return RECRUITMENT_STAFF_TEAMS.flatMap((team) => [

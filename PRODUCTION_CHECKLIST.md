@@ -13,6 +13,12 @@ complete — see `AUDIT_LOG.md` for the full record.
   such as `admin` or `globaladmin` no longer grant API global-admin
   authority. Before cutover, confirm real production admins have the
   correct Azure/Appwrite team memberships.
+- **Confirm required Appwrite team IDs exist in production.**
+  A CLI check on 2026-06-18 found `biso-members`,
+  `sg-app-dept-operationsunit`, and `sg-app-dept-hr` in the configured
+  Appwrite project. Recruitment no longer depends on a literal `admin` team;
+  production admins must instead have the National + Operations Unit team
+  memberships used by the code policy.
 
 ## 2. CI / infrastructure configuration
 
@@ -54,6 +60,11 @@ These audit fixes intentionally change behavior; verify them in staging:
   secret must match exactly, including whitespace).
 - API CORS still allows real BISO origins in production and localhost
   origins in local development only.
+- Recruitment restricted tables have Operations Unit + HR create-only table
+  grants, no `create("users")`, no literal `admin` grants, and per-row staff
+  permissions on new rows. If staging/prod has existing recruitment rows,
+  backfill their `$permissions` before removing any legacy table-level
+  read/update/delete grants in Appwrite.
 
 ## 4. Known-accepted limitations (documented, not fixed)
 
@@ -70,11 +81,12 @@ These audit fixes intentionally change behavior; verify them in staging:
 
 ## 5. Test coverage gap
 
-Only 4 vitest files exist (api lib helpers). There are **no tests for
-auth enforcement** (JWT validation, campus scoping, route gating) in any
-app — every regression in those paths ships silently today. The highest-
-value first tests: `@repo/shared/utils/team-roles` (pure functions, easy
-wins), api `getAdminScope`, and the web checkout/purchase-limit actions.
+Auth regression coverage now exists for shared team-role helpers, API
+`getAdminScope`, admin team parsing/nav pseudo-role gating, recruitment scope
+helpers, recruitment Appwrite table permissions, and recruitment row permission
+stamping. Broader route-gating and checkout/payment tests remain sparse, so
+future auth and payment changes still need focused regression tests before
+merge.
 
 ## 6. Deferred cleanups (optional, non-blocking)
 
@@ -101,14 +113,13 @@ wins), api `getAdminScope`, and the web checkout/purchase-limit actions.
    to `orders.ts`, `cart-reservations.ts`, `purchase-limits.ts`, or the
    checkout routes deserves a staging Vipps test run, not just review.
 
-2. **Authorization sprawl across three models with no tests.** Web
+2. **Authorization sprawl across three models with limited tests.** Web
    (anonymous-session + email heuristic), admin (Azure-AD team parsing →
    roles → campus scoping), and api (JWT + scope) each enforce access
-   differently, the label-gating policy conflict is still open, and
-   nothing executes these paths in CI. The Phase 1 consolidation
-   (`@repo/shared/utils/team-roles`) reduced drift, but a wrong campus
-   filter still means silent cross-campus data exposure in a 60-table
-   database.
+   differently. The shared team-role, API admin-scope, and recruitment
+   permission paths now have regression tests, but a wrong campus filter in an
+   untested route can still mean silent cross-campus data exposure in a
+   60-table database.
 
 3. **The admin studio monoliths (~15k lines across 6 client files).**
    They are the most-edited, least-reviewable surface: 2,000–4,500-line
