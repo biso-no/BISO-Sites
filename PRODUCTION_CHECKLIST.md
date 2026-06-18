@@ -83,10 +83,14 @@ These audit fixes intentionally change behavior; verify them in staging:
 
 Auth regression coverage now exists for shared team-role helpers, API
 `getAdminScope`, admin team parsing/nav pseudo-role gating, recruitment scope
-helpers, recruitment Appwrite table permissions, and recruitment row permission
-stamping. Broader route-gating and checkout/payment tests remain sparse, so
-future auth and payment changes still need focused regression tests before
-merge.
+helpers, recruitment Appwrite table permissions, recruitment row permission
+stamping, and representative admin content update route scoping that prevents
+draft rows from being retargeted to unauthorized campuses. First checkout
+coverage now protects provider-to-order item normalization and legacy order
+item parsing so downstream stock, purchase-limit, and return-page code can read
+`product_id`. Broader admin route-gating and checkout/payment tests remain
+sparse, so future auth and payment changes still need focused regression tests
+before merge.
 
 ## 6. Deferred cleanups (optional, non-blocking)
 

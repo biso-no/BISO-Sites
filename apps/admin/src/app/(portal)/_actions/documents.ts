@@ -225,6 +225,7 @@ export async function updateDocumentMetadata(
   }
 
   assertWriteAccess(ctx, doc.campus_id);
+  assertWriteAccess(ctx, validated.data.campus_id ?? null);
   if (doc.status === "published" || validated.data.status === "published") {
     assertPublishAccess(ctx, doc.campus_id);
     assertPublishAccess(ctx, validated.data.campus_id ?? null);

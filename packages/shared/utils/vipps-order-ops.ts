@@ -26,6 +26,13 @@ interface DbClient {
   ) => Promise<unknown>;
 }
 
+function buildStoredOrderItems(items: CheckoutSessionParams["items"]) {
+  return items.map(({ productId, ...item }) => ({
+    ...item,
+    product_id: productId,
+  }));
+}
+
 /**
  * Creates an order in the database with PENDING status
  */
@@ -53,7 +60,7 @@ export async function createOrder(
         discount_total: params.discountTotal || null,
         total: params.total,
         currency: params.currency,
-        items_json: JSON.stringify(params.items),
+        items_json: JSON.stringify(buildStoredOrderItems(params.items)),
         membership_applied: params.membershipApplied || null,
         member_discount_percent: params.memberDiscountPercent || null,
         campus_id: params.campusId || null,
