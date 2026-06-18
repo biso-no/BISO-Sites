@@ -1,20 +1,11 @@
 import { NextResponse } from "next/server";
-
-const ALLOWED_ORIGINS = new Set([
-  "http://localhost:3000",
-  "http://localhost:3001",
-  "http://localhost:3002",
-  "https://admin.biso.no",
-  "https://web.biso.no",
-  "https://public.biso.no",
-  "https://biso.no",
-]);
+import { isAllowedOrigin } from "./allowed-origins";
 
 export function applyCorsHeaders(
   response: NextResponse,
   origin: string | null
 ) {
-  if (origin && ALLOWED_ORIGINS.has(origin)) {
+  if (origin && isAllowedOrigin(origin)) {
     response.headers.set("Access-Control-Allow-Origin", origin);
     response.headers.set("Access-Control-Allow-Credentials", "true");
     response.headers.set("Vary", "Origin");

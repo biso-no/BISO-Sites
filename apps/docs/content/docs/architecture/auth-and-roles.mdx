@@ -96,8 +96,7 @@ For an authenticated Microsoft user, it:
 
 Result: Appwrite teams are an exact mirror of relevant Azure AD
 security groups. The admin app reads team memberships to compute
-roles. **Appwrite user labels are no longer used for role decisions**
-(some legacy code reads them, but it's effectively dead).
+roles. **Appwrite user labels are not used for role decisions.**
 
 <Callout type="info">
 **A note on the M365 licenses behind this**: BISO does not pay for
@@ -230,10 +229,14 @@ the handler against the JWT-decoded team list.
 
 A couple of routes don't use JWTs at all:
 
-- `/departures/sync` requires `Authorization: Bearer
-  $ENTUR_SYNC_SECRET`.
-- `/cleanup-anon-users` requires `Authorization: Bearer
-  $CRON_SECRET`.
+- `/departures/sync` requires `Authorization: Bearer $ENTUR_SYNC_SECRET`
+  or `x-sync-secret: $ENTUR_SYNC_SECRET`.
+- `/tickster/sync` requires `Authorization: Bearer $TICKSTER_SYNC_SECRET`
+  or `x-sync-secret: $TICKSTER_SYNC_SECRET`.
+- `/cleanup-anon-users` requires `Authorization: Bearer $CRON_SECRET`
+  or `x-cron-secret: $CRON_SECRET`.
+- `apps/admin` `/api/announcements/dispatch` requires
+  `Authorization: Bearer $CRON_SECRET` or `x-cron-secret: $CRON_SECRET`.
 
 These are called by cron jobs / scheduled tasks, not by users.
 

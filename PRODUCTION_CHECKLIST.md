@@ -6,41 +6,32 @@ complete — see `AUDIT_LOG.md` for the full record.
 
 ## 1. Decisions only you can make
 
-- **API label-based admin gating vs. documented policy.**
-  `apps/api/src/lib/admin-auth.ts#getAdminScope` grants global admin to
-  users with an `admin` or `globaladmin` **label**, while
-  `apps/admin/CLAUDE.md` states labels must never be used for role
-  checks (admin's own code never does). Decide: remove the label check
-  from the API (may lock out anyone relying on labels), or amend the
-  policy. Until then the two services disagree about who is a global
-  admin.
-- **`departures/sync` accepts the secret as a `?secret=` query
-  parameter.** Query strings land in access logs and proxies. The other
-  sync routes are header-only. Removing it is a one-line change but will
-  break any cron currently configured with the query param — migrate the
-  caller first.
-- **Localhost origins ship in the production CORS/proxy allowlists**
-  (`apps/api/src/lib/cors.ts`, `apps/api/src/proxy.ts`). Low risk
-  (only exploitable by software already running on a user's machine),
-  but trivially removable if you gate the dev origins on `NODE_ENV`.
+- **Confirm no production admin depended on Appwrite labels.**
+  `apps/api/src/lib/admin-auth.ts#getAdminScope` now matches the admin
+  policy: global admin is derived from `SG-App-Campus-National` plus
+  `SG-App-Dept-OperationsUnit` team membership only. Appwrite labels
+  such as `admin` or `globaladmin` no longer grant API global-admin
+  authority. Before cutover, confirm real production admins have the
+  correct Azure/Appwrite team memberships.
 
 ## 2. CI / infrastructure configuration
 
-- **Nothing gates type errors before deploys.** `web` and `api` set
-  `typescript.ignoreBuildErrors: true`, and
-  `.github/workflows/deploy-production.yml` never runs
-  `bun run check-types` or `bun run lint`. Add a check-types (and
-  ideally knip) step before the deploy job — this audit found a broken
-  production page (`/shop/order/[orderId]`) that no existing gate could
-  have caught.
+- **First production deploy after the CI gate change should be watched.**
+  `.github/workflows/deploy-production.yml` now runs deploy-blocking
+  `lint` for each affected app and `check-types` for each affected app
+  plus its internal dependencies before upload. `web` and `api` still set
+  `typescript.ignoreBuildErrors: true`, so this CI gate is the signal
+  that prevents type regressions from shipping.
 - **`docs` type-check fails in fresh clones** because fumadocs generates
   `.source/` at build time. Either add a `postinstall`/pre-step that
   runs the fumadocs generator, or exclude docs from check-types in CI
   with a comment.
-- **`CRON_SECRET` must be set in production** — the web cron route
-  correctly refuses to run without it (500), and the admin announcements
-  dispatch route requires it too. Confirm both are configured, plus
-  `ENTUR_SYNC_SECRET` / `TICKSTER_SYNC_SECRET` for the api sync routes.
+- **Scheduler secrets must be set and sent as headers in production** —
+  `CRON_SECRET` gates reservation cleanup, anonymous-user cleanup, and
+  announcement dispatch; `ENTUR_SYNC_SECRET` / `TICKSTER_SYNC_SECRET`
+  gate the api sync routes. The `departures/sync` route is now
+  header-only like the other sync routes, so confirm no scheduler still
+  calls it with `?secret=`.
 - **Confirm a scheduler actually calls
   `/api/cron/cleanup-reservations`** (every ~15 min recommended). The
   endpoint was silently broken until this audit (session client with no
@@ -59,8 +50,10 @@ These audit fixes intentionally change behavior; verify them in staging:
 - Purchase limits now count beyond 25 historical orders.
 - Admin UI now grants campus-admin to legacy `LedelsenOslo`-style team
   names (previously only the api accepted them).
-- Cron/sync endpoints still authenticate (now constant-time comparison —
-  the secret must match exactly, including whitespace).
+- Cron/sync endpoints still authenticate with header secrets only (the
+  secret must match exactly, including whitespace).
+- API CORS still allows real BISO origins in production and localhost
+  origins in local development only.
 
 ## 4. Known-accepted limitations (documented, not fixed)
 

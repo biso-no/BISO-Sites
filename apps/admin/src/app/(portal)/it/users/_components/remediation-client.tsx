@@ -286,9 +286,7 @@ export function RemediationClient({
 
       {segment === "inactive" && <InactiveList users={snapshot.inactive} />}
 
-      {(segment === "safe" ||
-        segment === "review" ||
-        segment === "closed") && (
+      {(segment === "safe" || segment === "review" || segment === "closed") && (
         <GroupList
           departmentNames={departmentNames}
           departmentToCampus={departmentToCampus}
@@ -436,9 +434,7 @@ function GroupRow({
               }}
               variant="secondary"
             >
-              {applying ? (
-                <Loader2 className="animate-spin" size={15} />
-              ) : null}
+              {applying ? <Loader2 className="animate-spin" size={15} /> : null}
               {t("applyGroup")}
             </StudioButton>
           </div>

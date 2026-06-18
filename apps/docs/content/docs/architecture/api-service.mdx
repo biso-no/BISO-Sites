@@ -180,13 +180,15 @@ called by scheduled tasks, not users.
 
 | Method + path | Header |
 |---|---|
-| `POST /departures/sync` | `Authorization: Bearer $ENTUR_SYNC_SECRET` |
-| `POST /cleanup-anon-users` | `Authorization: Bearer $CRON_SECRET` |
+| `POST /departures/sync` or `GET /departures/sync` | `Authorization: Bearer $ENTUR_SYNC_SECRET` or `x-sync-secret: $ENTUR_SYNC_SECRET` |
+| `POST /tickster/sync` or `GET /tickster/sync` | `Authorization: Bearer $TICKSTER_SYNC_SECRET` or `x-sync-secret: $TICKSTER_SYNC_SECRET` |
+| `POST /cleanup-anon-users` or `GET /cleanup-anon-users` | `Authorization: Bearer $CRON_SECRET` or `x-cron-secret: $CRON_SECRET` |
 
 `/departures/sync` pulls transit-departure data from Entur into
-Appwrite for the front-page widget. `/cleanup-anon-users` reaps
-abandoned anonymous Appwrite users to keep the user table from
-growing unboundedly.
+Appwrite for the front-page widget. `/tickster/sync` imports Tickster
+purchases when that integration is active. `/cleanup-anon-users` reaps
+abandoned anonymous Appwrite users to keep the user table from growing
+unboundedly.
 
 ## Build and deploy
 

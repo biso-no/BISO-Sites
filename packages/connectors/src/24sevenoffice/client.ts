@@ -11,8 +11,7 @@ import { createClientAsync, type Client as SoapClient } from "soap";
 export const WSDL_URLS = {
   authenticate:
     "https://api.24sevenoffice.com/authenticate/v001/authenticate.asmx?wsdl",
-  client:
-    "https://api.24sevenoffice.com/Client/V001/ClientService.asmx?wsdl",
+  client: "https://api.24sevenoffice.com/Client/V001/ClientService.asmx?wsdl",
   company:
     "https://api.24sevenoffice.com/CRM/Company/V001/CompanyService.asmx?wsdl",
   invoice:
