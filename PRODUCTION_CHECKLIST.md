@@ -110,12 +110,17 @@ before merge.
 # Risk Assessment — Three Highest-Risk Areas
 
 1. **The payment/checkout path (web → Vipps → Finago → reservations).**
-   It moves money, it spans three external systems, it has two known
-   (accepted) race windows, and it has zero automated tests. This audit
-   fixed four high-severity bugs in this exact area — the density of
-   defects found here is itself the strongest signal. Any future change
-   to `orders.ts`, `cart-reservations.ts`, `purchase-limits.ts`, or the
-   checkout routes deserves a staging Vipps test run, not just review.
+   It moves money, it spans three external systems, and it has two known
+   (accepted) race windows. Automated coverage is now thin rather than
+   zero: the shared order-ops module (`vipps-order-ops.ts`) has unit tests
+   for order item normalization, legacy `productId` parsing, stock
+   decrement/restore, and once-only reservation cleanup across status
+   transitions — but the checkout routes, `cart-reservations.ts`, and
+   `purchase-limits.ts` are still untested. This audit fixed four
+   high-severity bugs in this exact area — the density of defects found
+   here is itself the strongest signal. Any future change to `orders.ts`,
+   `cart-reservations.ts`, `purchase-limits.ts`, or the checkout routes
+   deserves a staging Vipps test run, not just review.
 
 2. **Authorization sprawl across three models with limited tests.** Web
    (anonymous-session + email heuristic), admin (Azure-AD team parsing →
