@@ -13,6 +13,7 @@
     "it": "IT",
     "settings": "Settings",
     "featureFlags": "Feature flags",
+    "operations": "Operations health",
     "activity": "Activity",
     "drafts": "Review Drafts",
     "approvals": "Approvals",
@@ -907,6 +908,23 @@
     "deleteSuccess": "Document deleted",
     "deleteError": "Failed to delete document",
     "versionUploadHint": "Uploading a new version will replace the file in SharePoint. SharePoint's native version history will track the previous version."
+  },
+  "operations": {
+    "title": "Operations health",
+    "description": "Read-only status of integrations, scheduler secrets, and required teams. No secret values are shown.",
+    "integrationsTitle": "Integrations",
+    "teamsTitle": "Required teams",
+    "teamsEndpointNote": "Live JSON for monitors: GET /api/health/teams",
+    "teamsAllPresent": "All required teams present",
+    "teamsMissingSuffix": "required teams missing",
+    "teamsUnavailable": "Could not load team health. Check Appwrite connectivity.",
+    "runbook": "Runbook",
+    "missingSuffix": "missing",
+    "status": {
+      "configured": "Configured",
+      "incomplete": "Incomplete",
+      "notConfigured": "Not configured"
+    }
   },
   "featureFlags": {
     "title": "Feature flags",

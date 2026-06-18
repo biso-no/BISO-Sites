@@ -8,6 +8,7 @@ import {
   FileStack,
   FileText,
   Flag,
+  Gauge,
   Gift,
   HardDrive,
   Layers,
@@ -136,6 +137,14 @@ const ALL_COMMANDS: PaletteCommand[] = [
     icon: HardDrive,
     href: "/it",
     navKey: "portal.it",
+  },
+  {
+    id: "nav-operations",
+    group: "navigate",
+    label: "Operations health",
+    icon: Gauge,
+    href: "/operations",
+    navKey: "portal.settings",
   },
   {
     id: "nav-feature-flags",

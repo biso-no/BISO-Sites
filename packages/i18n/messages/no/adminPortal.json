@@ -13,6 +13,7 @@
     "it": "IT",
     "settings": "Innstillinger",
     "featureFlags": "Funksjonsbrytere",
+    "operations": "Driftshelse",
     "activity": "Aktivitet",
     "drafts": "Gjennomgå utkast",
     "approvals": "Godkjenninger",
@@ -907,6 +908,23 @@
     "deleteSuccess": "Dokument slettet",
     "deleteError": "Kunne ikke slette dokumentet",
     "versionUploadHint": "Opplasting av ny versjon erstatter filen i SharePoint. SharePoints innebygde versjonshistorikk sporer forrige versjon."
+  },
+  "operations": {
+    "title": "Driftshelse",
+    "description": "Skrivebeskyttet status for integrasjoner, planleggerhemmeligheter og påkrevde team. Ingen hemmelige verdier vises.",
+    "integrationsTitle": "Integrasjoner",
+    "teamsTitle": "Påkrevde team",
+    "teamsEndpointNote": "Sanntids-JSON for overvåking: GET /api/health/teams",
+    "teamsAllPresent": "Alle påkrevde team finnes",
+    "teamsMissingSuffix": "påkrevde team mangler",
+    "teamsUnavailable": "Kunne ikke laste team-helse. Sjekk Appwrite-tilkobling.",
+    "runbook": "Driftshåndbok",
+    "missingSuffix": "mangler",
+    "status": {
+      "configured": "Konfigurert",
+      "incomplete": "Ufullstendig",
+      "notConfigured": "Ikke konfigurert"
+    }
   },
   "featureFlags": {
     "title": "Funksjonsbrytere",

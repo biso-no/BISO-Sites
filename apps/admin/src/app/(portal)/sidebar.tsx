@@ -10,6 +10,7 @@ import {
   FileStack,
   FileText,
   Flag,
+  Gauge,
   Gift,
   HardDrive,
   Inbox,
@@ -326,6 +327,14 @@ export function Sidebar({ user, roles }: SidebarProps) {
               href="/activity"
               icon={Activity}
               label={t("activity")}
+            />
+          )}
+          {canViewSettings && (
+            <SidebarLink
+              active={isActive("/operations")}
+              href="/operations"
+              icon={Gauge}
+              label={t("operations")}
             />
           )}
           {canViewSettings && (
