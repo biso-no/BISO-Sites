@@ -1,6 +1,7 @@
 "use client";
 
-import { Bell, Globe, Lock, Shield, Zap } from "lucide-react";
+import { Bell, Boxes, Globe, Lock, Shield, Zap } from "lucide-react";
+import Link from "next/link";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { STUDIO, StudioButton, studioSurface } from "../../_components/studio";
@@ -43,11 +44,24 @@ interface SettingsClientProps {
       restricted: string;
       sessionsManaged: string;
     };
+    platform: {
+      title: string;
+      description: string;
+      operations: string;
+      operationsHint: string;
+      featureFlags: string;
+      featureFlagsHint: string;
+    };
   };
   timezoneOptions: AdminTimezone[];
 }
 
-type Section = "general" | "notifications" | "integrations" | "security";
+type Section =
+  | "general"
+  | "notifications"
+  | "integrations"
+  | "security"
+  | "platform";
 
 const SECTION_ICONS: Record<
   Section,
@@ -57,6 +71,7 @@ const SECTION_ICONS: Record<
   notifications: Bell,
   integrations: Zap,
   security: Shield,
+  platform: Boxes,
 };
 
 function Toggle({
@@ -173,6 +188,36 @@ function StatusRow({
   );
 }
 
+function LinkRow({
+  href,
+  label,
+  hint,
+}: {
+  href: string;
+  label: string;
+  hint: string;
+}) {
+  return (
+    <Link
+      className="flex items-center justify-between gap-4 py-3 transition-colors"
+      href={href}
+      style={{ borderBottom: `0.5px solid ${STUDIO.rule}` }}
+    >
+      <div>
+        <p className="text-sm" style={{ color: STUDIO.ink2 }}>
+          {label}
+        </p>
+        <p className="mt-0.5 text-xs" style={{ color: STUDIO.ink4 }}>
+          {hint}
+        </p>
+      </div>
+      <span className="text-sm" style={{ color: STUDIO.ink4 }}>
+        →
+      </span>
+    </Link>
+  );
+}
+
 function settingsEqual(
   left: AdminPortalSettings,
   right: AdminPortalSettings
@@ -202,7 +247,10 @@ export function SettingsClient({
   const [isPending, startTransition] = useTransition();
 
   const sections = Object.entries(labels.sections).filter(([key]) => {
-    if ((key === "security" || key === "integrations") && !isGlobalAdmin) {
+    if (
+      (key === "security" || key === "integrations" || key === "platform") &&
+      !isGlobalAdmin
+    ) {
       return false;
     }
     return key in SECTION_ICONS;
@@ -413,6 +461,24 @@ export function SettingsClient({
               </p>
             </div>
           </div>
+        )}
+
+        {activeSection === "platform" && isGlobalAdmin && (
+          <SectionCard title={labels.platform.title}>
+            <p className="mb-2 text-xs" style={{ color: STUDIO.ink4 }}>
+              {labels.platform.description}
+            </p>
+            <LinkRow
+              hint={labels.platform.operationsHint}
+              href="/operations"
+              label={labels.platform.operations}
+            />
+            <LinkRow
+              hint={labels.platform.featureFlagsHint}
+              href="/feature-flags"
+              label={labels.platform.featureFlags}
+            />
+          </SectionCard>
         )}
 
         {isEditableSection && (

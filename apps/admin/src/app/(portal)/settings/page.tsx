@@ -76,6 +76,7 @@ export default async function SettingsPage() {
             notifications: t("sections.notifications"),
             integrations: t("sections.integrations"),
             security: t("sections.security"),
+            platform: t("sections.platform"),
           },
           general: {
             title: t("general.title"),
@@ -100,6 +101,14 @@ export default async function SettingsPage() {
             managedExternally: t("security.managedExternally"),
             sessionsManaged: t("security.sessionsManaged"),
             restricted: t("security.restricted"),
+          },
+          platform: {
+            title: t("platform.title"),
+            description: t("platform.description"),
+            operations: t("platform.operations"),
+            operationsHint: t("platform.operationsHint"),
+            featureFlags: t("platform.featureFlags"),
+            featureFlagsHint: t("platform.featureFlagsHint"),
           },
           saveSuccess: t("saveSuccess"),
           saveError: t("saveError"),

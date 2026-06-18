@@ -961,7 +961,8 @@
       "aiLocalization": "AI Localization",
       "security": "Security",
       "integrations": "Integrations",
-      "notifications": "Notifications"
+      "notifications": "Notifications",
+      "platform": "Platform"
     },
     "general": {
       "title": "General Settings",
@@ -995,6 +996,14 @@
       "title": "Team Members",
       "role": "Role",
       "invite": "Invite Member"
+    },
+    "platform": {
+      "title": "Platform operations",
+      "description": "These are your personal admin preferences. Platform-wide operational controls live in their own audited screens.",
+      "operations": "Operations health",
+      "operationsHint": "Read-only status of integrations, scheduler secrets, and required teams",
+      "featureFlags": "Feature flags",
+      "featureFlagsHint": "Turn platform features on or off (audited)"
     },
     "saveSuccess": "Settings saved",
     "saveError": "Failed to save settings"

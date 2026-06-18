@@ -961,7 +961,8 @@
       "aiLocalization": "AI-lokalisering",
       "security": "Sikkerhet",
       "integrations": "Integrasjoner",
-      "notifications": "Varsler"
+      "notifications": "Varsler",
+      "platform": "Plattform"
     },
     "general": {
       "title": "Generelle innstillinger",
@@ -995,6 +996,14 @@
       "title": "Teammedlemmer",
       "role": "Rolle",
       "invite": "Inviter medlem"
+    },
+    "platform": {
+      "title": "Plattformdrift",
+      "description": "Dette er dine personlige adminpreferanser. Plattformomfattende driftskontroller ligger i egne, reviderte skjermer.",
+      "operations": "Driftshelse",
+      "operationsHint": "Skrivebeskyttet status for integrasjoner, planleggerhemmeligheter og påkrevde team",
+      "featureFlags": "Funksjonsbrytere",
+      "featureFlagsHint": "Slå plattformfunksjoner av eller på (revidert)"
     },
     "saveSuccess": "Innstillinger lagret",
     "saveError": "Kunne ikke lagre innstillinger"
