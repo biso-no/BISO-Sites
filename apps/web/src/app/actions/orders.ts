@@ -509,10 +509,12 @@ async function createProviderCheckoutSession({
   const result = await response.json().catch(() => null);
 
   if (!(response.ok && result?.checkoutUrl && result?.orderId)) {
-    throw new Error(
+    const base =
       result?.message ||
-        `Failed to create ${provider === "vipps" ? "Vipps" : "Stripe"} checkout session`
-    );
+      `Failed to create ${provider === "vipps" ? "Vipps" : "Stripe"} checkout session`;
+    // DEBUG: `detail` is the underlying provider error from apps/api while
+    // testing. Drop this concatenation once the API stops returning `detail`.
+    throw new Error(result?.detail ? `${base}: ${result.detail}` : base);
   }
 
   return {

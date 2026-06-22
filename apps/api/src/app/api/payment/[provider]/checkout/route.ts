@@ -254,7 +254,15 @@ export async function POST(
     return json({ checkoutUrl: session.checkoutUrl, orderId });
   } catch (error) {
     console.error(`[payment/${provider}/checkout] unhandled error:`, error);
-    return json({ message: "Failed to create checkout session" }, 500);
+    // DEBUG: surface the underlying provider error to the client while testing.
+    // Remove `detail` before production — leaks internal error messages.
+    return json(
+      {
+        message: "Failed to create checkout session",
+        detail: error instanceof Error ? error.message : String(error),
+      },
+      500
+    );
   }
 }
 

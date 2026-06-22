@@ -1,5 +1,10 @@
 "use client";
 
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+} from "@repo/ui/components/ui/alert";
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Button } from "@repo/ui/components/ui/button";
 import {
@@ -14,6 +19,7 @@ import { Label } from "@repo/ui/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@repo/ui/components/ui/radio-group";
 import { Skeleton } from "@repo/ui/components/ui/skeleton";
 import {
+  AlertCircle,
   ArrowLeft,
   CheckCircle2,
   CreditCard,
@@ -128,22 +134,29 @@ export function CheckoutPageClient({
   const [email, setEmail] = useState(initialEmail);
   const [phone, setPhone] = useState("");
   const [isPending, startTransition] = useTransition();
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const fail = (message: string) => {
+    setErrorMessage(message);
+    toast.error(message);
+  };
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    setErrorMessage(null);
 
     if (items.length === 0) {
-      toast.error("Your cart is empty");
+      fail("Your cart is empty");
       return;
     }
 
     if (!paymentsAvailable) {
-      toast.error("Online payment is temporarily unavailable");
+      fail("Online payment is temporarily unavailable");
       return;
     }
 
     if (!(name.trim() && email.trim())) {
-      toast.error("Name and email are required");
+      fail("Name and email are required");
       return;
     }
 
@@ -163,14 +176,18 @@ export function CheckoutPageClient({
         });
 
         if (!(result?.success && result.paymentUrl)) {
-          toast.error(result?.error || "Could not start checkout");
+          fail(result?.error || "Could not start checkout");
           return;
         }
 
         window.location.href = result.paymentUrl;
       } catch (error) {
         console.error("Checkout error", error);
-        toast.error("Unable to start checkout. Please try again.");
+        fail(
+          error instanceof Error
+            ? error.message
+            : "Unable to start checkout. Please try again."
+        );
       }
     });
   };
@@ -448,6 +465,15 @@ export function CheckoutPageClient({
             </div>
           </CardContent>
           <CardFooter className="flex flex-col gap-3">
+            {errorMessage ? (
+              <Alert className="w-full" variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Checkout failed</AlertTitle>
+                <AlertDescription className="break-words">
+                  {errorMessage}
+                </AlertDescription>
+              </Alert>
+            ) : null}
             <Button
               className="w-full"
               disabled={isPending || !paymentsAvailable}
