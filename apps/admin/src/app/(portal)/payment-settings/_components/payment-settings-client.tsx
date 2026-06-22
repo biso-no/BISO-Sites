@@ -4,29 +4,31 @@ import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { buttonStyle, STUDIO, studioSurface } from "../../_components/studio";
 import {
+  type ProviderSecretView,
   type ProviderSettingsView,
   setPaymentTestMode,
   updatePaymentSecrets,
 } from "../actions";
 
+type Mode = "test" | "live";
+
 interface PaymentLabels {
   activeMode: string;
+  activeNote: string;
   complete: string;
+  completeFirst: string;
   configured: string;
   incomplete: string;
   live: string;
-  liveCredentials: string;
-  missing: string;
   notConfigured: string;
   providers: Record<"stripe" | "vipps", string>;
   save: string;
   saved: string;
   saveError: string;
   secretPlaceholder: string;
+  setActiveLive: string;
+  setActiveTest: string;
   test: string;
-  testCredentials: string;
-  testMode: string;
-  testModeHint: string;
 }
 
 const SECRET_FIELD_PREFIX = /^(?:vipps|stripe)_(?:test|live)_/;
@@ -45,50 +47,64 @@ function secretLabel(key: string): string {
   return SECRET_FIELD_LABELS[field] ?? field.replace(UNDERSCORE, " ");
 }
 
-function Toggle({
-  checked,
-  disabled,
-  onChange,
-}: {
-  checked: boolean;
-  disabled?: boolean;
-  onChange: (v: boolean) => void;
-}) {
-  return (
-    <button
-      aria-pressed={checked}
-      className="relative h-6 w-10 shrink-0 rounded-full transition-all disabled:opacity-50"
-      disabled={disabled}
-      onClick={() => onChange(!checked)}
-      style={{
-        background: checked ? STUDIO.leaf : STUDIO.rule2,
-        boxShadow: checked ? "0 4px 14px rgba(47,93,58,0.18)" : "none",
-      }}
-      type="button"
-    >
-      <span
-        className="absolute top-1 h-4 w-4 rounded-full transition-all"
-        style={{
-          background: "#fff",
-          left: checked ? "calc(100% - 20px)" : "4px",
-        }}
-      />
-    </button>
-  );
+function isSetComplete(secrets: ProviderSecretView[]): boolean {
+  return secrets.length > 0 && secrets.every((secret) => secret.configured);
 }
 
-function StatusBadge({ ok, label }: { ok: boolean; label: string }) {
+function ModeTabs({
+  mode,
+  activeMode,
+  labels,
+  onSelect,
+}: {
+  activeMode: Mode;
+  labels: PaymentLabels;
+  mode: Mode;
+  onSelect: (mode: Mode) => void;
+}) {
+  const modes: Mode[] = ["test", "live"];
   return (
-    <span
-      className="rounded-full px-2.5 py-0.5 text-xs"
-      style={
-        ok
-          ? { background: "rgba(47,93,58,0.08)", color: STUDIO.leaf }
-          : { background: "rgba(107,30,30,0.07)", color: STUDIO.claret }
-      }
+    <div
+      className="inline-flex rounded-xl p-1"
+      role="tablist"
+      style={{
+        background: STUDIO.paper2,
+        border: `0.5px solid ${STUDIO.rule2}`,
+      }}
     >
-      {label}
-    </span>
+      {modes.map((value) => {
+        const selected = mode === value;
+        const active = activeMode === value;
+        return (
+          <button
+            aria-selected={selected}
+            className="relative flex items-center gap-1.5 rounded-lg px-4 py-1.5 font-medium text-[13px] transition-colors"
+            key={value}
+            onClick={() => onSelect(value)}
+            role="tab"
+            style={
+              selected
+                ? {
+                    background: STUDIO.white,
+                    boxShadow: "0 1px 2px rgba(26,24,20,0.06)",
+                    color: STUDIO.ink,
+                  }
+                : { background: "transparent", color: STUDIO.ink4 }
+            }
+            type="button"
+          >
+            {value === "test" ? labels.test : labels.live}
+            {active && (
+              <span
+                aria-hidden="true"
+                className="h-1.5 w-1.5 rounded-full"
+                style={{ background: STUDIO.leaf }}
+              />
+            )}
+          </button>
+        );
+      })}
+    </div>
   );
 }
 
@@ -97,9 +113,11 @@ function SecretField({
   configured,
   value,
   labels,
+  disabled,
   onChange,
 }: {
   configured: boolean;
+  disabled: boolean;
   fieldKey: string;
   labels: PaymentLabels;
   onChange: (value: string) => void;
@@ -107,27 +125,32 @@ function SecretField({
 }) {
   return (
     <div
-      className="py-3"
+      className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between"
       style={{ borderBottom: `0.5px solid ${STUDIO.rule}` }}
     >
       <div className="flex items-center gap-2">
-        <p className="text-sm" style={{ color: STUDIO.ink2 }}>
+        <span className="text-sm" style={{ color: STUDIO.ink2 }}>
           {secretLabel(fieldKey)}
-        </p>
+        </span>
         <span
-          className="rounded-full px-2 py-0.5 text-[11px]"
+          className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px]"
           style={
             configured
               ? { background: "rgba(47,93,58,0.08)", color: STUDIO.leaf }
               : { background: STUDIO.paper2, color: STUDIO.ink4 }
           }
         >
+          <span
+            className="h-1 w-1 rounded-full"
+            style={{ background: configured ? STUDIO.leaf : STUDIO.ink4 }}
+          />
           {configured ? labels.configured : labels.notConfigured}
         </span>
       </div>
       <input
         autoComplete="off"
-        className="mt-2 w-full rounded-lg px-3 py-2 text-sm"
+        className="w-full rounded-lg px-3 py-2 text-sm sm:w-72"
+        disabled={disabled}
         onChange={(event) => onChange(event.target.value)}
         placeholder={labels.secretPlaceholder}
         style={{
@@ -144,94 +167,118 @@ function SecretField({
 
 function ProviderCard({
   view,
+  mode,
   labels,
   inputs,
   pending,
+  onSelectMode,
   onInput,
-  onToggleMode,
+  onSetActive,
   onSave,
 }: {
   inputs: Record<string, string>;
   labels: PaymentLabels;
+  mode: Mode;
   onInput: (key: string, value: string) => void;
   onSave: () => void;
-  onToggleMode: (next: boolean) => void;
+  onSelectMode: (mode: Mode) => void;
+  onSetActive: (mode: Mode) => void;
   pending: boolean;
   view: ProviderSettingsView;
 }) {
-  const modeLabel = view.activeMode === "test" ? labels.test : labels.live;
+  const activeMode: Mode = view.activeMode;
+  const secrets = mode === "test" ? view.testSecrets : view.liveSecrets;
+  const viewingActive = mode === activeMode;
+  const viewSetComplete = isSetComplete(secrets);
+  const activeModeLabel = activeMode === "test" ? labels.test : labels.live;
 
   return (
     <div className="rounded-2xl p-6" style={studioSurface}>
-      <div className="mb-4 flex items-start justify-between gap-4">
+      <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h3 className="font-medium text-sm" style={{ color: STUDIO.ink }}>
+          <h3 className="font-medium text-base" style={{ color: STUDIO.ink }}>
             {labels.providers[view.provider]}
           </h3>
-          <p className="mt-0.5 text-xs" style={{ color: STUDIO.ink4 }}>
-            {labels.activeMode}: {modeLabel}
+          <p
+            className="mt-0.5 text-[11px] uppercase tracking-[0.08em]"
+            style={{ color: STUDIO.ink4 }}
+          >
+            {labels.activeMode}: {activeModeLabel}
           </p>
         </div>
-        <StatusBadge
-          label={view.status.complete ? labels.complete : labels.incomplete}
-          ok={view.status.complete}
-        />
+        <span
+          className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs"
+          style={
+            view.status.complete
+              ? { background: "rgba(47,93,58,0.08)", color: STUDIO.leaf }
+              : { background: "rgba(107,30,30,0.07)", color: STUDIO.claret }
+          }
+        >
+          <span
+            className="h-1.5 w-1.5 rounded-full"
+            style={{
+              background: view.status.complete ? STUDIO.leaf : STUDIO.claret,
+            }}
+          />
+          {activeModeLabel} ·{" "}
+          {view.status.complete ? labels.complete : labels.incomplete}
+        </span>
+      </div>
+
+      <ModeTabs
+        activeMode={activeMode}
+        labels={labels}
+        mode={mode}
+        onSelect={onSelectMode}
+      />
+
+      <div className="mt-3">
+        {secrets.map((secret) => (
+          <SecretField
+            configured={secret.configured}
+            disabled={pending}
+            fieldKey={secret.key}
+            key={secret.key}
+            labels={labels}
+            onChange={(value) => onInput(secret.key, value)}
+            value={inputs[secret.key] ?? ""}
+          />
+        ))}
       </div>
 
       <div
-        className="flex items-center justify-between gap-4 py-3"
-        style={{ borderBottom: `0.5px solid ${STUDIO.rule}` }}
+        className="mt-5 flex flex-col gap-3 border-t pt-4 sm:flex-row sm:items-center sm:justify-between"
+        style={{ borderColor: STUDIO.rule }}
       >
-        <div>
-          <p className="text-sm" style={{ color: STUDIO.ink2 }}>
-            {labels.testMode}
+        {viewingActive ? (
+          <p
+            className="flex items-center gap-2 text-xs"
+            style={{ color: STUDIO.ink4 }}
+          >
+            <span
+              className="h-1.5 w-1.5 rounded-full"
+              style={{ background: STUDIO.leaf }}
+            />
+            {labels.activeNote}
           </p>
-          <p className="mt-0.5 text-xs" style={{ color: STUDIO.ink4 }}>
-            {labels.testModeHint}
-          </p>
-        </div>
-        <Toggle
-          checked={view.testMode}
-          disabled={pending}
-          onChange={onToggleMode}
-        />
-      </div>
-
-      <p
-        className="mt-5 mb-1 font-medium text-[11px] uppercase tracking-[0.06em]"
-        style={{ color: STUDIO.ink3 }}
-      >
-        {labels.testCredentials}
-      </p>
-      {view.testSecrets.map((secret) => (
-        <SecretField
-          configured={secret.configured}
-          fieldKey={secret.key}
-          key={secret.key}
-          labels={labels}
-          onChange={(value) => onInput(secret.key, value)}
-          value={inputs[secret.key] ?? ""}
-        />
-      ))}
-
-      <p
-        className="mt-5 mb-1 font-medium text-[11px] uppercase tracking-[0.06em]"
-        style={{ color: STUDIO.ink3 }}
-      >
-        {labels.liveCredentials}
-      </p>
-      {view.liveSecrets.map((secret) => (
-        <SecretField
-          configured={secret.configured}
-          fieldKey={secret.key}
-          key={secret.key}
-          labels={labels}
-          onChange={(value) => onInput(secret.key, value)}
-          value={inputs[secret.key] ?? ""}
-        />
-      ))}
-
-      <div className="mt-5 flex justify-end">
+        ) : (
+          <div className="flex flex-col gap-1">
+            <button
+              className="self-start rounded-lg px-3.5 py-2 font-medium text-[13px] transition disabled:opacity-50"
+              disabled={pending || !viewSetComplete}
+              onClick={() => onSetActive(mode)}
+              style={buttonStyle("secondary")}
+              type="button"
+            >
+              {mode === "test" ? labels.setActiveTest : labels.setActiveLive}
+            </button>
+            {!viewSetComplete && (
+              <span className="text-[11px]" style={{ color: STUDIO.claret }}>
+                {labels.completeFirst}
+              </span>
+            )}
+          </div>
+        )}
         <button
           className={`rounded-lg px-4 py-2.5 font-medium text-sm transition ${
             pending ? "opacity-50" : ""
@@ -256,6 +303,11 @@ export function PaymentSettingsClient({
   labels: PaymentLabels;
 }) {
   const [views, setViews] = useState<ProviderSettingsView[]>(initialViews);
+  const [modes, setModes] = useState<Record<string, Mode>>(() =>
+    Object.fromEntries(
+      initialViews.map((view) => [view.provider, view.activeMode])
+    )
+  );
   const [inputs, setInputs] = useState<Record<string, Record<string, string>>>(
     {}
   );
@@ -275,10 +327,10 @@ export function PaymentSettingsClient({
     }));
   }
 
-  function handleToggleMode(provider: string, next: boolean) {
+  function handleSetActive(provider: string, mode: Mode) {
     setPendingProvider(provider);
     startTransition(async () => {
-      const result = await setPaymentTestMode(provider, next);
+      const result = await setPaymentTestMode(provider, mode === "test");
       setPendingProvider(null);
       if ("error" in result) {
         toast.error(result.error || labels.saveError);
@@ -311,9 +363,13 @@ export function PaymentSettingsClient({
           inputs={inputs[view.provider] ?? {}}
           key={view.provider}
           labels={labels}
+          mode={modes[view.provider] ?? view.activeMode}
           onInput={(key, value) => setInput(view.provider, key, value)}
           onSave={() => handleSave(view.provider)}
-          onToggleMode={(next) => handleToggleMode(view.provider, next)}
+          onSelectMode={(mode) =>
+            setModes((current) => ({ ...current, [view.provider]: mode }))
+          }
+          onSetActive={(mode) => handleSetActive(view.provider, mode)}
           pending={pendingProvider === view.provider}
           view={view}
         />

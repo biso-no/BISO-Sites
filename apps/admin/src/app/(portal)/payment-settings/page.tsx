@@ -19,12 +19,12 @@ export default async function PaymentSettingsPage() {
         initialViews={views}
         labels={{
           activeMode: t("activeMode"),
+          activeNote: t("activeNote"),
           complete: t("complete"),
+          completeFirst: t("completeFirst"),
           configured: t("configured"),
           incomplete: t("incomplete"),
           live: t("live"),
-          liveCredentials: t("liveCredentials"),
-          missing: t("missing"),
           notConfigured: t("notConfigured"),
           providers: {
             stripe: t("providers.stripe"),
@@ -34,10 +34,9 @@ export default async function PaymentSettingsPage() {
           saved: t("saved"),
           saveError: t("saveError"),
           secretPlaceholder: t("secretPlaceholder"),
+          setActiveLive: t("setActiveLive"),
+          setActiveTest: t("setActiveTest"),
           test: t("test"),
-          testCredentials: t("testCredentials"),
-          testMode: t("testMode"),
-          testModeHint: t("testModeHint"),
         }}
       />
     </div>
