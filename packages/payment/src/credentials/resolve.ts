@@ -33,14 +33,27 @@ async function readSettingsRow(
 ): Promise<PaymentSettingsRow | null> {
   const cached = rowCache.get(provider);
   if (cached && Date.now() - cached.at < CACHE_TTL_MS) {
+    console.log(`[payment/credentials] ${provider} row served from cache (age ${Math.round((Date.now() - cached.at) / 1000)}s)`);
     return cached.row;
   }
 
   let row: PaymentSettingsRow | null = null;
   try {
     row = await db.getRow<PaymentSettingsRow>(databaseId(), TABLE_ID, provider);
-  } catch {
+  } catch (e) {
+    console.warn(`[payment/credentials] ${provider} row not found in DB (${(e as Error)?.message ?? e}) — falling back to env`);
     row = null;
+  }
+
+  if (row) {
+    const r = row as unknown as Record<string, unknown>;
+    const fields = Object.keys(r).filter((k) => !k.startsWith("$"));
+    const presence: Record<string, boolean> = {};
+    for (const k of fields) {
+      const v = r[k];
+      presence[k] = typeof v === "string" ? v.trim().length > 0 : Boolean(v);
+    }
+    console.log(`[payment/credentials] ${provider} row fetched from DB:`, presence);
   }
 
   rowCache.set(provider, { at: Date.now(), row });
@@ -57,6 +70,7 @@ export async function resolveVippsCredentials(
   env: CredentialEnv = process.env
 ): Promise<VippsCredentials | null> {
   const row = await readSettingsRow("vipps", db);
+  console.log("Vippsrow", row);
   return selectVippsCredentials(row, env);
 }
 
