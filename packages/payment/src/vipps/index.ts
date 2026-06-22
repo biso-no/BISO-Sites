@@ -2,6 +2,8 @@ import type { VippsCredentials } from "../credentials/types";
 import { buildVippsClient } from "./client";
 import type { CheckoutSessionParams, VippsPaymentState } from "./types";
 
+const TRAILING_SLASHES = /\/+$/;
+
 interface VippsCheckoutData {
   checkoutFrontendUrl: string;
   token: string;
@@ -122,7 +124,7 @@ export function buildVippsRedirectUrl(
   checkoutFrontendUrl: string,
   token: string
 ): string {
-  const base = checkoutFrontendUrl.replace(/\/+$/, "");
+  const base = checkoutFrontendUrl.replace(TRAILING_SLASHES, "");
   return `${base}/?token=${encodeURIComponent(token)}`;
 }
 
