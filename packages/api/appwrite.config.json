@@ -5590,10 +5590,7 @@
           "size": 50,
           "default": null,
           "format": "enum",
-          "elements": [
-            "vipps",
-            "stripe"
-          ]
+          "elements": ["vipps", "stripe"]
         },
         {
           "key": "test_mode",

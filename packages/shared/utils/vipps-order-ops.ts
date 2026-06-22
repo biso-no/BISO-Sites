@@ -75,9 +75,9 @@ export async function createOrder(
 }
 
 export interface OrderSessionUpdate {
+  checkoutUrl: string;
   provider: string;
   sessionId: string;
-  checkoutUrl: string;
 }
 
 /**
@@ -172,7 +172,12 @@ export async function updateOrderStatus(
     paymentState,
     sessionData
   );
-  return applyOrderStatusTransition(orderId, status, updateData, databases);
+  return await applyOrderStatusTransition(
+    orderId,
+    status,
+    updateData,
+    databases
+  );
 }
 
 interface StockAdjustmentParams {
