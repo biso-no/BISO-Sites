@@ -1,6 +1,6 @@
 "use server";
 import { Query } from "@repo/api";
-import { createSessionClient } from "@repo/api/server";
+import { createAdminClient, createSessionClient } from "@repo/api/server";
 import type {
   ContentTranslations,
   Orders,
@@ -137,13 +137,6 @@ interface CheckoutResult {
   orderId?: string;
   paymentUrl?: string;
   success: boolean;
-}
-
-interface CheckoutStatusResult {
-  error?: string;
-  order?: Orders;
-  success: boolean;
-  vippsStatus?: unknown;
 }
 
 function sanitizeCartItems(items: CheckoutLineItemInput[] | undefined) {
@@ -617,52 +610,57 @@ export async function getOrder(id: string) {
 export async function verifyOrder(orderId: string) {
   const { db } = await createSessionClient();
   const order = await db.getRow<Orders>("app", "orders", orderId);
-  if (!order?.payment_session_id) {
+  if (!(order?.payment_session_id && order.payment_provider)) {
     return order;
   }
-  const { getVippsSession } = await import("@repo/payment/vipps");
-  const { updateOrderStatus } = await import(
-    "@repo/shared/utils/vipps-order-ops"
-  );
-  try {
-    const { paymentState, sessionData } = await getVippsSession(
-      order.payment_session_id
-    );
-    await updateOrderStatus(orderId, paymentState, sessionData, db);
-    return db.getRow<Orders>("app", "orders", orderId);
-  } catch (error) {
-    console.error("[verifyOrder] Failed to verify Vipps status:", error);
-    return order;
-  }
-}
 
-async function _getCheckoutStatus(
-  orderId: string
-): Promise<CheckoutStatusResult> {
   try {
-    const { db } = await createSessionClient();
-    const order = await db.getRow<Orders>("app", "orders", orderId);
+    // Status writes go through the admin client: orders are Operations-Unit
+    // writable and the buyer's (possibly anonymous) session cannot update them.
+    const { db: adminDb } = await createAdminClient();
 
-    if (!order.payment_session_id) {
-      return { success: false, error: "No Vipps session found" };
+    if (order.payment_provider === "vipps") {
+      const { resolveVippsCredentials } = await import(
+        "@repo/payment/credentials"
+      );
+      const { getVippsSession } = await import("@repo/payment/vipps");
+      const { updateOrderStatus } = await import(
+        "@repo/shared/utils/vipps-order-ops"
+      );
+      const creds = await resolveVippsCredentials(adminDb);
+      if (creds) {
+        const { paymentState, sessionData } = await getVippsSession(
+          order.payment_session_id,
+          creds
+        );
+        await updateOrderStatus(orderId, paymentState, sessionData, adminDb);
+      }
+    } else if (order.payment_provider === "stripe") {
+      const { resolveStripeCredentials } = await import(
+        "@repo/payment/credentials"
+      );
+      const { getStripeSession } = await import("@repo/payment/stripe");
+      const { determineStatusFromStripeSession } = await import(
+        "@repo/shared/utils/stripe-pure"
+      );
+      const { applyOrderStatusTransition } = await import(
+        "@repo/shared/utils/vipps-order-ops"
+      );
+      const creds = await resolveStripeCredentials(adminDb);
+      if (creds) {
+        const { session } = await getStripeSession(
+          order.payment_session_id,
+          creds
+        );
+        const { status, updateData } =
+          determineStatusFromStripeSession(session);
+        await applyOrderStatusTransition(orderId, status, updateData, adminDb);
+      }
     }
 
-    const { getVippsCheckout } = await import("@/lib/vipps");
-    const vippsStatus = await getVippsCheckout(orderId);
-
-    return {
-      success: true,
-      order,
-      vippsStatus,
-    };
+    return await db.getRow<Orders>("app", "orders", orderId);
   } catch (error) {
-    console.error("Error getting checkout status:", error);
-    return {
-      success: false,
-      error:
-        error instanceof Error
-          ? error.message
-          : "Failed to get checkout status",
-    };
+    console.error("[verifyOrder] Failed to verify payment status:", error);
+    return order;
   }
 }
