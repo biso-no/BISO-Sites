@@ -15,6 +15,7 @@ import { logAuditEvent } from "../_actions/audit-log";
 
 const TABLE = "payment_settings";
 const PROVIDERS: PaymentProvider[] = ["vipps", "stripe"];
+const TRAILING_SLASH = /\/+$/;
 
 export interface ProviderSecretView {
   configured: boolean;
@@ -180,6 +181,69 @@ export async function updatePaymentSecrets(
         error instanceof Error
           ? error.message
           : "Failed to update payment settings",
+    };
+  }
+}
+
+/**
+ * Triggers Vipps webhook registration in the API service (the app that
+ * receives + verifies the webhooks). The guarded API route registers the
+ * webhook for the active mode and stores the signing secret in
+ * `payment_settings`. Global admin only; audited.
+ */
+export async function registerVippsWebhook(): Promise<
+  ActionResult<{ mode: string; registeredUrl: string }>
+> {
+  try {
+    const ctx = await requirePaymentAccess();
+    const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL;
+    const cronSecret = process.env.CRON_SECRET;
+    if (!apiBase) {
+      return { error: "NEXT_PUBLIC_API_BASE_URL is not configured" };
+    }
+    if (!cronSecret) {
+      return { error: "CRON_SECRET is not configured" };
+    }
+
+    const response = await fetch(
+      `${apiBase.replace(TRAILING_SLASH, "")}/api/payment/vipps/webhooks/register`,
+      {
+        method: "POST",
+        headers: { authorization: `Bearer ${cronSecret}` },
+        cache: "no-store",
+      }
+    );
+    const result = (await response.json().catch(() => null)) as
+      | { id: string; mode: string; registeredUrl: string }
+      | { error: string }
+      | null;
+
+    if (!(response.ok && result) || "error" in result) {
+      return {
+        error:
+          (result && "error" in result && result.error) ||
+          "Failed to register Vipps webhook",
+      };
+    }
+
+    await logAuditEvent(ctx, "payment_setting.update", {
+      resourceId: "vipps",
+      resourceType: TABLE,
+      payload: {
+        action: "webhook_register",
+        mode: result.mode,
+        registeredUrl: result.registeredUrl,
+      },
+    });
+
+    revalidatePath("/payment-settings");
+    return { data: { mode: result.mode, registeredUrl: result.registeredUrl } };
+  } catch (error) {
+    return {
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to register Vipps webhook",
     };
   }
 }

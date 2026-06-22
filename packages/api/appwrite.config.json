@@ -5706,6 +5706,24 @@
           "size": 1024,
           "default": null,
           "encrypt": true
+        },
+        {
+          "key": "vipps_test_webhook_secret",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 1024,
+          "default": null,
+          "encrypt": true
+        },
+        {
+          "key": "vipps_live_webhook_secret",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 1024,
+          "default": null,
+          "encrypt": true
         }
       ],
       "indexes": []

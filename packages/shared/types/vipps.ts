@@ -35,16 +35,36 @@ export interface CheckoutSessionParams {
   userId: string;
 }
 
-export interface VippsCheckoutResponse {
-  checkoutUrl: string;
-  orderId: string;
-  sessionId: string;
+/** The five terminal/non-terminal payment states the ePayment API reports. */
+export type VippsState =
+  | "CREATED"
+  | "AUTHORIZED"
+  | "ABORTED"
+  | "EXPIRED"
+  | "TERMINATED";
+
+/** A monetary amount in minor units (øre for NOK). */
+export interface VippsAmount {
+  currency?: string;
+  value: number;
 }
 
-export interface VippsPaymentState {
-  amount?: {
-    value: number;
-    currency: string;
-  };
-  state: "CREATED" | "AUTHORIZED" | "ABORTED" | "EXPIRED" | "TERMINATED";
+/**
+ * Aggregate amounts the ePayment API tracks for a payment. A payment never
+ * changes `state` after `AUTHORIZED`; capture/cancel/refund are reflected here
+ * (not in `state`), so status is derived from these totals.
+ */
+export interface VippsAggregate {
+  authorizedAmount?: VippsAmount;
+  cancelledAmount?: VippsAmount;
+  capturedAmount?: VippsAmount;
+  refundedAmount?: VippsAmount;
+}
+
+/** Normalized view of an ePayment payment used across the order pipeline. */
+export interface VippsPaymentSnapshot {
+  aggregate?: VippsAggregate;
+  /** Vipps PSP reference for the payment — stored as `payment_intent_id`. */
+  pspReference?: string;
+  state: VippsState;
 }

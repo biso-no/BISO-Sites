@@ -34,11 +34,3 @@ export interface CheckoutSessionParams {
   total: number;
   userId: string;
 }
-
-export interface VippsPaymentState {
-  amount?: {
-    value: number;
-    currency: string;
-  };
-  state: "CREATED" | "AUTHORIZED" | "ABORTED" | "EXPIRED" | "TERMINATED";
-}

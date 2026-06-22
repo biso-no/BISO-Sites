@@ -1,71 +1,88 @@
 import { OrdersStatus } from "@repo/api/types/appwrite";
 import { describe, expect, it } from "vitest";
-import type { VippsPaymentState } from "../types/vipps";
-import {
-  determineStatusFromPaymentState,
-  type VippsSessionData,
-} from "./vipps-pure";
+import type { VippsAggregate, VippsState } from "../types/vipps";
+import { determineStatusFromPaymentState } from "./vipps-pure";
 
-const emptySession: VippsSessionData = {};
-
-function session(
-  aggregate: NonNullable<NonNullable<VippsSessionData["payment"]>["aggregate"]>
-): VippsSessionData {
-  return { payment: { aggregate } } as VippsSessionData;
+function snapshot(state: VippsState, aggregate?: VippsAggregate, pspReference?: string) {
+  return { state, aggregate, pspReference };
 }
 
 describe("determineStatusFromPaymentState", () => {
   it("maps CREATED to PENDING", () => {
-    const { status } = determineStatusFromPaymentState(
-      { state: "CREATED" } as VippsPaymentState,
-      emptySession
-    );
+    const { status } = determineStatusFromPaymentState(snapshot("CREATED"));
     expect(status).toBe(OrdersStatus.PENDING);
   });
 
-  it("maps AUTHORIZED to AUTHORIZED and records the amount", () => {
+  it("maps AUTHORIZED to AUTHORIZED and records the psp reference", () => {
     const { status, updateData } = determineStatusFromPaymentState(
-      { state: "AUTHORIZED" } as VippsPaymentState,
-      session({ authorizedAmount: { value: 19_900 } })
+      snapshot("AUTHORIZED", { authorizedAmount: { value: 19_900 } }, "psp-123")
     );
     expect(status).toBe(OrdersStatus.AUTHORIZED);
-    expect(updateData.payment_intent_id).toBe("19900");
+    expect(updateData.payment_intent_id).toBe("psp-123");
   });
 
-  it("maps ABORTED, EXPIRED, and TERMINATED to CANCELLED", () => {
-    for (const state of ["ABORTED", "EXPIRED", "TERMINATED"] as const) {
-      const { status } = determineStatusFromPaymentState(
-        { state } as VippsPaymentState,
-        emptySession
-      );
+  it("maps ABORTED and EXPIRED to CANCELLED", () => {
+    for (const state of ["ABORTED", "EXPIRED"] as const) {
+      const { status } = determineStatusFromPaymentState(snapshot(state));
       expect(status).toBe(OrdersStatus.CANCELLED);
     }
   });
 
-  it("upgrades to PAID when any amount is captured, regardless of state", () => {
-    const { status, updateData } = determineStatusFromPaymentState(
-      { state: "AUTHORIZED" } as VippsPaymentState,
-      session({
+  it("maps TERMINATED to FAILED", () => {
+    const { status } = determineStatusFromPaymentState(snapshot("TERMINATED"));
+    expect(status).toBe(OrdersStatus.FAILED);
+  });
+
+  it("upgrades to PAID when an amount is captured, regardless of state", () => {
+    const { status } = determineStatusFromPaymentState(
+      snapshot("AUTHORIZED", {
+        authorizedAmount: { value: 19_900 },
         capturedAmount: { value: 19_900 },
-        receipt: { url: "https://example.com/receipt" },
       })
     );
     expect(status).toBe(OrdersStatus.PAID);
-    expect(updateData.payment_receipt_url).toBe("https://example.com/receipt");
+  });
+
+  it("keeps PAID on a partial refund", () => {
+    const { status } = determineStatusFromPaymentState(
+      snapshot("AUTHORIZED", {
+        capturedAmount: { value: 19_900 },
+        refundedAmount: { value: 5000 },
+      })
+    );
+    expect(status).toBe(OrdersStatus.PAID);
+  });
+
+  it("maps a full refund to REFUNDED", () => {
+    const { status } = determineStatusFromPaymentState(
+      snapshot("AUTHORIZED", {
+        capturedAmount: { value: 19_900 },
+        refundedAmount: { value: 19_900 },
+      })
+    );
+    expect(status).toBe(OrdersStatus.REFUNDED);
+  });
+
+  it("maps a post-authorization cancellation to CANCELLED", () => {
+    const { status } = determineStatusFromPaymentState(
+      snapshot("AUTHORIZED", {
+        authorizedAmount: { value: 19_900 },
+        cancelledAmount: { value: 19_900 },
+      })
+    );
+    expect(status).toBe(OrdersStatus.CANCELLED);
   });
 
   it("does not mark PAID on a zero captured amount", () => {
     const { status } = determineStatusFromPaymentState(
-      { state: "CREATED" } as VippsPaymentState,
-      session({ capturedAmount: { value: 0 } })
+      snapshot("CREATED", { capturedAmount: { value: 0 } })
     );
     expect(status).toBe(OrdersStatus.PENDING);
   });
 
   it("falls back to PENDING on unknown states", () => {
     const { status } = determineStatusFromPaymentState(
-      { state: "SOMETHING_NEW" } as unknown as VippsPaymentState,
-      emptySession
+      snapshot("SOMETHING_NEW" as unknown as VippsState)
     );
     expect(status).toBe(OrdersStatus.PENDING);
   });

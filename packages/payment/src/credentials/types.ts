@@ -19,23 +19,28 @@ export interface PaymentSettingsRow {
   vipps_live_client_secret?: string | null;
   vipps_live_msn?: string | null;
   vipps_live_subscription_key?: string | null;
+  vipps_live_webhook_secret?: string | null;
   vipps_test_client_id?: string | null;
   vipps_test_client_secret?: string | null;
   vipps_test_msn?: string | null;
   vipps_test_subscription_key?: string | null;
+  vipps_test_webhook_secret?: string | null;
 }
 
 export type PaymentProvider = "vipps" | "stripe";
 
 /** Resolved Vipps credentials for the active (test or live) mode. */
 export interface VippsCredentials {
-  /** Shared webhook auth token — always sourced from env (no managed column). */
-  callbackToken: string;
   clientId: string;
   clientSecret: string;
   merchantSerialNumber: string;
   subscriptionKey: string;
   testMode: boolean;
+  /**
+   * ePayment webhook signing secret (returned at registration). Empty string
+   * when not yet registered — payments still work, webhook verification won't.
+   */
+  webhookSecret: string;
 }
 
 /** Resolved Stripe credentials for the active (test or live) mode. */

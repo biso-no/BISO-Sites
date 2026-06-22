@@ -509,12 +509,10 @@ async function createProviderCheckoutSession({
   const result = await response.json().catch(() => null);
 
   if (!(response.ok && result?.checkoutUrl && result?.orderId)) {
-    const base =
+    throw new Error(
       result?.message ||
-      `Failed to create ${provider === "vipps" ? "Vipps" : "Stripe"} checkout session`;
-    // DEBUG: `detail` is the underlying provider error from apps/api while
-    // testing. Drop this concatenation once the API stops returning `detail`.
-    throw new Error(result?.detail ? `${base}: ${result.detail}` : base);
+        `Failed to create ${provider === "vipps" ? "Vipps" : "Stripe"} checkout session`
+    );
   }
 
   return {
@@ -622,21 +620,8 @@ export async function verifyOrder(orderId: string) {
     const { db: adminDb } = await createAdminClient();
 
     if (order.payment_provider === "vipps") {
-      const { resolveVippsCredentials } = await import(
-        "@repo/payment/credentials"
-      );
-      const { getVippsSession } = await import("@repo/payment/vipps");
-      const { updateOrderStatus } = await import(
-        "@repo/shared/utils/vipps-order-ops"
-      );
-      const creds = await resolveVippsCredentials(adminDb);
-      if (creds) {
-        const { paymentState, sessionData } = await getVippsSession(
-          order.payment_session_id,
-          creds
-        );
-        await updateOrderStatus(orderId, paymentState, sessionData, adminDb);
-      }
+      const { reconcileVippsPayment } = await import("@repo/payment/vipps");
+      await reconcileVippsPayment(orderId, adminDb);
     } else if (order.payment_provider === "stripe") {
       const { resolveStripeCredentials } = await import(
         "@repo/payment/credentials"

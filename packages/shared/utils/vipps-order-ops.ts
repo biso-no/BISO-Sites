@@ -1,10 +1,9 @@
 import { ID } from "@repo/api";
 import { type Orders, OrdersStatus } from "@repo/api/types/appwrite";
-import type { CheckoutSessionParams, VippsPaymentState } from "../types/vipps";
+import type { CheckoutSessionParams } from "../types/vipps";
 import { type ParsedOrderItem, parseOrderItems } from "./order-parsing";
-import { determineStatusFromPaymentState } from "./vipps-pure";
 
-interface DbClient {
+export interface DbClient {
   createRow: (
     dbId: string,
     collId: string,
@@ -119,9 +118,9 @@ export async function updateOrderWithSession(
 /**
  * Applies a resolved order status transition: reads the current order, adjusts
  * stock + reservations for the old→new transition, then persists the new status
- * plus any extra column updates. Provider-agnostic — both the Vipps
- * (`updateOrderStatus`) and Stripe callback paths share this so stock handling
- * lives in exactly one place.
+ * plus any extra column updates. Provider-agnostic — the Vipps reconcile path
+ * and the Stripe callback path share this so stock handling lives in exactly
+ * one place.
  */
 export async function applyOrderStatusTransition(
   orderId: string,
@@ -164,28 +163,6 @@ export async function applyOrderStatusTransition(
     console.error("Error updating order status:", error);
     throw new Error("Failed to update order status");
   }
-}
-
-/**
- * Updates order status based on Vipps payment state.
- * Stock decrements and restoration are handled by applyOrderStatusTransition.
- */
-export async function updateOrderStatus(
-  orderId: string,
-  paymentState: VippsPaymentState,
-  sessionData: Parameters<typeof determineStatusFromPaymentState>[1],
-  databases: DbClient
-): Promise<{ newStatus: OrdersStatus }> {
-  const { status, updateData } = determineStatusFromPaymentState(
-    paymentState,
-    sessionData
-  );
-  return await applyOrderStatusTransition(
-    orderId,
-    status,
-    updateData,
-    databases
-  );
 }
 
 interface StockAdjustmentParams {

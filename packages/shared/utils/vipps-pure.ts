@@ -1,95 +1,68 @@
 import { type Orders, OrdersStatus } from "@repo/api/types/appwrite";
-import type { CheckoutSessionParams, VippsPaymentState } from "../types/vipps";
+import type { VippsPaymentSnapshot, VippsState } from "../types/vipps";
 
-export interface VippsSessionData {
-  payment?: {
-    aggregate?: {
-      authorizedAmount?: {
-        value?: number | string | null;
-      };
-      capturedAmount?: {
-        value?: number | null;
-      };
-      receipt?: {
-        url?: string | null;
-      };
-    };
-  };
+const ZERO = 0;
+
+/** Coerces a Vipps minor-unit amount (number, numeric string, or null) to a number. */
+function minor(value?: number | string | null): number {
+  if (typeof value === "number") {
+    return value;
+  }
+  if (typeof value === "string") {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : ZERO;
+  }
+  return ZERO;
 }
 
-export function buildPrefillCustomer(
-  info?: CheckoutSessionParams["customerInfo"]
-): Record<string, string> | null {
-  if (!info) {
-    return null;
-  }
-
-  const prefill: Record<string, string> = {};
-
-  if (info.firstName) {
-    prefill.firstName = info.firstName;
-  }
-  if (info.lastName) {
-    prefill.lastName = info.lastName;
-  }
-  if (info.email) {
-    prefill.email = info.email;
-  }
-  if (info.phone) {
-    prefill.phoneNumber = info.phone;
-  }
-  if (info.streetAddress) {
-    prefill.streetAddress = info.streetAddress;
-  }
-  if (info.city) {
-    prefill.city = info.city;
-  }
-  if (info.postalCode) {
-    prefill.postalCode = info.postalCode;
-  }
-  if (info.country) {
-    prefill.country = info.country;
-  }
-
-  return Object.keys(prefill).length > 0 ? prefill : null;
-}
-
-export function determineStatusFromPaymentState(
-  paymentState: VippsPaymentState,
-  sessionData: VippsSessionData
-): { status: OrdersStatus; updateData: Partial<Orders> } {
-  const updateData: Partial<Orders> = {};
-  let newStatus: OrdersStatus;
-
-  switch (paymentState.state) {
+function statusForState(state: VippsState): OrdersStatus {
+  switch (state) {
     case "CREATED":
-      newStatus = OrdersStatus.PENDING;
-      break;
+      return OrdersStatus.PENDING;
     case "AUTHORIZED":
-      newStatus = OrdersStatus.AUTHORIZED;
-      updateData.payment_intent_id =
-        sessionData.payment?.aggregate?.authorizedAmount?.value?.toString() ||
-        null;
-      break;
+      return OrdersStatus.AUTHORIZED;
     case "ABORTED":
-      newStatus = OrdersStatus.CANCELLED;
-      break;
     case "EXPIRED":
-      newStatus = OrdersStatus.CANCELLED;
-      break;
+      return OrdersStatus.CANCELLED;
     case "TERMINATED":
-      newStatus = OrdersStatus.CANCELLED;
-      break;
+      return OrdersStatus.FAILED;
     default:
-      newStatus = OrdersStatus.PENDING;
+      return OrdersStatus.PENDING;
+  }
+}
+
+/**
+ * Maps an ePayment payment snapshot to an order status + column updates.
+ *
+ * The ePayment API keeps a payment in `AUTHORIZED` even after it has been
+ * captured, cancelled, or refunded — those are reflected in the aggregate
+ * amounts, not the state. So the aggregate totals take precedence:
+ * captured → PAID, fully refunded → REFUNDED, cancelled → CANCELLED. Only when
+ * no money has moved do we fall back to the raw state (ABORTED/EXPIRED →
+ * CANCELLED, TERMINATED → FAILED).
+ */
+export function determineStatusFromPaymentState(snapshot: VippsPaymentSnapshot): {
+  status: OrdersStatus;
+  updateData: Partial<Orders>;
+} {
+  const updateData: Partial<Orders> = {};
+  if (snapshot.pspReference) {
+    updateData.payment_intent_id = snapshot.pspReference;
   }
 
-  const capturedAmount = sessionData.payment?.aggregate?.capturedAmount?.value;
-  if (typeof capturedAmount === "number" && capturedAmount > 0) {
-    newStatus = OrdersStatus.PAID;
-    updateData.payment_receipt_url =
-      sessionData.payment?.aggregate?.receipt?.url || null;
+  const captured = minor(snapshot.aggregate?.capturedAmount?.value);
+  const refunded = minor(snapshot.aggregate?.refundedAmount?.value);
+  const cancelled = minor(snapshot.aggregate?.cancelledAmount?.value);
+
+  if (refunded > ZERO && refunded >= captured) {
+    return { status: OrdersStatus.REFUNDED, updateData };
+  }
+  if (captured > ZERO) {
+    return { status: OrdersStatus.PAID, updateData };
+  }
+  if (cancelled > ZERO) {
+    return { status: OrdersStatus.CANCELLED, updateData };
   }
 
-  return { status: newStatus, updateData };
+  return { status: statusForState(snapshot.state), updateData };
 }

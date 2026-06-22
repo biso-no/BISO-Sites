@@ -9,28 +9,28 @@ const fullVippsRow: PaymentSettingsRow = {
   vipps_test_client_secret: "tsec",
   vipps_test_subscription_key: "tsub",
   vipps_test_msn: "tmsn",
+  vipps_test_webhook_secret: "twh",
   vipps_live_client_id: "lid",
   vipps_live_client_secret: "lsec",
   vipps_live_subscription_key: "lsub",
   vipps_live_msn: "lmsn",
+  vipps_live_webhook_secret: "lwh",
 };
 
 describe("selectVippsCredentials", () => {
-  it("uses the DB test set when test_mode is true", () => {
-    const creds = selectVippsCredentials(fullVippsRow, {
-      VIPPS_CALLBACK_TOKEN: "cb",
-    });
+  it("uses the DB test set (and test webhook secret) when test_mode is true", () => {
+    const creds = selectVippsCredentials(fullVippsRow, {});
     expect(creds).toMatchObject({
       clientId: "tid",
       clientSecret: "tsec",
       subscriptionKey: "tsub",
       merchantSerialNumber: "tmsn",
-      callbackToken: "cb",
+      webhookSecret: "twh",
       testMode: true,
     });
   });
 
-  it("uses the DB live set when test_mode is false", () => {
+  it("uses the DB live set (and live webhook secret) when test_mode is false", () => {
     const creds = selectVippsCredentials(
       { ...fullVippsRow, test_mode: false },
       {}
@@ -38,8 +38,17 @@ describe("selectVippsCredentials", () => {
     expect(creds).toMatchObject({
       clientId: "lid",
       merchantSerialNumber: "lmsn",
+      webhookSecret: "lwh",
       testMode: false,
     });
+  });
+
+  it("falls back to the env webhook secret when the active column is empty", () => {
+    const creds = selectVippsCredentials(
+      { ...fullVippsRow, vipps_test_webhook_secret: null },
+      { VIPPS_WEBHOOK_SECRET: "env-wh" }
+    );
+    expect(creds?.webhookSecret).toBe("env-wh");
   });
 
   it("defaults to test mode when test_mode is null", () => {
@@ -59,12 +68,12 @@ describe("selectVippsCredentials", () => {
       VIPPS_SUBSCRIPTION_KEY: "esub",
       VIPPS_MERCHANT_SERIAL_NUMBER: "emsn",
       VIPPS_TEST_MODE: "true",
-      VIPPS_CALLBACK_TOKEN: "ecb",
+      VIPPS_WEBHOOK_SECRET: "ewh",
     });
     expect(creds).toMatchObject({
       clientId: "eid",
       merchantSerialNumber: "emsn",
-      callbackToken: "ecb",
+      webhookSecret: "ewh",
       testMode: true,
     });
   });

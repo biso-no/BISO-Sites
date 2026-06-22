@@ -34,11 +34,29 @@ const REQUIRED_SECRETS: Record<
   },
 };
 
+/**
+ * Manageable-but-not-required secret columns. The Vipps webhook secret is
+ * normally populated by the registration flow (not typed by hand), so it is
+ * editable/visible in the UI but does not block the provider from being "ready".
+ */
+const OPTIONAL_SECRETS: Record<
+  PaymentProvider,
+  { test: string[]; live: string[] }
+> = {
+  vipps: {
+    test: ["vipps_test_webhook_secret"],
+    live: ["vipps_live_webhook_secret"],
+  },
+  stripe: { test: [], live: [] },
+};
+
 /** All secret column keys for a provider (both test and live sets). */
 export function paymentSecretKeys(provider: PaymentProvider): string[] {
   return [
     ...REQUIRED_SECRETS[provider].test,
+    ...OPTIONAL_SECRETS[provider].test,
     ...REQUIRED_SECRETS[provider].live,
+    ...OPTIONAL_SECRETS[provider].live,
   ];
 }
 

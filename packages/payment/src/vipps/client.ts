@@ -20,3 +20,19 @@ export function buildVippsClient(
     systemVersion: "1.0.0",
   });
 }
+
+/**
+ * Fetches a short-lived ePayment access token. The ePayment, webhook, and
+ * order-management endpoints all take this bearer token (unlike the legacy
+ * Checkout API, which took the client id/secret per call).
+ */
+export async function getVippsAccessToken(
+  creds: VippsCredentials
+): Promise<string> {
+  const client = buildVippsClient(creds);
+  const result = await client.auth.getToken(creds.clientId, creds.clientSecret);
+  if (!result.ok) {
+    throw new Error(`Vipps authentication failed: ${JSON.stringify(result)}`);
+  }
+  return result.data.access_token;
+}

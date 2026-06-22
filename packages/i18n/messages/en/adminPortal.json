@@ -958,6 +958,10 @@
     "setActiveLive": "Set Live as active",
     "activeNote": "Active — used at checkout while this provider is on.",
     "completeFirst": "Add the missing secrets first",
+    "registerWebhook": "Register webhook",
+    "registerWebhookHint": "Registers the Vipps webhook for the active mode and stores its signing secret.",
+    "webhookRegistered": "Vipps webhook registered",
+    "webhookRegisterError": "Failed to register Vipps webhook",
     "providers": {
       "vipps": "Vipps",
       "stripe": "Stripe (card)"

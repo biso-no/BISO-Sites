@@ -30,6 +30,8 @@ export default async function PaymentSettingsPage() {
             stripe: t("providers.stripe"),
             vipps: t("providers.vipps"),
           },
+          registerWebhook: t("registerWebhook"),
+          registerWebhookHint: t("registerWebhookHint"),
           save: t("save"),
           saved: t("saved"),
           saveError: t("saveError"),
@@ -37,6 +39,8 @@ export default async function PaymentSettingsPage() {
           setActiveLive: t("setActiveLive"),
           setActiveTest: t("setActiveTest"),
           test: t("test"),
+          webhookRegisterError: t("webhookRegisterError"),
+          webhookRegistered: t("webhookRegistered"),
         }}
       />
     </div>

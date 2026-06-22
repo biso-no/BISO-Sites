@@ -958,6 +958,10 @@
     "setActiveLive": "Sett Live som aktiv",
     "activeNote": "Aktiv — brukes i kassen når denne leverandøren er på.",
     "completeFirst": "Legg til de manglende hemmelighetene først",
+    "registerWebhook": "Registrer webhook",
+    "registerWebhookHint": "Registrerer Vipps-webhooken for aktiv modus og lagrer signeringsnøkkelen.",
+    "webhookRegistered": "Vipps-webhook registrert",
+    "webhookRegisterError": "Kunne ikke registrere Vipps-webhook",
     "providers": {
       "vipps": "Vipps",
       "stripe": "Stripe (kort)"

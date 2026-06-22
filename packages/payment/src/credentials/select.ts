@@ -15,14 +15,15 @@ function clean(value?: string | null): string | undefined {
  * Picks the active Vipps credential set.
  *
  * Preference order: the managed DB row's active-mode set (when complete) →
- * the `VIPPS_*` env fallback. The shared callback token always comes from env
- * (it has no managed column). Returns `null` when neither source is complete.
+ * the `VIPPS_*` env fallback. The webhook secret is read from the active-mode
+ * column (env `VIPPS_WEBHOOK_SECRET` fallback) and may be empty until the
+ * webhook is registered. Returns `null` when neither source is complete.
  */
 export function selectVippsCredentials(
   row: PaymentSettingsRow | null,
   env: CredentialEnv
 ): VippsCredentials | null {
-  const callbackToken = clean(env.VIPPS_CALLBACK_TOKEN) ?? "";
+  const envWebhookSecret = clean(env.VIPPS_WEBHOOK_SECRET) ?? "";
 
   if (row) {
     const testMode = row.test_mode ?? true;
@@ -40,6 +41,11 @@ export function selectVippsCredentials(
     const merchantSerialNumber = clean(
       testMode ? row.vipps_test_msn : row.vipps_live_msn
     );
+    const webhookSecret =
+      clean(
+        testMode ? row.vipps_test_webhook_secret : row.vipps_live_webhook_secret
+      ) ??
+      envWebhookSecret;
 
     if (clientId && clientSecret && subscriptionKey && merchantSerialNumber) {
       return {
@@ -47,7 +53,7 @@ export function selectVippsCredentials(
         clientSecret,
         subscriptionKey,
         merchantSerialNumber,
-        callbackToken,
+        webhookSecret,
         testMode,
       };
     }
@@ -64,7 +70,7 @@ export function selectVippsCredentials(
       clientSecret,
       subscriptionKey,
       merchantSerialNumber,
-      callbackToken,
+      webhookSecret: envWebhookSecret,
       testMode: env.VIPPS_TEST_MODE === "true",
     };
   }

@@ -45,9 +45,25 @@ describe("paymentProviderConfigStatus", () => {
 });
 
 describe("secret key listings", () => {
-  it("lists all secret keys for a provider", () => {
+  it("lists all secret keys for a provider, including optional ones", () => {
     expect(paymentSecretKeys("stripe")).toHaveLength(4);
-    expect(paymentSecretKeys("vipps")).toHaveLength(8);
+    // 8 required Vipps keys + 2 optional webhook secrets (test + live).
+    expect(paymentSecretKeys("vipps")).toHaveLength(10);
+    expect(paymentSecretKeys("vipps")).toContain("vipps_test_webhook_secret");
+  });
+
+  it("does not require the Vipps webhook secret for completeness", () => {
+    expect(requiredSecretKeys("vipps", true)).not.toContain(
+      "vipps_test_webhook_secret"
+    );
+    expect(
+      paymentProviderConfigStatus("vipps", true, {
+        vipps_test_client_id: true,
+        vipps_test_client_secret: true,
+        vipps_test_subscription_key: true,
+        vipps_test_msn: true,
+      }).complete
+    ).toBe(true);
   });
 
   it("returns the active-mode required keys", () => {

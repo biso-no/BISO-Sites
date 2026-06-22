@@ -4,18 +4,12 @@ import type {
   WebshopProducts,
 } from "@repo/api/types/appwrite";
 import { postShopTransaction } from "@repo/connectors/24sevenoffice";
-import {
-  resolveStripeCredentials,
-  resolveVippsCredentials,
-} from "@repo/payment/credentials";
+import { resolveStripeCredentials } from "@repo/payment/credentials";
 import { getStripeSession } from "@repo/payment/stripe";
-import { getVippsSession } from "@repo/payment/vipps";
+import { reconcileVippsPayment } from "@repo/payment/vipps";
 import { parseOrderItems } from "@repo/shared/utils/order-parsing";
 import { determineStatusFromStripeSession } from "@repo/shared/utils/stripe-pure";
-import {
-  applyOrderStatusTransition,
-  updateOrderStatus,
-} from "@repo/shared/utils/vipps-order-ops";
+import { applyOrderStatusTransition } from "@repo/shared/utils/vipps-order-ops";
 import { NextResponse } from "next/server";
 
 // finago_transaction_id lives on the Appwrite "orders" table but is not
@@ -41,14 +35,9 @@ async function syncOrderStatusFromProvider(
 
   try {
     if (order.payment_provider === "vipps") {
-      const creds = await resolveVippsCredentials(db);
-      if (creds) {
-        const { paymentState, sessionData } = await getVippsSession(
-          order.payment_session_id,
-          creds
-        );
-        await updateOrderStatus(orderId, paymentState, sessionData, db);
-      }
+      // Verify server-side: fetch the payment, capture if authorized, and apply
+      // the transition idempotently (safe alongside the webhook).
+      await reconcileVippsPayment(orderId, db);
     } else if (order.payment_provider === "stripe") {
       const creds = await resolveStripeCredentials(db);
       if (creds) {

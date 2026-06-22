@@ -6,6 +6,7 @@ import { buttonStyle, STUDIO, studioSurface } from "../../_components/studio";
 import {
   type ProviderSecretView,
   type ProviderSettingsView,
+  registerVippsWebhook,
   setPaymentTestMode,
   updatePaymentSecrets,
 } from "../actions";
@@ -22,6 +23,8 @@ interface PaymentLabels {
   live: string;
   notConfigured: string;
   providers: Record<"stripe" | "vipps", string>;
+  registerWebhook: string;
+  registerWebhookHint: string;
   save: string;
   saved: string;
   saveError: string;
@@ -29,6 +32,8 @@ interface PaymentLabels {
   setActiveLive: string;
   setActiveTest: string;
   test: string;
+  webhookRegisterError: string;
+  webhookRegistered: string;
 }
 
 const SECRET_FIELD_PREFIX = /^(?:vipps|stripe)_(?:test|live)_/;
@@ -173,6 +178,7 @@ function ProviderCard({
   pending,
   onSelectMode,
   onInput,
+  onRegisterWebhook,
   onSetActive,
   onSave,
 }: {
@@ -180,6 +186,7 @@ function ProviderCard({
   labels: PaymentLabels;
   mode: Mode;
   onInput: (key: string, value: string) => void;
+  onRegisterWebhook: () => void;
   onSave: () => void;
   onSelectMode: (mode: Mode) => void;
   onSetActive: (mode: Mode) => void;
@@ -245,6 +252,23 @@ function ProviderCard({
           />
         ))}
       </div>
+
+      {view.provider === "vipps" && (
+        <div className="mt-4 flex flex-col gap-1">
+          <button
+            className="self-start rounded-lg px-3.5 py-2 font-medium text-[13px] transition disabled:opacity-50"
+            disabled={pending}
+            onClick={onRegisterWebhook}
+            style={buttonStyle("secondary")}
+            type="button"
+          >
+            {labels.registerWebhook}
+          </button>
+          <span className="text-[11px]" style={{ color: STUDIO.ink4 }}>
+            {labels.registerWebhookHint}
+          </span>
+        </div>
+      )}
 
       <div
         className="mt-5 flex flex-col gap-3 border-t pt-4 sm:flex-row sm:items-center sm:justify-between"
@@ -356,6 +380,19 @@ export function PaymentSettingsClient({
     });
   }
 
+  function handleRegisterWebhook(provider: string) {
+    setPendingProvider(provider);
+    startTransition(async () => {
+      const result = await registerVippsWebhook();
+      setPendingProvider(null);
+      if ("error" in result) {
+        toast.error(result.error || labels.webhookRegisterError);
+        return;
+      }
+      toast.success(labels.webhookRegistered);
+    });
+  }
+
   return (
     <div className="space-y-5">
       {views.map((view) => (
@@ -365,6 +402,7 @@ export function PaymentSettingsClient({
           labels={labels}
           mode={modes[view.provider] ?? view.activeMode}
           onInput={(key, value) => setInput(view.provider, key, value)}
+          onRegisterWebhook={() => handleRegisterWebhook(view.provider)}
           onSave={() => handleSave(view.provider)}
           onSelectMode={(mode) =>
             setModes((current) => ({ ...current, [view.provider]: mode }))
