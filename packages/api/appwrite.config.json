@@ -200,7 +200,7 @@
           "type": "string",
           "required": false,
           "array": false,
-          "size": 100,
+          "size": 1024,
           "default": null,
           "encrypt": false
         },
@@ -227,7 +227,7 @@
           "type": "string",
           "required": false,
           "array": false,
-          "size": 200,
+          "size": 2048,
           "default": null,
           "encrypt": false
         },

@@ -101,10 +101,29 @@ export async function createVippsCheckoutSession(
     );
   }
 
+  const data = result.data as VippsCheckoutData;
+
   return {
-    checkoutUrl: (result.data as VippsCheckoutData).checkoutFrontendUrl,
-    sessionId: (result.data as VippsCheckoutData).token,
+    // `checkoutFrontendUrl` is only the host — it must be opened WITH the
+    // session token appended, otherwise Vipps shows "Your session has expired".
+    // This mirrors the official VippsCheckoutDirect SDK, which navigates to
+    // `${checkoutFrontendUrl}/?token=${token}`.
+    checkoutUrl: buildVippsRedirectUrl(data.checkoutFrontendUrl, data.token),
+    sessionId: data.token,
   };
+}
+
+/**
+ * Builds the full-page Checkout (CheckoutDirect) redirect URL. The Vipps
+ * `checkoutFrontendUrl` is just the host; the session `token` must be passed as
+ * a query parameter for Vipps to resolve the session.
+ */
+export function buildVippsRedirectUrl(
+  checkoutFrontendUrl: string,
+  token: string
+): string {
+  const base = checkoutFrontendUrl.replace(/\/+$/, "");
+  return `${base}/?token=${encodeURIComponent(token)}`;
 }
 
 /**
