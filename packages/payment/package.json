@@ -21,6 +21,7 @@
   },
   "dependencies": {
     "@repo/shared": "workspace:*",
+    "@repo/api": "workspace:*",
     "@types/node": "catalog:",
     "@vippsmobilepay/sdk": "catalog:",
     "stripe": "catalog:"

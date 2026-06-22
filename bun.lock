@@ -258,6 +258,7 @@
       "name": "@repo/payment",
       "version": "0.0.0",
       "dependencies": {
+        "@repo/api": "workspace:*",
         "@repo/shared": "workspace:*",
         "@types/node": "catalog:",
         "@vippsmobilepay/sdk": "catalog:",
