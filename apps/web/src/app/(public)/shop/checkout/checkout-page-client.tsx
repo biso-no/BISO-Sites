@@ -32,9 +32,10 @@ const NOK = new Intl.NumberFormat("nb-NO", {
   currency: "NOK",
 });
 
-type PaymentProvider = "vipps" | "stripe";
+export type PaymentProvider = "vipps" | "stripe";
 
 interface CheckoutPageClientProps {
+  enabledProviders: PaymentProvider[];
   initialEmail?: string;
   initialName?: string;
   isMember: boolean;
@@ -63,6 +64,24 @@ const providerCopy: Record<
   },
 };
 
+function getSubmitLabel({
+  isPending,
+  paymentsAvailable,
+  provider,
+}: {
+  isPending: boolean;
+  paymentsAvailable: boolean;
+  provider: PaymentProvider;
+}): string {
+  if (isPending) {
+    return "Starting checkout...";
+  }
+  if (!paymentsAvailable) {
+    return "Payments unavailable";
+  }
+  return `Continue to ${providerCopy[provider].title}`;
+}
+
 function buildCheckoutLineTitle(item: CartItem) {
   const optionSummary = item.selectedOptions
     ? Object.entries(item.selectedOptions)
@@ -90,17 +109,21 @@ function CheckoutSkeleton() {
 }
 
 export function CheckoutPageClient({
+  enabledProviders,
   isMember,
   initialEmail = "",
   initialName = "",
 }: CheckoutPageClientProps) {
+  const paymentsAvailable = enabledProviders.length > 0;
   const { items, isLoading, getSubtotal, getRegularSubtotal, getTotalSavings } =
     useCart();
   const subtotal = getSubtotal(isMember);
   const regularSubtotal = getRegularSubtotal();
   const savings = getTotalSavings(isMember);
   const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
-  const [provider, setProvider] = useState<PaymentProvider>("vipps");
+  const [provider, setProvider] = useState<PaymentProvider>(
+    enabledProviders[0] ?? "vipps"
+  );
   const [name, setName] = useState(initialName);
   const [email, setEmail] = useState(initialEmail);
   const [phone, setPhone] = useState("");
@@ -111,6 +134,11 @@ export function CheckoutPageClient({
 
     if (items.length === 0) {
       toast.error("Your cart is empty");
+      return;
+    }
+
+    if (!paymentsAvailable) {
+      toast.error("Online payment is temporarily unavailable");
       return;
     }
 
@@ -232,67 +260,76 @@ export function CheckoutPageClient({
             <CardTitle>Choose how to pay</CardTitle>
           </CardHeader>
           <CardContent>
-            <RadioGroup
-              className="grid gap-4 md:grid-cols-2"
-              onValueChange={(value) => setProvider(value as PaymentProvider)}
-              value={provider}
-            >
-              {(
-                Object.entries(providerCopy) as [
-                  PaymentProvider,
-                  (typeof providerCopy)[PaymentProvider],
-                ][]
-              ).map(([value, config]) => {
-                const Icon = config.Icon;
-                const isSelected = provider === value;
+            {paymentsAvailable ? (
+              <RadioGroup
+                className="grid gap-4 md:grid-cols-2"
+                onValueChange={(value) => setProvider(value as PaymentProvider)}
+                value={provider}
+              >
+                {(
+                  Object.entries(providerCopy) as [
+                    PaymentProvider,
+                    (typeof providerCopy)[PaymentProvider],
+                  ][]
+                )
+                  .filter(([value]) => enabledProviders.includes(value))
+                  .map(([value, config]) => {
+                    const Icon = config.Icon;
+                    const isSelected = provider === value;
 
-                return (
-                  <div
-                    className={`relative block cursor-pointer overflow-hidden rounded-2xl border transition-all ${
-                      isSelected
-                        ? "border-brand shadow-md"
-                        : "border-border hover:border-brand/40"
-                    }`}
-                    key={value}
-                  >
-                    <div
-                      className={`h-2 w-full bg-linear-to-r ${config.accent}`}
-                    />
-                    <div className="flex items-start gap-4 p-5">
-                      <RadioGroupItem
-                        className="mt-1"
-                        id={`provider-${value}`}
-                        value={value}
-                      />
-                      <Label
-                        className="flex-1 cursor-pointer"
-                        htmlFor={`provider-${value}`}
+                    return (
+                      <div
+                        className={`relative block cursor-pointer overflow-hidden rounded-2xl border transition-all ${
+                          isSelected
+                            ? "border-brand shadow-md"
+                            : "border-border hover:border-brand/40"
+                        }`}
+                        key={value}
                       >
-                        <div className="flex items-center gap-3">
-                          <div className="rounded-full bg-section p-2">
-                            <Icon className="h-5 w-5" />
-                          </div>
-                          <div>
-                            <div className="font-medium text-base">
-                              {config.title}
+                        <div
+                          className={`h-2 w-full bg-linear-to-r ${config.accent}`}
+                        />
+                        <div className="flex items-start gap-4 p-5">
+                          <RadioGroupItem
+                            className="mt-1"
+                            id={`provider-${value}`}
+                            value={value}
+                          />
+                          <Label
+                            className="flex-1 cursor-pointer"
+                            htmlFor={`provider-${value}`}
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className="rounded-full bg-section p-2">
+                                <Icon className="h-5 w-5" />
+                              </div>
+                              <div>
+                                <div className="font-medium text-base">
+                                  {config.title}
+                                </div>
+                                <div className="text-muted-foreground text-sm">
+                                  {config.description}
+                                </div>
+                              </div>
                             </div>
-                            <div className="text-muted-foreground text-sm">
-                              {config.description}
-                            </div>
-                          </div>
+                            {isSelected ? (
+                              <div className="mt-4 flex items-center gap-2 text-brand text-sm">
+                                <CheckCircle2 className="h-4 w-4" />
+                                Selected for checkout
+                              </div>
+                            ) : null}
+                          </Label>
                         </div>
-                        {isSelected ? (
-                          <div className="mt-4 flex items-center gap-2 text-brand text-sm">
-                            <CheckCircle2 className="h-4 w-4" />
-                            Selected for checkout
-                          </div>
-                        ) : null}
-                      </Label>
-                    </div>
-                  </div>
-                );
-              })}
-            </RadioGroup>
+                      </div>
+                    );
+                  })}
+              </RadioGroup>
+            ) : (
+              <p className="text-muted-foreground text-sm">
+                Online payment is temporarily unavailable. Please try again
+                later.
+              </p>
+            )}
           </CardContent>
           <CardFooter className="border-t bg-section/40 px-6 py-4 text-muted-foreground text-sm">
             The payment page opens in the selected provider&apos;s secure hosted
@@ -411,10 +448,12 @@ export function CheckoutPageClient({
             </div>
           </CardContent>
           <CardFooter className="flex flex-col gap-3">
-            <Button className="w-full" disabled={isPending} type="submit">
-              {isPending
-                ? "Starting checkout..."
-                : `Continue to ${providerCopy[provider].title}`}
+            <Button
+              className="w-full"
+              disabled={isPending || !paymentsAvailable}
+              type="submit"
+            >
+              {getSubmitLabel({ isPending, paymentsAvailable, provider })}
             </Button>
             <Button asChild className="w-full" variant="outline">
               <Link href="/shop/cart">

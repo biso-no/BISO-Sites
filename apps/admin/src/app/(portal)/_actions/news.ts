@@ -208,6 +208,11 @@ export async function updateNews(id: string, values: NewsFormValues) {
 
   try {
     assertWriteAccess(ctx, article.campus_id, article.department_id);
+    assertWriteAccess(
+      ctx,
+      validated.data.campus_id,
+      validated.data.department_id ?? null
+    );
     if (
       article.status === "published" ||
       validated.data.status === "published"

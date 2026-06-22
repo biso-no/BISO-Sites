@@ -10,6 +10,17 @@ export interface ParsedOrderItem {
   [key: string]: unknown;
 }
 
+function normalizeOrderItem(item: ParsedOrderItem): ParsedOrderItem {
+  if (item.product_id || typeof item.productId !== "string") {
+    return item;
+  }
+
+  return {
+    ...item,
+    product_id: item.productId,
+  };
+}
+
 export function parseOrderItems(itemsJson?: string | null): ParsedOrderItem[] {
   if (!itemsJson) {
     return [];
@@ -17,7 +28,9 @@ export function parseOrderItems(itemsJson?: string | null): ParsedOrderItem[] {
 
   try {
     const parsed: unknown = JSON.parse(itemsJson);
-    return Array.isArray(parsed) ? (parsed as ParsedOrderItem[]) : [];
+    return Array.isArray(parsed)
+      ? (parsed as ParsedOrderItem[]).map(normalizeOrderItem)
+      : [];
   } catch (error) {
     console.error("Error parsing order items:", error);
     return [];

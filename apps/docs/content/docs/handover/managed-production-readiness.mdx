@@ -1,0 +1,126 @@
+---
+title: Managed production readiness
+description: Audit matrix and ranked roadmap for making the platform production-ready and maintainable without a developer in the loop.
+---
+
+# Managed production readiness
+
+This page is the handover-oriented production readiness roadmap. It treats
+"managed" as **admin-configurable and operationally sustainable without a
+developer**, while keeping secrets, payment settlement truth, Appwrite schema
+changes, and vendor credentials outside the admin UI.
+
+The immediate deliverable is this audit and roadmap. It does **not** introduce
+runtime API changes, schema changes, or new dependencies.
+
+## Evidence checked
+
+- Repository layout and application ownership in `README.md`.
+- Existing production findings in `PRODUCTION_CHECKLIST.md`.
+- Admin app scope, route structure, settings, roles, audit log, and feature flag
+  code under `apps/admin`.
+- Public web and API risk areas, especially checkout, cron, and API admin auth.
+- Appwrite schema in `packages/api/appwrite.config.json`, including
+  `feature_flags`, `audit_logs`, `notifications`, and content tables.
+- Operations, architecture, admin handbook, and handover docs under
+  `apps/docs/content/docs`.
+
+## Manageability matrix
+
+| Area | Current source of truth | Admin UI status | Hard-coded / env-only parts | Owner role | Audit logging | Docs status | Launch risk | Handover risk | Recommended action |
+|---|---|---|---|---|---|---|---|---|---|
+| Content: pages, news, benefits | Appwrite content tables and translation tables | Mostly managed through admin lists and editors | Nav access, publish policy, some editor behavior, stale docs around editor maturity | Department, campus admin, global admin | Most writes use `audit_logs` via admin actions | Strong architecture/admin docs | Medium | Medium | Keep as managed content. Add regression tests around scope, publish, and translation permissions before large refactors. |
+| Shop and checkout | `webshop_products`, `orders`, `payment_settings`, Vipps, Stripe, reservation tables | Products and orders are managed; provider credentials + test/live mode are now admin-managed (encrypted, audited) at `/payment-settings`; settlement truth (Finago) remains external | Provider credentials, Finago behavior, reservation TTL, checkout race handling | Campus admin, global admin (payment config is global-admin only) | Product/order admin actions and `payment_setting.*` changes are logged; provider events are external | Good docs plus known limitations | High | High | Payment backend (Vipps + Stripe) and managed config are built (Phase C). Run the staging checkout E2E for both providers before turning on `payments_stripe`. |
+| Events and communications | `events`, `content_translations`, announcement/notification tables | Events, segments, and announcements are managed | Scheduler/secrets for dispatch, audience rules, assistant behavior | Department for scoped content; campus/global for announcements | Admin actions and dispatch flows log important writes | Good admin docs | Medium | Medium | Keep content managed. Add operational status for dispatch health and document who owns failed-send remediation. |
+| Jobs and recruitment | `jobs`, `job_applications`, recruitment interview tables, resume storage | Vacancy and application workspace are managed | AI screening config, booking-token flow, required SG-App department team IDs, possible pre-existing-row backfill | HR/global admin for data-layer access; app-code campus/department scoping for review workflows | Recruitment actions are broadly logged | Good docs plus permissions review follow-up | High | High | Recruitment permission hardening is implemented; verify required teams and any row backfill in staging, and add a handover runbook for application data and resumes. |
+| Users, roles, and permissions | Azure AD groups mirrored into Appwrite teams, role derivation in code | IT user screens exist; role rules are not configurable | Role derivation, `NAV_ACCESS`, API/admin auth drift, exact team IDs | Global admin / IT | IT actions are logged | Strong architecture docs, open policy conflict | High | High | Keep role logic in code, but add an admin-visible role health screen and tests for `getAdminScope`, team IDs, and campus/department scoping. |
+| Documents | Appwrite/SharePoint mapping and document metadata | Managed in admin documents screens | SharePoint credentials, drive/site IDs, mapping conventions | Campus admin, global admin | Document metadata changes are logged | Setup docs exist | Medium | Medium | Add integration health checks and a recovery runbook for missing SharePoint config or broken mappings. |
+| Settings | Personal prefs in the user's Appwrite prefs; global operational config in dedicated screens | Settings = personal prefs + a Platform section linking to Operations health and Feature flags | Vendor credentials and secrets stay outside admin (by design) | Global admin | Personal prefs save to user prefs; global flag changes write `feature_flag.*` audit events | Personal vs platform split is in place | Low | Medium | Done: personal preferences are separated from the audited global-admin surfaces (feature flags + operations health). Future global settings should follow the feature-flag pattern (typed validation + audit). |
+| Feature flags | Existing `feature_flags` Appwrite table | Managed at `/feature-flags` (global admin): list, toggle, create | Rollout policy and per-flag ownership are still informal | Global admin | Create/toggle write `feature_flag.*` audit events | UI implemented; rollout conventions still to document | Low | Medium | Document rollout/ownership conventions and decide which code paths read each flag. The audited global-admin UI is built. |
+| Integrations | Environment variables, vendor consoles, Appwrite config | `/operations` shows read-only config status (presence, not values) for Appwrite, M365, SharePoint, Vipps, and scheduler secrets, each with a runbook link | API keys, secrets, OAuth tokens, provider dashboards | Global admin / IT | Config changes outside the app are not in `audit_logs` | Operations health + runbooks in place | Medium | Medium | Secrets stay outside admin. Read-only health surface is built; owner links and last-check timestamps remain optional follow-ups. |
+| Cron and scheduled tasks | External scheduler hitting HTTP endpoints with bearer secrets | Not managed in app | Scheduler vendor, cron secrets, endpoint schedules, dead-man monitoring | IT / global admin | Endpoint success/failure is not centrally logged beyond provider logs | Cron docs still require fill-in details | High | High | P0: confirm configured scheduler and secrets. P1: add an operations runbook and optional admin-visible last-run status. |
+| Monitoring and incident response | Health endpoints, Better Stack, Appwrite dashboards, optional/error-monitoring docs | No unified admin operations dashboard | Alert destinations, Sentry/observability status, incident owner list | IT / global admin | Audit log covers app writes, not infrastructure alerts | Docs conflict on Sentry status and still contain fill-ins | High | High | Reconcile monitoring docs against the real account state, add a second alert recipient, and document first-responder ownership. |
+| Handover and ownership | Docs app handover section plus current IT Manager knowledge | Managed as docs, not app data | Account owners, billing contacts, vendor access, renewal dates | IT Manager / board | Changes happen through git/docs, not app audit logs | Strong structure, several fill-ins remain | Medium | Critical | Complete account/vendor fill-ins, add "what to do first" runbooks, and keep this roadmap current until launch. |
+
+## Priority roadmap
+
+### P0 before production
+
+These items protect launch safety. They should be closed or explicitly accepted
+before production cutover.
+
+| Ticket | Acceptance criteria |
+|---|---|
+| Add deploy-blocking quality gates | Production deploy workflow runs app lint plus app/dependency type-checks before upload, or a documented equivalent gate exists. `apps/web` and `apps/api` `ignoreBuildErrors` risk is either removed or explicitly compensated by CI. **Initial gate is implemented; watch the first production run.** |
+| Resolve admin-auth policy conflict | API label-based global-admin gating is removed. Admin and API agree that global admin comes from National + Operations Unit team membership. **Initial code path is resolved; verify real production admins have the required teams before cutover.** |
+| Verify staging behavior fixes | Checklist in `PRODUCTION_CHECKLIST.md` is executed with dates/results: Vipps order page, reservation stock math, purchase limits, legacy campus-admin team names, and cron/sync authentication. |
+| Confirm cron and secrets | `CRON_SECRET`, `ENTUR_SYNC_SECRET`, and `TICKSTER_SYNC_SECRET` are set in production and schedulers send them in headers, not query strings. The scheduler, cadence, owner, and login location are documented. **Initial auth hardening is implemented for `departures/sync` and `cleanup-anon-users`; production scheduler config still needs verification.** |
+| Close or accept recruitment permission follow-ups | **Implemented:** restricted recruitment tables are stamped with per-row staff permissions and table grants are narrowed to Operations Unit + HR create-only, with no direct user-create path and no literal `admin` team dependency. Staging must still verify required teams and backfill any pre-existing recruitment rows before legacy table grants are removed. |
+| Add first auth regression tests | Initial coverage now includes shared team-role helpers, API `getAdminScope`, admin team parsing/nav pseudo-role gating, recruitment scope helpers, recruitment schema permissions, row-stamping paths, representative admin content update scoping, and checkout `vipps-order-ops.ts` coverage for item-shape normalization, legacy `productId` parsing, and stock/reservation state transitions. Add more route-gating and payment/checkout route tests as those areas change. |
+
+### P1 before handover
+
+These items make the platform manageable by administrators after the original
+developer leaves.
+
+| Ticket | Acceptance criteria |
+|---|---|
+| Split personal preferences from platform settings | **Implemented:** Settings is framed as personal preferences (locale, timezone, notifications) with a Platform section that links global admins to the two operational surfaces. Global operational config lives in those audited, typed, global-admin-only screens — Feature flags (typed validation in `feature-flags-model.ts`, defaults, `feature_flag.*` audit events) and Operations health (read-only status). A speculative global-settings table was intentionally not added; feature flags are the concrete audited global setting. |
+| Build feature flag management | **Implemented:** global admins manage `feature_flags` at `/feature-flags` in the admin app — list, toggle on/off, and create flags. Writes are global-admin gated, key/title validated (`feature-flags-model.ts`, unit-tested), and audited (`feature_flag.toggle` / `feature_flag.create`). Rollback is toggling the flag off. Rollout policy/ownership conventions remain a documentation follow-up. |
+| Add integration health/status surface | **Implemented:** `/operations` (global admin) shows read-only config status for Appwrite, Microsoft 365, SharePoint, Vipps, and scheduler secrets — presence only, never values — each linking to its runbook, plus the live required-team health report. Logic is unit-tested in `apps/admin/src/lib/integration-health.ts`. Per-app `/api/health` liveness is documented in operations/monitoring-and-health. |
+| Add role/team health checks | **Implemented (endpoint + tested core):** global admins and monitors can `GET /api/health/teams` in the admin app to verify the required teams exist — `biso-members`, `sg-app-campus-national`, `sg-app-dept-operationsunit`, `sg-app-dept-hr`, plus a campus + `Ledelsen{City}` leadership pair per city. It returns `503` listing each missing team and its operational fix; the canonical registry and check logic live in `apps/admin/src/lib/team-health.ts` and are unit-tested. A friendly in-portal screen consuming the same core remains a follow-up. |
+| Complete handover fill-ins | Ownership, third-party accounts, domains/hosting, scheduler configuration, alert recipients, and renewal/billing details have no `[FILL IN]` placeholders for production-critical vendors. |
+| Add admin runbooks | Runbooks exist for failed payment checkout, stale reservations, failed cron, broken SharePoint documents, recruitment data access, failed announcement dispatch, and emergency access recovery. |
+
+### P2 after launch
+
+These items improve long-term maintainability but should not block a safe launch
+unless one becomes directly tied to a production incident.
+
+| Ticket | Acceptance criteria |
+|---|---|
+| Remove or activate dormant integrations | Anthropic, WooCommerce, chat tables, large-event tables, analytics stubs, and unused feature scaffolds are either removed or documented as active with real owners. **Stripe is now activated** — Phase C added the checkout/webhook backend and managed credentials; it stays behind the `payments_stripe` flag (OFF) until the staging E2E in `docs/plans/payments-phase-c.md` passes. |
+| Decide search and analytics | Leadership chooses whether public-site search and analytics are needed. If yes, add a product and privacy decision before implementation. |
+| Simplify admin studio editors | Deduplicate shared editor components in small, tested passes. Protect current autosave, translation, upload, and publish behavior before refactoring. |
+| Improve observability | Resolve docs conflict on Sentry status, add error-tracking/APM if not actually wired, and centralize alert ownership outside a single person. |
+| Normalize action result shapes | New actions follow the canonical result shape; old actions are migrated opportunistically when touched for feature work. |
+
+## Future interface policy
+
+- Prefer existing Appwrite tables where they already exist:
+  `feature_flags`, `audit_logs`, content tables, translation tables, and
+  notification tables.
+- New operational settings should be global-admin-only server actions with
+  typed input/output models, explicit defaults, validation, revalidation, and
+  `audit_logs` entries.
+- Campus and department users should manage scoped content, not platform-wide
+  controls.
+- Do not expose secrets, vendor credentials, Appwrite schema migrations, or
+  payment settlement controls as editable admin settings.
+- Read-only operational status is safe to expose when it avoids leaking secret
+  values and has clear runbook links.
+
+## Verification model for each implementation ticket
+
+Before coding a managed-control ticket, define these acceptance checks:
+
+1. **Auth scope:** who can view and who can write.
+2. **Validation:** accepted values, defaults, and rejection behavior.
+3. **Audit event:** action name, resource type, resource ID, and safe payload.
+4. **Rollback:** how an admin restores the previous value or disables the
+   feature.
+5. **Docs:** admin handbook and handover/runbook pages updated.
+6. **Staging test:** exact path, account role, and expected result.
+
+Production-readiness verification should include the relevant subset of:
+
+```bash
+bun run check-types
+bun x ultracite check
+bun run build:web
+bun run build:admin
+bun run build:api
+```
+
+Focused tests should be added around auth, checkout/payment, admin scoping, and
+the managed-control model as those areas change.

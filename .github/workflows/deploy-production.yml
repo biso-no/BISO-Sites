@@ -4,7 +4,9 @@ name: Deploy affected apps
 # Appwrite builds the uploaded source archive on its infrastructure using the
 # install and build commands configured per site. CI is responsible for:
 #   1. Detecting which apps changed using Turbo's affected-package graph, and
-#   2. Uploading the full monorepo source for those apps to Appwrite.
+#   2. Running deploy-blocking lint gates for those apps and type-check gates
+#      for those apps plus their internal workspace dependencies.
+#   3. Uploading the full monorepo source for those apps to Appwrite.
 # Appwrite then runs `bun install` + the app's build command on its side.
 # This model is intentional: we do NOT run `turbo run build` in CI here.
 
@@ -75,8 +77,37 @@ jobs:
           echo "apps=$apps" >> "$GITHUB_OUTPUT"
           echo "count=$count" >> "$GITHUB_OUTPUT"
 
-  deploy:
+  quality-gate:
     needs: discover
+    if: needs.discover.outputs.count != '0'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        app: ${{ fromJson(needs.discover.outputs.apps) }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Lint affected app
+        run: bunx turbo run lint --filter="${{ matrix.app }}"
+
+      - name: Type-check affected app and dependencies
+        run: bunx turbo run check-types --filter="${{ matrix.app }}..."
+
+  deploy:
+    needs:
+      - discover
+      - quality-gate
     if: needs.discover.outputs.count != '0'
     runs-on: ubuntu-latest
     environment:

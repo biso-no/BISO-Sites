@@ -86,13 +86,15 @@ describe("toRecruitmentAdminScope", () => {
 });
 
 describe("buildJobRowPermissions", () => {
-  test("published + public is world-readable plus admin/HR staff grant", () => {
+  test("published + public is world-readable plus Operations Unit/HR staff grant", () => {
     const perms = buildJobRowPermissions("public", "published");
     expect(perms).toContain('read("any")');
+    expect(perms).toContain('read("team:sg-app-dept-operationsunit")');
+    expect(perms).toContain('update("team:sg-app-dept-operationsunit")');
     expect(perms).toContain('read("team:sg-app-dept-hr")');
-    expect(perms).toContain('update("team:admin")');
+    expect(perms).toContain('update("team:sg-app-dept-hr")');
     expect(perms.join(" ")).not.toContain("sg-app-campus-");
-    expect(perms.join(" ")).not.toContain("sg-app-dept-operationsunit");
+    expect(perms.join(" ")).not.toContain("team:admin");
   });
 
   test("published + members swaps read(any) for biso-members", () => {

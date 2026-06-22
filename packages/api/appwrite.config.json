@@ -255,9 +255,9 @@
       "$id": "department_board",
       "$permissions": [
         "read(\"any\")",
-        "create(\"team:admin\")",
-        "update(\"team:admin\")",
-        "delete(\"team:admin\")"
+        "create(\"team:sg-app-dept-operationsunit\")",
+        "update(\"team:sg-app-dept-operationsunit\")",
+        "delete(\"team:sg-app-dept-operationsunit\")"
       ],
       "databaseId": "app",
       "name": "Department Board",
@@ -662,7 +662,7 @@
       "$id": "expense",
       "$permissions": [
         "create(\"users\")",
-        "read(\"team:admin\")",
+        "read(\"team:sg-app-dept-operationsunit\")",
         "read(\"team:finance\")"
       ],
       "databaseId": "app",
@@ -892,10 +892,10 @@
       "$id": "jobs",
       "$permissions": [
         "create(\"users\")",
-        "create(\"team:admin\")",
-        "read(\"team:admin\")",
-        "update(\"team:admin\")",
-        "delete(\"team:admin\")",
+        "create(\"team:sg-app-dept-operationsunit\")",
+        "read(\"team:sg-app-dept-operationsunit\")",
+        "update(\"team:sg-app-dept-operationsunit\")",
+        "delete(\"team:sg-app-dept-operationsunit\")",
         "create(\"team:sg-app-dept-hr\")",
         "read(\"team:sg-app-dept-hr\")",
         "update(\"team:sg-app-dept-hr\")",
@@ -1892,10 +1892,10 @@
     {
       "$id": "m365_remediation_snapshot",
       "$permissions": [
-        "create(\"team:admin\")",
-        "read(\"team:admin\")",
-        "update(\"team:admin\")",
-        "delete(\"team:admin\")"
+        "create(\"team:sg-app-dept-operationsunit\")",
+        "read(\"team:sg-app-dept-operationsunit\")",
+        "update(\"team:sg-app-dept-operationsunit\")",
+        "delete(\"team:sg-app-dept-operationsunit\")"
       ],
       "databaseId": "app",
       "name": "M365 Remediation Snapshot",
@@ -1987,10 +1987,10 @@
       "$id": "user",
       "$permissions": [
         "create(\"users\")",
-        "create(\"team:admin\")",
-        "read(\"team:admin\")",
-        "update(\"team:admin\")",
-        "delete(\"team:admin\")"
+        "create(\"team:sg-app-dept-operationsunit\")",
+        "read(\"team:sg-app-dept-operationsunit\")",
+        "update(\"team:sg-app-dept-operationsunit\")",
+        "delete(\"team:sg-app-dept-operationsunit\")"
       ],
       "databaseId": "app",
       "name": "Users",
@@ -2253,14 +2253,8 @@
     {
       "$id": "job_applications",
       "$permissions": [
-        "create(\"users\")",
-        "read(\"team:admin\")",
-        "update(\"team:admin\")",
-        "delete(\"team:admin\")",
-        "create(\"team:sg-app-dept-hr\")",
-        "read(\"team:sg-app-dept-hr\")",
-        "update(\"team:sg-app-dept-hr\")",
-        "delete(\"team:sg-app-dept-hr\")"
+        "create(\"team:sg-app-dept-operationsunit\")",
+        "create(\"team:sg-app-dept-hr\")"
       ],
       "databaseId": "app",
       "name": "Job Applications",
@@ -2971,10 +2965,10 @@
     {
       "$id": "varsling_settings",
       "$permissions": [
-        "create(\"team:admin\")",
-        "read(\"team:admin\")",
-        "update(\"team:admin\")",
-        "delete(\"team:admin\")",
+        "create(\"team:sg-app-dept-operationsunit\")",
+        "read(\"team:sg-app-dept-operationsunit\")",
+        "update(\"team:sg-app-dept-operationsunit\")",
+        "delete(\"team:sg-app-dept-operationsunit\")",
         "read(\"any\")"
       ],
       "databaseId": "app",
@@ -3211,9 +3205,9 @@
       "$permissions": [
         "read(\"guests\")",
         "read(\"users\")",
-        "create(\"team:admin\")",
-        "update(\"team:admin\")",
-        "delete(\"team:admin\")"
+        "create(\"team:sg-app-dept-operationsunit\")",
+        "update(\"team:sg-app-dept-operationsunit\")",
+        "delete(\"team:sg-app-dept-operationsunit\")"
       ],
       "databaseId": "app",
       "name": "App notices",
@@ -4010,9 +4004,9 @@
       "$id": "funding_programs",
       "$permissions": [
         "read(\"any\")",
-        "create(\"team:admin\")",
-        "update(\"team:admin\")",
-        "delete(\"team:admin\")"
+        "create(\"team:sg-app-dept-operationsunit\")",
+        "update(\"team:sg-app-dept-operationsunit\")",
+        "delete(\"team:sg-app-dept-operationsunit\")"
       ],
       "databaseId": "app",
       "name": "Funding Programs",
@@ -5527,10 +5521,10 @@
       "$permissions": [
         "read(\"team:alumni_admins\")",
         "update(\"team:alumni_admins\")",
-        "create(\"team:admin\")",
-        "read(\"team:admin\")",
-        "update(\"team:admin\")",
-        "delete(\"team:admin\")",
+        "create(\"team:sg-app-dept-operationsunit\")",
+        "read(\"team:sg-app-dept-operationsunit\")",
+        "update(\"team:sg-app-dept-operationsunit\")",
+        "delete(\"team:sg-app-dept-operationsunit\")",
         "read(\"any\")"
       ],
       "databaseId": "app",
@@ -5576,12 +5570,153 @@
       "indexes": []
     },
     {
+      "$id": "payment_settings",
+      "$permissions": [
+        "create(\"team:sg-app-dept-operationsunit\")",
+        "read(\"team:sg-app-dept-operationsunit\")",
+        "update(\"team:sg-app-dept-operationsunit\")",
+        "delete(\"team:sg-app-dept-operationsunit\")"
+      ],
+      "databaseId": "app",
+      "name": "Payment settings",
+      "enabled": true,
+      "rowSecurity": false,
+      "columns": [
+        {
+          "key": "provider",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 50,
+          "default": null,
+          "format": "enum",
+          "elements": ["vipps", "stripe"]
+        },
+        {
+          "key": "test_mode",
+          "type": "boolean",
+          "required": false,
+          "array": false,
+          "default": true
+        },
+        {
+          "key": "vipps_test_client_id",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 1024,
+          "default": null,
+          "encrypt": true
+        },
+        {
+          "key": "vipps_test_client_secret",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 1024,
+          "default": null,
+          "encrypt": true
+        },
+        {
+          "key": "vipps_test_subscription_key",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 1024,
+          "default": null,
+          "encrypt": true
+        },
+        {
+          "key": "vipps_test_msn",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 1024,
+          "default": null,
+          "encrypt": true
+        },
+        {
+          "key": "vipps_live_client_id",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 1024,
+          "default": null,
+          "encrypt": true
+        },
+        {
+          "key": "vipps_live_client_secret",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 1024,
+          "default": null,
+          "encrypt": true
+        },
+        {
+          "key": "vipps_live_subscription_key",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 1024,
+          "default": null,
+          "encrypt": true
+        },
+        {
+          "key": "vipps_live_msn",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 1024,
+          "default": null,
+          "encrypt": true
+        },
+        {
+          "key": "stripe_test_secret_key",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 1024,
+          "default": null,
+          "encrypt": true
+        },
+        {
+          "key": "stripe_test_webhook_secret",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 1024,
+          "default": null,
+          "encrypt": true
+        },
+        {
+          "key": "stripe_live_secret_key",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 1024,
+          "default": null,
+          "encrypt": true
+        },
+        {
+          "key": "stripe_live_webhook_secret",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 1024,
+          "default": null,
+          "encrypt": true
+        }
+      ],
+      "indexes": []
+    },
+    {
       "$id": "shop_settings",
       "$permissions": [
-        "create(\"team:admin\")",
-        "read(\"team:admin\")",
-        "update(\"team:admin\")",
-        "delete(\"team:admin\")"
+        "create(\"team:sg-app-dept-operationsunit\")",
+        "read(\"team:sg-app-dept-operationsunit\")",
+        "update(\"team:sg-app-dept-operationsunit\")",
+        "delete(\"team:sg-app-dept-operationsunit\")"
       ],
       "databaseId": "app",
       "name": "Shop Settings",
@@ -6180,8 +6315,8 @@
         "read(\"guests\")",
         "create(\"users\")",
         "read(\"users\")",
-        "update(\"team:admin\")",
-        "delete(\"team:admin\")"
+        "update(\"team:sg-app-dept-operationsunit\")",
+        "delete(\"team:sg-app-dept-operationsunit\")"
       ],
       "databaseId": "app",
       "name": "products",
@@ -6705,19 +6840,13 @@
     {
       "$id": "recruitment_booking_tokens",
       "$permissions": [
-        "create(\"team:admin\")",
-        "read(\"team:admin\")",
-        "update(\"team:admin\")",
-        "delete(\"team:admin\")",
-        "create(\"team:sg-app-dept-hr\")",
-        "read(\"team:sg-app-dept-hr\")",
-        "update(\"team:sg-app-dept-hr\")",
-        "delete(\"team:sg-app-dept-hr\")"
+        "create(\"team:sg-app-dept-operationsunit\")",
+        "create(\"team:sg-app-dept-hr\")"
       ],
       "databaseId": "app",
       "name": "Recruitment Booking Tokens",
       "enabled": true,
-      "rowSecurity": false,
+      "rowSecurity": true,
       "columns": [
         {
           "key": "application_id",
@@ -6833,14 +6962,8 @@
     {
       "$id": "job_application_answers",
       "$permissions": [
-        "create(\"users\")",
-        "read(\"team:admin\")",
-        "update(\"team:admin\")",
-        "delete(\"team:admin\")",
-        "create(\"team:sg-app-dept-hr\")",
-        "read(\"team:sg-app-dept-hr\")",
-        "update(\"team:sg-app-dept-hr\")",
-        "delete(\"team:sg-app-dept-hr\")"
+        "create(\"team:sg-app-dept-operationsunit\")",
+        "create(\"team:sg-app-dept-hr\")"
       ],
       "databaseId": "app",
       "name": "Job Application Answers",
@@ -6941,14 +7064,8 @@
     {
       "$id": "job_interviews",
       "$permissions": [
-        "create(\"users\")",
-        "read(\"team:admin\")",
-        "update(\"team:admin\")",
-        "delete(\"team:admin\")",
-        "create(\"team:sg-app-dept-hr\")",
-        "read(\"team:sg-app-dept-hr\")",
-        "update(\"team:sg-app-dept-hr\")",
-        "delete(\"team:sg-app-dept-hr\")"
+        "create(\"team:sg-app-dept-operationsunit\")",
+        "create(\"team:sg-app-dept-hr\")"
       ],
       "databaseId": "app",
       "name": "Job Interviews",
@@ -7183,14 +7300,8 @@
     {
       "$id": "job_interview_participants",
       "$permissions": [
-        "create(\"users\")",
-        "read(\"team:admin\")",
-        "update(\"team:admin\")",
-        "delete(\"team:admin\")",
-        "create(\"team:sg-app-dept-hr\")",
-        "read(\"team:sg-app-dept-hr\")",
-        "update(\"team:sg-app-dept-hr\")",
-        "delete(\"team:sg-app-dept-hr\")"
+        "create(\"team:sg-app-dept-operationsunit\")",
+        "create(\"team:sg-app-dept-hr\")"
       ],
       "databaseId": "app",
       "name": "Job Interview Participants",
@@ -7290,14 +7401,8 @@
     {
       "$id": "candidate_profiles",
       "$permissions": [
-        "create(\"users\")",
-        "read(\"team:admin\")",
-        "update(\"team:admin\")",
-        "delete(\"team:admin\")",
-        "create(\"team:sg-app-dept-hr\")",
-        "read(\"team:sg-app-dept-hr\")",
-        "update(\"team:sg-app-dept-hr\")",
-        "delete(\"team:sg-app-dept-hr\")"
+        "create(\"team:sg-app-dept-operationsunit\")",
+        "create(\"team:sg-app-dept-hr\")"
       ],
       "databaseId": "app",
       "name": "Candidate Profiles",
@@ -7491,14 +7596,8 @@
     {
       "$id": "job_interview_scorecards",
       "$permissions": [
-        "create(\"users\")",
-        "read(\"team:admin\")",
-        "update(\"team:admin\")",
-        "delete(\"team:admin\")",
-        "create(\"team:sg-app-dept-hr\")",
-        "read(\"team:sg-app-dept-hr\")",
-        "update(\"team:sg-app-dept-hr\")",
-        "delete(\"team:sg-app-dept-hr\")"
+        "create(\"team:sg-app-dept-operationsunit\")",
+        "create(\"team:sg-app-dept-hr\")"
       ],
       "databaseId": "app",
       "name": "Job Interview Scorecards",

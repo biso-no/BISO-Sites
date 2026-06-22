@@ -12,6 +12,9 @@
     "communications": "Kommunikasjon",
     "it": "IT",
     "settings": "Innstillinger",
+    "featureFlags": "Funksjonsbrytere",
+    "operations": "Driftshelse",
+    "payments": "Betaling",
     "activity": "Aktivitet",
     "drafts": "Gjennomgå utkast",
     "approvals": "Godkjenninger",
@@ -907,6 +910,59 @@
     "deleteError": "Kunne ikke slette dokumentet",
     "versionUploadHint": "Opplasting av ny versjon erstatter filen i SharePoint. SharePoints innebygde versjonshistorikk sporer forrige versjon."
   },
+  "operations": {
+    "title": "Driftshelse",
+    "description": "Skrivebeskyttet status for integrasjoner, planleggerhemmeligheter og påkrevde team. Ingen hemmelige verdier vises.",
+    "integrationsTitle": "Integrasjoner",
+    "teamsTitle": "Påkrevde team",
+    "teamsEndpointNote": "Sanntids-JSON for overvåking: GET /api/health/teams",
+    "teamsAllPresent": "Alle påkrevde team finnes",
+    "teamsMissingSuffix": "påkrevde team mangler",
+    "teamsUnavailable": "Kunne ikke laste team-helse. Sjekk Appwrite-tilkobling.",
+    "runbook": "Driftshåndbok",
+    "missingSuffix": "mangler",
+    "status": {
+      "configured": "Konfigurert",
+      "incomplete": "Ufullstendig",
+      "notConfigured": "Ikke konfigurert"
+    }
+  },
+  "featureFlags": {
+    "title": "Funksjonsbrytere",
+    "description": "Operasjonelle nødbrytere. Slå plattformfunksjoner av eller på — endringer trer i kraft innen ~15 s og logges i revisjonsloggen.",
+    "enabled": "På",
+    "disabled": "Av",
+    "groups": {
+      "expenses": "Refusjoner",
+      "payments": "Nettbutikkbetaling",
+      "ai": "KI"
+    },
+    "toggleError": "Kunne ikke oppdatere bryter",
+    "toggleSuccess": "Bryter oppdatert"
+  },
+  "paymentSettings": {
+    "title": "Betalingsleverandører",
+    "description": "Administrerte legitimasjoner og test/live-modus for Vipps og Stripe. Hemmeligheter lagres kryptert og er skrivebeskyttet — verdier vises aldri. Endringer logges.",
+    "test": "Test",
+    "live": "Live",
+    "activeMode": "Aktiv modus",
+    "configured": "Satt",
+    "notConfigured": "Ikke satt",
+    "complete": "Klar",
+    "incomplete": "Ufullstendig",
+    "secretPlaceholder": "La stå tomt for å beholde nåværende verdi",
+    "save": "Lagre",
+    "saved": "Betalingsinnstillinger oppdatert",
+    "saveError": "Kunne ikke oppdatere betalingsinnstillinger",
+    "setActiveTest": "Sett Test som aktiv",
+    "setActiveLive": "Sett Live som aktiv",
+    "activeNote": "Aktiv — brukes i kassen når denne leverandøren er på.",
+    "completeFirst": "Legg til de manglende hemmelighetene først",
+    "providers": {
+      "vipps": "Vipps",
+      "stripe": "Stripe (kort)"
+    }
+  },
   "settings": {
     "title": "Innstillinger",
     "description": "Konfigurer adminpreferansene dine.",
@@ -919,7 +975,8 @@
       "aiLocalization": "AI-lokalisering",
       "security": "Sikkerhet",
       "integrations": "Integrasjoner",
-      "notifications": "Varsler"
+      "notifications": "Varsler",
+      "platform": "Plattform"
     },
     "general": {
       "title": "Generelle innstillinger",
@@ -953,6 +1010,16 @@
       "title": "Teammedlemmer",
       "role": "Rolle",
       "invite": "Inviter medlem"
+    },
+    "platform": {
+      "title": "Plattformdrift",
+      "description": "Dette er dine personlige adminpreferanser. Plattformomfattende driftskontroller ligger i egne, reviderte skjermer.",
+      "operations": "Driftshelse",
+      "operationsHint": "Skrivebeskyttet status for integrasjoner, planleggerhemmeligheter og påkrevde team",
+      "featureFlags": "Funksjonsbrytere",
+      "featureFlagsHint": "Slå plattformfunksjoner av eller på (revidert)",
+      "payments": "Betalingsleverandører",
+      "paymentsHint": "Administrerte Vipps/Stripe-legitimasjoner og testmodus (logget)"
     },
     "saveSuccess": "Innstillinger lagret",
     "saveError": "Kunne ikke lagre innstillinger"

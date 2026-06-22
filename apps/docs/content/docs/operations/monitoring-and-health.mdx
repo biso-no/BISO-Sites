@@ -39,6 +39,48 @@ For each app:
 - `https://api.biso.no/api/health`
 - `https://[the docs URL]/api/health` — confirm in the Appwrite Console under the `docs` Site
 
+### Required-team health (admin)
+
+The admin app also exposes a **deeper** check that verifies the Appwrite
+teams the platform depends on actually exist:
+
+```http
+GET https://admin.biso.no/api/health/teams
+```
+
+Unlike `/api/health`, this endpoint is **global-admin only** — it reads the
+team list with the service key, so call it from a signed-in global-admin
+session (or a monitor that carries one). It returns `200` with `"ok": true`
+when every required team is present, and `503` with an `ok: false` /
+`missing` payload when one or more are absent. Each missing entry names the
+team, what it is for, and the operational fix:
+
+```json
+{
+  "ok": false,
+  "total": 12,
+  "presentCount": 11,
+  "missingCount": 1,
+  "missing": [
+    {
+      "id": "sg-app-dept-hr",
+      "label": "HR",
+      "category": "core",
+      "present": false,
+      "purpose": "Recruitment is HR-exclusive — ...",
+      "fix": "Ensure the matching Azure AD security group ..."
+    }
+  ],
+  "checkedAt": "2026-06-18T07:34:56.789Z"
+}
+```
+
+Required teams are `biso-members`, `sg-app-campus-national`,
+`sg-app-dept-operationsunit`, `sg-app-dept-hr`, plus a
+`sg-app-campus-{city}` and `sg-app-dept-ledelsen{city}` pair for each campus
+city. A missing team silently removes admin access or member benefits — see
+[Incident response → "Required Appwrite teams are missing"](/docs/operations/incident-response#required-appwrite-teams-are-missing).
+
 ## Uptime monitoring — current state
 
 **Better Stack** (`betterstack.com`) pings each `/api/health` endpoint

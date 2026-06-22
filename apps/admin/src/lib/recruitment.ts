@@ -127,7 +127,7 @@ export async function loadRecruitmentLookups(
 const MEMBERS_TEAM = "biso-members";
 
 /**
- * Row permissions for a job. Staff access (admin + HR) comes from
+ * Row permissions for a job. Staff access (Operations Unit + HR) comes from
  * `buildRecruitmentStaffRowPermissions()`; the row additionally encodes public
  * visibility:
  *   - published + public  → read(any)

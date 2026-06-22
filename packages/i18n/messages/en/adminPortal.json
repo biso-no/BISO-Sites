@@ -12,6 +12,9 @@
     "communications": "Communications",
     "it": "IT",
     "settings": "Settings",
+    "featureFlags": "Feature flags",
+    "operations": "Operations health",
+    "payments": "Payments",
     "activity": "Activity",
     "drafts": "Review Drafts",
     "approvals": "Approvals",
@@ -907,6 +910,59 @@
     "deleteError": "Failed to delete document",
     "versionUploadHint": "Uploading a new version will replace the file in SharePoint. SharePoint's native version history will track the previous version."
   },
+  "operations": {
+    "title": "Operations health",
+    "description": "Read-only status of integrations, scheduler secrets, and required teams. No secret values are shown.",
+    "integrationsTitle": "Integrations",
+    "teamsTitle": "Required teams",
+    "teamsEndpointNote": "Live JSON for monitors: GET /api/health/teams",
+    "teamsAllPresent": "All required teams present",
+    "teamsMissingSuffix": "required teams missing",
+    "teamsUnavailable": "Could not load team health. Check Appwrite connectivity.",
+    "runbook": "Runbook",
+    "missingSuffix": "missing",
+    "status": {
+      "configured": "Configured",
+      "incomplete": "Incomplete",
+      "notConfigured": "Not configured"
+    }
+  },
+  "featureFlags": {
+    "title": "Feature flags",
+    "description": "Operational kill switches. Turn platform features on or off — changes apply within ~15s and are written to the audit log.",
+    "enabled": "On",
+    "disabled": "Off",
+    "groups": {
+      "expenses": "Reimbursements",
+      "payments": "Webshop payments",
+      "ai": "AI"
+    },
+    "toggleError": "Failed to update flag",
+    "toggleSuccess": "Flag updated"
+  },
+  "paymentSettings": {
+    "title": "Payment providers",
+    "description": "Managed credentials and test/live mode for Vipps and Stripe. Secrets are stored encrypted and write-only — values are never shown. Changes are audited.",
+    "test": "Test",
+    "live": "Live",
+    "activeMode": "Active mode",
+    "configured": "Set",
+    "notConfigured": "Not set",
+    "complete": "Ready",
+    "incomplete": "Incomplete",
+    "secretPlaceholder": "Leave blank to keep current value",
+    "save": "Save",
+    "saved": "Payment settings updated",
+    "saveError": "Failed to update payment settings",
+    "setActiveTest": "Set Test as active",
+    "setActiveLive": "Set Live as active",
+    "activeNote": "Active — used at checkout while this provider is on.",
+    "completeFirst": "Add the missing secrets first",
+    "providers": {
+      "vipps": "Vipps",
+      "stripe": "Stripe (card)"
+    }
+  },
   "settings": {
     "title": "Settings",
     "description": "Configure your admin preferences.",
@@ -919,7 +975,8 @@
       "aiLocalization": "AI Localization",
       "security": "Security",
       "integrations": "Integrations",
-      "notifications": "Notifications"
+      "notifications": "Notifications",
+      "platform": "Platform"
     },
     "general": {
       "title": "General Settings",
@@ -953,6 +1010,16 @@
       "title": "Team Members",
       "role": "Role",
       "invite": "Invite Member"
+    },
+    "platform": {
+      "title": "Platform operations",
+      "description": "These are your personal admin preferences. Platform-wide operational controls live in their own audited screens.",
+      "operations": "Operations health",
+      "operationsHint": "Read-only status of integrations, scheduler secrets, and required teams",
+      "featureFlags": "Feature flags",
+      "featureFlagsHint": "Turn platform features on or off (audited)",
+      "payments": "Payment providers",
+      "paymentsHint": "Managed Vipps/Stripe credentials and test mode (audited)"
     },
     "saveSuccess": "Settings saved",
     "saveError": "Failed to save settings"

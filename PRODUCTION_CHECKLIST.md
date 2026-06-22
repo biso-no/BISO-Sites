@@ -6,41 +6,41 @@ complete — see `AUDIT_LOG.md` for the full record.
 
 ## 1. Decisions only you can make
 
-- **API label-based admin gating vs. documented policy.**
-  `apps/api/src/lib/admin-auth.ts#getAdminScope` grants global admin to
-  users with an `admin` or `globaladmin` **label**, while
-  `apps/admin/CLAUDE.md` states labels must never be used for role
-  checks (admin's own code never does). Decide: remove the label check
-  from the API (may lock out anyone relying on labels), or amend the
-  policy. Until then the two services disagree about who is a global
-  admin.
-- **`departures/sync` accepts the secret as a `?secret=` query
-  parameter.** Query strings land in access logs and proxies. The other
-  sync routes are header-only. Removing it is a one-line change but will
-  break any cron currently configured with the query param — migrate the
-  caller first.
-- **Localhost origins ship in the production CORS/proxy allowlists**
-  (`apps/api/src/lib/cors.ts`, `apps/api/src/proxy.ts`). Low risk
-  (only exploitable by software already running on a user's machine),
-  but trivially removable if you gate the dev origins on `NODE_ENV`.
+- **Confirm no production admin depended on Appwrite labels.**
+  `apps/api/src/lib/admin-auth.ts#getAdminScope` now matches the admin
+  policy: global admin is derived from `SG-App-Campus-National` plus
+  `SG-App-Dept-OperationsUnit` team membership only. Appwrite labels
+  such as `admin` or `globaladmin` no longer grant API global-admin
+  authority. Before cutover, confirm real production admins have the
+  correct Azure/Appwrite team memberships.
+- **Confirm required Appwrite team IDs exist in production.**
+  A CLI check on 2026-06-18 found `biso-members`,
+  `sg-app-dept-operationsunit`, and `sg-app-dept-hr` in the configured
+  Appwrite project. Recruitment no longer depends on a literal `admin` team;
+  production admins must instead have the National + Operations Unit team
+  memberships used by the code policy. A global admin can now self-verify the
+  full required-team set at any time via `GET /api/health/teams` in the admin
+  app (returns `503` listing any missing team and its fix) — point the uptime
+  monitor at it so a team disappearing post-launch raises an alert.
 
 ## 2. CI / infrastructure configuration
 
-- **Nothing gates type errors before deploys.** `web` and `api` set
-  `typescript.ignoreBuildErrors: true`, and
-  `.github/workflows/deploy-production.yml` never runs
-  `bun run check-types` or `bun run lint`. Add a check-types (and
-  ideally knip) step before the deploy job — this audit found a broken
-  production page (`/shop/order/[orderId]`) that no existing gate could
-  have caught.
+- **First production deploy after the CI gate change should be watched.**
+  `.github/workflows/deploy-production.yml` now runs deploy-blocking
+  `lint` for each affected app and `check-types` for each affected app
+  plus its internal dependencies before upload. `web` and `api` still set
+  `typescript.ignoreBuildErrors: true`, so this CI gate is the signal
+  that prevents type regressions from shipping.
 - **`docs` type-check fails in fresh clones** because fumadocs generates
   `.source/` at build time. Either add a `postinstall`/pre-step that
   runs the fumadocs generator, or exclude docs from check-types in CI
   with a comment.
-- **`CRON_SECRET` must be set in production** — the web cron route
-  correctly refuses to run without it (500), and the admin announcements
-  dispatch route requires it too. Confirm both are configured, plus
-  `ENTUR_SYNC_SECRET` / `TICKSTER_SYNC_SECRET` for the api sync routes.
+- **Scheduler secrets must be set and sent as headers in production** —
+  `CRON_SECRET` gates reservation cleanup, anonymous-user cleanup, and
+  announcement dispatch; `ENTUR_SYNC_SECRET` / `TICKSTER_SYNC_SECRET`
+  gate the api sync routes. The `departures/sync` route is now
+  header-only like the other sync routes, so confirm no scheduler still
+  calls it with `?secret=`.
 - **Confirm a scheduler actually calls
   `/api/cron/cleanup-reservations`** (every ~15 min recommended). The
   endpoint was silently broken until this audit (session client with no
@@ -59,8 +59,15 @@ These audit fixes intentionally change behavior; verify them in staging:
 - Purchase limits now count beyond 25 historical orders.
 - Admin UI now grants campus-admin to legacy `LedelsenOslo`-style team
   names (previously only the api accepted them).
-- Cron/sync endpoints still authenticate (now constant-time comparison —
-  the secret must match exactly, including whitespace).
+- Cron/sync endpoints still authenticate with header secrets only (the
+  secret must match exactly, including whitespace).
+- API CORS still allows real BISO origins in production and localhost
+  origins in local development only.
+- Recruitment restricted tables have Operations Unit + HR create-only table
+  grants, no `create("users")`, no literal `admin` grants, and per-row staff
+  permissions on new rows. If staging/prod has existing recruitment rows,
+  backfill their `$permissions` before removing any legacy table-level
+  read/update/delete grants in Appwrite.
 
 ## 4. Known-accepted limitations (documented, not fixed)
 
@@ -77,11 +84,16 @@ These audit fixes intentionally change behavior; verify them in staging:
 
 ## 5. Test coverage gap
 
-Only 4 vitest files exist (api lib helpers). There are **no tests for
-auth enforcement** (JWT validation, campus scoping, route gating) in any
-app — every regression in those paths ships silently today. The highest-
-value first tests: `@repo/shared/utils/team-roles` (pure functions, easy
-wins), api `getAdminScope`, and the web checkout/purchase-limit actions.
+Auth regression coverage now exists for shared team-role helpers, API
+`getAdminScope`, admin team parsing/nav pseudo-role gating, recruitment scope
+helpers, recruitment Appwrite table permissions, recruitment row permission
+stamping, and representative admin content update route scoping that prevents
+draft rows from being retargeted to unauthorized campuses. First checkout
+coverage now protects provider-to-order item normalization and legacy order
+item parsing so downstream stock, purchase-limit, and return-page code can read
+`product_id`. Broader admin route-gating and checkout/payment tests remain
+sparse, so future auth and payment changes still need focused regression tests
+before merge.
 
 ## 6. Deferred cleanups (optional, non-blocking)
 
@@ -101,21 +113,32 @@ wins), api `getAdminScope`, and the web checkout/purchase-limit actions.
 # Risk Assessment — Three Highest-Risk Areas
 
 1. **The payment/checkout path (web → Vipps → Finago → reservations).**
-   It moves money, it spans three external systems, it has two known
-   (accepted) race windows, and it has zero automated tests. This audit
-   fixed four high-severity bugs in this exact area — the density of
-   defects found here is itself the strongest signal. Any future change
-   to `orders.ts`, `cart-reservations.ts`, `purchase-limits.ts`, or the
-   checkout routes deserves a staging Vipps test run, not just review.
+   It moves money, it spans three external systems, and it has two known
+   (accepted) race windows. Automated coverage is now thin rather than
+   zero: the shared order-ops module (`vipps-order-ops.ts`) has unit tests
+   for order item normalization, legacy `productId` parsing, stock
+   decrement/restore, and once-only reservation cleanup across status
+   transitions — but the checkout routes, `cart-reservations.ts`, and
+   `purchase-limits.ts` are still untested. This audit fixed four
+   high-severity bugs in this exact area — the density of defects found
+   here is itself the strongest signal. Any future change to `orders.ts`,
+   `cart-reservations.ts`, `purchase-limits.ts`, or the checkout routes
+   deserves a staging Vipps test run, not just review.
+   **Phase C update:** the previously-missing checkout backend now exists
+   (`apps/api/src/app/api/payment/[provider]/{checkout,callback}` for both Vipps
+   and Stripe), provider credentials + test/live mode are admin-managed and
+   stored encrypted, and per-provider order-status mapping is unit-tested — but
+   the checkout/callback *routes themselves* are still integration-untested, so
+   a staging E2E run for both providers (see `docs/plans/payments-phase-c.md`)
+   is the gate before `payments_stripe` is turned on.
 
-2. **Authorization sprawl across three models with no tests.** Web
+2. **Authorization sprawl across three models with limited tests.** Web
    (anonymous-session + email heuristic), admin (Azure-AD team parsing →
    roles → campus scoping), and api (JWT + scope) each enforce access
-   differently, the label-gating policy conflict is still open, and
-   nothing executes these paths in CI. The Phase 1 consolidation
-   (`@repo/shared/utils/team-roles`) reduced drift, but a wrong campus
-   filter still means silent cross-campus data exposure in a 60-table
-   database.
+   differently. The shared team-role, API admin-scope, and recruitment
+   permission paths now have regression tests, but a wrong campus filter in an
+   untested route can still mean silent cross-campus data exposure in a
+   60-table database.
 
 3. **The admin studio monoliths (~15k lines across 6 client files).**
    They are the most-edited, least-reviewable surface: 2,000–4,500-line

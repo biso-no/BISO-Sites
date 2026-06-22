@@ -102,6 +102,32 @@ Most likely: the `APPWRITE_SESSION_COOKIE` was changed accidentally, the
 `APPWRITE_API_KEY` was rotated but the deploy environment wasn't updated,
 or Appwrite Auth is down. Check `admin`'s logs for 401 chatter.
 
+### "Required Appwrite teams are missing"
+
+All admin access and member benefits are derived from Appwrite team
+membership (mirrored from Azure AD). If a team was never created, was
+renamed in Azure, or never synced, the people in it silently lose access and
+no developer is in the loop to notice.
+
+Check it directly: as a global admin, open
+`https://admin.biso.no/api/health/teams` (or point a monitor at it). A `503`
+response lists exactly which teams are missing and the fix for each; a `200`
+with `"ok": true` means all required teams exist.
+
+What breaks when one is absent:
+
+| Team | Loss when missing |
+|---|---|
+| `biso-members` | Members lose benefits and shop discounts |
+| `sg-app-campus-national` + `sg-app-dept-operationsunit` | Every global admin loses manage-any-campus authority; approval routing breaks |
+| `sg-app-dept-hr` | Recruitment data access (applications, interviews, booking tokens) breaks |
+| `sg-app-campus-{city}` + `sg-app-dept-ledelsen{city}` | That city loses its campus admins |
+
+Fix: ensure the matching Azure AD security group exists, then have a member
+sign in to trigger the M365 sync that provisions the Appwrite team. Confirm
+the team in the Appwrite Console under Auth → Teams and re-check the
+endpoint.
+
 ### "A scheduled job stopped running"
 
 The platform has no built-in scheduler — the job is being triggered

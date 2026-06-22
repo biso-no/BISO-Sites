@@ -24,6 +24,8 @@ export const CAMPUS_ID_TO_NAME: Record<string, string> = Object.fromEntries(
   Object.entries(CAMPUS_NAME_TO_ID).map(([name, id]) => [id, name])
 );
 
+const OPERATIONS_UNIT_TEAM_ID = "sg-app-dept-operationsunit";
+
 /**
  * Converts a PascalCase/camelCase team-name suffix to a space-separated
  * string so it can be matched against department Name values in the DB.
@@ -67,10 +69,10 @@ export function resolveApproverTeamId(
   campusId?: string
 ): string {
   if (action === "jobs.publish" || action === "jobs.create") {
-    return "sg-app-dept-operationsunit";
+    return OPERATIONS_UNIT_TEAM_ID;
   }
   if (campusId) {
-    return getCampusManagementTeamId(campusId) ?? "admin";
+    return getCampusManagementTeamId(campusId) ?? OPERATIONS_UNIT_TEAM_ID;
   }
-  return "admin";
+  return OPERATIONS_UNIT_TEAM_ID;
 }

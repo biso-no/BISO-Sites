@@ -36,10 +36,21 @@ left alone.
 
 | Field | Value |
 |-------|-------|
-| Method | `POST` |
-| Auth | `Authorization: Bearer ${CRON_SECRET}` |
+| Method | `POST` or `GET` |
+| Auth | `Authorization: Bearer ${CRON_SECRET}` or `x-cron-secret: ${CRON_SECRET}` |
 | Recommended frequency | once per hour, off-peak |
 | Failure mode | Appwrite Auth user list grows without bound; performance degrades |
+
+### `apps/admin` — `/api/announcements/dispatch`
+
+Dispatches scheduled announcements whose send time has passed.
+
+| Field | Value |
+|-------|-------|
+| Method | `POST` or `GET` |
+| Auth | `Authorization: Bearer ${CRON_SECRET}` or `x-cron-secret: ${CRON_SECRET}` |
+| Recommended frequency | every 1–5 minutes if scheduled announcements are used |
+| Failure mode | Scheduled announcements remain queued and are not sent |
 
 ### `apps/api` — `/api/departures/sync`
 
@@ -48,18 +59,33 @@ Pulls fresh public-transit data from Entur and caches it for the campus
 
 | Field | Value |
 |-------|-------|
-| Method | `POST` |
-| Auth | `Authorization: Bearer ${ENTUR_SYNC_SECRET}` |
+| Method | `POST` or `GET` |
+| Auth | `Authorization: Bearer ${ENTUR_SYNC_SECRET}` or `x-sync-secret: ${ENTUR_SYNC_SECRET}` |
 | Recommended frequency | every 1–5 minutes depending on freshness requirements |
 | Failure mode | Stale departure boards on the public site |
 
+### `apps/api` — `/api/tickster/sync`
+
+Imports Tickster purchases and links them to matching Appwrite users when
+the Tickster integration is enabled.
+
+| Field | Value |
+|-------|-------|
+| Method | `POST` or `GET` |
+| Auth | `Authorization: Bearer ${TICKSTER_SYNC_SECRET}` or `x-sync-secret: ${TICKSTER_SYNC_SECRET}` |
+| Recommended frequency | every 5–15 minutes while Tickster-backed events are active |
+| Failure mode | Tickster purchases do not appear in the platform until a manual sync runs |
+
 ## A note on dev
 
-In `NODE_ENV !== "production"`, these endpoints allow unauthenticated calls
-so you can hit them locally without a bearer token. In production they
-require the bearer header; if you forget to set `CRON_SECRET` /
-`ENTUR_SYNC_SECRET` in the deploy environment, the endpoint will start
-rejecting your scheduler. Always confirm 200s after a deploy.
+Do not configure schedulers with `?secret=` query parameters. Query strings
+land in access logs and referrers; the production routes accept header
+secrets only.
+
+`apps/web` reservation cleanup can run locally without `CRON_SECRET` when
+`NODE_ENV !== "production"`. The `apps/api` and `apps/admin` scheduled
+routes fail closed when their secret is missing. Always confirm 200s after
+a deploy.
 
 ## Choosing a scheduler
 
@@ -72,7 +98,7 @@ rejecting your scheduler. Always confirm 200s after a deploy.
 
 <Callout type="warning">
 **To be filled in by the current IT Manager**: which scheduler is currently
-configured for each of the three endpoints, the schedule, and where to log
+configured for each endpoint, the schedule, and where to log
 in to change it.
 </Callout>
 

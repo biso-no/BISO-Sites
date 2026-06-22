@@ -9,8 +9,6 @@
 
 // Authentication (lower-level, usually not needed directly)
 export { getValidSession, hasSession } from "./auth";
-// Department list (SOAP — includes inactive departments)
-export { getAllDepartmentsSoap, type SoapDepartment } from "./departments";
 // Category management
 export {
   assignMembershipCategory,
@@ -29,6 +27,8 @@ export {
   getCompanyById,
   searchCustomerByStudentId,
 } from "./company";
+// Department list (SOAP — includes inactive departments)
+export { getAllDepartmentsSoap, type SoapDepartment } from "./departments";
 export type { InvoiceOrder, InvoiceRow } from "./invoice";
 // Invoice management
 export {

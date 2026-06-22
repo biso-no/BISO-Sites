@@ -317,21 +317,28 @@ export async function submitJobApplication(
         const updated = await updateTypedRow<
           CandidateProfiles,
           Partial<CandidateProfileWriteInput>
-        >(db, "app", "candidate_profiles", cur.$id, {
-          applications_count: (cur.applications_count ?? 0) + 1,
-          campus_id: vacancy.campus_id ?? cur.campus_id,
-          current_employer:
-            parsed.data.current_employer ?? cur.current_employer,
-          current_role: parsed.data.current_role ?? cur.current_role,
-          data_retention_until: retentionUntil,
-          full_name:
-            parsed.data.applicant_name.length > 0
-              ? parsed.data.applicant_name
-              : cur.full_name,
-          last_application_at: consentDate.toISOString(),
-          linkedin_url: parsed.data.linkedin_url ?? cur.linkedin_url ?? null,
-          phone: parsed.data.applicant_phone ?? cur.phone ?? null,
-        });
+        >(
+          db,
+          "app",
+          "candidate_profiles",
+          cur.$id,
+          {
+            applications_count: (cur.applications_count ?? 0) + 1,
+            campus_id: vacancy.campus_id ?? cur.campus_id,
+            current_employer:
+              parsed.data.current_employer ?? cur.current_employer,
+            current_role: parsed.data.current_role ?? cur.current_role,
+            data_retention_until: retentionUntil,
+            full_name:
+              parsed.data.applicant_name.length > 0
+                ? parsed.data.applicant_name
+                : cur.full_name,
+            last_application_at: consentDate.toISOString(),
+            linkedin_url: parsed.data.linkedin_url ?? cur.linkedin_url ?? null,
+            phone: parsed.data.applicant_phone ?? cur.phone ?? null,
+          },
+          buildRecruitmentStaffRowPermissions()
+        );
         candidateProfileId = updated.$id;
       } else {
         const created = await createTypedRow<

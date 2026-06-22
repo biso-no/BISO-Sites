@@ -140,6 +140,7 @@ export async function updateBenefit(id: string, values: BenefitFormValues) {
 
   try {
     assertWriteAccess(ctx, benefit.campus_id);
+    assertWriteAccess(ctx, validated.data.campus_id);
     if (
       benefit.status === "published" ||
       validated.data.status === "published"

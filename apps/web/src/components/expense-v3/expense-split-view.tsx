@@ -252,6 +252,8 @@ interface ExpenseSplitViewProps {
   campuses: Campus[];
   initialDraft?: InitialExpenseDraft | null;
   initialProfile: Partial<Users>;
+  /** When false the AI/OCR receipt scan is skipped; manual entry still works. */
+  ocrEnabled?: boolean;
 }
 
 type InitialExpenseDraft = Pick<
@@ -310,6 +312,7 @@ export function ExpenseSplitView({
   campuses,
   initialDraft,
   initialProfile,
+  ocrEnabled = true,
 }: ExpenseSplitViewProps) {
   const router = useRouter();
   const store = useExpenseStore();
@@ -524,6 +527,13 @@ export function ExpenseSplitView({
           status: "processing",
         });
 
+        // Kill switch: when receipt scanning is disabled, the file is still
+        // attached but skips OCR — the user fills in the details manually.
+        if (!ocrEnabled) {
+          store.updateReceipt(tempId, { progress: 100, status: "ready" });
+          return null;
+        }
+
         // 2. OCR — race against a 30s timeout so the receipt never hangs in "processing"
         const ocrFormData = new FormData();
         ocrFormData.append("file", file);
@@ -564,7 +574,7 @@ export function ExpenseSplitView({
         return null;
       }
     },
-    [store]
+    [store, ocrEnabled]
   );
 
   const reconcileBatch = useCallback(

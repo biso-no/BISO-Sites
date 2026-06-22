@@ -78,7 +78,7 @@ export function sanitizeSlug(text: string): string {
     .replace(/^-+|-+$/g, "");
 }
 
-const ADMIN_TEAM = "admin";
+const OPERATIONS_UNIT_TEAM = "sg-app-dept-operationsunit";
 const MEMBERS_TEAM = "biso-members";
 
 /**
@@ -128,13 +128,13 @@ export function deriveContentRowTeams(
  * READ:
  *  - published + public → `read(any)` (publicly visible).
  *  - otherwise (draft/archived OR members-only) → team-scoped reads only:
- *    admin, the owning campus team, the owning department team, and
+ *    Operations Unit, the owning campus team, the owning department team, and
  *    biso-members ONLY when the row is published AND member-only.
  *    This guarantees unpublished rows are never `read(any)`.
  *
  * WRITE (update/delete):
- *  - always team:admin + the owning department team. The campus team NEVER
- *    receives write access.
+ *  - always Operations Unit + the owning department team. The campus team
+ *    NEVER receives write access.
  */
 export function buildContentRowPermissions(opts: {
   status: string;
@@ -146,14 +146,14 @@ export function buildContentRowPermissions(opts: {
   const published = isPublishedStatus(status);
 
   const writeTeams = [
-    ...new Set([ADMIN_TEAM, ...(deptTeam ? [deptTeam] : [])]),
+    ...new Set([OPERATIONS_UNIT_TEAM, ...(deptTeam ? [deptTeam] : [])]),
   ];
 
   const readPerms =
     published && audience === "public"
       ? [Permission.read(Role.any())]
       : [
-          Permission.read(Role.team(ADMIN_TEAM)),
+          Permission.read(Role.team(OPERATIONS_UNIT_TEAM)),
           ...(campusTeam ? [Permission.read(Role.team(campusTeam))] : []),
           ...(deptTeam ? [Permission.read(Role.team(deptTeam))] : []),
           ...(published && audience === "members"
@@ -182,8 +182,8 @@ export function buildContentRowPermissions(opts: {
  *
  * Read access mirrors the parent content row (see `buildContentRowPermissions`):
  *  - published + public → `read(any)`.
- *  - otherwise → team-only: admin, the owning department team(s) (`writeTeams`),
- *    the owning campus team (`readTeams`, read-only), the owner, and
+ *  - otherwise → team-only: Operations Unit, the owning department team(s)
+ *    (`writeTeams`), the owning campus team (`readTeams`, read-only), the owner, and
  *    biso-members ONLY when the parent is published AND member-only.
  * A draft/archived parent is therefore never `read(any)` and never readable by
  * biso-members. Omitting `status` preserves the previous published default.
@@ -208,7 +208,7 @@ export function buildContentTranslationPermissions(opts: {
     published && audience === "public"
       ? [Permission.read(Role.any())]
       : [
-          Permission.read(Role.team(ADMIN_TEAM)),
+          Permission.read(Role.team(OPERATIONS_UNIT_TEAM)),
           ...writeTeams.map((t) => Permission.read(Role.team(t))),
           ...readTeams.map((t) => Permission.read(Role.team(t))),
           ...(published && audience === "members"

@@ -37,7 +37,10 @@ describe("isInactive", () => {
   test("never signed in + old account => inactive", () => {
     expect(
       isInactive(
-        u({ lastSignInDateTime: null, createdDateTime: "2024-01-01T00:00:00Z" }),
+        u({
+          lastSignInDateTime: null,
+          createdDateTime: "2024-01-01T00:00:00Z",
+        }),
         NOW,
         MONTHS
       )
@@ -47,7 +50,10 @@ describe("isInactive", () => {
   test("never signed in + new account => not flagged", () => {
     expect(
       isInactive(
-        u({ lastSignInDateTime: null, createdDateTime: "2026-05-20T00:00:00Z" }),
+        u({
+          lastSignInDateTime: null,
+          createdDateTime: "2026-05-20T00:00:00Z",
+        }),
         NOW,
         MONTHS
       )

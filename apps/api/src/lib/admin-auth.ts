@@ -52,7 +52,6 @@ export async function getAdminScope(
 
     const campusNames: string[] = [];
     const departmentNames: string[] = [];
-    const labels = user.labels || [];
 
     // Parse team memberships
     for (const team of teamMemberships.teams) {
@@ -68,11 +67,8 @@ export async function getAdminScope(
       }
     }
 
-    // Check for global admin (National + Operations Unit OR admin label)
-    const hasAdminLabel =
-      labels.includes("admin") || labels.includes("globaladmin");
-    const isGlobalAdmin =
-      isNationalOperations(campusNames, departmentNames) || hasAdminLabel;
+    // Check for global admin (National + Operations Unit)
+    const isGlobalAdmin = isNationalOperations(campusNames, departmentNames);
 
     // Check for campus admin (Ledelsen{City} + Campus-{City})
     const managedCampuses = getManagedCampuses(campusNames, departmentNames);

@@ -1,26 +1,22 @@
 import { Client } from "@vippsmobilepay/sdk";
+import type { VippsCredentials } from "../credentials/types";
 
-const clientId = process.env.VIPPS_CLIENT_ID!;
-const clientSecret = process.env.VIPPS_CLIENT_SECRET!;
-const merchantSerialNumber = process.env.VIPPS_MERCHANT_SERIAL_NUMBER!;
-const subscriptionKey = process.env.VIPPS_SUBSCRIPTION_KEY!;
-const testMode = process.env.VIPPS_TEST_MODE === "true";
-
-export const client: ReturnType<typeof Client> = Client({
-  merchantSerialNumber,
-  subscriptionKey,
-  useTestMode: testMode,
-  retryRequests: false,
-  pluginName: "biso-payment",
-  pluginVersion: "1.0.0",
-  systemName: "biso",
-  systemVersion: "1.0.0",
-});
-
-async function _getAccessToken(): Promise<string> {
-  const token = await client.auth.getToken(clientId, clientSecret);
-  if (token.ok) {
-    return token.data.access_token;
-  }
-  throw new Error("Failed to get Vipps access token");
+/**
+ * Builds a Vipps SDK client from resolved credentials. Credentials are always
+ * passed in (never read from `process.env` here) so the managed test/live
+ * configuration drives which merchant + mode is used.
+ */
+export function buildVippsClient(
+  creds: VippsCredentials
+): ReturnType<typeof Client> {
+  return Client({
+    merchantSerialNumber: creds.merchantSerialNumber,
+    subscriptionKey: creds.subscriptionKey,
+    useTestMode: creds.testMode,
+    retryRequests: false,
+    pluginName: "biso-payment",
+    pluginVersion: "1.0.0",
+    systemName: "biso",
+    systemVersion: "1.0.0",
+  });
 }

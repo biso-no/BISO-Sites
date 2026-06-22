@@ -334,7 +334,9 @@ export async function runDepartmentAnalysis(): Promise<
 > {
   try {
     const ctx = await requireItPermission("it.users.editProfile");
-    console.info(`${LOG} starting; fetching licensed M365 users + canonical data…`);
+    console.info(
+      `${LOG} starting; fetching licensed M365 users + canonical data…`
+    );
     const fetchStart = Date.now();
     const graph = getGraphService();
     const [licensed, data] = await Promise.all([

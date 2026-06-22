@@ -7,8 +7,11 @@ import {
   Calendar,
   ClipboardList,
   Command,
+  CreditCard,
   FileStack,
   FileText,
+  Flag,
+  Gauge,
   Gift,
   HardDrive,
   Inbox,
@@ -325,6 +328,30 @@ export function Sidebar({ user, roles }: SidebarProps) {
               href="/activity"
               icon={Activity}
               label={t("activity")}
+            />
+          )}
+          {canViewSettings && (
+            <SidebarLink
+              active={isActive("/operations")}
+              href="/operations"
+              icon={Gauge}
+              label={t("operations")}
+            />
+          )}
+          {canViewSettings && (
+            <SidebarLink
+              active={isActive("/feature-flags")}
+              href="/feature-flags"
+              icon={Flag}
+              label={t("featureFlags")}
+            />
+          )}
+          {canViewSettings && (
+            <SidebarLink
+              active={isActive("/payment-settings")}
+              href="/payment-settings"
+              icon={CreditCard}
+              label={t("payments")}
             />
           )}
           {canViewSettings && (

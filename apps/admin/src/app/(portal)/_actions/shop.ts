@@ -274,6 +274,11 @@ export async function updateProduct(id: string, values: ProductFormValues) {
 
   try {
     assertWriteAccess(ctx, product.campus_id, product.departmentId);
+    assertWriteAccess(
+      ctx,
+      validated.data.campus_id,
+      validated.data.department_id ?? null
+    );
     if (
       product.status === "published" ||
       validated.data.status === "published"
