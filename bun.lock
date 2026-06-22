@@ -28,6 +28,7 @@
         "@repo/connectors": "workspace:*",
         "@repo/editor": "workspace:*",
         "@repo/i18n": "workspace:*",
+        "@repo/payment": "workspace:*",
         "@repo/shared": "workspace:*",
         "@repo/ui": "workspace:*",
         "@tailwindcss/postcss": "catalog:",
