@@ -166,3 +166,48 @@ source once set.
   reads behind global-admin + admin client; audit every change.
 - `payments_stripe` stays OFF (its catalog default) until this is verified in
   staging.
+
+## Staging E2E checklist (owner — cannot be faked locally)
+
+Prereqs (one-time):
+1. Push the schema: `appwrite push` (or deploy) so the `payment_settings` table
+   exists in staging, then regenerate types: `appwrite types -l ts ./types`
+   (replaces the hand-written `PaymentSettings` type usage — optional, code works
+   without it).
+2. Set env on the **api** app (runtime, not just build): `APPWRITE_DATABASE_ID=app`,
+   `APPWRITE_ORDERS_COLLECTION_ID=orders`, `APPWRITE_WEBSHOP_PRODUCTS_COLLECTION_ID=webshop_products`,
+   plus `NEXT_PUBLIC_API_BASE_URL` (api), `NEXT_PUBLIC_WEB_BASE_URL`/`NEXT_PUBLIC_BASE_URL` (web).
+3. Stripe: create a **test-mode** account, copy `sk_test_...`; add a webhook
+   endpoint `https://<api-host>/api/payment/stripe/callback` for events
+   `checkout.session.completed`, `checkout.session.expired`,
+   `checkout.session.async_payment_succeeded/failed`; copy its `whsec_...`.
+4. Vipps: have test `client_id`, `client_secret`, `subscription_key`, MSN, and set
+   `VIPPS_CALLBACK_TOKEN` (env-only).
+
+Configure (admin UI):
+5. Sign in as a **global admin** → Settings → Platform → **Payment providers**
+   (`/payment-settings`). For each provider: paste the **test** secrets, leave
+   live blank, keep **Test mode ON**. Confirm each field flips to "Set" and the
+   card shows "Fully configured". **Confirm the network response of
+   `getPaymentSettingsView` contains NO secret values** (only booleans).
+6. In `/feature-flags`, ensure `payments_vipps` = ON. Turn `payments_stripe` = ON
+   only for this test.
+
+Run:
+7. Vipps order: add an in-stock product to cart → checkout → pick Vipps →
+   complete in the Vipps test app. Expect redirect to
+   `/shop/order/<id>?success=true`; order `status` = `paid`/`authorized`; stock
+   decremented; `finago_transaction_id` set (Finago post). Re-hit the return URL →
+   no double Finago post.
+8. Stripe order: same, pick card → complete with test card `4242 4242 4242 4242`.
+   Same expected results. Confirm the Stripe webhook (`/stripe/callback`) is
+   received (Stripe dashboard → 2xx) and also updates status.
+9. Test→live switch: in `/payment-settings`, paste **live** secrets, toggle Test
+   mode OFF, confirm "Active mode: live" + completeness; a new checkout now uses
+   the live key (verify in the provider dashboard). Toggle back to test.
+10. Kill switches: turn `payments_stripe` OFF → checkout hides card and the api
+    route returns 403; same for `payments_vipps`.
+11. Audit: `audit_logs` has `payment_setting.update` (field names only, no values)
+    and `payment_setting.toggle` rows for the changes above.
+
+Only after 7–11 pass: decide whether to leave `payments_stripe` ON in production.
