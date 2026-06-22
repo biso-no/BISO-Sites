@@ -72,6 +72,93 @@ function isValidBody(body: CheckoutBody | null): body is CheckoutBody {
   );
 }
 
+type CheckoutDb = Awaited<ReturnType<typeof createAdminClient>>["db"];
+
+type SessionOutcome =
+  | {
+      ok: true;
+      orderId: string;
+      session: { checkoutUrl: string; sessionId: string };
+    }
+  | { ok: false; message: string; status: number };
+
+// Resolve credentials before creating the order so a misconfigured provider
+// doesn't leave an orphan PENDING order. Extracted from POST so each provider's
+// branch (plus debug logging) doesn't push POST over the complexity budget.
+async function startVippsCheckout(
+  params: CheckoutSessionParams,
+  db: CheckoutDb,
+  webBase: string,
+  apiBase: string
+): Promise<SessionOutcome> {
+  console.log("[payment/vipps/checkout] resolving credentials…");
+  const creds = await resolveVippsCredentials(db);
+  if (!creds) {
+    console.error(
+      "[payment/vipps/checkout] credentials resolved=false — no complete credential set in DB or env"
+    );
+    return { ok: false, message: "Vipps is not configured", status: 503 };
+  }
+  console.log("[payment/vipps/checkout] credentials resolved=true", {
+    testMode: creds.testMode,
+    msn: creds.merchantSerialNumber,
+    clientIdPrefix: `${creds.clientId.slice(0, 8)}… (len ${creds.clientId.length})`,
+    subscriptionKeyPrefix: `${creds.subscriptionKey.slice(0, 8)}… (len ${creds.subscriptionKey.length})`,
+    clientSecretLen: creds.clientSecret.length,
+    hasCallbackToken: creds.callbackToken.length > 0,
+  });
+  console.log(
+    `[payment/vipps/checkout] creating order for reference=${params.reference}`
+  );
+  const { orderId } = await createOrder(params, db);
+  console.log(`[payment/vipps/checkout] order created orderId=${orderId}`);
+  const callbackUrl = `${apiBase}/api/payment/vipps/callback?orderId=${orderId}`;
+  const returnUrl = `${webBase}/api/checkout/return?orderId=${orderId}`;
+  console.log(
+    `[payment/vipps/checkout] callbackUrl=${callbackUrl} returnUrl=${returnUrl}`
+  );
+  const session = await createVippsCheckoutSession({ ...params, orderId }, creds, {
+    callbackUrl,
+    returnUrl,
+  });
+  console.log(
+    `[payment/vipps/checkout] session created sessionId=${session.sessionId} checkoutUrl=${session.checkoutUrl}`
+  );
+  return { ok: true, orderId, session };
+}
+
+async function startStripeCheckout(
+  params: CheckoutSessionParams,
+  db: CheckoutDb,
+  webBase: string
+): Promise<SessionOutcome> {
+  console.log("[payment/stripe/checkout] resolving credentials…");
+  const creds = await resolveStripeCredentials(db);
+  console.log(`[payment/stripe/checkout] credentials resolved=${creds !== null}`);
+  if (!creds) {
+    return { ok: false, message: "Stripe is not configured", status: 503 };
+  }
+  console.log(
+    `[payment/stripe/checkout] creating order for reference=${params.reference}`
+  );
+  const { orderId } = await createOrder(params, db);
+  console.log(`[payment/stripe/checkout] order created orderId=${orderId}`);
+  const successUrl = `${webBase}/api/checkout/return?orderId=${orderId}`;
+  const cancelUrl = `${webBase}/shop/cart?cancelled=true`;
+  console.log(
+    `[payment/stripe/checkout] successUrl=${successUrl} cancelUrl=${cancelUrl}`
+  );
+  const session = await createStripeCheckoutSession(
+    { ...params, orderId },
+    creds,
+    { successUrl, cancelUrl }
+  );
+  console.log(
+    `[payment/stripe/checkout] session created sessionId=${session.sessionId} checkoutUrl=${session.checkoutUrl}`
+  );
+  return { ok: true, orderId, session };
+}
+
 export async function POST(
   req: NextRequest,
   ctx: { params: Promise<{ provider: string }> }
@@ -79,7 +166,9 @@ export async function POST(
   const origin = req.headers.get("origin");
   const { provider } = await ctx.params;
 
-  console.log(`[payment/${provider}/checkout] → POST origin=${origin ?? "(none)"}`);
+  console.log(
+    `[payment/${provider}/checkout] → POST origin=${origin ?? "(none)"}`
+  );
 
   const json = (data: unknown, status = 200) =>
     applyCorsHeaders(NextResponse.json(data, { status }), origin);
@@ -93,7 +182,9 @@ export async function POST(
     // Availability kill switch (Phase A/B). Separate from credential config.
     const flagKey = provider === "vipps" ? "payments_vipps" : "payments_stripe";
     const flagEnabled = await isFeatureEnabled(flagKey);
-    console.log(`[payment/${provider}/checkout] feature flag "${flagKey}" = ${flagEnabled}`);
+    console.log(
+      `[payment/${provider}/checkout] feature flag "${flagKey}" = ${flagEnabled}`
+    );
     if (!flagEnabled) {
       return json(
         { message: `${provider} payment is currently unavailable` },
@@ -103,17 +194,20 @@ export async function POST(
 
     const webBase = webBaseUrl();
     const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL;
-    console.log(`[payment/${provider}/checkout] env NEXT_PUBLIC_WEB_BASE_URL="${webBase ?? "(missing)"}" NEXT_PUBLIC_API_BASE_URL="${apiBase ?? "(missing)"}"`);
+    console.log(
+      `[payment/${provider}/checkout] env NEXT_PUBLIC_WEB_BASE_URL="${webBase ?? "(missing)"}" NEXT_PUBLIC_API_BASE_URL="${apiBase ?? "(missing)"}"`
+    );
     if (!(webBase && apiBase)) {
       return json({ message: "Payment service is misconfigured" }, 500);
     }
 
-    let rawBody: unknown = null;
     const body = (await req.json().catch((e) => {
-      console.error(`[payment/${provider}/checkout] failed to parse JSON body:`, e);
+      console.error(
+        `[payment/${provider}/checkout] failed to parse JSON body:`,
+        e
+      );
       return null;
     })) as CheckoutBody | null;
-    rawBody = body;
     const bodyValid = isValidBody(body);
     console.log(`[payment/${provider}/checkout] body valid=${bodyValid}`, {
       userId: body?.userId ?? "(missing)",
@@ -123,67 +217,29 @@ export async function POST(
       total: body?.total ?? "(missing)",
     });
     if (!bodyValid) {
-      console.warn(`[payment/${provider}/checkout] rejected — raw body:`, rawBody);
+      console.warn(
+        `[payment/${provider}/checkout] rejected — raw body:`,
+        body
+      );
       return json({ message: "Invalid checkout payload" }, 400);
     }
 
     const { db } = await createAdminClient();
     const params = toCheckoutParams(body);
 
-    // Resolve managed (or env-fallback) credentials before creating the order
-    // so a misconfigured provider doesn't leave an orphan PENDING order.
-    let session: { checkoutUrl: string; sessionId: string };
-    let orderId: string;
+    const outcome =
+      provider === "vipps"
+        ? await startVippsCheckout(params, db, webBase, apiBase)
+        : await startStripeCheckout(params, db, webBase);
 
-    if (provider === "vipps") {
-      console.log(`[payment/vipps/checkout] resolving credentials…`);
-      const creds = await resolveVippsCredentials(db);
-      if (!creds) {
-        console.error(`[payment/vipps/checkout] credentials resolved=false — no complete credential set in DB or env`);
-        return json({ message: "Vipps is not configured" }, 503);
-      }
-      console.log(`[payment/vipps/checkout] credentials resolved=true`, {
-        testMode: creds.testMode,
-        msn: creds.merchantSerialNumber,
-        clientIdPrefix: `${creds.clientId.slice(0, 8)}… (len ${creds.clientId.length})`,
-        subscriptionKeyPrefix: `${creds.subscriptionKey.slice(0, 8)}… (len ${creds.subscriptionKey.length})`,
-        clientSecretLen: creds.clientSecret.length,
-        hasCallbackToken: creds.callbackToken.length > 0,
-      });
-      console.log(`[payment/vipps/checkout] creating order for reference=${params.reference}`);
-      ({ orderId } = await createOrder(params, db));
-      console.log(`[payment/vipps/checkout] order created orderId=${orderId}`);
-      const callbackUrl = `${apiBase}/api/payment/vipps/callback?orderId=${orderId}`;
-      const returnUrl = `${webBase}/api/checkout/return?orderId=${orderId}`;
-      console.log(`[payment/vipps/checkout] callbackUrl=${callbackUrl} returnUrl=${returnUrl}`);
-      session = await createVippsCheckoutSession(
-        { ...params, orderId },
-        creds,
-        { callbackUrl, returnUrl }
-      );
-      console.log(`[payment/vipps/checkout] session created sessionId=${session.sessionId} checkoutUrl=${session.checkoutUrl}`);
-    } else {
-      console.log(`[payment/stripe/checkout] resolving credentials…`);
-      const creds = await resolveStripeCredentials(db);
-      console.log(`[payment/stripe/checkout] credentials resolved=${creds !== null}`);
-      if (!creds) {
-        return json({ message: "Stripe is not configured" }, 503);
-      }
-      console.log(`[payment/stripe/checkout] creating order for reference=${params.reference}`);
-      ({ orderId } = await createOrder(params, db));
-      console.log(`[payment/stripe/checkout] order created orderId=${orderId}`);
-      const successUrl = `${webBase}/api/checkout/return?orderId=${orderId}`;
-      const cancelUrl = `${webBase}/shop/cart?cancelled=true`;
-      console.log(`[payment/stripe/checkout] successUrl=${successUrl} cancelUrl=${cancelUrl}`);
-      session = await createStripeCheckoutSession(
-        { ...params, orderId },
-        creds,
-        { successUrl, cancelUrl }
-      );
-      console.log(`[payment/stripe/checkout] session created sessionId=${session.sessionId} checkoutUrl=${session.checkoutUrl}`);
+    if (!outcome.ok) {
+      return json({ message: outcome.message }, outcome.status);
     }
 
-    console.log(`[payment/${provider}/checkout] persisting session on orderId=${orderId}`);
+    const { orderId, session } = outcome;
+    console.log(
+      `[payment/${provider}/checkout] persisting session on orderId=${orderId}`
+    );
     await updateOrderWithSession(
       orderId,
       {

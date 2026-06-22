@@ -65,7 +65,7 @@ async function handleVippsCallback(req: NextRequest, origin: string | null) {
     );
     console.log(`[payment/vipps/callback] vipps session paymentState=${paymentState}`);
     await updateOrderStatus(orderId, paymentState, sessionData, db);
-    console.log(`[payment/vipps/callback] order status updated`);
+    console.log("[payment/vipps/callback] order status updated");
   }
 
   return json({ received: true });
