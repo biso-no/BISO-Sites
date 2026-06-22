@@ -4,6 +4,13 @@ DO NOT STOP TO ASK "SHOULD I PROCEED?" — PROCEED. DO NOT WAIT FOR CONFIRMATION
 IF BLOCKED, TRY AN ALTERNATIVE APPROACH. ONLY ASK WHEN TRULY AMBIGUOUS OR DESTRUCTIVE.
 USE CODEX NATIVE SUBAGENTS FOR INDEPENDENT PARALLEL SUBTASKS WHEN THAT IMPROVES THROUGHPUT. THIS IS COMPLEMENTARY TO OMX TEAM MODE.
 <!-- END AUTONOMY DIRECTIVE -->
+<!-- BEGIN:nextjs-agent-rules -->
+ 
+# Next.js: ALWAYS read docs before coding
+ 
+Before any Next.js work, find and read the relevant doc in `apps/{app_name}/node_modules/next/dist/docs/`. Your training data is outdated — the docs are the source of truth.
+ 
+<!-- END:nextjs-agent-rules -->
 <!-- omx:generated:agents-md -->
 
 # oh-my-codex - Intelligent Multi-Agent Orchestration
