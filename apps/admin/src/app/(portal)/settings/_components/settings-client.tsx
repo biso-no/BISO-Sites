@@ -51,6 +51,8 @@ interface SettingsClientProps {
       operationsHint: string;
       featureFlags: string;
       featureFlagsHint: string;
+      payments: string;
+      paymentsHint: string;
     };
   };
   timezoneOptions: AdminTimezone[];
@@ -477,6 +479,11 @@ export function SettingsClient({
               hint={labels.platform.featureFlagsHint}
               href="/feature-flags"
               label={labels.platform.featureFlags}
+            />
+            <LinkRow
+              hint={labels.platform.paymentsHint}
+              href="/payment-settings"
+              label={labels.platform.payments}
             />
           </SectionCard>
         )}

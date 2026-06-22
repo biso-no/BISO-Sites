@@ -7,6 +7,7 @@ import {
   Calendar,
   ClipboardList,
   Command,
+  CreditCard,
   FileStack,
   FileText,
   Flag,
@@ -343,6 +344,14 @@ export function Sidebar({ user, roles }: SidebarProps) {
               href="/feature-flags"
               icon={Flag}
               label={t("featureFlags")}
+            />
+          )}
+          {canViewSettings && (
+            <SidebarLink
+              active={isActive("/payment-settings")}
+              href="/payment-settings"
+              icon={CreditCard}
+              label={t("payments")}
             />
           )}
           {canViewSettings && (

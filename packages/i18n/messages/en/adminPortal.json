@@ -14,6 +14,7 @@
     "settings": "Settings",
     "featureFlags": "Feature flags",
     "operations": "Operations health",
+    "payments": "Payments",
     "activity": "Activity",
     "drafts": "Review Drafts",
     "approvals": "Approvals",
@@ -939,6 +940,30 @@
     "toggleError": "Failed to update flag",
     "toggleSuccess": "Flag updated"
   },
+  "paymentSettings": {
+    "title": "Payment providers",
+    "description": "Managed credentials and test/live mode for Vipps and Stripe. Secrets are stored encrypted and write-only — values are never shown. Changes are audited.",
+    "testMode": "Test mode",
+    "testModeHint": "Use the test credential set. Turn off to charge real cards.",
+    "test": "Test",
+    "live": "Live",
+    "activeMode": "Active mode",
+    "configured": "Set",
+    "notConfigured": "Not set",
+    "complete": "Fully configured",
+    "incomplete": "Incomplete",
+    "missing": "Missing",
+    "testCredentials": "Test credentials",
+    "liveCredentials": "Live credentials",
+    "secretPlaceholder": "Leave blank to keep current value",
+    "save": "Save",
+    "saved": "Payment settings updated",
+    "saveError": "Failed to update payment settings",
+    "providers": {
+      "vipps": "Vipps",
+      "stripe": "Stripe (card)"
+    }
+  },
   "settings": {
     "title": "Settings",
     "description": "Configure your admin preferences.",
@@ -993,7 +1018,9 @@
       "operations": "Operations health",
       "operationsHint": "Read-only status of integrations, scheduler secrets, and required teams",
       "featureFlags": "Feature flags",
-      "featureFlagsHint": "Turn platform features on or off (audited)"
+      "featureFlagsHint": "Turn platform features on or off (audited)",
+      "payments": "Payment providers",
+      "paymentsHint": "Managed Vipps/Stripe credentials and test mode (audited)"
     },
     "saveSuccess": "Settings saved",
     "saveError": "Failed to save settings"

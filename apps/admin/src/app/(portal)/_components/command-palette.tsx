@@ -5,6 +5,7 @@ import {
   Briefcase,
   Building2,
   Calendar,
+  CreditCard,
   FileStack,
   FileText,
   Flag,
@@ -152,6 +153,14 @@ const ALL_COMMANDS: PaletteCommand[] = [
     label: "Feature flags",
     icon: Flag,
     href: "/feature-flags",
+    navKey: "portal.settings",
+  },
+  {
+    id: "nav-payment-settings",
+    group: "navigate",
+    label: "Payment settings",
+    icon: CreditCard,
+    href: "/payment-settings",
     navKey: "portal.settings",
   },
   {

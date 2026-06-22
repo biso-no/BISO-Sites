@@ -109,6 +109,8 @@ export default async function SettingsPage() {
             operationsHint: t("platform.operationsHint"),
             featureFlags: t("platform.featureFlags"),
             featureFlagsHint: t("platform.featureFlagsHint"),
+            payments: t("platform.payments"),
+            paymentsHint: t("platform.paymentsHint"),
           },
           saveSuccess: t("saveSuccess"),
           saveError: t("saveError"),

@@ -14,6 +14,7 @@
     "settings": "Innstillinger",
     "featureFlags": "Funksjonsbrytere",
     "operations": "Driftshelse",
+    "payments": "Betaling",
     "activity": "Aktivitet",
     "drafts": "Gjennomgå utkast",
     "approvals": "Godkjenninger",
@@ -939,6 +940,30 @@
     "toggleError": "Kunne ikke oppdatere bryter",
     "toggleSuccess": "Bryter oppdatert"
   },
+  "paymentSettings": {
+    "title": "Betalingsleverandører",
+    "description": "Administrerte legitimasjoner og test/live-modus for Vipps og Stripe. Hemmeligheter lagres kryptert og er skrivebeskyttet — verdier vises aldri. Endringer logges.",
+    "testMode": "Testmodus",
+    "testModeHint": "Bruk testlegitimasjonen. Slå av for å belaste ekte kort.",
+    "test": "Test",
+    "live": "Live",
+    "activeMode": "Aktiv modus",
+    "configured": "Satt",
+    "notConfigured": "Ikke satt",
+    "complete": "Fullt konfigurert",
+    "incomplete": "Ufullstendig",
+    "missing": "Mangler",
+    "testCredentials": "Testlegitimasjon",
+    "liveCredentials": "Live-legitimasjon",
+    "secretPlaceholder": "La stå tomt for å beholde nåværende verdi",
+    "save": "Lagre",
+    "saved": "Betalingsinnstillinger oppdatert",
+    "saveError": "Kunne ikke oppdatere betalingsinnstillinger",
+    "providers": {
+      "vipps": "Vipps",
+      "stripe": "Stripe (kort)"
+    }
+  },
   "settings": {
     "title": "Innstillinger",
     "description": "Konfigurer adminpreferansene dine.",
@@ -993,7 +1018,9 @@
       "operations": "Driftshelse",
       "operationsHint": "Skrivebeskyttet status for integrasjoner, planleggerhemmeligheter og påkrevde team",
       "featureFlags": "Funksjonsbrytere",
-      "featureFlagsHint": "Slå plattformfunksjoner av eller på (revidert)"
+      "featureFlagsHint": "Slå plattformfunksjoner av eller på (revidert)",
+      "payments": "Betalingsleverandører",
+      "paymentsHint": "Administrerte Vipps/Stripe-legitimasjoner og testmodus (logget)"
     },
     "saveSuccess": "Innstillinger lagret",
     "saveError": "Kunne ikke lagre innstillinger"
