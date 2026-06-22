@@ -1,9 +1,6 @@
-import { client } from "./client";
+import type { VippsCredentials } from "../credentials/types";
+import { buildVippsClient } from "./client";
 import type { CheckoutSessionParams, VippsPaymentState } from "./types";
-
-const clientId = process.env.VIPPS_CLIENT_ID!;
-const clientSecret = process.env.VIPPS_CLIENT_SECRET!;
-const callbackToken = process.env.VIPPS_CALLBACK_TOKEN!;
 
 interface VippsCheckoutData {
   checkoutFrontendUrl: string;
@@ -23,14 +20,24 @@ interface VippsSessionData {
   sessionState?: string;
 }
 
+/** Redirect + webhook targets for a Vipps Checkout session. */
+export interface VippsCheckoutUrls {
+  /** Vipps webhook receiver — the `apps/api` callback route. */
+  callbackUrl: string;
+  /** Post-payment redirect — the `apps/web` checkout return route. */
+  returnUrl: string;
+}
+
 /**
  * Creates a Vipps Checkout session.
  * Returns only the checkout URL and session ID — no DB operations.
  */
 export async function createVippsCheckoutSession(
-  params: CheckoutSessionParams & { orderId: string }
+  params: CheckoutSessionParams & { orderId: string },
+  creds: VippsCredentials,
+  urls: VippsCheckoutUrls
 ): Promise<{ checkoutUrl: string; sessionId: string }> {
-  const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL!;
+  const client = buildVippsClient(creds);
 
   const lineItems = params.items.map((item) => ({
     name: item.title || item.name,
@@ -50,39 +57,43 @@ export async function createVippsCheckoutSession(
     },
   }));
 
-  const result = await client.checkout.create(clientId, clientSecret, {
-    merchantInfo: {
-      callbackUrl: `${baseUrl}/api/payment/vipps/callback`,
-      returnUrl: `${baseUrl}/api/checkout/return?orderId=${params.orderId}`,
-      callbackAuthorizationToken: callbackToken,
-    },
-    transaction: {
-      amount: {
-        value: Math.round(params.total * 100),
-        currency: params.currency,
+  const result = await client.checkout.create(
+    creds.clientId,
+    creds.clientSecret,
+    {
+      merchantInfo: {
+        callbackUrl: urls.callbackUrl,
+        returnUrl: urls.returnUrl,
+        callbackAuthorizationToken: creds.callbackToken,
       },
-      reference: params.reference,
-      paymentDescription: `Order ${params.orderId}`,
-      orderSummary: {
-        orderLines: lineItems,
-        orderBottomLine: {
-          tipAmount: 0,
+      transaction: {
+        amount: {
+          value: Math.round(params.total * 100),
           currency: params.currency,
         },
+        reference: params.reference,
+        paymentDescription: `Order ${params.orderId}`,
+        orderSummary: {
+          orderLines: lineItems,
+          orderBottomLine: {
+            tipAmount: 0,
+            currency: params.currency,
+          },
+        },
       },
-    },
-    prefillCustomer: {
-      firstName: params.customerInfo?.firstName,
-      lastName: params.customerInfo?.lastName,
-      email: params.customerInfo?.email,
-      phoneNumber: params.customerInfo?.phone,
-      city: params.customerInfo?.city,
-      postalCode: params.customerInfo?.postalCode,
-      country: params.customerInfo?.country,
-      streetAddress: params.customerInfo?.streetAddress,
-    },
-    type: "PAYMENT" as const,
-  });
+      prefillCustomer: {
+        firstName: params.customerInfo?.firstName,
+        lastName: params.customerInfo?.lastName,
+        email: params.customerInfo?.email,
+        phoneNumber: params.customerInfo?.phone,
+        city: params.customerInfo?.city,
+        postalCode: params.customerInfo?.postalCode,
+        country: params.customerInfo?.country,
+        streetAddress: params.customerInfo?.streetAddress,
+      },
+      type: "PAYMENT" as const,
+    }
+  );
 
   if (!result.ok) {
     throw new Error(
@@ -98,14 +109,22 @@ export async function createVippsCheckoutSession(
 
 /**
  * Fetches the current session state from Vipps.
- * Uses Vipps API credentials (env vars) — no caller-supplied auth token needed.
- * No DB operations.
+ * Uses the resolved Vipps API credentials — no caller-supplied auth token
+ * needed. No DB operations.
  */
-export async function getVippsSession(sessionId: string): Promise<{
+export async function getVippsSession(
+  sessionId: string,
+  creds: VippsCredentials
+): Promise<{
   paymentState: VippsPaymentState;
   sessionData: VippsSessionData;
 }> {
-  const result = await client.checkout.info(clientId, clientSecret, sessionId);
+  const client = buildVippsClient(creds);
+  const result = await client.checkout.info(
+    creds.clientId,
+    creds.clientSecret,
+    sessionId
+  );
 
   if (!result.ok) {
     throw new Error(
@@ -131,8 +150,12 @@ export async function getVippsSession(sessionId: string): Promise<{
 }
 
 /**
- * Validates the auth token Vipps sends with webhook callbacks.
+ * Validates the auth token Vipps sends with webhook callbacks against the
+ * resolved callback token.
  */
-export function verifyVippsCallbackToken(token: string): boolean {
-  return token === callbackToken;
+export function verifyVippsCallbackToken(
+  token: string,
+  creds: VippsCredentials
+): boolean {
+  return token === creds.callbackToken;
 }
