@@ -169,6 +169,7 @@
       },
       "devDependencies": {
         "@repo/typescript-config": "workspace:*",
+        "@types/node": "catalog:",
         "@types/react": "catalog:",
         "typescript": "catalog:",
       },
