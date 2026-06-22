@@ -27,6 +27,10 @@ out/
 build
 dist
 
+# TypeScript (Next.js generated, do not commit)
+*.tsbuildinfo
+next-env.d.ts
+
 
 # Debug
 npm-debug.log*
