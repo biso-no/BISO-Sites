@@ -70,7 +70,11 @@ export async function createOrder(
     return { orderId, order };
   } catch (error) {
     console.error("Error creating order:", error);
-    throw new Error("Failed to create order in database");
+    throw new Error(
+      error instanceof Error
+        ? error.message
+        : `Failed to create order in database: ${String(error)}`
+    );
   }
 }
 
@@ -104,7 +108,11 @@ export async function updateOrderWithSession(
     );
   } catch (error) {
     console.error("Error updating order with session:", error);
-    throw new Error("Failed to update order with payment session");
+    throw new Error(
+      error instanceof Error
+        ? error.message
+        : `Failed to update order with payment session: ${String(error)}`
+    );
   }
 }
 
