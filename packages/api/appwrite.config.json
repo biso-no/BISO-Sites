@@ -5570,6 +5570,150 @@
       "indexes": []
     },
     {
+      "$id": "payment_settings",
+      "$permissions": [
+        "create(\"team:sg-app-dept-operationsunit\")",
+        "read(\"team:sg-app-dept-operationsunit\")",
+        "update(\"team:sg-app-dept-operationsunit\")",
+        "delete(\"team:sg-app-dept-operationsunit\")"
+      ],
+      "databaseId": "app",
+      "name": "Payment settings",
+      "enabled": true,
+      "rowSecurity": false,
+      "columns": [
+        {
+          "key": "provider",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 50,
+          "default": null,
+          "format": "enum",
+          "elements": [
+            "vipps",
+            "stripe"
+          ]
+        },
+        {
+          "key": "test_mode",
+          "type": "boolean",
+          "required": false,
+          "array": false,
+          "default": true
+        },
+        {
+          "key": "vipps_test_client_id",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 1024,
+          "default": null,
+          "encrypt": true
+        },
+        {
+          "key": "vipps_test_client_secret",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 1024,
+          "default": null,
+          "encrypt": true
+        },
+        {
+          "key": "vipps_test_subscription_key",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 1024,
+          "default": null,
+          "encrypt": true
+        },
+        {
+          "key": "vipps_test_msn",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 1024,
+          "default": null,
+          "encrypt": true
+        },
+        {
+          "key": "vipps_live_client_id",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 1024,
+          "default": null,
+          "encrypt": true
+        },
+        {
+          "key": "vipps_live_client_secret",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 1024,
+          "default": null,
+          "encrypt": true
+        },
+        {
+          "key": "vipps_live_subscription_key",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 1024,
+          "default": null,
+          "encrypt": true
+        },
+        {
+          "key": "vipps_live_msn",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 1024,
+          "default": null,
+          "encrypt": true
+        },
+        {
+          "key": "stripe_test_secret_key",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 1024,
+          "default": null,
+          "encrypt": true
+        },
+        {
+          "key": "stripe_test_webhook_secret",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 1024,
+          "default": null,
+          "encrypt": true
+        },
+        {
+          "key": "stripe_live_secret_key",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 1024,
+          "default": null,
+          "encrypt": true
+        },
+        {
+          "key": "stripe_live_webhook_secret",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 1024,
+          "default": null,
+          "encrypt": true
+        }
+      ],
+      "indexes": []
+    },
+    {
       "$id": "shop_settings",
       "$permissions": [
         "create(\"team:sg-app-dept-operationsunit\")",
