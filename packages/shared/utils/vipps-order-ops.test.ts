@@ -5,7 +5,12 @@ import {
   Currency,
   type VippsPaymentState,
 } from "../types/vipps";
-import { createOrder, updateOrderStatus } from "./vipps-order-ops";
+import {
+  applyOrderStatusTransition,
+  createOrder,
+  updateOrderStatus,
+  updateOrderWithSession,
+} from "./vipps-order-ops";
 
 const db = {
   createRow: vi.fn(),
@@ -84,6 +89,90 @@ describe("createOrder", () => {
       }),
     ]);
     expect(storedItems[0]).not.toHaveProperty("productId");
+  });
+});
+
+describe("updateOrderWithSession", () => {
+  beforeEach(() => {
+    process.env.APPWRITE_DATABASE_ID = "app";
+    process.env.APPWRITE_ORDERS_COLLECTION_ID = "orders";
+    db.updateRow.mockReset();
+    db.updateRow.mockResolvedValue({});
+  });
+
+  it("persists the canonical payment columns for a provider session", async () => {
+    await updateOrderWithSession(
+      "order-1",
+      {
+        provider: "stripe",
+        sessionId: "cs_123",
+        checkoutUrl: "https://pay.example/cs_123",
+      },
+      db
+    );
+
+    expect(db.updateRow).toHaveBeenCalledWith("app", "orders", "order-1", {
+      payment_provider: "stripe",
+      payment_session_id: "cs_123",
+      payment_link: "https://pay.example/cs_123",
+    });
+  });
+});
+
+describe("applyOrderStatusTransition", () => {
+  beforeEach(() => {
+    process.env.APPWRITE_DATABASE_ID = "app";
+    process.env.APPWRITE_ORDERS_COLLECTION_ID = "orders";
+    process.env.APPWRITE_WEBSHOP_PRODUCTS_COLLECTION_ID = "webshop_products";
+
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.spyOn(console, "log").mockImplementation(() => undefined);
+
+    db.createRow.mockReset();
+    db.deleteRow.mockReset();
+    db.getRow.mockReset();
+    db.listRows.mockReset();
+    db.updateRow.mockReset();
+    db.listRows.mockResolvedValue({ rows: [] });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("decrements stock and writes status plus extra columns for a Stripe paid transition", async () => {
+    db.getRow.mockImplementation((_databaseId: string, collectionId: string) => {
+      if (collectionId === "orders") {
+        return Promise.resolve({
+          $id: "order-1",
+          items_json: JSON.stringify([
+            { product_id: "product-1", quantity: 2, unit_price: 499 },
+          ]),
+          status: OrdersStatus.PENDING,
+          userId: "user-1",
+        });
+      }
+      return Promise.resolve({ $id: "product-1", stock: 5 });
+    });
+
+    const result = await applyOrderStatusTransition(
+      "order-1",
+      OrdersStatus.PAID,
+      { payment_intent_id: "pi_1" },
+      db
+    );
+
+    expect(result.newStatus).toBe(OrdersStatus.PAID);
+    expect(db.updateRow).toHaveBeenCalledWith(
+      "app",
+      "webshop_products",
+      "product-1",
+      { stock: 3 }
+    );
+    expect(db.updateRow).toHaveBeenCalledWith("app", "orders", "order-1", {
+      status: OrdersStatus.PAID,
+      payment_intent_id: "pi_1",
+    });
   });
 });
 

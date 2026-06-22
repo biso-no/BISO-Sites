@@ -64,10 +64,6 @@ export async function createOrder(
         membership_applied: params.membershipApplied || null,
         member_discount_percent: params.memberDiscountPercent || null,
         campus_id: params.campusId || null,
-        vipps_session_id: null,
-        vipps_order_id: null,
-        vipps_payment_link: null,
-        vipps_receipt_url: null,
       }
     )) as Orders;
 
@@ -78,13 +74,21 @@ export async function createOrder(
   }
 }
 
+export interface OrderSessionUpdate {
+  provider: string;
+  sessionId: string;
+  checkoutUrl: string;
+}
+
 /**
- * Updates an order with Vipps session information
+ * Persists the provider checkout session on an order using the canonical
+ * payment columns the return/verify path reads (`payment_provider`,
+ * `payment_session_id`, `payment_link`). Provider-agnostic — used by both the
+ * Vipps and Stripe checkout routes.
  */
 export async function updateOrderWithSession(
   orderId: string,
-  sessionId: string,
-  checkoutUrl: string,
+  update: OrderSessionUpdate,
   databases: DbClient
 ): Promise<void> {
   try {
@@ -93,24 +97,28 @@ export async function updateOrderWithSession(
       process.env.APPWRITE_ORDERS_COLLECTION_ID!,
       orderId,
       {
-        vipps_session_id: sessionId,
-        vipps_payment_link: checkoutUrl,
+        payment_provider: update.provider,
+        payment_session_id: update.sessionId,
+        payment_link: update.checkoutUrl,
       }
     );
   } catch (error) {
     console.error("Error updating order with session:", error);
-    throw new Error("Failed to update order with Vipps session");
+    throw new Error("Failed to update order with payment session");
   }
 }
 
 /**
- * Updates order status based on Vipps payment state
- * Also handles stock decrements and restoration
+ * Applies a resolved order status transition: reads the current order, adjusts
+ * stock + reservations for the old→new transition, then persists the new status
+ * plus any extra column updates. Provider-agnostic — both the Vipps
+ * (`updateOrderStatus`) and Stripe callback paths share this so stock handling
+ * lives in exactly one place.
  */
-export async function updateOrderStatus(
+export async function applyOrderStatusTransition(
   orderId: string,
-  paymentState: VippsPaymentState,
-  sessionData: Parameters<typeof determineStatusFromPaymentState>[1],
+  newStatus: OrdersStatus,
+  updateData: Partial<Orders>,
   databases: DbClient
 ): Promise<{ newStatus: OrdersStatus }> {
   const currentOrder = (await databases.getRow(
@@ -120,10 +128,6 @@ export async function updateOrderStatus(
   )) as Orders;
 
   const oldStatus: OrdersStatus = currentOrder.status || OrdersStatus.PENDING;
-  const { status: newStatus, updateData } = determineStatusFromPaymentState(
-    paymentState,
-    sessionData
-  );
   const orderItems = parseOrderItems(currentOrder.items_json);
 
   try {
@@ -152,6 +156,23 @@ export async function updateOrderStatus(
     console.error("Error updating order status:", error);
     throw new Error("Failed to update order status");
   }
+}
+
+/**
+ * Updates order status based on Vipps payment state.
+ * Stock decrements and restoration are handled by applyOrderStatusTransition.
+ */
+export async function updateOrderStatus(
+  orderId: string,
+  paymentState: VippsPaymentState,
+  sessionData: Parameters<typeof determineStatusFromPaymentState>[1],
+  databases: DbClient
+): Promise<{ newStatus: OrdersStatus }> {
+  const { status, updateData } = determineStatusFromPaymentState(
+    paymentState,
+    sessionData
+  );
+  return applyOrderStatusTransition(orderId, status, updateData, databases);
 }
 
 interface StockAdjustmentParams {
