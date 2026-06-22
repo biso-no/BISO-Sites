@@ -1,4 +1,4 @@
-import { ID } from "@repo/api";
+import { ID, Permission, Role } from "@repo/api";
 import { type Orders, OrdersStatus } from "@repo/api/types/appwrite";
 import type { CheckoutSessionParams } from "../types/vipps";
 import { type ParsedOrderItem, parseOrderItems } from "./order-parsing";
@@ -8,7 +8,8 @@ export interface DbClient {
     dbId: string,
     collId: string,
     docId: string,
-    data: Record<string, unknown>
+    data: Record<string, unknown>,
+    permissions?: string[]
   ) => Promise<unknown>;
   deleteRow: (dbId: string, collId: string, docId: string) => Promise<unknown>;
   getRow: (dbId: string, collId: string, docId: string) => Promise<unknown>;
@@ -30,6 +31,21 @@ function buildStoredOrderItems(items: CheckoutSessionParams["items"]) {
     ...item,
     product_id: productId,
   }));
+}
+
+/**
+ * Per-row read grant so the buyer can fetch their own order. The orders table
+ * has row-level security on, and its collection permissions only expose rows to
+ * the Operations Unit team — without a document-level grant the buyer's session
+ * client gets a 404 on its own confirmation page. Status writes still go through
+ * the admin client, so the buyer only needs read. Anonymous/legacy "guest"
+ * orders fall back to public read since there is no account to scope to.
+ */
+function buildOrderPermissions(userId: string): string[] {
+  if (userId && userId !== "guest") {
+    return [Permission.read(Role.user(userId))];
+  }
+  return [Permission.read(Role.any())];
 }
 
 /**
@@ -63,7 +79,8 @@ export async function createOrder(
         membership_applied: params.membershipApplied || null,
         member_discount_percent: params.memberDiscountPercent || null,
         campus_id: params.campusId || null,
-      }
+      },
+      buildOrderPermissions(params.userId)
     )) as Orders;
 
     return { orderId, order };
