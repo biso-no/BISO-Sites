@@ -60,6 +60,14 @@ The public site.
 | `PINECONE_API_KEY` / `PINECONE_INDEX_NAME` | Pinecone vector store |
 | `CRON_SECRET` | Bearer token for `/api/cron/cleanup-reservations` |
 
+> **Payment credentials are now admin-managed.** Vipps/Stripe credentials and the
+> per-provider test/live mode are configured in the admin portal under
+> **Settings → Platform → Payment providers** (`/payment-settings`) and stored
+> encrypted in the `payment_settings` table. The `VIPPS_*` / `STRIPE_*` vars
+> above are the **fallback**, used only when no managed row exists (or its active
+> credential set is incomplete), so nothing breaks before the DB config is filled
+> in. `VIPPS_CALLBACK_TOKEN` stays env-only (it has no managed column).
+
 ## `apps/admin`
 
 The CMS.

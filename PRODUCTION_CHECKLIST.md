@@ -124,6 +124,13 @@ before merge.
    here is itself the strongest signal. Any future change to `orders.ts`,
    `cart-reservations.ts`, `purchase-limits.ts`, or the checkout routes
    deserves a staging Vipps test run, not just review.
+   **Phase C update:** the previously-missing checkout backend now exists
+   (`apps/api/src/app/api/payment/[provider]/{checkout,callback}` for both Vipps
+   and Stripe), provider credentials + test/live mode are admin-managed and
+   stored encrypted, and per-provider order-status mapping is unit-tested — but
+   the checkout/callback *routes themselves* are still integration-untested, so
+   a staging E2E run for both providers (see `docs/plans/payments-phase-c.md`)
+   is the gate before `payments_stripe` is turned on.
 
 2. **Authorization sprawl across three models with limited tests.** Web
    (anonymous-session + email heuristic), admin (Azure-AD team parsing →

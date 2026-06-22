@@ -1,9 +1,27 @@
 # Phase C — Stripe backend + managed payment provider configuration
 
-> Status: **deferred / for a fresh conversation.** Phases A and B (the feature-flag
-> kill-switch system) are implemented and on branch
-> `codex/managed-production-readiness`. This document is the complete spec for
-> Phase C so it can be executed independently.
+> Status: **implemented on branch `codex/managed-production-readiness`; pending
+> staging verification.** Phases A and B (the feature-flag kill-switch system)
+> shipped earlier. Phase C below is now built and green locally (types, lint,
+> tests, all four app builds). The remaining work is owner-only staging E2E with
+> real provider test credentials, and pushing the schema. `payments_stripe`
+> stays OFF until that staging run signs off.
+>
+> **Done (this branch):**
+> - Schema: `payment_settings` table added to `packages/api/appwrite.config.json`
+>   (Operations-Unit CRUD, `rowSecurity:false`, `encrypt:true` secret columns +
+>   `test_mode`). **Owner must push it** (`appwrite push` / deploy) and regenerate
+>   types — code uses a hand-written `PaymentSettings` type until then.
+> - `@repo/payment`: `./stripe` module + `./credentials` resolver; Vipps module
+>   refactored to take credentials + URLs as parameters (no module-scope env).
+> - `@repo/shared`: `determineStatusFromStripeSession`, `paymentProviderConfigStatus`,
+>   canonical `payment_*` order columns, shared `applyOrderStatusTransition`.
+> - `apps/api`: `POST /api/payment/[provider]/{checkout,callback}` for both providers.
+> - `apps/web`: checkout return + `verifyOrder` made provider-aware; legacy
+>   `src/lib/vipps.ts` and dead `_getCheckoutStatus` removed.
+> - `apps/admin`: `/payment-settings` write-only managed config UI (audited).
+> - Infra: `STRIPE_*` (+ `VIPPS_CALLBACK_TOKEN`) added to `turbo.json` build env;
+>   ops env docs note managed config is primary / env is fallback.
 
 ## Why
 
