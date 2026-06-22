@@ -6,8 +6,14 @@ import {
   chatModel,
 } from "@repo/ai/assistant";
 import type { AssistantActionDeps } from "@repo/ai/assistant/types";
-import { type Models, Query } from "@repo/api";
+import { ID, type Models, Query } from "@repo/api";
 import { createSessionClient } from "@repo/api/server";
+import {
+  FEATURE_FLAGS,
+  getFlagDef,
+  mergeFlagStates,
+} from "@repo/shared/utils/feature-flags";
+import { isFeatureEnabled } from "@repo/shared/utils/feature-flags-server";
 import type { UIMessage } from "ai";
 import { convertToModelMessages, stepCountIs, streamText } from "ai";
 import { type NextRequest, NextResponse } from "next/server";
@@ -88,6 +94,14 @@ export async function POST(request: NextRequest) {
     return auth.response;
   }
   const { ctx } = auth;
+
+  // 1b. Kill switch: the admin AI copilot can be disabled platform-wide.
+  if (!(await isFeatureEnabled("ai_admin_copilot"))) {
+    return NextResponse.json(
+      { error: "The AI assistant is currently disabled." },
+      { status: 403 }
+    );
+  }
 
   // 2. Locale
   const locale = await getLocale();
@@ -564,10 +578,19 @@ function buildDeps(
     // -------------------------------------------------------------------------
     getFeatureFlags: async () => {
       const { db } = await createSessionClient();
-      return await db.listRows("app", "feature_flags", [
-        Query.orderAsc("key"),
-        Query.limit(100),
-      ]);
+      const result = await db.listRows<
+        Models.Row & { key: string; enabled: boolean }
+      >("app", "feature_flags", [Query.limit(200)]);
+      const states = mergeFlagStates(
+        result.rows.map((row) => ({ key: row.key, enabled: row.enabled }))
+      );
+      // The code catalog is the source of truth for which flags exist.
+      return FEATURE_FLAGS.map((flag) => ({
+        key: flag.key,
+        title: flag.title,
+        group: flag.group,
+        enabled: states[flag.key],
+      }));
     },
 
     toggleFeatureFlag: async (input) => {
@@ -575,16 +598,27 @@ function buildDeps(
         enabled: boolean;
         flagKey: string;
       };
+      const def = getFlagDef(flagKey);
+      if (!def) {
+        throw new Error(`Unknown feature flag: ${flagKey}`);
+      }
       const { db } = await createSessionClient();
-      const result = await db.listRows("app", "feature_flags", [
+      const result = await db.listRows<Models.Row>("app", "feature_flags", [
         Query.equal("key", [flagKey]),
         Query.limit(1),
       ]);
-      const rows = (result as { rows: Array<{ $id: string }> }).rows;
-      if (rows.length === 0) {
-        throw new Error(`Feature flag not found: ${flagKey}`);
+      const existing = result.rows[0];
+      if (existing) {
+        await db.updateRow("app", "feature_flags", existing.$id, { enabled });
+      } else {
+        // Upsert: catalog flags may not have a row until first toggled.
+        await db.createRow("app", "feature_flags", ID.unique(), {
+          key: flagKey,
+          title: def.title,
+          description: null,
+          enabled,
+        });
       }
-      await db.updateRow("app", "feature_flags", rows[0].$id, { enabled });
       return { flagKey, enabled };
     },
 

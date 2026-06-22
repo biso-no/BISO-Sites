@@ -1,3 +1,4 @@
+import { isFeatureEnabled } from "@repo/shared/utils/feature-flags-server";
 import { getTranslations } from "next-intl/server";
 import { getUserRolesForClient, requireAdminAccess } from "@/lib/authorization";
 import { AdminShell } from "./_components/admin-shell";
@@ -26,6 +27,7 @@ export default async function PortalAdminLayout({
 }) {
   const ctx = await requireAdminAccess();
   const roles = await getUserRolesForClient();
+  const aiCopilotEnabled = await isFeatureEnabled("ai_admin_copilot");
 
   const user = {
     id: ctx.userId,
@@ -36,7 +38,7 @@ export default async function PortalAdminLayout({
   };
 
   return (
-    <AdminShell roles={roles} user={user}>
+    <AdminShell aiCopilotEnabled={aiCopilotEnabled} roles={roles} user={user}>
       {children}
     </AdminShell>
   );

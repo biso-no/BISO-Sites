@@ -3,6 +3,7 @@ import { InputFile } from "@repo/api/file";
 import { createAdminClient } from "@repo/api/server";
 import type { Users } from "@repo/api/types/appwrite";
 import { type Expenses, ExpensesStatus } from "@repo/api/types/appwrite";
+import { isFeatureEnabled } from "@repo/shared/utils/feature-flags-server";
 import { type NextRequest, NextResponse } from "next/server";
 import { createAuthenticatedClient } from "@/lib/auth";
 import { applyCorsHeaders, corsPreflightResponse } from "@/lib/cors";
@@ -117,6 +118,16 @@ export async function POST(req: NextRequest) {
   const origin = req.headers.get("origin");
 
   try {
+    if (!(await isFeatureEnabled("expenses_module"))) {
+      return applyCorsHeaders(
+        NextResponse.json(
+          { success: false, error: "Reimbursements are currently unavailable" },
+          { status: 403 }
+        ),
+        origin
+      );
+    }
+
     const { db, account } = await createAuthenticatedClient(req);
     const { messaging, storage: adminStorage } = await createAdminClient();
     const user = await account.get();

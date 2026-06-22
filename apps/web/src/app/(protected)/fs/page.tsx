@@ -1,3 +1,4 @@
+import { isFeatureEnabled } from "@repo/shared/utils/feature-flags-server";
 import { ImageWithFallback } from "@repo/ui/components/image";
 import { Button } from "@repo/ui/components/ui/button";
 import { Card } from "@repo/ui/components/ui/card";
@@ -7,6 +8,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { ExpenseCard } from "@/components/expense/expense-card";
 import { ExpenseListSkeleton } from "@/components/expense/expense-skeleton";
+import { ExpensesUnavailable } from "@/components/expense/expenses-unavailable";
 import { getExpenses } from "@/lib/actions/expense";
 
 async function ExpenseList() {
@@ -50,7 +52,15 @@ async function ExpenseList() {
   );
 }
 
-export default function ExpensesPage() {
+export default async function ExpensesPage() {
+  if (!(await isFeatureEnabled("expenses_module"))) {
+    return (
+      <div className="min-h-screen bg-linear-to-b from-section to-background">
+        <ExpensesUnavailable />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-linear-to-b from-section to-background">
       {/* Hero Section */}

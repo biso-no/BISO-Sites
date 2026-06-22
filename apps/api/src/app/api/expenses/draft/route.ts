@@ -1,5 +1,6 @@
 import { ID, type Models, Query } from "@repo/api";
 import { type Expenses, ExpensesStatus } from "@repo/api/types/appwrite";
+import { isFeatureEnabled } from "@repo/shared/utils/feature-flags-server";
 import { type NextRequest, NextResponse } from "next/server";
 import { createAuthenticatedClient } from "@/lib/auth";
 import { applyCorsHeaders, corsPreflightResponse } from "@/lib/cors";
@@ -44,6 +45,16 @@ export async function POST(req: NextRequest) {
   const origin = req.headers.get("origin");
 
   try {
+    if (!(await isFeatureEnabled("expenses_module"))) {
+      return applyCorsHeaders(
+        NextResponse.json(
+          { success: false, error: "Reimbursements are currently unavailable" },
+          { status: 403 }
+        ),
+        origin
+      );
+    }
+
     const { db, account } = await createAuthenticatedClient(req);
     const user = await account.get();
     const payload = parseExpensePayload(await req.json());

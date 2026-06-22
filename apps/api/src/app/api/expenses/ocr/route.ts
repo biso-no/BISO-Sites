@@ -1,4 +1,5 @@
 import { openai } from "@ai-sdk/openai";
+import { getFeatureFlagStates } from "@repo/shared/utils/feature-flags-server";
 import { generateObject } from "ai";
 import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
@@ -344,6 +345,17 @@ export async function POST(req: NextRequest) {
 
   if (!user) {
     return buildErrorResponse("Unauthorized", 401, origin);
+  }
+
+  // Kill switch: AI receipt scanning is gated by the OCR flag and the parent
+  // reimbursements module. Manual expense entry is unaffected.
+  const flags = await getFeatureFlagStates();
+  if (!(flags.expenses_module && flags.expenses_ocr)) {
+    return buildErrorResponse(
+      "Receipt scanning is currently disabled",
+      403,
+      origin
+    );
   }
 
   try {

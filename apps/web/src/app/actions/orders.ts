@@ -7,6 +7,7 @@ import type {
   Users,
 } from "@repo/api/types/appwrite";
 import type { Locale } from "@repo/i18n/config";
+import { getFeatureFlagStates } from "@repo/shared/utils/feature-flags-server";
 import { getAvailableStock } from "@/app/actions/cart-reservations";
 import { getLocale } from "@/app/actions/locale";
 import { getProduct } from "@/app/actions/products";
@@ -531,6 +532,17 @@ export async function createCartCheckoutSession(
   data: CartCheckoutData
 ): Promise<CheckoutResult> {
   try {
+    // Kill switch: a payment provider can be disabled platform-wide.
+    const flags = await getFeatureFlagStates();
+    const providerEnabled =
+      data.provider === "vipps" ? flags.payments_vipps : flags.payments_stripe;
+    if (!providerEnabled) {
+      return {
+        success: false,
+        error: `${data.provider === "vipps" ? "Vipps" : "Card"} payment is currently unavailable.`,
+      };
+    }
+
     const locale = await getLocale();
     const sanitizedItems = sanitizeCartItems(data.items);
 

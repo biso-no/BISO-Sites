@@ -20,6 +20,7 @@ interface AdminShellUser {
 }
 
 interface AdminShellProps {
+  aiCopilotEnabled: boolean;
   children: React.ReactNode;
   roles: UserRolesForClient;
   user: AdminShellUser;
@@ -33,7 +34,12 @@ function getCrumbKeys(pathname: string) {
   return segments;
 }
 
-export function AdminShell({ children, user, roles }: AdminShellProps) {
+export function AdminShell({
+  aiCopilotEnabled,
+  children,
+  user,
+  roles,
+}: AdminShellProps) {
   const pathname = usePathname();
   const t = useTranslations("adminPortal.nav");
   const tSidebar = useTranslations("adminPortal.sidebar");
@@ -142,7 +148,7 @@ export function AdminShell({ children, user, roles }: AdminShellProps) {
       </div>
 
       <CommandPalette roles={roles} />
-      <AssistantWidget roles={roles} user={user} />
+      {aiCopilotEnabled && <AssistantWidget roles={roles} user={user} />}
 
       <style>{`
         .portal-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }

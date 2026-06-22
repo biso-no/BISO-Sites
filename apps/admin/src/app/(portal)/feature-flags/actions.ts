@@ -3,36 +3,36 @@
 import { ID, Query } from "@repo/api";
 import { createSessionClient } from "@repo/api/server";
 import type { FeatureFlags } from "@repo/api/types/appwrite";
+import {
+  FEATURE_FLAG_GROUPS,
+  FEATURE_FLAGS,
+  type FeatureFlagGroup,
+  type FeatureFlagRow,
+  getFlagDef,
+  isKnownFlagKey,
+  mergeFlagStates,
+} from "@repo/shared/utils/feature-flags";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getUserAuthContext, type UserAuthContext } from "@/lib/authorization";
 import { logAuditEvent } from "../_actions/audit-log";
-import {
-  type FeatureFlagInput,
-  validateFeatureFlagInput,
-} from "./feature-flags-model";
 
 const TABLE = "feature_flags";
 
-export interface FeatureFlagItem {
-  description: string | null;
+export interface CatalogFlagItem {
+  description: string;
   enabled: boolean;
-  id: string;
+  group: FeatureFlagGroup;
   key: string;
   title: string;
 }
 
-type ActionResult<T> = { data: T } | { error: string };
-
-function toItem(row: FeatureFlags): FeatureFlagItem {
-  return {
-    id: row.$id,
-    key: row.key,
-    title: row.title,
-    description: row.description ?? null,
-    enabled: row.enabled,
-  };
+export interface CatalogFlagGroup {
+  flags: CatalogFlagItem[];
+  group: FeatureFlagGroup;
 }
+
+type ActionResult<T> = { data: T } | { error: string };
 
 async function requireFeatureFlagAccess(): Promise<UserAuthContext> {
   const ctx = await getUserAuthContext();
@@ -45,93 +45,96 @@ async function requireFeatureFlagAccess(): Promise<UserAuthContext> {
   return ctx;
 }
 
-export async function listFeatureFlags(): Promise<FeatureFlagItem[]> {
-  await requireFeatureFlagAccess();
+async function readFlagStates() {
   const { db } = await createSessionClient();
   const result = await db.listRows<FeatureFlags>("app", TABLE, [
-    Query.orderAsc("title"),
     Query.limit(200),
   ]);
-  return result.rows.map(toItem);
+  const rows: FeatureFlagRow[] = result.rows.map((row) => ({
+    key: row.key,
+    enabled: row.enabled,
+  }));
+  return mergeFlagStates(rows);
 }
 
-export async function setFeatureFlagEnabled(
-  id: string,
+/**
+ * The catalog of operational flags, grouped, with each flag's current on/off
+ * state resolved from the DB (override) or the catalog default. Catalog-only:
+ * non-catalog DB rows are ignored.
+ */
+export async function getCatalogFlagStates(): Promise<CatalogFlagGroup[]> {
+  await requireFeatureFlagAccess();
+  const states = await readFlagStates();
+
+  return FEATURE_FLAG_GROUPS.map((group) => ({
+    group,
+    flags: FEATURE_FLAGS.filter((flag) => flag.group === group).map((flag) => ({
+      key: flag.key,
+      group: flag.group,
+      title: flag.title,
+      description: flag.description,
+      enabled: states[flag.key],
+    })),
+  }));
+}
+
+/**
+ * Toggle a catalog flag by key. Upserts the `feature_flags` row (update if it
+ * exists, else create it from the catalog), audits, and revalidates.
+ */
+export async function setFeatureFlagByKey(
+  key: string,
   enabled: boolean
-): Promise<ActionResult<FeatureFlagItem>> {
+): Promise<ActionResult<CatalogFlagItem>> {
   try {
     const ctx = await requireFeatureFlagAccess();
+    const def = getFlagDef(key);
+    if (!(isKnownFlagKey(key) && def)) {
+      return { error: `Unknown feature flag: ${key}` };
+    }
+
     const { db } = await createSessionClient();
-    const updated = await db.updateRow<FeatureFlags>("app", TABLE, id, {
-      enabled,
-    });
+    const existing = await db.listRows<FeatureFlags>("app", TABLE, [
+      Query.equal("key", key),
+      Query.limit(1),
+    ]);
+
+    const existingRow = existing.rows[0];
+    const row = existingRow
+      ? await db.updateRow<FeatureFlags>("app", TABLE, existingRow.$id, {
+          enabled,
+        })
+      : await db.createRow<FeatureFlags>("app", TABLE, ID.unique(), {
+          key,
+          title: def.title,
+          // The `description` column is capped at 100 chars and the catalog is
+          // the display source, so the row keeps description null.
+          description: null,
+          enabled,
+        });
 
     await logAuditEvent(ctx, "feature_flag.toggle", {
-      resourceId: id,
+      resourceId: row.$id,
       resourceType: TABLE,
-      payload: { key: updated.key, enabled },
+      payload: { key, enabled },
     });
 
     revalidatePath("/feature-flags");
-    return { data: toItem(updated) };
+    return {
+      data: {
+        key,
+        group: def.group,
+        title: def.title,
+        description: def.description,
+        enabled: row.enabled,
+      },
+    };
   } catch (error) {
     return {
       error:
         error instanceof Error
           ? error.message
           : "Failed to update feature flag",
-    };
-  }
-}
-
-export async function createFeatureFlag(
-  input: FeatureFlagInput
-): Promise<ActionResult<FeatureFlagItem>> {
-  try {
-    const ctx = await requireFeatureFlagAccess();
-
-    const validation = validateFeatureFlagInput(input);
-    if (!validation.ok) {
-      return { error: validation.error };
-    }
-    const flag = validation.value;
-
-    const { db } = await createSessionClient();
-
-    const existing = await db.listRows<FeatureFlags>("app", TABLE, [
-      Query.equal("key", flag.key),
-      Query.limit(1),
-    ]);
-    if (existing.rows.length > 0) {
-      return { error: `A feature flag with key "${flag.key}" already exists` };
-    }
-
-    const created = await db.createRow<FeatureFlags>(
-      "app",
-      TABLE,
-      ID.unique(),
-      {
-        key: flag.key,
-        title: flag.title,
-        description: flag.description,
-        enabled: flag.enabled,
-      }
-    );
-
-    await logAuditEvent(ctx, "feature_flag.create", {
-      resourceId: created.$id,
-      resourceType: TABLE,
-      payload: { key: flag.key, enabled: flag.enabled },
-    });
-
-    revalidatePath("/feature-flags");
-    return { data: toItem(created) };
-  } catch (error) {
-    return {
-      error:
-        error instanceof Error
-          ? error.message
-          : "Failed to create feature flag",
     };
   }
 }

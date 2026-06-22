@@ -1,9 +1,13 @@
 import { createSessionClient } from "@repo/api/server";
 import type { Users } from "@repo/api/types/appwrite";
+import { getFeatureFlagStates } from "@repo/shared/utils/feature-flags-server";
 import type { Metadata } from "next";
 import { PublicPageHeader } from "@/components/public/public-page-header";
 import { getMembershipStatus } from "@/lib/actions/membership";
-import { CheckoutPageClient } from "./checkout-page-client";
+import {
+  CheckoutPageClient,
+  type PaymentProvider,
+} from "./checkout-page-client";
 
 export const metadata: Metadata = {
   title: "Checkout | BISO Shop",
@@ -11,6 +15,12 @@ export const metadata: Metadata = {
 
 export default async function CheckoutPage() {
   const { isMember } = await getMembershipStatus();
+
+  const flags = await getFeatureFlagStates();
+  const enabledProviders: PaymentProvider[] = [
+    ...(flags.payments_vipps ? (["vipps"] as const) : []),
+    ...(flags.payments_stripe ? (["stripe"] as const) : []),
+  ];
 
   const { account, db } = await createSessionClient();
   const user = await account.get().catch(() => null);
@@ -30,6 +40,7 @@ export default async function CheckoutPage() {
         title="Checkout"
       />
       <CheckoutPageClient
+        enabledProviders={enabledProviders}
         initialEmail={user?.email ?? undefined}
         initialName={profile?.name ?? undefined}
         isMember={isMember}

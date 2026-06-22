@@ -928,26 +928,16 @@
   },
   "featureFlags": {
     "title": "Feature flags",
-    "description": "Turn platform features on or off. Changes apply immediately and are written to the audit log.",
-    "empty": "No feature flags yet.",
-    "emptyDescription": "Create one to start gating a feature.",
-    "columnFlag": "Flag",
-    "columnState": "State",
+    "description": "Operational kill switches. Turn platform features on or off — changes apply within ~15s and are written to the audit log.",
     "enabled": "On",
     "disabled": "Off",
-    "create": {
-      "title": "New feature flag",
-      "key": "Key",
-      "keyHint": "Lowercase id used in code, e.g. new_checkout",
-      "name": "Title",
-      "descriptionLabel": "Description",
-      "submit": "Create flag",
-      "creating": "Creating..."
+    "groups": {
+      "expenses": "Reimbursements",
+      "payments": "Webshop payments",
+      "ai": "AI"
     },
     "toggleError": "Failed to update flag",
-    "toggleSuccess": "Flag updated",
-    "createSuccess": "Flag created",
-    "createError": "Failed to create flag"
+    "toggleSuccess": "Flag updated"
   },
   "settings": {
     "title": "Settings",

@@ -3,6 +3,7 @@
 import { ID, Query } from "@repo/api";
 import { createSessionClient } from "@repo/api/server";
 import type { Expenses, ExpensesStatus } from "@repo/api/types/appwrite";
+import { isFeatureEnabled } from "@repo/shared/utils/feature-flags-server";
 
 const APPWRITE_ENDPOINT = process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT;
 const APPWRITE_PROJECT =
@@ -110,6 +111,13 @@ export async function getExpenseById(expenseId: string) {
  */
 export async function uploadExpenseAttachment(formData: FormData) {
   try {
+    if (!(await isFeatureEnabled("expenses_module"))) {
+      return {
+        success: false,
+        error: "Reimbursements are currently unavailable",
+      };
+    }
+
     const { storage } = await createSessionClient();
     const file = formData.get("file") as File;
 

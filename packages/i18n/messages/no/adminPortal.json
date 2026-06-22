@@ -928,26 +928,16 @@
   },
   "featureFlags": {
     "title": "Funksjonsbrytere",
-    "description": "Slå plattformfunksjoner av eller på. Endringer trer i kraft umiddelbart og logges i revisjonsloggen.",
-    "empty": "Ingen funksjonsbrytere ennå.",
-    "emptyDescription": "Opprett én for å begynne å styre en funksjon.",
-    "columnFlag": "Bryter",
-    "columnState": "Tilstand",
+    "description": "Operasjonelle nødbrytere. Slå plattformfunksjoner av eller på — endringer trer i kraft innen ~15 s og logges i revisjonsloggen.",
     "enabled": "På",
     "disabled": "Av",
-    "create": {
-      "title": "Ny funksjonsbryter",
-      "key": "Nøkkel",
-      "keyHint": "Liten-bokstav id brukt i koden, f.eks. new_checkout",
-      "name": "Tittel",
-      "descriptionLabel": "Beskrivelse",
-      "submit": "Opprett bryter",
-      "creating": "Oppretter..."
+    "groups": {
+      "expenses": "Refusjoner",
+      "payments": "Nettbutikkbetaling",
+      "ai": "KI"
     },
     "toggleError": "Kunne ikke oppdatere bryter",
-    "toggleSuccess": "Bryter oppdatert",
-    "createSuccess": "Bryter opprettet",
-    "createError": "Kunne ikke opprette bryter"
+    "toggleSuccess": "Bryter oppdatert"
   },
   "settings": {
     "title": "Innstillinger",

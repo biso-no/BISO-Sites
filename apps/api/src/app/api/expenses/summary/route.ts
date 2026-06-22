@@ -1,4 +1,5 @@
 import { openai } from "@ai-sdk/openai";
+import { getFeatureFlagStates } from "@repo/shared/utils/feature-flags-server";
 import { generateObject } from "ai";
 import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
@@ -24,6 +25,18 @@ export async function POST(req: NextRequest) {
   if (!user) {
     return applyCorsHeaders(
       NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
+      origin
+    );
+  }
+
+  // Kill switch: AI expense summarization is gated like OCR.
+  const flags = await getFeatureFlagStates();
+  if (!(flags.expenses_module && flags.expenses_ocr)) {
+    return applyCorsHeaders(
+      NextResponse.json(
+        { error: "Expense AI assistance is currently disabled" },
+        { status: 403 }
+      ),
       origin
     );
   }
