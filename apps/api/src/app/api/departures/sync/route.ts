@@ -33,7 +33,7 @@ async function handleSync(request: NextRequest) {
     return NextResponse.json(
       {
         code: "SYNC_SECRET_NOT_CONFIGURED",
-        error: "ENTUR_SYNC_SECRET is not configured",
+        error: "CRON_SECRET is not configured",
       },
       { status: 500 }
     );

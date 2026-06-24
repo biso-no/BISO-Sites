@@ -33,18 +33,19 @@ Set these on the function in the Appwrite console (**Settings → Variables**) �
 
 ### Secret model (read before enabling the optional endpoints)
 
-The function sends a single secret (`CRON_SECRET`) as `x-cron-secret`. Each
-endpoint accepts that header, but the **value** it compares against differs:
+The function sends a single secret (`CRON_SECRET`) as `x-cron-secret`, and **every
+endpoint authenticates against `CRON_SECRET`** — admin, web, and both `apps/api`
+syncs. So you only set `CRON_SECRET`, the same value, on each app.
 
-| Endpoint | Compares the secret against | To enable |
-|---|---|---|
-| `announcements/dispatch` (admin) | `CRON_SECRET` | matches automatically |
-| `cleanup-reservations` (web) | `CRON_SECRET` | matches automatically |
-| `tickster/sync` (api) | `TICKSTER_SYNC_SECRET` — no `CRON_SECRET` fallback | set `TICKSTER_SYNC_SECRET` = `CRON_SECRET` on `apps/api` |
-| `departures/sync` (api) | `ENTUR_SYNC_SECRET` — no `CRON_SECRET` fallback | set `ENTUR_SYNC_SECRET` = `CRON_SECRET` on `apps/api` |
+| Endpoint | Authenticates against |
+|---|---|
+| `announcements/dispatch` (admin) | `CRON_SECRET` |
+| `cleanup-reservations` (web) | `CRON_SECRET` |
+| `tickster/sync` (api) | `CRON_SECRET` (legacy `TICKSTER_SYNC_SECRET` still honored as a fallback) |
+| `departures/sync` (api) | `CRON_SECRET` (legacy `ENTUR_SYNC_SECRET` still honored as a fallback) |
 
-If those `apps/api` secrets are unset you'll get `500`; if they differ from what
-the function sends you'll get `401`.
+If `CRON_SECRET` is unset on the target app you'll get `500`; if it differs from
+what the function sends you'll get `401`.
 
 ## Security (custom domain `scheduler.biso.no`)
 

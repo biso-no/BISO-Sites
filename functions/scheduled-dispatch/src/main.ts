@@ -25,9 +25,9 @@
  *   RESERVATIONS_CLEANUP_URL    e.g. https://biso.no/api/cron/cleanup-reservations
  *   CRON_TIMEOUT_MS             per-request timeout (default 30000)
  *
- * Note: tickster/sync and departures/sync compare the secret against
- * TICKSTER_SYNC_SECRET / ENTUR_SYNC_SECRET respectively (no CRON_SECRET
- * fallback), so set those equal to CRON_SECRET on apps/api to use them.
+ * Note: every target authenticates against CRON_SECRET (admin, web, and both
+ * apps/api syncs), so set the same CRON_SECRET on each app. The api syncs still
+ * honor their legacy TICKSTER_SYNC_SECRET / ENTUR_SYNC_SECRET as a fallback.
  */
 
 import { timingSafeEqual } from "node:crypto";
