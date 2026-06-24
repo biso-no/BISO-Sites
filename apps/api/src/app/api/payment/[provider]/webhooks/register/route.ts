@@ -83,7 +83,9 @@ export async function POST(
     const creds = await resolveVippsCredentials(db);
     console.log(
       `[payment/vipps/webhooks/register] credentials resolved=${creds !== null}${
-        creds ? ` testMode=${creds.testMode} msn=${creds.merchantSerialNumber}` : ""
+        creds
+          ? ` testMode=${creds.testMode} msn=${creds.merchantSerialNumber}`
+          : ""
       }`
     );
     if (!creds) {

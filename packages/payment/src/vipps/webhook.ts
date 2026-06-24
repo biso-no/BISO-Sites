@@ -78,7 +78,9 @@ function safeEqualBase64(a: string, b: string): boolean {
  *  2. `base64(hmacSha256(secret, "<METHOD>\n<pathAndQuery>\n<date>;<host>;<hash>"))`
  *     must equal the `Signature=` value from the `Authorization` header.
  */
-export function verifyVippsWebhookSignature(input: VerifyVippsWebhookInput): boolean {
+export function verifyVippsWebhookSignature(
+  input: VerifyVippsWebhookInput
+): boolean {
   const { headers, pathAndQuery, rawBody, secret } = input;
   const method = (input.method ?? "POST").toUpperCase();
   const date = headers["x-ms-date"];
@@ -106,7 +108,9 @@ export function verifyVippsWebhookSignature(input: VerifyVippsWebhookInput): boo
 }
 
 /** Parses an ePayment webhook body, returning `null` when it is malformed. */
-export function parseVippsWebhookEvent(rawBody: string): VippsWebhookEvent | null {
+export function parseVippsWebhookEvent(
+  rawBody: string
+): VippsWebhookEvent | null {
   try {
     const data = JSON.parse(rawBody) as Partial<VippsWebhookEvent>;
     if (typeof data.reference !== "string" || typeof data.name !== "string") {

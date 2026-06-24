@@ -44,8 +44,7 @@ export function selectVippsCredentials(
     const webhookSecret =
       clean(
         testMode ? row.vipps_test_webhook_secret : row.vipps_live_webhook_secret
-      ) ??
-      envWebhookSecret;
+      ) ?? envWebhookSecret;
 
     if (clientId && clientSecret && subscriptionKey && merchantSerialNumber) {
       return {

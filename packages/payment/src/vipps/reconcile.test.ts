@@ -77,7 +77,11 @@ describe("reconcileVippsPayment", () => {
     const db = { getRow: vi.fn().mockResolvedValue(vippsOrder()) };
     info.mockResolvedValue({
       ok: true,
-      data: { state: "AUTHORIZED", pspReference: "psp", aggregate: agg({ authorized: 19_900 }) },
+      data: {
+        state: "AUTHORIZED",
+        pspReference: "psp",
+        aggregate: agg({ authorized: 19_900 }),
+      },
     });
     capture.mockResolvedValue({
       ok: true,
@@ -102,10 +106,16 @@ describe("reconcileVippsPayment", () => {
   });
 
   it("does not capture when the authorized amount does not match the order total", async () => {
-    const db = { getRow: vi.fn().mockResolvedValue(vippsOrder({ total: 200 })) };
+    const db = {
+      getRow: vi.fn().mockResolvedValue(vippsOrder({ total: 200 })),
+    };
     info.mockResolvedValue({
       ok: true,
-      data: { state: "AUTHORIZED", pspReference: "psp", aggregate: agg({ authorized: 19_900 }) },
+      data: {
+        state: "AUTHORIZED",
+        pspReference: "psp",
+        aggregate: agg({ authorized: 19_900 }),
+      },
     });
 
     await reconcileVippsPayment("order-1", db as never);
@@ -143,7 +153,9 @@ describe("reconcileVippsPayment", () => {
 
   it("is a no-op for non-Vipps orders", async () => {
     const db = {
-      getRow: vi.fn().mockResolvedValue(vippsOrder({ payment_provider: "stripe" })),
+      getRow: vi
+        .fn()
+        .mockResolvedValue(vippsOrder({ payment_provider: "stripe" })),
     };
 
     await reconcileVippsPayment("order-1", db as never);

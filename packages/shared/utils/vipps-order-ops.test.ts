@@ -222,7 +222,12 @@ describe("applyOrderStatusTransition", () => {
       }
     );
 
-    await applyOrderStatusTransition("order-1", OrdersStatus.AUTHORIZED, {}, db);
+    await applyOrderStatusTransition(
+      "order-1",
+      OrdersStatus.AUTHORIZED,
+      {},
+      db
+    );
 
     // Only the order row is read; the product is never touched for stock.
     expect(db.getRow).toHaveBeenCalledTimes(1);

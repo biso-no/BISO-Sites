@@ -3,7 +3,11 @@ import { describe, expect, it } from "vitest";
 import type { VippsAggregate, VippsState } from "../types/vipps";
 import { determineStatusFromPaymentState } from "./vipps-pure";
 
-function snapshot(state: VippsState, aggregate?: VippsAggregate, pspReference?: string) {
+function snapshot(
+  state: VippsState,
+  aggregate?: VippsAggregate,
+  pspReference?: string
+) {
   return { state, aggregate, pspReference };
 }
 
