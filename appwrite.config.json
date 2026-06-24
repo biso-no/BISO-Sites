@@ -43,7 +43,7 @@
             "$id": "scheduled-dispatch",
             "name": "BISO-Sites",
             "runtime": "bun-1.0",
-            "path": "functions/biso-sites",
+            "path": ".",
             "entrypoint": "functions/scheduled-dispatch/main.ts",
             "execute": [],
             "enabled": true,
