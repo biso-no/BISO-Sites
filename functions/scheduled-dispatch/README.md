@@ -84,6 +84,37 @@ bun run check-types          # tsc --noEmit
 appwrite run functions --function-id scheduled-dispatch
 ```
 
+## Observability (logs)
+
+Appwrite does **not** log the request/response by default, so the handler logs
+every step through the runtime `log()` / `error()` helpers. View them in the
+console under **Functions → scheduled-dispatch → Executions →** *(an execution)*,
+split across the **Logs** and **Errors** tabs (requires `logging: true`, which is
+set). Every line is prefixed `[scheduled-dispatch]`. A healthy scheduled run logs:
+
+```
+[scheduled-dispatch] start trigger=schedule method=POST
+[scheduled-dispatch] config secretSet=true timeoutMs=30000 configured=[ANNOUNCEMENTS_DISPATCH_URL, …] skipped=[…]
+[scheduled-dispatch] dispatching 1 ping(s): ANNOUNCEMENTS_DISPATCH_URL -> https://admin.biso.no/api/announcements/dispatch
+[scheduled-dispatch] OK ANNOUNCEMENTS_DISPATCH_URL https://admin.biso.no/api/announcements/dispatch -> 200 (812ms)
+[scheduled-dispatch] done {"durationMs":815,"failed":0,"succeeded":1,"total":1}
+```
+
+Things to look for when it "fails on Appwrite":
+
+- **No `start` line** → the deployment never ran your code (build/entrypoint/runtime
+  issue), not a logic bug. Check the build logs and `entrypoint`.
+- **`CRON_SECRET is not configured`** (Errors) → set the variable on the function.
+- **`configured=[]` / `nothing to do`** → no endpoint URL variables are set.
+- **`FAIL … -> 401`** → the target's `CRON_SECRET` differs from this function's.
+- **`FAIL … -> no-response: request aborted`** → the endpoint exceeded
+  `CRON_TIMEOUT_MS`; raise it (and keep the function `timeout` above it).
+- **`uncaught error … <stack>`** (Errors) → an unexpected throw; the stack points
+  at the cause. The run still returns `500` cleanly instead of crashing opaquely.
+
+The final response is `200` when all pings succeed, `502` when any fail, `401`
+for an unauthorized HTTP trigger, and `500` for a config/uncaught error.
+
 ## Deploy
 
 The function is deployed via the **Appwrite console** (Git integration), so the
