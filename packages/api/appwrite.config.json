@@ -41,20 +41,22 @@
     "functions": [
         {
             "$id": "scheduled-dispatch",
-            "name": "BISO-Sites",
+            "name": "Scheduled Dispatch",
             "runtime": "bun-1.0",
             "path": ".",
-            "entrypoint": "functions/scheduled-dispatch/main.ts",
-            "execute": [],
+            "entrypoint": "functions/scheduled-dispatch/src/main.ts",
+            "execute": [
+                "any"
+            ],
             "enabled": true,
             "logging": true,
             "events": [],
-            "schedule": "",
-            "timeout": 15,
-            "commands": "bun install",
+            "schedule": "*/5 * * * *",
+            "timeout": 60,
+            "commands": "cd functions/scheduled-dispatch && bun install",
             "scopes": [],
-            "buildSpecification": "s-8vcpu-4gb",
-            "runtimeSpecification": "s-8vcpu-4gb",
+            "buildSpecification": "s-0.5vcpu-512mb",
+            "runtimeSpecification": "s-0.5vcpu-512mb",
             "deploymentRetention": 0
         }
     ],
