@@ -104,7 +104,8 @@ export async function createOrUpdateReservation(
     const userId = session.$id;
 
     // Set expiration to 10 minutes from now
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+    const now = Date.now();
+    const expiresAt = new Date(now + 10 * 60 * 1000).toISOString();
 
     // Check if user already has a reservation for this product (RLS filters by user automatically)
     const existingReservations = await db.listRows<CartReservationRow>(
@@ -113,11 +114,17 @@ export async function createOrUpdateReservation(
       [Query.equal("product_id", productId), Query.limit(1)]
     );
     const existing = existingReservations.rows[0];
-    const existingQuantity = existing?.quantity ?? 0;
+    // Only an *active* hold counts toward the caller's ceiling. getAvailableStock
+    // ignores expired rows, so crediting a stale (not-yet-cleaned) hold's
+    // quantity back would inflate effectiveMax and allow overselling. A lingering
+    // expired row is reused below with a fresh expiry rather than orphaned.
+    const existingIsActive =
+      !!existing?.expires_at && new Date(existing.expires_at).getTime() > now;
+    const existingQuantity = existingIsActive ? (existing?.quantity ?? 0) : 0;
 
     // Cap to live availability for tracked products. getAvailableStock already
-    // counts the caller's current hold, so add it back to get the caller's true
-    // ceiling; Infinity means the product is untracked (no cap).
+    // counts the caller's current active hold, so add it back to get the caller's
+    // true ceiling; Infinity means the product is untracked (no cap).
     const available = await getAvailableStock(productId);
     const effectiveMax = Number.isFinite(available)
       ? available + existingQuantity
