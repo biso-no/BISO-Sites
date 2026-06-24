@@ -18,10 +18,10 @@ import { VIPPS_WEBHOOK_EVENTS } from "./webhook";
 
 export {
   parseVippsWebhookEvent,
-  verifyVippsWebhookSignature,
   VIPPS_WEBHOOK_EVENTS,
   type VippsWebhookEvent,
   type VippsWebhookEventName,
+  verifyVippsWebhookSignature,
 } from "./webhook";
 
 const MINOR_UNITS_PER_MAJOR = 100;
@@ -308,7 +308,12 @@ export async function reconcileVippsPayment(
   let snapshot = await getVippsPayment(reference, creds);
 
   if (shouldCapture(order, snapshot)) {
-    snapshot = await captureAuthorizedPayment(order, reference, snapshot, creds);
+    snapshot = await captureAuthorizedPayment(
+      order,
+      reference,
+      snapshot,
+      creds
+    );
   }
 
   const { status, updateData } = determineStatusFromPaymentState(snapshot);

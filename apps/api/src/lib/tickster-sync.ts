@@ -115,7 +115,9 @@ export function getTicksterSyncConfig(
 export function getTicksterSyncSecret(
   env: NodeJS.ProcessEnv = process.env
 ): string | undefined {
-  return env.TICKSTER_SYNC_SECRET;
+  // CRON_SECRET is the single shared secret for every scheduled endpoint.
+  // TICKSTER_SYNC_SECRET is a deprecated fallback for older deployments.
+  return env.CRON_SECRET ?? env.TICKSTER_SYNC_SECRET;
 }
 
 async function upsertAttendee(

@@ -3,7 +3,11 @@ import type { Departures, StopPlaces } from "@repo/api/types/appwrite";
 
 const ENTUR_GRAPHQL_ENDPOINT =
   "https://api.entur.io/journey-planner/v3/graphql";
-const DEFAULT_ENTUR_CLIENT_NAME = "biso.app/1.0";
+// Entur's Journey Planner v3 is open (NLOD licence) and needs NO API key/token.
+// The only requirement is identifying via the `ET-Client-Name` header in
+// `<company>-<application>` format — consumers that don't are strictly
+// rate-limited and may be blocked. See https://developer.entur.org.
+const DEFAULT_ENTUR_CLIENT_NAME = "biso-departures";
 const DEFAULT_TIME_RANGE_SECONDS = 7200;
 const DEFAULT_NUMBER_OF_DEPARTURES = 10;
 const DEFAULT_FETCH_TIMEOUT_MS = 10_000;
@@ -165,7 +169,9 @@ export function getDepartureSyncConfig(
 export function getDepartureSyncSecret(
   env: NodeJS.ProcessEnv = process.env
 ): string | undefined {
-  return env.ENTUR_SYNC_SECRET;
+  // CRON_SECRET is the single shared secret for every scheduled endpoint.
+  // ENTUR_SYNC_SECRET is a deprecated fallback for older deployments.
+  return env.CRON_SECRET ?? env.ENTUR_SYNC_SECRET;
 }
 
 export function sanitizeAppwriteRowId(value: string) {

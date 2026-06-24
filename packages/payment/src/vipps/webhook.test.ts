@@ -1,9 +1,6 @@
 import { createHash, createHmac } from "node:crypto";
 import { describe, expect, it } from "vitest";
-import {
-  parseVippsWebhookEvent,
-  verifyVippsWebhookSignature,
-} from "./webhook";
+import { parseVippsWebhookEvent, verifyVippsWebhookSignature } from "./webhook";
 
 const SECRET = "090a478d-37ff-4e77-970e-d457aeb26a3a";
 const HOST = "api.example.com";
@@ -94,8 +91,12 @@ describe("parseVippsWebhookEvent", () => {
   });
 
   it("returns null when reference or name is missing", () => {
-    expect(parseVippsWebhookEvent(JSON.stringify({ name: "AUTHORIZED" }))).toBeNull();
-    expect(parseVippsWebhookEvent(JSON.stringify({ reference: "x" }))).toBeNull();
+    expect(
+      parseVippsWebhookEvent(JSON.stringify({ name: "AUTHORIZED" }))
+    ).toBeNull();
+    expect(
+      parseVippsWebhookEvent(JSON.stringify({ reference: "x" }))
+    ).toBeNull();
   });
 
   it("returns null on malformed JSON", () => {

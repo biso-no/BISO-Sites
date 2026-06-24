@@ -167,7 +167,8 @@
   },
   "workspaces": [
     "apps/*",
-    "packages/*"
+    "packages/*",
+    "functions/*"
   ],
   "dependencies": {
     "server-only": "^0.0.1"

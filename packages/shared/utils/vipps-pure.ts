@@ -41,7 +41,9 @@ function statusForState(state: VippsState): OrdersStatus {
  * no money has moved do we fall back to the raw state (ABORTED/EXPIRED →
  * CANCELLED, TERMINATED → FAILED).
  */
-export function determineStatusFromPaymentState(snapshot: VippsPaymentSnapshot): {
+export function determineStatusFromPaymentState(
+  snapshot: VippsPaymentSnapshot
+): {
   status: OrdersStatus;
   updateData: Partial<Orders>;
 } {

@@ -1,8 +1,10 @@
 # scheduled-dispatch (Appwrite Function)
 
-A small cron function that drives the app's **secret-gated** background endpoints
+A small cron function that drives the apps' **secret-gated** background endpoints
 on a schedule. The actual work lives in the Next.js apps (single source of truth);
-this function just fans out HTTP pings with the shared `CRON_SECRET`.
+this function just fans out HTTP pings (in parallel) carrying the shared
+`CRON_SECRET`. It exists because Next.js cron only works on Vercel, and the apps
+run on Appwrite Sites.
 
 It currently drives:
 
@@ -13,57 +15,94 @@ It currently drives:
 | `DEPARTURES_SYNC_URL` (optional) | refreshes Entur departures | `apps/api` → `POST /api/departures/sync` |
 | `RESERVATIONS_CLEANUP_URL` (optional) | deletes expired webshop cart reservations so held stock is released | `apps/web` → `POST /api/cron/cleanup-reservations` |
 
-Only configured URLs are pinged; leave the optional ones unset to skip them.
-For reservation cleanup, run the schedule every 10-15 minutes (it matches the
-10-minute cart hold, so freed stock surfaces quickly).
+Only configured URLs are pinged; leave the optional ones unset to skip them. The
+`*/5 * * * *` schedule (every 5 min) keeps announcements punctual and clears the
+10-minute cart holds promptly.
 
 ## Environment variables
 
-- `CRON_SECRET` — must match the secret the endpoints check (admin uses `CRON_SECRET`;
-  `tickster/sync` accepts `TICKSTER_SYNC_SECRET`, `departures/sync` accepts
-  `ENTUR_SYNC_SECRET` — set those to the same value, or front them with `CRON_SECRET`).
+Set these on the function in the Appwrite console (**Settings → Variables**) — see
+`.env.example` for a copy-paste template.
+
+- `CRON_SECRET` — **required.** Sent to every endpoint as the `x-cron-secret`
+  header, and also required on HTTP/domain triggers (see Security below).
 - `ANNOUNCEMENTS_DISPATCH_URL` — full URL to the admin dispatch route.
-- `TICKSTER_SYNC_URL`, `DEPARTURES_SYNC_URL` — optional.
-- `CRON_TIMEOUT_MS` — optional per-request timeout (default 60000).
+- `TICKSTER_SYNC_URL`, `DEPARTURES_SYNC_URL`, `RESERVATIONS_CLEANUP_URL` — optional.
+- `CRON_TIMEOUT_MS` — optional **per-request** timeout (default `30000`). This is
+  not the execution limit — that's the function's `timeout` (see below).
 
-## Source & build
+### Secret model (read before enabling the optional endpoints)
 
-The handler is **TypeScript** (`src/main.ts`). Appwrite compiles it during the
-deployment build via the `commands` below (`tsc` → `dist/main.js`), so the
-function's `entrypoint` is the compiled `dist/main.js`. `typescript` and
-`@types/node` are dev-only; the runtime itself uses the Node global `fetch`
-(Node 18+) and needs no production dependencies. `dist/` and `node_modules/` are
-git-ignored — Appwrite builds them on deploy.
+The function sends a single secret (`CRON_SECRET`) as `x-cron-secret`, and **every
+endpoint authenticates against `CRON_SECRET`** — admin, web, and both `apps/api`
+syncs. So you only set `CRON_SECRET`, the same value, on each app.
 
-Build locally with `npm install && npm run build` from this directory.
+| Endpoint | Authenticates against |
+|---|---|
+| `announcements/dispatch` (admin) | `CRON_SECRET` |
+| `cleanup-reservations` (web) | `CRON_SECRET` |
+| `tickster/sync` (api) | `CRON_SECRET` (legacy `TICKSTER_SYNC_SECRET` still honored as a fallback) |
+| `departures/sync` (api) | `CRON_SECRET` (legacy `ENTUR_SYNC_SECRET` still honored as a fallback) |
+
+If `CRON_SECRET` is unset on the target app you'll get `500`; if it differs from
+what the function sends you'll get `401`.
+
+## Security (custom domain `scheduler.biso.no`)
+
+Appwrite treats **domain/HTTP executions as unauthenticated guests**, so anyone
+hitting the domain could otherwise force-run the jobs. The handler defends
+against this: when `x-appwrite-trigger` is `http`, it requires the caller to
+present `CRON_SECRET` (via `x-cron-secret` or `Authorization: Bearer …`) before
+pinging anything. **Scheduled** executions are platform-internal and trusted, so
+the timer runs without a header.
+
+`execute` is set to `["any"]` so the domain can actually invoke the function
+(domain executions need this). The in-function secret gate keeps it safe. If you
+**don't** want any manual HTTP trigger, set `"execute": []` in
+`appwrite.config.json` — the schedule still runs.
+
+Manual trigger example:
+
+```bash
+curl -X POST https://scheduler.biso.no/ -H "x-cron-secret: $CRON_SECRET"
+```
+
+## Runtime & source
+
+The handler is **TypeScript** (`src/main.ts`) and runs on the **Bun runtime**
+(`bun-1.0`), which executes TypeScript natively — there is **no build step** and
+no `dist/`. `commands` is just `bun install` (the runtime needs no production
+deps; `typescript`/`@types/node` are dev-only, for local type-checking). Globals
+used (`fetch`, `AbortController`, `Buffer`, `process.env`) are all built in.
+
+Locally:
+
+```bash
+bun install
+bun run check-types          # tsc --noEmit
+# optional: run it in a local container (needs Docker + Appwrite CLI)
+appwrite run functions --function-id scheduled-dispatch
+```
 
 ## Deploy
 
-This is the repo's first Appwrite Function, so the shared
-`packages/api/appwrite.config.json` does not yet declare a `functions` array.
-**Verify the `runtime` string against your Appwrite version** (`appwrite init function`
-shows the valid runtimes, e.g. `node-22`) before pushing, then add:
+The function is deployed via the **Appwrite console** (Git integration), so the
+console settings are the source of truth — not this repo. The current setup:
 
-```jsonc
-// packages/api/appwrite.config.json (top level, alongside "tables")
-"functions": [
-  {
-    "$id": "scheduled-dispatch",
-    "name": "Scheduled Dispatch",
-    "runtime": "node-22",
-    "entrypoint": "dist/main.js",
-    "commands": "npm install && npm run build",
-    "path": "functions/scheduled-dispatch",
-    "execute": [],
-    "events": [],
-    "schedule": "*/5 * * * *",
-    "timeout": 30,
-    "enabled": true,
-    "logging": true,
-    "scopes": []
-  }
-]
-```
+- **Root directory:** repo root
+- **Build command:** `cd functions/scheduled-dispatch && bun install`
+- **Entrypoint:** `functions/scheduled-dispatch/src/main.ts`
+- **Runtime:** `bun-1.0` (runs TypeScript natively — no build step)
+- **Schedule:** set this in the console (e.g. `*/5 * * * *`) — a function with an
+  empty schedule never fires.
+- **Timeout:** the whole-execution limit (Appwrite max 900s). Keep it above
+  `CRON_TIMEOUT_MS`. Pings run in parallel, so wall-clock is the slowest single
+  endpoint, not the sum.
+- **Variables:** `CRON_SECRET` + the endpoint URLs (see above).
+- **Scopes:** none needed — the function only makes outbound HTTP calls, never the
+  Appwrite SDK.
+- **Spec:** the smallest available is plenty (a few HTTP requests).
 
-Then `appwrite push functions` (or `appwrite push` / deploy via console) and set the
-env vars on the function. The `*/5 * * * *` schedule runs every 5 minutes; tune as needed.
+For reference, the same settings are mirrored in `packages/api/appwrite.config.json`
+under `functions[]` (for anyone who deploys via `appwrite push` instead). That
+mirror is not authoritative for the console deploy.

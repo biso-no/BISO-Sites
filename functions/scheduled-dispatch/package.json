@@ -2,11 +2,11 @@
   "name": "scheduled-dispatch",
   "version": "1.0.0",
   "private": true,
-  "description": "Cron Appwrite Function that pings the app's secret-gated dispatch/sync endpoints.",
+  "description": "Cron Appwrite Function (Bun runtime) that pings the apps' secret-gated dispatch/sync endpoints.",
   "type": "module",
-  "main": "dist/main.js",
+  "main": "src/main.ts",
   "scripts": {
-    "build": "tsc"
+    "check-types": "tsc --noEmit"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

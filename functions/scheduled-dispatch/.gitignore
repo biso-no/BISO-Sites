@@ -1,5 +1,5 @@
 node_modules/
-dist/
 .env
-# Appwrite deploys this function via npm; don't commit a bun lockfile.
+# Appwrite installs deps on deploy (`bun install`). The lockfile here would only
+# pin dev-only type-checking deps, so it's intentionally not committed.
 bun.lock
