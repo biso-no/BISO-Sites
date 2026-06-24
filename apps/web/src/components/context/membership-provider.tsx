@@ -85,7 +85,7 @@ export const MembershipProvider = ({
  * return <NonMemberContent />;
  * ```
  */
-const _useUserMembership = () => {
+export const useUserMembership = () => {
   const context = useContext(MembershipContext);
   if (!context) {
     throw new Error(

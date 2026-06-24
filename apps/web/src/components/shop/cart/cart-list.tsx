@@ -3,11 +3,13 @@
 import { Alert, AlertDescription } from "@repo/ui/components/ui/alert";
 import { Clock } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
+import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { useCart } from "@/lib/contexts/cart-context";
 import { CartItem } from "./cart-item";
 
 export function CartList({ isMember }: { isMember: boolean }) {
+  const t = useTranslations("shop");
   const {
     items,
     updateQuantity,
@@ -32,7 +34,7 @@ export function CartList({ isMember }: { isMember: boolean }) {
       const diff = expirationTime - now;
 
       if (diff <= 0) {
-        setTimeRemaining("Expired");
+        setTimeRemaining(t("cart.list.expired"));
         // Refresh cart to remove expired items
         refreshCart();
         return;
@@ -50,7 +52,7 @@ export function CartList({ isMember }: { isMember: boolean }) {
     const interval = setInterval(updateCountdown, 1000);
 
     return () => clearInterval(interval);
-  }, [getEarliestExpiration, refreshCart]);
+  }, [getEarliestExpiration, refreshCart, t]);
 
   const handleQuantityChange = (itemId: string, change: number) => {
     const item = items.find((i) => i.id === itemId);
@@ -66,7 +68,7 @@ export function CartList({ isMember }: { isMember: boolean }) {
         <Alert className="border-blue-200 bg-blue-50">
           <Clock className="h-4 w-4 text-primary" />
           <AlertDescription className="flex items-center gap-2 text-blue-800">
-            <span className="font-medium">Items reserved for:</span>
+            <span className="font-medium">{t("cart.list.reservedFor")}</span>
             <span className="font-bold font-mono">{timeRemaining}</span>
           </AlertDescription>
         </Alert>

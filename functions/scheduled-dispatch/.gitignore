@@ -1,0 +1,5 @@
+node_modules/
+dist/
+.env
+# Appwrite deploys this function via npm; don't commit a bun lockfile.
+bun.lock

@@ -18,9 +18,19 @@
   },
   "pickup": {
     "title": "All Products Available for Campus Pickup",
-    "description": "All items purchased in the BISO Shop are available for pickup at the BISO office during opening hours. No shipping fees, no hassle - just convenient campus pickup!",
+    "description": "Everything you buy in the BISO Shop is ready for pickup at your campus BISO office during opening hours — no shipping needed.",
     "officeHours": "BISO Office Hours:",
-    "hours": "Monday-Friday, 10:00-16:00"
+    "hours": "Monday-Friday, 10:00-16:00",
+    "cardTitle": "Campus Pickup",
+    "locationLabel": "Pickup location",
+    "emailNote": "You'll get an email when your order is ready for pickup.",
+    "campus": {
+      "oslo": "BISO-Land",
+      "stavanger": "The management office by the main entrance",
+      "bergen": "The management office on the left of the main entrance",
+      "trondheim": "The BISO office on the 2nd floor",
+      "default": "your campus BISO office"
+    }
   },
   "hero": {
     "title": "BISO Shop",
@@ -33,8 +43,232 @@
     "membersOnly": "Members Only",
     "save": "Save {amount} NOK",
     "onlyLeft": "Only {count} left!",
+    "onlyAvailable": "Only {count} available!",
     "outOfStock": "Out of Stock",
+    "inStock": "In Stock",
+    "available": "{count} available",
+    "reserved": "{count} reserved in carts",
+    "checking": "Checking availability...",
     "membersPay": "Members pay only {price}",
     "viewDetails": "View Details"
+  },
+  "product": {
+    "backToShop": "Back to Shop",
+    "memberDiscountBadge": "Member Discount",
+    "membersPayHint": "Members pay only {price} — save {amount} NOK!",
+    "description": "Product Description",
+    "addToCart": "Add to Cart",
+    "addedToCart": "Added to cart!",
+    "becomeMemberSave": "Become a BISO member to save {amount} NOK on this item!",
+    "priceDetails": "Price Details",
+    "regularPrice": "Regular Price",
+    "memberPrice": "Member Price",
+    "memberSavings": "Member Savings",
+    "memberDiscount": "Member Discount",
+    "yourPrice": "Your Price",
+    "price": "Price",
+    "tax": "Tax",
+    "included": "Included"
+  },
+  "member": {
+    "notMember": "Not a member yet?",
+    "joinIntro": "Join BISO from just 350 NOK/semester and enjoy:",
+    "benefitDiscounts": "Discounts on selected shop items",
+    "benefitEvents": "Member-only events",
+    "benefitPriority": "Priority registration",
+    "benefitPartner": "Partner discounts",
+    "bestValue": "Best value: Year membership 550 NOK | 3-year 1200 NOK",
+    "becomeMember": "Become a Member"
+  },
+  "cart": {
+    "title": "Your Cart",
+    "itemsReady": "{count} {count, plural, one {item} other {items}} ready for pickup",
+    "outOfStock": "Sorry, that's out of stock right now.",
+    "updateFailed": "Couldn't update your cart. Please try again.",
+    "empty": {
+      "title": "Your cart is empty",
+      "description": "Start adding some BISO products to your cart!",
+      "continue": "Continue Shopping"
+    },
+    "summary": {
+      "title": "Order Summary",
+      "subtotal": "Subtotal ({count} {count, plural, one {item} other {items}})",
+      "memberDiscount": "Member Discount",
+      "total": "Total",
+      "savingMsg": "You're saving {amount} NOK with your membership!",
+      "checkout": "Proceed to Checkout",
+      "continue": "Continue Shopping",
+      "unlockTitle": "Unlock member discounts!",
+      "unlockDesc": "You could save {amount} NOK on this order by becoming a BISO member.",
+      "joinCta": "Join BISO — from 350 NOK"
+    },
+    "drawer": {
+      "title": "Your Cart",
+      "empty": "Your cart is empty",
+      "emptyDesc": "Browse the shop and add something you like.",
+      "viewCart": "View cart",
+      "checkout": "Checkout",
+      "browse": "Browse the shop",
+      "subtotal": "Subtotal",
+      "memberSavings": "Member savings"
+    },
+    "list": {
+      "reservedFor": "Items reserved for:",
+      "expired": "Expired"
+    },
+    "alerts": {
+      "checkoutFailed": "Failed to create checkout session. Please try again or contact support if the problem persists.",
+      "paymentFailed": "Payment failed. Please try again or use a different payment method.",
+      "cancelled": "Payment was cancelled. Your cart items are still here when you're ready to check out."
+    },
+    "item": {
+      "membersOnly": "Members Only",
+      "each": "each",
+      "remove": "Remove",
+      "decrease": "Decrease quantity",
+      "increase": "Increase quantity",
+      "quantity": "Quantity:",
+      "maxPerOrder": "Max {count} per order",
+      "selectedOptions": "Selected options:",
+      "membersPrice": "Members: {price}"
+    }
+  },
+  "checkout": {
+    "title": "Checkout",
+    "eyebrow": "Checkout",
+    "heading": "Almost there",
+    "subheading": "Review your order, choose how to pay, and we'll take you to the secure checkout.",
+    "empty": {
+      "title": "Your cart is empty",
+      "description": "Add products from the shop before heading to checkout.",
+      "browse": "Browse the shop",
+      "backToCart": "Back to cart"
+    },
+    "contact": {
+      "step": "Contact details",
+      "name": "Full name",
+      "namePlaceholder": "Your full name",
+      "email": "Email",
+      "emailPlaceholder": "you@example.com",
+      "phone": "Phone",
+      "phonePlaceholder": "+47 9x xx xx xx"
+    },
+    "pay": {
+      "step": "Choose how to pay",
+      "vipps": "Fast checkout with Vipps and MobilePay.",
+      "card": "Pay securely with Visa, Mastercard, and other cards.",
+      "vippsTitle": "Vipps",
+      "cardTitle": "Card",
+      "selected": "Selected for checkout",
+      "unavailable": "Online payment is temporarily unavailable. Please try again later.",
+      "footer": "The payment page opens in the selected provider's secure hosted checkout."
+    },
+    "review": {
+      "step": "Order review",
+      "items": "{count} {count, plural, one {item} other {items}}"
+    },
+    "summary": {
+      "title": "Order summary",
+      "items": "Items",
+      "subtotal": "Subtotal",
+      "memberSavings": "Member savings",
+      "total": "Total",
+      "secure": "Secure checkout",
+      "secureDesc": "Payment is completed in {provider}'s hosted checkout, not on this page.",
+      "pickup": "Campus pickup",
+      "pickupDesc": "We'll prepare your order for pickup at your local BISO office."
+    },
+    "submit": {
+      "starting": "Starting checkout...",
+      "unavailable": "Payments unavailable",
+      "continueTo": "Continue to {provider}",
+      "backToCart": "Back to cart",
+      "failed": "Checkout failed",
+      "emptyError": "Your cart is empty",
+      "unavailableError": "Online payment is temporarily unavailable",
+      "missingFields": "Name and email are required",
+      "genericError": "Could not start checkout"
+    }
+  },
+  "order": {
+    "confirmedTitle": "Order Confirmed!",
+    "detailsTitle": "Order Details",
+    "orderNumber": "Order #{id}",
+    "success": {
+      "title": "Thank you for your purchase!",
+      "desc": "Your payment is confirmed and your order is being processed. You'll receive a confirmation email shortly with pickup details."
+    },
+    "failed": {
+      "title": "Payment Failed",
+      "desc": "The payment for this order failed. Please try again or contact support if the problem persists."
+    },
+    "cancelled": {
+      "title": "Order Cancelled",
+      "desc": "This order was cancelled. Your items may still be in your cart if you'd like to try again."
+    },
+    "status": {
+      "title": "Order Status",
+      "date": "Order Date",
+      "paymentId": "Payment ID",
+      "pending": "Pending",
+      "pendingDesc": "Awaiting payment confirmation",
+      "authorized": "Authorized",
+      "authorizedDesc": "Payment authorized, processing order",
+      "paid": "Paid",
+      "paidDesc": "Payment successful",
+      "cancelledLabel": "Cancelled",
+      "cancelledDesc": "Order cancelled",
+      "failedLabel": "Failed",
+      "failedDesc": "Payment failed",
+      "refunded": "Refunded",
+      "refundedDesc": "Payment refunded"
+    },
+    "items": {
+      "title": "Order Items",
+      "quantity": "Quantity",
+      "variant": "Variant",
+      "each": "each"
+    },
+    "totals": {
+      "subtotal": "Subtotal",
+      "discount": "Discount",
+      "memberApplied": "Member discount applied ({percent}%)",
+      "total": "Total"
+    },
+    "customer": {
+      "title": "Customer Information",
+      "name": "Name",
+      "email": "Email",
+      "phone": "Phone"
+    },
+    "pickup": {
+      "title": "Pickup Details",
+      "desc": "Your order will be available for pickup at the BISO office.",
+      "emailNote": "You'll receive an email when your order is ready for pickup."
+    },
+    "actions": {
+      "continue": "Continue Shopping",
+      "print": "Print Order",
+      "receipt": "View Vipps Receipt",
+      "returnToCart": "Return to Cart",
+      "backToShop": "Back to Shop"
+    },
+    "receipt": {
+      "title": "Order Receipt",
+      "orderNo": "Order no.",
+      "date": "Date",
+      "billTo": "Customer",
+      "item": "Item",
+      "qty": "Qty",
+      "unit": "Unit",
+      "lineTotal": "Total",
+      "subtotal": "Subtotal",
+      "discount": "Discount",
+      "total": "Total",
+      "pickupAt": "Pickup at",
+      "thanks": "Thank you for supporting BISO!",
+      "proof": "This is your proof of purchase.",
+      "org": "BI Student Organisation (BISO)"
+    }
   }
 }

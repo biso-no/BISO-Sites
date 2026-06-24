@@ -272,3 +272,20 @@
     opacity: 1;
   }
 }
+
+/* Printing: drop the site chrome so order receipts (which opt back in with
+   `print:block`) render alone on a clean white page. */
+@media print {
+  nav,
+  footer {
+    display: none !important;
+  }
+
+  body {
+    background: #fff !important;
+  }
+
+  @page {
+    margin: 14mm;
+  }
+}

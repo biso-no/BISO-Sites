@@ -1,6 +1,7 @@
 import { Card } from "@repo/ui/components/ui/card";
 import { Package } from "lucide-react";
 import { motion } from "motion/react";
+import { useTranslations } from "next-intl";
 
 interface StockStatusCardProps {
   availableStock: number | null;
@@ -14,11 +15,13 @@ export function StockStatusCard({
   availableStock,
   totalStock,
 }: StockStatusCardProps) {
+  const t = useTranslations("shop");
+
   const getStockStatus = () => {
     if (isLoading) {
       return "loading";
     }
-    if (availableStock === 0) {
+    if (availableStock !== null && availableStock <= 0) {
       return "outOfStock";
     }
     if (availableStock !== null && availableStock <= 10) {
@@ -32,22 +35,22 @@ export function StockStatusCard({
     loading: {
       bg: "bg-section",
       text: "text-muted-foreground",
-      label: "Checking availability...",
+      label: t("card.checking"),
     },
     outOfStock: {
       bg: "bg-red-50",
       text: "text-red-600",
-      label: "Out of Stock",
+      label: t("card.outOfStock"),
     },
     lowStock: {
       bg: "bg-orange-50",
       text: "text-orange-600",
-      label: `Only ${availableStock} available!`,
+      label: t("card.onlyAvailable", { count: availableStock ?? 0 }),
     },
     inStock: {
       bg: "bg-green-50",
       text: "text-green-600",
-      label: "In Stock",
+      label: t("card.inStock"),
     },
   };
 
@@ -68,7 +71,7 @@ export function StockStatusCard({
             </div>
             {!isLoading && availableStock !== null && availableStock > 10 && (
               <div className="text-muted-foreground text-sm">
-                {availableStock} available
+                {t("card.available", { count: availableStock })}
               </div>
             )}
             {!isLoading &&
@@ -76,7 +79,9 @@ export function StockStatusCard({
               (totalStock ?? 0) > 0 &&
               availableStock < (totalStock ?? 0) && (
                 <div className="mt-1 text-muted-foreground text-xs">
-                  {(totalStock ?? 0) - availableStock} reserved in carts
+                  {t("card.reserved", {
+                    count: (totalStock ?? 0) - availableStock,
+                  })}
                 </div>
               )}
           </div>

@@ -9,6 +9,7 @@ import {
   Menu,
   Newspaper,
   ShoppingBag,
+  ShoppingCart,
   Users,
   X,
 } from "lucide-react";
@@ -19,6 +20,7 @@ import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useState } from "react";
 import { useCampus } from "@/components/context/campus";
 import { SelectCampus } from "@/components/select-campus";
+import { useCart } from "@/lib/contexts/cart-context";
 import { LocaleSwitcher } from "../locale-switcher";
 
 interface NavigationProps {
@@ -39,8 +41,11 @@ export function Navigation({
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { campuses } = useCampus();
+  const { getItemCount, openDrawer } = useCart();
+  const cartCount = getItemCount();
   const pathname = usePathname();
   const t = useTranslations("common.navigation");
+  const tShop = useTranslations("shop");
   const router = useRouter();
   useEffect(() => {
     const handleScroll = () => {
@@ -158,6 +163,19 @@ export function Navigation({
                   size="sm"
                   variant="ghost"
                 />
+                <button
+                  aria-label={tShop("cart.title")}
+                  className="relative shrink-0 rounded-lg p-2 text-white transition-colors hover:text-brand"
+                  onClick={openDrawer}
+                  type="button"
+                >
+                  <ShoppingCart className="h-5 w-5" />
+                  {cartCount > 0 && (
+                    <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-brand-accent px-1 font-bold text-[10px] text-brand-dark">
+                      {cartCount}
+                    </span>
+                  )}
+                </button>
                 <Link
                   className="shrink-0 whitespace-nowrap text-white hover:text-brand"
                   href="/business"
@@ -178,6 +196,19 @@ export function Navigation({
 
           {/* Mobile Menu Button */}
           <div className="flex items-center gap-2 md:hidden">
+            <button
+              aria-label={tShop("cart.title")}
+              className="relative rounded-lg p-2 text-white transition-colors hover:text-brand"
+              onClick={openDrawer}
+              type="button"
+            >
+              <ShoppingCart className="h-5 w-5" />
+              {cartCount > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-brand-accent px-1 font-bold text-[10px] text-brand-dark">
+                  {cartCount}
+                </span>
+              )}
+            </button>
             <ModeToggle className="text-white" />
             <Button
               className={`rounded-lg p-2 transition-colors duration-300 ${

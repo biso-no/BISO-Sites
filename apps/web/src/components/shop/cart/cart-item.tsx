@@ -6,6 +6,7 @@ import { Button } from "@repo/ui/components/ui/button";
 import { Card } from "@repo/ui/components/ui/card";
 import { PLACEHOLDER_IMAGE } from "@repo/ui/lib/placeholder-images";
 import { Minus, Plus, Trash2, Users } from "lucide-react";
+import { useTranslations } from "next-intl";
 import type { CartItem as CartItemType } from "@/lib/contexts/cart-context";
 
 interface CartItemProps {
@@ -35,13 +36,16 @@ function QuantityControl({
   onIncrease: () => void;
   onDecrease: () => void;
 }) {
+  const t = useTranslations("shop");
   const isMaxReached =
     (stock !== null && quantity >= stock) ||
     (maxPerOrder !== undefined && quantity >= maxPerOrder);
 
   return (
     <div className="flex items-center gap-3">
-      <span className="text-muted-foreground text-sm">Quantity:</span>
+      <span className="text-muted-foreground text-sm">
+        {t("cart.item.quantity")}
+      </span>
       <div className="flex items-center gap-2 rounded-lg border border-border">
         <Button
           className="h-8 w-8 p-0 disabled:opacity-50"
@@ -66,11 +70,13 @@ function QuantityControl({
         </Button>
       </div>
       {stock !== null && stock <= 10 && (
-        <span className="text-orange-600 text-xs">Only {stock} available</span>
+        <span className="text-orange-600 text-xs">
+          {t("card.onlyAvailable", { count: stock })}
+        </span>
       )}
       {maxPerOrder && quantity >= maxPerOrder && (
         <span className="text-red-600 text-xs">
-          Max {maxPerOrder} per order
+          {t("cart.item.maxPerOrder", { count: maxPerOrder })}
         </span>
       )}
     </div>
@@ -88,6 +94,7 @@ function PriceDisplay({
   quantity: number;
   isMember: boolean;
 }) {
+  const t = useTranslations("shop");
   const itemPrice = isMember && memberPrice ? memberPrice : regularPrice;
   const itemTotal = itemPrice * quantity;
   const hasDiscount = isMember && memberPrice && memberPrice < regularPrice;
@@ -103,14 +110,18 @@ function PriceDisplay({
             {regularPrice * quantity} NOK
           </div>
           <div className="font-bold text-brand">{itemTotal} NOK</div>
-          <div className="text-green-600 text-xs">Save {savings} NOK</div>
+          <div className="text-green-600 text-xs">
+            {t("card.save", { amount: savings })}
+          </div>
         </div>
       ) : (
         <div className="font-bold text-foreground">{itemTotal} NOK</div>
       )}
       {!isMember && memberPrice && memberPrice < regularPrice && (
         <div className="mt-1 text-muted-foreground text-xs">
-          Members: {memberPrice * quantity} NOK
+          {t("cart.item.membersPrice", {
+            price: `${memberPrice * quantity} NOK`,
+          })}
         </div>
       )}
     </div>
@@ -123,6 +134,7 @@ export function CartItem({
   onUpdateQuantity,
   onRemove,
 }: CartItemProps) {
+  const t = useTranslations("shop");
   return (
     <Card className="border-0 p-6 shadow-lg">
       <div className="flex gap-6">
@@ -151,7 +163,7 @@ export function CartItem({
               {item.memberOnly && (
                 <Badge className="mb-2 border-0 bg-orange-500 text-white">
                   <Users className="mr-1 h-3 w-3" />
-                  Members Only
+                  {t("cart.item.membersOnly")}
                 </Badge>
               )}
             </div>
@@ -170,7 +182,7 @@ export function CartItem({
             Object.keys(item.selectedOptions).length > 0 && (
               <div className="mb-3 rounded-lg bg-section p-3">
                 <p className="mb-1 text-muted-foreground text-sm">
-                  Selected options:
+                  {t("cart.item.selectedOptions")}
                 </p>
                 {Object.entries(item.selectedOptions).map(([key, value]) => (
                   <p className="text-muted-foreground text-sm" key={key}>
