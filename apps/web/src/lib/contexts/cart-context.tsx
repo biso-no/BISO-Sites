@@ -43,13 +43,16 @@ interface CartContextType {
     item: Omit<CartItem, "id" | "quantity"> & { quantity?: number }
   ) => Promise<void>;
   clearCart: () => Promise<void>;
+  closeDrawer: () => void;
   getEarliestExpiration: () => string | null;
   getItemCount: () => number;
   getRegularSubtotal: () => number;
   getSubtotal: (isMember: boolean) => number;
   getTotalSavings: (isMember: boolean) => number;
+  isDrawerOpen: boolean;
   isLoading: boolean;
   items: CartItem[];
+  openDrawer: () => void;
   refreshCart: () => Promise<void>;
   removeItem: (itemId: string) => Promise<void>;
   updateQuantity: (itemId: string, quantity: number) => Promise<void>;
@@ -104,7 +107,11 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [_mounted, setMounted] = useState(false);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const locale = useLocale() as "en" | "no";
+
+  const openDrawer = useCallback(() => setIsDrawerOpen(true), []);
+  const closeDrawer = useCallback(() => setIsDrawerOpen(false), []);
 
   // Load cart from database on mount
   const refreshCart = useCallback(async () => {
@@ -157,13 +164,20 @@ export function CartProvider({ children }: { children: ReactNode }) {
         stock: item.stock,
       });
 
-      await createOrUpdateReservation(item.productId, newQuantity);
+      // The server caps to live availability and returns the effective quantity;
+      // trust it over the optimistic local clamp so the cart can't oversell.
+      const result = await createOrUpdateReservation(
+        item.productId,
+        newQuantity
+      );
+      const finalQuantity = result.quantity ?? newQuantity;
 
       setItems((prevItems) =>
         prevItems.map((i) =>
-          i.id === id ? { ...i, quantity: newQuantity } : i
+          i.id === id ? { ...i, quantity: finalQuantity } : i
         )
       );
+      setIsDrawerOpen(true);
       return;
     }
 
@@ -173,14 +187,19 @@ export function CartProvider({ children }: { children: ReactNode }) {
       stock: item.stock,
     });
 
-    await createOrUpdateReservation(item.productId, initialQuantity);
+    const result = await createOrUpdateReservation(
+      item.productId,
+      initialQuantity
+    );
+    const finalQuantity = result.quantity ?? initialQuantity;
 
     const newItem: CartItem = {
       ...item,
       id,
-      quantity: initialQuantity,
+      quantity: finalQuantity,
     };
     setItems((prevItems) => [...prevItems, newItem]);
+    setIsDrawerOpen(true);
   };
 
   const removeItem = async (itemId: string) => {
@@ -216,14 +235,19 @@ export function CartProvider({ children }: { children: ReactNode }) {
         newQuantity = Math.min(newQuantity, item.stock);
       }
 
-      // Update in database
-      await createOrUpdateReservation(item.productId, newQuantity);
+      // Update in database; the server caps to live availability and returns the
+      // effective quantity, which wins over the optimistic local clamp.
+      const result = await createOrUpdateReservation(
+        item.productId,
+        newQuantity
+      );
+      const finalQuantity = result.quantity ?? newQuantity;
 
       // Update local state
       setItems((prevItems) =>
         prevItems.map((i) => {
           if (i.id === itemId) {
-            return { ...i, quantity: newQuantity };
+            return { ...i, quantity: finalQuantity };
           }
           return i;
         })
@@ -288,6 +312,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
         getTotalSavings,
         refreshCart,
         getEarliestExpiration,
+        isDrawerOpen,
+        openDrawer,
+        closeDrawer,
       }}
     >
       {children}

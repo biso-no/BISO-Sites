@@ -6,6 +6,7 @@ import { Card } from "@repo/ui/components/ui/card";
 import { Separator } from "@repo/ui/components/ui/separator";
 import { CreditCard, Package, Sparkles, Tag } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useCart } from "@/lib/contexts/cart-context";
 
 interface CartSummaryProps {
@@ -15,6 +16,7 @@ interface CartSummaryProps {
 
 export function CartSummary({ isMember, userId: _userId }: CartSummaryProps) {
   const router = useRouter();
+  const t = useTranslations("shop");
   const { items, getSubtotal, getRegularSubtotal, getTotalSavings } = useCart();
 
   const subtotal = getSubtotal(isMember);
@@ -40,18 +42,17 @@ export function CartSummary({ isMember, userId: _userId }: CartSummaryProps) {
             <Sparkles className="h-4 w-4 text-brand" />
             <AlertDescription>
               <p className="mb-2 text-foreground text-sm">
-                <strong>Unlock member discounts!</strong>
+                <strong>{t("cart.summary.unlockTitle")}</strong>
               </p>
               <p className="mb-3 text-muted-foreground text-sm">
-                You could save {potentialSavings} NOK on this order by becoming
-                a BISO member.
+                {t("cart.summary.unlockDesc", { amount: potentialSavings })}
               </p>
               <Button
                 className="w-full bg-brand text-white hover:bg-brand/90"
                 onClick={() => router.push("/shop?category=Membership")}
                 size="sm"
               >
-                Join BISO - From 350 NOK
+                {t("cart.summary.joinCta")}
               </Button>
             </AlertDescription>
           </Alert>
@@ -62,14 +63,15 @@ export function CartSummary({ isMember, userId: _userId }: CartSummaryProps) {
       <div className="fade-in slide-in-from-bottom-2 animate-in delay-150 duration-500">
         <Card className="sticky top-24 border-0 p-6 shadow-lg">
           <h3 className="mb-4 font-bold text-foreground text-xl">
-            Order Summary
+            {t("cart.summary.title")}
           </h3>
 
           <div className="mb-4 space-y-3">
             <div className="flex justify-between text-muted-foreground">
               <span>
-                Subtotal ({items.reduce((sum, item) => sum + item.quantity, 0)}{" "}
-                items)
+                {t("cart.summary.subtotal", {
+                  count: items.reduce((sum, item) => sum + item.quantity, 0),
+                })}
               </span>
               <span className="font-medium">
                 {isMember ? subtotal : regularSubtotal} NOK
@@ -80,7 +82,7 @@ export function CartSummary({ isMember, userId: _userId }: CartSummaryProps) {
               <div className="flex justify-between text-green-600">
                 <span className="flex items-center gap-1">
                   <Tag className="h-4 w-4" />
-                  Member Discount
+                  {t("cart.summary.memberDiscount")}
                 </span>
                 <span className="font-medium">-{totalSavings} NOK</span>
               </div>
@@ -89,20 +91,19 @@ export function CartSummary({ isMember, userId: _userId }: CartSummaryProps) {
 
           <Separator className="my-4" />
 
-          <div className="mb-6 flex justify-between">
-            <span className="font-bold text-foreground text-lg">Total</span>
-            <div className="text-right">
-              <div className="font-bold text-2xl text-brand">
-                {subtotal} NOK
-              </div>
+          {/* Total — the one bold, yellow-accented moment */}
+          <div className="mb-6 overflow-hidden rounded-2xl bg-brand-dark text-white">
+            <div className="h-1 w-full bg-brand-accent" />
+            <div className="flex items-center justify-between p-4">
+              <span className="font-medium">{t("cart.summary.total")}</span>
+              <span className="font-bold text-2xl">{subtotal} NOK</span>
             </div>
           </div>
 
           {isMember && totalSavings > 0 && (
             <div className="mb-4 rounded-lg bg-green-50 p-3 text-center">
               <p className="text-green-700 text-sm">
-                🎉 You&apos;re saving <strong>{totalSavings} NOK</strong> with
-                your membership!
+                🎉 {t("cart.summary.savingMsg", { amount: totalSavings })}
               </p>
             </div>
           )}
@@ -112,7 +113,7 @@ export function CartSummary({ isMember, userId: _userId }: CartSummaryProps) {
             onClick={() => router.push("/shop/checkout")}
           >
             <CreditCard className="mr-2 h-4 w-4" />
-            Proceed to Checkout
+            {t("cart.summary.checkout")}
           </Button>
 
           <Button
@@ -120,23 +121,22 @@ export function CartSummary({ isMember, userId: _userId }: CartSummaryProps) {
             onClick={() => router.push("/shop")}
             variant="outline"
           >
-            Continue Shopping
+            {t("cart.summary.continue")}
           </Button>
         </Card>
       </div>
 
       {/* Pickup Information */}
       <div className="fade-in slide-in-from-bottom-2 animate-in delay-300 duration-500">
-        <Card className="border-0 bg-blue-50 p-6 shadow-lg">
+        <Card className="border border-brand-border bg-brand-muted p-6 shadow-sm">
           <div className="flex items-start gap-3">
-            <Package className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+            <Package className="mt-0.5 h-5 w-5 shrink-0 text-brand" />
             <div>
               <h4 className="mb-2 font-semibold text-foreground">
-                Campus Pickup
+                {t("pickup.cardTitle")}
               </h4>
               <p className="mb-2 text-muted-foreground text-sm">
-                All items will be available for pickup at the BISO office at
-                your campus.
+                {t("checkout.summary.pickupDesc")}
               </p>
             </div>
           </div>

@@ -3,6 +3,7 @@ import type { ContentTranslations } from "@repo/api/types/appwrite";
 import { Skeleton } from "@repo/ui/components/ui/skeleton";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
+import { getAvailableStock } from "@/app/actions/cart-reservations";
 import { getLocale } from "@/app/actions/locale";
 import { getProductBySlug } from "@/app/actions/webshop";
 import { ProductDetailsServer } from "@/components/shop/product-details-server"; // New Server Component
@@ -19,15 +20,22 @@ async function ProductDetails({ slug }: { slug: string }) {
     notFound();
   }
 
-  const [{ isMember }, sessionResult] = await Promise.all([
+  // Live availability accounts for other shoppers' active reservations, so the
+  // stock figure reflects what's actually buyable right now (only when the
+  // product tracks stock — otherwise getAvailableStock returns Infinity).
+  const [{ isMember }, sessionResult, availableStock] = await Promise.all([
     getMembershipStatus(),
     createSessionClient().then(({ account }) =>
       account.get().catch(() => null)
     ),
+    product.stock === null || product.stock === undefined
+      ? Promise.resolve(null)
+      : getAvailableStock(product.$id),
   ]);
 
   return (
     <ProductDetailsServer
+      availableStock={availableStock}
       isMember={isMember}
       product={product}
       userId={sessionResult?.$id ?? null}
@@ -82,14 +90,14 @@ export default async function ProductPage({
 export async function generateMetadata({
   params,
 }: {
-  params: Promise<{ slug: string[] }>;
+  params: Promise<{ slug?: string }>;
 }) {
   const { slug } = await params;
-  const locale = await getLocale();
-  const product = await getProductBySlug(slug?.[0] ?? "", locale);
-  if (!slug?.[0]) {
+  if (!slug) {
     notFound();
   }
+  const locale = await getLocale();
+  const product = await getProductBySlug(slug, locale);
   if (!product) {
     return {
       title: "Product Not Found | BISO Shop",

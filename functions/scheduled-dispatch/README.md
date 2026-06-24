@@ -11,8 +11,11 @@ It currently drives:
 | `ANNOUNCEMENTS_DISPATCH_URL` | sends scheduled announcements whose time has passed | `apps/admin` → `POST /api/announcements/dispatch` |
 | `TICKSTER_SYNC_URL` (optional) | pulls Tickster purchasers into `event_attendees` | `apps/api` → `POST /api/tickster/sync` |
 | `DEPARTURES_SYNC_URL` (optional) | refreshes Entur departures | `apps/api` → `POST /api/departures/sync` |
+| `RESERVATIONS_CLEANUP_URL` (optional) | deletes expired webshop cart reservations so held stock is released | `apps/web` → `POST /api/cron/cleanup-reservations` |
 
 Only configured URLs are pinged; leave the optional ones unset to skip them.
+For reservation cleanup, run the schedule every 10-15 minutes (it matches the
+10-minute cart hold, so freed stock surfaces quickly).
 
 ## Environment variables
 
@@ -22,6 +25,17 @@ Only configured URLs are pinged; leave the optional ones unset to skip them.
 - `ANNOUNCEMENTS_DISPATCH_URL` — full URL to the admin dispatch route.
 - `TICKSTER_SYNC_URL`, `DEPARTURES_SYNC_URL` — optional.
 - `CRON_TIMEOUT_MS` — optional per-request timeout (default 60000).
+
+## Source & build
+
+The handler is **TypeScript** (`src/main.ts`). Appwrite compiles it during the
+deployment build via the `commands` below (`tsc` → `dist/main.js`), so the
+function's `entrypoint` is the compiled `dist/main.js`. `typescript` and
+`@types/node` are dev-only; the runtime itself uses the Node global `fetch`
+(Node 18+) and needs no production dependencies. `dist/` and `node_modules/` are
+git-ignored — Appwrite builds them on deploy.
+
+Build locally with `npm install && npm run build` from this directory.
 
 ## Deploy
 
@@ -37,7 +51,8 @@ shows the valid runtimes, e.g. `node-22`) before pushing, then add:
     "$id": "scheduled-dispatch",
     "name": "Scheduled Dispatch",
     "runtime": "node-22",
-    "entrypoint": "src/main.js",
+    "entrypoint": "dist/main.js",
+    "commands": "npm install && npm run build",
     "path": "functions/scheduled-dispatch",
     "execute": [],
     "events": [],
@@ -52,5 +67,3 @@ shows the valid runtimes, e.g. `node-22`) before pushing, then add:
 
 Then `appwrite push functions` (or `appwrite push` / deploy via console) and set the
 env vars on the function. The `*/5 * * * *` schedule runs every 5 minutes; tune as needed.
-
-No npm dependencies — uses the Node global `fetch` (Node 18+).

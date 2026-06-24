@@ -1,4 +1,5 @@
 import { Separator } from "@repo/ui/components/ui/separator";
+import { useTranslations } from "next-intl";
 import { formatPrice } from "@/lib/types/webshop";
 
 interface PriceDetailsProps {
@@ -18,21 +19,23 @@ export function PriceDetails({
   hasDiscount,
   savings,
 }: PriceDetailsProps) {
+  const t = useTranslations("shop");
+
   if (!isMember && memberPrice && memberPrice < regularPrice) {
     return (
       <>
         <div className="flex justify-between text-muted-foreground">
-          <span>Regular Price</span>
+          <span>{t("product.regularPrice")}</span>
           <span>{formatPrice(regularPrice)}</span>
         </div>
         <Separator />
         <div className="flex justify-between text-brand">
-          <span>Member Price</span>
+          <span>{t("product.memberPrice")}</span>
           <span>{formatPrice(memberPrice)}</span>
         </div>
         <Separator />
         <div className="flex justify-between text-green-600">
-          <span>Member Savings</span>
+          <span>{t("product.memberSavings")}</span>
           <span>-{regularPrice - memberPrice} NOK</span>
         </div>
       </>
@@ -43,16 +46,16 @@ export function PriceDetails({
     return (
       <>
         <div className="flex justify-between text-muted-foreground line-through">
-          <span>Regular Price</span>
+          <span>{t("product.regularPrice")}</span>
           <span>{formatPrice(regularPrice)}</span>
         </div>
         <div className="flex justify-between text-green-600">
-          <span>Member Discount</span>
+          <span>{t("product.memberDiscount")}</span>
           <span>-{savings} NOK</span>
         </div>
         <Separator />
         <div className="flex justify-between font-semibold text-foreground">
-          <span>Your Price</span>
+          <span>{t("product.yourPrice")}</span>
           <span>{formatPrice(displayPrice)}</span>
         </div>
       </>
@@ -61,7 +64,7 @@ export function PriceDetails({
 
   return (
     <div className="flex justify-between font-semibold text-foreground">
-      <span>Price</span>
+      <span>{t("product.price")}</span>
       <span>{formatPrice(displayPrice)}</span>
     </div>
   );

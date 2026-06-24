@@ -7,13 +7,7 @@ import {
 } from "@repo/ui/components/ui/alert";
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Button } from "@repo/ui/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@repo/ui/components/ui/card";
+import { Card, CardContent } from "@repo/ui/components/ui/card";
 import { Input } from "@repo/ui/components/ui/input";
 import { Label } from "@repo/ui/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@repo/ui/components/ui/radio-group";
@@ -28,7 +22,8 @@ import {
   Store,
 } from "lucide-react";
 import Link from "next/link";
-import { type FormEvent, useState, useTransition } from "react";
+import { useTranslations } from "next-intl";
+import { type FormEvent, type ReactNode, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { createCartCheckoutSession } from "@/app/actions/orders";
 import { type CartItem, useCart } from "@/lib/contexts/cart-context";
@@ -47,46 +42,13 @@ interface CheckoutPageClientProps {
   isMember: boolean;
 }
 
-const providerCopy: Record<
+const providerMeta: Record<
   PaymentProvider,
-  {
-    title: string;
-    description: string;
-    Icon: typeof Smartphone;
-    accent: string;
-  }
+  { Icon: typeof Smartphone; accent: string }
 > = {
-  vipps: {
-    title: "Vipps",
-    description: "Fast checkout with Vipps and MobilePay.",
-    Icon: Smartphone,
-    accent: "from-[#ff5b24] to-[#ff7d45]",
-  },
-  stripe: {
-    title: "Card",
-    description: "Pay securely with Visa, Mastercard, and other cards.",
-    Icon: CreditCard,
-    accent: "from-sky-600 to-cyan-500",
-  },
+  vipps: { Icon: Smartphone, accent: "from-[#ff5b24] to-[#ff7d45]" },
+  stripe: { Icon: CreditCard, accent: "from-sky-600 to-cyan-500" },
 };
-
-function getSubmitLabel({
-  isPending,
-  paymentsAvailable,
-  provider,
-}: {
-  isPending: boolean;
-  paymentsAvailable: boolean;
-  provider: PaymentProvider;
-}): string {
-  if (isPending) {
-    return "Starting checkout...";
-  }
-  if (!paymentsAvailable) {
-    return "Payments unavailable";
-  }
-  return `Continue to ${providerCopy[provider].title}`;
-}
 
 function buildCheckoutLineTitle(item: CartItem) {
   const optionSummary = item.selectedOptions
@@ -98,17 +60,43 @@ function buildCheckoutLineTitle(item: CartItem) {
   return optionSummary ? `${item.name} (${optionSummary})` : item.name;
 }
 
+function StepCard({
+  step,
+  title,
+  badge,
+  children,
+}: {
+  step: number;
+  title: string;
+  badge?: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <section className="rounded-3xl border border-border/60 bg-card p-6 shadow-sm sm:p-8">
+      <div className="mb-6 flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand font-semibold text-sm text-white">
+            {step}
+          </span>
+          <h2 className="font-semibold text-foreground text-lg">{title}</h2>
+        </div>
+        {badge}
+      </div>
+      {children}
+    </section>
+  );
+}
+
 function CheckoutSkeleton() {
   return (
-    <div className="grid gap-8 xl:grid-cols-[1.15fr_0.85fr]">
+    <div className="grid gap-8 lg:grid-cols-[1.1fr_0.9fr]">
       <div className="space-y-6">
-        <Skeleton className="h-72 w-full" />
-        <Skeleton className="h-56 w-full" />
-        <Skeleton className="h-80 w-full" />
+        <Skeleton className="h-64 w-full rounded-3xl" />
+        <Skeleton className="h-56 w-full rounded-3xl" />
+        <Skeleton className="h-80 w-full rounded-3xl" />
       </div>
       <div className="space-y-6">
-        <Skeleton className="h-96 w-full" />
-        <Skeleton className="h-40 w-full" />
+        <Skeleton className="h-96 w-full rounded-3xl" />
       </div>
     </div>
   );
@@ -120,6 +108,7 @@ export function CheckoutPageClient({
   initialEmail = "",
   initialName = "",
 }: CheckoutPageClientProps) {
+  const t = useTranslations("shop");
   const paymentsAvailable = enabledProviders.length > 0;
   const { items, isLoading, getSubtotal, getRegularSubtotal, getTotalSavings } =
     useCart();
@@ -136,9 +125,28 @@ export function CheckoutPageClient({
   const [isPending, startTransition] = useTransition();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  const providerTitle = (value: PaymentProvider) =>
+    value === "vipps"
+      ? t("checkout.pay.vippsTitle")
+      : t("checkout.pay.cardTitle");
+  const providerDescription = (value: PaymentProvider) =>
+    value === "vipps" ? t("checkout.pay.vipps") : t("checkout.pay.card");
+
   const fail = (message: string) => {
     setErrorMessage(message);
     toast.error(message);
+  };
+
+  const getSubmitLabel = () => {
+    if (isPending) {
+      return t("checkout.submit.starting");
+    }
+    if (!paymentsAvailable) {
+      return t("checkout.submit.unavailable");
+    }
+    return t("checkout.submit.continueTo", {
+      provider: providerTitle(provider),
+    });
   };
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -146,17 +154,17 @@ export function CheckoutPageClient({
     setErrorMessage(null);
 
     if (items.length === 0) {
-      fail("Your cart is empty");
+      fail(t("checkout.submit.emptyError"));
       return;
     }
 
     if (!paymentsAvailable) {
-      fail("Online payment is temporarily unavailable");
+      fail(t("checkout.submit.unavailableError"));
       return;
     }
 
     if (!(name.trim() && email.trim())) {
-      fail("Name and email are required");
+      fail(t("checkout.submit.missingFields"));
       return;
     }
 
@@ -176,7 +184,7 @@ export function CheckoutPageClient({
         });
 
         if (!(result?.success && result.paymentUrl)) {
-          fail(result?.error || "Could not start checkout");
+          fail(result?.error || t("checkout.submit.genericError"));
           return;
         }
 
@@ -186,7 +194,7 @@ export function CheckoutPageClient({
         fail(
           error instanceof Error
             ? error.message
-            : "Unable to start checkout. Please try again."
+            : t("checkout.submit.genericError")
         );
       }
     });
@@ -198,20 +206,24 @@ export function CheckoutPageClient({
 
   if (items.length === 0) {
     return (
-      <Card className="mx-auto max-w-3xl overflow-hidden border-0 bg-white shadow-xl">
-        <div className="bg-linear-to-r from-brand-gradient-from to-brand-gradient-to p-8 text-white">
-          <Badge className="border-0 bg-white/15 text-white">Checkout</Badge>
-          <h2 className="mt-4 font-semibold text-3xl">Your cart is empty</h2>
-          <p className="mt-2 max-w-xl text-white/80">
-            Add products from the shop before heading to checkout.
+      <Card className="mx-auto max-w-2xl overflow-hidden border-0 shadow-xl">
+        <div className="bg-brand-dark p-8 text-white">
+          <Badge className="border-0 bg-white/15 text-white">
+            {t("checkout.eyebrow")}
+          </Badge>
+          <h2 className="mt-4 font-semibold text-3xl">
+            {t("checkout.empty.title")}
+          </h2>
+          <p className="mt-2 max-w-md text-white/80">
+            {t("checkout.empty.description")}
           </p>
         </div>
-        <CardContent className="flex flex-col gap-4 p-8 sm:flex-row">
-          <Button asChild className="sm:w-auto">
-            <Link href="/shop">Browse the shop</Link>
+        <CardContent className="flex flex-col gap-3 p-8 sm:flex-row">
+          <Button asChild>
+            <Link href="/shop">{t("checkout.empty.browse")}</Link>
           </Button>
-          <Button asChild className="sm:w-auto" variant="outline">
-            <Link href="/shop/cart">Back to cart</Link>
+          <Button asChild variant="outline">
+            <Link href="/shop/cart">{t("checkout.empty.backToCart")}</Link>
           </Button>
         </CardContent>
       </Card>
@@ -220,146 +232,128 @@ export function CheckoutPageClient({
 
   return (
     <form
-      className="grid gap-8 xl:grid-cols-[1.15fr_0.85fr]"
+      className="grid gap-8 lg:grid-cols-[1.1fr_0.9fr]"
       onSubmit={handleSubmit}
     >
       <div className="space-y-6">
-        <Card className="overflow-hidden border-0 shadow-xl">
-          <div className="bg-linear-to-br from-brand-gradient-from via-brand-gradient-to to-cyan-500 p-8 text-white">
-            <Badge className="border-0 bg-white/15 text-white">
-              Contact details
-            </Badge>
-            <h2 className="mt-4 font-semibold text-3xl">
-              Finish your order in one step
-            </h2>
-            <p className="mt-2 max-w-2xl text-white/80">
-              Review the order, choose a payment provider, and we will send you
-              straight to the secure checkout.
-            </p>
-          </div>
-          <CardContent className="grid gap-4 p-8 md:grid-cols-2">
+        <StepCard step={1} title={t("checkout.contact.step")}>
+          <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2 md:col-span-2">
-              <Label htmlFor="checkout-name">Full name</Label>
+              <Label htmlFor="checkout-name">
+                {t("checkout.contact.name")}
+              </Label>
               <Input
                 id="checkout-name"
                 onChange={(event) => setName(event.target.value)}
-                placeholder="Your full name"
+                placeholder={t("checkout.contact.namePlaceholder")}
                 required
                 value={name}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="checkout-email">Email</Label>
+              <Label htmlFor="checkout-email">
+                {t("checkout.contact.email")}
+              </Label>
               <Input
                 id="checkout-email"
                 onChange={(event) => setEmail(event.target.value)}
-                placeholder="you@example.com"
+                placeholder={t("checkout.contact.emailPlaceholder")}
                 required
                 type="email"
                 value={email}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="checkout-phone">Phone</Label>
+              <Label htmlFor="checkout-phone">
+                {t("checkout.contact.phone")}
+              </Label>
               <Input
                 id="checkout-phone"
                 onChange={(event) => setPhone(event.target.value)}
-                placeholder="+47 9x xx xx xx"
+                placeholder={t("checkout.contact.phonePlaceholder")}
                 type="tel"
                 value={phone}
               />
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </StepCard>
 
-        <Card className="border-0 shadow-xl">
-          <CardHeader>
-            <CardTitle>Choose how to pay</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {paymentsAvailable ? (
-              <RadioGroup
-                className="grid gap-4 md:grid-cols-2"
-                onValueChange={(value) => setProvider(value as PaymentProvider)}
-                value={provider}
-              >
-                {(
-                  Object.entries(providerCopy) as [
-                    PaymentProvider,
-                    (typeof providerCopy)[PaymentProvider],
-                  ][]
-                )
-                  .filter(([value]) => enabledProviders.includes(value))
-                  .map(([value, config]) => {
-                    const Icon = config.Icon;
-                    const isSelected = provider === value;
+        <StepCard step={2} title={t("checkout.pay.step")}>
+          {paymentsAvailable ? (
+            <RadioGroup
+              className="grid gap-4 md:grid-cols-2"
+              onValueChange={(value) => setProvider(value as PaymentProvider)}
+              value={provider}
+            >
+              {enabledProviders.map((value) => {
+                const { Icon, accent } = providerMeta[value];
+                const isSelected = provider === value;
 
-                    return (
-                      <div
-                        className={`relative block cursor-pointer overflow-hidden rounded-2xl border transition-all ${
-                          isSelected
-                            ? "border-brand shadow-md"
-                            : "border-border hover:border-brand/40"
-                        }`}
-                        key={value}
+                return (
+                  <div
+                    className={`relative block cursor-pointer overflow-hidden rounded-2xl border transition-all ${
+                      isSelected
+                        ? "border-brand shadow-md ring-1 ring-brand/30"
+                        : "border-border hover:border-brand/40"
+                    }`}
+                    key={value}
+                  >
+                    <div className={`h-2 w-full bg-linear-to-r ${accent}`} />
+                    <div className="flex items-start gap-4 p-5">
+                      <RadioGroupItem
+                        className="mt-1"
+                        id={`provider-${value}`}
+                        value={value}
+                      />
+                      <Label
+                        className="flex-1 cursor-pointer"
+                        htmlFor={`provider-${value}`}
                       >
-                        <div
-                          className={`h-2 w-full bg-linear-to-r ${config.accent}`}
-                        />
-                        <div className="flex items-start gap-4 p-5">
-                          <RadioGroupItem
-                            className="mt-1"
-                            id={`provider-${value}`}
-                            value={value}
-                          />
-                          <Label
-                            className="flex-1 cursor-pointer"
-                            htmlFor={`provider-${value}`}
-                          >
-                            <div className="flex items-center gap-3">
-                              <div className="rounded-full bg-section p-2">
-                                <Icon className="h-5 w-5" />
-                              </div>
-                              <div>
-                                <div className="font-medium text-base">
-                                  {config.title}
-                                </div>
-                                <div className="text-muted-foreground text-sm">
-                                  {config.description}
-                                </div>
-                              </div>
+                        <div className="flex items-center gap-3">
+                          <div className="rounded-full bg-section p-2">
+                            <Icon className="h-5 w-5" />
+                          </div>
+                          <div>
+                            <div className="font-medium text-base">
+                              {providerTitle(value)}
                             </div>
-                            {isSelected ? (
-                              <div className="mt-4 flex items-center gap-2 text-brand text-sm">
-                                <CheckCircle2 className="h-4 w-4" />
-                                Selected for checkout
-                              </div>
-                            ) : null}
-                          </Label>
+                            <div className="text-muted-foreground text-sm">
+                              {providerDescription(value)}
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                    );
-                  })}
-              </RadioGroup>
-            ) : (
-              <p className="text-muted-foreground text-sm">
-                Online payment is temporarily unavailable. Please try again
-                later.
-              </p>
-            )}
-          </CardContent>
-          <CardFooter className="border-t bg-section/40 px-6 py-4 text-muted-foreground text-sm">
-            The payment page opens in the selected provider&apos;s secure hosted
-            checkout.
-          </CardFooter>
-        </Card>
+                        {isSelected ? (
+                          <div className="mt-4 flex items-center gap-2 text-brand text-sm">
+                            <CheckCircle2 className="h-4 w-4" />
+                            {t("checkout.pay.selected")}
+                          </div>
+                        ) : null}
+                      </Label>
+                    </div>
+                  </div>
+                );
+              })}
+            </RadioGroup>
+          ) : (
+            <p className="text-muted-foreground text-sm">
+              {t("checkout.pay.unavailable")}
+            </p>
+          )}
+          <p className="mt-4 border-border/70 border-t pt-4 text-muted-foreground text-sm">
+            {t("checkout.pay.footer")}
+          </p>
+        </StepCard>
 
-        <Card className="border-0 shadow-xl">
-          <CardHeader className="flex flex-row items-center justify-between gap-4">
-            <CardTitle>Order review</CardTitle>
-            <Badge variant="secondary">{itemCount} item(s)</Badge>
-          </CardHeader>
-          <CardContent className="space-y-4">
+        <StepCard
+          badge={
+            <Badge variant="secondary">
+              {t("checkout.review.items", { count: itemCount })}
+            </Badge>
+          }
+          step={3}
+          title={t("checkout.review.step")}
+        >
+          <div className="space-y-4">
             {items.map((item) => {
               const unitPrice =
                 isMember && item.memberPrice
@@ -368,7 +362,7 @@ export function CheckoutPageClient({
 
               return (
                 <div
-                  className="rounded-2xl border border-border/70 bg-white p-5"
+                  className="rounded-2xl border border-border/60 bg-section/40 p-5"
                   key={item.id}
                 >
                   <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -401,94 +395,106 @@ export function CheckoutPageClient({
                         {NOK.format(unitPrice * item.quantity)}
                       </div>
                       <div className="text-muted-foreground text-sm">
-                        {item.quantity} x {NOK.format(unitPrice)}
+                        {item.quantity} × {NOK.format(unitPrice)}
                       </div>
                     </div>
                   </div>
                 </div>
               );
             })}
-          </CardContent>
-        </Card>
+          </div>
+        </StepCard>
       </div>
 
       <div className="space-y-6">
-        <Card className="border-0 shadow-xl xl:sticky xl:top-24">
-          <CardHeader>
-            <CardTitle>Order summary</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-5">
-            <div className="rounded-2xl bg-section p-5">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Items</span>
-                <span>{itemCount}</span>
-              </div>
-              <div className="mt-3 flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Subtotal</span>
-                <span>{NOK.format(regularSubtotal)}</span>
-              </div>
-              {isMember && savings > 0 ? (
-                <div className="mt-3 flex items-center justify-between text-green-700 text-sm">
-                  <span>Member savings</span>
-                  <span>-{NOK.format(savings)}</span>
-                </div>
-              ) : null}
-              <div className="mt-4 border-border/70 border-t pt-4">
-                <div className="flex items-center justify-between font-semibold text-lg">
-                  <span>Total</span>
-                  <span>{NOK.format(subtotal)}</span>
-                </div>
-              </div>
-            </div>
+        <div className="glass-panel p-6 accent-ring lg:sticky lg:top-24">
+          <h2 className="mb-5 font-semibold text-foreground text-lg">
+            {t("checkout.summary.title")}
+          </h2>
 
-            <div className="space-y-3 rounded-2xl border border-border/70 bg-white p-5">
-              <div className="flex items-start gap-3">
-                <ShieldCheck className="mt-0.5 h-5 w-5 text-brand" />
-                <div>
-                  <div className="font-medium">Secure checkout</div>
-                  <p className="text-muted-foreground text-sm">
-                    Payment is completed in {providerCopy[provider].title}
-                    &apos;s hosted checkout, not on this page.
-                  </p>
-                </div>
+          <div className="space-y-3 text-sm">
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">
+                {t("checkout.summary.items")}
+              </span>
+              <span>{itemCount}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">
+                {t("checkout.summary.subtotal")}
+              </span>
+              <span>{NOK.format(regularSubtotal)}</span>
+            </div>
+            {isMember && savings > 0 ? (
+              <div className="flex items-center justify-between text-green-700">
+                <span>{t("checkout.summary.memberSavings")}</span>
+                <span>-{NOK.format(savings)}</span>
               </div>
-              <div className="flex items-start gap-3">
-                <Store className="mt-0.5 h-5 w-5 text-brand" />
-                <div>
-                  <div className="font-medium">Campus pickup</div>
-                  <p className="text-muted-foreground text-sm">
-                    We will prepare the order for pickup at your local BISO
-                    office.
-                  </p>
+            ) : null}
+          </div>
+
+          {/* Total — the one bold, yellow-accented moment on the page */}
+          <div className="mt-5 overflow-hidden rounded-2xl bg-brand-dark text-white">
+            <div className="h-1 w-full bg-brand-accent" />
+            <div className="flex items-center justify-between p-5">
+              <span className="font-medium">{t("checkout.summary.total")}</span>
+              <span className="font-bold text-2xl">{NOK.format(subtotal)}</span>
+            </div>
+          </div>
+
+          <div className="mt-5 space-y-3 rounded-2xl border border-border/60 bg-card p-5">
+            <div className="flex items-start gap-3">
+              <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-brand" />
+              <div>
+                <div className="font-medium">
+                  {t("checkout.summary.secure")}
                 </div>
+                <p className="text-muted-foreground text-sm">
+                  {t("checkout.summary.secureDesc", {
+                    provider: providerTitle(provider),
+                  })}
+                </p>
               </div>
             </div>
-          </CardContent>
-          <CardFooter className="flex flex-col gap-3">
-            {errorMessage ? (
-              <Alert className="w-full" variant="destructive">
-                <AlertCircle className="h-4 w-4" />
-                <AlertTitle>Checkout failed</AlertTitle>
-                <AlertDescription className="break-words">
-                  {errorMessage}
-                </AlertDescription>
-              </Alert>
-            ) : null}
+            <div className="flex items-start gap-3">
+              <Store className="mt-0.5 h-5 w-5 shrink-0 text-brand" />
+              <div>
+                <div className="font-medium">
+                  {t("checkout.summary.pickup")}
+                </div>
+                <p className="text-muted-foreground text-sm">
+                  {t("checkout.summary.pickupDesc")}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {errorMessage ? (
+            <Alert className="mt-5" variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>{t("checkout.submit.failed")}</AlertTitle>
+              <AlertDescription className="break-words">
+                {errorMessage}
+              </AlertDescription>
+            </Alert>
+          ) : null}
+
+          <div className="mt-5 flex flex-col gap-3">
             <Button
               className="w-full"
               disabled={isPending || !paymentsAvailable}
               type="submit"
             >
-              {getSubmitLabel({ isPending, paymentsAvailable, provider })}
+              {getSubmitLabel()}
             </Button>
             <Button asChild className="w-full" variant="outline">
               <Link href="/shop/cart">
                 <ArrowLeft className="mr-2 h-4 w-4" />
-                Back to cart
+                {t("checkout.submit.backToCart")}
               </Link>
             </Button>
-          </CardFooter>
-        </Card>
+          </div>
+        </div>
       </div>
     </form>
   );

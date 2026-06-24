@@ -4,22 +4,30 @@ import { cleanupAllExpiredReservations } from "@/app/actions/cart-reservations";
 import { isProd } from "@/lib/utils";
 
 /**
- * Cleanup endpoint for expired cart reservations
- * Can be called periodically by a cron job or manually
+ * Cleanup endpoint for expired cart reservations. Driven on a schedule by the
+ * `scheduled-dispatch` Appwrite Function (see `functions/scheduled-dispatch`),
+ * which POSTs with an `x-cron-secret` header. Can also be hit manually with a
+ * `Authorization: Bearer ${CRON_SECRET}` header.
  *
- * For production, configure with a cron service like:
- * - Vercel Cron Jobs
- * - GitHub Actions scheduled workflows
- * - External cron services (cron-job.org, etc.)
+ * Recommended schedule: every 10-15 minutes (matches the 10-minute reservation
+ * hold, so freed stock surfaces quickly).
  *
- * Recommended schedule: Every 15 minutes
- *
- * Authentication: requires `Authorization: Bearer ${CRON_SECRET}`. In
- * production the route refuses to run if CRON_SECRET is unset; outside
- * production it allows unauthenticated calls so local dev / smoke tests
- * don't need the secret configured.
+ * Authentication: requires `CRON_SECRET` via either `x-cron-secret` or
+ * `Authorization: Bearer`. In production the route refuses to run if
+ * CRON_SECRET is unset; outside production it allows unauthenticated calls so
+ * local dev / smoke tests don't need the secret configured.
  */
-export async function GET(request: Request) {
+function isAuthorized(request: Request, cronSecret: string): boolean {
+  const headerSecret = request.headers.get("x-cron-secret");
+  if (safeSecretCompare(headerSecret, cronSecret)) {
+    return true;
+  }
+  const authHeader = request.headers.get("authorization");
+  const bearer = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
+  return safeSecretCompare(bearer, cronSecret);
+}
+
+async function handle(request: Request) {
   const cronSecret = process.env.CRON_SECRET;
 
   if (isProd && !cronSecret) {
@@ -30,14 +38,8 @@ export async function GET(request: Request) {
     );
   }
 
-  if (cronSecret) {
-    const authHeader = request.headers.get("authorization");
-    const token = authHeader?.startsWith("Bearer ")
-      ? authHeader.slice(7)
-      : null;
-    if (!safeSecretCompare(token, cronSecret)) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+  if (cronSecret && !isAuthorized(request, cronSecret)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   try {
@@ -59,6 +61,14 @@ export async function GET(request: Request) {
       { status: 500, headers: { "Cache-Control": "no-store" } }
     );
   }
+}
+
+export function GET(request: Request) {
+  return handle(request);
+}
+
+export function POST(request: Request) {
+  return handle(request);
 }
 
 export const dynamic = "force-dynamic";

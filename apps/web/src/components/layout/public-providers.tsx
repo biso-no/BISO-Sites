@@ -5,6 +5,7 @@ import type { MembershipStatus } from "@/lib/actions/membership";
 import { CartProvider } from "@/lib/contexts/cart-context";
 import { CampusProvider } from "../context/campus";
 import { MembershipProvider } from "../context/membership-provider";
+import { CartDrawer } from "../shop/cart/cart-drawer";
 
 interface PublicProvidersProps {
   children: React.ReactNode;
@@ -24,6 +25,7 @@ export const PublicProviders = ({
     <CartProvider>
       <MembershipProvider initialStatus={initialMembershipStatus}>
         {children}
+        <CartDrawer />
       </MembershipProvider>
     </CartProvider>
   </CampusProvider>

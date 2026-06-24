@@ -63,14 +63,29 @@ export async function getAvailableStock(productId: string): Promise<number> {
 }
 
 /**
- * Create or update a cart reservation for a product
- * Reserves stock for 10 minutes
- * Uses session client - user_id from session, RLS handles filtering
+ * Create or update a cart reservation for a product.
+ *
+ * Reservation lifecycle (the webshop's source of truth for "soft" inventory):
+ * - Adding/updating a cart item writes a reservation that holds stock for 10
+ *   minutes. Available stock everywhere is `product.stock − Σ(active
+ *   reservations)` (see {@link getAvailableStock}).
+ * - Removing the item ({@link deleteReservation}) or clearing the cart frees the
+ *   hold immediately; expiry frees it via the cleanup cron / lazy cleanup.
+ * - On a *paid* order the hold is converted to a permanent `product.stock`
+ *   decrement and the reservation is deleted (applyOrderStatusTransition in
+ *   `@repo/shared/utils/vipps-order-ops`), so stock is never double-counted.
+ *
+ * To avoid two shoppers reserving the same last unit, the requested quantity is
+ * capped here to what's actually available (the caller's own existing hold is
+ * added back so editing your own quantity isn't blocked by your own reservation).
+ * Returns the effective (possibly clamped) quantity so the client can reconcile.
+ *
+ * Uses the session client - user_id from session, RLS handles filtering.
  */
 export async function createOrUpdateReservation(
   productId: string,
   quantity: number
-): Promise<{ success: boolean; message?: string }> {
+): Promise<{ success: boolean; message?: string; quantity?: number }> {
   try {
     // Reserving stock is the first action that genuinely needs a per-user
     // identity, so provision an anonymous session here (lazily) rather than
@@ -87,31 +102,44 @@ export async function createOrUpdateReservation(
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
 
     // Check if user already has a reservation for this product (RLS filters by user automatically)
-    const existingReservations = await db.listRows("app", "cart_reservations", [
-      Query.equal("product_id", productId),
-      Query.limit(1),
-    ]);
+    const existingReservations = await db.listRows<CartReservationRow>(
+      "app",
+      "cart_reservations",
+      [Query.equal("product_id", productId), Query.limit(1)]
+    );
+    const existing = existingReservations.rows[0];
+    const existingQuantity = existing?.quantity ?? 0;
 
-    if (existingReservations.rows.length > 0) {
-      // Update existing reservation
-      const reservation = existingReservations.rows[0];
-      if (reservation) {
-        await db.updateRow("app", "cart_reservations", reservation.$id, {
-          quantity,
-          expires_at: expiresAt,
-        });
-      }
+    // Cap to live availability for tracked products. getAvailableStock already
+    // counts the caller's current hold, so add it back to get the caller's true
+    // ceiling; Infinity means the product is untracked (no cap).
+    const available = await getAvailableStock(productId);
+    const effectiveMax = Number.isFinite(available)
+      ? available + existingQuantity
+      : Number.POSITIVE_INFINITY;
+
+    if (effectiveMax <= 0) {
+      return { success: false, message: "Out of stock", quantity: 0 };
+    }
+
+    const effectiveQuantity = Math.max(1, Math.min(quantity, effectiveMax));
+
+    if (existing) {
+      await db.updateRow("app", "cart_reservations", existing.$id, {
+        quantity: effectiveQuantity,
+        expires_at: expiresAt,
+      });
     } else {
       // Create new reservation (user_id from session)
       await db.createRow("app", "cart_reservations", "unique()", {
         product_id: productId,
         user_id: userId,
-        quantity,
+        quantity: effectiveQuantity,
         expires_at: expiresAt,
       });
     }
 
-    return { success: true };
+    return { success: true, quantity: effectiveQuantity };
   } catch (error) {
     console.error("Error creating/updating reservation:", error);
     return {

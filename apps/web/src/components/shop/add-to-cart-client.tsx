@@ -8,6 +8,7 @@ import { Card } from "@repo/ui/components/ui/card";
 import { Separator } from "@repo/ui/components/ui/separator";
 import { AlertCircle, CheckCircle2, ShoppingCart } from "lucide-react";
 import { motion } from "motion/react";
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { formatPrice } from "@/lib/types/webshop";
 import { PriceDetails } from "./price-details";
@@ -15,6 +16,7 @@ import { StockStatusCard } from "./stock-status-card";
 import { useProductActions } from "./use-product-actions";
 
 interface AddToCartClientProps {
+  availableStock?: number | null;
   displayPrice: number;
   hasDiscount: boolean;
   isMember: boolean;
@@ -37,17 +39,23 @@ export function AddToCartClient({
   hasDiscount,
   savings,
   stock,
+  availableStock = null,
 }: AddToCartClientProps) {
+  const t = useTranslations("shop");
   // Option state would ideally be managed by a global state/context or the parent server component's useFormState
   // For simplicity, we use the bare minimum here.
   const [selectedOptions] = useState<Record<string, string>>({});
-  const [availableStock] = useState<number | null>(stock); // Stock logic is simplified for this refactor
-  const [isLoadingStock] = useState(false);
 
   const { handleAddToCart: addToCartAction, addedToCart } = useProductActions(
     product,
     userId
   );
+
+  // Only tracked products (stock !== null) gate availability; for those, the
+  // live availableStock (total stock minus everyone's active reservations) is
+  // the real buyable figure.
+  const isOutOfStock =
+    stock !== null && availableStock !== null && availableStock <= 0;
 
   const handleAddToCart = async () => {
     // Need to get selectedOptions from somewhere (e.g., context/parent state)
@@ -60,7 +68,7 @@ export function AddToCartClient({
       {stock !== null && (
         <StockStatusCard
           availableStock={availableStock}
-          isLoading={isLoadingStock}
+          isLoading={false}
           totalStock={stock}
         />
       )}
@@ -82,7 +90,7 @@ export function AddToCartClient({
                   {formatPrice(displayPrice)}
                 </div>
                 <Badge className="border-0 bg-background/20 text-white">
-                  Save {savings} NOK
+                  {t("card.save", { amount: savings })}
                 </Badge>
               </>
             ) : (
@@ -96,19 +104,20 @@ export function AddToCartClient({
             <Alert className="mb-4 border-white/20 bg-background/10">
               <AlertCircle className="h-4 w-4 text-white" />
               <AlertDescription className="text-sm text-white">
-                Become a BISO member to save {regularPrice - memberPrice} NOK on
-                this item!
+                {t("product.becomeMemberSave", {
+                  amount: regularPrice - memberPrice,
+                })}
               </AlertDescription>
             </Alert>
           )}
 
           <Button
             className="mb-3 w-full bg-background text-brand-dark hover:bg-background/90 disabled:cursor-not-allowed disabled:opacity-50"
-            disabled={stock === 0}
+            disabled={isOutOfStock}
             onClick={handleAddToCart}
           >
             <ShoppingCart className="mr-2 h-4 w-4" />
-            {stock === 0 ? "Out of Stock" : "Add to Cart"}
+            {isOutOfStock ? t("card.outOfStock") : t("product.addToCart")}
           </Button>
 
           {addedToCart && (
@@ -118,7 +127,7 @@ export function AddToCartClient({
               initial={{ opacity: 0, y: -10 }}
             >
               <CheckCircle2 className="h-4 w-4" />
-              Added to cart!
+              {t("product.addedToCart")}
             </motion.div>
           )}
         </Card>
@@ -131,7 +140,9 @@ export function AddToCartClient({
         transition={{ delay: 0.4 }}
       >
         <Card className="border-0 p-6 shadow-lg">
-          <h3 className="mb-4 font-bold text-foreground">Price Details</h3>
+          <h3 className="mb-4 font-bold text-foreground">
+            {t("product.priceDetails")}
+          </h3>
           <div className="space-y-3">
             <PriceDetails
               displayPrice={displayPrice}
@@ -143,14 +154,8 @@ export function AddToCartClient({
             />
             <Separator />
             <div className="flex justify-between text-muted-foreground text-sm">
-              <span>Shipping</span>
-              <span className="font-medium text-green-600">
-                Free (Campus Pickup)
-              </span>
-            </div>
-            <div className="flex justify-between text-muted-foreground text-sm">
-              <span>Tax</span>
-              <span>Included</span>
+              <span>{t("product.tax")}</span>
+              <span>{t("product.included")}</span>
             </div>
           </div>
         </Card>

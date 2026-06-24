@@ -1,4 +1,3 @@
-"use strict";
 /**
  * Scheduled-dispatch Appwrite Function.
  *
@@ -13,12 +12,38 @@
  * Optional:
  *   TICKSTER_SYNC_URL           e.g. https://api.biso.no/api/tickster/sync
  *   DEPARTURES_SYNC_URL         e.g. https://api.biso.no/api/departures/sync
+ *   RESERVATIONS_CLEANUP_URL    e.g. https://biso.no/api/cron/cleanup-reservations
  *   CRON_TIMEOUT_MS             per-request timeout (default 60000)
  */
 
 const DEFAULT_TIMEOUT_MS = 60_000;
 
-async function ping(url, secret, timeoutMs) {
+/** Minimal shape of the Appwrite Functions runtime context we use. */
+interface AppwriteContext {
+  log: (message: unknown) => void;
+  error: (message: unknown) => void;
+  res: {
+    json: (
+      data: unknown,
+      statusCode?: number,
+      headers?: Record<string, string>
+    ) => unknown;
+  };
+}
+
+interface PingResult {
+  url: string;
+  ok: boolean;
+  status?: number;
+  body?: string;
+  error?: string;
+}
+
+async function ping(
+  url: string,
+  secret: string,
+  timeoutMs: number
+): Promise<PingResult> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
@@ -45,7 +70,7 @@ async function ping(url, secret, timeoutMs) {
   }
 }
 
-module.exports = async ({ res, log, error }) => {
+export default async ({ res, log, error }: AppwriteContext) => {
   const secret = process.env.CRON_SECRET;
   if (!secret) {
     error("CRON_SECRET is not configured");
@@ -60,14 +85,15 @@ module.exports = async ({ res, log, error }) => {
     process.env.ANNOUNCEMENTS_DISPATCH_URL,
     process.env.TICKSTER_SYNC_URL,
     process.env.DEPARTURES_SYNC_URL,
-  ].filter((url) => typeof url === "string" && url.length > 0);
+    process.env.RESERVATIONS_CLEANUP_URL,
+  ].filter((url): url is string => typeof url === "string" && url.length > 0);
 
   if (targets.length === 0) {
     log("No cron endpoints configured; nothing to do.");
     return res.json({ ok: true, results: [] });
   }
 
-  const results = [];
+  const results: PingResult[] = [];
   for (const url of targets) {
     const result = await ping(url, secret, timeoutMs);
     results.push(result);

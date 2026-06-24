@@ -1,48 +1,35 @@
 "use client";
 
-import { ImageWithFallback } from "@repo/ui/components/image";
-import { PLACEHOLDER_IMAGE } from "@repo/ui/lib/placeholder-images";
 import { ArrowLeft, ShoppingCart } from "lucide-react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
+import { ShopHeroShell } from "@/components/shop/shop-hero-shell";
 import { useCart } from "@/lib/contexts/cart-context";
 
 export function CartHero() {
+  const t = useTranslations("shop");
   const { getItemCount } = useCart();
   const itemCount = getItemCount();
 
   return (
-    <div className="relative h-[40vh] overflow-hidden">
-      <ImageWithFallback
-        alt="Shopping Cart"
-        className="h-full w-full object-cover"
-        fill
-        src={PLACEHOLDER_IMAGE}
-      />
-      <div className="absolute inset-0 bg-linear-to-br from-brand-overlay-from via-brand-overlay-via to-brand-overlay-to" />
-
-      <div className="absolute inset-0 flex items-center justify-center">
-        <div className="mx-auto max-w-4xl px-4 text-center">
-          <Link
-            className="absolute top-8 left-8 flex items-center gap-2 text-white transition-colors hover:text-brand"
-            href="/shop"
-          >
-            <ArrowLeft className="h-5 w-5" />
-            Back to Shop
-          </Link>
-
-          <div className="fade-in slide-in-from-bottom-4 animate-in duration-700">
-            <div className="mb-4 flex items-center justify-center gap-2">
-              <ShoppingCart className="h-12 w-12 text-brand" />
-            </div>
-            <h1 className="mb-4 font-bold text-4xl text-white md:text-5xl">
-              Your Cart
-            </h1>
-            <p className="text-lg text-white/90">
-              {itemCount} {itemCount === 1 ? "item" : "items"} ready for pickup
-            </p>
-          </div>
-        </div>
-      </div>
-    </div>
+    <ShopHeroShell
+      eyebrow={
+        <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-4 py-1.5 font-medium text-sm text-white/85">
+          <ShoppingCart className="h-4 w-4 text-brand-accent" />
+          {t("hero.title")}
+        </span>
+      }
+      subtitle={t("cart.itemsReady", { count: itemCount })}
+      title={t("cart.title")}
+      topLeft={
+        <Link
+          className="absolute top-8 left-6 z-10 flex items-center gap-2 text-sm text-white/80 transition-colors hover:text-white sm:left-8"
+          href="/shop"
+        >
+          <ArrowLeft className="h-5 w-5" />
+          {t("product.backToShop")}
+        </Link>
+      }
+    />
   );
 }

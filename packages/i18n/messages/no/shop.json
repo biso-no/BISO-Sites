@@ -18,9 +18,19 @@
   },
   "pickup": {
     "title": "Alle produkter tilgjengelig for henting på campus",
-    "description": "Alle varer kjøpt i BISO-butikken kan hentes på BISO-kontoret i åpningstidene. Ingen fraktkostnader, ingen mas - bare praktisk henting på campus!",
+    "description": "Alt du kjøper i BISO-butikken kan hentes på BISO-kontoret på din campus i åpningstidene — ingen frakt nødvendig.",
     "officeHours": "BISO kontortider:",
-    "hours": "Mandag-fredag, 10:00-16:00"
+    "hours": "Mandag-fredag, 10:00-16:00",
+    "cardTitle": "Henting på campus",
+    "locationLabel": "Hentested",
+    "emailNote": "Du får en e-post når bestillingen din er klar for henting.",
+    "campus": {
+      "oslo": "BISO-Land",
+      "stavanger": "Ledelseskontoret ved hovedinngangen",
+      "bergen": "Ledelseskontoret til venstre for hovedinngangen",
+      "trondheim": "BISO-kontoret i 2. etasje",
+      "default": "BISO-kontoret på din campus"
+    }
   },
   "hero": {
     "title": "BISO-butikken",
@@ -33,8 +43,230 @@
     "membersOnly": "Kun for medlemmer",
     "save": "Spar {amount} NOK",
     "onlyLeft": "Bare {count} igjen!",
+    "onlyAvailable": "Bare {count} tilgjengelig!",
     "outOfStock": "Utsolgt",
+    "inStock": "På lager",
+    "available": "{count} tilgjengelig",
+    "reserved": "{count} reservert i handlekurver",
+    "checking": "Sjekker tilgjengelighet...",
     "membersPay": "Medlemmer betaler kun {price}",
     "viewDetails": "Vis detaljer"
+  },
+  "product": {
+    "backToShop": "Tilbake til butikken",
+    "memberDiscountBadge": "Medlemsrabatt",
+    "membersPayHint": "Medlemmer betaler kun {price} — spar {amount} NOK!",
+    "description": "Produktbeskrivelse",
+    "addToCart": "Legg i handlekurv",
+    "addedToCart": "Lagt i handlekurv!",
+    "becomeMemberSave": "Bli BISO-medlem og spar {amount} NOK på denne varen!",
+    "priceDetails": "Prisdetaljer",
+    "regularPrice": "Ordinær pris",
+    "memberPrice": "Medlemspris",
+    "memberSavings": "Medlemsbesparelse",
+    "memberDiscount": "Medlemsrabatt",
+    "yourPrice": "Din pris",
+    "price": "Pris",
+    "tax": "Mva",
+    "included": "Inkludert"
+  },
+  "member": {
+    "notMember": "Ikke medlem ennå?",
+    "joinIntro": "Bli medlem i BISO fra kun 350 NOK/semester og få:",
+    "benefitDiscounts": "Rabatter på utvalgte varer i butikken",
+    "benefitEvents": "Arrangementer kun for medlemmer",
+    "benefitPriority": "Prioritert påmelding",
+    "benefitPartner": "Partnerrabatter",
+    "bestValue": "Best verdi: Årsmedlemskap 550 NOK | 3-årig 1200 NOK",
+    "becomeMember": "Bli medlem"
+  },
+  "cart": {
+    "title": "Handlekurven din",
+    "itemsReady": "{count} {count, plural, one {vare} other {varer}} klar for henting",
+    "empty": {
+      "title": "Handlekurven er tom",
+      "description": "Begynn å legge til BISO-produkter i handlekurven!",
+      "continue": "Fortsett å handle"
+    },
+    "summary": {
+      "title": "Ordresammendrag",
+      "subtotal": "Delsum ({count} {count, plural, one {vare} other {varer}})",
+      "memberDiscount": "Medlemsrabatt",
+      "total": "Totalt",
+      "savingMsg": "Du sparer {amount} NOK med medlemskapet ditt!",
+      "checkout": "Gå til betaling",
+      "continue": "Fortsett å handle",
+      "unlockTitle": "Lås opp medlemsrabatter!",
+      "unlockDesc": "Du kan spare {amount} NOK på denne bestillingen ved å bli BISO-medlem.",
+      "joinCta": "Bli medlem — fra 350 NOK"
+    },
+    "drawer": {
+      "title": "Handlekurven din",
+      "empty": "Handlekurven er tom",
+      "emptyDesc": "Utforsk butikken og legg til noe du liker.",
+      "viewCart": "Se handlekurv",
+      "checkout": "Til betaling",
+      "browse": "Utforsk butikken",
+      "subtotal": "Delsum",
+      "memberSavings": "Medlemsbesparelse"
+    },
+    "list": {
+      "reservedFor": "Varer reservert i:",
+      "expired": "Utløpt"
+    },
+    "alerts": {
+      "checkoutFailed": "Kunne ikke opprette betalingsøkt. Prøv igjen eller kontakt support hvis problemet vedvarer.",
+      "paymentFailed": "Betaling mislyktes. Prøv igjen eller bruk en annen betalingsmåte.",
+      "cancelled": "Betalingen ble avbrutt. Varene ligger fortsatt i handlekurven når du er klar til å betale."
+    },
+    "item": {
+      "membersOnly": "Kun for medlemmer",
+      "each": "per stk",
+      "remove": "Fjern",
+      "decrease": "Reduser antall",
+      "increase": "Øk antall",
+      "quantity": "Antall:",
+      "maxPerOrder": "Maks {count} per ordre",
+      "selectedOptions": "Valgte alternativer:",
+      "membersPrice": "Medlemmer: {price}"
+    }
+  },
+  "checkout": {
+    "title": "Betaling",
+    "eyebrow": "Betaling",
+    "heading": "Nesten ferdig",
+    "subheading": "Se over bestillingen, velg betalingsmåte, så tar vi deg til sikker betaling.",
+    "empty": {
+      "title": "Handlekurven er tom",
+      "description": "Legg til produkter fra butikken før du går til betaling.",
+      "browse": "Utforsk butikken",
+      "backToCart": "Tilbake til handlekurv"
+    },
+    "contact": {
+      "step": "Kontaktinformasjon",
+      "name": "Fullt navn",
+      "namePlaceholder": "Ditt fulle navn",
+      "email": "E-post",
+      "emailPlaceholder": "deg@eksempel.no",
+      "phone": "Telefon",
+      "phonePlaceholder": "+47 9x xx xx xx"
+    },
+    "pay": {
+      "step": "Velg betalingsmåte",
+      "vipps": "Rask betaling med Vipps og MobilePay.",
+      "card": "Betal trygt med Visa, Mastercard og andre kort.",
+      "vippsTitle": "Vipps",
+      "cardTitle": "Kort",
+      "selected": "Valgt for betaling",
+      "unavailable": "Nettbetaling er midlertidig utilgjengelig. Prøv igjen senere.",
+      "footer": "Betalingssiden åpnes i den valgte leverandørens sikre betalingsløsning."
+    },
+    "review": {
+      "step": "Se over bestillingen",
+      "items": "{count} {count, plural, one {vare} other {varer}}"
+    },
+    "summary": {
+      "title": "Ordresammendrag",
+      "items": "Varer",
+      "subtotal": "Delsum",
+      "memberSavings": "Medlemsbesparelse",
+      "total": "Totalt",
+      "secure": "Sikker betaling",
+      "secureDesc": "Betalingen fullføres i {provider} sin sikre betalingsløsning, ikke på denne siden.",
+      "pickup": "Henting på campus",
+      "pickupDesc": "Vi gjør bestillingen klar for henting på ditt lokale BISO-kontor."
+    },
+    "submit": {
+      "starting": "Starter betaling...",
+      "unavailable": "Betaling utilgjengelig",
+      "continueTo": "Fortsett til {provider}",
+      "backToCart": "Tilbake til handlekurv",
+      "failed": "Betaling mislyktes",
+      "emptyError": "Handlekurven er tom",
+      "unavailableError": "Nettbetaling er midlertidig utilgjengelig",
+      "missingFields": "Navn og e-post er påkrevd",
+      "genericError": "Kunne ikke starte betaling"
+    }
+  },
+  "order": {
+    "confirmedTitle": "Bestilling bekreftet!",
+    "detailsTitle": "Bestillingsdetaljer",
+    "orderNumber": "Bestilling #{id}",
+    "success": {
+      "title": "Takk for kjøpet!",
+      "desc": "Betalingen er bekreftet og bestillingen behandles. Du får snart en bekreftelse på e-post med hentedetaljer."
+    },
+    "failed": {
+      "title": "Betaling mislyktes",
+      "desc": "Betalingen for denne bestillingen mislyktes. Prøv igjen eller kontakt support hvis problemet vedvarer."
+    },
+    "cancelled": {
+      "title": "Bestilling kansellert",
+      "desc": "Denne bestillingen ble kansellert. Varene kan fortsatt ligge i handlekurven hvis du vil prøve igjen."
+    },
+    "status": {
+      "title": "Bestillingsstatus",
+      "date": "Bestillingsdato",
+      "paymentId": "Betalings-ID",
+      "pending": "Venter",
+      "pendingDesc": "Venter på betalingsbekreftelse",
+      "authorized": "Autorisert",
+      "authorizedDesc": "Betaling autorisert, behandler bestilling",
+      "paid": "Betalt",
+      "paidDesc": "Betaling vellykket",
+      "cancelledLabel": "Kansellert",
+      "cancelledDesc": "Bestilling kansellert",
+      "failedLabel": "Mislyktes",
+      "failedDesc": "Betaling mislyktes",
+      "refunded": "Refundert",
+      "refundedDesc": "Betaling refundert"
+    },
+    "items": {
+      "title": "Varer i bestillingen",
+      "quantity": "Antall",
+      "variant": "Variant",
+      "each": "per stk"
+    },
+    "totals": {
+      "subtotal": "Delsum",
+      "discount": "Rabatt",
+      "memberApplied": "Medlemsrabatt brukt ({percent}%)",
+      "total": "Totalt"
+    },
+    "customer": {
+      "title": "Kundeinformasjon",
+      "name": "Navn",
+      "email": "E-post",
+      "phone": "Telefon"
+    },
+    "pickup": {
+      "title": "Hentedetaljer",
+      "desc": "Bestillingen din kan hentes på BISO-kontoret.",
+      "emailNote": "Du får en e-post når bestillingen din er klar for henting."
+    },
+    "actions": {
+      "continue": "Fortsett å handle",
+      "print": "Skriv ut bestilling",
+      "receipt": "Se Vipps-kvittering",
+      "returnToCart": "Tilbake til handlekurv",
+      "backToShop": "Tilbake til butikken"
+    },
+    "receipt": {
+      "title": "Ordrekvittering",
+      "orderNo": "Ordrenr.",
+      "date": "Dato",
+      "billTo": "Kunde",
+      "item": "Vare",
+      "qty": "Ant.",
+      "unit": "Enhetspris",
+      "lineTotal": "Sum",
+      "subtotal": "Delsum",
+      "discount": "Rabatt",
+      "total": "Totalt",
+      "pickupAt": "Hentested",
+      "thanks": "Takk for at du støtter BISO!",
+      "proof": "Dette er ditt kjøpsbevis.",
+      "org": "BI Studentorganisasjon (BISO)"
+    }
   }
 }
