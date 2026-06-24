@@ -83,6 +83,8 @@
   "cart": {
     "title": "Handlekurven din",
     "itemsReady": "{count} {count, plural, one {vare} other {varer}} klar for henting",
+    "outOfStock": "Beklager, denne er dessverre utsolgt akkurat nå.",
+    "updateFailed": "Kunne ikke oppdatere handlekurven. Prøv igjen.",
     "empty": {
       "title": "Handlekurven er tom",
       "description": "Begynn å legge til BISO-produkter i handlekurven!",

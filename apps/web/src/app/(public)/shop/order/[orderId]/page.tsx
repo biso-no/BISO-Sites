@@ -239,6 +239,100 @@ async function PickupInfoCard({ pickupLocation }: { pickupLocation: string }) {
   );
 }
 
+async function OrderItemsCard({
+  order,
+  items,
+}: {
+  order: Orders;
+  items: RawOrderItem[];
+}) {
+  const t = await getTranslations("shop");
+
+  return (
+    <Card className="rounded-3xl border border-border/60 p-6 shadow-sm">
+      <h2 className="mb-6 font-bold text-foreground text-xl">
+        {t("order.items.title")}
+      </h2>
+      <div className="space-y-4">
+        {items.map((item, index) => {
+          const itemName = item.title || item.name || "Product";
+          const itemPrice = item.unit_price ?? item.price ?? 0;
+          return (
+            <div
+              className="flex gap-4 rounded-2xl bg-section/50 p-4"
+              key={`${itemName}-${index}`}
+            >
+              <div className="flex-1">
+                <h3 className="font-semibold text-foreground">{itemName}</h3>
+                <div className="mt-1 text-muted-foreground text-sm">
+                  {t("order.items.quantity")}: {item.quantity}
+                </div>
+                {item.variation_name ? (
+                  <div className="mt-1 text-muted-foreground text-sm">
+                    {t("order.items.variant")}: {item.variation_name}
+                  </div>
+                ) : null}
+                {item.custom_fields?.length ? (
+                  <div className="mt-2 space-y-1 text-muted-foreground text-sm">
+                    {item.custom_fields.map((field) => (
+                      <div key={field.id}>
+                        <strong>{field.label}:</strong> {field.value}
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+              <div className="text-right">
+                <div className="font-semibold text-foreground">
+                  {(itemPrice * item.quantity).toFixed(2)} {order.currency}
+                </div>
+                <div className="text-muted-foreground text-sm">
+                  {itemPrice.toFixed(2)} {order.currency}{" "}
+                  {t("order.items.each")}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <Separator className="my-6" />
+
+      <div className="space-y-2">
+        <div className="flex justify-between text-muted-foreground">
+          <span>{t("order.totals.subtotal")}</span>
+          <span>
+            {order.subtotal.toFixed(2)} {order.currency}
+          </span>
+        </div>
+        {order.discount_total && order.discount_total > 0 ? (
+          <div className="flex justify-between text-green-600">
+            <span>{t("order.totals.discount")}</span>
+            <span>
+              -{order.discount_total.toFixed(2)} {order.currency}
+            </span>
+          </div>
+        ) : null}
+        {order.membership_applied ? (
+          <div className="text-brand text-sm">
+            ✓{" "}
+            {t("order.totals.memberApplied", {
+              percent: order.member_discount_percent ?? 0,
+            })}
+          </div>
+        ) : null}
+        <Separator className="my-2" />
+        <div className="flex justify-between font-bold text-foreground text-xl">
+          <span>{t("order.totals.total")}</span>
+          <span>
+            {order.total.toFixed(2)} {order.currency}
+          </span>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
 async function resolveCampusName(campusId?: string | null) {
   if (!campusId) {
     return null;
@@ -307,13 +401,18 @@ async function OrderDetails({
   const pickupLocation = t(`pickup.campus.${normalizeCampusKey(campusName)}`);
 
   const showSuccess = isSuccess && status === "paid";
+  // The return route redirects both "paid" and "authorized" with success=true,
+  // and applyOrderStatusTransition deletes the buyer's reservations on either
+  // transition — so the client cart must be reset for both, not just "paid".
+  const reservationsCleared =
+    isSuccess && (status === "paid" || status === "authorized");
   const heroTitle = showSuccess
     ? t("order.confirmedTitle")
     : t("order.detailsTitle");
 
   return (
     <>
-      {showSuccess ? <CartResetOnSuccess /> : null}
+      {reservationsCleared ? <CartResetOnSuccess /> : null}
 
       <div className="min-h-screen bg-linear-to-b from-section to-background print:hidden">
         <ShopHeroShell
@@ -367,90 +466,7 @@ async function OrderDetails({
                 </div>
               </Card>
 
-              <Card className="rounded-3xl border border-border/60 p-6 shadow-sm">
-                <h2 className="mb-6 font-bold text-foreground text-xl">
-                  {t("order.items.title")}
-                </h2>
-                <div className="space-y-4">
-                  {rawItems.map((item, index) => {
-                    const itemName = item.title || item.name || "Product";
-                    const itemPrice = item.unit_price ?? item.price ?? 0;
-                    return (
-                      <div
-                        className="flex gap-4 rounded-2xl bg-section/50 p-4"
-                        key={`${itemName}-${index}`}
-                      >
-                        <div className="flex-1">
-                          <h3 className="font-semibold text-foreground">
-                            {itemName}
-                          </h3>
-                          <div className="mt-1 text-muted-foreground text-sm">
-                            {t("order.items.quantity")}: {item.quantity}
-                          </div>
-                          {item.variation_name ? (
-                            <div className="mt-1 text-muted-foreground text-sm">
-                              {t("order.items.variant")}: {item.variation_name}
-                            </div>
-                          ) : null}
-                          {item.custom_fields?.length ? (
-                            <div className="mt-2 space-y-1 text-muted-foreground text-sm">
-                              {item.custom_fields.map((field) => (
-                                <div key={field.id}>
-                                  <strong>{field.label}:</strong> {field.value}
-                                </div>
-                              ))}
-                            </div>
-                          ) : null}
-                        </div>
-                        <div className="text-right">
-                          <div className="font-semibold text-foreground">
-                            {(itemPrice * item.quantity).toFixed(2)}{" "}
-                            {order.currency}
-                          </div>
-                          <div className="text-muted-foreground text-sm">
-                            {itemPrice.toFixed(2)} {order.currency}{" "}
-                            {t("order.items.each")}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                <Separator className="my-6" />
-
-                <div className="space-y-2">
-                  <div className="flex justify-between text-muted-foreground">
-                    <span>{t("order.totals.subtotal")}</span>
-                    <span>
-                      {order.subtotal.toFixed(2)} {order.currency}
-                    </span>
-                  </div>
-                  {order.discount_total && order.discount_total > 0 ? (
-                    <div className="flex justify-between text-green-600">
-                      <span>{t("order.totals.discount")}</span>
-                      <span>
-                        -{order.discount_total.toFixed(2)} {order.currency}
-                      </span>
-                    </div>
-                  ) : null}
-                  {order.membership_applied ? (
-                    <div className="text-brand text-sm">
-                      ✓{" "}
-                      {t("order.totals.memberApplied", {
-                        percent: order.member_discount_percent ?? 0,
-                      })}
-                    </div>
-                  ) : null}
-                  <Separator className="my-2" />
-                  <div className="flex justify-between font-bold text-foreground text-xl">
-                    <span>{t("order.totals.total")}</span>
-                    <span>
-                      {order.total.toFixed(2)} {order.currency}
-                    </span>
-                  </div>
-                </div>
-              </Card>
+              <OrderItemsCard items={rawItems} order={order} />
             </div>
 
             <div className="space-y-6">

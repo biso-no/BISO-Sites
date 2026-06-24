@@ -1,6 +1,6 @@
 "use client";
 
-import { useLocale } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import {
   createContext,
   type ReactNode,
@@ -9,12 +9,15 @@ import {
   useEffect,
   useState,
 } from "react";
+import { toast } from "sonner";
 import {
   createOrUpdateReservation,
   deleteAllReservations,
   deleteReservation,
   getCartItemsWithDetails,
 } from "@/app/actions/cart-reservations";
+
+type ReservationFailureReason = "out_of_stock" | "error";
 
 export interface CartItem {
   category: string;
@@ -109,6 +112,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const [_mounted, setMounted] = useState(false);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const locale = useLocale() as "en" | "no";
+  const t = useTranslations("shop");
 
   const openDrawer = useCallback(() => setIsDrawerOpen(true), []);
   const closeDrawer = useCallback(() => setIsDrawerOpen(false), []);
@@ -149,6 +153,22 @@ export function CartProvider({ children }: { children: ReactNode }) {
     refreshCart();
   }, [refreshCart]);
 
+  // A reservation write failed (out of stock, or a server error). Never apply
+  // the returned quantity (it may be 0, which would strand an uncheckoutable
+  // line) — tell the shopper and re-sync the cart from the authoritative server
+  // state instead.
+  const handleReservationFailure = useCallback(
+    (reason?: ReservationFailureReason) => {
+      toast.error(
+        reason === "out_of_stock"
+          ? t("cart.outOfStock")
+          : t("cart.updateFailed")
+      );
+      refreshCart();
+    },
+    [refreshCart, t]
+  );
+
   const addItem = async (
     item: Omit<CartItem, "id" | "quantity"> & { quantity?: number }
   ) => {
@@ -170,6 +190,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
         item.productId,
         newQuantity
       );
+      if (!result.success) {
+        handleReservationFailure(result.reason);
+        return;
+      }
       const finalQuantity = result.quantity ?? newQuantity;
 
       setItems((prevItems) =>
@@ -191,6 +215,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
       item.productId,
       initialQuantity
     );
+    if (!result.success) {
+      handleReservationFailure(result.reason);
+      return;
+    }
     const finalQuantity = result.quantity ?? initialQuantity;
 
     const newItem: CartItem = {
@@ -241,6 +269,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
         item.productId,
         newQuantity
       );
+      if (!result.success) {
+        handleReservationFailure(result.reason);
+        return;
+      }
       const finalQuantity = result.quantity ?? newQuantity;
 
       // Update local state

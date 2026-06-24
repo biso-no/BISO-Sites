@@ -85,7 +85,12 @@ export async function getAvailableStock(productId: string): Promise<number> {
 export async function createOrUpdateReservation(
   productId: string,
   quantity: number
-): Promise<{ success: boolean; message?: string; quantity?: number }> {
+): Promise<{
+  success: boolean;
+  message?: string;
+  quantity?: number;
+  reason?: "out_of_stock" | "error";
+}> {
   try {
     // Reserving stock is the first action that genuinely needs a per-user
     // identity, so provision an anonymous session here (lazily) rather than
@@ -119,7 +124,12 @@ export async function createOrUpdateReservation(
       : Number.POSITIVE_INFINITY;
 
     if (effectiveMax <= 0) {
-      return { success: false, message: "Out of stock", quantity: 0 };
+      return {
+        success: false,
+        reason: "out_of_stock",
+        message: "Out of stock",
+        quantity: 0,
+      };
     }
 
     const effectiveQuantity = Math.max(1, Math.min(quantity, effectiveMax));
@@ -144,6 +154,7 @@ export async function createOrUpdateReservation(
     console.error("Error creating/updating reservation:", error);
     return {
       success: false,
+      reason: "error",
       message: "Failed to reserve stock",
     };
   }

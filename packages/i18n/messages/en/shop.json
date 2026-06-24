@@ -83,6 +83,8 @@
   "cart": {
     "title": "Your Cart",
     "itemsReady": "{count} {count, plural, one {item} other {items}} ready for pickup",
+    "outOfStock": "Sorry, that's out of stock right now.",
+    "updateFailed": "Couldn't update your cart. Please try again.",
     "empty": {
       "title": "Your cart is empty",
       "description": "Start adding some BISO products to your cart!",
