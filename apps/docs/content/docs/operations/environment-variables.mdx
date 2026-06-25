@@ -125,8 +125,11 @@ The standalone JWT REST service.
 | `WEBDOCK_API_KEY` | Webdock (if used) |
 | `WC_CONSUMER_KEY` / `WC_CONSUMER_SECRET` | WordPress/WooCommerce proxy credentials (legacy, see [known limitations](/docs/handover/known-limitations)) |
 | `ENTUR_SYNC_SECRET` | Bearer for `/api/departures/sync` |
-| `CRON_SECRET` | Bearer for `/api/cleanup-anon-users` |
+| `CRON_SECRET` | Bearer for `/api/cleanup-anon-users`, `/api/tickster/events/sync` |
 | `TICKSTER_SYNC_SECRET` | Bearer for `/api/tickster/sync` |
+| `TICKSTER_API_KEY` / `TICKSTER_EOG_CODE` | Tickster CRM (purchase) sync — see [Tickster](/docs/integrations/tickster) |
+| `TICKSTER_EVENTS_API_KEY` | Tickster Event sync API key (falls back to `TICKSTER_API_KEY`) |
+| `TICKSTER_EVENTS_*` | Event sync tuning: `TAKE`, `STATUS`, `ENRICH`, `HIERARCHY_TYPES`, `QUERY_MAP`, `BASE_URL`, `API_VERSION` |
 
 ## Where these need to live
 
