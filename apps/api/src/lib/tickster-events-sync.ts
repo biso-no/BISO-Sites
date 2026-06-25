@@ -1,4 +1,4 @@
-import { Permission, Role, type TablesDB } from "@repo/api";
+import { ID, Permission, Query, Role, type TablesDB } from "@repo/api";
 // Type-only import: the connectors client pulls in `server-only` and is loaded
 // lazily (see `createClient`) so unit tests that inject a fake client never touch
 // it.
@@ -173,7 +173,9 @@ function parseCampusQueries(raw: string | undefined): TicksterCampusQuery[] {
 export function getTicksterEventsSyncConfig(
   env: NodeJS.ProcessEnv = process.env
 ): TicksterEventsSyncConfig | null {
-  const apiKey = env.TICKSTER_EVENTS_API_KEY ?? env.TICKSTER_API_KEY;
+  // Tickster issues a single API key; the Event API reuses TICKSTER_API_KEY.
+  // Treat blank/whitespace as absent so an empty `.env` value reads as unset.
+  const apiKey = env.TICKSTER_API_KEY?.trim();
   if (!apiKey) {
     return null;
   }
@@ -460,15 +462,61 @@ async function upsertEvent(
       { locale: "en", source: enItem ?? nbItem },
     ];
   for (const { locale, source } of translations) {
-    await upsertRow(db, {
-      data: buildTranslationData(rowId, locale, source),
-      databaseId: config.databaseId,
+    await upsertTranslation(db, config, {
+      eventRowId: rowId,
+      locale,
       permissions,
-      rowId: `${rowId}${locale}`,
-      tableId: config.translationsTableId,
+      source,
     });
     result.translationsUpserted += 1;
   }
+}
+
+/**
+ * Upsert one event translation. Rows are matched by the (content_id, locale)
+ * pair via the existing `idx_content_locale` index and created with a random id
+ * — mirroring the admin event flow, and avoiding encoding the locale into the
+ * Appwrite row id (which can overflow the 36-char id limit for long ids).
+ */
+async function upsertTranslation(
+  db: TablesDB,
+  config: TicksterEventsSyncConfig,
+  args: {
+    eventRowId: string;
+    locale: "no" | "en";
+    permissions: string[];
+    source: TicksterEventListItem;
+  }
+): Promise<void> {
+  const { eventRowId, locale, permissions, source } = args;
+  const existing = await db.listRows({
+    databaseId: config.databaseId,
+    queries: [
+      Query.equal("content_type", "event"),
+      Query.equal("content_id", eventRowId),
+      Query.equal("locale", locale),
+      Query.limit(1),
+    ],
+    tableId: config.translationsTableId,
+  });
+  const data = buildTranslationData(eventRowId, locale, source);
+  const existingRow = existing.rows[0];
+  if (existingRow) {
+    await db.updateRow({
+      data,
+      databaseId: config.databaseId,
+      rowId: existingRow.$id,
+      tableId: config.translationsTableId,
+    });
+    return;
+  }
+  await db.createRow({
+    data,
+    databaseId: config.databaseId,
+    permissions,
+    rowId: ID.unique(),
+    tableId: config.translationsTableId,
+  });
 }
 
 async function enrichEvent(

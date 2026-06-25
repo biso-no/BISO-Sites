@@ -127,9 +127,8 @@ The standalone JWT REST service.
 | `ENTUR_SYNC_SECRET` | Bearer for `/api/departures/sync` |
 | `CRON_SECRET` | Bearer for `/api/cleanup-anon-users`, `/api/tickster/events/sync` |
 | `TICKSTER_SYNC_SECRET` | Bearer for `/api/tickster/sync` |
-| `TICKSTER_API_KEY` / `TICKSTER_EOG_CODE` | Tickster CRM (purchase) sync — see [Tickster](/docs/integrations/tickster) |
-| `TICKSTER_EVENTS_API_KEY` | Tickster Event sync API key (falls back to `TICKSTER_API_KEY`) |
-| `TICKSTER_EVENTS_*` | Event sync tuning: `TAKE`, `STATUS`, `ENRICH`, `HIERARCHY_TYPES`, `QUERY_MAP`, `BASE_URL`, `API_VERSION` |
+| `TICKSTER_API_KEY` / `TICKSTER_EOG_CODE` | Tickster API key + CRM organizer code (the key is shared by the purchase and event syncs) — see [Tickster](/docs/integrations/tickster) |
+| `TICKSTER_EVENTS_*` | Event sync tuning: `TAKE`, `STATUS`, `ENRICH`, `HIERARCHY_TYPES`, `QUERY_MAP`, `BASE_URL`, `API_VERSION`, `AUTH_HEADER` |
 
 ## Where these need to live
 

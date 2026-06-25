@@ -106,7 +106,7 @@ describe("getTicksterEventsSyncConfig", () => {
     expect(getTicksterEventsSyncConfig(env({}))).toBeNull();
   });
 
-  it("falls back to TICKSTER_API_KEY and applies defaults", () => {
+  it("reads TICKSTER_API_KEY and applies defaults", () => {
     const config = getTicksterEventsSyncConfig(env({ TICKSTER_API_KEY: "k" }));
     expect(config).not.toBeNull();
     expect(config?.apiKey).toBe("k");
@@ -118,10 +118,16 @@ describe("getTicksterEventsSyncConfig", () => {
     expect(config?.queries[0]).toMatchObject({ campusId: "1" });
   });
 
+  it("treats a blank TICKSTER_API_KEY as unconfigured", () => {
+    expect(
+      getTicksterEventsSyncConfig(env({ TICKSTER_API_KEY: "   " }))
+    ).toBeNull();
+  });
+
   it("parses a custom campus query map and disables enrichment", () => {
     const config = getTicksterEventsSyncConfig(
       env({
-        TICKSTER_EVENTS_API_KEY: "k",
+        TICKSTER_API_KEY: "k",
         TICKSTER_EVENTS_ENRICH: "false",
         TICKSTER_EVENTS_STATUS: "draft",
         TICKSTER_EVENTS_QUERY_MAP: JSON.stringify([
@@ -140,9 +146,16 @@ describe("getTicksterEventsSyncConfig", () => {
 describe("syncTicksterEvents", () => {
   function makeDb() {
     const createRow = vi.fn().mockResolvedValue({});
-    // Simulate first-run: nothing to update yet → 404 → create.
+    // Simulate first-run: the event update 404s → create; translation lookups
+    // find no existing row → create.
     const updateRow = vi.fn().mockRejectedValue({ code: 404 });
-    return { createRow, db: { createRow, updateRow }, updateRow };
+    const listRows = vi.fn().mockResolvedValue({ rows: [], total: 0 });
+    return {
+      createRow,
+      db: { createRow, listRows, updateRow },
+      listRows,
+      updateRow,
+    };
   }
 
   function makeClient() {
@@ -199,7 +212,6 @@ describe("syncTicksterEvents", () => {
     expect(translationCreates).toHaveLength(2);
     const noRow = translationCreates.find((a) => a.data.locale === "no");
     const enRow = translationCreates.find((a) => a.data.locale === "en");
-    expect(noRow.rowId).toBe("tkstg1abcno");
     expect(noRow.data).toMatchObject({
       content_id: "tkstg1abc",
       content_type: "event",

@@ -9,8 +9,6 @@ import {
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
-// Enriching ~50 events/campus with per-event detail calls can take a while.
-export const maxDuration = 300;
 
 function readBearerToken(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
@@ -54,7 +52,7 @@ async function handleSync(request: NextRequest) {
     return NextResponse.json(
       {
         code: "TICKSTER_NOT_CONFIGURED",
-        error: "TICKSTER_EVENTS_API_KEY (or TICKSTER_API_KEY) is required",
+        error: "TICKSTER_API_KEY is required",
       },
       { status: 500 }
     );

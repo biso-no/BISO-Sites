@@ -58,7 +58,7 @@ The integration is **inert until the API key is set**.
 
 | Var | Required | Purpose |
 |---|---|---|
-| `TICKSTER_EVENTS_API_KEY` | yes\* | API key for the Event API. Falls back to `TICKSTER_API_KEY`. |
+| `TICKSTER_API_KEY` | yes | Tickster API key — the same one the purchase sync uses (Tickster issues a single key). |
 | `TICKSTER_AUTH_HEADER` | no | Header carrying the key (default `X-API-KEY`). |
 | `TICKSTER_EVENTS_BASE_URL` | no | Override the Event API host. |
 | `TICKSTER_EVENTS_API_VERSION` | no | API version path segment (default `1.0`). |
@@ -68,8 +68,6 @@ The integration is **inert until the API key is set**.
 | `TICKSTER_EVENTS_HIERARCHY_TYPES` | no | Tickster `eventHierarchyType` values to import (default `event`). |
 | `TICKSTER_EVENTS_QUERY_MAP` | no | Per-campus query → campus mapping (JSON). See below. |
 | `CRON_SECRET` | yes | Gates the sync route (shared scheduler secret). |
-
-\* either `TICKSTER_EVENTS_API_KEY` or `TICKSTER_API_KEY` must be present.
 
 **Campus strategy.** By default the sync issues **one query per campus**,
 filtered by Tickster *organizer* name, and stamps that campus on every result:
@@ -100,7 +98,7 @@ works (`by:` organizer, `city:`, `at:` venue, `tagged:`, etc.):
 
 | Var | Required | Purpose |
 |---|---|---|
-| `TICKSTER_API_KEY` | yes | API key for the CRM API. |
+| `TICKSTER_API_KEY` | yes | API key (shared with the event sync above). |
 | `TICKSTER_EOG_CODE` | yes | Organizer code (`eogCode`) for the CRM endpoint. |
 | `TICKSTER_EVENT_MAP` | no | Tickster event id → internal event mapping (JSON). |
 | `TICKSTER_BASE_URL` | no | Override the CRM API host. |
@@ -139,6 +137,12 @@ works (`by:` organizer, `city:`, `at:` venue, `tagged:`, etc.):
 6. Rows are written `read("any")` so the public site can read them; the
    Operations Unit team retains edit/delete.
 
+With enrichment on, the run does one extra detail call per event, so a large
+catalogue can take a while. The run time is governed operationally — set the
+`scheduled-dispatch` function's timeout (and `CRON_TIMEOUT_MS`) in the Appwrite
+console above the expected duration. A dispatcher ping that aborts early is
+logged as a failure even though the API route keeps running server-side.
+
 ## Failure modes
 
 - **Wrong organizer names** — a campus query returns 0 events. Symptom: that
@@ -166,7 +170,7 @@ works (`by:` organizer, `city:`, `at:` venue, `tagged:`, etc.):
 The Tickster API keys are issued by Tickster (organizer settings). To rotate:
 
 1. Generate a new key in Tickster.
-2. Update `TICKSTER_EVENTS_API_KEY` (and/or `TICKSTER_API_KEY`) on `apps/api`.
+2. Update `TICKSTER_API_KEY` on `apps/api` (both syncs use it).
 3. Restart. There is no in-app secret to coordinate beyond `CRON_SECRET`, which
    rotates like every other [scheduler secret](/docs/operations/secrets-and-keys).
 
