@@ -6,6 +6,10 @@ import { NextResponse } from "next/server";
 // Top-level regex for manager/president role detection
 const MANAGER_ROLE_REGEX = /manager|president/i;
 
+// Numeric department ids resolve to a `departments` DB row; anything else is
+// treated as a literal Azure AD `department` name (e.g. "Control Committee").
+const NUMERIC_ID_REGEX = /^\d+$/;
+
 // --- Types ---
 interface DepartmentMember {
   email: string;
@@ -82,15 +86,25 @@ export async function GET(
     let departmentName = campusInfo.defaultDepartment;
 
     if (departmentId && departmentId !== "undefined") {
-      const { db } = await createAdminClient();
-      try {
-        const department = await db.getRow("app", "departments", departmentId);
-        departmentName = department.Name || departmentId;
-      } catch (_error) {
-        return NextResponse.json(
-          { success: false, message: `Department ${departmentId} not found` },
-          { status: 404 }
-        );
+      if (NUMERIC_ID_REGEX.test(departmentId)) {
+        const { db } = await createAdminClient();
+        try {
+          const department = await db.getRow(
+            "app",
+            "departments",
+            departmentId
+          );
+          departmentName = department.Name || departmentId;
+        } catch (_error) {
+          return NextResponse.json(
+            { success: false, message: `Department ${departmentId} not found` },
+            { status: 404 }
+          );
+        }
+      } else {
+        // Non-numeric segment: use it directly as the Azure department name.
+        // Next.js has already URL-decoded the route param.
+        departmentName = departmentId;
       }
     }
 

@@ -17,6 +17,8 @@ interface TeamTabProps {
   locale: Locale;
 }
 
+const NATIONAL_CAMPUS_ID = "5";
+
 // Maps campusId to the management department ID
 const MANAGEMENT_DEPARTMENT_IDS: Record<string, string> = {
   "1": "2", // Oslo
@@ -26,6 +28,39 @@ const MANAGEMENT_DEPARTMENT_IDS: Record<string, string> = {
   "5": "1002", // National
 };
 
+interface BoardGroup {
+  // Department path segment for the board API: a numeric department id (resolved
+  // to a DB row) or a literal Azure AD `department` name.
+  segment: string;
+  titleEn: string;
+  titleNo: string;
+}
+
+// National leadership is split across several units/committees rather than a
+// single board, so we fetch and render each group on its own.
+const NATIONAL_GROUPS: BoardGroup[] = [
+  {
+    segment: MANAGEMENT_DEPARTMENT_IDS[NATIONAL_CAMPUS_ID],
+    titleEn: "Operations Unit",
+    titleNo: "Operations Unit",
+  },
+  {
+    segment: "Administration",
+    titleEn: "Administration",
+    titleNo: "Administrasjon",
+  },
+  {
+    segment: "Control Committee",
+    titleEn: "Control Committee",
+    titleNo: "Kontrollkomiteen",
+  },
+  {
+    segment: "Branding Committee",
+    titleEn: "Branding Committee",
+    titleNo: "Brandingkomiteen",
+  },
+];
+
 interface CampusLeader {
   email?: string;
   name: string;
@@ -33,6 +68,12 @@ interface CampusLeader {
   phone?: string;
   profilePhotoUrl?: string;
   role?: string;
+}
+
+interface TeamSection {
+  key: string;
+  members: DepartmentBoard[];
+  title: string | null;
 }
 
 const getString = (value: unknown): string | undefined =>
@@ -70,7 +111,19 @@ function getLeadershipUnavailableMessage(locale: Locale): string {
   return "Campusledelsens informasjon er ikke tilgjengelig akkurat nå.";
 }
 
-function getTeamDescription(locale: Locale, campusName: string | null): string {
+function getTeamDescription(
+  locale: Locale,
+  campusName: string | null,
+  campusId: string | null
+): string {
+  // National is staffed by both elected students and employed staff, so the
+  // generic "students" copy used for the campuses does not apply here.
+  if (campusId === NATIONAL_CAMPUS_ID) {
+    return locale === "en"
+      ? "A team of elected students and employed staff working to develop BISO nationally."
+      : "Et team av valgte studenter og ansatte som jobber for å utvikle BISO nasjonalt.";
+  }
+
   const hasCampusName = Boolean(campusName);
   if (locale === "en") {
     const suffix = hasCampusName ? ` at ${campusName}` : "";
@@ -95,6 +148,54 @@ function extractMembersFromPayload(payload: unknown): unknown[] {
   return [];
 }
 
+async function fetchGroupMembers(
+  campusId: string,
+  segment: string
+): Promise<DepartmentBoard[]> {
+  const response = await fetch(
+    `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/campus/${campusId}/${encodeURIComponent(segment)}/board`,
+    {
+      method: "GET",
+      headers: { "Content-Type": "application/json" },
+    }
+  );
+  if (!response.ok) {
+    throw new Error("Failed to fetch campus leadership");
+  }
+  const payload: unknown = await response.json();
+  return extractMembersFromPayload(payload)
+    .filter(
+      (entry): entry is Record<string, unknown> =>
+        typeof entry === "object" && entry !== null
+    )
+    .map(mapToLeader)
+    .filter((member) => member.name)
+    .map(mapToDepartmentBoard);
+}
+
+async function fetchNationalSections(locale: Locale): Promise<TeamSection[]> {
+  const results = await Promise.all(
+    NATIONAL_GROUPS.map(async (group) => ({
+      group,
+      members: await fetchGroupMembers(NATIONAL_CAMPUS_ID, group.segment).catch(
+        () => [] as DepartmentBoard[]
+      ),
+    }))
+  );
+
+  return results
+    .filter(({ members }) => members.length > 0)
+    .map(({ group, members }) => ({
+      key: group.segment,
+      title: locale === "en" ? group.titleEn : group.titleNo,
+      members,
+    }));
+}
+
+function fallbackSection(members: DepartmentBoard[]): TeamSection[] {
+  return [{ key: "fallback", title: null, members }];
+}
+
 export function TeamTab({
   fallbackTeam,
   campusId,
@@ -102,14 +203,16 @@ export function TeamTab({
   locale,
   departmentId,
 }: TeamTabProps) {
-  const [leadership, setLeadership] = useState<DepartmentBoard[]>(fallbackTeam);
+  const [sections, setSections] = useState<TeamSection[]>(() =>
+    fallbackSection(fallbackTeam)
+  );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // If no campus is selected or we already have fallback data, don't fetch
+    // If no campus is selected, just show the fallback data.
     if (!campusId) {
-      setLeadership(fallbackTeam);
+      setSections(fallbackSection(fallbackTeam));
       setLoading(false);
       setError(null);
       return;
@@ -119,41 +222,28 @@ export function TeamTab({
     setLoading(true);
     setError(null);
 
-    // Use provided departmentId, or fall back to management department for the campus
     const effectiveDeptId =
       departmentId ?? MANAGEMENT_DEPARTMENT_IDS[campusId] ?? "management";
 
-    fetch(
-      `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/campus/${campusId}/${effectiveDeptId}/board`,
-      {
-        method: "GET",
-        headers: { "Content-Type": "application/json" },
+    const load = async (): Promise<TeamSection[]> => {
+      if (campusId === NATIONAL_CAMPUS_ID) {
+        return await fetchNationalSections(locale);
       }
-    )
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error("Failed to fetch campus leadership");
-        }
-        return response.json();
-      })
-      .then((payload) => {
+      const members = await fetchGroupMembers(campusId, effectiveDeptId);
+      return [{ key: "team", title: null, members }];
+    };
+
+    load()
+      .then((loaded) => {
         if (cancelled) {
           return;
         }
-        const members = extractMembersFromPayload(payload);
-        if (Array.isArray(members) && members.length) {
-          const mapped = members
-            .filter(
-              (entry): entry is Record<string, unknown> =>
-                typeof entry === "object" && entry !== null
-            )
-            .map(mapToLeader)
-            .filter((member) => member.name)
-            .map(mapToDepartmentBoard);
-          setLeadership(mapped);
+        const hasMembers = loaded.some((section) => section.members.length > 0);
+        if (hasMembers) {
+          setSections(loaded);
           setError(null);
         } else {
-          setLeadership(fallbackTeam);
+          setSections(fallbackSection(fallbackTeam));
           if (!fallbackTeam.length) {
             setError(getLeadershipUnavailableMessage(locale));
           }
@@ -164,24 +254,25 @@ export function TeamTab({
           return;
         }
         console.error("Failed to load campus leadership", fetchError);
-        setLeadership(fallbackTeam);
-        if (fallbackTeam.length) {
-          setError(null);
-        } else {
-          setError(getLeadershipUnavailableMessage(locale));
-        }
+        setSections(fallbackSection(fallbackTeam));
+        setError(
+          fallbackTeam.length ? null : getLeadershipUnavailableMessage(locale)
+        );
       })
       .finally(() => {
-        if (cancelled) {
-          return;
+        if (!cancelled) {
+          setLoading(false);
         }
-        setLoading(false);
       });
 
     return () => {
       cancelled = true;
     };
   }, [campusId, departmentId, fallbackTeam, locale]);
+
+  const visibleSections = sections.filter(
+    (section) => section.members.length > 0
+  );
 
   let content: JSX.Element;
   if (loading) {
@@ -209,18 +300,29 @@ export function TeamTab({
         </div>
       </div>
     );
-  } else if (leadership.length > 0) {
+  } else if (visibleSections.length > 0) {
     content = (
-      <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
-        {leadership.map((member, index) => (
-          <motion.div
-            animate={{ opacity: 1, y: 0 }}
-            initial={{ opacity: 0, y: 20 }}
-            key={index}
-            transition={{ delay: index * 0.1 }}
-          >
-            <TeamMemberCard member={member} />
-          </motion.div>
+      <div className="space-y-16">
+        {visibleSections.map((section) => (
+          <section key={section.key}>
+            {section.title ? (
+              <h3 className="mb-6 text-center text-foreground">
+                {section.title}
+              </h3>
+            ) : null}
+            <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
+              {section.members.map((member, index) => (
+                <motion.div
+                  animate={{ opacity: 1, y: 0 }}
+                  initial={{ opacity: 0, y: 20 }}
+                  key={`${section.key}-${index}`}
+                  transition={{ delay: index * 0.1 }}
+                >
+                  <TeamMemberCard member={member} />
+                </motion.div>
+              ))}
+            </div>
+          </section>
         ))}
       </div>
     );
@@ -247,7 +349,7 @@ export function TeamTab({
           {locale === "en" ? "Meet Our Team" : "Møt vårt team"}
         </h2>
         <p className="mx-auto max-w-2xl text-muted-foreground">
-          {getTeamDescription(locale, campusName)}
+          {getTeamDescription(locale, campusName, campusId)}
         </p>
       </motion.div>
 
