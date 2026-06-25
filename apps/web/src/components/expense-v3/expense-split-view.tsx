@@ -306,6 +306,9 @@ function buildReceiptFromAttachment(
       : "",
     confidence: 1,
     currency: "NOK",
+    // Restore the saved cost type so resuming a draft keeps the chosen GL
+    // mapping instead of falling back to the default on the next save/submit.
+    costType: attachment.cost_type ?? undefined,
   };
 }
 

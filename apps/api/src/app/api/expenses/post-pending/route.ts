@@ -6,6 +6,7 @@
 import { Query } from "@repo/api";
 import { createAdminClient } from "@repo/api/server";
 import { type Expenses, ExpensesStatus } from "@repo/api/types/appwrite";
+import { isFeatureEnabled } from "@repo/shared/utils/feature-flags-server";
 import { safeSecretCompare } from "@repo/shared/utils/secrets";
 import { type NextRequest, NextResponse } from "next/server";
 import { postApprovedExpense } from "@/lib/expense-posting";
@@ -43,6 +44,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // Honor the same kill switch as the submit path: when ledger posting is off,
+  // don't post already-approved expenses to 24SO. Reported as a healthy no-op.
+  if (!(await isFeatureEnabled("expenses_ledger_posting"))) {
+    return NextResponse.json({
+      success: true,
+      skipped: true,
+      reason: "expenses_ledger_posting disabled",
+    });
+  }
+
   const { db } = await createAdminClient();
   const pending = await db.listRows<Expenses>("app", "expense", [
     Query.equal("status", ExpensesStatus.APPROVED),
@@ -60,10 +71,15 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({
-    success: failed === 0,
-    considered: pending.rows.length,
-    posted,
-    failed,
-  });
+  // Surface posting failures to the scheduler, which classifies target health by
+  // response.ok — a 200 would report a failed ledger run as a successful ping.
+  return NextResponse.json(
+    {
+      success: failed === 0,
+      considered: pending.rows.length,
+      posted,
+      failed,
+    },
+    { status: failed > 0 ? 500 : 200 }
+  );
 }

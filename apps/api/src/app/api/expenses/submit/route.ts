@@ -115,6 +115,32 @@ function formatDate(date: Date): string {
   });
 }
 
+/** Profile with every field required for submission present (narrowed). */
+type CompleteProfile = Users & {
+  bank_account: string;
+  email: string;
+  name: string;
+  phone: string;
+};
+
+/** Returns the names of the profile fields required for submission that are unset. */
+function findMissingProfileFields(profile: Users): string[] {
+  const required: [keyof Users, string][] = [
+    ["name", "name"],
+    ["phone", "phone"],
+    ["email", "email"],
+    ["bank_account", "bank_account"],
+  ];
+  return required.filter(([key]) => !profile[key]).map(([, label]) => label);
+}
+
+/** Type guard narrowing a profile once all submission-required fields are set. */
+function isProfileComplete(profile: Users): profile is CompleteProfile {
+  return Boolean(
+    profile.name && profile.phone && profile.email && profile.bank_account
+  );
+}
+
 export async function POST(req: NextRequest) {
   const origin = req.headers.get("origin");
 
@@ -219,27 +245,12 @@ export async function POST(req: NextRequest) {
     );
     const fullAddress = addressParts.join(", ") || "Ikke oppgitt";
 
-    if (
-      !(profile.name && profile.phone && profile.email && profile.bank_account)
-    ) {
-      const missingFields: string[] = [];
-      if (!profile.name) {
-        missingFields.push("name");
-      }
-      if (!profile.phone) {
-        missingFields.push("phone");
-      }
-      if (!profile.email) {
-        missingFields.push("email");
-      }
-      if (!profile.bank_account) {
-        missingFields.push("bank_account");
-      }
+    if (!isProfileComplete(profile)) {
       return applyCorsHeaders(
         NextResponse.json({
           success: false,
           error: "Missing required fields: ",
-          missingFields: missingFields.join(", "),
+          missingFields: findMissingProfileFields(profile).join(", "),
         }),
         origin
       );
@@ -256,6 +267,9 @@ export async function POST(req: NextRequest) {
         submitterIsFinancialManager: Boolean(
           expenseData.submitter_is_financial_manager
         ),
+        // Verified server-side against the department finance mailbox before the
+        // toggle is honored (see resolveExpenseApprovers).
+        submitterEmail: profile.email,
         reimbursementNumber,
         submitterName: profile.name,
         departmentLabel:

@@ -25,6 +25,13 @@ import { generateExpensePdf } from "./pdf/expense-pdf";
 
 const EXPENSES_BUCKET = "expenses";
 
+// Sentinel written to `ledger_transaction_id` to claim an expense before the slow
+// upload/post, so a second overlapping dispatch run skips it (Appwrite has no
+// conditional update, so the id field doubles as the claim marker). It is
+// overwritten with the real transaction id on success and left in place on
+// failure so a failed row is never silently re-posted.
+const POSTING_CLAIM_MARKER = "posting";
+
 type ExpenseWithRels = Expenses & {
   departmentRel: { Id?: string; Name?: string } | null;
   campusRel: { name?: string } | null;
@@ -150,8 +157,9 @@ async function mergePdf(
 
 /**
  * Posts a single approved expense to the ledger. Sets status to `success` on
- * success (storing the 24SO transaction id) or `failed` on error. Idempotent:
- * skips expenses that already carry a ledger transaction id.
+ * success (storing the 24SO transaction id) or `failed` on error. Idempotent
+ * and concurrency-safe: claims the row via `ledger_transaction_id` before any
+ * 24SO call, so an already-posted/claimed expense is skipped.
  */
 export async function postApprovedExpense(expenseId: string): Promise<void> {
   const { db, storage } = await createAdminClient();
@@ -181,8 +189,16 @@ export async function postApprovedExpense(expenseId: string): Promise<void> {
   );
 
   if (expense.ledger_transaction_id) {
-    return; // already posted
+    return; // already posted or claimed by a concurrent run
   }
+
+  // Claim the row before doing any 24SO work. Concurrent runs re-read the fresh
+  // row and bail on the marker above, so only the first claimer posts. The
+  // residual window is the single read→write round-trip, which is the best
+  // achievable without a conditional update.
+  await db.updateRow("app", "expense", expenseId, {
+    ledger_transaction_id: POSTING_CLAIM_MARKER,
+  });
 
   try {
     const profile = await db.getRow<Users>("app", "user", expense.userId);
@@ -247,6 +263,9 @@ export async function postApprovedExpense(expenseId: string): Promise<void> {
     });
   } catch (error) {
     console.error(`[expense-posting] failed for ${expenseId}:`, error);
+    // Keep the claim marker on `ledger_transaction_id`: the transaction may have
+    // reached 24SO before the failure, so the row must not be re-posted
+    // automatically. A failed row is surfaced for manual review/retry instead.
     await db.updateRow("app", "expense", expenseId, {
       status: ExpensesStatus.FAILED,
     });

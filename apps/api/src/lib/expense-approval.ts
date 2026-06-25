@@ -46,6 +46,8 @@ export interface ApprovalChainContext {
   description: string;
   expenseId: string;
   reimbursementNumber: string;
+  /** Authenticated submitter mailbox; verifies the finance-manager self-claim. */
+  submitterEmail: string | null;
   submitterIsFinancialManager: boolean;
   submitterName: string;
   total: number;
@@ -87,7 +89,9 @@ function cardDataFor(
 
 /**
  * Notifies the approver for a step via Teams (best-effort) and Outlook email
- * (always). Persists Teams ids when a card was sent.
+ * (always). Persists Teams ids when a card was sent. Throws when neither channel
+ * delivered: the raw token only lives in the notification, so a step with no
+ * usable link must not be accepted silently (the caller fails the submission).
  */
 async function notifyStep(
   context: ApprovalChainContext,
@@ -119,6 +123,7 @@ async function notifyStep(
     }
   }
 
+  let emailDelivered = false;
   try {
     await sendApprovalEmail({
       to: row.approver_email,
@@ -129,6 +134,7 @@ async function notifyStep(
         rejectUrl: `${data.viewUrl}?intent=reject`,
       }),
     });
+    emailDelivered = true;
   } catch (error) {
     console.error("[expense-approval] Email notify failed:", error);
   }
@@ -138,6 +144,13 @@ async function notifyStep(
       teams_conversation_id: conversationId,
       teams_activity_id: activityId,
     } as Partial<ExpenseApprovals>);
+  }
+
+  const teamsDelivered = Boolean(activityId);
+  if (!(teamsDelivered || emailDelivered)) {
+    throw new Error(
+      `Could not deliver the approval notification to ${row.approver_email} via Teams or email.`
+    );
   }
 }
 
@@ -159,6 +172,7 @@ export async function createApprovalChain(
     campusId: context.campusId,
     departmentName: context.departmentName,
     submitterIsFinancialManager: context.submitterIsFinancialManager,
+    submitterEmail: context.submitterEmail,
   });
 
   if (issue) {
@@ -213,13 +227,25 @@ export async function createApprovalChain(
 
   const first = created.find((row) => row.step === 1) ?? created[0];
   const firstStep = steps.find((step) => step.step === first.step);
-  await notifyStep(
-    context,
-    first,
-    rawTokens.get(first.step) ?? "",
-    steps.length,
-    firstStep?.aadId ?? null
-  );
+  try {
+    await notifyStep(
+      context,
+      first,
+      rawTokens.get(first.step) ?? "",
+      steps.length,
+      firstStep?.aadId ?? null
+    );
+  } catch (error) {
+    // The first approver is unreachable — roll back the just-created chain so the
+    // submission fails cleanly (expense stays a draft) and can be retried, rather
+    // than leaving an approval chain whose only token was never delivered.
+    await Promise.all(
+      created.map((row) =>
+        db.deleteRow("app", "expense_approvals", row.$id).catch(() => undefined)
+      )
+    );
+    throw error;
+  }
 
   return { stepsCreated: created.length, notified: true };
 }
@@ -300,6 +326,7 @@ export async function getApprovalContext(
   );
 
   const totalSteps = await countSteps(row.expense_id);
+  const expired = Date.now() > new Date(row.expires_at).getTime();
   const attachments = [...(expense.expenseAttachments ?? [])].sort(
     (a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)
   );
@@ -316,13 +343,15 @@ export async function getApprovalContext(
     status: row.status,
     stepLabel: stepLabel(row.approver_role, row.step, totalSteps),
     approverRole: row.approver_role,
-    expired: Date.now() > new Date(row.expires_at).getTime(),
+    expired,
     receipts: attachments.map((att) => ({
       id: att.$id,
       description: att.description ?? "",
       amount: att.amount ?? 0,
       date: att.date,
-      fileId: att.url,
+      // Don't expose file ids once the link has expired — the file proxy rejects
+      // them anyway, but this keeps the expired context from leaking ids.
+      fileId: expired ? null : att.url,
       type: att.type,
     })),
   };
@@ -341,6 +370,10 @@ export async function approvalOwnsFile(
   );
   const row = found.rows[0];
   if (!row) {
+    return false;
+  }
+  // Expired links must not download receipts, even if the file id is known.
+  if (Date.now() > new Date(row.expires_at).getTime()) {
     return false;
   }
   const expense = await db.getRow<ExpenseContextRow>(
@@ -472,13 +505,21 @@ export async function decideApproval(params: {
 
   const nextRow = next.rows[0];
   if (nextRow) {
-    // We don't hold the raw token for the next step, so re-issue one.
+    // We don't hold the raw token for the next step, so re-issue one — and reset
+    // its expiry, otherwise a late first approval could hand the next approver a
+    // link that is already (or nearly) expired.
     const rawToken = randomBytes(24).toString("hex");
+    const expiresAt = new Date(
+      Date.now() + TOKEN_TTL_DAYS * MS_PER_DAY
+    ).toISOString();
     await db.updateRow<ExpenseApprovals>(
       "app",
       "expense_approvals",
       nextRow.$id,
-      { token_hash: hashToken(rawToken) } as Partial<ExpenseApprovals>
+      {
+        token_hash: hashToken(rawToken),
+        expires_at: expiresAt,
+      } as Partial<ExpenseApprovals>
     );
     const totalSteps = await countSteps(row.expense_id);
     await notifyStep(
@@ -527,6 +568,7 @@ function buildContextFromExpense(
     campusId: expense.campus,
     departmentName: expense.departmentRel?.Name ?? null,
     submitterIsFinancialManager: false,
+    submitterEmail: null,
     reimbursementNumber: refNumber,
     submitterName: "BISO member",
     departmentLabel: expense.departmentRel?.Name ?? expense.department,
