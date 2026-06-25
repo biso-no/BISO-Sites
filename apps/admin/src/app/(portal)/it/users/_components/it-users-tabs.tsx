@@ -8,6 +8,7 @@ interface ItUsersTabsProps {
   labels: {
     audit: string;
     dataHealth: string;
+    expenseApprovals: string;
     users: string;
   };
 }
@@ -16,6 +17,7 @@ const TABS = [
   { href: "/it/users", key: "users" as const },
   { href: "/it/users/audit", key: "audit" as const },
   { href: "/it/data-health", key: "dataHealth" as const },
+  { href: "/it/expense-approvals", key: "expenseApprovals" as const },
 ];
 
 export function ItUsersTabs({ labels }: ItUsersTabsProps) {

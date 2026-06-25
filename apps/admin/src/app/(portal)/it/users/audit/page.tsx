@@ -38,6 +38,7 @@ export default async function ItUsersAuditPage() {
         labels={{
           audit: t("users.tabs.audit"),
           dataHealth: t("users.tabs.dataHealth"),
+          expenseApprovals: t("users.tabs.expenseApprovals"),
           users: t("users.tabs.users"),
         }}
       />
