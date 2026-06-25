@@ -40,12 +40,9 @@ export interface ApproverResolution {
 interface ResolveInput {
   campusId: string;
   departmentName: string | null;
-  /**
-   * The authenticated submitter's mailbox. Used to verify a
-   * `submitterIsFinancialManager` self-claim against the actual department
-   * finance mailbox before honoring it.
-   */
-  submitterEmail: string | null;
+  // Self-declared by the submitter (Oslo only), and honored as declared. It can't
+  // be verified server-side: members submit reimbursements from personal email
+  // accounts, so there is no identity link back to the department finance mailbox.
   submitterIsFinancialManager: boolean;
 }
 
@@ -93,6 +90,11 @@ function resolveDepartmentApprover(
 export async function resolveExpenseApprovers(
   input: ResolveInput
 ): Promise<ApproverResolution> {
+  const plan = getCampusApprovalPlan({
+    campusId: input.campusId,
+    submitterIsFinancialManager: input.submitterIsFinancialManager,
+  });
+
   const steps: ResolvedApproverStep[] = [];
   let issue: ApproverResolutionIssue | null = null;
   let departmentCandidates: Candidate[] | null = null;
@@ -113,28 +115,6 @@ export async function resolveExpenseApprovers(
   };
 
   const campusSlug = getCampusEmailSlug(input.campusId) ?? "";
-
-  // Only honor the "I am the financial manager" toggle when the authenticated
-  // submitter actually matches the department's finance mailbox. Without this,
-  // any submitter could set the flag in the request body and skip the finance
-  // approval step. When unverified, the flag is ignored and the normal finance
-  // step is kept (fails safe toward more approval, never less).
-  const submitterEmail = input.submitterEmail?.trim().toLowerCase() || null;
-  let effectiveIsFinancialManager = false;
-  if (input.submitterIsFinancialManager && submitterEmail) {
-    const financeApprover = pickApproverByRole(
-      await loadCandidates(),
-      ROLE_EMAIL_PREFIXES.finance,
-      campusSlug
-    );
-    effectiveIsFinancialManager =
-      financeApprover?.email?.toLowerCase() === submitterEmail;
-  }
-
-  const plan = getCampusApprovalPlan({
-    campusId: input.campusId,
-    submitterIsFinancialManager: effectiveIsFinancialManager,
-  });
 
   for (const planStep of plan) {
     if (planStep.kind === "fixed" && planStep.email) {

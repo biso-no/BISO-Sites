@@ -46,8 +46,6 @@ export interface ApprovalChainContext {
   description: string;
   expenseId: string;
   reimbursementNumber: string;
-  /** Authenticated submitter mailbox; verifies the finance-manager self-claim. */
-  submitterEmail: string | null;
   submitterIsFinancialManager: boolean;
   submitterName: string;
   total: number;
@@ -172,7 +170,6 @@ export async function createApprovalChain(
     campusId: context.campusId,
     departmentName: context.departmentName,
     submitterIsFinancialManager: context.submitterIsFinancialManager,
-    submitterEmail: context.submitterEmail,
   });
 
   if (issue) {
@@ -568,7 +565,6 @@ function buildContextFromExpense(
     campusId: expense.campus,
     departmentName: expense.departmentRel?.Name ?? null,
     submitterIsFinancialManager: false,
-    submitterEmail: null,
     reimbursementNumber: refNumber,
     submitterName: "BISO member",
     departmentLabel: expense.departmentRel?.Name ?? expense.department,

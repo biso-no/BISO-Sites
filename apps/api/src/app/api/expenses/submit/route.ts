@@ -267,9 +267,6 @@ export async function POST(req: NextRequest) {
         submitterIsFinancialManager: Boolean(
           expenseData.submitter_is_financial_manager
         ),
-        // Verified server-side against the department finance mailbox before the
-        // toggle is honored (see resolveExpenseApprovers).
-        submitterEmail: profile.email,
         reimbursementNumber,
         submitterName: profile.name,
         departmentLabel:
