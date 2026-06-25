@@ -3,8 +3,10 @@ import { z } from "zod";
 
 const ExpenseAttachmentInputSchema = z.object({
   amount: z.coerce.number().finite().default(0),
+  cost_type: z.string().optional().default(""),
   date: z.string().optional().default(""),
   description: z.string().optional().default(""),
+  sort_order: z.coerce.number().int().nonnegative().optional().default(0),
   type: z.string().optional().default("application/octet-stream"),
   url: z.string().optional().default(""),
 });
@@ -18,6 +20,7 @@ const ExpensePayloadSchema = z.object({
   expenseAttachments: z.array(ExpenseAttachmentInputSchema).optional(),
   expenseId: z.string().min(1).optional(),
   prepayment_amount: z.coerce.number().finite().nullable().optional(),
+  submitter_is_financial_manager: z.boolean().optional().default(false),
   total: z.coerce.number().finite().default(0),
 });
 
@@ -38,6 +41,7 @@ export interface ExpenseRowInput {
   expenseAttachments: ExpenseAttachmentInput[];
   prepayment_amount: number | null;
   status: ExpensesStatus;
+  submitter_is_financial_manager: boolean;
   total: number;
   user: string;
   userId: string;
@@ -64,6 +68,8 @@ export function buildExpenseRowInput(
     expenseAttachments: data.expenseAttachments ?? [],
     prepayment_amount: data.prepayment_amount ?? 0,
     status,
+    submitter_is_financial_manager:
+      data.submitter_is_financial_manager ?? false,
     total: data.total,
     user: userId,
     userId,

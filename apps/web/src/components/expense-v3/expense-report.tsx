@@ -11,6 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@repo/ui/components/ui/select";
+import { Switch } from "@repo/ui/components/ui/switch";
 import { Textarea } from "@repo/ui/components/ui/textarea";
 import { cn } from "@repo/ui/lib/utils";
 import { format } from "date-fns";
@@ -39,6 +40,9 @@ import type { Receipt } from "./store";
 
 type UploadState = { id: string; phase: "uploading" | "analyzing" } | null;
 type UploadPhase = NonNullable<UploadState>["phase"];
+
+// Oslo: the only campus with the department financial-manager approval step.
+const OSLO_CAMPUS_ID = "1";
 
 interface ReceiptRowProps {
   fileInputRef: React.RefObject<HTMLInputElement | null>;
@@ -270,11 +274,13 @@ interface ExpenseReportProps {
   onSaveDraft: () => void;
   onSelect: (id: string) => void;
   onSubmit: () => void;
+  onSubmitterIsFinancialManagerChange: (value: boolean) => void;
   onUpdate: (id: string, updates: Partial<Receipt>) => void;
   receipts: Receipt[];
   selectedCampusId: string;
   selectedDepartmentId: string;
   selectedId: string | null;
+  submitterIsFinancialManager: boolean;
   totalAmount: number;
   userProfile: Partial<Users>;
 }
@@ -299,6 +305,8 @@ export function ExpenseReport({
   description,
   onDescriptionChange,
   isGeneratingSummary,
+  submitterIsFinancialManager,
+  onSubmitterIsFinancialManagerChange,
 }: ExpenseReportProps) {
   const today = format(new Date(), "MMMM d, yyyy");
 
@@ -555,6 +563,28 @@ export function ExpenseReport({
                 value={description}
               />
             </div>
+
+            {selectedCampusId === OSLO_CAMPUS_ID && (
+              <div className="mt-4 flex items-start justify-between gap-4 rounded-lg border border-border bg-muted/50 p-4 dark:bg-inverted/30">
+                <div className="space-y-1">
+                  <label
+                    className="font-medium text-foreground text-sm"
+                    htmlFor="financial-manager-toggle"
+                  >
+                    I am the financial manager of this department
+                  </label>
+                  <p className="text-muted-foreground text-xs">
+                    Turn this on so the approval is routed to your department
+                    manager instead of you.
+                  </p>
+                </div>
+                <Switch
+                  checked={submitterIsFinancialManager}
+                  id="financial-manager-toggle"
+                  onCheckedChange={onSubmitterIsFinancialManagerChange}
+                />
+              </div>
+            )}
           </div>
 
           {/* Line Items */}

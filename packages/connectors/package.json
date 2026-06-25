@@ -15,6 +15,7 @@
     "./azure/users": "./src/azure/users.ts",
     "./24sevenoffice": "./src/24sevenoffice/index.ts",
     "./sharepoint": "./src/sharepoint/index.ts",
+    "./teams-bot": "./src/teams-bot/index.ts",
     "./tickster": "./src/tickster/index.ts"
   },
   "devDependencies": {
@@ -28,6 +29,7 @@
     "@azure/msal-node": "catalog:",
     "@microsoft/microsoft-graph-client": "catalog:",
     "@repo/api": "workspace:*",
+    "botbuilder": "catalog:",
     "openapi-fetch": "catalog:",
     "server-only": "catalog:",
     "soap": "catalog:",

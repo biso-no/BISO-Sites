@@ -30,6 +30,7 @@
  *   TICKSTER_EVENTS_SYNC_URL    e.g. https://api.biso.no/api/tickster/events/sync
  *   DEPARTURES_SYNC_URL         e.g. https://api.biso.no/api/departures/sync
  *   RESERVATIONS_CLEANUP_URL    e.g. https://biso.no/api/cron/cleanup-reservations
+ *   EXPENSES_POST_PENDING_URL   e.g. https://api.biso.no/api/expenses/post-pending
  *   CRON_TIMEOUT_MS             per-request timeout (default 30000)
  *
  * Note: every target authenticates against CRON_SECRET (admin, web, and both
@@ -51,6 +52,7 @@ const TARGET_ENV_VARS = [
   "TICKSTER_EVENTS_SYNC_URL",
   "DEPARTURES_SYNC_URL",
   "RESERVATIONS_CLEANUP_URL",
+  "EXPENSES_POST_PENDING_URL",
 ] as const;
 
 type LogFn = (...messages: unknown[]) => void;

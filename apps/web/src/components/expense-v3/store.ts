@@ -17,6 +17,7 @@ export interface Receipt {
   category?: string; // Potential AI category
   city?: string;
   confidence: number;
+  costType?: string; // User-selected cost type (maps to a GL account)
   country?: string;
   currency: string;
   date: string;
@@ -93,9 +94,14 @@ interface ExpenseStore {
   setProfile: (profile: Partial<Users>) => void;
   setSelectedReceiptId: (id: string | null) => void;
   setSubmissionError: (error: string | null) => void;
+  setSubmitterIsFinancialManager: (value: boolean) => void;
 
   // Submission
   submissionError: string | null;
+
+  // Oslo-only: submitter is the department financial manager (routes approval
+  // to the department manager instead of the financial manager).
+  submitterIsFinancialManager: boolean;
 
   // Computed values
   totalAmount: () => number;
@@ -117,6 +123,7 @@ const initialState = {
   campuses: [] as Campus[],
   submissionError: null,
   expenseId: null,
+  submitterIsFinancialManager: false,
 };
 
 export const useExpenseStore = create<ExpenseStore>((set, get) => ({
@@ -193,6 +200,9 @@ export const useExpenseStore = create<ExpenseStore>((set, get) => ({
 
   setSubmissionError: (submissionError) => set({ submissionError }),
   setExpenseId: (expenseId) => set({ expenseId }),
+
+  setSubmitterIsFinancialManager: (submitterIsFinancialManager) =>
+    set({ submitterIsFinancialManager }),
 
   reset: () => set(initialState),
 }));

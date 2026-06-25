@@ -7,6 +7,7 @@ import { isFeatureEnabled } from "@repo/shared/utils/feature-flags-server";
 import { type NextRequest, NextResponse } from "next/server";
 import { createAuthenticatedClient } from "@/lib/auth";
 import { applyCorsHeaders, corsPreflightResponse } from "@/lib/cors";
+import { createApprovalChain } from "@/lib/expense-approval";
 import {
   buildExpenseRowInput,
   type ExpenseRowInput,
@@ -239,6 +240,46 @@ export async function POST(req: NextRequest) {
           success: false,
           error: "Missing required fields: ",
           missingFields: missingFields.join(", "),
+        }),
+        origin
+      );
+    }
+
+    // New flow: route through Teams/Outlook approval + direct ledger posting
+    // instead of emailing accounting. The PDF + ledger posting happen after the
+    // final approval (see post-pending).
+    if (await isFeatureEnabled("expenses_ledger_posting")) {
+      await createApprovalChain({
+        expenseId: expense.$id,
+        campusId: fetchedExpense.campus,
+        departmentName: fetchedExpense.departmentRel?.Name ?? null,
+        submitterIsFinancialManager: Boolean(
+          expenseData.submitter_is_financial_manager
+        ),
+        reimbursementNumber,
+        submitterName: profile.name,
+        departmentLabel:
+          fetchedExpense.departmentRel?.Name ?? fetchedExpense.department,
+        campusLabel: fetchedExpense.campusRel?.name ?? fetchedExpense.campus,
+        total: fetchedExpense.total,
+        currency: "NOK",
+        description: fetchedExpense.description ?? "",
+      });
+
+      await db.updateRow<ExpenseStatusUpdateRow>(
+        "app",
+        "expense",
+        expense.$id,
+        {
+          status: ExpensesStatus.PENDING,
+        }
+      );
+
+      return applyCorsHeaders(
+        NextResponse.json({
+          success: true,
+          fetchedExpense,
+          reimbursementNumber,
         }),
         origin
       );

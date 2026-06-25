@@ -4,5589 +4,6600 @@
  */
 
 export interface paths {
-  "/accountbalances": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /**
-     * Read account balances
-     * @description Read a list of account balances with monthly changes for a defined period.
-     */
-    get: {
-      parameters: {
-        query: {
-          /** @description The starting date from which balances will be retrieved. */
-          dateFrom: components["schemas"]["DateFrom"];
-          /** @description The ending date until which balances will be retrieved. */
-          dateTo: components["schemas"]["DateTo"];
-          /** @description Specifies the periods for which the balances will be retrieved. */
-          periods?: components["schemas"]["Periods"];
-          /** @description Specifies the type of data to be retrieved. */
-          type?: components["schemas"]["Type"];
-          /** @description Indicates whether to include incoming amounts in the response. Default is false. */
-          keepIncoming?: components["schemas"]["KeepIncoming"];
+    "/accountbalances": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
         };
-        header: {
-          /** @description Authorization header */
-          Authorization: string;
-        };
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description OK */
-        200: {
-          headers: {
-            "Access-Control-Allow-Origin"?: string;
-            "Access-Control-Allow-Credentials"?: string;
-            "X-Trace-Id"?: string;
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["AggregationElement"][];
-            "application/hal": {
-              _embedded?: {
-                records?: components["schemas"]["AggregationElement"][];
-              };
-              /** Format: date */
-              beginningAt?: string;
-              /** Format: date */
-              endingAt?: string;
-              fiscals?: components["schemas"]["Fiscal"][];
+        /**
+         * Read account balances
+         * @description Read a list of account balances with monthly changes for a defined period.
+         */
+        get: {
+            parameters: {
+                query: {
+                    /** @description The starting date from which balances will be retrieved. */
+                    dateFrom: components["schemas"]["DateFrom"];
+                    /** @description The ending date until which balances will be retrieved. */
+                    dateTo: components["schemas"]["DateTo"];
+                    /** @description Specifies the periods for which the balances will be retrieved. */
+                    periods?: components["schemas"]["Periods"];
+                    /** @description Specifies the type of data to be retrieved. */
+                    type?: components["schemas"]["Type"];
+                    /** @description Indicates whether to include incoming amounts in the response. Default is false. */
+                    keepIncoming?: components["schemas"]["KeepIncoming"];
+                };
+                header: {
+                    /** @description Authorization header */
+                    Authorization: string;
+                };
+                path?: never;
+                cookie?: never;
             };
-          };
-        };
-      };
-    };
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/accountbalances/{id}": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        id: number;
-      };
-      cookie?: never;
-    };
-    /**
-     * Read an account balance by ID
-     * @description Read a list of account balances with monthly changes for a defined period for a specific account identified by its unique ID.
-     */
-    get: {
-      parameters: {
-        query: {
-          /** @description The starting date from which balances will be retrieved. */
-          dateFrom: components["schemas"]["DateFrom"];
-          /** @description The ending date until which balances will be retrieved. */
-          dateTo: components["schemas"]["DateTo"];
-          /** @description Specifies the periods for which the balances will be retrieved. */
-          periods?: components["schemas"]["Periods"];
-          /** @description Specifies the type of data to be retrieved. */
-          type?: components["schemas"]["Type"];
-          /** @description Indicates whether to include incoming amounts in the response. Default is false. */
-          keepIncoming?: components["schemas"]["KeepIncoming"];
-        };
-        header: {
-          /** @description Authorization header */
-          Authorization: string;
-        };
-        path: {
-          id: number;
-        };
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        200: {
-          headers: {
-            "Access-Control-Allow-Origin"?: string;
-            "Access-Control-Allow-Credentials"?: string;
-            "X-Trace-Id"?: string;
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["AggregationElement"][];
-            "application/hal": {
-              _embedded?: {
-                records?: components["schemas"]["AggregationElement"][];
-              };
-              /** Format: date */
-              beginningAt?: string;
-              /** Format: date */
-              endingAt?: string;
-              fiscals?: components["schemas"]["Fiscal"][];
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        "Access-Control-Allow-Origin"?: string;
+                        "Access-Control-Allow-Credentials"?: string;
+                        "X-Trace-Id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AggregationElement"][];
+                        "application/hal": {
+                            _embedded?: {
+                                records?: components["schemas"]["AggregationElement"][];
+                            };
+                            /** Format: date */
+                            beginningAt?: string;
+                            /** Format: date */
+                            endingAt?: string;
+                            fiscals?: components["schemas"]["Fiscal"][];
+                        };
+                    };
+                };
             };
-          };
         };
-      };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/accounts": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /**
-     * Read accounts
-     * @description Read a list of accounts, including their details.
-     */
-    get: {
-      parameters: {
-        query?: {
-          /** @description Filters accounts containing the specified keyword(-s) within their name or number properties. For example, a GET request `/accounts/?query=salary` would return accounts with "salary" in their name or number. */
-          query?: string;
+    "/accountbalances/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
         };
-        header: {
-          /** @description Authorization header */
-          Authorization: string;
-        };
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description OK */
-        200: {
-          headers: {
-            "Access-Control-Allow-Origin"?: string;
-            "Access-Control-Allow-Credentials"?: string;
-            "X-Trace-Id"?: string;
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["Account1"][];
-          };
-        };
-      };
-    };
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/accounts/{id}": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        /** @description A unique identifier for the account within Finago Office accounting module. */
-        id: number;
-      };
-      cookie?: never;
-    };
-    /**
-     * Read an account by ID
-     * @description Read details of a specific account identified by its unique ID.
-     */
-    get: {
-      parameters: {
-        query?: never;
-        header: {
-          /** @description Authorization header */
-          Authorization: string;
-        };
-        path: {
-          /** @description A unique identifier for the account within Finago Office accounting module. */
-          id: number;
-        };
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        200: {
-          headers: {
-            "Access-Control-Allow-Origin"?: string;
-            "Access-Control-Allow-Credentials"?: string;
-            "X-Trace-Id"?: string;
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["Account1"];
-          };
-        };
-      };
-    };
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/bankaccounts": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /**
-     * Read bank accounts
-     * @description Read a list of bank accounts with details. Each bank account includes information such as account number, BIC, type, name, owner details, creation timestamp, modification timestamp, and the latest balance information, should there be one available.
-     */
-    get: {
-      parameters: {
-        query?: {
-          /** @description The date to get the balance from. The balance returned will be the last balance before this date. If omitted, the current date is used. The date format here is YYYY-MM-DD. */
-          before?: string;
-        };
-        header: {
-          /** @description Authorization header */
-          Authorization: string;
-        };
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        200: {
-          headers: {
-            "Access-Control-Allow-Origin"?: string;
-            "Access-Control-Allow-Credentials"?: string;
-            "X-Trace-Id"?: string;
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["BankAccountResponse"][];
-          };
-        };
-      };
-    };
-    put?: never;
-    /**
-     * Create a bank account
-     * @description Create a new bank account record with specified details including account number, BIC, type, name, owner details, and optional initial balance information.
-     */
-    post: {
-      parameters: {
-        query?: never;
-        header: {
-          /** @description Authorization header */
-          Authorization: string;
-        };
-        path?: never;
-        cookie?: never;
-      };
-      requestBody: {
-        content: {
-          "application/json": components["schemas"]["BankAccountRequestPost"];
-        };
-      };
-      responses: {
-        /** @description Created */
-        201: {
-          headers: {
-            "Access-Control-Allow-Origin"?: string;
-            "Access-Control-Allow-Credentials"?: string;
-            "X-Trace-Id"?: string;
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["BankAccountResponse"];
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/bankaccounts/{id}": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /**
-     * Read a bank account by ID
-     * @description Read details for a specific bank account identified by its unique identifier. The response includes information such as account number, BIC, type, name, owner details, creation timestamp, modification timestamp, and the latest balance information, should there be one available.
-     */
-    get: {
-      parameters: {
-        query?: {
-          /** @description The date to get the balance from. The balance returned will be the last balance before this date. If omitted, the current date is used. The date format here is YYYY-MM-DD. */
-          before?: string;
-        };
-        header: {
-          /** @description Authorization header */
-          Authorization: string;
-        };
-        path: {
-          id: string;
-        };
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description Successful operation */
-        200: {
-          headers: {
-            "Access-Control-Allow-Origin"?: string;
-            "Access-Control-Allow-Credentials"?: string;
-            "X-Trace-Id"?: string;
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["BankAccountResponse"];
-          };
-        };
-      };
-    };
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/bankaccounts/{id}/balances": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    /**
-     * Create a new bank account balance
-     * @description Add a new balance entry for a specific bank account identified by its unique identifier. The balance entry includes the amount, timestamp, and currency code. The endpoint facilitates accurate tracking of the bank account's financial status over time.
-     */
-    post: {
-      parameters: {
-        query?: never;
-        header: {
-          /** @description Authorization header */
-          Authorization: string;
-        };
-        path: {
-          id: string;
-        };
-        cookie?: never;
-      };
-      requestBody: {
-        content: {
-          "application/json": components["schemas"]["BankAccountBalanceRequestPost"];
-        };
-      };
-      responses: {
-        /** @description Created */
-        201: {
-          headers: {
-            "Access-Control-Allow-Origin"?: string;
-            "Access-Control-Allow-Credentials"?: string;
-            "X-Trace-Id"?: string;
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["BankAccountBalanceResponse"];
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/banktransactions": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /**
-     * Read bank transactions
-     * @description Read a list of bank transactions based on specified filters. Each transaction includes details such as transaction reference, type, bank account details, payment reference, amount, date, and status.
-     */
-    get: {
-      parameters: {
-        query: {
-          /**
-           * @description Filter bank transactions by start date (inclusive). Date format should be YYYY-MM-DD. Compares dates by greater or equal. Accepts dates in ISO 8601 format.
-           * @example {}
-           */
-          dateFrom: string;
-          /**
-           * @description Filter bank transactions by end date (inclusive). Date format should be YYYY-MM-DD. Compares dates by less or equal. Accepts dates in ISO 8601 format. The date range cannot span more than two years.
-           * @example {}
-           */
-          dateTo: string;
-          /** @description Filter bank transactions by bank account ID. */
-          bankAccountId?: string;
-          /** @description Specify the number of items to fetch per page, defaults to 25. */
-          limit?: number;
-          /** @description Specify the page number to fetch, defaults to 1. */
-          page?: number;
-        };
-        header: {
-          /** @description Authorization header */
-          Authorization: string;
-        };
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description Successful operation */
-        200: {
-          headers: {
-            /** @description The "link" header includes information on where to find `first`, `self`, `previous` and `next` page. The last page does not include `next` link. Refer to https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Link */
-            link?: string;
-            "Access-Control-Allow-Origin"?: string;
-            "Access-Control-Allow-Credentials"?: string;
-            "X-Trace-Id"?: string;
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["BankTransactionResponse"][];
-          };
-        };
-      };
-    };
-    put?: never;
-    /**
-     * Create a new bank transaction
-     * @description The `bankAccount.id` is a required property. Before creating bank transaction, a bank account must exists. See `POST /bankaccounts`
-     *
-     *     When creating a bank transaction, the backend system loads the existing bank account record using `bankAccount.id`. Information from the bank account is then appended to the bank transaction based on the transaction's direction type (inbound or outbound).
-     *
-     *     * For outbound transactions, the `fromBankAccount` field is automatically populated from the specified bank account.
-     *     * For inbound transactions, the `toBankAccount` field is automatically populated from the specified bank account.
-     *
-     *     Note: When these fields are automatically set, any input provided in these properties will be ignored.
-     */
-    post: {
-      parameters: {
-        query?: never;
-        header: {
-          /** @description Authorization header */
-          Authorization: string;
-        };
-        path?: never;
-        cookie?: never;
-      };
-      requestBody: {
-        content: {
-          "application/json": components["schemas"]["BankTransactionRequestPost"];
-        };
-      };
-      responses: {
-        /** @description Created */
-        201: {
-          headers: {
-            "Access-Control-Allow-Origin"?: string;
-            "Access-Control-Allow-Credentials"?: string;
-            "X-Trace-Id"?: string;
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["BankTransactionResponse"];
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/banktransactions/{bankTransactionReference}": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /**
-     * Read a bank transaction by bank transaction reference
-     * @description Read details of a specific bank transaction identified by its unique bank transaction reference supplied by the bank.
-     */
-    get: {
-      parameters: {
-        query?: never;
-        header: {
-          /** @description Authorization header */
-          Authorization: string;
-        };
-        path: {
-          /** @description Unique identifier for the bank transaction supplied by the bank that manages the bank account. */
-          bankTransactionReference: string;
-        };
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description Successful operation */
-        200: {
-          headers: {
-            "Access-Control-Allow-Origin"?: string;
-            "Access-Control-Allow-Credentials"?: string;
-            "X-Trace-Id"?: string;
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["BankTransactionResponse"];
-          };
-        };
-      };
-    };
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/currencies": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /**
-     * Read currencies
-     * @description Read a list of available currencies within Finago Office accounting module.
-     */
-    get: {
-      parameters: {
-        query?: never;
-        header: {
-          /** @description Authorization header */
-          Authorization: string;
-        };
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        200: {
-          headers: {
-            "Access-Control-Allow-Origin"?: string;
-            "Access-Control-Allow-Credentials"?: string;
-            "X-Trace-Id"?: string;
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["Currencies"];
-          };
-        };
-      };
-    };
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/customers": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /**
-     * Read customers
-     * @description Read a list of all customers, including their details, with pagination, or a subset of customers based on query parameters. Whether a customer is a company or a private person is controlled by "isCompany" flag property. The schemas are also slightly different for a company (no "person" property) or a person (no "organizationNumber").
-     */
-    get: operations["GetCustomers"];
-    put?: never;
-    /**
-     * Create a customer
-     * @description Create a new customer record for a company or a person, and get the newly created customer in return.
-     *
-     *     For a new company customer, define "name" property and set "isCompany" flag to true in the request body. For a new private person customer, define "firstName" and "lastName" under the "person" property, and set "isCompany" flag to false in the request body. These are the minimum required properties that should be defined in the request body for creating a new customer.
-     *
-     *     All other properties for a customer (see response attributes for each property description) can also be defined in the request body, except for "person" when a new customer is a company, and "organizationNumber" and "name" (this one is generated from "firstName" and "lastName" under the "person" property) when a new customer is a person.
-     */
-    post: operations["CreateCustomer"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/customers/{customerId}": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /**
-     * Read a customer by ID
-     * @description Read details of a specific customer identified by its unique ID.
-     */
-    get: {
-      parameters: {
-        query?: never;
-        header: {
-          /** @description Authorization header */
-          Authorization: string;
-        };
-        path: {
-          /** @description A unique identifier for the customer within Finago Office CRM. */
-          customerId: components["parameters"]["customerId"];
-        };
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description Success */
-        200: {
-          headers: {
-            "Access-Control-Allow-Origin"?: string;
-            "Access-Control-Allow-Credentials"?: string;
-            "X-Trace-Id"?: string;
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["CustomerResponse"];
-          };
-        };
-        /** @description Unauthorized. Missing or invalid bearer token. */
-        401: {
-          headers: {
-            "Access-Control-Allow-Origin"?: string;
-            "Access-Control-Allow-Credentials"?: string;
-            "X-Trace-Id"?: string;
-            [name: string]: unknown;
-          };
-          content?: never;
-        };
-      };
-    };
-    put?: never;
-    post?: never;
-    /**
-     * Delete a customer
-     * @description Delete a specific customer identified by its unique ID.
-     */
-    delete: {
-      parameters: {
-        query?: never;
-        header: {
-          /** @description Authorization header */
-          Authorization: string;
-        };
-        path: {
-          /** @description A unique identifier for the customer within Finago Office CRM. */
-          customerId: components["parameters"]["customerId"];
-        };
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description Success. No content */
-        204: {
-          headers: {
-            "Access-Control-Allow-Origin"?: string;
-            "Access-Control-Allow-Credentials"?: string;
-            "X-Trace-Id"?: string;
-            [name: string]: unknown;
-          };
-          content?: never;
-        };
-        /** @description Unauthorized. Missing or invalid bearer token. */
-        401: {
-          headers: {
-            "Access-Control-Allow-Origin"?: string;
-            "Access-Control-Allow-Credentials"?: string;
-            "X-Trace-Id"?: string;
-            [name: string]: unknown;
-          };
-          content?: never;
-        };
-      };
-    };
-    options?: never;
-    head?: never;
-    /**
-     * Update a customer
-     * @description Update details of a specific customer identified by its uinque customer ID, and receive the updated details in return.
-     */
-    patch: operations["UpdateCustomer"];
-    trace?: never;
-  };
-  "/customers/{customerId}/bankaccounts": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /**
-     * Read customer bank accounts
-     * @description Retrieve a list of bank accounts associated with a specific customer.
-     */
-    get: operations["GetCustomerBankAccounts"];
-    put?: never;
-    /**
-     * Create customer bank account
-     * @description Create a new bank account for a specific customer.
-     */
-    post: operations["CreateCustomerBankAccount"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/customers/{customerId}/bankaccounts/{accountNumber}": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /**
-     * Read specific customer bank account
-     * @description Retrieve a specific bank account by account number for a customer.
-     */
-    get: operations["GetCustomerBankAccount"];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    /**
-     * Update customer bank account
-     * @description Update a specific bank account by account number for a customer.
-     */
-    patch: operations["UpdateCustomerBankAccount"];
-    trace?: never;
-  };
-  "/dimensions": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /** @description List all dimension-types. Get a list of all dimension-types in the system. Elements with id below 100 are system dimension-types and will be the same across all clients. Elements with id above 100 are custom dimension-types specific to the client. */
-    get: {
-      parameters: {
-        query?: never;
-        header: {
-          /** @description Authorization header */
-          Authorization: string;
-        };
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description A list of dimension-types. */
-        200: {
-          headers: {
-            "Access-Control-Allow-Origin"?: string;
-            "Access-Control-Allow-Credentials"?: string;
-            "X-Trace-Id"?: string;
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["Dimension"][];
-          };
-        };
-      };
-    };
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/dimensions/{dimensionType}": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        dimensionType: number;
-      };
-      cookie?: never;
-    };
-    /** @description List single dimension-type. Get description of a single dimension-type by id. */
-    get: {
-      parameters: {
-        query?: never;
-        header: {
-          /** @description Authorization header */
-          Authorization: string;
-        };
-        path: {
-          dimensionType: number;
-        };
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description The dimension-type with the specified id. */
-        200: {
-          headers: {
-            "Access-Control-Allow-Origin"?: string;
-            "Access-Control-Allow-Credentials"?: string;
-            "X-Trace-Id"?: string;
-            [name: string]: unknown;
-          };
-          content: {
-            /**
-             * @example [
-             *       {
-             *         "id": 1,
-             *         "name": "Project"
-             *       },
-             *       {
-             *         "id": 2,
-             *         "name": "Department"
-             *       },
-             *       {
-             *         "id": 3,
-             *         "name": "Employee"
-             *       },
-             *       {
-             *         "id": 4,
-             *         "name": "Product"
-             *       },
-             *       {
-             *         "id": 5,
-             *         "name": "Customer"
-             *       },
-             *       {
-             *         "id": 101,
-             *         "name": "Custom Dimension 1"
-             *       }
-             *     ]
-             */
-            "application/json": components["schemas"]["Dimension"];
-          };
-        };
-      };
-    };
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/dimensions/{dimensionType}/elements": {
-    parameters: {
-      query?: {
-        /** @description The maximum number of elements to retrieve. */
-        limit?: number;
-        /** @description A token for continuing the retrieval of sales orders. This is used for pagination and is prepopulated from the Link-header with rel=next from a previous request. */
-        continuationToken?: string;
-      };
-      header?: never;
-      path: {
-        dimensionType: number;
-      };
-      cookie?: never;
-    };
-    /**
-     * @description List dimension elements.
-     *     Get a list of active dimension elements for a specific dimension type.
-     *     If there are many elements, the results will be paginated, and a Link-header with rel=next will provide the path to the next page.
-     */
-    get: {
-      parameters: {
-        query?: {
-          /** @description The maximum number of elements to retrieve. */
-          limit?: number;
-          /** @description A token for continuing the retrieval of sales orders. This is used for pagination and is prepopulated from the Link-header with rel=next from a previous request. */
-          continuationToken?: string;
-        };
-        header: {
-          /** @description Authorization header */
-          Authorization: string;
-        };
-        path: {
-          dimensionType: number;
-        };
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description List of dimension elements for the specified dimension type. */
-        200: {
-          headers: {
-            /** @description The Link header includes information on where to find `next` page. Refer to https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Link' */
-            Link?: string;
-            "Access-Control-Allow-Origin"?: string;
-            "Access-Control-Allow-Credentials"?: string;
-            "X-Trace-Id"?: string;
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["DimensionElement"][];
-          };
-        };
-      };
-    };
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/dimensions/{dimensionType}/elements/{value}": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        dimensionType: number;
-        value: string;
-      };
-      cookie?: never;
-    };
-    /** @description List single dimension element. Get a single dimension element by dimension type (id) and value (id). */
-    get: {
-      parameters: {
-        query?: never;
-        header: {
-          /** @description Authorization header */
-          Authorization: string;
-        };
-        path: {
-          dimensionType: number;
-          value: string;
-        };
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description Single dimension element for the specified dimension type and value. */
-        200: {
-          headers: {
-            "Access-Control-Allow-Origin"?: string;
-            "Access-Control-Allow-Credentials"?: string;
-            "X-Trace-Id"?: string;
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["DimensionElement"];
-          };
-        };
-      };
-    };
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/documents/{documentId}": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /** Get a document by its DocumentID */
-    get: {
-      parameters: {
-        query?: never;
-        header: {
-          /** @description Authorization header */
-          Authorization: string;
-        };
-        path: {
-          /** @description The ID of the document to retrieve. */
-          documentId: number;
-        };
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description Document retrieved successfully */
-        200: {
-          headers: {
-            "Access-Control-Allow-Origin"?: string;
-            "Access-Control-Allow-Credentials"?: string;
-            "X-Trace-Id"?: string;
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["DocumentInfo"];
-          };
-        };
-      };
-    };
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/fiscalperiods": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /**
-     * Read fiscal periods
-     * @description Read a list of fiscal periods.
-     */
-    get: {
-      parameters: {
-        query?: {
-          /** @description Filter the results by type of accounting period. Use "Period" to retrieve only sub-periods within financial years, "Year" to retrieve only full financial years, or "All" to retrieve both financial years and their associated periods. */
-          type?: "Year" | "Period" | "All";
-        };
-        header: {
-          /** @description Authorization header */
-          Authorization: string;
-        };
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description List of fiscal periods. */
-        200: {
-          headers: {
-            "Access-Control-Allow-Origin"?: string;
-            "Access-Control-Allow-Credentials"?: string;
-            "X-Trace-Id"?: string;
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["AccountingPeriod"][];
-          };
-        };
-      };
-    };
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/me": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /**
-     * Read profile
-     * @description Read information about the current profile. This endpoint is only available for access tokens that have the identityId claim.
-     *
-     *     Finago Office is a multi-tenant application, where a personal login gives access to more than one organization and its people.
-     *
-     *     Hence, there exist "identity", "organization" and the organization’s "people".
-     *
-     *     ==Identity== → *Organization → *Person
-     *
-     *     > info
-     *     > Identity
-     *     > An `identity` is a personal user who logs into Finago Office. An `identity` will have one or more unique identifiers for the personal user, such as an email or a phone number
-     *     > An `identity` may or may not have access to one or more organizations through a person.
-     *
-     *     Finago Office has a global identity pool where an identity may have access to all organizations available in Finago Office.
-     */
-    get: {
-      parameters: {
-        query?: {
-          /** @description A flag variable to include a thumbnail image in the response. */
-          thumb?: boolean;
-          /** @description A flag variable to include a larger thumbnail image in the response. */
-          bigthumb?: boolean;
-          /** @description Maximum age of the cached profile data in seconds. */
-          maxAge?: number;
-        };
-        header: {
-          /** @description Authorization header */
-          Authorization: string;
-        };
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description Success */
-        200: {
-          headers: {
-            "Access-Control-Allow-Origin"?: string;
-            "Access-Control-Allow-Credentials"?: string;
-            "X-Trace-Id"?: string;
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["ProfileModel"];
-          };
-        };
-      };
-    };
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/me/identifiers": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /**
-     * Read identifiers
-     * @description Read identifiers for a profile, where identifiers, such as an email and a phone, may or may not be verified.
-     */
-    get: {
-      parameters: {
-        query?: {
-          /** @description The type of identifiers to retrieve. */
-          type?: string;
-          /** @description Status of the identifier as per communication status type. */
-          status?: components["schemas"]["CommunicationStatusType"];
-        };
-        header: {
-          /** @description Authorization header */
-          Authorization: string;
-        };
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description Success */
-        200: {
-          headers: {
-            "Access-Control-Allow-Origin"?: string;
-            "Access-Control-Allow-Credentials"?: string;
-            "X-Trace-Id"?: string;
-            [name: string]: unknown;
-          };
-          content: {
-            /**
-             * @example [
-             *       {
-             *         "id": "123e4567-e89b-12d3-a456-426614174002",
-             *         "type": "Email",
-             *         "value": "john.doe@example.com",
-             *         "status": "Confirmed"
-             *       },
-             *       {
-             *         "id": "123e4567-e89b-12d3-a456-426614174003",
-             *         "type": "Phone",
-             *         "value": "+47-87654321",
-             *         "status": "Unconfirmed"
-             *       }
-             *     ]
-             */
-            "application/json": components["schemas"]["IdentifierModel"][];
-          };
-        };
-      };
-    };
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/me/identifiers/{id}": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /**
-     * Read an identifier by ID
-     * @description Read details of a specific identifier identified by its unique ID.
-     */
-    get: {
-      parameters: {
-        query?: never;
-        header: {
-          /** @description Authorization header */
-          Authorization: string;
-        };
-        path: {
-          /** @description A unique identifier for the identifier within Finago Office. */
-          id: string;
-        };
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description Success */
-        200: {
-          headers: {
-            "Access-Control-Allow-Origin"?: string;
-            "Access-Control-Allow-Credentials"?: string;
-            "X-Trace-Id"?: string;
-            [name: string]: unknown;
-          };
-          content: {
-            /**
-             * @example {
-             *       "id": "123e4567-e89b-12d3-a456-426614174002",
-             *       "type": "Email",
-             *       "value": "john.doe@example.com",
-             *       "status": "Confirmed"
-             *     }
-             */
-            "application/json": components["schemas"]["IdentifierModel"];
-          };
-        };
-      };
-    };
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/me/licenses": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /**
-     * Read licenses
-     * @description Read all licenses for a profile. Receive in return the identifiers for an organization and the connected person within that company. This information can be used as a login hint to get an access token for operational work on behalf of the connected person.
-     */
-    get: operations["GetLicenses"];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/me/licenses/{id}/organization": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /**
-     * Read an organization by license ID
-     * @description Read a summary of the organization connected to a license identified by its unique license ID. This summary provides more information than just the organization name, and is useful for looking up details about all connected licenses without authorization from other organizations with login hints.
-     */
-    get: {
-      parameters: {
-        query?: never;
-        header: {
-          /** @description Authorization header */
-          Authorization: string;
-        };
-        path: {
-          /** @description The unique identifier for the license. */
-          id: string;
-        };
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description Success */
-        200: {
-          headers: {
-            "Access-Control-Allow-Origin"?: string;
-            "Access-Control-Allow-Credentials"?: string;
-            "X-Trace-Id"?: string;
-            [name: string]: unknown;
-          };
-          content: {
-            /**
-             * @example {
-             *       "id": "123e4567-e89b-12d3-a456-426614174004",
-             *       "name": "ABC Corporation",
-             *       "email": "contact@example.com"
-             *     }
-             */
-            "application/json": components["schemas"]["OrganizationModel"];
-          };
-        };
-      };
-    };
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/organization/information": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /**
-     * Read organization
-     * @description Read information about the organization that the current profile is logged into.
-     *
-     *     Finago Office is a multi-tenant application, where a personal login gives access to more than one organization and its people.
-     *
-     *     Hence, there exist "identity", "organization" and the organization’s "people".
-     *
-     *     Identity → ==*Organization== → *Person
-     *
-     *     > info
-     *     > Organization
-     *     > An `organization` is usually a legal entity based in a certain country. An organization will own all of its data such as customers, invoices, transactions, etc.
-     *     > An `organization` will have many people that may be employees, connections, etc.
-     */
-    get: operations["GetClient"];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/organization/people": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /**
-     * Read people
-     * @description Read a list of all people under the organization.
-     *
-     *     Finago Office is a multi-tenant application, where a personal login gives access to more than one organization and its people.
-     *
-     *     Hence, there exist "identity", "organization" and the organization’s "people".
-     *
-     *     Identity → *Organization → ==*Person==
-     *
-     *     > info
-     *     > People
-     *     > A `person` is owned by an `organization`, and will usually be an employee or an owner of the `organization`.
-     *     > A `person` may be connected to an `identity`.
-     *     > An `identity` connected to a `person` may have a certain role in an `organization`, that will result in a set of permissions called `scopes`.
-     */
-    get: {
-      parameters: {
-        query?: {
-          /** @description Type of person to filter by. */
-          personType?: components["schemas"]["TfsoApiOrganizationModelsUserType"];
-        };
-        header: {
-          /** @description Authorization header */
-          Authorization: string;
-        };
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description Success */
-        200: {
-          headers: {
-            "Access-Control-Allow-Origin"?: string;
-            "Access-Control-Allow-Credentials"?: string;
-            "X-Trace-Id"?: string;
-            [name: string]: unknown;
-          };
-          content: {
-            "text/plain": components["schemas"]["TfsoApiOrganizationUnitOfWorkModelsPersonModel"][];
-            "application/json": components["schemas"]["TfsoApiOrganizationUnitOfWorkModelsPersonModel"][];
-            "text/json": components["schemas"]["TfsoApiOrganizationUnitOfWorkModelsPersonModel"][];
-          };
-        };
-      };
-    };
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/organization/people/{id}": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /**
-     * Read a person
-     * @description Read information about a single person identified by its unique ID.
-     */
-    get: {
-      parameters: {
-        query?: {
-          /** @description Type of person to filter by. */
-          personType?: components["schemas"]["TfsoApiOrganizationModelsUserType"];
-        };
-        header: {
-          /** @description Authorization header */
-          Authorization: string;
-        };
-        path: {
-          /** @description A unique identifier for the person within Finago Office. */
-          id: number;
-        };
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description Success */
-        200: {
-          headers: {
-            "Access-Control-Allow-Origin"?: string;
-            "Access-Control-Allow-Credentials"?: string;
-            "X-Trace-Id"?: string;
-            [name: string]: unknown;
-          };
-          content: {
-            "text/plain": components["schemas"]["TfsoApiOrganizationUnitOfWorkModelsPersonModel"];
-            "application/json": components["schemas"]["TfsoApiOrganizationUnitOfWorkModelsPersonModel"];
-            "text/json": components["schemas"]["TfsoApiOrganizationUnitOfWorkModelsPersonModel"];
-          };
-        };
-        /** @description Not Found */
-        404: {
-          headers: {
-            "Access-Control-Allow-Origin"?: string;
-            "Access-Control-Allow-Credentials"?: string;
-            "X-Trace-Id"?: string;
-            [name: string]: unknown;
-          };
-          content?: never;
-        };
-      };
-    };
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/productcategories": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /**
-     * Read product categories
-     * @description Read a list of product categories.
-     */
-    get: operations["GetCategories"];
-    put?: never;
-    /**
-     * Create a product category
-     * @description Create a new product category with specified attributes and receive the details of the newly created category in the response.
-     */
-    post: operations["CreateCategory"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/productcategories/{id}": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
         /**
-         * @description A unique identifier for the product category within Finago Office ERP modules.
-         * @example 12
+         * Read an account balance by ID
+         * @description Read a list of account balances with monthly changes for a defined period for a specific account identified by its unique ID.
          */
-        id: number;
-      };
-      cookie?: never;
-    };
-    /**
-     * Read a product category by ID
-     * @description Read details of a specific product category identified by its unique ID.
-     */
-    get: {
-      parameters: {
-        query?: never;
-        header: {
-          /** @description Authorization header */
-          Authorization: string;
+        get: {
+            parameters: {
+                query: {
+                    /** @description The starting date from which balances will be retrieved. */
+                    dateFrom: components["schemas"]["DateFrom"];
+                    /** @description The ending date until which balances will be retrieved. */
+                    dateTo: components["schemas"]["DateTo"];
+                    /** @description Specifies the periods for which the balances will be retrieved. */
+                    periods?: components["schemas"]["Periods"];
+                    /** @description Specifies the type of data to be retrieved. */
+                    type?: components["schemas"]["Type"];
+                    /** @description Indicates whether to include incoming amounts in the response. Default is false. */
+                    keepIncoming?: components["schemas"]["KeepIncoming"];
+                };
+                header: {
+                    /** @description Authorization header */
+                    Authorization: string;
+                };
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        "Access-Control-Allow-Origin"?: string;
+                        "Access-Control-Allow-Credentials"?: string;
+                        "X-Trace-Id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AggregationElement"][];
+                        "application/hal": {
+                            _embedded?: {
+                                records?: components["schemas"]["AggregationElement"][];
+                            };
+                            /** Format: date */
+                            beginningAt?: string;
+                            /** Format: date */
+                            endingAt?: string;
+                            fiscals?: components["schemas"]["Fiscal"][];
+                        };
+                    };
+                };
+            };
         };
-        path: {
-          /**
-           * @description A unique identifier for the product category within Finago Office ERP modules.
-           * @example 12
-           */
-          id: number;
-        };
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description Success */
-        200: {
-          headers: {
-            "Access-Control-Allow-Origin"?: string;
-            "Access-Control-Allow-Credentials"?: string;
-            "X-Trace-Id"?: string;
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["CategoryResponse"];
-          };
-        };
-      };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    put?: never;
-    post?: never;
-    /**
-     * Delete a product category
-     * @description Delete a specific product category identified by its unique ID.
-     */
-    delete: operations["DeleteCategory"];
-    options?: never;
-    head?: never;
-    /**
-     * Update a product category
-     * @description Update details of a specific product category identified by its unique ID, and receive the updated details in return.
-     */
-    patch: operations["UpdateCategory"];
-    trace?: never;
-  };
-  "/products": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /**
-     * Read products
-     * @description Read a list of products, including their details, with pagination, or a subset of products based on query parameters. Products may have different attributes such as name, description, price, and stock information. The endpoint supports various search criteria for filtering products based on specific attributes.
-     */
-    get: operations["GetProducts"];
-    put?: never;
-    /**
-     * Create a product
-     * @description Create a new product record with specified attributes and receive the details of the newly created product in the response.
-     */
-    post: operations["CreateProduct"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/products/{id}": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
+    "/accounts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
         /**
-         * @description A unique identifier for the product within Finago Office ERP-modules.
-         * @example 123
+         * Read accounts
+         * @description Read a list of accounts, including their details.
          */
-        id: number;
-      };
-      cookie?: never;
+        get: {
+            parameters: {
+                query?: {
+                    /** @description Filters accounts containing the specified keyword(-s) within their name or number properties. For example, a GET request `/accounts/?query=salary` would return accounts with "salary" in their name or number. */
+                    query?: string;
+                };
+                header: {
+                    /** @description Authorization header */
+                    Authorization: string;
+                };
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        "Access-Control-Allow-Origin"?: string;
+                        "Access-Control-Allow-Credentials"?: string;
+                        "X-Trace-Id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Account1"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /**
-     * Read a product by ID
-     * @description Read details of a specific product identified by its unique ID.
-     */
-    get: {
-      parameters: {
-        query?: never;
-        header: {
-          /** @description Authorization header */
-          Authorization: string;
+    "/accounts/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique identifier for the account within Finago Office accounting module. */
+                id: number;
+            };
+            cookie?: never;
         };
-        path: {
-          /**
-           * @description A unique identifier for the product within Finago Office ERP-modules.
-           * @example 123
-           */
-          id: number;
-        };
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description Success */
-        200: {
-          headers: {
-            "Access-Control-Allow-Origin"?: string;
-            "Access-Control-Allow-Credentials"?: string;
-            "X-Trace-Id"?: string;
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["ProductResponse"];
-          };
-        };
-      };
-    };
-    put?: never;
-    post?: never;
-    /**
-     * Delete a product
-     * @description Delete a specific product identified by its unique ID.
-     */
-    delete: operations["DeleteProduct"];
-    options?: never;
-    head?: never;
-    /**
-     * Update a product
-     * @description Update details of a specific product identified by its unique product ID, and receive the updated details in return.
-     */
-    patch: operations["UpdateProduct"];
-    trace?: never;
-  };
-  "/productunits": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /**
-     * Read product units
-     * @description Read a list of available units of measurement for products.
-     */
-    get: operations["GetUnits"];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/salesorders": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /**
-     * Read sales orders
-     * @description Read existing sales orders with optional filters.
-     */
-    get: {
-      parameters: {
-        query?: {
-          /** @description The maximum number of sales orders to retrieve. */
-          limit?: number;
-          /** @description A token for continuing the retrieval of sales orders. */
-          continuationToken?: string;
-          /** @description A specific date to filter sales orders. */
-          date?: string;
-          /** @description A start date to filter sales orders. */
-          dateFrom?: string;
-          /** @description An end date to filter sales orders. */
-          dateTo?: string;
-          /** @description Filter sales orders by their status. */
-          status?:
-            | "Draft"
-            | "Web"
-            | "Proposal"
-            | "Confirmed"
-            | "Invoice"
-            | "AdvanceInvoice";
-          /** @description Filter sales orders by customer ID. */
-          customerId?: string;
-          /** @description Filter sales orders by invoice number. */
-          invoiceNumber?: string;
-          /** @description A start date-time to filter sales orders by creation time. */
-          createdFrom?: string;
-          /** @description An end date-time to filter sales orders by creation time. */
-          createdTo?: string;
-          /** @description A start date-time to filter sales orders by modification time. */
-          modifiedFrom?: string;
-          /** @description An end date-time to filter sales orders by modification time. */
-          modifiedTo?: string;
-        };
-        header: {
-          /** @description Authorization header */
-          Authorization: string;
-        };
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description OK */
-        200: {
-          headers: {
-            /** @description The Link header includes information on where to find `first`, `previous` and `next` page. Refer to https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Link' */
-            Link?: string;
-            "Access-Control-Allow-Origin"?: string;
-            "Access-Control-Allow-Credentials"?: string;
-            "X-Trace-Id"?: string;
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["SalesOrder"][];
-          };
-        };
-      };
-    };
-    put?: never;
-    /**
-     * Create a sales order
-     * @description Create a new sales order with customer details and order information.
-     */
-    post: {
-      parameters: {
-        query?: never;
-        header: {
-          /** @description Authorization header */
-          Authorization: string;
-        };
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: {
-        content: {
-          "application/json": components["schemas"]["SalesOrderRequestPost"];
-        };
-      };
-      responses: {
-        /** @description OK */
-        200: {
-          headers: {
-            "Access-Control-Allow-Origin"?: string;
-            "Access-Control-Allow-Credentials"?: string;
-            "X-Trace-Id"?: string;
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["SalesOrderExtended"];
-          };
-        };
-        /** @description Bad request */
-        400: {
-          headers: {
-            "Access-Control-Allow-Origin"?: string;
-            "Access-Control-Allow-Credentials"?: string;
-            "X-Trace-Id"?: string;
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json":
-              | components["schemas"]["BadRequestError"]
-              | components["schemas"]["ValidationError"];
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/salesorders/{id}": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        /** @description A unique identifier for the sales order within Finago Office ERP. */
-        id: number;
-      };
-      cookie?: never;
-    };
-    /**
-     * Read a sales order by ID
-     * @description Read details of a specific sales order identified by its unique ID.
-     */
-    get: {
-      parameters: {
-        query?: never;
-        header: {
-          /** @description Authorization header */
-          Authorization: string;
-        };
-        path: {
-          /** @description A unique identifier for the sales order within Finago Office ERP. */
-          id: number;
-        };
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description OK */
-        200: {
-          headers: {
-            "Access-Control-Allow-Origin"?: string;
-            "Access-Control-Allow-Credentials"?: string;
-            "X-Trace-Id"?: string;
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["SalesOrderExtended"];
-          };
-        };
-      };
-    };
-    put?: never;
-    post?: never;
-    /**
-     * Delete a sales order
-     * @description Delete a specific sales order identified by its unique sales order ID.
-     */
-    delete: {
-      parameters: {
-        query?: never;
-        header: {
-          /** @description Authorization header */
-          Authorization: string;
-        };
-        path: {
-          /** @description A unique identifier for the sales order within Finago Office ERP. */
-          id: number;
-        };
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description OK */
-        204: {
-          headers: {
-            "Access-Control-Allow-Origin"?: string;
-            "Access-Control-Allow-Credentials"?: string;
-            "X-Trace-Id"?: string;
-            [name: string]: unknown;
-          };
-          content?: never;
-        };
-        /** @description Sales order not found */
-        404: {
-          headers: {
-            "Access-Control-Allow-Origin"?: string;
-            "Access-Control-Allow-Credentials"?: string;
-            "X-Trace-Id"?: string;
-            [name: string]: unknown;
-          };
-          content?: never;
-        };
-        /** @description Conflict - The sales order cannot be deleted, likely because it has already been invoiced or is in a status that does not allow deletion. */
-        409: {
-          headers: {
-            "Access-Control-Allow-Origin"?: string;
-            "Access-Control-Allow-Credentials"?: string;
-            "X-Trace-Id"?: string;
-            [name: string]: unknown;
-          };
-          content?: never;
-        };
-      };
-    };
-    options?: never;
-    head?: never;
-    /**
-     * Update a sales order
-     * @description Update details of a specific sales order identified by its unique sales order ID, and receive the updated details in return. An existing sales order can be invoiced by updating its `status` to "Invoice". Before a sales order can be invoiced, it needs to include at least one sales order line.
-     */
-    patch: {
-      parameters: {
-        query?: never;
-        header: {
-          /** @description Authorization header */
-          Authorization: string;
-        };
-        path: {
-          /** @description A unique identifier for the sales order within Finago Office ERP. */
-          id: number;
-        };
-        cookie?: never;
-      };
-      requestBody?: {
-        content: {
-          "application/json": components["schemas"]["SalesOrderRequestPatch"];
-        };
-      };
-      responses: {
-        /** @description OK */
-        200: {
-          headers: {
-            "Access-Control-Allow-Origin"?: string;
-            "Access-Control-Allow-Credentials"?: string;
-            "X-Trace-Id"?: string;
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["SalesOrderExtended"];
-          };
-        };
-        /** @description Bad request */
-        400: {
-          headers: {
-            "Access-Control-Allow-Origin"?: string;
-            "Access-Control-Allow-Credentials"?: string;
-            "X-Trace-Id"?: string;
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json":
-              | components["schemas"]["BadRequestError"]
-              | components["schemas"]["ValidationError"];
-          };
-        };
-      };
-    };
-    trace?: never;
-  };
-  "/salesorders/{id}/attachments": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        id: number;
-      };
-      cookie?: never;
-    };
-    /**
-     * Read sales order attachments
-     * @description Read all attachments associated with a specific sales order.
-     */
-    get: {
-      parameters: {
-        query?: never;
-        header: {
-          /** @description Authorization header */
-          Authorization: string;
-        };
-        path: {
-          id: number;
-        };
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description OK */
-        200: {
-          headers: {
-            "Access-Control-Allow-Origin"?: string;
-            "Access-Control-Allow-Credentials"?: string;
-            "X-Trace-Id"?: string;
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["SalesOrderAttachment"][];
-          };
-        };
-      };
-    };
-    put?: never;
-    /**
-     * Add an attachment to a sales order
-     * @description Add a new attachment to a specific sales order. The filename should be specified in the `Content-Disposition` header, and the `Content-Type` header must reflect the MIME type of the attachment being uploaded. The file itself should be included in the request body, and should be less than 4 MB in size.
-     */
-    post: {
-      parameters: {
-        query?: never;
-        header: {
-          "Content-Disposition"?: string;
-          /** @description The Content-Type for the attachment */
-          "Content-Type": string;
-          /** @description Authorization header */
-          Authorization: string;
-        };
-        path: {
-          id: number;
-        };
-        cookie?: never;
-      };
-      requestBody?: {
-        content: {
-          "application/pdf": string;
-          "image/png": string;
-          "multipart/form-data": string;
-        };
-      };
-      responses: {
-        /** @description Newly created attachment */
-        201: {
-          headers: {
-            "Access-Control-Allow-Origin"?: string;
-            "Access-Control-Allow-Credentials"?: string;
-            "X-Trace-Id"?: string;
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["SalesOrderAttachment"];
-          };
-        };
-        /** @description Order is already invoiced, cannot add attachments */
-        403: {
-          headers: {
-            "Access-Control-Allow-Origin"?: string;
-            "Access-Control-Allow-Credentials"?: string;
-            "X-Trace-Id"?: string;
-            [name: string]: unknown;
-          };
-          content?: never;
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/salesorders/{id}/lines": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        /** @description The unique identifier for the sales order, to which the sales order lines pertain. */
-        id: number;
-      };
-      cookie?: never;
-    };
-    /**
-     * Read sales order lines
-     * @description Read all lines associated with a specific sales order.
-     */
-    get: {
-      parameters: {
-        query?: never;
-        header: {
-          /** @description Authorization header */
-          Authorization: string;
-        };
-        path: {
-          /** @description The unique identifier for the sales order, to which the sales order lines pertain. */
-          id: number;
-        };
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description OK */
-        200: {
-          headers: {
-            "Access-Control-Allow-Origin"?: string;
-            "Access-Control-Allow-Credentials"?: string;
-            "X-Trace-Id"?: string;
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["Line"][];
-          };
-        };
-      };
-    };
-    put?: never;
-    /**
-     * Create a sales order line
-     * @description Add a new line to a specific sales order.
-     */
-    post: {
-      parameters: {
-        query?: never;
-        header: {
-          /** @description Authorization header */
-          Authorization: string;
-        };
-        path: {
-          /** @description The unique identifier for the sales order, to which the sales order lines pertain. */
-          id: number;
-        };
-        cookie?: never;
-      };
-      requestBody?: {
-        content: {
-          "application/json": components["schemas"]["LineWithoutId"];
-        };
-      };
-      responses: {
-        /** @description OK */
-        200: {
-          headers: {
-            "Access-Control-Allow-Origin"?: string;
-            "Access-Control-Allow-Credentials"?: string;
-            "X-Trace-Id"?: string;
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["Line"];
-          };
-        };
-        /** @description Bad request */
-        400: {
-          headers: {
-            "Access-Control-Allow-Origin"?: string;
-            "Access-Control-Allow-Credentials"?: string;
-            "X-Trace-Id"?: string;
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json":
-              | components["schemas"]["BadRequestError"]
-              | components["schemas"]["ValidationError"];
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/salesorders/{id}/lines/{lineId}": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        /** @description The unique identifier for the sales order, to which all the sales order lines pertain. */
-        id: number;
-        /** @description The unique identifier of the sales order line. */
-        lineId: number;
-      };
-      cookie?: never;
-    };
-    /**
-     * Read a sales order line by ID
-     * @description Read a specific line from a sales order by the line's ID.
-     */
-    get: {
-      parameters: {
-        query?: never;
-        header: {
-          /** @description Authorization header */
-          Authorization: string;
-        };
-        path: {
-          /** @description The unique identifier for the sales order, to which all the sales order lines pertain. */
-          id: number;
-          /** @description The unique identifier of the sales order line. */
-          lineId: number;
-        };
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description OK */
-        200: {
-          headers: {
-            "Access-Control-Allow-Origin"?: string;
-            "Access-Control-Allow-Credentials"?: string;
-            "X-Trace-Id"?: string;
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["Line"];
-          };
-        };
-      };
-    };
-    put?: never;
-    post?: never;
-    /**
-     * Delete a sales order line
-     * @description Delete a specific line from a sales order identified by its unique sales order ID and line ID.
-     */
-    delete: {
-      parameters: {
-        query?: never;
-        header: {
-          /** @description Authorization header */
-          Authorization: string;
-        };
-        path: {
-          /** @description The unique identifier for the sales order, to which all the sales order lines pertain. */
-          id: number;
-          /** @description The unique identifier of the sales order line. */
-          lineId: number;
-        };
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description OK */
-        204: {
-          headers: {
-            "Access-Control-Allow-Origin"?: string;
-            "Access-Control-Allow-Credentials"?: string;
-            "X-Trace-Id"?: string;
-            [name: string]: unknown;
-          };
-          content?: never;
-        };
-        /** @description Sales order or sales order line not found */
-        404: {
-          headers: {
-            "Access-Control-Allow-Origin"?: string;
-            "Access-Control-Allow-Credentials"?: string;
-            "X-Trace-Id"?: string;
-            [name: string]: unknown;
-          };
-          content?: never;
-        };
-        /** @description Conflict - The sales order line cannot be deleted, likely because it has already been invoiced or is in a status that does not allow deletion. */
-        409: {
-          headers: {
-            "Access-Control-Allow-Origin"?: string;
-            "Access-Control-Allow-Credentials"?: string;
-            "X-Trace-Id"?: string;
-            [name: string]: unknown;
-          };
-          content?: never;
-        };
-      };
-    };
-    options?: never;
-    head?: never;
-    /**
-     * Update a sales order line
-     * @description Update the details of a specific line in a sales order.
-     */
-    patch: {
-      parameters: {
-        query?: never;
-        header: {
-          /** @description Authorization header */
-          Authorization: string;
-        };
-        path: {
-          /** @description The unique identifier for the sales order, to which all the sales order lines pertain. */
-          id: number;
-          /** @description The unique identifier of the sales order line. */
-          lineId: number;
-        };
-        cookie?: never;
-      };
-      requestBody?: {
-        content: {
-          "application/json": components["schemas"]["Line"];
-        };
-      };
-      responses: {
-        /** @description OK */
-        200: {
-          headers: {
-            "Access-Control-Allow-Origin"?: string;
-            "Access-Control-Allow-Credentials"?: string;
-            "X-Trace-Id"?: string;
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["Line"];
-          };
-        };
-        /** @description Bad request */
-        400: {
-          headers: {
-            "Access-Control-Allow-Origin"?: string;
-            "Access-Control-Allow-Credentials"?: string;
-            "X-Trace-Id"?: string;
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json":
-              | components["schemas"]["BadRequestError"]
-              | components["schemas"]["ValidationError"];
-          };
-        };
-      };
-    };
-    trace?: never;
-  };
-  "/salestypes": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /**
-     * Read sales types
-     * @description Read a list of sales types available in the system.
-     */
-    get: {
-      parameters: {
-        query?: never;
-        header: {
-          /** @description Authorization header */
-          Authorization: string;
-        };
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description OK */
-        200: {
-          headers: {
-            "Access-Control-Allow-Origin"?: string;
-            "Access-Control-Allow-Credentials"?: string;
-            "X-Trace-Id"?: string;
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["SalesType"][];
-          };
-        };
-      };
-    };
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/salestypes/{id}": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        /** @description The ID of the sales type to retrieve. */
-        id: number;
-      };
-      cookie?: never;
-    };
-    /**
-     * Read sales type by ID
-     * @description Read details of a specific sales type by its ID.
-     */
-    get: {
-      parameters: {
-        query?: never;
-        header: {
-          /** @description Authorization header */
-          Authorization: string;
-        };
-        path: {
-          /** @description The ID of the sales type to retrieve. */
-          id: number;
-        };
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        200: {
-          headers: {
-            "Access-Control-Allow-Origin"?: string;
-            "Access-Control-Allow-Credentials"?: string;
-            "X-Trace-Id"?: string;
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["SalesType"];
-          };
-        };
-      };
-    };
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/taxes": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /**
-     * Read tax codes
-     * @description Read a list of tax codes available in the accounting system.
-     */
-    get: {
-      parameters: {
-        query?: never;
-        header: {
-          /** @description Authorization header */
-          Authorization: string;
-        };
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description OK */
-        200: {
-          headers: {
-            "Access-Control-Allow-Origin"?: string;
-            "Access-Control-Allow-Credentials"?: string;
-            "X-Trace-Id"?: string;
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["TaxResponse"][];
-          };
-        };
-      };
-    };
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/taxes/{id}": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
         /**
-         * @description A unique identifier for the tax code within Finago Office ERP modules.
-         * @example 1
+         * Read an account by ID
+         * @description Read details of a specific account identified by its unique ID.
          */
-        id: number;
-      };
-      cookie?: never;
+        get: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description Authorization header */
+                    Authorization: string;
+                };
+                path: {
+                    /** @description A unique identifier for the account within Finago Office accounting module. */
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        "Access-Control-Allow-Origin"?: string;
+                        "Access-Control-Allow-Credentials"?: string;
+                        "X-Trace-Id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Account1"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /**
-     * Read a tax code by ID
-     * @description Read details of a specific tax code identified by its unique ID.
-     */
-    get: {
-      parameters: {
-        query?: never;
-        header: {
-          /** @description Authorization header */
-          Authorization: string;
+    "/currencies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
         };
-        path: {
-          /**
-           * @description A unique identifier for the tax code within Finago Office ERP modules.
-           * @example 1
-           */
-          id: number;
+        /**
+         * Read currencies
+         * @description Read a list of available currencies within Finago Office accounting module.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description Authorization header */
+                    Authorization: string;
+                };
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        "Access-Control-Allow-Origin"?: string;
+                        "Access-Control-Allow-Credentials"?: string;
+                        "X-Trace-Id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Currencies"];
+                    };
+                };
+            };
         };
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description OK */
-        200: {
-          headers: {
-            "Access-Control-Allow-Origin"?: string;
-            "Access-Control-Allow-Credentials"?: string;
-            "X-Trace-Id"?: string;
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["TaxResponse"];
-          };
-        };
-      };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/transactionlines": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/documents/{documentId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a document by its DocumentID */
+        get: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description Authorization header */
+                    Authorization: string;
+                };
+                path: {
+                    /** @description The ID of the document to retrieve. */
+                    documentId: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Document retrieved successfully */
+                200: {
+                    headers: {
+                        "Access-Control-Allow-Origin"?: string;
+                        "Access-Control-Allow-Credentials"?: string;
+                        "X-Trace-Id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["DocumentInfo"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /**
-     * Read transaction lines
-     * @description Read a list of transaction lines for a defined period, based on various filtering criteria.
-     */
-    get: {
-      parameters: {
-        query: {
-          /** @description The starting date (inclusive) from which transactions will be retrieved. */
-          dateFrom: string;
-          /** @description The ending date (exclusive) until which transactions will be retrieved. If set to 2024-01-01, the latest result will be retrieved before 23:59 on 2023-12-31. */
-          dateTo: string;
-          /**
-           * @description Retrieve transactions created after the specified timestamp (ISO 8601 format).
-           * @example {}
-           */
-          createdFrom?: string;
-          /**
-           * @deprecated
-           * @description Deprecated - use `createdFrom` instead.
-           * @example {}
-           */
-          createdAfter?: string;
-          /**
-           * @description Retrieve transactions modified after the specified timestamp (ISO 8601 format).
-           * @example {}
-           */
-          modifiedFrom?: string;
-          /**
-           * @deprecated
-           * @description Deprecated - use `modifiedFrom` instead.
-           * @example {}
-           */
-          modifiedAfter?: string;
-          /** @description The unique number representing the transaction. */
-          transactionNumber?: number;
-          /** @description ID representing the type of transaction. */
-          transactionTypeId?: number;
-          /** @description ID of the customer involved in the transaction. */
-          customerId?: number;
-          /** @description ID of the account involved in the transaction. */
-          accountId?: number;
-          /** @description The number of the account involved in the transaction. */
-          accountNumber?: number;
-          /** @description The invoice number associated with the transaction. */
-          invoiceNumber?: string;
-          /** @description The currency code used in the transaction. */
-          currencyCode?: string;
-          /** @description The maximum number of transactions to retrieve. */
-          limit?: number;
-          /** @description Whether to include dimension information in the response. */
-          includeDimensions?: boolean;
-          /** @description The page number of the results to retrieve. */
-          page?: number;
+    "/fiscalperiods": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
         };
-        header: {
-          /** @description Authorization header */
-          Authorization: string;
+        /**
+         * Read fiscal periods
+         * @description Read a list of fiscal periods.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description Filter the results by type of accounting period. Use "Period" to retrieve only sub-periods within financial years, "Year" to retrieve only full financial years, or "All" to retrieve both financial years and their associated periods. */
+                    type?: "Year" | "Period" | "All";
+                };
+                header: {
+                    /** @description Authorization header */
+                    Authorization: string;
+                };
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description List of fiscal periods. */
+                200: {
+                    headers: {
+                        "Access-Control-Allow-Origin"?: string;
+                        "Access-Control-Allow-Credentials"?: string;
+                        "X-Trace-Id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AccountingPeriod"][];
+                    };
+                };
+            };
         };
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        200: {
-          headers: {
-            /** @description The "link" header includes information on where to find `first`, `previous` and `next` page. Refer to https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Link */
-            link?: string;
-            "Access-Control-Allow-Origin"?: string;
-            "Access-Control-Allow-Credentials"?: string;
-            "X-Trace-Id"?: string;
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["Transactions"];
-          };
-        };
-      };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/transactionlines/{id}": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        /** @description The unique identifier for the transaction line. */
-        id: string;
-      };
-      cookie?: never;
+    "/taxes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read tax codes
+         * @description Read a list of tax codes available in the accounting system.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description Authorization header */
+                    Authorization: string;
+                };
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        "Access-Control-Allow-Origin"?: string;
+                        "Access-Control-Allow-Credentials"?: string;
+                        "X-Trace-Id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TaxResponse"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /**
-     * Read a transaction line by ID
-     * @description Read a single transaction line identified by its unique ID.
-     */
-    get: {
-      parameters: {
-        query?: never;
-        header: {
-          /** @description Authorization header */
-          Authorization: string;
+    "/taxes/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /**
+                 * @description A unique identifier for the tax code within Finago Office ERP modules.
+                 * @example 1
+                 */
+                id: number;
+            };
+            cookie?: never;
         };
-        path: {
-          /** @description The unique identifier for the transaction line. */
-          id: string;
+        /**
+         * Read a tax code by ID
+         * @description Read details of a specific tax code identified by its unique ID.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description Authorization header */
+                    Authorization: string;
+                };
+                path: {
+                    /**
+                     * @description A unique identifier for the tax code within Finago Office ERP modules.
+                     * @example 1
+                     */
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        "Access-Control-Allow-Origin"?: string;
+                        "Access-Control-Allow-Credentials"?: string;
+                        "X-Trace-Id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TaxResponse"];
+                    };
+                };
+            };
         };
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        200: {
-          headers: {
-            "Access-Control-Allow-Origin"?: string;
-            "Access-Control-Allow-Credentials"?: string;
-            "X-Trace-Id"?: string;
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["Transaction"];
-          };
-        };
-      };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/transactiontypes": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /**
-     * Read transaction types
-     * @description Read a list of available transaction types within Finago Office accounting module.
-     */
-    get: {
-      parameters: {
-        query?: never;
-        header: {
-          /** @description Authorization header */
-          Authorization: string;
+    "/transactionlines": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
         };
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        200: {
-          headers: {
-            "Access-Control-Allow-Origin"?: string;
-            "Access-Control-Allow-Credentials"?: string;
-            "X-Trace-Id"?: string;
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["TransactionTypes"];
-          };
+        /**
+         * Read transaction lines
+         * @description Read a list of transaction lines for a defined period, based on various filtering criteria.
+         */
+        get: {
+            parameters: {
+                query: {
+                    /** @description The starting date (inclusive) from which transactions will be retrieved. */
+                    dateFrom: string;
+                    /** @description The ending date (exclusive) until which transactions will be retrieved. If set to 2024-01-01, the latest result will be retrieved before 23:59 on 2023-12-31. */
+                    dateTo: string;
+                    /**
+                     * @description Retrieve transactions created after the specified timestamp (ISO 8601 format).
+                     * @example {}
+                     */
+                    createdFrom?: string;
+                    /**
+                     * @deprecated
+                     * @description Deprecated - use `createdFrom` instead.
+                     * @example {}
+                     */
+                    createdAfter?: string;
+                    /**
+                     * @description Retrieve transactions modified after the specified timestamp (ISO 8601 format).
+                     * @example {}
+                     */
+                    modifiedFrom?: string;
+                    /**
+                     * @deprecated
+                     * @description Deprecated - use `modifiedFrom` instead.
+                     * @example {}
+                     */
+                    modifiedAfter?: string;
+                    /** @description Filter on the unique identifier representing the transaction (returned as transaction.id). */
+                    transactionId?: string;
+                    /** @description Filter on the transaction number (returned as transaction.number). */
+                    transactionNumber?: number;
+                    /** @description ID representing the type of transaction. */
+                    transactionTypeId?: number;
+                    /** @description ID of the customer involved in the transaction. */
+                    customerId?: number;
+                    /** @description ID of the account involved in the transaction. */
+                    accountId?: number;
+                    /** @description The number of the account involved in the transaction. */
+                    accountNumber?: number;
+                    /** @description The invoice number associated with the transaction. */
+                    invoiceNumber?: string;
+                    /** @description The currency code used in the transaction. */
+                    currencyCode?: string;
+                    /** @description The maximum number of transactions to retrieve. */
+                    limit?: number;
+                    /** @description Whether to include dimension information in the response. */
+                    includeDimensions?: boolean;
+                    /** @description The page number of the results to retrieve. */
+                    page?: number;
+                };
+                header: {
+                    /** @description Authorization header */
+                    Authorization: string;
+                };
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        /** @description The "link" header includes information on where to find `first`, `previous` and `next` page. Refer to https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Link */
+                        link?: string;
+                        "Access-Control-Allow-Origin"?: string;
+                        "Access-Control-Allow-Credentials"?: string;
+                        "X-Trace-Id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Transactions"];
+                    };
+                };
+            };
         };
-      };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
+    "/transactionlines/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The unique identifier for the transaction line. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Read a transaction line by ID
+         * @description Read a single transaction line identified by its unique ID.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description Authorization header */
+                    Authorization: string;
+                };
+                path: {
+                    /** @description The unique identifier for the transaction line. */
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        "Access-Control-Allow-Origin"?: string;
+                        "Access-Control-Allow-Credentials"?: string;
+                        "X-Trace-Id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Transaction"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/transactions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post a transaction to the general ledger */
+        post: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description Authorization header */
+                    Authorization: string;
+                };
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["TransactionInput"];
+                };
+            };
+            responses: {
+                /** @description The transaction has been posted */
+                201: {
+                    headers: {
+                        "Access-Control-Allow-Origin"?: string;
+                        "Access-Control-Allow-Credentials"?: string;
+                        "X-Trace-Id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TransactionCreatedResponse"];
+                    };
+                };
+                /** @description The input provided was invalid */
+                400: {
+                    headers: {
+                        "Access-Control-Allow-Origin"?: string;
+                        "Access-Control-Allow-Credentials"?: string;
+                        "X-Trace-Id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Unauthorized - Bearer token missing or invalid */
+                401: {
+                    headers: {
+                        "Access-Control-Allow-Origin"?: string;
+                        "Access-Control-Allow-Credentials"?: string;
+                        "X-Trace-Id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Forbidden - User does not have access to post transactions */
+                403: {
+                    headers: {
+                        "Access-Control-Allow-Origin"?: string;
+                        "Access-Control-Allow-Credentials"?: string;
+                        "X-Trace-Id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/fileUpload": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Initiate a file upload process */
+        post: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description Authorization header */
+                    Authorization: string;
+                };
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["FileUploadRequest"];
+                };
+            };
+            responses: {
+                /** @description Attachment upload initiated successfully */
+                200: {
+                    headers: {
+                        "Access-Control-Allow-Origin"?: string;
+                        "Access-Control-Allow-Credentials"?: string;
+                        "X-Trace-Id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["FileUploadResponse"];
+                    };
+                };
+                /** @description The input provided was invalid */
+                400: {
+                    headers: {
+                        "Access-Control-Allow-Origin"?: string;
+                        "Access-Control-Allow-Credentials"?: string;
+                        "X-Trace-Id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Unauthorized - Bearer token missing or invalid */
+                401: {
+                    headers: {
+                        "Access-Control-Allow-Origin"?: string;
+                        "Access-Control-Allow-Credentials"?: string;
+                        "X-Trace-Id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Forbidden - User does not have access to post transactions */
+                403: {
+                    headers: {
+                        "Access-Control-Allow-Origin"?: string;
+                        "Access-Control-Allow-Credentials"?: string;
+                        "X-Trace-Id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/fileUpload/{fileId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get the status of a file upload
+         * @description Get the status of a file upload. Use this to get the documentId once the upload is completed.
+         */
+        get: operations["getFileUploadStatus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/transactiontypes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read transaction types
+         * @description Read a list of available transaction types within Finago Office accounting module.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description Authorization header */
+                    Authorization: string;
+                };
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        "Access-Control-Allow-Origin"?: string;
+                        "Access-Control-Allow-Credentials"?: string;
+                        "X-Trace-Id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TransactionTypes"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bankaccounts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read bank accounts
+         * @description Read a list of bank accounts with details. Each bank account includes information such as account number, BIC, type, name, owner details, creation timestamp, modification timestamp, and the latest balance information, should there be one available.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description The date to get the balance from. The balance returned will be the last balance before this date. If omitted, the current date is used. The date format here is YYYY-MM-DD. */
+                    before?: string;
+                };
+                header: {
+                    /** @description Authorization header */
+                    Authorization: string;
+                };
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        "Access-Control-Allow-Origin"?: string;
+                        "Access-Control-Allow-Credentials"?: string;
+                        "X-Trace-Id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["BankAccountResponse"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        /**
+         * Create a bank account
+         * @description Create a new bank account record with specified details including account number, BIC, type, name, owner details, and optional initial balance information.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description Authorization header */
+                    Authorization: string;
+                };
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["BankAccountRequestPost"];
+                };
+            };
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        "Access-Control-Allow-Origin"?: string;
+                        "Access-Control-Allow-Credentials"?: string;
+                        "X-Trace-Id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["BankAccountResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bankaccounts/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read a bank account by ID
+         * @description Read details for a specific bank account identified by its unique identifier. The response includes information such as account number, BIC, type, name, owner details, creation timestamp, modification timestamp, and the latest balance information, should there be one available.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description The date to get the balance from. The balance returned will be the last balance before this date. If omitted, the current date is used. The date format here is YYYY-MM-DD. */
+                    before?: string;
+                };
+                header: {
+                    /** @description Authorization header */
+                    Authorization: string;
+                };
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Successful operation */
+                200: {
+                    headers: {
+                        "Access-Control-Allow-Origin"?: string;
+                        "Access-Control-Allow-Credentials"?: string;
+                        "X-Trace-Id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["BankAccountResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bankaccounts/{id}/balances": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create a new bank account balance
+         * @description Add a new balance entry for a specific bank account identified by its unique identifier. The balance entry includes the amount, timestamp, and currency code. The endpoint facilitates accurate tracking of the bank account's financial status over time.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description Authorization header */
+                    Authorization: string;
+                };
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["BankAccountBalanceRequestPost"];
+                };
+            };
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        "Access-Control-Allow-Origin"?: string;
+                        "Access-Control-Allow-Credentials"?: string;
+                        "X-Trace-Id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["BankAccountBalanceResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/banktransactions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read bank transactions
+         * @description Read a list of bank transactions based on specified filters. Each transaction includes details such as transaction reference, type, bank account details, payment reference, amount, date, and status.
+         */
+        get: {
+            parameters: {
+                query: {
+                    /**
+                     * @description Filter bank transactions by start date (inclusive). Date format should be YYYY-MM-DD. Compares dates by greater or equal. Accepts dates in ISO 8601 format.
+                     * @example {}
+                     */
+                    dateFrom: string;
+                    /**
+                     * @description Filter bank transactions by end date (inclusive). Date format should be YYYY-MM-DD. Compares dates by less or equal. Accepts dates in ISO 8601 format. The date range cannot span more than two years.
+                     * @example {}
+                     */
+                    dateTo: string;
+                    /** @description Filter bank transactions by bank account ID. */
+                    bankAccountId?: string;
+                    /** @description Specify the number of items to fetch per page, defaults to 25. */
+                    limit?: number;
+                    /** @description Specify the page number to fetch, defaults to 1. */
+                    page?: number;
+                };
+                header: {
+                    /** @description Authorization header */
+                    Authorization: string;
+                };
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Successful operation */
+                200: {
+                    headers: {
+                        /** @description The "link" header includes information on where to find `first`, `self`, `previous` and `next` page. The last page does not include `next` link. Refer to https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Link */
+                        link?: string;
+                        "Access-Control-Allow-Origin"?: string;
+                        "Access-Control-Allow-Credentials"?: string;
+                        "X-Trace-Id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["BankTransactionResponse"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        /**
+         * Create a new bank transaction
+         * @description The `bankAccount.id` is a required property. Before creating bank transaction, a bank account must exists. See `POST /bankaccounts`
+         *
+         *     When creating a bank transaction, the backend system loads the existing bank account record using `bankAccount.id`. Information from the bank account is then appended to the bank transaction based on the transaction's direction type (inbound or outbound).
+         *
+         *     * For outbound transactions, the `fromBankAccount` field is automatically populated from the specified bank account.
+         *     * For inbound transactions, the `toBankAccount` field is automatically populated from the specified bank account.
+         *
+         *     Note: When these fields are automatically set, any input provided in these properties will be ignored.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description Authorization header */
+                    Authorization: string;
+                };
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["BankTransactionRequestPost"];
+                };
+            };
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        "Access-Control-Allow-Origin"?: string;
+                        "Access-Control-Allow-Credentials"?: string;
+                        "X-Trace-Id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["BankTransactionResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/banktransactions/{bankTransactionReference}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read a bank transaction by bank transaction reference
+         * @description Read details of a specific bank transaction identified by its unique bank transaction reference supplied by the bank.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description Authorization header */
+                    Authorization: string;
+                };
+                path: {
+                    /** @description Unique identifier for the bank transaction supplied by the bank that manages the bank account. */
+                    bankTransactionReference: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Successful operation */
+                200: {
+                    headers: {
+                        "Access-Control-Allow-Origin"?: string;
+                        "Access-Control-Allow-Credentials"?: string;
+                        "X-Trace-Id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["BankTransactionResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/customers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read customers
+         * @description Read a list of all customers, including their details, with pagination, or a subset of customers based on query parameters. Whether a customer is a company or a private person is controlled by "isCompany" flag property. The schemas are also slightly different for a company (no "person" property) or a person (no "organizationNumber").
+         */
+        get: operations["GetCustomers"];
+        put?: never;
+        /**
+         * Create a customer
+         * @description Create a new customer record for a company or a person, and get the newly created customer in return.
+         *
+         *     For a new company customer, define "name" property and set "isCompany" flag to true in the request body. For a new private person customer, define "firstName" and "lastName" under the "person" property, and set "isCompany" flag to false in the request body. These are the minimum required properties that should be defined in the request body for creating a new customer.
+         *
+         *     All other properties for a customer (see response attributes for each property description) can also be defined in the request body, except for "person" when a new customer is a company, and "organizationNumber" and "name" (this one is generated from "firstName" and "lastName" under the "person" property) when a new customer is a person.
+         */
+        post: operations["CreateCustomer"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/customers/{customerId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read a customer by ID
+         * @description Read details of a specific customer identified by its unique ID.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description Authorization header */
+                    Authorization: string;
+                };
+                path: {
+                    /** @description A unique identifier for the customer within Finago Office CRM. */
+                    customerId: components["parameters"]["customerId"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Success */
+                200: {
+                    headers: {
+                        "Access-Control-Allow-Origin"?: string;
+                        "Access-Control-Allow-Credentials"?: string;
+                        "X-Trace-Id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CustomerResponse"];
+                    };
+                };
+                /** @description Unauthorized. Missing or invalid bearer token. */
+                401: {
+                    headers: {
+                        "Access-Control-Allow-Origin"?: string;
+                        "Access-Control-Allow-Credentials"?: string;
+                        "X-Trace-Id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        /**
+         * Delete a customer
+         * @description Delete a specific customer identified by its unique ID.
+         */
+        delete: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description Authorization header */
+                    Authorization: string;
+                };
+                path: {
+                    /** @description A unique identifier for the customer within Finago Office CRM. */
+                    customerId: components["parameters"]["customerId"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Success. No content */
+                204: {
+                    headers: {
+                        "Access-Control-Allow-Origin"?: string;
+                        "Access-Control-Allow-Credentials"?: string;
+                        "X-Trace-Id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Unauthorized. Missing or invalid bearer token. */
+                401: {
+                    headers: {
+                        "Access-Control-Allow-Origin"?: string;
+                        "Access-Control-Allow-Credentials"?: string;
+                        "X-Trace-Id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        /**
+         * Update a customer
+         * @description Update details of a specific customer identified by its uinque customer ID, and receive the updated details in return.
+         */
+        patch: operations["UpdateCustomer"];
+        trace?: never;
+    };
+    "/customers/{customerId}/bankaccounts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read customer bank accounts
+         * @description Retrieve a list of bank accounts associated with a specific customer.
+         */
+        get: operations["GetCustomerBankAccounts"];
+        put?: never;
+        /**
+         * Create customer bank account
+         * @description Create a new bank account for a specific customer.
+         */
+        post: operations["CreateCustomerBankAccount"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/customers/{customerId}/bankaccounts/{accountNumber}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read specific customer bank account
+         * @description Retrieve a specific bank account by account number for a customer.
+         */
+        get: operations["GetCustomerBankAccount"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update customer bank account
+         * @description Update a specific bank account by account number for a customer.
+         */
+        patch: operations["UpdateCustomerBankAccount"];
+        trace?: never;
+    };
+    "/dimensions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description List all dimension-types. Get a list of all dimension-types in the system. Elements with id below 100 are system dimension-types and will be the same across all clients. Elements with id above 100 are custom dimension-types specific to the client. */
+        get: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description Authorization header */
+                    Authorization: string;
+                };
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description A list of dimension-types. */
+                200: {
+                    headers: {
+                        "Access-Control-Allow-Origin"?: string;
+                        "Access-Control-Allow-Credentials"?: string;
+                        "X-Trace-Id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Dimension"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/dimensions/{dimensionType}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dimensionType: number;
+            };
+            cookie?: never;
+        };
+        /** @description List single dimension-type. Get description of a single dimension-type by id. */
+        get: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description Authorization header */
+                    Authorization: string;
+                };
+                path: {
+                    dimensionType: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description The dimension-type with the specified id. */
+                200: {
+                    headers: {
+                        "Access-Control-Allow-Origin"?: string;
+                        "Access-Control-Allow-Credentials"?: string;
+                        "X-Trace-Id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        /**
+                         * @example [
+                         *       {
+                         *         "id": 1,
+                         *         "name": "Project"
+                         *       },
+                         *       {
+                         *         "id": 2,
+                         *         "name": "Department"
+                         *       },
+                         *       {
+                         *         "id": 3,
+                         *         "name": "Employee"
+                         *       },
+                         *       {
+                         *         "id": 4,
+                         *         "name": "Product"
+                         *       },
+                         *       {
+                         *         "id": 5,
+                         *         "name": "Customer"
+                         *       },
+                         *       {
+                         *         "id": 101,
+                         *         "name": "Custom Dimension 1"
+                         *       }
+                         *     ]
+                         */
+                        "application/json": components["schemas"]["Dimension"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/dimensions/{dimensionType}/elements": {
+        parameters: {
+            query?: {
+                /** @description The maximum number of elements to retrieve. */
+                limit?: number;
+                /** @description A token for continuing the retrieval of dimension elements. This is used for pagination and is prepopulated from the Link-header with rel=next from a previous request. */
+                continuationToken?: string;
+            };
+            header?: never;
+            path: {
+                dimensionType: number;
+            };
+            cookie?: never;
+        };
+        /**
+         * @description List dimension elements.
+         *     Get a list of active dimension elements for a specific dimension type.
+         *     If there are many elements, the results will be paginated, and a Link-header with rel=next will provide the path to the next page.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description The maximum number of elements to retrieve. */
+                    limit?: number;
+                    /** @description A token for continuing the retrieval of dimension elements. This is used for pagination and is prepopulated from the Link-header with rel=next from a previous request. */
+                    continuationToken?: string;
+                };
+                header: {
+                    /** @description Authorization header */
+                    Authorization: string;
+                };
+                path: {
+                    dimensionType: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description List of dimension elements for the specified dimension type. */
+                200: {
+                    headers: {
+                        /** @description The Link header includes information on where to find `next` page. Refer to https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Link' */
+                        Link?: string;
+                        "Access-Control-Allow-Origin"?: string;
+                        "Access-Control-Allow-Credentials"?: string;
+                        "X-Trace-Id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["DimensionElement"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/dimensions/{dimensionType}/elements/{value}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dimensionType: number;
+                value: string;
+            };
+            cookie?: never;
+        };
+        /** @description List single dimension element. Get a single dimension element by dimension type (id) and value (id). */
+        get: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description Authorization header */
+                    Authorization: string;
+                };
+                path: {
+                    dimensionType: number;
+                    value: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Single dimension element for the specified dimension type and value. */
+                200: {
+                    headers: {
+                        "Access-Control-Allow-Origin"?: string;
+                        "Access-Control-Allow-Credentials"?: string;
+                        "X-Trace-Id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["DimensionElement"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/salesorders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read sales orders
+         * @description Read existing sales orders with optional filters.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description The maximum number of sales orders to retrieve. */
+                    limit?: number;
+                    /** @description A token for continuing the retrieval of sales orders. */
+                    continuationToken?: string;
+                    /** @description A specific date to filter sales orders. */
+                    date?: string;
+                    /** @description A start date to filter sales orders. */
+                    dateFrom?: string;
+                    /** @description An end date to filter sales orders. */
+                    dateTo?: string;
+                    /** @description Filter sales orders by their status. */
+                    status?: "Draft" | "Web" | "Proposal" | "Confirmed" | "Invoice" | "AdvanceInvoice";
+                    /** @description Filter sales orders by customer ID. */
+                    customerId?: string;
+                    /** @description Filter sales orders by invoice number. */
+                    invoiceNumber?: string;
+                    /** @description A start date-time to filter sales orders by creation time. */
+                    createdFrom?: string;
+                    /** @description An end date-time to filter sales orders by creation time. */
+                    createdTo?: string;
+                    /** @description A start date-time to filter sales orders by modification time. */
+                    modifiedFrom?: string;
+                    /** @description An end date-time to filter sales orders by modification time. */
+                    modifiedTo?: string;
+                };
+                header: {
+                    /** @description Authorization header */
+                    Authorization: string;
+                };
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        /** @description The Link header includes information on where to find `first`, `previous` and `next` page. Refer to https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Link' */
+                        Link?: string;
+                        "Access-Control-Allow-Origin"?: string;
+                        "Access-Control-Allow-Credentials"?: string;
+                        "X-Trace-Id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SalesOrder"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        /**
+         * Create a sales order
+         * @description Create a new sales order with customer details and order information.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description Authorization header */
+                    Authorization: string;
+                };
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["SalesOrderRequestPost"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        "Access-Control-Allow-Origin"?: string;
+                        "Access-Control-Allow-Credentials"?: string;
+                        "X-Trace-Id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SalesOrderExtended"];
+                    };
+                };
+                /** @description Bad request */
+                400: {
+                    headers: {
+                        "Access-Control-Allow-Origin"?: string;
+                        "Access-Control-Allow-Credentials"?: string;
+                        "X-Trace-Id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["BadRequestError"] | components["schemas"]["ValidationError"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/salesorders/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique identifier for the sales order within Finago Office ERP. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        /**
+         * Read a sales order by ID
+         * @description Read details of a specific sales order identified by its unique ID.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description Authorization header */
+                    Authorization: string;
+                };
+                path: {
+                    /** @description A unique identifier for the sales order within Finago Office ERP. */
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        "Access-Control-Allow-Origin"?: string;
+                        "Access-Control-Allow-Credentials"?: string;
+                        "X-Trace-Id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SalesOrderExtended"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        /**
+         * Delete a sales order
+         * @description Delete a specific sales order identified by its unique sales order ID.
+         */
+        delete: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description Authorization header */
+                    Authorization: string;
+                };
+                path: {
+                    /** @description A unique identifier for the sales order within Finago Office ERP. */
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                204: {
+                    headers: {
+                        "Access-Control-Allow-Origin"?: string;
+                        "Access-Control-Allow-Credentials"?: string;
+                        "X-Trace-Id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Sales order not found */
+                404: {
+                    headers: {
+                        "Access-Control-Allow-Origin"?: string;
+                        "Access-Control-Allow-Credentials"?: string;
+                        "X-Trace-Id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Conflict - The sales order cannot be deleted, likely because it has already been invoiced or is in a status that does not allow deletion. */
+                409: {
+                    headers: {
+                        "Access-Control-Allow-Origin"?: string;
+                        "Access-Control-Allow-Credentials"?: string;
+                        "X-Trace-Id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        /**
+         * Update a sales order
+         * @description Update details of a specific sales order identified by its unique sales order ID, and receive the updated details in return. An existing sales order can be invoiced by updating its `status` to "Invoice". Before a sales order can be invoiced, it needs to include at least one sales order line.
+         */
+        patch: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description Authorization header */
+                    Authorization: string;
+                };
+                path: {
+                    /** @description A unique identifier for the sales order within Finago Office ERP. */
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["SalesOrderRequestPatch"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        "Access-Control-Allow-Origin"?: string;
+                        "Access-Control-Allow-Credentials"?: string;
+                        "X-Trace-Id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SalesOrderExtended"];
+                    };
+                };
+                /** @description Bad request */
+                400: {
+                    headers: {
+                        "Access-Control-Allow-Origin"?: string;
+                        "Access-Control-Allow-Credentials"?: string;
+                        "X-Trace-Id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["BadRequestError"] | components["schemas"]["ValidationError"];
+                    };
+                };
+            };
+        };
+        trace?: never;
+    };
+    "/salesorders/{id}/attachments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        /**
+         * Read sales order attachments
+         * @description Read all attachments associated with a specific sales order.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description Authorization header */
+                    Authorization: string;
+                };
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        "Access-Control-Allow-Origin"?: string;
+                        "Access-Control-Allow-Credentials"?: string;
+                        "X-Trace-Id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SalesOrderAttachment"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        /**
+         * Add an attachment to a sales order
+         * @description Add a new attachment to a specific sales order. The filename should be specified in the `Content-Disposition` header, and the `Content-Type` header must reflect the MIME type of the attachment being uploaded. The file itself should be included in the request body, and should be less than 4 MB in size.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header: {
+                    "Content-Disposition"?: string;
+                    /** @description The Content-Type for the attachment */
+                    "Content-Type": string;
+                    /** @description Authorization header */
+                    Authorization: string;
+                };
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/pdf": string;
+                    "image/png": string;
+                    "multipart/form-data": string;
+                };
+            };
+            responses: {
+                /** @description Newly created attachment */
+                201: {
+                    headers: {
+                        "Access-Control-Allow-Origin"?: string;
+                        "Access-Control-Allow-Credentials"?: string;
+                        "X-Trace-Id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SalesOrderAttachment"];
+                    };
+                };
+                /** @description Order is already invoiced, cannot add attachments */
+                403: {
+                    headers: {
+                        "Access-Control-Allow-Origin"?: string;
+                        "Access-Control-Allow-Credentials"?: string;
+                        "X-Trace-Id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/salesorders/{id}/lines": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The unique identifier for the sales order, to which the sales order lines pertain. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        /**
+         * Read sales order lines
+         * @description Read all lines associated with a specific sales order.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description Authorization header */
+                    Authorization: string;
+                };
+                path: {
+                    /** @description The unique identifier for the sales order, to which the sales order lines pertain. */
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        "Access-Control-Allow-Origin"?: string;
+                        "Access-Control-Allow-Credentials"?: string;
+                        "X-Trace-Id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Line"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        /**
+         * Create a sales order line
+         * @description Add a new line to a specific sales order.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description Authorization header */
+                    Authorization: string;
+                };
+                path: {
+                    /** @description The unique identifier for the sales order, to which the sales order lines pertain. */
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["LineWithoutId"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        "Access-Control-Allow-Origin"?: string;
+                        "Access-Control-Allow-Credentials"?: string;
+                        "X-Trace-Id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Line"];
+                    };
+                };
+                /** @description Bad request */
+                400: {
+                    headers: {
+                        "Access-Control-Allow-Origin"?: string;
+                        "Access-Control-Allow-Credentials"?: string;
+                        "X-Trace-Id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["BadRequestError"] | components["schemas"]["ValidationError"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/salesorders/{id}/lines/{lineId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The unique identifier for the sales order, to which all the sales order lines pertain. */
+                id: number;
+                /** @description The unique identifier of the sales order line. */
+                lineId: number;
+            };
+            cookie?: never;
+        };
+        /**
+         * Read a sales order line by ID
+         * @description Read a specific line from a sales order by the line's ID.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description Authorization header */
+                    Authorization: string;
+                };
+                path: {
+                    /** @description The unique identifier for the sales order, to which all the sales order lines pertain. */
+                    id: number;
+                    /** @description The unique identifier of the sales order line. */
+                    lineId: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        "Access-Control-Allow-Origin"?: string;
+                        "Access-Control-Allow-Credentials"?: string;
+                        "X-Trace-Id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Line"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        /**
+         * Delete a sales order line
+         * @description Delete a specific line from a sales order identified by its unique sales order ID and line ID.
+         */
+        delete: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description Authorization header */
+                    Authorization: string;
+                };
+                path: {
+                    /** @description The unique identifier for the sales order, to which all the sales order lines pertain. */
+                    id: number;
+                    /** @description The unique identifier of the sales order line. */
+                    lineId: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                204: {
+                    headers: {
+                        "Access-Control-Allow-Origin"?: string;
+                        "Access-Control-Allow-Credentials"?: string;
+                        "X-Trace-Id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Sales order or sales order line not found */
+                404: {
+                    headers: {
+                        "Access-Control-Allow-Origin"?: string;
+                        "Access-Control-Allow-Credentials"?: string;
+                        "X-Trace-Id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Conflict - The sales order line cannot be deleted, likely because it has already been invoiced or is in a status that does not allow deletion. */
+                409: {
+                    headers: {
+                        "Access-Control-Allow-Origin"?: string;
+                        "Access-Control-Allow-Credentials"?: string;
+                        "X-Trace-Id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        /**
+         * Update a sales order line
+         * @description Update the details of a specific line in a sales order.
+         */
+        patch: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description Authorization header */
+                    Authorization: string;
+                };
+                path: {
+                    /** @description The unique identifier for the sales order, to which all the sales order lines pertain. */
+                    id: number;
+                    /** @description The unique identifier of the sales order line. */
+                    lineId: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["Line"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        "Access-Control-Allow-Origin"?: string;
+                        "Access-Control-Allow-Credentials"?: string;
+                        "X-Trace-Id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Line"];
+                    };
+                };
+                /** @description Bad request */
+                400: {
+                    headers: {
+                        "Access-Control-Allow-Origin"?: string;
+                        "Access-Control-Allow-Credentials"?: string;
+                        "X-Trace-Id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["BadRequestError"] | components["schemas"]["ValidationError"];
+                    };
+                };
+            };
+        };
+        trace?: never;
+    };
+    "/paymentmethods": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Payment Methods
+         * @description Retrieve a list of all payment methods that can be used when creating or updating a sales order in the Finago Office ERP system. This endpoint allows clients to access the available payment methods.
+         */
+        get: operations["getPaymentMethods"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read profile
+         * @description Read information about the current profile. This endpoint is only available for access tokens that have the identityId claim.
+         *
+         *     Finago Office is a multi-tenant application, where a personal login gives access to more than one organization and its people.
+         *
+         *     Hence, there exist "identity", "organization" and the organization’s "people".
+         *
+         *     ==Identity== → *Organization → *Person
+         *
+         *     > info
+         *     > Identity
+         *     > An `identity` is a personal user who logs into Finago Office. An `identity` will have one or more unique identifiers for the personal user, such as an email or a phone number
+         *     > An `identity` may or may not have access to one or more organizations through a person.
+         *
+         *     Finago Office has a global identity pool where an identity may have access to all organizations available in Finago Office.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description A flag variable to include a thumbnail image in the response. */
+                    thumb?: boolean;
+                    /** @description A flag variable to include a larger thumbnail image in the response. */
+                    bigthumb?: boolean;
+                    /** @description Maximum age of the cached profile data in seconds. */
+                    maxAge?: number;
+                };
+                header: {
+                    /** @description Authorization header */
+                    Authorization: string;
+                };
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Success */
+                200: {
+                    headers: {
+                        "Access-Control-Allow-Origin"?: string;
+                        "Access-Control-Allow-Credentials"?: string;
+                        "X-Trace-Id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProfileModel"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/identifiers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read identifiers
+         * @description Read identifiers for a profile, where identifiers, such as an email and a phone, may or may not be verified.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description The type of identifiers to retrieve. */
+                    type?: string;
+                    /** @description Status of the identifier as per communication status type. */
+                    status?: components["schemas"]["CommunicationStatusType"];
+                };
+                header: {
+                    /** @description Authorization header */
+                    Authorization: string;
+                };
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Success */
+                200: {
+                    headers: {
+                        "Access-Control-Allow-Origin"?: string;
+                        "Access-Control-Allow-Credentials"?: string;
+                        "X-Trace-Id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        /**
+                         * @example [
+                         *       {
+                         *         "id": "123e4567-e89b-12d3-a456-426614174002",
+                         *         "type": "Email",
+                         *         "value": "john.doe@example.com",
+                         *         "status": "Confirmed"
+                         *       },
+                         *       {
+                         *         "id": "123e4567-e89b-12d3-a456-426614174003",
+                         *         "type": "Phone",
+                         *         "value": "+47-87654321",
+                         *         "status": "Unconfirmed"
+                         *       }
+                         *     ]
+                         */
+                        "application/json": components["schemas"]["IdentifierModel"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/identifiers/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read an identifier by ID
+         * @description Read details of a specific identifier identified by its unique ID.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description Authorization header */
+                    Authorization: string;
+                };
+                path: {
+                    /** @description A unique identifier for the identifier within Finago Office. */
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Success */
+                200: {
+                    headers: {
+                        "Access-Control-Allow-Origin"?: string;
+                        "Access-Control-Allow-Credentials"?: string;
+                        "X-Trace-Id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        /**
+                         * @example {
+                         *       "id": "123e4567-e89b-12d3-a456-426614174002",
+                         *       "type": "Email",
+                         *       "value": "john.doe@example.com",
+                         *       "status": "Confirmed"
+                         *     }
+                         */
+                        "application/json": components["schemas"]["IdentifierModel"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/licenses": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read licenses
+         * @description Read all licenses for a profile. Receive in return the identifiers for an organization and the connected person within that company. This information can be used as a login hint to get an access token for operational work on behalf of the connected person.
+         */
+        get: operations["GetLicenses"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/licenses/{id}/organization": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read an organization by license ID
+         * @description Read a summary of the organization connected to a license identified by its unique license ID. This summary provides more information than just the organization name, and is useful for looking up details about all connected licenses without authorization from other organizations with login hints.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description Authorization header */
+                    Authorization: string;
+                };
+                path: {
+                    /** @description The unique identifier for the license. */
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Success */
+                200: {
+                    headers: {
+                        "Access-Control-Allow-Origin"?: string;
+                        "Access-Control-Allow-Credentials"?: string;
+                        "X-Trace-Id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        /**
+                         * @example {
+                         *       "id": "123e4567-e89b-12d3-a456-426614174004",
+                         *       "name": "ABC Corporation",
+                         *       "email": "contact@example.com"
+                         *     }
+                         */
+                        "application/json": components["schemas"]["OrganizationModel"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/organization/information": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read organization
+         * @description Read information about the organization that the current profile is logged into.
+         *
+         *     Finago Office is a multi-tenant application, where a personal login gives access to more than one organization and its people.
+         *
+         *     Hence, there exist "identity", "organization" and the organization’s "people".
+         *
+         *     Identity → ==*Organization== → *Person
+         *
+         *     > info
+         *     > Organization
+         *     > An `organization` is usually a legal entity based in a certain country. An organization will own all of its data such as customers, invoices, transactions, etc.
+         *     > An `organization` will have many people that may be employees, connections, etc.
+         */
+        get: operations["GetClient"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/organization/people": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read people
+         * @description Read a list of all people under the organization.
+         *
+         *     Finago Office is a multi-tenant application, where a personal login gives access to more than one organization and its people.
+         *
+         *     Hence, there exist "identity", "organization" and the organization’s "people".
+         *
+         *     Identity → *Organization → ==*Person==
+         *
+         *     > info
+         *     > People
+         *     > A `person` is owned by an `organization`, and will usually be an employee or an owner of the `organization`.
+         *     > A `person` may be connected to an `identity`.
+         *     > An `identity` connected to a `person` may have a certain role in an `organization`, that will result in a set of permissions called `scopes`.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description Type of person to filter by. */
+                    personType?: components["schemas"]["TfsoApiOrganizationModelsUserType"];
+                };
+                header: {
+                    /** @description Authorization header */
+                    Authorization: string;
+                };
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Success */
+                200: {
+                    headers: {
+                        "Access-Control-Allow-Origin"?: string;
+                        "Access-Control-Allow-Credentials"?: string;
+                        "X-Trace-Id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["TfsoApiOrganizationUnitOfWorkModelsPersonModel"][];
+                        "application/json": components["schemas"]["TfsoApiOrganizationUnitOfWorkModelsPersonModel"][];
+                        "text/json": components["schemas"]["TfsoApiOrganizationUnitOfWorkModelsPersonModel"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/organization/people/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read a person
+         * @description Read information about a single person identified by its unique ID.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description Type of person to filter by. */
+                    personType?: components["schemas"]["TfsoApiOrganizationModelsUserType"];
+                };
+                header: {
+                    /** @description Authorization header */
+                    Authorization: string;
+                };
+                path: {
+                    /** @description A unique identifier for the person within Finago Office. */
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Success */
+                200: {
+                    headers: {
+                        "Access-Control-Allow-Origin"?: string;
+                        "Access-Control-Allow-Credentials"?: string;
+                        "X-Trace-Id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["TfsoApiOrganizationUnitOfWorkModelsPersonModel"];
+                        "application/json": components["schemas"]["TfsoApiOrganizationUnitOfWorkModelsPersonModel"];
+                        "text/json": components["schemas"]["TfsoApiOrganizationUnitOfWorkModelsPersonModel"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        "Access-Control-Allow-Origin"?: string;
+                        "Access-Control-Allow-Credentials"?: string;
+                        "X-Trace-Id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/pricelists": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read pricelists
+         * @description Retrieve a list of all pricelists.
+         */
+        get: operations["GetPricelists"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/pricelists/{listId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read specific pricelist
+         * @description Retrieve a specific pricelist by ID.
+         */
+        get: operations["GetPricelist"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/pricelists/{listId}/prices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read pricelist prices
+         * @description Retrieve prices for products in a specific pricelist. Optionally filter by product IDs.
+         */
+        get: operations["GetPricelistPrices"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/productcategories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read product categories
+         * @description Read a list of product categories.
+         */
+        get: operations["GetCategories"];
+        put?: never;
+        /**
+         * Create a product category
+         * @description Create a new product category with specified attributes and receive the details of the newly created category in the response.
+         */
+        post: operations["CreateCategory"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/productcategories/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /**
+                 * @description A unique identifier for the product category within Finago Office ERP modules.
+                 * @example 12
+                 */
+                id: number;
+            };
+            cookie?: never;
+        };
+        /**
+         * Read a product category by ID
+         * @description Read details of a specific product category identified by its unique ID.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description Authorization header */
+                    Authorization: string;
+                };
+                path: {
+                    /**
+                     * @description A unique identifier for the product category within Finago Office ERP modules.
+                     * @example 12
+                     */
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Success */
+                200: {
+                    headers: {
+                        "Access-Control-Allow-Origin"?: string;
+                        "Access-Control-Allow-Credentials"?: string;
+                        "X-Trace-Id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CategoryResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        /**
+         * Delete a product category
+         * @description Delete a specific product category identified by its unique ID.
+         */
+        delete: operations["DeleteCategory"];
+        options?: never;
+        head?: never;
+        /**
+         * Update a product category
+         * @description Update details of a specific product category identified by its unique ID, and receive the updated details in return.
+         */
+        patch: operations["UpdateCategory"];
+        trace?: never;
+    };
+    "/productunits": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read product units
+         * @description Read a list of available units of measurement for products.
+         */
+        get: operations["GetUnits"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/products": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read products
+         * @description Read a list of products, including their details, with pagination, or a subset of products based on query parameters. Products may have different attributes such as name, description, price, and stock information. The endpoint supports various search criteria for filtering products based on specific attributes.
+         */
+        get: operations["GetProducts"];
+        put?: never;
+        /**
+         * Create a product
+         * @description Create a new product record with specified attributes and receive the details of the newly created product in the response.
+         */
+        post: operations["CreateProduct"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/products/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /**
+                 * @description A unique identifier for the product within Finago Office ERP-modules.
+                 * @example 123
+                 */
+                id: number;
+            };
+            cookie?: never;
+        };
+        /**
+         * Read a product by ID
+         * @description Read details of a specific product identified by its unique ID.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description Authorization header */
+                    Authorization: string;
+                };
+                path: {
+                    /**
+                     * @description A unique identifier for the product within Finago Office ERP-modules.
+                     * @example 123
+                     */
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Success */
+                200: {
+                    headers: {
+                        "Access-Control-Allow-Origin"?: string;
+                        "Access-Control-Allow-Credentials"?: string;
+                        "X-Trace-Id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProductResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        /**
+         * Delete a product
+         * @description Delete a specific product identified by its unique ID.
+         */
+        delete: operations["DeleteProduct"];
+        options?: never;
+        head?: never;
+        /**
+         * Update a product
+         * @description Update details of a specific product identified by its unique product ID, and receive the updated details in return.
+         */
+        patch: operations["UpdateProduct"];
+        trace?: never;
+    };
+    "/products/{id}/dimensions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read product dimensions
+         * @description Read the dimensions of a product as set in the system.
+         */
+        get: operations["getProductDimensions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/products/{id}/dimensions/{dimensionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Update a product dimension
+         * @description Update a specific dimension-association of a product in the system.
+         */
+        put: operations["updateProductDimension"];
+        post?: never;
+        /**
+         * Remove a product dimension
+         * @description Delete a specific dimension-association from a product in the system.
+         */
+        delete: operations["deleteProductDimension"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/products/{id}/salestypeOverrides": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get the sales type overrides for a product */
+        get: operations["GetProductSalesTypeOverrides"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/products/{id}/salestypeOverrides/{salesTypeId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Create or update a sales type override for a product */
+        put: operations["PutProductSalesTypeOverride"];
+        post?: never;
+        /** Delete a sales type override for a product */
+        delete: operations["DeleteProductSalesTypeOverride"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/salestypes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read sales types
+         * @description Read a list of sales types available in the system.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description Authorization header */
+                    Authorization: string;
+                };
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        "Access-Control-Allow-Origin"?: string;
+                        "Access-Control-Allow-Credentials"?: string;
+                        "X-Trace-Id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SalesType"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/salestypes/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The ID of the sales type to retrieve. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        /**
+         * Read sales type by ID
+         * @description Read details of a specific sales type by its ID.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description Authorization header */
+                    Authorization: string;
+                };
+                path: {
+                    /** @description The ID of the sales type to retrieve. */
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        "Access-Control-Allow-Origin"?: string;
+                        "Access-Control-Allow-Credentials"?: string;
+                        "X-Trace-Id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SalesType"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
-  headers: never;
-  parameters: {
-    /** @description A unique identifier for the customer within Finago Office CRM. */
-    customerId: number;
-  };
-  pathItems: never;
-  requestBodies: never;
-  responses: never;
-  schemas: {
-    /** @description Information about the account for which the balances belong to. */
-    Account: {
-      /**
-       * @description A unique identifier for the account within Finago Office accounting module.
-       * @example 1000001
-       */
-      id?: number;
-      /**
-       * @description The unique number that indicates which type of account it belongs to.
-       * @example 1900
-       */
-      number?: number;
-      /**
-       * @description The human-readable name that describes the purpose or nature of the account.
-       * @example Cash, NOK
-       */
-      name?: string;
-    };
-    /**
-     * @default Date
-     * @enum {string}
-     */
-    Type: "Date" | "Period";
-    /** @default false */
-    KeepIncoming: boolean;
-    /** Format: date */
-    DateFrom: string;
-    /** Format: date */
-    DateTo: string;
-    Periods: string;
-    AggregationElement: {
-      account?: components["schemas"]["Account"];
-      /** @description The monthly change in balance for an account during a specific period. */
-      balances?: components["schemas"]["AmountElement"][];
-    };
-    AmountElement: {
-      /**
-       * Format: date
-       * @description The date corresponding to the balance change.
-       * @example 2024-01-01
-       */
-      date?: string;
-      /**
-       * @description The opening balance of the account for the specified period.
-       * @example 50000
-       */
-      opening?: number;
-      /**
-       * @description The closing balance of the account for the specified period.
-       * @example 55000
-       */
-      closing?: number;
-      /**
-       * @description The change in balance for the account during the specified period.
-       * @example 5000
-       */
-      change?: number;
-    };
-    Fiscal: {
-      /** Format: date */
-      startingDate?: string;
-      /** Format: date */
-      endingAt?: string;
-    };
-    Account1: {
-      /**
-       * @description A unique identifier for the account within Finago Office accounting module.
-       * @example 1000001
-       */
-      id?: number;
-      /**
-       * @description The unique number that indicates which type of account it belongs to.
-       * @example 1900
-       */
-      number?: number;
-      /**
-       * @description The human-readable name that describes the purpose or nature of the account.
-       * @example Cash, NOK
-       */
-      name?: string;
-    };
-    /** @description List of currencies available within the Finago Office accounting module. */
-    Currencies: components["schemas"]["Currency"][];
-    Currency: {
-      /**
-       * @description The currency code used in transactions within the Finago Office.
-       * @example USD
-       */
-      code?: string;
-      /**
-       * @description The exchange rate of the currency.
-       * @example 1.25
-       */
-      rate?: number;
-    };
-    DocumentInfo: {
-      /**
-       * @description Identifier for the document
-       * @example 12345
-       */
-      documentId: number;
-      /**
-       * @description MIME type of the document. Currently only 'application/pdf' is returned.
-       * @example application/pdf
-       */
-      contentType: string;
-      /**
-       * Format: uri
-       * @description URL to download the document, typically a presigned URL with limited validity
-       * @example https://attachment.api.24sevenoffice.com/download/abc123?signature=xyz
-       */
-      downloadUrl: string;
-      /** @description List of pages in the document, if available. This may be used to display document content in client applications. */
-      pages?: components["schemas"]["DocumentPageInfo"][];
-    };
-    DocumentPageInfo: {
-      /**
-       * @description Page number within the document
-       * @example 1
-       */
-      sequenceNumber: number;
-      /**
-       * Format: uri
-       * @description URL to a thumbnail image of the page suitable for quick display in lists or previews, typically a presigned URL with limited validity
-       * @example https://attachment.api.24sevenoffice.com/thumbnail/abc123?page=1&signature=xyz
-       */
-      thumbnailUrl: string;
-      /**
-       * Format: uri
-       * @description URL to a preview image of the page suitable for display in the main document viewer, typically a presigned URL with limited validity
-       * @example https://attachment.api.24sevenoffice.com/preview/abc123?page=1&signature=xyz
-       */
-      previewUrl: string;
-    };
-    /** @description Details of a financial year/accounting period within the Finago Office accounting module. */
-    AccountingPeriod: {
-      /**
-       * @description A unique identifier for the accounting period within Finago Office.
-       * @example 3acda329-3074-4036-a1a2-499397dd6dc3
-       */
-      id?: string;
-      /**
-       * @description The type of accounting period, either "Year" for a full financial year or "Period" for a sub-period within a financial year.
-       * @example Year
-       * @enum {string}
-       */
-      type?: "Year" | "Period";
-      /**
-       * @description The first day of the financial year or accounting period.
-       * @example 2023-01-01
-       */
-      startingDate?: string;
-      /**
-       * @description The last day of the financial year or accounting period.
-       * @example 2023-12-31
-       */
-      endingDate?: string;
-    };
-    /** @description A single tax code */
-    TaxResponse: {
-      /**
-       * @description A unique identifier for the tax code within Finago Office ERP modules.
-       * @example 1
-       */
-      id?: number;
-      /**
-       * @description The tax code reference number visible for users.
-       * @example 1
-       */
-      number?: number;
-      /**
-       * @description The name of the tax code.
-       * @example Standard VAT
-       */
-      name?: string;
-      /**
-       * @description The tax rate percentage, expressed as a whole number. For example, a tax rate of 25% is represented as 25.
-       * @example 25
-       */
-      rate?: number;
-    };
-    /** @description Details of an account within the Finago Office accounting module to which the transaction line is posted. */
-    Account2: {
-      /**
-       * @description A unique identifier for the account within Finago Office.
-       * @example 1000001
-       */
-      id?: number;
-      /**
-       * @description The unique number within the organization's chart of accounts that indicates which type of account the account belongs to.
-       * @example 1900
-       */
-      number?: number;
-      /**
-       * @description The human-readable name that describes the purpose or nature of the account.
-       * @example Cash, NOK
-       */
-      name?: string;
-    };
-    /** @description Details of a tax used within Finago Office. */
-    Tax: {
-      /**
-       * @description A unique identifier for the tax within Finago Office.
-       * @example 2001
-       */
-      id?: number;
-      /**
-       * @description The tax rate applied to the transaction line.
-       * @example 25
-       */
-      rate?: number;
-    };
-    /**
-     * @description Details of the transaction within the Finago Office accounting module to which the transaction line pertains.
-     *
-     *     Note: Many other Norway-based accounting systems refer to transactions as "vouchers".
-     */
-    Voucher: {
-      /**
-       * @description A unique identifier for the transaction within Finago Office accounting module.
-       * @example 123e4567-e89b-12d3-a456-426614174002
-       */
-      id?: string;
-      /**
-       * @description The unique number representing the transaction.
-       * @example 1010
-       */
-      number?: number;
-    };
-    /** @description Details of a transaction type used within the Finago Office accounting module. */
-    TransactionType: {
-      /**
-       * @description A unique identifier for the transaction type within Finago Office accounting module.
-       * @example 5001
-       */
-      id?: number;
-    };
-    /** @description Details of a customer used within Finago Office CRM. */
-    Customer: {
-      /**
-       * @description A unique identifier for the customer within Finago Office CRM.
-       * @example 6001
-       */
-      id?: number;
-    };
-    /** @description Details of an invoice used within Finago Office. */
-    Invoice: {
-      /**
-       * @description The unique number representing the invoice.
-       * @example INV-2024-001
-       */
-      number?: string;
-      /**
-       * Format: date
-       * @description The due date for the invoice.
-       * @example 2024-08-01
-       */
-      dueDate?: string;
-      /**
-       * @description The remittance reference for the invoice.
-       * @example OCR-123456789
-       */
-      remittanceReference?: string;
-    };
-    /** @description Details of the currency used within Finago Office. */
-    Currency1: {
-      /**
-       * Format: regex
-       * @description The currency code used in the transaction line.
-       * @example USD
-       */
-      code?: string;
-      /**
-       * @description The exchange rate for the currency.
-       * @example 10
-       */
-      rate: number;
-    };
-    /** @description A list of transaction lines. */
-    Transactions: components["schemas"]["Transaction"][];
-    /** @description Information about a single transaction line. */
-    Transaction: {
-      /**
-       * @description A unique identifier for the transaction line within Finago Office accounting module.
-       * @example 123e4567-e89b-12d3-a456-426614174001
-       */
-      id?: string;
-      transaction?: components["schemas"]["Voucher"];
-      account: components["schemas"]["Account2"];
-      transactionType?: components["schemas"]["TransactionType"];
-      tax?: components["schemas"]["Tax"];
-      /**
-       * @description The monetary amount for the transaction line.
-       * @example 1500
-       */
-      amount: number;
-      currency?: components["schemas"]["Currency1"];
-      /**
-       * Format: date
-       * @description The date when the transaction line was posted.
-       * @example 2022-07-01
-       */
-      date: string;
-      invoice?: components["schemas"]["Invoice"];
-      customer?: components["schemas"]["Customer"];
-      /** @description A list of dimensions and dimension values associated with the transaction line, such as department or project. Included if `includeDimensions=true` is specified in the query parameters. */
-      dimensions?: {
+    schemas: {
+        /** @description Information about the account for which the balances belong to. */
+        Account: {
+            /**
+             * @description A unique identifier for the account within Finago Office accounting module.
+             * @example 1000001
+             */
+            id?: number;
+            /**
+             * @description The unique number that indicates which type of account it belongs to.
+             * @example 1900
+             */
+            number?: number;
+            /**
+             * @description The human-readable name that describes the purpose or nature of the account.
+             * @example Cash, NOK
+             */
+            name?: string;
+        };
         /**
-         * @description The type identifier for the dimension within Finago Office ERP modules.
-         * @example 1
+         * @default Date
+         * @enum {string}
          */
-        dimensionType: number;
+        Type: "Date" | "Period";
+        /** @default false */
+        KeepIncoming: boolean;
+        /** Format: date */
+        DateFrom: string;
+        /** Format: date */
+        DateTo: string;
+        Periods: string;
+        AggregationElement: {
+            account?: components["schemas"]["Account"];
+            /** @description The monthly change in balance for an account during a specific period. */
+            balances?: components["schemas"]["AmountElement"][];
+        };
+        AmountElement: {
+            /**
+             * Format: date
+             * @description The date corresponding to the balance change.
+             * @example 2024-01-01
+             */
+            date?: string;
+            /**
+             * @description The opening balance of the account for the specified period.
+             * @example 50000
+             */
+            opening?: number;
+            /**
+             * @description The closing balance of the account for the specified period.
+             * @example 55000
+             */
+            closing?: number;
+            /**
+             * @description The change in balance for the account during the specified period.
+             * @example 5000
+             */
+            change?: number;
+        };
+        Fiscal: {
+            /** Format: date */
+            startingDate?: string;
+            /** Format: date */
+            endingAt?: string;
+        };
+        Account1: {
+            /**
+             * @description A unique identifier for the account within Finago Office accounting module.
+             * @example 1000001
+             */
+            id?: number;
+            /**
+             * @description The unique number that indicates which type of account it belongs to.
+             * @example 1900
+             */
+            number?: number;
+            /**
+             * @description The human-readable name that describes the purpose or nature of the account.
+             * @example Cash, NOK
+             */
+            name?: string;
+            /**
+             * @description The id of the tax code (see GET /taxes) associated with the account.
+             * @example 0
+             */
+            taxId?: number;
+        };
+        /** @description List of currencies available within the Finago Office accounting module. */
+        Currencies: components["schemas"]["Currency"][];
+        Currency: {
+            /**
+             * @description The currency code used in transactions within the Finago Office.
+             * @example USD
+             */
+            code?: string;
+            /**
+             * @description The exchange rate of the currency.
+             * @example 1.25
+             */
+            rate?: number;
+        };
+        DocumentInfo: {
+            /**
+             * @description Identifier for the document
+             * @example 12345
+             */
+            documentId: number;
+            /**
+             * @description MIME type of the document. Currently only 'application/pdf' is returned.
+             * @example application/pdf
+             */
+            contentType: string;
+            /**
+             * Format: uri
+             * @description URL to download the document, typically a presigned URL with limited validity
+             * @example https://attachment.api.24sevenoffice.com/download/abc123?signature=xyz
+             */
+            downloadUrl: string;
+            /** @description List of pages in the document, if available. This may be used to display document content in client applications. */
+            pages?: components["schemas"]["DocumentPageInfo"][];
+        };
+        DocumentPageInfo: {
+            /**
+             * @description Page number within the document
+             * @example 1
+             */
+            sequenceNumber: number;
+            /**
+             * Format: uri
+             * @description URL to a thumbnail image of the page suitable for quick display in lists or previews, typically a presigned URL with limited validity
+             * @example https://attachment.api.24sevenoffice.com/thumbnail/abc123?page=1&signature=xyz
+             */
+            thumbnailUrl: string;
+            /**
+             * Format: uri
+             * @description URL to a preview image of the page suitable for display in the main document viewer, typically a presigned URL with limited validity
+             * @example https://attachment.api.24sevenoffice.com/preview/abc123?page=1&signature=xyz
+             */
+            previewUrl: string;
+        };
+        /** @description Details of a financial year/accounting period within the Finago Office accounting module. */
+        AccountingPeriod: {
+            /**
+             * @description A unique identifier for the accounting period within Finago Office.
+             * @example 3acda329-3074-4036-a1a2-499397dd6dc3
+             */
+            id?: string;
+            /**
+             * @description The type of accounting period, either "Year" for a full financial year or "Period" for a sub-period within a financial year.
+             * @example Year
+             * @enum {string}
+             */
+            type?: "Year" | "Period";
+            /**
+             * @description The first day of the financial year or accounting period.
+             * @example 2023-01-01
+             */
+            startingDate?: string;
+            /**
+             * @description The last day of the financial year or accounting period.
+             * @example 2023-12-31
+             */
+            endingDate?: string;
+        };
+        /** @description A single tax code */
+        TaxResponse: {
+            /**
+             * @description A unique identifier for the tax code within Finago Office ERP modules.
+             * @example 1
+             */
+            id?: number;
+            /**
+             * @description The tax code reference number visible for users.
+             * @example 1
+             */
+            number?: number;
+            /**
+             * @description The name of the tax code.
+             * @example Standard VAT
+             */
+            name?: string;
+            /**
+             * @description The tax rate percentage, expressed as a whole number. For example, a tax rate of 25% is represented as 25.
+             * @example 25
+             */
+            rate?: number;
+        };
+        /** @description Details of an account within the Finago Office accounting module to which the transaction line is posted. */
+        Account2: {
+            /**
+             * @description A unique identifier for the account within Finago Office.
+             * @example 1000001
+             */
+            id?: number;
+            /**
+             * @description The unique number within the organization's chart of accounts that indicates which type of account the account belongs to.
+             * @example 1900
+             */
+            number?: number;
+            /**
+             * @description The human-readable name that describes the purpose or nature of the account.
+             * @example Cash, NOK
+             */
+            name?: string;
+        };
+        /** @description Details of a tax used within Finago Office. */
+        Tax: {
+            /**
+             * @description A unique identifier for the tax within Finago Office.
+             * @example 2001
+             */
+            id?: number;
+            /**
+             * @description The tax rate applied to the transaction line.
+             * @example 25
+             */
+            rate?: number;
+        };
         /**
-         * @description The human-readable name for the dimension type.
-         * @example Project
+         * @description Details of the transaction within the Finago Office accounting module to which the transaction line pertains.
+         *
+         *     Note: Many other Norway-based accounting systems refer to transactions as "vouchers".
          */
-        dimensionTypeName?: string;
+        Voucher: {
+            /**
+             * @description A unique identifier for the transaction within Finago Office accounting module.
+             * @example 123e4567-e89b-12d3-a456-426614174002
+             */
+            id?: string;
+            /**
+             * @description The unique number representing the transaction.
+             * @example 1010
+             */
+            number?: number;
+        };
+        /** @description Details of a transaction type used within the Finago Office accounting module. */
+        TransactionType: {
+            /**
+             * @description A unique identifier for the transaction type within Finago Office accounting module.
+             * @example 5001
+             */
+            id?: number;
+        };
+        /** @description Details of a customer used within Finago Office CRM. */
+        Customer: {
+            /**
+             * @description A unique identifier for the customer within Finago Office CRM.
+             * @example 6001
+             */
+            id?: number;
+        };
+        /** @description Details of an invoice used within Finago Office. */
+        Invoice: {
+            /**
+             * @description The unique number representing the invoice.
+             * @example INV-2024-001
+             */
+            number?: string;
+            /**
+             * Format: date
+             * @description The due date for the invoice.
+             * @example 2024-08-01
+             */
+            dueDate?: string;
+            /**
+             * @description The remittance reference for the invoice.
+             * @example OCR-123456789
+             */
+            remittanceReference?: string;
+        };
+        /** @description Details of the currency used within Finago Office. */
+        Currency1: {
+            /**
+             * Format: regex
+             * @description The currency code used in the transaction line.
+             * @example USD
+             */
+            code?: string;
+            /**
+             * @description The exchange rate for the currency.
+             * @example 10
+             */
+            rate: number;
+        };
+        /** @description A list of transaction lines. */
+        Transactions: components["schemas"]["Transaction"][];
+        /** @description Information about a single transaction line. */
+        Transaction: {
+            /**
+             * @description A unique identifier for the transaction line within Finago Office accounting module.
+             * @example 123e4567-e89b-12d3-a456-426614174001
+             */
+            id?: string;
+            transaction?: components["schemas"]["Voucher"];
+            account: components["schemas"]["Account2"];
+            transactionType?: components["schemas"]["TransactionType"];
+            tax?: components["schemas"]["Tax"];
+            /**
+             * @description The monetary amount for the transaction line.
+             * @example 1500
+             */
+            amount: number;
+            currency?: components["schemas"]["Currency1"];
+            /**
+             * Format: date
+             * @description The date when the transaction line was posted.
+             * @example 2022-07-01
+             */
+            date: string;
+            invoice?: components["schemas"]["Invoice"];
+            customer?: components["schemas"]["Customer"];
+            /** @description A list of dimensions and dimension values associated with the transaction line, such as department or project. Included if `includeDimensions=true` is specified in the query parameters. */
+            dimensions?: {
+                /**
+                 * @description The type identifier for the dimension within Finago Office ERP modules.
+                 * @example 1
+                 */
+                dimensionType: number;
+                /**
+                 * @description The human-readable name for the dimension type.
+                 * @example Project
+                 */
+                dimensionTypeName?: string;
+                /**
+                 * @description The value (ie key) for the dimension.
+                 * @example 13
+                 */
+                value: string;
+                /**
+                 * @description The display name associated with the value of the dimension.
+                 * @example Project with ID 13
+                 */
+                name: string;
+            }[];
+            /**
+             * @description A brief description of the transaction.
+             * @example Payment for services
+             */
+            comment?: string;
+            /**
+             * Format: date
+             * @description The accounting period date for the transaction line.
+             * @example 2022-07-31
+             */
+            periodDate?: string;
+            /**
+             * @description The ID of the Document attached to the transaction, if any.
+             * @example 41
+             */
+            documentId?: number;
+            /**
+             * Format: date-time
+             * @description A timestamp for when a record was created, in ISO 8601 format.
+             * @example 2022-01-01T18:00:00Z
+             */
+            createdAt?: string;
+            /**
+             * Format: date-time
+             * @description A timestamp for when one of the properties of a record was last modified, in ISO 8601 format.
+             * @example 2023-12-31T18:00:00Z
+             */
+            modifiedAt?: string;
+        };
+        TransactionInput: {
+            /**
+             * @description Type of transaction (as defined by the accounting system). Only types with number > 0 are allowed (negative numbers are reserved for system transaction types). TransactionType controls which number-series is used for the transaction.
+             * @example 1
+             */
+            transactionTypeNumber: number;
+            /**
+             * Format: date
+             * @description Date of the transaction in ISO 8601 format - NB there must be a financial period open for this date. This may be overridden by individual transaction lines.
+             * @example 2025-04-09
+             */
+            date: string;
+            /**
+             * @description General comment of the transaction. Will be applied to all lines unless overridden at line level.
+             * @example Invoice #12345
+             */
+            comment?: string;
+            /**
+             * @description Optional identifier (Document number) for a document/attachment associated with this transaction.
+             * @example 12345
+             */
+            documentId?: number;
+            /** @description List of transaction lines. Each line must have an account number and an amount. All lines must balance to zero per date. */
+            lines: components["schemas"]["TransactionLine"][];
+        };
+        TransactionLine: {
+            /**
+             * @description General ledger account number
+             * @example 1920
+             */
+            accountNumber: number;
+            /**
+             * @description Total amount for this line (in stated currency, usually inclusive tax). Positive for debit, negative for credit. When tax-codes 81-89 are used, the amount is typically exclusive of tax (as the tax-amount is to be paid separately).
+             * @example 1500
+             */
+            amount: number;
+            /**
+             * @description Comment for this transaction line. If omitted, the comment from the parent transaction will be used.
+             * @example Payment for services rendered
+             */
+            comment?: string;
+            /**
+             * Format: date
+             * @description Date of the transaction line in ISO 8601 format if different from the parent transaction - NB there must be a financial period open for this date. If omitted, the date from the parent transaction will be used.
+             * @example 2025-04-09
+             */
+            date?: string;
+            /**
+             * Format: date
+             * @description Tax-Period date for the transaction line in ISO 8601 format, if different from date (usually not)
+             * @example 2025-04-01
+             */
+            periodDate?: string;
+            /** @description Optional currency information for the transaction line. If not set, the system default currency is used. */
+            currency?: {
+                /**
+                 * @description ISO 4217 currency code (e.g. 'USD', 'EUR', 'SEK').
+                 * @example USD
+                 */
+                code: string;
+                /**
+                 * @description Exchange rate to the system base currency.  (Example: System Currency is NOK, line is in USD, rate is 10.50 means 1 USD = 10.50 NOK).
+                 * @example 10.5
+                 */
+                rate: number;
+            };
+            tax: components["schemas"]["TransactionTax"];
+            /** @description Optional dimensions for the entry. Each dimension must match a predefined key in the system. */
+            dimensions?: {
+                /**
+                 * @description The identifier for the dimension within 24SevenOffice ERP modules.
+                 * @example 1
+                 */
+                dimensionType: number;
+                /**
+                 * @description Value of the dimension
+                 * @example 13
+                 */
+                value: string;
+            }[];
+            invoice?: components["schemas"]["TransactionLineInvoiceProps"];
+        };
         /**
-         * @description The value (ie key) for the dimension.
-         * @example 13
+         * @description Tax information for a transaction line. The tax code number must correspond to a valid tax code in the system (see `GET /taxes`). Use {"code":0} to indicate that no tax.
+         * @example {
+         *       "number": 1,
+         *       "amount": 300
+         *     }
          */
-        value: string;
+        TransactionTax: {
+            /**
+             * @description Tax code number as defined in the accounting system (see `GET /taxes`).
+             * @example 1
+             */
+            number: number;
+            /**
+             * @description Tax amount for this line. Positive for debit, negative for credit. If not set, the amount will be inferred based on the tax type.
+             * @example 300
+             */
+            amount?: number;
+            /** @description Base rate for the tax calculation. Applicable for partial deduction ("forholdsmessig fradrag"), otherwise don't set. */
+            baseRate?: number;
+            /** @description Optional specification number for the tax type, if applicable. */
+            specificationNumber?: number;
+        };
+        /** @description Details of the invoice associated with the transaction, if applicable. */
+        TransactionLineInvoiceProps: {
+            /**
+             * Format: date
+             * @description Due date for the invoice related to the transaction line in ISO 8601 format, if applicable.
+             * @example 2025-05-05
+             */
+            dueDate?: string;
+            /**
+             * @description Invoice number for the invoice associated with the transaction line, if applicable.
+             * @example INV-12345
+             */
+            number?: string;
+            /**
+             * @description The remittance reference (OCR number) for the invoice associated with the transaction line, if applicable.
+             * @example 1234567890
+             */
+            remittanceReference?: string;
+            /**
+             * @description Bank account number for the invoice associated with the transaction line, if applicable.
+             * @example 1234.56.78901
+             */
+            bankAccount?: string;
+        };
+        TransactionCreatedResponse: {
+            /**
+             * @description Unique identifier assigned to the posted transaction
+             * @example abc123
+             */
+            transactionId: string;
+        };
+        FileUploadRequest: {
+            /**
+             * @description content type (MIME type) of the file being uploaded
+             * @example application/pdf
+             */
+            contentType: string;
+        };
+        FileUploadResponse: {
+            /**
+             * @description HTTP method to use for uploading the file
+             * @example PUT
+             */
+            uploadMethod: string;
+            /**
+             * Format: uri
+             * @description Presigned URL to which the file should be uploaded, using {uploadMethod} as HTTP method
+             * @example https://attachment.api.24sevenoffice.com/upload/abc123?signature=xyz
+             */
+            uploadUrl: string;
+            /**
+             * @description Identifier for the file to be uploaded in the system
+             * @example 67890
+             */
+            fileId: string;
+        };
+        FileUploadStatusResponse: {
+            /**
+             * @description Identifier for the file upload
+             * @example 67890
+             */
+            fileId: string;
+            /**
+             * @description Current status of the file upload (e.g., Pending, Completed, Failed)
+             * @example Completed
+             */
+            status: string;
+            /**
+             * @description Identifier of the document associated with the uploaded file, if completed
+             * @example 12345
+             */
+            documentId?: number;
+        };
+        /** @description List of transaction types available within the Finago Office accounting module. */
+        TransactionTypes: components["schemas"]["TransactionType1"][];
+        /** @description Information about a single transaction type within the Finago Office accounting module. */
+        TransactionType1: {
+            /**
+             * @description A unique identifier for the transaction type within Finago Office accounting module.
+             * @example 5001
+             */
+            id?: number;
+            /**
+             * @description A unique number representing the transaction type.
+             * @example 1001
+             */
+            number?: number;
+            /**
+             * @description A human-readable name of the transaction type.
+             * @example Sale
+             */
+            name?: string;
+        };
+        /** @description Response model for a bank account */
+        BankAccountResponse: {
+            /**
+             * Format: uuid
+             * @description A unique identifier for the bank account within Finago Office.
+             * @example 123-456-789
+             */
+            id: string;
+        } & WithRequired<components["schemas"]["BankAccountBase"], "number" | "bic" | "type" | "name" | "owner"> & {
+            balance?: components["schemas"]["BankAccountBalance"];
+            /**
+             * Format: date-time
+             * @description A timestamp for when a record was created, in ISO 8601 format.
+             * @example 2022-01-01T18:00:00.000Z
+             */
+            createdAt: string;
+            /**
+             * Format: date-time
+             * @description A timestamp for when one of the properties of a record was last modified, in ISO 8601 format. The Bank Account Balance changes are not included here, as these are defined by a separate "timestamp" property for the `balance` object.
+             * @example 2023-12-31T18:00:00.000Z
+             */
+            modifiedAt: string;
+        };
+        /** @description Base bank account object */
+        BankAccountBase: {
+            /**
+             * @description The account number of the bank account.
+             * @example 90000000001
+             */
+            number?: string;
+            /**
+             * @description The Business Identifier Codes (BIC) for the bank that manages the bank account.
+             * @example DNBANOKKXXX
+             */
+            bic?: string;
+            /**
+             * @description The type of the bank account, which is one of the following:
+             *     * `bban`: Basic Bank Account Number is a country-specific bank account number format.
+             *     * `iban`: International Bank Account Number format.
+             * @example bban
+             * @enum {string}
+             */
+            type?: "bban" | "iban";
+            /**
+             * @description A user-defined name of the bank account, as it is shown in Finago Office.
+             * @example ABC bank account
+             */
+            name?: string;
+            /** @description Details for the bank account owner. */
+            owner?: {
+                /**
+                 * @description The company name of the bank account owner.
+                 * @example ABC Corporation
+                 */
+                name: string;
+                /**
+                 * @description The organization number of the bank account owner.
+                 * @example 123456789
+                 */
+                organizationNumber: string;
+                /** @description Details for the contact person for the bank account owner. */
+                contact: {
+                    /**
+                     * @description The name of the contact person.
+                     * @example John Doe
+                     */
+                    name: string;
+                    /**
+                     * Format: email
+                     * @description The email of the contact person.
+                     * @example doe@example.com
+                     */
+                    email: string;
+                };
+            };
+            /** @description The transaction type within the Finago Office accounting module, used when posting bank transactions in the Finago Office bank module. Transaction types can be retrieved from the separate /transactiontypes endpoint. */
+            transactionType?: {
+                /**
+                 * @description A unique number representing the transaction type.
+                 * @example 5
+                 */
+                number: number;
+            };
+            /** @description The ledger account within the Finago Office accounting module that corresponds to this bank account. Accounts can be retrieved from the separate /accounts endpoint. */
+            ledgerAccount?: {
+                /**
+                 * @description The unique number that indicates which type of account it belongs to.
+                 * @example 1920
+                 */
+                number: number;
+            };
+        };
+        /** @description The balance of the bank account. The whole balance object is omitted if no balance is available. */
+        BankAccountBalance: {
+            /**
+             * @description The amount of the balance.
+             * @example 1100
+             */
+            amount?: number;
+            /**
+             * Format: date-time
+             * @description The timestamp of the balance.
+             * @example 2024-06-01T12:00:00.000Z
+             */
+            timestamp?: string;
+            /** @description The currency of the balance. */
+            currency?: {
+                /**
+                 * @description The currency code of the balance.
+                 * @example NOK
+                 */
+                code: string;
+            };
+        };
+        /** @description Response model for a bank account balance */
+        BankAccountBalanceResponse: components["schemas"]["BankAccountBalance"];
+        /** @description Request model for creating a new bank account */
+        BankAccountRequestPost: WithRequired<components["schemas"]["BankAccountBase"], "name" | "number" | "bic" | "type" | "owner">;
+        /** @description Request model for creating a new bank account balance */
+        BankAccountBalanceRequestPost: WithRequired<components["schemas"]["BankAccountBalance"], "amount" | "timestamp" | "currency">;
+        /** @description Request Body for creating a new bank transaction */
+        BankTransactionRequestPost: WithRequired<components["schemas"]["BankTransactionBase"], "type" | "bankTransactionReference" | "bankAccount" | "paymentReference" | "amount" | "date">;
+        /** @description A single bank transaction */
+        BankTransactionResponse: WithRequired<components["schemas"]["BankTransactionBase"], "bankTransactionReference" | "type" | "bankAccount" | "paymentReference" | "amount" | "date"> & {
+            /**
+             * @description Status of the bank transaction, controlled by the backend and always returned in the API-responses. Possible values are the following:
+             *     - `created`: The transaction has been created.
+             *     - `closed`: The transaction has been closed in the bank reconciliation module.
+             * @example created
+             * @enum {string}
+             */
+            status: "created" | "closed";
+            /**
+             * Format: date-time
+             * @description A timestamp for when a record was created, in ISO 8601 format.
+             * @example 2024-06-01T18:00:00Z
+             */
+            createdAt: string;
+            /**
+             * Format: date-time
+             * @description A timestamp for when one of the properties of a record was last modified, in ISO 8601 format.
+             * @example 2024-06-31T18:00:00Z
+             */
+            modifiedAt: string;
+        };
+        /** @description Base fields of bank transactions. */
+        BankTransactionBase: {
+            /**
+             * @description Unique identifier for the bank transaction supplied by the bank that manages the bank account. It must be globally unique across all bank accounts for the client. A duplication warning is returned if this is not the case. Min 10 and max 130 characters.
+             * @example 10001-987-654-321
+             */
+            bankTransactionReference?: string;
+            /**
+             * @description Direction of the payment. "Inbound" stands for an incoming payment. E.g. a payment of an invoice by a customer. "Outbound" is a payment originating from this bank account. E.g a debet card transaction, when paid for goods and services.
+             * @example outbound
+             * @enum {string}
+             */
+            type?: "inbound" | "outbound";
+            /** @description Details of the bank account involved in the transaction. */
+            bankAccount?: {
+                /**
+                 * @description A unique identifier for the bank account within Finago Office.
+                 * @example 123-456-789
+                 */
+                id: string;
+            };
+            /**
+             * @description The payment reference must be one of the following types: text, ocr, invoiceRef.
+             *     * `text`: The value is a free text reference.
+             *     * `ocr`: The value is an structured OCR reference. KID number in Norway.
+             *     * `invoiceRef`: The value is an invoice number.
+             *
+             *     The actual value of the reference is set in the `value` property.
+             */
+            paymentReference?: {
+                /**
+                 * @example text
+                 * @enum {string}
+                 */
+                type: "text" | "ocr" | "invoiceRef";
+                /**
+                 * @description This must be a string of max 1000 characters.
+                 * @example Payment for shipment AA-001.
+                 */
+                value: string;
+            };
+            /** @description Amount of the bank transaction. */
+            amount?: {
+                /**
+                 * @description The amount in the currency specified. Must be a positive number.
+                 * @example 1200
+                 */
+                value: number;
+                /** @description The currency of the balance. */
+                currency: {
+                    /**
+                     * @description The currency code of the balance.
+                     * @example NOK
+                     */
+                    code: string;
+                };
+            };
+            /**
+             * @description Date of the transaction.
+             * @example 2024-06-01
+             */
+            date?: string;
+            /** @description The originating bank account for transactions. This is automatically set for outbound transactions, i.e. the property is always returned in the API responses for outbound transactions. */
+            fromBankAccount?: {
+                /**
+                 * @description Number of the originating bank account for outbound transactions.
+                 * @example 123456789
+                 */
+                number?: string | null;
+                /**
+                 * @description Type of the originating bank account for outbound transactions.
+                 * @default bban
+                 * @example bban
+                 * @enum {string|null}
+                 */
+                type: "bban" | "iban" | null;
+            };
+            /** @description The receiving bank account for transactions. This is automatically set for inbound transactions, i.e. the property is always returned in the API responses for inbound transactions. */
+            toBankAccount?: {
+                /**
+                 * @description Number of the receiving bank account for inbound transactions.
+                 * @example 987654321
+                 */
+                number?: string | null;
+                /**
+                 * @description Type of the receiving bank account for inbound transactions.
+                 * @default bban
+                 * @example bban
+                 * @enum {string|null}
+                 */
+                type: "bban" | "iban" | null;
+            };
+            /**
+             * @description The bank transaction code is a structured code that identifies the type of a transaction. The code is structured in three levels: domain, family and subfamily.
+             *     * The domain code is the highest level and is used to group the transaction codes into different domains.
+             *     * The family code is used to group the transaction codes within a domain.
+             *     * The subfamily code is used to group the transaction codes within a family.
+             */
+            bankTransactionCode?: {
+                /**
+                 * @description Domain code of the bank transaction.
+                 * @example D001
+                 */
+                domainCode?: string | null;
+                /**
+                 * @description Family code of the bank transaction.
+                 * @example F002
+                 */
+                familyCode?: string | null;
+                /**
+                 * @description Subfamily code of the bank transaction.
+                 * @example SF003
+                 */
+                subFamilyCode?: string | null;
+            };
+        };
+        CustomerResponse: components["schemas"]["CustomerProperties"];
+        CustomerPatchRequest: {
+            /** @description The first and the last name of a customer if the customer is a person. */
+            person?: {
+                /**
+                 * @description The first name of a person if the customer is a person.
+                 * @example John
+                 */
+                firstName?: string | null;
+                /**
+                 * @description The last name of a person if the customer is a person.
+                 * @example Doe
+                 */
+                lastName?: string | null;
+            };
+            /**
+             * @description A human-readable name or label for a customer, making it easily identifiable to users.
+             * @example ABC Corporation
+             */
+            name?: string | null;
+            /**
+             * @description The organization number issued by authorities, like a VAT number, of the customer if the customer is a company.
+             * @example 123456789
+             */
+            organizationNumber?: string | null;
+        } & components["schemas"]["CustomerSharedProperties"];
+        CustomerSharedProperties: {
+            /**
+             * @description An optional field for referencing the customer with an ID from an external system, like an ERP or invoicing system.
+             * @example EXT-12345
+             */
+            externalReference?: string | null;
+            /**
+             * @description A flag variable indicating whether the customer is also a supplier (true) or not (false).
+             * @example false
+             */
+            isSupplier?: boolean;
+            /** @description Addresses for the customer. */
+            address?: {
+                visit?: components["schemas"]["VisitAddress"];
+                postal?: components["schemas"]["PostalAddress"];
+                billing?: components["schemas"]["BillingAddress"];
+                delivery?: components["schemas"]["DeliveryAddress"];
+            };
+            /** @description Email addresses for the customer. */
+            email?: {
+                /**
+                 * @description The email address for contacting the customer.
+                 * @example contact@example.com
+                 */
+                contact?: string | null;
+                /**
+                 * @description The billing email address for the customer.
+                 * @example billing@example.com
+                 */
+                billing?: string | null;
+            };
+            /**
+             * @description A phone number for contacting the customer.
+             * @example +47-12345678
+             */
+            phone?: string | null;
+            /**
+             * @description A mobile phone number for contacting the customer.
+             * @example +47-98765432
+             */
+            mobilePhone?: string | null;
+        };
+        /** @description A new customer to be created in Finago Office CRM, either a company or a private person - decided by the `isCompany` flag. */
+        CustomerPostRequest: components["schemas"]["CompanyCustomerPostRequest"] | components["schemas"]["PersonCustomerPostRequest"];
+        /** @description A new company customer to be created in Finago Office CRM. */
+        CompanyCustomerPostRequest: {
+            /**
+             * @description Discriminator flag set to true - indicating that the customer is a company.
+             * @enum {boolean}
+             */
+            isCompany: true;
+            /** @description A human-readable name or label for a customer, making it easily identifiable to users. */
+            name: string;
+            /**
+             * @description The organization number issued by authorities, like a VAT number, of the customer.
+             * @example 123456789
+             */
+            organizationNumber?: string | null;
+        } & {
+            /** @description A unique identifier for the customer within Finago Office CRM. This ID is used for reference and linking transactions to specific customers. */
+            id?: number | null;
+        } & components["schemas"]["CustomerSharedProperties"] & {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            isCompany: "true";
+        };
+        /** @description A new private person customer to be created in Finago Office CRM. */
+        PersonCustomerPostRequest: {
+            /**
+             * @description Discriminator flag set to false - indicating that the customer is a person.
+             * @enum {boolean}
+             */
+            isCompany: false;
+            person: {
+                /** @description The first name of the person. */
+                firstName?: string | null;
+                /** @description The last name of the person. */
+                lastName?: string | null;
+            };
+        } & {
+            /** @description A unique identifier for the customer within Finago Office CRM. This ID is used for reference and linking transactions to specific customers. */
+            id?: number | null;
+        } & components["schemas"]["CustomerSharedProperties"] & {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            isCompany: "false";
+        };
+        CustomerProperties: {
+            /**
+             * Format: int32
+             * @description A unique identifier for the customer within Finago Office CRM. This ID is used for reference and linking transactions to specific customers.
+             * @example 12345
+             */
+            id?: number;
+            /**
+             * @description A human-readable name or label for a customer, making it easily identifiable to users.
+             * @example ABC Corporation
+             */
+            name?: string | null;
+            /**
+             * @description An optional field for referencing the customer with an ID from an external system, like an ERP or invoicing system.
+             * @example EXT-12345
+             */
+            externalReference?: string | null;
+            /**
+             * @description The ID of the pricelist associated with this customer for pricing.
+             * @example 1
+             */
+            pricelistId?: number;
+            /** @description The first and the last name of a customer if the customer is a person. */
+            person?: {
+                /**
+                 * @description The first name of a person if the customer is a person.
+                 * @example John
+                 */
+                firstName?: string | null;
+                /**
+                 * @description The last name of a person if the customer is a person.
+                 * @example Doe
+                 */
+                lastName?: string | null;
+            };
+            /**
+             * @description A flag variable indicating whether the customer is a company (true) or a person (false).
+             * @example true
+             */
+            isCompany?: boolean;
+            /**
+             * @description A flag variable indicating whether the customer is also a supplier (true) or not (false).
+             * @example false
+             */
+            isSupplier?: boolean;
+            /**
+             * @description The organization number issued by authorities, like a VAT number, of the customer if the customer is a company.
+             * @example 123456789
+             */
+            organizationNumber?: string | null;
+            /** @description Addresses for the customer. */
+            address?: {
+                visit?: components["schemas"]["VisitAddress"];
+                postal?: components["schemas"]["PostalAddress"];
+                billing?: components["schemas"]["BillingAddress"];
+                delivery?: components["schemas"]["DeliveryAddress"];
+            };
+            /** @description Email addresses for the customer. */
+            email?: {
+                /**
+                 * @description The email address for contacting the customer.
+                 * @example contact@example.com
+                 */
+                contact?: string | null;
+                /**
+                 * @description The billing email address for the customer.
+                 * @example billing@example.com
+                 */
+                billing?: string | null;
+            };
+            /**
+             * @description A phone number for contacting the customer.
+             * @example +47-12345678
+             */
+            phone?: string | null;
+            /**
+             * @description A mobile phone number for contacting the customer.
+             * @example +47-98765432
+             */
+            mobilePhone?: string | null;
+            createdAt?: components["schemas"]["createdAt"];
+            modifiedAt?: components["schemas"]["modifiedAt"];
+        };
+        AddressBasic: {
+            /**
+             * @description The street for the address. Can contain a street name, building and apartment number, a PO box number, or similar.
+             * @example Hovedgata 1
+             */
+            street?: string | null;
+            /**
+             * @description The postal code for the address.
+             * @example 0123
+             */
+            postalCode?: string | null;
+            /**
+             * @description The postal area for the address.
+             * @example Fornebu
+             */
+            postalArea?: string | null;
+            /**
+             * @description The geographical subdivision for the address, like a county ("fylke" in Norway) or a state.
+             * @example Viken
+             */
+            countrySubdivision?: string | null;
+        };
+        /** @description The visiting address of the customer. */
+        VisitAddress: {
+            /**
+             * @description The two-letter country code for the address, as in ISO 3166-1 alpha-2 standard.
+             * @example NO
+             */
+            countryCode?: string | null;
+        } & components["schemas"]["AddressBasic"];
+        /** @description The postal address of the customer. */
+        PostalAddress: components["schemas"]["AddressBasic"];
+        /** @description The billing address of the customer. */
+        BillingAddress: {
+            /**
+             * @description The name for the address.
+             * @example ABC Corporation
+             */
+            name?: string | null;
+            /**
+             * @description The two-letter country code for the address, as in ISO 3166-1 alpha-2 standard.
+             * @example NO
+             */
+            countryCode?: string | null;
+        } & components["schemas"]["AddressBasic"];
+        /** @description The delivery address of the customer. */
+        DeliveryAddress: {
+            /**
+             * @description The name for the address.
+             * @example ABC Corporation
+             */
+            name?: string | null;
+            /**
+             * @description The two-letter country code for the address, as in ISO 3166-1 alpha-2 standard.
+             * @example NO
+             */
+            countryCode?: string | null;
+        } & components["schemas"]["AddressBasic"];
         /**
-         * @description The display name associated with the value of the dimension.
-         * @example Project with ID 13
-         */
-        name: string;
-      }[];
-      /**
-       * @description A brief description of the transaction.
-       * @example Payment for services
-       */
-      comment?: string;
-      /**
-       * Format: date
-       * @description The accounting period date for the transaction line.
-       * @example 2022-07-31
-       */
-      periodDate?: string;
-      /**
-       * @description The ID of the Document attached to the transaction, if any.
-       * @example 41
-       */
-      documentId?: number;
-      /**
-       * Format: date-time
-       * @description A timestamp for when a record was created, in ISO 8601 format.
-       * @example 2022-01-01T18:00:00Z
-       */
-      createdAt?: string;
-      /**
-       * Format: date-time
-       * @description A timestamp for when one of the properties of a record was last modified, in ISO 8601 format.
-       * @example 2023-12-31T18:00:00Z
-       */
-      modifiedAt?: string;
-    };
-    /** @description List of transaction types available within the Finago Office accounting module. */
-    TransactionTypes: components["schemas"]["TransactionType1"][];
-    /** @description Information about a single transaction type within the Finago Office accounting module. */
-    TransactionType1: {
-      /**
-       * @description A unique identifier for the transaction type within Finago Office accounting module.
-       * @example 5001
-       */
-      id?: number;
-      /**
-       * @description A unique number representing the transaction type.
-       * @example 1001
-       */
-      number?: number;
-      /**
-       * @description A human-readable name of the transaction type.
-       * @example Sale
-       */
-      name?: string;
-    };
-    /** @description Response model for a bank account */
-    BankAccountResponse: {
-      /**
-       * Format: uuid
-       * @description A unique identifier for the bank account within Finago Office.
-       * @example 123-456-789
-       */
-      id: string;
-    } & WithRequired<
-      components["schemas"]["BankAccountBase"],
-      "number" | "bic" | "type" | "name" | "owner"
-    > & {
-        balance?: components["schemas"]["BankAccountBalance"];
-        /**
-         * Format: date-time
          * @description A timestamp for when a record was created, in ISO 8601 format.
-         * @example 2022-01-01T18:00:00.000Z
+         * @example 2022-01-01 18:00:00.000Z
          */
         createdAt: string;
         /**
-         * Format: date-time
-         * @description A timestamp for when one of the properties of a record was last modified, in ISO 8601 format. The Bank Account Balance changes are not included here, as these are defined by a separate "timestamp" property for the `balance` object.
-         * @example 2023-12-31T18:00:00.000Z
+         * @description A timestamp for when one of the properties of a record was last modified, in ISO 8601 format.
+         * @example 2023-12-31 18:00:00.000Z
          */
         modifiedAt: string;
-      };
-    /** @description Base bank account object */
-    BankAccountBase: {
-      /**
-       * @description The account number of the bank account.
-       * @example 90000000001
-       */
-      number?: string;
-      /**
-       * @description The Business Identifier Codes (BIC) for the bank that manages the bank account.
-       * @example DNBANOKKXXX
-       */
-      bic?: string;
-      /**
-       * @description The type of the bank account, which is one of the following:
-       *     * `bban`: Basic Bank Account Number is a country-specific bank account number format.
-       *     * `iban`: International Bank Account Number format.
-       * @example bban
-       * @enum {string}
-       */
-      type?: "bban" | "iban";
-      /**
-       * @description A user-defined name of the bank account, as it is shown in Finago Office.
-       * @example ABC bank account
-       */
-      name?: string;
-      /** @description Details for the bank account owner. */
-      owner?: {
-        /**
-         * @description The company name of the bank account owner.
-         * @example ABC Corporation
-         */
-        name: string;
-        /**
-         * @description The organization number of the bank account owner.
-         * @example 123456789
-         */
-        organizationNumber: string;
-        /** @description Details for the contact person for the bank account owner. */
-        contact: {
-          /**
-           * @description The name of the contact person.
-           * @example John Doe
-           */
-          name: string;
-          /**
-           * Format: email
-           * @description The email of the contact person.
-           * @example doe@example.com
-           */
-          email: string;
-        };
-      };
-      /** @description The transaction type within the Finago Office accounting module, used when posting bank transactions in the Finago Office bank module. Transaction types can be retrieved from the separate /transactiontypes endpoint. */
-      transactionType?: {
-        /**
-         * @description A unique number representing the transaction type.
-         * @example 5
-         */
-        number: number;
-      };
-      /** @description The ledger account within the Finago Office accounting module that corresponds to this bank account. Accounts can be retrieved from the separate /accounts endpoint. */
-      ledgerAccount?: {
-        /**
-         * @description The unique number that indicates which type of account it belongs to.
-         * @example 1920
-         */
-        number: number;
-      };
-    };
-    /** @description The balance of the bank account. The whole balance object is omitted if no balance is available. */
-    BankAccountBalance: {
-      /**
-       * @description The amount of the balance.
-       * @example 1100
-       */
-      amount?: number;
-      /**
-       * Format: date-time
-       * @description The timestamp of the balance.
-       * @example 2024-06-01T12:00:00.000Z
-       */
-      timestamp?: string;
-      /** @description The currency of the balance. */
-      currency?: {
-        /**
-         * @description The currency code of the balance.
-         * @example NOK
-         */
-        code: string;
-      };
-    };
-    /** @description Response model for a bank account balance */
-    BankAccountBalanceResponse: components["schemas"]["BankAccountBalance"];
-    /** @description Request model for creating a new bank account */
-    BankAccountRequestPost: WithRequired<
-      components["schemas"]["BankAccountBase"],
-      "name" | "number" | "bic" | "type" | "owner"
-    >;
-    /** @description Request model for creating a new bank account balance */
-    BankAccountBalanceRequestPost: WithRequired<
-      components["schemas"]["BankAccountBalance"],
-      "amount" | "timestamp" | "currency"
-    >;
-    /** @description Request Body for creating a new bank transaction */
-    BankTransactionRequestPost: WithRequired<
-      components["schemas"]["BankTransactionBase"],
-      | "type"
-      | "bankTransactionReference"
-      | "bankAccount"
-      | "paymentReference"
-      | "amount"
-      | "date"
-    >;
-    /** @description A single bank transaction */
-    BankTransactionResponse: WithRequired<
-      components["schemas"]["BankTransactionBase"],
-      | "bankTransactionReference"
-      | "type"
-      | "bankAccount"
-      | "paymentReference"
-      | "amount"
-      | "date"
-    > & {
-      /**
-       * @description Status of the bank transaction, controlled by the backend and always returned in the API-responses. Possible values are the following:
-       *     - `created`: The transaction has been created.
-       *     - `closed`: The transaction has been closed in the bank reconciliation module.
-       * @example created
-       * @enum {string}
-       */
-      status: "created" | "closed";
-      /**
-       * Format: date-time
-       * @description A timestamp for when a record was created, in ISO 8601 format.
-       * @example 2024-06-01T18:00:00Z
-       */
-      createdAt: string;
-      /**
-       * Format: date-time
-       * @description A timestamp for when one of the properties of a record was last modified, in ISO 8601 format.
-       * @example 2024-06-31T18:00:00Z
-       */
-      modifiedAt: string;
-    };
-    /** @description Base fields of bank transactions. */
-    BankTransactionBase: {
-      /**
-       * @description Unique identifier for the bank transaction supplied by the bank that manages the bank account. It must be globally unique across all bank accounts for the client. A duplication warning is returned if this is not the case. Min 10 and max 130 characters.
-       * @example 10001-987-654-321
-       */
-      bankTransactionReference?: string;
-      /**
-       * @description Direction of the payment. "Inbound" stands for an incoming payment. E.g. a payment of an invoice by a customer. "Outbound" is a payment originating from this bank account. E.g a debet card transaction, when paid for goods and services.
-       * @example outbound
-       * @enum {string}
-       */
-      type?: "inbound" | "outbound";
-      /** @description Details of the bank account involved in the transaction. */
-      bankAccount?: {
-        /**
-         * @description A unique identifier for the bank account within Finago Office.
-         * @example 123-456-789
-         */
-        id: string;
-      };
-      /**
-       * @description The payment reference must be one of the following types: text, ocr, invoiceRef.
-       *     * `text`: The value is a free text reference.
-       *     * `ocr`: The value is an structured OCR reference. KID number in Norway.
-       *     * `invoiceRef`: The value is an invoice number.
-       *
-       *     The actual value of the reference is set in the `value` property.
-       */
-      paymentReference?: {
-        /**
-         * @example text
-         * @enum {string}
-         */
-        type: "text" | "ocr" | "invoiceRef";
-        /**
-         * @description This must be a string of max 1000 characters.
-         * @example Payment for shipment AA-001.
-         */
-        value: string;
-      };
-      /** @description Amount of the bank transaction. */
-      amount?: {
-        /**
-         * @description The amount in the currency specified. Must be a positive number.
-         * @example 1200
-         */
-        value: number;
-        /** @description The currency of the balance. */
-        currency: {
-          /**
-           * @description The currency code of the balance.
-           * @example NOK
-           */
-          code: string;
-        };
-      };
-      /**
-       * @description Date of the transaction.
-       * @example 2024-06-01
-       */
-      date?: string;
-      /** @description The originating bank account for transactions. This is automatically set for outbound transactions, i.e. the property is always returned in the API responses for outbound transactions. */
-      fromBankAccount?: {
-        /**
-         * @description Number of the originating bank account for outbound transactions.
-         * @example 123456789
-         */
-        number?: string | null;
-        /**
-         * @description Type of the originating bank account for outbound transactions.
-         * @default bban
-         * @example bban
-         * @enum {string|null}
-         */
-        type: "bban" | "iban" | null;
-      };
-      /** @description The receiving bank account for transactions. This is automatically set for inbound transactions, i.e. the property is always returned in the API responses for inbound transactions. */
-      toBankAccount?: {
-        /**
-         * @description Number of the receiving bank account for inbound transactions.
-         * @example 987654321
-         */
-        number?: string | null;
-        /**
-         * @description Type of the receiving bank account for inbound transactions.
-         * @default bban
-         * @example bban
-         * @enum {string|null}
-         */
-        type: "bban" | "iban" | null;
-      };
-      /**
-       * @description The bank transaction code is a structured code that identifies the type of a transaction. The code is structured in three levels: domain, family and subfamily.
-       *     * The domain code is the highest level and is used to group the transaction codes into different domains.
-       *     * The family code is used to group the transaction codes within a domain.
-       *     * The subfamily code is used to group the transaction codes within a family.
-       */
-      bankTransactionCode?: {
-        /**
-         * @description Domain code of the bank transaction.
-         * @example D001
-         */
-        domainCode?: string | null;
-        /**
-         * @description Family code of the bank transaction.
-         * @example F002
-         */
-        familyCode?: string | null;
-        /**
-         * @description Subfamily code of the bank transaction.
-         * @example SF003
-         */
-        subFamilyCode?: string | null;
-      };
-    };
-    CustomerBankAccount: {
-      /** @description Bank account number (uppercase letters, numbers, or dash only) */
-      number: string;
-      /**
-       * @description Type of bank account
-       * @enum {string}
-       */
-      type: "bban" | "iban" | "bankgiro" | "plusgiro";
-      /** @description Whether this is the default bank account */
-      isDefault: boolean;
-      /** @description Optional name for the bank account */
-      name?: string;
-      /** @description ISO country code */
-      countryCode?: string;
-      /** @description Bank address */
-      address?: string;
-      /** @description Bank Sort Code */
-      bsc?: string;
-      /** @description Bank Identifier Code (SWIFT code) */
-      bic?: string;
-    };
-    CustomerResponse: components["schemas"]["CustomerProperties"];
-    CustomerPatchRequest: {
-      /** @description The first and the last name of a customer if the customer is a person. */
-      person?: {
-        /**
-         * @description The first name of a person if the customer is a person.
-         * @example John
-         */
-        firstName?: string | null;
-        /**
-         * @description The last name of a person if the customer is a person.
-         * @example Doe
-         */
-        lastName?: string | null;
-      };
-      /**
-       * @description A human-readable name or label for a customer, making it easily identifiable to users.
-       * @example ABC Corporation
-       */
-      name?: string | null;
-      /**
-       * @description The organization number issued by authorities, like a VAT number, of the customer if the customer is a company.
-       * @example 123456789
-       */
-      organizationNumber?: string | null;
-    } & components["schemas"]["CustomerSharedProperties"];
-    CustomerSharedProperties: {
-      /**
-       * @description An optional field for referencing the customer with an ID from an external system, like an ERP or invoicing system.
-       * @example EXT-12345
-       */
-      externalReference?: string | null;
-      /**
-       * @description A flag variable indicating whether the customer is also a supplier (true) or not (false).
-       * @example false
-       */
-      isSupplier?: boolean;
-      /** @description Addresses for the customer. */
-      address?: {
-        visit?: components["schemas"]["VisitAddress"];
-        postal?: components["schemas"]["PostalAddress"];
-        billing?: components["schemas"]["BillingAddress"];
-        delivery?: components["schemas"]["DeliveryAddress"];
-      };
-      /** @description Email addresses for the customer. */
-      email?: {
-        /**
-         * @description The email address for contacting the customer.
-         * @example contact@example.com
-         */
-        contact?: string | null;
-        /**
-         * @description The billing email address for the customer.
-         * @example billing@example.com
-         */
-        billing?: string | null;
-      };
-      /**
-       * @description A phone number for contacting the customer.
-       * @example +47-12345678
-       */
-      phone?: string | null;
-    };
-    /** @description A new customer to be created in Finago Office CRM, either a company or a private person - decided by the `isCompany` flag. */
-    CustomerPostRequest:
-      | components["schemas"]["CompanyCustomerPostRequest"]
-      | components["schemas"]["PersonCustomerPostRequest"];
-    /** @description A new company customer to be created in Finago Office CRM. */
-    CompanyCustomerPostRequest: {
-      /**
-       * @description Discriminator flag set to true - indicating that the customer is a company.
-       * @enum {boolean}
-       */
-      isCompany: true;
-      /** @description A human-readable name or label for a customer, making it easily identifiable to users. */
-      name: string;
-      /**
-       * @description The organization number issued by authorities, like a VAT number, of the customer.
-       * @example 123456789
-       */
-      organizationNumber?: string | null;
-    } & {
-      /** @description A unique identifier for the customer within Finago Office CRM. This ID is used for reference and linking transactions to specific customers. */
-      id?: number | null;
-    } & components["schemas"]["CustomerSharedProperties"] & {
-        /**
-         * @description discriminator enum property added by openapi-typescript
-         * @enum {string}
-         */
-        isCompany: "true";
-      };
-    /** @description A new private person customer to be created in Finago Office CRM. */
-    PersonCustomerPostRequest: {
-      /**
-       * @description Discriminator flag set to false - indicating that the customer is a person.
-       * @enum {boolean}
-       */
-      isCompany: false;
-      person: {
-        /** @description The first name of the person. */
-        firstName?: string | null;
-        /** @description The last name of the person. */
-        lastName?: string | null;
-      };
-    } & {
-      /** @description A unique identifier for the customer within Finago Office CRM. This ID is used for reference and linking transactions to specific customers. */
-      id?: number | null;
-    } & components["schemas"]["CustomerSharedProperties"] & {
-        /**
-         * @description discriminator enum property added by openapi-typescript
-         * @enum {string}
-         */
-        isCompany: "false";
-      };
-    CustomerProperties: {
-      /**
-       * Format: int32
-       * @description A unique identifier for the customer within Finago Office CRM. This ID is used for reference and linking transactions to specific customers.
-       * @example 12345
-       */
-      id?: number;
-      /**
-       * @description A human-readable name or label for a customer, making it easily identifiable to users.
-       * @example ABC Corporation
-       */
-      name?: string | null;
-      /**
-       * @description An optional field for referencing the customer with an ID from an external system, like an ERP or invoicing system.
-       * @example EXT-12345
-       */
-      externalReference?: string | null;
-      /** @description The first and the last name of a customer if the customer is a person. */
-      person?: {
-        /**
-         * @description The first name of a person if the customer is a person.
-         * @example John
-         */
-        firstName?: string | null;
-        /**
-         * @description The last name of a person if the customer is a person.
-         * @example Doe
-         */
-        lastName?: string | null;
-      };
-      /**
-       * @description A flag variable indicating whether the customer is a company (true) or a person (false).
-       * @example true
-       */
-      isCompany?: boolean;
-      /**
-       * @description A flag variable indicating whether the customer is also a supplier (true) or not (false).
-       * @example false
-       */
-      isSupplier?: boolean;
-      /**
-       * @description The organization number issued by authorities, like a VAT number, of the customer if the customer is a company.
-       * @example 123456789
-       */
-      organizationNumber?: string | null;
-      /** @description Addresses for the customer. */
-      address?: {
-        visit?: components["schemas"]["VisitAddress"];
-        postal?: components["schemas"]["PostalAddress"];
-        billing?: components["schemas"]["BillingAddress"];
-        delivery?: components["schemas"]["DeliveryAddress"];
-      };
-      /** @description Email addresses for the customer. */
-      email?: {
-        /**
-         * @description The email address for contacting the customer.
-         * @example contact@example.com
-         */
-        contact?: string | null;
-        /**
-         * @description The billing email address for the customer.
-         * @example billing@example.com
-         */
-        billing?: string | null;
-      };
-      /**
-       * @description A phone number for contacting the customer.
-       * @example +47-12345678
-       */
-      phone?: string | null;
-      createdAt?: components["schemas"]["createdAt"];
-      modifiedAt?: components["schemas"]["modifiedAt"];
-    };
-    AddressBasic: {
-      /**
-       * @description The street for the address. Can contain a street name, building and apartment number, a PO box number, or similar.
-       * @example Hovedgata 1
-       */
-      street?: string | null;
-      /**
-       * @description The postal code for the address.
-       * @example 0123
-       */
-      postalCode?: string | null;
-      /**
-       * @description The postal area for the address.
-       * @example Fornebu
-       */
-      postalArea?: string | null;
-      /**
-       * @description The geographical subdivision for the address, like a county ("fylke" in Norway) or a state.
-       * @example Viken
-       */
-      countrySubdivision?: string | null;
-    };
-    /** @description The visiting address of the customer. */
-    VisitAddress: {
-      /**
-       * @description The two-letter country code for the address, as in ISO 3166-1 alpha-2 standard.
-       * @example NO
-       */
-      countryCode?: string | null;
-    } & components["schemas"]["AddressBasic"];
-    /** @description The postal address of the customer. */
-    PostalAddress: components["schemas"]["AddressBasic"];
-    /** @description The billing address of the customer. */
-    BillingAddress: {
-      /**
-       * @description The name for the address.
-       * @example ABC Corporation
-       */
-      name?: string | null;
-      /**
-       * @description The two-letter country code for the address, as in ISO 3166-1 alpha-2 standard.
-       * @example NO
-       */
-      countryCode?: string | null;
-    } & components["schemas"]["AddressBasic"];
-    /** @description The delivery address of the customer. */
-    DeliveryAddress: {
-      /**
-       * @description The name for the address.
-       * @example ABC Corporation
-       */
-      name?: string | null;
-      /**
-       * @description The two-letter country code for the address, as in ISO 3166-1 alpha-2 standard.
-       * @example NO
-       */
-      countryCode?: string | null;
-    } & components["schemas"]["AddressBasic"];
-    /**
-     * @description A timestamp for when a record was created, in ISO 8601 format.
-     * @example 2022-01-01 18:00:00.000Z
-     */
-    createdAt: string;
-    /**
-     * @description A timestamp for when one of the properties of a record was last modified, in ISO 8601 format.
-     * @example 2023-12-31 18:00:00.000Z
-     */
-    modifiedAt: string;
-    SortInput: string;
-    Dimension: {
-      /**
-       * @description ID of the dimension type
-       * @example 1
-       */
-      id: number;
-      /**
-       * @description Name of the dimension type
-       * @example Project
-       */
-      name: string;
-    };
-    DimensionElement: {
-      /**
-       * Format: int32
-       * @description ID of the dimension type (ie 1=project, 2=department etc)
-       * @example 1
-       */
-      dimensionType: number;
-      /**
-       * @description Value (id) of the dimension element
-       * @example 13
-       */
-      value: string;
-      /**
-       * @description Name of the dimension element
-       * @example Project 13
-       */
-      name: string;
-    };
-    SalesOrderRequestPost: {
-      customer?: components["schemas"]["Customer1"] & Record<string, never>;
-    } & components["schemas"]["SalesOrderBasic"] &
-      components["schemas"]["DimensionsObject"];
-    SalesOrderRequestPatch: {
-      customer?: components["schemas"]["Customer1"];
-    } & components["schemas"]["SalesOrderBasic"] &
-      components["schemas"]["DimensionsObject"];
-    SalesOrderExtended: components["schemas"]["SalesOrder"] &
-      components["schemas"]["DimensionsObject"];
-    SalesOrder: {
-      /**
-       * @description A unique identifier for the sales order within Finago Office ERP.
-       * @example 1234
-       */
-      id?: number;
-    } & {
-      customer?: components["schemas"]["Customer1"];
-    } & components["schemas"]["SalesOrderBasic"] & {
-        /**
-         * @description The total amount for the sales order, including taxes.
-         * @example 124.99
-         */
-        grossAmount?: number;
-        /**
-         * @description The total amount for the sales order, excluding taxes.
-         * @example 99.99
-         */
-        netAmount?: number;
-        /**
-         * @description The total tax amount for the sales order.
-         * @example 25
-         */
-        taxAmount?: number;
-      };
-    SalesOrderBasic: {
-      currency?: components["schemas"]["Currency2"];
-      /**
-       * @description Current status of the sales order.
-       * @example Invoice
-       * @enum {string}
-       */
-      status?:
-        | "Draft"
-        | "Web"
-        | "Proposal"
-        | "Confirmed"
-        | "Invoice"
-        | "AdvanceInvoice"
-        | "Inactive";
-      deliveryCustomer?: components["schemas"]["DeliveryCustomer"];
-      /**
-       * Format: date
-       * @description The set delivery date for the sales order.
-       * @example 2023-06-10
-       */
-      deliveryDate?: string;
-      invoice?: components["schemas"]["Invoice1"];
-      accrual?: components["schemas"]["Accrual"];
-      /**
-       * Format: date
-       * @description The date when the sales order was issued.
-       * @example 2023-06-01
-       */
-      date?: string;
-      /**
-       * @description An internal memo for the sales order.
-       * @example Customer requested special packaging.
-       */
-      internalMemo?: string;
-      /**
-       * @description A memo or comments for the sales order.
-       * @example Urgent delivery.
-       */
-      memo?: string;
-      /** @description Details of the contact person at the customer side who is the sales order's point of contact at the customer */
-      yourReference?: {
-        /**
-         * @description Identifier of the contact person. Used for reference only, as the 'name'-property contains the actual name of the contact person.
-         * @example 123
-         */
-        id?: number;
-        /**
-         * @description The name of the person.
-         * @example John Doe
-         */
-        name?: string;
-      };
-      /** @description Details of the person at your organization who is the sales order's point of contact within your organization. It should be one of the people provided by `/organization/people` endpoint. */
-      ourReference?: {
-        /**
-         * @description Identifier of the contact person (candidates provided by `/organization/people` endpoint).
-         * @example 123
-         */
-        id?: number;
-      };
-      /**
-       * @description A reference number for the sales order, like a purchase order number provided by the customer.
-       * @example PO12345
-       */
-      referenceNumber?: string;
-      /** @description The sales type for the sales order. */
-      salesType?: {
-        /**
-         * @description The unique identifier for the sales type. A negative value stands for a system-defined ID.
-         * @example -100
-         */
-        id?: number;
-      };
-      /**
-       * Format: date-time
-       * @description A timestamp for when a record was created, in ISO 8601 format.
-       * @example 2023-06-01T12:00:00Z
-       */
-      createdAt?: string;
-      /**
-       * Format: date-time
-       * @description A timestamp for when one of the properties of a record was last modified, in ISO 8601 format.
-       * @example 2023-06-02T15:30:00Z
-       */
-      modifiedAt?: string;
-    };
-    DimensionsObject: {
-      dimensions?: components["schemas"]["Dimensions"];
-    };
-    /** @description A list of dimensions such as department or project. */
-    Dimensions: components["schemas"]["Dimension1"][];
-    Dimension1: {
-      /**
-       * @description The unique identifier for the dimension within Finago Office ERP modules.
-       * @example 1
-       */
-      dimensionType: number;
-      /**
-       * @description The value (ie key) for the dimension.
-       * @example 13
-       */
-      value: string;
-      /**
-       * @description The display name associated with the value of the dimension.
-       * @example Project with ID 13
-       */
-      name: string;
-    };
-    /** @description Details of an invoice associated with a sales order. */
-    Invoice1: {
-      /**
-       * Format: int32
-       * @description A unique number for the invoice within Finago Office ERP.
-       * @example 123
-       */
-      number?: number;
-      /**
-       * Format: date
-       * @description The date when the invoice was issued.
-       * @example 2023-06-01
-       */
-      date?: string;
-      /**
-       * Format: date
-       * @description The due date by which the invoice must be paid.
-       * @example 2023-06-15
-       */
-      dueDate?: string;
-      distributionMethod?: components["schemas"]["DistributionMethod"];
-      paymentTerms?: components["schemas"]["PaymentTerms"];
-      /**
-       * @description A reference number for the invoice used for remittance purposes, like "KID"-number in Norway, or OCR.
-       * @example ABC12345
-       */
-      remittanceReference?: string;
-      /** @description Details of the transaction associated with the invoice. */
-      transaction?: {
-        /**
-         * Format: guid
-         * @description A unique identifier for the transaction within Finago Office ERP.
-         * @example 63293496-884f-4358-b489-f641fe51cdaa
-         */
-        id?: string;
-      };
-    };
-    /** @description Due date is a specific date. NB: Only supported in new invoicing module */
-    FixedDateTerms: {
-      /**
-       * @description discriminator enum property added by openapi-typescript
-       * @enum {string}
-       */
-      type: "FixedDate";
-      /** Format: date */
-      value: string;
-    };
-    /** @description Due date is calculated as a number of days after the invoice date. */
-    NumberOfDaysTerms: {
-      /**
-       * @description discriminator enum property added by openapi-typescript
-       * @enum {string}
-       */
-      type: "NumberOfDays";
-      value: number;
-    };
-    /** @description Due date is calculated as a number of days after the end of the invoicing month. */
-    OutMonthPlusDaysTerms: {
-      /**
-       * @description discriminator enum property added by openapi-typescript
-       * @enum {string}
-       */
-      type: "OutMonthPlusDays";
-      value: number;
-    };
-    /**
-     * @description Payment terms for an invoice, specified in one of three three different ways:  (NB: FixedDateTerms is only supported if client has activated the new invoicing module)
-     * @example {
-     *       "type": "NumberOfDays",
-     *       "value": 14
-     *     }
-     */
-    PaymentTerms:
-      | components["schemas"]["NumberOfDaysTerms"]
-      | components["schemas"]["OutMonthPlusDaysTerms"]
-      | components["schemas"]["FixedDateTerms"];
-    /** @description Accrual information, empty object is ussed to reset accrual data */
-    Accrual:
-      | Record<string, never>
-      | {
-          /**
-           * Format: date
-           * @description The start date of the accrual period.
-           * @example 2023-06-01
-           */
-          startDate: string;
-          /**
-           * @description The length of the accrual period in months.
-           * @example 12
-           */
-          length: number;
-        };
-    /**
-     * @description The method used for distributing the sales order or invoice. Use "" for automatic selection based on client preferences. Values:
-     *       "" - Automatic
-     *       "manualdistribution" - Manual handling (no distribution)
-     *       "efakturadistribution" - eFaktura
-     *       "ehfdistribution" - EHF
-     *       "postaldistribution" - Autopost
-     *       "printdistribution" - Cloudprint
-     *       "emaildistribution" - Email
-     * @default
-     * @enum {string}
-     */
-    DistributionMethod:
-      | ""
-      | "manualdistribution"
-      | "efakturadistribution"
-      | "ehfdistribution"
-      | "postaldistribution"
-      | "printdistribution"
-      | "emaildistribution";
-    Currency2: {
-      /**
-       * @description Three-letter currency code in uppercase (ISO 4217)
-       * @example USD
-       */
-      code?: string;
-      /** @default 1 */
-      rate: number;
-    };
-    /** @description Customer details for the sales order. Note that the `customer` object for the `/salesOrders` endpoint is not the same as the customer that can be retrieved from the `/customers` endpoint, even though both share the same ID reference and their schemas are similar. The `customer` object in the context of `/salesOrders` contains the customer details as they were at the time the sales order was created. In contrast, the `/customers` endpoint always provides the latest state values for the customer properties. */
-    Customer1: {
-      /**
-       * @description A unique identifier for the customer within Finago Office CRM.
-       * @example 12345
-       */
-      id?: number;
-      /**
-       * @description The organization number issued by authorities, like a VAT number, of the customer if the customer is a company.
-       * @example 123456789
-       */
-      organizationNumber?: string;
-      /** @description A list of email addresses to which the invoice should be sent. */
-      invoiceEmailAddresses?: string[];
-      /**
-       * @description The Global Location Number (GLN) for the customer.
-       * @example 1234567890123
-       */
-      gln?: string;
-      /**
-       * @description The customer name as it appears on the sales order and an invoice associated with the sales order.
-       * @example ABC Corporation
-       */
-      name?: string;
-      /**
-       * @description The street for the address. Can contain a street name, building and apartment number, a PO box number, or similar.
-       * @example Hovedgata 1
-       */
-      street?: string;
-      /**
-       * @description The postal code for the address.
-       * @example 0123
-       */
-      postalCode?: string;
-      /**
-       * @description The postal area for the address.
-       * @example Fornebu
-       */
-      postalArea?: string;
-      /**
-       * @description The city for the address.
-       * @example Fornebu
-       */
-      city?: string;
-      /**
-       * @description The geographical subdivision for the address, like a county ("fylke" in Norway) or a state.
-       * @example Viken
-       */
-      countrySubdivision?: string;
-      /**
-       * @description The two-letter country code for the address, as in ISO 3166-1 alpha-2 standard.
-       * @example NO
-       */
-      countryCode?: string;
-    };
-    /** @description Delivery details for the sales order. */
-    DeliveryCustomer: {
-      /**
-       * @description A unique identifier for the customer within Finago Office CRM.
-       * @example 12345
-       */
-      id?: number;
-      /**
-       * @description A human-readable name or label for a customer, making it easily identifiable to users.
-       * @example ABC Corporation
-       */
-      name?: string;
-      /**
-       * @description The street for the address. Can contain a street name, building and apartment number, a PO box number, or similar.
-       * @example Hovedgata 1
-       */
-      street?: string;
-      /**
-       * @description The postal code for the address.
-       * @example 0123
-       */
-      postalCode?: string;
-      /**
-       * @description The postal area for the address.
-       * @example Fornebu
-       */
-      postalArea?: string;
-      /**
-       * @description The city name for the address.
-       * @example Fornebu
-       */
-      city?: string;
-      /**
-       * @description The geographical subdivision for the address, like a county ("fylke" in Norway) or a state.
-       * @example Viken
-       */
-      countrySubdivision?: string;
-      /**
-       * @description The two-letter country code for the address, as in ISO 3166-1 alpha-2 standard.
-       * @example NO
-       */
-      countryCode?: string;
-    };
-    /** @description A line item with its details in a sales order. The line item can be either a product or a text entry. */
-    LineWithoutId: {
-      /**
-       * @description A specification for the type of the line item, whether this is a product or a text entry.
-       * @example product
-       * @enum {string}
-       */
-      type?: "product" | "text";
-      product?: components["schemas"]["Product"];
-      /**
-       * @description A description for the line item.
-       * @example Leather handbag with adjustable strap.
-       */
-      description?: string;
-      /**
-       * @description The quantity of the product in the line item.
-       * @example 2
-       */
-      quantity?: number;
-      /**
-       * @description The price of a single unit of the product in the line item.
-       * @example 49.99
-       */
-      price?: number;
-      /**
-       * @description The discount rate applied to the line item, expressed as a whole number. For example, a discount rate of 10% is represented as 10.
-       * @example 10
-       */
-      discountRate?: number;
-      /** @description Details for the tax applied to the line item. */
-      tax?: {
-        /**
-         * @description A unique identifier for the tax code within Finago Office ERP modules, associated with the line item.
-         * @example 1
-         */
-        id?: number;
-        /**
-         * Format: int32
-         * @description The tax code reference number visible for users.
-         * @example 1
-         */
-        number?: number;
-        /**
-         * @description The tax rate percentage, expressed as a whole number. For example, a tax rate of 25% is represented as 25.
-         * @example 25
-         */
-        rate?: number;
-      };
-      /** @description Details for the account to which the sale is posted. */
-      account?: {
-        /**
-         * @description A unique identifier for the account within Finago Office accounting module.
-         * @example 200001
-         */
-        id?: number;
-        /**
-         * Format: int32
-         * @description The unique number that indicates which type of account it belongs to.
-         * @example 1500
-         */
-        number?: number;
-        /**
-         * @description The human-readable name that describes the purpose or nature of the account.
-         * @example Accounts Receivable
-         */
-        name?: string;
-      };
-      /**
-       * @deprecated
-       * @description An optional flag for the old invoicing module, indicating whether the line item is hidden on the generated PDF-invoice. NB! Ignored in new module. NB! Do not use for PEPOL/EHF-distributed invoices.
-       * @default false
-       */
-      isHidden: boolean;
-      dimensions?: components["schemas"]["Dimensions"];
-      accrual?: components["schemas"]["Accrual"];
-    };
-    Line: {
-      /**
-       * @description The unique identifier for the sales order line item within Finago Office ERP.
-       * @example 123456789
-       */
-      id?: number;
-    } & components["schemas"]["LineWithoutId"];
-    /** @description Product details, if the line item type is 'product'. Note that the `product` object for the `/salesorders/{id}/lines` endpoint is not the same as the product that can be retrieved from the `/products` endpoint, even though both share the same ID reference and their schemas are similar. The `product` object in the context of `/salesorders/{id}/lines` contains the product details as they were at the time the sales order line item was created. In contrast, the `/products` endpoint always provides the latest state values for the product properties. */
-    Product: {
-      /**
-       * @description A unique identifier for the product within Finago Office ERP-modules.
-       * @example 101
-       */
-      id?: number;
-      /**
-       * @description The product number assigned to the product. Read-only property (ignored if set in POST/PATCH requests)
-       * @example PROD-001
-       */
-      number?: string;
-    };
-    /** @description Details of an attachment associated with a sales order. */
-    SalesOrderAttachment: {
-      /**
-       * @description The unique identifier for the file associated with the attachment.
-       * @example file-1234567890
-       */
-      fileId?: string;
-      /**
-       * @description The unique identifier for the sales order to which the attachment belongs.
-       * @example 1234
-       */
-      orderId?: number;
-      /**
-       * @description The name of the attached file.
-       * @example attachment.pdf
-       */
-      fileName?: string;
-      /**
-       * @description The media type (MIME type) of the attached file.
-       * @example application/pdf
-       */
-      mediaType?: string;
-      /**
-       * Format: int64
-       * @description The size of the attached file in bytes.
-       * @example 2048000
-       */
-      size?: number;
-      /**
-       * Format: date-time
-       * @description A timestamp for when the attachment was created, in ISO 8601 format.
-       * @example 2023-06-01T12:00:00Z
-       */
-      timestamp?: string;
-      tags?: string[];
-    };
-    Error: {
-      error?: {
-        name?: string;
-        message?: string;
-      };
-      trackingId?: string;
-    };
-    ValidationError: {
-      /** @description Validation error details. */
-      error?: {
-        /**
-         * @description The name for the error.
-         * @default ValidationError
-         * @enum {string}
-         */
-        name: "ValidationError";
-        /** @description The payload for the validation error. */
-        payload?: {
-          /** @description A list of validation errors. */
-          validationErrors?: {
+        SortInput: string;
+        CustomerBankAccount: {
+            /** @description Bank account number (uppercase letters, numbers, or dash only) */
+            number: string;
             /**
-             * @description A path for the invalid field.
-             * @example customer.name
-             */
-            path?: string;
-            /**
-             * @description A validation keyword.
-             * @example required
-             */
-            keyword?: string;
-          }[];
-        };
-      };
-      /**
-       * @description A tracking identifier for the validation error.
-       * @example def456
-       */
-      trackingId?: string;
-    };
-    BadRequestError: {
-      /** @description Bad request error details. */
-      error?: {
-        /**
-         * @description The name for the error.
-         * @default BadRequestError
-         * @enum {string}
-         */
-        name: "BadRequestError";
-        /** @description The payload for the bad request error. */
-        payload?: {
-          /** @description A list of errors. */
-          errors?: {
-            /**
-             * @description The type of the error.
-             * @example NoLines
+             * @description Type of bank account
              * @enum {string}
              */
-            type?: "DepartmentMissing" | "ProjectMissing" | "NoLines";
-            /**
-             * @description An error message.
-             * @example No lines in the sales order
-             */
-            message?: string;
-            /** @description Arguments for the error message. */
-            arguments?: string[];
-          }[];
+            type: "bban" | "iban" | "bankgiro" | "plusgiro";
+            /** @description Whether this is the default bank account */
+            isDefault: boolean;
+            /** @description Optional name for the bank account */
+            name?: string;
+            /** @description ISO country code */
+            countryCode?: string;
+            /** @description Bank address */
+            address?: string;
+            /** @description Bank Sort Code */
+            bsc?: string;
+            /** @description Bank Identifier Code (SWIFT code) */
+            bic?: string;
         };
-      };
-      /**
-       * @description A tracking identifier for the bad request error.
-       * @example ghi789
-       */
-      trackingId?: string;
-    };
-    ProfileModel: {
-      /**
-       * Format: uuid
-       * @description The unique identifier for the profile.
-       * @example 123e4567-e89b-12d3-a456-426614174001
-       */
-      readonly id?: string;
-      /**
-       * @description The first name of the user.
-       * @example John
-       */
-      firstName?: string | null;
-      /**
-       * @description The last name of the user.
-       * @example Doe
-       */
-      lastName?: string | null;
-      /**
-       * @description The time zone of the user.
-       * @example Europe/Oslo
-       */
-      timeZone?: string | null;
-      /**
-       * @description The two-letter country code for the user, as in ISO 3166-1 alpha-2 standard.
-       * @example NO
-       */
-      countryCode?: string | null;
-      /**
-       * @description The language preference of the user.
-       * @example en
-       */
-      language?: string | null;
-      /**
-       * @description The culture setting of the user.
-       * @example en-US
-       */
-      culture?: string | null;
-    };
-    /** @enum {string} */
-    CommunicationStatusType: "Unconfirmed" | "Confirmed";
-    IdentifierModel: {
-      /**
-       * Format: uuid
-       * @description The unique identifier for the identifier.
-       * @example 123e4567-e89b-12d3-a456-426614174002
-       */
-      readonly id?: string;
-      /**
-       * @description The type of the identifier.
-       * @example Email
-       */
-      type?: string | null;
-      /**
-       * @description The value of the identifier.
-       * @example john.doe@example.com
-       */
-      value?: string | null;
-      /**
-       * @description The status of the identifier as per communication status type.
-       * @example Confirmed
-       */
-      status?: components["schemas"]["CommunicationStatusType"];
-    };
-    LicenseModel: {
-      /**
-       * Format: uuid
-       * @description The unique identifier for the license.
-       * @example 123e4567-e89b-12d3-a456-426614174003
-       */
-      readonly id?: string;
-      /**
-       * @description The name of the organization.
-       * @example ABC Corporation
-       */
-      name?: string | null;
-      /**
-       * Format: int64
-       * @description The identifier for the organization.
-       * @example 12345
-       */
-      organizationId?: number | null;
-      /**
-       * Format: uuid
-       * @description The identifier for the connected person's identity.
-       * @example 123e4567-e89b-12d3-a456-426614174001
-       */
-      identityId?: string | null;
-      /**
-       * Format: int32
-       * @description The identifier for the connected person.
-       * @example 67890
-       */
-      personId?: number | null;
-    };
-    OrganizationModel: {
-      /**
-       * Format: uuid
-       * @description The unique identifier for the organization.
-       * @example 123e4567-e89b-12d3-a456-426614174004
-       */
-      readonly id?: string;
-      /**
-       * @description The name of the organization.
-       * @example ABC Corporation
-       */
-      name?: string;
-      /**
-       * @description The email address of the organization.
-       * @example contact@example.com
-       */
-      email?: string;
-    };
-    /** @description The address of the organization. */
-    AddressModel: {
-      /**
-       * @description The street for the address. Can contain a street name, building and apartment number, a PO box number, or similar.
-       * @example Hovedgata 1
-       */
-      street?: string | null;
-      /**
-       * @description The city for the address.
-       * @example Baerum
-       */
-      city?: string | null;
-      /**
-       * @description The postal area for the address.
-       * @example Fornebu
-       */
-      postalArea?: string | null;
-      /**
-       * @description The postal code for the address.
-       * @example 0123
-       */
-      postalCode?: string | null;
-      /**
-       * @description The geographical subdivision for the address, like a county ("fylke" in Norway) or a state.
-       * @example Viken
-       */
-      countrySubdivision?: string | null;
-      /**
-       * @description The two-letter country code for the address, as in ISO 3166-1 alpha-2 standard.
-       * @example NO
-       */
-      countryCode?: string | null;
-    };
-    /** @description Contact information for the organization. */
-    ClientContactModel: {
-      /**
-       * @description The name of the organization's contact person.
-       * @example John Doe
-       */
-      name?: string | null;
-      /**
-       * @description The phone number for contacting the organization's contact person.
-       * @example +47-12345678
-       */
-      phone?: string | null;
-      /**
-       * @description The email address for contacting the organization's contact person.
-       * @example john.doe@example.com
-       */
-      email?: string | null;
-      /**
-       * @description The contact person's language setting.
-       * @example en
-       */
-      language?: string | null;
-    };
-    /**
-     * @description The state of the organization.
-     * @enum {string}
-     */
-    ClientStateType: "Unknown" | "Inactive" | "Active";
-    OrganizationModel1: {
-      /**
-       * Format: int64
-       * @description The unique identifier for the organization within Finago Office.
-       * @example 12345
-       */
-      readonly id?: number;
-      /**
-       * @description The name of the organization.
-       * @example ABC Corporation
-       */
-      name?: string | null;
-      /**
-       * @description The email address of the organization.
-       * @example contact@example.com
-       */
-      email?: string | null;
-      /**
-       * @description The email address for invoices.
-       * @example invoices@example.com
-       */
-      invoiceEmail?: string | null;
-      address?: components["schemas"]["AddressModel"];
-      status?: components["schemas"]["ClientStateType"];
-      settings?: components["schemas"]["OrganizationSettingsModel"];
-      contact?: components["schemas"]["ClientContactModel"];
-    };
-    /** @description Settings for the organization. */
-    OrganizationSettingsModel: {
-      /**
-       * @description The currency code for the organization.
-       * @example USD
-       */
-      currencyCode?: string | null;
-    };
-    /** @enum {string} */
-    TfsoApiOrganizationModelsUserType:
-      | "Organization"
-      | "External"
-      | "Basic"
-      | "Client";
-    TfsoApiOrganizationUnitOfWorkModelsPersonModel: {
-      /**
-       * Format: int32
-       * @description The unique identifier for the person within Finago Office.
-       * @example 123
-       */
-      id?: number;
-      /**
-       * Format: uuid
-       * @description The identifier for the connected identity.
-       * @example 123e4567-e89b-12d3-a456-426614174001
-       */
-      identityId?: string | null;
-      /**
-       * @description The first name of the person.
-       * @example John
-       */
-      firstName?: string | null;
-      /**
-       * @description The last name of the person.
-       * @example Doe
-       */
-      lastName?: string | null;
-      /**
-       * @description The type of the person.
-       * @example Organization
-       */
-      personType?: components["schemas"]["TfsoApiOrganizationModelsUserType"];
-      /**
-       * @description A flag variable indicating whether the person has a license.
-       * @example true
-       */
-      hasLicense?: boolean;
-    };
-    /** @description List of product categories */
-    Categories: components["schemas"]["CategoryResponse"][];
-    /** @description A single product category */
-    CategoryResponse: {
-      /**
-       * @description A unique identifier for the product category within Finago Office ERP modules.
-       * @example 12
-       */
-      id?: number;
-    } & components["schemas"]["CategoryBase"] & {
-        modifiedAt?: components["schemas"]["ModifiedAt"];
-      };
-    /** @description Request body for creating a product category */
-    CategoryPostRequest: WithRequired<
-      components["schemas"]["CategoryBase"],
-      "name"
-    >;
-    /** @description Request body for updating a product category */
-    CategoryPatchRequest: components["schemas"]["CategoryBase"];
-    /** @description Category base fields */
-    CategoryBase: {
-      /**
-       * @description An alternative user-defined reference for the category.
-       * @example dk-45-34
-       */
-      alternativeReference?: string;
-      /**
-       * @description The name of the category.
-       * @example Shoe accessories
-       */
-      name?: string;
-      /**
-       * @description A reference to the ID of the parent category.
-       * @default 0
-       * @example 0
-       */
-      parentId: number;
-    };
-    /**
-     * @description A timestamp for when one of the properties of a record was last modified, in ISO 8601 format.
-     * @example 2023-12-31 18:00:00.000Z
-     */
-    ModifiedAt: string;
-    /** @description List of product units of measurement. */
-    Units: components["schemas"]["UnitsResponse"][];
-    /** @description A single unit of measurement. */
-    UnitsResponse: {
-      /**
-       * @description The ID of the unit of measurement.
-       * @example 2
-       */
-      id?: number | null;
-      /**
-       * @description The name of the unit of measurement.
-       * @example Meter
-       */
-      name?: string | null;
-      /**
-       * @description The symbol of the unit of measurement.
-       * @example m
-       */
-      symbol?: string | null;
-    };
-    /** @description List of products */
-    Products: components["schemas"]["ProductResponse"][];
-    /** @description A single product */
-    ProductResponse: {
-      /**
-       * @description A unique identifier for the product within Finago Office ERP-modules.
-       * @example 123
-       */
-      id?: number;
-    } & components["schemas"]["ProductBase"] & {
-        units?: unknown & components["schemas"]["UnitsResponse1"];
-        category?: components["schemas"]["CategoryResponse1"];
-        supplier?: components["schemas"]["SupplierResponse"];
-        createdAt?: components["schemas"]["CreatedAt"];
-        modifiedAt?: components["schemas"]["ModifiedAt"];
-      };
-    /** @description Request Body for creating a new product */
-    ProductRequestPost: WithRequired<
-      components["schemas"]["ProductBase"],
-      "name"
-    > & {
-      units?: unknown & components["schemas"]["UnitsRequest"];
-      category: unknown & components["schemas"]["CategoryRequest"];
-      supplier?: components["schemas"]["SupplierRequest"];
-    };
-    /** @description Request Body for updating an existing product */
-    ProductRequestPatch: components["schemas"]["ProductBase"] & {
-      units?: unknown & components["schemas"]["UnitsRequest"];
-      category?: components["schemas"]["CategoryRequest"];
-      supplier?: components["schemas"]["SupplierRequest"];
-    };
-    /** @description Base fields of products. */
-    ProductBase: {
-      /**
-       * @description The name of the product.
-       * @example White shoe laces
-       */
-      name?: string;
-      /**
-       * @description The alternative user-defined product number.
-       * @example SH-1234567
-       */
-      number?: string | null;
-      /**
-       * @description Specifies whether the product is defined as a regular or structure product.
-       * @default default
-       * @example default
-       * @enum {string}
-       */
-      type: "default" | "structure";
-      /**
-       * @description Specifies whether the product's status is active or inactive (expired).
-       * @default active
-       * @example active
-       * @enum {string}
-       */
-      status: "active" | "inactive";
-      /**
-       * @description The description of the product.
-       * @example 1 meter long shoe laces - white
-       */
-      description?: string | null;
-      /**
-       * @description The cost of buying the product from the supplier.
-       * @default 0
-       * @example 50
-       */
-      costPrice: number | null;
-      /**
-       * @description The selling price of the product.
-       * @default 0
-       * @example 400
-       */
-      salesPrice: number | null;
-      /**
-       * @description The sum of indirect costs related to the product.
-       * @default 0
-       * @example 12.77
-       */
-      indirectCost: number | null;
-      /**
-       * @description A flag variable set to true if the product is enabled for webshop sales.
-       * @example true
-       */
-      webshopEnabled?: boolean;
-      /** @description Stock information for the product. */
-      stock?: {
+        Dimension: {
+            /**
+             * @description ID of the dimension type
+             * @example 1
+             */
+            id: number;
+            /**
+             * @description Name of the dimension type
+             * @example Project
+             */
+            name: string;
+        };
+        DimensionElement: {
+            /**
+             * Format: int32
+             * @description ID of the dimension type (ie 1=project, 2=department etc)
+             * @example 1
+             */
+            dimensionType: number;
+            /**
+             * @description Value (id) of the dimension element
+             * @example 13
+             */
+            value: string;
+            /**
+             * @description Name of the dimension element
+             * @example Project 13
+             */
+            name: string;
+        };
+        SalesOrderRequestPost: {
+            customer?: components["schemas"]["Customer1"] & Record<string, never>;
+        } & components["schemas"]["SalesOrderBasic"] & components["schemas"]["DimensionsObject"];
+        SalesOrderRequestPatch: {
+            customer?: components["schemas"]["Customer1"];
+        } & components["schemas"]["SalesOrderBasic"] & components["schemas"]["DimensionsObject"];
+        SalesOrderExtended: components["schemas"]["SalesOrder"] & components["schemas"]["DimensionsObject"];
+        SalesOrder: {
+            /**
+             * @description A unique identifier for the sales order within Finago Office ERP.
+             * @example 1234
+             */
+            id?: number;
+        } & {
+            customer?: components["schemas"]["Customer1"];
+        } & components["schemas"]["SalesOrderBasic"] & {
+            /**
+             * @description The total amount for the sales order, including taxes.
+             * @example 124.99
+             */
+            grossAmount?: number;
+            /**
+             * @description The total amount for the sales order, excluding taxes.
+             * @example 99.99
+             */
+            netAmount?: number;
+            /**
+             * @description The total tax amount for the sales order.
+             * @example 25
+             */
+            taxAmount?: number;
+        };
+        SalesOrderBasic: {
+            currency?: components["schemas"]["Currency2"];
+            /**
+             * @description Current status of the sales order.
+             * @example Invoice
+             * @enum {string}
+             */
+            status?: "Draft" | "Web" | "Proposal" | "Confirmed" | "Invoice" | "AdvanceInvoice" | "Inactive";
+            deliveryCustomer?: components["schemas"]["DeliveryCustomer"];
+            /**
+             * Format: date
+             * @description The set delivery date for the sales order.
+             * @example 2023-06-10
+             */
+            deliveryDate?: string;
+            invoice?: components["schemas"]["Invoice1"];
+            accrual?: components["schemas"]["Accrual"];
+            /**
+             * Format: date
+             * @description The date when the sales order was issued.
+             * @example 2023-06-01
+             */
+            date?: string;
+            /**
+             * @description An internal memo for the sales order.
+             * @example Customer requested special packaging.
+             */
+            internalMemo?: string;
+            /**
+             * @description A memo or comments for the sales order.
+             * @example Urgent delivery.
+             */
+            memo?: string;
+            /** @description Details of the contact person at the customer side who is the sales order's point of contact at the customer */
+            yourReference?: {
+                /**
+                 * @description Identifier of the contact person. Used for reference only, as the 'name'-property contains the actual name of the contact person.
+                 * @example 123
+                 */
+                id?: number;
+                /**
+                 * @description The name of the person.
+                 * @example John Doe
+                 */
+                name?: string;
+            };
+            /** @description Details of the person at your organization who is the sales order's point of contact within your organization. It should be one of the people provided by `/organization/people` endpoint. */
+            ourReference?: {
+                /**
+                 * @description Identifier of the contact person (candidates provided by `/organization/people` endpoint).
+                 * @example 123
+                 */
+                id?: number;
+            };
+            /** @description Reference to the payment method used for the sales order. See GET /paymentmethods. Send with id set to null to remove the payment method from the sales order. */
+            paymentMethod?: {
+                /**
+                 * @description Identifier of the payment method. (Set to null to remove the payment method from the sales order).
+                 * @example 123
+                 */
+                id: number | null;
+            };
+            /**
+             * @description A reference number for the sales order, like a purchase order number provided by the customer.
+             * @example PO12345
+             */
+            referenceNumber?: string;
+            /** @description The sales type for the sales order. */
+            salesType?: {
+                /**
+                 * @description The unique identifier for the sales type. A negative value stands for a system-defined ID.
+                 * @example -100
+                 */
+                id?: number;
+            };
+            /**
+             * Format: date-time
+             * @description A timestamp for when a record was created, in ISO 8601 format.
+             * @example 2023-06-01T12:00:00Z
+             */
+            createdAt?: string;
+            /**
+             * Format: date-time
+             * @description A timestamp for when one of the properties of a record was last modified, in ISO 8601 format.
+             * @example 2023-06-02T15:30:00Z
+             */
+            modifiedAt?: string;
+        };
+        DimensionsObject: {
+            dimensions?: components["schemas"]["Dimensions"];
+        };
+        /** @description A list of dimensions such as department or project. */
+        Dimensions: components["schemas"]["Dimension1"][];
+        Dimension1: {
+            /**
+             * @description The unique identifier for the dimension within Finago Office ERP modules.
+             * @example 1
+             */
+            dimensionType: number;
+            /**
+             * @description The value (ie key) for the dimension.
+             * @example 13
+             */
+            value: string;
+            /**
+             * @description The display name associated with the value of the dimension.
+             * @example Project with ID 13
+             */
+            name: string;
+        };
+        /** @description Details of an invoice associated with a sales order. */
+        Invoice1: {
+            /**
+             * Format: int32
+             * @description A unique number for the invoice within Finago Office ERP.
+             * @example 123
+             */
+            number?: number;
+            /**
+             * Format: date
+             * @description The date when the invoice was issued.
+             * @example 2023-06-01
+             */
+            date?: string;
+            /**
+             * Format: date
+             * @description The due date by which the invoice must be paid.
+             * @example 2023-06-15
+             */
+            dueDate?: string;
+            distributionMethod?: components["schemas"]["DistributionMethod"];
+            paymentTerms?: components["schemas"]["PaymentTerms"];
+            /**
+             * @description A reference number for the invoice used for remittance purposes, like "KID"-number in Norway, or OCR.
+             * @example ABC12345
+             */
+            remittanceReference?: string;
+            /** @description Details of the transaction associated with the invoice. */
+            transaction?: {
+                /**
+                 * Format: guid
+                 * @description A unique identifier for the transaction within Finago Office ERP.
+                 * @example 63293496-884f-4358-b489-f641fe51cdaa
+                 */
+                id?: string;
+            };
+        };
+        /** @description Due date is a specific date. NB: Only supported in new invoicing module */
+        FixedDateTerms: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "FixedDate";
+            /** Format: date */
+            value: string;
+        };
+        /** @description Due date is calculated as a number of days after the invoice date. */
+        NumberOfDaysTerms: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "NumberOfDays";
+            value: number;
+        };
+        /** @description Due date is calculated as a number of days after the end of the invoicing month. */
+        OutMonthPlusDaysTerms: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "OutMonthPlusDays";
+            value: number;
+        };
         /**
-         * @description A flag variable indicating whether a product should handle adjusting product quantity.
-         * @default false
-         * @example true
+         * @description Payment terms for an invoice, specified in one of three three different ways:  (NB: FixedDateTerms is only supported if client has activated the new invoicing module)
+         * @example {
+         *       "type": "NumberOfDays",
+         *       "value": 14
+         *     }
          */
-        isManaged: boolean;
+        PaymentTerms: components["schemas"]["NumberOfDaysTerms"] | components["schemas"]["OutMonthPlusDaysTerms"] | components["schemas"]["FixedDateTerms"];
+        /** @description Accrual information, empty object is ussed to reset accrual data */
+        Accrual: Record<string, never> | {
+            /**
+             * Format: date
+             * @description The start date of the accrual period.
+             * @example 2023-06-01
+             */
+            startDate: string;
+            /**
+             * @description The length of the accrual period in months.
+             * @example 12
+             */
+            length: number;
+        };
         /**
-         * @description The quantity of products that are in stock.
-         * @default 0
-         * @example 146
+         * @description The method used for distributing the sales order or invoice. Use "" for automatic selection based on client preferences. Values:
+         *       "" - Automatic
+         *       "manualdistribution" - Manual handling (no distribution)
+         *       "efakturadistribution" - eFaktura
+         *       "ehfdistribution" - EHF
+         *       "postaldistribution" - Autopost
+         *       "printdistribution" - Cloudprint
+         *       "emaildistribution" - Email
+         * @default
+         * @enum {string}
          */
-        quantity: number;
+        DistributionMethod: "" | "manualdistribution" | "efakturadistribution" | "ehfdistribution" | "postaldistribution" | "printdistribution" | "emaildistribution";
+        Currency2: {
+            /**
+             * @description Three-letter currency code in uppercase (ISO 4217)
+             * @example USD
+             */
+            code?: string;
+            /** @default 1 */
+            rate: number;
+        };
+        /** @description Customer details for the sales order. Note that the `customer` object for the `/salesOrders` endpoint is not the same as the customer that can be retrieved from the `/customers` endpoint, even though both share the same ID reference and their schemas are similar. The `customer` object in the context of `/salesOrders` contains the customer details as they were at the time the sales order was created. In contrast, the `/customers` endpoint always provides the latest state values for the customer properties. */
+        Customer1: {
+            /**
+             * @description A unique identifier for the customer within Finago Office CRM.
+             * @example 12345
+             */
+            id?: number;
+            /**
+             * @description The organization number issued by authorities, like a VAT number, of the customer if the customer is a company.
+             * @example 123456789
+             */
+            organizationNumber?: string;
+            /** @description A list of email addresses to which the invoice should be sent. */
+            invoiceEmailAddresses?: string[];
+            /**
+             * @description The Global Location Number (GLN) for the customer.
+             * @example 1234567890123
+             */
+            gln?: string;
+            /**
+             * @description The customer name as it appears on the sales order and an invoice associated with the sales order.
+             * @example ABC Corporation
+             */
+            name?: string;
+            /**
+             * @description The street for the address. Can contain a street name, building and apartment number, a PO box number, or similar.
+             * @example Hovedgata 1
+             */
+            street?: string;
+            /**
+             * @description The postal code for the address.
+             * @example 0123
+             */
+            postalCode?: string;
+            /**
+             * @description The postal area for the address.
+             * @example Fornebu
+             */
+            postalArea?: string;
+            /**
+             * @description The city for the address.
+             * @example Fornebu
+             */
+            city?: string;
+            /**
+             * @description The geographical subdivision for the address, like a county ("fylke" in Norway) or a state.
+             * @example Viken
+             */
+            countrySubdivision?: string;
+            /**
+             * @description The two-letter country code for the address, as in ISO 3166-1 alpha-2 standard.
+             * @example NO
+             */
+            countryCode?: string;
+        };
+        /** @description Delivery details for the sales order. */
+        DeliveryCustomer: {
+            /**
+             * @description A unique identifier for the customer within Finago Office CRM.
+             * @example 12345
+             */
+            id?: number;
+            /**
+             * @description A human-readable name or label for a customer, making it easily identifiable to users.
+             * @example ABC Corporation
+             */
+            name?: string;
+            /**
+             * @description The street for the address. Can contain a street name, building and apartment number, a PO box number, or similar.
+             * @example Hovedgata 1
+             */
+            street?: string;
+            /**
+             * @description The postal code for the address.
+             * @example 0123
+             */
+            postalCode?: string;
+            /**
+             * @description The postal area for the address.
+             * @example Fornebu
+             */
+            postalArea?: string;
+            /**
+             * @description The city name for the address.
+             * @example Fornebu
+             */
+            city?: string;
+            /**
+             * @description The geographical subdivision for the address, like a county ("fylke" in Norway) or a state.
+             * @example Viken
+             */
+            countrySubdivision?: string;
+            /**
+             * @description The two-letter country code for the address, as in ISO 3166-1 alpha-2 standard.
+             * @example NO
+             */
+            countryCode?: string;
+        };
+        /** @description A line item with its details in a sales order. The line item can be either a product or a text entry. */
+        LineWithoutId: {
+            /**
+             * @description A specification for the type of the line item, whether this is a product or a text entry.
+             * @example product
+             * @enum {string}
+             */
+            type?: "product" | "text";
+            product?: components["schemas"]["Product"];
+            /**
+             * @description A description for the line item.
+             * @example Leather handbag with adjustable strap.
+             */
+            description?: string;
+            /**
+             * @description The quantity of the product in the line item.
+             * @example 2
+             */
+            quantity?: number;
+            /**
+             * @description The price of a single unit of the product in the line item.
+             * @example 49.99
+             */
+            price?: number;
+            /**
+             * @description The cost of buying a single unit of the product from the supplier.
+             * @example 50
+             */
+            costPrice?: number | null;
+            /**
+             * @description The discount rate applied to the line item, expressed as a whole number. For example, a discount rate of 10% is represented as 10.
+             * @example 10
+             */
+            discountRate?: number;
+            /** @description Details for the tax applied to the line item. */
+            tax?: {
+                /**
+                 * @description A unique identifier for the tax code within Finago Office ERP modules, associated with the line item.
+                 * @example 1
+                 */
+                id?: number;
+                /**
+                 * Format: int32
+                 * @description The tax code reference number visible for users.
+                 * @example 1
+                 */
+                number?: number;
+                /**
+                 * @description The tax rate percentage, expressed as a whole number. For example, a tax rate of 25% is represented as 25.
+                 * @example 25
+                 */
+                rate?: number;
+            };
+            /** @description Details for the account to which the sale is posted. */
+            account?: {
+                /**
+                 * @description A unique identifier for the account within Finago Office accounting module.
+                 * @example 200001
+                 */
+                id?: number;
+                /**
+                 * Format: int32
+                 * @description The unique number that indicates which type of account it belongs to.
+                 * @example 1500
+                 */
+                number?: number;
+                /**
+                 * @description The human-readable name that describes the purpose or nature of the account.
+                 * @example Accounts Receivable
+                 */
+                name?: string;
+            };
+            /**
+             * @deprecated
+             * @description An optional flag for the old invoicing module, indicating whether the line item is hidden on the generated PDF-invoice. NB! Ignored in new module. NB! Do not use for PEPOL/EHF-distributed invoices.
+             * @default false
+             */
+            isHidden: boolean;
+            dimensions?: components["schemas"]["Dimensions"];
+            accrual?: components["schemas"]["Accrual"];
+        };
+        Line: {
+            /**
+             * @description The unique identifier for the sales order line item within Finago Office ERP.
+             * @example 123456789
+             */
+            id?: number;
+        } & components["schemas"]["LineWithoutId"];
+        /** @description Product details, if the line item type is 'product'. Note that the `product` object for the `/salesorders/{id}/lines` endpoint is not the same as the product that can be retrieved from the `/products` endpoint, even though both share the same ID reference and their schemas are similar. The `product` object in the context of `/salesorders/{id}/lines` contains the product details as they were at the time the sales order line item was created. In contrast, the `/products` endpoint always provides the latest state values for the product properties. */
+        Product: {
+            /**
+             * @description A unique identifier for the product within Finago Office ERP-modules.
+             * @example 101
+             */
+            id?: number;
+            /**
+             * @description The product number assigned to the product. Read-only property (ignored if set in POST/PATCH requests)
+             * @example PROD-001
+             */
+            number?: string;
+        };
+        /** @description Details of an attachment associated with a sales order. */
+        SalesOrderAttachment: {
+            /**
+             * @description The unique identifier for the file associated with the attachment.
+             * @example file-1234567890
+             */
+            fileId?: string;
+            /**
+             * @description The unique identifier for the sales order to which the attachment belongs.
+             * @example 1234
+             */
+            orderId?: number;
+            /**
+             * @description The name of the attached file.
+             * @example attachment.pdf
+             */
+            fileName?: string;
+            /**
+             * @description The media type (MIME type) of the attached file.
+             * @example application/pdf
+             */
+            mediaType?: string;
+            /**
+             * Format: int64
+             * @description The size of the attached file in bytes.
+             * @example 2048000
+             */
+            size?: number;
+            /**
+             * Format: date-time
+             * @description A timestamp for when the attachment was created, in ISO 8601 format.
+             * @example 2023-06-01T12:00:00Z
+             */
+            timestamp?: string;
+            tags?: string[];
+        };
+        Error: {
+            error?: {
+                name?: string;
+                message?: string;
+            };
+            trackingId?: string;
+        };
+        ValidationError: {
+            /** @description Validation error details. */
+            error?: {
+                /**
+                 * @description The name for the error.
+                 * @default ValidationError
+                 * @enum {string}
+                 */
+                name: "ValidationError";
+                /** @description The payload for the validation error. */
+                payload?: {
+                    /** @description A list of validation errors. */
+                    validationErrors?: {
+                        /**
+                         * @description A path for the invalid field.
+                         * @example customer.name
+                         */
+                        path?: string;
+                        /**
+                         * @description A validation keyword.
+                         * @example required
+                         */
+                        keyword?: string;
+                    }[];
+                };
+            };
+            /**
+             * @description A tracking identifier for the validation error.
+             * @example def456
+             */
+            trackingId?: string;
+        };
+        BadRequestError: {
+            /** @description Bad request error details. */
+            error?: {
+                /**
+                 * @description The name for the error.
+                 * @default BadRequestError
+                 * @enum {string}
+                 */
+                name: "BadRequestError";
+                /** @description The payload for the bad request error. */
+                payload?: {
+                    /** @description A list of errors. */
+                    errors?: {
+                        /**
+                         * @description The type of the error.
+                         * @example NoLines
+                         * @enum {string}
+                         */
+                        type?: "DepartmentMissing" | "ProjectMissing" | "NoLines";
+                        /**
+                         * @description An error message.
+                         * @example No lines in the sales order
+                         */
+                        message?: string;
+                        /** @description Arguments for the error message. */
+                        arguments?: string[];
+                    }[];
+                };
+            };
+            /**
+             * @description A tracking identifier for the bad request error.
+             * @example ghi789
+             */
+            trackingId?: string;
+        };
+        PaymentMethod: {
+            /** @description Unique identifier for the payment method */
+            id: number;
+            /** @description Display name of the payment method */
+            name: string;
+            account?: {
+                /** @description Unique identifier for the account associated with the payment method */
+                id?: number;
+            };
+        };
+        ProfileModel: {
+            /**
+             * Format: uuid
+             * @description The unique identifier for the profile.
+             * @example 123e4567-e89b-12d3-a456-426614174001
+             */
+            readonly id?: string;
+            /**
+             * @description The first name of the user.
+             * @example John
+             */
+            firstName?: string | null;
+            /**
+             * @description The last name of the user.
+             * @example Doe
+             */
+            lastName?: string | null;
+            /**
+             * @description The time zone of the user.
+             * @example Europe/Oslo
+             */
+            timeZone?: string | null;
+            /**
+             * @description The two-letter country code for the user, as in ISO 3166-1 alpha-2 standard.
+             * @example NO
+             */
+            countryCode?: string | null;
+            /**
+             * @description The language preference of the user.
+             * @example en
+             */
+            language?: string | null;
+            /**
+             * @description The culture setting of the user.
+             * @example en-US
+             */
+            culture?: string | null;
+        };
+        /** @enum {string} */
+        CommunicationStatusType: "Unconfirmed" | "Confirmed";
+        IdentifierModel: {
+            /**
+             * Format: uuid
+             * @description The unique identifier for the identifier.
+             * @example 123e4567-e89b-12d3-a456-426614174002
+             */
+            readonly id?: string;
+            /**
+             * @description The type of the identifier.
+             * @example Email
+             */
+            type?: string | null;
+            /**
+             * @description The value of the identifier.
+             * @example john.doe@example.com
+             */
+            value?: string | null;
+            /**
+             * @description The status of the identifier as per communication status type.
+             * @example Confirmed
+             */
+            status?: components["schemas"]["CommunicationStatusType"];
+        };
+        LicenseModel: {
+            /**
+             * Format: uuid
+             * @description The unique identifier for the license.
+             * @example 123e4567-e89b-12d3-a456-426614174003
+             */
+            readonly id?: string;
+            /**
+             * @description The name of the organization.
+             * @example ABC Corporation
+             */
+            name?: string | null;
+            /**
+             * Format: int64
+             * @description The identifier for the organization.
+             * @example 12345
+             */
+            organizationId?: number | null;
+            /**
+             * Format: uuid
+             * @description The identifier for the connected person's identity.
+             * @example 123e4567-e89b-12d3-a456-426614174001
+             */
+            identityId?: string | null;
+            /**
+             * Format: int32
+             * @description The identifier for the connected person.
+             * @example 67890
+             */
+            personId?: number | null;
+        };
+        OrganizationModel: {
+            /**
+             * Format: uuid
+             * @description The unique identifier for the organization.
+             * @example 123e4567-e89b-12d3-a456-426614174004
+             */
+            readonly id?: string;
+            /**
+             * @description The name of the organization.
+             * @example ABC Corporation
+             */
+            name?: string;
+            /**
+             * @description The email address of the organization.
+             * @example contact@example.com
+             */
+            email?: string;
+        };
+        /** @description The address of the organization. */
+        AddressModel: {
+            /**
+             * @description The street for the address. Can contain a street name, building and apartment number, a PO box number, or similar.
+             * @example Hovedgata 1
+             */
+            street?: string | null;
+            /**
+             * @description The city for the address.
+             * @example Baerum
+             */
+            city?: string | null;
+            /**
+             * @description The postal area for the address.
+             * @example Fornebu
+             */
+            postalArea?: string | null;
+            /**
+             * @description The postal code for the address.
+             * @example 0123
+             */
+            postalCode?: string | null;
+            /**
+             * @description The geographical subdivision for the address, like a county ("fylke" in Norway) or a state.
+             * @example Viken
+             */
+            countrySubdivision?: string | null;
+            /**
+             * @description The two-letter country code for the address, as in ISO 3166-1 alpha-2 standard.
+             * @example NO
+             */
+            countryCode?: string | null;
+        };
+        /** @description Contact information for the organization. */
+        ClientContactModel: {
+            /**
+             * @description The name of the organization's contact person.
+             * @example John Doe
+             */
+            name?: string | null;
+            /**
+             * @description The phone number for contacting the organization's contact person.
+             * @example +47-12345678
+             */
+            phone?: string | null;
+            /**
+             * @description The email address for contacting the organization's contact person.
+             * @example john.doe@example.com
+             */
+            email?: string | null;
+            /**
+             * @description The contact person's language setting.
+             * @example en
+             */
+            language?: string | null;
+        };
         /**
-         * @description The location identifier for the product, like a shelf or a facility number for inventory management.
-         * @example A-313
+         * @description The state of the organization.
+         * @enum {string}
          */
-        location?: string | null;
-      };
-      /**
-       * @description The product's GTIN - Usually a 13-digit European Article Number (EAN), but can also be one of the other GTIN formats.
-       * @example 0123456789000
-       */
-      ean?: string | null;
-      /**
-       * @description An alternative article number field, supporting up to 25 digits.
-       * @example 0123456789012345678901234
-       */
-      eanAlternative?: string | null;
-      /** @description Collection of properties related to the supplier's product. */
-      supplierProduct?: {
+        ClientStateType: "Unknown" | "Inactive" | "Active";
+        OrganizationModel1: {
+            /**
+             * Format: int64
+             * @description The unique identifier for the organization within Finago Office.
+             * @example 12345
+             */
+            readonly id?: number;
+            /**
+             * @description The name of the organization.
+             * @example ABC Corporation
+             */
+            name?: string | null;
+            /**
+             * @description The email address of the organization.
+             * @example contact@example.com
+             */
+            email?: string | null;
+            /**
+             * @description The email address for invoices.
+             * @example invoices@example.com
+             */
+            invoiceEmail?: string | null;
+            address?: components["schemas"]["AddressModel"];
+            status?: components["schemas"]["ClientStateType"];
+            settings?: components["schemas"]["OrganizationSettingsModel"];
+            contact?: components["schemas"]["ClientContactModel"];
+        };
+        /** @description Settings for the organization. */
+        OrganizationSettingsModel: {
+            /**
+             * @description The currency code for the organization.
+             * @example USD
+             */
+            currencyCode?: string | null;
+        };
+        /** @enum {string} */
+        TfsoApiOrganizationModelsUserType: "Organization" | "External" | "Basic" | "Client";
+        TfsoApiOrganizationUnitOfWorkModelsPersonModel: {
+            /**
+             * Format: int32
+             * @description The unique identifier for the person within Finago Office.
+             * @example 123
+             */
+            id?: number;
+            /**
+             * Format: uuid
+             * @description The identifier for the connected identity.
+             * @example 123e4567-e89b-12d3-a456-426614174001
+             */
+            identityId?: string | null;
+            /**
+             * @description The first name of the person.
+             * @example John
+             */
+            firstName?: string | null;
+            /**
+             * @description The last name of the person.
+             * @example Doe
+             */
+            lastName?: string | null;
+            /**
+             * @description The type of the person.
+             * @example Organization
+             */
+            personType?: components["schemas"]["TfsoApiOrganizationModelsUserType"];
+            /**
+             * @description A flag variable indicating whether the person has a license.
+             * @example true
+             */
+            hasLicense?: boolean;
+        };
+        Pricelist: {
+            /**
+             * @description Unique identifier of the pricelist
+             * @example 2
+             */
+            id: number;
+            /**
+             * @description Name of the pricelist
+             * @example Price 2
+             */
+            name: string;
+            /** @description Optional description of the pricelist */
+            description?: string | null;
+            /**
+             * @description Currency code (e.g., LOCAL, USD, EUR)
+             * @example LOCAL
+             */
+            currencyCode: string;
+            /**
+             * @description Whether prices include tax
+             * @example false
+             */
+            isInclusiveTax: boolean;
+        };
+        PricelistPrice: {
+            /**
+             * @description Product identifier
+             * @example 123
+             */
+            productId: number;
+            /**
+             * Format: float
+             * @description Price for the product in this pricelist
+             * @example 99.99
+             */
+            price: number;
+        };
+        /** @description List of product categories */
+        Categories: components["schemas"]["CategoryResponse"][];
+        /** @description A single product category */
+        CategoryResponse: {
+            /**
+             * @description A unique identifier for the product category within Finago Office ERP modules.
+             * @example 12
+             */
+            id?: number;
+        } & components["schemas"]["CategoryBase"] & {
+            modifiedAt?: components["schemas"]["ModifiedAt"];
+        };
+        /** @description Request body for creating a product category */
+        CategoryPostRequest: WithRequired<components["schemas"]["CategoryBase"], "name">;
+        /** @description Request body for updating a product category */
+        CategoryPatchRequest: components["schemas"]["CategoryBase"];
+        /** @description Category base fields */
+        CategoryBase: {
+            /**
+             * @description An alternative user-defined reference for the category.
+             * @example dk-45-34
+             */
+            alternativeReference?: string;
+            /**
+             * @description The name of the category.
+             * @example Shoe accessories
+             */
+            name?: string;
+            /**
+             * @description A reference to the ID of the parent category.
+             * @default 0
+             * @example 0
+             */
+            parentId: number;
+        };
         /**
-         * @description The item code of the supplier product.
-         * @example T1234
+         * @description A timestamp for when one of the properties of a record was last modified, in ISO 8601 format.
+         * @example 2023-12-31 18:00:00.000Z
          */
-        itemCode?: string | null;
+        ModifiedAt: string;
+        /** @description List of product units of measurement. */
+        Units: components["schemas"]["UnitsResponse"][];
+        /** @description A single unit of measurement. */
+        UnitsResponse: {
+            /**
+             * @description The ID of the unit of measurement.
+             * @example 2
+             */
+            id?: number | null;
+            /**
+             * @description The name of the unit of measurement.
+             * @example Meter
+             */
+            name?: string | null;
+            /**
+             * @description The symbol of the unit of measurement.
+             * @example m
+             */
+            symbol?: string | null;
+        };
+        /** @description List of products */
+        Products: components["schemas"]["ProductResponse"][];
+        /** @description A single product */
+        ProductResponse: {
+            /**
+             * @description A unique identifier for the product within Finago Office ERP-modules.
+             * @example 123
+             */
+            id?: number;
+        } & components["schemas"]["ProductBase"] & {
+            units?: unknown & components["schemas"]["UnitsResponse1"];
+            category?: components["schemas"]["CategoryResponse1"];
+            supplier?: components["schemas"]["SupplierResponse"];
+            createdAt?: components["schemas"]["CreatedAt"];
+            modifiedAt?: components["schemas"]["ModifiedAt"];
+        };
+        /** @description Request Body for creating a new product */
+        ProductRequestPost: WithRequired<components["schemas"]["ProductBase"], "name"> & {
+            units?: unknown & components["schemas"]["UnitsRequest"];
+            category: unknown & components["schemas"]["CategoryRequest"];
+            supplier?: components["schemas"]["SupplierRequest"];
+        };
+        /** @description Request Body for updating an existing product */
+        ProductRequestPatch: components["schemas"]["ProductBase"] & {
+            units?: unknown & components["schemas"]["UnitsRequest"];
+            category?: components["schemas"]["CategoryRequest"];
+            supplier?: components["schemas"]["SupplierRequest"];
+        };
+        /** @description Base fields of products. */
+        ProductBase: {
+            /**
+             * @description The name of the product.
+             * @example White shoe laces
+             */
+            name?: string;
+            /**
+             * @description The alternative user-defined product number.
+             * @example SH-1234567
+             */
+            number?: string | null;
+            /**
+             * @description Specifies whether the product is defined as a regular or structure product.
+             * @default default
+             * @example default
+             * @enum {string}
+             */
+            type: "default" | "structure";
+            /**
+             * @description Specifies whether the product's status is active or inactive (expired).
+             * @default active
+             * @example active
+             * @enum {string}
+             */
+            status: "active" | "inactive";
+            /**
+             * @description The description of the product.
+             * @example 1 meter long shoe laces - white
+             */
+            description?: string | null;
+            /**
+             * @description The cost of buying the product from the supplier.
+             * @default 0
+             * @example 50
+             */
+            costPrice: number | null;
+            /**
+             * @description The selling price of the product.
+             * @default 0
+             * @example 400
+             */
+            salesPrice: number | null;
+            /**
+             * @description The sum of indirect costs related to the product.
+             * @default 0
+             * @example 12.77
+             */
+            indirectCost: number | null;
+            /**
+             * @description A flag variable set to true if the product is enabled for webshop sales.
+             * @example true
+             */
+            webshopEnabled?: boolean;
+            /** @description Stock information for the product. */
+            stock?: {
+                /**
+                 * @description A flag variable indicating whether a product should handle adjusting product quantity.
+                 * @default false
+                 * @example true
+                 */
+                isManaged: boolean;
+                /**
+                 * @description The quantity of products that are in stock.
+                 * @default 0
+                 * @example 146
+                 */
+                quantity: number;
+                /**
+                 * @description The location identifier for the product, like a shelf or a facility number for inventory management.
+                 * @example A-313
+                 */
+                location?: string | null;
+            };
+            /**
+             * @description The product's GTIN - Usually a 13-digit European Article Number (EAN), but can also be one of the other GTIN formats.
+             * @example 0123456789000
+             */
+            ean?: string | null;
+            /**
+             * @description An alternative article number field, supporting up to 25 digits.
+             * @example 0123456789012345678901234
+             */
+            eanAlternative?: string | null;
+            /** @description Collection of properties related to the supplier's product. */
+            supplierProduct?: {
+                /**
+                 * @description The item code of the supplier product.
+                 * @example T1234
+                 */
+                itemCode?: string | null;
+                /**
+                 * @description The item number of the supplier product.
+                 * @example 1234
+                 */
+                number?: string | null;
+                /**
+                 * @description The name of the supplier product.
+                 * @example Shoe laces, white, 1m
+                 */
+                name?: string | null;
+                /**
+                 * @description The price of the supplier product.
+                 * @example 10.5
+                 */
+                price?: number | null;
+            };
+        };
+        /** @description Information about the category to which the product belongs. */
+        CategoryResponse1: {
+            /**
+             * @description A reference by ID to the category the product belongs to. Product categories can be retrieved from the separate `/productcategories` endpoint.
+             * @example 12
+             */
+            id?: number;
+            /**
+             * @description The category that the product belongs to.
+             * @example Shoe accessories
+             */
+            name?: string;
+        };
+        /** @description Information about the category to which the product belongs. */
+        CategoryRequest: {
+            /**
+             * @description A reference by ID to the category the product belongs to. Product categories can be retrieved from the separate `/productcategories` endpoint.
+             * @example 12
+             */
+            id?: number;
+        };
+        /** @description Information about the supplier of the product. */
+        SupplierRequest: {
+            /**
+             * @description The ID of the supplier. Product suppliers can be retrieved from the separate `/customers` endpoint (suppliers are customers with a flag variable "isSupplier" set to "true").
+             * @example 67890
+             */
+            id?: number | null;
+        };
+        /** @description Information about the supplier of the product. */
+        SupplierResponse: {
+            /**
+             * @description The ID of the supplier. Product suppliers can be retrieved from the separate `/customers` endpoint (suppliers are customers with a flag variable "isSupplier" set to "true").
+             * @example 67890
+             */
+            id?: number | null;
+            /**
+             * @description The name of the supplier.
+             * @example XYZ Inc.
+             */
+            name?: string | null;
+        };
+        /** @description Information about the units of measurement for the product. */
+        UnitsRequest: {
+            /**
+             * @description The ID of the units of measurement. Product units can be retrieved from the separate `/productunits` endpoint.
+             * @example 2
+             */
+            id?: number | null;
+        };
+        /** @description Information about the units of measurement for the product. */
+        UnitsResponse1: {
+            /**
+             * @description The ID of the units of measurement. Product units can be retrieved from the separate `/productunits` endpoint.
+             * @example 2
+             */
+            id?: number | null;
+            /**
+             * @description The name of the units of measurement.
+             * @example Meter
+             */
+            name?: string | null;
+            /**
+             * @description The symbol of the units of measurement.
+             * @example m
+             */
+            symbol?: string | null;
+        };
         /**
-         * @description The item number of the supplier product.
-         * @example 1234
+         * @description A timestamp for when a record was created, in ISO 8601 format.
+         * @example 2022-01-01 18:00:00.000Z
          */
-        number?: string | null;
-        /**
-         * @description The name of the supplier product.
-         * @example Shoe laces, white, 1m
-         */
-        name?: string | null;
-        /**
-         * @description The price of the supplier product.
-         * @example 10.5
-         */
-        price?: number | null;
-      };
+        CreatedAt: string;
+        /** @description A list of dimensions of a product as set in the system */
+        ProductDimensionsResponse: components["schemas"]["ProductDimensionRead"][];
+        ProductDimensionRead: {
+            /**
+             * @description The unique identifier for the dimension within Finago Office ERP modules.
+             * @example 1
+             */
+            dimensionType: number;
+            /**
+             * @description The display name of the dimension.
+             * @example Project
+             */
+            dimensionTypeName: string;
+            /**
+             * @description The value (ie key) for the dimension.
+             * @example 13
+             */
+            value: string;
+            /**
+             * @description The display name associated with the value of the dimension.
+             * @example Project with ID 13
+             */
+            name: string;
+        };
+        ProductDimensionWrite: {
+            /**
+             * @description The value (ie key) for the dimension.
+             * @example 13
+             */
+            value: string;
+        };
+        /** @description List of sales type overrides applied for a product (empty list if no overrides exist) */
+        ProductSalesTypeOverridesResponse: components["schemas"]["ProductSalesTypeOverride"][];
+        /** @description An override of the default account number for a sales type on a specific product */
+        ProductSalesTypeOverride: {
+            /** @description The id of the product for which the override applies (see GET /products/{id}) */
+            productId: number;
+            /** @description The id of the sales type for which the override applies (see GET /salestypes/{id}) */
+            salesTypeId: number;
+            /** @description The account number that should be used instead of the default account number for the sales type */
+            accountNumber: number;
+        };
+        /** @description Request body for creating or updating a product sales type override */
+        ProductSalesTypeOverrideRequest: {
+            /** @description The account number that should be used instead of the default account number for the sales type (set to null to remove the override) */
+            accountNumber: number | null;
+        };
+        SalesType: {
+            /**
+             * @description The unique identifier of the sales type.
+             * @example 1
+             */
+            id?: number;
+            /**
+             * @description The name of the sales type.
+             * @example Product Sales
+             */
+            name?: string;
+            /** @description The associated account within the Finago Office accounting module for this sales type. */
+            account?: {
+                /**
+                 * @description A unique identifier for the account within Finago Office accounting module.
+                 * @example 2000001
+                 */
+                id?: number;
+            };
+        };
     };
-    /** @description Information about the category to which the product belongs. */
-    CategoryResponse1: {
-      /**
-       * @description A reference by ID to the category the product belongs to. Product categories can be retrieved from the separate `/productcategories` endpoint.
-       * @example 12
-       */
-      id?: number;
-      /**
-       * @description The category that the product belongs to.
-       * @example Shoe accessories
-       */
-      name?: string;
+    responses: never;
+    parameters: {
+        /** @description A unique identifier for the customer within Finago Office CRM. */
+        customerId: number;
     };
-    /** @description Information about the category to which the product belongs. */
-    CategoryRequest: {
-      /**
-       * @description A reference by ID to the category the product belongs to. Product categories can be retrieved from the separate `/productcategories` endpoint.
-       * @example 12
-       */
-      id?: number;
-    };
-    /** @description Information about the supplier of the product. */
-    SupplierRequest: {
-      /**
-       * @description The ID of the supplier. Product suppliers can be retrieved from the separate `/customers` endpoint (suppliers are customers with a flag variable "isSupplier" set to "true").
-       * @example 67890
-       */
-      id?: number | null;
-    };
-    /** @description Information about the supplier of the product. */
-    SupplierResponse: {
-      /**
-       * @description The ID of the supplier. Product suppliers can be retrieved from the separate `/customers` endpoint (suppliers are customers with a flag variable "isSupplier" set to "true").
-       * @example 67890
-       */
-      id?: number | null;
-      /**
-       * @description The name of the supplier.
-       * @example XYZ Inc.
-       */
-      name?: string | null;
-    };
-    /** @description Information about the units of measurement for the product. */
-    UnitsRequest: {
-      /**
-       * @description The ID of the units of measurement. Product units can be retrieved from the separate `/productunits` endpoint.
-       * @example 2
-       */
-      id?: number | null;
-    };
-    /** @description Information about the units of measurement for the product. */
-    UnitsResponse1: {
-      /**
-       * @description The ID of the units of measurement. Product units can be retrieved from the separate `/productunits` endpoint.
-       * @example 2
-       */
-      id?: number | null;
-      /**
-       * @description The name of the units of measurement.
-       * @example Meter
-       */
-      name?: string | null;
-      /**
-       * @description The symbol of the units of measurement.
-       * @example m
-       */
-      symbol?: string | null;
-    };
-    /**
-     * @description A timestamp for when a record was created, in ISO 8601 format.
-     * @example 2022-01-01 18:00:00.000Z
-     */
-    CreatedAt: string;
-    SalesType: {
-      /**
-       * @description The unique identifier of the sales type.
-       * @example 1
-       */
-      id?: number;
-      /**
-       * @description The name of the sales type.
-       * @example Product Sales
-       */
-      name?: string;
-      /** @description The associated account within the Finago Office accounting module for this sales type. */
-      account?: {
-        /**
-         * @description A unique identifier for the account within Finago Office accounting module.
-         * @example 2000001
-         */
-        id?: number;
-      };
-    };
-  };
+    requestBodies: never;
+    headers: never;
+    pathItems: never;
 }
 export type $defs = Record<string, never>;
 export interface operations {
-  CreateCategory: {
-    parameters: {
-      query?: never;
-      header: {
-        /** @description Authorization header */
-        Authorization: string;
-      };
-      path?: never;
-      cookie?: never;
+    getFileUploadStatus: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Authorization header */
+                Authorization: string;
+            };
+            path: {
+                /** @description The ID of the file upload to check. */
+                fileId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description File upload status retrieved successfully */
+            200: {
+                headers: {
+                    "Access-Control-Allow-Origin"?: string;
+                    "Access-Control-Allow-Credentials"?: string;
+                    "X-Trace-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FileUploadStatusResponse"];
+                };
+            };
+            /** @description The input provided was invalid */
+            400: {
+                headers: {
+                    "Access-Control-Allow-Origin"?: string;
+                    "Access-Control-Allow-Credentials"?: string;
+                    "X-Trace-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized - Bearer token missing or invalid */
+            401: {
+                headers: {
+                    "Access-Control-Allow-Origin"?: string;
+                    "Access-Control-Allow-Credentials"?: string;
+                    "X-Trace-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden - User does not have access to post transactions */
+            403: {
+                headers: {
+                    "Access-Control-Allow-Origin"?: string;
+                    "Access-Control-Allow-Credentials"?: string;
+                    "X-Trace-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
     };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["CategoryPostRequest"];
-      };
+    GetCustomers: {
+        parameters: {
+            query?: {
+                limit?: number;
+                /** @description Filter customers by organization number. */
+                organizationNumber?: string;
+                /** @description A flag variable to filter customers by company or person. */
+                isCompany?: boolean;
+                /** @description A flag variable to filter customers by being a supplier or not. */
+                isSupplier?: boolean;
+                /**
+                 * @description Filter customers by date of last modification. Compares dates by greater or equal and accepts dates in ISO8601 format
+                 * @example {}
+                 */
+                modifiedFrom?: string;
+                /**
+                 * @description Filter customers by date created. Compares dates by greater or equal and accepts dates in ISO8601 format
+                 * @example {}
+                 */
+                createdFrom?: string;
+                /** @description Sort customers by field and direction. Takes in a pair of field and direction separated by a colon symbol ':' */
+                sortBy?: components["schemas"]["SortInput"];
+            };
+            header: {
+                /** @description Authorization header */
+                Authorization: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Ok */
+            200: {
+                headers: {
+                    /** @description The "link" header includes information on where to find `first`, `previous` and `next` page. Refer to https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Link */
+                    link?: string;
+                    "Access-Control-Allow-Origin"?: string;
+                    "Access-Control-Allow-Credentials"?: string;
+                    "X-Trace-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerProperties"][];
+                };
+            };
+            /** @description Unauthorized. Missing or invalid bearer token. */
+            401: {
+                headers: {
+                    "Access-Control-Allow-Origin"?: string;
+                    "Access-Control-Allow-Credentials"?: string;
+                    "X-Trace-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
     };
-    responses: {
-      /** @description Created */
-      201: {
-        headers: {
-          "Access-Control-Allow-Origin"?: string;
-          "Access-Control-Allow-Credentials"?: string;
-          "X-Trace-Id"?: string;
-          [name: string]: unknown;
+    CreateCustomer: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Authorization header */
+                Authorization: string;
+            };
+            path?: never;
+            cookie?: never;
         };
-        content: {
-          "application/json": components["schemas"]["CategoryResponse"];
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CustomerPostRequest"];
+            };
         };
-      };
+        responses: {
+            /** @description Created */
+            200: {
+                headers: {
+                    "Access-Control-Allow-Origin"?: string;
+                    "Access-Control-Allow-Credentials"?: string;
+                    "X-Trace-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerResponse"];
+                };
+            };
+            /** @description Unauthorized. Missing or invalid bearer token. */
+            401: {
+                headers: {
+                    "Access-Control-Allow-Origin"?: string;
+                    "Access-Control-Allow-Credentials"?: string;
+                    "X-Trace-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
     };
-  };
-  CreateCustomer: {
-    parameters: {
-      query?: never;
-      header: {
-        /** @description Authorization header */
-        Authorization: string;
-      };
-      path?: never;
-      cookie?: never;
+    UpdateCustomer: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Authorization header */
+                Authorization: string;
+            };
+            path: {
+                /** @description A unique identifier for the customer within Finago Office CRM. */
+                customerId: components["parameters"]["customerId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CustomerPatchRequest"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "Access-Control-Allow-Origin"?: string;
+                    "Access-Control-Allow-Credentials"?: string;
+                    "X-Trace-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerResponse"];
+                };
+            };
+            /** @description Unauthorized. Missing or invalid bearer token. */
+            401: {
+                headers: {
+                    "Access-Control-Allow-Origin"?: string;
+                    "Access-Control-Allow-Credentials"?: string;
+                    "X-Trace-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
     };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["CustomerPostRequest"];
-      };
+    GetCustomerBankAccounts: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Authorization header */
+                Authorization: string;
+            };
+            path: {
+                /** @description The unique identifier of the customer */
+                customerId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    "Access-Control-Allow-Origin"?: string;
+                    "Access-Control-Allow-Credentials"?: string;
+                    "X-Trace-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerBankAccount"][];
+                };
+            };
+            /** @description Unauthorized. Missing or invalid bearer token. */
+            401: {
+                headers: {
+                    "Access-Control-Allow-Origin"?: string;
+                    "Access-Control-Allow-Credentials"?: string;
+                    "X-Trace-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
     };
-    responses: {
-      /** @description Created */
-      200: {
-        headers: {
-          "Access-Control-Allow-Origin"?: string;
-          "Access-Control-Allow-Credentials"?: string;
-          "X-Trace-Id"?: string;
-          [name: string]: unknown;
+    CreateCustomerBankAccount: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Authorization header */
+                Authorization: string;
+            };
+            path: {
+                /** @description The unique identifier of the customer */
+                customerId: string;
+            };
+            cookie?: never;
         };
-        content: {
-          "application/json": components["schemas"]["CustomerResponse"];
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CustomerBankAccount"];
+            };
         };
-      };
-      /** @description Unauthorized. Missing or invalid bearer token. */
-      401: {
-        headers: {
-          "Access-Control-Allow-Origin"?: string;
-          "Access-Control-Allow-Credentials"?: string;
-          "X-Trace-Id"?: string;
-          [name: string]: unknown;
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    "Access-Control-Allow-Origin"?: string;
+                    "Access-Control-Allow-Credentials"?: string;
+                    "X-Trace-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerBankAccount"];
+                };
+            };
+            /** @description Bad Request. Invalid input data. */
+            400: {
+                headers: {
+                    "Access-Control-Allow-Origin"?: string;
+                    "Access-Control-Allow-Credentials"?: string;
+                    "X-Trace-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized. Missing or invalid bearer token. */
+            401: {
+                headers: {
+                    "Access-Control-Allow-Origin"?: string;
+                    "Access-Control-Allow-Credentials"?: string;
+                    "X-Trace-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
-        content?: never;
-      };
     };
-  };
-  CreateCustomerBankAccount: {
-    parameters: {
-      query?: never;
-      header: {
-        /** @description Authorization header */
-        Authorization: string;
-      };
-      path: {
-        /** @description The unique identifier of the customer */
-        customerId: string;
-      };
-      cookie?: never;
+    GetCustomerBankAccount: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Authorization header */
+                Authorization: string;
+            };
+            path: {
+                /** @description The unique identifier of the customer */
+                customerId: string;
+                /** @description The account number of the bank account */
+                accountNumber: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    "Access-Control-Allow-Origin"?: string;
+                    "Access-Control-Allow-Credentials"?: string;
+                    "X-Trace-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerBankAccount"];
+                };
+            };
+            /** @description Unauthorized. Missing or invalid bearer token. */
+            401: {
+                headers: {
+                    "Access-Control-Allow-Origin"?: string;
+                    "Access-Control-Allow-Credentials"?: string;
+                    "X-Trace-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bank account not found. */
+            404: {
+                headers: {
+                    "Access-Control-Allow-Origin"?: string;
+                    "Access-Control-Allow-Credentials"?: string;
+                    "X-Trace-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
     };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["CustomerBankAccount"];
-      };
+    UpdateCustomerBankAccount: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Authorization header */
+                Authorization: string;
+            };
+            path: {
+                /** @description The unique identifier of the customer */
+                customerId: string;
+                /** @description The account number of the bank account */
+                accountNumber: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CustomerBankAccount"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    "Access-Control-Allow-Origin"?: string;
+                    "Access-Control-Allow-Credentials"?: string;
+                    "X-Trace-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerBankAccount"];
+                };
+            };
+            /** @description Bad Request. Invalid input data. */
+            400: {
+                headers: {
+                    "Access-Control-Allow-Origin"?: string;
+                    "Access-Control-Allow-Credentials"?: string;
+                    "X-Trace-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized. Missing or invalid bearer token. */
+            401: {
+                headers: {
+                    "Access-Control-Allow-Origin"?: string;
+                    "Access-Control-Allow-Credentials"?: string;
+                    "X-Trace-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bank account not found. */
+            404: {
+                headers: {
+                    "Access-Control-Allow-Origin"?: string;
+                    "Access-Control-Allow-Credentials"?: string;
+                    "X-Trace-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
     };
-    responses: {
-      /** @description Created */
-      201: {
-        headers: {
-          "Access-Control-Allow-Origin"?: string;
-          "Access-Control-Allow-Credentials"?: string;
-          "X-Trace-Id"?: string;
-          [name: string]: unknown;
+    getPaymentMethods: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Authorization header */
+                Authorization: string;
+            };
+            path?: never;
+            cookie?: never;
         };
-        content: {
-          "application/json": components["schemas"]["CustomerBankAccount"];
+        requestBody?: never;
+        responses: {
+            /** @description List of payment methods retrieved successfully */
+            200: {
+                headers: {
+                    "Access-Control-Allow-Origin"?: string;
+                    "Access-Control-Allow-Credentials"?: string;
+                    "X-Trace-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaymentMethod"][];
+                };
+            };
         };
-      };
-      /** @description Bad Request. Invalid input data. */
-      400: {
-        headers: {
-          "Access-Control-Allow-Origin"?: string;
-          "Access-Control-Allow-Credentials"?: string;
-          "X-Trace-Id"?: string;
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description Unauthorized. Missing or invalid bearer token. */
-      401: {
-        headers: {
-          "Access-Control-Allow-Origin"?: string;
-          "Access-Control-Allow-Credentials"?: string;
-          "X-Trace-Id"?: string;
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
     };
-  };
-  CreateProduct: {
-    parameters: {
-      query?: never;
-      header: {
-        /** @description Authorization header */
-        Authorization: string;
-      };
-      path?: never;
-      cookie?: never;
+    GetLicenses: {
+        parameters: {
+            query?: {
+                /** @description Identifier for the organization. */
+                organizationId?: number;
+                /** @description Identifier for the connected person. */
+                personId?: number;
+            };
+            header: {
+                /** @description Authorization header */
+                Authorization: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "Access-Control-Allow-Origin"?: string;
+                    "Access-Control-Allow-Credentials"?: string;
+                    "X-Trace-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example [
+                     *       {
+                     *         "id": "123e4567-e89b-12d3-a456-426614174003",
+                     *         "name": "ABC Corporation",
+                     *         "organizationId": 12345,
+                     *         "identityId": "123e4567-e89b-12d3-a456-426614174001",
+                     *         "personId": 67890
+                     *       },
+                     *       {
+                     *         "id": "123e4567-e89b-12d3-a456-426614174004",
+                     *         "name": "XYZ Inc.",
+                     *         "organizationId": 78901,
+                     *         "identityId": "123e4567-e89b-12d3-a456-426614174002",
+                     *         "personId": 54321
+                     *       }
+                     *     ]
+                     */
+                    "application/json": components["schemas"]["LicenseModel"][];
+                };
+            };
+        };
     };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["ProductRequestPost"];
-      };
+    GetClient: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Authorization header */
+                Authorization: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "Access-Control-Allow-Origin"?: string;
+                    "Access-Control-Allow-Credentials"?: string;
+                    "X-Trace-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "id": 12345,
+                     *       "name": "ABC Corporation",
+                     *       "email": "contact@example.com",
+                     *       "invoiceEmail": "invoices@example.com",
+                     *       "address": {
+                     *         "street": "Hovedgata 1",
+                     *         "city": "Baerum",
+                     *         "postalArea": "Fornebu",
+                     *         "postalCode": "0123",
+                     *         "countrySubdivision": "Viken",
+                     *         "countryCode": "NO"
+                     *       },
+                     *       "status": "Active",
+                     *       "settings": {
+                     *         "currencyCode": "NOK"
+                     *       },
+                     *       "contact": {
+                     *         "name": "John Doe",
+                     *         "phone": "+47-87654321",
+                     *         "email": "john.doe@example.com",
+                     *         "language": "en"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["OrganizationModel1"];
+                };
+            };
+        };
     };
-    responses: {
-      /** @description Created */
-      201: {
-        headers: {
-          "Access-Control-Allow-Origin"?: string;
-          "Access-Control-Allow-Credentials"?: string;
-          "X-Trace-Id"?: string;
-          [name: string]: unknown;
+    GetPricelists: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Authorization header */
+                Authorization: string;
+            };
+            path?: never;
+            cookie?: never;
         };
-        content: {
-          "application/json": components["schemas"]["ProductResponse"];
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    "Access-Control-Allow-Origin"?: string;
+                    "Access-Control-Allow-Credentials"?: string;
+                    "X-Trace-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Pricelist"][];
+                };
+            };
+            /** @description Unauthorized. Missing or invalid bearer token. */
+            401: {
+                headers: {
+                    "Access-Control-Allow-Origin"?: string;
+                    "Access-Control-Allow-Credentials"?: string;
+                    "X-Trace-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
-      };
     };
-  };
-  DeleteCategory: {
-    parameters: {
-      query?: never;
-      header: {
-        /** @description Authorization header */
-        Authorization: string;
-      };
-      path: {
-        /**
-         * @description A unique identifier for the product category within Finago Office ERP modules.
-         * @example 12
-         */
-        id: number;
-      };
-      cookie?: never;
+    GetPricelist: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Authorization header */
+                Authorization: string;
+            };
+            path: {
+                /** @description The unique identifier of the pricelist */
+                listId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    "Access-Control-Allow-Origin"?: string;
+                    "Access-Control-Allow-Credentials"?: string;
+                    "X-Trace-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Pricelist"];
+                };
+            };
+            /** @description Unauthorized. Missing or invalid bearer token. */
+            401: {
+                headers: {
+                    "Access-Control-Allow-Origin"?: string;
+                    "Access-Control-Allow-Credentials"?: string;
+                    "X-Trace-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Pricelist not found. */
+            404: {
+                headers: {
+                    "Access-Control-Allow-Origin"?: string;
+                    "Access-Control-Allow-Credentials"?: string;
+                    "X-Trace-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
     };
-    requestBody?: never;
-    responses: {
-      /** @description Success. No content */
-      204: {
-        headers: {
-          "Access-Control-Allow-Origin"?: string;
-          "Access-Control-Allow-Credentials"?: string;
-          "X-Trace-Id"?: string;
-          [name: string]: unknown;
+    GetPricelistPrices: {
+        parameters: {
+            query?: {
+                /**
+                 * @description Comma-separated list of product IDs and/or ranges of product IDs (using .. as separator) to filter prices
+                 * @example 1..10,20,42,123..137
+                 */
+                productIds?: string;
+            };
+            header: {
+                /** @description Authorization header */
+                Authorization: string;
+            };
+            path: {
+                /** @description The unique identifier of the pricelist */
+                listId: number;
+            };
+            cookie?: never;
         };
-        content?: never;
-      };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    "Access-Control-Allow-Origin"?: string;
+                    "Access-Control-Allow-Credentials"?: string;
+                    "X-Trace-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PricelistPrice"][];
+                };
+            };
+            /** @description Unauthorized. Missing or invalid bearer token. */
+            401: {
+                headers: {
+                    "Access-Control-Allow-Origin"?: string;
+                    "Access-Control-Allow-Credentials"?: string;
+                    "X-Trace-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Pricelist not found. */
+            404: {
+                headers: {
+                    "Access-Control-Allow-Origin"?: string;
+                    "Access-Control-Allow-Credentials"?: string;
+                    "X-Trace-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
     };
-  };
-  DeleteProduct: {
-    parameters: {
-      query?: never;
-      header: {
-        /** @description Authorization header */
-        Authorization: string;
-      };
-      path: {
-        /**
-         * @description A unique identifier for the product within Finago Office ERP-modules.
-         * @example 123
-         */
-        id: number;
-      };
-      cookie?: never;
+    GetCategories: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Authorization header */
+                Authorization: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    /** @description The "link" header includes information on where to find `first`, `previous` and `next` page. Refer to https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Link */
+                    link?: string;
+                    "Access-Control-Allow-Origin"?: string;
+                    "Access-Control-Allow-Credentials"?: string;
+                    "X-Trace-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Categories"];
+                };
+            };
+        };
     };
-    requestBody?: never;
-    responses: {
-      /** @description Success. No content */
-      204: {
-        headers: {
-          "Access-Control-Allow-Origin"?: string;
-          "Access-Control-Allow-Credentials"?: string;
-          "X-Trace-Id"?: string;
-          [name: string]: unknown;
+    CreateCategory: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Authorization header */
+                Authorization: string;
+            };
+            path?: never;
+            cookie?: never;
         };
-        content?: never;
-      };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CategoryPostRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    "Access-Control-Allow-Origin"?: string;
+                    "Access-Control-Allow-Credentials"?: string;
+                    "X-Trace-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CategoryResponse"];
+                };
+            };
+        };
     };
-  };
-  GetCategories: {
-    parameters: {
-      query?: never;
-      header: {
-        /** @description Authorization header */
-        Authorization: string;
-      };
-      path?: never;
-      cookie?: never;
+    DeleteCategory: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Authorization header */
+                Authorization: string;
+            };
+            path: {
+                /**
+                 * @description A unique identifier for the product category within Finago Office ERP modules.
+                 * @example 12
+                 */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success. No content */
+            204: {
+                headers: {
+                    "Access-Control-Allow-Origin"?: string;
+                    "Access-Control-Allow-Credentials"?: string;
+                    "X-Trace-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
     };
-    requestBody?: never;
-    responses: {
-      /** @description Success */
-      200: {
-        headers: {
-          /** @description The "link" header includes information on where to find `first`, `previous` and `next` page. Refer to https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Link */
-          link?: string;
-          "Access-Control-Allow-Origin"?: string;
-          "Access-Control-Allow-Credentials"?: string;
-          "X-Trace-Id"?: string;
-          [name: string]: unknown;
+    UpdateCategory: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Authorization header */
+                Authorization: string;
+            };
+            path: {
+                /**
+                 * @description A unique identifier for the product category within Finago Office ERP modules.
+                 * @example 12
+                 */
+                id: number;
+            };
+            cookie?: never;
         };
-        content: {
-          "application/json": components["schemas"]["Categories"];
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["CategoryPatchRequest"];
+            };
         };
-      };
+        responses: {
+            /** @description Updated */
+            200: {
+                headers: {
+                    "Access-Control-Allow-Origin"?: string;
+                    "Access-Control-Allow-Credentials"?: string;
+                    "X-Trace-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CategoryResponse"];
+                };
+            };
+        };
     };
-  };
-  GetClient: {
-    parameters: {
-      query?: never;
-      header: {
-        /** @description Authorization header */
-        Authorization: string;
-      };
-      path?: never;
-      cookie?: never;
+    GetUnits: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Authorization header */
+                Authorization: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "Access-Control-Allow-Origin"?: string;
+                    "Access-Control-Allow-Credentials"?: string;
+                    "X-Trace-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Units"];
+                };
+            };
+        };
     };
-    requestBody?: never;
-    responses: {
-      /** @description Success */
-      200: {
-        headers: {
-          "Access-Control-Allow-Origin"?: string;
-          "Access-Control-Allow-Credentials"?: string;
-          "X-Trace-Id"?: string;
-          [name: string]: unknown;
+    GetProducts: {
+        parameters: {
+            query?: {
+                /**
+                 * @description Specify the page number to fetch, defaults to 1.
+                 * @example 1
+                 */
+                page?: number;
+                /**
+                 * @description Specify the number of items to fetch per page, defaults to 25.
+                 * @example 25
+                 */
+                limit?: number;
+                /** @description Perform a search in productNumber, name, and supplier's productNumber and name. Wildcards are allowed using '%'. '%' at the end returns 'starts with'. '%' at the beginning returns 'ends with'. '%' at both ends returns 'contains'. */
+                productSearch?: string;
+                /**
+                 * @description Searches for products belonging to specific categories. Multiple category IDs can be provided, separated by commas.
+                 * @example 12,15,18
+                 */
+                categoryIds?: string;
+                /**
+                 * @description Searches for products belonging to specific suppliers. Multiple supplier IDs can be provided, separated by commas.
+                 * @example 1,3,5
+                 */
+                supplierIds?: string;
+                /**
+                 * @description Searches for product number.
+                 * @example 1234
+                 */
+                productNumber?: string;
+            };
+            header: {
+                /** @description Authorization header */
+                Authorization: string;
+            };
+            path?: never;
+            cookie?: never;
         };
-        content: {
-          /**
-           * @example {
-           *       "id": 12345,
-           *       "name": "ABC Corporation",
-           *       "email": "contact@example.com",
-           *       "invoiceEmail": "invoices@example.com",
-           *       "address": {
-           *         "street": "Hovedgata 1",
-           *         "city": "Baerum",
-           *         "postalArea": "Fornebu",
-           *         "postalCode": "0123",
-           *         "countrySubdivision": "Viken",
-           *         "countryCode": "NO"
-           *       },
-           *       "status": "Active",
-           *       "settings": {
-           *         "currencyCode": "NOK"
-           *       },
-           *       "contact": {
-           *         "name": "John Doe",
-           *         "phone": "+47-87654321",
-           *         "email": "john.doe@example.com",
-           *         "language": "en"
-           *       }
-           *     }
-           */
-          "application/json": components["schemas"]["OrganizationModel1"];
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    /** @description The "link" header includes information on where to find `first`, `previous` and `next` page. Refer to https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Link */
+                    link?: string;
+                    "Access-Control-Allow-Origin"?: string;
+                    "Access-Control-Allow-Credentials"?: string;
+                    "X-Trace-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Products"];
+                };
+            };
         };
-      };
     };
-  };
-  GetCustomerBankAccount: {
-    parameters: {
-      query?: never;
-      header: {
-        /** @description Authorization header */
-        Authorization: string;
-      };
-      path: {
-        /** @description The unique identifier of the customer */
-        customerId: string;
-        /** @description The account number of the bank account */
-        accountNumber: string;
-      };
-      cookie?: never;
+    CreateProduct: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Authorization header */
+                Authorization: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProductRequestPost"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    "Access-Control-Allow-Origin"?: string;
+                    "Access-Control-Allow-Credentials"?: string;
+                    "X-Trace-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductResponse"];
+                };
+            };
+        };
     };
-    requestBody?: never;
-    responses: {
-      /** @description OK */
-      200: {
-        headers: {
-          "Access-Control-Allow-Origin"?: string;
-          "Access-Control-Allow-Credentials"?: string;
-          "X-Trace-Id"?: string;
-          [name: string]: unknown;
+    DeleteProduct: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Authorization header */
+                Authorization: string;
+            };
+            path: {
+                /**
+                 * @description A unique identifier for the product within Finago Office ERP-modules.
+                 * @example 123
+                 */
+                id: number;
+            };
+            cookie?: never;
         };
-        content: {
-          "application/json": components["schemas"]["CustomerBankAccount"];
+        requestBody?: never;
+        responses: {
+            /** @description Success. No content */
+            204: {
+                headers: {
+                    "Access-Control-Allow-Origin"?: string;
+                    "Access-Control-Allow-Credentials"?: string;
+                    "X-Trace-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
-      };
-      /** @description Unauthorized. Missing or invalid bearer token. */
-      401: {
-        headers: {
-          "Access-Control-Allow-Origin"?: string;
-          "Access-Control-Allow-Credentials"?: string;
-          "X-Trace-Id"?: string;
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description Bank account not found. */
-      404: {
-        headers: {
-          "Access-Control-Allow-Origin"?: string;
-          "Access-Control-Allow-Credentials"?: string;
-          "X-Trace-Id"?: string;
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
     };
-  };
-  GetCustomerBankAccounts: {
-    parameters: {
-      query?: never;
-      header: {
-        /** @description Authorization header */
-        Authorization: string;
-      };
-      path: {
-        /** @description The unique identifier of the customer */
-        customerId: string;
-      };
-      cookie?: never;
+    UpdateProduct: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Authorization header */
+                Authorization: string;
+            };
+            path: {
+                /**
+                 * @description A unique identifier for the product within Finago Office ERP-modules.
+                 * @example 123
+                 */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["ProductRequestPatch"];
+            };
+        };
+        responses: {
+            /** @description Updated */
+            200: {
+                headers: {
+                    "Access-Control-Allow-Origin"?: string;
+                    "Access-Control-Allow-Credentials"?: string;
+                    "X-Trace-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductResponse"];
+                };
+            };
+        };
     };
-    requestBody?: never;
-    responses: {
-      /** @description OK */
-      200: {
-        headers: {
-          "Access-Control-Allow-Origin"?: string;
-          "Access-Control-Allow-Credentials"?: string;
-          "X-Trace-Id"?: string;
-          [name: string]: unknown;
+    getProductDimensions: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Authorization header */
+                Authorization: string;
+            };
+            path: {
+                /**
+                 * @description A unique identifier for the product within Finago Office ERP-modules.
+                 * @example 12
+                 */
+                id: number;
+            };
+            cookie?: never;
         };
-        content: {
-          "application/json": components["schemas"]["CustomerBankAccount"][];
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "Access-Control-Allow-Origin"?: string;
+                    "Access-Control-Allow-Credentials"?: string;
+                    "X-Trace-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductDimensionsResponse"];
+                };
+            };
         };
-      };
-      /** @description Unauthorized. Missing or invalid bearer token. */
-      401: {
-        headers: {
-          "Access-Control-Allow-Origin"?: string;
-          "Access-Control-Allow-Credentials"?: string;
-          "X-Trace-Id"?: string;
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
     };
-  };
-  GetCustomers: {
-    parameters: {
-      query?: {
-        limit?: number;
-        /** @description Filter customers by organization number. */
-        organizationNumber?: string;
-        /** @description A flag variable to filter customers by company or person. */
-        isCompany?: boolean;
-        /** @description A flag variable to filter customers by being a supplier or not. */
-        isSupplier?: boolean;
-        /**
-         * @description Filter customers by date of last modification. Compares dates by greater or equal and accepts dates in ISO8601 format
-         * @example {}
-         */
-        modifiedFrom?: string;
-        /**
-         * @description Filter customers by date created. Compares dates by greater or equal and accepts dates in ISO8601 format
-         * @example {}
-         */
-        createdFrom?: string;
-        /** @description Sort customers by field and direction. Takes in a pair of field and direction separated by a colon symbol ':' */
-        sortBy?: components["schemas"]["SortInput"];
-      };
-      header: {
-        /** @description Authorization header */
-        Authorization: string;
-      };
-      path?: never;
-      cookie?: never;
+    updateProductDimension: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Authorization header */
+                Authorization: string;
+            };
+            path: {
+                /**
+                 * @description A unique identifier for the product within Finago Office ERP-modules.
+                 * @example 12
+                 */
+                id: number;
+                /**
+                 * @description A unique identifier for the dimension within Finago Office ERP modules.
+                 * @example 1
+                 */
+                dimensionId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["ProductDimensionWrite"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "Access-Control-Allow-Origin"?: string;
+                    "Access-Control-Allow-Credentials"?: string;
+                    "X-Trace-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductDimensionsResponse"];
+                };
+            };
+        };
     };
-    requestBody?: never;
-    responses: {
-      /** @description Ok */
-      200: {
-        headers: {
-          /** @description The "link" header includes information on where to find `first`, `previous` and `next` page. Refer to https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Link */
-          link?: string;
-          "Access-Control-Allow-Origin"?: string;
-          "Access-Control-Allow-Credentials"?: string;
-          "X-Trace-Id"?: string;
-          [name: string]: unknown;
+    deleteProductDimension: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Authorization header */
+                Authorization: string;
+            };
+            path: {
+                /**
+                 * @description A unique identifier for the product within Finago Office ERP-modules.
+                 * @example 12
+                 */
+                id: number;
+                /**
+                 * @description A unique identifier for the dimension within Finago Office ERP modules.
+                 * @example 1
+                 */
+                dimensionId: number;
+            };
+            cookie?: never;
         };
-        content: {
-          "application/json": components["schemas"]["CustomerProperties"][];
+        requestBody?: never;
+        responses: {
+            /** @description No content - the dimension was successfully deleted from the product. */
+            204: {
+                headers: {
+                    "Access-Control-Allow-Origin"?: string;
+                    "Access-Control-Allow-Credentials"?: string;
+                    "X-Trace-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
-      };
-      /** @description Unauthorized. Missing or invalid bearer token. */
-      401: {
-        headers: {
-          "Access-Control-Allow-Origin"?: string;
-          "Access-Control-Allow-Credentials"?: string;
-          "X-Trace-Id"?: string;
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
     };
-  };
-  GetLicenses: {
-    parameters: {
-      query?: {
-        /** @description Identifier for the organization. */
-        organizationId?: number;
-        /** @description Identifier for the connected person. */
-        personId?: number;
-      };
-      header: {
-        /** @description Authorization header */
-        Authorization: string;
-      };
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Success */
-      200: {
-        headers: {
-          "Access-Control-Allow-Origin"?: string;
-          "Access-Control-Allow-Credentials"?: string;
-          "X-Trace-Id"?: string;
-          [name: string]: unknown;
+    GetProductSalesTypeOverrides: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Authorization header */
+                Authorization: string;
+            };
+            path: {
+                /** @description The ID of the product for which to retrieve sales type overrides */
+                id: number;
+            };
+            cookie?: never;
         };
-        content: {
-          /**
-           * @example [
-           *       {
-           *         "id": "123e4567-e89b-12d3-a456-426614174003",
-           *         "name": "ABC Corporation",
-           *         "organizationId": 12345,
-           *         "identityId": "123e4567-e89b-12d3-a456-426614174001",
-           *         "personId": 67890
-           *       },
-           *       {
-           *         "id": "123e4567-e89b-12d3-a456-426614174004",
-           *         "name": "XYZ Inc.",
-           *         "organizationId": 78901,
-           *         "identityId": "123e4567-e89b-12d3-a456-426614174002",
-           *         "personId": 54321
-           *       }
-           *     ]
-           */
-          "application/json": components["schemas"]["LicenseModel"][];
+        requestBody?: never;
+        responses: {
+            /** @description Sales type overrides retrieved successfully */
+            200: {
+                headers: {
+                    "Access-Control-Allow-Origin"?: string;
+                    "Access-Control-Allow-Credentials"?: string;
+                    "X-Trace-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductSalesTypeOverridesResponse"];
+                };
+            };
         };
-      };
     };
-  };
-  GetProducts: {
-    parameters: {
-      query?: {
-        /**
-         * @description Specify the page number to fetch, defaults to 1.
-         * @example 1
-         */
-        page?: number;
-        /**
-         * @description Specify the number of items to fetch per page, defaults to 25.
-         * @example 25
-         */
-        limit?: number;
-        /** @description Perform a search in productNumber, name, and supplier's productNumber and name. Wildcards are allowed using '%'. '%' at the end returns 'starts with'. '%' at the beginning returns 'ends with'. '%' at both ends returns 'contains'. */
-        productSearch?: string;
-        /**
-         * @description Searches for product number.
-         * @example 1234
-         */
-        productNumber?: string;
-      };
-      header: {
-        /** @description Authorization header */
-        Authorization: string;
-      };
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Success */
-      200: {
-        headers: {
-          /** @description The "link" header includes information on where to find `first`, `previous` and `next` page. Refer to https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Link */
-          link?: string;
-          "Access-Control-Allow-Origin"?: string;
-          "Access-Control-Allow-Credentials"?: string;
-          "X-Trace-Id"?: string;
-          [name: string]: unknown;
+    PutProductSalesTypeOverride: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Authorization header */
+                Authorization: string;
+            };
+            path: {
+                /** @description The ID of the product for which to create or update a sales type override */
+                id: number;
+                /** @description The ID of the sales type for which to create or update a sales type override */
+                salesTypeId: number;
+            };
+            cookie?: never;
         };
-        content: {
-          "application/json": components["schemas"]["Products"];
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProductSalesTypeOverrideRequest"];
+            };
         };
-      };
-    };
-  };
-  GetUnits: {
-    parameters: {
-      query?: never;
-      header: {
-        /** @description Authorization header */
-        Authorization: string;
-      };
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Success */
-      200: {
-        headers: {
-          "Access-Control-Allow-Origin"?: string;
-          "Access-Control-Allow-Credentials"?: string;
-          "X-Trace-Id"?: string;
-          [name: string]: unknown;
+        responses: {
+            /** @description Sales type override created or updated successfully */
+            200: {
+                headers: {
+                    "Access-Control-Allow-Origin"?: string;
+                    "Access-Control-Allow-Credentials"?: string;
+                    "X-Trace-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductSalesTypeOverride"];
+                };
+            };
+            /** @description Sales type override deleted successfully (or override did not exist) */
+            204: {
+                headers: {
+                    "Access-Control-Allow-Origin"?: string;
+                    "Access-Control-Allow-Credentials"?: string;
+                    "X-Trace-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
-        content: {
-          "application/json": components["schemas"]["Units"];
-        };
-      };
     };
-  };
-  UpdateCategory: {
-    parameters: {
-      query?: never;
-      header: {
-        /** @description Authorization header */
-        Authorization: string;
-      };
-      path: {
-        /**
-         * @description A unique identifier for the product category within Finago Office ERP modules.
-         * @example 12
-         */
-        id: number;
-      };
-      cookie?: never;
-    };
-    requestBody?: {
-      content: {
-        "application/json": components["schemas"]["CategoryPatchRequest"];
-      };
-    };
-    responses: {
-      /** @description Updated */
-      200: {
-        headers: {
-          "Access-Control-Allow-Origin"?: string;
-          "Access-Control-Allow-Credentials"?: string;
-          "X-Trace-Id"?: string;
-          [name: string]: unknown;
+    DeleteProductSalesTypeOverride: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Authorization header */
+                Authorization: string;
+            };
+            path: {
+                /** @description The ID of the product for which to delete a sales type override */
+                id: number;
+                /** @description The ID of the sales type for which to delete a sales type override */
+                salesTypeId: number;
+            };
+            cookie?: never;
         };
-        content: {
-          "application/json": components["schemas"]["CategoryResponse"];
+        requestBody?: never;
+        responses: {
+            /** @description Sales type override deleted successfully (or override did not exist) */
+            204: {
+                headers: {
+                    "Access-Control-Allow-Origin"?: string;
+                    "Access-Control-Allow-Credentials"?: string;
+                    "X-Trace-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
-      };
     };
-  };
-  UpdateCustomer: {
-    parameters: {
-      query?: never;
-      header: {
-        /** @description Authorization header */
-        Authorization: string;
-      };
-      path: {
-        /** @description A unique identifier for the customer within Finago Office CRM. */
-        customerId: components["parameters"]["customerId"];
-      };
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["CustomerPatchRequest"];
-      };
-    };
-    responses: {
-      /** @description Success */
-      200: {
-        headers: {
-          "Access-Control-Allow-Origin"?: string;
-          "Access-Control-Allow-Credentials"?: string;
-          "X-Trace-Id"?: string;
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["CustomerResponse"];
-        };
-      };
-      /** @description Unauthorized. Missing or invalid bearer token. */
-      401: {
-        headers: {
-          "Access-Control-Allow-Origin"?: string;
-          "Access-Control-Allow-Credentials"?: string;
-          "X-Trace-Id"?: string;
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-    };
-  };
-  UpdateCustomerBankAccount: {
-    parameters: {
-      query?: never;
-      header: {
-        /** @description Authorization header */
-        Authorization: string;
-      };
-      path: {
-        /** @description The unique identifier of the customer */
-        customerId: string;
-        /** @description The account number of the bank account */
-        accountNumber: string;
-      };
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["CustomerBankAccount"];
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        headers: {
-          "Access-Control-Allow-Origin"?: string;
-          "Access-Control-Allow-Credentials"?: string;
-          "X-Trace-Id"?: string;
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["CustomerBankAccount"];
-        };
-      };
-      /** @description Bad Request. Invalid input data. */
-      400: {
-        headers: {
-          "Access-Control-Allow-Origin"?: string;
-          "Access-Control-Allow-Credentials"?: string;
-          "X-Trace-Id"?: string;
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description Unauthorized. Missing or invalid bearer token. */
-      401: {
-        headers: {
-          "Access-Control-Allow-Origin"?: string;
-          "Access-Control-Allow-Credentials"?: string;
-          "X-Trace-Id"?: string;
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description Bank account not found. */
-      404: {
-        headers: {
-          "Access-Control-Allow-Origin"?: string;
-          "Access-Control-Allow-Credentials"?: string;
-          "X-Trace-Id"?: string;
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-    };
-  };
-  UpdateProduct: {
-    parameters: {
-      query?: never;
-      header: {
-        /** @description Authorization header */
-        Authorization: string;
-      };
-      path: {
-        /**
-         * @description A unique identifier for the product within Finago Office ERP-modules.
-         * @example 123
-         */
-        id: number;
-      };
-      cookie?: never;
-    };
-    requestBody?: {
-      content: {
-        "application/json": components["schemas"]["ProductRequestPatch"];
-      };
-    };
-    responses: {
-      /** @description Updated */
-      200: {
-        headers: {
-          "Access-Control-Allow-Origin"?: string;
-          "Access-Control-Allow-Credentials"?: string;
-          "X-Trace-Id"?: string;
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ProductResponse"];
-        };
-      };
-    };
-  };
 }
 type WithRequired<T, K extends keyof T> = T & {
-  [P in K]-?: T[P];
+    [P in K]-?: T[P];
 };

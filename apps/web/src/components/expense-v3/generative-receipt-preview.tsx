@@ -1,6 +1,17 @@
+import {
+  DEFAULT_EXPENSE_COST_TYPES,
+  defaultCostTypeSlugForCategory,
+} from "@repo/shared/utils/expense-cost-types";
 import { Button } from "@repo/ui/components/ui/button";
 import { Input } from "@repo/ui/components/ui/input";
 import { Label } from "@repo/ui/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@repo/ui/components/ui/select";
 import { Textarea } from "@repo/ui/components/ui/textarea";
 import { motion } from "framer-motion";
 import {
@@ -13,6 +24,7 @@ import {
   type LucideIcon,
   Sparkles,
   Store,
+  Tag,
   Upload,
 } from "lucide-react";
 import Image from "next/image";
@@ -206,6 +218,12 @@ export function GenerativeReceiptPreview({
 
           <AmountFields
             isForeign={isForeign}
+            isProcessing={isProcessing}
+            onUpdate={onUpdate}
+            receipt={receipt}
+          />
+
+          <CostTypeField
             isProcessing={isProcessing}
             onUpdate={onUpdate}
             receipt={receipt}
@@ -422,6 +440,51 @@ function AmountFields({
           type="number"
           value={receipt.originalAmount || ""}
         />
+      )}
+    </div>
+  );
+}
+
+interface CostTypeFieldProps {
+  isProcessing: boolean;
+  onUpdate: (updates: Partial<Receipt>) => void;
+  receipt: Receipt;
+}
+
+function CostTypeField({
+  receipt,
+  isProcessing,
+  onUpdate,
+}: CostTypeFieldProps) {
+  // Default from the AI category, but the user can override per receipt — this
+  // decides which GL account the line is booked to when posted to the ledger.
+  const value =
+    receipt.costType ?? defaultCostTypeSlugForCategory(receipt.category);
+
+  return (
+    <div className="space-y-2">
+      <Label className="flex items-center gap-2 text-muted-foreground text-xs uppercase tracking-wider">
+        <Tag className="h-3 w-3" />
+        Cost type
+      </Label>
+      {isProcessing ? (
+        <div className="h-10 w-full animate-pulse rounded-md bg-muted dark:bg-inverted" />
+      ) : (
+        <Select
+          onValueChange={(costType) => onUpdate({ costType })}
+          value={value}
+        >
+          <SelectTrigger className="h-10 border-0 bg-muted dark:bg-inverted">
+            <SelectValue placeholder="Select cost type" />
+          </SelectTrigger>
+          <SelectContent>
+            {DEFAULT_EXPENSE_COST_TYPES.map((costType) => (
+              <SelectItem key={costType.slug} value={costType.slug}>
+                {costType.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       )}
     </div>
   );

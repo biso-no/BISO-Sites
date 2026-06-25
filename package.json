@@ -8,6 +8,8 @@
     "ultracite": "7.4.3"
   },
   "catalog": {
+    "botbuilder": "^4.23.3",
+    "pdf-lib": "^1.17.1",
     "@ai-sdk/anthropic": "^3.0.81",
     "@ai-sdk/openai": "^3.0.67",
     "@ai-sdk/react": "3.0.195",
