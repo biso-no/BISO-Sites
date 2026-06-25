@@ -91,7 +91,8 @@ export async function listProducts(opts?: {
   const queries: string[] = [
     Query.orderDesc("$updatedAt"),
     Query.limit(100),
-    ...applyScopeQueries(ctx),
+    // webshop_products uses `departmentId` (camelCase), not `department_id`.
+    ...applyScopeQueries(ctx, { departmentField: "departmentId" }),
   ];
 
   if (opts?.status && opts.status !== "all") {
@@ -442,7 +443,8 @@ export async function listOrders(opts?: {
   const queries: string[] = [
     Query.orderDesc("$createdAt"),
     Query.limit(50),
-    ...applyScopeQueries(ctx),
+    // orders is campus-scoped only (no department column).
+    ...applyScopeQueries(ctx, { departmentField: null }),
   ];
 
   if (opts?.campusId) {

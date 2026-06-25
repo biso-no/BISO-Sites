@@ -29,6 +29,9 @@ export async function listDepartments(opts?: {
 
   if (opts?.campusId) {
     queries.push(Query.equal("campus_id", opts.campusId));
+  } else if (ctx.activeCampusId) {
+    // Global admin scoped to a campus via the switcher.
+    queries.push(Query.equal("campus_id", [ctx.activeCampusId]));
   } else if (
     ctx.managedCampusIds.length > 0 &&
     !ctx.roles.includes("globaladmin")

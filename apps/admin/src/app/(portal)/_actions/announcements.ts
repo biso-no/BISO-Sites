@@ -132,7 +132,8 @@ export async function listAnnouncements(opts?: {
 
   const queries: string[] = [
     Query.orderDesc("$updatedAt"),
-    ...applyScopeQueries(ctx),
+    // announcements is campus-scoped only (no department_id column).
+    ...applyScopeQueries(ctx, { departmentField: null }),
     Query.limit(ANNOUNCEMENTS_PAGE_SIZE),
     Query.offset((page - 1) * ANNOUNCEMENTS_PAGE_SIZE),
   ];

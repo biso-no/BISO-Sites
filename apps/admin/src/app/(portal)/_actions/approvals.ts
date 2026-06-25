@@ -149,19 +149,28 @@ export async function createApprovalRequest(
 export async function listPendingApprovals(): Promise<
   { data: ApprovalRequest[] } | { error: string }
 > {
-  // requireAuth() is called to enforce authentication; ctx not needed here
-  await requireAuth();
+  const ctx = await requireAuth();
 
   try {
     const { db } = await createSessionClient();
 
     // The session client uses row-level permissions, so only rows the user
-    // can read (where they are in the approver team) will be returned.
-    const result = await db.listRows<ApprovalRequest>(DATABASE_ID, TABLE, [
+    // can read (where they are in the approver team) will be returned. On top
+    // of that, honor the global-admin campus switcher: when a global admin has
+    // scoped themselves to a campus, only show that campus's approvals.
+    const queries: string[] = [
       Query.equal("status", "pending"),
       Query.orderDesc("$createdAt"),
       Query.limit(50),
-    ]);
+    ];
+    if (ctx.activeCampusId) {
+      queries.push(Query.equal("campus_id", [ctx.activeCampusId]));
+    }
+    const result = await db.listRows<ApprovalRequest>(
+      DATABASE_ID,
+      TABLE,
+      queries
+    );
 
     return { data: result.rows };
   } catch (_error) {

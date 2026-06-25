@@ -30,6 +30,9 @@ export async function listDrafts(): Promise<DraftItem[]> {
   const ctx = await requireAuth();
   const { db } = await createSessionClient();
   const scopeQueries = applyScopeQueries(ctx);
+  // events has no department_id column — scope it by campus only so a
+  // department user's (campus + department) scope never queries a missing field.
+  const eventScopeQueries = applyScopeQueries(ctx, { departmentField: null });
 
   const drafts: DraftItem[] = [];
 
@@ -46,7 +49,7 @@ export async function listDrafts(): Promise<DraftItem[]> {
     Query.equal("status", "draft"),
     Query.orderDesc("$updatedAt"),
     Query.limit(50),
-    ...scopeQueries,
+    ...eventScopeQueries,
   ]);
 
   // Fetch draft news

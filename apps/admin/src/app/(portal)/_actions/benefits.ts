@@ -10,6 +10,7 @@ import type {
 import { revalidatePath } from "next/cache";
 import { requireAuth } from "@/lib/authorization";
 import {
+  applyScopeQueries,
   assertPublishAccess,
   assertWriteAccess,
   hasRowAccess,
@@ -39,15 +40,9 @@ export async function listBenefits(opts?: {
     queries.push(Query.equal("kind", opts.kind));
   }
 
-  // Scope by campus for non-global admins
-  if (ctx.managedCampusIds.length > 0) {
-    queries.push(Query.equal("campus_id", ctx.managedCampusIds));
-  } else if (
-    !ctx.roles.includes("globaladmin") &&
-    ctx.resolvedCampusIds.length > 0
-  ) {
-    queries.push(Query.equal("campus_id", ctx.resolvedCampusIds));
-  }
+  // campus_benefits is campus-scoped only (no department column). This also
+  // honors the global-admin campus switcher (activeCampusId).
+  queries.push(...applyScopeQueries(ctx, { departmentField: null }));
 
   const response = await db.listRows<CampusBenefits>(
     "app",
@@ -215,6 +210,9 @@ export async function listPartners(opts?: { campusId?: string }) {
 
   if (opts?.campusId) {
     queries.push(Query.equal("campus_id", opts.campusId));
+  } else if (ctx.activeCampusId) {
+    // Global admin scoped to a campus via the switcher.
+    queries.push(Query.equal("campus_id", [ctx.activeCampusId]));
   } else if (
     ctx.managedCampusIds.length > 0 &&
     !ctx.roles.includes("globaladmin")
