@@ -70,7 +70,10 @@ async function handleSync(request: NextRequest) {
       },
     });
 
-    return NextResponse.json({ ...result, ok: true });
+    // Surface partial failures to the scheduler: any failed campus query or row
+    // upsert returns a non-2xx so a bad key/header or write failure isn't masked.
+    const ok = result.failed.length === 0;
+    return NextResponse.json({ ...result, ok }, { status: ok ? 200 : 502 });
   } catch (error) {
     console.error("[tickster/events/sync] Unexpected error:", error);
     return NextResponse.json(

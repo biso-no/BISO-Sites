@@ -35,6 +35,8 @@ const DEFAULT_DATABASE_ID = "app";
 const DEFAULT_EVENTS_TABLE_ID = "events";
 const DEFAULT_TRANSLATIONS_TABLE_ID = "content_translations";
 const DEFAULT_TAKE = 50;
+/** Tickster's hard cap on the `take` query param. */
+const MAX_TAKE = 100;
 const DEFAULT_STATUS = "published";
 /** Safety bound on per-campus pagination so a misbehaving API can't loop. */
 const MAX_PAGES_PER_CAMPUS = 20;
@@ -204,7 +206,10 @@ export function getTicksterEventsSyncConfig(
       .filter((value) => value.length > 0),
     queries: parseCampusQueries(env.TICKSTER_EVENTS_QUERY_MAP),
     status: env.TICKSTER_EVENTS_STATUS ?? DEFAULT_STATUS,
-    take: parsePositiveInteger(env.TICKSTER_EVENTS_TAKE, DEFAULT_TAKE),
+    take: Math.min(
+      parsePositiveInteger(env.TICKSTER_EVENTS_TAKE, DEFAULT_TAKE),
+      MAX_TAKE
+    ),
     translationsTableId:
       env.APPWRITE_TRANSLATIONS_TABLE_ID ?? DEFAULT_TRANSLATIONS_TABLE_ID,
     version: env.TICKSTER_EVENTS_API_VERSION,
@@ -439,7 +444,7 @@ async function upsertRow(
 ): Promise<void> {
   const { data, databaseId, permissions, rowId, tableId } = options;
   try {
-    await db.updateRow({ data, databaseId, rowId, tableId });
+    await db.updateRow({ data, databaseId, permissions, rowId, tableId });
   } catch (error) {
     if (getErrorCode(error) !== HTTP_NOT_FOUND) {
       throw error;
@@ -450,7 +455,7 @@ async function upsertRow(
       if (getErrorCode(createError) !== HTTP_CONFLICT) {
         throw createError;
       }
-      await db.updateRow({ data, databaseId, rowId, tableId });
+      await db.updateRow({ data, databaseId, permissions, rowId, tableId });
     }
   }
 }
@@ -541,6 +546,7 @@ async function upsertTranslation(
     await db.updateRow({
       data,
       databaseId: config.databaseId,
+      permissions,
       rowId: existingRow.$id,
       tableId: config.translationsTableId,
     });
@@ -660,9 +666,6 @@ async function processCampusQuery(
       await processItem(context, campusQuery, nbItem, enById);
     }
     skip += nbList.items.length;
-    if (nbList.items.length < config.take) {
-      break;
-    }
   }
 
   if (page >= MAX_PAGES_PER_CAMPUS && skip < total) {

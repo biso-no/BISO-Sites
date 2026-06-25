@@ -422,4 +422,63 @@ describe("syncTicksterEvents", () => {
     );
     expect(eventCreates).toHaveLength(3);
   });
+
+  it("keeps paging when the server page cap is below the configured take", async () => {
+    const { db } = makeDb();
+    const all = [
+      listItem("nb", { id: "aaa" }),
+      listItem("nb", { id: "bbb" }),
+      listItem("nb", { id: "ccc" }),
+    ];
+    const PAGE_CAP = 2; // server returns at most 2 regardless of requested take
+    const client = {
+      getEvent: vi.fn().mockResolvedValue(detailFor()),
+      listEvents: vi.fn(({ skip }) => ({
+        items: all.slice(skip, skip + PAGE_CAP),
+        skipped: skip,
+        totalItems: all.length,
+      })),
+    };
+
+    const result = await syncTicksterEvents({
+      client: client as never,
+      config: baseConfig({
+        queries: [{ campusId: "1", label: "Oslo", query: "by:Oslo" }],
+        take: 50,
+      }),
+      db: db as never,
+    });
+
+    expect(result.upserted).toBe(3);
+  });
+
+  it("re-applies status permissions to existing rows on update", async () => {
+    const createRow = vi.fn().mockResolvedValue({});
+    const updateRow = vi.fn().mockResolvedValue({}); // rows already exist
+    const listRows = vi.fn().mockResolvedValue({
+      rows: [{ $id: "existing-translation" }],
+      total: 1,
+    });
+    const db = { createRow, listRows, updateRow };
+    const client = makeClient();
+
+    await syncTicksterEvents({
+      client: client as never,
+      config: baseConfig({ status: "draft" }),
+      db: db as never,
+    });
+
+    expect(createRow).not.toHaveBeenCalled();
+    const eventUpdate = updateRow.mock.calls.find(
+      ([args]) => args.tableId === "events"
+    )?.[0];
+    expect(eventUpdate.permissions).not.toContain('read("any")');
+    expect(eventUpdate.permissions).toContain(
+      'read("team:sg-app-dept-operationsunit")'
+    );
+    const translationUpdate = updateRow.mock.calls.find(
+      ([args]) => args.tableId === "content_translations"
+    )?.[0];
+    expect(translationUpdate.permissions).not.toContain('read("any")');
+  });
 });

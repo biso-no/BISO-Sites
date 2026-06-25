@@ -166,7 +166,8 @@ logged as a failure even though the API route keeps running server-side.
   single detail enrichment) fails and is logged; previously-synced rows remain
   untouched, so the public pages keep serving the last good snapshot. Detail
   enrichment failures degrade gracefully (event still syncs, just without image
-  or price).
+  or price). If any campus query or row upsert fails, the route responds with a
+  non-2xx (`502`) so the scheduler surfaces the failure rather than masking it.
 - **Auth scheme mismatch** — a `401` from Tickster means the key or header is
   wrong. Adjust `TICKSTER_AUTH_HEADER` / the key. (The live API is reachable
   from production, not from sandboxed CI.)
