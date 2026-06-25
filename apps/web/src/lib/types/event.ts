@@ -50,10 +50,12 @@ export function parseEventMetadata(
 
 export function formatEventPrice(
   price: number | null | undefined,
-  _memberPrice?: number | null
+  ticketUrl?: string | null
 ): string {
   if (!price || price === 0) {
-    return "Free";
+    // An event with an external ticket link but no known price (e.g. a Tickster
+    // event synced without enrichment) must not be advertised as "Free".
+    return ticketUrl ? "See tickets" : "Free";
   }
   return `${price} NOK`;
 }

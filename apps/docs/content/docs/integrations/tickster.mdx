@@ -143,6 +143,20 @@ catalogue can take a while. The run time is governed operationally — set the
 console above the expected duration. A dispatcher ping that aborts early is
 logged as a failure even though the API route keeps running server-side.
 
+## Data handling
+
+- **Descriptions are sanitized.** Tickster descriptions are external, untrusted
+  HTML, but the public renderer injects stored HTML via `dangerouslySetInnerHTML`
+  (it assumes trusted CMS authors). The sync strips all markup, escapes the text,
+  and stores a single safe paragraph — rich formatting is intentionally dropped;
+  the fully-formatted event page lives on Tickster behind the ticket link.
+- **Cover images over 200 chars are skipped.** The `events.image` column caps at
+  200 characters, so a longer CDN URL is dropped (placeholder shown) rather than
+  failing the whole event upsert.
+- **Unpriced ticketed events don't show "Free."** The list endpoint has no price;
+  if enrichment is off or fails, the event keeps its `ticket_url` but has no
+  price, and the UI shows "See tickets" instead of "Free."
+
 ## Failure modes
 
 - **Wrong organizer names** — a campus query returns 0 events. Symptom: that

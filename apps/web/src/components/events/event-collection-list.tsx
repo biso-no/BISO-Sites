@@ -93,7 +93,10 @@ export function EventCollectionList({
               colStartTime && colEndTime
                 ? `${colStartTime} - ${colEndTime}`
                 : colStartTime || t("card.tba");
-            const colPrice = formatEventPrice(colEventData?.price);
+            const colPrice = formatEventPrice(
+              colEventData?.price,
+              colEventData?.ticket_url
+            );
             const colImage = colEventData?.image || PLACEHOLDER_IMAGE;
 
             return (

@@ -47,17 +47,27 @@ const DESCRIPTION_MAX = 8000;
 const SHORT_DESCRIPTION_MAX = 500;
 const LOCATION_MAX = 50;
 const TICKET_URL_MAX = 255;
+const IMAGE_MAX = 200;
 const SLUG_MAX = 200;
 const HTTP_NOT_FOUND = 404;
 const HTTP_CONFLICT = 409;
 
 const NON_ALNUM = /[^a-zA-Z0-9]/g;
 const HTML_TAG = /<[^>]*>/g;
+const HTML_ESCAPE_CHARS = /[&<>"']/g;
 const WHITESPACE = /\s+/g;
 const SLUG_STRIP = /[^a-z0-9\s-]/g;
 const SLUG_SPACES = /\s+/g;
 const SLUG_DASHES = /-+/g;
 const SLUG_TRIM = /^-+|-+$/g;
+
+const HTML_ESCAPE: Record<string, string> = {
+  "&": "&amp;",
+  "<": "&lt;",
+  ">": "&gt;",
+  '"': "&quot;",
+  "'": "&#39;",
+};
 
 /** Maps a Tickster organizer query to the BISO campus it should be stamped as. */
 export interface TicksterCampusQuery {
@@ -234,6 +244,10 @@ function stripHtml(value: string): string {
   return value.replace(HTML_TAG, " ").replace(WHITESPACE, " ").trim();
 }
 
+function escapeHtml(value: string): string {
+  return value.replace(HTML_ESCAPE_CHARS, (char) => HTML_ESCAPE[char] ?? char);
+}
+
 function buildEventRowId(ticksterId: string): string {
   return `${ROW_ID_PREFIX}${ticksterId.replace(NON_ALNUM, "")}`.slice(
     0,
@@ -264,13 +278,29 @@ function pickLocation(venue: TicksterVenue | null | undefined): string | null {
   return parts.length > 0 ? truncate(parts.join(", "), LOCATION_MAX) : null;
 }
 
+/**
+ * Tickster descriptions are external, untrusted HTML, but the web renderer
+ * (`PlateContentRenderer`) injects any value starting with `<` via
+ * `dangerouslySetInnerHTML` on the assumption it was authored by trusted CMS
+ * staff. Strip all markup to text, escape it, and wrap it in a single paragraph
+ * so the stored value is safe to render as-is (no scripts, handlers, or links
+ * survive). Rich formatting is intentionally dropped in favour of safety.
+ */
 function descriptionToHtml(
   description: TicksterEventListItem["description"]
 ): string {
-  return truncate(
-    description?.html ?? description?.markdown ?? "",
-    DESCRIPTION_MAX
-  );
+  const text = stripHtml(description?.html ?? description?.markdown ?? "");
+  if (!text) {
+    return "";
+  }
+  const body = escapeHtml(truncate(text, DESCRIPTION_MAX));
+  return truncate(`<p>${body}</p>`, DESCRIPTION_MAX);
+}
+
+function clampImageUrl(url: string | null | undefined): string | null {
+  // The `events.image` column is capped at 200 chars; a longer CDN URL would
+  // fail the whole upsert, so drop it (the UI falls back to a placeholder).
+  return url && url.length <= IMAGE_MAX ? url : null;
 }
 
 function buildShortDescription(
@@ -360,7 +390,7 @@ function buildEventData(args: BuildEventArgs): Record<string, unknown> {
     metadata: buildEventMetadata(args, price),
     start_date: item.startUtc ?? null,
     end_date: item.endUtc ?? null,
-    image: detail?.imageUrl ?? null,
+    image: clampImageUrl(detail?.imageUrl),
     ticket_url: ticketUrl ? truncate(ticketUrl, TICKET_URL_MAX) : null,
     price: price.amount,
     location: pickLocation(venue),

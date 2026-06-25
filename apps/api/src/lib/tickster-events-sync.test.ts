@@ -298,4 +298,67 @@ describe("syncTicksterEvents", () => {
     expect(eventCreate.data.image).toBeNull();
     expect(eventCreate.data.price).toBeNull();
   });
+
+  it("sanitizes untrusted Tickster description HTML", async () => {
+    const { createRow, db } = makeDb();
+    const malicious =
+      '<p>Hello</p><script>alert("xss")</script><img src=x onerror="alert(1)">';
+    const client = {
+      getEvent: vi.fn().mockResolvedValue(detailFor()),
+      listEvents: vi.fn(({ languageCode, query }) =>
+        typeof query === "string" && query.includes("Oslo")
+          ? {
+              items: [
+                listItem(languageCode, {
+                  description: { html: malicious, markdown: null },
+                }),
+              ],
+              skipped: 0,
+              totalItems: 1,
+            }
+          : { items: [], skipped: 0, totalItems: 0 }
+      ),
+    };
+
+    await syncTicksterEvents({
+      client: client as never,
+      config: baseConfig(),
+      db: db as never,
+    });
+
+    const translation = createRow.mock.calls
+      .map(([args]) => args)
+      .find((args) => args.tableId === "content_translations");
+    const description = translation.data.description as string;
+    expect(description.startsWith("<p>")).toBe(true);
+    expect(description).not.toContain("<script");
+    expect(description).not.toContain("<img");
+    expect(description).not.toContain("onerror");
+  });
+
+  it("drops an over-length Tickster image URL so the upsert still succeeds", async () => {
+    const { createRow, db } = makeDb();
+    const longUrl = `https://static.tickster.com/${"a".repeat(250)}`;
+    const client = {
+      getEvent: vi
+        .fn()
+        .mockResolvedValue({ ...detailFor(), imageUrl: longUrl }),
+      listEvents: vi.fn(({ languageCode, query }) =>
+        typeof query === "string" && query.includes("Oslo")
+          ? { items: [listItem(languageCode)], skipped: 0, totalItems: 1 }
+          : { items: [], skipped: 0, totalItems: 0 }
+      ),
+    };
+
+    await syncTicksterEvents({
+      client: client as never,
+      config: baseConfig(),
+      db: db as never,
+    });
+
+    const eventCreate = createRow.mock.calls.find(
+      ([args]) => args.tableId === "events"
+    )?.[0];
+    expect(eventCreate.data.image).toBeNull();
+  });
 });

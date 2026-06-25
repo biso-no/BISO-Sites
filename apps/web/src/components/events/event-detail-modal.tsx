@@ -137,7 +137,7 @@ export function EventDetailModal({
   })();
 
   // Format price
-  const price = formatEventPrice(eventData?.price);
+  const price = formatEventPrice(eventData?.price, eventData?.ticket_url);
   const memberPrice = metadata.member_price
     ? formatEventPrice(metadata.member_price)
     : null;
