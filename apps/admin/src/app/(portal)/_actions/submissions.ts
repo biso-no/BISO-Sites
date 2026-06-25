@@ -59,7 +59,7 @@ export async function listSubmissionTopics(): Promise<SubmissionTopic[]> {
     Query.orderDesc("$createdAt"),
     Query.limit(500),
     Query.notEqual("status", "archived"),
-    ...applyScopeQueries(ctx),
+    ...applyScopeQueries(ctx, { departmentField: null }),
   ];
 
   const result = await db.listRows("app", "form_submissions", queries);
@@ -114,7 +114,7 @@ export async function listSubmissions(opts: {
     Query.equal("topic", opts.topic),
     Query.orderDesc("$createdAt"),
     Query.limit(opts.limit ?? 50),
-    ...applyScopeQueries(ctx),
+    ...applyScopeQueries(ctx, { departmentField: null }),
   ];
 
   if (opts.offset) {

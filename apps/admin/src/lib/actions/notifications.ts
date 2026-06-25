@@ -78,6 +78,8 @@ export async function fetchPendingItems(): Promise<PendingItem[]> {
 
     const { db } = await createSessionClient();
     const scopeQueries = applyScopeQueries(ctx);
+    // events has no department_id column — scope it by campus only.
+    const eventScopeQueries = applyScopeQueries(ctx, { departmentField: null });
 
     const [jobsRes, eventsRes, newsRes] = await Promise.all([
       db.listRows<Jobs>(DATABASE_ID, "jobs", [
@@ -90,7 +92,7 @@ export async function fetchPendingItems(): Promise<PendingItem[]> {
         Query.equal("status", "draft"),
         Query.orderDesc("$updatedAt"),
         Query.limit(20),
-        ...scopeQueries,
+        ...eventScopeQueries,
       ]),
       db.listRows<News>(DATABASE_ID, "news", [
         Query.equal("status", "draft"),

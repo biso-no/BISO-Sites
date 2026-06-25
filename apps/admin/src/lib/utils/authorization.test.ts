@@ -72,10 +72,26 @@ describe("applyScopeQueries", () => {
     ]);
   });
 
-  test("department user is filtered to their resolved department ids", () => {
+  test("department user is filtered to BOTH their campus and department", () => {
     expect(applyScopeQueries(departmentUser)).toEqual([
+      Query.equal("campus_id", ["1"]),
       Query.equal("department_id", ["dept-1"]),
     ]);
+  });
+
+  test("department user honors a custom department field name", () => {
+    expect(
+      applyScopeQueries(departmentUser, { departmentField: "departmentId" })
+    ).toEqual([
+      Query.equal("campus_id", ["1"]),
+      Query.equal("departmentId", ["dept-1"]),
+    ]);
+  });
+
+  test("department user on a campus-only collection is hidden (fails closed)", () => {
+    expect(
+      applyScopeQueries(departmentUser, { departmentField: null })
+    ).toEqual([NO_MATCH_FILTER]);
   });
 
   test("department membership that did not resolve fails closed", () => {
@@ -88,7 +104,17 @@ describe("applyScopeQueries", () => {
     expect(applyScopeQueries(noScopeUser)).toEqual([NO_MATCH_FILTER]);
   });
 
-  test("SECURITY: a non-global user is never returned an empty (unscoped) filter", () => {
+  test("campus admin uses a custom campus field name", () => {
+    expect(
+      applyScopeQueries(campusAdmin, { campusField: "campus.$id" })
+    ).toEqual([Query.equal("campus.$id", ["1"])]);
+  });
+
+  test("campus admin on a collection without a campus dimension is unscoped", () => {
+    expect(applyScopeQueries(campusAdmin, { campusField: null })).toEqual([]);
+  });
+
+  test("SECURITY: a non-global user is never returned an empty (unscoped) filter on a scoped collection", () => {
     for (const ctx of [
       campusAdmin,
       departmentUser,

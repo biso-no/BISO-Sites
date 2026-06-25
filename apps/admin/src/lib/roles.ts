@@ -43,8 +43,10 @@ export const NAV_ACCESS = {
   expenses: [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
   jobs: [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN, DEPARTMENT_ROLE],
   jobsApplications: [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN, DEPARTMENT_ROLE],
-  events: [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN, DEPARTMENT_ROLE],
-  eventsNew: [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN, DEPARTMENT_ROLE],
+  // events is campus-scoped only (no department_id column), so pure department
+  // users are excluded — applyScopeQueries would otherwise fail closed for them.
+  events: [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
+  eventsNew: [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
   units: [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
   users: [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
   varsling: [ROLES.GLOBAL_ADMIN],
@@ -61,7 +63,7 @@ export const NAV_ACCESS = {
   "portal.pages": [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN, DEPARTMENT_ROLE],
   "portal.departments": [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
   "portal.jobs": [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN, DEPARTMENT_ROLE],
-  "portal.events": [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN, DEPARTMENT_ROLE],
+  "portal.events": [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
   "portal.shop": [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
   "portal.benefits": [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
   "portal.benefitsPartners": [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],

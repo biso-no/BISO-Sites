@@ -264,7 +264,8 @@ export async function listEvents(opts?: {
   const queries: string[] = [
     Query.orderDesc("$updatedAt"),
     Query.select(["*", "translation_refs.*"]),
-    ...applyScopeQueries(ctx),
+    // events has a campus_id but no department_id column.
+    ...applyScopeQueries(ctx, { departmentField: null }),
   ];
 
   if (opts?.campusId) {

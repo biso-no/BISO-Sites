@@ -211,9 +211,14 @@ export async function listJobs(opts?: {
 
   // Push the campus / department scope into the Appwrite query so we don't
   // fetch a global page of jobs only to throw most of them away in memory.
-  // Global admins skip the filter (canManageAnyCampus).
   const queries: string[] = [Query.orderDesc("$updatedAt"), Query.limit(200)];
-  if (!scope.canManageAnyCampus) {
+  if (scope.canManageAnyCampus) {
+    // Global / HR-national admins see every campus unless the campus switcher
+    // narrows them to one. campus.$id mirrors the numeric campus_id values.
+    if (ctx.activeCampusId) {
+      queries.push(Query.equal("campus.$id", [ctx.activeCampusId]));
+    }
+  } else {
     const managedCampusIds = scope.managedCampusNames
       .map((name) => lookups.campusIdsByName.get(name))
       .filter((id): id is string => Boolean(id));

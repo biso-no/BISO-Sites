@@ -66,7 +66,8 @@ export async function listDocuments(opts?: { status?: string; page?: number }) {
     Query.orderDesc("$updatedAt"),
     Query.limit(DOCUMENTS_PAGE_SIZE),
     Query.offset((page - 1) * DOCUMENTS_PAGE_SIZE),
-    ...applyScopeQueries(ctx),
+    // documents is campus-scoped only (no department_id column).
+    ...applyScopeQueries(ctx, { departmentField: null }),
   ];
 
   if (opts?.status && opts.status !== "all") {
