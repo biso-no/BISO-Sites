@@ -12,7 +12,6 @@ const baseConfig: NextConfig = {
     "@repo/payment",
     "@repo/typescript-config",
   ],
-  typescript: { ignoreBuildErrors: true },
   reactStrictMode: false,
   output: "standalone",
   outputFileTracingRoot: path.join(import.meta.dirname, "../../"),
