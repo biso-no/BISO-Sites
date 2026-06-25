@@ -182,11 +182,15 @@ called by scheduled tasks, not users.
 |---|---|
 | `POST /departures/sync` or `GET /departures/sync` | `Authorization: Bearer $ENTUR_SYNC_SECRET` or `x-sync-secret: $ENTUR_SYNC_SECRET` |
 | `POST /tickster/sync` or `GET /tickster/sync` | `Authorization: Bearer $TICKSTER_SYNC_SECRET` or `x-sync-secret: $TICKSTER_SYNC_SECRET` |
+| `POST /tickster/events/sync` or `GET /tickster/events/sync` | `Authorization: Bearer $CRON_SECRET` or `x-cron-secret: $CRON_SECRET` |
 | `POST /cleanup-anon-users` or `GET /cleanup-anon-users` | `Authorization: Bearer $CRON_SECRET` or `x-cron-secret: $CRON_SECRET` |
 
 `/departures/sync` pulls transit-departure data from Entur into
 Appwrite for the front-page widget. `/tickster/sync` imports Tickster
-purchases when that integration is active. `/cleanup-anon-users` reaps
+purchases (ticket buyers) when that integration is active.
+`/tickster/events/sync` mirrors events BISO has published on Tickster into
+the `events` table for the public site and native app (see
+[Tickster](/docs/integrations/tickster)). `/cleanup-anon-users` reaps
 abandoned anonymous Appwrite users to keep the user table from growing
 unboundedly.
 

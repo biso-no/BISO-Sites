@@ -27,6 +27,7 @@
  * Optional:
  *   ANNOUNCEMENTS_DISPATCH_URL  e.g. https://admin.biso.no/api/announcements/dispatch
  *   TICKSTER_SYNC_URL           e.g. https://api.biso.no/api/tickster/sync
+ *   TICKSTER_EVENTS_SYNC_URL    e.g. https://api.biso.no/api/tickster/events/sync
  *   DEPARTURES_SYNC_URL         e.g. https://api.biso.no/api/departures/sync
  *   RESERVATIONS_CLEANUP_URL    e.g. https://biso.no/api/cron/cleanup-reservations
  *   CRON_TIMEOUT_MS             per-request timeout (default 30000)
@@ -47,6 +48,7 @@ const LOG_TAG = "[scheduled-dispatch]";
 const TARGET_ENV_VARS = [
   "ANNOUNCEMENTS_DISPATCH_URL",
   "TICKSTER_SYNC_URL",
+  "TICKSTER_EVENTS_SYNC_URL",
   "DEPARTURES_SYNC_URL",
   "RESERVATIONS_CLEANUP_URL",
 ] as const;

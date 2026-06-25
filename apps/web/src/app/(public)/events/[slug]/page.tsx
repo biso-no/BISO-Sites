@@ -54,7 +54,7 @@ async function EventDetails({ slug }: { slug: string }) {
     );
   }
 
-  const price = formatEventPrice(eventData?.price);
+  const price = formatEventPrice(eventData?.price, eventData?.ticket_url);
 
   return (
     <div className="min-h-screen bg-linear-to-b from-section to-background">

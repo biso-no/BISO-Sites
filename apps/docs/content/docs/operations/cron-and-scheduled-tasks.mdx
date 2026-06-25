@@ -76,6 +76,21 @@ the Tickster integration is enabled.
 | Recommended frequency | every 5–15 minutes while Tickster-backed events are active |
 | Failure mode | Tickster purchases do not appear in the platform until a manual sync runs |
 
+### `apps/api` — `/api/tickster/events/sync`
+
+Mirrors the events BISO has **published** on Tickster into the `events` table
+(plus `content_translations` for both locales), so they appear on the public
+website and native app. Authenticates with `CRON_SECRET`. See the
+[Tickster integration](/docs/integrations/tickster) for the campus-query
+configuration.
+
+| Field | Value |
+|-------|-------|
+| Method | `POST` or `GET` |
+| Auth | `Authorization: Bearer ${CRON_SECRET}` or `x-cron-secret: ${CRON_SECRET}` |
+| Recommended frequency | every 15–60 minutes |
+| Failure mode | New/updated Tickster events do not appear (or update) on the public site until a sync runs |
+
 ## A note on dev
 
 Do not configure schedulers with `?secret=` query parameters. Query strings

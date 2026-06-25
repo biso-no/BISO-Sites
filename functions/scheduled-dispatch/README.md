@@ -12,6 +12,7 @@ It currently drives:
 |---|---|---|
 | `ANNOUNCEMENTS_DISPATCH_URL` | sends scheduled announcements whose time has passed | `apps/admin` → `POST /api/announcements/dispatch` |
 | `TICKSTER_SYNC_URL` (optional) | pulls Tickster purchasers into `event_attendees` | `apps/api` → `POST /api/tickster/sync` |
+| `TICKSTER_EVENTS_SYNC_URL` (optional) | mirrors published Tickster events into the `events` table | `apps/api` → `POST /api/tickster/events/sync` |
 | `DEPARTURES_SYNC_URL` (optional) | refreshes Entur departures | `apps/api` → `POST /api/departures/sync` |
 | `RESERVATIONS_CLEANUP_URL` (optional) | deletes expired webshop cart reservations so held stock is released | `apps/web` → `POST /api/cron/cleanup-reservations` |
 
@@ -42,6 +43,7 @@ syncs. So you only set `CRON_SECRET`, the same value, on each app.
 | `announcements/dispatch` (admin) | `CRON_SECRET` |
 | `cleanup-reservations` (web) | `CRON_SECRET` |
 | `tickster/sync` (api) | `CRON_SECRET` (legacy `TICKSTER_SYNC_SECRET` still honored as a fallback) |
+| `tickster/events/sync` (api) | `CRON_SECRET` (legacy `TICKSTER_SYNC_SECRET` still honored as a fallback) |
 | `departures/sync` (api) | `CRON_SECRET` (legacy `ENTUR_SYNC_SECRET` still honored as a fallback) |
 
 If `CRON_SECRET` is unset on the target app you'll get `500`; if it differs from

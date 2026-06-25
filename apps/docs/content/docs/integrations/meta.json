@@ -12,6 +12,7 @@
     "openai",
     "anthropic",
     "pinecone",
-    "entur"
+    "entur",
+    "tickster"
   ]
 }

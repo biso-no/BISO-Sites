@@ -1,0 +1,92 @@
+import { createAdminClient } from "@repo/api/server";
+import { safeSecretCompare } from "@repo/shared/utils/secrets";
+import { type NextRequest, NextResponse } from "next/server";
+import {
+  getTicksterEventsSyncConfig,
+  getTicksterEventsSyncSecret,
+  syncTicksterEvents,
+} from "@/lib/tickster-events-sync";
+
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
+function readBearerToken(request: NextRequest) {
+  const authHeader = request.headers.get("authorization");
+  if (!authHeader?.startsWith("Bearer ")) {
+    return null;
+  }
+  return authHeader.slice(7);
+}
+
+function hasValidSyncSecret(request: NextRequest, secret: string) {
+  // Header-only — avoid the secret landing in access logs / referrers.
+  const candidates = [
+    readBearerToken(request),
+    request.headers.get("x-cron-secret"),
+    request.headers.get("x-sync-secret"),
+  ];
+  return candidates.some((candidate) => safeSecretCompare(candidate, secret));
+}
+
+async function handleSync(request: NextRequest) {
+  const secret = getTicksterEventsSyncSecret();
+  if (!secret) {
+    return NextResponse.json(
+      {
+        code: "SYNC_SECRET_NOT_CONFIGURED",
+        error: "CRON_SECRET is not configured",
+      },
+      { status: 500 }
+    );
+  }
+
+  if (!hasValidSyncSecret(request, secret)) {
+    return NextResponse.json(
+      { code: "UNAUTHORIZED", error: "Unauthorized" },
+      { status: 401 }
+    );
+  }
+
+  const config = getTicksterEventsSyncConfig();
+  if (!config) {
+    return NextResponse.json(
+      {
+        code: "TICKSTER_NOT_CONFIGURED",
+        error: "TICKSTER_API_KEY is required",
+      },
+      { status: 500 }
+    );
+  }
+
+  try {
+    const { db } = await createAdminClient();
+
+    const result = await syncTicksterEvents({
+      config,
+      db,
+      logger: {
+        error: (message) => console.error(`[tickster/events/sync] ${message}`),
+        log: (message) => console.info(`[tickster/events/sync] ${message}`),
+      },
+    });
+
+    // Surface partial failures to the scheduler: any failed campus query or row
+    // upsert returns a non-2xx so a bad key/header or write failure isn't masked.
+    const ok = result.failed.length === 0;
+    return NextResponse.json({ ...result, ok }, { status: ok ? 200 : 502 });
+  } catch (error) {
+    console.error("[tickster/events/sync] Unexpected error:", error);
+    return NextResponse.json(
+      { code: "INTERNAL_ERROR", error: "Internal server error" },
+      { status: 500 }
+    );
+  }
+}
+
+export function GET(request: NextRequest) {
+  return handleSync(request);
+}
+
+export function POST(request: NextRequest) {
+  return handleSync(request);
+}

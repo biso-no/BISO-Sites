@@ -50,10 +50,16 @@ export function parseEventMetadata(
 
 export function formatEventPrice(
   price: number | null | undefined,
-  _memberPrice?: number | null
+  ticketUrl?: string | null
 ): string {
-  if (!price || price === 0) {
+  // A genuine zero price is free, even with an external ticket link.
+  if (price === 0) {
     return "Free";
+  }
+  // An unknown price (e.g. a Tickster event synced without enrichment) with an
+  // external ticket link must not be advertised as "Free".
+  if (price === null || price === undefined) {
+    return ticketUrl ? "See tickets" : "Free";
   }
   return `${price} NOK`;
 }

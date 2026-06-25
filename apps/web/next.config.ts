@@ -41,6 +41,13 @@ const baseConfig: NextConfig = {
         port: "",
         pathname: "/**",
       },
+      {
+        // Cover images for events mirrored from Tickster.
+        protocol: "https",
+        hostname: "static.tickster.com",
+        port: "",
+        pathname: "/**",
+      },
     ],
   },
 

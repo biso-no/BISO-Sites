@@ -1,0 +1,198 @@
+---
+title: Tickster
+description: External ticketing provider — mirrors published Tickster events into the platform and imports ticket buyers.
+---
+
+# Tickster
+
+[Tickster](https://www.tickster.com) is the external ticketing platform BISO
+uses to sell tickets for larger events (concerts, galas, conferences). Some
+events are created and sold entirely on Tickster rather than natively in the
+admin CMS. We integrate with Tickster in two independent directions:
+
+1. **Event sync (inbound):** mirror the events BISO has *published* on Tickster
+   into the internal `events` table so they appear on the public website and
+   native app next to natively-created events.
+2. **Purchase sync (inbound):** pull ticket *buyers* (CRM purchases) into
+   `event_attendees` so they flow through the segment / "Your trip" pipeline.
+
+These are two separate jobs with two separate routes and two separate Tickster
+APIs — keep them straight.
+
+## What it is
+
+Tickster exposes two relevant HTTP APIs:
+
+- The **Event API** (`https://event.api.tickster.com`) — read-only search over
+  events an organizer has published to tickster.com. Returns name, description
+  (per language), dates, venue, shop URL, and — via the per-event detail
+  endpoint — cover image and ticket prices.
+- The **CRM API** (`https://api.tickster.com`) — the organizer purchase feed,
+  paginated by an incremental cursor.
+
+Both authenticate with an API-key header (`X-API-KEY` by default).
+
+## Why we use it
+
+Tickster handles real money, seat inventory, and ticket delivery — things we
+deliberately do **not** rebuild in-house for big events. But an event that only
+exists on Tickster is invisible to students browsing the BISO app. The event
+sync closes that gap: students discover the event in our app, and the
+"Buy on Tickster" button hands off to Tickster's checkout (the `ticket_url`).
+The purchase sync closes the opposite gap — knowing *who* bought so attendee
+features work.
+
+## Cost shape
+
+Tickster bills the organizer on ticket sales (their cut per ticket), not on API
+usage. The API calls themselves are free to us; the cost is the per-ticket fee
+Tickster charges on the sales side, which is out of scope for this platform.
+
+## Configuration
+
+All env vars live on **`apps/api`** (the sync routes run there) and are
+documented in [environment variables](/docs/operations/environment-variables).
+The integration is **inert until the API key is set**.
+
+### Event sync
+
+| Var | Required | Purpose |
+|---|---|---|
+| `TICKSTER_API_KEY` | yes | Tickster API key — the same one the purchase sync uses (Tickster issues a single key). |
+| `TICKSTER_AUTH_HEADER` | no | Header carrying the key (default `X-API-KEY`). |
+| `TICKSTER_EVENTS_BASE_URL` | no | Override the Event API host. |
+| `TICKSTER_EVENTS_API_VERSION` | no | API version path segment (default `1.0`). |
+| `TICKSTER_EVENTS_TAKE` | no | Page size per campus query (default `50`, Tickster max `100`); the sync pages through all results. |
+| `TICKSTER_EVENTS_STATUS` | no | Status stamped on synced events: `published` (default, world-readable) or `draft` (Operations-team-readable only, for review before publishing). |
+| `TICKSTER_EVENTS_ENRICH` | no | Fetch per-event detail for image + price (default `true`). |
+| `TICKSTER_EVENTS_HIERARCHY_TYPES` | no | Tickster `eventHierarchyType` values to import (default `event`). |
+| `TICKSTER_EVENTS_QUERY_MAP` | no | Per-campus query → campus mapping (JSON). See below. |
+| `CRON_SECRET` | yes | Gates the sync route (shared scheduler secret). |
+
+**Campus strategy.** By default the sync issues **one query per campus**,
+filtered by Tickster *organizer* name, and stamps that campus on every result:
+
+| Campus | `campus_id` | Default query |
+|---|---|---|
+| Oslo | `1` | `by:"BISO Oslo"` |
+| Bergen | `2` | `by:"BISO Bergen"` |
+| Trondheim | `3` | `by:"BISO Trondheim"` |
+| Stavanger | `4` | `by:"BISO Stavanger"` |
+| National | `5` | `by:"BISO National"` |
+
+The organizer names above are a starting point — **confirm them against the real
+Tickster organizer accounts** and override via `TICKSTER_EVENTS_QUERY_MAP` if
+they differ (the National organizer is often just `BISO`). The map is a JSON
+array of `{ "campusId", "label", "query" }`; `query` is passed straight to
+Tickster, so any [search prefix](https://event.api.tickster.com/swagger/index.html)
+works (`by:` organizer, `city:`, `at:` venue, `tagged:`, etc.):
+
+```json
+[
+  { "campusId": "1", "label": "Oslo", "query": "BISO city:Oslo" },
+  { "campusId": "5", "label": "National", "query": "by:\"BISO\"" }
+]
+```
+
+### Purchase sync
+
+| Var | Required | Purpose |
+|---|---|---|
+| `TICKSTER_API_KEY` | yes | API key (shared with the event sync above). |
+| `TICKSTER_EOG_CODE` | yes | Organizer code (`eogCode`) for the CRM endpoint. |
+| `TICKSTER_EVENT_MAP` | no | Tickster event id → internal event mapping (JSON). |
+| `TICKSTER_BASE_URL` | no | Override the CRM API host. |
+
+## Where it lives in the codebase
+
+- `packages/connectors/src/tickster/events-client.ts` — Event API client
+  (`createTicksterEventsClient`): list + per-event detail, defensive parsing.
+- `packages/connectors/src/tickster/client.ts` — CRM API client
+  (`createTicksterClient`): incremental purchase feed.
+- `apps/api/src/lib/tickster-events-sync.ts` — event sync logic: per-campus
+  queries, both locales, enrichment, idempotent upserts.
+- `apps/api/src/app/api/tickster/events/sync/route.ts` — the **event** sync
+  route (`POST`/`GET /api/tickster/events/sync`).
+- `apps/api/src/lib/tickster-sync.ts` +
+  `apps/api/src/app/api/tickster/sync/route.ts` — the **purchase** sync.
+- The `scheduled-dispatch` Appwrite Function pings both routes on a schedule —
+  see [cron and scheduled tasks](/docs/operations/cron-and-scheduled-tasks).
+- The public web app reads the ingested rows; it never calls Tickster live on a
+  page load. Tickster cover images are allow-listed in each app's
+  `next.config.ts` (`static.tickster.com`).
+
+## Sync flow (events)
+
+1. The scheduler `POST`s `/api/tickster/events/sync` with `CRON_SECRET`.
+2. For each configured campus query, the sync fetches the event list in **both
+   locales** (`nb` → stored as `no`, and `en`), taking up to `TICKSTER_EVENTS_TAKE`.
+3. Each event (deduplicated across campus queries by Tickster id) is optionally
+   enriched with the per-event detail endpoint for its cover image and cheapest
+   ticket price.
+4. The event is **upserted** into `events` with a deterministic row id
+   (`tkst<ticksterId>`), so re-runs update in place rather than duplicating, and
+   never collide with natively-created events.
+5. Two `content_translations` rows (`no`/`en`) are upserted and linked to the
+   event via **both** the `event_ref` relationship and the `content_id` field.
+6. Rows are written `read("any")` so the public site can read them; the
+   Operations Unit team retains edit/delete.
+
+With enrichment on, the run does one extra detail call per event, so a large
+catalogue can take a while. The run time is governed operationally — set the
+`scheduled-dispatch` function's timeout (and `CRON_TIMEOUT_MS`) in the Appwrite
+console above the expected duration. A dispatcher ping that aborts early is
+logged as a failure even though the API route keeps running server-side.
+
+## Data handling
+
+- **Descriptions are sanitized.** Tickster descriptions are external, untrusted
+  HTML, but the public renderer injects stored HTML via `dangerouslySetInnerHTML`
+  (it assumes trusted CMS authors). The sync strips all markup, escapes the text,
+  and stores a single safe paragraph — rich formatting is intentionally dropped;
+  the fully-formatted event page lives on Tickster behind the ticket link.
+- **Cover images over 200 chars are skipped.** The `events.image` column caps at
+  200 characters, so a longer CDN URL is dropped (placeholder shown) rather than
+  failing the whole event upsert.
+- **Unpriced ticketed events don't show "Free."** The list endpoint has no price;
+  if enrichment is off or fails, the event keeps its `ticket_url` but has no
+  price, and the UI shows "See tickets" instead of "Free."
+
+## Failure modes
+
+- **Wrong organizer names** — a campus query returns 0 events. Symptom: that
+  campus has no Tickster events. The per-campus item counts are logged on every
+  run; fix the names via `TICKSTER_EVENTS_QUERY_MAP`.
+- **Tickster API down / rate-limited (429)** — the affected campus query (or a
+  single detail enrichment) fails and is logged; previously-synced rows remain
+  untouched, so the public pages keep serving the last good snapshot. Detail
+  enrichment failures degrade gracefully (event still syncs, just without image
+  or price). If any campus query or row upsert fails, the route responds with a
+  non-2xx (`502`) so the scheduler surfaces the failure rather than masking it.
+- **Auth scheme mismatch** — a `401` from Tickster means the key or header is
+  wrong. Adjust `TICKSTER_AUTH_HEADER` / the key. (The live API is reachable
+  from production, not from sandboxed CI.)
+- **Event removed from Tickster** — the sync only upserts; it does not delete.
+  A taken-down Tickster event lingers as a synced row until cleaned up manually.
+- **Manual edits get overwritten** — the sync overwrites the Tickster-sourced
+  columns (title, dates, image, price, status, …) on every run. Columns it never
+  writes (e.g. `category`, `tags`, `contact_*`) are preserved. Treat synced
+  events as Tickster-owned.
+- **Unauthorised sync attempts** — without a valid `CRON_SECRET` the route
+  returns `401`.
+
+## Rotation
+
+The Tickster API keys are issued by Tickster (organizer settings). To rotate:
+
+1. Generate a new key in Tickster.
+2. Update `TICKSTER_API_KEY` on `apps/api` (both syncs use it).
+3. Restart. There is no in-app secret to coordinate beyond `CRON_SECRET`, which
+   rotates like every other [scheduler secret](/docs/operations/secrets-and-keys).
+
+## Swapping the vendor
+
+If BISO moved off Tickster, you'd replace the two connector clients in
+`packages/connectors/src/tickster/` and the two sync libs in `apps/api/src/lib`.
+The internal `events` / `event_attendees` shapes are vendor-agnostic, so the
+public site and native app wouldn't change — only the ingestion adapters and the
+`ticket_url` the "Buy" button points at.
