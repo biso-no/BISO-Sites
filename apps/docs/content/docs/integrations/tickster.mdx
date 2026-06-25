@@ -62,8 +62,8 @@ The integration is **inert until the API key is set**.
 | `TICKSTER_AUTH_HEADER` | no | Header carrying the key (default `X-API-KEY`). |
 | `TICKSTER_EVENTS_BASE_URL` | no | Override the Event API host. |
 | `TICKSTER_EVENTS_API_VERSION` | no | API version path segment (default `1.0`). |
-| `TICKSTER_EVENTS_TAKE` | no | Results per campus query (default `50`, Tickster max `100`). |
-| `TICKSTER_EVENTS_STATUS` | no | Status stamped on synced events: `published` (default) or `draft`. |
+| `TICKSTER_EVENTS_TAKE` | no | Page size per campus query (default `50`, Tickster max `100`); the sync pages through all results. |
+| `TICKSTER_EVENTS_STATUS` | no | Status stamped on synced events: `published` (default, world-readable) or `draft` (Operations-team-readable only, for review before publishing). |
 | `TICKSTER_EVENTS_ENRICH` | no | Fetch per-event detail for image + price (default `true`). |
 | `TICKSTER_EVENTS_HIERARCHY_TYPES` | no | Tickster `eventHierarchyType` values to import (default `event`). |
 | `TICKSTER_EVENTS_QUERY_MAP` | no | Per-campus query → campus mapping (JSON). See below. |

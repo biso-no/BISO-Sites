@@ -361,4 +361,65 @@ describe("syncTicksterEvents", () => {
     )?.[0];
     expect(eventCreate.data.image).toBeNull();
   });
+
+  it("keeps draft imports non-public", async () => {
+    const { createRow, db } = makeDb();
+    const client = makeClient();
+
+    await syncTicksterEvents({
+      client: client as never,
+      config: baseConfig({ status: "draft" }),
+      db: db as never,
+    });
+
+    const eventCreate = createRow.mock.calls.find(
+      ([args]) => args.tableId === "events"
+    )?.[0];
+    expect(eventCreate.data.status).toBe("draft");
+    expect(eventCreate.permissions).not.toContain('read("any")');
+    expect(eventCreate.permissions).toContain(
+      'read("team:sg-app-dept-operationsunit")'
+    );
+    const translation = createRow.mock.calls.find(
+      ([args]) => args.tableId === "content_translations"
+    )?.[0];
+    expect(translation.permissions).not.toContain('read("any")');
+  });
+
+  it("pages through every result for a campus", async () => {
+    const { createRow, db } = makeDb();
+    const all = [
+      listItem("nb", { id: "aaa" }),
+      listItem("nb", { id: "bbb" }),
+      listItem("nb", { id: "ccc" }),
+    ];
+    const client = {
+      getEvent: vi.fn().mockResolvedValue(detailFor()),
+      listEvents: vi.fn(({ skip }) => {
+        const item = all[skip];
+        return {
+          items: item ? [item] : [],
+          skipped: skip,
+          totalItems: all.length,
+        };
+      }),
+    };
+
+    const result = await syncTicksterEvents({
+      client: client as never,
+      config: baseConfig({
+        queries: [{ campusId: "1", label: "Oslo", query: "by:Oslo" }],
+        take: 1,
+      }),
+      db: db as never,
+    });
+
+    expect(result.upserted).toBe(3);
+    // 3 pages × 2 locales.
+    expect(client.listEvents).toHaveBeenCalledTimes(6);
+    const eventCreates = createRow.mock.calls.filter(
+      ([args]) => args.tableId === "events"
+    );
+    expect(eventCreates).toHaveLength(3);
+  });
 });

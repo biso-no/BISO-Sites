@@ -28,7 +28,7 @@ import type {
  * result. Adjust the organizer names / campus mapping via
  * `TICKSTER_EVENTS_QUERY_MAP` to match the real Tickster organizer accounts.
  *
- * Inert until `TICKSTER_EVENTS_API_KEY` (or `TICKSTER_API_KEY`) is configured.
+ * Inert until `TICKSTER_API_KEY` is configured.
  */
 
 const DEFAULT_DATABASE_ID = "app";
@@ -36,6 +36,8 @@ const DEFAULT_EVENTS_TABLE_ID = "events";
 const DEFAULT_TRANSLATIONS_TABLE_ID = "content_translations";
 const DEFAULT_TAKE = 50;
 const DEFAULT_STATUS = "published";
+/** Safety bound on per-campus pagination so a misbehaving API can't loop. */
+const MAX_PAGES_PER_CAMPUS = 20;
 /** Appwrite team that owns/edits content rows (matches the admin event flow). */
 const OPERATIONS_TEAM_ID = "sg-app-dept-operationsunit";
 /** Tickster id → Appwrite row id prefix, namespacing synced rows away from
@@ -342,12 +344,16 @@ function pickPrice(detail: TicksterEventDetail | null): PriceInfo {
   return { amount, currency };
 }
 
-function eventPermissions(): string[] {
-  return [
-    Permission.read(Role.any()),
-    Permission.update(Role.team(OPERATIONS_TEAM_ID)),
-    Permission.delete(Role.team(OPERATIONS_TEAM_ID)),
-  ];
+function eventPermissions(status: string): string[] {
+  const team = Role.team(OPERATIONS_TEAM_ID);
+  // Published rows are world-readable; drafts stay team-only so review-before-
+  // publish imports don't leak publicly through Appwrite (mirrors the
+  // status-aware admin permission model).
+  const read =
+    status === "published"
+      ? Permission.read(Role.any())
+      : Permission.read(team);
+  return [read, Permission.update(team), Permission.delete(team)];
 }
 
 interface BuildEventArgs {
@@ -469,7 +475,7 @@ async function upsertEvent(
   const { config, db, result, syncedAt } = context;
   const { nbItem, enItem, detail, campusId } = args;
   const rowId = buildEventRowId(nbItem.id);
-  const permissions = eventPermissions();
+  const permissions = eventPermissions(config.status);
 
   await upsertRow(db, {
     data: buildEventData({
@@ -578,54 +584,91 @@ interface CampusContext {
   syncedAt: string;
 }
 
-/** Fetch + upsert every event for one campus query (both locales). */
+/** Process one list item: filter, dedupe, enrich, and upsert. */
+async function processItem(
+  context: CampusContext,
+  campusQuery: TicksterCampusQuery,
+  nbItem: TicksterEventListItem,
+  enById: Map<string, TicksterEventListItem>
+): Promise<void> {
+  const { client, config, db, logger, result, seen, syncedAt } = context;
+  result.fetched += 1;
+  const hierarchy = nbItem.eventHierarchyType ?? "event";
+  if (!config.hierarchyTypes.includes(hierarchy)) {
+    result.skipped += 1;
+    return;
+  }
+  if (seen.has(nbItem.id)) {
+    result.skipped += 1;
+    return;
+  }
+  seen.add(nbItem.id);
+  try {
+    const detail = await enrichEvent(client, config, nbItem.id, logger);
+    await upsertEvent(
+      { config, db, result, syncedAt },
+      {
+        campusId: campusQuery.campusId,
+        detail,
+        enItem: enById.get(nbItem.id) ?? null,
+        nbItem,
+      }
+    );
+  } catch (error) {
+    result.failed.push({ id: nbItem.id, reason: formatError(error) });
+    logger?.error(
+      `Tickster events: failed to upsert ${nbItem.id}: ${formatError(error)}`
+    );
+  }
+}
+
+/**
+ * Fetch + upsert every event for one campus query (both locales). Pages through
+ * the result set with `skip`/`take` until all `totalItems` are processed, so a
+ * campus with more than one page of events isn't silently truncated.
+ */
 async function processCampusQuery(
   context: CampusContext,
   campusQuery: TicksterCampusQuery
 ): Promise<void> {
-  const { client, config, db, logger, result, seen, syncedAt } = context;
-  const baseParams: Omit<ListTicksterEventsParams, "languageCode"> = {
-    query: campusQuery.query,
-    take: config.take,
-  };
-  const [nbList, enList] = await Promise.all([
-    client.listEvents({ ...baseParams, languageCode: "nb" }),
-    client.listEvents({ ...baseParams, languageCode: "en" }),
-  ]);
-  const enById = new Map(enList.items.map((item) => [item.id, item]));
-  logger?.log(
-    `Tickster events: campus ${campusQuery.label} (${campusQuery.campusId}) "${campusQuery.query}" → ${nbList.items.length} item(s)`
-  );
+  const { client, config, logger } = context;
+  let skip = 0;
+  let total = Number.POSITIVE_INFINITY;
+  let page = 0;
 
-  for (const nbItem of nbList.items) {
-    result.fetched += 1;
-    const hierarchy = nbItem.eventHierarchyType ?? "event";
-    if (!config.hierarchyTypes.includes(hierarchy)) {
-      result.skipped += 1;
-      continue;
+  while (skip < total && page < MAX_PAGES_PER_CAMPUS) {
+    const baseParams: Omit<ListTicksterEventsParams, "languageCode"> = {
+      query: campusQuery.query,
+      skip,
+      take: config.take,
+    };
+    const [nbList, enList] = await Promise.all([
+      client.listEvents({ ...baseParams, languageCode: "nb" }),
+      client.listEvents({ ...baseParams, languageCode: "en" }),
+    ]);
+    page += 1;
+    total = nbList.totalItems;
+    const enById = new Map(enList.items.map((item) => [item.id, item]));
+    logger?.log(
+      `Tickster events: campus ${campusQuery.label} (${campusQuery.campusId}) "${campusQuery.query}" page ${page} → ${nbList.items.length}/${total} item(s)`
+    );
+
+    if (nbList.items.length === 0) {
+      break;
     }
-    if (seen.has(nbItem.id)) {
-      result.skipped += 1;
-      continue;
+    for (const nbItem of nbList.items) {
+      await processItem(context, campusQuery, nbItem, enById);
     }
-    seen.add(nbItem.id);
-    try {
-      const detail = await enrichEvent(client, config, nbItem.id, logger);
-      await upsertEvent(
-        { config, db, result, syncedAt },
-        {
-          campusId: campusQuery.campusId,
-          detail,
-          enItem: enById.get(nbItem.id) ?? null,
-          nbItem,
-        }
-      );
-    } catch (error) {
-      result.failed.push({ id: nbItem.id, reason: formatError(error) });
-      logger?.error(
-        `Tickster events: failed to upsert ${nbItem.id}: ${formatError(error)}`
-      );
+    skip += nbList.items.length;
+    if (nbList.items.length < config.take) {
+      break;
     }
+  }
+
+  if (page >= MAX_PAGES_PER_CAMPUS && skip < total) {
+    logger?.error(
+      `Tickster events: campus ${campusQuery.label} reached the ${MAX_PAGES_PER_CAMPUS}-page cap at ${skip}/${total}; remaining events were not synced this run.`
+    );
   }
 }
 
