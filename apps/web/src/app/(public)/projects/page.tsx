@@ -1,6 +1,16 @@
 import type { Locale } from "@repo/i18n/config";
-import { Badge } from "@repo/ui/components/ui/badge";
+import { Rocket } from "lucide-react";
 import type { Metadata } from "next";
+import { getTranslations } from "next-intl/server";
+import { listLargeEvents } from "@/app/actions/large-events";
+import { getLocale } from "@/app/actions/locale";
+import { AboutHero } from "@/components/about/about-hero";
+import {
+  type FeaturedVM,
+  ProjectsBody,
+  type ScheduleVM,
+} from "@/components/projects/projects-body";
+import type { ParsedLargeEvent } from "@/lib/types/large-event";
 
 export const metadata: Metadata = {
   title: "Projects | BISO",
@@ -8,18 +18,8 @@ export const metadata: Metadata = {
     "Explore the projects and large events organised by BI Student Organisation across our campuses.",
 };
 
-import { Button } from "@repo/ui/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@repo/ui/components/ui/card";
-import Link from "next/link";
-import { getTranslations } from "next-intl/server";
-import { listLargeEvents } from "@/app/actions/large-events";
-import { getLocale } from "@/app/actions/locale";
-import type { ParsedLargeEvent } from "@/lib/types/large-event";
+const DEFAULT_GRADIENT = ["#14355B", "#1E3A8A"];
+const WINTER_GAMES_GRADIENT = ["#0F172A", "#1E3A8A"];
 
 const pickEventBySlug = (events: ParsedLargeEvent[], slug: string) =>
   events.find((event) => event.slug === slug);
@@ -31,12 +31,13 @@ const deriveAccent = (event?: ParsedLargeEvent, fallback?: string[]) => {
   if (event?.primaryColorHex && event?.secondaryColorHex) {
     return [event.primaryColorHex, event.secondaryColorHex];
   }
-  return fallback ?? ["#14355B", "#1E3A8A"];
+  return fallback ?? DEFAULT_GRADIENT;
 };
 
 export default async function ProjectsPage() {
   const locale = (await getLocale()) as Locale;
   const t = await getTranslations("projects");
+  const tNav = await getTranslations("common.navigation");
 
   const events = await listLargeEvents({ activeOnly: false, limit: 100 });
 
@@ -51,178 +52,56 @@ export default async function ProjectsPage() {
     }
   >;
 
-  const featuredProjects = Object.entries(featuredConfig).map(
+  const featured: FeaturedVM[] = Object.entries(featuredConfig).map(
     ([key, config]) => {
       const event = pickEventBySlug(events, config.slug);
       return {
+        ctaLabel: config.cta,
+        description: event?.description ?? config.description,
+        gradient: deriveAccent(
+          event,
+          key === "winterGames" ? WINTER_GAMES_GRADIENT : undefined
+        ),
+        highlight: config.highlight,
+        href: `/projects/${config.slug}`,
         key,
         slug: config.slug,
         title: event?.name ?? config.title,
-        description: event?.description ?? config.description,
-        highlight: config.highlight,
-        gradient: deriveAccent(
-          event,
-          key === "winterGames" ? ["#0F172A", "#1E3A8A"] : undefined
-        ),
-        href: `/projects/${config.slug}`,
-        cta: config.cta,
       };
     }
   );
 
-  const otherEvents = events.filter(
-    (event) => !featuredProjects.some((item) => item.slug === event.slug)
+  const dateFormatter = new Intl.DateTimeFormat(
+    locale === "en" ? "en-GB" : "nb-NO"
   );
 
+  const otherEvents: ScheduleVM[] = events
+    .filter((event) => !featured.some((item) => item.slug === event.slug))
+    .map((event) => ({
+      description: event.description,
+      formattedDate: event.startDate
+        ? dateFormatter.format(new Date(event.startDate))
+        : undefined,
+      gradient: deriveAccent(event),
+      href: `/projects/${event.slug}`,
+      id: event.$id,
+      slug: event.slug,
+      tag: event.showcaseType || undefined,
+      title: event.name,
+    }));
+
   return (
-    <div className="space-y-16">
-      <section className="relative overflow-hidden rounded-3xl border border-primary/10 bg-linear-to-br from-primary-100 via-blue-strong to-blue-accent p-10 text-white shadow-2xl">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.25),transparent_45%),radial-gradient(circle_at_bottom_right,rgba(61,169,224,0.35),transparent_55%)]" />
-        <div className="relative grid gap-8 lg:grid-cols-[3fr_2fr]">
-          <div className="space-y-6">
-            <Badge className="bg-background/10 text-white text-xs uppercase tracking-wide">
-              {t("hero.badge")}
-            </Badge>
-            <h1 className="font-semibold text-4xl text-white leading-tight md:text-5xl">
-              {t("hero.title")}
-            </h1>
-            <p className="text-lg text-white/80">{t("hero.subtitle")}</p>
-            <div className="flex flex-wrap gap-3">
-              <Button
-                asChild
-                className="bg-background text-primary-100 hover:bg-background/90"
-                size="lg"
-              >
-                <Link href="#featured">{t("hero.ctaPrimary")}</Link>
-              </Button>
-              <Button
-                asChild
-                className="border-white/60 bg-transparent text-white hover:bg-background/10"
-                size="lg"
-                variant="secondary"
-              >
-                <Link href="#calendar">{t("hero.ctaSecondary")}</Link>
-              </Button>
-            </div>
-          </div>
-          <Card className="/10 border-white/20 backdrop-blur">
-            <CardHeader>
-              <CardTitle className="text-white">{t("insight.title")}</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3 text-sm text-white/80">
-              <p>{t("insight.item1")}</p>
-              <p>{t("insight.item2")}</p>
-              <p>{t("insight.item3")}</p>
-            </CardContent>
-          </Card>
-        </div>
-      </section>
-
-      <section className="space-y-8" id="featured">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <h2 className="font-semibold text-3xl text-primary-100">
-              {t("featuredTitle")}
-            </h2>
-            <p className="text-muted-foreground text-sm">
-              {t("featuredSubtitle")}
-            </p>
-          </div>
-        </div>
-        <div className="grid gap-6 md:grid-cols-2">
-          {featuredProjects.map((project) => (
-            <Card
-              className="overflow-hidden border-primary/10 shadow-lg transition hover:-translate-y-1 hover:shadow-xl"
-              key={project.slug}
-            >
-              <div
-                className="h-2 w-full"
-                style={{
-                  background: `linear-gradient(90deg, ${project.gradient.join(", ")})`,
-                }}
-              />
-              <CardHeader className="space-y-3">
-                <Badge className="w-fit uppercase" variant="secondary">
-                  {project.highlight ??
-                    t(`featuredLabels.${project.key}`, {
-                      default: project.key,
-                    })}
-                </Badge>
-                <CardTitle className="text-2xl text-primary-100">
-                  {project.title}
-                </CardTitle>
-                <p className="text-muted-foreground text-sm">
-                  {project.description}
-                </p>
-              </CardHeader>
-              <CardContent className="flex justify-between">
-                <Button
-                  asChild
-                  className="px-0 text-primary-40"
-                  variant="ghost"
-                >
-                  <Link href={project.href}>{project.cta}</Link>
-                </Button>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </section>
-
-      <section className="space-y-6" id="calendar">
-        <div>
-          <h2 className="font-semibold text-2xl text-primary-100">
-            {t("schedule.title")}
-          </h2>
-          <p className="text-muted-foreground text-sm">
-            {t("schedule.subtitle")}
-          </p>
-        </div>
-
-        {otherEvents.length === 0 ? (
-          <Card className="border-primary/10">
-            <CardContent className="py-12 text-center text-muted-foreground text-sm">
-              {t("schedule.empty")}
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {otherEvents.map((event) => (
-              <Card className="border-primary/10" key={event.$id}>
-                <CardHeader className="space-y-2">
-                  <Badge
-                    className="w-fit text-primary-70 text-xs uppercase"
-                    variant="outline"
-                  >
-                    {event.showcaseType || t("schedule.defaultTag")}
-                  </Badge>
-                  <CardTitle className="text-lg text-primary-100">
-                    {event.name}
-                  </CardTitle>
-                  <p className="line-clamp-3 text-muted-foreground text-sm">
-                    {event.description}
-                  </p>
-                </CardHeader>
-                <CardContent className="flex justify-between text-muted-foreground text-xs">
-                  <span>
-                    {event.startDate
-                      ? new Date(event.startDate).toLocaleDateString(
-                          locale === "en" ? "en-GB" : "nb-NO"
-                        )
-                      : "—"}
-                  </span>
-                  <Link
-                    className="underline-offset-2 hover:underline"
-                    href={`/projects/${event.slug}`}
-                  >
-                    {t("schedule.more")}
-                  </Link>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
-      </section>
+    <div className="min-h-screen bg-linear-to-b from-section to-background">
+      <AboutHero
+        breadcrumbs={[
+          { label: "Home", href: "/" },
+          { label: tNav("triggers.projects") },
+        ]}
+        icon={<Rocket className="h-8 w-8 text-white" />}
+        subtitle={t("hero.subtitle")}
+        title={t("hero.title")}
+      />
+      <ProjectsBody featured={featured} otherEvents={otherEvents} />
     </div>
   );
 }
