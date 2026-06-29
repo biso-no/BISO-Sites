@@ -25,6 +25,16 @@ export interface ApprovalCardData {
   viewUrl: string;
 }
 
+/** Escape text before interpolating it into the HTML email body. */
+function escapeHtml(value: string): string {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
 function formatAmount(total: number, currency: string): string {
   return `${total.toLocaleString("nb-NO", {
     minimumFractionDigits: 2,
@@ -132,14 +142,14 @@ export function buildApprovalEmailHtml(
   return `
     <div style="font-family:Arial,sans-serif;max-width:560px">
       <h2 style="margin:0 0 4px">Reimbursement approval</h2>
-      <p style="color:#555;margin:0 0 16px">${data.stepLabel}</p>
+      <p style="color:#555;margin:0 0 16px">${escapeHtml(data.stepLabel)}</p>
       <table style="border-collapse:collapse;margin-bottom:16px">
-        <tr><td style="padding:2px 12px 2px 0;color:#555">Submitter</td><td>${data.submitterName}</td></tr>
-        <tr><td style="padding:2px 12px 2px 0;color:#555">Department</td><td>${data.departmentName} — ${data.campusName}</td></tr>
-        <tr><td style="padding:2px 12px 2px 0;color:#555">Amount</td><td>${formatAmount(data.total, data.currency)}</td></tr>
-        <tr><td style="padding:2px 12px 2px 0;color:#555">Reference</td><td>${data.reimbursementNumber}</td></tr>
+        <tr><td style="padding:2px 12px 2px 0;color:#555">Submitter</td><td>${escapeHtml(data.submitterName)}</td></tr>
+        <tr><td style="padding:2px 12px 2px 0;color:#555">Department</td><td>${escapeHtml(data.departmentName)} — ${escapeHtml(data.campusName)}</td></tr>
+        <tr><td style="padding:2px 12px 2px 0;color:#555">Amount</td><td>${escapeHtml(formatAmount(data.total, data.currency))}</td></tr>
+        <tr><td style="padding:2px 12px 2px 0;color:#555">Reference</td><td>${escapeHtml(data.reimbursementNumber)}</td></tr>
       </table>
-      <p style="margin:0 0 16px">${data.description}</p>
+      <p style="margin:0 0 16px">${escapeHtml(data.description)}</p>
       <p style="margin:0 0 16px">
         ${button(data.approveUrl, "Approve", "#0a7d33")}
         ${button(data.rejectUrl, "Reject", "#b3261e")}

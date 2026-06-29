@@ -492,6 +492,7 @@ export type Expenses = Models.Row & {
     invoice_id: number | null;
     ledger_transaction_id: string | null;
     submitter_is_financial_manager: boolean;
+    posting_lock: number | null;
     userId: string;
     eventName: string | null;
     departmentRel: Departments;

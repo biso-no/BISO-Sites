@@ -43,6 +43,9 @@ type UploadPhase = NonNullable<UploadState>["phase"];
 
 // Oslo: the only campus with the department financial-manager approval step.
 const OSLO_CAMPUS_ID = "1";
+// Ledelsen Oslo: the leadership unit has no separate financial manager — the
+// campus controller approves directly — so the toggle is irrelevant there.
+const LEDELSEN_OSLO_DEPARTMENT_ID = "2";
 
 interface ReceiptRowProps {
   fileInputRef: React.RefObject<HTMLInputElement | null>;
@@ -564,27 +567,28 @@ export function ExpenseReport({
               />
             </div>
 
-            {selectedCampusId === OSLO_CAMPUS_ID && (
-              <div className="mt-4 flex items-start justify-between gap-4 rounded-lg border border-border bg-muted/50 p-4 dark:bg-inverted/30">
-                <div className="space-y-1">
-                  <label
-                    className="font-medium text-foreground text-sm"
-                    htmlFor="financial-manager-toggle"
-                  >
-                    I am the financial manager of this department
-                  </label>
-                  <p className="text-muted-foreground text-xs">
-                    Turn this on so the approval is routed to your department
-                    manager instead of you.
-                  </p>
+            {selectedCampusId === OSLO_CAMPUS_ID &&
+              selectedDepartmentId !== LEDELSEN_OSLO_DEPARTMENT_ID && (
+                <div className="mt-4 flex items-start justify-between gap-4 rounded-lg border border-border bg-muted/50 p-4 dark:bg-inverted/30">
+                  <div className="space-y-1">
+                    <label
+                      className="font-medium text-foreground text-sm"
+                      htmlFor="financial-manager-toggle"
+                    >
+                      I am the financial manager of this department
+                    </label>
+                    <p className="text-muted-foreground text-xs">
+                      Turn this on so the approval is routed to your department
+                      manager instead of you.
+                    </p>
+                  </div>
+                  <Switch
+                    checked={submitterIsFinancialManager}
+                    id="financial-manager-toggle"
+                    onCheckedChange={onSubmitterIsFinancialManagerChange}
+                  />
                 </div>
-                <Switch
-                  checked={submitterIsFinancialManager}
-                  id="financial-manager-toggle"
-                  onCheckedChange={onSubmitterIsFinancialManagerChange}
-                />
-              </div>
-            )}
+              )}
           </div>
 
           {/* Line Items */}

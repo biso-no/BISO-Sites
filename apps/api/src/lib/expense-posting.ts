@@ -25,10 +25,9 @@ import { generateExpensePdf } from "./pdf/expense-pdf";
 
 const EXPENSES_BUCKET = "expenses";
 
-// Sentinel written to `ledger_transaction_id` to claim an expense before the slow
-// upload/post, so a second overlapping dispatch run skips it (Appwrite has no
-// conditional update, so the id field doubles as the claim marker). It is
-// overwritten with the real transaction id on success and left in place on
+// Sentinel written to `ledger_transaction_id` once an expense has been atomically
+// claimed (via the `posting_lock` counter) and is in the slow upload/post phase.
+// It is overwritten with the real transaction id on success and left in place on
 // failure so a failed row is never silently re-posted.
 const POSTING_CLAIM_MARKER = "posting";
 
@@ -158,8 +157,9 @@ async function mergePdf(
 /**
  * Posts a single approved expense to the ledger. Sets status to `success` on
  * success (storing the 24SO transaction id) or `failed` on error. Idempotent
- * and concurrency-safe: claims the row via `ledger_transaction_id` before any
- * 24SO call, so an already-posted/claimed expense is skipped.
+ * and concurrency-safe: atomically claims the row via the `posting_lock` counter
+ * before any 24SO call, so an already-posted/claimed expense is skipped even when
+ * two dispatch runs overlap.
  */
 export async function postApprovedExpense(expenseId: string): Promise<void> {
   const { db, storage } = await createAdminClient();
@@ -192,10 +192,32 @@ export async function postApprovedExpense(expenseId: string): Promise<void> {
     return; // already posted or claimed by a concurrent run
   }
 
-  // Claim the row before doing any 24SO work. Concurrent runs re-read the fresh
-  // row and bail on the marker above, so only the first claimer posts. The
-  // residual window is the single read→write round-trip, which is the best
-  // achievable without a conditional update.
+  // Atomically claim the row before any 24SO work. `incrementRowColumn` is a
+  // server-side atomic read-modify-write, so two overlapping dispatch runs are
+  // serialized rather than racing on a read-then-write: the first claimer takes
+  // `posting_lock` 0 → 1, the next 1 → 2 (or is rejected by `max`). Only the run
+  // that observes exactly 1 owns the claim; any other value — or a thrown
+  // max-bound error — means another run already owns it, so we bail.
+  let claimedLock: number;
+  try {
+    const claimed = await db.incrementRowColumn<Expenses>({
+      databaseId: "app",
+      tableId: "expense",
+      rowId: expenseId,
+      column: "posting_lock",
+      value: 1,
+      max: 1,
+    });
+    claimedLock = claimed.posting_lock ?? 0;
+  } catch {
+    return; // lost the race — another run already claimed (hit the max bound)
+  }
+  if (claimedLock !== 1) {
+    return; // lost the race — another run claimed first
+  }
+
+  // Mark the slow phase on `ledger_transaction_id` too, so the cheap early check
+  // above still short-circuits any re-entrant or legacy run.
   await db.updateRow("app", "expense", expenseId, {
     ledger_transaction_id: POSTING_CLAIM_MARKER,
   });
@@ -263,9 +285,10 @@ export async function postApprovedExpense(expenseId: string): Promise<void> {
     });
   } catch (error) {
     console.error(`[expense-posting] failed for ${expenseId}:`, error);
-    // Keep the claim marker on `ledger_transaction_id`: the transaction may have
-    // reached 24SO before the failure, so the row must not be re-posted
-    // automatically. A failed row is surfaced for manual review/retry instead.
+    // Keep the claim in place (both `posting_lock` and the marker on
+    // `ledger_transaction_id`): the transaction may have reached 24SO before the
+    // failure, so the row must not be re-posted automatically. A failed row is
+    // surfaced for manual review/retry instead.
     await db.updateRow("app", "expense", expenseId, {
       status: ExpensesStatus.FAILED,
     });

@@ -265,6 +265,7 @@ type InitialExpenseDraft = Pick<
   | "department"
   | "description"
   | "expenseAttachments"
+  | "submitter_is_financial_manager"
   | "total"
 >;
 
@@ -462,6 +463,9 @@ export function ExpenseSplitView({
       departmentName: department?.Name ?? "",
     });
     store.setDescription(initialDraft.description ?? "");
+    store.setSubmitterIsFinancialManager(
+      Boolean(initialDraft.submitter_is_financial_manager)
+    );
 
     for (const receipt of initialDraft.expenseAttachments
       .map(buildReceiptFromAttachment)
@@ -479,6 +483,7 @@ export function ExpenseSplitView({
     store.setDescription,
     store.setExpenseId,
     store.setProfile,
+    store.setSubmitterIsFinancialManager,
   ]);
 
   // Process File Logic

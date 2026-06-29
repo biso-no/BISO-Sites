@@ -3,12 +3,19 @@
 import type { ExpenseApprovalIssues } from "@repo/api/types/appwrite";
 import { ExpenseApprovalIssuesStatus } from "@repo/api/types/appwrite";
 import { Button } from "@repo/ui/components/ui/button";
-import { CheckCircle2, ShieldAlert } from "lucide-react";
+import { CheckCircle2, RefreshCw, ShieldAlert } from "lucide-react";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { CAMPUS_ID_TO_NAME } from "@/lib/campus-constants";
-import { resolveExpenseApprovalIssue } from "../../../_actions/expense-approval-issues";
+import {
+  resendExpenseApprovalNotification,
+  resolveExpenseApprovalIssue,
+} from "../../../_actions/expense-approval-issues";
 import { EmptyState } from "../../../_components/empty-state";
+
+// Issues recorded when an approver couldn't be notified can be recovered by
+// resending; they are tagged with this reason prefix (see expense-approval.ts).
+const NOTIFICATION_FAILURE_PREFIX = "Could not notify";
 
 interface Labels {
   columnCampus: string;
@@ -19,6 +26,9 @@ interface Labels {
   columnStatus: string;
   empty: string;
   emptyDescription: string;
+  resend: string;
+  resendError: string;
+  resendSuccess: string;
   resolve: string;
   resolveError: string;
   resolveSuccess: string;
@@ -92,6 +102,9 @@ function IssueRow({
     issue.status === ExpenseApprovalIssuesStatus.RESOLVED
   );
   const [pending, startTransition] = useTransition();
+  const canResend =
+    Boolean(issue.expense_id) &&
+    Boolean(issue.reason?.startsWith(NOTIFICATION_FAILURE_PREFIX));
 
   const onResolve = () => {
     startTransition(async () => {
@@ -101,6 +114,24 @@ function IssueRow({
         toast.success(labels.resolveSuccess);
       } else {
         toast.error(result.error ?? labels.resolveError);
+      }
+    });
+  };
+
+  const onResend = () => {
+    if (!issue.expense_id) {
+      return;
+    }
+    startTransition(async () => {
+      const result = await resendExpenseApprovalNotification(
+        issue.$id,
+        issue.expense_id as string
+      );
+      if (result.success) {
+        setResolved(true);
+        toast.success(labels.resendSuccess);
+      } else {
+        toast.error(result.error ?? labels.resendError);
       }
     });
   };
@@ -127,14 +158,26 @@ function IssueRow({
       </td>
       <td className="px-4 py-3 text-right">
         {resolved ? null : (
-          <Button
-            disabled={pending}
-            onClick={onResolve}
-            size="sm"
-            variant="outline"
-          >
-            {labels.resolve}
-          </Button>
+          <div className="flex justify-end gap-2">
+            {canResend && (
+              <Button
+                disabled={pending}
+                onClick={onResend}
+                size="sm"
+                variant="outline"
+              >
+                <RefreshCw size={14} /> {labels.resend}
+              </Button>
+            )}
+            <Button
+              disabled={pending}
+              onClick={onResolve}
+              size="sm"
+              variant="outline"
+            >
+              {labels.resolve}
+            </Button>
+          </div>
         )}
       </td>
     </tr>

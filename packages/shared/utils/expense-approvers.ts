@@ -11,9 +11,12 @@
  * Rules (see plan):
  * - Oslo (campus 1): 2 steps — (1) the department financial manager (or, when
  *   the submitter IS the financial manager, the department manager → deputy),
- *   resolved via Graph by department name; (2) the campus controller.
+ *   resolved via Graph by department name; (2) the campus controller. Exception:
+ *   Ledelsen Oslo (department 2) has no department financial manager, so it is
+ *   controller-only (1 step).
  * - Bergen / Trondheim / Stavanger (2/3/4): 1 step — the campus controller.
- * - National (campus 5): 1 step — simen@biso.no.
+ * - National (campus 5): 1 step — markus@biso.no (placeholder for testing;
+ *   becomes simen@biso.no later).
  * - Department roles are matched by the email local-part prefix (financial
  *   managers start with "financ", managers "manag", deputies "deput") because
  *   the exact mailbox varies (finance. vs financial. etc.).
@@ -40,6 +43,8 @@ export interface ApprovalStepPlan {
 export interface ApprovalPlanInput {
   /** Campus id as stored on the expense ("1".."5"). */
   campusId: string;
+  /** Department id ($id) as stored on the expense — used to special-case Ledelsen Oslo. */
+  departmentId?: string;
   /** True when the submitter is the department financial manager (Oslo only). */
   submitterIsFinancialManager?: boolean;
 }
@@ -49,6 +54,12 @@ export const NATIONAL_APPROVER_EMAIL = `markus@${EXPENSE_APPROVER_DOMAIN}`;
 
 const OSLO_CAMPUS_ID = "1";
 const NATIONAL_CAMPUS_ID = "5";
+/**
+ * Ledelsen Oslo (the campus leadership unit) has no separate department
+ * financial manager, so its reimbursements skip the department step and go
+ * straight to the campus controller.
+ */
+const LEDELSEN_OSLO_DEPARTMENT_ID = "2";
 
 /** Campus id → email slug used in role mailboxes. */
 const CAMPUS_EMAIL_SLUGS: Record<string, string> = {
@@ -82,7 +93,7 @@ function controllerEmail(campusId: string): string {
 export function getCampusApprovalPlan(
   input: ApprovalPlanInput
 ): ApprovalStepPlan[] {
-  const { campusId, submitterIsFinancialManager = false } = input;
+  const { campusId, departmentId, submitterIsFinancialManager = false } = input;
 
   if (campusId === NATIONAL_CAMPUS_ID) {
     return [
@@ -96,6 +107,13 @@ export function getCampusApprovalPlan(
   }
 
   if (campusId === OSLO_CAMPUS_ID) {
+    // Ledelsen Oslo has no separate department financial manager — the campus
+    // controller is the sole approver, so skip the department step entirely.
+    if (departmentId === LEDELSEN_OSLO_DEPARTMENT_ID) {
+      return [
+        { kind: "fixed", role: "controller", email: controllerEmail(campusId) },
+      ];
+    }
     return [
       {
         kind: "department",

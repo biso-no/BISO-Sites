@@ -41,6 +41,7 @@ export interface ApprovalChainContext {
   campusId: string;
   campusLabel: string;
   currency: string;
+  departmentId: string | null;
   departmentLabel: string;
   departmentName: string | null;
   description: string;
@@ -168,6 +169,7 @@ export async function createApprovalChain(
 
   const { steps, issue } = await resolveExpenseApprovers({
     campusId: context.campusId,
+    departmentId: context.departmentId,
     departmentName: context.departmentName,
     submitterIsFinancialManager: context.submitterIsFinancialManager,
   });
@@ -502,30 +504,16 @@ export async function decideApproval(params: {
 
   const nextRow = next.rows[0];
   if (nextRow) {
-    // We don't hold the raw token for the next step, so re-issue one — and reset
-    // its expiry, otherwise a late first approval could hand the next approver a
-    // link that is already (or nearly) expired.
-    const rawToken = randomBytes(24).toString("hex");
-    const expiresAt = new Date(
-      Date.now() + TOKEN_TTL_DAYS * MS_PER_DAY
-    ).toISOString();
-    await db.updateRow<ExpenseApprovals>(
-      "app",
-      "expense_approvals",
-      nextRow.$id,
-      {
-        token_hash: hashToken(rawToken),
-        expires_at: expiresAt,
-      } as Partial<ExpenseApprovals>
-    );
-    const totalSteps = await countSteps(row.expense_id);
-    await notifyStep(
-      buildContextFromExpense(expense, refNumber),
-      nextRow,
-      rawToken,
-      totalSteps,
-      nextRow.approver_aad_id
-    );
+    try {
+      await notifyPendingStep(expense, nextRow, refNumber);
+    } catch (error) {
+      // The decision is already recorded, so don't fail the approver's action.
+      // The next step's raw token only lived inside notifyPendingStep and is now
+      // lost, so record a remediation issue; the IT queue recovers the chain via
+      // resendApprovalNotification (which mints a fresh token).
+      console.error("[expense-approval] next-step notify failed:", error);
+      await recordNotificationIssue(expense, nextRow, error);
+    }
     return {
       ok: true,
       decision: "approved",
@@ -556,6 +544,107 @@ async function countSteps(expenseId: string): Promise<number> {
   return all.rows.length;
 }
 
+/**
+ * Mints a fresh token (resetting expiry) for a pending step and notifies the
+ * approver. The previous raw token is never recoverable, so this always issues a
+ * new one — which makes it safe both when advancing the chain and when resending.
+ */
+async function notifyPendingStep(
+  expense: ExpenseSummaryRow,
+  stepRow: ExpenseApprovals,
+  refNumber: string
+): Promise<void> {
+  const { db } = await createAdminClient();
+  const rawToken = randomBytes(24).toString("hex");
+  const expiresAt = new Date(
+    Date.now() + TOKEN_TTL_DAYS * MS_PER_DAY
+  ).toISOString();
+  await db.updateRow<ExpenseApprovals>(
+    "app",
+    "expense_approvals",
+    stepRow.$id,
+    {
+      token_hash: hashToken(rawToken),
+      expires_at: expiresAt,
+    } as Partial<ExpenseApprovals>
+  );
+  const totalSteps = await countSteps(stepRow.expense_id);
+  await notifyStep(
+    buildContextFromExpense(expense, refNumber),
+    stepRow,
+    rawToken,
+    totalSteps,
+    stepRow.approver_aad_id
+  );
+}
+
+/**
+ * Records a remediation issue when an approver could not be notified, so the IT
+ * "approval issues" queue surfaces it and can trigger a resend.
+ */
+async function recordNotificationIssue(
+  expense: ExpenseSummaryRow,
+  stepRow: ExpenseApprovals,
+  error: unknown
+): Promise<void> {
+  const { db } = await createAdminClient();
+  const message = error instanceof Error ? error.message : "unknown error";
+  await db.createRow("app", "expense_approval_issues", ID.unique(), {
+    expense_id: stepRow.expense_id,
+    campus_id: expense.campus,
+    department: expense.departmentRel?.Name ?? expense.department,
+    role_sought: stepRow.approver_role,
+    reason: `Could not notify ${stepRow.approver_email} for step ${stepRow.step} (${message}). Use resend to re-issue the approval link.`,
+    status: "open",
+  });
+}
+
+/**
+ * Re-issues a fresh token for the lowest pending approval step of an expense and
+ * re-notifies that approver. Used by the IT remediation queue to recover a chain
+ * whose next-step notification failed to deliver. Idempotent and safe to retry.
+ */
+export async function resendApprovalNotification(
+  expenseId: string
+): Promise<{ ok: boolean; error?: string }> {
+  const { db } = await createAdminClient();
+  const pending = await db.listRows<ExpenseApprovals>(
+    "app",
+    "expense_approvals",
+    [
+      Query.equal("expense_id", expenseId),
+      Query.equal("status", ExpenseApprovalsStatus.PENDING),
+      Query.orderAsc("step"),
+      Query.limit(1),
+    ]
+  );
+  const stepRow = pending.rows[0];
+  if (!stepRow) {
+    return { ok: false, error: "No pending approval step to notify." };
+  }
+  const expense = await db.getRow<ExpenseSummaryRow>(
+    "app",
+    "expense",
+    expenseId,
+    [
+      Query.select([
+        "$id",
+        "campus",
+        "department",
+        "total",
+        "description",
+        "userId",
+        "$sequence",
+        "departmentRel.Name",
+        "campusRel.name",
+      ]),
+    ]
+  );
+  const refNumber = reimbursementNumber(expense.$sequence);
+  await notifyPendingStep(expense, stepRow, refNumber);
+  return { ok: true };
+}
+
 function buildContextFromExpense(
   expense: ExpenseSummaryRow,
   refNumber: string
@@ -563,6 +652,7 @@ function buildContextFromExpense(
   return {
     expenseId: expense.$id,
     campusId: expense.campus,
+    departmentId: expense.department ?? null,
     departmentName: expense.departmentRel?.Name ?? null,
     submitterIsFinancialManager: false,
     reimbursementNumber: refNumber,

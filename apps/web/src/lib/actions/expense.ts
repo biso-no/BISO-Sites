@@ -74,6 +74,7 @@ export async function getExpenseById(expenseId: string) {
         "prepayment_amount",
         "status",
         "invoice_id",
+        "submitter_is_financial_manager",
         "userId",
         "eventName",
         "expenseAttachments.*",

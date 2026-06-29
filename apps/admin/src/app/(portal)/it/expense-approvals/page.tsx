@@ -40,6 +40,9 @@ export default async function ExpenseApprovalIssuesPage() {
             resolve: t("expenseApprovals.resolve"),
             resolveError: t("expenseApprovals.resolveError"),
             resolveSuccess: t("expenseApprovals.resolveSuccess"),
+            resend: t("expenseApprovals.resend"),
+            resendError: t("expenseApprovals.resendError"),
+            resendSuccess: t("expenseApprovals.resendSuccess"),
             statusOpen: t("expenseApprovals.status.open"),
             statusResolved: t("expenseApprovals.status.resolved"),
           }}

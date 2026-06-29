@@ -307,7 +307,10 @@
       "resolvedBy": "Resolved by {who}",
       "resolve": "Mark resolved",
       "resolveSuccess": "Issue marked as resolved",
-      "resolveError": "Could not mark the issue as resolved"
+      "resolveError": "Could not mark the issue as resolved",
+      "resend": "Resend notification",
+      "resendSuccess": "Approval notification re-sent",
+      "resendError": "Could not resend the approval notification"
     }
   },
   "dashboard": {

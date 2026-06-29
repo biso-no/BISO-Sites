@@ -307,7 +307,10 @@
       "resolvedBy": "Løst av {who}",
       "resolve": "Marker som løst",
       "resolveSuccess": "Avviket er markert som løst",
-      "resolveError": "Kunne ikke markere avviket som løst"
+      "resolveError": "Kunne ikke markere avviket som løst",
+      "resend": "Send varsel på nytt",
+      "resendSuccess": "Godkjenningsvarsel sendt på nytt",
+      "resendError": "Kunne ikke sende godkjenningsvarselet på nytt"
     }
   },
   "dashboard": {

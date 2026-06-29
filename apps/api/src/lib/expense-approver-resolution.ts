@@ -39,6 +39,8 @@ export interface ApproverResolution {
 
 interface ResolveInput {
   campusId: string;
+  /** Department id ($id) stored on the expense — drives the Ledelsen Oslo special-case. */
+  departmentId: string | null;
   departmentName: string | null;
   // Self-declared by the submitter (Oslo only), and honored as declared. It can't
   // be verified server-side: members submit reimbursements from personal email
@@ -92,6 +94,7 @@ export async function resolveExpenseApprovers(
 ): Promise<ApproverResolution> {
   const plan = getCampusApprovalPlan({
     campusId: input.campusId,
+    departmentId: input.departmentId ?? undefined,
     submitterIsFinancialManager: input.submitterIsFinancialManager,
   });
 

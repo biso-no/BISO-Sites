@@ -263,6 +263,7 @@ export async function POST(req: NextRequest) {
       await createApprovalChain({
         expenseId: expense.$id,
         campusId: fetchedExpense.campus,
+        departmentId: fetchedExpense.department ?? null,
         departmentName: fetchedExpense.departmentRel?.Name ?? null,
         submitterIsFinancialManager: Boolean(
           expenseData.submitter_is_financial_manager

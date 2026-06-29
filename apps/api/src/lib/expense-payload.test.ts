@@ -40,8 +40,10 @@ describe("expense payload helpers", () => {
     expect(row.expenseAttachments).toEqual([
       {
         amount: 199.5,
+        cost_type: "",
         date: "2026-04-28",
         description: "Lunch receipt",
+        sort_order: 0,
         type: "image/jpeg",
         url: "file-id",
       },

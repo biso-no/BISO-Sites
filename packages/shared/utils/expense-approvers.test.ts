@@ -23,6 +23,33 @@ describe("getCampusApprovalPlan", () => {
     expect(plan[0]).toEqual({ kind: "department", role: "manager" });
   });
 
+  it("plans Ledelsen Oslo (department 2) as controller-only", () => {
+    expect(getCampusApprovalPlan({ campusId: "1", departmentId: "2" })).toEqual(
+      [{ kind: "fixed", role: "controller", email: "controller.oslo@biso.no" }]
+    );
+  });
+
+  it("ignores the finance-manager toggle for Ledelsen Oslo", () => {
+    expect(
+      getCampusApprovalPlan({
+        campusId: "1",
+        departmentId: "2",
+        submitterIsFinancialManager: true,
+      })
+    ).toEqual([
+      { kind: "fixed", role: "controller", email: "controller.oslo@biso.no" },
+    ]);
+  });
+
+  it("keeps the department step for other Oslo departments", () => {
+    expect(getCampusApprovalPlan({ campusId: "1", departmentId: "7" })).toEqual(
+      [
+        { kind: "department", role: "finance" },
+        { kind: "fixed", role: "controller", email: "controller.oslo@biso.no" },
+      ]
+    );
+  });
+
   it("plans other campuses as controller-only", () => {
     expect(getCampusApprovalPlan({ campusId: "2" })).toEqual([
       { kind: "fixed", role: "controller", email: "controller.bergen@biso.no" },
@@ -32,7 +59,7 @@ describe("getCampusApprovalPlan", () => {
     });
   });
 
-  it("plans national as simen", () => {
+  it("plans national as the fixed national approver", () => {
     expect(getCampusApprovalPlan({ campusId: "5" })).toEqual([
       { kind: "fixed", role: "national", email: NATIONAL_APPROVER_EMAIL },
     ]);
