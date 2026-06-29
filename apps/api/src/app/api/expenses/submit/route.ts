@@ -7,6 +7,7 @@ import { isFeatureEnabled } from "@repo/shared/utils/feature-flags-server";
 import { type NextRequest, NextResponse } from "next/server";
 import { createAuthenticatedClient } from "@/lib/auth";
 import { applyCorsHeaders, corsPreflightResponse } from "@/lib/cors";
+import { createApprovalChain } from "@/lib/expense-approval";
 import {
   buildExpenseRowInput,
   type ExpenseRowInput,
@@ -94,6 +95,23 @@ async function saveDraftBeforeSubmission(
 type ExpenseStatusUpdateRow = Models.Row & { status: ExpensesStatus };
 
 /**
+ * True when an Appwrite write failed because a unique constraint (e.g. the
+ * approval chain's unique (expense_id, step) index) already holds the row —
+ * i.e. a concurrent submit already created the chain.
+ */
+function isRowConflictError(error: unknown): boolean {
+  if (typeof error !== "object" || error === null) {
+    return false;
+  }
+  const { code, type } = error as { code?: unknown; type?: unknown };
+  return (
+    code === 409 ||
+    type === "row_already_exists" ||
+    type === "document_already_exists"
+  );
+}
+
+/**
  * Generates a 5-digit reimbursement number from the sequence.
  * Base is 10000, sequence is added to the last digits.
  * E.g., sequence 80 -> 10080, sequence 150 -> 10150
@@ -112,6 +130,32 @@ function formatDate(date: Date): string {
     month: "2-digit",
     year: "numeric",
   });
+}
+
+/** Profile with every field required for submission present (narrowed). */
+type CompleteProfile = Users & {
+  bank_account: string;
+  email: string;
+  name: string;
+  phone: string;
+};
+
+/** Returns the names of the profile fields required for submission that are unset. */
+function findMissingProfileFields(profile: Users): string[] {
+  const required: [keyof Users, string][] = [
+    ["name", "name"],
+    ["phone", "phone"],
+    ["email", "email"],
+    ["bank_account", "bank_account"],
+  ];
+  return required.filter(([key]) => !profile[key]).map(([, label]) => label);
+}
+
+/** Type guard narrowing a profile once all submission-required fields are set. */
+function isProfileComplete(profile: Users): profile is CompleteProfile {
+  return Boolean(
+    profile.name && profile.phone && profile.email && profile.bank_account
+  );
 }
 
 export async function POST(req: NextRequest) {
@@ -218,27 +262,68 @@ export async function POST(req: NextRequest) {
     );
     const fullAddress = addressParts.join(", ") || "Ikke oppgitt";
 
-    if (
-      !(profile.name && profile.phone && profile.email && profile.bank_account)
-    ) {
-      const missingFields: string[] = [];
-      if (!profile.name) {
-        missingFields.push("name");
-      }
-      if (!profile.phone) {
-        missingFields.push("phone");
-      }
-      if (!profile.email) {
-        missingFields.push("email");
-      }
-      if (!profile.bank_account) {
-        missingFields.push("bank_account");
-      }
+    if (!isProfileComplete(profile)) {
       return applyCorsHeaders(
         NextResponse.json({
           success: false,
           error: "Missing required fields: ",
-          missingFields: missingFields.join(", "),
+          missingFields: findMissingProfileFields(profile).join(", "),
+        }),
+        origin
+      );
+    }
+
+    // New flow: route through Teams/Outlook approval + direct ledger posting
+    // instead of emailing accounting. The PDF + ledger posting happen after the
+    // final approval (see post-pending).
+    if (await isFeatureEnabled("expenses_ledger_posting")) {
+      // Exactly-once chain creation. The `expense_approvals` table has a UNIQUE
+      // index on (expense_id, step), so if two submits of the same draft race past
+      // the draft-status check above, only the first creates the chain; the second's
+      // step-1 insert fails with a 409 row conflict. We surface that as
+      // "already submitting" rather than creating a duplicate chain — no lock column
+      // needed (the database constraint is the claim).
+      try {
+        await createApprovalChain({
+          expenseId: expense.$id,
+          campusId: fetchedExpense.campus,
+          departmentId: fetchedExpense.department ?? null,
+          departmentName: fetchedExpense.departmentRel?.Name ?? null,
+          submitterIsFinancialManager: Boolean(
+            expenseData.submitter_is_financial_manager
+          ),
+          reimbursementNumber,
+          submitterName: profile.name,
+          departmentLabel:
+            fetchedExpense.departmentRel?.Name ?? fetchedExpense.department,
+          campusLabel: fetchedExpense.campusRel?.name ?? fetchedExpense.campus,
+          total: fetchedExpense.total,
+          currency: "NOK",
+          description: fetchedExpense.description ?? "",
+        });
+      } catch (error) {
+        if (isRowConflictError(error)) {
+          return applyCorsHeaders(
+            NextResponse.json(
+              {
+                success: false,
+                error: "This expense is already being submitted.",
+              },
+              { status: 409 }
+            ),
+            origin
+          );
+        }
+        throw error;
+      }
+
+      // createApprovalChain already transitioned the expense to `pending` (before
+      // notifying), so there's no separate status update to fail here.
+      return applyCorsHeaders(
+        NextResponse.json({
+          success: true,
+          fetchedExpense,
+          reimbursementNumber,
         }),
         origin
       );

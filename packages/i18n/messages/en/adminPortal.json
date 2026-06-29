@@ -223,7 +223,8 @@
       "tabs": {
         "users": "Users",
         "audit": "Department audit",
-        "dataHealth": "24SO data health"
+        "dataHealth": "24SO data health",
+        "expenseApprovals": "Approval issues"
       }
     },
     "audit": {
@@ -285,6 +286,31 @@
         "duplicateName": "Duplicate name",
         "activeClosed": "Active but marked nedlagt"
       }
+    },
+    "expenseApprovals": {
+      "title": "Reimbursement approval issues",
+      "description": "Reimbursements where a department approver couldn't be resolved. Fix the user's department in M365, then mark the issue resolved.",
+      "empty": "No approval issues",
+      "emptyDescription": "Every reimbursement found an approver.",
+      "column": {
+        "department": "Department",
+        "campus": "Campus",
+        "role": "Sought role",
+        "reason": "Reason",
+        "created": "Created",
+        "status": "Status"
+      },
+      "status": {
+        "open": "Open",
+        "resolved": "Resolved"
+      },
+      "resolvedBy": "Resolved by {who}",
+      "resolve": "Mark resolved",
+      "resolveSuccess": "Issue marked as resolved",
+      "resolveError": "Could not mark the issue as resolved",
+      "resend": "Resend notification",
+      "resendSuccess": "Approval notification re-sent",
+      "resendError": "Could not resend the approval notification"
     }
   },
   "dashboard": {

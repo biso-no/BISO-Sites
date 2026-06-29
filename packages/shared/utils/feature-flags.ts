@@ -50,6 +50,17 @@ export const FEATURE_FLAGS = [
     defaultEnabled: true,
   },
   {
+    key: "expenses_ledger_posting",
+    group: "expenses",
+    title: "Direct ledger posting (24SO + Teams approval)",
+    description:
+      "Route submitted reimbursements through a Microsoft Teams/Outlook approval " +
+      "and post them straight to the 24SevenOffice ledger instead of emailing " +
+      "accounting. Off by default until staging E2E — when off, submit keeps the " +
+      "email-to-accounting behavior.",
+    defaultEnabled: false,
+  },
+  {
     key: "payments_vipps",
     group: "payments",
     title: "Vipps checkout",

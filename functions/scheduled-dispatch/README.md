@@ -15,6 +15,7 @@ It currently drives:
 | `TICKSTER_EVENTS_SYNC_URL` (optional) | mirrors published Tickster events into the `events` table | `apps/api` → `POST /api/tickster/events/sync` |
 | `DEPARTURES_SYNC_URL` (optional) | refreshes Entur departures | `apps/api` → `POST /api/departures/sync` |
 | `RESERVATIONS_CLEANUP_URL` (optional) | deletes expired webshop cart reservations so held stock is released | `apps/web` → `POST /api/cron/cleanup-reservations` |
+| `EXPENSES_POST_PENDING_URL` (optional) | posts approved reimbursements to the 24SevenOffice ledger (inert unless `expenses_ledger_posting` is on) | `apps/api` → `POST /api/expenses/post-pending` |
 
 Only configured URLs are pinged; leave the optional ones unset to skip them. The
 `*/5 * * * *` schedule (every 5 min) keeps announcements punctual and clears the

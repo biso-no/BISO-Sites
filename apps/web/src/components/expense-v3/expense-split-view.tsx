@@ -6,6 +6,7 @@ import type {
   Expenses,
   Users,
 } from "@repo/api/types/appwrite";
+import { defaultCostTypeSlugForCategory } from "@repo/shared/utils/expense-cost-types";
 import { Button } from "@repo/ui/components/ui/button";
 import { Combobox } from "@repo/ui/components/ui/combobox";
 import {
@@ -264,6 +265,7 @@ type InitialExpenseDraft = Pick<
   | "department"
   | "description"
   | "expenseAttachments"
+  | "submitter_is_financial_manager"
   | "total"
 >;
 
@@ -305,6 +307,9 @@ function buildReceiptFromAttachment(
       : "",
     confidence: 1,
     currency: "NOK",
+    // Restore the saved cost type so resuming a draft keeps the chosen GL
+    // mapping instead of falling back to the default on the next save/submit.
+    costType: attachment.cost_type ?? undefined,
   };
 }
 
@@ -458,6 +463,9 @@ export function ExpenseSplitView({
       departmentName: department?.Name ?? "",
     });
     store.setDescription(initialDraft.description ?? "");
+    store.setSubmitterIsFinancialManager(
+      Boolean(initialDraft.submitter_is_financial_manager)
+    );
 
     for (const receipt of initialDraft.expenseAttachments
       .map(buildReceiptFromAttachment)
@@ -475,6 +483,7 @@ export function ExpenseSplitView({
     store.setDescription,
     store.setExpenseId,
     store.setProfile,
+    store.setSubmitterIsFinancialManager,
   ]);
 
   // Process File Logic
@@ -670,12 +679,16 @@ export function ExpenseSplitView({
     total: store.totalAmount(),
     prepayment_amount: 0,
     eventName: "",
-    expenseAttachments: store.receipts.map((receipt) => ({
+    submitter_is_financial_manager: store.submitterIsFinancialManager,
+    expenseAttachments: store.receipts.map((receipt, index) => ({
       date: receipt.date,
       url: receipt.fileId,
       amount: receipt.amount,
       description: receipt.description,
       type: receipt.fileType,
+      cost_type:
+        receipt.costType ?? defaultCostTypeSlugForCategory(receipt.category),
+      sort_order: index,
     })),
   });
 
@@ -869,11 +882,15 @@ export function ExpenseSplitView({
             onSaveDraft={handleSaveDraft}
             onSelect={store.setSelectedReceiptId}
             onSubmit={handleSubmit}
+            onSubmitterIsFinancialManagerChange={
+              store.setSubmitterIsFinancialManager
+            }
             onUpdate={(id, updates) => store.updateReceipt(id, updates)}
             receipts={store.receipts}
             selectedCampusId={store.selectedCampusId}
             selectedDepartmentId={store.selectedDepartmentId}
             selectedId={store.selectedReceiptId}
+            submitterIsFinancialManager={store.submitterIsFinancialManager}
             totalAmount={store.totalAmount()}
             userProfile={store.profile}
           />

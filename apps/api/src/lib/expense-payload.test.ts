@@ -40,12 +40,27 @@ describe("expense payload helpers", () => {
     expect(row.expenseAttachments).toEqual([
       {
         amount: 199.5,
+        cost_type: "other",
         date: "2026-04-28",
         description: "Lunch receipt",
+        sort_order: 0,
         type: "image/jpeg",
         url: "file-id",
       },
     ]);
+  });
+
+  it("normalizes an empty cost_type to the 'other' slug", () => {
+    const payload = parseExpensePayload({
+      bank_account: "1234 56 78901",
+      campus: "oslo",
+      department: "marketing",
+      expenseAttachments: [
+        { amount: "50", cost_type: "", type: "application/pdf", url: "f1" },
+      ],
+      total: "50",
+    });
+    expect(payload?.expenseAttachments?.[0]?.cost_type).toBe("other");
   });
 
   it("rejects payloads missing fields required by the expense table", () => {

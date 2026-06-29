@@ -515,6 +515,27 @@ export class GraphUserService {
   }
 
   /**
+   * Finds all users whose `department` attribute matches `department` exactly.
+   * Used to resolve expense approvers (the department's financial manager /
+   * manager / deputy) from BISO's curated user→department mapping.
+   */
+  async findUsersByDepartment(department: string): Promise<GraphUser[]> {
+    const value = escapeODataString(department.trim());
+    if (!value) {
+      return [];
+    }
+
+    const response = (await this.client
+      .api("/users")
+      .select(USER_SELECT.join(","))
+      .filter(`department eq '${value}'`)
+      .top(999)
+      .get()) as { value: Record<string, unknown>[] };
+
+    return response.value.map((user) => toGraphUser(user));
+  }
+
+  /**
    * List every directory user, following Graph pagination (@odata.nextLink) so
    * the full tenant is returned rather than a single capped page. Applies the
    * same allowed-domain / licensed-only filtering as `searchUsers`.

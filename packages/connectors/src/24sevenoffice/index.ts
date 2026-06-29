@@ -48,11 +48,22 @@ export {
 export { getMembershipProducts, getProducts } from "./products";
 // Finago REST API
 export {
+  buildExpenseTransactionInput,
+  type BuildExpenseTransactionParams,
   DEPARTMENT_DIMENSION_TYPE,
   type DimensionElement,
+  type ExpenseReceiptLine,
   getDepartments,
+  type LedgerAccount,
+  listAccounts,
+  listTaxes,
+  postExpenseTransaction,
+  type PostExpenseTransactionParams,
   postShopTransaction,
   type ShopTransactionParams,
+  type TaxCode,
+  uploadDocument,
+  type UploadDocumentResult,
 } from "./rest";
 // Customer sync function
 export { hasMembershipProduct, syncMembershipTo24SO } from "./sync";

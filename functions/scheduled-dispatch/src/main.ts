@@ -19,8 +19,9 @@
  * the Errors tab and returns a clean response instead of an opaque crash.
  *
  * The overall execution time limit is the function's `timeout` setting, managed
- * in the Appwrite console — NOT controlled here. Keep it comfortably above
- * CRON_TIMEOUT_MS.
+ * in the Appwrite console — NOT controlled here. Pings run concurrently, so keep it
+ * comfortably above the LARGEST per-target timeout (e.g. the 300s ledger poster),
+ * not just CRON_TIMEOUT_MS.
  *
  * Required env vars (set on the function in the Appwrite console):
  *   CRON_SECRET                 shared secret sent to (and checked by) the endpoints
@@ -30,7 +31,11 @@
  *   TICKSTER_EVENTS_SYNC_URL    e.g. https://api.biso.no/api/tickster/events/sync
  *   DEPARTURES_SYNC_URL         e.g. https://api.biso.no/api/departures/sync
  *   RESERVATIONS_CLEANUP_URL    e.g. https://biso.no/api/cron/cleanup-reservations
- *   CRON_TIMEOUT_MS             per-request timeout (default 30000)
+ *   EXPENSES_POST_PENDING_URL   e.g. https://api.biso.no/api/expenses/post-pending
+ *                               (defaults to a 300s timeout — the route's cap)
+ *   CRON_TIMEOUT_MS             default per-request timeout (default 30000)
+ *   <NAME>_TIMEOUT_MS           per-target timeout override, e.g.
+ *                               EXPENSES_POST_PENDING_URL_TIMEOUT_MS
  *
  * Note: every target authenticates against CRON_SECRET (admin, web, and both
  * apps/api syncs), so set the same CRON_SECRET on each app. The api syncs still
@@ -51,7 +56,21 @@ const TARGET_ENV_VARS = [
   "TICKSTER_EVENTS_SYNC_URL",
   "DEPARTURES_SYNC_URL",
   "RESERVATIONS_CLEANUP_URL",
+  "EXPENSES_POST_PENDING_URL",
 ] as const;
+
+type TargetName = (typeof TARGET_ENV_VARS)[number];
+
+/**
+ * Per-target timeout defaults (ms). Most pings finish quickly, but ledger posting
+ * runs far longer: `/api/expenses/post-pending` allows up to 300s and 24SO
+ * `uploadDocument` polls ~60s per expense, so it gets a generous default. Override
+ * any target with `<ENV_VAR_NAME>_TIMEOUT_MS`. The function's overall `timeout`
+ * (Appwrite console) must be >= the largest per-target timeout.
+ */
+const TARGET_TIMEOUT_DEFAULTS: Partial<Record<TargetName, number>> = {
+  EXPENSES_POST_PENDING_URL: 300_000,
+};
 
 type LogFn = (...messages: unknown[]) => void;
 
@@ -74,6 +93,7 @@ interface AppwriteContext {
 
 interface Target {
   name: string;
+  timeoutMs: number;
   url: string;
 }
 
@@ -119,14 +139,33 @@ function resolveTimeoutMs(): number {
   );
 }
 
-/** Read the configured endpoint URLs from the environment. */
-function collectTargets(): { skipped: string[]; targets: Target[] } {
+/**
+ * Per-target timeout: an explicit `<NAME>_TIMEOUT_MS` override wins, then the
+ * built-in default for that target, then the global fallback (CRON_TIMEOUT_MS).
+ */
+function resolveTargetTimeoutMs(name: TargetName, fallbackMs: number): number {
+  const override = Number.parseInt(process.env[`${name}_TIMEOUT_MS`] ?? "", 10);
+  if (override > 0) {
+    return override;
+  }
+  return TARGET_TIMEOUT_DEFAULTS[name] ?? fallbackMs;
+}
+
+/** Read the configured endpoint URLs (and their timeouts) from the environment. */
+function collectTargets(fallbackMs: number): {
+  skipped: string[];
+  targets: Target[];
+} {
   const targets: Target[] = [];
   const skipped: string[] = [];
   for (const name of TARGET_ENV_VARS) {
     const url = process.env[name];
     if (typeof url === "string" && url.length > 0) {
-      targets.push({ name, url });
+      targets.push({
+        name,
+        url,
+        timeoutMs: resolveTargetTimeoutMs(name, fallbackMs),
+      });
     } else {
       skipped.push(name);
     }
@@ -152,14 +191,10 @@ function authorizeHttpTrigger(
   return false;
 }
 
-async function ping(
-  target: Target,
-  secret: string,
-  timeoutMs: number
-): Promise<PingResult> {
+async function ping(target: Target, secret: string): Promise<PingResult> {
   const startedAt = Date.now();
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  const timer = setTimeout(() => controller.abort(), target.timeoutMs);
   try {
     const response = await fetch(target.url, {
       method: "POST",
@@ -180,7 +215,7 @@ async function ping(
       name: target.name,
       url: target.url,
       ok: false,
-      error: describePingError(err, timeoutMs),
+      error: describePingError(err, target.timeoutMs),
       durationMs: Date.now() - startedAt,
     };
   } finally {
@@ -240,10 +275,10 @@ export default async ({ req, res, log, error }: AppwriteContext) => {
       return res.json({ ok: false, error: "Unauthorized" }, 401);
     }
 
-    const timeoutMs = resolveTimeoutMs();
-    const { targets, skipped } = collectTargets();
+    const fallbackTimeoutMs = resolveTimeoutMs();
+    const { targets, skipped } = collectTargets(fallbackTimeoutMs);
     log(
-      `${LOG_TAG} config secretSet=true timeoutMs=${timeoutMs} configured=[${targets.map((t) => t.name).join(", ")}] skipped=[${skipped.join(", ")}]`
+      `${LOG_TAG} config secretSet=true fallbackTimeoutMs=${fallbackTimeoutMs} configured=[${targets.map((t) => `${t.name}@${t.timeoutMs}ms`).join(", ")}] skipped=[${skipped.join(", ")}]`
     );
 
     if (targets.length === 0) {
@@ -258,7 +293,7 @@ export default async ({ req, res, log, error }: AppwriteContext) => {
     // Independent, idempotent endpoints — fire them concurrently so the run's
     // wall-clock is the slowest single request, not the sum of all of them.
     const results = await Promise.all(
-      targets.map((target) => ping(target, secret, timeoutMs))
+      targets.map((target) => ping(target, secret))
     );
     logResults(results, log, error);
 

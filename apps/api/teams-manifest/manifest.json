@@ -1,0 +1,43 @@
+{
+  "$schema": "https://developer.microsoft.com/en-us/json-schemas/teams/v1.16/MicrosoftTeams.schema.json",
+  "manifestVersion": "1.16",
+  "version": "1.0.0",
+  "id": "287d6b99-0b85-49d0-afa2-c75920bb5f9a",
+  "developer": {
+    "name": "BI Student Organisation",
+    "websiteUrl": "https://biso.no",
+    "privacyUrl": "https://biso.no/privacy",
+    "termsOfUseUrl": "https://biso.no/terms"
+  },
+  "name": {
+    "short": "BISO Expense Approvals",
+    "full": "BISO Expense Approvals"
+  },
+  "description": {
+    "short": "Approve BISO reimbursements in Teams",
+    "full": "Receive and approve or reject BISO expense reimbursements directly in Microsoft Teams."
+  },
+  "icons": {
+    "color": "color.png",
+    "outline": "outline.png"
+  },
+  "accentColor": "#0B5FFF",
+  "bots": [
+    {
+      "botId": "62b0ae22-d882-4516-ab5f-37de1b5f7de8",
+      "scopes": [
+        "personal"
+      ],
+      "isNotificationOnly": false,
+      "supportsFiles": false
+    }
+  ],
+  "permissions": [
+    "identity",
+    "messageTeamMembers"
+  ],
+  "validDomains": [
+    "api.biso.no",
+    "web.biso.no"
+  ]
+}

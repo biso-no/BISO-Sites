@@ -7,7 +7,9 @@
 
 import { CAMPUS_DEPARTMENT_IDS } from "../invoice";
 import { getAccessToken } from "./auth";
+import { finago } from "./client";
 import { DEPARTMENT_DIMENSION_TYPE } from "./departments";
+import type { components } from "./schema";
 
 const BASE_URL = "https://rest.api.24sevenoffice.com/v1";
 
@@ -138,4 +140,187 @@ export async function postShopTransaction(
   });
 
   return result.transactionId;
+}
+
+// ---------------------------------------------------------------------------
+// Expense / reimbursement transactions
+// ---------------------------------------------------------------------------
+
+const COMMENT_MAX_LENGTH = 75;
+const CENTS = 100;
+
+type TransactionInputT = components["schemas"]["TransactionInput"];
+type TransactionLineT = components["schemas"]["TransactionLine"];
+type DimensionT = NonNullable<TransactionLineT["dimensions"]>[number];
+
+function round2(value: number): number {
+  return Math.round(value * CENTS) / CENTS;
+}
+
+/** A single receipt to debit to its resolved cost account. */
+export interface ExpenseReceiptLine {
+  accountNumber: number;
+  /** Positive gross amount in NOK. */
+  amount: number;
+  /** Tax code number (see GET /taxes); defaults to 0 (no tax). */
+  taxCode?: number;
+  comment?: string;
+}
+
+export interface BuildExpenseTransactionParams {
+  transactionTypeNumber: number;
+  /** Supplier-debt account credited for the total owed (e.g. 2400). */
+  supplierAccountNumber: number;
+  date: string;
+  comment?: string;
+  documentId?: number;
+  /** Recipient bank account used for the bank payout. */
+  bankAccount: string;
+  dueDate?: string;
+  invoiceNumber?: string;
+  receipts: ExpenseReceiptLine[];
+  /** Dimensions (department + campus) applied to every line. */
+  dimensions?: DimensionT[];
+}
+
+/**
+ * Pure builder for a reimbursement transaction: each receipt is a debit on its
+ * cost account, and a single credit to the supplier-debt account carries the
+ * recipient bank account for payout. Lines always balance to zero.
+ */
+export function buildExpenseTransactionInput(
+  params: BuildExpenseTransactionParams
+): TransactionInputT {
+  if (params.receipts.length === 0) {
+    throw new Error("[Finago] expense transaction requires at least one receipt");
+  }
+
+  const dimensions =
+    params.dimensions && params.dimensions.length > 0
+      ? params.dimensions
+      : undefined;
+
+  const debitLines: TransactionLineT[] = params.receipts.map((receipt) => ({
+    accountNumber: receipt.accountNumber,
+    amount: round2(receipt.amount),
+    tax: { number: receipt.taxCode ?? 0 },
+    comment: receipt.comment?.slice(0, COMMENT_MAX_LENGTH),
+    dimensions,
+  }));
+
+  const total = round2(
+    debitLines.reduce((sum, line) => sum + line.amount, 0)
+  );
+
+  const creditLine: TransactionLineT = {
+    accountNumber: params.supplierAccountNumber,
+    amount: -total,
+    tax: { number: 0 },
+    dimensions,
+    invoice: {
+      bankAccount: params.bankAccount,
+      dueDate: params.dueDate,
+      number: params.invoiceNumber,
+    },
+  };
+
+  return {
+    transactionTypeNumber: params.transactionTypeNumber,
+    date: params.date,
+    comment: params.comment?.slice(0, COMMENT_MAX_LENGTH),
+    documentId: params.documentId,
+    lines: [...debitLines, creditLine],
+  };
+}
+
+export interface PostExpenseTransactionParams {
+  date: string;
+  comment?: string;
+  documentId?: number;
+  bankAccount: string;
+  dueDate?: string;
+  invoiceNumber?: string;
+  receipts: ExpenseReceiptLine[];
+  /** Campus id ("1".."5") for the campus dimension. */
+  campusId?: string | null;
+  /** The department's 24SevenOffice dimension value (departments.Id). */
+  departmentDimensionValue?: string | null;
+}
+
+/**
+ * Resolves the department + campus dimensions. Dimension type ids are
+ * env-overridable because they are tenant-specific (verify against GET
+ * /dimensions): department defaults to DEPARTMENT_DIMENSION_TYPE; the campus
+ * dimension is only added when TFSO_CAMPUS_DIMENSION_TYPE is set.
+ */
+function buildExpenseDimensions(
+  campusId: string | null | undefined,
+  departmentDimensionValue: string | null | undefined
+): DimensionT[] {
+  const dimensions: DimensionT[] = [];
+
+  const departmentType =
+    Number(process.env.TFSO_DEPARTMENT_DIMENSION_TYPE) ||
+    DEPARTMENT_DIMENSION_TYPE;
+  if (departmentDimensionValue) {
+    dimensions.push({
+      dimensionType: departmentType,
+      value: String(departmentDimensionValue),
+    });
+  }
+
+  const campusType = Number(process.env.TFSO_CAMPUS_DIMENSION_TYPE);
+  if (campusType && campusId) {
+    dimensions.push({ dimensionType: campusType, value: String(campusId) });
+  }
+
+  return dimensions;
+}
+
+/**
+ * Posts a reimbursement to the general ledger and returns the transaction id.
+ * Reads `TFSO_EXPENSE_TRANSACTION_TYPE_NUMBER` and `TFSO_SUPPLIER_DEBT_ACCOUNT`.
+ */
+export async function postExpenseTransaction(
+  params: PostExpenseTransactionParams
+): Promise<string> {
+  const transactionTypeNumber = Number(
+    process.env.TFSO_EXPENSE_TRANSACTION_TYPE_NUMBER
+  );
+  const supplierAccountNumber = Number(process.env.TFSO_SUPPLIER_DEBT_ACCOUNT);
+
+  if (!(transactionTypeNumber && supplierAccountNumber)) {
+    throw new Error(
+      "[Finago] TFSO_EXPENSE_TRANSACTION_TYPE_NUMBER and TFSO_SUPPLIER_DEBT_ACCOUNT must be set"
+    );
+  }
+
+  const input = buildExpenseTransactionInput({
+    transactionTypeNumber,
+    supplierAccountNumber,
+    date: params.date,
+    comment: params.comment,
+    documentId: params.documentId,
+    bankAccount: params.bankAccount,
+    dueDate: params.dueDate,
+    invoiceNumber: params.invoiceNumber,
+    receipts: params.receipts,
+    dimensions: buildExpenseDimensions(
+      params.campusId,
+      params.departmentDimensionValue
+    ),
+  });
+
+  const { data, error } = await finago.POST("/transactions", {
+    body: input,
+    params: { header: { Authorization: "" } },
+  });
+
+  if (error || !data) {
+    throw new Error(
+      `[Finago] post expense transaction failed: ${JSON.stringify(error)}`
+    );
+  }
+
+  return data.transactionId;
 }

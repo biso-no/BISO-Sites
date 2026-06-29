@@ -16,8 +16,6 @@ const CATEGORY_FOLDER_MAP: Record<DocumentsCategory, string> = {
   [DocumentsCategory.CODE_OF_CONDUCT]: "Code of Conduct",
   [DocumentsCategory.BUSINESS_REGULATIONS]: "Business Regulations",
   [DocumentsCategory.COMMUNICATION_GUIDELINES]: "Communication Guidelines",
-  [DocumentsCategory.AUTHORIZATION_MATRIX]: "Authorization Matrix",
-  [DocumentsCategory.TARGET_DOCUMENTS]: "Target Documents",
 };
 
 const LANGUAGE_SUBFOLDER: Record<DocumentLanguage, string> = {
