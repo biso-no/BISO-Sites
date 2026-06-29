@@ -24,6 +24,16 @@ import { resolveExpenseApprovers } from "./expense-approver-resolution";
 
 const TOKEN_TTL_DAYS = 14;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
+// `expense_approval_issues.reason` is capped at 500 chars in the schema; cap here
+// so a long Graph/Mail error can't make the remediation createRow throw and
+// swallow the recovery path.
+const MAX_ISSUE_REASON_CHARS = 500;
+
+function truncateReason(reason: string): string {
+  return reason.length > MAX_ISSUE_REASON_CHARS
+    ? `${reason.slice(0, MAX_ISSUE_REASON_CHARS - 3)}...`
+    : reason;
+}
 
 function webBaseUrl(): string {
   return (
@@ -180,12 +190,15 @@ export async function createApprovalChain(
       campus_id: issue.campusId,
       department: issue.department,
       role_sought: issue.roleSought,
-      reason: issue.reason,
+      reason: truncateReason(issue.reason),
       status: "open",
     });
   }
 
   if (steps.length === 0) {
+    await db.updateRow("app", "expense", context.expenseId, {
+      status: ExpensesStatus.PENDING,
+    });
     return { stepsCreated: 0, notified: false };
   }
 
@@ -227,6 +240,16 @@ export async function createApprovalChain(
 
   const first = created.find((row) => row.step === 1) ?? created[0];
   const firstStep = steps.find((step) => step.step === first.step);
+
+  // Transition the expense to `pending` BEFORE notifying. The chain rows already
+  // exist (their creation was the atomic claim via the unique (expense_id, step)
+  // index), so the approval links we send always point at a submitted expense, not
+  // a draft — and the submit route no longer needs a separate post-notify status
+  // update that could fail and strand a draft with live approval links.
+  await db.updateRow("app", "expense", context.expenseId, {
+    status: ExpensesStatus.PENDING,
+  });
+
   try {
     await notifyStep(
       context,
@@ -236,14 +259,19 @@ export async function createApprovalChain(
       firstStep?.aadId ?? null
     );
   } catch (error) {
-    // The first approver is unreachable — roll back the just-created chain so the
-    // submission fails cleanly (expense stays a draft) and can be retried, rather
-    // than leaving an approval chain whose only token was never delivered.
+    // The first approver is unreachable — roll the whole submission back: delete
+    // the chain rows (which also invalidates any link already delivered) and return
+    // the expense to draft so it can be retried cleanly.
     await Promise.all(
       created.map((row) =>
         db.deleteRow("app", "expense_approvals", row.$id).catch(() => undefined)
       )
     );
+    await db
+      .updateRow("app", "expense", context.expenseId, {
+        status: ExpensesStatus.DRAFT,
+      })
+      .catch(() => undefined);
     throw error;
   }
 
@@ -707,7 +735,9 @@ async function recordNotificationIssue(
     campus_id: expense.campus,
     department: expense.departmentRel?.Name ?? expense.department,
     role_sought: stepRow.approver_role,
-    reason: `Could not notify ${stepRow.approver_email} for step ${stepRow.step} (${message}). Use resend to re-issue the approval link.`,
+    reason: truncateReason(
+      `Could not notify ${stepRow.approver_email} for step ${stepRow.step} (${message}). Use resend to re-issue the approval link.`
+    ),
     status: "open",
   });
 }

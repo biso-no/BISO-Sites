@@ -317,15 +317,8 @@ export async function POST(req: NextRequest) {
         throw error;
       }
 
-      await db.updateRow<ExpenseStatusUpdateRow>(
-        "app",
-        "expense",
-        expense.$id,
-        {
-          status: ExpensesStatus.PENDING,
-        }
-      );
-
+      // createApprovalChain already transitioned the expense to `pending` (before
+      // notifying), so there's no separate status update to fail here.
       return applyCorsHeaders(
         NextResponse.json({
           success: true,
