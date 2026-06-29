@@ -12,15 +12,15 @@
  */
 
 export interface CostTypeOption {
-  slug: string;
-  label: string;
   /** Default debit GL account number for receipts of this cost type. */
   accountNumber: number;
-  /** Tax code number (see GET /taxes); 0 = no tax. */
-  taxCode?: number | null;
+  description?: string | null;
+  label: string;
   /** OCR category this cost type is the default for. */
   ocrCategory?: string | null;
-  description?: string | null;
+  slug: string;
+  /** Tax code number (see GET /taxes); 0 = no tax. */
+  taxCode?: number | null;
 }
 
 export const DEFAULT_EXPENSE_COST_TYPES = [

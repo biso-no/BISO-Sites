@@ -42,6 +42,8 @@ describe("resolveReceiptAccount", () => {
   });
 
   it("throws on an unknown cost type", () => {
-    expect(() => resolveReceiptAccount("bogus")).toThrow("Unknown expense cost");
+    expect(() => resolveReceiptAccount("bogus")).toThrow(
+      "Unknown expense cost"
+    );
   });
 });
