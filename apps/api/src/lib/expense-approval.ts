@@ -507,20 +507,17 @@ export async function decideApproval(params: {
   // above and then apply conflicting decisions — one advancing the chain while the
   // other overwrites the step. incrementRowColumn is a server-side atomic
   // read-modify-write: only the run that takes decision_lock 0 -> 1 proceeds; any
-  // other run bails and returns the winner's outcome.
-  try {
-    const claim = await db.incrementRowColumn<ExpenseApprovals>({
-      databaseId: "app",
-      tableId: "expense_approvals",
-      rowId: row.$id,
-      column: "decision_lock",
-      value: 1,
-      max: 1,
-    });
-    if ((claim.decision_lock ?? 0) !== 1) {
-      return await concurrentDecisionResult(row.$id, refNumber);
-    }
-  } catch {
+  // other value means another request owns it, so we return its outcome. No `max`
+  // bound — a lost race is the `!== 1` branch, while any thrown error is a real
+  // failure (column not deployed, permissions, outage) that must surface.
+  const claim = await db.incrementRowColumn<ExpenseApprovals>({
+    databaseId: "app",
+    tableId: "expense_approvals",
+    rowId: row.$id,
+    column: "decision_lock",
+    value: 1,
+  });
+  if ((claim.decision_lock ?? 0) !== 1) {
     return await concurrentDecisionResult(row.$id, refNumber);
   }
 

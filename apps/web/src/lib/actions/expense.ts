@@ -3,6 +3,10 @@
 import { ID, Query } from "@repo/api";
 import { createSessionClient } from "@repo/api/server";
 import type { Expenses, ExpensesStatus } from "@repo/api/types/appwrite";
+import {
+  ALLOWED_RECEIPT_LABEL,
+  isAllowedReceiptMimeType,
+} from "@repo/shared/utils/expense-attachments";
 import { isFeatureEnabled } from "@repo/shared/utils/feature-flags-server";
 
 const APPWRITE_ENDPOINT = process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT;
@@ -126,6 +130,13 @@ export async function uploadExpenseAttachment(formData: FormData) {
       return {
         success: false,
         error: "No file provided",
+      };
+    }
+
+    if (!isAllowedReceiptMimeType(file.type)) {
+      return {
+        success: false,
+        error: `Unsupported file type. Please upload a ${ALLOWED_RECEIPT_LABEL} file.`,
       };
     }
 

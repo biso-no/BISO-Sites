@@ -820,6 +820,15 @@
           "max": 1000000
         },
         {
+          "key": "submit_lock",
+          "type": "integer",
+          "required": false,
+          "array": false,
+          "default": 0,
+          "min": 0,
+          "max": 1000000
+        },
+        {
           "key": "userId",
           "type": "string",
           "required": true,

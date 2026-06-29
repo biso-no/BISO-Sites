@@ -1,6 +1,7 @@
 "use client";
 
 import type { Campus, Users } from "@repo/api/types/appwrite";
+import { RECEIPT_FILE_ACCEPT } from "@repo/shared/utils/expense-attachments";
 import { Button } from "@repo/ui/components/ui/button";
 import { Combobox } from "@repo/ui/components/ui/combobox";
 import { ScrollArea } from "@repo/ui/components/ui/scroll-area";
@@ -439,7 +440,7 @@ export function ExpenseReport({
     <ScrollArea className="flex h-full flex-col bg-muted/50 p-4 md:p-8 dark:bg-inverted/50">
       <div>
         <input
-          accept="application/pdf,image/*"
+          accept={RECEIPT_FILE_ACCEPT}
           className="hidden"
           onChange={(e) =>
             uploadState && handleBankStatementUpload(e, uploadState.id)

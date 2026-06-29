@@ -260,23 +260,66 @@ export async function POST(req: NextRequest) {
     // instead of emailing accounting. The PDF + ledger posting happen after the
     // final approval (see post-pending).
     if (await isFeatureEnabled("expenses_ledger_posting")) {
-      await createApprovalChain({
-        expenseId: expense.$id,
-        campusId: fetchedExpense.campus,
-        departmentId: fetchedExpense.department ?? null,
-        departmentName: fetchedExpense.departmentRel?.Name ?? null,
-        submitterIsFinancialManager: Boolean(
-          expenseData.submitter_is_financial_manager
-        ),
-        reimbursementNumber,
-        submitterName: profile.name,
-        departmentLabel:
-          fetchedExpense.departmentRel?.Name ?? fetchedExpense.department,
-        campusLabel: fetchedExpense.campusRel?.name ?? fetchedExpense.campus,
-        total: fetchedExpense.total,
-        currency: "NOK",
-        description: fetchedExpense.description ?? "",
+      // Atomically claim the draft before creating the approval chain. Appwrite has
+      // no conditional update, so two concurrent submits of the same draft could
+      // both pass the draft-status check above and create duplicate approval chains.
+      // incrementRowColumn is a server-side atomic read-modify-write: only the
+      // request that takes submit_lock 0 -> 1 proceeds; a concurrent submit gets a
+      // higher value and is rejected. No `max` bound, so a real failure surfaces
+      // instead of being mistaken for a race.
+      const claim = await db.incrementRowColumn<Expenses>({
+        databaseId: "app",
+        tableId: "expense",
+        rowId: expense.$id,
+        column: "submit_lock",
+        value: 1,
       });
+      if ((claim.submit_lock ?? 0) !== 1) {
+        return applyCorsHeaders(
+          NextResponse.json(
+            {
+              success: false,
+              error: "This expense is already being submitted.",
+            },
+            { status: 409 }
+          ),
+          origin
+        );
+      }
+
+      try {
+        await createApprovalChain({
+          expenseId: expense.$id,
+          campusId: fetchedExpense.campus,
+          departmentId: fetchedExpense.department ?? null,
+          departmentName: fetchedExpense.departmentRel?.Name ?? null,
+          submitterIsFinancialManager: Boolean(
+            expenseData.submitter_is_financial_manager
+          ),
+          reimbursementNumber,
+          submitterName: profile.name,
+          departmentLabel:
+            fetchedExpense.departmentRel?.Name ?? fetchedExpense.department,
+          campusLabel: fetchedExpense.campusRel?.name ?? fetchedExpense.campus,
+          total: fetchedExpense.total,
+          currency: "NOK",
+          description: fetchedExpense.description ?? "",
+        });
+      } catch (error) {
+        // Chain creation failed (and rolled itself back). Release the claim so the
+        // submitter can retry; the expense stays a draft.
+        await db
+          .decrementRowColumn({
+            databaseId: "app",
+            tableId: "expense",
+            rowId: expense.$id,
+            column: "submit_lock",
+            value: 1,
+            min: 0,
+          })
+          .catch(() => undefined);
+        throw error;
+      }
 
       await db.updateRow<ExpenseStatusUpdateRow>(
         "app",

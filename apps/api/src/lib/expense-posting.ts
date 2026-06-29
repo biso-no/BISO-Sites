@@ -18,6 +18,7 @@ import {
 } from "@repo/connectors/24sevenoffice";
 import {
   type CostTypeOption,
+  DEFAULT_COST_TYPE_SLUG,
   resolveReceiptAccount,
 } from "@repo/shared/utils/expense-cost-types";
 import { PDFDocument } from "pdf-lib";
@@ -93,7 +94,13 @@ function buildReceiptLines(
       });
       continue;
     }
-    const resolved = resolveReceiptAccount(att.cost_type, options);
+    // Normalize empty cost types (e.g. drafts saved before the default existed)
+    // to the "Other" slug so a missing choice posts to a valid account rather
+    // than failing; a genuinely unknown non-empty slug still throws.
+    const resolved = resolveReceiptAccount(
+      att.cost_type || DEFAULT_COST_TYPE_SLUG,
+      options
+    );
     lines.push({
       accountNumber: resolved.accountNumber,
       amount,
@@ -147,8 +154,15 @@ async function mergePdf(
         width: image.width,
         height: image.height,
       });
+    } else {
+      // Uploads are restricted to PDF/PNG/JPEG, so anything else is a legacy or
+      // unexpected file. Fail the merge rather than silently posting a ledger
+      // document that's missing supporting receipts; the row is marked failed and
+      // surfaced for manual review.
+      throw new Error(
+        `Unsupported attachment type "${file.contentType}" — cannot embed it in the ledger document.`
+      );
     }
-    // Other types (e.g. webp) are skipped — they stay viewable in storage.
   }
 
   return await merged.save();
@@ -195,24 +209,20 @@ export async function postApprovedExpense(expenseId: string): Promise<void> {
   // Atomically claim the row before any 24SO work. `incrementRowColumn` is a
   // server-side atomic read-modify-write, so two overlapping dispatch runs are
   // serialized rather than racing on a read-then-write: the first claimer takes
-  // `posting_lock` 0 → 1, the next 1 → 2 (or is rejected by `max`). Only the run
-  // that observes exactly 1 owns the claim; any other value — or a thrown
-  // max-bound error — means another run already owns it, so we bail.
-  let claimedLock: number;
-  try {
-    const claimed = await db.incrementRowColumn<Expenses>({
-      databaseId: "app",
-      tableId: "expense",
-      rowId: expenseId,
-      column: "posting_lock",
-      value: 1,
-      max: 1,
-    });
-    claimedLock = claimed.posting_lock ?? 0;
-  } catch {
-    return; // lost the race — another run already claimed (hit the max bound)
-  }
-  if (claimedLock !== 1) {
+  // `posting_lock` 0 → 1, the next 1 → 2, and so on. Only the run that observes
+  // exactly 1 owns the claim; any other value means another run already owns it.
+  // We intentionally do NOT pass a `max` bound: the claim is decided by the
+  // returned value, so a lost race is a normal `!== 1` return and any thrown error
+  // is a real failure (e.g. the column isn't deployed, permissions, an Appwrite
+  // outage) that must surface so the scheduler reports the run as failed.
+  const claimed = await db.incrementRowColumn<Expenses>({
+    databaseId: "app",
+    tableId: "expense",
+    rowId: expenseId,
+    column: "posting_lock",
+    value: 1,
+  });
+  if ((claimed.posting_lock ?? 0) !== 1) {
     return; // lost the race — another run claimed first
   }
 

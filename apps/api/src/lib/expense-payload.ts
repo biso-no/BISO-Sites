@@ -1,9 +1,15 @@
 import { ExpensesStatus } from "@repo/api/types/appwrite";
+import { DEFAULT_COST_TYPE_SLUG } from "@repo/shared/utils/expense-cost-types";
 import { z } from "zod";
 
 const ExpenseAttachmentInputSchema = z.object({
   amount: z.coerce.number().finite().default(0),
-  cost_type: z.string().optional().default(""),
+  // Default to a valid slug (never ""), so an omitted cost type resolves to the
+  // "Other" GL account at posting time instead of failing the ledger post.
+  cost_type: z
+    .string()
+    .optional()
+    .transform((value) => value || DEFAULT_COST_TYPE_SLUG),
   date: z.string().optional().default(""),
   description: z.string().optional().default(""),
   sort_order: z.coerce.number().int().nonnegative().optional().default(0),

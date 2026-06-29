@@ -1,5 +1,6 @@
 "use client";
 
+import { RECEIPT_FILE_ACCEPT } from "@repo/shared/utils/expense-attachments";
 import { Button } from "@repo/ui/components/ui/button";
 import { Card } from "@repo/ui/components/ui/card";
 import { Input } from "@repo/ui/components/ui/input";
@@ -113,7 +114,7 @@ export function ReceiptWallet({
         </div>
         <div className="relative">
           <Input
-            accept="image/*,application/pdf"
+            accept={RECEIPT_FILE_ACCEPT}
             className="absolute inset-0 cursor-pointer opacity-0"
             multiple
             onChange={handleFileInput}
@@ -178,7 +179,7 @@ export function ReceiptWallet({
               onDrop={handleDrop}
             >
               <input
-                accept="image/*,application/pdf"
+                accept={RECEIPT_FILE_ACCEPT}
                 className="absolute inset-0 cursor-pointer opacity-0"
                 multiple
                 onChange={handleFileInput}

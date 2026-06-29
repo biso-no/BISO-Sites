@@ -1,3 +1,4 @@
+import { RECEIPT_FILE_ACCEPT } from "@repo/shared/utils/expense-attachments";
 import {
   DEFAULT_EXPENSE_COST_TYPES,
   defaultCostTypeSlugForCategory,
@@ -170,7 +171,7 @@ export function GenerativeReceiptPreview({
   return (
     <div className="h-full w-full p-8">
       <input
-        accept="application/pdf,image/*"
+        accept={RECEIPT_FILE_ACCEPT}
         className="hidden"
         onChange={handleBankStatementUpload}
         ref={fileInputRef}
