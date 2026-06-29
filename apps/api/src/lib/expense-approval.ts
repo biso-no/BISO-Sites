@@ -450,6 +450,47 @@ async function concurrentDecisionResult(
 }
 
 /**
+ * Re-derives the expense status from its approval chain and applies it when the
+ * expense is still `pending`. Heals a stuck expense when a step decision was
+ * recorded but the follow-up expense-status update didn't land (the idempotent
+ * retry path calls this). Never downgrades a terminal or posting status.
+ */
+async function reconcileExpenseStatus(expenseId: string): Promise<void> {
+  const { db } = await createAdminClient();
+  const expense = await db.getRow<Models.Row & { status: ExpensesStatus }>(
+    "app",
+    "expense",
+    expenseId,
+    [Query.select(["$id", "status"])]
+  );
+  if (expense.status !== ExpensesStatus.PENDING) {
+    return;
+  }
+
+  const steps = await db.listRows<ExpenseApprovals>(
+    "app",
+    "expense_approvals",
+    [Query.equal("expense_id", expenseId), Query.limit(50)]
+  );
+  if (steps.rows.length === 0) {
+    return;
+  }
+
+  let desired: ExpensesStatus | null = null;
+  if (steps.rows.some((s) => s.status === ExpenseApprovalsStatus.REJECTED)) {
+    desired = ExpensesStatus.REJECTED;
+  } else if (
+    steps.rows.every((s) => s.status === ExpenseApprovalsStatus.APPROVED)
+  ) {
+    desired = ExpensesStatus.APPROVED;
+  }
+
+  if (desired) {
+    await db.updateRow("app", "expense", expenseId, { status: desired });
+  }
+}
+
+/**
  * Records an approve/reject decision for the step identified by `rawToken`.
  * Idempotent: a step that is already decided returns its existing outcome.
  * On final approval the expense moves to `approved` (the poster picks it up);
@@ -498,6 +539,10 @@ export async function decideApproval(params: {
   const refNumber = reimbursementNumber(expense.$sequence);
 
   if (row.status !== ExpenseApprovalsStatus.PENDING) {
+    // This step is already decided. A previous request may have recorded the step
+    // decision but failed before transitioning the expense, so reconcile the
+    // expense status from the chain — this heals a stuck-pending expense on retry.
+    await reconcileExpenseStatus(row.expense_id);
     return decidedResult(row, refNumber);
   }
 

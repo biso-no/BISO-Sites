@@ -32,6 +32,11 @@ const EXPENSES_BUCKET = "expenses";
 // failure so a failed row is never silently re-posted.
 const POSTING_CLAIM_MARKER = "posting";
 
+// A posting run is bounded by the route's maxDuration (5 min). A "posting" claim
+// older than this lease therefore belongs to a crashed/timed-out run and is
+// reclaimed (surfaced as failed for manual review) rather than blocking forever.
+const STALE_POSTING_LEASE_MS = 15 * 60 * 1000;
+
 type ExpenseWithRels = Expenses & {
   departmentRel: { Id?: string; Name?: string } | null;
   campusRel: { name?: string } | null;
@@ -185,6 +190,7 @@ export async function postApprovedExpense(expenseId: string): Promise<void> {
     [
       Query.select([
         "$id",
+        "$updatedAt",
         "campus",
         "department",
         "bank_account",
@@ -203,7 +209,26 @@ export async function postApprovedExpense(expenseId: string): Promise<void> {
   );
 
   if (expense.ledger_transaction_id) {
-    return; // already posted or claimed by a concurrent run
+    if (expense.ledger_transaction_id !== POSTING_CLAIM_MARKER) {
+      return; // a real 24SO transaction id — already posted.
+    }
+    // A "posting" marker means a run claimed this row. While the claim is fresh,
+    // another run is actively posting, so skip. Once it's older than the lease, the
+    // claiming run crashed or timed out: surface the row as failed for manual review
+    // rather than leaving it stuck `approved` forever (and counted as posted) — we
+    // must NOT auto-repost, because the dead run may already have reached 24SO.
+    const claimAgeMs = Date.now() - new Date(expense.$updatedAt).getTime();
+    if (claimAgeMs < STALE_POSTING_LEASE_MS) {
+      return;
+    }
+    await db.updateRow("app", "expense", expenseId, {
+      status: ExpensesStatus.FAILED,
+    });
+    throw new Error(
+      `Stale posting claim on expense ${expenseId} (${Math.round(
+        claimAgeMs / 1000
+      )}s old) — marked failed for manual review.`
+    );
   }
 
   // Atomically claim the row before any 24SO work. `incrementRowColumn` is a

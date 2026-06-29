@@ -820,15 +820,6 @@
           "max": 1000000
         },
         {
-          "key": "submit_lock",
-          "type": "integer",
-          "required": false,
-          "array": false,
-          "default": 0,
-          "min": 0,
-          "max": 1000000
-        },
-        {
           "key": "userId",
           "type": "string",
           "required": true,
@@ -1325,7 +1316,7 @@
       "indexes": [
         {
           "key": "idx_expense_step",
-          "type": "key",
+          "type": "unique",
           "status": "available",
           "columns": ["expense_id", "step"],
           "orders": ["ASC", "ASC"]

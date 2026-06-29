@@ -95,6 +95,23 @@ async function saveDraftBeforeSubmission(
 type ExpenseStatusUpdateRow = Models.Row & { status: ExpensesStatus };
 
 /**
+ * True when an Appwrite write failed because a unique constraint (e.g. the
+ * approval chain's unique (expense_id, step) index) already holds the row —
+ * i.e. a concurrent submit already created the chain.
+ */
+function isRowConflictError(error: unknown): boolean {
+  if (typeof error !== "object" || error === null) {
+    return false;
+  }
+  const { code, type } = error as { code?: unknown; type?: unknown };
+  return (
+    code === 409 ||
+    type === "row_already_exists" ||
+    type === "document_already_exists"
+  );
+}
+
+/**
  * Generates a 5-digit reimbursement number from the sequence.
  * Base is 10000, sequence is added to the last digits.
  * E.g., sequence 80 -> 10080, sequence 150 -> 10150
@@ -260,33 +277,12 @@ export async function POST(req: NextRequest) {
     // instead of emailing accounting. The PDF + ledger posting happen after the
     // final approval (see post-pending).
     if (await isFeatureEnabled("expenses_ledger_posting")) {
-      // Atomically claim the draft before creating the approval chain. Appwrite has
-      // no conditional update, so two concurrent submits of the same draft could
-      // both pass the draft-status check above and create duplicate approval chains.
-      // incrementRowColumn is a server-side atomic read-modify-write: only the
-      // request that takes submit_lock 0 -> 1 proceeds; a concurrent submit gets a
-      // higher value and is rejected. No `max` bound, so a real failure surfaces
-      // instead of being mistaken for a race.
-      const claim = await db.incrementRowColumn<Expenses>({
-        databaseId: "app",
-        tableId: "expense",
-        rowId: expense.$id,
-        column: "submit_lock",
-        value: 1,
-      });
-      if ((claim.submit_lock ?? 0) !== 1) {
-        return applyCorsHeaders(
-          NextResponse.json(
-            {
-              success: false,
-              error: "This expense is already being submitted.",
-            },
-            { status: 409 }
-          ),
-          origin
-        );
-      }
-
+      // Exactly-once chain creation. The `expense_approvals` table has a UNIQUE
+      // index on (expense_id, step), so if two submits of the same draft race past
+      // the draft-status check above, only the first creates the chain; the second's
+      // step-1 insert fails with a 409 row conflict. We surface that as
+      // "already submitting" rather than creating a duplicate chain — no lock column
+      // needed (the database constraint is the claim).
       try {
         await createApprovalChain({
           expenseId: expense.$id,
@@ -306,18 +302,18 @@ export async function POST(req: NextRequest) {
           description: fetchedExpense.description ?? "",
         });
       } catch (error) {
-        // Chain creation failed (and rolled itself back). Release the claim so the
-        // submitter can retry; the expense stays a draft.
-        await db
-          .decrementRowColumn({
-            databaseId: "app",
-            tableId: "expense",
-            rowId: expense.$id,
-            column: "submit_lock",
-            value: 1,
-            min: 0,
-          })
-          .catch(() => undefined);
+        if (isRowConflictError(error)) {
+          return applyCorsHeaders(
+            NextResponse.json(
+              {
+                success: false,
+                error: "This expense is already being submitted.",
+              },
+              { status: 409 }
+            ),
+            origin
+          );
+        }
         throw error;
       }
 
