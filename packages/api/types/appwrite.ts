@@ -548,6 +548,7 @@ export type ExpenseApprovals = Models.Row & {
     consumed_at: string | null;
     campus_id: string | null;
     department: string | null;
+    decision_lock: number | null;
 }
 
 export type ExpenseApprovalIssues = Models.Row & {

@@ -1299,9 +1299,18 @@
           "type": "string",
           "required": false,
           "array": false,
-          "size": 20,
+          "size": 100,
           "default": null,
           "encrypt": false
+        },
+        {
+          "key": "decision_lock",
+          "type": "integer",
+          "required": false,
+          "array": false,
+          "default": 0,
+          "min": 0,
+          "max": 1000000
         }
       ],
       "indexes": [

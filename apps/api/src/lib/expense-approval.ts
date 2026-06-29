@@ -219,6 +219,7 @@ export async function createApprovalChain(
         consumed_at: null,
         campus_id: context.campusId,
         department: context.departmentName,
+        decision_lock: 0,
       }
     );
     created.push(row);
@@ -408,6 +409,46 @@ function reimbursementNumber(sequence: number | string): string {
   return String(10_000 + Number(sequence || 0)).padStart(5, "0");
 }
 
+/** Idempotent result for a step that is already decided. */
+function decidedResult(
+  row: ExpenseApprovals,
+  refNumber: string
+): DecisionResult {
+  return {
+    ok: true,
+    decision:
+      row.status === ExpenseApprovalsStatus.APPROVED ? "approved" : "rejected",
+    finalized: true,
+    expenseId: row.expense_id,
+    reimbursementNumber: refNumber,
+  };
+}
+
+/**
+ * Loser of the atomic decision claim: another request is applying (or has applied)
+ * the decision for this step. Re-read and return its outcome if it has landed,
+ * otherwise report that it is in progress — without running any side effects.
+ */
+async function concurrentDecisionResult(
+  rowId: string,
+  refNumber: string
+): Promise<DecisionResult> {
+  const { db } = await createAdminClient();
+  const fresh = await db.getRow<ExpenseApprovals>(
+    "app",
+    "expense_approvals",
+    rowId
+  );
+  if (fresh.status !== ExpenseApprovalsStatus.PENDING) {
+    return decidedResult(fresh, refNumber);
+  }
+  return {
+    ok: false,
+    error:
+      "This approval is already being processed. Please refresh in a moment.",
+  };
+}
+
 /**
  * Records an approve/reject decision for the step identified by `rawToken`.
  * Idempotent: a step that is already decided returns its existing outcome.
@@ -457,28 +498,58 @@ export async function decideApproval(params: {
   const refNumber = reimbursementNumber(expense.$sequence);
 
   if (row.status !== ExpenseApprovalsStatus.PENDING) {
-    return {
-      ok: true,
-      decision:
-        row.status === ExpenseApprovalsStatus.APPROVED
-          ? "approved"
-          : "rejected",
-      finalized: true,
-      expenseId: row.expense_id,
-      reimbursementNumber: refNumber,
-    };
+    return decidedResult(row, refNumber);
   }
 
-  await db.updateRow<ExpenseApprovals>("app", "expense_approvals", row.$id, {
-    status:
-      params.decision === "approved"
-        ? ExpenseApprovalsStatus.APPROVED
-        : ExpenseApprovalsStatus.REJECTED,
-    decided_by: params.decidedBy,
-    decided_at: new Date().toISOString(),
-    reason: params.reason ?? null,
-    consumed_at: new Date().toISOString(),
-  } as Partial<ExpenseApprovals>);
+  // Atomically claim this step before applying the decision. Appwrite has no
+  // conditional update, so two concurrent submissions of the same token (the Teams
+  // card and the email link, or a double-click) could both pass the pending check
+  // above and then apply conflicting decisions — one advancing the chain while the
+  // other overwrites the step. incrementRowColumn is a server-side atomic
+  // read-modify-write: only the run that takes decision_lock 0 -> 1 proceeds; any
+  // other run bails and returns the winner's outcome.
+  try {
+    const claim = await db.incrementRowColumn<ExpenseApprovals>({
+      databaseId: "app",
+      tableId: "expense_approvals",
+      rowId: row.$id,
+      column: "decision_lock",
+      value: 1,
+      max: 1,
+    });
+    if ((claim.decision_lock ?? 0) !== 1) {
+      return await concurrentDecisionResult(row.$id, refNumber);
+    }
+  } catch {
+    return await concurrentDecisionResult(row.$id, refNumber);
+  }
+
+  try {
+    await db.updateRow<ExpenseApprovals>("app", "expense_approvals", row.$id, {
+      status:
+        params.decision === "approved"
+          ? ExpenseApprovalsStatus.APPROVED
+          : ExpenseApprovalsStatus.REJECTED,
+      decided_by: params.decidedBy,
+      decided_at: new Date().toISOString(),
+      reason: params.reason ?? null,
+      consumed_at: new Date().toISOString(),
+    } as Partial<ExpenseApprovals>);
+  } catch (error) {
+    // The claim succeeded but recording the decision failed. Release the claim so
+    // the step can be retried, then surface the error (the step stays pending).
+    await db
+      .decrementRowColumn({
+        databaseId: "app",
+        tableId: "expense_approvals",
+        rowId: row.$id,
+        column: "decision_lock",
+        value: 1,
+        min: 0,
+      })
+      .catch(() => undefined);
+    throw error;
+  }
 
   if (params.decision === "rejected") {
     await db.updateRow("app", "expense", row.expense_id, {
