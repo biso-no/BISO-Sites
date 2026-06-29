@@ -25,19 +25,11 @@
   "bots": [
     {
       "botId": "62b0ae22-d882-4516-ab5f-37de1b5f7de8",
-      "scopes": [
-        "personal"
-      ],
+      "scopes": ["personal"],
       "isNotificationOnly": false,
       "supportsFiles": false
     }
   ],
-  "permissions": [
-    "identity",
-    "messageTeamMembers"
-  ],
-  "validDomains": [
-    "api.biso.no",
-    "web.biso.no"
-  ]
+  "permissions": ["identity", "messageTeamMembers"],
+  "validDomains": ["api.biso.no", "web.biso.no"]
 }

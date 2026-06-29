@@ -3,10 +3,20 @@
   "intro": "Kontakt BISO nasjonalt eller direkte på ditt campus.",
   "national": {
     "title": "Nasjonal kontakt",
-    "body": "For generelle henvendelser og presse, send e-post til contact@biso.no."
+    "body": "For generelle henvendelser og presse, send e-post til contact@biso.no.",
+    "aboutCta": "Om BISO"
   },
   "campuses": {
     "title": "Campuser",
-    "empty": "Ingen campuser tilgjengelig akkurat nå."
+    "empty": "Ingen campuser tilgjengelig akkurat nå.",
+    "subtitle": "Kontakt nærmeste campus direkte.",
+    "badge": "Kontakt ditt campus",
+    "sendEmail": "Send e-post"
+  },
+  "help": {
+    "title": "Trenger du mer hjelp?",
+    "body": "Sjekk ut FAQ-en vår eller utforsk Om BISO-sidene for å lære mer om hvordan vi kan hjelpe deg.",
+    "membershipFaq": "Medlemskap-FAQ",
+    "about": "Om BISO"
   }
 }

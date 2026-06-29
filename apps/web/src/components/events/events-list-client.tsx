@@ -1,12 +1,13 @@
 "use client";
 
-import type { ContentTranslations, Events } from "@repo/api/types/appwrite";
+import type { Events } from "@repo/api/types/appwrite";
 import { Button } from "@repo/ui/components/ui/button";
 import { Input } from "@repo/ui/components/ui/input";
 import { Calendar, Filter, Search, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
+import { getPrimaryTranslation } from "@/lib/content-translation";
 import {
   eventCategories,
   getEventCategory,
@@ -18,21 +19,6 @@ import { EventDetailModal } from "./event-detail-modal";
 interface EventsListClientProps {
   events: Events[];
   isMember?: boolean;
-}
-
-function getEventTranslation(event: Events) {
-  if (!Array.isArray(event.translation_refs)) {
-    return null;
-  }
-
-  return (
-    event.translation_refs.find(
-      (translation): translation is ContentTranslations =>
-        typeof translation === "object" &&
-        translation !== null &&
-        "title" in translation
-    ) ?? null
-  );
 }
 
 const categories = ["All", ...eventCategories] as const;
@@ -50,7 +36,7 @@ export function EventsListClient({
   // Only show main events (collections or standalone, not collection items)
   const filteredEvents = events.filter((event) => {
     const eventData = event;
-    const translation = getEventTranslation(event);
+    const translation = getPrimaryTranslation(event);
     const title = translation?.title ?? "";
     const description = translation?.description ?? "";
 

@@ -69,7 +69,12 @@ export async function uploadDocument(
   while (Date.now() <= deadline) {
     const { data: status, error: statusError } = await finago.GET(
       "/fileUpload/{fileId}",
-      { params: { path: { fileId: init.fileId }, header: { Authorization: "" } } }
+      {
+        params: {
+          path: { fileId: init.fileId },
+          header: { Authorization: "" },
+        },
+      }
     );
 
     if (statusError || !status) {

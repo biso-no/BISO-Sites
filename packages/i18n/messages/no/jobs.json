@@ -21,7 +21,10 @@
   "emptyState": {
     "title": "Ingen stillinger funnet",
     "description": "Prøv å justere filtrene eller søket ditt",
-    "clearFilters": "Fjern alle filtre"
+    "clearFilters": "Fjern alle filtre",
+    "seasonalTitle": "Ingen stillinger akkurat nå",
+    "seasonalBody": "Ingen aktive stillinger akkurat nå. Kom tilbake til høsten for nye muligheter, eller registrer interesse nedenfor.",
+    "interestCta": "Registrer interesse"
   },
   "cta": {
     "title": "Spørsmål om søknad?",

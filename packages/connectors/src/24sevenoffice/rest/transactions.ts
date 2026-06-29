@@ -162,25 +162,25 @@ export interface ExpenseReceiptLine {
   accountNumber: number;
   /** Positive gross amount in NOK. */
   amount: number;
+  comment?: string;
   /** Tax code number (see GET /taxes); defaults to 0 (no tax). */
   taxCode?: number;
-  comment?: string;
 }
 
 export interface BuildExpenseTransactionParams {
-  transactionTypeNumber: number;
-  /** Supplier-debt account credited for the total owed (e.g. 2400). */
-  supplierAccountNumber: number;
-  date: string;
-  comment?: string;
-  documentId?: number;
   /** Recipient bank account used for the bank payout. */
   bankAccount: string;
+  comment?: string;
+  date: string;
+  /** Dimensions (department + campus) applied to every line. */
+  dimensions?: DimensionT[];
+  documentId?: number;
   dueDate?: string;
   invoiceNumber?: string;
   receipts: ExpenseReceiptLine[];
-  /** Dimensions (department + campus) applied to every line. */
-  dimensions?: DimensionT[];
+  /** Supplier-debt account credited for the total owed (e.g. 2400). */
+  supplierAccountNumber: number;
+  transactionTypeNumber: number;
 }
 
 /**
@@ -192,7 +192,9 @@ export function buildExpenseTransactionInput(
   params: BuildExpenseTransactionParams
 ): TransactionInputT {
   if (params.receipts.length === 0) {
-    throw new Error("[Finago] expense transaction requires at least one receipt");
+    throw new Error(
+      "[Finago] expense transaction requires at least one receipt"
+    );
   }
 
   const dimensions =
@@ -208,9 +210,7 @@ export function buildExpenseTransactionInput(
     dimensions,
   }));
 
-  const total = round2(
-    debitLines.reduce((sum, line) => sum + line.amount, 0)
-  );
+  const total = round2(debitLines.reduce((sum, line) => sum + line.amount, 0));
 
   const creditLine: TransactionLineT = {
     accountNumber: params.supplierAccountNumber,
@@ -234,17 +234,17 @@ export function buildExpenseTransactionInput(
 }
 
 export interface PostExpenseTransactionParams {
-  date: string;
-  comment?: string;
-  documentId?: number;
   bankAccount: string;
+  /** Campus id ("1".."5") for the campus dimension. */
+  campusId?: string | null;
+  comment?: string;
+  date: string;
+  /** The department's 24SevenOffice dimension value (departments.Id). */
+  departmentDimensionValue?: string | null;
+  documentId?: number;
   dueDate?: string;
   invoiceNumber?: string;
   receipts: ExpenseReceiptLine[];
-  /** Campus id ("1".."5") for the campus dimension. */
-  campusId?: string | null;
-  /** The department's 24SevenOffice dimension value (departments.Id). */
-  departmentDimensionValue?: string | null;
 }
 
 /**

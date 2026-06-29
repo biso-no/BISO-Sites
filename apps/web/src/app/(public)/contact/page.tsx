@@ -14,6 +14,13 @@ import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { getCampuses } from "@/app/actions/campus";
 
+const CAMPUS_EMAIL_FALLBACK: Record<string, string> = {
+  oslo: "business.oslo@biso.no",
+  bergen: "business.bergen@biso.no",
+  trondheim: "business.trondheim@biso.no",
+  stavanger: "business.stavanger@biso.no",
+};
+
 export const metadata: Metadata = {
   title: "Contact | BISO",
   description: "Contact BISO nationally or at your campus.",
@@ -75,7 +82,7 @@ export default async function ContactPage() {
               </div>
               <div className="flex flex-col gap-3 sm:flex-row lg:flex-col xl:flex-row">
                 <Button asChild size="lg">
-                  <a href="mailto:post@bfriso.no">
+                  <a href="mailto:contact@biso.no">
                     <Mail className="mr-2 h-4 w-4" />
                     contact@biso.no
                   </a>
@@ -83,7 +90,7 @@ export default async function ContactPage() {
                 <Button asChild size="lg" variant="outline">
                   <Link href="/about">
                     <Building2 className="mr-2 h-4 w-4" />
-                    About BISO
+                    {t("national.aboutCta")}
                   </Link>
                 </Button>
               </div>
@@ -96,14 +103,13 @@ export default async function ContactPage() {
           <div className="mb-10 text-center">
             <Badge className="mb-4" variant="secondary">
               <MapPin className="mr-2 h-3 w-3" />
-              Campus Contacts
+              {t("campuses.badge")}
             </Badge>
             <h2 className="mb-3 font-bold text-2xl text-foreground sm:text-3xl">
-              {t("campuses.title") || "Contact Your Campus"}
+              {t("campuses.title")}
             </h2>
             <p className="mx-auto max-w-2xl text-muted-foreground">
-              {t("campuses.subtitle") ||
-                "Reach out to your local BISO campus for campus-specific inquiries and support."}
+              {t("campuses.subtitle")}
             </p>
           </div>
 
@@ -133,6 +139,9 @@ export default async function ContactPage() {
                   },
                 ];
                 const colors = colorSchemes[index % colorSchemes.length];
+                const email =
+                  campus.email ??
+                  CAMPUS_EMAIL_FALLBACK[campus.name?.toLowerCase() ?? ""];
 
                 return (
                   <Card
@@ -147,34 +156,30 @@ export default async function ContactPage() {
                     <h3 className="mb-3 font-semibold text-foreground text-lg">
                       {campus.name}
                     </h3>
-                    {campus.email ? (
-                      <a
-                        className="group/link inline-flex items-center gap-2 text-muted-foreground text-sm transition-colors hover:text-primary"
-                        href={`mailto:${campus.email}`}
-                      >
-                        <Mail className="h-4 w-4" />
-                        <span className="underline-offset-2 group-hover/link:underline">
-                          {campus.email}
-                        </span>
-                      </a>
-                    ) : (
-                      <p className="text-muted-foreground/60 text-sm">
-                        No email available
-                      </p>
-                    )}
-                    {campus.email && (
-                      <Button
-                        asChild
-                        className="mt-4 w-full"
-                        size="sm"
-                        variant="secondary"
-                      >
-                        <a href={`mailto:${campus.email}`}>
-                          <Send className="mr-2 h-3.5 w-3.5" />
-                          Send Email
+                    {email ? (
+                      <>
+                        <a
+                          className="group/link inline-flex items-center gap-2 text-muted-foreground text-sm transition-colors hover:text-primary"
+                          href={`mailto:${email}`}
+                        >
+                          <Mail className="h-4 w-4" />
+                          <span className="underline-offset-2 group-hover/link:underline">
+                            {email}
+                          </span>
                         </a>
-                      </Button>
-                    )}
+                        <Button
+                          asChild
+                          className="mt-4 w-full"
+                          size="sm"
+                          variant="secondary"
+                        >
+                          <a href={`mailto:${email}`}>
+                            <Send className="mr-2 h-3.5 w-3.5" />
+                            {t("campuses.sendEmail")}
+                          </a>
+                        </Button>
+                      </>
+                    ) : null}
                   </Card>
                 );
               })}
@@ -195,12 +200,9 @@ export default async function ContactPage() {
             <div className="relative flex flex-col items-center gap-6 text-center lg:flex-row lg:justify-between lg:text-left">
               <div>
                 <h2 className="mb-2 font-bold text-white text-xl sm:text-2xl">
-                  Need more help?
+                  {t("help.title")}
                 </h2>
-                <p className="max-w-xl text-white/80">
-                  Check out our FAQ section or browse our about pages to learn
-                  more about BISO and how we can help you.
-                </p>
+                <p className="max-w-xl text-white/80">{t("help.body")}</p>
               </div>
               <div className="flex flex-col gap-3 sm:flex-row">
                 <Button
@@ -208,7 +210,7 @@ export default async function ContactPage() {
                   className="bg-white text-primary-100 shadow-lg hover:bg-white/90"
                   size="lg"
                 >
-                  <Link href="/membership">Membership FAQ</Link>
+                  <Link href="/membership">{t("help.membershipFaq")}</Link>
                 </Button>
                 <Button
                   asChild
@@ -216,7 +218,7 @@ export default async function ContactPage() {
                   size="lg"
                   variant="outline"
                 >
-                  <Link href="/about">About BISO</Link>
+                  <Link href="/about">{t("help.about")}</Link>
                 </Button>
               </div>
             </div>

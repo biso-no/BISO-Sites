@@ -1,0 +1,50 @@
+{
+  "hero": {
+    "title": "Resources",
+    "subtitle": "Everything you need as a BI student — support schemes, rules, policy, and more."
+  },
+  "sections": {
+    "internal": "BISO resources",
+    "external": "Useful links"
+  },
+  "links": {
+    "biFond": {
+      "title": "BI Fund",
+      "description": "Apply for support for academic and cultural activities through BISO's fund."
+    },
+    "studyQuality": {
+      "title": "Study Quality",
+      "description": "BISO's work for better study quality and learning environment at BI."
+    },
+    "politics": {
+      "title": "Our Policy",
+      "description": "Read about our positions and the political work we carry out on behalf of students."
+    },
+    "safety": {
+      "title": "Whistleblowing",
+      "description": "Procedures and contact points for reporting misconduct or unsafe conditions."
+    },
+    "bylaws": {
+      "title": "Bylaws",
+      "description": "The formal bylaws and regulations governing BISO's operations."
+    },
+    "alumni": {
+      "title": "Alumni",
+      "description": "Stay connected with BISO and your network after graduating."
+    }
+  },
+  "external": {
+    "bi": {
+      "title": "BI Norwegian Business School",
+      "description": "BI's official website with information about programmes, campus, and services."
+    },
+    "velferdstinget": {
+      "title": "Velferdstinget",
+      "description": "The student welfare organisation in Oslo representing all students in the region."
+    },
+    "nso": {
+      "title": "Norwegian Student Organisation (NSO)",
+      "description": "Norway's national student political organisation — advocating for all students."
+    }
+  }
+}

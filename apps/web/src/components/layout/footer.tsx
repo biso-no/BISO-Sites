@@ -2,7 +2,6 @@
 import { Facebook, Instagram, Linkedin, Mail, MapPin } from "lucide-react";
 import { motion } from "motion/react";
 import Image from "next/image";
-import Link from "next/link";
 import { useTranslations } from "next-intl";
 
 export function Footer() {
@@ -10,7 +9,7 @@ export function Footer() {
   const commonT = useTranslations("common");
   const footerLinks = {
     About: [
-      { label: t("about.ourStory"), href: "/history" },
+      { label: t("about.ourStory"), href: "/about/history" },
       { label: t("about.contact"), href: "/contact" },
     ],
     Students: [
@@ -21,16 +20,28 @@ export function Footer() {
     ],
     Practical: [
       { label: "BI", href: "https://bi.no" },
-      { label: commonT("codeOfConduct"), href: "/code-of-conduct" },
+      { label: commonT("codeOfConduct"), href: "/safety#code-of-conduct" },
       { label: t("support.privacyPolicy"), href: "/privacy" },
-      { label: t("support.termsOfService"), href: "terms" },
+      { label: t("support.termsOfService"), href: "/terms" },
     ],
   };
 
   const socialLinks = [
-    { icon: Facebook, href: "biso-no", label: "Facebook" },
-    { icon: Instagram, href: "biso-no", label: "Instagram" },
-    { icon: Linkedin, href: "biso-no", label: "LinkedIn" },
+    {
+      icon: Facebook,
+      href: "https://www.facebook.com/biso.no",
+      label: "Facebook",
+    },
+    {
+      icon: Instagram,
+      href: "https://www.instagram.com/biso_no",
+      label: "Instagram",
+    },
+    {
+      icon: Linkedin,
+      href: "https://www.linkedin.com/company/biso",
+      label: "LinkedIn",
+    },
   ];
 
   return (
@@ -117,14 +128,16 @@ export function Footer() {
 
           <div className="flex gap-4">
             {socialLinks.map((social) => (
-              <Link
+              <a
                 aria-label={social.label}
                 className="flex h-10 w-10 items-center justify-center rounded-lg bg-inverted transition-all duration-300 hover:bg-linear-to-br hover:from-purple-600 hover:to-pink-600"
                 href={social.href}
                 key={social.label}
+                rel="noopener noreferrer"
+                target="_blank"
               >
                 <social.icon className="h-5 w-5" />
-              </Link>
+              </a>
             ))}
           </div>
         </motion.div>

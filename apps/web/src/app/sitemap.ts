@@ -5,10 +5,23 @@ import { PagesStatus, PagesVisibility } from "@repo/api/types/appwrite";
 import type { MetadataRoute } from "next";
 import { listEvents } from "@/app/actions/events";
 import { listJobs } from "@/app/actions/jobs";
+import { listLargeEvents } from "@/app/actions/large-events";
 import { listNews } from "@/app/actions/news";
 import { listProducts } from "@/app/actions/webshop";
 
-const BASE = process.env.NEXT_PUBLIC_BASE_URL || "https://biso.no";
+const BASE = process.env.NEXT_PUBLIC_BASE_URL || "https://web.biso.no";
+
+const ABOUT_SUBROUTES = [
+  "what-is-biso",
+  "politics",
+  "study-quality",
+  "history",
+  "bylaws",
+  "operations",
+  "alumni",
+  "saih",
+  "academics-contact",
+];
 
 export const revalidate = 3600;
 
@@ -61,19 +74,37 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${BASE}/membership`, changeFrequency: "monthly", priority: 0.6 },
     { url: `${BASE}/business`, changeFrequency: "monthly", priority: 0.5 },
     { url: `${BASE}/contact`, changeFrequency: "monthly", priority: 0.4 },
+    { url: `${BASE}/units`, changeFrequency: "weekly", priority: 0.6 },
+    { url: `${BASE}/projects`, changeFrequency: "weekly", priority: 0.6 },
+    { url: `${BASE}/bi-fondet`, changeFrequency: "monthly", priority: 0.5 },
+    { url: `${BASE}/resources`, changeFrequency: "monthly", priority: 0.5 },
+    {
+      url: `${BASE}/business-hotspot`,
+      changeFrequency: "monthly",
+      priority: 0.4,
+    },
+    { url: `${BASE}/safety`, changeFrequency: "monthly", priority: 0.4 },
+    { url: `${BASE}/press`, changeFrequency: "monthly", priority: 0.3 },
+    ...ABOUT_SUBROUTES.map((slug) => ({
+      url: `${BASE}/about/${slug}`,
+      changeFrequency: "monthly" as const,
+      priority: 0.4,
+    })),
     { url: `${BASE}/privacy`, changeFrequency: "yearly", priority: 0.2 },
     { url: `${BASE}/terms`, changeFrequency: "yearly", priority: 0.2 },
   ];
 
   // Each listing is best-effort: if one upstream call fails the rest still
   // produce a valid (partial) sitemap rather than a 500.
-  const [jobs, events, news, products, editorPages] = await Promise.all([
-    listJobs({ limit: 500 }).catch(() => []),
-    listEvents({ status: "published", limit: 500 }).catch(() => []),
-    listNews({ status: "published", limit: 500 }).catch(() => []),
-    listProducts({ status: "published", limit: 500 }).catch(() => []),
-    listEditorPages(),
-  ]);
+  const [jobs, events, news, products, projects, editorPages] =
+    await Promise.all([
+      listJobs({ limit: 500 }).catch(() => []),
+      listEvents({ status: "published", limit: 500 }).catch(() => []),
+      listNews({ status: "published", limit: 500 }).catch(() => []),
+      listProducts({ status: "published", limit: 500 }).catch(() => []),
+      listLargeEvents({ activeOnly: false, limit: 500 }).catch(() => []),
+      listEditorPages(),
+    ]);
 
   return [
     ...staticRoutes,
@@ -81,6 +112,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...mapSlugRoutes("/events", events, "weekly", 0.7),
     ...mapSlugRoutes("/news", news, "weekly", 0.7),
     ...mapSlugRoutes("/shop", products, "weekly", 0.6),
+    ...mapSlugRoutes("/projects", projects, "weekly", 0.6),
     ...editorPages,
   ];
 }

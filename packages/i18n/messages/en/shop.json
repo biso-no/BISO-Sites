@@ -11,7 +11,10 @@
   },
   "emptyState": {
     "title": "No products found",
-    "description": "Try adjusting your search or filters"
+    "description": "Try adjusting your search or filters",
+    "membershipTitle": "Become a BISO member",
+    "membershipBody": "As a BISO member you get discounts in the shop, access to exclusive events, and much more.",
+    "membershipCta": "View membership"
   },
   "loading": {
     "message": "Loading products..."

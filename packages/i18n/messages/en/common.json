@@ -49,7 +49,50 @@
     "news": "News",
     "shop": "Shop",
     "applyHere": "Apply Here",
-    "about": "About"
+    "applyVerv": "Apply",
+    "about": "About",
+    "openMenu": "Open menu",
+    "closeMenu": "Close menu",
+    "triggers": {
+      "students": "For Students",
+      "projects": "Projects",
+      "about": "About BISO"
+    },
+    "columns": {
+      "membership": "Membership",
+      "campus": "Campus",
+      "resources": "Roles & resources",
+      "flagships": "Flagships",
+      "organisation": "Organisation",
+      "policy": "Policy & legal",
+      "contact": "Contact"
+    },
+    "links": {
+      "membershipOverview": "About membership",
+      "membershipBenefits": "Member benefits",
+      "buyMembership": "Buy membership",
+      "units": "Roles & units",
+      "jobs": "Open positions",
+      "biFondet": "The BI Fund",
+      "studyQuality": "Study quality",
+      "resources": "Resources",
+      "allEvents": "See all events",
+      "aboutBiso": "About BISO",
+      "history": "History",
+      "operations": "Operations",
+      "alumni": "Alumni",
+      "politics": "Politics",
+      "bylaws": "Bylaws",
+      "safety": "Whistleblowing",
+      "contact": "Contact",
+      "business": "For businesses",
+      "businessHotspot": "Business Hotspot"
+    },
+    "featured": {
+      "eventLabel": "Next event",
+      "projectLabel": "Featured project",
+      "newsLabel": "Latest news"
+    }
   },
   "notFound": {
     "tagline": "Page not found",

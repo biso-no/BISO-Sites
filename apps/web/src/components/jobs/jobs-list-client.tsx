@@ -386,18 +386,27 @@ export function JobsListClient({
               key="empty"
             >
               <h3 className="mb-2 font-bold text-2xl text-foreground">
-                {t("emptyState.title")}
+                {t("emptyState.seasonalTitle")}
               </h3>
-              <p className="mb-6 text-muted-foreground">
-                {t("emptyState.description")}
+              <p className="mx-auto mb-8 max-w-md text-muted-foreground">
+                {t("emptyState.seasonalBody")}
               </p>
-              <Button
-                className="border-brand text-brand-dark hover:bg-brand-muted"
-                onClick={clearAllFilters}
-                variant="outline"
-              >
-                {t("emptyState.clearFilters")}
-              </Button>
+              <div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
+                <Button asChild>
+                  <a href="mailto:jobs@biso.no">
+                    {t("emptyState.interestCta")}
+                  </a>
+                </Button>
+                {hasActiveFilters && (
+                  <Button
+                    className="border-brand text-brand-dark hover:bg-brand-muted"
+                    onClick={clearAllFilters}
+                    variant="outline"
+                  >
+                    {t("emptyState.clearFilters")}
+                  </Button>
+                )}
+              </div>
             </motion.div>
           )}
         </AnimatePresence>
