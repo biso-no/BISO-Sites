@@ -6,10 +6,28 @@ import { motion } from "motion/react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { AboutHero } from "@/components/about/about-hero";
+import { HistoryTimeline } from "@/components/about/history-timeline";
+import { StatsBar } from "@/components/about/stats-bar";
+
+interface TimelineEntry {
+  description: string;
+  id: string;
+  title: string;
+  year: string;
+}
+
+interface StatItem {
+  id: string;
+  label: string;
+  value: string;
+}
 
 export default function HistoryPage() {
   const t = useTranslations("about.pages.history");
   const tAbout = useTranslations("about");
+
+  const timeline = t.raw("timeline") as TimelineEntry[];
+  const stats = t.raw("stats") as StatItem[];
 
   return (
     <div className="min-h-screen bg-linear-to-b from-section to-background">
@@ -39,6 +57,38 @@ export default function HistoryPage() {
               {t("content")}
             </p>
           </motion.div>
+        </div>
+      </section>
+
+      {/* Timeline */}
+      <section className="bg-section/50 py-16">
+        <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
+          <motion.h2
+            className="mb-10 font-bold text-2xl text-foreground md:text-3xl"
+            initial={{ opacity: 0, y: 20 }}
+            transition={{ duration: 0.5 }}
+            viewport={{ once: true }}
+            whileInView={{ opacity: 1, y: 0 }}
+          >
+            {t("timelineTitle")}
+          </motion.h2>
+          <HistoryTimeline items={timeline} />
+        </div>
+      </section>
+
+      {/* Stats */}
+      <section className="py-16">
+        <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
+          <motion.h2
+            className="mb-8 font-bold text-2xl text-foreground md:text-3xl"
+            initial={{ opacity: 0, y: 20 }}
+            transition={{ duration: 0.5 }}
+            viewport={{ once: true }}
+            whileInView={{ opacity: 1, y: 0 }}
+          >
+            {t("statsTitle")}
+          </motion.h2>
+          <StatsBar items={stats} />
         </div>
       </section>
 

@@ -16,7 +16,7 @@ export const metadata: Metadata = {
     title: "Latest News & Student Stories | BISO",
     description:
       "Stay updated with the latest happenings, achievements, and stories from the BISO community.",
-    images: ["/news-hero.jpg"],
+    images: ["/images/hero-bg.png"],
   },
 };
 

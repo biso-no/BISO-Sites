@@ -23,6 +23,7 @@ export const messageNamespaces = [
   "privacy",
   "policies",
   "about",
+  "resources",
   "membership",
   "students",
   "shop",

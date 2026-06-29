@@ -3,10 +3,20 @@
   "intro": "Contact BISO nationally or directly at your campus.",
   "national": {
     "title": "National contact",
-    "body": "For general enquiries and press, email contact@biso.no."
+    "body": "For general enquiries and press, email contact@biso.no.",
+    "aboutCta": "About BISO"
   },
   "campuses": {
     "title": "Campuses",
-    "empty": "No campuses available right now."
+    "empty": "No campuses available right now.",
+    "subtitle": "Reach out to your local BISO campus for campus-specific inquiries and support.",
+    "badge": "Campus Contacts",
+    "sendEmail": "Send Email"
+  },
+  "help": {
+    "title": "Need more help?",
+    "body": "Check out our FAQ section or browse our about pages to learn more about BISO and how we can help you.",
+    "membershipFaq": "Membership FAQ",
+    "about": "About BISO"
   }
 }

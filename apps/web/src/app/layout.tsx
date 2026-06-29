@@ -9,9 +9,24 @@ import { AnalyticsTracker } from "@/components/analytics-tracker";
 export const metadata: Metadata = {
   title: "BI Student Organisation",
   description: "BISO Apps",
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_BASE_URL ?? "https://web.biso.no"
+  ),
   icons: {
     icon: [{ url: "/favico.png" }, { url: "/favico.png", type: "image/png" }],
     apple: [{ url: "/apple-touch-icon.png", sizes: "180x180" }],
+  },
+  openGraph: {
+    siteName: "BI Student Organisation",
+    type: "website",
+    locale: "no_NO",
+    // TODO: replace with a purpose-built 1200x630 og-default.png
+    images: [
+      { url: "/images/hero-bg.png", width: 1200, height: 630, alt: "BISO" },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
   },
 };
 

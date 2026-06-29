@@ -118,7 +118,58 @@
     "politics": {
       "title": "Our politics",
       "intro": "BISO is politically independent. We work for our members’ academic, economic, social, psychosocial and health interests.",
-      "content": "We advance student welfare through constructive collaboration with BI and student democracy. Our priorities include study quality, inclusion and a safe student environment – alongside practical measures for student life (discounts, relevant roles and low‑barrier events)."
+      "content": "We advance student welfare through constructive collaboration with BI and student democracy. Our priorities include study quality, inclusion and a safe student environment – alongside practical measures for student life (discounts, relevant roles and low‑barrier events).",
+      "policyDemandsTitle": "Our political demands",
+      "policyDemands": [
+        {
+          "id": "studiestotte",
+          "title": "Increase student grants",
+          "description": "Today's student grant is too low to live on without working alongside full-time study."
+        },
+        {
+          "id": "tolv-mnd",
+          "title": "Disburse grants over 12 months",
+          "description": "Student support should be paid across the whole year and adjusted for inflation."
+        },
+        {
+          "id": "studentboliger",
+          "title": "Build more student housing",
+          "description": "2,500 new student homes per year, targeting 25% coverage."
+        },
+        {
+          "id": "profesjon",
+          "title": "Professional programmes for private institutions",
+          "description": "Private institutions must have equal rights to offer professional degree programmes."
+        }
+      ],
+      "forumsTitle": "Forums we are represented in",
+      "forums": [
+        {
+          "id": "nso",
+          "title": "Norsk studentorganisasjon (NSO)",
+          "description": "The national interest organisation for students, where BISO advances the causes of BI students."
+        },
+        {
+          "id": "velferdstinget",
+          "title": "Velferdstinget",
+          "description": "Represents students' welfare interests; BISO is represented in Oslo/Akershus, Trondheim, Vest and Stavanger."
+        },
+        {
+          "id": "kulturstyret",
+          "title": "Kulturstyret",
+          "description": "Allocates funding to student culture and activities."
+        }
+      ],
+      "spu": {
+        "title": "Student Politics Committee (SPU)",
+        "description": "SPU works on student politics across campuses. Do you want to help shape it?",
+        "cta": "Join SPU"
+      },
+      "policyPdf": {
+        "title": "Political target document",
+        "description": "Download BISO's political target document (PDF).",
+        "href": "https://bistudentorganisasjon.sharepoint.com/:b:/g/EWIxBO2T0o9NjUP-rM1sfVsBD5zRMF9Hqf6wEwi-c4Zk4g?e=ct3r92"
+      }
     },
     "bylaws": {
       "title": "Bylaws and statutes",
@@ -128,12 +179,127 @@
     "history": {
       "title": "Our history",
       "intro": "From local student initiatives to a national union.",
-      "content": "BISO’s story is driven by volunteers who wanted stronger student communities and better study life at BI. Over time, local organisations joined forces to form one national student union with shared values and goals.\n\nToday BISO supports thousands of students through activities, representation and services at every campus."
+      "content": "BISO’s story is driven by volunteers who wanted stronger student communities and better study life at BI. Over time, local organisations joined forces to form one national student union with shared values and goals.\n\nToday BISO supports thousands of students through activities, representation and services at every campus.",
+      "timelineTitle": "Timeline",
+      "timeline": [
+        {
+          "id": "sbio-bis",
+          "year": "Before 2022",
+          "title": "SBIO and BIS",
+          "description": "The Student Association at BI Norwegian Business School (SBIO) and BI Studentsamfunn (BIS) represented students across BI's campuses."
+        },
+        {
+          "id": "fusjon",
+          "year": "2022",
+          "title": "BISO is founded",
+          "description": "SBIO and BIS merge into BI Student Organisation (BISO) — one shared organisation for all BI students."
+        },
+        {
+          "id": "i-dag",
+          "year": "2022–today",
+          "title": "Growth",
+          "description": "BISO grows across four campuses with thousands of volunteers and hundreds of committees."
+        }
+      ],
+      "statsTitle": "BISO in numbers",
+      "stats": [
+        {
+          "id": "medlemmer",
+          "value": "9,000+",
+          "label": "active members"
+        },
+        {
+          "id": "campus",
+          "value": "4",
+          "label": "campuses"
+        },
+        {
+          "id": "utvalg",
+          "value": "261+",
+          "label": "committees"
+        }
+      ]
     },
     "studyQuality": {
       "title": "Study quality",
       "intro": "Continuous improvement of education and learning environment.",
-      "content": "We represent student voices in formal committees with BI and bring forward concrete feedback from courses and programmes. Our goals are better teaching quality, relevant learning experiences and a supportive environment on every campus.\n\nYou can get involved by sharing input with your campus leadership or joining a committee that works with study quality."
+      "content": "We represent student voices in formal committees with BI and bring forward concrete feedback from courses and programmes. Our goals are better teaching quality, relevant learning experiences and a supportive environment on every campus.\n\nYou can get involved by sharing input with your campus leadership or joining a committee that works with study quality.",
+      "winsTitle": "Cases we’ve won at BI",
+      "wins": [
+        {
+          "id": "digital-undervisning",
+          "title": "Extended digital teaching and streaming",
+          "description": "We got BI to keep streaming and digital lectures so more students can follow teaching."
+        },
+        {
+          "id": "eksamensform",
+          "title": "Early notice when exam formats change",
+          "description": "Students now receive timely notice whenever an exam format is changed."
+        },
+        {
+          "id": "hjemmeeksamen",
+          "title": "Extended deadline for home exams (+15 min for scanning)",
+          "description": "Home exams gained 15 extra minutes for scanning and submission."
+        },
+        {
+          "id": "arbeidskrav",
+          "title": "Extended deadline for coursework requirements",
+          "description": "We secured more generous deadlines for mandatory coursework."
+        },
+        {
+          "id": "kvinner-finans",
+          "title": "Greater focus on women in finance",
+          "description": "We pushed for stronger representation of women in finance studies and the finance community."
+        },
+        {
+          "id": "bachelor-orgpsyk",
+          "title": "Option to write a bachelor thesis (Org. Psych & HR)",
+          "description": "Students in Organisational Psychology, HR and Leadership gained the option to write a bachelor thesis."
+        }
+      ],
+      "forumsTitle": "Academic forums",
+      "forums": [
+        {
+          "id": "undervisningsutvalget",
+          "title": "Undervisningsutvalget",
+          "description": "Committee working on teaching quality together with BI."
+        },
+        {
+          "id": "lmu",
+          "title": "Læringsmiljøutvalget (LMU)",
+          "description": "Safeguards a good physical and psychosocial learning environment for students."
+        },
+        {
+          "id": "studentkvalitetssystemet",
+          "title": "Studentkvalitetssystemet",
+          "description": "The system for capturing and following up feedback on study quality."
+        },
+        {
+          "id": "kollegiet",
+          "title": "Kollegiet",
+          "description": "BI's highest academic body, where students are represented."
+        },
+        {
+          "id": "studentpanel",
+          "title": "Studentpanel",
+          "description": "Panels where students give direct input on courses and programmes."
+        },
+        {
+          "id": "sustainability",
+          "title": "Sustainability Working Group",
+          "description": "Working group advancing more sustainability in education at BI."
+        }
+      ],
+      "yourCase": {
+        "title": "But what’s your case?",
+        "description": "Do you have an issue that should be raised? Get in touch with us.",
+        "cta": "Get in touch"
+      },
+      "targetDoc": {
+        "title": "Academic target document",
+        "description": "Download BISO's academic target document (PDF).",
+        "href": "https://bistudentorganisasjon.sharepoint.com/:b:/g/ET_GDBlUOodKvAk9xj-kPp0BBrblTxGkcB3-p5ciJAXupg?e=h6XO3b"
+      }
     },
     "operations": {
       "title": "Operations Unit",

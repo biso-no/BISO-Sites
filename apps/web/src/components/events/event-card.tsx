@@ -1,6 +1,6 @@
 "use client";
 
-import type { ContentTranslations, Events } from "@repo/api/types/appwrite";
+import type { Events } from "@repo/api/types/appwrite";
 import { ImageWithFallback } from "@repo/ui/components/image";
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Button } from "@repo/ui/components/ui/button";
@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { motion } from "motion/react";
 import { useTranslations } from "next-intl";
+import { getPrimaryTranslation } from "@/lib/content-translation";
 import {
   type EventCategory,
   formatEventPrice,
@@ -138,12 +139,7 @@ export function EventCard({
 }: EventCardProps) {
   const t = useTranslations("events");
   const eventData = event;
-  const translation = Array.isArray(event.translation_refs)
-    ? event.translation_refs.find(
-        (item): item is ContentTranslations =>
-          typeof item === "object" && item !== null && "title" in item
-      )
-    : null;
+  const translation = getPrimaryTranslation(event);
   const title = translation?.title ?? "Untitled";
   const _description = translation?.description ?? "";
 

@@ -21,7 +21,10 @@
   "emptyState": {
     "title": "No positions found",
     "description": "Try adjusting your filters or search query",
-    "clearFilters": "Clear All Filters"
+    "clearFilters": "Clear All Filters",
+    "seasonalTitle": "No positions right now",
+    "seasonalBody": "No active positions right now. Check back in autumn for new opportunities, or register your interest below.",
+    "interestCta": "Register interest"
   },
   "cta": {
     "title": "Questions About Applying?",

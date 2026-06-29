@@ -28,6 +28,7 @@ import press from "./no/press.json";
 import privacy from "./no/privacy.json";
 import projectDetail from "./no/projectDetail.json";
 import projects from "./no/projects.json";
+import resources from "./no/resources.json";
 import shop from "./no/shop.json";
 import students from "./no/students.json";
 import terms from "./no/terms.json";
@@ -51,6 +52,7 @@ export default {
   privacy,
   policies,
   about,
+  resources,
   membership,
   news,
   shop,

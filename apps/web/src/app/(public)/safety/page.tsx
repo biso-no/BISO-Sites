@@ -376,7 +376,7 @@ export default function SafetyPage() {
       </Card>
 
       {/* Code of Conduct Section */}
-      <Card>
+      <Card id="code-of-conduct">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Shield className="h-5 w-5 text-primary-60" />

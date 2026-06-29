@@ -49,7 +49,50 @@
     "news": "Nyheter",
     "shop": "Butikk",
     "applyHere": "Søk her",
-    "about": "Om oss"
+    "applyVerv": "Søk verv",
+    "about": "Om oss",
+    "openMenu": "Åpne meny",
+    "closeMenu": "Lukk meny",
+    "triggers": {
+      "students": "For studenter",
+      "projects": "Prosjekter",
+      "about": "Om BISO"
+    },
+    "columns": {
+      "membership": "Medlemskap",
+      "campus": "Campus",
+      "resources": "Verv & ressurser",
+      "flagships": "Flaggskip",
+      "organisation": "Organisasjon",
+      "policy": "Policy & juridisk",
+      "contact": "Kontakt"
+    },
+    "links": {
+      "membershipOverview": "Om medlemskap",
+      "membershipBenefits": "Medlemsfordeler",
+      "buyMembership": "Kjøp medlemskap",
+      "units": "Verv & enheter",
+      "jobs": "Ledige verv",
+      "biFondet": "BI-fondet",
+      "studyQuality": "Studiekvalitet",
+      "resources": "Ressurser",
+      "allEvents": "Se alle arrangementer",
+      "aboutBiso": "Om BISO",
+      "history": "Historie",
+      "operations": "Drift",
+      "alumni": "Alumni",
+      "politics": "Politikk",
+      "bylaws": "Vedtekter",
+      "safety": "Varsling",
+      "contact": "Kontakt",
+      "business": "For bedrifter",
+      "businessHotspot": "Business Hotspot"
+    },
+    "featured": {
+      "eventLabel": "Neste arrangement",
+      "projectLabel": "Utvalgt prosjekt",
+      "newsLabel": "Siste nytt"
+    }
   },
   "notFound": {
     "tagline": "Siden finnes ikke",

@@ -5,9 +5,11 @@ import type {
   WebshopProducts,
 } from "@repo/api/types/appwrite";
 import { Button } from "@repo/ui/components/ui/button";
+import { Card } from "@repo/ui/components/ui/card";
 import { Input } from "@repo/ui/components/ui/input";
 import { Filter, Loader2, Search, ShoppingBag, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
@@ -214,6 +216,21 @@ export function ShopListClient({
                 >
                   {t("filters.clearFilters")}
                 </Button>
+
+                {/* Membership CTA */}
+                <Card className="mx-auto mt-10 max-w-sm border-brand/30 p-6 text-left">
+                  <h4 className="mb-2 font-semibold text-foreground">
+                    {t("emptyState.membershipTitle")}
+                  </h4>
+                  <p className="mb-4 text-muted-foreground text-sm">
+                    {t("emptyState.membershipBody")}
+                  </p>
+                  <Button asChild size="sm">
+                    <Link href="/shop/membership">
+                      {t("emptyState.membershipCta")}
+                    </Link>
+                  </Button>
+                </Card>
               </motion.div>
             )}
           </>

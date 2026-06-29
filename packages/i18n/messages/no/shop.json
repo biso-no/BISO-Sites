@@ -11,7 +11,10 @@
   },
   "emptyState": {
     "title": "Ingen produkter funnet",
-    "description": "Prøv å justere søket eller filtrene dine"
+    "description": "Prøv å justere søket eller filtrene dine",
+    "membershipTitle": "Bli medlem i BISO",
+    "membershipBody": "Som BISO-medlem får du rabatter i butikken, tilgang til eksklusive arrangementer og mye mer.",
+    "membershipCta": "Se medlemskap"
   },
   "loading": {
     "message": "Laster produkter..."
