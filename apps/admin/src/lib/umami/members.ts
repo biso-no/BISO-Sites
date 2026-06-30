@@ -16,9 +16,17 @@
 import "server-only";
 
 import { createAdminClient } from "@repo/api/server";
-import { fetchSessions, type UmamiRange } from "./client";
+import {
+  fetchSessionDistinctId,
+  fetchSessions,
+  type UmamiRange,
+} from "./client";
 
 const MAX_MEMBERS = 12;
+// Cap on per-session detail lookups (distinctId lives only on session detail).
+// We inspect the most-active sessions, enough to surface the top members
+// without issuing a request per session in the whole range.
+const MAX_SESSION_LOOKUPS = 30;
 const UNKNOWN_NAME = "Unknown";
 
 export interface MemberPanelRow {
@@ -52,16 +60,39 @@ export async function fetchMembersPanel(
 ): Promise<MemberPanelRow[]> {
   const sessions = await fetchSessions(range);
 
+  // The sessions list omits distinctId, so take the most-active sessions and
+  // resolve each one's distinctId from the session-detail endpoint (bounded).
+  const candidates = sessions
+    .filter((session) => session.id)
+    .sort(
+      (a, b) =>
+        (b.visits ?? 0) - (a.visits ?? 0) || (b.views ?? 0) - (a.views ?? 0)
+    )
+    .slice(0, MAX_SESSION_LOOKUPS);
+
+  const resolved = await Promise.all(
+    candidates.map(async (session) => {
+      const distinctId =
+        session.distinctId?.trim() ||
+        (session.id ? await fetchSessionDistinctId(session.id) : null);
+      return {
+        distinctId,
+        views: session.views ?? 0,
+        visits: session.visits ?? 0,
+      };
+    })
+  );
+
   // Group identified sessions by Appwrite account $id (distinctId).
   const grouped = new Map<string, Aggregate>();
-  for (const session of sessions) {
+  for (const session of resolved) {
     const id = session.distinctId?.trim();
     if (!id) {
       continue;
     }
     const current = grouped.get(id) ?? { views: 0, visits: 0 };
-    current.views += session.views ?? 0;
-    current.visits += session.visits ?? 0;
+    current.views += session.views;
+    current.visits += session.visits;
     grouped.set(id, current);
   }
 

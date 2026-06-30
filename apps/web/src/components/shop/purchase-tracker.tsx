@@ -13,8 +13,11 @@ interface PurchaseTrackerProps {
 /**
  * Fires Umami's revenue-driving `purchase` event once per confirmed order. Lives
  * on the order-success page (a Server Component) because `window.umami` is only
- * reachable client-side. The per-order `sessionStorage` guard (plus the mount
- * ref) prevents a page refresh or a re-render from double-counting revenue.
+ * reachable client-side. The per-order marker is stored in `localStorage` (not
+ * `sessionStorage`) so a refresh, a back-navigation, or reopening the success
+ * URL in a new tab on the same device won't double-count revenue. (A genuinely
+ * once-ever guarantee across devices would require server-side dedup, which
+ * isn't warranted for a URL only the buyer normally opens.)
  */
 export function PurchaseTracker({
   campus,
@@ -30,12 +33,12 @@ export function PurchaseTracker({
     }
     const storageKey = `biso-purchase-tracked:${orderId}`;
     try {
-      if (window.sessionStorage.getItem(storageKey)) {
+      if (window.localStorage.getItem(storageKey)) {
         return;
       }
-      window.sessionStorage.setItem(storageKey, "1");
+      window.localStorage.setItem(storageKey, "1");
     } catch {
-      // sessionStorage may be unavailable (private mode); the ref guard still holds.
+      // localStorage may be unavailable (private mode); the ref guard still holds.
     }
     fired.current = true;
     trackPurchase({ revenue, orderId, type, campus });

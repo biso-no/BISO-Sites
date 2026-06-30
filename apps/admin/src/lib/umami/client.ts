@@ -30,6 +30,10 @@ const TOKEN_TTL_MS = 6 * 60 * 60 * 1000;
 const DEFAULT_METRIC_LIMIT = 10;
 const SESSIONS_PAGE_SIZE = 200;
 const TRAILING_SLASH_RE = /\/+$/;
+// Cache Umami reads for 5 min. The page quantizes the range to a 5-min bucket so
+// the URL stays stable, letting repeated loads — and the per-session detail
+// lookups used for the Members panel — hit the cache instead of refetching.
+const REVALIDATE_SECONDS = 300;
 
 export interface UmamiRange {
   /** Epoch milliseconds, inclusive start. */
@@ -116,6 +120,7 @@ async function umamiGet<T>(path: string): Promise<T | null> {
     let token = await getToken();
     let response = await fetch(url, {
       headers: { Accept: "application/json", Authorization: `Bearer ${token}` },
+      next: { revalidate: REVALIDATE_SECONDS },
     });
 
     if (response.status === 401) {
@@ -125,6 +130,7 @@ async function umamiGet<T>(path: string): Promise<T | null> {
           Accept: "application/json",
           Authorization: `Bearer ${token}`,
         },
+        next: { revalidate: REVALIDATE_SECONDS },
       });
     }
 
@@ -180,7 +186,20 @@ export const EMPTY_STATS: UmamiStats = {
   visits: { value: 0, prev: 0 },
 };
 
-function parseStatValue(raw: unknown): UmamiStatValue {
+// Read one stat across both Umami shapes:
+//  - current: each field is a plain number, prev under a sibling `comparison`
+//    object (`{ pageviews: 15171, comparison: { pageviews: 38675 } }`)
+//  - legacy:  each field is a `{ value, prev }` object
+function readStat(data: Record<string, unknown>, key: string): UmamiStatValue {
+  const raw = data[key];
+  if (typeof raw === "number") {
+    const comparison = data.comparison;
+    const prev =
+      comparison && typeof comparison === "object"
+        ? (comparison as Record<string, unknown>)[key]
+        : undefined;
+    return { value: toNumber(raw), prev: toNumber(prev) };
+  }
   if (raw && typeof raw === "object") {
     const obj = raw as Record<string, unknown>;
     return { value: toNumber(obj.value), prev: toNumber(obj.prev) };
@@ -198,11 +217,11 @@ export async function fetchStats(
     return null;
   }
   return {
-    bounces: parseStatValue(data.bounces),
-    pageviews: parseStatValue(data.pageviews),
-    totaltime: parseStatValue(data.totaltime),
-    visitors: parseStatValue(data.visitors),
-    visits: parseStatValue(data.visits),
+    bounces: readStat(data, "bounces"),
+    pageviews: readStat(data, "pageviews"),
+    totaltime: readStat(data, "totaltime"),
+    visitors: readStat(data, "visitors"),
+    visits: readStat(data, "visits"),
   };
 }
 
@@ -329,12 +348,13 @@ export async function fetchEventsTotal(range: UmamiRange): Promise<number> {
 // Sessions — raw rows used to build the Members panel.
 // GET /api/websites/{id}/sessions?startAt&endAt
 //
-// ASSUMPTION: the web app calls `umami.identify(<Appwrite account $id>, …)`, so
-// Umami keys identified sessions by a `distinctId` field equal to the Appwrite
-// account $id. The exact session payload shape is not verifiable from here, so
-// we read both the paginated `{ data: [...] }` envelope and a bare array, and
-// tolerate a missing `distinctId` (treated as an anonymous visitor and skipped
-// by the Members panel). If the real shape differs, the panel degrades to empty.
+// The web app calls `umami.identify(<Appwrite account $id>, …)`, so identified
+// sessions carry a `distinctId` equal to the Appwrite account $id. IMPORTANT:
+// the sessions LIST does not include `distinctId` — only the session DETAIL
+// endpoint (`/sessions/{id}`) does. So the list gives us `id`/`visits`/`views`,
+// and `fetchSessionDistinctId` resolves the distinctId per session. (We still
+// read `distinctId` off the list in case a future version exposes it, letting
+// callers skip the detail call.)
 // ---------------------------------------------------------------------------
 
 export interface UmamiSessionRow {
@@ -382,6 +402,24 @@ export async function fetchSessions(
     }
   }
   return sessions;
+}
+
+/**
+ * Resolve a single session's `distinctId` (the Appwrite account $id set via
+ * `umami.identify`). Only the session DETAIL endpoint exposes it. Returns null
+ * for anonymous sessions, missing data, or any failure.
+ * GET /api/websites/{id}/sessions/{sessionId}
+ */
+export async function fetchSessionDistinctId(
+  sessionId: string
+): Promise<string | null> {
+  const data = await umamiGet<Record<string, unknown>>(
+    `/api/websites/${WEB_WEBSITE_ID}/sessions/${sessionId}`
+  );
+  const distinctId = data?.distinctId;
+  return typeof distinctId === "string" && distinctId.trim().length > 0
+    ? distinctId.trim()
+    : null;
 }
 
 // ---------------------------------------------------------------------------

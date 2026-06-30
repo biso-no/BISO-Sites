@@ -44,6 +44,9 @@ import type { TrafficPoint } from "./_components/traffic-chart";
 import { TrafficChart } from "./_components/traffic-chart-lazy";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+// Quantize the range end so request URLs stay stable between loads and the
+// cached Umami reads (revalidate) actually hit instead of refetching each time.
+const RANGE_BUCKET_MS = 5 * 60 * 1000;
 const RANGE_DAYS: Record<AnalyticsRange, number> = {
   "7d": 7,
   "30d": 30,
@@ -99,7 +102,7 @@ export default async function AnalyticsPage({
   const t = await getTranslations("adminPortal.analytics");
 
   const range = parseRange((await searchParams).range);
-  const endAt = Date.now();
+  const endAt = Math.floor(Date.now() / RANGE_BUCKET_MS) * RANGE_BUCKET_MS;
   const startAt = endAt - RANGE_DAYS[range] * DAY_MS;
   const umamiRange: UmamiRange = { startAt, endAt };
 

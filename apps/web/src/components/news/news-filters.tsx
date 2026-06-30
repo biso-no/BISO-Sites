@@ -49,8 +49,11 @@ export function NewsFilters({
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (localSearch.trim()) {
-      trackEvent("search", { surface: "news", query: localSearch });
+    const trimmed = localSearch.trim();
+    if (trimmed) {
+      // Never send the raw query — a visitor may search their own email / name /
+      // S-number. Only the non-PII fact that a search happened + its length.
+      trackEvent("search", { surface: "news", queryLength: trimmed.length });
     }
     updateFilters(undefined, localSearch);
   };
