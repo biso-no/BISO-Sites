@@ -76,6 +76,7 @@ export function TourProvider({
   );
   const [loaded, setLoaded] = useState(false);
   const autoStartedRef = useRef(false);
+  const saveChainRef = useRef<Promise<unknown>>(Promise.resolve());
 
   const mergedLabels = useMemo<TourLabels>(
     () => ({ ...DEFAULT_LABELS, ...labels }),
@@ -92,9 +93,16 @@ export function TourProvider({
   const persist = useCallback(
     (record: TourProgressRecord) => {
       setProgress((prev) => ({ ...prev, [record.tourId]: record }));
-      if (persistence) {
-        persistence.save(record).catch(() => undefined);
+      if (!persistence) {
+        return;
       }
+      // Serialize saves so a slower earlier write can't complete after a later
+      // one and regress the persisted progress (e.g. an in-progress save landing
+      // after the completed save). Writes run in the order they were issued.
+      saveChainRef.current = saveChainRef.current
+        .catch(() => undefined)
+        .then(() => persistence.save(record))
+        .catch(() => undefined);
     },
     [persistence]
   );

@@ -26,15 +26,13 @@ function trackEvent(event: TourEvent) {
  * Appwrite-backed persistence (server actions), Umami analytics, Next router
  * navigation for multi-page tours, and route-based auto-start. Mounted in the
  * recruitment layout so its state survives navigation across `/jobs/*`.
- *
- * Phase 5 will add `translate` (next-intl `adminPortal.tours` namespace) and the
- * actual tour content via `buildRecruitmentRegistry`.
  */
 export function AdminTourProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const t = useTranslations("adminPortal.tours");
   const [vacancyId, setVacancyId] = useState<string | null>(null);
+  const [contextReady, setContextReady] = useState(false);
 
   const trigger = useMemo(
     () => TOUR_TRIGGERS.find((entry) => entry.match(pathname)) ?? null,
@@ -54,7 +52,12 @@ export function AdminTourProvider({ children }: { children: ReactNode }) {
           setVacancyId(context.vacancyId);
         }
       })
-      .catch(() => undefined);
+      .catch(() => undefined)
+      .finally(() => {
+        if (!cancelled) {
+          setContextReady(true);
+        }
+      });
     return () => {
       cancelled = true;
     };
@@ -70,7 +73,12 @@ export function AdminTourProvider({ children }: { children: ReactNode }) {
     []
   );
 
-  const autoStart = trigger ? { tourId: trigger.tourId, eligible: true } : null;
+  // Only offer the tour once the vacancy context has settled, so the registry is
+  // in its final (multi-page) shape before TourProvider resumes a saved step.
+  // Otherwise a returning user's step is clamped to the shorter no-workspace tour
+  // and that clamped value overwrites their real progress.
+  const autoStart =
+    trigger && contextReady ? { tourId: trigger.tourId, eligible: true } : null;
 
   return (
     <TourProvider
