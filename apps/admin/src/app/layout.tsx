@@ -5,6 +5,7 @@ import "@/app/styles.css";
 import { NextIntlClientProvider } from "next-intl";
 import { getMessages } from "next-intl/server";
 import { getLocale } from "@/app/actions/locale";
+import Script from "next/script";
 
 export const metadata: Metadata = {
   title: "BI Student Organisation",
@@ -28,7 +29,15 @@ export default async function RootLayout({
       <body>
         <Providers>
           <NextIntlClientProvider locale={locale} messages={messages}>
-            <main>{children}</main>
+            <main>
+              {children}
+              <Script
+                defer
+                src="https://analytics.biso.no/script.js"
+                data-website-id="fb30735f-bf07-409f-bc65-f32baf0b17fd"
+                strategy="afterInteractive"
+                />
+              </main>
           </NextIntlClientProvider>
         </Providers>
       </body>
