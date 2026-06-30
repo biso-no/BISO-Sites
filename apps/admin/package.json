@@ -22,6 +22,7 @@
     "@repo/i18n": "workspace:*",
     "@repo/payment": "workspace:*",
     "@repo/shared": "workspace:*",
+    "@repo/tours": "workspace:*",
     "@repo/ui": "workspace:*",
     "@tailwindcss/postcss": "catalog:",
     "@tanstack/react-form": "catalog:",

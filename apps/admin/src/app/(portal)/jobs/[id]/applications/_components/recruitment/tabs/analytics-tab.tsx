@@ -41,7 +41,7 @@ export function AnalyticsTab({
   const maxFunnel = Math.max(1, ...analytics.funnel.map((stage) => stage.n));
 
   return (
-    <div className="analytics-tab rcr-pad">
+    <div className="analytics-tab rcr-pad" data-tour="analytics-overview">
       <div className="an-quality">
         <QualityKpi
           helper="across screened candidates"

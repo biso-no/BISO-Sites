@@ -37,6 +37,20 @@ import {
 
 type TabId = "pipeline" | "interviews" | "analytics" | "form" | "settings";
 
+const TAB_IDS: readonly TabId[] = [
+  "pipeline",
+  "interviews",
+  "analytics",
+  "form",
+  "settings",
+];
+
+function coerceTab(value: string | null): TabId {
+  return value && (TAB_IDS as readonly string[]).includes(value)
+    ? (value as TabId)
+    : "pipeline";
+}
+
 type Action =
   | { type: "schedule"; candidate: WorkspaceCandidate }
   | { type: "advance"; candidate: WorkspaceCandidate }
@@ -54,7 +68,9 @@ export function RecruitShell({ data }: { data: RecruitmentWorkspaceData }) {
   const [candidates, setCandidates] = useState<WorkspaceCandidate[]>(
     data.candidates
   );
-  const [tab, setTab] = useState<TabId>("pipeline");
+  const [tab, setTab] = useState<TabId>(() =>
+    coerceTab(searchParams.get("tab"))
+  );
   const [compareIds, setCompareIds] = useState<string[]>([]);
   const [action, setAction] = useState<Action>(null);
   const [drawerId, setDrawerId] = useState<string | null>(
@@ -89,6 +105,29 @@ export function RecruitShell({ data }: { data: RecruitmentWorkspaceData }) {
     setDrawerId(null);
     syncDrawerUrl(null);
   }, [syncDrawerUrl]);
+
+  const selectTab = useCallback(
+    (next: TabId) => {
+      setTab(next);
+      const params = new URLSearchParams(searchParams.toString());
+      if (next === "pipeline") {
+        params.delete("tab");
+      } else {
+        params.set("tab", next);
+      }
+      const query = params.toString();
+      router.replace(query ? `${pathname}?${query}` : pathname, {
+        scroll: false,
+      });
+    },
+    [pathname, router, searchParams]
+  );
+
+  // React to tour-driven (or back/forward) ?tab= changes.
+  useEffect(() => {
+    const urlTab = coerceTab(searchParams.get("tab"));
+    setTab((current) => (current === urlTab ? current : urlTab));
+  }, [searchParams]);
 
   const updateCandidate = useCallback(
     (id: string, patch: Partial<WorkspaceCandidate>) => {
@@ -213,14 +252,14 @@ export function RecruitShell({ data }: { data: RecruitmentWorkspaceData }) {
             }}
           />
 
-          <div className="rcr-tabs">
+          <div className="rcr-tabs" data-tour="workspace-tabs">
             {TABS.map((entry) => {
               const Icon = entry.icon;
               return (
                 <button
                   className={cx("rcr-tab", tab === entry.id && "on")}
                   key={entry.id}
-                  onClick={() => setTab(entry.id)}
+                  onClick={() => selectTab(entry.id)}
                   type="button"
                 >
                   <Icon size={14} /> {entry.label}

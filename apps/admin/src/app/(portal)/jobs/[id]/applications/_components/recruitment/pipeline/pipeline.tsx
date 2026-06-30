@@ -25,6 +25,8 @@ const STATUS_BY_STAGE: Record<RecruitmentStageId, JobApplicationsStatus> = {
   submitted: JobApplicationsStatus.SUBMITTED,
 };
 
+const STAGE_TOUR_ANCHORS = ["pipeline-stage-first", "pipeline-stage-next"];
+
 export function Pipeline() {
   const { candidates, updateCandidate } = useRecruitment();
   const [mode, setMode] = useState<"kanban" | "list">("kanban");
@@ -148,7 +150,7 @@ export function Pipeline() {
   };
 
   return (
-    <div className="pipeline rcr-pad">
+    <div className="pipeline rcr-pad" data-tour="workspace-pipeline">
       <AiInsights />
 
       <div className="pl-toolbar">
@@ -196,13 +198,15 @@ export function Pipeline() {
 
       {mode === "kanban" ? (
         <div className="kanban">
-          {RECRUITMENT_STAGES.map((stage) => {
+          {RECRUITMENT_STAGES.map((stage, stageIndex) => {
             const cards = byStage.get(stage.id) ?? [];
+            const tourAnchor = STAGE_TOUR_ANCHORS[stageIndex];
             return (
               // biome-ignore lint/a11y/noStaticElementInteractions: kanban column is a drag-and-drop drop target
               // biome-ignore lint/a11y/noNoninteractiveElementInteractions: kanban column is a drag-and-drop drop target
               <section
                 className={cx("kb-col", dragOver === stage.id && "over")}
+                data-tour={tourAnchor}
                 key={stage.id}
                 onDragLeave={() => setDragOver(null)}
                 onDragOver={(event) => {

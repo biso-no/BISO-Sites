@@ -563,6 +563,7 @@ export function JobStudioDashboard({
         </div>
         <Link
           className="inline-flex w-fit items-center gap-2 rounded-full px-5 py-3 font-medium text-sm transition hover:-translate-y-0.5 hover:shadow-lg"
+          data-tour="create-vacancy"
           href="/jobs/new"
           style={{ background: BRAND.blue, color: BRAND.paper }}
         >
@@ -610,6 +611,7 @@ export function JobStudioDashboard({
 
       <section
         className="overflow-hidden rounded-2xl border"
+        data-tour="vacancy-list"
         style={{ background: "rgba(255,255,255,0.5)", borderColor: BRAND.rule }}
       >
         <div

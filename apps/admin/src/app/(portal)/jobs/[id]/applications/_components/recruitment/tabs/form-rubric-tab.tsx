@@ -99,7 +99,7 @@ export function FormRubricTab() {
 
   return (
     <div className="form-tab rcr-pad">
-      <div className="ft-main">
+      <div className="ft-main" data-tour="form-builder">
         <div className="ft-section">
           <div className="ft-section-head">
             <h3>Application questions</h3>

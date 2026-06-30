@@ -72,6 +72,7 @@ export function CampusSwitcher({
 
   return (
     <div
+      data-tour="campus-switcher"
       ref={containerRef}
       style={{ marginBottom: "16px", position: "relative" }}
     >

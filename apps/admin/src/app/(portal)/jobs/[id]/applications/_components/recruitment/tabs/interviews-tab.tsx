@@ -198,7 +198,7 @@ export function InterviewsTab({
       </div>
 
       <div className="iv-side">
-        <div className="iv-card">
+        <div className="iv-card" data-tour="interviews-schedule">
           <div className="iv-card-head">
             <h3>
               <Link2 size={14} /> Send a booking link
