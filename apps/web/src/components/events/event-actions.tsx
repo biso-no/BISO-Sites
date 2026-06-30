@@ -1,8 +1,10 @@
 "use client";
 
+import { trackEvent } from "@repo/shared/utils/analytics";
 import { Button } from "@repo/ui/components/ui/button";
 import { Card } from "@repo/ui/components/ui/card";
 import { ExternalLink, Share2, Ticket } from "lucide-react";
+import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 
 interface EventActionsProps {
@@ -17,8 +19,12 @@ export function EventActions({
   description,
 }: EventActionsProps) {
   const t = useTranslations("events");
+  const pathname = usePathname();
+  // The event detail route is /events/[slug]; the trailing segment is the slug.
+  const eventId = pathname.split("/").pop() ?? "";
 
   const handleShare = async () => {
+    trackEvent("share", { type: "event", eventId });
     if (navigator.share) {
       try {
         await navigator.share({
@@ -48,14 +54,20 @@ export function EventActions({
       {ticketUrl ? (
         <Button
           className="mb-3 w-full bg-background text-brand-dark hover:bg-background/90"
-          onClick={() => window.open(ticketUrl, "_blank")}
+          onClick={() => {
+            trackEvent("event_ticket_click", { eventId });
+            window.open(ticketUrl, "_blank");
+          }}
         >
           <Ticket className="mr-2 h-4 w-4" />
           {t("actions.buyOnTickster")}
           <ExternalLink className="ml-2 h-4 w-4" />
         </Button>
       ) : (
-        <Button className="mb-3 w-full bg-background text-brand-dark hover:bg-background/90">
+        <Button
+          className="mb-3 w-full bg-background text-brand-dark hover:bg-background/90"
+          onClick={() => trackEvent("event_register", { eventId })}
+        >
           <Ticket className="mr-2 h-4 w-4" />
           {t("actions.registerNow")}
         </Button>

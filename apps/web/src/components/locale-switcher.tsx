@@ -1,6 +1,7 @@
 "use client";
 
 import { type Locale, SUPPORTED_LOCALES } from "@repo/i18n/config";
+import { trackEvent } from "@repo/shared/utils/analytics";
 import { Button } from "@repo/ui/components/ui/button";
 import {
   DropdownMenu,
@@ -60,6 +61,7 @@ export function LocaleSwitcher({
     startTransition(async () => {
       try {
         await setLocale(newLocale);
+        trackEvent("language_switch", { from: currentLocale, to: newLocale });
         // Refresh the page to apply the new locale
         window.location.reload();
       } catch (error) {

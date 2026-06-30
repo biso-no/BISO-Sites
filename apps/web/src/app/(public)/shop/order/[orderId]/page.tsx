@@ -25,6 +25,7 @@ import {
   OrderReceipt,
   type ReceiptItem,
 } from "@/components/shop/order-receipt";
+import { PurchaseTracker } from "@/components/shop/purchase-tracker";
 import { ShopHeroShell } from "@/components/shop/shop-hero-shell";
 import { normalizeCampusKey } from "@/lib/shop/pickup-locations";
 
@@ -114,6 +115,26 @@ interface RawOrderItem {
 
 function parseItems(itemsJson: string | null): RawOrderItem[] {
   return itemsJson ? (JSON.parse(itemsJson) as RawOrderItem[]) : [];
+}
+
+const MEMBERSHIP_ITEM_PATTERN = /member/i;
+
+// Classify an order for the revenue event so membership conversions can be
+// segmented from merch in Umami. Membership is bought through the same checkout,
+// so we infer from the line-item titles rather than a dedicated order flag.
+function resolvePurchaseType(
+  items: RawOrderItem[]
+): "membership" | "merch" | "mixed" {
+  if (items.length === 0) {
+    return "merch";
+  }
+  const membershipCount = items.filter((item) =>
+    MEMBERSHIP_ITEM_PATTERN.test(item.title ?? item.name ?? "")
+  ).length;
+  if (membershipCount === 0) {
+    return "merch";
+  }
+  return membershipCount === items.length ? "membership" : "mixed";
 }
 
 async function StatusBanner({
@@ -413,6 +434,14 @@ async function OrderDetails({
   return (
     <>
       {reservationsCleared ? <CartResetOnSuccess /> : null}
+      {showSuccess ? (
+        <PurchaseTracker
+          campus={campusName ?? undefined}
+          orderId={order.$id}
+          revenue={order.total}
+          type={resolvePurchaseType(rawItems)}
+        />
+      ) : null}
 
       <div className="min-h-screen bg-linear-to-b from-section to-background print:hidden">
         <ShopHeroShell

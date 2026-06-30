@@ -1,5 +1,6 @@
 "use client";
 import type { Campus } from "@repo/api/types/appwrite";
+import { trackEvent } from "@repo/shared/utils/analytics";
 import { useHydration } from "@repo/ui/hooks/use-hydration";
 import { useRouter } from "next/navigation";
 import {
@@ -97,6 +98,7 @@ export const CampusProvider = ({ children }: { children: React.ReactNode }) => {
     async (campusId: string | null) => {
       // Handle "all" selection by setting to null
       const normalizedCampusId = campusId === "all" ? null : campusId;
+      trackEvent("campus_switch", { to: normalizedCampusId ?? "all" });
       setActiveCampusId(normalizedCampusId);
 
       // Persist to server (user preferences) - fails silently if not logged in

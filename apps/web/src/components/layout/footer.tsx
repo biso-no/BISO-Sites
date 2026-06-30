@@ -1,4 +1,5 @@
 "use client";
+import { trackEvent } from "@repo/shared/utils/analytics";
 import { Facebook, Instagram, Linkedin, Mail, MapPin } from "lucide-react";
 import { motion } from "motion/react";
 import Image from "next/image";
@@ -133,6 +134,13 @@ export function Footer() {
                 className="flex h-10 w-10 items-center justify-center rounded-lg bg-inverted transition-all duration-300 hover:bg-linear-to-br hover:from-purple-600 hover:to-pink-600"
                 href={social.href}
                 key={social.label}
+                onClick={() =>
+                  trackEvent("outbound_click", {
+                    url: social.href,
+                    label: social.label,
+                    surface: "footer",
+                  })
+                }
                 rel="noopener noreferrer"
                 target="_blank"
               >

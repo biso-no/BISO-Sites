@@ -1,6 +1,7 @@
 "use client";
 
 import type { Campus, VarslingSettings } from "@repo/api/types/appwrite";
+import { trackEvent } from "@repo/shared/utils/analytics";
 import { Alert, AlertDescription } from "@repo/ui/components/ui/alert";
 import { Button } from "@repo/ui/components/ui/button";
 import { Input } from "@repo/ui/components/ui/input";
@@ -98,6 +99,9 @@ export function VarslingForm() {
       });
 
       if (result.success) {
+        // Non-PII: only the submission category, never campus/role/identity, so
+        // a sensitive whistleblowing report can't be correlated to a reporter.
+        trackEvent("varsling_submit", { submissionType });
         setSubmitStatus({
           type: "success",
           message: t("form.submit.success"),

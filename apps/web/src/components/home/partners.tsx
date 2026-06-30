@@ -1,4 +1,5 @@
 "use client";
+import { trackEvent } from "@repo/shared/utils/analytics";
 import { motion } from "motion/react";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
@@ -35,6 +36,13 @@ export function Partners({ partners }: { partners: Partner[] }) {
                       <a
                         className="transition-opacity hover:opacity-80"
                         href={partner.url}
+                        onClick={() =>
+                          trackEvent("outbound_click", {
+                            url: partner.url,
+                            label: partner.name,
+                            surface: "partners",
+                          })
+                        }
                         rel="noreferrer"
                         target="_blank"
                       >

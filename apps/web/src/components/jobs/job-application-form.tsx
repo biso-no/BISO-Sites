@@ -1,6 +1,7 @@
 "use client";
 
 import type { RecruitmentCustomQuestion } from "@repo/shared/types/recruitment";
+import { trackEvent } from "@repo/shared/utils/analytics";
 import { Button } from "@repo/ui/components/ui/button";
 import { Card } from "@repo/ui/components/ui/card";
 import { Checkbox } from "@repo/ui/components/ui/checkbox";
@@ -247,6 +248,7 @@ export function JobApplicationForm({
     const next = steps[i + 1];
     if (next) {
       setStep(next.id);
+      trackEvent("job_application_step", { jobId, step: next.id });
     }
   }
 
@@ -294,6 +296,9 @@ export function JobApplicationForm({
     startTransition(async () => {
       const result = await submitJobApplication(jobId, buildFormData());
       setIsSuccess(result.success);
+      if (result.success) {
+        trackEvent("job_application_submit", { jobId });
+      }
       setMessage(
         result.success ? "Application submitted successfully." : result.error
       );

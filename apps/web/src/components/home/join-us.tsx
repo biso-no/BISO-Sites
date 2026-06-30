@@ -1,4 +1,5 @@
 "use client";
+import { trackEvent } from "@repo/shared/utils/analytics";
 import { Button } from "@repo/ui/components/ui/button";
 import { Card } from "@repo/ui/components/ui/card";
 import { Check, Crown, Gift, Sparkles, Zap } from "lucide-react";
@@ -192,7 +193,13 @@ export function JoinUs() {
 
                 <Button
                   className={`w-full bg-linear-to-r ${duration.gradient} mt-auto border-0 text-white shadow-lg hover:opacity-90`}
-                  onClick={() => router.push("/membership")}
+                  onClick={() => {
+                    trackEvent("membership_cta_click", {
+                      source: "home_join_us",
+                      duration: duration.name,
+                    });
+                    router.push("/membership");
+                  }}
                 >
                   Choose {duration.name}
                 </Button>

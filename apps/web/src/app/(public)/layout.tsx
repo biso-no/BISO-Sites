@@ -20,8 +20,27 @@ export default async function PublicLayout({
 
   const needsOnboarding = !!userData?.user && !userData?.profile;
 
+  // Non-PII identity for Umami's identify(): the stable Appwrite account id plus
+  // segmentation attributes. getLoggedInUser() is null for anonymous sessions,
+  // so only genuine authenticated members are ever identified. Never include
+  // name/email/phone — names are resolved admin-side from the account id.
+  const memberIdentity = userData?.user
+    ? {
+        accountId: userData.user.$id,
+        campus: (userData.user.prefs as { campusId?: string } | undefined)
+          ?.campusId,
+        role: userData.user.labels?.length
+          ? userData.user.labels.join(",")
+          : undefined,
+        isMember: membershipStatus?.isMember ?? false,
+      }
+    : null;
+
   return (
-    <PublicProviders initialMembershipStatus={membershipStatus}>
+    <PublicProviders
+      initialMembershipStatus={membershipStatus}
+      memberIdentity={memberIdentity}
+    >
       <Navigation featured={featured} />
       <main>
         <div>{children}</div>

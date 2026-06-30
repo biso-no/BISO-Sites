@@ -11,6 +11,7 @@
     "news": "News",
     "communications": "Communications",
     "it": "IT",
+    "analytics": "Analytics",
     "settings": "Settings",
     "featureFlags": "Feature flags",
     "operations": "Operations health",
@@ -951,6 +952,49 @@
       "configured": "Configured",
       "incomplete": "Incomplete",
       "notConfigured": "Not configured"
+    }
+  },
+  "analytics": {
+    "title": "Analytics",
+    "subtitle": "Web traffic for the public BISO site, sourced from the self-hosted Umami instance.",
+    "eyebrow": "Insights",
+    "range": {
+      "label": "Range",
+      "7d": "7 days",
+      "30d": "30 days",
+      "90d": "90 days"
+    },
+    "kpis": {
+      "pageviews": "Pageviews",
+      "visitors": "Visitors",
+      "visits": "Visits",
+      "bounceRate": "Bounce rate",
+      "avgVisitTime": "Avg. visit time"
+    },
+    "sections": {
+      "traffic": "Traffic over time",
+      "trafficSubtitle": "Pageviews and sessions per day",
+      "topPages": "Top pages",
+      "topReferrers": "Top referrers",
+      "topEvents": "Top events",
+      "members": "Members"
+    },
+    "members": {
+      "subtitle": "Identified members ranked by visits",
+      "visitsLabel": "visits",
+      "viewsLabel": "views"
+    },
+    "legend": {
+      "pageviews": "Pageviews",
+      "sessions": "Sessions"
+    },
+    "eventsTracked": "{count} events tracked",
+    "empty": {
+      "chart": "No traffic recorded for this period",
+      "pages": "No page data",
+      "referrers": "No referrer data",
+      "events": "No event data",
+      "members": "No identified members yet"
     }
   },
   "featureFlags": {

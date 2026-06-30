@@ -6,6 +6,7 @@ import type {
   Expenses,
   Users,
 } from "@repo/api/types/appwrite";
+import { trackEvent } from "@repo/shared/utils/analytics";
 import { defaultCostTypeSlugForCategory } from "@repo/shared/utils/expense-cost-types";
 import { Button } from "@repo/ui/components/ui/button";
 import { Combobox } from "@repo/ui/components/ui/combobox";
@@ -759,6 +760,9 @@ export function ExpenseSplitView({
 
       if (result.success && result.fetchedExpense) {
         store.setPhase("complete");
+        trackEvent("expense_submit", {
+          campus: store.selectedCampusId ?? "",
+        });
         toast.success("Expense submitted!");
         router.push(`/fs/${result.fetchedExpense.$id}`);
       } else {

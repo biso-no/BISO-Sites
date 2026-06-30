@@ -1,5 +1,6 @@
 "use client";
 
+import { trackEvent } from "@repo/shared/utils/analytics";
 import { Button } from "@repo/ui/components/ui/button";
 import { Input } from "@repo/ui/components/ui/input";
 import { Filter, Search, X } from "lucide-react";
@@ -48,6 +49,9 @@ export function NewsFilters({
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (localSearch.trim()) {
+      trackEvent("search", { surface: "news", query: localSearch });
+    }
     updateFilters(undefined, localSearch);
   };
 

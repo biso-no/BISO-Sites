@@ -17,6 +17,7 @@ import {
   Inbox,
   Layers,
   LayoutDashboard,
+  LineChart,
   LogOut,
   Megaphone,
   Newspaper,
@@ -133,6 +134,13 @@ export const NAV_ITEMS: NavItem[] = [
     labelKey: "it",
     navKey: "portal.it",
     path: "/it",
+  },
+  {
+    group: "operate",
+    icon: LineChart,
+    labelKey: "analytics",
+    navKey: "portal.analytics",
+    path: "/analytics",
   },
   {
     group: "operate",
