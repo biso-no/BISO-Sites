@@ -288,15 +288,24 @@ export async function fetchTopMetrics(
 }
 
 // ---------------------------------------------------------------------------
-// Events timeseries — best-effort. Shape varies across Umami versions, so we
-// only extract a numeric `y` per bucket and sum it for a headline count.
-// GET /api/websites/{id}/events?startAt&endAt&unit=day&timezone=Europe/Oslo
+// Events total — headline "events tracked" count. The current Umami `/events`
+// endpoint returns a paginated envelope `{ data, count, page, pageSize }`, where
+// `count` is the total event rows in range — that's the number we want. Older /
+// timeseries variants returned an array of `{ y }` buckets, which we still sum
+// as a fallback so the KPI keeps working across versions.
+// GET /api/websites/{id}/events?startAt&endAt
 // ---------------------------------------------------------------------------
 
 export async function fetchEventsTotal(range: UmamiRange): Promise<number> {
   const data = await umamiGet<unknown>(
-    `/api/websites/${WEB_WEBSITE_ID}/events?${buildRangeQuery(range)}&unit=day&timezone=${UMAMI_TIMEZONE}`
+    `/api/websites/${WEB_WEBSITE_ID}/events?${buildRangeQuery(range)}&pageSize=1`
   );
+  // Paginated envelope: use the authoritative `count`.
+  if (data && typeof data === "object" && !Array.isArray(data)) {
+    const count = (data as Record<string, unknown>).count;
+    return count == null ? 0 : toNumber(count);
+  }
+  // Legacy timeseries array of `{ y }` buckets.
   if (!Array.isArray(data)) {
     return 0;
   }

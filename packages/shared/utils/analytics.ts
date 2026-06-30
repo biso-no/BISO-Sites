@@ -5,9 +5,10 @@
  * wrapper component and the literal product name never appears in markup — the
  * `<Script>` tag in each app's root layout is what loads the tracker. These
  * helpers are the single typed seam every app uses to emit *custom* events and
- * to attach a (non-PII) member identity. They no-op safely when the tracker is
- * absent (before it loads, on localhost, or in non-production builds), so call
- * sites never need their own guards.
+ * to attach a (non-PII) member identity. They no-op safely when tracking is
+ * disabled (server render, localhost, or non-production builds) and, when it is
+ * enabled but the script hasn't loaded yet, briefly retry instead of dropping
+ * the call — so call sites never need their own guards.
  */
 
 /**
@@ -54,21 +55,59 @@ interface UmamiTracker {
   track: (name: string, data?: Record<string, unknown>) => void;
 }
 
+/** ~10s of bounded polling while the `afterInteractive` script finishes loading. */
+const TRACKER_RETRY_MS = 250;
+const TRACKER_MAX_ATTEMPTS = 40;
+
 /**
- * Resolve the live tracker, or `undefined` when tracking should be skipped:
- * server render, tracker not yet loaded, or a non-production build without the
- * explicit `NEXT_PUBLIC_ANALYTICS_DEBUG` opt-in (keeps prod data clean).
+ * Whether tracking should run in this environment: client-side, and either a
+ * production build or the explicit `NEXT_PUBLIC_ANALYTICS_DEBUG` opt-in (which
+ * keeps prod data clean while still allowing local testing).
  */
-function getTracker(): UmamiTracker | undefined {
+function isTrackingEnabled(): boolean {
   if (typeof window === "undefined") {
-    return;
+    return false;
   }
   const isProduction = process.env.NODE_ENV === "production";
   const isDebug = process.env.NEXT_PUBLIC_ANALYTICS_DEBUG === "true";
-  if (!(isProduction || isDebug)) {
+  return isProduction || isDebug;
+}
+
+function readTracker(): UmamiTracker | undefined {
+  return (window as unknown as { umami?: UmamiTracker }).umami;
+}
+
+/**
+ * Run `action` against the tracker. The `<Script>` loads `afterInteractive`, so
+ * on a first page view `window.umami` can still be absent when a mount-only call
+ * fires (e.g. `purchase`, `identify`). Rather than silently drop the event —
+ * which would lose revenue and leave members anonymous — retry a bounded number
+ * of times until the tracker appears, then give up.
+ */
+function withTracker(action: (tracker: UmamiTracker) => void): void {
+  if (!isTrackingEnabled()) {
     return;
   }
-  return (window as unknown as { umami?: UmamiTracker }).umami;
+  const ready = readTracker();
+  if (ready) {
+    action(ready);
+    return;
+  }
+  let attempts = 0;
+  let timer = 0;
+  const tick = () => {
+    attempts += 1;
+    const tracker = readTracker();
+    if (tracker) {
+      window.clearInterval(timer);
+      action(tracker);
+      return;
+    }
+    if (attempts >= TRACKER_MAX_ATTEMPTS) {
+      window.clearInterval(timer);
+    }
+  };
+  timer = window.setInterval(tick, TRACKER_RETRY_MS);
 }
 
 /** Drop `undefined` entries so we never send empty keys to Umami. */
@@ -87,12 +126,12 @@ function compact(
   return result;
 }
 
-/** Fire a custom Umami event. No-ops when the tracker is unavailable. */
+/** Fire a custom Umami event. No-ops when tracking is disabled for this env. */
 export function trackEvent(
   name: AnalyticsEventName,
   data?: AnalyticsData
 ): void {
-  getTracker()?.track(name, compact(data));
+  withTracker((tracker) => tracker.track(name, compact(data)));
 }
 
 /**
@@ -101,7 +140,7 @@ export function trackEvent(
  * email, or phone) — names are resolved admin-side from the id.
  */
 export function identifyUser(id: string, attributes?: AnalyticsData): void {
-  getTracker()?.identify(id, compact(attributes));
+  withTracker((tracker) => tracker.identify(id, compact(attributes)));
 }
 
 /**
