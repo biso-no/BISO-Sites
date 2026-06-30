@@ -1,6 +1,7 @@
 "use client";
 
 import type { Documents } from "@repo/api/types/appwrite";
+import { trackEvent } from "@repo/shared/utils/analytics";
 import {
   BookOpen,
   Briefcase,
@@ -192,6 +193,12 @@ export function DocumentRow({ doc, index }: DocumentRowProps) {
               className="flex items-center gap-2 rounded-lg px-4 py-2 text-sm shadow-lg transition-all duration-300"
               download
               href={`/api/documents/${doc.$id}/download`}
+              onClick={() =>
+                trackEvent("document_download", {
+                  documentId: doc.$id,
+                  title: doc.title,
+                })
+              }
               style={{
                 background: "linear-gradient(135deg, #3DA9E0, #2d8bc0)",
                 color: "#fff",

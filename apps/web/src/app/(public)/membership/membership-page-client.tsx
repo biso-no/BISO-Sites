@@ -1,6 +1,7 @@
 "use client";
 
 import type { Locale } from "@repo/i18n/config";
+import { trackEvent } from "@repo/shared/utils/analytics";
 import { ImageWithFallback } from "@repo/ui/components/image";
 import {
   Accordion,
@@ -501,7 +502,15 @@ export function MembershipPageClient({
                     className="bg-white text-primary-100 shadow-lg hover:bg-white/90"
                     size="lg"
                   >
-                    <Link href="/shop/membership/">
+                    <Link
+                      href="/shop/membership/"
+                      onClick={() =>
+                        trackEvent("membership_cta_click", {
+                          source: "membership_page",
+                          campus: activeCampus?.name,
+                        })
+                      }
+                    >
                       {t("hero.ctas.join")}
                       <ArrowRight className="ml-2 h-4 w-4" />
                     </Link>
@@ -852,7 +861,15 @@ export function MembershipPageClient({
                     className="w-full bg-white text-primary shadow-lg hover:bg-white/90"
                     size="lg"
                   >
-                    <Link href="/shop/membership/">
+                    <Link
+                      href="/shop/membership/"
+                      onClick={() =>
+                        trackEvent("membership_cta_click", {
+                          source: "membership_page",
+                          campus: activeCampus?.name,
+                        })
+                      }
+                    >
                       {t("ctaCard.primary")}
                       <ArrowRight className="ml-2 h-4 w-4" />
                     </Link>

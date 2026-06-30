@@ -1,7 +1,7 @@
 "use client";
 
+import { trackEvent } from "@repo/shared/utils/analytics";
 import { TourProvider } from "@repo/tours/provider";
-import type { TourEvent } from "@repo/tours/types";
 import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { type ReactNode, useEffect, useMemo, useState } from "react";
@@ -12,14 +12,6 @@ import {
 import { getRecruitmentTourContext } from "../../app/(portal)/jobs/_actions/tour-context";
 import { buildRecruitmentRegistry, TOUR_TRIGGERS } from "./registry";
 import { StudioTourCard } from "./studio-tour-card";
-
-function trackEvent(event: TourEvent) {
-  (
-    window as unknown as {
-      umami?: { track: (name: string, data?: Record<string, unknown>) => void };
-    }
-  ).umami?.track(event.name, event.data);
-}
 
 /**
  * Host wrapper that binds the shared <TourProvider> to admin concerns:
@@ -93,7 +85,7 @@ export function AdminTourProvider({ children }: { children: ReactNode }) {
           t("controls.progress", { current, total }),
       }}
       navigate={(path) => router.push(path)}
-      onEvent={trackEvent}
+      onEvent={(event) => trackEvent(event.name, event.data)}
       persistence={persistence}
       registry={registry}
       renderStepCard={(context) => <StudioTourCard {...context} />}

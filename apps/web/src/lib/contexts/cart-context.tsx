@@ -1,5 +1,6 @@
 "use client";
 
+import { trackEvent } from "@repo/shared/utils/analytics";
 import { useLocale, useTranslations } from "next-intl";
 import {
   createContext,
@@ -201,6 +202,12 @@ export function CartProvider({ children }: { children: ReactNode }) {
           i.id === id ? { ...i, quantity: finalQuantity } : i
         )
       );
+      trackEvent("add_to_cart", {
+        productId: item.productId,
+        name: item.name,
+        category: item.category,
+        quantity: baseQuantity,
+      });
       setIsDrawerOpen(true);
       return;
     }
@@ -227,6 +234,12 @@ export function CartProvider({ children }: { children: ReactNode }) {
       quantity: finalQuantity,
     };
     setItems((prevItems) => [...prevItems, newItem]);
+    trackEvent("add_to_cart", {
+      productId: item.productId,
+      name: item.name,
+      category: item.category,
+      quantity: finalQuantity,
+    });
     setIsDrawerOpen(true);
   };
 
@@ -241,6 +254,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
       setItems((prevItems) =>
         prevItems.filter((cartItem) => cartItem.id !== itemId)
       );
+      trackEvent("remove_from_cart", {
+        productId: item.productId,
+        name: item.name,
+      });
     }
   };
 

@@ -1,5 +1,6 @@
 "use client";
 
+import { trackEvent } from "@repo/shared/utils/analytics";
 import { Button } from "@repo/ui/components/ui/button";
 import { Input } from "@repo/ui/components/ui/input";
 import { Filter, Search, X } from "lucide-react";
@@ -48,6 +49,12 @@ export function NewsFilters({
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    const trimmed = localSearch.trim();
+    if (trimmed) {
+      // Never send the raw query — a visitor may search their own email / name /
+      // S-number. Only the non-PII fact that a search happened + its length.
+      trackEvent("search", { surface: "news", queryLength: trimmed.length });
+    }
     updateFilters(undefined, localSearch);
   };
 

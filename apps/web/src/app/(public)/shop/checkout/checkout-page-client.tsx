@@ -1,5 +1,6 @@
 "use client";
 
+import { trackEvent } from "@repo/shared/utils/analytics";
 import {
   Alert,
   AlertDescription,
@@ -168,6 +169,8 @@ export function CheckoutPageClient({
       return;
     }
 
+    trackEvent("checkout_start", { provider, itemCount, value: subtotal });
+
     startTransition(async () => {
       try {
         const result = await createCartCheckoutSession({
@@ -282,7 +285,11 @@ export function CheckoutPageClient({
           {paymentsAvailable ? (
             <RadioGroup
               className="grid gap-4 md:grid-cols-2"
-              onValueChange={(value) => setProvider(value as PaymentProvider)}
+              onValueChange={(value) => {
+                const next = value as PaymentProvider;
+                setProvider(next);
+                trackEvent("checkout_provider_selected", { provider: next });
+              }}
               value={provider}
             >
               {enabledProviders.map((value) => {

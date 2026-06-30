@@ -11,6 +11,7 @@
     "news": "Nyheter",
     "communications": "Kommunikasjon",
     "it": "IT",
+    "analytics": "Analyse",
     "settings": "Innstillinger",
     "featureFlags": "Funksjonsbrytere",
     "operations": "Driftshelse",
@@ -951,6 +952,49 @@
       "configured": "Konfigurert",
       "incomplete": "Ufullstendig",
       "notConfigured": "Ikke konfigurert"
+    }
+  },
+  "analytics": {
+    "title": "Analyse",
+    "subtitle": "Webtrafikk for den offentlige BISO-siden, hentet fra den selvhostede Umami-instansen.",
+    "eyebrow": "Innsikt",
+    "range": {
+      "label": "Periode",
+      "7d": "7 dager",
+      "30d": "30 dager",
+      "90d": "90 dager"
+    },
+    "kpis": {
+      "pageviews": "Sidevisninger",
+      "visitors": "Besøkende",
+      "visits": "Besøk",
+      "bounceRate": "Fluktfrekvens",
+      "avgVisitTime": "Gj.sn. besøkstid"
+    },
+    "sections": {
+      "traffic": "Trafikk over tid",
+      "trafficSubtitle": "Sidevisninger og økter per dag",
+      "topPages": "Mest besøkte sider",
+      "topReferrers": "Toppkilder",
+      "topEvents": "Topphendelser",
+      "members": "Medlemmer"
+    },
+    "members": {
+      "subtitle": "Identifiserte medlemmer rangert etter besøk",
+      "visitsLabel": "besøk",
+      "viewsLabel": "visninger"
+    },
+    "legend": {
+      "pageviews": "Sidevisninger",
+      "sessions": "Økter"
+    },
+    "eventsTracked": "{count} hendelser registrert",
+    "empty": {
+      "chart": "Ingen trafikk registrert for denne perioden",
+      "pages": "Ingen sidedata",
+      "referrers": "Ingen kildedata",
+      "events": "Ingen hendelsesdata",
+      "members": "Ingen identifiserte medlemmer ennå"
     }
   },
   "featureFlags": {

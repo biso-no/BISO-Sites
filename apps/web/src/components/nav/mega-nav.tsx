@@ -1,5 +1,6 @@
 "use client";
 
+import { trackEvent } from "@repo/shared/utils/analytics";
 import { ImageWithFallback } from "@repo/ui/components/image";
 import { ModeToggle } from "@repo/ui/components/mode-toggle";
 import { Button } from "@repo/ui/components/ui/button";
@@ -101,6 +102,10 @@ export function Navigation({
   const togglePanel = useCallback(
     (id: PanelId) => {
       clearCloseTimer();
+      // Fire only on the open transition, never on close.
+      if (openPanelRef.current !== id) {
+        trackEvent("nav_menu_open", { panel: id });
+      }
       setOpenPanel((current) => (current === id ? null : id));
       pointerInteractionRef.current = false;
     },
@@ -287,7 +292,10 @@ export function Navigation({
             </Button>
             <Button
               className="shrink-0 bg-brand text-white hover:bg-brand/90"
-              onClick={() => router.push("/membership")}
+              onClick={() => {
+                trackEvent("membership_cta_click", { source: "nav" });
+                router.push("/membership");
+              }}
               size="sm"
             >
               {t("becomeMember")}

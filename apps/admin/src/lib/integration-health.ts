@@ -19,7 +19,8 @@ export type IntegrationCategory =
   | "identity"
   | "documents"
   | "payments"
-  | "schedulers";
+  | "schedulers"
+  | "analytics";
 
 export interface IntegrationDef {
   category: IntegrationCategory;
@@ -111,6 +112,16 @@ export const INTEGRATIONS: readonly IntegrationDef[] = [
     purpose:
       "Shared secrets the external scheduler must send to run reservation " +
       "cleanup, announcement dispatch, and the transit/ticket sync routes.",
+  },
+  {
+    id: "umami",
+    label: "Umami analytics",
+    category: "analytics",
+    envKeys: ["UMAMI_API_URL", "UMAMI_USERNAME", "UMAMI_PASSWORD"],
+    runbook: "/docs/operations/monitoring-and-health",
+    purpose:
+      "Read-API access to the self-hosted Umami instance that powers the " +
+      "admin analytics dashboard. Missing keys leave the dashboard empty.",
   },
 ];
 
