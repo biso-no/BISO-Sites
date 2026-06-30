@@ -39,9 +39,13 @@ export async function loadTourProgress(): Promise<TourProgressRecord[]> {
 }
 
 /**
- * Upserts the current user's progress for a single tour. The (user_id, tour_id)
- * pair is unique, so we look up an existing row and update it, otherwise create
- * a new row with owner-scoped document permissions (rowSecurity is on).
+ * Upserts the current user's progress for a single tour. (user_id, tour_id) is
+ * unique: we update an existing row, otherwise create one with owner-scoped
+ * permissions (rowSecurity is on). If two first-time saves race — e.g. the
+ * auto-start save and the first step-change save firing back to back — both can
+ * see no existing row, but only one create wins the unique index. We catch the
+ * loser's duplicate-create error, re-read the winning row, and update it, so the
+ * latest progress is never silently dropped.
  */
 export async function saveTourProgress(
   record: TourProgressRecord
@@ -59,21 +63,31 @@ export async function saveTourProgress(
       record.status === "completed" ? new Date().toISOString() : null,
   };
 
-  const existing = await db.listRows<TourProgress>(DB_ID, TABLE_ID, [
+  const lookup = [
     Query.equal("user_id", user.$id),
     Query.equal("tour_id", record.tourId),
     Query.limit(1),
-  ]);
+  ];
 
+  const existing = await db.listRows<TourProgress>(DB_ID, TABLE_ID, lookup);
   const current = existing.rows[0];
   if (current) {
     await db.updateRow(DB_ID, TABLE_ID, current.$id, data);
     return;
   }
 
-  await db.createRow(DB_ID, TABLE_ID, ID.unique(), data, [
-    Permission.read(Role.user(user.$id)),
-    Permission.update(Role.user(user.$id)),
-    Permission.delete(Role.user(user.$id)),
-  ]);
+  try {
+    await db.createRow(DB_ID, TABLE_ID, ID.unique(), data, [
+      Permission.read(Role.user(user.$id)),
+      Permission.update(Role.user(user.$id)),
+      Permission.delete(Role.user(user.$id)),
+    ]);
+  } catch (error) {
+    const retry = await db.listRows<TourProgress>(DB_ID, TABLE_ID, lookup);
+    const winner = retry.rows[0];
+    if (!winner) {
+      throw error;
+    }
+    await db.updateRow(DB_ID, TABLE_ID, winner.$id, data);
+  }
 }
