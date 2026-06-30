@@ -1111,5 +1111,65 @@
       "createM365User": "Opprett M365-bruker",
       "whatCanYouDo": "Hva kan du hjelpe meg med?"
     }
+  },
+  "tours": {
+    "controls": {
+      "skip": "Hopp over",
+      "back": "Tilbake",
+      "next": "Neste",
+      "finish": "Ferdig",
+      "close": "Lukk omvisning",
+      "progress": "{current} av {total}"
+    },
+    "recruitmentHr": {
+      "welcome": {
+        "title": "Velkommen til rekruttering",
+        "body": "En kjapp omvisning i hvordan ansettelser fungerer her — fra å lyse ut en stilling til å vurdere søkere. Du kan hoppe over når som helst."
+      },
+      "campus": {
+        "title": "Velg campus",
+        "body": "Alt her er knyttet til én campus. Din nåværende campus vises her — bytt den hvis du har ansvar for flere."
+      },
+      "vacancies": {
+        "title": "Dine utlyste stillinger",
+        "body": "Alle stillingene du kan administrere ligger i denne listen. Søk og filtrer for å finne én raskt."
+      },
+      "create": {
+        "title": "Lys ut en ny stilling",
+        "body": "Start en ny utlysning her. Du legger inn tittel, beskrivelse og hvor den hører til."
+      },
+      "editor": {
+        "title": "Utlysningseditoren",
+        "body": "Her skriver og publiserer du en utlysning. Fyll inn detaljene steg for steg, og publiser når den er klar."
+      },
+      "workspace": {
+        "title": "Vurder søkere",
+        "body": "Åpne en stilling for å komme til vurderingsarbeidsflaten — her håndteres alle søkerne."
+      },
+      "pipeline": {
+        "title": "Flytt søkere gjennom stegene",
+        "body": "Dra kandidater mellom stegene mens du vurderer dem — slik demoen viser — fra ny søknad til endelig beslutning."
+      },
+      "interviews": {
+        "title": "Planlegg intervjuer",
+        "body": "Send kandidater en selvbetjent bookinglenke, se panelets tilgjengelighet på ett blikk, og purr på manglende vurderinger."
+      },
+      "analytics": {
+        "title": "Se hvordan det går",
+        "body": "Følg trakten din, hvor søkerne kommer fra, og hvor lang tid hvert steg tar."
+      },
+      "form": {
+        "title": "Form søknaden",
+        "body": "Legg til spørsmålene søkerne svarer på og kriteriene panelet vurderer etter."
+      },
+      "settings": {
+        "title": "Tilgang og data",
+        "body": "Styr automatisk screening, hvem som kan vurdere, og hvor lenge søkerdata lagres."
+      },
+      "finish": {
+        "title": "Du er klar",
+        "body": "Det var omvisningen. Du kan se den igjen når som helst fra hjelpemenyen. Lykke til med ansettelsene!"
+      }
+    }
   }
 }

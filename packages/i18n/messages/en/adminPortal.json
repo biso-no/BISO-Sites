@@ -1111,5 +1111,65 @@
       "createM365User": "Create M365 user",
       "whatCanYouDo": "What can you help me with?"
     }
+  },
+  "tours": {
+    "controls": {
+      "skip": "Skip tour",
+      "back": "Back",
+      "next": "Next",
+      "finish": "Done",
+      "close": "Close tour",
+      "progress": "{current} of {total}"
+    },
+    "recruitmentHr": {
+      "welcome": {
+        "title": "Welcome to recruitment",
+        "body": "A quick tour of how hiring works here — from posting a role to reviewing applicants. You can skip anytime."
+      },
+      "campus": {
+        "title": "Pick your campus",
+        "body": "Everything here is scoped to one campus. Your current campus shows here — switch it if you manage more than one."
+      },
+      "vacancies": {
+        "title": "Your open roles",
+        "body": "Every position you can manage lives in this list. Search and filter to find one quickly."
+      },
+      "create": {
+        "title": "Post a new role",
+        "body": "Start a new vacancy here. You'll add the title, the description, and where it's based."
+      },
+      "editor": {
+        "title": "The posting editor",
+        "body": "This is where you write and publish a vacancy. Fill in the details step by step, then publish when it's ready."
+      },
+      "workspace": {
+        "title": "Review applicants",
+        "body": "Open a vacancy to reach its review workspace — this is where every applicant is handled."
+      },
+      "pipeline": {
+        "title": "Move people through stages",
+        "body": "Drag candidates between stages as you review them — like the demo shows — from new application to a final decision."
+      },
+      "interviews": {
+        "title": "Schedule interviews",
+        "body": "Send candidates a self-service booking link, see your panel's availability at a glance, and chase pending scorecards."
+      },
+      "analytics": {
+        "title": "See how hiring's going",
+        "body": "Track your funnel, where applicants come from, and how long each stage is taking."
+      },
+      "form": {
+        "title": "Shape the application",
+        "body": "Add the questions applicants answer and the rubric your panel scores against."
+      },
+      "settings": {
+        "title": "Access & data",
+        "body": "Control auto-screening, who can review, and how long applicant data is kept."
+      },
+      "finish": {
+        "title": "You're all set",
+        "body": "That's the tour. You can replay it anytime from the help menu. Good luck with hiring!"
+      }
+    }
   }
 }

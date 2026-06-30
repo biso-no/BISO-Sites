@@ -6,6 +6,7 @@
 @plugin "@tailwindcss/typography";
 /* Define content sources */
 @source "../../../../packages/ui/**/*.{ts,tsx}";
+@source "../../../../packages/tours/**/*.{ts,tsx}";
 @source "../**/*.{ts,tsx}";
 
 /* App-specific color values - Light mode */

@@ -216,15 +216,6 @@
           "encrypt": false
         },
         {
-          "key": "payment_session_id",
-          "type": "string",
-          "required": false,
-          "array": false,
-          "size": 1024,
-          "default": null,
-          "encrypt": false
-        },
-        {
           "key": "payment_intent_id",
           "type": "string",
           "required": false,
@@ -243,20 +234,29 @@
           "encrypt": false
         },
         {
-          "key": "payment_link",
-          "type": "string",
-          "required": false,
-          "array": false,
-          "size": 2048,
-          "default": null,
-          "encrypt": false
-        },
-        {
           "key": "receipt_link",
           "type": "string",
           "required": false,
           "array": false,
           "size": 200,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "payment_session_id",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 1024,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "payment_link",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 2048,
           "default": null,
           "encrypt": false
         }
@@ -652,6 +652,24 @@
           "size": 200,
           "default": null,
           "encrypt": false
+        },
+        {
+          "key": "external_source",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 32,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "external_id",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 128,
+          "default": null,
+          "encrypt": false
         }
       ],
       "indexes": [
@@ -674,6 +692,13 @@
           "type": "key",
           "status": "available",
           "columns": ["department_id"],
+          "orders": []
+        },
+        {
+          "key": "idx_external",
+          "type": "key",
+          "status": "available",
+          "columns": ["external_source", "external_id"],
           "orders": []
         }
       ]
@@ -795,31 +820,6 @@
           "max": 9223372036854775807
         },
         {
-          "key": "ledger_transaction_id",
-          "type": "string",
-          "required": false,
-          "array": false,
-          "size": 64,
-          "default": null,
-          "encrypt": false
-        },
-        {
-          "key": "submitter_is_financial_manager",
-          "type": "boolean",
-          "required": false,
-          "array": false,
-          "default": false
-        },
-        {
-          "key": "posting_lock",
-          "type": "integer",
-          "required": false,
-          "array": false,
-          "default": 0,
-          "min": 0,
-          "max": 1000000
-        },
-        {
           "key": "userId",
           "type": "string",
           "required": true,
@@ -860,6 +860,31 @@
           "twoWayKey": "expenses",
           "onDelete": "setNull",
           "side": "parent"
+        },
+        {
+          "key": "ledger_transaction_id",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 64,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "submitter_is_financial_manager",
+          "type": "boolean",
+          "required": false,
+          "array": false,
+          "default": false
+        },
+        {
+          "key": "posting_lock",
+          "type": "integer",
+          "required": false,
+          "array": false,
+          "default": 0,
+          "min": 0,
+          "max": 1000000
         }
       ],
       "indexes": [
@@ -976,459 +1001,6 @@
         }
       ],
       "indexes": []
-    },
-    {
-      "$id": "ledger_accounts",
-      "$permissions": [
-        "read(\"team:sg-app-dept-operationsunit\")",
-        "read(\"team:finance\")"
-      ],
-      "databaseId": "app",
-      "name": "Ledger Accounts",
-      "enabled": true,
-      "rowSecurity": false,
-      "columns": [
-        {
-          "key": "account_number",
-          "type": "integer",
-          "required": true,
-          "array": false,
-          "default": null,
-          "min": 0,
-          "max": 99999999
-        },
-        {
-          "key": "name",
-          "type": "string",
-          "required": false,
-          "array": false,
-          "size": 255,
-          "default": null,
-          "encrypt": false
-        },
-        {
-          "key": "tax_code",
-          "type": "integer",
-          "required": false,
-          "array": false,
-          "default": null,
-          "min": 0,
-          "max": 9999
-        },
-        {
-          "key": "active",
-          "type": "boolean",
-          "required": false,
-          "array": false,
-          "default": true
-        },
-        {
-          "key": "synced_at",
-          "type": "datetime",
-          "required": false,
-          "array": false,
-          "default": null,
-          "format": ""
-        }
-      ],
-      "indexes": [
-        {
-          "key": "idx_account_number",
-          "type": "unique",
-          "status": "available",
-          "columns": ["account_number"],
-          "orders": ["ASC"]
-        }
-      ]
-    },
-    {
-      "$id": "expense_cost_types",
-      "$permissions": [
-        "read(\"any\")",
-        "create(\"team:sg-app-dept-operationsunit\")",
-        "update(\"team:sg-app-dept-operationsunit\")",
-        "delete(\"team:sg-app-dept-operationsunit\")"
-      ],
-      "databaseId": "app",
-      "name": "Expense Cost Types",
-      "enabled": true,
-      "rowSecurity": false,
-      "columns": [
-        {
-          "key": "label",
-          "type": "string",
-          "required": true,
-          "array": false,
-          "size": 80,
-          "default": null,
-          "encrypt": false
-        },
-        {
-          "key": "slug",
-          "type": "string",
-          "required": true,
-          "array": false,
-          "size": 40,
-          "default": null,
-          "encrypt": false
-        },
-        {
-          "key": "description",
-          "type": "string",
-          "required": false,
-          "array": false,
-          "size": 255,
-          "default": null,
-          "encrypt": false
-        },
-        {
-          "key": "ocr_category",
-          "type": "string",
-          "required": false,
-          "array": false,
-          "size": 40,
-          "default": null,
-          "encrypt": false
-        },
-        {
-          "key": "account_number",
-          "type": "integer",
-          "required": true,
-          "array": false,
-          "default": null,
-          "min": 0,
-          "max": 99999999
-        },
-        {
-          "key": "tax_code",
-          "type": "integer",
-          "required": false,
-          "array": false,
-          "default": null,
-          "min": 0,
-          "max": 9999
-        },
-        {
-          "key": "campus_id",
-          "type": "string",
-          "required": false,
-          "array": false,
-          "size": 2,
-          "default": null,
-          "encrypt": false
-        },
-        {
-          "key": "sort_order",
-          "type": "integer",
-          "required": false,
-          "array": false,
-          "default": 0,
-          "min": 0,
-          "max": 9999
-        },
-        {
-          "key": "active",
-          "type": "boolean",
-          "required": false,
-          "array": false,
-          "default": true
-        }
-      ],
-      "indexes": [
-        {
-          "key": "idx_slug",
-          "type": "key",
-          "status": "available",
-          "columns": ["slug"],
-          "orders": ["ASC"]
-        },
-        {
-          "key": "idx_active",
-          "type": "key",
-          "status": "available",
-          "columns": ["active", "sort_order"],
-          "orders": ["ASC", "ASC"]
-        }
-      ]
-    },
-    {
-      "$id": "expense_approvals",
-      "$permissions": [
-        "read(\"team:sg-app-dept-operationsunit\")",
-        "read(\"team:finance\")"
-      ],
-      "databaseId": "app",
-      "name": "Expense Approvals",
-      "enabled": true,
-      "rowSecurity": true,
-      "columns": [
-        {
-          "key": "expense_id",
-          "type": "string",
-          "required": true,
-          "array": false,
-          "size": 64,
-          "default": null,
-          "encrypt": false
-        },
-        {
-          "key": "step",
-          "type": "integer",
-          "required": true,
-          "array": false,
-          "default": null,
-          "min": 1,
-          "max": 10
-        },
-        {
-          "key": "approver_role",
-          "type": "string",
-          "required": true,
-          "array": false,
-          "default": null,
-          "format": "enum",
-          "elements": ["finance", "manager", "deputy", "controller", "national"]
-        },
-        {
-          "key": "approver_email",
-          "type": "string",
-          "required": true,
-          "array": false,
-          "size": 100,
-          "default": null,
-          "encrypt": false
-        },
-        {
-          "key": "approver_aad_id",
-          "type": "string",
-          "required": false,
-          "array": false,
-          "size": 64,
-          "default": null,
-          "encrypt": false
-        },
-        {
-          "key": "status",
-          "type": "string",
-          "required": false,
-          "array": false,
-          "default": "pending",
-          "format": "enum",
-          "elements": ["pending", "approved", "rejected"]
-        },
-        {
-          "key": "decided_by",
-          "type": "string",
-          "required": false,
-          "array": false,
-          "size": 100,
-          "default": null,
-          "encrypt": false
-        },
-        {
-          "key": "decided_at",
-          "type": "datetime",
-          "required": false,
-          "array": false,
-          "default": null,
-          "format": ""
-        },
-        {
-          "key": "reason",
-          "type": "string",
-          "required": false,
-          "array": false,
-          "size": 1000,
-          "default": null,
-          "encrypt": false
-        },
-        {
-          "key": "teams_conversation_id",
-          "type": "string",
-          "required": false,
-          "array": false,
-          "size": 255,
-          "default": null,
-          "encrypt": false
-        },
-        {
-          "key": "teams_activity_id",
-          "type": "string",
-          "required": false,
-          "array": false,
-          "size": 255,
-          "default": null,
-          "encrypt": false
-        },
-        {
-          "key": "token_hash",
-          "type": "string",
-          "required": true,
-          "array": false,
-          "size": 64,
-          "default": null,
-          "encrypt": false
-        },
-        {
-          "key": "expires_at",
-          "type": "datetime",
-          "required": true,
-          "array": false,
-          "default": null,
-          "format": ""
-        },
-        {
-          "key": "consumed_at",
-          "type": "datetime",
-          "required": false,
-          "array": false,
-          "default": null,
-          "format": ""
-        },
-        {
-          "key": "campus_id",
-          "type": "string",
-          "required": false,
-          "array": false,
-          "size": 10,
-          "default": null,
-          "encrypt": false
-        },
-        {
-          "key": "department",
-          "type": "string",
-          "required": false,
-          "array": false,
-          "size": 100,
-          "default": null,
-          "encrypt": false
-        },
-        {
-          "key": "decision_lock",
-          "type": "integer",
-          "required": false,
-          "array": false,
-          "default": 0,
-          "min": 0,
-          "max": 1000000
-        }
-      ],
-      "indexes": [
-        {
-          "key": "idx_expense_step",
-          "type": "unique",
-          "status": "available",
-          "columns": ["expense_id", "step"],
-          "orders": ["ASC", "ASC"]
-        },
-        {
-          "key": "idx_token_hash",
-          "type": "unique",
-          "status": "available",
-          "columns": ["token_hash"],
-          "orders": ["ASC"]
-        },
-        {
-          "key": "idx_status",
-          "type": "key",
-          "status": "available",
-          "columns": ["status"],
-          "orders": ["ASC"]
-        }
-      ]
-    },
-    {
-      "$id": "expense_approval_issues",
-      "$permissions": [
-        "read(\"team:sg-app-dept-operationsunit\")",
-        "read(\"team:finance\")"
-      ],
-      "databaseId": "app",
-      "name": "Expense Approval Issues",
-      "enabled": true,
-      "rowSecurity": false,
-      "columns": [
-        {
-          "key": "expense_id",
-          "type": "string",
-          "required": false,
-          "array": false,
-          "size": 64,
-          "default": null,
-          "encrypt": false
-        },
-        {
-          "key": "campus_id",
-          "type": "string",
-          "required": false,
-          "array": false,
-          "size": 10,
-          "default": null,
-          "encrypt": false
-        },
-        {
-          "key": "department",
-          "type": "string",
-          "required": false,
-          "array": false,
-          "size": 100,
-          "default": null,
-          "encrypt": false
-        },
-        {
-          "key": "role_sought",
-          "type": "string",
-          "required": false,
-          "array": false,
-          "size": 20,
-          "default": null,
-          "encrypt": false
-        },
-        {
-          "key": "reason",
-          "type": "string",
-          "required": false,
-          "array": false,
-          "size": 500,
-          "default": null,
-          "encrypt": false
-        },
-        {
-          "key": "status",
-          "type": "string",
-          "required": false,
-          "array": false,
-          "default": "open",
-          "format": "enum",
-          "elements": ["open", "resolved"]
-        },
-        {
-          "key": "resolved_by",
-          "type": "string",
-          "required": false,
-          "array": false,
-          "size": 100,
-          "default": null,
-          "encrypt": false
-        },
-        {
-          "key": "resolved_at",
-          "type": "datetime",
-          "required": false,
-          "array": false,
-          "default": null,
-          "format": ""
-        }
-      ],
-      "indexes": [
-        {
-          "key": "idx_status",
-          "type": "key",
-          "status": "available",
-          "columns": ["status"],
-          "orders": ["ASC"]
-        }
-      ]
     },
     {
       "$id": "jobs",
@@ -1649,15 +1221,6 @@
           "encrypt": false
         },
         {
-          "key": "abbreviation",
-          "type": "string",
-          "required": false,
-          "array": false,
-          "size": 16,
-          "default": null,
-          "encrypt": false
-        },
-        {
           "key": "campus_id",
           "type": "string",
           "required": true,
@@ -1794,6 +1357,15 @@
           "twoWayKey": "department",
           "onDelete": "setNull",
           "side": "child"
+        },
+        {
+          "key": "abbreviation",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 16,
+          "default": null,
+          "encrypt": false
         }
       ],
       "indexes": [
@@ -2437,100 +2009,6 @@
           "status": "available",
           "columns": ["product_id", "expires_at"],
           "orders": []
-        }
-      ]
-    },
-    {
-      "$id": "m365_remediation_snapshot",
-      "$permissions": [
-        "create(\"team:sg-app-dept-operationsunit\")",
-        "read(\"team:sg-app-dept-operationsunit\")",
-        "update(\"team:sg-app-dept-operationsunit\")",
-        "delete(\"team:sg-app-dept-operationsunit\")"
-      ],
-      "databaseId": "app",
-      "name": "M365 Remediation Snapshot",
-      "enabled": true,
-      "rowSecurity": true,
-      "columns": [
-        {
-          "key": "generated_at",
-          "type": "datetime",
-          "required": true,
-          "array": false,
-          "default": null,
-          "format": ""
-        },
-        {
-          "key": "generated_by",
-          "type": "string",
-          "required": false,
-          "array": false,
-          "size": 120,
-          "default": null,
-          "encrypt": false
-        },
-        {
-          "key": "total_scanned",
-          "type": "integer",
-          "required": false,
-          "array": false,
-          "default": 0,
-          "min": 0,
-          "max": 1000000
-        },
-        {
-          "key": "safe_count",
-          "type": "integer",
-          "required": false,
-          "array": false,
-          "default": 0,
-          "min": 0,
-          "max": 1000000
-        },
-        {
-          "key": "review_count",
-          "type": "integer",
-          "required": false,
-          "array": false,
-          "default": 0,
-          "min": 0,
-          "max": 1000000
-        },
-        {
-          "key": "manual_count",
-          "type": "integer",
-          "required": false,
-          "array": false,
-          "default": 0,
-          "min": 0,
-          "max": 1000000
-        },
-        {
-          "key": "closed_count",
-          "type": "integer",
-          "required": false,
-          "array": false,
-          "default": 0,
-          "min": 0,
-          "max": 1000000
-        },
-        {
-          "key": "result",
-          "type": "mediumtext",
-          "required": false,
-          "array": false,
-          "default": null,
-          "encrypt": false
-        }
-      ],
-      "indexes": [
-        {
-          "key": "idx_generated_at",
-          "type": "key",
-          "status": "available",
-          "columns": ["generated_at"],
-          "orders": ["DESC"]
         }
       ]
     },
@@ -6121,165 +5599,6 @@
       "indexes": []
     },
     {
-      "$id": "payment_settings",
-      "$permissions": [
-        "create(\"team:sg-app-dept-operationsunit\")",
-        "read(\"team:sg-app-dept-operationsunit\")",
-        "update(\"team:sg-app-dept-operationsunit\")",
-        "delete(\"team:sg-app-dept-operationsunit\")"
-      ],
-      "databaseId": "app",
-      "name": "Payment settings",
-      "enabled": true,
-      "rowSecurity": false,
-      "columns": [
-        {
-          "key": "provider",
-          "type": "string",
-          "required": false,
-          "array": false,
-          "size": 50,
-          "default": null,
-          "format": "enum",
-          "elements": ["vipps", "stripe"]
-        },
-        {
-          "key": "test_mode",
-          "type": "boolean",
-          "required": false,
-          "array": false,
-          "default": true
-        },
-        {
-          "key": "vipps_test_client_id",
-          "type": "string",
-          "required": false,
-          "array": false,
-          "size": 1024,
-          "default": null,
-          "encrypt": true
-        },
-        {
-          "key": "vipps_test_client_secret",
-          "type": "string",
-          "required": false,
-          "array": false,
-          "size": 1024,
-          "default": null,
-          "encrypt": true
-        },
-        {
-          "key": "vipps_test_subscription_key",
-          "type": "string",
-          "required": false,
-          "array": false,
-          "size": 1024,
-          "default": null,
-          "encrypt": true
-        },
-        {
-          "key": "vipps_test_msn",
-          "type": "string",
-          "required": false,
-          "array": false,
-          "size": 1024,
-          "default": null,
-          "encrypt": true
-        },
-        {
-          "key": "vipps_live_client_id",
-          "type": "string",
-          "required": false,
-          "array": false,
-          "size": 1024,
-          "default": null,
-          "encrypt": true
-        },
-        {
-          "key": "vipps_live_client_secret",
-          "type": "string",
-          "required": false,
-          "array": false,
-          "size": 1024,
-          "default": null,
-          "encrypt": true
-        },
-        {
-          "key": "vipps_live_subscription_key",
-          "type": "string",
-          "required": false,
-          "array": false,
-          "size": 1024,
-          "default": null,
-          "encrypt": true
-        },
-        {
-          "key": "vipps_live_msn",
-          "type": "string",
-          "required": false,
-          "array": false,
-          "size": 1024,
-          "default": null,
-          "encrypt": true
-        },
-        {
-          "key": "stripe_test_secret_key",
-          "type": "string",
-          "required": false,
-          "array": false,
-          "size": 1024,
-          "default": null,
-          "encrypt": true
-        },
-        {
-          "key": "stripe_test_webhook_secret",
-          "type": "string",
-          "required": false,
-          "array": false,
-          "size": 1024,
-          "default": null,
-          "encrypt": true
-        },
-        {
-          "key": "stripe_live_secret_key",
-          "type": "string",
-          "required": false,
-          "array": false,
-          "size": 1024,
-          "default": null,
-          "encrypt": true
-        },
-        {
-          "key": "stripe_live_webhook_secret",
-          "type": "string",
-          "required": false,
-          "array": false,
-          "size": 1024,
-          "default": null,
-          "encrypt": true
-        },
-        {
-          "key": "vipps_test_webhook_secret",
-          "type": "string",
-          "required": false,
-          "array": false,
-          "size": 1024,
-          "default": null,
-          "encrypt": true
-        },
-        {
-          "key": "vipps_live_webhook_secret",
-          "type": "string",
-          "required": false,
-          "array": false,
-          "size": 1024,
-          "default": null,
-          "encrypt": true
-        }
-      ],
-      "indexes": []
-    },
-    {
       "$id": "shop_settings",
       "$permissions": [
         "create(\"team:sg-app-dept-operationsunit\")",
@@ -6506,6 +5825,78 @@
         }
       ],
       "indexes": []
+    },
+    {
+      "$id": "tour_progress",
+      "$permissions": ["create(\"users\")"],
+      "databaseId": "app",
+      "name": "Tour Progress",
+      "enabled": true,
+      "rowSecurity": true,
+      "columns": [
+        {
+          "key": "user_id",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 64,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "tour_id",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 128,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "status",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "default": null,
+          "format": "enum",
+          "elements": ["not_started", "in_progress", "completed", "dismissed"]
+        },
+        {
+          "key": "step_index",
+          "type": "integer",
+          "required": true,
+          "array": false,
+          "default": null,
+          "min": 0,
+          "max": 100000
+        },
+        {
+          "key": "version",
+          "type": "integer",
+          "required": true,
+          "array": false,
+          "default": null,
+          "min": 0,
+          "max": 100000
+        },
+        {
+          "key": "completed_at",
+          "type": "datetime",
+          "required": false,
+          "array": false,
+          "default": null,
+          "format": ""
+        }
+      ],
+      "indexes": [
+        {
+          "key": "idx_tour_progress_user_tour",
+          "type": "unique",
+          "status": "available",
+          "columns": ["user_id", "tour_id"],
+          "orders": ["ASC", "ASC"]
+        }
+      ]
     },
     {
       "$id": "chats",
@@ -9031,6 +8422,711 @@
           "status": "available",
           "columns": ["event_id", "user_id"],
           "orders": ["ASC", "ASC"]
+        }
+      ]
+    },
+    {
+      "$id": "m365_remediation_snapshot",
+      "$permissions": [
+        "create(\"team:sg-app-dept-operationsunit\")",
+        "read(\"team:sg-app-dept-operationsunit\")",
+        "update(\"team:sg-app-dept-operationsunit\")",
+        "delete(\"team:sg-app-dept-operationsunit\")"
+      ],
+      "databaseId": "app",
+      "name": "M365 Remediation Snapshot",
+      "enabled": true,
+      "rowSecurity": true,
+      "columns": [
+        {
+          "key": "generated_at",
+          "type": "datetime",
+          "required": true,
+          "array": false,
+          "default": null,
+          "format": ""
+        },
+        {
+          "key": "generated_by",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 120,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "total_scanned",
+          "type": "integer",
+          "required": false,
+          "array": false,
+          "default": 0,
+          "min": 0,
+          "max": 1000000
+        },
+        {
+          "key": "safe_count",
+          "type": "integer",
+          "required": false,
+          "array": false,
+          "default": 0,
+          "min": 0,
+          "max": 1000000
+        },
+        {
+          "key": "review_count",
+          "type": "integer",
+          "required": false,
+          "array": false,
+          "default": 0,
+          "min": 0,
+          "max": 1000000
+        },
+        {
+          "key": "manual_count",
+          "type": "integer",
+          "required": false,
+          "array": false,
+          "default": 0,
+          "min": 0,
+          "max": 1000000
+        },
+        {
+          "key": "closed_count",
+          "type": "integer",
+          "required": false,
+          "array": false,
+          "default": 0,
+          "min": 0,
+          "max": 1000000
+        },
+        {
+          "key": "result",
+          "type": "mediumtext",
+          "required": false,
+          "array": false,
+          "default": null,
+          "encrypt": false
+        }
+      ],
+      "indexes": [
+        {
+          "key": "idx_generated_at",
+          "type": "key",
+          "status": "available",
+          "columns": ["generated_at"],
+          "orders": ["DESC"]
+        }
+      ]
+    },
+    {
+      "$id": "payment_settings",
+      "$permissions": [
+        "create(\"team:sg-app-dept-operationsunit\")",
+        "read(\"team:sg-app-dept-operationsunit\")",
+        "update(\"team:sg-app-dept-operationsunit\")",
+        "delete(\"team:sg-app-dept-operationsunit\")"
+      ],
+      "databaseId": "app",
+      "name": "Payment settings",
+      "enabled": true,
+      "rowSecurity": false,
+      "columns": [
+        {
+          "key": "provider",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "default": null,
+          "format": "enum",
+          "elements": ["vipps", "stripe"]
+        },
+        {
+          "key": "test_mode",
+          "type": "boolean",
+          "required": false,
+          "array": false,
+          "default": true
+        },
+        {
+          "key": "vipps_test_client_id",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 1024,
+          "default": null,
+          "encrypt": true
+        },
+        {
+          "key": "vipps_test_client_secret",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 1024,
+          "default": null,
+          "encrypt": true
+        },
+        {
+          "key": "vipps_test_subscription_key",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 1024,
+          "default": null,
+          "encrypt": true
+        },
+        {
+          "key": "vipps_test_msn",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 1024,
+          "default": null,
+          "encrypt": true
+        },
+        {
+          "key": "vipps_live_client_id",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 1024,
+          "default": null,
+          "encrypt": true
+        },
+        {
+          "key": "vipps_live_client_secret",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 1024,
+          "default": null,
+          "encrypt": true
+        },
+        {
+          "key": "vipps_live_subscription_key",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 1024,
+          "default": null,
+          "encrypt": true
+        },
+        {
+          "key": "vipps_live_msn",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 1024,
+          "default": null,
+          "encrypt": true
+        },
+        {
+          "key": "stripe_test_secret_key",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 1024,
+          "default": null,
+          "encrypt": true
+        },
+        {
+          "key": "stripe_test_webhook_secret",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 1024,
+          "default": null,
+          "encrypt": true
+        },
+        {
+          "key": "stripe_live_secret_key",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 1024,
+          "default": null,
+          "encrypt": true
+        },
+        {
+          "key": "stripe_live_webhook_secret",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 1024,
+          "default": null,
+          "encrypt": true
+        },
+        {
+          "key": "vipps_test_webhook_secret",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 1024,
+          "default": null,
+          "encrypt": true
+        },
+        {
+          "key": "vipps_live_webhook_secret",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 1024,
+          "default": null,
+          "encrypt": true
+        }
+      ],
+      "indexes": []
+    },
+    {
+      "$id": "ledger_accounts",
+      "$permissions": [
+        "read(\"team:sg-app-dept-operationsunit\")",
+        "read(\"team:finance\")"
+      ],
+      "databaseId": "app",
+      "name": "Ledger Accounts",
+      "enabled": true,
+      "rowSecurity": false,
+      "columns": [
+        {
+          "key": "account_number",
+          "type": "integer",
+          "required": true,
+          "array": false,
+          "default": null,
+          "min": 0,
+          "max": 99999999
+        },
+        {
+          "key": "name",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 255,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "tax_code",
+          "type": "integer",
+          "required": false,
+          "array": false,
+          "default": null,
+          "min": 0,
+          "max": 9999
+        },
+        {
+          "key": "active",
+          "type": "boolean",
+          "required": false,
+          "array": false,
+          "default": true
+        },
+        {
+          "key": "synced_at",
+          "type": "datetime",
+          "required": false,
+          "array": false,
+          "default": null,
+          "format": ""
+        }
+      ],
+      "indexes": [
+        {
+          "key": "idx_account_number",
+          "type": "unique",
+          "status": "available",
+          "columns": ["account_number"],
+          "orders": ["ASC"]
+        }
+      ]
+    },
+    {
+      "$id": "expense_cost_types",
+      "$permissions": [
+        "read(\"any\")",
+        "create(\"team:sg-app-dept-operationsunit\")",
+        "update(\"team:sg-app-dept-operationsunit\")",
+        "delete(\"team:sg-app-dept-operationsunit\")"
+      ],
+      "databaseId": "app",
+      "name": "Expense Cost Types",
+      "enabled": true,
+      "rowSecurity": false,
+      "columns": [
+        {
+          "key": "label",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 80,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "slug",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 40,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "description",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 255,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "ocr_category",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 40,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "account_number",
+          "type": "integer",
+          "required": true,
+          "array": false,
+          "default": null,
+          "min": 0,
+          "max": 99999999
+        },
+        {
+          "key": "tax_code",
+          "type": "integer",
+          "required": false,
+          "array": false,
+          "default": null,
+          "min": 0,
+          "max": 9999
+        },
+        {
+          "key": "campus_id",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 2,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "sort_order",
+          "type": "integer",
+          "required": false,
+          "array": false,
+          "default": 0,
+          "min": 0,
+          "max": 9999
+        },
+        {
+          "key": "active",
+          "type": "boolean",
+          "required": false,
+          "array": false,
+          "default": true
+        }
+      ],
+      "indexes": [
+        {
+          "key": "idx_slug",
+          "type": "key",
+          "status": "available",
+          "columns": ["slug"],
+          "orders": ["ASC"]
+        },
+        {
+          "key": "idx_active",
+          "type": "key",
+          "status": "available",
+          "columns": ["active", "sort_order"],
+          "orders": ["ASC", "ASC"]
+        }
+      ]
+    },
+    {
+      "$id": "expense_approvals",
+      "$permissions": [
+        "read(\"team:sg-app-dept-operationsunit\")",
+        "read(\"team:finance\")"
+      ],
+      "databaseId": "app",
+      "name": "Expense Approvals",
+      "enabled": true,
+      "rowSecurity": true,
+      "columns": [
+        {
+          "key": "expense_id",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 64,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "step",
+          "type": "integer",
+          "required": true,
+          "array": false,
+          "default": null,
+          "min": 1,
+          "max": 10
+        },
+        {
+          "key": "approver_role",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "default": null,
+          "format": "enum",
+          "elements": ["finance", "manager", "deputy", "controller", "national"]
+        },
+        {
+          "key": "approver_email",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 100,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "approver_aad_id",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 64,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "status",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "default": "pending",
+          "format": "enum",
+          "elements": ["pending", "approved", "rejected"]
+        },
+        {
+          "key": "decided_by",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 100,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "decided_at",
+          "type": "datetime",
+          "required": false,
+          "array": false,
+          "default": null,
+          "format": ""
+        },
+        {
+          "key": "reason",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 1000,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "teams_conversation_id",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 255,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "teams_activity_id",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 255,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "token_hash",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 64,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "expires_at",
+          "type": "datetime",
+          "required": true,
+          "array": false,
+          "default": null,
+          "format": ""
+        },
+        {
+          "key": "consumed_at",
+          "type": "datetime",
+          "required": false,
+          "array": false,
+          "default": null,
+          "format": ""
+        },
+        {
+          "key": "campus_id",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 10,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "department",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 100,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "decision_lock",
+          "type": "integer",
+          "required": false,
+          "array": false,
+          "default": 0,
+          "min": 0,
+          "max": 1000000
+        }
+      ],
+      "indexes": [
+        {
+          "key": "idx_token_hash",
+          "type": "unique",
+          "status": "available",
+          "columns": ["token_hash"],
+          "orders": ["ASC"]
+        },
+        {
+          "key": "idx_status",
+          "type": "key",
+          "status": "available",
+          "columns": ["status"],
+          "orders": ["ASC"]
+        },
+        {
+          "key": "idx_expense_step",
+          "type": "unique",
+          "status": "available",
+          "columns": ["expense_id", "step"],
+          "orders": ["ASC", "ASC"]
+        }
+      ]
+    },
+    {
+      "$id": "expense_approval_issues",
+      "$permissions": [
+        "read(\"team:sg-app-dept-operationsunit\")",
+        "read(\"team:finance\")"
+      ],
+      "databaseId": "app",
+      "name": "Expense Approval Issues",
+      "enabled": true,
+      "rowSecurity": false,
+      "columns": [
+        {
+          "key": "expense_id",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 64,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "campus_id",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 10,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "role_sought",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 20,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "reason",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 500,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "status",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "default": "open",
+          "format": "enum",
+          "elements": ["open", "resolved"]
+        },
+        {
+          "key": "resolved_by",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 100,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "resolved_at",
+          "type": "datetime",
+          "required": false,
+          "array": false,
+          "default": null,
+          "format": ""
+        },
+        {
+          "key": "department",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 100,
+          "default": null,
+          "encrypt": false
+        }
+      ],
+      "indexes": [
+        {
+          "key": "idx_status",
+          "type": "key",
+          "status": "available",
+          "columns": ["status"],
+          "orders": ["ASC"]
         }
       ]
     },

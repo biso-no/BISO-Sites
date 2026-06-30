@@ -1,0 +1,27 @@
+{
+  "name": "@repo/tours",
+  "version": "0.0.0",
+  "private": true,
+  "exports": {
+    "./provider": "./src/tour-provider.tsx",
+    "./use-tour": "./src/use-tour.ts",
+    "./types": "./src/types.ts"
+  },
+  "scripts": {
+    "build": "tsc --noEmit",
+    "check-types": "tsc --noEmit",
+    "lint": "biome lint ."
+  },
+  "devDependencies": {
+    "@repo/typescript-config": "workspace:*",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "typescript": "catalog:"
+  },
+  "dependencies": {
+    "@repo/ui": "workspace:*",
+    "lucide-react": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:"
+  }
+}

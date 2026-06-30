@@ -73,25 +73,6 @@ export enum ExpensesStatus {
   FAILED = "failed",
 }
 
-export enum ExpenseApprovalsApproverRole {
-  FINANCE = "finance",
-  MANAGER = "manager",
-  DEPUTY = "deputy",
-  CONTROLLER = "controller",
-  NATIONAL = "national",
-}
-
-export enum ExpenseApprovalsStatus {
-  PENDING = "pending",
-  APPROVED = "approved",
-  REJECTED = "rejected",
-}
-
-export enum ExpenseApprovalIssuesStatus {
-  OPEN = "open",
-  RESOLVED = "resolved",
-}
-
 export enum JobsStatus {
   DRAFT = "draft",
   PUBLISHED = "published",
@@ -279,9 +260,11 @@ export enum NotificationsStatus {
   UNREAD = "unread",
 }
 
-export enum PaymentSettingsProvider {
-  VIPPS = "vipps",
-  STRIPE = "stripe",
+export enum TourProgressStatus {
+  NOT_STARTED = "not_started",
+  IN_PROGRESS = "in_progress",
+  COMPLETED = "completed",
+  DISMISSED = "dismissed",
 }
 
 export enum ChatsType {
@@ -413,6 +396,30 @@ export enum AnnouncementsAudienceType {
   BROADCAST = "broadcast",
 }
 
+export enum PaymentSettingsProvider {
+  VIPPS = "vipps",
+  STRIPE = "stripe",
+}
+
+export enum ExpenseApprovalsApproverRole {
+  FINANCE = "finance",
+  MANAGER = "manager",
+  DEPUTY = "deputy",
+  CONTROLLER = "controller",
+  NATIONAL = "national",
+}
+
+export enum ExpenseApprovalsStatus {
+  PENDING = "pending",
+  APPROVED = "approved",
+  REJECTED = "rejected",
+}
+
+export enum ExpenseApprovalIssuesStatus {
+  OPEN = "open",
+  RESOLVED = "resolved",
+}
+
 export type Orders = Models.Row & {
   status: OrdersStatus | null;
   userId: string | null;
@@ -428,11 +435,11 @@ export type Orders = Models.Row & {
   member_discount_percent: number | null;
   campus_id: string | null;
   payment_provider: string | null;
-  payment_session_id: string | null;
   payment_intent_id: string | null;
   payment_receipt_url: string | null;
-  payment_link: string | null;
   receipt_link: string | null;
+  payment_session_id: string | null;
+  payment_link: string | null;
 };
 
 export type DepartmentBoard = Models.Row & {
@@ -477,6 +484,8 @@ export type Events = Models.Row & {
   contact_name: string | null;
   contact_role: string | null;
   contact_email: string | null;
+  external_source: string | null;
+  external_id: string | null;
 };
 
 export type Expenses = Models.Row & {
@@ -490,13 +499,13 @@ export type Expenses = Models.Row & {
   prepayment_amount: number | null;
   status: ExpensesStatus;
   invoice_id: number | null;
-  ledger_transaction_id: string | null;
-  submitter_is_financial_manager: boolean;
-  posting_lock: number | null;
   userId: string;
   eventName: string | null;
   departmentRel: Departments;
   campusRel: Campus;
+  ledger_transaction_id: string | null;
+  submitter_is_financial_manager: boolean;
+  posting_lock: number;
 };
 
 export type ExpenseAttachments = Models.Row & {
@@ -509,57 +518,6 @@ export type ExpenseAttachments = Models.Row & {
   account_number: number | null;
   tax_code: number | null;
   sort_order: number;
-};
-
-export type LedgerAccounts = Models.Row & {
-  account_number: number;
-  name: string | null;
-  tax_code: number | null;
-  active: boolean;
-  synced_at: string | null;
-};
-
-export type ExpenseCostTypes = Models.Row & {
-  label: string;
-  slug: string;
-  description: string | null;
-  ocr_category: string | null;
-  account_number: number;
-  tax_code: number | null;
-  campus_id: string | null;
-  sort_order: number;
-  active: boolean;
-};
-
-export type ExpenseApprovals = Models.Row & {
-  expense_id: string;
-  step: number;
-  approver_role: ExpenseApprovalsApproverRole;
-  approver_email: string;
-  approver_aad_id: string | null;
-  status: ExpenseApprovalsStatus;
-  decided_by: string | null;
-  decided_at: string | null;
-  reason: string | null;
-  teams_conversation_id: string | null;
-  teams_activity_id: string | null;
-  token_hash: string;
-  expires_at: string;
-  consumed_at: string | null;
-  campus_id: string | null;
-  department: string | null;
-  decision_lock: number | null;
-};
-
-export type ExpenseApprovalIssues = Models.Row & {
-  expense_id: string | null;
-  campus_id: string | null;
-  department: string | null;
-  role_sought: string | null;
-  reason: string | null;
-  status: ExpenseApprovalIssuesStatus;
-  resolved_by: string | null;
-  resolved_at: string | null;
 };
 
 export type Jobs = Models.Row & {
@@ -584,7 +542,6 @@ export type Departments = Models.Row & {
   users: Users[];
   Id: string;
   Name: string;
-  abbreviation: string | null;
   campus_id: string;
   logo: string | null;
   active: boolean | null;
@@ -598,6 +555,7 @@ export type Departments = Models.Row & {
   jobs: Jobs[];
   events: Events[];
   news: News[];
+  abbreviation: string | null;
 };
 
 export type PageViewEvents = Models.Row & {
@@ -669,17 +627,6 @@ export type CartReservations = Models.Row & {
   user_id: string;
   quantity: number;
   expires_at: string;
-};
-
-export type M365RemediationSnapshot = Models.Row & {
-  generated_at: string;
-  generated_by: string | null;
-  total_scanned: number;
-  safe_count: number;
-  review_count: number;
-  manual_count: number;
-  closed_count: number;
-  result: string | null;
 };
 
 export type Users = Models.Row & {
@@ -976,7 +923,7 @@ export type Subscriptions = Models.Row & {
   subscriber_id: string;
 };
 
-export type TwentyFourSevenOfficeAuthTokens = Models.Row & {
+export type TwemtyFourSevenOfficeAuthTokens = Models.Row & {
   token: string;
 };
 
@@ -1092,25 +1039,6 @@ export type FeatureFlags = Models.Row & {
   title: string;
 };
 
-export type PaymentSettings = Models.Row & {
-  provider: PaymentSettingsProvider | null;
-  test_mode: boolean;
-  vipps_test_client_id: string | null;
-  vipps_test_client_secret: string | null;
-  vipps_test_subscription_key: string | null;
-  vipps_test_msn: string | null;
-  vipps_live_client_id: string | null;
-  vipps_live_client_secret: string | null;
-  vipps_live_subscription_key: string | null;
-  vipps_live_msn: string | null;
-  stripe_test_secret_key: string | null;
-  stripe_test_webhook_secret: string | null;
-  stripe_live_secret_key: string | null;
-  stripe_live_webhook_secret: string | null;
-  vipps_test_webhook_secret: string | null;
-  vipps_live_webhook_secret: string | null;
-};
-
 export type ShopSettings = Models.Row & {
   general: string | null;
 };
@@ -1139,6 +1067,15 @@ export type SavedJobs = Models.Row & {
   title: string;
   campus: Campus[];
   user: Users[];
+};
+
+export type TourProgress = Models.Row & {
+  user_id: string;
+  tour_id: string;
+  status: TourProgressStatus;
+  step_index: number;
+  version: number;
+  completed_at: string | null;
 };
 
 export type Chats = Models.Row & {
@@ -1419,6 +1356,87 @@ export type SegmentMembers = Models.Row & {
   user_id: string;
   attendee_id: string | null;
   assigned_at: string | null;
+};
+
+export type M365RemediationSnapshot = Models.Row & {
+  generated_at: string;
+  generated_by: string | null;
+  total_scanned: number;
+  safe_count: number;
+  review_count: number;
+  manual_count: number;
+  closed_count: number;
+  result: string | null;
+};
+
+export type PaymentSettings = Models.Row & {
+  provider: PaymentSettingsProvider | null;
+  test_mode: boolean;
+  vipps_test_client_id: string | null;
+  vipps_test_client_secret: string | null;
+  vipps_test_subscription_key: string | null;
+  vipps_test_msn: string | null;
+  vipps_live_client_id: string | null;
+  vipps_live_client_secret: string | null;
+  vipps_live_subscription_key: string | null;
+  vipps_live_msn: string | null;
+  stripe_test_secret_key: string | null;
+  stripe_test_webhook_secret: string | null;
+  stripe_live_secret_key: string | null;
+  stripe_live_webhook_secret: string | null;
+  vipps_test_webhook_secret: string | null;
+  vipps_live_webhook_secret: string | null;
+};
+
+export type LedgerAccounts = Models.Row & {
+  account_number: number;
+  name: string | null;
+  tax_code: number | null;
+  active: boolean;
+  synced_at: string | null;
+};
+
+export type ExpenseCostTypes = Models.Row & {
+  label: string;
+  slug: string;
+  description: string | null;
+  ocr_category: string | null;
+  account_number: number;
+  tax_code: number | null;
+  campus_id: string | null;
+  sort_order: number;
+  active: boolean;
+};
+
+export type ExpenseApprovals = Models.Row & {
+  expense_id: string;
+  step: number;
+  approver_role: ExpenseApprovalsApproverRole;
+  approver_email: string;
+  approver_aad_id: string | null;
+  status: ExpenseApprovalsStatus;
+  decided_by: string | null;
+  decided_at: string | null;
+  reason: string | null;
+  teams_conversation_id: string | null;
+  teams_activity_id: string | null;
+  token_hash: string;
+  expires_at: string;
+  consumed_at: string | null;
+  campus_id: string | null;
+  department: string | null;
+  decision_lock: number;
+};
+
+export type ExpenseApprovalIssues = Models.Row & {
+  expense_id: string | null;
+  campus_id: string | null;
+  role_sought: string | null;
+  reason: string | null;
+  status: ExpenseApprovalIssuesStatus;
+  resolved_by: string | null;
+  resolved_at: string | null;
+  department: string | null;
 };
 
 export type AuthTokens = Models.Row & {

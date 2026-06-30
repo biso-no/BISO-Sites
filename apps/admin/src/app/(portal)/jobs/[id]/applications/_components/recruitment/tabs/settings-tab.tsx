@@ -44,7 +44,7 @@ export function SettingsTab() {
   };
 
   return (
-    <div className="settings-tab rcr-pad">
+    <div className="settings-tab rcr-pad" data-tour="settings-access">
       <div className="set-card">
         <h3>Pipeline automations</h3>
         <div className="set-row">

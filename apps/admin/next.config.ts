@@ -14,6 +14,7 @@ const baseConfig: NextConfig = {
     "@repo/ai",
     "@repo/editor",
     "@repo/payment",
+    "@repo/tours",
     "@repo/typescript-config",
   ],
   serverExternalPackages: ["node-appwrite"],
