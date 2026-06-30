@@ -114,7 +114,7 @@ export default async function AnalyticsPage({
   ] = await Promise.allSettled([
     fetchStats(umamiRange),
     fetchPageviewsSeries(umamiRange),
-    fetchTopMetrics(umamiRange, "url"),
+    fetchTopMetrics(umamiRange, "path"),
     fetchTopMetrics(umamiRange, "referrer"),
     fetchTopMetrics(umamiRange, "event"),
     fetchEventsTotal(umamiRange),

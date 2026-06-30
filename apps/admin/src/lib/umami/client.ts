@@ -129,8 +129,11 @@ async function umamiGet<T>(path: string): Promise<T | null> {
     }
 
     if (!response.ok) {
+      const body = await response.text().catch(() => "");
       console.error(
-        `[Umami] GET ${path} failed: ${response.status} ${response.statusText}`
+        `[Umami] GET ${path} failed: ${response.status} ${response.statusText}${
+          body ? ` — ${body}` : ""
+        }`
       );
       return null;
     }
@@ -252,14 +255,18 @@ export async function fetchPageviewsSeries(
 
 // ---------------------------------------------------------------------------
 // Metrics — top pages / referrers / events.
-// GET /api/websites/{id}/metrics?startAt&endAt&type=url|referrer|event&limit
+// GET /api/websites/{id}/metrics?startAt&endAt&type=path|referrer|event&limit
 // → [{x,y}]
+// NOTE: current Umami uses `type=path` for top pages (the older `url` value is
+// rejected with 400). Valid types: path, entry, exit, title, query, referrer,
+// channel, domain, country, region, city, browser, os, device, language,
+// screen, event, hostname, tag.
 // ---------------------------------------------------------------------------
 
-export type UmamiMetricType = "url" | "referrer" | "event";
+export type UmamiMetricType = "path" | "referrer" | "event";
 
 export interface UmamiMetricItem {
-  /** The url / referrer host / event name. */
+  /** The path / referrer / event name. */
   x: string;
   /** Occurrence count. */
   y: number;
