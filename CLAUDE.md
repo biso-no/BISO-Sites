@@ -94,8 +94,7 @@ Entrypoints:
   `.claude/CLAUDE.md` (Ultracite Code Standards). Run `bun x ultracite fix`
   before committing; `lefthook` + `lint-staged` enforce it on pre-commit.
 - **TypeScript**: `strict` everywhere. `tsconfig` presets come from
-  `@repo/typescript-config`. `web` and `api` set
-  `typescript.ignoreBuildErrors: true` in `next.config.ts` (admin does not),
+  `@repo/typescript-config`.
   so their `next build` will **not** catch type errors — `bun run check-types`
   is the only signal that matters.
 - **Imports**: prefer named imports over namespace imports; avoid barrel files
