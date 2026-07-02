@@ -153,13 +153,20 @@ export const getUserAuthContext = cache(
         roles,
         userId: user.$id,
       };
-    } catch (error: any) {
+    } catch (error) {
+      const err = error as {
+        cause?: { code?: unknown };
+        code?: unknown;
+        message?: unknown;
+        type?: unknown;
+      };
       const isOutage =
-        error?.code >= 500 ||
-        error?.type === "appwrite_timeout" ||
-        error?.code === "ECONNREFUSED" ||
-        error?.cause?.code === "ECONNREFUSED" ||
-        error?.message?.includes("fetch failed");
+        (typeof err?.code === "number" && err.code >= 500) ||
+        err?.type === "appwrite_timeout" ||
+        err?.code === "ECONNREFUSED" ||
+        err?.cause?.code === "ECONNREFUSED" ||
+        (typeof err?.message === "string" &&
+          err.message.includes("fetch failed"));
 
       if (isOutage) {
         console.error("[getUserAuthContext] Appwrite outage detected:", error);

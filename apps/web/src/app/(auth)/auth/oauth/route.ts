@@ -1,3 +1,4 @@
+import type { Models } from "@repo/api";
 import { createAdminClient } from "@repo/api/server";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
@@ -16,7 +17,7 @@ export async function GET(request: NextRequest) {
   }
 
   const { account } = await createAdminClient();
-  let session;
+  let session: Models.Session;
   try {
     session = await account.createSession(userId, secret);
   } catch (error) {

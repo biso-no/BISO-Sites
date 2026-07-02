@@ -21,6 +21,7 @@ const bulkTurnoverSchema = z.object({
 });
 
 interface TurnoverResult {
+  appwriteInvalidation?: Awaited<ReturnType<typeof invalidateAppwriteUser>>;
   dryRun: boolean;
   error?: string;
   incomingUserUpn: string;
@@ -98,24 +99,26 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           }
         );
 
-          if (webhookResponse.ok) {
-            result.success = true;
-            try {
-              result.webhookResponse = await webhookResponse.json();
-            } catch {
-              result.webhookResponse = { status: "accepted" };
-            }
-
-            if (!dryRun) {
-              await invalidateAppwriteUser(op.roleMailboxUpn);
-            }
-          } else {
-            const errorText = await webhookResponse.text();
-            result.error = `Webhook failed: ${webhookResponse.status} - ${errorText}`;
+        if (webhookResponse.ok) {
+          result.success = true;
+          try {
+            result.webhookResponse = await webhookResponse.json();
+          } catch {
+            result.webhookResponse = { status: "accepted" };
           }
-        } catch (error) {
-          result.error = error instanceof Error ? error.message : "Unknown error";
+
+          if (!dryRun) {
+            result.appwriteInvalidation = await invalidateAppwriteUser(
+              op.roleMailboxUpn
+            );
+          }
+        } else {
+          const errorText = await webhookResponse.text();
+          result.error = `Webhook failed: ${webhookResponse.status} - ${errorText}`;
         }
+      } catch (error) {
+        result.error = error instanceof Error ? error.message : "Unknown error";
+      }
 
       results.push(result);
     }

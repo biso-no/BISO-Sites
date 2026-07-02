@@ -122,8 +122,22 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       },
     });
 
+    let appwriteInvalidation: Awaited<
+      ReturnType<typeof invalidateAppwriteUser>
+    > | null = null;
     if (!dryRun) {
-      await invalidateAppwriteUser(roleMailboxUpn);
+      appwriteInvalidation = await invalidateAppwriteUser(roleMailboxUpn);
+      if (appwriteInvalidation.error) {
+        await createAuditLog({
+          actorId: scope.userId,
+          action: "turnover-appwrite-invalidation-failed",
+          resourceType: "mailbox",
+          payload: {
+            roleMailboxUpn,
+            error: appwriteInvalidation.error,
+          },
+        });
+      }
     }
 
     return NextResponse.json({
@@ -132,6 +146,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       incomingUserUpn,
       dryRun,
       webhookResponse: responseData,
+      appwriteInvalidation,
     });
   } catch (error) {
     console.error("Error in account turnover:", error);

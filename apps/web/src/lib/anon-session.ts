@@ -38,7 +38,9 @@ export async function ensureAnonymousSession(): Promise<boolean> {
   const existingCookie = cookieStore.get(SESSION_COOKIE_NAME);
   if (existingCookie) {
     try {
-      const { account } = await createSessionClient(existingCookie.value);
+      // No-arg call so the cookie value is applied via setSession — the
+      // parameter of createSessionClient is a JWT, not a session secret.
+      const { account } = await createSessionClient();
       await account.get();
       return true;
     } catch {

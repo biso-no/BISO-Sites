@@ -1,5 +1,6 @@
 import { Query } from "@repo/api";
 import { createAdminClient } from "@repo/api/server";
+import { listAllUserMemberships } from "@repo/shared/utils/appwrite-memberships";
 import { expandDeptName } from "./campus-constants";
 import {
   grantDeptTeamAccess,
@@ -159,9 +160,11 @@ export async function syncM365Permissions(userId: string) {
       teamsToSync.map((g) => sanitizeTeamId(g.name))
     );
 
-    // Reconcile: delete Appwrite memberships that are no longer in Azure
-    const currentMemberships = await users.listMemberships(userId);
-    for (const membership of currentMemberships.memberships) {
+    // Reconcile: delete Appwrite memberships that are no longer in Azure.
+    // Paginated — the default 25-row read would leave stale roles unpruned
+    // for users in many teams (PR-075).
+    const currentMemberships = await listAllUserMemberships(users, userId);
+    for (const membership of currentMemberships) {
       if (!expectedTeamIds.has(membership.teamId)) {
         // User is in an Appwrite team but not in the corresponding Azure group
         await teams.deleteMembership(membership.teamId, membership.$id);
