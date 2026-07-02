@@ -396,6 +396,13 @@ export enum AnnouncementsAudienceType {
   BROADCAST = "broadcast",
 }
 
+export enum M365TurnoverJobsStatus {
+  RETENTION_ACTIVE = "retention_active",
+  COMPLETED = "completed",
+  RETENTION_START_FAILED = "retention_start_failed",
+  STOP_FAILED = "stop_failed",
+}
+
 export enum PaymentSettingsProvider {
   VIPPS = "vipps",
   STRIPE = "stripe",
@@ -440,6 +447,9 @@ export type Orders = Models.Row & {
   receipt_link: string | null;
   payment_session_id: string | null;
   payment_link: string | null;
+  finago_transaction_id: string | null;
+  transition_lock: number;
+  finago_posting_lock: number;
 };
 
 export type DepartmentBoard = Models.Row & {
@@ -729,6 +739,7 @@ export type WebshopProducts = Models.Row & {
   cover_pattern: WebshopProductsCoverPattern;
   linked_event_id: string | null;
   inventory_mode: WebshopProductsInventoryMode;
+  finago_account_number: number | null;
 };
 
 export type VarslingSettings = Models.Row & {
@@ -923,7 +934,7 @@ export type Subscriptions = Models.Row & {
   subscriber_id: string;
 };
 
-export type TwemtyFourSevenOfficeAuthTokens = Models.Row & {
+export type TwentyFourSevenOfficeAuthTokens = Models.Row & {
   token: string;
 };
 
@@ -1192,6 +1203,7 @@ export type RecruitmentBookingTokens = Models.Row & {
   consumed_at: string | null;
   interview_id: string | null;
   created_by_user_id: string | null;
+  claim_lock: number;
 };
 
 export type JobApplicationAnswers = Models.Row & {
@@ -1367,6 +1379,21 @@ export type M365RemediationSnapshot = Models.Row & {
   manual_count: number;
   closed_count: number;
   result: string | null;
+};
+
+export type M365TurnoverJobs = Models.Row & {
+  user_id: string;
+  user_upn: string;
+  previous_display_name: string | null;
+  new_display_name: string;
+  new_given_name: string | null;
+  new_surname: string | null;
+  initiated_by_user_id: string | null;
+  retention_started_at: string | null;
+  retention_stop_at: string;
+  status: M365TurnoverJobsStatus;
+  stop_attempts: number;
+  last_error: string | null;
 };
 
 export type PaymentSettings = Models.Row & {
