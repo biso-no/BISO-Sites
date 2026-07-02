@@ -60,21 +60,21 @@ fix-before-launch-or-immediately-after, with monitoring in place either way.
 - **PR-049** — two unguarded homepage fetches (`getPartners`, `getCampuses`) are now code-remediated locally with the sibling graceful-degradation pattern (`return []` on Appwrite failure).
 - **PR-048** — minimal structured `onRequestError` server logging is now code-remediated in all four Next apps, with sensitive-header redaction. This improves production forensics but is not yet external error tracking; owner/deploy still needs log retention/alerting or Sentry/OTel to make incidents pageable.
 
-**Money-path integrity (Vipps live):**
-- **PR-039** — Finago (24SO) revenue posting happens **only** on the unauthenticated return route, with a non-atomic sentinel that clears on unknown outcomes, and the `finago_transaction_id`/`finago_account_number` columns appear **absent from the schema config**. Duplicate or omitted ledger entries; mobile buyers who never return produce **no ledger entry ever**. (Column existence is an owner live-check — if absent, this is its own blocker.)
-- **PR-038** — **no reconciliation cron** for captured-but-diverged / webhook-dead orders. If the webhook secret is wrong or a buyer doesn't return, money is captured but the order is stuck `pending` forever.
-- **PR-035** — stock decrement is a **non-atomic read-modify-write invoked from three concurrent entry points** (webhook, return route, public `verifyOrder`). Common launch path (webhook fires as the app redirects) double-decrements or loses updates; `Math.max(0,…)` masks oversell silently.
-- **PR-036** — `getAvailableStock` subtracts the buyer's **own** reservation, so checkout requires `stock ≥ otherHolds + 2×qty` → the **last units of any limited product are unsellable**. Exactly the merch-drop scenario the shop exists for.
-- **PR-037** — query syntax code-remediated locally on 2026-07-02: paid-transition reservation cleanup now uses structured `Query.equal`; limit/product scoping and deployed paid-order smoke remain follow-up.
+**Money-path integrity (Vipps live) — all code-remediated locally in S13 (2026-07-02), pending schema push + deployed paid-order smoke:**
+- **PR-039** — Finago posting now fires from **three redundant triggers** (webhook callback, return route, reconciliation cron) behind an atomic `finago_posting_lock` claim (expense-posting pattern) with stale-claim recovery; the missing `orders.finago_transaction_id`, `orders.finago_posting_lock`, `orders.transition_lock`, and `webshop_products.finago_account_number` columns were added to the schema config. Owner must `appwrite push` and set `TFSO_SHOP_TRANSACTION_TYPE_NUMBER`/`TFSO_VIPPS_RECEIVABLE_ACCOUNT` on **both** web and api apps.
+- **PR-038** — `/api/cron/reconcile-orders` (web) now sweeps stale pending/authorized Vipps orders through `reconcileVippsPayment` and retries missed Finago postings; registered as `ORDERS_RECONCILE_URL` in scheduled-dispatch. Owner must configure the URL + schedule in the Appwrite console.
+- **PR-035** — stock decrement/restore now uses **atomic `decrementRowColumn`/`incrementRowColumn` with a zero floor**; an oversell (paid quantity > remaining stock) is floored loudly with an `OVERSELL` error log instead of silently masked. Legacy RMW retained only as fallback for clients without atomic ops.
+- **PR-036** — the client stock check now credits back the buyer's own active hold (matching the server action and reservation flow), so the last units of a limited product are purchasable by the person holding them.
+- **PR-037** — reservation cleanup is now scoped to the paid order's product ids and paginated (100/page); `cart_reservations` gained a `user_product_idx` index in the schema config.
 
 **Auth lifecycle:**
-- **PR-058** — offboarded Azure staff **keep full CMS/campus access for up to a year**: role sync is add-only, sessions last 365 days, nothing invalidates them. Operationally urgent given semester turnover.
-- **PR-059 / PR-060** — booking-token reuse race creates **duplicate interviews**, and there's **no interview-slot uniqueness** so two candidates can book the same instant. Recruitment is the largest admin feature.
-- **PR-061** — a dead anonymous-session cookie has **no recovery path**: after the cleanup cron deletes the idle anon user, the returning visitor's `add-to-cart is broken for up to 16 days` with no re-mint.
-- **PR-075** — core authorization reads (`teams.list()`) and member detection (`memberships` list) are **truncated at 25 rows** with no limit → users in >25 teams silently lose roles; paying members past row 25 are misclassified as non-members.
+- **PR-058** — **partially remediated**: account-turnover routes now disable the Appwrite user, delete sessions, and prune memberships (paginated), with failures surfaced in the response/audit instead of swallowed. **Still open:** routine Azure offboarding outside an explicit turnover (user disabled mid-year) triggers nothing — sessions live up to 365 days. Needs an offboarding hook/sweep (design decision: personal vs role identities).
+- **PR-059 / PR-060** — code-remediated in S13: booking-token confirmation now takes an **atomic `claim_lock`** before any write (released on failure so the link survives transient errors), and an interviewer-scoped **slot-overlap guard** rejects double-booked times. `recruitment_booking_tokens.claim_lock` + `job_interviews` indexes added to schema config — owner must push.
+- **PR-061** — code-remediated: `ensureAnonymousSession` validates the existing cookie and re-mints a fresh anonymous session when the user was cron-deleted. (An S05–S12-era regression that passed the session secret to `setJWT` — which would have logged users out on every cart action — was caught in the S13 review and fixed; covered by `anon-session.test.ts`.)
+- **PR-075** — primary auth reads fixed earlier with `Query.limit(200)`; S13 fixed the two remaining unlimited reads (m365-sync stale-role prune, turnover membership prune) via a shared paginated `listAllUserMemberships` helper. The 200 cap on `teams.list()` reads is a raised ceiling, not true pagination — acceptable at BISO's team counts.
 
 **Storage:**
-- **PR-079** — the `resumes` bucket has `create("any")` + no extension allowlist + 100 MB max, guarded only in app code → **anonymous 100 MB arbitrary-file uploads** via the storage API directly; two buckets are missing from config; no `deleteFile` exists anywhere so files leak forever.
+- **PR-079** — largely remediated: `resumes`/`expenses` bucket `create` grants were removed in the S05–S12 pass, and S13 added extension allowlists + size caps matching app-side validation (resumes: pdf/5 MB; expenses: jpg/jpeg/png/webp/pdf/10 MB) plus a bucket-level regression test in `appwrite-config.test.ts`. **Still open:** no `deleteFile` anywhere (files leak forever) and the `documents` bucket keeps 100 MB/no allowlist (team-gated create, lower risk). Owner must push the schema.
 
 **Build-time env (owner-verifiable):**
 - **PR-085** — `NEXT_PUBLIC_*` values are baked at build time per app; a missing/misnamed build-env var silently ships `localhost:3003` / the wrong project id into the immutable client bundle. Naming drift makes this likely. **Verify each app's Appwrite build env before launch.**
@@ -120,11 +120,10 @@ see `05-OWNER-ACTIONS.md` for the full list. The highest-priority live checks:
 **Should close before launch (or launch with monitoring + a rollback plan):**
 6. PR-048 — minimal `onRequestError` logging is code-remediated; connect deploy
    logs to retention/alerting or replace the sink with Sentry/OTel.
-7. PR-046 / PR-047 / PR-050 — local timeout remediations are in place; verify after deploy and finish the remaining follow-ups (Vipps maintenance-path deadlines, server-side membership cache).
-8. PR-049 — code-remediated locally; keep the graceful-degradation tests in
-   place and verify after deploy with the rest of the web smoke.
-9. PR-039 / PR-038 / PR-035 / PR-036 / PR-037 — move Finago posting off the return-route-only path, add a reconciliation cron, make stock adjustment atomic (copy the expense claim-lock pattern), fix the last-units bug, and finish reservation-cleanup hardening/live smoke.
-10. PR-058 — implement an offboarding hook (disable + delete sessions + prune memberships).
+7. PR-046 / PR-047 / PR-050 — local timeout remediations are in place (S13 added the Stripe-branch checkout deadline); verify after deploy and finish the remaining follow-ups (Vipps maintenance-path deadlines, server-side membership cache).
+8. PR-049 — code-remediated locally (S13 also guarded `getOrgChartUrl`); keep the graceful-degradation tests in place and verify after deploy with the rest of the web smoke.
+9. PR-039 / PR-038 / PR-035 / PR-036 / PR-037 — **code-remediated in S13** (Finago atomic claim from webhook/return/cron, reconcile-orders cron, atomic stock ops, last-units fix, scoped+paginated reservation cleanup). Remaining: `appwrite push` for the new columns/indexes, `ORDERS_RECONCILE_URL` + TFSO env vars in the console, and a deployed paid-order smoke.
+10. PR-058 — turnover-path invalidation is done; a routine (non-turnover) Azure offboarding hook/sweep remains open.
 
 **Verify live (owner):** the six checks in §4.
 

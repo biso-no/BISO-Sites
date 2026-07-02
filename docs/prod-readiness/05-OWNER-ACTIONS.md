@@ -267,3 +267,45 @@ console / Vipps portal / Stripe dashboard. Ordered by launch consequence.
 **Why:** PR-048 — there is no Sentry/OTel/structured logging; several money-path failures log nothing. Launch week would be blind. This is the highest-leverage operational fix: it makes every other finding observable.
 **How to verify:** Add Sentry (or at minimum an `onRequestError` in each app's `instrumentation.ts` posting to a webhook) and confirm a test error appears in the dashboard; point an external uptime monitor at each app's health endpoint.
 **Status:** open.
+
+## From S13 (money-path + auth-lifecycle remediation, 2026-07-02)
+
+### O-29 — `appwrite push` the S13 schema additions, then regenerate types
+**Why:** The S13 code depends on new schema objects that only exist in
+`packages/api/appwrite.config.json` until pushed: `orders.finago_transaction_id`,
+`orders.finago_posting_lock`, `orders.transition_lock`, `orders.idx_orders_finago`,
+`webshop_products.finago_account_number`, `cart_reservations.user_product_idx`,
+`recruitment_booking_tokens.claim_lock`, and the `job_interviews` interviewer/ends_at
+indexes, plus the hardened `resumes`/`expenses` bucket limits. Until the push, the
+atomic claims fall back to legacy (racy-but-functional) behaviour and Finago
+posting claims fail loudly.
+**How to verify:** `appwrite push` from `packages/api`, then
+`appwrite types -l ts ./types` to regenerate `types/appwrite.ts`; confirm the
+columns/indexes exist in the console.
+**Status:** open.
+
+### O-30 — Configure the reconcile-orders cron target
+**Why:** PR-038's sweep only runs if the scheduled-dispatch function knows about
+it. It recovers webhook-dead orders and retries missed Finago postings.
+**How to verify:** Appwrite console → `scheduled-dispatch` function → add
+`ORDERS_RECONCILE_URL=https://biso.no/api/cron/reconcile-orders`; confirm a run
+logs a successful ping and the route returns `success: true`.
+**Status:** open.
+
+### O-31 — Set TFSO shop-posting env vars on BOTH `web` and `api`
+**Why:** Finago posting now also fires from the payment webhook callback
+(`apps/api`), which previously never posted. Both apps need
+`TFSO_REST_CLIENT_ID/SECRET/ORG_ID`, `TFSO_SHOP_TRANSACTION_TYPE_NUMBER`, and
+`TFSO_VIPPS_RECEIVABLE_ACCOUNT`, plus per-product `finago_account_number`
+values once the column is pushed.
+**How to verify:** Appwrite console env for both sites; then a live test
+purchase produces exactly one ledger entry with `finago_transaction_id` set on
+the order.
+**Status:** open.
+
+### O-32 — Populate `webshop_products.finago_account_number` for live products
+**Why:** Without per-product revenue accounts, postings fall back to the
+connector's default account — revenue lands on the wrong ledger line.
+**How to verify:** After O-29, set the account number on each sellable product
+in the admin shop editor / console.
+**Status:** open.

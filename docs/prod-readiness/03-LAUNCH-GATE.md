@@ -64,8 +64,8 @@ path.
 | Gate | Description | Status | Evidence |
 |------|-------------|--------|----------|
 | D1 | Vipps webhook HMAC signature verification is correct and enforced | ✅ | S05 verified the HMAC scheme, raw-body handling, content-hash pre-check, and constant-time compare directly in `packages/payment/src/vipps/webhook.ts` + callback route. Correct. (Missing timestamp-freshness check PR-042 is low-risk by design.) |
-| D2 | Payment checkout → webhook → return flow handles all failure modes without silent data loss | ❌ | **Red.** PR-032's unauthenticated client-amount checkout has been code-remediated locally, pending owner live smoke. PR-037's legacy query syntax is code-remediated locally, but the gate remains red because no reconciliation sweep exists for captured-but-diverged/webhook-dead orders (PR-038), stock decrement is non-atomic across 3 entry points (PR-035), and reservation cleanup still needs limit/product scoping plus deployed paid-order smoke. |
-| D3 | Accounting/reconciliation fields (e.g. Finago account number) are always populated or the failure is loud, not silent | ❌ | **Red.** S05: Finago posting happens only on the unauthenticated return route with a non-atomic sentinel; `finago_transaction_id`/`finago_account_number` columns appear absent from schema config; mobile buyers who don't return produce no ledger entry ever (PR-039). Failure is silent, not loud. Owner must confirm column existence live. |
+| D2 | Payment checkout → webhook → return flow handles all failure modes without silent data loss | ⬜ | **Code-complete locally (S13), pending push+smoke.** PR-032 auth, PR-035 atomic stock (zero-floor + loud OVERSELL), PR-036 last-units fix, PR-037 scoped/paginated reservation cleanup, and PR-038 `/api/cron/reconcile-orders` are all code-remediated with tests. Gate goes green after `appwrite push` (new orders columns + indexes), cron registration, and a deployed paid-order smoke. |
+| D3 | Accounting/reconciliation fields (e.g. Finago account number) are always populated or the failure is loud, not silent | ⬜ | **Code-complete locally (S13), pending push+smoke.** Finago posting now fires from webhook/return/cron behind an atomic `finago_posting_lock` claim with stale-claim recovery; missing `finago_transaction_id`/`finago_posting_lock`/`finago_account_number` columns added to schema config. Owner: push schema, set TFSO shop-posting env vars on web+api, verify one live ledger entry. |
 | D4 | Stripe/Vipps credentials are correctly scoped per environment (no prod creds in staging or vice versa) | ⬜ | S05 found the resolution logic falls back to env creds on *any* error (not just 404) and mode/secret can diverge between checkout and webhook verify (PR-041); actual per-env console/portal state is owner-only (`O-21`..`O-24`). Vipps is live at launch; Stripe checkout is OFF. |
 
 ## E — Data integrity (3 gates)
@@ -74,8 +74,8 @@ path.
 |------|-------------|--------|----------|
 | E1 | Appwrite schema has no structural defects (duplicate/invalid collection IDs) | ⬜ | S03 found a duplicate `departments` table ID (PR-019) — must be fixed and re-verified. |
 | E2 | Row-permission (RLS) backstop is idempotent — access is retracted when it should be, not just granted | ⬜ | S03 found the sync is additive-only; stale access persists (PR-018). Needs a design decision + fix before this can be green. |
-| E3 | Anonymous session/user cleanup runs reliably in production | ❌ | S06 found the cleanup itself has two runtime defects: it fires up to 5000 concurrent `users.delete` calls (PR-052), and its 14-day cutoff vs the 30-day anon cookie strands returning visitors with a dead cookie and no recovery (PR-061, add-to-cart broken up to 16 days). Plus the PR-001/B5 wiring gap. |
-| E4 | Concurrent writes on contended rows don't corrupt state (stock, counters, upserts) | ❌ | **New gate (S06/S07).** Non-atomic stock RMW race (PR-035), oversell masking (PR-035), non-atomic `applications_count`/benefit-reveal/purchase-limit check-then-act (PR-078/PR-080/PR-082), booking-token/slot races (PR-059/PR-060). The atomic-claim pattern exists in-repo (expense posting) but is not applied to these paths. |
+| E3 | Anonymous session/user cleanup runs reliably in production | ⬜ | Code-remediated: the cron uses bounded concurrency (20) with pagination (PR-052), and `ensureAnonymousSession` now re-mints a session for a dead cookie (PR-061; an S13-review-found `setJWT` regression in the validation path was fixed and tested). Remaining: the PR-001/B5 schedule wiring is an owner console action. |
+| E4 | Concurrent writes on contended rows don't corrupt state (stock, counters, upserts) | ⬜ | **Improved in S13:** stock decrement/restore is now atomic (`decrementRowColumn` min 0, loud oversell), and booking-token redemption uses an atomic `claim_lock` + interviewer slot-overlap guard (PR-035/PR-059/PR-060). Still open: `applications_count`/benefit-reveal/purchase-limit check-then-act (PR-078/PR-080/PR-082) — lower-stakes counters, not money. |
 
 ## F — Correctness & UX floor (5 gates)
 
@@ -97,10 +97,15 @@ path.
 | A — Builds & type safety | 2 | 0 | 3 | 0 |
 | B — Deploy & runtime config | 0 | 1 | 4 | 0 |
 | C — Secrets & security | 4 | 0 | 2 | 1 |
-| D — Money path / payments | 1 | 0 | 1 | 2 |
-| E — Data integrity (+E4) | 0 | 0 | 2 | 2 |
+| D — Money path / payments | 1 | 0 | 3 | 0 |
+| E — Data integrity (+E4) | 0 | 0 | 4 | 0 |
 | F — Correctness & UX floor (+F6) | 1 | 0 | 4 | 1 |
-| **Total (31)** | **8** | **1** | **16** | **6** |
+| **Total (31)** | **8** | **1** | **20** | **2** |
+
+_S13 (2026-07-02) moved `D2`/`D3`/`E3`/`E4` from ❌ to ⬜: the code-side defects
+are remediated with tests, but each needs the schema push, console wiring, and
+a deployed smoke before it can be ✅. `C7` and `F6` stay ❌ pending the owner
+live smoke and observability/deploy verification respectively._
 
 _S05–S09 added two gates (`E4` concurrency-safety, `F6` graceful degradation),
 promoted `C6`/`D1`/`F4` to ✅ (verified sound in code), and turned

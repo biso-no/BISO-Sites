@@ -47,27 +47,36 @@ ending, not after. This is the first file the next session should read.*
 
 ## What's in flight
 
-**Nothing is mid-audit.** The discovery phase is finished. The next phase is
-**remediation**, owned by the developer, not the audit:
+**Nothing is mid-audit, and the repo-owned remediation backlog is code-complete
+as of S13 (2026-07-02).** S13 first ran an independent adversarial review of the
+S05–S12 remediations (all blockers confirmed genuinely fixed; one regression
+found and fixed: anon-session validation passed the session secret to `setJWT`),
+then code-remediated the remaining money-path and auth-lifecycle set:
+`PR-035`/`PR-036`/`PR-037`/`PR-038`/`PR-039`, `PR-059`/`PR-060`, `PR-061`,
+`PR-075` residuals, `PR-079` bucket hardening, and `PR-008`'s stale lockfile
+entry. `turbo run test` now runs all six test workspaces; lint, check-types,
+tests, and full builds are green.
 
-1. Deploy and owner-smoke PR-032/PR-033/PR-017, then verify PR-015 with a real
-   Azure tenant test user. See the ordered "Minimum path to GO" in
-   `07-GO-NO-GO.md` §5.
-2. Do not enable `expenses_ledger_posting` until PR-034's deployed Appwrite
-   schema and approval/posting smoke path are owner-verified.
-3. Wire PR-048's structured server-error logs to deploy log retention/alerting
-   or a Sentry/OTel sink; local `onRequestError` code is in place.
-4. Address the remaining high-severity resilience + money-path set
-   (`PR-035`–`PR-039`, `PR-058`–`PR-061`, `PR-075`, `PR-079`, plus follow-ups
-   from `PR-047`/`PR-050`). `PR-046`, the checkout-chain portion of `PR-047`,
-   `PR-049`, `PR-050`'s timeout/fallback behavior, and `PR-037`'s query syntax
-   are code-remediated locally. Next repo-owned money-path work should continue
-   with `PR-035`/`PR-036`/`PR-038`/`PR-039` and finish `PR-037` hardening
-   (limit/product scoping + deployed paid-order smoke).
-5. Complete the live-console owner verifications `O-21`–`O-28` in
-   `05-OWNER-ACTIONS.md` (collection permissions, Finago columns, Vipps webhook,
-   build env, rate limits) — several could flip a NEEDS-LIVE-CHECK finding's
-   severity.
+What remains is **owner/console work, not code**:
+
+1. `appwrite push` the S13 schema additions and regenerate types (`O-29`),
+   then deploy and smoke: authenticated checkout, a live paid order
+   (stock decrement + reservation cleanup + exactly one Finago ledger entry),
+   and a booking-link double-click.
+2. Configure `ORDERS_RECONCILE_URL` on scheduled-dispatch (`O-30`) and the TFSO
+   shop-posting env vars on both web and api (`O-31`, `O-32`).
+3. Verify PR-015 with a real Azure tenant test user; keep
+   `expenses_ledger_posting` OFF until PR-034's deployed smoke passes.
+4. Wire PR-048's structured server-error logs to deploy log retention/alerting
+   or a Sentry/OTel sink (`O-28`).
+5. Complete the live-console verifications `O-21`–`O-32` in
+   `05-OWNER-ACTIONS.md`.
+
+Open code-side items deliberately deferred (documented, lower severity):
+routine non-turnover Azure offboarding sweep (PR-058), PR-078/PR-080/PR-082
+counter races, storage `deleteFile` lifecycle (PR-079 residual), server-side
+membership cache (PR-050 follow-up), and Vipps maintenance-path deadlines
+(PR-047 follow-up).
 
 Re-run the launch gate (`03-LAUNCH-GATE.md`) after remediation. A finding is
 only "closed" when the fix is verified (ideally driven end-to-end), not when
