@@ -137,14 +137,14 @@ export async function syncM365Permissions(userId: string) {
       "https://graph.microsoft.com/v1.0/me/transitiveMemberOf?$select=id,displayName";
 
     while (nextLink) {
-      const graphResponse = await fetch(nextLink, {
+      const res: Response = await fetch(nextLink, {
         headers: {
           Authorization: `Bearer ${microsoftIdentity.providerAccessToken}`,
         },
       });
 
-      const graphData = await graphResponse.json();
-      if (!graphResponse.ok) {
+      const graphData = await res.json();
+      if (!res.ok) {
         throw new Error(`Graph Error: ${JSON.stringify(graphData)}`);
       }
 
