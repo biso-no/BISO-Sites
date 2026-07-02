@@ -1,4 +1,5 @@
 import "server-only";
+import { Query } from "@repo/api";
 import { createAdminClient, createSessionClient } from "@repo/api/server";
 import type { AdminScope } from "@repo/shared/types/user-management";
 import {
@@ -7,7 +8,6 @@ import {
   normalizeTeamName,
 } from "@repo/shared/utils/team-roles";
 import type { NextRequest } from "next/server";
-import { Query } from "@repo/api";
 
 // Helper to reduce complexity
 function computeManagedCampusNames(

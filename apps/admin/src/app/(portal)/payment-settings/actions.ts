@@ -9,8 +9,8 @@ import {
   paymentSecretKeys,
 } from "@repo/shared/utils/payment-config";
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { isRedirectError } from "next/dist/client/components/redirect-error";
+import { redirect } from "next/navigation";
 import { getUserAuthContext, type UserAuthContext } from "@/lib/authorization";
 import { logAuditEvent } from "../_actions/audit-log";
 
@@ -177,7 +177,9 @@ export async function updatePaymentSecrets(
     revalidatePath("/payment-settings");
     return { data: buildView(provider, await readRow(db, provider)) };
   } catch (error) {
-    if (isRedirectError(error)) throw error;
+    if (isRedirectError(error)) {
+      throw error;
+    }
     return {
       error:
         error instanceof Error
@@ -252,7 +254,9 @@ export async function registerVippsWebhook(): Promise<
     revalidatePath("/payment-settings");
     return { data: { mode: result.mode, registeredUrl: result.registeredUrl } };
   } catch (error) {
-    if (isRedirectError(error)) throw error;
+    if (isRedirectError(error)) {
+      throw error;
+    }
     console.error("[payment-settings/registerWebhook] error:", error);
     return {
       error:
@@ -286,7 +290,9 @@ export async function setPaymentTestMode(
     revalidatePath("/payment-settings");
     return { data: buildView(provider, await readRow(db, provider)) };
   } catch (error) {
-    if (isRedirectError(error)) throw error;
+    if (isRedirectError(error)) {
+      throw error;
+    }
     return {
       error:
         error instanceof Error

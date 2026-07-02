@@ -122,7 +122,7 @@ export async function GET(
     const azureAppId = process.env.AZURE_APP_ID;
     const azureClientSecret = process.env.AZURE_CLIENT_SECRET;
 
-    if (!azureTenantId || !azureAppId || !azureClientSecret) {
+    if (!(azureTenantId && azureAppId && azureClientSecret)) {
       throw new Error("Missing Azure credentials in environment variables");
     }
 

@@ -120,7 +120,9 @@ export async function getCampuses({
 
 export async function getCampusData(_campusId?: string) {
   const { db } = await createSessionClient();
-  const campuses = await db.listRows<CampusData>("app", "campus_data", [Query.limit(500)]);
+  const campuses = await db.listRows<CampusData>("app", "campus_data", [
+    Query.limit(500),
+  ]);
 
   return campuses.rows;
 }
