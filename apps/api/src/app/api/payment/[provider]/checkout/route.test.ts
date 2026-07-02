@@ -259,6 +259,67 @@ describe("payment checkout authorization", () => {
     );
   });
 
+  it("preserves variant and custom-field data on the trusted order items", async () => {
+    mockedCreateAdminClient.mockResolvedValue({
+      db: {
+        getRow: vi.fn().mockResolvedValue({
+          ...productRow,
+          metadata: JSON.stringify({
+            variations: [{ id: "v-large", name: "Large", price_modifier: 50 }],
+          }),
+        }),
+      },
+    } as unknown as Awaited<ReturnType<typeof createAdminClient>>);
+
+    const request = new Request(
+      "https://api.biso.no/api/payment/vipps/checkout",
+      {
+        body: JSON.stringify({
+          currency: "NOK",
+          customerInfo: { email: "buyer@example.com" },
+          items: [
+            {
+              productId: "product-1",
+              quantity: 1,
+              slug: "trusted-product",
+              variationId: "v-large",
+              customFields: { engraving: "Ada" },
+              customFieldLabels: { engraving: "Engraving text" },
+            },
+          ],
+          reference: "checkout-ref",
+          subtotal: 249,
+          total: 249,
+          userId: "attacker-user",
+        }),
+        headers: new Headers({
+          authorization: "Bearer valid",
+          "content-type": "application/json",
+        }),
+        method: "POST",
+      }
+    ) as unknown as NextRequest;
+
+    const response = await postVipps(request);
+
+    expect(response.status).toBe(200);
+    expect(mockedCreateOrder).toHaveBeenCalledWith(
+      expect.objectContaining({
+        items: [
+          expect.objectContaining({
+            productId: "product-1",
+            unit_price: 249,
+            variationId: "v-large",
+            variationName: "Large",
+            customFields: { engraving: "Ada" },
+            customFieldLabels: { engraving: "Engraving text" },
+          }),
+        ],
+      }),
+      expect.anything()
+    );
+  });
+
   it("returns 504 when Vipps checkout creation exceeds the deadline", async () => {
     vi.stubEnv("VIPPS_CHECKOUT_TIMEOUT_MS", "20");
     mockedCreateVippsPayment.mockImplementation(

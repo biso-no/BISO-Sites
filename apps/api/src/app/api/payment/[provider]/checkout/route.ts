@@ -69,7 +69,12 @@ function isProvider(value: string): value is Provider {
 }
 
 function webBaseUrl(): string | undefined {
-  return process.env.NEXT_PUBLIC_BASE_URL;
+  // Return/success/cancel URLs must point at the WEB app's /api/checkout/return
+  // route. In split-host deployments the api app has its own NEXT_PUBLIC_BASE_URL,
+  // so prefer the web-specific var and only fall back to the shared one.
+  return (
+    process.env.NEXT_PUBLIC_WEB_BASE_URL || process.env.NEXT_PUBLIC_BASE_URL
+  );
 }
 
 function isValidBody(body: CheckoutBody | null): body is CheckoutBody {
@@ -351,6 +356,13 @@ async function buildTrustedCheckoutParams({
       quantity: input.quantity,
       title: product.title,
       unit_price: pricing.discountedUnit,
+      // Preserve the buyer's selections for the receipt/fulfillment. These are
+      // non-price data — the price above is still recomputed server-side — so
+      // carrying them through does not weaken the trusted-amount guarantee.
+      variationId: input.variationId,
+      variationName: variation?.name,
+      customFields: input.customFields,
+      customFieldLabels: input.customFieldLabels,
     });
 
     subtotal += pricing.discountedUnit * input.quantity;

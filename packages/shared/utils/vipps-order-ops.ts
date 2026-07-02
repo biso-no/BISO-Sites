@@ -177,6 +177,15 @@ export async function applyOrderStatusTransition(
       oldStatus !== OrdersStatus.AUTHORIZED &&
       oldStatus !== OrdersStatus.PAID;
 
+    // The transition_lock claim serializes the one-time stock decrement across
+    // the three concurrent entry points (webhook, return route, reconcile cron)
+    // so it happens exactly once. It guards ONLY the stock decrement — the
+    // status write below always runs. That way a caller that loses the claim,
+    // or a retry after a crash that decremented stock but never persisted the
+    // status, still marks the order paid instead of leaving it stuck pending
+    // (and without decrementing stock a second time).
+    let skipStockDecrement = false;
+
     if (shouldDecrement && databases.incrementRowColumn) {
       try {
         const claimed = await databases.incrementRowColumn<
@@ -195,18 +204,12 @@ export async function applyOrderStatusTransition(
             : 0;
 
         if (lockValue !== 1) {
+          // Another caller already owns the stock decrement for this order.
+          // Don't decrement again, but still persist the status below.
           console.log(
-            `[Order] Transition for ${orderId} already in progress (lock: ${lockValue}), skipping.`
+            `[Order] Stock decrement for ${orderId} already claimed (lock: ${lockValue}); persisting status without re-decrementing.`
           );
-
-          // Re-fetch to return the already-applied status
-          const latestOrder = (await databases.getRow(
-            process.env.APPWRITE_DATABASE_ID!,
-            process.env.APPWRITE_ORDERS_COLLECTION_ID!,
-            orderId
-          )) as Orders;
-
-          return { newStatus: latestOrder.status || oldStatus };
+          skipStockDecrement = true;
         }
       } catch (error) {
         console.warn(
@@ -216,14 +219,19 @@ export async function applyOrderStatusTransition(
       }
     }
 
-    await adjustStockForOrder({
-      newStatus,
-      oldStatus,
-      orderItems,
-      databases,
-      orderId,
-      userId: currentOrder.userId ?? undefined,
-    });
+    // adjustStockForOrder decides decrement vs. cancellation-restore vs. no-op
+    // from old/new status; only skip it when we specifically lost the
+    // decrement claim (another caller is handling that exact adjustment).
+    if (!skipStockDecrement) {
+      await adjustStockForOrder({
+        newStatus,
+        oldStatus,
+        orderItems,
+        databases,
+        orderId,
+        userId: currentOrder.userId ?? undefined,
+      });
+    }
 
     await databases.updateRow(
       process.env.APPWRITE_DATABASE_ID!,

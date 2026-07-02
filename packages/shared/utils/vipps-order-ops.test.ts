@@ -301,18 +301,16 @@ describe("applyOrderStatusTransition", () => {
     );
   });
 
-  it("skips decrement and returns already-applied status when atomic claim lock is lost", async () => {
-    let fetchCount = 0;
+  it("persists status without re-decrementing stock when the claim lock is lost", async () => {
     db.getRow.mockImplementation(
       (_databaseId: string, collectionId: string) => {
         if (collectionId === "orders") {
-          fetchCount++;
           return Promise.resolve({
             $id: "order-1",
             items_json: JSON.stringify([
               { product_id: "product-1", quantity: 2, unit_price: 499 },
             ]),
-            status: fetchCount === 1 ? OrdersStatus.PENDING : OrdersStatus.PAID,
+            status: OrdersStatus.PENDING,
             userId: "user-1",
           });
         }
@@ -326,14 +324,25 @@ describe("applyOrderStatusTransition", () => {
     const result = await applyOrderStatusTransition(
       "order-1",
       OrdersStatus.PAID,
-      {},
+      { payment_intent_id: "pi_1" },
       db
     );
 
     expect(result.newStatus).toBe(OrdersStatus.PAID);
     expect(db.incrementRowColumn).toHaveBeenCalled();
-    expect(db.updateRow).not.toHaveBeenCalled();
+    // Stock is NOT touched — the winner owns that decrement.
+    expect(db.updateRow).not.toHaveBeenCalledWith(
+      "app",
+      "webshop_products",
+      "product-1",
+      expect.anything()
+    );
     expect(db.deleteRow).not.toHaveBeenCalled();
+    // ...but the status IS still persisted so the order can't get stuck pending.
+    expect(db.updateRow).toHaveBeenCalledWith("app", "orders", "order-1", {
+      status: OrdersStatus.PAID,
+      payment_intent_id: "pi_1",
+    });
   });
 
   it("proceeds with decrement when atomic claim lock is won", async () => {
