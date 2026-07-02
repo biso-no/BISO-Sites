@@ -70,7 +70,7 @@ function isProvider(value: string): value is Provider {
 
 function webBaseUrl(): string | undefined {
   return (
-    process.env.NEXT_PUBLIC_WEB_BASE_URL ?? process.env.NEXT_PUBLIC_BASE_URL
+    process.env.NEXT_PUBLIC_BASE_URL
   );
 }
 

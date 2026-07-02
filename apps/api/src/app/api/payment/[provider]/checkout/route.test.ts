@@ -131,7 +131,7 @@ describe("payment checkout authorization", () => {
     vi.clearAllMocks();
     vi.stubEnv("APPWRITE_DATABASE_ID", "app");
     vi.stubEnv("APPWRITE_WEBSHOP_PRODUCTS_COLLECTION_ID", "webshop_products");
-    vi.stubEnv("NEXT_PUBLIC_WEB_BASE_URL", "https://biso.no");
+    vi.stubEnv("NEXT_PUBLIC_BASE_URL", "https://biso.no");
 
     mockAdminClient();
     mockAuthenticatedUser();

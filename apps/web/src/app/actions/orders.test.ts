@@ -22,6 +22,7 @@ vi.mock("@repo/shared/utils/feature-flags-server", () => ({
 
 vi.mock("@/app/actions/cart-reservations", () => ({
   getAvailableStock: vi.fn(async () => 5),
+  getUserReservation: vi.fn(async () => null),
 }));
 
 vi.mock("@/app/actions/locale", () => ({

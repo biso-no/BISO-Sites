@@ -58,7 +58,7 @@ describe("recruitment booking actions", () => {
           consumed_at: null,
           created_by_user_id: "hr-user-1",
           duration_minutes: 30,
-          expires_at: "2026-07-02T00:00:00.000Z",
+          expires_at: new Date(Date.now() + 365 * 24 * 3600 * 1000).toISOString(),
           panel_user_ids: JSON.stringify(["panel-1"]),
           token_hash: tokenHash("booking-token"),
           window_from: "2026-07-01T09:00:00.000Z",
