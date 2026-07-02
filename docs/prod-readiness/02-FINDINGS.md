@@ -588,16 +588,488 @@ gate `A2`.
 
 ---
 
+---
+
+# S05–S09 — Runtime behavior findings (2026-07-02)
+
+Runtime-focused audit lanes: payments/money-path, auth-token lifecycle,
+Appwrite runtime semantics, Next.js/Bun runtime, failure modes & resource
+exhaustion. Findings below are numbered `PR-032`+. IDs cross-referenced to the
+lane temp-IDs (P-/A-/W-/N-/F-) in each entry. Only findings the orchestrator
+verified directly in code are marked **VERIFIED-IN-CODE**; others carry the
+lane's stated confidence and are pending orchestrator verification.
+
+### PR-032 — BLOCKER — Unauthenticated checkout endpoint charges a client-supplied amount (Vipps live at launch)
+**VERIFIED-IN-CODE (orchestrator).** Lane refs: N-1 open-question, payments lane.
+**App:** `apps/api` (public JWT REST service; base URL is `NEXT_PUBLIC_API_BASE_URL`, so the endpoint URL is public knowledge).
+**What breaks / production condition:** `POST /api/payment/vipps/checkout` (and `/stripe/`) has **no user authentication** — it uses `createAdminClient()` and reads `userId` from the request body. Its only gates are (1) the `payments_vipps` feature flag (defaults **ON** — live at launch) and (2) `applyCorsHeaders`, which is **not a gate**: `apps/api/src/lib/cors.ts:4-24` only *sets* response headers and never rejects a request, so any non-browser client (curl/script) is unaffected. The charged amount comes straight from the client: `route.ts:33,54` puts `body.total` into `CheckoutSessionParams.total`; `createOrder` persists it verbatim (`packages/shared/utils/vipps-order-ops.ts:74-76`, `total: params.total`); `startVippsCheckout` charges `order.total ?? params.total` (`route.ts:101-105`). **No code between the HTTP boundary and the Vipps charge recomputes the amount from trusted product/price data.** An attacker POSTs `{items:[<real product>], total: 1, userId:<any>, reference:<any>, customerInfo:{email}}`, pays 1 NOK in Vipps, the order is marked paid on webhook, and fulfillment (membership grant / product) proceeds on the item list — goods/entitlements for arbitrary underpayment.
+**Evidence:** `apps/api/src/app/api/payment/[provider]/checkout/route.ts:19-73,97-105,136-176`; `apps/api/src/lib/cors.ts:4-24`; `packages/shared/utils/vipps-order-ops.ts:54-95`.
+**Blast radius:** Direct financial fraud on the live money path — every product and membership purchasable at any price; also lets a caller attribute paid orders to arbitrary `userId`s. Revenue loss + accounting integrity.
+**Fix:** On the server, recompute `subtotal`/`total` from authoritative product rows (look up each `items[].productId` price in Appwrite, apply server-verified member discount) and reject if the client total disagrees; require an authenticated caller (verify the Appwrite JWT / session and derive `userId` from it, not the body); do not treat CORS as authorization. Until fixed, this is a hard launch blocker for the Vipps path.
+**Status:** open.
+
+### PR-033 — BLOCKER — `orders` collection grants `create("any")` → forged paid orders
+**Lane refs:** P-5. Concrete instance of PR-017.
+**What breaks / condition:** `orders` `$permissions` includes `create("any")` (rowSecurity on); create is always collection-level, so any client with the public Appwrite endpoint+project id (both `NEXT_PUBLIC_*`) can `createRow` an order with `status:"paid"` (enum allows it), arbitrary `total`/`items_json`. A single GET to the unauthenticated return route then renders success and (per PR-039) injects a fabricated 24SO ledger transaction; also pollutes purchase-limit counting (`purchase-limits.ts:43,112`).
+**Evidence:** `packages/api/appwrite.config.json` orders `$permissions`; return route `apps/web/src/app/api/checkout/return/route.ts`.
+**Fix:** Remove `create("any")` — the legit flow creates orders only via `createAdminClient()` in the checkout route (verified: no non-admin `createRow` on `orders` in web/packages code), so removal is safe.
+**Confidence:** CONFIRMED (config; legit-flow safety verified in code). Live perms → owner-action.
+**Status:** open.
+
+### PR-034 — HIGH (BLOCKER-if-enabled) — Forged pre-"approved" expenses paid out with no approval chain
+**Lane refs:** P-6. Instance of PR-017. Gated by `expenses_ledger_posting` (OFF at launch).
+**What breaks / condition:** `expense` and `expense_attachments` grant `create("users")`; the `status` enum includes `approved` and `bank_account`/`amount`/`account_number` are settable. An authenticated student can create an expense row directly via the SDK with `status:"approved"` + their own `bank_account`. The payout cron selects any row where `status===APPROVED` (`post-pending/route.ts:58-61`) and `postApprovedExpense` posts a ledger payout **without ever verifying an `expense_approvals` chain** (`expense-posting.ts:183-209` — trusts row status + its own idempotency lock only).
+**Evidence:** `packages/api/appwrite.config.json` (expense/expense_attachments perms + status enum); `apps/api/src/app/api/expenses/post-pending/route.ts:49-61`; `apps/api/src/lib/expense-posting.ts:183-232`.
+**Fix:** Remove `create("users")` from `expense`/`expense_attachments` (create via API route with admin client) AND make `postApprovedExpense` verify all `expense_approvals` rows are APPROVED before posting. Hard gate: do NOT enable `expenses_ledger_posting` until both are done.
+**Confidence:** CONFIRMED (config + code; cron flag-gate confirmed). Live perms → owner-action.
+**Status:** open.
+
+### PR-035 — HIGH — Non-atomic stock decrement race across three entry points
+**Lane refs:** P-3, P-8, W-2.
+**What breaks / condition:** `applyOrderStatusTransition` reads `order.status`, decides `shouldDecrement`, then `decrementStockForItems` does read→`Math.max(0,stock-qty)`→write. Three concurrent callers — Vipps webhook (`callback/route.ts:68`), checkout return (`return/route.ts:40,50`), and the public `verifyOrder` action (`orders.ts:624,644`) — commonly run at once (webhook fires as the app redirects to return). Both read `status=pending` → double-decrement; or two orders' transitions on one product → lost update; oversell of the last unit is silently clamped at 0.
+**Evidence:** `packages/shared/utils/vipps-order-ops.ts:142-183,202-271`; `apps/api/src/app/api/payment/[provider]/callback/route.ts:68`; `apps/web/src/app/api/checkout/return/route.ts:40,50`; `apps/web/src/app/actions/orders.ts:222-241,624,644`.
+**Fix:** Use `decrementRowColumn({min:0})` and gate the transition side-effects with an atomic claim column (`incrementRowColumn`, the `posting_lock` pattern) so only one caller runs PENDING→PAID effects.
+**Confidence:** CONFIRMED.
+**Status:** open.
+
+### PR-036 — HIGH — Last units of any tracked product unsellable at checkout
+**Lane refs:** W-1.
+**What breaks / condition:** `getAvailableStock` subtracts **all** active reservations including the buyer's own, but `createOrUpdateReservation` correctly adds the caller's hold back. So `ensureStockAvailability` at checkout requires `stock ≥ otherHolds + 2q`. With stock 1 and cart 1, checkout always reports out-of-stock — sell-out is impossible on exactly the limited merch drops this shop exists for.
+**Evidence:** `apps/web/src/app/actions/cart-reservations.ts:25-63,117-131`; `apps/web/src/app/actions/orders.ts:222-241`.
+**Fix:** In `ensureStockAvailability`, add the buyer's own active reservation qty back (mirror `cart-reservations.ts:117-131`), or pass an `effectiveMax` from the reservation layer.
+**Confidence:** CONFIRMED (reproducible with stock=1).
+**Status:** open.
+
+### PR-037 — HIGH — Post-payment reservation cleanup silently fails (legacy query syntax)
+**Lane refs:** P-7, W-3.
+**What breaks / condition:** `deleteUserReservations` passes the hand-built string `` `equal("user_id","${userId}")` `` instead of `Query.equal(...)`; node-appwrite v23 serializes queries to JSON and rejects the string with a 400, which is swallowed. It also has no `Query.limit`. Result: on every paid order, stock is decremented **and** the buyer's reservation stays active up to ~10 min → availability double-counts → false out-of-stock for other shoppers right after each sale.
+**Evidence:** `packages/shared/utils/vipps-order-ops.ts:327-343`.
+**Fix:** `Query.equal("user_id", userId)` + a limit; scope deletion to the ordered product ids; surface the error instead of swallowing.
+**Confidence:** NEEDS-LIVE-CHECK (server logs "Invalid query" on first paid order — owner-action), high confidence from SDK version.
+**Status:** open.
+
+### PR-038 — HIGH — No reconciliation sweep for captured-but-diverged / webhook-dead orders
+**Lane refs:** P-4.
+**What breaks / condition:** Only `cleanup-reservations` cron exists; nothing reconciles stale PENDING/AUTHORIZED orders. If the webhook secret is missing/wrong every delivery 401s until Vipps gives up after 7 days, or a mobile buyer pays in the Vipps app and never returns to the site → money captured, order stuck pending forever. Stripe's `resolveStripeCredentials` returns an empty `webhookSecret` happily, making the return route the only Stripe fulfillment path.
+**Evidence:** `apps/web/src/app/api/cron/cleanup-reservations/route.ts`; `apps/api/src/app/api/payment/[provider]/callback/route.ts:57-59`; `packages/payment/src/credentials/select.ts:96-105`.
+**Fix:** Add a CRON_SECRET-gated sweep (fits scheduled-dispatch): orders with a `payment_session_id`, status in (pending, authorized), older than ~15 min → run reconcile / Stripe session sync.
+**Confidence:** CONFIRMED (gap); retry semantics verified from docs.
+**Status:** open.
+
+### PR-039 — HIGH — Accounting posting depends on the buyer's browser, with a non-atomic sentinel and possibly-missing columns
+**Lane refs:** P-2, W-6, F-6.
+**What breaks / condition:** 24SO revenue posting happens ONLY on the unauthenticated, replayable return route (never the webhook path). The claim sentinel is read-then-write (author-acknowledged race), a claim-write failure is swallowed and posting proceeds anyway, and on unknown-outcome errors the sentinel is cleared so a later return-visit reposts → duplicate ledger entries. `finago_transaction_id` (orders) and `finago_account_number` (webshop_products) are **absent from `appwrite.config.json`**; if also absent live, every return hit reposts (or throws). Mobile buyers who never return produce no ledger entry ever.
+**Evidence:** `apps/web/src/app/api/checkout/return/route.ts:94-143,215-219`; `packages/api/appwrite.config.json` (columns absent).
+**Fix:** Post from the status-transition/webhook path (not a GET); replace the sentinel with an atomic `incrementRowColumn` claim (expense-posting pattern); keep the claim on ambiguous errors (never auto-clear); add the columns and re-pull config.
+**Confidence:** races CONFIRMED; column existence NEEDS-LIVE-CHECK (owner-action — if absent, treat as blocker).
+**Status:** open.
+
+### PR-040 — MEDIUM (latent — Stripe OFF) — Stripe async-failure maps to AUTHORIZED; stale/out-of-order events applied
+**Lane refs:** P-9, P-10.
+**What breaks / condition:** `determineStatusFromStripeSession` maps `complete`+`unpaid`→AUTHORIZED and the callback applies it to all four events including `checkout.session.async_payment_failed` → a failed async payment stays AUTHORIZED forever; the return route treats authorized as success and posts Finago → stock gone + ledger entry + success page with no money captured. The callback also applies the event-embedded (possibly stale) session with no downgrade guard, so out-of-order events can regress PAID→AUTHORIZED. Only exposed if async methods are enabled and `payments_stripe` is turned on.
+**Evidence:** `packages/shared/utils/stripe-pure.ts:43-58`; `apps/api/src/app/api/payment/[provider]/callback/route.ts:20-25,93-99`; `apps/web/src/app/api/checkout/return/route.ts:150-152,215-219`.
+**Fix:** Branch on `event.type` (`async_payment_failed`→FAILED); re-fetch the session before mapping; forbid PAID→non-refund downgrades; only post Finago on PAID.
+**Confidence:** CONFIRMED (code); exposure NEEDS-LIVE-CHECK (which methods enabled).
+**Status:** open.
+
+### PR-041 — MEDIUM — Payment credential resolution falls back to env on ANY error; mode/secret can diverge
+**Lane refs:** P-11.
+**What breaks / condition:** `resolveCredentials` treats any exception reading `payment_settings` (transient network/permission blip, not just 404) as "no row" → falls back to `VIPPS_*`/`STRIPE_*` env with an independent test/live mode. With the 15s cache, checkout can run on DB-row live creds while the webhook verify seconds later runs on env creds → wrong merchant charged, or live payment verified against the wrong webhook secret (all deliveries 401 → PR-038 territory).
+**Evidence:** `packages/payment/src/credentials/resolve.ts:39-47`; `packages/payment/src/credentials/select.ts:26,44-47,61-75,108-117`.
+**Fix:** Only fall back on a 404/row-not-found error type; rethrow everything else; in prod delete the env fallbacks or guarantee they equal the live account.
+**Confidence:** CONFIRMED (code); real-world impact depends on prod env → NEEDS-LIVE-CHECK.
+**Status:** open.
+
+### PR-042 — LOW — Vipps webhook has no timestamp freshness check (replay accepted)
+**Lane refs:** P-12.
+**What breaks / condition:** `x-ms-date` is verified only as an HMAC input, never for freshness, so a captured request replays forever. Benign by design — the handler only triggers a reconcile against authoritative Vipps state; docs confirm Vipps mandates no freshness window.
+**Evidence:** `packages/payment/src/vipps/webhook.ts:81-108`.
+**Fix:** Optional hardening: reject `x-ms-date` older than ~5 min.
+**Confidence:** CONFIRMED.
+**Status:** open.
+
+### PR-043 — LOW — Guest orders are world-readable
+**Lane refs:** P-13.
+**What breaks / condition:** Guest orders get `Permission.read(Role.any())`, so buyer name/email/phone are readable by any client that learns an order id. Privacy, not money.
+**Evidence:** `packages/shared/utils/vipps-order-ops.ts:44-49`.
+**Fix:** Scope guest-order read to a capability token or the session; drop `read(any)`.
+**Confidence:** CONFIRMED (config/code).
+**Status:** open.
+
+### PR-044 — LOW (latent — flag OFF) — Expense posting liveness gap strands a row as APPROVED
+**Lane refs:** P-14.
+**What breaks / condition:** If `incrementRowColumn` succeeds (lock=1) but the marker-write fails and the run dies before 24SO, `ledger_transaction_id` stays null; later runs pass the early check, get lock=2,3…, return silently, and post-pending counts the row as `posted`. Stuck APPROVED forever with healthy-looking metrics. Only active with `expenses_ledger_posting` on.
+**Evidence:** `apps/api/src/lib/expense-posting.ts:243-258`; `apps/api/src/app/api/expenses/post-pending/route.ts:65-72`.
+**Fix:** When `claimed!==1` and `ledger_transaction_id` is null and `$updatedAt` exceeds the lease, mark FAILED (mirror the stale-marker path).
+**Confidence:** CONFIRMED.
+**Status:** open.
+
+### PR-045 — LOW — øre-level charge divergence between providers
+**Lane refs:** P-15.
+**What breaks / condition:** Vipps charges `Math.round(total*100)` of a float sum; Stripe charges Σ`Math.round(unit*100)×qty` per line. With percentage member discounts these can differ by øre from each other and from `order.total`. Cosmetic today; becomes real if refund logic ever compares amounts.
+**Evidence:** `packages/payment/src/vipps/index.ts:32-34`; `packages/payment/src/stripe/index.ts:22`.
+**Fix:** Compute a single authoritative minor-unit total server-side and pass it to both providers.
+**Confidence:** CONFIRMED.
+**Status:** open.
+
+### PR-046 — HIGH — node-appwrite sets no request timeout and rebuilds its connection pool per call
+**Lane refs:** F-1.
+**What breaks / condition:** `node-appwrite@23.1.0` sets no timeout anywhere and spreads a fresh undici+https Agent on every request (`client.mjs:278`). Across 205+ `createSessionClient`/`createAdminClient` sites, a slow self-hosted Appwrite (disk, MariaDB lock, restart) hangs every in-flight RSC render and server action with no deadline — the site appears fully down though Node is healthy. Under normal load it churns a TCP+TLS handshake per call against your own box all week.
+**Evidence:** `packages/api/server.ts:56-128`; `node-appwrite/dist/client.mjs:278`.
+**Fix:** Inject `AbortSignal.timeout(~10s)` at the SDK entry (global undici dispatcher or a `plainDb`-proxy `Promise.race`), and pin a shared module-scope dispatcher so pooling is reused.
+**Confidence:** CONFIRMED.
+**Status:** open.
+
+### PR-047 — HIGH — Vipps checkout chain has no deadline at any hop
+**Lane refs:** F-3.
+**What breaks / condition:** Vipps API hangs → the SDK call never resolves (`retryRequests:false`, no timeout) → the api checkout route hangs → the web action's fetch to the api app also has no timeout → the student sits on a frozen checkout forever, and concurrent checkouts stack request handlers on both web and api. Same for capture/refund inside the webhook and return-route reconcile.
+**Evidence:** `packages/payment/src/vipps/client.ts:12-22`; `apps/web/src/app/actions/orders.ts:497-509`; `packages/payment/src/vipps/index.ts:127-145,288-321`.
+**Fix:** `AbortSignal.timeout(15s)` on the web→api fetch; pass a timeout-wrapped fetch into the Vipps SDK or `Promise.race` each SDK call. (Reconcile logic itself is sound; it just needs a clock.)
+**Confidence:** CONFIRMED.
+**Status:** open.
+
+### PR-048 — HIGH — Zero error tracking / structured logging — launch week is blind
+**Lane refs:** F-2.
+**What breaks / condition:** No Sentry/OTel/pino anywhere, no `instrumentation-client.ts`, `onRequestError` unused; all logging is bare `console.*`. Several money-path failures log nothing at all (expense-approval-issues fold errors into return values; `expenses/approve` has no handler try/catch → unlogged 500). During an incident there is no signal to page on and no trace to debug.
+**Evidence:** `apps/admin/src/app/(portal)/_actions/expense-approval-issues.ts:45-46,68-69,130-131`; `apps/api/src/app/api/expenses/approve/route.ts:33-67`.
+**Fix:** Add Sentry (or minimally an `onRequestError` per app POSTing to a webhook) before launch — converts every finding below from invisible to pageable.
+**Confidence:** CONFIRMED.
+**Status:** open.
+
+### PR-049 — HIGH — Public homepage dies whole on an Appwrite blip (2 unguarded fetches)
+**Lane refs:** F-4.
+**What breaks / condition:** `getPartners` and `getCampuses` have no try/catch, while sibling `listEvents/listJobs/listNews` gracefully `return []`. One thrown Appwrite error in the homepage render sends the entire page to `(public)/error.tsx` — the graceful degradation built into the other actions never gets a chance.
+**Evidence:** `apps/web/src/app/actions/about.ts:14-16`; `apps/web/src/app/actions/campus.ts:88-111`; `apps/web/src/app/(public)/page.tsx:33,44`.
+**Fix:** Two try/catch-return-[] wrappers.
+**Confidence:** CONFIRMED.
+**Status:** open.
+
+### PR-050 — HIGH — Every member's page view makes a synchronous, timeout-less 24SO SOAP call
+**Lane refs:** F-5.
+**What breaks / condition:** `(public)/layout.tsx` awaits `getMembershipStatus()`; the cookie cache **cannot be written from RSC render context** (the code admits it fails silently), so unless a server action happens to run, every navigation by a member with a `student_id` re-calls `getCustomerCategories` → 24SO SOAP with no timeout. 24SO slow = whole public site slow for members; hung = member renders hang; down = members silently flap to non-member (losing pricing/benefits mid-session).
+**Evidence:** `apps/web/src/app/(public)/layout.tsx:15-19`; `apps/web/src/lib/actions/membership.ts:133-137,203-214`.
+**Fix:** Move the cache server-side (Appwrite row / in-memory TTL keyed by user id), add a SOAP timeout, and treat 24SO as enrichment not a render dependency.
+**Confidence:** CONFIRMED.
+**Status:** open.
+
+### PR-051 — MEDIUM — Admin app reports an Appwrite outage as "you're logged out" (redirect loop)
+**Lane refs:** F-7.
+**What breaks / condition:** `getUserAuthContext` catches everything → null → `requireAdminAccess` redirects to `/auth/login`, which also fails against the down backend → editors bounce in a loop during the exact incident when staff are trying to debug.
+**Evidence:** `apps/admin/src/lib/authorization.ts:156-158,272-274`.
+**Fix:** Distinguish "no session" from "backend unreachable" — rethrow non-401 errors to the error boundary.
+**Confidence:** CONFIRMED.
+**Status:** open.
+
+### PR-052 — MEDIUM — Uncapped fan-out hot spots (OOM / connection-storm)
+**Lane refs:** F-8, W-10.
+**What breaks / condition:** No concurrency limiter on the risky paths: announcement dispatch pages an entire segment into memory then `Promise.all`s one `createRow` per member (one "all members" click = thousands of concurrent writes + a same-size permission array); the public board route `Promise.all`s Graph photo downloads base64-buffered, anonymous, no `maxDuration`; anon-cleanup fires up to **5000 parallel** `users.delete` (admin key bypasses rate limits → can brown out the instance); expense OCR has no cap/`maxDuration` and buffers the body before the 10MB check.
+**Evidence:** `apps/admin/src/lib/announcements/send.ts:126-140,168`; `apps/api/src/app/api/campus/[campusId]/[departmentId]/board/route.ts:186`; `apps/api/src/app/api/cleanup-anon-users/route.ts:51-60`; `apps/api/src/app/api/expenses/ocr/route.ts:161-361`.
+**Fix:** Chunk with the existing `mapWithConcurrency` helper; add `maxDuration` to OCR/board; cap segment sizes; `allSettled` + page loop for cleanup.
+**Confidence:** CONFIRMED (magnitude NEEDS-LIVE-CHECK for the biggest segment).
+**Status:** open.
+
+### PR-053 — MEDIUM — Public job application submit is coupled to OpenAI latency
+**Lane refs:** F-9.
+**What breaks / condition:** Submit awaits `screenApplication` (gpt-5-nano) inline when auto-screen is on, with no timeout/abortSignal on any AI call → OpenAI hang blocks the applicant's submit; an applicant spike fans out uncapped concurrent LLM calls from the web process.
+**Evidence:** `apps/web/src/app/actions/jobs.ts:441-468`.
+**Fix:** Fire screening after responding (or queue via cron); pass `abortSignal: AbortSignal.timeout(30s)` to `generateObject`.
+**Confidence:** CONFIRMED.
+**Status:** open.
+
+### PR-054 — MEDIUM — Legacy expense submit can strand an expense if email fails, causing duplicates
+**Lane refs:** F-10.
+**What breaks / condition:** The legacy submit path awaits two `messaging.createEmail` calls **before** the `status:PENDING` update, under one catch-all → an Appwrite messaging/SMTP failure leaves the expense pre-pending, the user sees a generic error and re-submits → duplicate reimbursement rows + duplicate PDFs. (The newer approval-chain path is sound: it transitions status first.)
+**Evidence:** `apps/api/src/app/api/expenses/submit/route.ts:383-407,419`.
+**Fix:** Reorder status update before notifications; make emails best-effort-logged.
+**Confidence:** CONFIRMED.
+**Status:** open.
+
+### PR-055 — MEDIUM — No dependency-aware readiness probe
+**Lane refs:** F-12.
+**What breaks / condition:** All four `/api/health` return 200 even with Appwrite fully down; the only dependency-aware check (`/api/health/teams`) is global-admin-gated, so an uptime monitor can only ever get 401. A hung-but-alive process is invisible to monitoring.
+**Evidence:** `apps/{web,admin,api}/src/app/api/health/route.ts`; `apps/docs/app/api/health/route.ts`; `apps/admin/src/app/api/health/teams/route.ts`.
+**Fix:** Add an unauthenticated (or shared-secret) `/api/health/ready` doing one cheap Appwrite read with a 3s deadline.
+**Confidence:** CONFIRMED.
+**Status:** open.
+
+### PR-056 — LOW-MEDIUM — Shared cached 24SO SOAP client mutated per call
+**Lane refs:** F-13.
+**What breaks / condition:** `createAuthenticatedClient` sets the session `Cookie` header on the module-cached shared SOAP client (last-writer-wins across concurrent requests). Benign with one org session today; becomes a cross-request bug the day sessions differ (e.g. mid-refresh). `createClientAsync(wsdlUrl)` also fetches the WSDL on cold start with no timeout.
+**Evidence:** `packages/connectors/src/24sevenoffice/client.ts:26,55-64`.
+**Fix:** Don't mutate shared client state per request (per-call client or request-scoped headers); add a WSDL fetch timeout.
+**Confidence:** CONFIRMED.
+**Status:** open.
+
+### PR-057 — LOW — Assorted silent-swallow and loop nits
+**Lane refs:** F-14.
+**What breaks / condition:** `getCompaniesByIds` maps per-company failures to `null` silently (partial sync looks complete); Finago departments pagination has no max-page guard and logs the full response every page; Finago OAuth token fetch has no timeout or concurrent-refresh dedupe; Umami admin fetchers hang (not crash) admin-only.
+**Evidence:** `packages/connectors/src/24sevenoffice/company.ts:193-201`; `.../rest/departments.ts:23-51`; `.../rest/auth.ts:40`; `apps/admin/src/lib/umami/client.ts:75,115`.
+**Fix:** Log partial failures loudly, add max-page guards + timeouts, drop full-response logging.
+**Confidence:** CONFIRMED.
+**Status:** open.
+
+### PR-058 — HIGH — Azure offboarding never invalidates Appwrite access
+**Lane refs:** A-1. Ties to PR-015/PR-018.
+**What breaks / condition:** `syncM365Permissions` runs only at OAuth login and is add-only (`teams.createMembership`/`updateMembership`; no `deleteMembership` anywhere in the codebase). Sessions last 365 days; no `users.updateStatus`/`deleteSessions` exists. A staffer disabled in Azure at semester turnover keeps a working Appwrite session and full team-derived CMS/campus access for up to a year. (`departures/sync` is Entur transit data; `account-turnover` only pokes an Azure Automation webhook — neither touches Appwrite auth.)
+**Evidence:** `apps/admin/src/lib/m365-sync.ts:51,56,90,118-161`; `packages/api/appwrite.config.json:29-37` (365-day session).
+**Fix:** Offboarding hook (cron or turnover route): `users.updateStatus(id,false)` + `users.deleteSessions(id)` + prune memberships against current Azure groups; make m365-sync reconciling at login.
+**Confidence:** CONFIRMED (code-level absence).
+**Status:** open.
+
+### PR-059 — HIGH — Booking-token reuse-after-consume race creates duplicate interviews
+**Lane refs:** A-2.
+**What breaks / condition:** `confirmBookingSlot` reads `consumed_at=null`, creates a `job_interviews` row with `ID.unique()`, then stamps consume — non-atomically. Two tabs/devices within the same second both pass the null check → two interviews; the token's single `interview_id` clobbers the first, orphaning it.
+**Evidence:** `apps/web/src/app/actions/booking.ts:126,162,190-195`.
+**Fix:** Copy the proven expense claim — `incrementRowColumn` on a `consume_lock`, proceed only on 0→1 (as in `expense-approval.ts:586-595`).
+**Confidence:** CONFIRMED.
+**Status:** open.
+
+### PR-060 — HIGH — No interview-slot uniqueness: two candidates can book the same instant
+**Lane refs:** A-3.
+**What breaks / condition:** `confirmBookingSlot` never queries existing interviews before creating one; all `job_interviews` indexes are non-unique `key`. Free/busy is consulted only at admin proposal time, never at confirm → the panel is double-booked during any round with parallel candidates.
+**Evidence:** `apps/web/src/app/actions/booking.ts:162`; `packages/api/appwrite.config.json:7229-7258`.
+**Fix:** Unique index on a slot key (panel+starts_at) or an atomic slot-claim row.
+**Confidence:** CONFIRMED.
+**Status:** open.
+
+### PR-061 — HIGH — Dead anonymous-session cookie has no recovery path; cleanup cron manufactures it
+**Lane refs:** A-4.
+**What breaks / condition:** The anon cookie has 30-day maxAge, but the cleanup cron deletes anon users idle >14 days and nothing bumps an anon user's `$updatedAt` after creation. Day 15-30: a returning visitor's cookie points at a deleted user; `ensureAnonymousSession` no-ops because the cookie exists → `account.get()` throws in cart actions → generic error; nothing clears or re-mints the cookie, so add-to-cart is broken for that browser for up to 16 days. Same trap when a logged-in session is evicted by `sessionsLimit:10`.
+**Evidence:** `apps/web/src/lib/anon-session.ts:7,16,38-49`; `apps/api/src/app/api/cleanup-anon-users/route.ts:49-61`; `apps/web/src/app/actions/cart-reservations.ts:100-104`.
+**Fix:** Validate the existing cookie (cheap `account.get()`) or catch 401 in session-using actions, delete the cookie, re-provision once; align cookie maxAge (≤14d) with the cleanup window.
+**Confidence:** CONFIRMED (code); anon `$updatedAt` behavior NEEDS-LIVE-CHECK.
+**Status:** open.
+
+### PR-062 — MEDIUM — Web login callbacks 500 on expired/replayed secrets (admin handles it, web doesn't)
+**Lane refs:** A-5.
+**What breaks / condition:** Neither web OAuth nor magic-link callback wraps `account.createSession` in try/catch; an expired token, a back/refresh replay, or a slow callback tab throws → raw Next 500 with no route back. Admin's equivalent catches and redirects to `/auth/login?error=session_failed`. Web OAuth failure URLs are also bare with no error param.
+**Evidence:** `apps/web/src/app/(auth)/auth/oauth/route.ts:19-20`; `apps/web/src/app/(auth)/auth/callback/route.ts:20`; `apps/web/src/lib/server.ts:29,51,73,95`; cf. `apps/admin/src/app/(auth)/auth/oauth/route.ts:22-28`.
+**Fix:** Copy admin's try/catch+redirect into both web routes.
+**Confidence:** CONFIRMED.
+**Status:** open.
+
+### PR-063 — MEDIUM — No OAuth state/CSRF nonce on token-flow callbacks (login CSRF)
+**Lane refs:** A-6.
+**What breaks / condition:** Both web and admin callbacks accept any `userId`+`secret` query pair with no state nonce bound to the victim's browser. An attacker who initiates their own OAuth flow and captures the redirect can send the victim a callback URL that silently logs the victim into the **attacker's** account (session cookie `sameSite:"none"`, domain `.biso.no`) → anything the victim then submits (profile, `bank_account`) lands in the attacker-readable account.
+**Evidence:** web oauth/callback routes above; `apps/admin/.../auth/oauth/route.ts:9-21`; cookie set at web oauth route 42-48.
+**Fix:** Set a nonce cookie at initiation, echo via state/`redirectTo`, verify in the callback.
+**Confidence:** CONFIRMED pattern; end-to-end exploitability NEEDS-LIVE-CHECK (secret TTL/one-shot timing).
+**Status:** open.
+
+### PR-064 — MEDIUM — Expired-JWT handling in apps/api is inconsistent and the browser cache can't self-heal
+**Lane refs:** A-7.
+**What breaks / condition:** JWT dies at 15 min or on session deletion. The browser cache (14-min cap, 1-min buffer) has **no 401-driven invalidation** — `clearCache()` has zero callers and the web app has no logout. Server side the failure shape diverges: `/expenses/ocr` calls `account.get()` outside its try → raw 500 (its `if(!user)` 401 branch is dead code); `/expenses/submit` returns HTTP 200 `{success:false, error}` with the raw `AppwriteException` serialized in, indistinguishable from a validation failure.
+**Evidence:** `apps/web/src/lib/api-client.ts:27-62,129`; `apps/api/src/app/api/expenses/ocr/route.ts:343-361`; `apps/api/src/app/api/expenses/submit/route.ts:419-425`.
+**Fix:** Normalize 401 to HTTP 401 in api consumers; on 401 clear the cache and retry once with a fresh mint.
+**Confidence:** CONFIRMED.
+**Status:** open.
+
+### PR-065 — MEDIUM — Long uploads/AI calls can outlive the cached JWT with no re-mint
+**Lane refs:** A-8.
+**What breaks / condition:** The cache serves a JWT with as little as 61s of life (`expiresAt > now+60s`); a 90s mobile receipt upload via `fetchFormData` arrives at apps/api after the JWT is dead → PR-064's 500/200-error after the user already paid the upload+wait cost. Same window for `/expenses/submit`'s multi-step Appwrite sequence.
+**Evidence:** `apps/web/src/lib/api-client.ts:36-38`.
+**Fix:** Mint a fresh JWT when initiating any upload (bypass cache for `fetchFormData`), or widen the buffer to ~3 min for form-data calls.
+**Confidence:** CONFIRMED (arithmetic + code).
+**Status:** open.
+
+### PR-066 — MEDIUM — Graph/SharePoint clients rebuilt per call → no token cache, AAD /token pressure
+**Lane refs:** A-9, F-11.
+**What breaks / condition:** `createGraphClient` news up `ClientSecretCredential`+client per call, and SharePoint news up a fresh MSAL app per request, at ~30+ sites including the public board route (public page render → token mint). MSAL's in-memory cache never hits → one AAD `/token` round trip per operation → latency everywhere and `/token` 429 throttling (outside the Graph RetryHandler) under launch load. A failed login-time sync is swallowed → first-time admin lands role-less.
+**Evidence:** `packages/connectors/src/azure/index.ts:5-28`; `.../teams-bot/graph.ts:25-28`; `.../sharepoint/index.ts:136-157`; board route:120-124; cf. good pattern `.../24sevenoffice/rest/auth.ts:20-71`.
+**Fix:** Module-scope memoized credential/service keyed by tenantId+clientId (single tenant, so no mixing risk); add timeouts.
+**Confidence:** CONFIRMED.
+**Status:** open.
+
+### PR-067 — MEDIUM — Teams/Outlook scheduling failures swallowed with no rollback or flag
+**Lane refs:** A-10.
+**What breaks / condition:** `createTeamsMeeting`/`createCalendarEvent` catch all errors (401/403/429 undifferentiated) and return null; `applyGraphScheduling` only `console.warn`s. If the Teams meeting succeeds but the calendar event fails, the meeting isn't deleted and the interview is stamped with a URL but no invite — candidate booked with nulls, no reconciliation queue.
+**Evidence:** `packages/connectors/src/azure/calendar.ts:278-281,339-342`; `apps/admin/src/app/(portal)/_actions/interviews.ts:133-137`.
+**Fix:** Persist `scheduling_status`, add a retry/reconcile pass, delete the Teams meeting on partial failure.
+**Confidence:** CONFIRMED.
+**Status:** open.
+
+### PR-068 — MEDIUM — Membership status trusted from an unsigned, user-editable cookie
+**Lane refs:** A-11.
+**What breaks / condition:** `getMembershipStatus()` reads `biso_membership` and returns whatever the cookie says, including its own `expiresAt`. `httpOnly` blocks scripts, not the user: anyone can devtools/curl-set `{status:{isMember:true},expiresAt:9999999999999}` and be treated as a member indefinitely wherever this gates pricing/benefits. Also a Finago outage caches `isMember:false` for 10 min.
+**Evidence:** `apps/web/src/lib/actions/membership.ts:44-52,88-107,203-215`.
+**Fix:** HMAC-sign the cookie payload (server secret available) or cache server-side keyed by userId.
+**Confidence:** CONFIRMED (code); exploit value depends on whether checkout pricing consults it → NEEDS-LIVE-CHECK (open question).
+**Status:** open.
+
+### PR-069 — LOW — Web app has no sign-out; sessions are user-unrevocable
+**Lane refs:** A-12.
+**What breaks / condition:** No logout action, `deleteSession`, or cookie deletion in `apps/web/src` (only admin has `signOut`). On a shared computer, closing the browser drops the cookie but the 1-year Appwrite session stays valid server-side and unreachable to the user.
+**Evidence:** `apps/web/src` (absence); cf. `apps/admin/src/lib/actions/user.ts:146-167`.
+**Fix:** Add a sign-out mirroring admin's (delete session best-effort, delete domain-scoped cookie, `apiClient.clearCache()`).
+**Confidence:** CONFIRMED.
+**Status:** open.
+
+### PR-070 — LOW — Session-cookie attribute drift; SameSite=None broader than needed
+**Lane refs:** A-13.
+**What breaks / condition:** Three web setters use three lifetimes/attribute sets for the same cookie (OAuth: no maxAge, secure always; anon: 30-day, secure prod-only; invite: sameSite lax, host-only). The three hostnames are same-*site* (registrable domain biso.no), so `SameSite=None` buys nothing over `Lax` while exposing every cookie-authed GET route to true cross-site requests.
+**Evidence:** `apps/web/src/app/(auth)/auth/oauth/route.ts`; `apps/web/src/lib/anon-session.ts:9-19`; `apps/web/src/app/(auth)/auth/invite/route.ts:15-23`.
+**Fix:** One shared cookie-options helper; prefer `Lax` unless a genuinely cross-site embed needs `None`.
+**Confidence:** CONFIRMED (drift); the `None` requirement NEEDS-LIVE-CHECK.
+**Status:** open.
+
+### PR-071 — LOW — Invite route looks stale: hardcoded foreign origin + host-only cookie then cross-host redirect
+**Lane refs:** A-14.
+**What breaks / condition:** The invite route hardcodes `origin="https://app.biso.no"`, sets the session cookie host-only on web's host, then redirects to `app.biso.no` where that cookie isn't visible → invited users land logged-out on a possibly-dead host.
+**Evidence:** `apps/web/src/app/(auth)/auth/invite/route.ts:15-23,55,88`.
+**Fix:** Derive origin from `NEXT_PUBLIC_BASE_URL`, use shared cookie options; or delete the route if invites are unused.
+**Confidence:** CONFIRMED (code); whether invites are sent NEEDS-LIVE-CHECK.
+**Status:** open.
+
+### PR-072 — LOW — Concurrent first-cart actions race duplicate anonymous users
+**Lane refs:** A-15.
+**What breaks / condition:** Two parallel actions in a cookieless browser both pass the `cookieStore.get` check and both call `account.createAnonymousSession()` → two anon users; last cookie-set wins, the loser's 10-min reservation is orphaned (cron-cleaned).
+**Evidence:** `apps/web/src/lib/anon-session.ts:38`.
+**Fix:** A module-level promise lock or idempotent retry-on-conflict keeps it bounded; acceptable to leave.
+**Confidence:** CONFIRMED (low impact).
+**Status:** open.
+
+### PR-073 — LOW — Recruitment Graph creds use bare AZURE_* with no fallback chain
+**Lane refs:** A-16.
+**What breaks / condition:** `readGraphCreds()` uses bare `AZURE_TENANT_ID`/`AZURE_CLIENT_ID`/`AZURE_CLIENT_SECRET` with no fallback (unlike `apps/api/src/lib/graph.ts` and the board route). If unset, scheduling silently returns all-null.
+**Evidence:** `apps/admin/src/lib/recruitment-scheduling.ts:19-31,106-113`.
+**Fix:** Unify env names; log loudly / flag interviews when Graph is unconfigured.
+**Confidence:** CONFIRMED.
+**Status:** open.
+
+### PR-074 — LOW — Booking slot window is browser-local; interview timezone hard-coded
+**Lane refs:** A-17.
+**What breaks / condition:** The slot generator uses `cursor.getHours()` in the candidate's browser TZ; server `confirmBookingSlot` validates only the epoch window and stamps `timezone:"Europe/Oslo"` — a candidate abroad (or a direct action call) can book 03:00 Oslo time. (Expiry/window comparisons themselves are epoch-based and DST-safe.)
+**Evidence:** `apps/web/src/app/(public)/recruitment/book/[token]/booking-client.tsx:15-31`; `apps/web/src/app/actions/booking.ts:133-140,184`.
+**Fix:** Enforce working hours server-side in Europe/Oslo.
+**Confidence:** CONFIRMED.
+**Status:** open.
+
+### PR-075 — HIGH — Role derivation and member detection truncated at 25 rows
+**Lane refs:** W-5, both pagination sweeps.
+**What breaks / condition:** `teams.list()` with no limit in both apps' canonical auth reads returns only the first 25 teams; a staffer in >25 campus/dept teams non-deterministically loses derived roles/campus scope. Separately, active `memberships` are listed unbounded and matched client-side against the user's Finago categories; >25 active rows → a paying member can be classified non-member (member pricing/benefits denied).
+**Evidence:** `apps/admin/src/lib/authorization.ts:117`; `apps/api/src/lib/admin-auth.ts:51`; `apps/web/src/lib/actions/membership.ts:231-235`.
+**Fix:** Add `Query.limit(...)`/cursor loop sized to reality; for membership, filter server-side with `Query.equal("category", …)` instead of client-side.
+**Confidence:** truncation CONFIRMED; whether live counts exceed 25 → owner-action.
+**Status:** open.
+
+### PR-076 — MEDIUM — M365 user provisioning multi-write has no compensation
+**Lane refs:** W-7.
+**What breaks / condition:** Provisioning does Graph create → manager (failure swallowed) → security groups → Appwrite `user` row → audit log with no transaction. A failure after the Graph create leaves an M365 account with no profile row (invisible to the app, license/seat consumed); no rollback or resume-from-partial. (Deterministic UPN + `graphUser.id` row ID prevent dup rows on retry.)
+**Evidence:** `apps/api/src/app/api/admin/users/route.ts:180-232`; `.../bulk/route.ts:143`.
+**Fix:** On `createRow` failure, delete the Graph user or persist a "provisioning incomplete" record for the IT queue; make the audit-log write unconditional.
+**Confidence:** CONFIRMED.
+**Status:** open.
+
+### PR-077 — MEDIUM — Login team sync swallows errors and ignores Graph pagination
+**Lane refs:** W-8. Ties to PR-015.
+**What breaks / condition:** The whole login-time sync (Graph fetch + `teams.create`/`createMembership` + grants) is caught and only logged → a user lands with stale/missing team-derived authorization and nothing surfaces. It also reads `graphData.value` once and ignores `@odata.nextLink`, so users in >100 AAD groups (Graph pages `transitiveMemberOf` at ~100) get a truncated, non-deterministic team sync.
+**Evidence:** `apps/admin/src/lib/m365-sync.ts:135-150,158-160`.
+**Fix:** Follow `@odata.nextLink`; surface sync failure (flag on session/user, retry next login).
+**Confidence:** CONFIRMED (code); >100-group case NEEDS-LIVE-CHECK.
+**Status:** open.
+
+### PR-078 — MEDIUM — Recruitment application submit: dup applications, swallowed child writes, orphaned uploads
+**Lane refs:** W-9.
+**What breaks / condition:** No unique index on `(job_id, applicant_email)` + check-then-create → double-click/two-tab duplicate applications. Candidate-profile upsert failure is swallowed (application persists with `candidate_profile:null`; concurrent 409 on the unique `candidate_profiles.email` also swallowed). Per-answer failures swallowed → silent answer loss. Resume is uploaded **before** the application row → row failure orphans the file (no `deleteFile` anywhere). `applications_count` is a non-atomic RMW.
+**Evidence:** `apps/web/src/app/actions/jobs.ts:276-286,288-301,326,375-377,429-434`; `packages/api/appwrite.config.json` (job_applications indexes).
+**Fix:** Add unique `(job_id, applicant_email)` and handle 409 as "already applied"; retry-read on profile 409; fail/queue on answer failure; delete the resume in the failure path; use `incrementRowColumn` for the counter.
+**Confidence:** CONFIRMED.
+**Status:** open.
+
+### PR-079 — HIGH — Storage: anonymous unbounded uploads + config drift + no file cleanup
+**Lane refs:** W-11.
+**What breaks / condition:** The `resumes` bucket has `create("any")`, empty `allowedFileExtensions`, and a 100 MB max — the only guard is app-side validation, which a direct storage-API call bypasses → anonymous 100 MB arbitrary-type uploads. The `avatars` and `content` buckets are **absent from `appwrite.config.json`** (drift; live constraints unknown; avatars has no app-side size/type check). Zero `storage.deleteFile` calls repo-wide → replaced/deleted/failed-flow files leak forever.
+**Evidence:** `packages/api/appwrite.config.json` (buckets); `apps/web/src/app/actions/jobs.ts:291`; `apps/web/src/app/actions/member-portal.ts:306`; `apps/admin/src/app/api/upload/route.ts:61`.
+**Fix:** Tighten `resumes` (extension allowlist, ~10 MB, drop `create("any")` if the flow allows); add the missing buckets to config; add compensating deletes + an orphan sweep.
+**Confidence:** config CONFIRMED; live avatars/content settings NEEDS-LIVE-CHECK.
+**Status:** open.
+
+### PR-080 — LOW-MEDIUM — Purchase-limit enforcement fails open and is check-then-act
+**Lane refs:** W-12.
+**What breaks / condition:** `checkMaxPerUser` returns `allowed:true` on any error (deliberate), and two concurrent checkouts both pass before either order exists → `max_per_user` bypass. Acceptable if limits are soft; a problem if any product uses limits for compliance (e.g. ticket caps).
+**Evidence:** `apps/web/src/app/actions/purchase-limits.ts:53-57`.
+**Fix:** Fail closed for compliance-critical limits; enforce atomically (reservation/claim) rather than check-then-act.
+**Confidence:** CONFIRMED.
+**Status:** open.
+
+### PR-081 — LOW-MEDIUM — Account deletion orphans the PII profile row (GDPR)
+**Lane refs:** W-13.
+**What breaks / condition:** Web account deletion deletes only the auth user; the `user` table row (name/address/phone/student_id) survives. The admin variant has the reverse gap (row deleted, then unguarded `users.delete`). GDPR-relevant for a "delete my account" surface.
+**Evidence:** `apps/web/src/lib/actions/user.ts:133-139`; `apps/admin/src/lib/actions/user.ts:182-187`.
+**Fix:** Delete profile row + auth user (row-first/auth-second) with a retry queue.
+**Confidence:** CONFIRMED.
+**Status:** open.
+
+### PR-082 — LOW — Benefit reveal race returns an error on a successful reveal
+**Lane refs:** W-14.
+**What breaks / condition:** Check-then-create with `ID.unique()`; the unique `(user_id, benefit_id)` index makes the concurrent loser throw 409 into the generic catch → the user sees failure though the benefit was revealed.
+**Evidence:** `apps/web/src/app/actions/member-portal.ts:220-248`.
+**Fix:** Handle 409 as success (re-read), like tour-progress does.
+**Confidence:** CONFIRMED.
+**Status:** open.
+
+### PR-083 — MEDIUM — Root layout `force-dynamic` disables all caching/ISR site-wide
+**Lane refs:** N-1.
+**What breaks / condition:** Both web and admin root layouts `export const dynamic = "force-dynamic"`, which cascades to the whole tree; per-page `revalidate` exports are dead no-ops. Every anonymous public hit re-runs the full RSC fan-out (`(public)/layout.tsx` membership + nav + per-page Appwrite queries) with no full-route cache — Appwrite load and TTFB scale linearly with launch traffic. (This is also why there is no cross-user cache-leak surface — a positive.)
+**Evidence:** `apps/web/src/app/layout.tsx:70`; `apps/admin/src/app/layout.tsx:48`; dead exports at `campus/page.tsx:18`, `units/page.tsx:15`, etc.
+**Fix:** Architecture decision — if dynamic is intended, drop the dead `revalidate` exports; if caching is wanted, move cookie/membership reads out of the shared layout render path and remove `force-dynamic`.
+**Confidence:** CONFIRMED (cascade verified against Next source).
+**Status:** open.
+
+### PR-084 — LOW — `redirect()` swallowed by try/catch in 5 admin actions
+**Lane refs:** N-2.
+**What breaks / condition:** `requireSettingsAccess`/`requireFeatureFlagAccess`/`requirePaymentAccess` call `redirect()` inside try blocks whose catch returns `{error}`; no `isRedirectError` re-throw exists repo-wide. An admin whose session expired mid-session sees an opaque `{error:"NEXT_REDIRECT"}` toast instead of a login bounce. The mutation is still safely aborted (guard throws before any write) — not an authz bypass.
+**Evidence:** `apps/admin/.../settings/actions.ts:19,33`; `.../feature-flags/actions.ts:40,89-90,132`; `.../payment-settings/actions.ts:50,147-148,178,197-198,252,268-269,285`.
+**Fix:** `if (isRedirectError(error)) throw error;` in each catch, or move `await requireX()` above the try.
+**Confidence:** CONFIRMED.
+**Status:** open.
+
+### PR-085 — HIGH — NEXT_PUBLIC_* inlined at build; a missing/misnamed build-env var bakes wrong fallbacks
+**Lane refs:** N-3.
+**What breaks / condition:** Each app builds separately on Appwrite, so the correct `NEXT_PUBLIC_*` values must be in each app's Appwrite build env; a missing/misnamed var silently bakes the fallback into the immutable client bundle. `api-client.ts` falls back to `http://localhost:3003` (all client JWT expense/upload calls fail in prod); `server.ts` falls back to project `"biso"`/`"dev"`. Naming drift (`_PROJECT` vs `_PROJECT_ID`, `_BASE_URL` vs `_WEB_BASE_URL`, a typo'd `NEXT_PUBLIC_NEXT_PUBLIC_APPWRITE_ENDPOINT`) raises the odds of a mis-set var.
+**Evidence:** `apps/web/src/lib/api-client.ts:3-4`; `packages/api/server.ts:44-52`; drift at `(protected)/fs/[id]/page.tsx:221`, `checkout/route.ts:44`.
+**Fix:** Verify every app's Appwrite build env defines all four public vars with canonical names before launch (owner-action); consider failing the build if `NEXT_PUBLIC_API_BASE_URL` is unset rather than defaulting to localhost.
+**Confidence:** code CONFIRMED; build-env NEEDS-LIVE-CHECK (owner-action).
+**Status:** open.
+
+### PR-086 — LOW — apps/api `/api/config` reads a file the flatten script doesn't ship
+**Lane refs:** N-4.
+**What breaks / condition:** The route `readFileSync(process.cwd()/config/app-config.json)`; the flatten script copies only `public` + `.next/static`, and Next can't trace a `cwd`-relative path, so the file is absent in standalone → the route always returns hardcoded fallbacks (which also disagree with the committed file). No runtime caller found, so impact is nil today.
+**Evidence:** `apps/api/src/app/api/config/route.ts:9`; `package.json:160` (flatten script).
+**Fix:** Delete the route, or add `outputFileTracingIncludes` for `config/**` and copy it; reconcile the two default sets.
+**Confidence:** CONFIRMED.
+**Status:** open.
+
+### PR-087 — LOW — Public directories truncate to 25 rows
+**Lane refs:** web pagination sweep.
+**What breaks / condition:** The public departments directory on `/units` and `/students`, and per-department news/products, list without `Query.limit` → capped at 25 despite hundreds of departments (the page-builder reads the same table with `limit(500)`). The varsling recipient lookup and `getCampuses` are also unbounded but low-count today.
+**Evidence:** `apps/web/src/lib/actions/departments.ts:62,106,138`; `apps/web/src/app/actions/varsling.ts:33`; `apps/web/src/app/actions/campus.ts:111`.
+**Fix:** Add explicit `Query.limit` sized to reality (mirror the page-builder's 500).
+**Confidence:** CONFIRMED.
+**Status:** open.
+
+---
+
 ## Severity tally
 
 | Severity | Count | IDs |
 |----------|-------|-----|
-| blocker | 2 | PR-015, PR-017 |
-| high | 7 | PR-001, PR-008, PR-016, PR-018, PR-019, PR-020, PR-021 |
-| medium | 10 | PR-002, PR-007, PR-009, PR-011, PR-012, PR-022, PR-023, PR-024, PR-025, PR-030 |
-| low | 12 | PR-003, PR-004, PR-005, PR-006, PR-010, PR-013, PR-014, PR-026, PR-027, PR-028, PR-029, PR-031 |
+| blocker | 4 | PR-015, PR-017, PR-032, PR-033 |
+| high | 25 | PR-001, PR-008, PR-016, PR-018, PR-019, PR-020, PR-021, PR-034, PR-035, PR-036, PR-037, PR-038, PR-039, PR-046, PR-047, PR-048, PR-049, PR-050, PR-058, PR-059, PR-060, PR-061, PR-075, PR-079, PR-085 |
+| medium | 28 | PR-002, PR-007, PR-009, PR-011, PR-012, PR-022, PR-023, PR-024, PR-025, PR-030, PR-040, PR-041, PR-051, PR-052, PR-053, PR-054, PR-055, PR-062, PR-063, PR-064, PR-065, PR-066, PR-067, PR-068, PR-076, PR-077, PR-078, PR-083 |
+| low | 30 | PR-003, PR-004, PR-005, PR-006, PR-010, PR-013, PR-014, PR-026, PR-027, PR-028, PR-029, PR-031, PR-042, PR-043, PR-044, PR-045, PR-056, PR-057, PR-069, PR-070, PR-071, PR-072, PR-073, PR-074, PR-080, PR-081, PR-082, PR-084, PR-086, PR-087 |
 
-Total: 31 findings (PR-001–PR-031). This corrects the round-number tally in
-`01-TRACKER.md`'s summary line, which approximates per-session totals; this
-table is the authoritative count. See each finding's own header for its
-severity — this table is a convenience index, not a separate source of truth.
+Total: 87 findings (PR-001–PR-087).
+
+**Blockers now number 4** — PR-015 (M365 group assignment), PR-017 (over-permissive
+collection CREATE grants), PR-032 (unauthenticated checkout charges client amount),
+PR-033 (`orders` `create("any")` → forged paid orders). **PR-034** is a *conditional/gated
+blocker*: forged pre-approved expense payouts, live only if `expenses_ledger_posting`
+is enabled (defaults OFF) — a hard gate before that flag is turned on.
+
+Severity notes: `HIGH (BLOCKER-if-enabled)` PR-034 is counted as high; the
+`MEDIUM-HIGH` (PR-051) is counted as medium; the `LOW-MEDIUM` items (PR-056,
+PR-080, PR-081) and the `MEDIUM-LOW` (PR-084) are counted as low. Latent items
+gated by OFF-by-default flags (`payments_stripe`: PR-040; `expenses_ledger_posting`:
+PR-034, PR-044) are marked in their entries. This table is a convenience index,
+not a separate source of truth — see each finding's own header for its severity.

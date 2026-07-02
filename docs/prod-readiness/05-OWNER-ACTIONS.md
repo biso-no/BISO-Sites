@@ -220,5 +220,50 @@ committed, and was lost. Untracked audit state is a single `rm` or a
 crashed session away from disappearing again.
 **How to verify:** `git add docs/prod-readiness/ && git commit`, then
 confirm with `git log -- docs/prod-readiness/` that the files are tracked.
-**Status:** open — recommended as the very next action once this
-reconstruction is reviewed.
+**Status:** ✅ done — committed in `c3998956` (2026-07-02); runtime-session
+updates committed subsequently.
+
+## S05–S09 runtime-audit live verifications (2026-07-02)
+
+These gate the go decision and can only be confirmed against the live Appwrite
+console / Vipps portal / Stripe dashboard. Ordered by launch consequence.
+
+### O-21 — Confirm live collection `$permissions` for the money/identity tables
+**Why:** PR-033 (`orders` `create("any")`) and PR-034 (`expense`/`expense_attachments` `create("users")`) are read from `appwrite.config.json`; the live instance is the source of truth. `create("any")` on `orders` = forged paid orders; `create("users")` on `expense` + no approval-chain check in the payout cron = forged reimbursements (latent while `expenses_ledger_posting` is OFF).
+**How to verify:** Appwrite console → Databases → each collection → Settings → Permissions. Confirm and tighten per PR-017/PR-033/PR-034. Legit order creation uses the admin key, so removing `create("any")` from `orders` is safe.
+**Status:** open — blocker-adjacent.
+
+### O-22 — Confirm the Finago accounting columns exist in the live schema
+**Why:** PR-039 — `orders.finago_transaction_id` and `webshop_products.finago_account_number` are absent from `appwrite.config.json`. If they are also absent live, the return route's posting guard is always-true and every return-page hit posts a duplicate ledger transaction (or throws on missing account numbers and posts nothing, ever).
+**How to verify:** Appwrite console → `orders` and `webshop_products` attributes. If missing, treat PR-039 as a launch blocker until added and the config re-pulled.
+**Status:** open.
+
+### O-23 — Verify Vipps webhook registration + secret in the live portal
+**Why:** PR-038/PR-041 — a missing/wrong webhook secret makes every delivery 401 for 7 days (money captured, order stuck pending), and the credential-resolution fallback can verify against the wrong secret. The HMAC signs host + pathAndQuery, so a reverse proxy rewriting Host breaks all verification.
+**How to verify:** Vipps portal → webhook registered for the live MSN, `vipps_live_webhook_secret` populated in `payment_settings`, registered URL host/path exactly matching what the callback route sees. Send one live test payment and watch for 401s and a correct capture→PAID→ledger flow.
+**Status:** open.
+
+### O-24 — Confirm each app's Appwrite BUILD environment sets all `NEXT_PUBLIC_*` vars
+**Why:** PR-085 — these are inlined into the immutable client bundle at build time (each app builds separately on Appwrite). A missing/misnamed var silently ships `http://localhost:3003` / the wrong project id to production browsers.
+**How to verify:** Appwrite console → each Site → build environment. Confirm `NEXT_PUBLIC_APPWRITE_ENDPOINT`, `NEXT_PUBLIC_APPWRITE_PROJECT`, `NEXT_PUBLIC_BASE_URL`, `NEXT_PUBLIC_API_BASE_URL` with the canonical names (not the `_PROJECT_ID`/`_WEB_BASE_URL` variants).
+**Status:** open.
+
+### O-25 — Confirm rate-limit posture and real-client-IP forwarding
+**Why:** PR-052/W-10 — Appwrite abuse limits are gated by `_APP_OPTIONS_ABUSE=enabled`, and admin-key requests bypass them entirely; the 5000-parallel cleanup and uncapped fan-outs can brown out a self-hosted instance during launch traffic. If the proxy doesn't forward real IPs, every session-client request keys the abuse counter on the load-balancer IP.
+**How to verify:** Appwrite env `_APP_OPTIONS_ABUSE`; proxy config for `X-Forwarded-For` handling.
+**Status:** open.
+
+### O-26 — Is `apps/api` (:3003) network-restricted or public?
+**Why:** Drives the direct-exploitability of PR-032/PR-033 (though both must be fixed regardless — the checkout route is designed to be browser-reachable). Also relevant to the rate-limit-bypass concern.
+**How to verify:** Appwrite Sites networking / any gateway IP allowlist. Confirm whether web→api is the only intended caller and whether a shared secret can be enforced.
+**Status:** open.
+
+### O-27 — Confirm scheduled-dispatch actually fires the runtime crons in prod
+**Why:** Stock availability depends on `cleanup-reservations` (~10–15 min); the anon-cleanup and (if enabled) expense post-pending crons depend on it too. All gate on the shared `CRON_SECRET`.
+**How to verify:** Appwrite Function logs for `scheduled-dispatch`; confirm it pings `cleanup-reservations`, `cleanup-anon-users`, and `expenses/post-pending` on schedule with the secret.
+**Status:** open.
+
+### O-28 — Add error tracking before launch (operational blocker)
+**Why:** PR-048 — there is no Sentry/OTel/structured logging; several money-path failures log nothing. Launch week would be blind. This is the highest-leverage operational fix: it makes every other finding observable.
+**How to verify:** Add Sentry (or at minimum an `onRequestError` in each app's `instrumentation.ts` posting to a webhook) and confirm a test error appears in the dashboard; point an external uptime monitor at each app's health endpoint.
+**Status:** open.

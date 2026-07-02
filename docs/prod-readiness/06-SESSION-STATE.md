@@ -7,13 +7,22 @@ ending, not after. This is the first file the next session should read.*
 
 ## What's done
 
-- **S01** (build/deploy/CI), **S02** (dependencies/config/secrets), and
-  **S03** (security/authz architecture) are complete. **S04** (types/lint/
-  dead-code) ran but was cut short — findings were captured (PR-029–PR-031)
-  but the pass itself was never formally closed; gates `A3`/`A4` are still
-  `⬜`.
-- 31 findings logged (`PR-001`–`PR-031`), 2 of them `blocker` severity
-  (`PR-015`, `PR-017`) — see `02-FINDINGS.md`.
+- **The audit is complete through S10 (synthesis).** All six runtime lanes
+  (S05–S09) reported and the consolidated go/no-go verdict is written in
+  **`07-GO-NO-GO.md`** — read that first.
+- **S01** (build/deploy/CI), **S02** (dependencies/config/secrets), **S03**
+  (security/authz), **S04-partial** (types/lint/dead-code; gates `A3`/`A4`
+  still `⬜`), and **S05–S09** (runtime behaviour) are all done.
+- **87 findings logged (`PR-001`–`PR-087`).** Open blockers: **4 live**
+  (`PR-015`, `PR-017`, `PR-032`, `PR-033`) + **1 gated** (`PR-034`, latent
+  behind the OFF `expenses_ledger_posting` flag). `PR-032` (unauthenticated
+  client-amount checkout) and `PR-033` (`orders` `create("any")`) were
+  verified directly in code by the orchestrator; `PR-034` too. `PR-032`/
+  `PR-033`/`PR-034` are all downstream of the same root cause as `PR-017`.
+- **Verdict: NO-GO** for a week of unattended real traffic. Not launchable
+  this week without at least closing the 4 blockers and the observability
+  gap (`PR-048`, no error tracking). Full ordered path in `07-GO-NO-GO.md`.
+- Previously: 31 findings from S01–S04 (2 blocker: `PR-015`, `PR-017`).
 - The authorization architecture has been documented end-to-end in
   `04-AUTHZ-MODEL.md`: Azure AD security groups → M365 provisioning →
   Appwrite team creation → role derivation → document-level RLS. Two
@@ -30,24 +39,23 @@ ending, not after. This is the first file the next session should read.*
 
 ## What's in flight
 
-As of **2026-07-02**, the audit plan has been reset to a runtime-focused set
-of remaining sessions (superseding the original S05–S20 plan — see
-`00-PLAN.md`):
+**Nothing is mid-audit.** The discovery phase is finished. The next phase is
+**remediation**, owned by the developer, not the audit:
 
-| Session | Scope | Status |
-|---------|-------|--------|
-| S05 | Payments & money-path runtime | running 2026-07-02 |
-| S06 | Auth token lifecycle | running 2026-07-02 |
-| S07 | Appwrite runtime semantics | running 2026-07-02 |
-| S08 | Next.js/Bun runtime | running 2026-07-02 |
-| S09 | Failure modes & resource exhaustion | running 2026-07-02 |
-| S10 | Synthesis & go/no-go | pending (waits on S05–S09) |
+1. Close the 4 live blockers (`PR-032`, `PR-033`, `PR-015`, `PR-017`) — see the
+   ordered "Minimum path to GO" in `07-GO-NO-GO.md` §5.
+2. Do not enable `expenses_ledger_posting` until `PR-034` is fixed.
+3. Add error tracking (`PR-048` / `O-28`) — highest-leverage operational fix.
+4. Address the high-severity resilience + money-path set (`PR-046`–`PR-050`,
+   `PR-035`–`PR-039`, `PR-058`–`PR-061`, `PR-075`, `PR-079`).
+5. Complete the live-console owner verifications `O-21`–`O-28` in
+   `05-OWNER-ACTIONS.md` (collection permissions, Finago columns, Vipps webhook,
+   build env, rate limits) — several could flip a NEEDS-LIVE-CHECK finding's
+   severity.
 
-Whichever of S05–S09 you are, work only your assigned scope. Don't
-re-litigate S01–S04 findings — if you notice something that touches an
-existing finding (e.g. you find a runtime consequence of `PR-018`'s stale
-RLS access), cross-reference the existing `PR-###` ID rather than opening a
-duplicate, unless it's genuinely a distinct new issue.
+Re-run the launch gate (`03-LAUNCH-GATE.md`) after remediation. A finding is
+only "closed" when the fix is verified (ideally driven end-to-end), not when
+the code is written.
 
 ## Where new findings go
 
