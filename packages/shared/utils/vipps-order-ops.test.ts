@@ -14,6 +14,7 @@ const db = {
   getRow: vi.fn(),
   listRows: vi.fn(),
   updateRow: vi.fn(),
+  incrementRowColumn: vi.fn(),
 };
 
 const checkoutParams: CheckoutSessionParams = {
@@ -145,7 +146,9 @@ describe("applyOrderStatusTransition", () => {
     db.getRow.mockReset();
     db.listRows.mockReset();
     db.updateRow.mockReset();
+    db.incrementRowColumn.mockReset();
     db.listRows.mockResolvedValue({ rows: [] });
+    db.incrementRowColumn.mockResolvedValue({ transition_lock: 1 });
   });
 
   afterEach(() => {
@@ -291,6 +294,78 @@ describe("applyOrderStatusTransition", () => {
       "app",
       "cart_reservations",
       "reservation-2"
+    );
+  });
+
+  it("skips decrement and returns already-applied status when atomic claim lock is lost", async () => {
+    let fetchCount = 0;
+    db.getRow.mockImplementation(
+      (_databaseId: string, collectionId: string) => {
+        if (collectionId === "orders") {
+          fetchCount++;
+          return Promise.resolve({
+            $id: "order-1",
+            items_json: JSON.stringify([
+              { product_id: "product-1", quantity: 2, unit_price: 499 },
+            ]),
+            status: fetchCount === 1 ? OrdersStatus.PENDING : OrdersStatus.PAID,
+            userId: "user-1",
+          });
+        }
+        return Promise.resolve({ $id: "product-1", stock: 5 });
+      }
+    );
+
+    // Simulate lost race: increment returns a lock value > 1
+    db.incrementRowColumn.mockResolvedValue({ transition_lock: 2 });
+
+    const result = await applyOrderStatusTransition(
+      "order-1",
+      OrdersStatus.PAID,
+      {},
+      db
+    );
+
+    expect(result.newStatus).toBe(OrdersStatus.PAID);
+    expect(db.incrementRowColumn).toHaveBeenCalled();
+    expect(db.updateRow).not.toHaveBeenCalled();
+    expect(db.deleteRow).not.toHaveBeenCalled();
+  });
+
+  it("proceeds with decrement when atomic claim lock is won", async () => {
+    db.getRow.mockImplementation(
+      (_databaseId: string, collectionId: string) => {
+        if (collectionId === "orders") {
+          return Promise.resolve({
+            $id: "order-1",
+            items_json: JSON.stringify([
+              { product_id: "product-1", quantity: 2, unit_price: 499 },
+            ]),
+            status: OrdersStatus.PENDING,
+            userId: "user-1",
+          });
+        }
+        return Promise.resolve({ $id: "product-1", stock: 5 });
+      }
+    );
+
+    // Simulate won race: increment returns exactly 1
+    db.incrementRowColumn.mockResolvedValue({ transition_lock: 1 });
+
+    const result = await applyOrderStatusTransition(
+      "order-1",
+      OrdersStatus.PAID,
+      {},
+      db
+    );
+
+    expect(result.newStatus).toBe(OrdersStatus.PAID);
+    expect(db.incrementRowColumn).toHaveBeenCalled();
+    expect(db.updateRow).toHaveBeenCalledWith(
+      "app",
+      "webshop_products",
+      "product-1",
+      { stock: 3 }
     );
   });
 });

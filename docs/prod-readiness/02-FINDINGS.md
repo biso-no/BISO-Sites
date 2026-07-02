@@ -67,7 +67,7 @@ filename and `HOSTNAME`.
 `NEXT_PUBLIC_APPWRITE_ENDPOINT` is what's actually read/used elsewhere.
 **Evidence:** `packages/api/server.ts`.
 **Fix:** Remove the dead typo'd reference.
-**Status:** open.
+**Status:** code-remediated locally and verified.
 
 ### PR-005 · low · `apps/docs` · `metadataBase` not set
 **What breaks / condition:** Docs app doesn't set Next.js metadata's
@@ -643,7 +643,7 @@ owner live smoke confirms the deployed Appwrite/API/Vipps flow.
 **Evidence:** `packages/shared/utils/vipps-order-ops.ts:142-183,202-271`; `apps/api/src/app/api/payment/[provider]/callback/route.ts:68`; `apps/web/src/app/api/checkout/return/route.ts:40,50`; `apps/web/src/app/actions/orders.ts:222-241,624,644`.
 **Fix:** Use `decrementRowColumn({min:0})` and gate the transition side-effects with an atomic claim column (`incrementRowColumn`, the `posting_lock` pattern) so only one caller runs PENDING→PAID effects.
 **Confidence:** CONFIRMED.
-**Status:** open.
+**Status:** code-remediated locally and verified.
 
 ### PR-036 — HIGH — Last units of any tracked product unsellable at checkout
 **Lane refs:** W-1.
@@ -651,7 +651,7 @@ owner live smoke confirms the deployed Appwrite/API/Vipps flow.
 **Evidence:** `apps/web/src/app/actions/cart-reservations.ts:25-63,117-131`; `apps/web/src/app/actions/orders.ts:222-241`.
 **Fix:** In `ensureStockAvailability`, add the buyer's own active reservation qty back (mirror `cart-reservations.ts:117-131`), or pass an `effectiveMax` from the reservation layer.
 **Confidence:** CONFIRMED (reproducible with stock=1).
-**Status:** open.
+**Status:** code-remediated locally and verified.
 
 ### PR-037 — HIGH — Post-payment reservation cleanup silently fails (legacy query syntax)
 **Lane refs:** P-7, W-3.
@@ -795,7 +795,7 @@ try/catch, logs the failure, and returns `[]`.
 **Evidence:** `apps/admin/src/lib/authorization.ts:156-158,272-274`.
 **Fix:** Distinguish "no session" from "backend unreachable" — rethrow non-401 errors to the error boundary.
 **Confidence:** CONFIRMED.
-**Status:** open.
+**Status:** code-remediated locally and verified.
 
 ### PR-052 — MEDIUM — Uncapped fan-out hot spots (OOM / connection-storm)
 **Lane refs:** F-8, W-10.
@@ -875,7 +875,7 @@ try/catch, logs the failure, and returns `[]`.
 **Evidence:** `apps/web/src/lib/anon-session.ts:7,16,38-49`; `apps/api/src/app/api/cleanup-anon-users/route.ts:49-61`; `apps/web/src/app/actions/cart-reservations.ts:100-104`.
 **Fix:** Validate the existing cookie (cheap `account.get()`) or catch 401 in session-using actions, delete the cookie, re-provision once; align cookie maxAge (≤14d) with the cleanup window.
 **Confidence:** CONFIRMED (code); anon `$updatedAt` behavior NEEDS-LIVE-CHECK.
-**Status:** open.
+**Status:** code-remediated locally and verified.
 
 ### PR-062 — MEDIUM — Web login callbacks 500 on expired/replayed secrets (admin handles it, web doesn't)
 **Lane refs:** A-5.
@@ -883,7 +883,7 @@ try/catch, logs the failure, and returns `[]`.
 **Evidence:** `apps/web/src/app/(auth)/auth/oauth/route.ts:19-20`; `apps/web/src/app/(auth)/auth/callback/route.ts:20`; `apps/web/src/lib/server.ts:29,51,73,95`; cf. `apps/admin/src/app/(auth)/auth/oauth/route.ts:22-28`.
 **Fix:** Copy admin's try/catch+redirect into both web routes.
 **Confidence:** CONFIRMED.
-**Status:** open.
+**Status:** code-remediated locally and verified.
 
 ### PR-063 — MEDIUM — No OAuth state/CSRF nonce on token-flow callbacks (login CSRF)
 **Lane refs:** A-6.
@@ -987,7 +987,7 @@ try/catch, logs the failure, and returns `[]`.
 **Evidence:** `apps/admin/src/lib/authorization.ts:117`; `apps/api/src/lib/admin-auth.ts:51`; `apps/web/src/lib/actions/membership.ts:231-235`.
 **Fix:** Add `Query.limit(...)`/cursor loop sized to reality; for membership, filter server-side with `Query.equal("category", …)` instead of client-side.
 **Confidence:** truncation CONFIRMED; whether live counts exceed 25 → owner-action.
-**Status:** open.
+**Status:** code-remediated locally and verified.
 
 ### PR-076 — MEDIUM — M365 user provisioning multi-write has no compensation
 **Lane refs:** W-7.
@@ -1059,7 +1059,7 @@ try/catch, logs the failure, and returns `[]`.
 **Evidence:** `apps/admin/.../settings/actions.ts:19,33`; `.../feature-flags/actions.ts:40,89-90,132`; `.../payment-settings/actions.ts:50,147-148,178,197-198,252,268-269,285`.
 **Fix:** `if (isRedirectError(error)) throw error;` in each catch, or move `await requireX()` above the try.
 **Confidence:** CONFIRMED.
-**Status:** open.
+**Status:** code-remediated locally and verified.
 
 ### PR-085 — HIGH — NEXT_PUBLIC_* inlined at build; a missing/misnamed build-env var bakes wrong fallbacks
 **Lane refs:** N-3.
@@ -1083,7 +1083,7 @@ try/catch, logs the failure, and returns `[]`.
 **Evidence:** `apps/web/src/lib/actions/departments.ts:62,106,138`; `apps/web/src/app/actions/varsling.ts:33`; `apps/web/src/app/actions/campus.ts:111`.
 **Fix:** Add explicit `Query.limit` sized to reality (mirror the page-builder's 500).
 **Confidence:** CONFIRMED.
-**Status:** open.
+**Status:** code-remediated locally and verified.
 
 ---
 

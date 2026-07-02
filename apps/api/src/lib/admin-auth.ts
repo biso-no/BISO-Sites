@@ -7,6 +7,7 @@ import {
   normalizeTeamName,
 } from "@repo/shared/utils/team-roles";
 import type { NextRequest } from "next/server";
+import { Query } from "@repo/api";
 
 // Helper to reduce complexity
 function computeManagedCampusNames(
@@ -48,7 +49,7 @@ export async function getAdminScope(
     const jwt = extractJwtFromRequest(req);
     const { account, teams } = await createSessionClient(jwt);
     const user = await account.get();
-    const teamMemberships = await teams.list();
+    const teamMemberships = await teams.list([Query.limit(200)]);
 
     const campusNames: string[] = [];
     const departmentNames: string[] = [];

@@ -24,6 +24,14 @@ export interface DbClient {
     docId: string,
     data: Record<string, unknown>
   ) => Promise<unknown>;
+  incrementRowColumn?: <T = unknown>(params: {
+    databaseId: string;
+    tableId: string;
+    rowId: string;
+    column: string;
+    value: number;
+    max?: number;
+  }) => Promise<T>;
 }
 
 function buildStoredOrderItems(items: CheckoutSessionParams["items"]) {
@@ -155,6 +163,47 @@ export async function applyOrderStatusTransition(
   const orderItems = parseOrderItems(currentOrder.items_json);
 
   try {
+    const shouldDecrement =
+      (newStatus === OrdersStatus.AUTHORIZED ||
+        newStatus === OrdersStatus.PAID) &&
+      oldStatus !== OrdersStatus.AUTHORIZED &&
+      oldStatus !== OrdersStatus.PAID;
+
+    if (shouldDecrement && databases.incrementRowColumn) {
+      try {
+        const claimed = await databases.incrementRowColumn<Record<string, unknown>>({
+          databaseId: process.env.APPWRITE_DATABASE_ID!,
+          tableId: process.env.APPWRITE_ORDERS_COLLECTION_ID!,
+          rowId: orderId,
+          column: "transition_lock",
+          value: 1,
+        });
+
+        const lockValue =
+          typeof claimed?.transition_lock === "number" ? claimed.transition_lock : 0;
+        
+        if (lockValue !== 1) {
+          console.log(
+            `[Order] Transition for ${orderId} already in progress (lock: ${lockValue}), skipping.`
+          );
+
+          // Re-fetch to return the already-applied status
+          const latestOrder = (await databases.getRow(
+            process.env.APPWRITE_DATABASE_ID!,
+            process.env.APPWRITE_ORDERS_COLLECTION_ID!,
+            orderId
+          )) as Orders;
+
+          return { newStatus: latestOrder.status || oldStatus };
+        }
+      } catch (error) {
+        console.warn(
+          `[Order] incrementRowColumn failed on ${orderId}, falling back to non-atomic transition:`,
+          error
+        );
+      }
+    }
+
     await adjustStockForOrder({
       newStatus,
       oldStatus,

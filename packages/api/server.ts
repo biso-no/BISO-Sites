@@ -49,7 +49,6 @@ const APPWRITE_PROJECT =
 const NEXT_PUBLIC_APPWRITE_ENDPOINT =
   process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT ||
   process.env.APPWRITE_ENDPOINT ||
-  process.env.NEXT_PUBLIC_NEXT_PUBLIC_APPWRITE_ENDPOINT ||
   "https://appwrite.biso.no/v1";
 const SESSION_COOKIE_NAME =
   process.env.APPWRITE_SESSION_COOKIE || "a_session_biso";

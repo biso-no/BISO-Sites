@@ -88,7 +88,7 @@ export async function getCampuses({
   try {
     const { db } = await createSessionClient();
 
-    const query: string[] = [];
+    const query: string[] = [Query.limit(500)];
 
     // Filter by National if specified
     if (!includeNational) {
@@ -120,7 +120,7 @@ export async function getCampuses({
 
 export async function getCampusData(_campusId?: string) {
   const { db } = await createSessionClient();
-  const campuses = await db.listRows<CampusData>("app", "campus_data");
+  const campuses = await db.listRows<CampusData>("app", "campus_data", [Query.limit(500)]);
 
   return campuses.rows;
 }

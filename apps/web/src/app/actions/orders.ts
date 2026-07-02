@@ -8,7 +8,7 @@ import type {
 } from "@repo/api/types/appwrite";
 import type { Locale } from "@repo/i18n/config";
 import { getFeatureFlagStates } from "@repo/shared/utils/feature-flags-server";
-import { getAvailableStock } from "@/app/actions/cart-reservations";
+import { getAvailableStock, getUserReservation } from "@/app/actions/cart-reservations";
 import { getLocale } from "@/app/actions/locale";
 import { getProduct } from "@/app/actions/products";
 import { validatePurchaseLimits } from "@/app/actions/purchase-limits";
@@ -258,14 +258,20 @@ async function ensureStockAvailability(
     return;
   }
   const availableStock = await getAvailableStock(productId);
-  if (availableStock >= requestedQuantity) {
+  
+  // The buyer's own active hold is already subtracted from availableStock.
+  // Add it back so their own cart items don't block their checkout.
+  const myHold = await getUserReservation(productId);
+  const effectiveAvailable = availableStock + (myHold?.quantity || 0);
+
+  if (effectiveAvailable >= requestedQuantity) {
     return;
   }
-  if (availableStock === 0) {
+  if (effectiveAvailable === 0) {
     throw new Error(`${product.title || slug || productId} is out of stock.`);
   }
   throw new Error(
-    `Only ${availableStock} of ${product.title || slug || productId} available (${requestedQuantity} requested).`
+    `Only ${effectiveAvailable} of ${product.title || slug || productId} available (${requestedQuantity} requested).`
   );
 }
 

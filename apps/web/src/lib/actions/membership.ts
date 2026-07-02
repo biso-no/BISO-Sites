@@ -277,7 +277,7 @@ async function fetchMembershipFromFinago(): Promise<MembershipStatus> {
     const membershipsResponse = await db.listRows<Memberships>(
       "app",
       "memberships",
-      [Query.equal("status", true)]
+      [Query.equal("status", true), Query.limit(200)]
     );
 
     const activeMemberships = membershipsResponse.rows;

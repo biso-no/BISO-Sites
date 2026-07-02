@@ -303,7 +303,7 @@ export async function cleanupAllExpiredReservations(): Promise<number> {
  * Get current session user's reservation for a product
  * RLS automatically filters to current user
  */
-async function _getUserReservation(
+export async function getUserReservation(
   productId: string
 ): Promise<{ quantity: number; expiresAt: string } | null> {
   try {
