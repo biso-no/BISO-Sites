@@ -15,6 +15,7 @@ It currently drives:
 | `TICKSTER_EVENTS_SYNC_URL` (optional) | mirrors published Tickster events into the `events` table | `apps/api` → `POST /api/tickster/events/sync` |
 | `DEPARTURES_SYNC_URL` (optional) | refreshes Entur departures | `apps/api` → `POST /api/departures/sync` |
 | `RESERVATIONS_CLEANUP_URL` (optional) | deletes expired webshop cart reservations so held stock is released | `apps/web` → `POST /api/cron/cleanup-reservations` |
+| `ORDERS_RECONCILE_URL` (optional) | re-verifies stale pending/authorized Vipps orders against the provider and retries missed Finago ledger postings | `apps/web` → `POST /api/cron/reconcile-orders` |
 | `EXPENSES_POST_PENDING_URL` (optional) | posts approved reimbursements to the 24SevenOffice ledger (inert unless `expenses_ledger_posting` is on) | `apps/api` → `POST /api/expenses/post-pending` |
 
 Only configured URLs are pinged; leave the optional ones unset to skip them. The
@@ -29,7 +30,8 @@ Set these on the function in the Appwrite console (**Settings → Variables**) �
 - `CRON_SECRET` — **required.** Sent to every endpoint as the `x-cron-secret`
   header, and also required on HTTP/domain triggers (see Security below).
 - `ANNOUNCEMENTS_DISPATCH_URL` — full URL to the admin dispatch route.
-- `TICKSTER_SYNC_URL`, `DEPARTURES_SYNC_URL`, `RESERVATIONS_CLEANUP_URL` — optional.
+- `TICKSTER_SYNC_URL`, `DEPARTURES_SYNC_URL`, `RESERVATIONS_CLEANUP_URL`,
+  `ORDERS_RECONCILE_URL` — optional.
 - `CRON_TIMEOUT_MS` — optional **per-request** timeout (default `30000`). This is
   not the execution limit — that's the function's `timeout` (see below).
 

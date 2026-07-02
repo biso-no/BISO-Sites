@@ -217,12 +217,14 @@ describe("applyOrderStatusTransition", () => {
     );
 
     expect(result.newStatus).toBe(OrdersStatus.CANCELLED);
-    expect(db.updateRow).toHaveBeenCalledWith(
-      "app",
-      "webshop_products",
-      "product-1",
-      { stock: 5 }
-    );
+    // The base client exposes incrementRowColumn, so restore is atomic.
+    expect(db.incrementRowColumn).toHaveBeenCalledWith({
+      databaseId: "app",
+      tableId: "webshop_products",
+      rowId: "product-1",
+      column: "stock",
+      value: 2,
+    });
   });
 
   it("does not decrement stock again when an already-authorized order stays authorized", async () => {
@@ -284,6 +286,8 @@ describe("applyOrderStatusTransition", () => {
 
     expect(db.listRows).toHaveBeenCalledWith("app", "cart_reservations", [
       Query.equal("user_id", "user-1"),
+      Query.equal("product_id", ["product-1"]),
+      Query.limit(100),
     ]);
     expect(db.deleteRow).toHaveBeenCalledWith(
       "app",
@@ -366,6 +370,139 @@ describe("applyOrderStatusTransition", () => {
       "webshop_products",
       "product-1",
       { stock: 3 }
+    );
+  });
+});
+
+describe("applyOrderStatusTransition with atomic column ops", () => {
+  const atomicDb = {
+    ...db,
+    decrementRowColumn: vi.fn(),
+  };
+
+  function mockOrderAndProduct(status: OrdersStatus, stock: number) {
+    atomicDb.getRow.mockImplementation(
+      (_databaseId: string, collectionId: string) => {
+        if (collectionId === "orders") {
+          return Promise.resolve({
+            $id: "order-1",
+            items_json: JSON.stringify([
+              { product_id: "product-1", quantity: 2, unit_price: 499 },
+            ]),
+            status,
+            userId: "user-1",
+          });
+        }
+        return Promise.resolve({ $id: "product-1", stock });
+      }
+    );
+  }
+
+  beforeEach(() => {
+    process.env.APPWRITE_DATABASE_ID = "app";
+    process.env.APPWRITE_ORDERS_COLLECTION_ID = "orders";
+    process.env.APPWRITE_WEBSHOP_PRODUCTS_COLLECTION_ID = "webshop_products";
+
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.spyOn(console, "log").mockImplementation(() => undefined);
+
+    atomicDb.deleteRow.mockReset();
+    atomicDb.getRow.mockReset();
+    atomicDb.listRows.mockReset();
+    atomicDb.updateRow.mockReset();
+    atomicDb.incrementRowColumn.mockReset();
+    atomicDb.decrementRowColumn.mockReset();
+    atomicDb.listRows.mockResolvedValue({ rows: [] });
+    atomicDb.incrementRowColumn.mockResolvedValue({ transition_lock: 1 });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("decrements stock atomically with a zero floor instead of read-modify-write", async () => {
+    mockOrderAndProduct(OrdersStatus.PENDING, 5);
+    atomicDb.decrementRowColumn.mockResolvedValue({
+      $id: "product-1",
+      stock: 3,
+    });
+
+    await applyOrderStatusTransition(
+      "order-1",
+      OrdersStatus.PAID,
+      {},
+      atomicDb
+    );
+
+    expect(atomicDb.decrementRowColumn).toHaveBeenCalledWith({
+      databaseId: "app",
+      tableId: "webshop_products",
+      rowId: "product-1",
+      column: "stock",
+      value: 2,
+      min: 0,
+    });
+    // No RMW write against the product row.
+    expect(atomicDb.updateRow).not.toHaveBeenCalledWith(
+      "app",
+      "webshop_products",
+      "product-1",
+      expect.anything()
+    );
+  });
+
+  it("floors stock to zero loudly when the atomic decrement detects an oversell", async () => {
+    mockOrderAndProduct(OrdersStatus.PENDING, 1);
+    atomicDb.decrementRowColumn.mockRejectedValue(
+      new Error("Value would go below minimum")
+    );
+
+    const result = await applyOrderStatusTransition(
+      "order-1",
+      OrdersStatus.PAID,
+      {},
+      atomicDb
+    );
+
+    // The paid transition still completes — the buyer already paid.
+    expect(result.newStatus).toBe(OrdersStatus.PAID);
+    expect(atomicDb.updateRow).toHaveBeenCalledWith(
+      "app",
+      "webshop_products",
+      "product-1",
+      { stock: 0 }
+    );
+    expect(console.error).toHaveBeenCalledWith(
+      expect.stringContaining("OVERSELL")
+    );
+  });
+
+  it("restores stock atomically when an authorized order is cancelled", async () => {
+    mockOrderAndProduct(OrdersStatus.AUTHORIZED, 3);
+    atomicDb.incrementRowColumn.mockResolvedValue({
+      $id: "product-1",
+      stock: 5,
+    });
+
+    await applyOrderStatusTransition(
+      "order-1",
+      OrdersStatus.CANCELLED,
+      {},
+      atomicDb
+    );
+
+    expect(atomicDb.incrementRowColumn).toHaveBeenCalledWith({
+      databaseId: "app",
+      tableId: "webshop_products",
+      rowId: "product-1",
+      column: "stock",
+      value: 2,
+    });
+    expect(atomicDb.updateRow).not.toHaveBeenCalledWith(
+      "app",
+      "webshop_products",
+      "product-1",
+      expect.anything()
     );
   });
 });

@@ -1,22 +1,16 @@
 import { createAdminClient } from "@repo/api/server";
-import type {
-  Orders as BaseOrders,
-  WebshopProducts,
-} from "@repo/api/types/appwrite";
-import { postShopTransaction } from "@repo/connectors/24sevenoffice";
 import { resolveStripeCredentials } from "@repo/payment/credentials";
 import { getStripeSession } from "@repo/payment/stripe";
 import { reconcileVippsPayment } from "@repo/payment/vipps";
-import { parseOrderItems } from "@repo/shared/utils/order-parsing";
+import {
+  type FinagoOrder,
+  postFinagoTransactionForOrder,
+} from "@repo/shared/utils/finago-order-posting";
 import { determineStatusFromStripeSession } from "@repo/shared/utils/stripe-pure";
 import { applyOrderStatusTransition } from "@repo/shared/utils/vipps-order-ops";
 import { NextResponse } from "next/server";
 
-// finago_transaction_id lives on the Appwrite "orders" table but is not
-// in the generated types (the schema source-of-truth is the Appwrite CLI
-// config, which is regenerated separately). Extend the type locally
-// until the column is added to packages/api/types/appwrite.ts.
-type Orders = BaseOrders & { finago_transaction_id?: string | null };
+type Orders = FinagoOrder;
 
 type AdminDb = Awaited<ReturnType<typeof createAdminClient>>["db"];
 
@@ -53,99 +47,6 @@ async function syncOrderStatusFromProvider(
   } catch (err) {
     console.error(
       "[Checkout Return] Provider session verification failed:",
-      err
-    );
-  }
-}
-
-async function buildFinagoItems(order: Orders | null, db: AdminDb) {
-  const items = parseOrderItems(order?.items_json ?? null);
-  const enrichedItems = await Promise.all(
-    items.map(async (item) => {
-      if (!item.product_id) {
-        return null;
-      }
-      const dbId = process.env.APPWRITE_DATABASE_ID;
-      const colId = process.env.APPWRITE_WEBSHOP_PRODUCTS_COLLECTION_ID;
-
-      if (!dbId || !colId) {
-        throw new Error(
-          "Missing APPWRITE_DATABASE_ID or APPWRITE_WEBSHOP_PRODUCTS_COLLECTION_ID"
-        );
-      }
-
-      const product = await db
-        .getRow<WebshopProducts & { finago_account_number?: number | null }>(
-          dbId,
-          colId,
-          item.product_id
-        )
-        .catch(() => null);
-      return {
-        unit_price: Number(item.unit_price ?? item.price ?? 0),
-        quantity: Number(item.quantity ?? 0),
-        finago_account_number: product?.finago_account_number ?? null,
-      };
-    })
-  );
-
-  return enrichedItems.filter(
-    (
-      item
-    ): item is {
-      unit_price: number;
-      quantity: number;
-      finago_account_number: number | null;
-    } => item !== null && item.unit_price > 0 && item.quantity > 0
-  );
-}
-
-/**
- * Posts the paid order to Finago (24SevenOffice). Best-effort idempotency: a
- * sentinel finago_transaction_id is claimed first so a concurrent return-URL
- * hit sees it as truthy and skips. Appwrite has no atomic check-and-set, so a
- * small race window remains; the sentinel just shrinks it to a single write.
- */
-async function postFinagoTransaction(
-  order: Orders | null,
-  orderId: string,
-  db: AdminDb
-): Promise<void> {
-  const claim = `PENDING_${Date.now()}_${crypto.randomUUID().slice(0, 8)}`;
-  try {
-    await db.updateRow("app", "orders", orderId, {
-      finago_transaction_id: claim,
-    });
-  } catch (err) {
-    console.error(
-      `[Finago] Failed to claim Finago post slot for order ${orderId}:`,
-      err
-    );
-  }
-
-  try {
-    const transactionItems = await buildFinagoItems(order, db);
-    const transactionId = await postShopTransaction({
-      orderId,
-      date: new Date().toISOString().slice(0, 10),
-      total: order?.total ?? 0,
-      items: transactionItems,
-      campusId: order?.campus_id ?? null,
-    });
-
-    await db.updateRow("app", "orders", orderId, {
-      finago_transaction_id: transactionId,
-    });
-  } catch (err) {
-    // Clear the sentinel so a future retry can take another swing, otherwise
-    // the order would be stuck in PENDING_ forever.
-    await db
-      .updateRow("app", "orders", orderId, { finago_transaction_id: null })
-      .catch(() => {
-        // Already in trouble — swallow the rollback failure.
-      });
-    console.error(
-      `[Finago] Failed to post transaction for order ${orderId}:`,
       err
     );
   }
@@ -189,6 +90,11 @@ function redirectForStatus(
  * Verifies order status with the provider so the result page is up to date
  * before showing the outcome, handling races where the callback may not have
  * been processed yet.
+ *
+ * Finago (24SO) revenue posting is attempted here as one of three redundant
+ * triggers (webhook callback, this return route, reconciliation cron) — the
+ * atomic posting claim inside postFinagoTransactionForOrder guarantees only
+ * one of them actually posts.
  */
 export async function GET(request: Request) {
   try {
@@ -221,11 +127,8 @@ export async function GET(request: Request) {
 
     console.info(`[Checkout Return] Order ${orderId} status: ${status}`);
 
-    if (
-      (status === "authorized" || status === "paid") &&
-      !updatedOrder?.finago_transaction_id
-    ) {
-      await postFinagoTransaction(updatedOrder, orderId, db);
+    if (status === "authorized" || status === "paid") {
+      await postFinagoTransactionForOrder(orderId, db);
     }
 
     return redirectForStatus(status, orderId);

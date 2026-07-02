@@ -11,8 +11,24 @@ export interface DbClient {
     data: Record<string, unknown>,
     permissions?: string[]
   ) => Promise<unknown>;
+  decrementRowColumn?: <T = unknown>(params: {
+    databaseId: string;
+    tableId: string;
+    rowId: string;
+    column: string;
+    value: number;
+    min?: number;
+  }) => Promise<T>;
   deleteRow: (dbId: string, collId: string, docId: string) => Promise<unknown>;
   getRow: (dbId: string, collId: string, docId: string) => Promise<unknown>;
+  incrementRowColumn?: <T = unknown>(params: {
+    databaseId: string;
+    tableId: string;
+    rowId: string;
+    column: string;
+    value: number;
+    max?: number;
+  }) => Promise<T>;
   listRows: (
     dbId: string,
     collId: string,
@@ -24,14 +40,6 @@ export interface DbClient {
     docId: string,
     data: Record<string, unknown>
   ) => Promise<unknown>;
-  incrementRowColumn?: <T = unknown>(params: {
-    databaseId: string;
-    tableId: string;
-    rowId: string;
-    column: string;
-    value: number;
-    max?: number;
-  }) => Promise<T>;
 }
 
 function buildStoredOrderItems(items: CheckoutSessionParams["items"]) {
@@ -171,7 +179,9 @@ export async function applyOrderStatusTransition(
 
     if (shouldDecrement && databases.incrementRowColumn) {
       try {
-        const claimed = await databases.incrementRowColumn<Record<string, unknown>>({
+        const claimed = await databases.incrementRowColumn<
+          Record<string, unknown>
+        >({
           databaseId: process.env.APPWRITE_DATABASE_ID!,
           tableId: process.env.APPWRITE_ORDERS_COLLECTION_ID!,
           rowId: orderId,
@@ -180,8 +190,10 @@ export async function applyOrderStatusTransition(
         });
 
         const lockValue =
-          typeof claimed?.transition_lock === "number" ? claimed.transition_lock : 0;
-        
+          typeof claimed?.transition_lock === "number"
+            ? claimed.transition_lock
+            : 0;
+
         if (lockValue !== 1) {
           console.log(
             `[Order] Transition for ${orderId} already in progress (lock: ${lockValue}), skipping.`
@@ -259,7 +271,13 @@ async function adjustStockForOrder({
     await decrementStockForItems({ orderItems, databases });
 
     if (userId) {
-      await deleteUserReservations({ databases, userId });
+      await deleteUserReservations({
+        databases,
+        userId,
+        productIds: orderItems
+          .map((item) => item.product_id)
+          .filter((id): id is string => Boolean(id)),
+      });
     }
   }
 
@@ -270,6 +288,65 @@ async function adjustStockForOrder({
   if (shouldRestore) {
     console.log(`[Stock] Restoring stock for cancelled order ${orderId}`);
     await restoreStockForItems({ orderItems, databases });
+  }
+}
+
+async function readTrackedStock(
+  databases: DbClient,
+  productId: string
+): Promise<number | null> {
+  const product = (await databases.getRow(
+    process.env.APPWRITE_DATABASE_ID!,
+    process.env.APPWRITE_WEBSHOP_PRODUCTS_COLLECTION_ID!,
+    productId
+  )) as Record<string, unknown>;
+  return typeof product.stock === "number" ? product.stock : null;
+}
+
+/**
+ * Atomically decrement one product's stock. `min: 0` makes Appwrite reject a
+ * decrement that would go negative — that rejection is an oversell (payment is
+ * already authorized for more units than remain), so it is logged loudly and
+ * the stock floored to 0 instead of failing the paid transition.
+ */
+async function decrementProductStockAtomically(
+  databases: DbClient,
+  productId: string,
+  quantity: number
+): Promise<void> {
+  if (!databases.decrementRowColumn) {
+    throw new Error("decrementRowColumn is not available on this client");
+  }
+
+  try {
+    const updated = await databases.decrementRowColumn<Record<string, unknown>>(
+      {
+        databaseId: process.env.APPWRITE_DATABASE_ID!,
+        tableId: process.env.APPWRITE_WEBSHOP_PRODUCTS_COLLECTION_ID!,
+        rowId: productId,
+        column: "stock",
+        value: quantity,
+        min: 0,
+      }
+    );
+    console.log(
+      `[Stock] Product ${productId}: atomically decremented by ${quantity} (now ${String(updated.stock)})`
+    );
+  } catch (error) {
+    const remaining = await readTrackedStock(databases, productId);
+    if (remaining !== null && remaining < quantity) {
+      console.error(
+        `[Stock] OVERSELL product ${productId}: paid quantity ${quantity} exceeds remaining stock ${remaining}; flooring to 0. Manual follow-up required.`
+      );
+      await databases.updateRow(
+        process.env.APPWRITE_DATABASE_ID!,
+        process.env.APPWRITE_WEBSHOP_PRODUCTS_COLLECTION_ID!,
+        productId,
+        { stock: 0 }
+      );
+      return;
+    }
+    throw error;
   }
 }
 
@@ -286,30 +363,39 @@ async function decrementStockForItems({
     }
 
     try {
-      const product = await databases.getRow(
-        process.env.APPWRITE_DATABASE_ID!,
-        process.env.APPWRITE_WEBSHOP_PRODUCTS_COLLECTION_ID!,
-        item.product_id
-      );
-
-      const productRecord = product as Record<string, unknown>;
-      const productStock =
-        typeof productRecord.stock === "number" ? productRecord.stock : null;
       const itemQuantity =
         typeof item.quantity === "number" ? item.quantity : 0;
-
-      if (productStock !== null) {
-        const newStock = Math.max(0, productStock - itemQuantity);
-        await databases.updateRow(
-          process.env.APPWRITE_DATABASE_ID!,
-          process.env.APPWRITE_WEBSHOP_PRODUCTS_COLLECTION_ID!,
-          item.product_id,
-          { stock: newStock }
-        );
-        console.log(
-          `[Stock] Product ${item.product_id}: ${productStock} -> ${newStock}`
-        );
+      if (itemQuantity <= 0) {
+        continue;
       }
+
+      const productStock = await readTrackedStock(databases, item.product_id);
+      if (productStock === null) {
+        // Stock is not tracked for this product.
+        continue;
+      }
+
+      if (databases.decrementRowColumn) {
+        await decrementProductStockAtomically(
+          databases,
+          item.product_id,
+          itemQuantity
+        );
+        continue;
+      }
+
+      // Legacy fallback for clients without atomic column ops. Read-modify-
+      // write races under concurrency — kept only so old callers don't break.
+      const newStock = Math.max(0, productStock - itemQuantity);
+      await databases.updateRow(
+        process.env.APPWRITE_DATABASE_ID!,
+        process.env.APPWRITE_WEBSHOP_PRODUCTS_COLLECTION_ID!,
+        item.product_id,
+        { stock: newStock }
+      );
+      console.log(
+        `[Stock] Product ${item.product_id}: ${productStock} -> ${newStock}`
+      );
     } catch (error) {
       console.error(
         `Error decrementing stock for product ${item.product_id}:`,
@@ -332,30 +418,44 @@ async function restoreStockForItems({
     }
 
     try {
-      const product = await databases.getRow(
-        process.env.APPWRITE_DATABASE_ID!,
-        process.env.APPWRITE_WEBSHOP_PRODUCTS_COLLECTION_ID!,
-        item.product_id
-      );
-
-      const productRecord = product as Record<string, unknown>;
-      const productStock =
-        typeof productRecord.stock === "number" ? productRecord.stock : null;
       const itemQuantity =
         typeof item.quantity === "number" ? item.quantity : 0;
-
-      if (productStock !== null) {
-        const newStock = productStock + itemQuantity;
-        await databases.updateRow(
-          process.env.APPWRITE_DATABASE_ID!,
-          process.env.APPWRITE_WEBSHOP_PRODUCTS_COLLECTION_ID!,
-          item.product_id,
-          { stock: newStock }
-        );
-        console.log(
-          `[Stock] Restored product ${item.product_id}: ${productStock} -> ${newStock}`
-        );
+      if (itemQuantity <= 0) {
+        continue;
       }
+
+      const productStock = await readTrackedStock(databases, item.product_id);
+      if (productStock === null) {
+        continue;
+      }
+
+      if (databases.incrementRowColumn) {
+        const updated = await databases.incrementRowColumn<
+          Record<string, unknown>
+        >({
+          databaseId: process.env.APPWRITE_DATABASE_ID!,
+          tableId: process.env.APPWRITE_WEBSHOP_PRODUCTS_COLLECTION_ID!,
+          rowId: item.product_id,
+          column: "stock",
+          value: itemQuantity,
+        });
+        console.log(
+          `[Stock] Restored product ${item.product_id}: atomically incremented by ${itemQuantity} (now ${String(updated.stock)})`
+        );
+        continue;
+      }
+
+      // Legacy fallback for clients without atomic column ops.
+      const newStock = productStock + itemQuantity;
+      await databases.updateRow(
+        process.env.APPWRITE_DATABASE_ID!,
+        process.env.APPWRITE_WEBSHOP_PRODUCTS_COLLECTION_ID!,
+        item.product_id,
+        { stock: newStock }
+      );
+      console.log(
+        `[Stock] Restored product ${item.product_id}: ${productStock} -> ${newStock}`
+      );
     } catch (error) {
       console.error(
         `Error restoring stock for product ${item.product_id}:`,
@@ -365,28 +465,57 @@ async function restoreStockForItems({
   }
 }
 
+const RESERVATION_CLEANUP_PAGE_SIZE = 100;
+const RESERVATION_CLEANUP_MAX_PAGES = 20;
+
+/**
+ * Deletes the buyer's cart reservations for the products in the paid order —
+ * scoped by product so unrelated holds (items still sitting in the cart but
+ * not part of this order) survive, and paginated so more than 25 rows are
+ * actually cleaned up.
+ */
 async function deleteUserReservations({
   databases,
   userId,
+  productIds,
 }: {
   databases: DbClient;
   userId: string;
+  productIds: string[];
 }): Promise<void> {
-  try {
-    const reservations = await databases.listRows(
-      process.env.APPWRITE_DATABASE_ID!,
-      "cart_reservations",
-      [Query.equal("user_id", userId)]
-    );
+  if (productIds.length === 0) {
+    return;
+  }
 
-    for (const reservation of reservations.rows) {
-      await databases.deleteRow(
+  try {
+    for (let page = 0; page < RESERVATION_CLEANUP_MAX_PAGES; page++) {
+      const reservations = await databases.listRows(
         process.env.APPWRITE_DATABASE_ID!,
         "cart_reservations",
-        reservation.$id
+        [
+          Query.equal("user_id", userId),
+          Query.equal("product_id", productIds),
+          Query.limit(RESERVATION_CLEANUP_PAGE_SIZE),
+        ]
       );
+
+      for (const reservation of reservations.rows) {
+        await databases.deleteRow(
+          process.env.APPWRITE_DATABASE_ID!,
+          "cart_reservations",
+          reservation.$id
+        );
+      }
+
+      // Rows are deleted as we go, so re-querying the first page walks the
+      // remainder; a short page means we're done.
+      if (reservations.rows.length < RESERVATION_CLEANUP_PAGE_SIZE) {
+        break;
+      }
     }
-    console.log(`[Stock] Deleted cart reservations for user ${userId}`);
+    console.log(
+      `[Stock] Deleted cart reservations for user ${userId} (products: ${productIds.join(", ")})`
+    );
   } catch (error) {
     console.error("Error deleting cart reservations:", error);
   }

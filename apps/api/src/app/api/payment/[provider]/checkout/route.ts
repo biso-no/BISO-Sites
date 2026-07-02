@@ -69,9 +69,7 @@ function isProvider(value: string): value is Provider {
 }
 
 function webBaseUrl(): string | undefined {
-  return (
-    process.env.NEXT_PUBLIC_BASE_URL
-  );
+  return process.env.NEXT_PUBLIC_BASE_URL;
 }
 
 function isValidBody(body: CheckoutBody | null): body is CheckoutBody {
@@ -435,10 +433,15 @@ async function startStripeCheckout(
   const { orderId } = await createOrder(params, db);
   const successUrl = `${webBase}/api/checkout/return?orderId=${orderId}`;
   const cancelUrl = `${webBase}/shop/cart?cancelled=true`;
-  const session = await createStripeCheckoutSession(
-    { ...params, orderId },
-    creds,
-    { successUrl, cancelUrl }
+  // Same deadline discipline as the Vipps branch — a stalled Stripe call must
+  // surface as a 504 instead of hanging the checkout request.
+  const session = await withDeadline(
+    createStripeCheckoutSession({ ...params, orderId }, creds, {
+      successUrl,
+      cancelUrl,
+    }),
+    vippsCheckoutTimeoutMs(),
+    "Stripe checkout timed out"
   );
 
   return { ok: true, orderId, session };

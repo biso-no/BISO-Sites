@@ -26,9 +26,15 @@ export async function getPartners() {
 }
 
 export async function getOrgChartUrl() {
-  const { storage } = await createSessionClient();
-  const arrayBuffer = await storage.getFilePreview("content", "org_chart");
-  const base64 = Buffer.from(arrayBuffer).toString("base64");
-  const dataUrl = `data:image/png;base64,${base64}`;
-  return dataUrl;
+  try {
+    const { storage } = await createSessionClient();
+    const arrayBuffer = await storage.getFilePreview("content", "org_chart");
+    const base64 = Buffer.from(arrayBuffer).toString("base64");
+    return `data:image/png;base64,${base64}`;
+  } catch (error) {
+    // Same graceful degradation as getPartners — an Appwrite blip must not
+    // crash the page render.
+    console.error("Failed to fetch org chart:", error);
+    return null;
+  }
 }
