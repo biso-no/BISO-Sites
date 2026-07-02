@@ -1,6 +1,6 @@
 import { createAdminClient } from "@repo/api/server";
 import type { NextRequest } from "next/server";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createAuthenticatedClient } from "@/lib/auth";
 import { POST } from "./route";
 
@@ -162,6 +162,10 @@ describe("payment checkout authorization", () => {
     mockedUpdateOrderWithSession.mockResolvedValue({} as never);
   });
 
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
   it("rejects missing bearer tokens before admin order creation", async () => {
     const response = await postVipps(checkoutRequest());
 
@@ -253,5 +257,30 @@ describe("payment checkout authorization", () => {
       expect.anything(),
       expect.anything()
     );
+  });
+
+  it("returns 504 when Vipps checkout creation exceeds the deadline", async () => {
+    vi.stubEnv("VIPPS_CHECKOUT_TIMEOUT_MS", "20");
+    mockedCreateVippsPayment.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          setTimeout(() => {
+            resolve({
+              checkoutUrl: "https://vipps.example/checkout",
+              reference: "vipps-session",
+            });
+          }, 100);
+        })
+    );
+
+    const response = await postVipps(
+      checkoutRequest({ authorization: "Bearer valid", total: 199 })
+    );
+
+    expect(response.status).toBe(504);
+    await expect(response.json()).resolves.toEqual({
+      message: "Vipps checkout timed out",
+    });
+    expect(mockedUpdateOrderWithSession).not.toHaveBeenCalled();
   });
 });

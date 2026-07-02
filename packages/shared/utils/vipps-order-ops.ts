@@ -1,4 +1,4 @@
-import { ID, Permission, Role } from "@repo/api";
+import { ID, Permission, Query, Role } from "@repo/api";
 import { type Orders, OrdersStatus } from "@repo/api/types/appwrite";
 import type { CheckoutSessionParams } from "../types/vipps";
 import { type ParsedOrderItem, parseOrderItems } from "./order-parsing";
@@ -327,7 +327,7 @@ async function deleteUserReservations({
     const reservations = await databases.listRows(
       process.env.APPWRITE_DATABASE_ID!,
       "cart_reservations",
-      [`equal("user_id", "${userId}")`]
+      [Query.equal("user_id", userId)]
     );
 
     for (const reservation of reservations.rows) {

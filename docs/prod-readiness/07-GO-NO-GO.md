@@ -54,9 +54,9 @@ divergence, or a stuck user under ordinary launch conditions. Treat as
 fix-before-launch-or-immediately-after, with monitoring in place either way.
 
 **Resilience / "site goes down when one upstream is slow":**
-- **PR-046** — node-appwrite has **no request timeout** and rebuilds its connection pool every call (205+ sites). A slow self-hosted Appwrite hangs every in-flight render. This is the single biggest availability risk.
-- **PR-047** — the Vipps checkout chain (web action → api route → SDK) has **no deadline at any hop**. Vipps slowness freezes checkout indefinitely.
-- **PR-050** — every public page view by a logged-in member fires a **synchronous, timeout-less 24SevenOffice SOAP call** (the membership cookie cache can't be written from RSC render). 24SO slow = whole site slow for members.
+- **PR-046** — code-remediated locally on 2026-07-02: server Appwrite clients now inject per-call deadlines and reuse shared transport objects. Deploy/runtime smoke pending.
+- **PR-047** — checkout-chain code-remediated locally on 2026-07-02: the web→api checkout fetch aborts on deadline and the api route returns 504 when Vipps checkout creation stalls. Other Vipps SDK maintenance paths should still get explicit deadlines when touched.
+- **PR-050** — timeout/fallback code-remediated locally on 2026-07-02: membership Finago lookup now has a deadline and falls back to `finago_error`; server-side membership caching remains an open follow-up.
 - **PR-049** — two unguarded homepage fetches (`getPartners`, `getCampuses`) are now code-remediated locally with the sibling graceful-degradation pattern (`return []` on Appwrite failure).
 - **PR-048** — minimal structured `onRequestError` server logging is now code-remediated in all four Next apps, with sensitive-header redaction. This improves production forensics but is not yet external error tracking; owner/deploy still needs log retention/alerting or Sentry/OTel to make incidents pageable.
 
@@ -65,7 +65,7 @@ fix-before-launch-or-immediately-after, with monitoring in place either way.
 - **PR-038** — **no reconciliation cron** for captured-but-diverged / webhook-dead orders. If the webhook secret is wrong or a buyer doesn't return, money is captured but the order is stuck `pending` forever.
 - **PR-035** — stock decrement is a **non-atomic read-modify-write invoked from three concurrent entry points** (webhook, return route, public `verifyOrder`). Common launch path (webhook fires as the app redirects) double-decrements or loses updates; `Math.max(0,…)` masks oversell silently.
 - **PR-036** — `getAvailableStock` subtracts the buyer's **own** reservation, so checkout requires `stock ≥ otherHolds + 2×qty` → the **last units of any limited product are unsellable**. Exactly the merch-drop scenario the shop exists for.
-- **PR-037** — the post-payment reservation cleanup uses **legacy string query syntax** that current node-appwrite rejects; it fails silently on every paid order, leaving stale holds that suppress others' purchases for ~10 min.
+- **PR-037** — query syntax code-remediated locally on 2026-07-02: paid-transition reservation cleanup now uses structured `Query.equal`; limit/product scoping and deployed paid-order smoke remain follow-up.
 
 **Auth lifecycle:**
 - **PR-058** — offboarded Azure staff **keep full CMS/campus access for up to a year**: role sync is add-only, sessions last 365 days, nothing invalidates them. Operationally urgent given semester turnover.
@@ -120,10 +120,10 @@ see `05-OWNER-ACTIONS.md` for the full list. The highest-priority live checks:
 **Should close before launch (or launch with monitoring + a rollback plan):**
 6. PR-048 — minimal `onRequestError` logging is code-remediated; connect deploy
    logs to retention/alerting or replace the sink with Sentry/OTel.
-7. PR-046 / PR-047 / PR-050 — add timeouts to Appwrite, the Vipps chain, and 24SO SOAP; treat 24SO as enrichment, not a render dependency.
+7. PR-046 / PR-047 / PR-050 — local timeout remediations are in place; verify after deploy and finish the remaining follow-ups (Vipps maintenance-path deadlines, server-side membership cache).
 8. PR-049 — code-remediated locally; keep the graceful-degradation tests in
    place and verify after deploy with the rest of the web smoke.
-9. PR-039 / PR-038 / PR-035 / PR-036 / PR-037 — move Finago posting off the return-route-only path, add a reconciliation cron, make stock adjustment atomic (copy the expense claim-lock pattern), fix the last-units and reservation-cleanup bugs.
+9. PR-039 / PR-038 / PR-035 / PR-036 / PR-037 — move Finago posting off the return-route-only path, add a reconciliation cron, make stock adjustment atomic (copy the expense claim-lock pattern), fix the last-units bug, and finish reservation-cleanup hardening/live smoke.
 10. PR-058 — implement an offboarding hook (disable + delete sessions + prune memberships).
 
 **Verify live (owner):** the six checks in §4.

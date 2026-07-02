@@ -17,7 +17,10 @@ ending, not after. This is the first file the next session should read.*
   code-remediated locally; the follow-up remediation code/config-remediated
   `PR-033`, `PR-015`, `PR-017`, and `PR-034`; this session minimally
   code-remediated `PR-048` with structured `onRequestError` logging in all four
-  Next apps and code-remediated `PR-049`'s homepage Appwrite-blip crash.
+  Next apps and code-remediated `PR-049`'s homepage Appwrite-blip crash; the
+  next remediation session code-remediated `PR-046`, the checkout-chain portion
+  of `PR-047`, the timeout/fallback portion of `PR-050`, and `PR-037`'s
+  reservation cleanup query syntax.
   Remaining blocker work is owner live verification: Appwrite
   permissions/schema push, Azure tenant test user/group assignment, checkout
   smoke, and expense approval/posting smoke. Keep `expenses_ledger_posting` OFF
@@ -54,10 +57,13 @@ ending, not after. This is the first file the next session should read.*
    schema and approval/posting smoke path are owner-verified.
 3. Wire PR-048's structured server-error logs to deploy log retention/alerting
    or a Sentry/OTel sink; local `onRequestError` code is in place.
-4. Address the high-severity resilience + money-path set (`PR-046`–`PR-050`,
-   `PR-035`–`PR-039`, `PR-058`–`PR-061`, `PR-075`, `PR-079`).
-   `PR-049` is code-remediated locally; `PR-046`/`PR-047`/`PR-050` remain the
-   highest-priority resilience code fixes.
+4. Address the remaining high-severity resilience + money-path set
+   (`PR-035`–`PR-039`, `PR-058`–`PR-061`, `PR-075`, `PR-079`, plus follow-ups
+   from `PR-047`/`PR-050`). `PR-046`, the checkout-chain portion of `PR-047`,
+   `PR-049`, `PR-050`'s timeout/fallback behavior, and `PR-037`'s query syntax
+   are code-remediated locally. Next repo-owned money-path work should continue
+   with `PR-035`/`PR-036`/`PR-038`/`PR-039` and finish `PR-037` hardening
+   (limit/product scoping + deployed paid-order smoke).
 5. Complete the live-console owner verifications `O-21`–`O-28` in
    `05-OWNER-ACTIONS.md` (collection permissions, Finago columns, Vipps webhook,
    build env, rate limits) — several could flip a NEEDS-LIVE-CHECK finding's

@@ -16,6 +16,7 @@ import type { OrderItem } from "@/lib/types/order";
 import { parseProductMetadata } from "@/lib/types/webshop";
 
 const WHITESPACE_RE = /\s+/;
+const DEFAULT_CHECKOUT_FETCH_TIMEOUT_MS = 10_000;
 
 async function _getOrders({
   limit = 100,
@@ -137,6 +138,34 @@ interface CheckoutResult {
   orderId?: string;
   paymentUrl?: string;
   success: boolean;
+}
+
+class CheckoutTimeoutError extends Error {}
+
+function readPositiveInteger(
+  value: string | undefined,
+  fallback: number
+): number {
+  if (!value) {
+    return fallback;
+  }
+
+  const parsed = Number.parseInt(value, 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function checkoutFetchTimeoutMs(): number {
+  return readPositiveInteger(
+    process.env.CHECKOUT_FETCH_TIMEOUT_MS,
+    DEFAULT_CHECKOUT_FETCH_TIMEOUT_MS
+  );
+}
+
+function isAbortError(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    (error.name === "AbortError" || error.name === "TimeoutError")
+  );
 }
 
 function sanitizeCartItems(items: CheckoutLineItemInput[] | undefined) {
@@ -483,9 +512,15 @@ async function createProviderCheckoutSession({
     throw new Error("NEXT_PUBLIC_API_BASE_URL is not configured.");
   }
 
-  const response = await fetch(
-    `${apiBaseUrl}/api/payment/${provider}/checkout`,
-    {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => {
+    controller.abort();
+  }, checkoutFetchTimeoutMs());
+  timeout.unref?.();
+
+  let response: Response;
+  try {
+    response = await fetch(`${apiBaseUrl}/api/payment/${provider}/checkout`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${jwt}`,
@@ -493,8 +528,19 @@ async function createProviderCheckoutSession({
       },
       body: JSON.stringify(payload),
       cache: "no-store",
+      signal: controller.signal,
+    });
+  } catch (error) {
+    if (isAbortError(error)) {
+      throw new CheckoutTimeoutError(
+        "Checkout request timed out. Please try again."
+      );
     }
-  );
+
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
 
   const result = await response.json().catch(() => null);
 

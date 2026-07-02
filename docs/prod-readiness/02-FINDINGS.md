@@ -657,9 +657,9 @@ owner live smoke confirms the deployed Appwrite/API/Vipps flow.
 **Lane refs:** P-7, W-3.
 **What breaks / condition:** `deleteUserReservations` passes the hand-built string `` `equal("user_id","${userId}")` `` instead of `Query.equal(...)`; node-appwrite v23 serializes queries to JSON and rejects the string with a 400, which is swallowed. It also has no `Query.limit`. Result: on every paid order, stock is decremented **and** the buyer's reservation stays active up to ~10 min → availability double-counts → false out-of-stock for other shoppers right after each sale.
 **Evidence:** `packages/shared/utils/vipps-order-ops.ts:327-343`.
-**Fix:** `Query.equal("user_id", userId)` + a limit; scope deletion to the ordered product ids; surface the error instead of swallowing.
+**Fix:** `Query.equal("user_id", userId)` + a limit; scope deletion to the ordered product ids; surface the error instead of swallowing. Local remediation on 2026-07-02 replaces the legacy string query with `Query.equal("user_id", userId)` and covers the paid-transition cleanup path in `packages/shared/utils/vipps-order-ops.test.ts`.
 **Confidence:** NEEDS-LIVE-CHECK (server logs "Invalid query" on first paid order — owner-action), high confidence from SDK version.
-**Status:** open.
+**Status:** query syntax code-remediated locally; limit/product scoping and live paid-order smoke remain follow-up.
 
 ### PR-038 — HIGH — No reconciliation sweep for captured-but-diverged / webhook-dead orders
 **Lane refs:** P-4.
@@ -729,17 +729,17 @@ owner live smoke confirms the deployed Appwrite/API/Vipps flow.
 **Lane refs:** F-1.
 **What breaks / condition:** `node-appwrite@23.1.0` sets no timeout anywhere and spreads a fresh undici+https Agent on every request (`client.mjs:278`). Across 205+ `createSessionClient`/`createAdminClient` sites, a slow self-hosted Appwrite (disk, MariaDB lock, restart) hangs every in-flight RSC render and server action with no deadline — the site appears fully down though Node is healthy. Under normal load it churns a TCP+TLS handshake per call against your own box all week.
 **Evidence:** `packages/api/server.ts:56-128`; `node-appwrite/dist/client.mjs:278`.
-**Fix:** Inject `AbortSignal.timeout(~10s)` at the SDK entry (global undici dispatcher or a `plainDb`-proxy `Promise.race`), and pin a shared module-scope dispatcher so pooling is reused.
+**Fix:** Inject `AbortSignal.timeout(~10s)` at the SDK entry (global undici dispatcher or a `plainDb`-proxy `Promise.race`), and pin a shared module-scope dispatcher so pooling is reused. Local remediation on 2026-07-02 wraps server Appwrite clients with a per-call abort signal, translates timeouts to `AppwriteException` 504/`appwrite_timeout`, and reuses SDK transport objects by endpoint/self-signed setting.
 **Confidence:** CONFIRMED.
-**Status:** open.
+**Status:** code-remediated locally and covered by `packages/api/server.test.ts`; deploy/runtime smoke pending.
 
 ### PR-047 — HIGH — Vipps checkout chain has no deadline at any hop
 **Lane refs:** F-3.
 **What breaks / condition:** Vipps API hangs → the SDK call never resolves (`retryRequests:false`, no timeout) → the api checkout route hangs → the web action's fetch to the api app also has no timeout → the student sits on a frozen checkout forever, and concurrent checkouts stack request handlers on both web and api. Same for capture/refund inside the webhook and return-route reconcile.
 **Evidence:** `packages/payment/src/vipps/client.ts:12-22`; `apps/web/src/app/actions/orders.ts:497-509`; `packages/payment/src/vipps/index.ts:127-145,288-321`.
-**Fix:** `AbortSignal.timeout(15s)` on the web→api fetch; pass a timeout-wrapped fetch into the Vipps SDK or `Promise.race` each SDK call. (Reconcile logic itself is sound; it just needs a clock.)
+**Fix:** `AbortSignal.timeout(15s)` on the web→api fetch; pass a timeout-wrapped fetch into the Vipps SDK or `Promise.race` each SDK call. (Reconcile logic itself is sound; it just needs a clock.) Local remediation on 2026-07-02 adds a web→api checkout fetch abort signal and a route-side Vipps checkout `Promise.race` deadline that returns HTTP 504 instead of hanging.
 **Confidence:** CONFIRMED.
-**Status:** open.
+**Status:** checkout-chain code-remediated locally and covered by web/api checkout tests; other Vipps SDK maintenance paths should still get explicit deadlines when touched.
 
 ### PR-048 — HIGH — Minimal server error logging added; external alerting still pending
 **Lane refs:** F-2.
@@ -785,9 +785,9 @@ try/catch, logs the failure, and returns `[]`.
 **Lane refs:** F-5.
 **What breaks / condition:** `(public)/layout.tsx` awaits `getMembershipStatus()`; the cookie cache **cannot be written from RSC render context** (the code admits it fails silently), so unless a server action happens to run, every navigation by a member with a `student_id` re-calls `getCustomerCategories` → 24SO SOAP with no timeout. 24SO slow = whole public site slow for members; hung = member renders hang; down = members silently flap to non-member (losing pricing/benefits mid-session).
 **Evidence:** `apps/web/src/app/(public)/layout.tsx:15-19`; `apps/web/src/lib/actions/membership.ts:133-137,203-214`.
-**Fix:** Move the cache server-side (Appwrite row / in-memory TTL keyed by user id), add a SOAP timeout, and treat 24SO as enrichment not a render dependency.
+**Fix:** Move the cache server-side (Appwrite row / in-memory TTL keyed by user id), add a SOAP timeout, and treat 24SO as enrichment not a render dependency. Local remediation on 2026-07-02 adds a runtime-configurable Finago membership deadline and preserves the existing `finago_error` non-member fallback when 24SO stalls.
 **Confidence:** CONFIRMED.
-**Status:** open.
+**Status:** timeout/fallback code-remediated locally and covered by `apps/web/src/lib/actions/membership.test.ts`; server-side membership cache remains open follow-up.
 
 ### PR-051 — MEDIUM — Admin app reports an Appwrite outage as "you're logged out" (redirect loop)
 **Lane refs:** F-7.

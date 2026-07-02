@@ -21,6 +21,7 @@ import { createAuthenticatedClient } from "@/lib/auth";
 import { applyCorsHeaders, corsPreflightResponse } from "@/lib/cors";
 
 type Provider = "vipps" | "stripe";
+const DEFAULT_VIPPS_CHECKOUT_TIMEOUT_MS = 10_000;
 
 interface CheckoutBody {
   currency: "NOK";
@@ -93,6 +94,49 @@ type SessionOutcome =
       session: { checkoutUrl: string; sessionId: string };
     }
   | { ok: false; message: string; status: number };
+
+class CheckoutTimeoutError extends Error {}
+
+function readPositiveInteger(
+  value: string | undefined,
+  fallback: number
+): number {
+  if (!value) {
+    return fallback;
+  }
+
+  const parsed = Number.parseInt(value, 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function vippsCheckoutTimeoutMs(): number {
+  return readPositiveInteger(
+    process.env.VIPPS_CHECKOUT_TIMEOUT_MS,
+    DEFAULT_VIPPS_CHECKOUT_TIMEOUT_MS
+  );
+}
+
+async function withDeadline<T>(
+  work: Promise<T>,
+  timeoutMs: number,
+  message: string
+): Promise<T> {
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  const deadline = new Promise<never>((_, reject) => {
+    timeout = setTimeout(() => {
+      reject(new CheckoutTimeoutError(message));
+    }, timeoutMs);
+    timeout.unref?.();
+  });
+
+  try {
+    return await Promise.race([work, deadline]);
+  } finally {
+    if (timeout) {
+      clearTimeout(timeout);
+    }
+  }
+}
 
 function hasBearerToken(req: NextRequest): boolean {
   return req.headers.get("authorization")?.startsWith("Bearer ") ?? false;
@@ -361,10 +405,14 @@ async function startVippsCheckout(
   // The ePayment `reference` is the order id; the redirect target is the web
   // return route. The amount is taken from the persisted order total.
   const returnUrl = `${webBase}/api/checkout/return?orderId=${orderId}`;
-  const payment = await createVippsPayment(
-    { ...params, total: order.total ?? params.total, orderId },
-    creds,
-    { returnUrl }
+  const payment = await withDeadline(
+    createVippsPayment(
+      { ...params, total: order.total ?? params.total, orderId },
+      creds,
+      { returnUrl }
+    ),
+    vippsCheckoutTimeoutMs(),
+    "Vipps checkout timed out"
   );
 
   return {
@@ -468,6 +516,10 @@ export async function POST(
 
     return json({ checkoutUrl: session.checkoutUrl, orderId });
   } catch (error) {
+    if (error instanceof CheckoutTimeoutError) {
+      return json({ message: error.message }, 504);
+    }
+
     console.error(`[payment/${provider}/checkout] error:`, error);
     return json({ message: "Failed to create checkout session" }, 500);
   }

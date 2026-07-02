@@ -1,3 +1,4 @@
+import { Query } from "@repo/api";
 import { OrdersStatus } from "@repo/api/types/appwrite";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { type CheckoutSessionParams, Currency } from "../types/vipps";
@@ -254,5 +255,42 @@ describe("applyOrderStatusTransition", () => {
       expect.anything()
     );
     expect(db.listRows).not.toHaveBeenCalled();
+  });
+
+  it("deletes paid order reservations using structured Appwrite queries", async () => {
+    db.listRows.mockResolvedValue({
+      rows: [{ $id: "reservation-1" }, { $id: "reservation-2" }],
+    });
+    db.getRow.mockImplementation(
+      (_databaseId: string, collectionId: string) => {
+        if (collectionId === "orders") {
+          return Promise.resolve({
+            $id: "order-1",
+            items_json: JSON.stringify([
+              { product_id: "product-1", quantity: 1, unit_price: 499 },
+            ]),
+            status: OrdersStatus.PENDING,
+            userId: "user-1",
+          });
+        }
+        return Promise.resolve({ $id: "product-1", stock: 5 });
+      }
+    );
+
+    await applyOrderStatusTransition("order-1", OrdersStatus.PAID, {}, db);
+
+    expect(db.listRows).toHaveBeenCalledWith("app", "cart_reservations", [
+      Query.equal("user_id", "user-1"),
+    ]);
+    expect(db.deleteRow).toHaveBeenCalledWith(
+      "app",
+      "cart_reservations",
+      "reservation-1"
+    );
+    expect(db.deleteRow).toHaveBeenCalledWith(
+      "app",
+      "cart_reservations",
+      "reservation-2"
+    );
   });
 });
