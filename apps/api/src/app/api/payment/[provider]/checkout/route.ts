@@ -59,7 +59,9 @@ interface NormalizedProduct extends WebshopProducts {
 }
 
 type CheckoutDb = Awaited<ReturnType<typeof createAdminClient>>["db"];
-type AuthenticatedClient = Awaited<ReturnType<typeof createAuthenticatedClient>>;
+type AuthenticatedClient = Awaited<
+  ReturnType<typeof createAuthenticatedClient>
+>;
 
 function isProvider(value: string): value is Provider {
   return value === "vipps" || value === "stripe";
@@ -333,9 +335,7 @@ async function buildTrustedCheckoutParams({
     reference: body.reference,
     currency: Currency.NOK,
     membershipApplied,
-    memberDiscountPercent: membershipApplied
-      ? maxDiscountPercent
-      : undefined,
+    memberDiscountPercent: membershipApplied ? maxDiscountPercent : undefined,
     campusId: campusIds.size === 1 ? Array.from(campusIds)[0] : undefined,
     customerInfo: body.customerInfo,
   };

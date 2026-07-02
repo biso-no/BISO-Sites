@@ -10,6 +10,7 @@ import { applyCorsHeaders, corsPreflightResponse } from "@/lib/cors";
 import { createApprovalChain } from "@/lib/expense-approval";
 import {
   buildExpenseRowInput,
+  buildExpenseRowPermissions,
   type ExpenseRowInput,
   parseExpensePayload,
 } from "@/lib/expense-payload";
@@ -65,16 +66,18 @@ async function checkDraftOwnership(
 
 async function saveDraftBeforeSubmission(
   db: Awaited<ReturnType<typeof createAuthenticatedClient>>["db"],
+  adminDb: Awaited<ReturnType<typeof createAdminClient>>["db"],
   expenseId: string | undefined,
   userId: string,
   expenseBody: ExpenseRowInput
 ): Promise<CreateExpenseData | ExpenseOwnershipError> {
   if (!expenseId) {
-    return db.createRow<CreateExpenseData>(
+    return adminDb.createRow<CreateExpenseData>(
       "app",
       "expense",
       ID.unique(),
-      expenseBody
+      expenseBody,
+      buildExpenseRowPermissions(userId)
     );
   }
 
@@ -173,7 +176,11 @@ export async function POST(req: NextRequest) {
     }
 
     const { db, account } = await createAuthenticatedClient(req);
-    const { messaging, storage: adminStorage } = await createAdminClient();
+    const {
+      db: adminDb,
+      messaging,
+      storage: adminStorage,
+    } = await createAdminClient();
     const user = await account.get();
     const profile = await db.getRow<Users>("app", "user", user.$id);
 
@@ -210,6 +217,7 @@ export async function POST(req: NextRequest) {
 
     const expense = await saveDraftBeforeSubmission(
       db,
+      adminDb,
       expenseData.expenseId,
       user.$id,
       expenseBody

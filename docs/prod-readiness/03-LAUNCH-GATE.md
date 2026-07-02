@@ -17,9 +17,9 @@ outright, no exceptions absent an explicit deferral.
 ## Current status: NO-GO (reaffirmed after PR-032 code remediation, 2026-07-02)
 
 Gates `C7`, `F5`, and now `D1`/`D2`/`D3` are ❌; the majority remain ⬜; and
-`02-FINDINGS.md` still has unresolved launch blockers: `PR-015`, `PR-017`, and
-`PR-033`, plus `PR-032` pending owner live smoke after local code remediation,
-and 1 conditional/gated blocker (`PR-034`). The runtime audit added the
+`PR-032`, `PR-033`, `PR-015`, `PR-017`, and `PR-034` are now code/config
+remediated locally, but owner live verification remains pending before full
+closure. The runtime audit added the
 money-path (`D`) evidence that was previously "planned for S05" and it remains
 red because reconciliation, stock, reservation cleanup, and accounting gaps are
 still open. See `07-GO-NO-GO.md` for the full verdict and ordered remediation
@@ -53,8 +53,8 @@ path.
 |------|-------------|--------|----------|
 | C1 | No server-only secrets reachable from client-side code | ✅ | S02: 433 `"use client"` files scanned, 0 matches for non-`NEXT_PUBLIC_`/`NODE_ENV` `process.env` reads. |
 | C2 | No real secrets committed to the repo (working tree or history) | ✅ | S02: gitleaks scanned working tree + 598-commit history, 12 hits, all confirmed false positives (PR-014 — Appwrite schema `twoWayKey` IDs and a test-only fixture). No rotation required. |
-| C3 | Authorization chain integrity (Azure AD → M365 provisioning → Appwrite team → role → RLS) is sound end-to-end | ⬜ | S03 found this chain has a confirmed break at the provisioning step (PR-015, blocker) and a naming-fragility risk (PR-016). Cannot be marked green while PR-015 is open. |
-| C4 | Appwrite collection-level `$permissions` follow least-privilege, consistent with the role model | ⬜ | S03: 31 of 82 tables found over-permissive (PR-017, blocker). Cannot be marked green while PR-017 is open. |
+| C3 | Authorization chain integrity (Azure AD → M365 provisioning → Appwrite team → role → RLS) is sound end-to-end | ⬜ | PR-015 is code-remediated locally: new M365 users are assigned required Azure security groups during creation and covered by a targeted test. Gate stays pending until owner verifies with a real Azure tenant test user; PR-016 naming fragility remains open. |
+| C4 | Appwrite collection-level `$permissions` follow least-privilege, consistent with the role model | ⬜ | PR-017/PR-033/PR-034 are code/config-remediated locally: source config has zero `create("any")` / `create("users")`, protected by `packages/api/appwrite-config.test.ts`. Gate stays pending until owner pushes/verifies live Appwrite permissions. |
 | C5 | CORS / proxy layer is correctly scoped (no unintended cross-origin exposure) | ✅ | S03 confirmed `apps/api/src/proxy.ts` is intentionally CORS-only (handles preflight, applies CORS headers) and does not itself gate authentication — matches its documented intent, not a bypass. |
 | C6 | Webhook signature verification enforced on all payment/bot callbacks (Vipps, Stripe, Bot Framework) | ✅ | S05 verified Vipps HMAC (raw body, `POST\n<pathAndQuery>\n<date>;<host>;<contentSha256>`, constant-time compare) and Stripe SDK verification (raw body, 300s tolerance) directly in code — both correct. Note the *authenticity* is sound; the availability/idempotency issues around them are separate findings (PR-038/PR-039). |
 | C7 | JWT/authentication enforced on every admin-scoped and money-moving API route | ❌ | **Red.** PR-032 has been code-remediated locally: checkout now requires an Appwrite JWT, derives `userId` from `account.get()`, recomputes trusted totals, and rejects mismatches; targeted route tests plus api/web typecheck/lint pass. Gate remains ❌ until owner live smoke verifies the deployed checkout flow and the admin-route JWT pass from S03 (PR-026) is completed. |
@@ -84,9 +84,9 @@ path.
 | F1 | All 4 apps build and serve without console errors on core flows | ⬜ | Not yet exercised end-to-end against a running deployment in this audit round. |
 | F2 | SEO/metadata correctness (sitemap, OG images, `metadataBase`) | ⬜ | S01 found related low-severity issues (PR-005, PR-006) but gate itself not formally closed. |
 | F3 | Accessibility floor met on core public flows | ⬜ | Not yet audited. |
-| F4 | Feature-flag kill switches correctly gate unfinished/risky features (payments, AI copilot, expenses) | ✅ | S05/S09 verified `packages/shared/utils/feature-flags.ts`: fail-safe defaults (kill switches ON, `payments_stripe` + `expenses_ledger_posting` OFF), DB-override-else-catalog reader, missing/erroring table falls back to defaults. Confirmed the payout cron honors `expenses_ledger_posting` (returns a healthy no-op when off). **Caveat:** the OFF default is what keeps PR-034 latent — do not enable `expenses_ledger_posting` until PR-034 is fixed. |
+| F4 | Feature-flag kill switches correctly gate unfinished/risky features (payments, AI copilot, expenses) | ✅ | S05/S09 verified `packages/shared/utils/feature-flags.ts`: fail-safe defaults (kill switches ON, `payments_stripe` + `expenses_ledger_posting` OFF), DB-override-else-catalog reader, missing/erroring table falls back to defaults. Confirmed the payout cron honors `expenses_ledger_posting` (returns a healthy no-op when off). **Caveat:** keep `expenses_ledger_posting` OFF until PR-034's deployed schema and approval/posting smoke are owner-verified. |
 | F6 | System degrades (not fails) when a single upstream — Appwrite, 24SO, Graph, Vipps, OpenAI — is slow or down | ❌ | **New gate (S08).** No timeouts on Appwrite (PR-046), Vipps chain (PR-047), or 24SO SOAP (PR-050); homepage dies whole on an Appwrite blip (PR-049); admin loops to login on outage (PR-051); no error tracking to even see it (PR-048); no dependency-aware readiness probe (PR-055). |
-| F5 | Authorization correctness on core admin/member flows (a logged-in user only sees/does what their role allows) | ❌ | **Red — directly tied to the two open blockers `PR-015` and `PR-017`.** Until M365 user-creation assigns group membership and the 31 over-permissive collections are resolved, this gate cannot be green regardless of any other progress. |
+| F5 | Authorization correctness on core admin/member flows (a logged-in user only sees/does what their role allows) | ⬜ | PR-015 and PR-017 are code/config-remediated locally, but this gate remains pending until owner verifies Azure group assignment and live Appwrite collection permissions. PR-018 stale-access/idempotency remains open separately. |
 
 ---
 
@@ -99,8 +99,8 @@ path.
 | C — Secrets & security | 4 | 0 | 2 | 1 |
 | D — Money path / payments | 1 | 0 | 1 | 2 |
 | E — Data integrity (+E4) | 0 | 0 | 2 | 2 |
-| F — Correctness & UX floor (+F6) | 1 | 0 | 3 | 2 |
-| **Total (31)** | **8** | **1** | **15** | **7** |
+| F — Correctness & UX floor (+F6) | 1 | 0 | 4 | 1 |
+| **Total (31)** | **8** | **1** | **16** | **6** |
 
 _S05–S09 added two gates (`E4` concurrency-safety, `F6` graceful degradation),
 promoted `C6`/`D1`/`F4` to ✅ (verified sound in code), and turned
@@ -119,8 +119,9 @@ total gates) since those were the more specific, itemizable figure
 available. Flagged here rather than silently resolved one way or the other.
 
 **Bottom line:** launch is **NO-GO**, reaffirmed after the runtime audit. There
-are now **4 open blockers** (`PR-015`, `PR-017`, `PR-032`, `PR-033`) plus a gated
-one (`PR-034`), and 7 red gates. The money path — previously unassessed — is red
+are now **4 severity-blocker findings code/config-remediated locally but pending
+owner live verification** (`PR-015`, `PR-017`, `PR-032`, `PR-033`) plus a gated
+one (`PR-034`), and 6 red gates. The money path — previously unassessed — is red
 across `D2`/`D3` with a confirmed unauthenticated client-amount checkout
 (`PR-032`) and silent accounting divergence (`PR-039`). Degradation behaviour
 (`F6`) is red: no timeouts and no error tracking means a single slow upstream

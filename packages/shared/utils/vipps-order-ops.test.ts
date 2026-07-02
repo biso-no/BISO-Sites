@@ -85,6 +85,22 @@ describe("createOrder", () => {
     ]);
     expect(storedItems[0]).not.toHaveProperty("productId");
   });
+
+  it("creates orders through the provided DB client with buyer-scoped read permissions", async () => {
+    await createOrder(checkoutParams, db);
+
+    expect(db.createRow).toHaveBeenCalledWith(
+      "app",
+      "orders",
+      expect.any(String),
+      expect.objectContaining({
+        status: OrdersStatus.PENDING,
+        total: 998,
+        userId: "user-1",
+      }),
+      ['read("user:user-1")']
+    );
+  });
 });
 
 describe("updateOrderWithSession", () => {

@@ -22,6 +22,7 @@ import {
   resolveReceiptAccount,
 } from "@repo/shared/utils/expense-cost-types";
 import { PDFDocument } from "pdf-lib";
+import { assertApprovedExpenseChain } from "./expense-approval-chain";
 import { generateExpensePdf } from "./pdf/expense-pdf";
 
 const EXPENSES_BUCKET = "expenses";
@@ -229,6 +230,15 @@ export async function postApprovedExpense(expenseId: string): Promise<void> {
         claimAgeMs / 1000
       )}s old) — marked failed for manual review.`
     );
+  }
+
+  try {
+    await assertApprovedExpenseChain(db, expenseId);
+  } catch (error) {
+    await db.updateRow("app", "expense", expenseId, {
+      status: ExpensesStatus.FAILED,
+    });
+    throw error;
   }
 
   // Atomically claim the row before any 24SO work. `incrementRowColumn` is a

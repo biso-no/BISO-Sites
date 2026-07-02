@@ -1,5 +1,5 @@
 "use server";
-import type { Models } from "@repo/api";
+import { type Models, Permission, Role } from "@repo/api";
 import { createAdminClient, createSessionClient } from "@repo/api/server";
 import type { Users } from "@repo/api/types/appwrite";
 import { cookies } from "next/headers";
@@ -81,6 +81,11 @@ const PROFILE_WRITABLE_FIELDS = [
 
 type WritableProfileField = (typeof PROFILE_WRITABLE_FIELDS)[number];
 
+function buildProfileRowPermissions(userId: string): string[] {
+  const userRole = Role.user(userId);
+  return [Permission.read(userRole), Permission.update(userRole)];
+}
+
 function pickWritableProfileFields(
   input: Partial<Users>
 ): Partial<Pick<Users, WritableProfileField>> {
@@ -111,7 +116,14 @@ export async function updateProfile(profile: Partial<Users>) {
       // createRow's typed signature wants the full row; we're seeding a
       // partial profile that the user will fill in over time. Omit the
       // generic so the Appwrite SDK accepts the partial payload.
-      return await db.createRow("app", "user", user.$id, writable);
+      const { db: adminDb } = await createAdminClient();
+      return await adminDb.createRow(
+        "app",
+        "user",
+        user.$id,
+        writable,
+        buildProfileRowPermissions(user.$id)
+      );
     }
   } catch (error) {
     console.error("Error in updateProfile:", error);

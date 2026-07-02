@@ -8,9 +8,10 @@ plus the S01–S04 findings. Finding IDs reference `02-FINDINGS.md`._
 
 The platform is **not yet safe to run for a week straight** under real payment
 volume and real failure conditions. The PR-032 unauthenticated client-amount
-checkout hole has been code-remediated locally, but it still needs owner live
-smoke after deploy, and the remaining permission/provisioning blockers plus the
-money-path failure-mode gaps still block launch. Several ways remain for the site
+checkout hole and the PR-033/PR-015/PR-017/PR-034 permission/provisioning items
+have been code/config-remediated locally, but they still need owner live
+verification after deploy/schema push. The remaining money-path failure-mode
+gaps still block launch. Several ways remain for the site
 to go fully down when a single upstream is slow, and effectively **no way to see
 any of it happen** (no error tracking). None of these are exotic — they trigger
 on ordinary launch-week conditions: a Vipps slowdown, an Appwrite hiccup, a
@@ -35,13 +36,13 @@ they pass.
 | # | ID | Blocker | Why it blocks | Verified |
 |---|----|---------|---------------|----------|
 | 1 | **PR-032** | Checkout API took a **client-supplied amount with no authentication** | **Code-remediated locally 2026-07-02, pending owner live smoke.** Checkout now requires an Appwrite JWT, derives `userId` from `account.get()`, recomputes trusted product totals server-side, and rejects mismatches before order/provider creation. | ✅ local tests/typecheck/lint; live smoke pending |
-| 2 | **PR-033** | `orders` collection grants `create("any")` | Any client with the (public) Appwrite endpoint can insert an order row with `status: "paid"` and arbitrary `total`/`items`. Forged paid orders pollute accounting + purchase limits. The legit flow uses the admin client, so the grant is **safe to remove**. | ✅ in code |
-| 3 | **PR-015** | M365 user provisioning never assigns Azure security-group membership | Pre-existing (S03). A newly-provisioned user lands with **zero authorization** — the whole role chain depends on group membership that is never written. | ✅ (S03) |
-| 4 | **PR-017** | 31 of 82 Appwrite collections grant over-permissive `create()` | Pre-existing (S03). Document-level permissions are load-bearing because collection grants are wide open. PR-033 and PR-034 are concrete money exploits of this exact gap. | ✅ (S03) |
-| — | **PR-034** | Forged pre-"approved" expense payouts (**conditional blocker**) | `expense`/`expense_attachments` grant `create("users")`; a logged-in student can create an expense row with `status: "approved"` and their own `bank_account`, and the payout cron never verifies an approval chain — it trusts the row's status. **Gated by `expenses_ledger_posting`, which defaults OFF.** Not launch-live, but a **hard gate: do not enable that flag** until the create grant is removed and `postApprovedExpense` verifies the `expense_approvals` chain. | ✅ in code |
+| 2 | **PR-033** | `orders` collection granted `create("any")` | **Code/config-remediated locally 2026-07-02, pending owner live Appwrite verification.** Source config removed the anonymous create grant; targeted order tests prove the legit flow still creates through the admin client with buyer read permission. | ✅ local tests/checks; live permission check pending |
+| 3 | **PR-015** | M365 user provisioning never assigned Azure security-group membership | **Code-remediated locally 2026-07-02, pending owner Azure tenant verification.** New M365 user creation now resolves and assigns required campus/department security groups before success. | ✅ local test/checks; live Azure test pending |
+| 4 | **PR-017** | 31 of 82 Appwrite collections granted over-permissive `create()` | **Code/config-remediated locally 2026-07-02, pending owner live Appwrite verification.** Source config now has zero `create("any")` / `create("users")`; legitimate self-service creates moved behind admin server writes with row permissions. | ✅ local tests/checks; live permission check pending |
+| — | **PR-034** | Forged pre-"approved" expense payouts (**conditional blocker**) | **Code/config-remediated locally 2026-07-02, pending owner live Appwrite + approval/posting smoke.** Expense broad create grants removed; draft/submit create through admin with submitter row permissions; posting verifies a fully approved chain first. Keep `expenses_ledger_posting` OFF until live verification. | ✅ local tests/checks; live smoke pending |
 
-**Blocker count: 3 live open (PR-033, PR-015, PR-017) + PR-032 pending owner
-live smoke after local code remediation + 1 conditional (PR-034).**
+**Blocker count:** PR-032/033/015/017 and gated PR-034 are locally remediated
+but not fully closed until owner live verification completes.
 
 ---
 
@@ -109,11 +110,11 @@ see `05-OWNER-ACTIONS.md` for the full list. The highest-priority live checks:
 ## 5. Minimum path to GO
 
 **Must close (launch blockers):**
-1. PR-032 — code-remediated locally; deploy and owner-smoke the authenticated checkout route against live Appwrite/Vipps before marking closed.
-2. PR-033 — remove `create("any")` from `orders` (safe — legit flow uses the admin client).
-3. PR-015 — assign Azure security-group membership during M365 provisioning.
-4. PR-017 — tighten the 31 over-permissive collections to least-privilege (this also closes PR-033/PR-034's root cause).
-5. **Do not enable `expenses_ledger_posting`** until PR-034 is fixed.
+1. PR-032/PR-033 — deploy and owner-smoke authenticated checkout plus live `orders` permissions.
+2. PR-015 — owner-test a real Azure tenant user and verify required security-group membership is written.
+3. PR-017 — push schema and owner-verify live Appwrite permissions have zero `create("any")` / `create("users")`.
+4. PR-034 — owner-verify deployed expense schema and approval/posting smoke path.
+5. **Do not enable `expenses_ledger_posting`** until PR-034 live verification is complete.
 
 **Should close before launch (or launch with monitoring + a rollback plan):**
 6. PR-048 — add error tracking (unblocks visibility into everything else).

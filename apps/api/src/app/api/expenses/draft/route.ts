@@ -1,4 +1,5 @@
 import { ID, type Models, Query } from "@repo/api";
+import { createAdminClient } from "@repo/api/server";
 import { type Expenses, ExpensesStatus } from "@repo/api/types/appwrite";
 import { isFeatureEnabled } from "@repo/shared/utils/feature-flags-server";
 import { type NextRequest, NextResponse } from "next/server";
@@ -6,6 +7,7 @@ import { createAuthenticatedClient } from "@/lib/auth";
 import { applyCorsHeaders, corsPreflightResponse } from "@/lib/cors";
 import {
   buildExpenseRowInput,
+  buildExpenseRowPermissions,
   type ExpenseRowInput,
   parseExpensePayload,
 } from "@/lib/expense-payload";
@@ -77,12 +79,7 @@ export async function POST(req: NextRequest) {
 
     const draft = payload.expenseId
       ? await updateDraftExpense(db, payload.expenseId, user.$id, expenseBody)
-      : await db.createRow<DraftExpenseRow>(
-          "app",
-          "expense",
-          ID.unique(),
-          expenseBody
-        );
+      : await createDraftExpense(user.$id, expenseBody);
 
     if (draft instanceof NextResponse) {
       return applyCorsHeaders(draft, origin);
@@ -102,6 +99,20 @@ export async function POST(req: NextRequest) {
       origin
     );
   }
+}
+
+async function createDraftExpense(
+  userId: string,
+  expenseBody: ExpenseRowInput
+) {
+  const { db } = await createAdminClient();
+  return await db.createRow<DraftExpenseRow>(
+    "app",
+    "expense",
+    ID.unique(),
+    expenseBody,
+    buildExpenseRowPermissions(userId)
+  );
 }
 
 async function updateDraftExpense(

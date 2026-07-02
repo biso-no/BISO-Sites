@@ -44,6 +44,7 @@ import { logAuditEvent } from "./audit-log";
 const LEADING_AT_REGEX = /^@/;
 const GRAPH_DUPLICATE_USER_REGEX = /already exists|objectConflict/i;
 const SMTP_PREFIX_REGEX = /^smtp:/i;
+const WHITESPACE_REGEX = /\s+/g;
 
 type ActionResult<T> =
   | { data: T; error?: never }
@@ -110,6 +111,39 @@ function formatAuthenticationMethodsError(error: unknown): string {
   }
 
   return message;
+}
+
+function requiredSecurityGroupNames(input: {
+  campus: { name: string };
+  department: { name: string };
+}): string[] {
+  return [
+    `SG-App-Campus-${input.campus.name}`,
+    `SG-App-Dept-${input.department.name.replace(WHITESPACE_REGEX, "")}`,
+  ];
+}
+
+async function assignRequiredSecurityGroups(
+  graph: GraphUserService,
+  userId: string,
+  groupNames: string[]
+): Promise<void> {
+  for (const groupName of groupNames) {
+    const group = await graph.findGroupByName(groupName);
+    if (!group) {
+      throw new Error(
+        `Required Microsoft 365 security group not found: ${groupName}`
+      );
+    }
+
+    try {
+      await graph.addUserToGroup(userId, group.id);
+    } catch (error) {
+      throw new Error(
+        `Failed to assign required security group ${groupName}: ${getErrorMessage(error)}`
+      );
+    }
+  }
 }
 
 function buildProfilePatch(
@@ -707,6 +741,28 @@ export async function createM365User(input: M365CreateUserInput): Promise<
       await graph.setManager(graphUser.id, parsed.managerId);
     }
 
+    const requiredGroups = requiredSecurityGroupNames({ campus, department });
+    try {
+      await assignRequiredSecurityGroups(graph, graphUser.id, requiredGroups);
+    } catch (error) {
+      await logAuditEvent(ctx, "it.m365.user.create", {
+        resourceId: graphUser.id,
+        resourceType: "m365.user",
+        payload: {
+          success: false,
+          userPrincipalName,
+          campusId: parsed.campusId,
+          departmentId: parsed.departmentId,
+          graphUserCreated: true,
+          securityGroupSyncFailed: true,
+          manualCleanupRequired: true,
+          requiredGroups,
+          error: getErrorMessage(error),
+        },
+      });
+      throw error;
+    }
+
     try {
       const { db } = await createAdminClient();
       await db.createRow("app", "user", graphUser.id, {
@@ -745,6 +801,7 @@ export async function createM365User(input: M365CreateUserInput): Promise<
         campusId: parsed.campusId,
         departmentId: parsed.departmentId,
         managerId: parsed.managerId ?? null,
+        requiredGroups,
       },
     });
 

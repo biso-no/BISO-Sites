@@ -1,6 +1,6 @@
 "use server";
 
-import { type Models, Query } from "@repo/api";
+import { type Models, Permission, Query, Role } from "@repo/api";
 import { createAdminClient, createSessionClient } from "@repo/api/server";
 import type {
   ContentTranslations,
@@ -17,6 +17,15 @@ type CartReservationRow = Models.Row & {
   product_id: string;
   quantity: number;
 };
+
+function buildUserRowPermissions(userId: string): string[] {
+  const user = Role.user(userId);
+  return [
+    Permission.read(user),
+    Permission.update(user),
+    Permission.delete(user),
+  ];
+}
 
 /**
  * Get available stock for a product, accounting for active reservations
@@ -148,12 +157,19 @@ export async function createOrUpdateReservation(
       });
     } else {
       // Create new reservation (user_id from session)
-      await db.createRow("app", "cart_reservations", "unique()", {
-        product_id: productId,
-        user_id: userId,
-        quantity: effectiveQuantity,
-        expires_at: expiresAt,
-      });
+      const { db: adminDb } = await createAdminClient();
+      await adminDb.createRow(
+        "app",
+        "cart_reservations",
+        "unique()",
+        {
+          product_id: productId,
+          user_id: userId,
+          quantity: effectiveQuantity,
+          expires_at: expiresAt,
+        },
+        buildUserRowPermissions(userId)
+      );
     }
 
     return { success: true, quantity: effectiveQuantity };

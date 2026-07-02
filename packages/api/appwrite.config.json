@@ -77,8 +77,7 @@
         "create(\"team:sg-app-dept-operationsunit\")",
         "read(\"team:sg-app-dept-operationsunit\")",
         "update(\"team:sg-app-dept-operationsunit\")",
-        "delete(\"team:sg-app-dept-operationsunit\")",
-        "create(\"any\")"
+        "delete(\"team:sg-app-dept-operationsunit\")"
       ],
       "databaseId": "app",
       "name": "Orders",
@@ -328,7 +327,7 @@
     },
     {
       "$id": "events",
-      "$permissions": ["read(\"any\")", "create(\"users\")"],
+      "$permissions": ["read(\"any\")"],
       "databaseId": "app",
       "name": "Events",
       "enabled": true,
@@ -706,7 +705,6 @@
     {
       "$id": "expense",
       "$permissions": [
-        "create(\"users\")",
         "read(\"team:sg-app-dept-operationsunit\")",
         "read(\"team:finance\")"
       ],
@@ -913,7 +911,7 @@
     },
     {
       "$id": "expense_attachments",
-      "$permissions": ["create(\"users\")"],
+      "$permissions": [],
       "databaseId": "app",
       "name": "Expense Attachments",
       "enabled": true,
@@ -1005,7 +1003,6 @@
     {
       "$id": "jobs",
       "$permissions": [
-        "create(\"users\")",
         "create(\"team:sg-app-dept-operationsunit\")",
         "read(\"team:sg-app-dept-operationsunit\")",
         "update(\"team:sg-app-dept-operationsunit\")",
@@ -1946,7 +1943,7 @@
     },
     {
       "$id": "cart_reservations",
-      "$permissions": ["create(\"any\")"],
+      "$permissions": [],
       "databaseId": "app",
       "name": "Cart Reservations",
       "enabled": true,
@@ -2015,7 +2012,6 @@
     {
       "$id": "user",
       "$permissions": [
-        "create(\"users\")",
         "create(\"team:sg-app-dept-operationsunit\")",
         "read(\"team:sg-app-dept-operationsunit\")",
         "update(\"team:sg-app-dept-operationsunit\")",
@@ -2780,7 +2776,7 @@
     },
     {
       "$id": "webshop_products",
-      "$permissions": ["read(\"any\")", "create(\"users\")"],
+      "$permissions": ["read(\"any\")"],
       "databaseId": "app",
       "name": "Webshop Products",
       "enabled": true,
@@ -3060,7 +3056,7 @@
     },
     {
       "$id": "content_translations",
-      "$permissions": ["create(\"users\")"],
+      "$permissions": [],
       "databaseId": "app",
       "name": "Content Translations",
       "enabled": true,
@@ -3507,7 +3503,7 @@
     },
     {
       "$id": "public_profiles",
-      "$permissions": ["create(\"users\")"],
+      "$permissions": [],
       "databaseId": "app",
       "name": "Public Profiles",
       "enabled": true,
@@ -3653,7 +3649,7 @@
     },
     {
       "$id": "benefit_reveals",
-      "$permissions": ["create(\"users\")"],
+      "$permissions": [],
       "databaseId": "app",
       "name": "Benefit Reveals",
       "enabled": true,
@@ -3763,7 +3759,7 @@
     },
     {
       "$id": "news",
-      "$permissions": ["read(\"any\")", "create(\"users\")"],
+      "$permissions": ["read(\"any\")"],
       "databaseId": "app",
       "name": "News",
       "enabled": true,
@@ -4128,7 +4124,7 @@
     },
     {
       "$id": "benefit_interactions",
-      "$permissions": ["create(\"users\")"],
+      "$permissions": [],
       "databaseId": "app",
       "name": "Benefit Interactions",
       "enabled": true,
@@ -4663,7 +4659,7 @@
     },
     {
       "$id": "subs",
-      "$permissions": ["create(\"users\")"],
+      "$permissions": [],
       "databaseId": "app",
       "name": "Subscriptions",
       "enabled": true,
@@ -4869,7 +4865,6 @@
     {
       "$id": "content_entries",
       "$permissions": [
-        "create(\"users\")",
         "read(\"any\")",
         "update(\"users\")",
         "delete(\"users\")"
@@ -4975,7 +4970,6 @@
     {
       "$id": "content_templates",
       "$permissions": [
-        "create(\"users\")",
         "read(\"users\")",
         "update(\"label:globaladmin\")",
         "delete(\"label:globaladmin\")"
@@ -5063,7 +5057,6 @@
       "$id": "teams",
       "$permissions": [
         "read(\"any\")",
-        "create(\"users\")",
         "update(\"users\")",
         "delete(\"users\")"
       ],
@@ -5158,7 +5151,7 @@
     },
     {
       "$id": "student_id",
-      "$permissions": ["create(\"users\")"],
+      "$permissions": [],
       "databaseId": "app",
       "name": "student_ids",
       "enabled": true,
@@ -5234,7 +5227,7 @@
     },
     {
       "$id": "page_translations",
-      "$permissions": ["read(\"any\")", "create(\"users\")"],
+      "$permissions": ["read(\"any\")"],
       "databaseId": "app",
       "name": "Page translations",
       "enabled": true,
@@ -5336,7 +5329,6 @@
     {
       "$id": "content_entry_locales",
       "$permissions": [
-        "create(\"users\")",
         "read(\"any\")",
         "update(\"users\")",
         "delete(\"users\")"
@@ -5440,7 +5432,7 @@
     },
     {
       "$id": "followed_units",
-      "$permissions": ["create(\"users\")"],
+      "$permissions": [],
       "databaseId": "app",
       "name": "Followed units",
       "enabled": true,
@@ -5471,7 +5463,6 @@
       "$id": "typing_indicators",
       "$permissions": [
         "read(\"any\")",
-        "create(\"users\")",
         "update(\"users\")",
         "delete(\"users\")"
       ],
@@ -5625,7 +5616,7 @@
     },
     {
       "$id": "product_favorites",
-      "$permissions": ["create(\"guests\")", "create(\"users\")"],
+      "$permissions": ["create(\"guests\")"],
       "databaseId": "app",
       "name": "product_favorites",
       "enabled": true,
@@ -5775,7 +5766,7 @@
     },
     {
       "$id": "saved_jobs",
-      "$permissions": ["create(\"users\")"],
+      "$permissions": [],
       "databaseId": "app",
       "name": "Saved Jobs",
       "enabled": true,
@@ -5828,7 +5819,7 @@
     },
     {
       "$id": "tour_progress",
-      "$permissions": ["create(\"users\")"],
+      "$permissions": [],
       "databaseId": "app",
       "name": "Tour Progress",
       "enabled": true,
@@ -5900,7 +5891,7 @@
     },
     {
       "$id": "chats",
-      "$permissions": ["create(\"users\")"],
+      "$permissions": [],
       "databaseId": "app",
       "name": "Chats",
       "enabled": true,
@@ -6076,7 +6067,7 @@
     },
     {
       "$id": "payments",
-      "$permissions": ["create(\"users\")"],
+      "$permissions": [],
       "databaseId": "app",
       "name": "Payments",
       "enabled": true,
@@ -6183,7 +6174,7 @@
     },
     {
       "$id": "chat_messages",
-      "$permissions": ["create(\"users\")"],
+      "$permissions": [],
       "databaseId": "app",
       "name": "Chat Messages",
       "enabled": true,
@@ -6273,7 +6264,6 @@
       "$id": "products",
       "$permissions": [
         "read(\"guests\")",
-        "create(\"users\")",
         "read(\"users\")",
         "update(\"team:sg-app-dept-operationsunit\")",
         "delete(\"team:sg-app-dept-operationsunit\")"
@@ -6496,7 +6486,6 @@
     {
       "$id": "content_template_versions",
       "$permissions": [
-        "create(\"users\")",
         "read(\"users\")",
         "update(\"label:globaladmin\")",
         "delete(\"label:globaladmin\")"
@@ -6592,7 +6581,7 @@
     },
     {
       "$id": "pages",
-      "$permissions": ["read(\"any\")", "create(\"users\")"],
+      "$permissions": ["read(\"any\")"],
       "databaseId": "app",
       "name": "Pages",
       "enabled": true,
@@ -7687,7 +7676,7 @@
     },
     {
       "$id": "stop_places",
-      "$permissions": ["read(\"any\")", "create(\"users\")"],
+      "$permissions": ["read(\"any\")"],
       "databaseId": "app",
       "name": "Stop Places",
       "enabled": true,
@@ -7732,7 +7721,7 @@
     },
     {
       "$id": "departures",
-      "$permissions": ["read(\"any\")", "create(\"users\")"],
+      "$permissions": ["read(\"any\")"],
       "databaseId": "app",
       "name": "Departures",
       "enabled": true,
@@ -7779,7 +7768,7 @@
     },
     {
       "$id": "approval_requests",
-      "$permissions": ["create(\"any\")"],
+      "$permissions": [],
       "databaseId": "app",
       "name": "Approval Requests",
       "enabled": true,
@@ -8090,7 +8079,7 @@
     },
     {
       "$id": "user_notifications",
-      "$permissions": ["create(\"users\")"],
+      "$permissions": [],
       "databaseId": "app",
       "name": "User Notifications",
       "enabled": true,
@@ -8141,7 +8130,7 @@
     },
     {
       "$id": "event_segments",
-      "$permissions": ["read(\"users\")", "create(\"users\")"],
+      "$permissions": ["read(\"users\")"],
       "databaseId": "app",
       "name": "Event Segments",
       "enabled": true,
@@ -9233,7 +9222,7 @@
     },
     {
       "$id": "expenses",
-      "$permissions": ["create(\"users\")"],
+      "$permissions": [],
       "fileSecurity": true,
       "name": "Expenses",
       "enabled": true,
@@ -9245,7 +9234,7 @@
     },
     {
       "$id": "resumes",
-      "$permissions": ["create(\"any\")"],
+      "$permissions": [],
       "fileSecurity": true,
       "name": "Resumes",
       "enabled": true,

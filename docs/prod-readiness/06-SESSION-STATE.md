@@ -13,14 +13,12 @@ ending, not after. This is the first file the next session should read.*
 - **S01** (build/deploy/CI), **S02** (dependencies/config/secrets), **S03**
   (security/authz), **S04-partial** (types/lint/dead-code; gates `A3`/`A4`
   still `⬜`), and **S05–S09** (runtime behaviour) are all done.
-- **87 findings logged (`PR-001`–`PR-087`).** Open blockers: **3 live**
-  (`PR-015`, `PR-017`, `PR-033`) + **PR-032 pending owner live smoke after
-  local code remediation** + **1 gated** (`PR-034`, latent behind the OFF
-  `expenses_ledger_posting` flag). `PR-032` now has targeted tests covering
-  missing bearer, invalid JWT, spoofed `userId`, total mismatch, and trusted
-  Vipps amount; api/web typecheck and lint passed locally. `PR-033`
-  (`orders` `create("any")`) and `PR-034` remain downstream of the same root
-  cause as `PR-017`.
+- **87 findings logged (`PR-001`–`PR-087`).** `PR-032` was already
+  code-remediated locally; this session code/config-remediated `PR-033`,
+  `PR-015`, `PR-017`, and `PR-034`. Remaining blocker work is owner live
+  verification: Appwrite permissions/schema push, Azure tenant test user/group
+  assignment, checkout smoke, and expense approval/posting smoke. Keep
+  `expenses_ledger_posting` OFF until that live verification is complete.
 - **Verdict: NO-GO** for a week of unattended real traffic. Not launchable
   this week without at least closing the remaining blockers, live-smoking
   PR-032 after deploy, and addressing the observability gap (`PR-048`, no error
@@ -45,10 +43,11 @@ ending, not after. This is the first file the next session should read.*
 **Nothing is mid-audit.** The discovery phase is finished. The next phase is
 **remediation**, owned by the developer, not the audit:
 
-1. Deploy and owner-smoke PR-032, then close the remaining live blockers
-   (`PR-033`, `PR-015`, `PR-017`) — see the ordered "Minimum path to GO" in
+1. Deploy and owner-smoke PR-032/PR-033/PR-017, then verify PR-015 with a real
+   Azure tenant test user. See the ordered "Minimum path to GO" in
    `07-GO-NO-GO.md` §5.
-2. Do not enable `expenses_ledger_posting` until `PR-034` is fixed.
+2. Do not enable `expenses_ledger_posting` until PR-034's deployed Appwrite
+   schema and approval/posting smoke path are owner-verified.
 3. Add error tracking (`PR-048` / `O-28`) — highest-leverage operational fix.
 4. Address the high-severity resilience + money-path set (`PR-046`–`PR-050`,
    `PR-035`–`PR-039`, `PR-058`–`PR-061`, `PR-075`, `PR-079`).

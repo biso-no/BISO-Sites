@@ -1,11 +1,16 @@
 "use server";
-import type { Models } from "@repo/api";
+import { type Models, Permission, Role } from "@repo/api";
 import { createAdminClient, createSessionClient } from "@repo/api/server";
 import type { Users } from "@repo/api/types/appwrite";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { isGlobalAdmin } from "@/lib/authorization";
 import { isAuthenticatedAppwriteUser, isProd } from "@/lib/utils";
+
+function buildProfileRowPermissions(userId: string): string[] {
+  const userRole = Role.user(userId);
+  return [Permission.read(userRole), Permission.update(userRole)];
+}
 
 export async function getLoggedInUser(): Promise<{
   user: Models.User<Models.Preferences>;
@@ -82,7 +87,14 @@ export async function updateProfile(profile: Partial<Users>) {
       }
       return await db.updateRow("app", "user", user.$id, profile);
     } catch {
-      return await db.createRow("app", "user", user.$id, profile);
+      const { db: adminDb } = await createAdminClient();
+      return await adminDb.createRow(
+        "app",
+        "user",
+        user.$id,
+        profile,
+        buildProfileRowPermissions(user.$id)
+      );
     }
   } catch (error) {
     console.error("updateProfile failed");
@@ -103,7 +115,14 @@ async function _createProfile(profile: Partial<Users>, userId: string) {
     if (existingProfile) {
       return await db.updateRow("app", "user", userId, profile);
     }
-    return await db.createRow("app", "user", userId, profile);
+    const { db: adminDb } = await createAdminClient();
+    return await adminDb.createRow(
+      "app",
+      "user",
+      userId,
+      profile,
+      buildProfileRowPermissions(userId)
+    );
   } catch (error) {
     console.error(error);
     return null;

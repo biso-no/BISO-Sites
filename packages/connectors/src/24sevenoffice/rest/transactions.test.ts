@@ -1,6 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { buildExpenseTransactionInput } from "./transactions";
 
+const NO_RECEIPTS_ERROR = /at least one receipt/i;
+
 describe("buildExpenseTransactionInput", () => {
   const base = {
     transactionTypeNumber: 5,
@@ -55,6 +57,6 @@ describe("buildExpenseTransactionInput", () => {
   test("throws when there are no receipts", () => {
     expect(() =>
       buildExpenseTransactionInput({ ...base, receipts: [] })
-    ).toThrow(/at least one receipt/i);
+    ).toThrow(NO_RECEIPTS_ERROR);
   });
 });

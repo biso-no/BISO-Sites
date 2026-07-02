@@ -262,17 +262,17 @@ group list, creates no Appwrite team memberships, and the user ends up with
 zero roles and zero access — a fully provisioned M365/Azure AD account that
 is a dead end in the authorization model. This exactly matches a gap the
 repo owner had already suspected going into S03.
-**Evidence:** `apps/admin/src/app/(portal)/_actions/it-users.ts`
-(`createM365User()` — no `addUserToGroup` call in the create path);
-`apps/admin/src/lib/m365-sync.ts` (`syncM365Permissions` reads
-`transitiveMemberOf`, never writes group membership);
-`apps/admin/src/lib/authorization.ts` (`getUserAuthContext()` derives roles
-entirely from Appwrite team membership, which depends on the sync above).
-**Fix:** Add an explicit Graph group-assignment call to `createM365User()`
-so new users are placed in the correct security group(s) at creation time,
-not just read from later. Verify against a real Azure tenant test user.
-Tracked as owner action `O-17`.
-**Status:** open — **launch blocker**.
+**Evidence:** Original gap verified in `apps/admin/src/app/(portal)/_actions/it-users.ts`;
+the local remediation now derives `SG-App-Campus-*` / `SG-App-Dept-*` groups,
+requires them to exist, and calls `graph.addUserToGroup()` before reporting
+M365 user creation success. Regression coverage:
+`apps/admin/src/app/(portal)/_actions/it-users.test.ts`.
+**Fix:** Code-remediated locally 2026-07-02. New users are assigned the required
+Azure security groups during `createM365User()`, and missing/failed group writes
+fail loudly with audit context instead of silently creating a zero-access user.
+Owner still needs a real Azure tenant test user to verify Graph permissions and
+live group names.
+**Status:** code-remediated and locally verified; owner Azure live verification pending before full closure.
 
 ### PR-016 · high · `apps/admin/src/lib/m365-sync.ts` · team-ID derivation has no Unicode sanitization
 **What breaks / condition:** Team IDs are derived via
@@ -309,16 +309,15 @@ admin app's `PERMISSIONS_REVIEW.md` Phase 2 hardening (see
 `04-AUTHZ-MODEL.md`) fixed *read* isolation for draft/unpublished content
 but did not touch collection-level *create* grants — this gap predates and
 survives that hardening work.
-**Evidence:** `packages/api/appwrite.config.json` (collection permission
-enumeration, 82 tables audited); `apps/admin/PERMISSIONS_REVIEW.md`
-(documents Phase 2 scope was read-permission isolation only).
-**Fix:** Table-by-table product/security decision (owner action `O-14`):
-for each of the 31 tables, either (a) confirm any-user/anonymous create is
-genuinely intended (e.g. public order/reservation submission may be by
-design) and leave it, or (b) restrict collection-level create to the
-relevant team role(s), consistent with the row-permission model already in
-place for reads.
-**Status:** open — **launch blocker**.
+**Evidence:** `packages/api/appwrite.config.json` previously granted broad
+collection creates; local remediation removes every `create("any")` and
+`create("users")` grant and adds `packages/api/appwrite-config.test.ts` to
+prevent regression. Legitimate self-service creates were moved behind
+authenticated/admin server writes with per-user row permissions for cart
+reservations, benefit reveals/interactions, public/profile rows, and expenses.
+**Fix:** Code/config-remediated locally 2026-07-02. Owner still needs to push the
+schema and verify live Appwrite collection permissions match source.
+**Status:** code/config-remediated and locally verified; owner Appwrite live permission verification pending before full closure.
 
 ### PR-018 · high · Appwrite schema/runtime (whole repo) · RLS backstop is non-idempotent — stale access persists
 **What breaks / condition:** Per-row `$permissions` are set additively at
@@ -626,7 +625,8 @@ owner live smoke confirms the deployed Appwrite/API/Vipps flow.
 **Evidence:** `packages/api/appwrite.config.json` orders `$permissions`; return route `apps/web/src/app/api/checkout/return/route.ts`.
 **Fix:** Remove `create("any")` — the legit flow creates orders only via `createAdminClient()` in the checkout route (verified: no non-admin `createRow` on `orders` in web/packages code), so removal is safe.
 **Confidence:** CONFIRMED (config; legit-flow safety verified in code). Live perms → owner-action.
-**Status:** open.
+**Verification:** `orders` no longer has `create("any")`; `packages/shared/utils/vipps-order-ops.test.ts` now asserts legitimate order creation uses the provided admin DB client with buyer-scoped read permissions. Targeted order/checkout tests pass locally.
+**Status:** code/config-remediated and locally verified; owner Appwrite live permission verification pending before full closure.
 
 ### PR-034 — HIGH (BLOCKER-if-enabled) — Forged pre-"approved" expenses paid out with no approval chain
 **Lane refs:** P-6. Instance of PR-017. Gated by `expenses_ledger_posting` (OFF at launch).
@@ -634,7 +634,8 @@ owner live smoke confirms the deployed Appwrite/API/Vipps flow.
 **Evidence:** `packages/api/appwrite.config.json` (expense/expense_attachments perms + status enum); `apps/api/src/app/api/expenses/post-pending/route.ts:49-61`; `apps/api/src/lib/expense-posting.ts:183-232`.
 **Fix:** Remove `create("users")` from `expense`/`expense_attachments` (create via API route with admin client) AND make `postApprovedExpense` verify all `expense_approvals` rows are APPROVED before posting. Hard gate: do NOT enable `expenses_ledger_posting` until both are done.
 **Confidence:** CONFIRMED (config + code; cron flag-gate confirmed). Live perms → owner-action.
-**Status:** open.
+**Verification:** `expense` and `expense_attachments` no longer grant `create("users")`; draft/submit routes create new expense rows through the admin client with submitter row permissions; `postApprovedExpense` verifies a non-empty, contiguous, fully approved `expense_approvals` chain before claiming/posting. Targeted route/config/posting tests pass locally.
+**Status:** code/config-remediated and locally verified; keep `expenses_ledger_posting` OFF until owner verifies the deployed Appwrite schema and approval/posting smoke path.
 
 ### PR-035 — HIGH — Non-atomic stock decrement race across three entry points
 **Lane refs:** P-3, P-8, W-2.
@@ -1066,20 +1067,19 @@ owner live smoke confirms the deployed Appwrite/API/Vipps flow.
 
 | Severity | Count | IDs |
 |----------|-------|-----|
-| blocker | 4 | PR-015, PR-017, PR-032, PR-033 |
-| high | 25 | PR-001, PR-008, PR-016, PR-018, PR-019, PR-020, PR-021, PR-034, PR-035, PR-036, PR-037, PR-038, PR-039, PR-046, PR-047, PR-048, PR-049, PR-050, PR-058, PR-059, PR-060, PR-061, PR-075, PR-079, PR-085 |
+| blocker | 4 | PR-015, PR-017, PR-032, PR-033 (all four now code/config-remediated locally or previously code-remediated, but owner live verification remains before full closure) |
+| high | 25 | PR-001, PR-008, PR-016, PR-018, PR-019, PR-020, PR-021, PR-034 (code/config-remediated locally; flag must stay OFF until owner live verification), PR-035, PR-036, PR-037, PR-038, PR-039, PR-046, PR-047, PR-048, PR-049, PR-050, PR-058, PR-059, PR-060, PR-061, PR-075, PR-079, PR-085 |
 | medium | 28 | PR-002, PR-007, PR-009, PR-011, PR-012, PR-022, PR-023, PR-024, PR-025, PR-030, PR-040, PR-041, PR-051, PR-052, PR-053, PR-054, PR-055, PR-062, PR-063, PR-064, PR-065, PR-066, PR-067, PR-068, PR-076, PR-077, PR-078, PR-083 |
 | low | 30 | PR-003, PR-004, PR-005, PR-006, PR-010, PR-013, PR-014, PR-026, PR-027, PR-028, PR-029, PR-031, PR-042, PR-043, PR-044, PR-045, PR-056, PR-057, PR-069, PR-070, PR-071, PR-072, PR-073, PR-074, PR-080, PR-081, PR-082, PR-084, PR-086, PR-087 |
 
 Total: 87 findings (PR-001–PR-087).
 
-**Blockers now number 4 by severity classification**, but PR-032 has been
-code-remediated locally and is pending owner live smoke before full closure.
-The remaining live open blockers are PR-015 (M365 group assignment), PR-017
-(over-permissive collection CREATE grants), and PR-033 (`orders` `create("any")`
-→ forged paid orders). **PR-034** is a *conditional/gated blocker*: forged
-pre-approved expense payouts, live only if `expenses_ledger_posting` is enabled
-(defaults OFF) — a hard gate before that flag is turned on.
+**Blockers still number 4 by original severity classification**, but PR-032,
+PR-033, PR-015, and PR-017 are now code/config-remediated locally and await the
+owner live checks called out in their entries before full closure. **PR-034** is
+also code/config-remediated locally, but remains a *conditional/gated* item until
+the deployed Appwrite schema and approval/posting smoke are verified; keep
+`expenses_ledger_posting` OFF until then.
 
 Severity notes: `HIGH (BLOCKER-if-enabled)` PR-034 is counted as high; the
 `MEDIUM-HIGH` (PR-051) is counted as medium; the `LOW-MEDIUM` items (PR-056,
