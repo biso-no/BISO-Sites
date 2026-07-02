@@ -258,6 +258,33 @@
           "size": 2048,
           "default": null,
           "encrypt": false
+        },
+        {
+          "key": "finago_transaction_id",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 255,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "transition_lock",
+          "type": "integer",
+          "required": false,
+          "array": false,
+          "min": 0,
+          "max": 1000000,
+          "default": 0
+        },
+        {
+          "key": "finago_posting_lock",
+          "type": "integer",
+          "required": false,
+          "array": false,
+          "min": 0,
+          "max": 1000000,
+          "default": 0
         }
       ],
       "indexes": [
@@ -267,6 +294,13 @@
           "status": "available",
           "columns": ["status", "userId", "currency"],
           "orders": ["ASC", "ASC", "ASC"]
+        },
+        {
+          "key": "idx_orders_finago",
+          "type": "key",
+          "status": "available",
+          "columns": ["finago_transaction_id"],
+          "orders": ["ASC"]
         }
       ]
     },
@@ -2006,6 +2040,13 @@
           "status": "available",
           "columns": ["product_id", "expires_at"],
           "orders": []
+        },
+        {
+          "key": "user_product_idx",
+          "type": "key",
+          "status": "available",
+          "columns": ["user_id", "product_id"],
+          "orders": []
         }
       ]
     },
@@ -2968,6 +3009,15 @@
           "default": "unlimited",
           "format": "enum",
           "elements": ["tracked", "unlimited"]
+        },
+        {
+          "key": "finago_account_number",
+          "type": "integer",
+          "required": false,
+          "array": false,
+          "min": 0,
+          "max": 99999999,
+          "default": null
         }
       ],
       "indexes": [
@@ -6882,6 +6932,15 @@
           "size": 50,
           "default": null,
           "encrypt": false
+        },
+        {
+          "key": "claim_lock",
+          "type": "integer",
+          "required": false,
+          "array": false,
+          "min": 0,
+          "max": 1000000,
+          "default": 0
         }
       ],
       "indexes": [
@@ -7243,6 +7302,20 @@
           "status": "available",
           "columns": ["campus_id", "status"],
           "orders": []
+        },
+        {
+          "key": "idx_interviewer_starts",
+          "type": "key",
+          "status": "available",
+          "columns": ["created_by_user_id", "starts_at"],
+          "orders": []
+        },
+        {
+          "key": "idx_ends_at",
+          "type": "key",
+          "status": "available",
+          "columns": ["ends_at"],
+          "orders": ["ASC"]
         }
       ]
     },
@@ -9226,8 +9299,8 @@
       "fileSecurity": true,
       "name": "Expenses",
       "enabled": true,
-      "maximumFileSize": 30000000,
-      "allowedFileExtensions": [],
+      "maximumFileSize": 10485760,
+      "allowedFileExtensions": ["jpg", "jpeg", "png", "webp", "pdf"],
       "compression": "none",
       "encryption": false,
       "antivirus": true
@@ -9238,8 +9311,8 @@
       "fileSecurity": true,
       "name": "Resumes",
       "enabled": true,
-      "maximumFileSize": 100000000,
-      "allowedFileExtensions": [],
+      "maximumFileSize": 5242880,
+      "allowedFileExtensions": ["pdf"],
       "compression": "none",
       "encryption": true,
       "antivirus": true
