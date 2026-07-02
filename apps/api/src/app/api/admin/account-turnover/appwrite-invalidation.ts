@@ -15,7 +15,7 @@ export async function invalidateAppwriteUser(email: string) {
       await users.deleteSessions(outgoingUser.$id);
 
       // Prune all memberships so the disabled user doesn't linger in team lists
-      const memberships = await users.getMemberships(outgoingUser.$id);
+      const memberships = await users.listMemberships(outgoingUser.$id);
       await Promise.all(
         memberships.memberships.map((m) =>
           teams.deleteMembership(m.teamId, m.$id)

@@ -160,7 +160,7 @@ export async function syncM365Permissions(userId: string) {
     );
 
     // Reconcile: delete Appwrite memberships that are no longer in Azure
-    const currentMemberships = await users.getMemberships(userId);
+    const currentMemberships = await users.listMemberships(userId);
     for (const membership of currentMemberships.memberships) {
       if (!expectedTeamIds.has(membership.teamId)) {
         // User is in an Appwrite team but not in the corresponding Azure group
