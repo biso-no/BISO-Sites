@@ -8582,6 +8582,148 @@
       ]
     },
     {
+      "$id": "m365_turnover_jobs",
+      "$permissions": [
+        "create(\"team:sg-app-dept-operationsunit\")",
+        "read(\"team:sg-app-dept-operationsunit\")",
+        "update(\"team:sg-app-dept-operationsunit\")",
+        "delete(\"team:sg-app-dept-operationsunit\")"
+      ],
+      "databaseId": "app",
+      "name": "M365 Turnover Jobs",
+      "enabled": true,
+      "rowSecurity": true,
+      "columns": [
+        {
+          "key": "user_id",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 100,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "user_upn",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 320,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "previous_display_name",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 256,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "new_display_name",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 256,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "new_given_name",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 128,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "new_surname",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 128,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "initiated_by_user_id",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 100,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "retention_started_at",
+          "type": "datetime",
+          "required": false,
+          "array": false,
+          "default": null,
+          "format": ""
+        },
+        {
+          "key": "retention_stop_at",
+          "type": "datetime",
+          "required": true,
+          "array": false,
+          "default": null,
+          "format": ""
+        },
+        {
+          "key": "status",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "default": "retention_active",
+          "format": "enum",
+          "elements": [
+            "retention_active",
+            "completed",
+            "retention_start_failed",
+            "stop_failed"
+          ]
+        },
+        {
+          "key": "stop_attempts",
+          "type": "integer",
+          "required": false,
+          "array": false,
+          "default": 0,
+          "min": 0,
+          "max": 1000000
+        },
+        {
+          "key": "last_error",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 2048,
+          "default": null,
+          "encrypt": false
+        }
+      ],
+      "indexes": [
+        {
+          "key": "idx_status_stop_at",
+          "type": "key",
+          "status": "available",
+          "columns": ["status", "retention_stop_at"],
+          "orders": ["ASC", "ASC"]
+        },
+        {
+          "key": "idx_turnover_user",
+          "type": "key",
+          "status": "available",
+          "columns": ["user_id"],
+          "orders": ["ASC"]
+        }
+      ]
+    },
+    {
       "$id": "payment_settings",
       "$permissions": [
         "create(\"team:sg-app-dept-operationsunit\")",

@@ -309,3 +309,23 @@ connector's default account — revenue lands on the wrong ledger line.
 **How to verify:** After O-29, set the account number on each sellable product
 in the admin shop editor / console.
 **Status:** open.
+
+### O-33 — Push the m365_turnover_jobs schema + regenerate types, and provision Azure Automation
+**Why:** The M365 role-account turnover feature depends on a new
+`m365_turnover_jobs` table (in `packages/api/appwrite.config.json`) and two
+Azure Automation retention webhooks. Until the table is pushed, the turnover
+action's job insert fails; until the runbooks exist, the retention start/stop
+is a no-op.
+**How to verify:**
+1. `appwrite push` from `packages/api`, then `appwrite types -l ts ./types`.
+2. Create the Azure Automation runbook(s) that start/stop the 7-day retention
+   policy for a mailbox (PowerShell), each exposed as a webhook. The webhook
+   payload is `{ action, userId, userUpn, retentionDays, turnoverJobId }`.
+3. Set `AZURE_RETENTION_START_WEBHOOK_URL` and `AZURE_RETENTION_STOP_WEBHOOK_URL`
+   on the `admin` site, and `TURNOVER_RETENTION_STOP_URL=https://admin.biso.no/api/it/turnover/stop-retention`
+   on the `scheduled-dispatch` function (authenticates with `CRON_SECRET`).
+4. Smoke: run a turnover on a test role account — confirm the rename, MFA
+   cleared, sessions revoked, forced password reset, an `m365_turnover_jobs`
+   row created with `status: retention_active`, and that the stop sweep flips
+   it to `completed` after `retention_stop_at`.
+**Status:** open.

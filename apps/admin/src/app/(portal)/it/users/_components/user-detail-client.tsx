@@ -58,6 +58,7 @@ import {
   STUDIO,
   studioSurface,
 } from "../../../_components/studio";
+import { TurnoverDialog } from "./turnover-dialog";
 
 type ItPermissionMap = Record<M365Permission, boolean>;
 
@@ -1678,6 +1679,21 @@ export function UserDetailClient({
           {/* Danger Zone */}
           <Section icon={<ShieldAlert size={16} />} title={labels.dangerZone}>
             <div className="space-y-3">
+              {permissions["it.users.turnover"] && (
+                <div
+                  className="rounded-xl p-3"
+                  style={{
+                    background: "rgba(255,255,255,0.02)",
+                    border: "1px solid rgba(255,255,255,0.06)",
+                  }}
+                >
+                  <TurnoverDialog
+                    userId={user.id}
+                    userPrincipalName={user.userPrincipalName}
+                  />
+                </div>
+              )}
+
               {permissions["it.users.resetPassword"] && (
                 <>
                   <div
@@ -1785,7 +1801,8 @@ export function UserDetailClient({
 
               {!(
                 permissions["it.users.resetPassword"] ||
-                permissions["it.users.revokeSessions"]
+                permissions["it.users.revokeSessions"] ||
+                permissions["it.users.turnover"]
               ) && (
                 <p className="text-sm text-white/50">
                   No risk controls available for your permission level.

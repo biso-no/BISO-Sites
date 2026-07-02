@@ -18,6 +18,7 @@ export const IT_PERMISSIONS: M365Permission[] = [
   "it.users.revokeSessions",
   "it.users.viewSecurity",
   "it.users.resetPassword",
+  "it.users.turnover",
 ];
 
 function isGlobalAdmin(ctx: UserAuthContext): boolean {
@@ -41,6 +42,7 @@ export function getItPermissions(ctx: UserAuthContext): ItPermissionMap {
     "it.users.revokeSessions": canUseIt,
     "it.users.viewSecurity": canUseIt,
     "it.users.resetPassword": canUseIt,
+    "it.users.turnover": canUseIt,
   };
 }
 

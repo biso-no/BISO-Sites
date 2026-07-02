@@ -226,6 +226,28 @@
         "audit": "Avdelingskontroll",
         "dataHealth": "24SO datakvalitet",
         "expenseApprovals": "Godkjenningsavvik"
+      },
+      "turnover": {
+        "button": "Start overgang",
+        "title": "Overgang av rollekonto",
+        "intro": "Overfør denne rollekontoen til en ny innehaver. Påloggingsadressen forblir den samme — kun navnet endres — og forrige innehaver mister tilgang.",
+        "effectsHeading": "Dette vil:",
+        "effectRename": "Gi kontoen nytt navn (visningsnavn, fornavn og etternavn)",
+        "effectMfa": "Nullstille MFA — fjerne alle autentiseringsmetoder slik at ny innehaver registrerer på nytt",
+        "effectSessions": "Trekke tilbake alle aktive innloggingsøkter",
+        "effectPassword": "Kreve tilbakestilling av passord ved neste innlogging",
+        "effectRetention": "Starte en 7-dagers Azure-oppbevaringskjøring for å slette forrige innehavers Teams-historikk",
+        "firstNameLabel": "Ny innehavers fornavn",
+        "lastNameLabel": "Ny innehavers etternavn",
+        "confirmUpnLabel": "Skriv kontoens påloggingsadresse for å bekrefte",
+        "confirmUpnPlaceholder": "rolle.navn@biso.no",
+        "submit": "Kjør overgang",
+        "cancel": "Avbryt",
+        "success": "Overgang fullført for {name}",
+        "successNoRetention": "Kontoen ble overført, men oppbevaringskjøringen startet ikke — sjekk advarslene.",
+        "retentionStops": "Oppbevaringskjøringen stopper automatisk {date}.",
+        "warningsHeading": "Krever manuell oppfølging:",
+        "confirmMismatch": "Bekreftelsesadressen må matche kontoens påloggingsadresse."
       }
     },
     "audit": {
