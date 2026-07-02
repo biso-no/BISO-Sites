@@ -85,7 +85,7 @@ path.
 | F2 | SEO/metadata correctness (sitemap, OG images, `metadataBase`) | ⬜ | S01 found related low-severity issues (PR-005, PR-006) but gate itself not formally closed. |
 | F3 | Accessibility floor met on core public flows | ⬜ | Not yet audited. |
 | F4 | Feature-flag kill switches correctly gate unfinished/risky features (payments, AI copilot, expenses) | ✅ | S05/S09 verified `packages/shared/utils/feature-flags.ts`: fail-safe defaults (kill switches ON, `payments_stripe` + `expenses_ledger_posting` OFF), DB-override-else-catalog reader, missing/erroring table falls back to defaults. Confirmed the payout cron honors `expenses_ledger_posting` (returns a healthy no-op when off). **Caveat:** keep `expenses_ledger_posting` OFF until PR-034's deployed schema and approval/posting smoke are owner-verified. |
-| F6 | System degrades (not fails) when a single upstream — Appwrite, 24SO, Graph, Vipps, OpenAI — is slow or down | ❌ | **New gate (S08).** No timeouts on Appwrite (PR-046), Vipps chain (PR-047), or 24SO SOAP (PR-050); homepage dies whole on an Appwrite blip (PR-049); admin loops to login on outage (PR-051); no error tracking to even see it (PR-048); no dependency-aware readiness probe (PR-055). |
+| F6 | System degrades (not fails) when a single upstream — Appwrite, 24SO, Graph, Vipps, OpenAI — is slow or down | ❌ | **New gate (S08).** No timeouts on Appwrite (PR-046), Vipps chain (PR-047), or 24SO SOAP (PR-050); PR-049's homepage Appwrite-blip crash is code-remediated locally; admin loops to login on outage (PR-051); PR-048 now has minimal structured `onRequestError` logging in all four apps but still needs deploy log retention/alerting or Sentry/OTel to be pageable; no dependency-aware readiness probe (PR-055). |
 | F5 | Authorization correctness on core admin/member flows (a logged-in user only sees/does what their role allows) | ⬜ | PR-015 and PR-017 are code/config-remediated locally, but this gate remains pending until owner verifies Azure group assignment and live Appwrite collection permissions. PR-018 stale-access/idempotency remains open separately. |
 
 ---
@@ -124,8 +124,9 @@ owner live verification** (`PR-015`, `PR-017`, `PR-032`, `PR-033`) plus a gated
 one (`PR-034`), and 6 red gates. The money path — previously unassessed — is red
 across `D2`/`D3` with a confirmed unauthenticated client-amount checkout
 (`PR-032`) and silent accounting divergence (`PR-039`). Degradation behaviour
-(`F6`) is red: no timeouts and no error tracking means a single slow upstream
-takes the site down invisibly. See `07-GO-NO-GO.md` for the ordered remediation
-path. The runtime sessions S05–S09 are now **complete**; what remains before a
-go decision is the remediation of the blockers/high findings plus the live-console
-owner verifications in `05-OWNER-ACTIONS.md`.
+(`F6`) is red: no timeouts mean a single slow upstream can still take the site
+down; PR-048 now provides minimal structured server-error logs, but paging/log
+retention remains an infrastructure owner action. See `07-GO-NO-GO.md` for the
+ordered remediation path. The runtime sessions S05–S09 are now **complete**;
+what remains before a go decision is the remediation of the blockers/high
+findings plus the live-console owner verifications in `05-OWNER-ACTIONS.md`.

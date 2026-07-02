@@ -94,6 +94,7 @@
       "name": "docs",
       "version": "0.0.0",
       "dependencies": {
+        "@repo/shared": "workspace:*",
         "@repo/ui": "workspace:*",
         "fumadocs-core": "catalog:",
         "fumadocs-mdx": "catalog:",

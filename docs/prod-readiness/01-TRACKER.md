@@ -17,13 +17,15 @@
 | S08 | Next.js/Bun runtime | ✅ done | 2026-07-02 | PR-083–PR-087 | No cache cross-user leak, no edge/Bun landmines in shipping code (positives). force-dynamic disables ISR, build-env inlining risk (PR-085). |
 | S09 | Failure modes & resource exhaustion | ✅ done | 2026-07-02 | PR-046–PR-057 | 5 high (no Appwrite/Vipps/24SO timeouts, no error tracking, homepage fragility). Memory hygiene verified clean over a week. |
 | S10 | Synthesis & go/no-go | ✅ done | 2026-07-02 | — | Consolidated verdict in `07-GO-NO-GO.md`: **NO-GO**, 4 live blockers + 1 gated, ordered remediation path. |
+| S11 | Remediation: observability + homepage resilience | ✅ done | 2026-07-02 | — | Minimally code-remediated PR-048 with structured `onRequestError` server logging in `web`, `admin`, `api`, and `docs`; code-remediated PR-049's homepage Appwrite-blip crash. Deploy log retention/alerting or Sentry/OTel remains owner/infrastructure work. |
 
 **Findings tally:** 87 findings logged (PR-001–PR-087). S01–S04: 31 (2 blocker,
 7 high, 10 medium, 12 low). S05–S09 runtime: 56 more (2 blocker + 1 gated, and
 the high/medium/low split per `02-FINDINGS.md`'s tally table, which is the
 authoritative per-ID breakdown). **PR-032, PR-033, PR-015, PR-017, and PR-034
-are code/config-remediated locally as of 2026-07-02, but all owner live checks
-called out in `02-FINDINGS.md` remain pending before full closure.**
+are code/config-remediated locally as of 2026-07-02, PR-048 now has a minimal
+structured logging floor, and PR-049 is code-remediated locally. All owner live
+checks called out in `02-FINDINGS.md` remain pending before full closure.**
 
 ## Blockers board
 

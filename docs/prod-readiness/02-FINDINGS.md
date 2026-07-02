@@ -741,21 +741,45 @@ owner live smoke confirms the deployed Appwrite/API/Vipps flow.
 **Confidence:** CONFIRMED.
 **Status:** open.
 
-### PR-048 — HIGH — Zero error tracking / structured logging — launch week is blind
+### PR-048 — HIGH — Minimal server error logging added; external alerting still pending
 **Lane refs:** F-2.
-**What breaks / condition:** No Sentry/OTel/pino anywhere, no `instrumentation-client.ts`, `onRequestError` unused; all logging is bare `console.*`. Several money-path failures log nothing at all (expense-approval-issues fold errors into return values; `expenses/approve` has no handler try/catch → unlogged 500). During an incident there is no signal to page on and no trace to debug.
-**Evidence:** `apps/admin/src/app/(portal)/_actions/expense-approval-issues.ts:45-46,68-69,130-131`; `apps/api/src/app/api/expenses/approve/route.ts:33-67`.
-**Fix:** Add Sentry (or minimally an `onRequestError` per app POSTing to a webhook) before launch — converts every finding below from invisible to pageable.
+**What breaks / condition:** Originally, there was no Sentry/OTel/pino anywhere,
+no `instrumentation-client.ts`, `onRequestError` was unused, and all logging was
+bare `console.*`. Several money-path failures also logged nothing at all
+(expense-approval-issues folded errors into return values; `expenses/approve`
+had no handler try/catch → unlogged 500). During an incident there was no signal
+to page on and no trace to debug. Local remediation on 2026-07-02 adds a
+shared structured `onRequestError` logger and wires it into all four Next apps
+(`web`, `admin`, `api`, `docs`) with sensitive-header redaction. This captures
+uncaught server render/action/route/proxy errors into deploy logs, but it is not
+a full Sentry/OTel integration and does not by itself create paging/retention.
+**Evidence:** `packages/shared/utils/server-error-logging.ts`;
+`packages/shared/utils/server-error-logging.test.ts`;
+`apps/web/src/instrumentation.ts`; `apps/admin/src/instrumentation.ts`;
+`apps/api/src/instrumentation.ts`; `apps/docs/instrumentation.ts`.
+**Fix:** Minimal code remediation complete: keep the structured
+`onRequestError` hook in every app. Before launch, owner/deploy must confirm the
+Appwrite log drain/retention/alerting path or replace the console sink with
+Sentry/OTel so the signal is pageable.
 **Confidence:** CONFIRMED.
-**Status:** open.
+**Status:** minimally code-remediated and locally verified; deploy log
+retention/alerting remains owner/infrastructure work before this is a fully
+operational closure.
 
 ### PR-049 — HIGH — Public homepage dies whole on an Appwrite blip (2 unguarded fetches)
 **Lane refs:** F-4.
-**What breaks / condition:** `getPartners` and `getCampuses` have no try/catch, while sibling `listEvents/listJobs/listNews` gracefully `return []`. One thrown Appwrite error in the homepage render sends the entire page to `(public)/error.tsx` — the graceful degradation built into the other actions never gets a chance.
-**Evidence:** `apps/web/src/app/actions/about.ts:14-16`; `apps/web/src/app/actions/campus.ts:88-111`; `apps/web/src/app/(public)/page.tsx:33,44`.
-**Fix:** Two try/catch-return-[] wrappers.
+**What breaks / condition:** `getPartners` and `getCampuses` had no try/catch,
+while sibling `listEvents/listJobs/listNews` gracefully `return []`. One thrown
+Appwrite error in the homepage render sent the entire page to
+`(public)/error.tsx` — the graceful degradation built into the other actions
+never got a chance. Local remediation on 2026-07-02 wraps both lookups in
+try/catch, logs the failure, and returns `[]`.
+**Evidence:** `apps/web/src/app/actions/about.ts`;
+`apps/web/src/app/actions/about.test.ts`; `apps/web/src/app/actions/campus.ts`;
+`apps/web/src/app/actions/campus.test.ts`.
+**Fix:** Code-remediated locally with two try/catch-return-[] wrappers.
 **Confidence:** CONFIRMED.
-**Status:** open.
+**Status:** code-remediated and locally verified.
 
 ### PR-050 — HIGH — Every member's page view makes a synchronous, timeout-less 24SO SOAP call
 **Lane refs:** F-5.

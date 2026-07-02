@@ -11,12 +11,13 @@ volume and real failure conditions. The PR-032 unauthenticated client-amount
 checkout hole and the PR-033/PR-015/PR-017/PR-034 permission/provisioning items
 have been code/config-remediated locally, but they still need owner live
 verification after deploy/schema push. The remaining money-path failure-mode
-gaps still block launch. Several ways remain for the site
-to go fully down when a single upstream is slow, and effectively **no way to see
-any of it happen** (no error tracking). None of these are exotic — they trigger
-on ordinary launch-week conditions: a Vipps slowdown, an Appwrite hiccup, a
-mobile buyer who doesn't return to the site, a popular product near sell-out, or
-a curious user with a browser console.
+gaps still block launch. Several ways remain for the site to go fully down when
+a single upstream is slow. PR-048 now adds minimal structured `onRequestError`
+server logs in every Next app, but launch-week visibility still depends on a
+real deploy log drain/retention/alerting path or a Sentry/OTel sink. None of
+these are exotic — they trigger on ordinary launch-week conditions: a Vipps
+slowdown, an Appwrite hiccup, a mobile buyer who doesn't return to the site, a
+popular product near sell-out, or a curious user with a browser console.
 
 The good news: the hardest-engineered flow (expense approval/posting) is genuinely
 solid and is the correct model for fixing the order pipeline, the Vipps webhook
@@ -56,8 +57,8 @@ fix-before-launch-or-immediately-after, with monitoring in place either way.
 - **PR-046** — node-appwrite has **no request timeout** and rebuilds its connection pool every call (205+ sites). A slow self-hosted Appwrite hangs every in-flight render. This is the single biggest availability risk.
 - **PR-047** — the Vipps checkout chain (web action → api route → SDK) has **no deadline at any hop**. Vipps slowness freezes checkout indefinitely.
 - **PR-050** — every public page view by a logged-in member fires a **synchronous, timeout-less 24SevenOffice SOAP call** (the membership cookie cache can't be written from RSC render). 24SO slow = whole site slow for members.
-- **PR-049** — two unguarded fetches (`getPartners`, `getCampuses`) send the **entire public homepage** to the error page on any Appwrite blip, while every sibling fetch degrades gracefully.
-- **PR-048** — **zero error tracking / structured logging.** Every failure below is invisible in production. This is an operational blocker: launch week would be blind. Add Sentry (or at minimum `onRequestError`) first — it converts every other finding from "silent" to "pageable."
+- **PR-049** — two unguarded homepage fetches (`getPartners`, `getCampuses`) are now code-remediated locally with the sibling graceful-degradation pattern (`return []` on Appwrite failure).
+- **PR-048** — minimal structured `onRequestError` server logging is now code-remediated in all four Next apps, with sensitive-header redaction. This improves production forensics but is not yet external error tracking; owner/deploy still needs log retention/alerting or Sentry/OTel to make incidents pageable.
 
 **Money-path integrity (Vipps live):**
 - **PR-039** — Finago (24SO) revenue posting happens **only** on the unauthenticated return route, with a non-atomic sentinel that clears on unknown outcomes, and the `finago_transaction_id`/`finago_account_number` columns appear **absent from the schema config**. Duplicate or omitted ledger entries; mobile buyers who never return produce **no ledger entry ever**. (Column existence is an owner live-check — if absent, this is its own blocker.)
@@ -117,9 +118,11 @@ see `05-OWNER-ACTIONS.md` for the full list. The highest-priority live checks:
 5. **Do not enable `expenses_ledger_posting`** until PR-034 live verification is complete.
 
 **Should close before launch (or launch with monitoring + a rollback plan):**
-6. PR-048 — add error tracking (unblocks visibility into everything else).
+6. PR-048 — minimal `onRequestError` logging is code-remediated; connect deploy
+   logs to retention/alerting or replace the sink with Sentry/OTel.
 7. PR-046 / PR-047 / PR-050 — add timeouts to Appwrite, the Vipps chain, and 24SO SOAP; treat 24SO as enrichment, not a render dependency.
-8. PR-049 — wrap `getPartners`/`getCampuses` in the graceful-degradation pattern the siblings already use.
+8. PR-049 — code-remediated locally; keep the graceful-degradation tests in
+   place and verify after deploy with the rest of the web smoke.
 9. PR-039 / PR-038 / PR-035 / PR-036 / PR-037 — move Finago posting off the return-route-only path, add a reconciliation cron, make stock adjustment atomic (copy the expense claim-lock pattern), fix the last-units and reservation-cleanup bugs.
 10. PR-058 — implement an offboarding hook (disable + delete sessions + prune memberships).
 

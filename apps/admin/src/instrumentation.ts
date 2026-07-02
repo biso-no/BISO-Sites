@@ -8,6 +8,9 @@
  * checks run for the dev server and the production runtime.
  */
 
+import { logServerRequestError } from "@repo/shared/utils/server-error-logging";
+import type { Instrumentation } from "next";
+
 const EXPECTED_SESSION_COOKIE = "a_session_biso_admin";
 
 // Vars the admin app genuinely cannot function without.
@@ -59,3 +62,16 @@ export function register() {
     );
   }
 }
+
+export const onRequestError: Instrumentation.onRequestError = (
+  error,
+  request,
+  context
+) => {
+  logServerRequestError({
+    app: "admin",
+    context,
+    error,
+    request,
+  });
+};

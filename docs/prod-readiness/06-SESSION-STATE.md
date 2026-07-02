@@ -14,15 +14,19 @@ ending, not after. This is the first file the next session should read.*
   (security/authz), **S04-partial** (types/lint/dead-code; gates `A3`/`A4`
   still `⬜`), and **S05–S09** (runtime behaviour) are all done.
 - **87 findings logged (`PR-001`–`PR-087`).** `PR-032` was already
-  code-remediated locally; this session code/config-remediated `PR-033`,
-  `PR-015`, `PR-017`, and `PR-034`. Remaining blocker work is owner live
-  verification: Appwrite permissions/schema push, Azure tenant test user/group
-  assignment, checkout smoke, and expense approval/posting smoke. Keep
-  `expenses_ledger_posting` OFF until that live verification is complete.
+  code-remediated locally; the follow-up remediation code/config-remediated
+  `PR-033`, `PR-015`, `PR-017`, and `PR-034`; this session minimally
+  code-remediated `PR-048` with structured `onRequestError` logging in all four
+  Next apps and code-remediated `PR-049`'s homepage Appwrite-blip crash.
+  Remaining blocker work is owner live verification: Appwrite
+  permissions/schema push, Azure tenant test user/group assignment, checkout
+  smoke, and expense approval/posting smoke. Keep `expenses_ledger_posting` OFF
+  until that live verification is complete.
 - **Verdict: NO-GO** for a week of unattended real traffic. Not launchable
   this week without at least closing the remaining blockers, live-smoking
-  PR-032 after deploy, and addressing the observability gap (`PR-048`, no error
-  tracking). Full ordered path in `07-GO-NO-GO.md`.
+  PR-032 after deploy, wiring PR-048's server-error logs to deploy retention /
+  alerting (or Sentry/OTel), and addressing the remaining resilience and
+  money-path gaps. Full ordered path in `07-GO-NO-GO.md`.
 - Previously: 31 findings from S01–S04 (2 blocker: `PR-015`, `PR-017`).
 - The authorization architecture has been documented end-to-end in
   `04-AUTHZ-MODEL.md`: Azure AD security groups → M365 provisioning →
@@ -48,9 +52,12 @@ ending, not after. This is the first file the next session should read.*
    `07-GO-NO-GO.md` §5.
 2. Do not enable `expenses_ledger_posting` until PR-034's deployed Appwrite
    schema and approval/posting smoke path are owner-verified.
-3. Add error tracking (`PR-048` / `O-28`) — highest-leverage operational fix.
+3. Wire PR-048's structured server-error logs to deploy log retention/alerting
+   or a Sentry/OTel sink; local `onRequestError` code is in place.
 4. Address the high-severity resilience + money-path set (`PR-046`–`PR-050`,
    `PR-035`–`PR-039`, `PR-058`–`PR-061`, `PR-075`, `PR-079`).
+   `PR-049` is code-remediated locally; `PR-046`/`PR-047`/`PR-050` remain the
+   highest-priority resilience code fixes.
 5. Complete the live-console owner verifications `O-21`–`O-28` in
    `05-OWNER-ACTIONS.md` (collection permissions, Finago columns, Vipps webhook,
    build env, rate limits) — several could flip a NEEDS-LIVE-CHECK finding's

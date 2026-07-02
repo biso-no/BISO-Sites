@@ -10,6 +10,7 @@
     "check-types": "tsc --noEmit"
   },
   "dependencies": {
+    "@repo/shared": "workspace:*",
     "@repo/ui": "workspace:*",
     "fumadocs-core": "catalog:",
     "fumadocs-mdx": "catalog:",

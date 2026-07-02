@@ -12,12 +12,17 @@ export type Partner = Models.Row & {
 };
 
 export async function getPartners() {
-  const { db } = await createSessionClient();
-  const partners = await db.listRows<Partner>("app", "partners", [
-    Query.equal("level", "national"),
-  ]);
+  try {
+    const { db } = await createSessionClient();
+    const partners = await db.listRows<Partner>("app", "partners", [
+      Query.equal("level", "national"),
+    ]);
 
-  return partners.rows;
+    return partners.rows;
+  } catch (error) {
+    console.error("Failed to fetch partners:", error);
+    return [];
+  }
 }
 
 export async function getOrgChartUrl() {
