@@ -1,0 +1,31 @@
+{
+    "mcpServers": {
+        "codebase-memory-mcp": {
+            "command": "/Users/heien/.local/bin/codebase-memory-mcp"
+        }
+    },
+    "hooks": {
+        "BeforeTool": [
+            {
+                "matcher": "google_search|grep_search",
+                "hooks": [
+                    {
+                        "type": "command",
+                        "command": "echo 'Reminder: prefer codebase-memory-mcp search_graph/trace_path/get_code_snippet over grep/file search for code discovery.' >&2"
+                    }
+                ]
+            }
+        ],
+        "SessionStart": [
+            {
+                "matcher": "startup",
+                "hooks": [
+                    {
+                        "type": "command",
+                        "command": "echo \"Code discovery: prefer codebase-memory-mcp (search_graph, trace_path, get_code_snippet, query_graph, search_code) over grep/file-read; run index_repository first if the project is not indexed.\""
+                    }
+                ]
+            }
+        ]
+    }
+}

@@ -6,6 +6,9 @@ import { inter, museoSans } from "./fonts";
 export const metadata: Metadata = {
   title: "BISO Docs",
   description: "Documentation for BISO Apps",
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_BASE_URL ?? "https://docs.biso.no"
+  ),
   icons: {
     icon: [{ url: "/favicon.ico" }, { url: "/favico.png", type: "image/png" }],
     apple: [{ url: "/apple-touch-icon.png", sizes: "180x180" }],

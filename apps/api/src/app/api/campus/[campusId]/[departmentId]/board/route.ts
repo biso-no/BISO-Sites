@@ -3,6 +3,8 @@ import { createAdminClient } from "@repo/api/server";
 import { createGraphClient } from "@repo/connectors/azure";
 import { NextResponse } from "next/server";
 
+export const maxDuration = 300; // 5 minutes for fetching/buffering images
+
 // Top-level regex for manager/president role detection
 const MANAGER_ROLE_REGEX = /manager|president/i;
 
@@ -116,11 +118,19 @@ export async function GET(
       departmentName = "Operations Unit";
     }
 
+    const azureTenantId = process.env.AZURE_TENANT_ID;
+    const azureAppId = process.env.AZURE_APP_ID;
+    const azureClientSecret = process.env.AZURE_CLIENT_SECRET;
+
+    if (!azureTenantId || !azureAppId || !azureClientSecret) {
+      throw new Error("Missing Azure credentials in environment variables");
+    }
+
     // 2. Initialize Graph Client
     const graphClient = createGraphClient(
-      process.env.AZURE_TENANT_ID!,
-      process.env.AZURE_APP_ID!,
-      process.env.AZURE_CLIENT_SECRET!
+      azureTenantId,
+      azureAppId,
+      azureClientSecret
     );
 
     // 3. Fetch Users using Advanced Query Capabilities (Server-side filtering)

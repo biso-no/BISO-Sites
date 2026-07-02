@@ -132,24 +132,43 @@ export async function syncM365Permissions(userId: string) {
       return;
     }
 
-    const graphResponse = await fetch(
-      "https://graph.microsoft.com/v1.0/me/transitiveMemberOf?$select=id,displayName",
-      {
+    let azureGroups: { id: string; displayName?: string }[] = [];
+    let nextLink: string | null =
+      "https://graph.microsoft.com/v1.0/me/transitiveMemberOf?$select=id,displayName";
+
+    while (nextLink) {
+      const graphResponse = await fetch(nextLink, {
         headers: {
           Authorization: `Bearer ${microsoftIdentity.providerAccessToken}`,
         },
-      }
-    );
+      });
 
-    const graphData = await graphResponse.json();
-    if (!graphResponse.ok) {
-      throw new Error(`Graph Error: ${JSON.stringify(graphData)}`);
+      const graphData = await graphResponse.json();
+      if (!graphResponse.ok) {
+        throw new Error(`Graph Error: ${JSON.stringify(graphData)}`);
+      }
+
+      azureGroups = azureGroups.concat(
+        (graphData.value as { id: string; displayName?: string }[]) || []
+      );
+      nextLink = graphData["@odata.nextLink"] || null;
     }
 
-    const azureGroups =
-      (graphData.value as { id: string; displayName?: string }[]) || [];
     const { teamsToSync } = parseAzureGroups(azureGroups);
+    const expectedTeamIds = new Set(
+      teamsToSync.map((g) => sanitizeTeamId(g.name))
+    );
 
+    // Reconcile: delete Appwrite memberships that are no longer in Azure
+    const currentMemberships = await users.getMemberships(userId);
+    for (const membership of currentMemberships.memberships) {
+      if (!expectedTeamIds.has(membership.teamId)) {
+        // User is in an Appwrite team but not in the corresponding Azure group
+        await teams.deleteMembership(membership.teamId, membership.$id);
+      }
+    }
+
+    // Provision expected teams
     await Promise.all(
       teamsToSync.map((azureGroup) =>
         syncTeamMembership(teams, azureGroup, ["member"], userId)
@@ -157,5 +176,6 @@ export async function syncM365Permissions(userId: string) {
     );
   } catch (error) {
     console.error("M365 Sync Failed:", error);
+    throw error; // PR-077: surface failure so the caller can abort/retry
   }
 }

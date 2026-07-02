@@ -65,10 +65,19 @@ async function buildFinagoItems(order: Orders | null, db: AdminDb) {
       if (!item.product_id) {
         return null;
       }
+      const dbId = process.env.APPWRITE_DATABASE_ID;
+      const colId = process.env.APPWRITE_WEBSHOP_PRODUCTS_COLLECTION_ID;
+
+      if (!dbId || !colId) {
+        throw new Error(
+          "Missing APPWRITE_DATABASE_ID or APPWRITE_WEBSHOP_PRODUCTS_COLLECTION_ID"
+        );
+      }
+
       const product = await db
         .getRow<WebshopProducts & { finago_account_number?: number | null }>(
-          process.env.APPWRITE_DATABASE_ID!,
-          process.env.APPWRITE_WEBSHOP_PRODUCTS_COLLECTION_ID!,
+          dbId,
+          colId,
           item.product_id
         )
         .catch(() => null);

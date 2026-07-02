@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { mapWithConcurrency } from "./concurrency";
+import { mapWithConcurrency } from "@repo/shared/utils/concurrency";
 
 describe("mapWithConcurrency", () => {
   test("maps every item and preserves order", async () => {

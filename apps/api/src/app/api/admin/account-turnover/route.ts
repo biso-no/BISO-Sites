@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createAuditLog, getAdminScope } from "@/lib/admin-auth";
+import { invalidateAppwriteUser } from "./appwrite-invalidation";
 
 // Get webhook URL from environment
 const AZURE_ACCOUNT_TURNOVER_WEBHOOK_URL =
@@ -120,6 +121,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         webhookResponse: responseData,
       },
     });
+
+    if (!dryRun) {
+      await invalidateAppwriteUser(roleMailboxUpn);
+    }
 
     return NextResponse.json({
       success: true,
