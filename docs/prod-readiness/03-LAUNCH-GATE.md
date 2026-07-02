@@ -14,14 +14,16 @@ any session) · ❌ red (verified failing — blocks launch).
 `blocker`-severity findings in `02-FINDINGS.md`. Any single ❌ blocks launch
 outright, no exceptions absent an explicit deferral.
 
-## Current status: NO-GO (reaffirmed after runtime audit S05–S09, 2026-07-02)
+## Current status: NO-GO (reaffirmed after PR-032 code remediation, 2026-07-02)
 
 Gates `C7`, `F5`, and now `D1`/`D2`/`D3` are ❌; the majority remain ⬜; and
-`02-FINDINGS.md` now has **4 open blockers** (`PR-015`, `PR-017`, `PR-032`,
-`PR-033`) plus 1 conditional/gated blocker (`PR-034`). The runtime audit added
-the money-path (`D`) evidence that was previously "planned for S05" and it is
-red, not green. See `07-GO-NO-GO.md` for the full verdict and ordered
-remediation path.
+`02-FINDINGS.md` still has unresolved launch blockers: `PR-015`, `PR-017`, and
+`PR-033`, plus `PR-032` pending owner live smoke after local code remediation,
+and 1 conditional/gated blocker (`PR-034`). The runtime audit added the
+money-path (`D`) evidence that was previously "planned for S05" and it remains
+red because reconciliation, stock, reservation cleanup, and accounting gaps are
+still open. See `07-GO-NO-GO.md` for the full verdict and ordered remediation
+path.
 
 ---
 
@@ -55,14 +57,14 @@ remediation path.
 | C4 | Appwrite collection-level `$permissions` follow least-privilege, consistent with the role model | ⬜ | S03: 31 of 82 tables found over-permissive (PR-017, blocker). Cannot be marked green while PR-017 is open. |
 | C5 | CORS / proxy layer is correctly scoped (no unintended cross-origin exposure) | ✅ | S03 confirmed `apps/api/src/proxy.ts` is intentionally CORS-only (handles preflight, applies CORS headers) and does not itself gate authentication — matches its documented intent, not a bypass. |
 | C6 | Webhook signature verification enforced on all payment/bot callbacks (Vipps, Stripe, Bot Framework) | ✅ | S05 verified Vipps HMAC (raw body, `POST\n<pathAndQuery>\n<date>;<host>;<contentSha256>`, constant-time compare) and Stripe SDK verification (raw body, 300s tolerance) directly in code — both correct. Note the *authenticity* is sound; the availability/idempotency issues around them are separate findings (PR-038/PR-039). |
-| C7 | JWT/authentication enforced on every admin-scoped and money-moving API route | ❌ | **Red — worsened by S05.** The payment checkout route (`apps/api/.../payment/[provider]/checkout`) has **no authentication at all** and trusts a client-supplied amount (PR-032, blocker). Admin-route JWT enforcement from S03 (PR-026) also remains unverified. Cannot move off ❌ until PR-032 is fixed and the admin-route pass is completed. |
+| C7 | JWT/authentication enforced on every admin-scoped and money-moving API route | ❌ | **Red.** PR-032 has been code-remediated locally: checkout now requires an Appwrite JWT, derives `userId` from `account.get()`, recomputes trusted totals, and rejects mismatches; targeted route tests plus api/web typecheck/lint pass. Gate remains ❌ until owner live smoke verifies the deployed checkout flow and the admin-route JWT pass from S03 (PR-026) is completed. |
 
 ## D — Money path / payments (4 gates)
 
 | Gate | Description | Status | Evidence |
 |------|-------------|--------|----------|
 | D1 | Vipps webhook HMAC signature verification is correct and enforced | ✅ | S05 verified the HMAC scheme, raw-body handling, content-hash pre-check, and constant-time compare directly in `packages/payment/src/vipps/webhook.ts` + callback route. Correct. (Missing timestamp-freshness check PR-042 is low-risk by design.) |
-| D2 | Payment checkout → webhook → return flow handles all failure modes without silent data loss | ❌ | **Red.** S05 found: unauthenticated checkout with client-supplied amount (PR-032, blocker); no reconciliation sweep for captured-but-diverged/webhook-dead orders (PR-038); non-atomic stock decrement race across 3 entry points (PR-035); reservation cleanup fails silently on every paid order (PR-037). Multiple silent-data-loss paths confirmed. |
+| D2 | Payment checkout → webhook → return flow handles all failure modes without silent data loss | ❌ | **Red.** PR-032's unauthenticated client-amount checkout has been code-remediated locally, pending owner live smoke. The gate remains red because no reconciliation sweep exists for captured-but-diverged/webhook-dead orders (PR-038), stock decrement is non-atomic across 3 entry points (PR-035), and reservation cleanup fails silently on every paid order (PR-037). |
 | D3 | Accounting/reconciliation fields (e.g. Finago account number) are always populated or the failure is loud, not silent | ❌ | **Red.** S05: Finago posting happens only on the unauthenticated return route with a non-atomic sentinel; `finago_transaction_id`/`finago_account_number` columns appear absent from schema config; mobile buyers who don't return produce no ledger entry ever (PR-039). Failure is silent, not loud. Owner must confirm column existence live. |
 | D4 | Stripe/Vipps credentials are correctly scoped per environment (no prod creds in staging or vice versa) | ⬜ | S05 found the resolution logic falls back to env creds on *any* error (not just 404) and mode/secret can diverge between checkout and webhook verify (PR-041); actual per-env console/portal state is owner-only (`O-21`..`O-24`). Vipps is live at launch; Stripe checkout is OFF. |
 

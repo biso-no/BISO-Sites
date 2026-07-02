@@ -600,13 +600,25 @@ verified directly in code are marked **VERIFIED-IN-CODE**; others carry the
 lane's stated confidence and are pending orchestrator verification.
 
 ### PR-032 — BLOCKER — Unauthenticated checkout endpoint charges a client-supplied amount (Vipps live at launch)
-**VERIFIED-IN-CODE (orchestrator).** Lane refs: N-1 open-question, payments lane.
+**VERIFIED-IN-CODE (orchestrator). CODE-REMEDIATED 2026-07-02, pending owner live smoke.** Lane refs: N-1 open-question, payments lane.
 **App:** `apps/api` (public JWT REST service; base URL is `NEXT_PUBLIC_API_BASE_URL`, so the endpoint URL is public knowledge).
 **What breaks / production condition:** `POST /api/payment/vipps/checkout` (and `/stripe/`) has **no user authentication** — it uses `createAdminClient()` and reads `userId` from the request body. Its only gates are (1) the `payments_vipps` feature flag (defaults **ON** — live at launch) and (2) `applyCorsHeaders`, which is **not a gate**: `apps/api/src/lib/cors.ts:4-24` only *sets* response headers and never rejects a request, so any non-browser client (curl/script) is unaffected. The charged amount comes straight from the client: `route.ts:33,54` puts `body.total` into `CheckoutSessionParams.total`; `createOrder` persists it verbatim (`packages/shared/utils/vipps-order-ops.ts:74-76`, `total: params.total`); `startVippsCheckout` charges `order.total ?? params.total` (`route.ts:101-105`). **No code between the HTTP boundary and the Vipps charge recomputes the amount from trusted product/price data.** An attacker POSTs `{items:[<real product>], total: 1, userId:<any>, reference:<any>, customerInfo:{email}}`, pays 1 NOK in Vipps, the order is marked paid on webhook, and fulfillment (membership grant / product) proceeds on the item list — goods/entitlements for arbitrary underpayment.
 **Evidence:** `apps/api/src/app/api/payment/[provider]/checkout/route.ts:19-73,97-105,136-176`; `apps/api/src/lib/cors.ts:4-24`; `packages/shared/utils/vipps-order-ops.ts:54-95`.
 **Blast radius:** Direct financial fraud on the live money path — every product and membership purchasable at any price; also lets a caller attribute paid orders to arbitrary `userId`s. Revenue loss + accounting integrity.
-**Fix:** On the server, recompute `subtotal`/`total` from authoritative product rows (look up each `items[].productId` price in Appwrite, apply server-verified member discount) and reject if the client total disagrees; require an authenticated caller (verify the Appwrite JWT / session and derive `userId` from it, not the body); do not treat CORS as authorization. Until fixed, this is a hard launch blocker for the Vipps path.
-**Status:** open.
+**Fix:** Implemented in `apps/api/src/app/api/payment/[provider]/checkout/route.ts`
+and `apps/web/src/app/actions/orders.ts`: the web checkout action now creates an
+Appwrite JWT and sends raw cart selectors; the API route rejects missing/invalid
+JWTs, derives `userId` from `account.get()`, loads trusted `webshop_products`
+rows, recomputes line prices/discounts server-side, and rejects client/server
+total mismatches before `createOrder()` or provider checkout. CORS remains
+response-header-only, not authorization.
+**Verification:** Targeted regression test added at
+`apps/api/src/app/api/payment/[provider]/checkout/route.test.ts` covering missing
+bearer, invalid JWT, spoofed `userId`, total mismatch, and trusted Vipps amount.
+Local checks passed: targeted route test, `apps/api` typecheck/lint, `apps/web`
+typecheck/lint. Owner still needs a live Appwrite/Vipps smoke test after deploy.
+**Status:** code-remediated and locally verified; not marked fully closed until
+owner live smoke confirms the deployed Appwrite/API/Vipps flow.
 
 ### PR-033 — BLOCKER — `orders` collection grants `create("any")` → forged paid orders
 **Lane refs:** P-5. Concrete instance of PR-017.
@@ -1061,11 +1073,13 @@ lane's stated confidence and are pending orchestrator verification.
 
 Total: 87 findings (PR-001–PR-087).
 
-**Blockers now number 4** — PR-015 (M365 group assignment), PR-017 (over-permissive
-collection CREATE grants), PR-032 (unauthenticated checkout charges client amount),
-PR-033 (`orders` `create("any")` → forged paid orders). **PR-034** is a *conditional/gated
-blocker*: forged pre-approved expense payouts, live only if `expenses_ledger_posting`
-is enabled (defaults OFF) — a hard gate before that flag is turned on.
+**Blockers now number 4 by severity classification**, but PR-032 has been
+code-remediated locally and is pending owner live smoke before full closure.
+The remaining live open blockers are PR-015 (M365 group assignment), PR-017
+(over-permissive collection CREATE grants), and PR-033 (`orders` `create("any")`
+→ forged paid orders). **PR-034** is a *conditional/gated blocker*: forged
+pre-approved expense payouts, live only if `expenses_ledger_posting` is enabled
+(defaults OFF) — a hard gate before that flag is turned on.
 
 Severity notes: `HIGH (BLOCKER-if-enabled)` PR-034 is counted as high; the
 `MEDIUM-HIGH` (PR-051) is counted as medium; the `LOW-MEDIUM` items (PR-056,

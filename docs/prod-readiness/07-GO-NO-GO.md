@@ -7,12 +7,15 @@ plus the S01–S04 findings. Finding IDs reference `02-FINDINGS.md`._
 ## Verdict: **NO-GO** for a week of unattended real traffic
 
 The platform is **not yet safe to run for a week straight** under real payment
-volume and real failure conditions. There is one newly-confirmed way to take
-money fraudulently, several ways the site goes fully down when a single upstream
-is slow, and effectively **no way to see any of it happen** (no error tracking).
-None of these are exotic — they trigger on ordinary launch-week conditions: a
-Vipps slowdown, an Appwrite hiccup, a mobile buyer who doesn't return to the
-site, a popular product near sell-out, or a curious user with a browser console.
+volume and real failure conditions. The PR-032 unauthenticated client-amount
+checkout hole has been code-remediated locally, but it still needs owner live
+smoke after deploy, and the remaining permission/provisioning blockers plus the
+money-path failure-mode gaps still block launch. Several ways remain for the site
+to go fully down when a single upstream is slow, and effectively **no way to see
+any of it happen** (no error tracking). None of these are exotic — they trigger
+on ordinary launch-week conditions: a Vipps slowdown, an Appwrite hiccup, a
+mobile buyer who doesn't return to the site, a popular product near sell-out, or
+a curious user with a browser console.
 
 The good news: the hardest-engineered flow (expense approval/posting) is genuinely
 solid and is the correct model for fixing the order pipeline, the Vipps webhook
@@ -31,13 +34,14 @@ they pass.
 
 | # | ID | Blocker | Why it blocks | Verified |
 |---|----|---------|---------------|----------|
-| 1 | **PR-032** | Checkout API takes a **client-supplied amount with no authentication** | `POST /api/payment/{provider}/checkout` uses the admin client, reads `userId` from the body, and charges `body.total` with no server-side price recomputation. CORS is not a gate. Anyone POSTs a real product with `total: 1`, pays 1 NOK, gets fulfilled. Vipps is **live** at launch. | ✅ in code |
+| 1 | **PR-032** | Checkout API took a **client-supplied amount with no authentication** | **Code-remediated locally 2026-07-02, pending owner live smoke.** Checkout now requires an Appwrite JWT, derives `userId` from `account.get()`, recomputes trusted product totals server-side, and rejects mismatches before order/provider creation. | ✅ local tests/typecheck/lint; live smoke pending |
 | 2 | **PR-033** | `orders` collection grants `create("any")` | Any client with the (public) Appwrite endpoint can insert an order row with `status: "paid"` and arbitrary `total`/`items`. Forged paid orders pollute accounting + purchase limits. The legit flow uses the admin client, so the grant is **safe to remove**. | ✅ in code |
 | 3 | **PR-015** | M365 user provisioning never assigns Azure security-group membership | Pre-existing (S03). A newly-provisioned user lands with **zero authorization** — the whole role chain depends on group membership that is never written. | ✅ (S03) |
 | 4 | **PR-017** | 31 of 82 Appwrite collections grant over-permissive `create()` | Pre-existing (S03). Document-level permissions are load-bearing because collection grants are wide open. PR-033 and PR-034 are concrete money exploits of this exact gap. | ✅ (S03) |
 | — | **PR-034** | Forged pre-"approved" expense payouts (**conditional blocker**) | `expense`/`expense_attachments` grant `create("users")`; a logged-in student can create an expense row with `status: "approved"` and their own `bank_account`, and the payout cron never verifies an approval chain — it trusts the row's status. **Gated by `expenses_ledger_posting`, which defaults OFF.** Not launch-live, but a **hard gate: do not enable that flag** until the create grant is removed and `postApprovedExpense` verifies the `expense_approvals` chain. | ✅ in code |
 
-**Blocker count: 4 live (PR-032, PR-033, PR-015, PR-017) + 1 conditional (PR-034).**
+**Blocker count: 3 live open (PR-033, PR-015, PR-017) + PR-032 pending owner
+live smoke after local code remediation + 1 conditional (PR-034).**
 
 ---
 
@@ -105,7 +109,7 @@ see `05-OWNER-ACTIONS.md` for the full list. The highest-priority live checks:
 ## 5. Minimum path to GO
 
 **Must close (launch blockers):**
-1. PR-032 — authenticate the checkout route and recompute the amount server-side from product rows; reject client/server mismatch.
+1. PR-032 — code-remediated locally; deploy and owner-smoke the authenticated checkout route against live Appwrite/Vipps before marking closed.
 2. PR-033 — remove `create("any")` from `orders` (safe — legit flow uses the admin client).
 3. PR-015 — assign Azure security-group membership during M365 provisioning.
 4. PR-017 — tighten the 31 over-permissive collections to least-privilege (this also closes PR-033/PR-034's root cause).

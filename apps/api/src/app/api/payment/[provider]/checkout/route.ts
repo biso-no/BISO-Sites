@@ -1,4 +1,9 @@
 import { createAdminClient } from "@repo/api/server";
+import type {
+  ContentTranslations,
+  Users,
+  WebshopProducts,
+} from "@repo/api/types/appwrite";
 import {
   resolveStripeCredentials,
   resolveVippsCredentials,
@@ -12,12 +17,12 @@ import {
   updateOrderWithSession,
 } from "@repo/shared/utils/vipps-order-ops";
 import { type NextRequest, NextResponse } from "next/server";
+import { createAuthenticatedClient } from "@/lib/auth";
 import { applyCorsHeaders, corsPreflightResponse } from "@/lib/cors";
 
 type Provider = "vipps" | "stripe";
 
 interface CheckoutBody {
-  campusId?: string;
   currency: "NOK";
   customerInfo: {
     firstName?: string;
@@ -25,15 +30,36 @@ interface CheckoutBody {
     email: string;
     phone?: string;
   };
-  discountTotal?: number;
-  items: CheckoutSessionParams["items"];
-  memberDiscountPercent?: number;
-  membershipApplied?: boolean;
+  items: CheckoutLineItemInput[];
   reference: string;
   subtotal: number;
   total: number;
-  userId: string;
 }
+
+interface CheckoutLineItemInput {
+  customFieldLabels?: Record<string, string>;
+  customFields?: Record<string, string>;
+  productId: string;
+  quantity: number;
+  slug?: string;
+  title?: string;
+  variationId?: string;
+}
+
+interface ProductVariation {
+  id?: string;
+  name?: string;
+  price_modifier?: number;
+}
+
+interface NormalizedProduct extends WebshopProducts {
+  metadata_parsed: Record<string, unknown>;
+  title: string;
+  variations?: ProductVariation[];
+}
+
+type CheckoutDb = Awaited<ReturnType<typeof createAdminClient>>["db"];
+type AuthenticatedClient = Awaited<ReturnType<typeof createAuthenticatedClient>>;
 
 function isProvider(value: string): value is Provider {
   return value === "vipps" || value === "stripe";
@@ -45,34 +71,18 @@ function webBaseUrl(): string | undefined {
   );
 }
 
-function toCheckoutParams(body: CheckoutBody): CheckoutSessionParams {
-  return {
-    userId: body.userId,
-    items: body.items,
-    subtotal: body.subtotal,
-    discountTotal: body.discountTotal,
-    total: body.total,
-    reference: body.reference,
-    currency: Currency.NOK,
-    membershipApplied: body.membershipApplied,
-    memberDiscountPercent: body.memberDiscountPercent,
-    campusId: body.campusId,
-    customerInfo: body.customerInfo,
-  };
-}
-
 function isValidBody(body: CheckoutBody | null): body is CheckoutBody {
   return Boolean(
-    body?.userId &&
+    body &&
+      body.currency === "NOK" &&
       Array.isArray(body.items) &&
       body.items.length > 0 &&
       typeof body.total === "number" &&
+      Number.isFinite(body.total) &&
       body.reference &&
       body.customerInfo?.email
   );
 }
-
-type CheckoutDb = Awaited<ReturnType<typeof createAdminClient>>["db"];
 
 type SessionOutcome =
   | {
@@ -81,6 +91,259 @@ type SessionOutcome =
       session: { checkoutUrl: string; sessionId: string };
     }
   | { ok: false; message: string; status: number };
+
+function hasBearerToken(req: NextRequest): boolean {
+  return req.headers.get("authorization")?.startsWith("Bearer ") ?? false;
+}
+
+async function authenticateCheckout(req: NextRequest) {
+  if (!hasBearerToken(req)) {
+    return null;
+  }
+  try {
+    const client = await createAuthenticatedClient(req);
+    const user = await client.account.get();
+    return user?.$id ? { client, userId: user.$id } : null;
+  } catch {
+    return null;
+  }
+}
+
+function getRequiredEnv(name: string): string {
+  const value = process.env[name];
+  if (!value) {
+    throw new Error(`${name} is not configured`);
+  }
+  return value;
+}
+
+function sanitizeCartItems(items: CheckoutLineItemInput[]) {
+  return items
+    .map((item) => ({
+      ...item,
+      quantity: Math.max(1, Math.floor(Number(item.quantity) || 0)),
+    }))
+    .filter((item) => item.productId && item.quantity > 0);
+}
+
+function parseProductMetadata(metadataString: string | null | undefined) {
+  if (!metadataString) {
+    return {};
+  }
+  try {
+    const parsed = JSON.parse(metadataString);
+    return parsed && typeof parsed === "object"
+      ? (parsed as Record<string, unknown>)
+      : {};
+  } catch {
+    return {};
+  }
+}
+
+function productTitle(product: WebshopProducts) {
+  const translation = Array.isArray(product.translation_refs)
+    ? (product.translation_refs.find(
+        (item): item is ContentTranslations =>
+          typeof item === "object" && item !== null && "title" in item
+      ) ?? null)
+    : null;
+  return translation?.title ?? product.slug;
+}
+
+async function loadProduct(
+  productId: string,
+  db: CheckoutDb,
+  cache: Map<string, NormalizedProduct>
+) {
+  const cached = cache.get(productId);
+  if (cached) {
+    return cached;
+  }
+
+  const product = await db.getRow<WebshopProducts>(
+    getRequiredEnv("APPWRITE_DATABASE_ID"),
+    getRequiredEnv("APPWRITE_WEBSHOP_PRODUCTS_COLLECTION_ID"),
+    productId
+  );
+  const metadataParsed = parseProductMetadata(product.metadata);
+  const normalizedProduct: NormalizedProduct = {
+    ...product,
+    metadata_parsed: metadataParsed,
+    title: productTitle(product),
+    variations: Array.isArray(metadataParsed.variations)
+      ? (metadataParsed.variations as ProductVariation[])
+      : undefined,
+  };
+  cache.set(productId, normalizedProduct);
+  return normalizedProduct;
+}
+
+function findVariation(product: NormalizedProduct, variationId?: string) {
+  if (!variationId) {
+    return;
+  }
+  return product.variations?.find((variant) => variant.id === variationId);
+}
+
+async function getMemberDiscountIfAny(
+  product: NormalizedProduct,
+  authClient: AuthenticatedClient,
+  userId: string
+) {
+  if (
+    !(
+      product.metadata_parsed.member_discount_enabled &&
+      product.metadata_parsed.member_discount_percent
+    )
+  ) {
+    return { applied: false, percent: 0 };
+  }
+
+  try {
+    const profile = await authClient.db.getRow<Users>("app", "user", userId);
+    const studentId = profile?.studentId?.student_id;
+    if (!studentId) {
+      return { applied: false, percent: 0 };
+    }
+
+    const exec = await authClient.functions.createExecution(
+      "verify_biso_membership",
+      String(studentId),
+      false
+    );
+    const res = JSON.parse(
+      (exec as { responseBody?: string }).responseBody || "{}"
+    );
+    const isActive = Boolean(res?.membership?.status);
+    if (!isActive) {
+      return { applied: false, percent: 0 };
+    }
+
+    return {
+      applied: true,
+      percent: Number(product.metadata_parsed.member_discount_percent) || 0,
+    };
+  } catch {
+    return { applied: false, percent: 0 };
+  }
+}
+
+async function resolvePricing(
+  product: NormalizedProduct,
+  variation: ProductVariation | undefined,
+  discountCache: Map<string, { applied: boolean; percent: number }>,
+  authClient: AuthenticatedClient,
+  userId: string
+) {
+  const basePrice = Number(product.regular_price || 0);
+  const variationModifier = Number(variation?.price_modifier || 0);
+  const originalUnit = Math.max(0, basePrice + variationModifier);
+  const discount =
+    discountCache.get(product.$id) ||
+    (await getMemberDiscountIfAny(product, authClient, userId));
+  discountCache.set(product.$id, discount);
+
+  const discountedUnit = discount.applied
+    ? Math.max(0, originalUnit * (1 - discount.percent / 100))
+    : originalUnit;
+
+  return {
+    discountApplied: discount.applied,
+    discountPercent: discount.percent || 0,
+    discountedUnit,
+    originalUnit,
+  };
+}
+
+async function buildTrustedCheckoutParams({
+  authClient,
+  body,
+  db,
+  userId,
+}: {
+  authClient: AuthenticatedClient;
+  body: CheckoutBody;
+  db: CheckoutDb;
+  userId: string;
+}): Promise<CheckoutSessionParams> {
+  const sanitizedItems = sanitizeCartItems(body.items);
+  if (sanitizedItems.length === 0) {
+    throw new Error("Invalid checkout payload");
+  }
+
+  const productCache = new Map<string, NormalizedProduct>();
+  const discountCache = new Map<
+    string,
+    { applied: boolean; percent: number }
+  >();
+  const trustedItems: CheckoutSessionParams["items"] = [];
+  const campusIds = new Set<string>();
+
+  let subtotal = 0;
+  let originalTotal = 0;
+  let membershipApplied = false;
+  let maxDiscountPercent = 0;
+
+  for (const input of sanitizedItems) {
+    const product = await loadProduct(input.productId, db, productCache);
+    if (!Number(product.regular_price)) {
+      throw new Error(
+        `Product ${product.title || product.slug} is missing a price.`
+      );
+    }
+    const variation = findVariation(product, input.variationId);
+    const pricing = await resolvePricing(
+      product,
+      variation,
+      discountCache,
+      authClient,
+      userId
+    );
+
+    trustedItems.push({
+      name: product.title || product.slug || product.$id,
+      price: pricing.discountedUnit,
+      productId: product.$id,
+      quantity: input.quantity,
+      title: product.title,
+      unit_price: pricing.discountedUnit,
+    });
+
+    subtotal += pricing.discountedUnit * input.quantity;
+    originalTotal += pricing.originalUnit * input.quantity;
+    if (product.campus_id) {
+      campusIds.add(product.campus_id);
+    }
+    if (pricing.discountApplied) {
+      membershipApplied = true;
+      maxDiscountPercent = Math.max(
+        maxDiscountPercent,
+        pricing.discountPercent
+      );
+    }
+  }
+
+  const discountTotal = Math.max(0, originalTotal - subtotal);
+  return {
+    userId,
+    items: trustedItems,
+    subtotal,
+    discountTotal: discountTotal || undefined,
+    total: subtotal,
+    reference: body.reference,
+    currency: Currency.NOK,
+    membershipApplied,
+    memberDiscountPercent: membershipApplied
+      ? maxDiscountPercent
+      : undefined,
+    campusId: campusIds.size === 1 ? Array.from(campusIds)[0] : undefined,
+    customerInfo: body.customerInfo,
+  };
+}
+
+function totalsMatch(clientTotal: number, serverTotal: number): boolean {
+  return Math.round(clientTotal * 100) === Math.round(serverTotal * 100);
+}
 
 // Resolve credentials before creating the order so a misconfigured provider
 // doesn't leave an orphan PENDING order.
@@ -148,6 +411,11 @@ export async function POST(
       return json({ message: "Unknown payment provider" }, 404);
     }
 
+    const auth = await authenticateCheckout(req);
+    if (!auth) {
+      return json({ message: "Authentication required" }, 401);
+    }
+
     // Availability kill switch (Phase A/B). Separate from credential config.
     const flagKey = provider === "vipps" ? "payments_vipps" : "payments_stripe";
     if (!(await isFeatureEnabled(flagKey))) {
@@ -168,7 +436,15 @@ export async function POST(
     }
 
     const { db } = await createAdminClient();
-    const params = toCheckoutParams(body);
+    const params = await buildTrustedCheckoutParams({
+      authClient: auth.client,
+      body,
+      db,
+      userId: auth.userId,
+    });
+    if (!totalsMatch(body.total, params.total)) {
+      return json({ message: "Checkout total mismatch" }, 400);
+    }
 
     const outcome =
       provider === "vipps"

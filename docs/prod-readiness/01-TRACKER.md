@@ -21,8 +21,8 @@
 **Findings tally:** 87 findings logged (PR-001–PR-087). S01–S04: 31 (2 blocker,
 7 high, 10 medium, 12 low). S05–S09 runtime: 56 more (2 blocker + 1 gated, and
 the high/medium/low split per `02-FINDINGS.md`'s tally table, which is the
-authoritative per-ID breakdown). **Open blockers: 4 (PR-015, PR-017, PR-032,
-PR-033) + 1 gated (PR-034).**
+authoritative per-ID breakdown). **Open blockers: 3 (PR-015, PR-017, PR-033) +
+PR-032 pending owner live smoke after local code remediation + 1 gated (PR-034).**
 
 ## Blockers board
 
@@ -35,14 +35,15 @@ specifically — blockers cannot be waived, only fixed) before go-live.
 |----|-------|-------------|--------|
 | PR-015 | M365 user-creation never assigns Azure security-group membership — new admin users get zero Appwrite team membership and therefore zero authorization on first sign-in. | `apps/admin` (`_actions/it-users.ts`, `lib/m365-sync.ts`) | open |
 | PR-017 | 31 of 82 Appwrite collections grant `create("users")` or `create("any")` — including unauthenticated `create("any")` on `orders`, `cart_reservations`, `approval_requests` — making document-level row permissions the sole (and previously unintended) enforcement layer. | `packages/api/appwrite.config.json` (schema, whole repo impact) | open |
-| PR-032 | Checkout API charges a **client-supplied amount with no authentication** — `POST /api/payment/{provider}/checkout` uses the admin client, reads `userId` from the body, and charges `body.total` with no server-side price recomputation; CORS is not a gate. Vipps is live at launch. VERIFIED IN CODE. | `apps/api` (payment checkout route), `packages/shared/utils/vipps-order-ops.ts` | open |
+| PR-032 | Checkout API charged a **client-supplied amount with no authentication**. Code remediation now requires an Appwrite JWT, derives `userId` from `account.get()`, recomputes trusted product totals server-side, and rejects mismatches before order/provider creation. | `apps/api` (payment checkout route), `apps/web` checkout action | code-remediated locally; owner live smoke pending |
 | PR-033 | `orders` collection grants `create("any")` → any client can forge a `status:"paid"` order with arbitrary amount/items. Concrete instance of PR-017; legit flow uses the admin client so the grant is safe to remove. VERIFIED IN CODE. | `packages/api/appwrite.config.json` | open |
 | PR-034 (gated) | Forged pre-"approved" expense payouts: `expense`/`expense_attachments` grant `create("users")` and the payout cron never verifies an approval chain. **Latent — gated by `expenses_ledger_posting` (default OFF).** Hard gate: do not enable that flag until fixed. | `apps/api` (expense-posting), `packages/api/appwrite.config.json` | open |
 
 See `02-FINDINGS.md` for full evidence and recommended fixes, `03-LAUNCH-GATE.md`
 (gates `F5`/`C7`/`D2`/`D3` red), and `07-GO-NO-GO.md` for the ordered verdict.
-**4 live blockers + 1 gated.** Note PR-032/PR-033/PR-034 are all downstream of
-the same over-permissive-permissions + trust-the-client root cause as PR-017.
+**3 live open blockers + PR-032 live-smoke-pending + 1 gated.** Note
+PR-033/PR-034 remain downstream of the same over-permissive-permissions +
+trust-the-client root cause as PR-017.
 
 ## Session-end checklist (for every future session)
 

@@ -457,29 +457,18 @@ function createCheckoutReference() {
 }
 
 async function createProviderCheckoutSession({
+  jwt,
   provider,
   payload,
 }: {
+  jwt: string;
   provider: PaymentProvider;
   payload: {
-    userId: string;
-    items: Array<{
-      productId: string;
-      name: string;
-      price: number;
-      quantity: number;
-      title?: string;
-      unit_price?: number;
-      category?: string;
-    }>;
+    items: CheckoutLineItemInput[];
     subtotal: number;
-    discountTotal?: number;
     total: number;
     reference: string;
     currency: "NOK";
-    membershipApplied?: boolean;
-    memberDiscountPercent?: number;
-    campusId?: string;
     customerInfo: {
       firstName?: string;
       lastName?: string;
@@ -499,6 +488,7 @@ async function createProviderCheckoutSession({
     {
       method: "POST",
       headers: {
+        Authorization: `Bearer ${jwt}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify(payload),
@@ -541,45 +531,30 @@ export async function createCartCheckoutSession(
 
     // Resolve the buyer's identity from the Appwrite session. Anonymous
     // sessions (no email, no real name) still have a $id we can use for
-    // per-user purchase-limit enforcement; if even that lookup fails we
-    // fall back to "guest" which disables max_per_user checks.
+    // per-user purchase-limit enforcement and JWT-authenticated API checkout.
     const { account } = await createSessionClient();
     const user = await account.get().catch(() => null);
-    const userId = user?.$id ?? "guest";
+    if (!user?.$id) {
+      throw new Error("A valid checkout session is required.");
+    }
+    const jwt = await account.createJWT().catch(() => null);
+    if (!jwt?.jwt) {
+      throw new Error("A valid checkout session is required.");
+    }
+    const userId = user.$id;
 
-    const {
-      orderItems,
-      subtotal,
-      originalTotal,
-      membershipApplied,
-      maxDiscountPercent,
-      campusIds,
-    } = await buildOrderItems(sanitizedItems, locale, userId);
+    const { subtotal } = await buildOrderItems(sanitizedItems, locale, userId);
 
-    const discountTotal = Math.max(0, originalTotal - subtotal);
     const [firstName, ...lastNameParts] = data.name.trim().split(WHITESPACE_RE);
     const { checkoutUrl, orderId } = await createProviderCheckoutSession({
+      jwt: jwt.jwt,
       provider: data.provider,
       payload: {
-        userId,
-        items: orderItems.map((item) => ({
-          productId: item.product_id,
-          name: item.title || item.product_slug || item.product_id,
-          title: item.title,
-          price: item.unit_price,
-          unit_price: item.unit_price,
-          quantity: item.quantity,
-        })),
+        items: sanitizedItems,
         subtotal,
-        discountTotal: discountTotal || undefined,
         total: subtotal,
         reference: createCheckoutReference(),
         currency: "NOK",
-        membershipApplied,
-        memberDiscountPercent: membershipApplied
-          ? maxDiscountPercent
-          : undefined,
-        campusId: campusIds.size === 1 ? Array.from(campusIds)[0] : undefined,
         customerInfo: {
           firstName: firstName || data.name.trim() || "Guest",
           lastName: lastNameParts.join(" "),
