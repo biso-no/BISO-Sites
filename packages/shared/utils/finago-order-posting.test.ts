@@ -96,7 +96,7 @@ describe("postFinagoTransactionForOrder", () => {
     });
   });
 
-  it("skips without posting when another caller holds the claim", async () => {
+  it("skips without posting and undoes its increment when another caller holds the claim", async () => {
     db.incrementRowColumn.mockResolvedValue({ finago_posting_lock: 2 });
 
     const result = await postFinagoTransactionForOrder("order-1", db);
@@ -104,6 +104,16 @@ describe("postFinagoTransactionForOrder", () => {
     expect(result).toEqual({ posted: false, reason: "claimed_elsewhere" });
     expect(postShopTransaction).not.toHaveBeenCalled();
     expect(db.updateRow).not.toHaveBeenCalled();
+    // The loser undoes its own increment so the lock cannot drift above 1 and
+    // keep the stale-claim sweep from ever recovering a crashed poster.
+    expect(db.decrementRowColumn).toHaveBeenCalledWith({
+      databaseId: "app",
+      tableId: "orders",
+      rowId: "order-1",
+      column: "finago_posting_lock",
+      value: 1,
+      min: 0,
+    });
   });
 
   it("skips orders that already have a Finago transaction", async () => {

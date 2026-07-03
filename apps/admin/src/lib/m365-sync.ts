@@ -14,6 +14,22 @@ interface AzureGroup {
 }
 
 /**
+ * Team ID prefixes owned by Azure group reconciliation. Only memberships whose
+ * team IDs start with one of these are eligible for pruning — Appwrite-only
+ * teams (e.g. `biso-members`) are never touched by the Microsoft sync.
+ */
+const AZURE_SYNCED_TEAM_ID_PREFIXES = [
+  "sg-app-campus-",
+  "sg-app-dept-",
+] as const;
+
+function isAzureSyncedTeamId(teamId: string): boolean {
+  return AZURE_SYNCED_TEAM_ID_PREFIXES.some((prefix) =>
+    teamId.startsWith(prefix)
+  );
+}
+
+/**
  * Derive a deterministic Appwrite team $id from the Azure displayName.
  * Using the lowercased displayName ensures the ID is stable and predictable
  * without needing to store or look up the Azure GUID.
@@ -160,13 +176,18 @@ export async function syncM365Permissions(userId: string) {
       teamsToSync.map((g) => sanitizeTeamId(g.name))
     );
 
-    // Reconcile: delete Appwrite memberships that are no longer in Azure.
+    // Reconcile: delete Azure-synced memberships that are no longer in Azure.
     // Paginated — the default 25-row read would leave stale roles unpruned
-    // for users in many teams (PR-075).
+    // for users in many teams (PR-075). Pruning is restricted to team IDs owned
+    // by Azure group reconciliation so Appwrite-only memberships (e.g.
+    // `biso-members`) survive the sync.
     const currentMemberships = await listAllUserMemberships(users, userId);
     for (const membership of currentMemberships) {
-      if (!expectedTeamIds.has(membership.teamId)) {
-        // User is in an Appwrite team but not in the corresponding Azure group
+      if (
+        isAzureSyncedTeamId(membership.teamId) &&
+        !expectedTeamIds.has(membership.teamId)
+      ) {
+        // User is in an Azure-synced team but not in the corresponding Azure group
         await teams.deleteMembership(membership.teamId, membership.$id);
       }
     }

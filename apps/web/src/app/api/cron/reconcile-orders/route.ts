@@ -106,6 +106,15 @@ async function sweepMissingFinagoPostings(db: AdminDb): Promise<{
         // a still-running poster isn't raced.
         continue;
       }
+      if ((order.finago_posting_lock ?? 0) > 0) {
+        // A live (non-stale) claim is held by an active poster. Do not probe
+        // it: calling postFinagoTransactionForOrder here would touch the row
+        // and refresh $updatedAt every sweep, so a claim left behind by a
+        // crashed poster could never age past STALE_CLAIM_MS and would strand
+        // the paid order unposted. Wait for the holder to finish or for the
+        // stale-claim sweep above to reclaim it.
+        continue;
+      }
       const result = await postFinagoTransactionForOrder(order.$id, db);
       if (result.posted) {
         posted += 1;

@@ -129,6 +129,12 @@ export async function postFinagoTransactionForOrder(
           ? claimed.finago_posting_lock
           : 0;
       if (lockValue !== 1) {
+        // Lost the race. Undo our own increment so the lock reflects only the
+        // in-flight winner (0/1) instead of drifting upward with every loser —
+        // an inflated lock combined with each attempt refreshing $updatedAt
+        // would keep releaseStaleFinagoClaim from ever aging out a crashed
+        // claim, stranding the paid order unposted.
+        await releaseClaim(orderId, db);
         console.log(
           `[Finago] Posting for order ${orderId} already claimed (lock: ${lockValue}), skipping.`
         );
