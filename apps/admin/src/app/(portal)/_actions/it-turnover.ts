@@ -104,16 +104,40 @@ export async function triggerM365Turnover(
       warnings.push(`Password reset flag failed: ${getErrorMessage(error)}`);
     }
 
-    // 3. Record the turnover job, then start the retention run.
+    // 3. Persist the turnover job BEFORE starting the retention run. If the
+    //    row write happened after the webhook, a create failure would leave the
+    //    7-day Azure retention running with no job for the stop-retention sweep
+    //    to find, so the hold could never be torn down. We persist first —
+    //    optimistically `retention_active` whenever a start webhook will fire,
+    //    since the sweep keys off status + `retention_stop_at` and must still
+    //    find the job even if the outcome patch below is lost — then reconcile
+    //    the real webhook outcome onto the row.
     const jobId = ID.unique();
     const retentionStopAt = computeRetentionStopAt(Date.now());
     const { db } = await createAdminClient();
 
     const startUrl = process.env.AZURE_RETENTION_START_WEBHOOK_URL;
+    const missingStartUrlError =
+      "AZURE_RETENTION_START_WEBHOOK_URL is not configured";
     let retentionStarted = false;
-    let status = "retention_active";
-    let lastError: string | null = null;
+    let status = startUrl ? "retention_active" : "retention_start_failed";
+    let lastError: string | null = startUrl ? null : missingStartUrlError;
     let retentionStartedAt: string | null = null;
+
+    await db.createRow("app", TURNOVER_JOBS_TABLE, jobId, {
+      user_id: user.id,
+      user_upn: user.userPrincipalName,
+      previous_display_name: previousDisplayName,
+      new_display_name: patch.displayName,
+      new_given_name: patch.givenName,
+      new_surname: patch.surname,
+      initiated_by_user_id: ctx.userId,
+      retention_started_at: retentionStartedAt,
+      retention_stop_at: retentionStopAt,
+      status,
+      stop_attempts: 0,
+      last_error: lastError,
+    });
 
     if (startUrl) {
       const result = await postRetentionWebhook(startUrl, {
@@ -132,23 +156,16 @@ export async function triggerM365Turnover(
         warnings.push(`Retention run did not start: ${lastError}`);
       }
     } else {
-      status = "retention_start_failed";
-      lastError = "AZURE_RETENTION_START_WEBHOOK_URL is not configured";
-      warnings.push(lastError);
+      warnings.push(missingStartUrlError);
     }
 
-    await db.createRow("app", TURNOVER_JOBS_TABLE, jobId, {
-      user_id: user.id,
-      user_upn: user.userPrincipalName,
-      previous_display_name: previousDisplayName,
-      new_display_name: patch.displayName,
-      new_given_name: patch.givenName,
-      new_surname: patch.surname,
-      initiated_by_user_id: ctx.userId,
+    // Reconcile the webhook outcome onto the persisted job. If this write is
+    // lost the job still exists (as retention_active with a stop time when a
+    // webhook fired), so the sweep can still tear the run down — only the
+    // started-at / last-error annotations would be missing.
+    await db.updateRow("app", TURNOVER_JOBS_TABLE, jobId, {
       retention_started_at: retentionStartedAt,
-      retention_stop_at: retentionStopAt,
       status,
-      stop_attempts: 0,
       last_error: lastError,
     });
 

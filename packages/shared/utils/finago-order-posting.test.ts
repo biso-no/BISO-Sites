@@ -137,12 +137,31 @@ describe("postFinagoTransactionForOrder", () => {
     expect(postShopTransaction).not.toHaveBeenCalled();
   });
 
-  it("releases the claim when the Finago post fails so a sweep can retry", async () => {
+  it("stamps a marker before posting and keeps it (no release) when the 24SO post fails", async () => {
     postShopTransaction.mockRejectedValue(new Error("24SO down"));
 
     const result = await postFinagoTransactionForOrder("order-1", db);
 
     expect(result).toEqual({ posted: false, reason: "post_failed" });
+    // The in-flight marker is written before the 24SO call...
+    expect(db.updateRow).toHaveBeenCalledWith("app", "orders", "order-1", {
+      finago_transaction_id: "posting",
+    });
+    // ...and because the external post was attempted (it may have landed), the
+    // claim is NOT released — leaving the marker blocks any automatic retry
+    // from creating a duplicate 24SO transaction.
+    expect(db.decrementRowColumn).not.toHaveBeenCalled();
+  });
+
+  it("releases the claim when preparation fails before the 24SO post so a sweep can retry", async () => {
+    // The marker write is the last step before the external call; a failure
+    // here means no 24SO side effect happened yet, so retrying is safe.
+    db.updateRow.mockRejectedValueOnce(new Error("appwrite timeout"));
+
+    const result = await postFinagoTransactionForOrder("order-1", db);
+
+    expect(result).toEqual({ posted: false, reason: "post_failed" });
+    expect(postShopTransaction).not.toHaveBeenCalled();
     expect(db.decrementRowColumn).toHaveBeenCalledWith({
       databaseId: "app",
       tableId: "orders",
@@ -151,12 +170,6 @@ describe("postFinagoTransactionForOrder", () => {
       value: 1,
       min: 0,
     });
-    expect(db.updateRow).not.toHaveBeenCalledWith(
-      "app",
-      "orders",
-      "order-1",
-      expect.objectContaining({ finago_transaction_id: expect.any(String) })
-    );
   });
 });
 

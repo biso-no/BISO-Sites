@@ -24,6 +24,15 @@ export interface FinagoPostingResult {
 
 const POSTABLE_STATUSES = new Set(["authorized", "paid"]);
 
+// Written to `finago_transaction_id` right before the 24SO post and overwritten
+// with the real transaction id on success. Its purpose is to survive a crash or
+// failure *after* the external ledger side effect has been attempted: while it
+// is set the order is excluded from the reconcile query (`finago_transaction_id
+// IS NULL`) and from releaseStaleFinagoClaim, so no automatic path can post a
+// second 24SO transaction. Such an order is left for manual recovery. Mirrors
+// the expense-posting claim marker.
+const FINAGO_POSTING_MARKER = "posting";
+
 function ordersTable() {
   return {
     dbId: process.env.APPWRITE_DATABASE_ID!,
@@ -112,6 +121,8 @@ export async function postFinagoTransactionForOrder(
     return { posted: false, reason: "not_paid" };
   }
   if (order.finago_transaction_id) {
+    // Either a real transaction id (already posted) or the in-flight/manual-
+    // recovery marker — both mean no automatic path may post this order again.
     return { posted: false, reason: "already_posted" };
   }
 
@@ -148,8 +159,25 @@ export async function postFinagoTransactionForOrder(
     }
   }
 
+  // Build the ledger lines and stamp the in-flight marker BEFORE any 24SO call.
+  // A failure here happens before the external side effect, so it is safe to
+  // release the claim and let a later sweep retry.
+  let transactionItems: Awaited<ReturnType<typeof buildFinagoItems>>;
   try {
-    const transactionItems = await buildFinagoItems(order, db);
+    transactionItems = await buildFinagoItems(order, db);
+    await db.updateRow(dbId, collId, orderId, {
+      finago_transaction_id: FINAGO_POSTING_MARKER,
+    });
+  } catch (error) {
+    await releaseClaim(orderId, db);
+    console.error(
+      `[Finago] Failed to prepare posting for order ${orderId}:`,
+      error
+    );
+    return { posted: false, reason: "post_failed" };
+  }
+
+  try {
     const transactionId = await postShopTransaction({
       orderId,
       date: new Date().toISOString().slice(0, 10),
@@ -166,9 +194,13 @@ export async function postFinagoTransactionForOrder(
     );
     return { posted: true, transactionId };
   } catch (error) {
-    await releaseClaim(orderId, db);
+    // The 24SO post has been attempted — it may have created the transaction
+    // even though recording its id failed. Do NOT release the claim or clear
+    // the marker: leaving the marker in place keeps every automatic path
+    // (webhook/return/cron + releaseStaleFinagoClaim) from posting a second
+    // transaction. The order is surfaced for manual recovery instead.
     console.error(
-      `[Finago] Failed to post transaction for order ${orderId}:`,
+      `[Finago] Post attempted for order ${orderId}; leaving marker for manual recovery:`,
       error
     );
     return { posted: false, reason: "post_failed" };
