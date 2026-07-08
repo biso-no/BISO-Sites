@@ -63,9 +63,15 @@ async function syncTeamMembership(
 ): Promise<void> {
   const teamId = sanitizeTeamId(azureGroup.name);
   const teamName = sanitizeTeamName(azureGroup.name);
+  const isDeptTeam = azureGroup.name.startsWith("SG-App-Dept-");
 
   try {
     await teams.createMembership(teamId, roles, undefined, userId);
+    // Team already existed and the user was (re)added. Backfill the table-level
+    // content/recruitment create grants (see ensureDeptTeamTableGrants).
+    if (isDeptTeam) {
+      await ensureDeptTeamTableGrants(teamId);
+    }
   } catch (err: unknown) {
     const e = err as { code?: number; message?: string };
     if (e.code === 404) {
@@ -73,20 +79,42 @@ async function syncTeamMembership(
       await teams.createMembership(teamId, roles, undefined, userId);
 
       // Only dept teams get table-level create permissions; campus teams get nothing
-      if (azureGroup.name.startsWith("SG-App-Dept-")) {
-        await grantTeamContentAccess(teamId);
-        await grantTeamRecruitmentAccess(teamId);
+      if (isDeptTeam) {
+        await ensureDeptTeamTableGrants(teamId);
 
-        // Provision row-level write permissions on matching department rows
+        // Provision row-level write permissions on matching department rows.
+        // Unlike the table grants this rewrites the dept row every call, so it
+        // only runs when the team is first created.
         const rawDeptName = azureGroup.name.replace("SG-App-Dept-", "");
         await grantDeptTeamAccess(teamId, rawDeptName);
       }
     } else if (e.code === 409) {
       await updateExistingMembership(teams, teamId, roles, userId);
+      // User was already a member — the team predates this sync, so backfill the
+      // table-level grants in case they were never provisioned.
+      if (isDeptTeam) {
+        await ensureDeptTeamTableGrants(teamId);
+      }
     } else {
       throw err;
     }
   }
+}
+
+/**
+ * Ensure a dept team holds the table-level create grants on content and
+ * recruitment tables. Both underlying grants are idempotent — they read the
+ * current table permissions and only write when the grant is missing — so this
+ * is safe (and cheap once provisioned) to run on every sync. It exists because
+ * the content tables no longer carry a broad `create("users")` grant; each dept
+ * team gets a `create("team:…")` grant instead, and running this outside the
+ * team-creation path backfills teams that predate those per-team grants (or an
+ * environment where the config was applied before the grants existed) so staff
+ * don't silently lose the ability to create events/news/products/pages.
+ */
+async function ensureDeptTeamTableGrants(teamId: string): Promise<void> {
+  await grantTeamContentAccess(teamId);
+  await grantTeamRecruitmentAccess(teamId);
 }
 
 /**

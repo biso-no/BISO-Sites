@@ -24,6 +24,10 @@ export function TurnoverDialog({
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [confirmUpn, setConfirmUpn] = useState("");
+  const [credential, setCredential] = useState<{
+    upn: string;
+    password: string;
+  } | null>(null);
   const [isPending, startTransition] = useTransition();
 
   const canSubmit =
@@ -35,6 +39,7 @@ export function TurnoverDialog({
     setFirstName("");
     setLastName("");
     setConfirmUpn("");
+    setCredential(null);
   }
 
   function handleClose() {
@@ -43,6 +48,18 @@ export function TurnoverDialog({
     }
     setOpen(false);
     reset();
+  }
+
+  async function copyPassword() {
+    if (!credential) {
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(credential.password);
+      toast.success(t("copied"));
+    } catch {
+      toast.error(t("copyFailed"));
+    }
   }
 
   function handleSubmit() {
@@ -74,9 +91,18 @@ export function TurnoverDialog({
       for (const warning of data?.warnings ?? []) {
         toast.warning(warning);
       }
-      setOpen(false);
-      reset();
       router.refresh();
+
+      if (data?.temporaryPassword) {
+        // Keep the dialog open to show the one-time handover credential.
+        setCredential({
+          upn: userPrincipalName,
+          password: data.temporaryPassword,
+        });
+      } else {
+        setOpen(false);
+        reset();
+      }
     });
   }
 
@@ -130,69 +156,117 @@ export function TurnoverDialog({
               </button>
             </div>
 
-            <p className="mb-3 text-sm" style={{ color: STUDIO.ink3 }}>
-              {t("intro")}
-            </p>
+            {credential ? (
+              <>
+                <p
+                  className="mb-1 font-medium text-sm"
+                  style={{ color: STUDIO.ink }}
+                >
+                  {t("credentialHeading")}
+                </p>
+                <p className="mb-4 text-xs" style={{ color: STUDIO.ink3 }}>
+                  {t("credentialHelp")}
+                </p>
+                <div className="space-y-3">
+                  <PortalField label={t("credentialAccountLabel")}>
+                    <PortalInput readOnly value={credential.upn} />
+                  </PortalField>
+                  <PortalField label={t("credentialPasswordLabel")}>
+                    <div className="flex items-center gap-2">
+                      <PortalInput
+                        readOnly
+                        style={{ fontFamily: "monospace" }}
+                        value={credential.password}
+                      />
+                      <button
+                        className="shrink-0 rounded-xl px-3 py-2 text-sm"
+                        onClick={copyPassword}
+                        style={buttonStyle("secondary")}
+                        type="button"
+                      >
+                        {t("copy")}
+                      </button>
+                    </div>
+                  </PortalField>
+                </div>
+                <div className="mt-6 flex justify-end">
+                  <button
+                    className="rounded-xl px-4 py-2 font-medium text-sm"
+                    onClick={handleClose}
+                    style={buttonStyle("danger")}
+                    type="button"
+                  >
+                    {t("done")}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="mb-3 text-sm" style={{ color: STUDIO.ink3 }}>
+                  {t("intro")}
+                </p>
 
-            <p
-              className="mb-1 font-medium text-xs"
-              style={{ color: STUDIO.ink }}
-            >
-              {t("effectsHeading")}
-            </p>
-            <ul
-              className="mb-5 list-disc space-y-1 pl-5 text-xs"
-              style={{ color: STUDIO.ink3 }}
-            >
-              {effects.map((effect) => (
-                <li key={effect}>{effect}</li>
-              ))}
-            </ul>
+                <p
+                  className="mb-1 font-medium text-xs"
+                  style={{ color: STUDIO.ink }}
+                >
+                  {t("effectsHeading")}
+                </p>
+                <ul
+                  className="mb-5 list-disc space-y-1 pl-5 text-xs"
+                  style={{ color: STUDIO.ink3 }}
+                >
+                  {effects.map((effect) => (
+                    <li key={effect}>{effect}</li>
+                  ))}
+                </ul>
 
-            <div className="space-y-3">
-              <div className="grid grid-cols-2 gap-3">
-                <PortalField label={t("firstNameLabel")}>
-                  <PortalInput
-                    onChange={(event) => setFirstName(event.target.value)}
-                    value={firstName}
-                  />
-                </PortalField>
-                <PortalField label={t("lastNameLabel")}>
-                  <PortalInput
-                    onChange={(event) => setLastName(event.target.value)}
-                    value={lastName}
-                  />
-                </PortalField>
-              </div>
-              <PortalField label={t("confirmUpnLabel")}>
-                <PortalInput
-                  onChange={(event) => setConfirmUpn(event.target.value)}
-                  placeholder={t("confirmUpnPlaceholder")}
-                  value={confirmUpn}
-                />
-              </PortalField>
-            </div>
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <PortalField label={t("firstNameLabel")}>
+                      <PortalInput
+                        onChange={(event) => setFirstName(event.target.value)}
+                        value={firstName}
+                      />
+                    </PortalField>
+                    <PortalField label={t("lastNameLabel")}>
+                      <PortalInput
+                        onChange={(event) => setLastName(event.target.value)}
+                        value={lastName}
+                      />
+                    </PortalField>
+                  </div>
+                  <PortalField label={t("confirmUpnLabel")}>
+                    <PortalInput
+                      onChange={(event) => setConfirmUpn(event.target.value)}
+                      placeholder={t("confirmUpnPlaceholder")}
+                      value={confirmUpn}
+                    />
+                  </PortalField>
+                </div>
 
-            <div className="mt-6 flex justify-end gap-2">
-              <button
-                className="rounded-xl px-4 py-2 text-sm disabled:opacity-50"
-                disabled={isPending}
-                onClick={handleClose}
-                style={buttonStyle("secondary")}
-                type="button"
-              >
-                {t("cancel")}
-              </button>
-              <button
-                className="rounded-xl px-4 py-2 font-medium text-sm disabled:opacity-50"
-                disabled={isPending || !canSubmit}
-                onClick={handleSubmit}
-                style={buttonStyle("danger")}
-                type="button"
-              >
-                {t("submit")}
-              </button>
-            </div>
+                <div className="mt-6 flex justify-end gap-2">
+                  <button
+                    className="rounded-xl px-4 py-2 text-sm disabled:opacity-50"
+                    disabled={isPending}
+                    onClick={handleClose}
+                    style={buttonStyle("secondary")}
+                    type="button"
+                  >
+                    {t("cancel")}
+                  </button>
+                  <button
+                    className="rounded-xl px-4 py-2 font-medium text-sm disabled:opacity-50"
+                    disabled={isPending || !canSubmit}
+                    onClick={handleSubmit}
+                    style={buttonStyle("danger")}
+                    type="button"
+                  >
+                    {t("submit")}
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}

@@ -235,7 +235,7 @@
         "effectRename": "Gi kontoen nytt navn (visningsnavn, fornavn og etternavn)",
         "effectMfa": "Nullstille MFA — fjerne alle autentiseringsmetoder slik at ny innehaver registrerer på nytt",
         "effectSessions": "Trekke tilbake alle aktive innloggingsøkter",
-        "effectPassword": "Kreve tilbakestilling av passord ved neste innlogging",
+        "effectPassword": "Sette et nytt midlertidig passord (ny innehaver endrer det ved første innlogging)",
         "effectRetention": "Starte en 7-dagers Azure-oppbevaringskjøring for å slette forrige innehavers Teams-historikk",
         "firstNameLabel": "Ny innehavers fornavn",
         "lastNameLabel": "Ny innehavers etternavn",
@@ -247,7 +247,15 @@
         "successNoRetention": "Kontoen ble overført, men oppbevaringskjøringen startet ikke — sjekk advarslene.",
         "retentionStops": "Oppbevaringskjøringen stopper automatisk {date}.",
         "warningsHeading": "Krever manuell oppfølging:",
-        "confirmMismatch": "Bekreftelsesadressen må matche kontoens påloggingsadresse."
+        "confirmMismatch": "Bekreftelsesadressen må matche kontoens påloggingsadresse.",
+        "credentialHeading": "Midlertidig passord for rollekontoen",
+        "credentialHelp": "Del dette med den nye innehaveren via en sikker kanal. Det vises ikke igjen, og de blir bedt om å endre det ved første innlogging.",
+        "credentialAccountLabel": "Konto",
+        "credentialPasswordLabel": "Midlertidig passord",
+        "copy": "Kopier",
+        "copied": "Passord kopiert",
+        "copyFailed": "Kunne ikke kopiere — merk og kopier passordet manuelt.",
+        "done": "Ferdig"
       }
     },
     "audit": {

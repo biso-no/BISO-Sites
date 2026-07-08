@@ -2,6 +2,7 @@
 
 import { ID } from "@repo/api";
 import { createAdminClient } from "@repo/api/server";
+import { generateTemporaryPassword } from "@repo/connectors/azure/users";
 import {
   type M365TurnoverInput,
   m365TurnoverSchema,
@@ -31,6 +32,10 @@ export interface M365TurnoverResult {
   previousDisplayName: string;
   retentionStarted: boolean;
   retentionStopAt: string;
+  // A freshly generated temporary password for the stable role identity, shown
+  // once so the operator can hand it to the incoming holder. Null when the reset
+  // failed (see warnings). Never logged or persisted.
+  temporaryPassword: string | null;
   // Non-fatal lockout/retention steps that failed; the turnover still
   // completed (the rename already happened) but these need manual follow-up.
   warnings: string[];
@@ -98,10 +103,18 @@ export async function triggerM365Turnover(
     } catch (error) {
       warnings.push(`Session revocation failed: ${getErrorMessage(error)}`);
     }
+    // The incoming holder does not know the departing holder's password, so a
+    // "force change at next sign-in" flag alone leaves the renamed role account
+    // unusable (that flag still prompts for the old password). Issue a fresh
+    // temporary password and hand it back to the operator — resetPassword also
+    // forces a change at next sign-in.
+    let temporaryPassword: string | null = null;
     try {
-      await graph.forcePasswordResetNextSignIn(user.id);
+      const generated = generateTemporaryPassword();
+      await graph.resetPassword(user.id, generated);
+      temporaryPassword = generated;
     } catch (error) {
-      warnings.push(`Password reset flag failed: ${getErrorMessage(error)}`);
+      warnings.push(`Password reset failed: ${getErrorMessage(error)}`);
     }
 
     // 3. Persist the turnover job BEFORE starting the retention run. If the
@@ -150,7 +163,19 @@ export async function triggerM365Turnover(
       if (result.ok) {
         retentionStarted = true;
         retentionStartedAt = new Date().toISOString();
+      } else if (result.status === undefined) {
+        // No HTTP status = network error / timeout / aborted response. Azure may
+        // have accepted and started the run before the response was lost, so we
+        // must NOT mark it retention_start_failed (the stop sweep only picks up
+        // retention_active / stop_failed). Keep the job stoppable and record the
+        // ambiguity for follow-up.
+        lastError = result.error ?? "Retention start webhook status unknown";
+        warnings.push(
+          `Retention start could not be confirmed; keeping the job stoppable so the sweep can tear down any run: ${lastError}`
+        );
       } else {
+        // Azure responded with an error status, so the run definitively did not
+        // start — safe to drop the job from the stop sweep.
         status = "retention_start_failed";
         lastError = result.error ?? "Retention start webhook failed";
         warnings.push(`Retention run did not start: ${lastError}`);
@@ -194,6 +219,7 @@ export async function triggerM365Turnover(
         previousDisplayName,
         retentionStarted,
         retentionStopAt,
+        temporaryPassword,
         warnings,
       },
     };

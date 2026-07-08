@@ -235,7 +235,7 @@
         "effectRename": "Rename the account to the new holder (display name, first and last name)",
         "effectMfa": "Reset MFA — remove all authentication methods so the new holder re-enrolls",
         "effectSessions": "Revoke all active sign-in sessions",
-        "effectPassword": "Force a password reset at next sign-in",
+        "effectPassword": "Set a new temporary password (the new holder changes it at first sign-in)",
         "effectRetention": "Start a 7-day Azure retention run to clear the previous holder's Teams history",
         "firstNameLabel": "New holder first name",
         "lastNameLabel": "New holder last name",
@@ -247,7 +247,15 @@
         "successNoRetention": "Account handed over, but the retention run did not start — check the warnings.",
         "retentionStops": "Retention run stops automatically on {date}.",
         "warningsHeading": "Needs manual follow-up:",
-        "confirmMismatch": "The confirmation address must match the account's login address."
+        "confirmMismatch": "The confirmation address must match the account's login address.",
+        "credentialHeading": "Temporary password for the role account",
+        "credentialHelp": "Share this with the new holder over a secure channel. It won't be shown again, and they'll be asked to change it at first sign-in.",
+        "credentialAccountLabel": "Account",
+        "credentialPasswordLabel": "Temporary password",
+        "copy": "Copy",
+        "copied": "Password copied",
+        "copyFailed": "Could not copy — select and copy the password manually.",
+        "done": "Done"
       }
     },
     "audit": {
