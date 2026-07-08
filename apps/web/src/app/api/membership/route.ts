@@ -17,9 +17,9 @@ export async function GET(request: Request) {
       ? await refreshMembershipStatus()
       : await getMembershipStatus();
 
-    // Per-user data; the in-memory cookie cache in getMembershipStatus
-    // already handles short-term reuse, and we don't want any shared
-    // CDN to serve one user's status to another.
+    // Per-user data; getMembershipStatus reuses a short-lived server-side
+    // cache keyed by the authenticated user's student id, and we don't want
+    // any shared CDN to serve one user's status to another.
     return NextResponse.json(status, {
       headers: { "Cache-Control": "private, no-store" },
     });
