@@ -88,6 +88,53 @@ describe("createOrder", () => {
     expect(storedItems[0]).not.toHaveProperty("productId");
   });
 
+  it("persists variant and custom-field metadata in the reader's snake_case shape", async () => {
+    await createOrder(
+      {
+        ...checkoutParams,
+        items: [
+          {
+            ...checkoutParams.items[0],
+            variationId: "v-large",
+            variationName: "Large",
+            customFields: { engraving: "Ada", gift: "yes" },
+            customFieldLabels: { engraving: "Engraving text" },
+          },
+        ],
+      },
+      db
+    );
+
+    const storedOrder = db.createRow.mock.calls[0]?.[3] as Record<
+      string,
+      unknown
+    >;
+    const storedItems = JSON.parse(String(storedOrder.items_json)) as Record<
+      string,
+      unknown
+    >[];
+
+    expect(storedItems[0]).toMatchObject({
+      product_id: "product-1",
+      variation_id: "v-large",
+      variation_name: "Large",
+      custom_fields: [
+        // label falls back to the field id when no label is supplied.
+        { id: "engraving", label: "Engraving text", value: "Ada" },
+        { id: "gift", label: "gift", value: "yes" },
+      ],
+    });
+    // The camelCase input keys must not leak into the persisted item.
+    for (const key of [
+      "variationId",
+      "variationName",
+      "customFields",
+      "customFieldLabels",
+    ]) {
+      expect(storedItems[0]).not.toHaveProperty(key);
+    }
+  });
+
   it("creates orders through the provided DB client with buyer-scoped read permissions", async () => {
     await createOrder(checkoutParams, db);
 

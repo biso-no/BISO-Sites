@@ -43,10 +43,36 @@ export interface DbClient {
 }
 
 function buildStoredOrderItems(items: CheckoutSessionParams["items"]) {
-  return items.map(({ productId, ...item }) => ({
-    ...item,
-    product_id: productId,
-  }));
+  return items.map((item) => {
+    const {
+      productId,
+      variationId,
+      variationName,
+      customFields,
+      customFieldLabels,
+      ...rest
+    } = item;
+
+    // Persist fulfillment metadata in the snake_case shape the order
+    // confirmation / fulfillment reader expects: `variation_name`, and
+    // `custom_fields` as a [{ id, label, value }] list merged from the
+    // id→value (`customFields`) and id→label (`customFieldLabels`) maps.
+    const customFieldList = Object.entries(customFields ?? {}).map(
+      ([id, value]) => ({
+        id,
+        label: customFieldLabels?.[id] ?? id,
+        value,
+      })
+    );
+
+    return {
+      ...rest,
+      product_id: productId,
+      ...(variationId ? { variation_id: variationId } : {}),
+      ...(variationName ? { variation_name: variationName } : {}),
+      ...(customFieldList.length > 0 ? { custom_fields: customFieldList } : {}),
+    };
+  });
 }
 
 /**
