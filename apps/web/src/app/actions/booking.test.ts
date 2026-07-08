@@ -143,6 +143,36 @@ describe("recruitment booking actions", () => {
     });
     expect(db.createRow).not.toHaveBeenCalled();
     expect(db.updateRow).not.toHaveBeenCalled();
+    // The loser undoes its own increment so the lock can't drift above 1 and
+    // strand the token as permanently "used".
+    expect(db.decrementRowColumn).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tableId: "recruitment_booking_tokens",
+        rowId: "token-row-1",
+        column: "claim_lock",
+        value: 1,
+        min: 0,
+      })
+    );
+  });
+
+  it("keeps the claim (no release) when the interview was created but the token update fails", async () => {
+    mockHappyPath();
+    // Interview row creation succeeds; marking the token consumed then fails.
+    db.updateRow.mockRejectedValue(new Error("appwrite timeout"));
+
+    const result = await confirmBookingSlot(
+      "booking-token",
+      "2026-07-01T10:00:00.000Z",
+      30
+    );
+
+    expect(result).toEqual({
+      error: "Could not confirm the booking. Please try again.",
+    });
+    // The interview exists, so the claim must NOT be handed back — releasing it
+    // would let the candidate book a second interview for the same application.
+    expect(db.decrementRowColumn).not.toHaveBeenCalled();
   });
 
   it("rejects an overlapping interviewer slot and releases the claim", async () => {

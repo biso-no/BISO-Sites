@@ -139,6 +139,18 @@ export async function confirmBookingSlot(
     return { error: "Selected slot is outside the allowed window." };
   }
 
+  const decrementClaim = () =>
+    db
+      .decrementRowColumn({
+        databaseId: "app",
+        tableId: "recruitment_booking_tokens",
+        rowId: record.$id,
+        column: "claim_lock",
+        value: 1,
+        min: 0,
+      })
+      .catch(() => undefined);
+
   // Atomically claim the token before any write. Two concurrent confirms both
   // pass the consumed_at read above; only the caller that increments the lock
   // from 0 to 1 may create an interview (PR-059).
@@ -154,6 +166,11 @@ export async function confirmBookingSlot(
     const lockValue =
       typeof claimed.claim_lock === "number" ? claimed.claim_lock : 0;
     if (lockValue !== 1) {
+      // Lost the race — undo our own increment so the lock reflects only the
+      // in-flight winner (0/1). Otherwise, if the winner later releases its
+      // claim (slot overlap or a transient error), the leftover count keeps the
+      // lock positive and every future attempt reports the link as already used.
+      await decrementClaim();
       return { error: "This booking link has already been used." };
     }
     claimHeld = true;
@@ -167,18 +184,10 @@ export async function confirmBookingSlot(
     if (!claimHeld) {
       return;
     }
-    await db
-      .decrementRowColumn({
-        databaseId: "app",
-        tableId: "recruitment_booking_tokens",
-        rowId: record.$id,
-        column: "claim_lock",
-        value: 1,
-        min: 0,
-      })
-      .catch(() => undefined);
+    await decrementClaim();
   };
 
+  let interviewCreated = false;
   try {
     // Slot uniqueness: reject a slot that overlaps another SCHEDULED interview
     // for the same interviewer, so two candidates can't book the same instant
@@ -254,6 +263,7 @@ export async function confirmBookingSlot(
       },
       buildRecruitmentStaffRowPermissions()
     );
+    interviewCreated = true;
 
     await db.updateRow<RecruitmentBookingTokens>(
       "app",
@@ -266,9 +276,14 @@ export async function confirmBookingSlot(
       data: { interview_id: interview.$id, starts_at: start.toISOString() },
     };
   } catch (error) {
-    // Release the claim so the candidate's link isn't dead after a transient
-    // failure — nothing was booked.
-    await releaseClaim();
+    // Only release the claim when nothing was booked, so a transient failure
+    // doesn't leave the candidate's link dead. Once the interview row exists
+    // (e.g. the interview was created but marking the token consumed failed),
+    // keep the claim held: releasing it would let the candidate book a SECOND
+    // interview for the same application. That token is left for manual recovery.
+    if (!interviewCreated) {
+      await releaseClaim();
+    }
     console.error("[Booking] Failed to confirm booking slot:", error);
     return { error: "Could not confirm the booking. Please try again." };
   }

@@ -15,6 +15,7 @@ import {
 import { getLocale } from "@/app/actions/locale";
 import { getProduct } from "@/app/actions/products";
 import { validatePurchaseLimits } from "@/app/actions/purchase-limits";
+import { ensureAnonymousSession } from "@/lib/anon-session";
 import type { OrderItem } from "@/lib/types/order";
 import { parseProductMetadata } from "@/lib/types/webshop";
 
@@ -583,6 +584,12 @@ export async function createCartCheckoutSession(
 
     const locale = await getLocale();
     const sanitizedItems = sanitizeCartItems(data.items);
+
+    // Guest carts that only hold untracked-stock products never create a
+    // reservation, so no earlier path provisions the anonymous session. Ensure
+    // one now (no-op if a session cookie already exists) so checkout isn't
+    // blocked for those buyers.
+    await ensureAnonymousSession();
 
     // Resolve the buyer's identity from the Appwrite session. Anonymous
     // sessions (no email, no real name) still have a $id we can use for
