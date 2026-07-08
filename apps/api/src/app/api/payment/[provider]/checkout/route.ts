@@ -1,6 +1,7 @@
 import { Query } from "@repo/api";
 import { createAdminClient } from "@repo/api/server";
 import type {
+  CartReservations,
   ContentTranslations,
   Orders,
   Users,
@@ -19,6 +20,10 @@ import {
   evaluatePerUserLimit,
   summarizePurchases,
 } from "@repo/shared/utils/purchase-limits";
+import {
+  computeAvailableStock,
+  sumReservedQuantity,
+} from "@repo/shared/utils/stock-availability";
 import {
   createOrder,
   updateOrderWithSession,
@@ -139,17 +144,45 @@ async function ensureLineAvailability({
   const productName = product.title || product.slug || product.$id;
 
   // Stock check (fail closed): only enforced when the product tracks stock.
-  if (
-    product.stock !== null &&
-    product.stock !== undefined &&
-    requestedQuantity > product.stock
-  ) {
-    throw new CheckoutValidationError(
-      product.stock <= 0
-        ? `${productName} is out of stock.`
-        : `Only ${product.stock} of ${productName} available (${requestedQuantity} requested).`,
-      409
+  // Available stock must account for OTHER buyers' active cart reservations,
+  // exactly like the web path (`getAvailableStock` in cart-reservations.ts) —
+  // otherwise a direct POST could buy units currently held in someone else's
+  // cart as long as requested <= raw product.stock, forcing an oversell once
+  // the payment settles. `db` here is the admin client, so it sees every
+  // user's reservation rows (which are row-secured to their creator).
+  if (product.stock !== null && product.stock !== undefined) {
+    const now = new Date().toISOString();
+    const reservations = await db.listRows<CartReservations>(
+      "app",
+      "cart_reservations",
+      [
+        Query.equal("product_id", product.$id),
+        Query.greaterThan("expires_at", now),
+        Query.select(["quantity", "user_id"]),
+        Query.limit(1000),
+      ]
     );
+
+    const totalReserved = sumReservedQuantity(reservations.rows);
+    // Add the caller's own hold back so their cart items don't block their
+    // own checkout (mirrors the web `effectiveAvailable` calculation).
+    const callerHold =
+      userId && userId !== "guest"
+        ? sumReservedQuantity(
+            reservations.rows.filter((row) => row.user_id === userId)
+          )
+        : 0;
+    const availableForCaller =
+      computeAvailableStock(product.stock, totalReserved) + callerHold;
+
+    if (requestedQuantity > availableForCaller) {
+      throw new CheckoutValidationError(
+        availableForCaller <= 0
+          ? `${productName} is out of stock.`
+          : `Only ${availableForCaller} of ${productName} available (${requestedQuantity} requested).`,
+        409
+      );
+    }
   }
 
   // Per-order and per-user purchase limits live in the product metadata.

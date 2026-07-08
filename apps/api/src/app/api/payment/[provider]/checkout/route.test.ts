@@ -380,6 +380,51 @@ describe("payment checkout authorization", () => {
     );
   });
 
+  function mockAdminClientWithStock(
+    stock: number,
+    reservationRows: Array<{ quantity: number; user_id: string }>
+  ) {
+    mockedCreateAdminClient.mockResolvedValue({
+      db: {
+        getRow: vi.fn().mockResolvedValue({ ...productRow, stock }),
+        listRows: vi.fn().mockResolvedValue({
+          rows: reservationRows,
+          total: reservationRows.length,
+        }),
+      },
+    } as unknown as Awaited<ReturnType<typeof createAdminClient>>);
+  }
+
+  it("blocks checkout for stock currently held in other buyers' reservations", async () => {
+    // 1 unit in stock, fully reserved by another shopper → nothing available to
+    // this caller, even though requested (1) <= raw product.stock (1).
+    mockAdminClientWithStock(1, [{ quantity: 1, user_id: "other-user" }]);
+
+    const response = await postVipps(
+      checkoutRequest({ authorization: "Bearer valid", total: 199 })
+    );
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toEqual({
+      message: "Trusted Product is out of stock.",
+    });
+    expect(mockedCreateOrder).not.toHaveBeenCalled();
+    expect(mockedCreateVippsPayment).not.toHaveBeenCalled();
+  });
+
+  it("adds the caller's own reservation back so it doesn't block their checkout", async () => {
+    // 1 unit in stock, held by the caller's own reservation → their own hold is
+    // added back, so their checkout for that unit succeeds.
+    mockAdminClientWithStock(1, [{ quantity: 1, user_id: "session-user" }]);
+
+    const response = await postVipps(
+      checkoutRequest({ authorization: "Bearer valid", total: 199 })
+    );
+
+    expect(response.status).toBe(200);
+    expect(mockedCreateOrder).toHaveBeenCalled();
+  });
+
   it("returns 504 when Vipps checkout creation exceeds the deadline", async () => {
     vi.stubEnv("VIPPS_CHECKOUT_TIMEOUT_MS", "20");
     mockedCreateVippsPayment.mockImplementation(
