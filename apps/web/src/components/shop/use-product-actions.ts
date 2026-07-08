@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import {
   createOrUpdateReservation,
   getAvailableStock,
+  getUserReservation,
 } from "@/app/actions/cart-reservations";
 import { validatePurchaseLimits } from "@/app/actions/purchase-limits";
 import { useCart } from "@/lib/contexts/cart-context";
@@ -54,10 +55,17 @@ async function checkStockAvailability(
   if (!hasStock) {
     return { available: true, currentStock: null };
   }
-  const currentAvailable = await getAvailableStock(productId);
+  // getAvailableStock subtracts the caller's own active hold, so add it back —
+  // otherwise the buyer's own cart reservation blocks re-adding/updating the
+  // last units of a product (PR-036).
+  const [currentAvailable, myHold] = await Promise.all([
+    getAvailableStock(productId),
+    getUserReservation(productId),
+  ]);
+  const effectiveAvailable = currentAvailable + (myHold?.quantity ?? 0);
   return {
-    available: currentAvailable >= quantity,
-    currentStock: currentAvailable,
+    available: effectiveAvailable >= quantity,
+    currentStock: effectiveAvailable,
   };
 }
 

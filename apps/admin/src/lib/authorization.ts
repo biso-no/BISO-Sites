@@ -114,7 +114,7 @@ export const getUserAuthContext = cache(
     try {
       const { account, teams } = await createSessionClient();
       const user = await account.get();
-      const teamMemberships = await teams.list();
+      const teamMemberships = await teams.list([Query.limit(200)]);
 
       const parsed = parseTeamMemberships(teamMemberships.teams);
       const { roles, managedCampuses } = deriveRoles(parsed);
@@ -154,6 +154,25 @@ export const getUserAuthContext = cache(
         userId: user.$id,
       };
     } catch (error) {
+      const err = error as {
+        cause?: { code?: unknown };
+        code?: unknown;
+        message?: unknown;
+        type?: unknown;
+      };
+      const isOutage =
+        (typeof err?.code === "number" && err.code >= 500) ||
+        err?.type === "appwrite_timeout" ||
+        err?.code === "ECONNREFUSED" ||
+        err?.cause?.code === "ECONNREFUSED" ||
+        (typeof err?.message === "string" &&
+          err.message.includes("fetch failed"));
+
+      if (isOutage) {
+        console.error("[getUserAuthContext] Appwrite outage detected:", error);
+        throw error;
+      }
+
       console.error("Failed to get user auth context:", error);
       return null;
     }

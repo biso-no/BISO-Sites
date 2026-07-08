@@ -1,7 +1,8 @@
 "use server";
 
-import { ID, Query } from "@repo/api";
-import { createSessionClient } from "@repo/api/server";
+import { ID, Permission, Query, Role } from "@repo/api";
+import { InputFile } from "@repo/api/file";
+import { createAdminClient, createSessionClient } from "@repo/api/server";
 import type { Expenses, ExpensesStatus } from "@repo/api/types/appwrite";
 import {
   ALLOWED_RECEIPT_LABEL,
@@ -123,7 +124,16 @@ export async function uploadExpenseAttachment(formData: FormData) {
       };
     }
 
-    const { storage } = await createSessionClient();
+    // Resolve the owner from the session so we can stamp per-file permissions.
+    const { account } = await createSessionClient();
+    const user = await account.get().catch(() => null);
+    if (!user?.$id) {
+      return {
+        success: false,
+        error: "You must be signed in to upload a receipt.",
+      };
+    }
+
     const file = formData.get("file") as File;
 
     if (!file) {
@@ -140,10 +150,26 @@ export async function uploadExpenseAttachment(formData: FormData) {
       };
     }
 
+    // The expenses bucket carries no user-level create grant (fileSecurity is
+    // on and broad bucket creates are disallowed), so upload through the admin
+    // client and stamp owner permissions — reproducing the creator-owner ACL
+    // Appwrite used to assign on a session upload. Reviewers and ledger posting
+    // read receipts through the admin client, which bypasses file security.
+    const { storage } = await createAdminClient();
+    const owner = Role.user(user.$id);
+    const inputFile = InputFile.fromBuffer(
+      Buffer.from(await file.arrayBuffer()),
+      file.name
+    );
     const result = await storage.createFile(
       "expenses", // Bucket ID
       ID.unique(),
-      file
+      inputFile,
+      [
+        Permission.read(owner),
+        Permission.update(owner),
+        Permission.delete(owner),
+      ]
     );
     const viewUrl =
       APPWRITE_ENDPOINT && APPWRITE_PROJECT

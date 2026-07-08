@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createAuditLog, getAdminScope } from "@/lib/admin-auth";
+import { invalidateAppwriteUser } from "./appwrite-invalidation";
 
 // Get webhook URL from environment
 const AZURE_ACCOUNT_TURNOVER_WEBHOOK_URL =
@@ -121,12 +122,31 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       },
     });
 
+    let appwriteInvalidation: Awaited<
+      ReturnType<typeof invalidateAppwriteUser>
+    > | null = null;
+    if (!dryRun) {
+      appwriteInvalidation = await invalidateAppwriteUser(roleMailboxUpn);
+      if (appwriteInvalidation.error) {
+        await createAuditLog({
+          actorId: scope.userId,
+          action: "turnover-appwrite-invalidation-failed",
+          resourceType: "mailbox",
+          payload: {
+            roleMailboxUpn,
+            error: appwriteInvalidation.error,
+          },
+        });
+      }
+    }
+
     return NextResponse.json({
       success: true,
       roleMailboxUpn,
       incomingUserUpn,
       dryRun,
       webhookResponse: responseData,
+      appwriteInvalidation,
     });
   } catch (error) {
     console.error("Error in account turnover:", error);

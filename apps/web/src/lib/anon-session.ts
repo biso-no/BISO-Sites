@@ -1,4 +1,4 @@
-import { createAdminClient } from "@repo/api/server";
+import { createAdminClient, createSessionClient } from "@repo/api/server";
 import { cookies } from "next/headers";
 
 const SESSION_COOKIE_NAME =
@@ -35,8 +35,17 @@ function sessionCookieOptions() {
  */
 export async function ensureAnonymousSession(): Promise<boolean> {
   const cookieStore = await cookies();
-  if (cookieStore.get(SESSION_COOKIE_NAME)) {
-    return true;
+  const existingCookie = cookieStore.get(SESSION_COOKIE_NAME);
+  if (existingCookie) {
+    try {
+      // No-arg call so the cookie value is applied via setSession — the
+      // parameter of createSessionClient is a JWT, not a session secret.
+      const { account } = await createSessionClient();
+      await account.get();
+      return true;
+    } catch {
+      cookieStore.delete(SESSION_COOKIE_NAME);
+    }
   }
 
   try {

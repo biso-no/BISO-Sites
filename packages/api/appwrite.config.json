@@ -77,8 +77,7 @@
         "create(\"team:sg-app-dept-operationsunit\")",
         "read(\"team:sg-app-dept-operationsunit\")",
         "update(\"team:sg-app-dept-operationsunit\")",
-        "delete(\"team:sg-app-dept-operationsunit\")",
-        "create(\"any\")"
+        "delete(\"team:sg-app-dept-operationsunit\")"
       ],
       "databaseId": "app",
       "name": "Orders",
@@ -259,6 +258,33 @@
           "size": 2048,
           "default": null,
           "encrypt": false
+        },
+        {
+          "key": "finago_transaction_id",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 255,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "transition_lock",
+          "type": "integer",
+          "required": false,
+          "array": false,
+          "min": 0,
+          "max": 1000000,
+          "default": 0
+        },
+        {
+          "key": "finago_posting_lock",
+          "type": "integer",
+          "required": false,
+          "array": false,
+          "min": 0,
+          "max": 1000000,
+          "default": 0
         }
       ],
       "indexes": [
@@ -268,6 +294,13 @@
           "status": "available",
           "columns": ["status", "userId", "currency"],
           "orders": ["ASC", "ASC", "ASC"]
+        },
+        {
+          "key": "idx_orders_finago",
+          "type": "key",
+          "status": "available",
+          "columns": ["finago_transaction_id"],
+          "orders": ["ASC"]
         }
       ]
     },
@@ -328,7 +361,7 @@
     },
     {
       "$id": "events",
-      "$permissions": ["read(\"any\")", "create(\"users\")"],
+      "$permissions": ["read(\"any\")"],
       "databaseId": "app",
       "name": "Events",
       "enabled": true,
@@ -706,7 +739,6 @@
     {
       "$id": "expense",
       "$permissions": [
-        "create(\"users\")",
         "read(\"team:sg-app-dept-operationsunit\")",
         "read(\"team:finance\")"
       ],
@@ -913,7 +945,7 @@
     },
     {
       "$id": "expense_attachments",
-      "$permissions": ["create(\"users\")"],
+      "$permissions": [],
       "databaseId": "app",
       "name": "Expense Attachments",
       "enabled": true,
@@ -1005,7 +1037,6 @@
     {
       "$id": "jobs",
       "$permissions": [
-        "create(\"users\")",
         "create(\"team:sg-app-dept-operationsunit\")",
         "read(\"team:sg-app-dept-operationsunit\")",
         "update(\"team:sg-app-dept-operationsunit\")",
@@ -1946,7 +1977,7 @@
     },
     {
       "$id": "cart_reservations",
-      "$permissions": ["create(\"any\")"],
+      "$permissions": [],
       "databaseId": "app",
       "name": "Cart Reservations",
       "enabled": true,
@@ -2009,13 +2040,19 @@
           "status": "available",
           "columns": ["product_id", "expires_at"],
           "orders": []
+        },
+        {
+          "key": "user_product_idx",
+          "type": "key",
+          "status": "available",
+          "columns": ["user_id", "product_id"],
+          "orders": []
         }
       ]
     },
     {
       "$id": "user",
       "$permissions": [
-        "create(\"users\")",
         "create(\"team:sg-app-dept-operationsunit\")",
         "read(\"team:sg-app-dept-operationsunit\")",
         "update(\"team:sg-app-dept-operationsunit\")",
@@ -2780,7 +2817,7 @@
     },
     {
       "$id": "webshop_products",
-      "$permissions": ["read(\"any\")", "create(\"users\")"],
+      "$permissions": ["read(\"any\")"],
       "databaseId": "app",
       "name": "Webshop Products",
       "enabled": true,
@@ -2972,6 +3009,15 @@
           "default": "unlimited",
           "format": "enum",
           "elements": ["tracked", "unlimited"]
+        },
+        {
+          "key": "finago_account_number",
+          "type": "integer",
+          "required": false,
+          "array": false,
+          "min": 0,
+          "max": 99999999,
+          "default": null
         }
       ],
       "indexes": [
@@ -3060,7 +3106,7 @@
     },
     {
       "$id": "content_translations",
-      "$permissions": ["create(\"users\")"],
+      "$permissions": [],
       "databaseId": "app",
       "name": "Content Translations",
       "enabled": true,
@@ -3507,7 +3553,7 @@
     },
     {
       "$id": "public_profiles",
-      "$permissions": ["create(\"users\")"],
+      "$permissions": [],
       "databaseId": "app",
       "name": "Public Profiles",
       "enabled": true,
@@ -3653,7 +3699,7 @@
     },
     {
       "$id": "benefit_reveals",
-      "$permissions": ["create(\"users\")"],
+      "$permissions": [],
       "databaseId": "app",
       "name": "Benefit Reveals",
       "enabled": true,
@@ -3763,7 +3809,7 @@
     },
     {
       "$id": "news",
-      "$permissions": ["read(\"any\")", "create(\"users\")"],
+      "$permissions": ["read(\"any\")"],
       "databaseId": "app",
       "name": "News",
       "enabled": true,
@@ -4128,7 +4174,7 @@
     },
     {
       "$id": "benefit_interactions",
-      "$permissions": ["create(\"users\")"],
+      "$permissions": [],
       "databaseId": "app",
       "name": "Benefit Interactions",
       "enabled": true,
@@ -4663,7 +4709,7 @@
     },
     {
       "$id": "subs",
-      "$permissions": ["create(\"users\")"],
+      "$permissions": [],
       "databaseId": "app",
       "name": "Subscriptions",
       "enabled": true,
@@ -4869,7 +4915,6 @@
     {
       "$id": "content_entries",
       "$permissions": [
-        "create(\"users\")",
         "read(\"any\")",
         "update(\"users\")",
         "delete(\"users\")"
@@ -4975,7 +5020,6 @@
     {
       "$id": "content_templates",
       "$permissions": [
-        "create(\"users\")",
         "read(\"users\")",
         "update(\"label:globaladmin\")",
         "delete(\"label:globaladmin\")"
@@ -5063,7 +5107,6 @@
       "$id": "teams",
       "$permissions": [
         "read(\"any\")",
-        "create(\"users\")",
         "update(\"users\")",
         "delete(\"users\")"
       ],
@@ -5158,7 +5201,7 @@
     },
     {
       "$id": "student_id",
-      "$permissions": ["create(\"users\")"],
+      "$permissions": [],
       "databaseId": "app",
       "name": "student_ids",
       "enabled": true,
@@ -5234,7 +5277,7 @@
     },
     {
       "$id": "page_translations",
-      "$permissions": ["read(\"any\")", "create(\"users\")"],
+      "$permissions": ["read(\"any\")"],
       "databaseId": "app",
       "name": "Page translations",
       "enabled": true,
@@ -5336,7 +5379,6 @@
     {
       "$id": "content_entry_locales",
       "$permissions": [
-        "create(\"users\")",
         "read(\"any\")",
         "update(\"users\")",
         "delete(\"users\")"
@@ -5440,7 +5482,7 @@
     },
     {
       "$id": "followed_units",
-      "$permissions": ["create(\"users\")"],
+      "$permissions": [],
       "databaseId": "app",
       "name": "Followed units",
       "enabled": true,
@@ -5471,7 +5513,6 @@
       "$id": "typing_indicators",
       "$permissions": [
         "read(\"any\")",
-        "create(\"users\")",
         "update(\"users\")",
         "delete(\"users\")"
       ],
@@ -5625,7 +5666,7 @@
     },
     {
       "$id": "product_favorites",
-      "$permissions": ["create(\"guests\")", "create(\"users\")"],
+      "$permissions": ["create(\"guests\")"],
       "databaseId": "app",
       "name": "product_favorites",
       "enabled": true,
@@ -5775,7 +5816,7 @@
     },
     {
       "$id": "saved_jobs",
-      "$permissions": ["create(\"users\")"],
+      "$permissions": [],
       "databaseId": "app",
       "name": "Saved Jobs",
       "enabled": true,
@@ -5828,7 +5869,7 @@
     },
     {
       "$id": "tour_progress",
-      "$permissions": ["create(\"users\")"],
+      "$permissions": [],
       "databaseId": "app",
       "name": "Tour Progress",
       "enabled": true,
@@ -5900,7 +5941,7 @@
     },
     {
       "$id": "chats",
-      "$permissions": ["create(\"users\")"],
+      "$permissions": [],
       "databaseId": "app",
       "name": "Chats",
       "enabled": true,
@@ -6076,7 +6117,7 @@
     },
     {
       "$id": "payments",
-      "$permissions": ["create(\"users\")"],
+      "$permissions": [],
       "databaseId": "app",
       "name": "Payments",
       "enabled": true,
@@ -6183,7 +6224,7 @@
     },
     {
       "$id": "chat_messages",
-      "$permissions": ["create(\"users\")"],
+      "$permissions": [],
       "databaseId": "app",
       "name": "Chat Messages",
       "enabled": true,
@@ -6273,7 +6314,6 @@
       "$id": "products",
       "$permissions": [
         "read(\"guests\")",
-        "create(\"users\")",
         "read(\"users\")",
         "update(\"team:sg-app-dept-operationsunit\")",
         "delete(\"team:sg-app-dept-operationsunit\")"
@@ -6496,7 +6536,6 @@
     {
       "$id": "content_template_versions",
       "$permissions": [
-        "create(\"users\")",
         "read(\"users\")",
         "update(\"label:globaladmin\")",
         "delete(\"label:globaladmin\")"
@@ -6592,7 +6631,7 @@
     },
     {
       "$id": "pages",
-      "$permissions": ["read(\"any\")", "create(\"users\")"],
+      "$permissions": ["read(\"any\")"],
       "databaseId": "app",
       "name": "Pages",
       "enabled": true,
@@ -6893,6 +6932,15 @@
           "size": 50,
           "default": null,
           "encrypt": false
+        },
+        {
+          "key": "claim_lock",
+          "type": "integer",
+          "required": false,
+          "array": false,
+          "min": 0,
+          "max": 1000000,
+          "default": 0
         }
       ],
       "indexes": [
@@ -7254,6 +7302,20 @@
           "status": "available",
           "columns": ["campus_id", "status"],
           "orders": []
+        },
+        {
+          "key": "idx_interviewer_starts",
+          "type": "key",
+          "status": "available",
+          "columns": ["created_by_user_id", "starts_at"],
+          "orders": []
+        },
+        {
+          "key": "idx_ends_at",
+          "type": "key",
+          "status": "available",
+          "columns": ["ends_at"],
+          "orders": ["ASC"]
         }
       ]
     },
@@ -7687,7 +7749,7 @@
     },
     {
       "$id": "stop_places",
-      "$permissions": ["read(\"any\")", "create(\"users\")"],
+      "$permissions": ["read(\"any\")"],
       "databaseId": "app",
       "name": "Stop Places",
       "enabled": true,
@@ -7732,7 +7794,7 @@
     },
     {
       "$id": "departures",
-      "$permissions": ["read(\"any\")", "create(\"users\")"],
+      "$permissions": ["read(\"any\")"],
       "databaseId": "app",
       "name": "Departures",
       "enabled": true,
@@ -7779,7 +7841,7 @@
     },
     {
       "$id": "approval_requests",
-      "$permissions": ["create(\"any\")"],
+      "$permissions": [],
       "databaseId": "app",
       "name": "Approval Requests",
       "enabled": true,
@@ -8090,7 +8152,7 @@
     },
     {
       "$id": "user_notifications",
-      "$permissions": ["create(\"users\")"],
+      "$permissions": [],
       "databaseId": "app",
       "name": "User Notifications",
       "enabled": true,
@@ -8141,7 +8203,7 @@
     },
     {
       "$id": "event_segments",
-      "$permissions": ["read(\"users\")", "create(\"users\")"],
+      "$permissions": ["read(\"users\")"],
       "databaseId": "app",
       "name": "Event Segments",
       "enabled": true,
@@ -8516,6 +8578,148 @@
           "status": "available",
           "columns": ["generated_at"],
           "orders": ["DESC"]
+        }
+      ]
+    },
+    {
+      "$id": "m365_turnover_jobs",
+      "$permissions": [
+        "create(\"team:sg-app-dept-operationsunit\")",
+        "read(\"team:sg-app-dept-operationsunit\")",
+        "update(\"team:sg-app-dept-operationsunit\")",
+        "delete(\"team:sg-app-dept-operationsunit\")"
+      ],
+      "databaseId": "app",
+      "name": "M365 Turnover Jobs",
+      "enabled": true,
+      "rowSecurity": true,
+      "columns": [
+        {
+          "key": "user_id",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 100,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "user_upn",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 320,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "previous_display_name",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 256,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "new_display_name",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 256,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "new_given_name",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 128,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "new_surname",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 128,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "initiated_by_user_id",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 100,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "retention_started_at",
+          "type": "datetime",
+          "required": false,
+          "array": false,
+          "default": null,
+          "format": ""
+        },
+        {
+          "key": "retention_stop_at",
+          "type": "datetime",
+          "required": true,
+          "array": false,
+          "default": null,
+          "format": ""
+        },
+        {
+          "key": "status",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "default": "retention_active",
+          "format": "enum",
+          "elements": [
+            "retention_active",
+            "completed",
+            "retention_start_failed",
+            "stop_failed"
+          ]
+        },
+        {
+          "key": "stop_attempts",
+          "type": "integer",
+          "required": false,
+          "array": false,
+          "default": 0,
+          "min": 0,
+          "max": 1000000
+        },
+        {
+          "key": "last_error",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 2048,
+          "default": null,
+          "encrypt": false
+        }
+      ],
+      "indexes": [
+        {
+          "key": "idx_status_stop_at",
+          "type": "key",
+          "status": "available",
+          "columns": ["status", "retention_stop_at"],
+          "orders": ["ASC", "ASC"]
+        },
+        {
+          "key": "idx_turnover_user",
+          "type": "key",
+          "status": "available",
+          "columns": ["user_id"],
+          "orders": ["ASC"]
         }
       ]
     },
@@ -9233,24 +9437,24 @@
     },
     {
       "$id": "expenses",
-      "$permissions": ["create(\"users\")"],
+      "$permissions": [],
       "fileSecurity": true,
       "name": "Expenses",
       "enabled": true,
-      "maximumFileSize": 30000000,
-      "allowedFileExtensions": [],
+      "maximumFileSize": 10485760,
+      "allowedFileExtensions": ["jpg", "jpeg", "png", "webp", "pdf"],
       "compression": "none",
       "encryption": false,
       "antivirus": true
     },
     {
       "$id": "resumes",
-      "$permissions": ["create(\"any\")"],
+      "$permissions": [],
       "fileSecurity": true,
       "name": "Resumes",
       "enabled": true,
-      "maximumFileSize": 100000000,
-      "allowedFileExtensions": [],
+      "maximumFileSize": 5242880,
+      "allowedFileExtensions": ["pdf"],
       "compression": "none",
       "encryption": true,
       "antivirus": true

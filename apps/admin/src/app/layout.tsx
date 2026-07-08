@@ -1,11 +1,11 @@
 import { GeistSans } from "geist/font/sans";
 import type { Metadata } from "next";
-import Providers from "./providers";
-import "@/app/styles.css";
+import Script from "next/script";
 import { NextIntlClientProvider } from "next-intl";
 import { getMessages } from "next-intl/server";
 import { getLocale } from "@/app/actions/locale";
-import Script from "next/script";
+import Providers from "./providers";
+import "@/app/styles.css";
 
 export const metadata: Metadata = {
   title: "BI Student Organisation",
@@ -32,12 +32,12 @@ export default async function RootLayout({
             <main>
               {children}
               <Script
+                data-website-id="fb30735f-bf07-409f-bc65-f32baf0b17fd"
                 defer
                 src="https://analytics.biso.no/script.js"
-                data-website-id="fb30735f-bf07-409f-bc65-f32baf0b17fd"
                 strategy="afterInteractive"
-                />
-              </main>
+              />
+            </main>
           </NextIntlClientProvider>
         </Providers>
       </body>

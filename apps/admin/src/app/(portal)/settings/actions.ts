@@ -2,6 +2,7 @@
 
 import { createSessionClient } from "@repo/api/server";
 import { revalidatePath } from "next/cache";
+import { isRedirectError } from "next/dist/client/components/redirect-error";
 import { redirect } from "next/navigation";
 import { getUserAuthContext } from "@/lib/authorization";
 import {
@@ -50,6 +51,9 @@ export async function saveAdminPortalSettings(
     revalidatePath("/settings");
     return { data: settings };
   } catch (error) {
+    if (isRedirectError(error)) {
+      throw error;
+    }
     return {
       error: error instanceof Error ? error.message : "Failed to save settings",
     };

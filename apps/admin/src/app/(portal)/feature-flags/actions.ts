@@ -13,6 +13,7 @@ import {
   mergeFlagStates,
 } from "@repo/shared/utils/feature-flags";
 import { revalidatePath } from "next/cache";
+import { isRedirectError } from "next/dist/client/components/redirect-error";
 import { redirect } from "next/navigation";
 import { getUserAuthContext, type UserAuthContext } from "@/lib/authorization";
 import { logAuditEvent } from "../_actions/audit-log";
@@ -130,6 +131,9 @@ export async function setFeatureFlagByKey(
       },
     };
   } catch (error) {
+    if (isRedirectError(error)) {
+      throw error;
+    }
     return {
       error:
         error instanceof Error

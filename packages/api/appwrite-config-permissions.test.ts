@@ -1,5 +1,6 @@
-import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { describe, expect, test } from "vitest";
 
 const RESTRICTED_RECRUITMENT_TABLES = [
   "job_applications",
@@ -24,7 +25,9 @@ function loadAppwriteConfig(): {
     rowSecurity: boolean;
   }>;
 } {
-  return JSON.parse(readFileSync("packages/api/appwrite.config.json", "utf8"));
+  return JSON.parse(
+    readFileSync(join(import.meta.dirname, "appwrite.config.json"), "utf8")
+  );
 }
 
 describe("recruitment Appwrite table permissions", () => {

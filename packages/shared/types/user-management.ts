@@ -225,6 +225,23 @@ export const m365ManagerUpdateSchema = z.object({
   managerId: z.string().min(1),
 });
 
+/**
+ * Role-account turnover: repoint an existing role identity to a new holder.
+ * The login address (UPN/mail) stays stable — only the human-facing name
+ * changes — and the previous holder is locked out (MFA reset, sessions
+ * revoked, password reset) while a 7-day retention run clears their history.
+ */
+export const m365TurnoverSchema = z.object({
+  userId: z.string().min(1),
+  newFirstName: z.string().trim().min(1).max(128),
+  newLastName: z.string().trim().min(1).max(128),
+  // The admin must type the account's current UPN to confirm they are
+  // repurposing the intended role identity.
+  confirmationUpn: z.string().trim().min(1),
+});
+
+export type M365TurnoverInput = z.infer<typeof m365TurnoverSchema>;
+
 export const m365GroupMembershipSchema = z.object({
   userId: z.string().min(1),
   groupId: z.string().min(1),
@@ -287,7 +304,8 @@ export type M365Permission =
   | "it.users.resetMfa"
   | "it.users.revokeSessions"
   | "it.users.viewSecurity"
-  | "it.users.resetPassword";
+  | "it.users.resetPassword"
+  | "it.users.turnover";
 
 export type M365AliasOwnerType =
   | "user"

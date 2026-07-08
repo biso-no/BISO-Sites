@@ -12,18 +12,29 @@ export type Partner = Models.Row & {
 };
 
 export async function getPartners() {
-  const { db } = await createSessionClient();
-  const partners = await db.listRows<Partner>("app", "partners", [
-    Query.equal("level", "national"),
-  ]);
+  try {
+    const { db } = await createSessionClient();
+    const partners = await db.listRows<Partner>("app", "partners", [
+      Query.equal("level", "national"),
+    ]);
 
-  return partners.rows;
+    return partners.rows;
+  } catch (error) {
+    console.error("Failed to fetch partners:", error);
+    return [];
+  }
 }
 
 export async function getOrgChartUrl() {
-  const { storage } = await createSessionClient();
-  const arrayBuffer = await storage.getFilePreview("content", "org_chart");
-  const base64 = Buffer.from(arrayBuffer).toString("base64");
-  const dataUrl = `data:image/png;base64,${base64}`;
-  return dataUrl;
+  try {
+    const { storage } = await createSessionClient();
+    const arrayBuffer = await storage.getFilePreview("content", "org_chart");
+    const base64 = Buffer.from(arrayBuffer).toString("base64");
+    return `data:image/png;base64,${base64}`;
+  } catch (error) {
+    // Same graceful degradation as getPartners — an Appwrite blip must not
+    // crash the page render.
+    console.error("Failed to fetch org chart:", error);
+    return null;
+  }
 }

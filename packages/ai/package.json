@@ -40,7 +40,7 @@
     "zod": "catalog:"
   },
   "peerDependencies": {
-    "next": ">=16.2.2",
+    "next": "catalog:",
     "react": ">=19.0.0",
     "react-hook-form": ">=7.0.0"
   }

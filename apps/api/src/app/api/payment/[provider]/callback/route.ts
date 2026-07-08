@@ -9,6 +9,7 @@ import {
   reconcileVippsPayment,
   verifyVippsWebhookSignature,
 } from "@repo/payment/vipps";
+import { postFinagoTransactionForOrder } from "@repo/shared/utils/finago-order-posting";
 import {
   determineStatusFromStripeSession,
   type StripeSessionLike,
@@ -27,6 +28,29 @@ const STRIPE_SESSION_EVENTS = new Set([
 type StripeWebhookSession = StripeSessionLike & {
   metadata?: Record<string, string> | null;
 };
+
+type CallbackDb = Awaited<ReturnType<typeof createAdminClient>>["db"];
+
+/**
+ * Best-effort Finago posting after a paid/authorized transition. Never fails
+ * the webhook response — a missed post is recovered by the reconciliation
+ * cron, and the atomic claim prevents duplicates.
+ */
+async function postFinagoIfPaid(orderId: string, db: CallbackDb) {
+  try {
+    const order = (await db.getRow("app", "orders", orderId)) as {
+      status?: string;
+    } | null;
+    if (order?.status === "paid" || order?.status === "authorized") {
+      await postFinagoTransactionForOrder(orderId, db);
+    }
+  } catch (error) {
+    console.error(
+      `[payment/callback] Finago posting failed for ${orderId}:`,
+      error
+    );
+  }
+}
 
 async function handleVippsCallback(req: NextRequest, origin: string | null) {
   const json = (data: unknown, status = 200) =>
@@ -66,6 +90,12 @@ async function handleVippsCallback(req: NextRequest, origin: string | null) {
   // The reference is the internal order id; reconcile fetches the authoritative
   // payment, captures if needed, and applies the transition idempotently.
   await reconcileVippsPayment(event.reference, db);
+
+  // Post revenue to Finago from the webhook too, so mobile buyers who never
+  // hit the browser return route still get a ledger entry. The atomic posting
+  // claim inside the helper makes this safe alongside the return route/cron.
+  await postFinagoIfPaid(event.reference, db);
+
   return json({ received: true });
 }
 
@@ -96,6 +126,7 @@ async function handleStripeCallback(req: NextRequest, origin: string | null) {
     if (orderId) {
       const { status, updateData } = determineStatusFromStripeSession(session);
       await applyOrderStatusTransition(orderId, status, updateData, db);
+      await postFinagoIfPaid(orderId, db);
     }
   }
 

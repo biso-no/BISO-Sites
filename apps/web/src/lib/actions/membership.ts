@@ -10,6 +10,7 @@ import { isAuthenticatedAccount } from "@/lib/auth-utils";
 // Cookie configuration
 const MEMBERSHIP_COOKIE_NAME = "biso_membership";
 const COOKIE_TTL_SECONDS = 10 * 60; // 10 minutes
+const DEFAULT_MEMBERSHIP_FINAGO_TIMEOUT_MS = 3000;
 
 export interface MembershipInfo {
   category: string | null;
@@ -30,6 +31,47 @@ export interface MembershipStatus {
 interface CachedMembershipData {
   expiresAt: number;
   status: MembershipStatus;
+}
+
+function readPositiveInteger(
+  value: string | undefined,
+  fallback: number
+): number {
+  if (!value) {
+    return fallback;
+  }
+
+  const parsed = Number.parseInt(value, 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function membershipFinagoTimeoutMs(): number {
+  return readPositiveInteger(
+    process.env.MEMBERSHIP_FINAGO_TIMEOUT_MS,
+    DEFAULT_MEMBERSHIP_FINAGO_TIMEOUT_MS
+  );
+}
+
+async function withDeadline<T>(
+  work: Promise<T>,
+  timeoutMs: number,
+  message: string
+): Promise<T> {
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  const deadline = new Promise<never>((_, reject) => {
+    timeout = setTimeout(() => {
+      reject(new Error(message));
+    }, timeoutMs);
+    timeout.unref?.();
+  });
+
+  try {
+    return await Promise.race([work, deadline]);
+  } finally {
+    if (timeout) {
+      clearTimeout(timeout);
+    }
+  }
 }
 
 /**
@@ -201,7 +243,11 @@ async function fetchMembershipFromFinago(): Promise<MembershipStatus> {
     // 5. Fetch category IDs from Finago
     let finagoCategoryIds: number[];
     try {
-      finagoCategoryIds = await getCustomerCategories(numericId);
+      finagoCategoryIds = await withDeadline(
+        getCustomerCategories(numericId),
+        membershipFinagoTimeoutMs(),
+        "Finago membership category lookup timed out"
+      );
     } catch (error) {
       console.error("[Membership] Failed to fetch from Finago:", error);
       return {
@@ -231,7 +277,7 @@ async function fetchMembershipFromFinago(): Promise<MembershipStatus> {
     const membershipsResponse = await db.listRows<Memberships>(
       "app",
       "memberships",
-      [Query.equal("status", true)]
+      [Query.equal("status", true), Query.limit(200)]
     );
 
     const activeMemberships = membershipsResponse.rows;

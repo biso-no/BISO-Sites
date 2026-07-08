@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "biome lint .",
-    "check-types": "tsc --noEmit"
+    "check-types": "tsc --noEmit",
+    "test": "bun test ./src"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "catalog:",

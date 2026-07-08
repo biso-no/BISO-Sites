@@ -6,6 +6,8 @@ import { z } from "zod";
 import { createAuthenticatedClient } from "@/lib/auth";
 import { applyCorsHeaders, corsPreflightResponse } from "@/lib/cors";
 
+export const maxDuration = 300; // 5 minutes for AI processing
+
 // Response schema for AI extraction
 const ExpenseDataSchema = z.object({
   address: z

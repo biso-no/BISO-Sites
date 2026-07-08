@@ -1,4 +1,5 @@
 import "server-only";
+import { Query } from "@repo/api";
 import { createAdminClient, createSessionClient } from "@repo/api/server";
 import type { AdminScope } from "@repo/shared/types/user-management";
 import {
@@ -48,7 +49,7 @@ export async function getAdminScope(
     const jwt = extractJwtFromRequest(req);
     const { account, teams } = await createSessionClient(jwt);
     const user = await account.get();
-    const teamMemberships = await teams.list();
+    const teamMemberships = await teams.list([Query.limit(200)]);
 
     const campusNames: string[] = [];
     const departmentNames: string[] = [];

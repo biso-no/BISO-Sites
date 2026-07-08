@@ -16,8 +16,8 @@ import type {
   RemediationGroup,
   RemediationSnapshot,
 } from "@repo/shared/types/user-management";
+import { mapWithConcurrency } from "@repo/shared/utils/concurrency";
 import { revalidatePath } from "next/cache";
-import { mapWithConcurrency } from "@/lib/it/concurrency";
 import {
   buildCampusPrefixToId,
   type CanonicalDepartment,

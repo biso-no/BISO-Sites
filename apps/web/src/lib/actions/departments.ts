@@ -49,6 +49,7 @@ export async function getDepartments({
       "department_ref.boardMembers.*",
     ]),
     Query.orderAsc("title"),
+    Query.limit(500),
   ];
 
   if (isActive) {
@@ -133,6 +134,7 @@ export async function getDepartmentById(
         "translation_refs.short_description",
       ]),
       Query.orderDesc("$createdAt"),
+      Query.limit(500),
     ]);
 
     const productsResults = await db.listRows<WebshopProducts>(
@@ -166,6 +168,7 @@ export async function getDepartmentById(
           "translation_refs.short_description",
         ]),
         Query.orderDesc("$createdAt"),
+        Query.limit(500),
       ]
     );
 

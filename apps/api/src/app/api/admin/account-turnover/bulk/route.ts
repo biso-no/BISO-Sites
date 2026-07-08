@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createAuditLog, getAdminScope } from "@/lib/admin-auth";
+import { invalidateAppwriteUser } from "../appwrite-invalidation";
 
 // Get webhook URL from environment
 const AZURE_ACCOUNT_TURNOVER_WEBHOOK_URL =
@@ -20,6 +21,7 @@ const bulkTurnoverSchema = z.object({
 });
 
 interface TurnoverResult {
+  appwriteInvalidation?: Awaited<ReturnType<typeof invalidateAppwriteUser>>;
   dryRun: boolean;
   error?: string;
   incomingUserUpn: string;
@@ -103,6 +105,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             result.webhookResponse = await webhookResponse.json();
           } catch {
             result.webhookResponse = { status: "accepted" };
+          }
+
+          if (!dryRun) {
+            result.appwriteInvalidation = await invalidateAppwriteUser(
+              op.roleMailboxUpn
+            );
           }
         } else {
           const errorText = await webhookResponse.text();

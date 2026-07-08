@@ -1,3 +1,4 @@
+import type { Models } from "@repo/api";
 import { createAdminClient } from "@repo/api/server";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
@@ -16,7 +17,13 @@ export async function GET(request: NextRequest) {
   }
 
   const { account } = await createAdminClient();
-  const session = await account.createSession(userId, secret);
+  let session: Models.Session;
+  try {
+    session = await account.createSession(userId, secret);
+  } catch (error) {
+    console.error("Failed to create OAuth session:", error);
+    return redirect("/auth/login?error=Login+failed");
+  }
 
   (await cookies()).set("a_session_biso", session.secret, {
     path: "/",

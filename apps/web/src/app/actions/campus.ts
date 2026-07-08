@@ -85,37 +85,44 @@ export async function getCampuses({
   selectedCampusId?: string;
   includeDepartments?: boolean;
 } = {}) {
-  const { db } = await createSessionClient();
+  try {
+    const { db } = await createSessionClient();
 
-  const query: string[] = [];
+    const query: string[] = [Query.limit(500)];
 
-  // Filter by National if specified
-  if (!includeNational) {
-    query.push(Query.notEqual("name", "National"));
+    // Filter by National if specified
+    if (!includeNational) {
+      query.push(Query.notEqual("name", "National"));
+    }
+
+    if (selectedCampusId && selectedCampusId !== "all") {
+      query.push(Query.equal("$id", selectedCampusId));
+    }
+
+    if (includeDepartments) {
+      query.push(
+        Query.select([
+          "departments.$id",
+          "departments.Name",
+          "departments.active",
+        ])
+      );
+    }
+
+    const campuses = await db.listRows<Campus>("app", "campus", query);
+
+    return campuses.rows;
+  } catch (error) {
+    console.error("Failed to fetch campuses:", error);
+    return [];
   }
-
-  if (selectedCampusId && selectedCampusId !== "all") {
-    query.push(Query.equal("$id", selectedCampusId));
-  }
-
-  if (includeDepartments) {
-    query.push(
-      Query.select([
-        "departments.$id",
-        "departments.Name",
-        "departments.active",
-      ])
-    );
-  }
-
-  const campuses = await db.listRows<Campus>("app", "campus", query);
-
-  return campuses.rows;
 }
 
 export async function getCampusData(_campusId?: string) {
   const { db } = await createSessionClient();
-  const campuses = await db.listRows<CampusData>("app", "campus_data");
+  const campuses = await db.listRows<CampusData>("app", "campus_data", [
+    Query.limit(500),
+  ]);
 
   return campuses.rows;
 }

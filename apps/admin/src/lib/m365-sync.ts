@@ -1,5 +1,6 @@
-import { Query } from "@repo/api";
+import { Permission, Query, Role } from "@repo/api";
 import { createAdminClient } from "@repo/api/server";
+import { listAllUserMemberships } from "@repo/shared/utils/appwrite-memberships";
 import { expandDeptName } from "./campus-constants";
 import {
   grantDeptTeamAccess,
@@ -10,6 +11,22 @@ import {
 interface AzureGroup {
   id: string;
   name: string;
+}
+
+/**
+ * Team ID prefixes owned by Azure group reconciliation. Only memberships whose
+ * team IDs start with one of these are eligible for pruning — Appwrite-only
+ * teams (e.g. `biso-members`) are never touched by the Microsoft sync.
+ */
+const AZURE_SYNCED_TEAM_ID_PREFIXES = [
+  "sg-app-campus-",
+  "sg-app-dept-",
+] as const;
+
+function isAzureSyncedTeamId(teamId: string): boolean {
+  return AZURE_SYNCED_TEAM_ID_PREFIXES.some((prefix) =>
+    teamId.startsWith(prefix)
+  );
 }
 
 /**
@@ -46,9 +63,15 @@ async function syncTeamMembership(
 ): Promise<void> {
   const teamId = sanitizeTeamId(azureGroup.name);
   const teamName = sanitizeTeamName(azureGroup.name);
+  const isDeptTeam = azureGroup.name.startsWith("SG-App-Dept-");
 
   try {
     await teams.createMembership(teamId, roles, undefined, userId);
+    // Team already existed and the user was (re)added. Backfill the table-level
+    // content/recruitment create grants (see ensureDeptTeamTableGrants).
+    if (isDeptTeam) {
+      await ensureDeptTeamTableGrants(teamId);
+    }
   } catch (err: unknown) {
     const e = err as { code?: number; message?: string };
     if (e.code === 404) {
@@ -56,20 +79,42 @@ async function syncTeamMembership(
       await teams.createMembership(teamId, roles, undefined, userId);
 
       // Only dept teams get table-level create permissions; campus teams get nothing
-      if (azureGroup.name.startsWith("SG-App-Dept-")) {
-        await grantTeamContentAccess(teamId);
-        await grantTeamRecruitmentAccess(teamId);
+      if (isDeptTeam) {
+        await ensureDeptTeamTableGrants(teamId);
 
-        // Provision row-level write permissions on matching department rows
+        // Provision row-level write permissions on matching department rows.
+        // Unlike the table grants this rewrites the dept row every call, so it
+        // only runs when the team is first created.
         const rawDeptName = azureGroup.name.replace("SG-App-Dept-", "");
         await grantDeptTeamAccess(teamId, rawDeptName);
       }
     } else if (e.code === 409) {
       await updateExistingMembership(teams, teamId, roles, userId);
+      // User was already a member — the team predates this sync, so backfill the
+      // table-level grants in case they were never provisioned.
+      if (isDeptTeam) {
+        await ensureDeptTeamTableGrants(teamId);
+      }
     } else {
       throw err;
     }
   }
+}
+
+/**
+ * Ensure a dept team holds the table-level create grants on content and
+ * recruitment tables. Both underlying grants are idempotent — they read the
+ * current table permissions and only write when the grant is missing — so this
+ * is safe (and cheap once provisioned) to run on every sync. It exists because
+ * the content tables no longer carry a broad `create("users")` grant; each dept
+ * team gets a `create("team:…")` grant instead, and running this outside the
+ * team-creation path backfills teams that predate those per-team grants (or an
+ * environment where the config was applied before the grants existed) so staff
+ * don't silently lose the ability to create events/news/products/pages.
+ */
+async function ensureDeptTeamTableGrants(teamId: string): Promise<void> {
+  await grantTeamContentAccess(teamId);
+  await grantTeamRecruitmentAccess(teamId);
 }
 
 /**
@@ -115,8 +160,70 @@ function parseAzureGroups(
   return { teamsToSync };
 }
 
+interface PendingM365Profile {
+  campus_id?: string | null;
+  department_ids?: string[] | null;
+  email?: string | null;
+  isActive?: boolean | null;
+  name?: string | null;
+}
+
+/**
+ * The IT create-user flows seed the Appwrite `user` profile row under the
+ * Microsoft Graph object id — the only stable id known before the Appwrite
+ * account exists. The rest of the app loads profiles by the Appwrite account id
+ * (`account.$id`), with the Graph id stored as the OAuth identity's
+ * `providerUid`. On first sign-in, migrate that pre-created profile onto the
+ * account id so the seeded campus / department / active state isn't lost.
+ * Best-effort: any failure is logged and never blocks sign-in.
+ */
+export async function reconcileM365Profile(
+  db: Awaited<ReturnType<typeof createAdminClient>>["db"],
+  userId: string,
+  providerUid: string
+): Promise<void> {
+  if (providerUid === userId) {
+    return;
+  }
+  try {
+    const existing = await db.getRow("app", "user", userId).catch(() => null);
+    if (existing) {
+      // The account-id profile already exists — nothing to migrate.
+      return;
+    }
+    const pending = (await db
+      .getRow("app", "user", providerUid)
+      .catch(() => null)) as PendingM365Profile | null;
+    if (!pending) {
+      // No IT-seeded profile under the Graph id — normal (non-provisioned) user.
+      return;
+    }
+
+    const userRole = Role.user(userId);
+    await db.createRow(
+      "app",
+      "user",
+      userId,
+      {
+        name: pending.name ?? null,
+        email: pending.email ?? null,
+        campus_id: pending.campus_id ?? null,
+        department_ids: pending.department_ids ?? [],
+        isActive: pending.isActive ?? true,
+      },
+      [Permission.read(userRole), Permission.update(userRole)]
+    );
+
+    // Drop the orphan keyed by the Graph id so it can't shadow future lookups
+    // or leave duplicate profile data behind.
+    await db.deleteRow("app", "user", providerUid).catch(() => undefined);
+  } catch (error) {
+    console.error("M365 profile reconciliation failed:", error);
+  }
+}
+
 export async function syncM365Permissions(userId: string) {
-  const { users, teams } = await createAdminClient();
+  const { users, teams, db } = await createAdminClient();
 
   try {
     const identityList = await users.listIdentities({
@@ -126,30 +233,63 @@ export async function syncM365Permissions(userId: string) {
       (id) => id.provider === "microsoft"
     );
 
+    // Link any IT-provisioned profile seeded under the Microsoft object id to
+    // this Appwrite account id. Runs whenever a Microsoft identity is present,
+    // even without a fresh access token (e.g. magic-link re-entry).
+    if (microsoftIdentity?.providerUid) {
+      await reconcileM365Profile(db, userId, microsoftIdentity.providerUid);
+    }
+
     if (!microsoftIdentity?.providerAccessToken) {
       // No cached Microsoft token; the user signed in via magic link without
-      // a fresh OAuth flow. Skip silently — this is a normal path.
+      // a fresh OAuth flow. Skip the group sync silently — this is a normal path.
       return;
     }
 
-    const graphResponse = await fetch(
-      "https://graph.microsoft.com/v1.0/me/transitiveMemberOf?$select=id,displayName",
-      {
+    let azureGroups: { id: string; displayName?: string }[] = [];
+    let nextLink: string | null =
+      "https://graph.microsoft.com/v1.0/me/transitiveMemberOf?$select=id,displayName";
+
+    while (nextLink) {
+      const res: Response = await fetch(nextLink, {
         headers: {
           Authorization: `Bearer ${microsoftIdentity.providerAccessToken}`,
         },
-      }
-    );
+      });
 
-    const graphData = await graphResponse.json();
-    if (!graphResponse.ok) {
-      throw new Error(`Graph Error: ${JSON.stringify(graphData)}`);
+      const graphData = await res.json();
+      if (!res.ok) {
+        throw new Error(`Graph Error: ${JSON.stringify(graphData)}`);
+      }
+
+      azureGroups = azureGroups.concat(
+        (graphData.value as { id: string; displayName?: string }[]) || []
+      );
+      nextLink = graphData["@odata.nextLink"] || null;
     }
 
-    const azureGroups =
-      (graphData.value as { id: string; displayName?: string }[]) || [];
     const { teamsToSync } = parseAzureGroups(azureGroups);
+    const expectedTeamIds = new Set(
+      teamsToSync.map((g) => sanitizeTeamId(g.name))
+    );
 
+    // Reconcile: delete Azure-synced memberships that are no longer in Azure.
+    // Paginated — the default 25-row read would leave stale roles unpruned
+    // for users in many teams (PR-075). Pruning is restricted to team IDs owned
+    // by Azure group reconciliation so Appwrite-only memberships (e.g.
+    // `biso-members`) survive the sync.
+    const currentMemberships = await listAllUserMemberships(users, userId);
+    for (const membership of currentMemberships) {
+      if (
+        isAzureSyncedTeamId(membership.teamId) &&
+        !expectedTeamIds.has(membership.teamId)
+      ) {
+        // User is in an Azure-synced team but not in the corresponding Azure group
+        await teams.deleteMembership(membership.teamId, membership.$id);
+      }
+    }
+
+    // Provision expected teams
     await Promise.all(
       teamsToSync.map((azureGroup) =>
         syncTeamMembership(teams, azureGroup, ["member"], userId)
@@ -157,5 +297,6 @@ export async function syncM365Permissions(userId: string) {
     );
   } catch (error) {
     console.error("M365 Sync Failed:", error);
+    throw error; // PR-077: surface failure so the caller can abort/retry
   }
 }

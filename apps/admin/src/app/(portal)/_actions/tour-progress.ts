@@ -1,7 +1,7 @@
 "use server";
 
 import { ID, Permission, Query, Role } from "@repo/api";
-import { createSessionClient } from "@repo/api/server";
+import { createAdminClient, createSessionClient } from "@repo/api/server";
 import type { TourProgress } from "@repo/api/types/appwrite";
 import type { TourProgressRecord, TourStatus } from "@repo/tours/types";
 
@@ -76,8 +76,14 @@ export async function saveTourProgress(
     return;
   }
 
+  // tour_progress carries no collection-level create grant (rows are
+  // owner-scoped with rowSecurity on), so the session client cannot insert the
+  // first row. Create it with the admin client and stamp owner row permissions
+  // so read/update/delete stay scoped to this user; the session client handles
+  // every subsequent read/update.
+  const { db: adminDb } = await createAdminClient();
   try {
-    await db.createRow(DB_ID, TABLE_ID, ID.unique(), data, [
+    await adminDb.createRow(DB_ID, TABLE_ID, ID.unique(), data, [
       Permission.read(Role.user(user.$id)),
       Permission.update(Role.user(user.$id)),
       Permission.delete(Role.user(user.$id)),

@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "biome lint .",
-    "check-types": "tsc --noEmit"
+    "check-types": "tsc --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
     "@hookform/resolvers": "catalog:",

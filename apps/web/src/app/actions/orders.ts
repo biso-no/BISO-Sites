@@ -8,14 +8,19 @@ import type {
 } from "@repo/api/types/appwrite";
 import type { Locale } from "@repo/i18n/config";
 import { getFeatureFlagStates } from "@repo/shared/utils/feature-flags-server";
-import { getAvailableStock } from "@/app/actions/cart-reservations";
+import {
+  getAvailableStock,
+  getUserReservation,
+} from "@/app/actions/cart-reservations";
 import { getLocale } from "@/app/actions/locale";
 import { getProduct } from "@/app/actions/products";
 import { validatePurchaseLimits } from "@/app/actions/purchase-limits";
+import { ensureAnonymousSession } from "@/lib/anon-session";
 import type { OrderItem } from "@/lib/types/order";
 import { parseProductMetadata } from "@/lib/types/webshop";
 
 const WHITESPACE_RE = /\s+/;
+const DEFAULT_CHECKOUT_FETCH_TIMEOUT_MS = 10_000;
 
 async function _getOrders({
   limit = 100,
@@ -139,6 +144,34 @@ interface CheckoutResult {
   success: boolean;
 }
 
+class CheckoutTimeoutError extends Error {}
+
+function readPositiveInteger(
+  value: string | undefined,
+  fallback: number
+): number {
+  if (!value) {
+    return fallback;
+  }
+
+  const parsed = Number.parseInt(value, 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function checkoutFetchTimeoutMs(): number {
+  return readPositiveInteger(
+    process.env.CHECKOUT_FETCH_TIMEOUT_MS,
+    DEFAULT_CHECKOUT_FETCH_TIMEOUT_MS
+  );
+}
+
+function isAbortError(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    (error.name === "AbortError" || error.name === "TimeoutError")
+  );
+}
+
 function sanitizeCartItems(items: CheckoutLineItemInput[] | undefined) {
   if (!items || items.length === 0) {
     throw new Error("Your cart is empty");
@@ -229,14 +262,20 @@ async function ensureStockAvailability(
     return;
   }
   const availableStock = await getAvailableStock(productId);
-  if (availableStock >= requestedQuantity) {
+
+  // The buyer's own active hold is already subtracted from availableStock.
+  // Add it back so their own cart items don't block their checkout.
+  const myHold = await getUserReservation(productId);
+  const effectiveAvailable = availableStock + (myHold?.quantity || 0);
+
+  if (effectiveAvailable >= requestedQuantity) {
     return;
   }
-  if (availableStock === 0) {
+  if (effectiveAvailable === 0) {
     throw new Error(`${product.title || slug || productId} is out of stock.`);
   }
   throw new Error(
-    `Only ${availableStock} of ${product.title || slug || productId} available (${requestedQuantity} requested).`
+    `Only ${effectiveAvailable} of ${product.title || slug || productId} available (${requestedQuantity} requested).`
   );
 }
 
@@ -457,29 +496,18 @@ function createCheckoutReference() {
 }
 
 async function createProviderCheckoutSession({
+  jwt,
   provider,
   payload,
 }: {
+  jwt: string;
   provider: PaymentProvider;
   payload: {
-    userId: string;
-    items: Array<{
-      productId: string;
-      name: string;
-      price: number;
-      quantity: number;
-      title?: string;
-      unit_price?: number;
-      category?: string;
-    }>;
+    items: CheckoutLineItemInput[];
     subtotal: number;
-    discountTotal?: number;
     total: number;
     reference: string;
     currency: "NOK";
-    membershipApplied?: boolean;
-    memberDiscountPercent?: number;
-    campusId?: string;
     customerInfo: {
       firstName?: string;
       lastName?: string;
@@ -494,17 +522,35 @@ async function createProviderCheckoutSession({
     throw new Error("NEXT_PUBLIC_API_BASE_URL is not configured.");
   }
 
-  const response = await fetch(
-    `${apiBaseUrl}/api/payment/${provider}/checkout`,
-    {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => {
+    controller.abort();
+  }, checkoutFetchTimeoutMs());
+  timeout.unref?.();
+
+  let response: Response;
+  try {
+    response = await fetch(`${apiBaseUrl}/api/payment/${provider}/checkout`, {
       method: "POST",
       headers: {
+        Authorization: `Bearer ${jwt}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify(payload),
       cache: "no-store",
+      signal: controller.signal,
+    });
+  } catch (error) {
+    if (isAbortError(error)) {
+      throw new CheckoutTimeoutError(
+        "Checkout request timed out. Please try again."
+      );
     }
-  );
+
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
 
   const result = await response.json().catch(() => null);
 
@@ -539,47 +585,38 @@ export async function createCartCheckoutSession(
     const locale = await getLocale();
     const sanitizedItems = sanitizeCartItems(data.items);
 
+    // Guest carts that only hold untracked-stock products never create a
+    // reservation, so no earlier path provisions the anonymous session. Ensure
+    // one now (no-op if a session cookie already exists) so checkout isn't
+    // blocked for those buyers.
+    await ensureAnonymousSession();
+
     // Resolve the buyer's identity from the Appwrite session. Anonymous
     // sessions (no email, no real name) still have a $id we can use for
-    // per-user purchase-limit enforcement; if even that lookup fails we
-    // fall back to "guest" which disables max_per_user checks.
+    // per-user purchase-limit enforcement and JWT-authenticated API checkout.
     const { account } = await createSessionClient();
     const user = await account.get().catch(() => null);
-    const userId = user?.$id ?? "guest";
+    if (!user?.$id) {
+      throw new Error("A valid checkout session is required.");
+    }
+    const jwt = await account.createJWT().catch(() => null);
+    if (!jwt?.jwt) {
+      throw new Error("A valid checkout session is required.");
+    }
+    const userId = user.$id;
 
-    const {
-      orderItems,
-      subtotal,
-      originalTotal,
-      membershipApplied,
-      maxDiscountPercent,
-      campusIds,
-    } = await buildOrderItems(sanitizedItems, locale, userId);
+    const { subtotal } = await buildOrderItems(sanitizedItems, locale, userId);
 
-    const discountTotal = Math.max(0, originalTotal - subtotal);
     const [firstName, ...lastNameParts] = data.name.trim().split(WHITESPACE_RE);
     const { checkoutUrl, orderId } = await createProviderCheckoutSession({
+      jwt: jwt.jwt,
       provider: data.provider,
       payload: {
-        userId,
-        items: orderItems.map((item) => ({
-          productId: item.product_id,
-          name: item.title || item.product_slug || item.product_id,
-          title: item.title,
-          price: item.unit_price,
-          unit_price: item.unit_price,
-          quantity: item.quantity,
-        })),
+        items: sanitizedItems,
         subtotal,
-        discountTotal: discountTotal || undefined,
         total: subtotal,
         reference: createCheckoutReference(),
         currency: "NOK",
-        membershipApplied,
-        memberDiscountPercent: membershipApplied
-          ? maxDiscountPercent
-          : undefined,
-        campusId: campusIds.size === 1 ? Array.from(campusIds)[0] : undefined,
         customerInfo: {
           firstName: firstName || data.name.trim() || "Guest",
           lastName: lastNameParts.join(" "),

@@ -25,6 +25,12 @@ export interface CheckoutSessionParams {
     unit_price?: number;
     product_type?: string;
     category?: string;
+    // Non-price fulfillment metadata carried through to the persisted order so
+    // receipts/fulfillment retain the buyer's variant and custom-field answers.
+    variationId?: string;
+    variationName?: string;
+    customFields?: Record<string, string>;
+    customFieldLabels?: Record<string, string>;
   }>;
   memberDiscountPercent?: number;
   membershipApplied?: boolean;

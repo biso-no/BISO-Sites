@@ -7,7 +7,8 @@
     "clean": "git clean -xdf .cache .turbo dist node_modules",
     "lint": "biome lint .",
     "check-types": "tsc --noEmit",
-    "get-product": "ts-node scripts/get-products.ts"
+    "get-product": "ts-node scripts/get-products.ts",
+    "test": "vitest run"
   },
   "exports": {
     ".": "./index.ts",

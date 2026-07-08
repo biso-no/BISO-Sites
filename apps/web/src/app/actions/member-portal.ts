@@ -1,6 +1,6 @@
 "use server";
 import { ID, Permission, Query } from "@repo/api";
-import { createSessionClient } from "@repo/api/server";
+import { createAdminClient, createSessionClient } from "@repo/api/server";
 import type {
   BenefitInteractions,
   BenefitReveals,
@@ -31,7 +31,7 @@ async function createOrUpdatePublicProfile(
     console.error("Cannot create/update public profile without user ID");
     return null;
   }
-  const { db } = await createSessionClient();
+  const { db } = await createAdminClient();
   return await db.upsertRow<PublicProfiles>(
     "app",
     "public_profiles",
@@ -45,12 +45,13 @@ async function createOrUpdatePublicProfile(
       email_visible: profile.email_visible,
       phone_visible: profile.phone_visible,
       user_id: profile.user_id,
-      $permissions: [
-        isPublic
-          ? Permission.read("any")
-          : Permission.read(`user:${profile.user_id}`),
-      ],
-    }
+    },
+    [
+      isPublic
+        ? Permission.read("any")
+        : Permission.read(`user:${profile.user_id}`),
+      Permission.update(`user:${profile.user_id}`),
+    ]
   );
 }
 
@@ -237,32 +238,40 @@ export async function revealBenefit(
     }
 
     // Create reveal record
-    await db.createRow("app", "benefit_reveals", ID.unique(), {
-      user_id: user.$id,
-      benefit_id: benefitId,
-      revealed_at: new Date().toISOString(),
-      $permissions: [
-        Permission.read(`user:${user.$id}`),
-        Permission.update(`user:${user.$id}`),
-      ],
-    });
-
-    // Record interaction event (fire and forget, don't block response)
-    db.createRow<BenefitInteractions>(
+    const { db: adminDb } = await createAdminClient();
+    await adminDb.createRow(
       "app",
-      "benefit_interactions",
+      "benefit_reveals",
       ID.unique(),
       {
         user_id: user.$id,
         benefit_id: benefitId,
-        action: BenefitInteractionsAction.REVEAL,
-        campus_id: benefit.campus_id ?? null,
-        metadata: null,
-        $permissions: [Permission.read(`user:${user.$id}`)],
-      }
-    ).catch(() => {
-      /* non-critical */
-    });
+        revealed_at: new Date().toISOString(),
+      },
+      [
+        Permission.read(`user:${user.$id}`),
+        Permission.update(`user:${user.$id}`),
+      ]
+    );
+
+    // Record interaction event (fire and forget, don't block response)
+    adminDb
+      .createRow<BenefitInteractions>(
+        "app",
+        "benefit_interactions",
+        ID.unique(),
+        {
+          user_id: user.$id,
+          benefit_id: benefitId,
+          action: BenefitInteractionsAction.REVEAL,
+          campus_id: benefit.campus_id ?? null,
+          metadata: null,
+        },
+        [Permission.read(`user:${user.$id}`)]
+      )
+      .catch(() => {
+        /* non-critical */
+      });
 
     return { success: true, value: benefit.redemption_value ?? undefined };
   } catch (error) {

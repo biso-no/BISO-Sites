@@ -1,3 +1,4 @@
+import { Permission, Role } from "@repo/api";
 import { ExpensesStatus } from "@repo/api/types/appwrite";
 import { DEFAULT_COST_TYPE_SLUG } from "@repo/shared/utils/expense-cost-types";
 import { z } from "zod";
@@ -80,4 +81,9 @@ export function buildExpenseRowInput(
     user: userId,
     userId,
   };
+}
+
+export function buildExpenseRowPermissions(userId: string): string[] {
+  const userRole = Role.user(userId);
+  return [Permission.read(userRole), Permission.update(userRole)];
 }
