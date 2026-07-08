@@ -309,6 +309,69 @@ describe("applyOrderStatusTransition", () => {
     expect(db.listRows).not.toHaveBeenCalled();
   });
 
+  it("ignores a stale event that would regress a paid order back to pending", async () => {
+    db.getRow.mockImplementation(
+      (_databaseId: string, collectionId: string) => {
+        if (collectionId === "orders") {
+          return Promise.resolve({
+            $id: "order-1",
+            items_json: JSON.stringify([
+              { product_id: "product-1", quantity: 2, unit_price: 499 },
+            ]),
+            status: OrdersStatus.PAID,
+            userId: "user-1",
+          });
+        }
+        return Promise.resolve({ $id: "product-1", stock: 3 });
+      }
+    );
+
+    // A late Stripe `complete/unpaid` event maps to PENDING and arrives after
+    // the order already settled — it must be dropped, not applied.
+    const result = await applyOrderStatusTransition(
+      "order-1",
+      OrdersStatus.PENDING,
+      {},
+      db
+    );
+
+    expect(result.newStatus).toBe(OrdersStatus.PAID);
+    // Only the order row was read; nothing was written or restocked.
+    expect(db.getRow).toHaveBeenCalledTimes(1);
+    expect(db.updateRow).not.toHaveBeenCalled();
+    expect(db.incrementRowColumn).not.toHaveBeenCalled();
+  });
+
+  it("still allows a paid order to move forward to refunded", async () => {
+    db.getRow.mockImplementation(
+      (_databaseId: string, collectionId: string) => {
+        if (collectionId === "orders") {
+          return Promise.resolve({
+            $id: "order-1",
+            items_json: JSON.stringify([
+              { product_id: "product-1", quantity: 1, unit_price: 499 },
+            ]),
+            status: OrdersStatus.PAID,
+            userId: "user-1",
+          });
+        }
+        return Promise.resolve({ $id: "product-1", stock: 4 });
+      }
+    );
+
+    const result = await applyOrderStatusTransition(
+      "order-1",
+      OrdersStatus.REFUNDED,
+      {},
+      db
+    );
+
+    expect(result.newStatus).toBe(OrdersStatus.REFUNDED);
+    expect(db.updateRow).toHaveBeenCalledWith("app", "orders", "order-1", {
+      status: OrdersStatus.REFUNDED,
+    });
+  });
+
   it("deletes paid order reservations using structured Appwrite queries", async () => {
     db.listRows.mockResolvedValue({
       rows: [{ $id: "reservation-1" }, { $id: "reservation-2" }],

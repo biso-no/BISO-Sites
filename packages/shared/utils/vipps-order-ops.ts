@@ -174,6 +174,48 @@ export async function updateOrderWithSession(
   }
 }
 
+// Statuses that precede settlement. A settled/terminal order must never regress
+// to one of these.
+const PRE_SETTLEMENT_STATUSES: OrdersStatus[] = [
+  OrdersStatus.PENDING,
+  OrdersStatus.AUTHORIZED,
+];
+
+/**
+ * Guards against stale, out-of-order events regressing an order to an earlier
+ * lifecycle state. Payment providers (Stripe, Vipps) do not guarantee
+ * webhook/callback delivery order, so e.g. a late `checkout.session.completed`
+ * (complete/unpaid → PENDING) can arrive AFTER `async_payment_succeeded`
+ * (→ PAID). Without this guard that stale event would move a settled,
+ * revenue-posted order back to PENDING — hiding fulfillment state and dropping
+ * it from purchase-limit counting until another event corrects it.
+ *
+ * Only *backwards* moves into a pre-settlement state are blocked; every forward
+ * transition and every admin action (PAID → REFUNDED/CANCELLED, or a genuinely
+ * late PAID after a cancel) still applies.
+ */
+function isStaleBackwardTransition(
+  oldStatus: OrdersStatus,
+  newStatus: OrdersStatus
+): boolean {
+  if (oldStatus === newStatus) {
+    return false;
+  }
+  const settledOrTerminal =
+    oldStatus === OrdersStatus.PAID ||
+    oldStatus === OrdersStatus.REFUNDED ||
+    oldStatus === OrdersStatus.CANCELLED ||
+    oldStatus === OrdersStatus.FAILED;
+  if (settledOrTerminal && PRE_SETTLEMENT_STATUSES.includes(newStatus)) {
+    return true;
+  }
+  // A real cancellation moves to CANCELLED, never back to PENDING — so an
+  // authorized order regressing to pending is always a stale event.
+  return (
+    oldStatus === OrdersStatus.AUTHORIZED && newStatus === OrdersStatus.PENDING
+  );
+}
+
 /**
  * Applies a resolved order status transition: reads the current order, adjusts
  * stock + reservations for the old→new transition, then persists the new status
@@ -195,6 +237,15 @@ export async function applyOrderStatusTransition(
 
   const oldStatus: OrdersStatus = currentOrder.status || OrdersStatus.PENDING;
   const orderItems = parseOrderItems(currentOrder.items_json);
+
+  // Ignore stale, out-of-order events that would regress a settled order (e.g. a
+  // late Stripe `complete/unpaid` arriving after the order is already PAID).
+  if (isStaleBackwardTransition(oldStatus, newStatus)) {
+    console.log(
+      `[Order] Ignoring stale transition for ${orderId}: ${oldStatus} -> ${newStatus} (would regress a settled order).`
+    );
+    return { newStatus: oldStatus };
+  }
 
   try {
     const shouldDecrement =
