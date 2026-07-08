@@ -166,6 +166,37 @@ function getRequiredEnv(name: string): string {
   return value;
 }
 
+// biome-ignore lint/suspicious/noControlCharactersInRegex: intentionally strip control chars from a client-supplied display title
+const CONTROL_CHARS_RE = /[\u0000-\u001f\u007f]/g;
+const REPEATED_WHITESPACE_RE = /\s+/g;
+const MAX_ITEM_TITLE_LENGTH = 300;
+
+/**
+ * The web checkout folds the buyer's selected options into the line `title`
+ * (via `buildCheckoutLineTitle`) — it does not send them as structured
+ * variation/custom-field data — so the trusted rebuild must keep that title or
+ * the order confirmation/fulfillment view loses the option choices. The title
+ * is display-only (the price is still recomputed server-side), so trusting it
+ * carries no price risk; we still normalize control chars/whitespace and cap
+ * the length to keep it a safe display string, falling back to the canonical
+ * product title when the client sends nothing usable.
+ */
+function sanitizeItemTitle(raw: string | undefined, fallback: string): string {
+  if (typeof raw !== "string") {
+    return fallback;
+  }
+  const cleaned = raw
+    .replace(CONTROL_CHARS_RE, " ")
+    .replace(REPEATED_WHITESPACE_RE, " ")
+    .trim();
+  if (!cleaned) {
+    return fallback;
+  }
+  return cleaned.length > MAX_ITEM_TITLE_LENGTH
+    ? cleaned.slice(0, MAX_ITEM_TITLE_LENGTH)
+    : cleaned;
+}
+
 function sanitizeCartItems(items: CheckoutLineItemInput[]) {
   return items
     .map((item) => ({
@@ -349,12 +380,18 @@ async function buildTrustedCheckoutParams({
       userId
     );
 
+    const productName = product.title || product.slug || product.$id;
+
     trustedItems.push({
-      name: product.title || product.slug || product.$id,
+      name: productName,
       price: pricing.discountedUnit,
       productId: product.$id,
       quantity: input.quantity,
-      title: product.title,
+      // The web checkout conveys the buyer's selected options only by folding
+      // them into the line title, so keep that (sanitized) title for the
+      // receipt/fulfillment view instead of overwriting it with the bare
+      // product name. It is display-only; the price is recomputed above.
+      title: sanitizeItemTitle(input.title, productName),
       unit_price: pricing.discountedUnit,
       // Preserve the buyer's selections for the receipt/fulfillment. These are
       // non-price data — the price above is still recomputed server-side — so

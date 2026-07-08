@@ -259,6 +259,66 @@ describe("payment checkout authorization", () => {
     );
   });
 
+  it("keeps the buyer's option-bearing line title on the trusted order item", async () => {
+    const request = new Request(
+      "https://api.biso.no/api/payment/vipps/checkout",
+      {
+        body: JSON.stringify({
+          currency: "NOK",
+          customerInfo: { email: "buyer@example.com" },
+          items: [
+            {
+              productId: "product-1",
+              quantity: 1,
+              slug: "trusted-product",
+              title: "Trusted Product (Size: Large, Color: Red)",
+            },
+          ],
+          reference: "checkout-ref",
+          subtotal: 199,
+          total: 199,
+          userId: "session-user",
+        }),
+        headers: new Headers({
+          authorization: "Bearer valid",
+          "content-type": "application/json",
+        }),
+        method: "POST",
+      }
+    ) as unknown as NextRequest;
+
+    const response = await postVipps(request);
+
+    expect(response.status).toBe(200);
+    expect(mockedCreateOrder).toHaveBeenCalledWith(
+      expect.objectContaining({
+        items: [
+          expect.objectContaining({
+            // Display title carries the buyer's selected options; name stays the
+            // canonical product title.
+            name: "Trusted Product",
+            title: "Trusted Product (Size: Large, Color: Red)",
+          }),
+        ],
+      }),
+      expect.anything()
+    );
+  });
+
+  it("falls back to the product title when no line title is sent", async () => {
+    const response = await postVipps(
+      checkoutRequest({ authorization: "Bearer valid", total: 199 })
+    );
+
+    expect(response.status).toBe(200);
+    expect(mockedCreateOrder).toHaveBeenCalledWith(
+      expect.objectContaining({
+        items: [expect.objectContaining({ title: "Trusted Product" })],
+      }),
+      expect.anything()
+    );
+  });
+
   it("preserves variant and custom-field data on the trusted order items", async () => {
     mockedCreateAdminClient.mockResolvedValue({
       db: {
