@@ -12,6 +12,11 @@ const MANAGER_ROLE_REGEX = /manager|president/i;
 // treated as a literal Azure AD `department` name (e.g. "Control Committee").
 const NUMERIC_ID_REGEX = /^\d+$/;
 
+// Escape a value for use inside an OData single-quoted string literal by
+// doubling embedded single quotes. Prevents a crafted (non-numeric) route
+// segment from breaking out of the quoted literal in the Graph `$filter`.
+const escapeODataLiteral = (v: string) => v.replace(/'/g, "''");
+
 // --- Types ---
 interface DepartmentMember {
   email: string;
@@ -135,7 +140,7 @@ export async function GET(
 
     // 3. Fetch Users using Advanced Query Capabilities (Server-side filtering)
     // Using 'startswith' is more robust for department matching.
-    const combinedFilterValue = `officeLocation eq '${campusInfo.officeFilter}' and startswith(department, '${departmentName}') and accountEnabled eq true`;
+    const combinedFilterValue = `officeLocation eq '${escapeODataLiteral(campusInfo.officeFilter)}' and startswith(department, '${escapeODataLiteral(departmentName)}') and accountEnabled eq true`;
 
     const response = await graphClient
       .api("/users")

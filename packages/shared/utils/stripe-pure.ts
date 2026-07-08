@@ -21,16 +21,26 @@ function paymentIntentId(session: StripeSessionLike): string | null {
 }
 
 /**
- * Maps a Stripe Checkout Session to an order status + the order columns to
- * update. Mirrors `determineStatusFromPaymentState` (Vipps) so both providers
- * feed the same `applyOrderStatusTransition` stock/lifecycle logic.
+ * Maps a Stripe Checkout Session (+ the webhook event type, when available) to
+ * an order status + the order columns to update.
  *
+ * Checkout is created with `mode: "payment"` and the default *automatic*
+ * capture, so there is no authorize-only state: a synchronous card payment
+ * arrives as `complete`/`paid`. A `complete`/`unpaid` session means a
+ * delayed-notification method is still settling — it must NOT be treated as
+ * fulfilled (doing so prematurely decrements stock and posts revenue for a
+ * payment that can still fail). Fulfillment happens only when the payment
+ * actually settles (`paid`, via `checkout.session.async_payment_succeeded`).
+ *
+ * - `async_payment_failed` event → CANCELLED (session is still complete/unpaid)
  * - `expired` session → CANCELLED
  * - paid (or no-payment-required) → PAID
- * - completed but not yet paid → AUTHORIZED
- * - otherwise (still open) → PENDING
+ * - otherwise (complete-but-unpaid / still open) → PENDING
  */
-export function determineStatusFromStripeSession(session: StripeSessionLike): {
+export function determineStatusFromStripeSession(
+  session: StripeSessionLike,
+  eventType?: string
+): {
   status: OrdersStatus;
   updateData: Partial<Orders>;
 } {
@@ -38,6 +48,13 @@ export function determineStatusFromStripeSession(session: StripeSessionLike): {
   const intentId = paymentIntentId(session);
   if (intentId) {
     updateData.payment_intent_id = intentId;
+  }
+
+  // A delayed-notification payment that failed. The session shape is
+  // indistinguishable from "still settling" (complete/unpaid), so the event
+  // type is the only reliable signal — handle it before any success mapping.
+  if (eventType === "checkout.session.async_payment_failed") {
+    return { status: OrdersStatus.CANCELLED, updateData };
   }
 
   if (session.status === "expired") {
@@ -49,10 +66,6 @@ export function determineStatusFromStripeSession(session: StripeSessionLike): {
     session.payment_status === "no_payment_required"
   ) {
     return { status: OrdersStatus.PAID, updateData };
-  }
-
-  if (session.status === "complete") {
-    return { status: OrdersStatus.AUTHORIZED, updateData };
   }
 
   return { status: OrdersStatus.PENDING, updateData };

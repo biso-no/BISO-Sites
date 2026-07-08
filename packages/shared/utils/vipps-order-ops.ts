@@ -101,8 +101,8 @@ export async function createOrder(
 
   try {
     const order = (await databases.createRow(
-      process.env.APPWRITE_DATABASE_ID!,
-      process.env.APPWRITE_ORDERS_COLLECTION_ID!,
+      (process.env.APPWRITE_DATABASE_ID ?? "app"),
+      (process.env.APPWRITE_ORDERS_COLLECTION_ID ?? "orders"),
       orderId,
       {
         status: OrdersStatus.PENDING,
@@ -155,8 +155,8 @@ export async function updateOrderWithSession(
 ): Promise<void> {
   try {
     await databases.updateRow(
-      process.env.APPWRITE_DATABASE_ID!,
-      process.env.APPWRITE_ORDERS_COLLECTION_ID!,
+      (process.env.APPWRITE_DATABASE_ID ?? "app"),
+      (process.env.APPWRITE_ORDERS_COLLECTION_ID ?? "orders"),
       orderId,
       {
         payment_provider: update.provider,
@@ -188,8 +188,8 @@ export async function applyOrderStatusTransition(
   databases: DbClient
 ): Promise<{ newStatus: OrdersStatus }> {
   const currentOrder = (await databases.getRow(
-    process.env.APPWRITE_DATABASE_ID!,
-    process.env.APPWRITE_ORDERS_COLLECTION_ID!,
+    (process.env.APPWRITE_DATABASE_ID ?? "app"),
+    (process.env.APPWRITE_ORDERS_COLLECTION_ID ?? "orders"),
     orderId
   )) as Orders;
 
@@ -217,8 +217,8 @@ export async function applyOrderStatusTransition(
         const claimed = await databases.incrementRowColumn<
           Record<string, unknown>
         >({
-          databaseId: process.env.APPWRITE_DATABASE_ID!,
-          tableId: process.env.APPWRITE_ORDERS_COLLECTION_ID!,
+          databaseId: (process.env.APPWRITE_DATABASE_ID ?? "app"),
+          tableId: (process.env.APPWRITE_ORDERS_COLLECTION_ID ?? "orders"),
           rowId: orderId,
           column: "transition_lock",
           value: 1,
@@ -260,8 +260,8 @@ export async function applyOrderStatusTransition(
     }
 
     await databases.updateRow(
-      process.env.APPWRITE_DATABASE_ID!,
-      process.env.APPWRITE_ORDERS_COLLECTION_ID!,
+      (process.env.APPWRITE_DATABASE_ID ?? "app"),
+      (process.env.APPWRITE_ORDERS_COLLECTION_ID ?? "orders"),
       orderId,
       {
         status: newStatus,
@@ -330,8 +330,8 @@ async function readTrackedStock(
   productId: string
 ): Promise<number | null> {
   const product = (await databases.getRow(
-    process.env.APPWRITE_DATABASE_ID!,
-    process.env.APPWRITE_WEBSHOP_PRODUCTS_COLLECTION_ID!,
+    (process.env.APPWRITE_DATABASE_ID ?? "app"),
+    (process.env.APPWRITE_WEBSHOP_PRODUCTS_COLLECTION_ID ?? "webshop_products"),
     productId
   )) as Record<string, unknown>;
   return typeof product.stock === "number" ? product.stock : null;
@@ -355,8 +355,8 @@ async function decrementProductStockAtomically(
   try {
     const updated = await databases.decrementRowColumn<Record<string, unknown>>(
       {
-        databaseId: process.env.APPWRITE_DATABASE_ID!,
-        tableId: process.env.APPWRITE_WEBSHOP_PRODUCTS_COLLECTION_ID!,
+        databaseId: (process.env.APPWRITE_DATABASE_ID ?? "app"),
+        tableId: (process.env.APPWRITE_WEBSHOP_PRODUCTS_COLLECTION_ID ?? "webshop_products"),
         rowId: productId,
         column: "stock",
         value: quantity,
@@ -373,8 +373,8 @@ async function decrementProductStockAtomically(
         `[Stock] OVERSELL product ${productId}: paid quantity ${quantity} exceeds remaining stock ${remaining}; flooring to 0. Manual follow-up required.`
       );
       await databases.updateRow(
-        process.env.APPWRITE_DATABASE_ID!,
-        process.env.APPWRITE_WEBSHOP_PRODUCTS_COLLECTION_ID!,
+        (process.env.APPWRITE_DATABASE_ID ?? "app"),
+        (process.env.APPWRITE_WEBSHOP_PRODUCTS_COLLECTION_ID ?? "webshop_products"),
         productId,
         { stock: 0 }
       );
@@ -422,8 +422,8 @@ async function decrementStockForItems({
       // write races under concurrency — kept only so old callers don't break.
       const newStock = Math.max(0, productStock - itemQuantity);
       await databases.updateRow(
-        process.env.APPWRITE_DATABASE_ID!,
-        process.env.APPWRITE_WEBSHOP_PRODUCTS_COLLECTION_ID!,
+        (process.env.APPWRITE_DATABASE_ID ?? "app"),
+        (process.env.APPWRITE_WEBSHOP_PRODUCTS_COLLECTION_ID ?? "webshop_products"),
         item.product_id,
         { stock: newStock }
       );
@@ -467,8 +467,8 @@ async function restoreStockForItems({
         const updated = await databases.incrementRowColumn<
           Record<string, unknown>
         >({
-          databaseId: process.env.APPWRITE_DATABASE_ID!,
-          tableId: process.env.APPWRITE_WEBSHOP_PRODUCTS_COLLECTION_ID!,
+          databaseId: (process.env.APPWRITE_DATABASE_ID ?? "app"),
+          tableId: (process.env.APPWRITE_WEBSHOP_PRODUCTS_COLLECTION_ID ?? "webshop_products"),
           rowId: item.product_id,
           column: "stock",
           value: itemQuantity,
@@ -482,8 +482,8 @@ async function restoreStockForItems({
       // Legacy fallback for clients without atomic column ops.
       const newStock = productStock + itemQuantity;
       await databases.updateRow(
-        process.env.APPWRITE_DATABASE_ID!,
-        process.env.APPWRITE_WEBSHOP_PRODUCTS_COLLECTION_ID!,
+        (process.env.APPWRITE_DATABASE_ID ?? "app"),
+        (process.env.APPWRITE_WEBSHOP_PRODUCTS_COLLECTION_ID ?? "webshop_products"),
         item.product_id,
         { stock: newStock }
       );
@@ -524,7 +524,7 @@ async function deleteUserReservations({
   try {
     for (let page = 0; page < RESERVATION_CLEANUP_MAX_PAGES; page++) {
       const reservations = await databases.listRows(
-        process.env.APPWRITE_DATABASE_ID!,
+        (process.env.APPWRITE_DATABASE_ID ?? "app"),
         "cart_reservations",
         [
           Query.equal("user_id", userId),
@@ -535,7 +535,7 @@ async function deleteUserReservations({
 
       for (const reservation of reservations.rows) {
         await databases.deleteRow(
-          process.env.APPWRITE_DATABASE_ID!,
+          (process.env.APPWRITE_DATABASE_ID ?? "app"),
           "cart_reservations",
           reservation.$id
         );

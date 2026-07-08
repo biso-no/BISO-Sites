@@ -2,7 +2,11 @@ import { Query } from "@repo/api";
 import { createSessionClient } from "@repo/api/server";
 import type { Campus } from "@repo/api/types/appwrite";
 import { type NextRequest, NextResponse } from "next/server";
-import { canManageCampus, getAdminScope } from "@/lib/admin-auth";
+import {
+  canManageCampus,
+  extractJwtFromRequest,
+  getAdminScope,
+} from "@/lib/admin-auth";
 
 /**
  * GET /api/admin/campuses
@@ -15,7 +19,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { db } = await createSessionClient();
+    const jwt = extractJwtFromRequest(request);
+    const { db } = await createSessionClient(jwt);
     const response = await db.listRows<Campus>("app", "campus", [
       Query.limit(100),
     ]);

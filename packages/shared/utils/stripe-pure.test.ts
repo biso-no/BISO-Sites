@@ -13,13 +13,25 @@ describe("determineStatusFromStripeSession", () => {
     expect(result.updateData.payment_intent_id).toBe("pi_1");
   });
 
-  it("maps a completed-but-unpaid session to AUTHORIZED", () => {
+  it("maps a completed-but-unpaid session to PENDING (async payment still settling)", () => {
     expect(
       determineStatusFromStripeSession({
         status: "complete",
         payment_status: "unpaid",
       }).status
-    ).toBe(OrdersStatus.AUTHORIZED);
+    ).toBe(OrdersStatus.PENDING);
+  });
+
+  it("maps an async_payment_failed event to CANCELLED even though the session is complete/unpaid", () => {
+    expect(
+      determineStatusFromStripeSession(
+        {
+          status: "complete",
+          payment_status: "unpaid",
+        },
+        "checkout.session.async_payment_failed"
+      ).status
+    ).toBe(OrdersStatus.CANCELLED);
   });
 
   it("maps an expired session to CANCELLED even if unpaid", () => {

@@ -29,6 +29,7 @@
     "@azure/msal-node": "catalog:",
     "@microsoft/microsoft-graph-client": "catalog:",
     "@repo/api": "workspace:*",
+    "axios": "catalog:",
     "botbuilder": "catalog:",
     "openapi-fetch": "catalog:",
     "server-only": "catalog:",

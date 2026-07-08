@@ -15,7 +15,11 @@ import { createAdminClient, createSessionClient } from "@repo/api/server";
 import type { Pages, PageViewEvents } from "@repo/api/types/appwrite";
 import { revalidatePath } from "next/cache";
 import { requireAuth, type UserAuthContext } from "@/lib/authorization";
-import { applyScopeQueries } from "@/lib/utils/authorization";
+import {
+  applyScopeQueries,
+  assertPublishAccess,
+  assertWriteAccess,
+} from "@/lib/utils/authorization";
 import { logAuditEvent } from "./audit-log";
 
 export async function listPages(opts?: { status?: string; campusId?: string }) {
@@ -205,12 +209,23 @@ export async function publishPageAction(
   locale: "no" | "en" = "no"
 ) {
   const ctx = await requireAuth();
-  await pbPublishPage({ id, locale });
-  await logAuditEvent(ctx, "page_published", {
-    resourceId: id,
-    resourceType: "page",
-  });
-  revalidatePath("/pages");
+  try {
+    const { db } = await createSessionClient();
+    // Publishing is gated by campus/global admin — a department user with
+    // row-level write on the draft must not be able to push a page live.
+    const page = await db.getRow<Pages>("app", "pages", id);
+    assertPublishAccess(ctx, page.campus_id);
+
+    await pbPublishPage({ id, locale });
+    await logAuditEvent(ctx, "page_published", {
+      resourceId: id,
+      resourceType: "page",
+    });
+    revalidatePath("/pages");
+  } catch (e) {
+    console.error("[publishPageAction]", e);
+    throw new Error(e instanceof Error ? e.message : "Failed to publish page");
+  }
 }
 
 export async function unpublishPageAction(
@@ -218,21 +233,42 @@ export async function unpublishPageAction(
   locale: "no" | "en" = "no"
 ) {
   const ctx = await requireAuth();
-  await pbUnpublishPage({ id, locale });
-  await logAuditEvent(ctx, "page_unpublished", {
-    resourceId: id,
-    resourceType: "page",
-  });
-  revalidatePath("/pages");
+  try {
+    const { db } = await createSessionClient();
+    // Unpublishing (removing from the public site) is a publish-gated action,
+    // same as publishing — restrict it to campus/global admins.
+    const page = await db.getRow<Pages>("app", "pages", id);
+    assertPublishAccess(ctx, page.campus_id);
+
+    await pbUnpublishPage({ id, locale });
+    await logAuditEvent(ctx, "page_unpublished", {
+      resourceId: id,
+      resourceType: "page",
+    });
+    revalidatePath("/pages");
+  } catch (e) {
+    console.error("[unpublishPageAction]", e);
+    throw new Error(e instanceof Error ? e.message : "Failed to unpublish page");
+  }
 }
 
 export async function deletePageAction(id: string) {
   const ctx = await requireAuth();
-  const { db } = await createSessionClient();
-  await db.updateRow("app", "pages", id, { status: "archived" });
-  await logAuditEvent(ctx, "page_deleted", {
-    resourceId: id,
-    resourceType: "page",
-  });
-  revalidatePath("/pages");
+  try {
+    const { db } = await createSessionClient();
+    // Archiving is a write, not a publish — gate it like deleteEvent/deleteNews
+    // so a user can only archive pages within their campus/department scope.
+    const page = await db.getRow<Pages>("app", "pages", id);
+    assertWriteAccess(ctx, page.campus_id, page.department_id);
+
+    await db.updateRow("app", "pages", id, { status: "archived" });
+    await logAuditEvent(ctx, "page_deleted", {
+      resourceId: id,
+      resourceType: "page",
+    });
+    revalidatePath("/pages");
+  } catch (e) {
+    console.error("[deletePageAction]", e);
+    throw new Error(e instanceof Error ? e.message : "Failed to delete page");
+  }
 }

@@ -1,6 +1,8 @@
+import { Query } from "@repo/api";
 import { createAdminClient } from "@repo/api/server";
 import type {
   ContentTranslations,
+  Orders,
   Users,
   WebshopProducts,
 } from "@repo/api/types/appwrite";
@@ -12,6 +14,11 @@ import { createStripeCheckoutSession } from "@repo/payment/stripe";
 import { createVippsPayment } from "@repo/payment/vipps";
 import { type CheckoutSessionParams, Currency } from "@repo/shared/types/vipps";
 import { isFeatureEnabled } from "@repo/shared/utils/feature-flags-server";
+import {
+  checkMaxPerOrder,
+  evaluatePerUserLimit,
+  summarizePurchases,
+} from "@repo/shared/utils/purchase-limits";
 import {
   createOrder,
   updateOrderWithSession,
@@ -99,6 +106,91 @@ type SessionOutcome =
   | { ok: false; message: string; status: number };
 
 class CheckoutTimeoutError extends Error {}
+
+// Thrown when an order fails stock-availability or purchase-limit validation.
+// Carries the HTTP status to surface to the client (409 = conflict / oversell).
+class CheckoutValidationError extends Error {
+  readonly status: number;
+  constructor(message: string, status: number) {
+    super(message);
+    this.status = status;
+  }
+}
+
+const ORDER_STATUS_FILTER = Query.or([
+  Query.equal("status", "authorized"),
+  Query.equal("status", "paid"),
+]);
+
+// Validate a single product line against current stock and purchase limits
+// BEFORE any order/payment session is created, so a direct POST with an
+// oversized quantity cannot oversell or bypass per-user limits. Fails closed.
+async function ensureLineAvailability({
+  product,
+  requestedQuantity,
+  userId,
+  db,
+}: {
+  product: NormalizedProduct;
+  requestedQuantity: number;
+  userId: string;
+  db: CheckoutDb;
+}): Promise<void> {
+  const productName = product.title || product.slug || product.$id;
+
+  // Stock check (fail closed): only enforced when the product tracks stock.
+  if (
+    product.stock !== null &&
+    product.stock !== undefined &&
+    requestedQuantity > product.stock
+  ) {
+    throw new CheckoutValidationError(
+      product.stock <= 0
+        ? `${productName} is out of stock.`
+        : `Only ${product.stock} of ${productName} available (${requestedQuantity} requested).`,
+      409
+    );
+  }
+
+  // Per-order and per-user purchase limits live in the product metadata.
+  const metadata = product.metadata_parsed;
+  const maxPerOrder =
+    typeof metadata.max_per_order === "number"
+      ? metadata.max_per_order
+      : undefined;
+  const maxPerUser =
+    typeof metadata.max_per_user === "number"
+      ? metadata.max_per_user
+      : undefined;
+
+  const perOrder = checkMaxPerOrder(requestedQuantity, maxPerOrder);
+  if (!perOrder.allowed) {
+    throw new CheckoutValidationError(
+      perOrder.reason || `Purchase limit exceeded for ${productName}`,
+      409
+    );
+  }
+
+  if (maxPerUser && maxPerUser > 0 && userId && userId !== "guest") {
+    const orders = await db.listRows<Orders>("app", "orders", [
+      Query.equal("userId", userId),
+      ORDER_STATUS_FILTER,
+      Query.limit(1000),
+    ]);
+    const { totalPurchased } = summarizePurchases(orders.rows, product.$id);
+    const perUser = evaluatePerUserLimit(
+      totalPurchased,
+      requestedQuantity,
+      maxPerUser
+    );
+    if (!perUser.allowed) {
+      throw new CheckoutValidationError(
+        perUser.reason || `Purchase limit exceeded for ${productName}`,
+        409
+      );
+    }
+  }
+}
 
 function readPositiveInteger(
   value: string | undefined,
@@ -351,6 +443,18 @@ async function buildTrustedCheckoutParams({
     throw new Error("Invalid checkout payload");
   }
 
+  // Aggregate requested quantity per product so stock/limit checks see the full
+  // amount a buyer is trying to purchase across multiple (e.g. per-variation)
+  // line items, not each line in isolation.
+  const quantityByProduct = new Map<string, number>();
+  for (const item of sanitizedItems) {
+    quantityByProduct.set(
+      item.productId,
+      (quantityByProduct.get(item.productId) || 0) + item.quantity
+    );
+  }
+  const validatedProducts = new Set<string>();
+
   const productCache = new Map<string, NormalizedProduct>();
   const discountCache = new Map<
     string,
@@ -371,6 +475,18 @@ async function buildTrustedCheckoutParams({
         `Product ${product.title || product.slug} is missing a price.`
       );
     }
+    // Validate availability + purchase limits once per product (fail closed)
+    // before any order or payment session is created.
+    if (!validatedProducts.has(product.$id)) {
+      await ensureLineAvailability({
+        product,
+        requestedQuantity: quantityByProduct.get(input.productId) || 0,
+        userId,
+        db,
+      });
+      validatedProducts.add(product.$id);
+    }
+
     const variation = findVariation(product, input.variationId);
     const pricing = await resolvePricing(
       product,
@@ -570,6 +686,10 @@ export async function POST(
   } catch (error) {
     if (error instanceof CheckoutTimeoutError) {
       return json({ message: error.message }, 504);
+    }
+
+    if (error instanceof CheckoutValidationError) {
+      return json({ message: error.message }, error.status);
     }
 
     console.error(`[payment/${provider}/checkout] error:`, error);

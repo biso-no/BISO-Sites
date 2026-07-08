@@ -1,5 +1,6 @@
 {
   "lockfileVersion": 1,
+  "configVersion": 0,
   "workspaces": {
     "": {
       "name": "biso-sites",
@@ -217,6 +218,7 @@
         "@azure/msal-node": "catalog:",
         "@microsoft/microsoft-graph-client": "catalog:",
         "@repo/api": "workspace:*",
+        "axios": "catalog:",
         "botbuilder": "catalog:",
         "openapi-fetch": "catalog:",
         "server-only": "catalog:",
@@ -491,6 +493,7 @@
     "@vippsmobilepay/sdk": "^2.4.2",
     "ai": "6.0.193",
     "appwrite": "^24.1.1",
+    "axios": "^1.14.0",
     "botbuilder": "^4.23.3",
     "class-variance-authority": "^0.7.1",
     "classnames": "^2.5.1",

@@ -2,7 +2,11 @@ import { Query } from "@repo/api";
 import { createSessionClient } from "@repo/api/server";
 import type { Campus } from "@repo/api/types/appwrite";
 import { type NextRequest, NextResponse } from "next/server";
-import { canManageCampus, getAdminScope } from "@/lib/admin-auth";
+import {
+  canManageCampus,
+  extractJwtFromRequest,
+  getAdminScope,
+} from "@/lib/admin-auth";
 
 /**
  * GET /api/admin/departments?campusId=...
@@ -25,7 +29,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    const { db } = await createSessionClient();
+    const jwt = extractJwtFromRequest(request);
+    const { db } = await createSessionClient(jwt);
 
     // Get the campus first to check authorization
     const campus = await db.getRow<Campus>("app", "campus", campusId, [

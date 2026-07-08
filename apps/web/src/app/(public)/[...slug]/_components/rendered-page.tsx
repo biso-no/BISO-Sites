@@ -1,6 +1,14 @@
+"use client";
+
 import "@repo/editor/theme/styles.css";
 import type { Block, PageDoc } from "@repo/editor/render";
 import { getBlock } from "@repo/editor/render";
+
+// This wrapper is a Client Component on purpose. Every block `Render` is
+// itself `"use client"`, and BlockRenderer passes them an `onPatch` function.
+// Passing a function prop across the Server→Client boundary is a hard RSC
+// serialization error, so the boundary must sit here (the server page passes
+// only the serializable `doc`). Blocks still SSR — they hydrate as before.
 
 interface Props {
   doc: PageDoc;
