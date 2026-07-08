@@ -765,6 +765,10 @@ export async function createM365User(input: M365CreateUserInput): Promise<
 
     try {
       const { db } = await createAdminClient();
+      // Seed the profile under the Microsoft Graph object id — the only stable
+      // id available before the Appwrite account exists. `syncM365Permissions`
+      // migrates this row onto the Appwrite account id (`account.$id`) on first
+      // sign-in, since the rest of the app loads profiles by that id.
       await db.createRow("app", "user", graphUser.id, {
         name: displayName,
         email: userPrincipalName,

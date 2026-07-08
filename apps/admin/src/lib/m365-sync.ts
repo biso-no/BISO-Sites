@@ -1,4 +1,4 @@
-import { Query } from "@repo/api";
+import { Permission, Query, Role } from "@repo/api";
 import { createAdminClient } from "@repo/api/server";
 import { listAllUserMemberships } from "@repo/shared/utils/appwrite-memberships";
 import { expandDeptName } from "./campus-constants";
@@ -160,8 +160,70 @@ function parseAzureGroups(
   return { teamsToSync };
 }
 
+interface PendingM365Profile {
+  campus_id?: string | null;
+  department_ids?: string[] | null;
+  email?: string | null;
+  isActive?: boolean | null;
+  name?: string | null;
+}
+
+/**
+ * The IT create-user flows seed the Appwrite `user` profile row under the
+ * Microsoft Graph object id — the only stable id known before the Appwrite
+ * account exists. The rest of the app loads profiles by the Appwrite account id
+ * (`account.$id`), with the Graph id stored as the OAuth identity's
+ * `providerUid`. On first sign-in, migrate that pre-created profile onto the
+ * account id so the seeded campus / department / active state isn't lost.
+ * Best-effort: any failure is logged and never blocks sign-in.
+ */
+export async function reconcileM365Profile(
+  db: Awaited<ReturnType<typeof createAdminClient>>["db"],
+  userId: string,
+  providerUid: string
+): Promise<void> {
+  if (providerUid === userId) {
+    return;
+  }
+  try {
+    const existing = await db.getRow("app", "user", userId).catch(() => null);
+    if (existing) {
+      // The account-id profile already exists — nothing to migrate.
+      return;
+    }
+    const pending = (await db
+      .getRow("app", "user", providerUid)
+      .catch(() => null)) as PendingM365Profile | null;
+    if (!pending) {
+      // No IT-seeded profile under the Graph id — normal (non-provisioned) user.
+      return;
+    }
+
+    const userRole = Role.user(userId);
+    await db.createRow(
+      "app",
+      "user",
+      userId,
+      {
+        name: pending.name ?? null,
+        email: pending.email ?? null,
+        campus_id: pending.campus_id ?? null,
+        department_ids: pending.department_ids ?? [],
+        isActive: pending.isActive ?? true,
+      },
+      [Permission.read(userRole), Permission.update(userRole)]
+    );
+
+    // Drop the orphan keyed by the Graph id so it can't shadow future lookups
+    // or leave duplicate profile data behind.
+    await db.deleteRow("app", "user", providerUid).catch(() => undefined);
+  } catch (error) {
+    console.error("M365 profile reconciliation failed:", error);
+  }
+}
+
 export async function syncM365Permissions(userId: string) {
-  const { users, teams } = await createAdminClient();
+  const { users, teams, db } = await createAdminClient();
 
   try {
     const identityList = await users.listIdentities({
@@ -171,9 +233,16 @@ export async function syncM365Permissions(userId: string) {
       (id) => id.provider === "microsoft"
     );
 
+    // Link any IT-provisioned profile seeded under the Microsoft object id to
+    // this Appwrite account id. Runs whenever a Microsoft identity is present,
+    // even without a fresh access token (e.g. magic-link re-entry).
+    if (microsoftIdentity?.providerUid) {
+      await reconcileM365Profile(db, userId, microsoftIdentity.providerUid);
+    }
+
     if (!microsoftIdentity?.providerAccessToken) {
       // No cached Microsoft token; the user signed in via magic link without
-      // a fresh OAuth flow. Skip silently — this is a normal path.
+      // a fresh OAuth flow. Skip the group sync silently — this is a normal path.
       return;
     }
 
