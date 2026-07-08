@@ -210,7 +210,10 @@ export async function publishPageAction(
 ) {
   const ctx = await requireAuth();
   try {
-    const { db } = await createSessionClient();
+    // Authorization is enforced here by role (assertPublishAccess); the reads
+    // and the publish write use the admin client so an authorized campus
+    // approver — who is not on the page rows' write ACL — isn't blocked by RLS.
+    const { db } = await createAdminClient();
     // Publishing is gated by campus/global admin — a department user with
     // row-level write on the draft must not be able to push a page live.
     const page = await db.getRow<Pages>("app", "pages", id);
@@ -234,7 +237,10 @@ export async function unpublishPageAction(
 ) {
   const ctx = await requireAuth();
   try {
-    const { db } = await createSessionClient();
+    // Admin client for the same reason as publishPageAction — authorization is
+    // by role below, and the write must not be blocked by RLS for a campus
+    // approver who is not on the page rows' write ACL.
+    const { db } = await createAdminClient();
     // Unpublishing (removing from the public site) is a publish-gated action,
     // same as publishing — restrict it to campus/global admins.
     const page = await db.getRow<Pages>("app", "pages", id);
@@ -255,7 +261,9 @@ export async function unpublishPageAction(
 export async function deletePageAction(id: string) {
   const ctx = await requireAuth();
   try {
-    const { db } = await createSessionClient();
+    // Authorization is by role (assertWriteAccess); admin client so an
+    // authorized campus admin — not on the page rows' write ACL — can archive.
+    const { db } = await createAdminClient();
     // Archiving is a write, not a publish — gate it like deleteEvent/deleteNews
     // so a user can only archive pages within their campus/department scope.
     const page = await db.getRow<Pages>("app", "pages", id);
