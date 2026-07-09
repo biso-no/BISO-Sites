@@ -78,8 +78,6 @@ export const NAV_ACCESS = {
   "portal.documents": [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
   "portal.it": [ROLES.GLOBAL_ADMIN],
   "portal.analytics": [ROLES.GLOBAL_ADMIN],
-  "portal.submissions": [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
-  "portal.approvals": [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
   "portal.inbox": [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
 } as const;
 

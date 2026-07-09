@@ -165,7 +165,7 @@ export function AdminShell({
         </main>
       </div>
 
-      <CommandPalette roles={roles} />
+      <CommandPalette aiCopilotEnabled={aiCopilotEnabled} roles={roles} />
       {aiCopilotEnabled && <AssistantWidget roles={roles} user={user} />}
 
       <style>{`
