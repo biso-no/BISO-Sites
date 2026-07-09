@@ -46,6 +46,44 @@ const baseConfig: NextConfig = {
     ],
   },
 
+  // biome-ignore lint/suspicious/useAwait: Next.js requires redirects() to be async.
+  async redirects() {
+    // Old top-level routes that moved during the nav restructure. Permanent
+    // so bookmarks and the assistant's old navigation targets keep working.
+    return [
+      {
+        destination: "/settings/operations",
+        permanent: true,
+        source: "/operations",
+      },
+      {
+        destination: "/settings/feature-flags",
+        permanent: true,
+        source: "/feature-flags",
+      },
+      {
+        destination: "/settings/payments",
+        permanent: true,
+        source: "/payment-settings",
+      },
+      {
+        destination: "/inbox/approvals",
+        permanent: true,
+        source: "/approvals",
+      },
+      {
+        destination: "/inbox/submissions",
+        permanent: true,
+        source: "/submissions",
+      },
+      {
+        destination: "/inbox/submissions/:topic",
+        permanent: true,
+        source: "/submissions/:topic",
+      },
+    ];
+  },
+
   // biome-ignore lint/suspicious/useAwait: Next.js requires headers() to be async.
   async headers() {
     // Baseline hardening for an internal CMS. A Content-Security-Policy is

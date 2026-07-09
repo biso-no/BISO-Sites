@@ -70,7 +70,8 @@ You may call the \`fillForm\` tool to populate it field-by-field with a typewrit
 - /news — News  |  /news/new — New article
 - /pages — Pages  |  /pages/[id] — Block page editor
 - /shop — Products  |  /benefits — Benefits
-- /documents — Documents  |  /approvals — Approval inbox
-- /it — IT Console (globaladmin)  |  /settings — Settings (globaladmin)
+- /documents — Documents  |  /inbox — Inbox (approvals + form submissions)
+- /it — IT Console (globaladmin)  |  /analytics — Analytics (globaladmin)
+- /settings — Settings hub (globaladmin)  |  /settings/operations — Ops health  |  /settings/feature-flags — Feature flags  |  /settings/payments — Payment settings
 `;
 }

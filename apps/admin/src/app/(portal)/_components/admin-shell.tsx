@@ -4,9 +4,12 @@ import { ChevronLeft, Search } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { useEffect, useMemo } from "react";
 import { NotificationsPanel } from "@/components/notifications/notifications-panel";
 import type { UserRolesForClient } from "@/lib/authorization";
-import { NAV_ITEMS, Sidebar } from "../sidebar";
+import { findActivePath, flattenNavTree } from "@/lib/nav-tree";
+import { recordRecent } from "@/lib/recents";
+import { Sidebar } from "../sidebar";
 import { AssistantWidget } from "./assistant/assistant-widget";
 import { CommandPalette } from "./command-palette";
 import { STUDIO } from "./studio";
@@ -22,6 +25,7 @@ interface AdminShellUser {
 interface AdminShellProps {
   aiCopilotEnabled: boolean;
   children: React.ReactNode;
+  inboxCount: number;
   roles: UserRolesForClient;
   user: AdminShellUser;
 }
@@ -37,6 +41,7 @@ function getCrumbKeys(pathname: string) {
 export function AdminShell({
   aiCopilotEnabled,
   children,
+  inboxCount,
   user,
   roles,
 }: AdminShellProps) {
@@ -45,6 +50,19 @@ export function AdminShell({
   const tSidebar = useTranslations("adminPortal.sidebar");
   const tAdmin = useTranslations("admin");
   const crumbs = getCrumbKeys(pathname);
+  const flatNav = useMemo(() => flattenNavTree(), []);
+
+  // Record visited nav sections for the command palette's Recent group.
+  useEffect(() => {
+    const activePath = findActivePath(pathname);
+    if (!activePath) {
+      return;
+    }
+    const item = flatNav.find((navItem) => navItem.path === activePath);
+    if (item) {
+      recordRecent({ href: item.path, label: t(item.labelKey) });
+    }
+  }, [pathname, flatNav, t]);
 
   return (
     <div
@@ -54,7 +72,7 @@ export function AdminShell({
         color: STUDIO.ink,
       }}
     >
-      <Sidebar roles={roles} user={user} />
+      <Sidebar inboxCount={inboxCount} roles={roles} user={user} />
 
       <div className="flex h-screen min-w-0 flex-col overflow-hidden">
         <header
@@ -89,7 +107,7 @@ export function AdminShell({
             </Link>
             {crumbs.map((crumb, index) => {
               const href = `/${crumbs.slice(0, index + 1).join("/")}`;
-              const navItem = NAV_ITEMS.find((item) => item.path === href);
+              const navItem = flatNav.find((item) => item.path === href);
               const label = navItem ? t(navItem.labelKey) : formatCrumb(crumb);
               return (
                 <span className="flex min-w-0 items-center gap-2" key={href}>
@@ -147,7 +165,7 @@ export function AdminShell({
         </main>
       </div>
 
-      <CommandPalette roles={roles} />
+      <CommandPalette aiCopilotEnabled={aiCopilotEnabled} roles={roles} />
       {aiCopilotEnabled && <AssistantWidget roles={roles} user={user} />}
 
       <style>{`

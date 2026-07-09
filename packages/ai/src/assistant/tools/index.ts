@@ -1,11 +1,14 @@
 import type { ToolSet } from "ai";
 import type { AssistantActionDeps, AssistantCapabilities } from "../types";
+import { buildAnalyticsTools } from "./analytics";
 import { buildApprovalTools } from "./approvals";
 import { clientTools } from "./client-tools";
 import { buildContentTools } from "./content";
 import { buildM365Tools } from "./m365";
+import { buildOpsTools } from "./ops";
 import { buildReadTools } from "./read";
 import { buildSettingsTools } from "./settings";
+import { buildShopTools } from "./shop";
 
 /**
  * Build the complete tool set for the assistant API route.
@@ -36,6 +39,17 @@ export function buildAssistantTools(
     Object.assign(tools, buildApprovalTools(deps));
   }
 
+  // Shop order/customer tools — campus admins and global admins
+  if (capabilities.domains.shop === "publish") {
+    Object.assign(tools, buildShopTools(deps));
+  }
+
+  // Ops tools (inbox counts, platform health) — approvers; health dep is
+  // additionally gated to global admins server-side
+  if (capabilities.canApprove) {
+    Object.assign(tools, buildOpsTools(deps));
+  }
+
   // M365 tools — global admin only
   if (capabilities.m365) {
     Object.assign(tools, buildM365Tools(deps));
@@ -44,6 +58,11 @@ export function buildAssistantTools(
   // Settings tools — global admin only
   if (capabilities.settings) {
     Object.assign(tools, buildSettingsTools(deps));
+  }
+
+  // Analytics tools — global admin only
+  if (capabilities.analytics) {
+    Object.assign(tools, buildAnalyticsTools(deps));
   }
 
   return tools;

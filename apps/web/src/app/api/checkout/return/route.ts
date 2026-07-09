@@ -74,17 +74,11 @@ function redirectForStatus(
         siteUrl(`/shop/order/${orderId}?success=true`)
       );
     case "cancelled":
-      return NextResponse.redirect(
-        siteUrl("/shop/cart?cancelled=true")
-      );
+      return NextResponse.redirect(siteUrl("/shop/cart?cancelled=true"));
     case "failed":
-      return NextResponse.redirect(
-        siteUrl("/shop/cart?error=payment_failed")
-      );
+      return NextResponse.redirect(siteUrl("/shop/cart?error=payment_failed"));
     default:
-      return NextResponse.redirect(
-        siteUrl(`/shop/order/${orderId}`)
-      );
+      return NextResponse.redirect(siteUrl(`/shop/order/${orderId}`));
   }
 }
 
@@ -108,9 +102,7 @@ export async function GET(request: Request) {
 
     if (!orderId) {
       console.error("[Checkout Return] No orderId provided");
-      return NextResponse.redirect(
-        siteUrl("/shop")
-      );
+      return NextResponse.redirect(siteUrl("/shop"));
     }
 
     console.info(`[Checkout Return] Verifying order status for: ${orderId}`);
@@ -120,9 +112,7 @@ export async function GET(request: Request) {
 
     if (!order) {
       console.error(`[Checkout Return] Order not found: ${orderId}`);
-      return NextResponse.redirect(
-        siteUrl("/shop?error=order_not_found")
-      );
+      return NextResponse.redirect(siteUrl("/shop?error=order_not_found"));
     }
 
     await syncOrderStatusFromProvider(order, orderId, db);
@@ -139,8 +129,6 @@ export async function GET(request: Request) {
     return redirectForStatus(status, orderId);
   } catch (error) {
     console.error("[Checkout Return] Error:", error);
-    return NextResponse.redirect(
-      siteUrl("/shop?error=unknown")
-    );
+    return NextResponse.redirect(siteUrl("/shop?error=unknown"));
   }
 }

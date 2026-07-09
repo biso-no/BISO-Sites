@@ -389,6 +389,7 @@ function renderToolPart(
 export function AssistantWidget({ roles, user: _user }: AssistantWidgetProps) {
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
+  const [pendingPrompt, setPendingPrompt] = useState<string | null>(null);
   const pathname = usePathname();
   const router = useRouter();
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -398,10 +399,16 @@ export function AssistantWidget({ roles, user: _user }: AssistantWidgetProps) {
     Record<string, { error?: string; submitted: boolean }>
   >({});
 
-  // Open via DOM event (from sidebar, command palette, shortcut)
+  // Open via DOM event (from sidebar, command palette, shortcut).
+  // A CustomEvent detail.prompt is auto-submitted once the chat is idle.
   useEffect(() => {
-    function onOpen() {
+    function onOpen(event: Event) {
       setOpen(true);
+      const prompt = (event as CustomEvent<{ prompt?: string } | undefined>)
+        .detail?.prompt;
+      if (typeof prompt === "string" && prompt.trim()) {
+        setPendingPrompt(prompt.trim());
+      }
     }
     window.addEventListener(OPEN_ASSISTANT_EVENT, onOpen);
     return () => window.removeEventListener(OPEN_ASSISTANT_EVENT, onOpen);
@@ -467,6 +474,23 @@ export function AssistantWidget({ roles, user: _user }: AssistantWidgetProps) {
   });
 
   const isLoading = status === "submitted" || status === "streaming";
+
+  // Auto-submit a prompt handed off from the command palette
+  useEffect(() => {
+    if (!(open && pendingPrompt) || isLoading) {
+      return;
+    }
+    setPendingPrompt(null);
+    sendMessage(
+      { text: pendingPrompt },
+      {
+        body: {
+          activeFormSchemaId: getActiveFormSchemaId(),
+          currentPath: pathname,
+        },
+      }
+    );
+  }, [open, pendingPrompt, isLoading, sendMessage, pathname]);
 
   // Auto-scroll when a new message arrives (ref-based to avoid dep warning)
   useEffect(() => {

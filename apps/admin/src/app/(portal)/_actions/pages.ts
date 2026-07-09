@@ -254,7 +254,9 @@ export async function unpublishPageAction(
     revalidatePath("/pages");
   } catch (e) {
     console.error("[unpublishPageAction]", e);
-    throw new Error(e instanceof Error ? e.message : "Failed to unpublish page");
+    throw new Error(
+      e instanceof Error ? e.message : "Failed to unpublish page"
+    );
   }
 }
 

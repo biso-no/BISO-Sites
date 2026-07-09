@@ -13,14 +13,17 @@
     "it": "IT",
     "analytics": "Analyse",
     "settings": "Innstillinger",
+    "general": "Generelt",
     "featureFlags": "Funksjonsbrytere",
     "operations": "Driftshelse",
     "payments": "Betaling",
     "activity": "Aktivitet",
     "drafts": "Gjennomgå utkast",
     "approvals": "Godkjenninger",
-    "publishGroup": "Publiser",
-    "operateGroup": "Administrer",
+    "inbox": "Innboks",
+    "content": "Innhold",
+    "organization": "Organisasjon",
+    "system": "System",
     "submissions": "Skjemainnsendinger"
   },
   "sidebar": {
@@ -1079,8 +1082,7 @@
       "aiLocalization": "AI-lokalisering",
       "security": "Sikkerhet",
       "integrations": "Integrasjoner",
-      "notifications": "Varsler",
-      "platform": "Plattform"
+      "notifications": "Varsler"
     },
     "general": {
       "title": "Generelle innstillinger",
@@ -1114,16 +1116,6 @@
       "title": "Teammedlemmer",
       "role": "Rolle",
       "invite": "Inviter medlem"
-    },
-    "platform": {
-      "title": "Plattformdrift",
-      "description": "Dette er dine personlige adminpreferanser. Plattformomfattende driftskontroller ligger i egne, reviderte skjermer.",
-      "operations": "Driftshelse",
-      "operationsHint": "Skrivebeskyttet status for integrasjoner, planleggerhemmeligheter og påkrevde team",
-      "featureFlags": "Funksjonsbrytere",
-      "featureFlagsHint": "Slå plattformfunksjoner av eller på (revidert)",
-      "payments": "Betalingsleverandører",
-      "paymentsHint": "Administrerte Vipps/Stripe-legitimasjoner og testmodus (logget)"
     },
     "saveSuccess": "Innstillinger lagret",
     "saveError": "Kunne ikke lagre innstillinger"
