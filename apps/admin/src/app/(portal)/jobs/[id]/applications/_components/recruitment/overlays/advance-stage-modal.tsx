@@ -74,6 +74,7 @@ export function AdvanceStageModal({
   const [email, setEmail] = useState<{ subject: string; body: string } | null>(
     null
   );
+  const [emailError, setEmailError] = useState<string | null>(null);
   const [loadingEmail, startLoadEmail] = useTransition();
   const [submitting, startSubmit] = useTransition();
   const [copied, setCopied] = useState(false);
@@ -90,8 +91,12 @@ export function AdvanceStageModal({
     }
     startLoadEmail(async () => {
       const result = await draftRecruitmentEmail(candidate.id, { stage });
-      if (result.data) {
+      if (result.error) {
+        setEmailError(result.error);
+        setEmail(null);
+      } else if (result.data) {
         setEmail(result.data);
+        setEmailError(null);
       }
     });
   }, [candidate.id, includeEmail, target]);
@@ -214,6 +219,7 @@ export function AdvanceStageModal({
           <EmailDraftBlock
             copied={copied}
             email={email}
+            emailError={emailError}
             loadingEmail={loadingEmail}
             onCopy={copyEmail}
             onPatch={(patch) =>
@@ -255,18 +261,23 @@ export function AdvanceStageModal({
 function EmailDraftBlock({
   loadingEmail,
   email,
+  emailError,
   copied,
   onCopy,
   onPatch,
 }: {
   copied: boolean;
   email: { subject: string; body: string } | null;
+  emailError: string | null;
   loadingEmail: boolean;
   onCopy: () => void;
   onPatch: (patch: { body?: string; subject?: string }) => void;
 }) {
   if (loadingEmail) {
     return <p className="adv-email-loading">Drafting with AI…</p>;
+  }
+  if (emailError) {
+    return <p className="sched-error">Failed to draft: {emailError}</p>;
   }
   if (!email) {
     return (

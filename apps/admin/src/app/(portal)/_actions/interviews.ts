@@ -89,9 +89,9 @@ async function applyGraphScheduling(
   startsAt: Date,
   endsAt: Date,
   candidateEmail: string
-): Promise<JobInterviews> {
+): Promise<{ interview: JobInterviews; warning?: string }> {
   if (input.auto_create_teams_meeting === false) {
-    return interview;
+    return { interview };
   }
   const panelEmails = participants
     .filter((p) => p.role === JobInterviewParticipantsRole.INTERVIEWER)
@@ -101,7 +101,7 @@ async function applyGraphScheduling(
   );
   const organizerUpn = lead?.email ?? panelEmails[0] ?? ctx.email ?? null;
   if (!organizerUpn) {
-    return interview;
+    return { interview, warning: "No valid organizer found for the calendar invite." };
   }
   try {
     const scheduled = await scheduleInterviewOnGraph({
@@ -119,7 +119,7 @@ async function applyGraphScheduling(
       scheduled.teamsMeetingId ||
       scheduled.meetingUrl
     ) {
-      return await db.updateRow<JobInterviews>(
+      const updated = await db.updateRow<JobInterviews>(
         DATABASE_ID,
         "job_interviews",
         interview.$id,
@@ -129,19 +129,24 @@ async function applyGraphScheduling(
           teams_meeting_id: scheduled.teamsMeetingId,
         }
       );
+      return { interview: updated };
     }
   } catch (graphError) {
     console.warn(
       `Graph scheduling failed for interview ${interview.$id}`,
       graphError
     );
+    return {
+      interview,
+      warning: "Failed to sync with Microsoft calendar. The interview was saved, but no Teams meeting or Outlook invite was created.",
+    };
   }
-  return interview;
+  return { interview };
 }
 
 export async function createInterview(
   values: RecruitmentInterviewCreateInput
-): Promise<{ data?: InterviewWithParticipants; error?: string }> {
+): Promise<{ data?: InterviewWithParticipants & { warning?: string }; error?: string }> {
   const ctx = await requireAuth();
   const validated = recruitmentInterviewCreateSchema.safeParse(values);
   if (!validated.success) {
@@ -255,7 +260,7 @@ export async function createInterview(
     }
 
     // Best-effort Graph scheduling — opt-in via env vars + flag.
-    const finalInterview = await applyGraphScheduling(
+    const { interview: finalInterview, warning } = await applyGraphScheduling(
       db,
       ctx,
       input,
@@ -278,7 +283,7 @@ export async function createInterview(
       resourceType: "job_interview",
     });
 
-    return { data: { interview: finalInterview, participants } };
+    return { data: { interview: finalInterview, participants, warning } };
   } catch (error) {
     return {
       error:

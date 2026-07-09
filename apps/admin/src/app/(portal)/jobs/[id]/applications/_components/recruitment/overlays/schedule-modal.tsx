@@ -146,6 +146,9 @@ export function ScheduleModal({
           stage: JobApplicationsStatus.INTERVIEW,
         });
       }
+      if (result.data?.warning) {
+        window.alert(result.data.warning);
+      }
       onClose();
     });
   };
