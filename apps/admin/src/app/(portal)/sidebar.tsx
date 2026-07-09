@@ -147,7 +147,7 @@ export const NAV_ITEMS: NavItem[] = [
     icon: Inbox,
     labelKey: "submissions",
     navKey: "portal.submissions",
-    path: "/submissions",
+    path: "/inbox/submissions",
   },
 ];
 
@@ -324,8 +324,8 @@ export function Sidebar({ user, roles }: SidebarProps) {
           ))}
           {canViewApprovals && (
             <SidebarLink
-              active={isActive("/approvals")}
-              href="/approvals"
+              active={isActive("/inbox/approvals")}
+              href="/inbox/approvals"
               icon={ClipboardList}
               label={t("approvals")}
             />

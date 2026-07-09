@@ -132,7 +132,7 @@ export async function createApprovalRequest(
       },
     });
 
-    revalidatePath("/approvals");
+    revalidatePath("/inbox/approvals");
     return { data: id };
   } catch (error) {
     return {
@@ -233,7 +233,7 @@ export async function approveRequest(
       },
     });
 
-    revalidatePath("/approvals");
+    revalidatePath("/inbox/approvals");
     return { data: requestId };
   } catch (error) {
     return {
@@ -328,7 +328,7 @@ export async function rejectRequest(
       payload: { action: request.action, reason },
     });
 
-    revalidatePath("/approvals");
+    revalidatePath("/inbox/approvals");
     return { data: requestId };
   } catch (error) {
     return {

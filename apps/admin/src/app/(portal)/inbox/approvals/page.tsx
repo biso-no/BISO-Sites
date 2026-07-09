@@ -1,13 +1,13 @@
 import { ClipboardList } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { requireNavAccess } from "@/lib/authorization";
-import { listPendingApprovals } from "../_actions/approvals";
-import { EmptyState } from "../_components/empty-state";
-import { PageHeader } from "../_components/page-header";
+import { listPendingApprovals } from "../../_actions/approvals";
+import { EmptyState } from "../../_components/empty-state";
+import { PageHeader } from "../../_components/page-header";
 import { ApprovalsReviewClient } from "./_components/approvals-review-client";
 
 export default async function ApprovalsPage() {
-  await requireNavAccess("portal.approvals");
+  await requireNavAccess("portal.inbox");
   const t = await getTranslations("adminPortal.approvals");
 
   const result = await listPendingApprovals();

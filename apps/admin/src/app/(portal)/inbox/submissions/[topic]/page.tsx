@@ -1,8 +1,8 @@
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { requireNavAccess } from "@/lib/authorization";
-import { listSubmissions } from "../../_actions/submissions";
-import { PageHeader } from "../../_components/page-header";
+import { listSubmissions } from "../../../_actions/submissions";
+import { PageHeader } from "../../../_components/page-header";
 import { SubmissionsList } from "./_components/submissions-list";
 
 interface Props {
@@ -14,7 +14,7 @@ export default async function SubmissionsTopicPage({
   params,
   searchParams,
 }: Props) {
-  await requireNavAccess("portal.submissions");
+  await requireNavAccess("portal.inbox");
   const { topic } = await params;
   const { page: pageParam, status } = await searchParams;
   const page = Math.max(1, Number(pageParam) || 1);
@@ -34,7 +34,7 @@ export default async function SubmissionsTopicPage({
       <div className="mb-2">
         <Link
           className="inline-flex items-center gap-1 text-muted-foreground text-xs transition-colors hover:text-foreground"
-          href="/submissions"
+          href="/inbox/submissions"
         >
           <ArrowLeft size={12} />
           All forms

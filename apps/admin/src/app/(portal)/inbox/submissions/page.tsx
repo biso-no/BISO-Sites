@@ -1,11 +1,11 @@
 import { Inbox } from "lucide-react";
 import { requireNavAccess } from "@/lib/authorization";
-import { listSubmissionTopics } from "../_actions/submissions";
-import { PageHeader } from "../_components/page-header";
+import { listSubmissionTopics } from "../../_actions/submissions";
+import { PageHeader } from "../../_components/page-header";
 import { SubmissionTopicList } from "./_components/submission-topic-list";
 
 export default async function SubmissionsPage() {
-  await requireNavAccess("portal.submissions");
+  await requireNavAccess("portal.inbox");
   const topics = await listSubmissionTopics();
 
   return (

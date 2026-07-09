@@ -3,10 +3,10 @@
 import { CheckCircle2, XCircle } from "lucide-react";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
-import type { ApprovalRequest } from "../../_actions/approvals";
-import { approveRequest, rejectRequest } from "../../_actions/approvals";
-import { StatusBadge } from "../../_components/status-badge";
-import { SERIF_STACK, STUDIO } from "../../_components/studio";
+import type { ApprovalRequest } from "../../../_actions/approvals";
+import { approveRequest, rejectRequest } from "../../../_actions/approvals";
+import { StatusBadge } from "../../../_components/status-badge";
+import { SERIF_STACK, STUDIO } from "../../../_components/studio";
 
 interface ApprovalsReviewClientProps {
   labels: {

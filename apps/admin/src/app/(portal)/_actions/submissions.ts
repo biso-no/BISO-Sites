@@ -147,7 +147,7 @@ export async function updateSubmissionStatus(
   try {
     const { db } = await createSessionClient();
     await db.updateRow("app", "form_submissions", id, { status });
-    revalidatePath(`/submissions/${topic}`);
+    revalidatePath(`/inbox/submissions/${topic}`);
     return { success: true };
   } catch (error) {
     return {
@@ -169,7 +169,7 @@ export async function deleteSubmission(
   try {
     const { db } = await createSessionClient();
     await db.deleteRow("app", "form_submissions", id);
-    revalidatePath(`/submissions/${topic}`);
+    revalidatePath(`/inbox/submissions/${topic}`);
     return { success: true };
   } catch (error) {
     return {

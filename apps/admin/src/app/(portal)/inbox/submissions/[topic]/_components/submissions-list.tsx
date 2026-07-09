@@ -13,7 +13,7 @@ import {
   deleteSubmission,
   type FormSubmission,
   updateSubmissionStatus,
-} from "../../../_actions/submissions";
+} from "../../../../_actions/submissions";
 
 interface Props {
   page: number;

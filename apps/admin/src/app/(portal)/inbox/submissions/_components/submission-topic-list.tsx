@@ -2,7 +2,7 @@
 
 import { ChevronRight } from "lucide-react";
 import Link from "next/link";
-import type { SubmissionTopic } from "../../_actions/submissions";
+import type { SubmissionTopic } from "../../../_actions/submissions";
 
 interface Props {
   topics: SubmissionTopic[];
@@ -21,7 +21,7 @@ export function SubmissionTopicList({ topics }: Props) {
       {topics.map((t) => (
         <Link
           className="flex items-center gap-4 px-5 py-4 transition-colors hover:bg-muted/40"
-          href={`/submissions/${encodeURIComponent(t.topic)}`}
+          href={`/inbox/submissions/${encodeURIComponent(t.topic)}`}
           key={t.topic}
         >
           <div className="min-w-0 flex-1">

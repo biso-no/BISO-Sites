@@ -66,6 +66,21 @@ const baseConfig: NextConfig = {
         permanent: true,
         source: "/payment-settings",
       },
+      {
+        destination: "/inbox/approvals",
+        permanent: true,
+        source: "/approvals",
+      },
+      {
+        destination: "/inbox/submissions",
+        permanent: true,
+        source: "/submissions",
+      },
+      {
+        destination: "/inbox/submissions/:topic",
+        permanent: true,
+        source: "/submissions/:topic",
+      },
     ];
   },
 
