@@ -45,6 +45,8 @@ import {
   serializeRecruitmentApplicationReviewMetadata,
   validateRecruitmentResumeFile,
 } from "@repo/shared/types/recruitment";
+import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { cache } from "react";
 
 // ---------- public reads (session/guest client — enforces row permissions) ----------
@@ -439,41 +441,47 @@ export async function submitJobApplication(
       vacancy.metadata.auto_screen !== false &&
       Boolean(process.env.OPENAI_API_KEY);
     if (autoScreen) {
-      try {
-        const screening = await screenApplication({
-          answers: (parsed.data.answers ?? []).map((a) => ({
-            answer: a.answer ?? null,
-            question_label: a.question_label,
-          })),
-          application: {
-            $id: application.$id,
-            applicant_email: user.email,
-            applicant_name: parsed.data.applicant_name,
-            cover_letter: parsed.data.cover_letter ?? null,
-            current_employer: parsed.data.current_employer ?? null,
-            current_role: parsed.data.current_role ?? null,
-            linkedin_url: parsed.data.linkedin_url ?? null,
-          },
-          rubric:
-            vacancy.screening_rubric ?? parseRecruitmentScreeningRubric(null),
-          vacancy: {
-            $id: vacancy.$id,
-            metadata: vacancy.metadata,
-            translations: vacancy.translations,
-          },
-        });
-        await db.updateRow("app", "job_applications", application.$id, {
-          ai_screening: serializeRecruitmentAiScreening(screening),
-          screening_score: normalizeScreeningScore(screening),
-        });
-      } catch (err) {
-        console.warn(
-          `AI screening failed for application ${application.$id}:`,
-          err
-        );
-      }
+      after(async () => {
+        try {
+          // Re-instantiate admin client inside after() to ensure no context loss
+          const { db: afterDb } = await createAdminClient();
+          const screening = await screenApplication({
+            answers: (parsed.data.answers ?? []).map((a) => ({
+              answer: a.answer ?? null,
+              question_label: a.question_label,
+            })),
+            application: {
+              $id: application.$id,
+              applicant_email: user.email,
+              applicant_name: parsed.data.applicant_name,
+              cover_letter: parsed.data.cover_letter ?? null,
+              current_employer: parsed.data.current_employer ?? null,
+              current_role: parsed.data.current_role ?? null,
+              linkedin_url: parsed.data.linkedin_url ?? null,
+            },
+            rubric:
+              vacancy.screening_rubric ?? parseRecruitmentScreeningRubric(null),
+            vacancy: {
+              $id: vacancy.$id,
+              metadata: vacancy.metadata,
+              translations: vacancy.translations,
+            },
+          });
+          await afterDb.updateRow("app", "job_applications", application.$id, {
+            ai_screening: serializeRecruitmentAiScreening(screening),
+            screening_score: normalizeScreeningScore(screening),
+          });
+        } catch (err) {
+          console.warn(
+            `AI screening failed for application ${application.$id}:`,
+            err
+          );
+        }
+      });
     }
 
+    revalidatePath("/applications");
+    revalidatePath("/jobs");
     return { success: true, applicationId: application.$id };
   } catch (error) {
     console.error("submitJobApplication failed:", error);

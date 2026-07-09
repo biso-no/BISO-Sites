@@ -140,13 +140,59 @@ export function Pipeline() {
   };
 
   const bulkMove = (stage: RecruitmentStageId) => {
-    for (const id of selectedIds) {
-      const candidate = candidates.find((c) => c.id === id);
-      if (candidate) {
-        commitStatus(candidate, stage);
-      }
+    const nextStatus = STATUS_BY_STAGE[stage];
+    const toMove = Array.from(selectedIds)
+      .map((id) => candidates.find((c) => c.id === id))
+      .filter((c): c is WorkspaceCandidate => c !== undefined && c.stage !== stage);
+
+    if (toMove.length === 0) {
+      setSelectedIds(new Set());
+      return;
     }
+
+    const valid = toMove.filter((c) =>
+      canTransitionRecruitmentApplicationStatus(c.stage as JobApplicationsStatus, nextStatus)
+    );
+
+    if (valid.length !== toMove.length) {
+      flashToast(`Some candidates could not be moved to ${stage}.`);
+    }
+
+    if (valid.length === 0) {
+      setSelectedIds(new Set());
+      return;
+    }
+
+    const previousStages = new Map(valid.map((c) => [c.id, c.stage]));
+    for (const c of valid) {
+      updateCandidate(c.id, { stage: nextStatus });
+    }
+    
     setSelectedIds(new Set());
+
+    startTransition(async () => {
+      const results = await Promise.allSettled(
+        valid.map((c) =>
+          updateJobApplicationStatus(c.id, { status: nextStatus }).then((res) => {
+            if (res.error) throw new Error(res.error);
+            return res;
+          })
+        )
+      );
+
+      const failures = results.filter((r) => r.status === "rejected");
+      if (failures.length > 0) {
+        for (let i = 0; i < results.length; i++) {
+          if (results[i].status === "rejected") {
+            const c = valid[i];
+            updateCandidate(c.id, { stage: previousStages.get(c.id)! });
+          }
+        }
+        flashToast(`Moved ${valid.length - failures.length}/${valid.length} candidates. ${failures.length} failed.`);
+      } else if (valid.length > 1) {
+        flashToast(`Successfully moved ${valid.length} candidates.`);
+      }
+    });
   };
 
   return (

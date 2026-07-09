@@ -138,27 +138,42 @@ function QuestionInput({
     );
   }
 
-  if (question.type === "select" || question.type === "multi_select") {
+  if (question.type === "multi_select") {
+    const selectedOptions = answer ? answer.split(",").map(s => s.trim()) : [];
+    return (
+      <div className="flex flex-col gap-2">
+        {(question.options ?? []).map((opt) => {
+          const isSelected = selectedOptions.includes(opt);
+          return (
+            <label key={opt} className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Checkbox
+                checked={isSelected}
+                onCheckedChange={(checked) => {
+                  if (checked) {
+                    onChange([...selectedOptions, opt].join(", "));
+                  } else {
+                    onChange(selectedOptions.filter((o) => o !== opt).join(", "));
+                  }
+                }}
+              />
+              {opt}
+            </label>
+          );
+        })}
+      </div>
+    );
+  }
+
+  if (question.type === "select") {
     return (
       <select
         className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-brand"
         id={id}
-        multiple={question.type === "multi_select"}
-        onChange={(e) => {
-          if (question.type === "multi_select") {
-            onChange(
-              Array.from(e.target.selectedOptions)
-                .map((o) => o.value)
-                .join(", ")
-            );
-          } else {
-            onChange(e.target.value);
-          }
-        }}
+        onChange={(e) => onChange(e.target.value)}
         required={question.required}
         value={answer}
       >
-        {question.type === "select" && <option value="">Choose…</option>}
+        <option value="">Choose…</option>
         {(question.options ?? []).map((opt) => (
           <option key={opt} value={opt}>
             {opt}
@@ -234,6 +249,7 @@ export function JobApplicationForm({
   const [coverLetter, setCoverLetter] = useState("");
   const [availability, setAvailability] = useState("");
   const [resume, setResume] = useState<File | null>(null);
+  const [fileError, setFileError] = useState<string | null>(null);
   const [consent, setConsent] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [isSuccess, setIsSuccess] = useState(false);
@@ -530,18 +546,36 @@ export function JobApplicationForm({
               <Input
                 accept="application/pdf"
                 id="resume"
-                onChange={(e) => setResume(e.target.files?.[0] ?? null)}
+                onChange={(e) => {
+                  const file = e.target.files?.[0] ?? null;
+                  if (file) {
+                    if (file.type !== "application/pdf") {
+                      setFileError("Only PDF files are allowed.");
+                    } else if (file.size > 5 * 1024 * 1024) {
+                      setFileError("File exceeds 5MB limit.");
+                    } else {
+                      setFileError(null);
+                    }
+                  } else {
+                    setFileError(null);
+                  }
+                  setResume(file);
+                }}
                 required={cvRequired}
                 type="file"
               />
-              {resume && (
+              {resume && !fileError && (
                 <p className="text-muted-foreground text-xs">
                   Selected: {resume.name} ({(resume.size / 1024).toFixed(0)} KB)
                 </p>
               )}
-              <p className="text-muted-foreground text-xs">
-                Max 5 MB, PDF only.
-              </p>
+              {fileError ? (
+                <p className="text-destructive text-xs">{fileError}</p>
+              ) : (
+                <p className="text-muted-foreground text-xs">
+                  Max 5 MB, PDF only.
+                </p>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="availability">
@@ -569,7 +603,7 @@ export function JobApplicationForm({
               </Button>
               <Button
                 className="flex-1"
-                disabled={cvRequired && !resume}
+                disabled={(cvRequired && !resume) || fileError !== null}
                 onClick={nextStep}
                 type="button"
               >

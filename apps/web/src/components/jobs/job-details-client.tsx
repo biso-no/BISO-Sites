@@ -27,6 +27,18 @@ interface JobDetailsClientProps {
   job: RecruitmentVacancy;
 }
 
+function mapEmploymentType(type: string | undefined | null): string | undefined {
+  if (!type) return undefined;
+  const t = type.toLowerCase();
+  if (t.includes("full time") || t.includes("full-time") || t.includes("full_time") || t.includes("100%")) return "FULL_TIME";
+  if (t.includes("part time") || t.includes("part-time") || t.includes("part_time") || t.includes("deltid")) return "PART_TIME";
+  if (t.includes("intern")) return "INTERN";
+  if (t.includes("volunteer") || t.includes("frivillig")) return "VOLUNTEER";
+  if (t.includes("contract")) return "CONTRACTOR";
+  if (t.includes("temporary") || t.includes("temp")) return "TEMPORARY";
+  return "OTHER";
+}
+
 function JobPostingSchema({ job }: { job: RecruitmentVacancy }) {
   const translation = job.translations[0];
   const title = translation?.title ?? "Untitled";
@@ -57,8 +69,8 @@ function JobPostingSchema({ job }: { job: RecruitmentVacancy }) {
           },
         }
       : {}),
-    ...(job.metadata.employment_type
-      ? { employmentType: job.metadata.employment_type.toUpperCase() }
+    ...(mapEmploymentType(job.metadata.employment_type)
+      ? { employmentType: mapEmploymentType(job.metadata.employment_type) }
       : {}),
     ...(job.metadata.paid === true
       ? { baseSalary: { "@type": "MonetaryAmount", currency: "NOK" } }
