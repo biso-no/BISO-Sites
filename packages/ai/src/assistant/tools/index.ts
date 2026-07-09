@@ -61,7 +61,7 @@ export function buildAssistantTools(
   }
 
   // Analytics tools — global admin only
-  if (capabilities.settings) {
+  if (capabilities.analytics) {
     Object.assign(tools, buildAnalyticsTools(deps));
   }
 

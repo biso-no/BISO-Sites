@@ -45,6 +45,7 @@ export function buildAssistantCapabilities(
   const contentAccess = contentAccessLevel(input, true);
 
   return {
+    analytics: isGlobalAdmin,
     canApprove: isGlobalAdmin || isCampusAdmin,
     m365: isGlobalAdmin,
     settings: isGlobalAdmin,
@@ -70,6 +71,9 @@ export function capabilitiesSummary(caps: AssistantCapabilities): string {
   }
   if (caps.m365) {
     parts.push("m365:manage");
+  }
+  if (caps.analytics) {
+    parts.push("analytics:read");
   }
   if (caps.settings) {
     parts.push("settings:manage");

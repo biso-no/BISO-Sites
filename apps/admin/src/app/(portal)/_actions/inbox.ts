@@ -1,5 +1,6 @@
 "use server";
 
+import { cache } from "react";
 import { Query } from "@repo/api";
 import { createSessionClient } from "@repo/api/server";
 import { requireAuth } from "@/lib/authorization";
@@ -11,7 +12,11 @@ export interface InboxCounts {
   total: number;
 }
 
-export async function getInboxCounts(): Promise<InboxCounts> {
+/**
+ * Wrapped in React.cache() so that layout + page can both call this in the same
+ * server request without hitting the database twice.
+ */
+export const getInboxCounts = cache(async function getInboxCounts(): Promise<InboxCounts> {
   const ctx = await requireAuth();
   const isApprover =
     ctx.roles.includes("globaladmin") || ctx.roles.includes("campusadmin");
@@ -49,4 +54,4 @@ export async function getInboxCounts(): Promise<InboxCounts> {
     submissions: submissionCount,
     total: approvalCount + submissionCount,
   };
-}
+});

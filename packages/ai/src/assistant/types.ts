@@ -21,6 +21,8 @@ export interface AssistantCapabilities {
   };
   /** M365 management tools available (globaladmin only) */
   m365: boolean;
+  /** Analytics (Umami) read access (globaladmin only) */
+  analytics: boolean;
   /** Settings management tools available (globaladmin only) */
   settings: boolean;
 }
