@@ -8,6 +8,7 @@ import {
 import type { AssistantActionDeps } from "@repo/ai/assistant/types";
 import { ID, type Models, Query } from "@repo/api";
 import { createSessionClient } from "@repo/api/server";
+import type { Orders } from "@repo/api/types/appwrite";
 import {
   FEATURE_FLAGS,
   getFlagDef,
@@ -42,6 +43,7 @@ import {
   publishEvent,
   updateEvent,
 } from "@/app/(portal)/_actions/events";
+import { getInboxCounts as getInboxCountsAction } from "@/app/(portal)/_actions/inbox";
 // Server actions — IT & approvals
 import {
   createM365User,
@@ -70,6 +72,7 @@ import {
   createProduct,
   deleteProduct,
   getProduct,
+  listOrders,
   listProducts,
   updateProduct,
 } from "@/app/(portal)/_actions/shop";
@@ -77,6 +80,13 @@ import { getLocale } from "@/app/actions/locale";
 import { requireApiAuth } from "@/lib/api-auth";
 import type { UserAuthContext } from "@/lib/authorization";
 import { CAMPUS_ID_TO_NAME } from "@/lib/campus-constants";
+import { checkIntegrationHealth } from "@/lib/integration-health";
+import { fetchRequiredTeamHealth } from "@/lib/team-health-check";
+import {
+  fetchEventsTotal,
+  fetchStats,
+  fetchTopMetrics,
+} from "@/lib/umami/client";
 import { assertPublishAccess } from "@/lib/utils/authorization";
 
 export const maxDuration = 60;
@@ -399,6 +409,39 @@ async function createJobContent(
   } as never);
 }
 
+const MAX_ORDER_RESULTS = 10;
+const DAY_MS = 86_400_000;
+const RANGE_DAYS: Record<string, number> = { "7d": 7, "30d": 30, "90d": 90 };
+const DEFAULT_RANGE_DAYS = 30;
+const CUSTOMER_RESULT_LIMIT = 5;
+const TOP_PAGES_LIMIT = 5;
+const MIN_CUSTOMER_QUERY_LENGTH = 2;
+
+function toOrderSummary(order: Orders) {
+  return {
+    buyerEmail: order.buyer_email ?? null,
+    buyerName: order.buyer_name ?? null,
+    campusId: order.campus_id ?? null,
+    createdAt: order.$createdAt,
+    currency: order.currency ?? "NOK",
+    id: order.$id,
+    paymentProvider: order.payment_provider ?? null,
+    status: order.status ?? null,
+    total: order.total,
+  };
+}
+
+function parseOrderItems(itemsJson: string | null | undefined): unknown {
+  if (!itemsJson) {
+    return [];
+  }
+  try {
+    return JSON.parse(itemsJson);
+  } catch {
+    return [];
+  }
+}
+
 function buildDeps(
   _activeFormSchemaId: string | undefined,
   ctx: UserAuthContext
@@ -636,6 +679,107 @@ function buildDeps(
         requestId: string;
       };
       return await rejectRequest(requestId, reason);
+    },
+
+    // -------------------------------------------------------------------------
+    // Shop orders & customers
+    // -------------------------------------------------------------------------
+    searchOrders: async (input) => {
+      const { query, status } = (input ?? {}) as {
+        query?: string;
+        status?: string;
+      };
+      const rows = await listOrders({ status });
+      const q = query?.trim().toLowerCase();
+      const filtered = q
+        ? rows.filter((order) =>
+            [order.buyer_name, order.buyer_email, order.$id].some((value) =>
+              value?.toLowerCase().includes(q)
+            )
+          )
+        : rows;
+      return filtered.slice(0, MAX_ORDER_RESULTS).map(toOrderSummary);
+    },
+
+    getOrderSummary: async (input) => {
+      const { orderId } = (input ?? {}) as { orderId?: string };
+      if (!orderId) {
+        throw new Error("orderId is required");
+      }
+      // Session client — row security limits access to permitted orders.
+      const { db } = await createSessionClient();
+      const order = await db.getRow<Orders>("app", "orders", orderId);
+      return {
+        ...toOrderSummary(order),
+        items: parseOrderItems(order.items_json),
+      };
+    },
+
+    lookupCustomer: async (input) => {
+      if (!ctx.roles.includes("globaladmin")) {
+        throw new Error("Forbidden: customer lookup is global-admin only");
+      }
+      const { query } = (input ?? {}) as { query?: string };
+      const q = query?.trim();
+      if (!q || q.length < MIN_CUSTOMER_QUERY_LENGTH) {
+        throw new Error("query must be at least 2 characters");
+      }
+      const { db } = await createSessionClient();
+      const result = await db.listRows("app", "user", [
+        Query.or([Query.contains("name", q), Query.contains("email", q)]),
+        Query.limit(CUSTOMER_RESULT_LIMIT),
+      ]);
+      return result.rows.map((row) => ({
+        campusId: (row as { campus_id?: string }).campus_id ?? null,
+        email: (row as { email?: string }).email ?? null,
+        id: row.$id,
+        membershipIds:
+          (row as { membership_ids?: string[] }).membership_ids ?? [],
+        name: (row as { name?: string }).name ?? null,
+        studentId: (row as { student_id?: unknown }).student_id ?? null,
+      }));
+    },
+
+    // -------------------------------------------------------------------------
+    // Ops health & inbox
+    // -------------------------------------------------------------------------
+    getOpsHealth: async () => {
+      if (!ctx.roles.includes("globaladmin")) {
+        throw new Error("Forbidden: ops health is global-admin only");
+      }
+      const teams = await fetchRequiredTeamHealth();
+      // Presence only — secret values never leave the server.
+      const integrations = checkIntegrationHealth((key) =>
+        Boolean(process.env[key]?.trim())
+      );
+      return { integrations, teams };
+    },
+
+    getInboxCounts: async () => await getInboxCountsAction(),
+
+    // -------------------------------------------------------------------------
+    // Analytics (Umami)
+    // -------------------------------------------------------------------------
+    getAnalyticsSummary: async (input) => {
+      if (!ctx.roles.includes("globaladmin")) {
+        throw new Error("Forbidden: analytics is global-admin only");
+      }
+      const { range } = (input ?? {}) as { range?: string };
+      const days = RANGE_DAYS[range ?? "30d"] ?? DEFAULT_RANGE_DAYS;
+      const endAt = Date.now();
+      const umamiRange = { endAt, startAt: endAt - days * DAY_MS };
+      const [stats, topPages, eventsTotal] = await Promise.all([
+        fetchStats(umamiRange),
+        fetchTopMetrics(umamiRange, "path", TOP_PAGES_LIMIT),
+        fetchEventsTotal(umamiRange),
+      ]);
+      if (!stats) {
+        return {
+          configured: false,
+          message: "Analytics (Umami) is not configured or unreachable.",
+        };
+      }
+      return { configured: true, days, eventsTotal, stats, topPages };
     },
   };
 }

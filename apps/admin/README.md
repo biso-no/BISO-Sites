@@ -16,7 +16,7 @@ For the longer operator-facing guide, see
   pages, submissions, drafts, and activity.
 - **Publishing controls**: department users can draft/update in scope; publishing
   requires campus-admin or global-admin access. Assistant-driven publish
-  escalations use `/approvals`.
+  escalations use `/inbox/approvals`.
 - **Settings**: global admins can save their own admin locale, timezone, and
   notification preferences; integration/security rows report configured status.
 - **Integrations**: Appwrite, Microsoft 365, SharePoint documents, Vipps
