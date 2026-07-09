@@ -143,6 +143,11 @@ export function flattenNavTree(tree: NavNode[] = NAV_TREE): NavLeaf[] {
   );
 }
 
+export function getDefaultNavPath(input: NavRoleInput): string | null {
+  const [first] = flattenNavTree(filterNavTree(input));
+  return first?.path ?? null;
+}
+
 /** Longest-prefix match of pathname against nav leaf paths ("/" is exact). */
 export function findActivePath(
   pathname: string,

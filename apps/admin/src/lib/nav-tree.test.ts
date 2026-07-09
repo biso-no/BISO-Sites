@@ -1,5 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { filterNavTree, findActivePath, flattenNavTree } from "./nav-tree";
+import {
+  filterNavTree,
+  findActivePath,
+  flattenNavTree,
+  getDefaultNavPath,
+} from "./nav-tree";
 
 const globalAdmin = { hasDepartmentMembership: true, roles: ["globaladmin"] };
 const campusAdmin = { hasDepartmentMembership: true, roles: ["campusadmin"] };
@@ -81,5 +86,20 @@ describe("findActivePath", () => {
 
   test("unknown path returns null", () => {
     expect(findActivePath("/nope")).toBeNull();
+  });
+});
+
+describe("getDefaultNavPath", () => {
+  test("keeps dashboard-capable admins on overview", () => {
+    expect(getDefaultNavPath(globalAdmin)).toBe("/");
+    expect(getDefaultNavPath(campusAdmin)).toBe("/");
+  });
+
+  test("sends department-only users to their first accessible section", () => {
+    expect(getDefaultNavPath(departmentUser)).toBe("/pages");
+  });
+
+  test("returns null when no navigation entries are available", () => {
+    expect(getDefaultNavPath(noAccess)).toBeNull();
   });
 });

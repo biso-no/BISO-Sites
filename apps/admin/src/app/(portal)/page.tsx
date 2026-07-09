@@ -9,8 +9,11 @@ import {
   TrendingUp,
 } from "lucide-react";
 import Link from "next/link";
+import { forbidden, redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
-import { requireNavAccess } from "@/lib/authorization";
+import { requireAdminAccess } from "@/lib/authorization";
+import { getDefaultNavPath } from "@/lib/nav-tree";
+import { hasNavAccess } from "@/lib/roles";
 import { listActivityLog } from "./_actions/activity";
 import { getDashboardStats } from "./_actions/pages";
 import { ContentActivityChart } from "./_components/content-chart-lazy";
@@ -26,7 +29,18 @@ import {
 } from "./_components/studio";
 
 export default async function AdminPortalDashboard() {
-  await requireNavAccess("portal.dashboard");
+  const ctx = await requireAdminAccess();
+  const hasDepartmentMembership = ctx.departmentTeamIds.length > 0;
+  if (!hasNavAccess("portal.dashboard", ctx.roles, hasDepartmentMembership)) {
+    const defaultPath = getDefaultNavPath({
+      hasDepartmentMembership,
+      roles: ctx.roles,
+    });
+    if (defaultPath && defaultPath !== "/") {
+      redirect(defaultPath);
+    }
+    forbidden();
+  }
   const t = await getTranslations("adminPortal.dashboard");
 
   const [stats, recentActivity, chartActivity] = await Promise.allSettled([
