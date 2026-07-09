@@ -1,6 +1,6 @@
 import { getTranslations } from "next-intl/server";
 import { requireNavAccess } from "@/lib/authorization";
-import { PageHeader } from "../_components/page-header";
+import { PageHeader } from "../../_components/page-header";
 import { PaymentSettingsClient } from "./_components/payment-settings-client";
 import { getPaymentSettingsView } from "./actions";
 

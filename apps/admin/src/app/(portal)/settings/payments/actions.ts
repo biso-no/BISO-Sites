@@ -12,7 +12,7 @@ import { revalidatePath } from "next/cache";
 import { isRedirectError } from "next/dist/client/components/redirect-error";
 import { redirect } from "next/navigation";
 import { getUserAuthContext, type UserAuthContext } from "@/lib/authorization";
-import { logAuditEvent } from "../_actions/audit-log";
+import { logAuditEvent } from "../../_actions/audit-log";
 
 const TABLE = "payment_settings";
 const PROVIDERS: PaymentProvider[] = ["vipps", "stripe"];
@@ -174,7 +174,7 @@ export async function updatePaymentSecrets(
       payload: { provider, fields: Object.keys(updates) },
     });
 
-    revalidatePath("/payment-settings");
+    revalidatePath("/settings/payments");
     return { data: buildView(provider, await readRow(db, provider)) };
   } catch (error) {
     if (isRedirectError(error)) {
@@ -251,7 +251,7 @@ export async function registerVippsWebhook(): Promise<
       },
     });
 
-    revalidatePath("/payment-settings");
+    revalidatePath("/settings/payments");
     return { data: { mode: result.mode, registeredUrl: result.registeredUrl } };
   } catch (error) {
     if (isRedirectError(error)) {
@@ -287,7 +287,7 @@ export async function setPaymentTestMode(
       payload: { provider, testMode },
     });
 
-    revalidatePath("/payment-settings");
+    revalidatePath("/settings/payments");
     return { data: buildView(provider, await readRow(db, provider)) };
   } catch (error) {
     if (isRedirectError(error)) {

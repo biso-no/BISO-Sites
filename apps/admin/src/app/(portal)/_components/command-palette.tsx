@@ -144,7 +144,7 @@ const ALL_COMMANDS: PaletteCommand[] = [
     group: "navigate",
     label: "Operations health",
     icon: Gauge,
-    href: "/operations",
+    href: "/settings/operations",
     navKey: "portal.settings",
   },
   {
@@ -152,7 +152,7 @@ const ALL_COMMANDS: PaletteCommand[] = [
     group: "navigate",
     label: "Feature flags",
     icon: Flag,
-    href: "/feature-flags",
+    href: "/settings/feature-flags",
     navKey: "portal.settings",
   },
   {
@@ -160,7 +160,7 @@ const ALL_COMMANDS: PaletteCommand[] = [
     group: "navigate",
     label: "Payment settings",
     icon: CreditCard,
-    href: "/payment-settings",
+    href: "/settings/payments",
     navKey: "portal.settings",
   },
   {

@@ -1,6 +1,6 @@
 import { getTranslations } from "next-intl/server";
 import { requireNavAccess } from "@/lib/authorization";
-import { PageHeader } from "../_components/page-header";
+import { PageHeader } from "../../_components/page-header";
 import { FeatureFlagsClient } from "./_components/feature-flags-client";
 import { getCatalogFlagStates } from "./actions";
 

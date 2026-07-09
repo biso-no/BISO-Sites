@@ -4,7 +4,7 @@ import type {
   IntegrationStatusValue,
 } from "@/lib/integration-health";
 import type { TeamHealthReport } from "@/lib/team-health";
-import { STUDIO, studioSurface } from "../../_components/studio";
+import { STUDIO, studioSurface } from "../../../_components/studio";
 
 export interface OperationsLabels {
   integrationsTitle: string;

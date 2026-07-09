@@ -6,8 +6,8 @@
 import "../blocks/index";
 
 export { allBlocks, getBlock } from "../blocks/registry";
-export { useEditorStore } from "../editor/store";
 export { fromJSON } from "../editor/serialize";
+export { useEditorStore } from "../editor/store";
 export type { Block, BlockType, PageDoc, PageMeta } from "../editor/types";
 export type { AccentHue } from "../theme/presets";
 export {

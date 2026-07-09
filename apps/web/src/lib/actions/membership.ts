@@ -177,7 +177,9 @@ async function computeMembershipStatus(
  * needs no cookie write, and cannot be spoofed by the client. Cache is
  * invalidated after `MEMBERSHIP_CACHE_TTL_SECONDS` or via `revalidateTag`.
  */
-function getCachedMembershipStatus(numericId: number): Promise<MembershipStatus> {
+function getCachedMembershipStatus(
+  numericId: number
+): Promise<MembershipStatus> {
   const cacheTag = `membership:${numericId}`;
   return unstable_cache(
     () => computeMembershipStatus(numericId),

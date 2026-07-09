@@ -2,7 +2,11 @@
 
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
-import { buttonStyle, STUDIO, studioSurface } from "../../_components/studio";
+import {
+  buttonStyle,
+  STUDIO,
+  studioSurface,
+} from "../../../_components/studio";
 import {
   type ProviderSecretView,
   type ProviderSettingsView,

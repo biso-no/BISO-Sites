@@ -340,24 +340,24 @@ export function Sidebar({ user, roles }: SidebarProps) {
           )}
           {canViewSettings && (
             <SidebarLink
-              active={isActive("/operations")}
-              href="/operations"
+              active={isActive("/settings/operations")}
+              href="/settings/operations"
               icon={Gauge}
               label={t("operations")}
             />
           )}
           {canViewSettings && (
             <SidebarLink
-              active={isActive("/feature-flags")}
-              href="/feature-flags"
+              active={isActive("/settings/feature-flags")}
+              href="/settings/feature-flags"
               icon={Flag}
               label={t("featureFlags")}
             />
           )}
           {canViewSettings && (
             <SidebarLink
-              active={isActive("/payment-settings")}
-              href="/payment-settings"
+              active={isActive("/settings/payments")}
+              href="/settings/payments"
               icon={CreditCard}
               label={t("payments")}
             />

@@ -3,7 +3,7 @@
 import type { FeatureFlagGroup } from "@repo/shared/utils/feature-flags";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
-import { STUDIO, studioSurface } from "../../_components/studio";
+import { STUDIO, studioSurface } from "../../../_components/studio";
 import {
   type CatalogFlagGroup,
   type CatalogFlagItem,

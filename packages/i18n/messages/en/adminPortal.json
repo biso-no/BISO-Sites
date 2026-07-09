@@ -13,6 +13,7 @@
     "it": "IT",
     "analytics": "Analytics",
     "settings": "Settings",
+    "general": "General",
     "featureFlags": "Feature flags",
     "operations": "Operations health",
     "payments": "Payments",
@@ -1079,8 +1080,7 @@
       "aiLocalization": "AI Localization",
       "security": "Security",
       "integrations": "Integrations",
-      "notifications": "Notifications",
-      "platform": "Platform"
+      "notifications": "Notifications"
     },
     "general": {
       "title": "General Settings",
@@ -1114,16 +1114,6 @@
       "title": "Team Members",
       "role": "Role",
       "invite": "Invite Member"
-    },
-    "platform": {
-      "title": "Platform operations",
-      "description": "These are your personal admin preferences. Platform-wide operational controls live in their own audited screens.",
-      "operations": "Operations health",
-      "operationsHint": "Read-only status of integrations, scheduler secrets, and required teams",
-      "featureFlags": "Feature flags",
-      "featureFlagsHint": "Turn platform features on or off (audited)",
-      "payments": "Payment providers",
-      "paymentsHint": "Managed Vipps/Stripe credentials and test mode (audited)"
     },
     "saveSuccess": "Settings saved",
     "saveError": "Failed to save settings"

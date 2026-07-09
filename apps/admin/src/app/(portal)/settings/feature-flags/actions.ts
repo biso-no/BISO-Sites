@@ -16,7 +16,7 @@ import { revalidatePath } from "next/cache";
 import { isRedirectError } from "next/dist/client/components/redirect-error";
 import { redirect } from "next/navigation";
 import { getUserAuthContext, type UserAuthContext } from "@/lib/authorization";
-import { logAuditEvent } from "../_actions/audit-log";
+import { logAuditEvent } from "../../_actions/audit-log";
 
 const TABLE = "feature_flags";
 
@@ -120,7 +120,7 @@ export async function setFeatureFlagByKey(
       payload: { key, enabled },
     });
 
-    revalidatePath("/feature-flags");
+    revalidatePath("/settings/feature-flags");
     return {
       data: {
         key,

@@ -3,7 +3,7 @@ import { requireNavAccess } from "@/lib/authorization";
 import { checkIntegrationHealth } from "@/lib/integration-health";
 import type { TeamHealthReport } from "@/lib/team-health";
 import { fetchRequiredTeamHealth } from "@/lib/team-health-check";
-import { PageHeader } from "../_components/page-header";
+import { PageHeader } from "../../_components/page-header";
 import { OperationsHealth } from "./_components/operations-health";
 
 async function safeTeamHealth(): Promise<TeamHealthReport | null> {
