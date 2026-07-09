@@ -20,8 +20,10 @@
     "activity": "Aktivitet",
     "drafts": "Gjennomgå utkast",
     "approvals": "Godkjenninger",
-    "publishGroup": "Publiser",
-    "operateGroup": "Administrer",
+    "inbox": "Innboks",
+    "content": "Innhold",
+    "organization": "Organisasjon",
+    "system": "System",
     "submissions": "Skjemainnsendinger"
   },
   "sidebar": {

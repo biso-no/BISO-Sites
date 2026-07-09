@@ -1,6 +1,7 @@
 import { isFeatureEnabled } from "@repo/shared/utils/feature-flags-server";
 import { getTranslations } from "next-intl/server";
 import { getUserRolesForClient, requireAdminAccess } from "@/lib/authorization";
+import { getInboxCounts } from "./_actions/inbox";
 import { AdminShell } from "./_components/admin-shell";
 
 type UserRoles = Awaited<ReturnType<typeof getUserRolesForClient>>;
@@ -28,6 +29,12 @@ export default async function PortalAdminLayout({
   const ctx = await requireAdminAccess();
   const roles = await getUserRolesForClient();
   const aiCopilotEnabled = await isFeatureEnabled("ai_admin_copilot");
+  // Badge counts are best-effort — never block the layout on them.
+  const inboxCounts = await getInboxCounts().catch(() => ({
+    approvals: 0,
+    submissions: 0,
+    total: 0,
+  }));
 
   const user = {
     id: ctx.userId,
@@ -38,7 +45,12 @@ export default async function PortalAdminLayout({
   };
 
   return (
-    <AdminShell aiCopilotEnabled={aiCopilotEnabled} roles={roles} user={user}>
+    <AdminShell
+      aiCopilotEnabled={aiCopilotEnabled}
+      inboxCount={inboxCounts.total}
+      roles={roles}
+      user={user}
+    >
       {children}
     </AdminShell>
   );

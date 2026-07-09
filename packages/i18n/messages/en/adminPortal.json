@@ -20,8 +20,10 @@
     "activity": "Activity",
     "drafts": "Review Drafts",
     "approvals": "Approvals",
-    "publishGroup": "Publish",
-    "operateGroup": "Operate",
+    "inbox": "Inbox",
+    "content": "Content",
+    "organization": "Organization",
+    "system": "System",
     "submissions": "Form Submissions"
   },
   "sidebar": {

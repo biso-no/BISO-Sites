@@ -1,30 +1,6 @@
 "use client";
 
-import {
-  Activity,
-  Briefcase,
-  Building2,
-  Calendar,
-  ClipboardList,
-  Command,
-  CreditCard,
-  FileStack,
-  FileText,
-  Flag,
-  Gauge,
-  Gift,
-  HardDrive,
-  Inbox,
-  Layers,
-  LayoutDashboard,
-  LineChart,
-  LogOut,
-  Megaphone,
-  Newspaper,
-  Settings,
-  ShoppingCart,
-  Sparkles,
-} from "lucide-react";
+import { ChevronDown, Command, LogOut, Sparkles } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -32,7 +8,13 @@ import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useState } from "react";
 import { signOut } from "@/lib/actions/user";
 import type { UserRolesForClient } from "@/lib/authorization";
+import {
+  filterNavTree,
+  findActivePath,
+  type NavGroup as NavGroupNode,
+} from "@/lib/nav-tree";
 import { hasNavAccess, type NavKey } from "@/lib/roles";
+import { OPEN_ASSISTANT_EVENT } from "./_components/assistant/assistant-widget";
 import { CampusSwitcher } from "./_components/campus-switcher";
 import { SERIF_STACK, STUDIO } from "./_components/studio";
 
@@ -45,169 +27,41 @@ interface SidebarUser {
 }
 
 interface SidebarProps {
+  inboxCount: number;
   roles: UserRolesForClient;
   user: SidebarUser;
 }
 
-interface NavItem {
-  group: "operate" | "publish";
-  icon: React.ComponentType<{ size?: number }>;
-  labelKey: string;
-  navKey: NavKey;
-  path: string;
-}
-
-export const NAV_ITEMS: NavItem[] = [
-  {
-    group: "operate",
-    icon: LayoutDashboard,
-    labelKey: "overview",
-    navKey: "portal.dashboard",
-    path: "/",
-  },
-  {
-    group: "publish",
-    icon: Briefcase,
-    labelKey: "jobs",
-    navKey: "portal.jobs",
-    path: "/jobs",
-  },
-  {
-    group: "publish",
-    icon: Calendar,
-    labelKey: "events",
-    navKey: "portal.events",
-    path: "/events",
-  },
-  {
-    group: "publish",
-    icon: Newspaper,
-    labelKey: "news",
-    navKey: "portal.news",
-    path: "/news",
-  },
-  {
-    group: "publish",
-    icon: Megaphone,
-    labelKey: "communications",
-    navKey: "portal.communications",
-    path: "/communications",
-  },
-  {
-    group: "publish",
-    icon: Gift,
-    labelKey: "benefits",
-    navKey: "portal.benefits",
-    path: "/benefits",
-  },
-  {
-    group: "publish",
-    icon: ShoppingCart,
-    labelKey: "shop",
-    navKey: "portal.shop",
-    path: "/shop",
-  },
-  {
-    group: "publish",
-    icon: Layers,
-    labelKey: "pages",
-    navKey: "portal.pages",
-    path: "/pages",
-  },
-  {
-    group: "operate",
-    icon: Building2,
-    labelKey: "departments",
-    navKey: "portal.departments",
-    path: "/departments",
-  },
-  {
-    group: "operate",
-    icon: FileText,
-    labelKey: "documents",
-    navKey: "portal.documents",
-    path: "/documents",
-  },
-  {
-    group: "operate",
-    icon: HardDrive,
-    labelKey: "it",
-    navKey: "portal.it",
-    path: "/it",
-  },
-  {
-    group: "operate",
-    icon: LineChart,
-    labelKey: "analytics",
-    navKey: "portal.analytics",
-    path: "/analytics",
-  },
-  {
-    group: "operate",
-    icon: Inbox,
-    labelKey: "submissions",
-    navKey: "portal.submissions",
-    path: "/inbox/submissions",
-  },
-];
-
-function NavGroup({
-  children,
-  title,
-}: {
-  children: React.ReactNode;
-  title: string;
-}) {
-  return (
-    <div>
-      <p
-        className="px-2 pt-3 pb-1.5 font-medium text-[10px] uppercase tracking-[0.08em]"
-        style={{ color: STUDIO.ink4 }}
-      >
-        {title}
-      </p>
-      <div className="space-y-1">{children}</div>
-    </div>
-  );
-}
-
-export function Sidebar({ user, roles }: SidebarProps) {
+export function Sidebar({ user, roles, inboxCount }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const t = useTranslations("adminPortal.nav");
   const tSidebar = useTranslations("adminPortal.sidebar");
 
-  const visibleItems = NAV_ITEMS.filter((item) =>
-    hasNavAccess(item.navKey, roles.roles, roles.hasDepartmentMembership)
+  const tree = useMemo(
+    () =>
+      filterNavTree({
+        hasDepartmentMembership: roles.hasDepartmentMembership,
+        roles: roles.roles,
+      }),
+    [roles]
   );
 
-  const canViewActivity = hasNavAccess(
-    "portal.activity",
-    roles.roles,
-    roles.hasDepartmentMembership
-  );
-  const canViewApprovals = hasNavAccess(
-    "portal.approvals",
-    roles.roles,
-    roles.hasDepartmentMembership
-  );
-  const canViewDrafts = hasNavAccess(
-    "portal.drafts",
-    roles.roles,
-    roles.hasDepartmentMembership
-  );
-  const canViewSettings = hasNavAccess(
-    "portal.settings",
-    roles.roles,
-    roles.hasDepartmentMembership
-  );
-
-  function isActive(path: string) {
-    if (path === "/") {
-      return pathname === "/";
+  const activePath = findActivePath(pathname);
+  const activeGroupId = useMemo(() => {
+    for (const node of tree) {
+      if (
+        node.kind === "group" &&
+        node.children.some((child) => child.path === activePath)
+      ) {
+        return node.id;
+      }
     }
-    return pathname.startsWith(path);
-  }
+    return null;
+  }, [tree, activePath]);
+
+  const [openGroup, setOpenGroup] = useState<string | null>(null);
+  const expandedGroup = openGroup ?? activeGroupId;
 
   async function handleSignOut() {
     await signOut();
@@ -222,9 +76,6 @@ export function Sidebar({ user, roles }: SidebarProps) {
         .toUpperCase()
         .slice(0, 2)
     : "??";
-
-  const publishItems = visibleItems.filter((item) => item.group === "publish");
-  const operateItems = visibleItems.filter((item) => item.group === "operate");
 
   let currentCampus: string;
   if (roles.isGlobalAdmin) {
@@ -291,94 +142,37 @@ export function Sidebar({ user, roles }: SidebarProps) {
         roleLabel={user.roleLabel}
       />
 
-      <nav className="min-h-0 flex-1 overflow-y-auto">
-        <NavGroup title={t("publishGroup")}>
-          {publishItems.map((item) => (
+      <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto pt-2">
+        {tree.map((node) =>
+          node.kind === "leaf" ? (
             <SidebarLink
-              active={isActive(item.path)}
-              href={item.path}
-              icon={item.icon}
-              key={item.path}
-              label={t(item.labelKey)}
+              active={activePath === node.path}
+              badge={node.path === "/inbox" ? inboxCount : undefined}
+              href={node.path}
+              icon={node.icon}
+              key={node.path}
+              label={t(node.labelKey)}
             />
-          ))}
-          {canViewDrafts && (
-            <SidebarLink
-              active={isActive("/drafts")}
-              href="/drafts"
-              icon={FileStack}
-              label={t("drafts")}
+          ) : (
+            <SidebarGroup
+              activePath={activePath}
+              expanded={expandedGroup === node.id}
+              key={node.id}
+              label={t(node.labelKey)}
+              node={node}
+              onToggle={() =>
+                setOpenGroup((prev) => (prev === node.id ? null : node.id))
+              }
+              t={t}
             />
-          )}
-        </NavGroup>
-
-        <NavGroup title={t("operateGroup")}>
-          {operateItems.map((item) => (
-            <SidebarLink
-              active={isActive(item.path)}
-              href={item.path}
-              icon={item.icon}
-              key={item.path}
-              label={t(item.labelKey)}
-            />
-          ))}
-          {canViewApprovals && (
-            <SidebarLink
-              active={isActive("/inbox/approvals")}
-              href="/inbox/approvals"
-              icon={ClipboardList}
-              label={t("approvals")}
-            />
-          )}
-          {canViewActivity && (
-            <SidebarLink
-              active={isActive("/activity")}
-              href="/activity"
-              icon={Activity}
-              label={t("activity")}
-            />
-          )}
-          {canViewSettings && (
-            <SidebarLink
-              active={isActive("/settings/operations")}
-              href="/settings/operations"
-              icon={Gauge}
-              label={t("operations")}
-            />
-          )}
-          {canViewSettings && (
-            <SidebarLink
-              active={isActive("/settings/feature-flags")}
-              href="/settings/feature-flags"
-              icon={Flag}
-              label={t("featureFlags")}
-            />
-          )}
-          {canViewSettings && (
-            <SidebarLink
-              active={isActive("/settings/payments")}
-              href="/settings/payments"
-              icon={CreditCard}
-              label={t("payments")}
-            />
-          )}
-          {canViewSettings && (
-            <SidebarLink
-              active={isActive("/settings")}
-              href="/settings"
-              icon={Settings}
-              label={t("settings")}
-            />
-          )}
-        </NavGroup>
+          )
+        )}
       </nav>
 
       <div className="mt-4 space-y-3">
         <button
           className="flex w-full items-center gap-2 rounded-xl border px-3 py-2.5 text-left text-[13px] transition hover:bg-white/70"
-          onClick={() =>
-            window.dispatchEvent(new Event("admin:open-assistant"))
-          }
+          onClick={() => window.dispatchEvent(new Event(OPEN_ASSISTANT_EVENT))}
           style={{
             background: "rgba(255,255,255,0.48)",
             borderColor: STUDIO.rule2,
@@ -564,13 +358,71 @@ function StudioHintCarousel({
   );
 }
 
+function SidebarGroup({
+  activePath,
+  expanded,
+  label,
+  node,
+  onToggle,
+  t,
+}: {
+  activePath: string | null;
+  expanded: boolean;
+  label: string;
+  node: NavGroupNode;
+  onToggle: () => void;
+  t: (key: string) => string;
+}) {
+  const Icon = node.icon;
+  return (
+    <div>
+      <button
+        aria-expanded={expanded}
+        className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm transition hover:bg-white/60"
+        onClick={onToggle}
+        style={{ color: STUDIO.ink2 }}
+        type="button"
+      >
+        <Icon size={15} />
+        <span className="min-w-0 flex-1 truncate">{label}</span>
+        <ChevronDown
+          size={13}
+          style={{
+            color: STUDIO.ink4,
+            transform: expanded ? "rotate(180deg)" : "none",
+            transition: "transform 150ms ease",
+          }}
+        />
+      </button>
+      {expanded && (
+        <div
+          className="ml-4 space-y-0.5 border-l pl-2"
+          style={{ borderColor: STUDIO.rule2 }}
+        >
+          {node.children.map((child) => (
+            <SidebarLink
+              active={activePath === child.path}
+              href={child.path}
+              icon={child.icon}
+              key={child.path}
+              label={t(child.labelKey)}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function SidebarLink({
   active,
+  badge,
   href,
   icon: Icon,
   label,
 }: {
   active: boolean;
+  badge?: number;
   href: string;
   icon: React.ComponentType<{ size?: number }>;
   label: string;
@@ -589,7 +441,19 @@ function SidebarLink({
       }
     >
       <Icon size={15} />
-      <span className="min-w-0 truncate">{label}</span>
+      <span className="min-w-0 flex-1 truncate">{label}</span>
+      {badge !== undefined && badge > 0 && (
+        <span
+          className="rounded-full px-1.5 py-0.5 font-mono text-[10px] leading-none"
+          style={
+            active
+              ? { background: STUDIO.paper, color: STUDIO.ink }
+              : { background: STUDIO.claret, color: STUDIO.paper }
+          }
+        >
+          {badge}
+        </span>
+      )}
     </Link>
   );
 }
