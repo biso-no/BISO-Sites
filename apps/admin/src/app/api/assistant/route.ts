@@ -7,7 +7,7 @@ import {
 } from "@repo/ai/assistant";
 import type { AssistantActionDeps } from "@repo/ai/assistant/types";
 import { ID, type Models, Query } from "@repo/api";
-import { createSessionClient } from "@repo/api/server";
+import { createAdminClient, createSessionClient } from "@repo/api/server";
 import type { Orders } from "@repo/api/types/appwrite";
 import {
   FEATURE_FLAGS,
@@ -725,7 +725,7 @@ function buildDeps(
       if (!q || q.length < MIN_CUSTOMER_QUERY_LENGTH) {
         throw new Error("query must be at least 2 characters");
       }
-      const { db } = await createSessionClient();
+      const { db } = await createAdminClient();
       const result = await db.listRows("app", "user", [
         Query.or([Query.contains("name", q), Query.contains("email", q)]),
         Query.limit(CUSTOMER_RESULT_LIMIT),
