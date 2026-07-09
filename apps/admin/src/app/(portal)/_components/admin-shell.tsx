@@ -4,10 +4,11 @@ import { ChevronLeft, Search } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { NotificationsPanel } from "@/components/notifications/notifications-panel";
 import type { UserRolesForClient } from "@/lib/authorization";
-import { flattenNavTree } from "@/lib/nav-tree";
+import { findActivePath, flattenNavTree } from "@/lib/nav-tree";
+import { recordRecent } from "@/lib/recents";
 import { Sidebar } from "../sidebar";
 import { AssistantWidget } from "./assistant/assistant-widget";
 import { CommandPalette } from "./command-palette";
@@ -50,6 +51,18 @@ export function AdminShell({
   const tAdmin = useTranslations("admin");
   const crumbs = getCrumbKeys(pathname);
   const flatNav = useMemo(() => flattenNavTree(), []);
+
+  // Record visited nav sections for the command palette's Recent group.
+  useEffect(() => {
+    const activePath = findActivePath(pathname);
+    if (!activePath) {
+      return;
+    }
+    const item = flatNav.find((navItem) => navItem.path === activePath);
+    if (item) {
+      recordRecent({ href: item.path, label: t(item.labelKey) });
+    }
+  }, [pathname, flatNav, t]);
 
   return (
     <div
