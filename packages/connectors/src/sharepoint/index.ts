@@ -44,8 +44,12 @@ interface GraphDriveItem {
 }
 
 interface GraphListResponse<T> {
+  "@odata.nextLink"?: string;
   value?: T[];
 }
+
+// Backstop so a malformed nextLink chain can never loop forever.
+const MAX_DRIVE_ITEM_PAGES = 50;
 
 interface PipeableStream {
   on(
@@ -231,28 +235,24 @@ export class SharePointService {
     const client = await this.getAuthenticatedClient();
     const documents: SharePointDocument[] = [];
 
-    try {
-      const drivesResponse: GraphListResponse<GraphDrive> = await client
-        .api(`/sites/${siteId}/drives`)
-        .get();
+    const drivesResponse: GraphListResponse<GraphDrive> = await client
+      .api(`/sites/${siteId}/drives`)
+      .get();
 
-      for (const drive of drivesResponse.value ?? []) {
-        const items = await this.getDriveItems(
-          client,
-          drive.id,
-          folderPath,
-          recursive
-        );
-        documents.push(
-          ...items.map((item) => ({
-            ...item,
-            siteId,
-            driveId: drive.id,
-          }))
-        );
-      }
-    } catch (error) {
-      console.error("Error listing documents:", error);
+    for (const drive of drivesResponse.value ?? []) {
+      const items = await this.getDriveItems(
+        client,
+        drive.id,
+        folderPath,
+        recursive
+      );
+      documents.push(
+        ...items.map((item) => ({
+          ...item,
+          siteId,
+          driveId: drive.id,
+        }))
+      );
     }
 
     return documents;
@@ -266,13 +266,25 @@ export class SharePointService {
   ): Promise<SharePointDocument[]> {
     const documents: SharePointDocument[] = [];
 
-    try {
-      const apiPath =
-        folderPath === "/"
-          ? `/drives/${driveId}/root/children`
-          : `/drives/${driveId}/root:${folderPath}:/children`;
+    const apiPath =
+      folderPath === "/"
+        ? `/drives/${driveId}/root/children`
+        : `/drives/${driveId}/root:${folderPath}:/children`;
+
+    // Follow Graph pagination until there is no @odata.nextLink so we never
+    // silently truncate at the default page size (~200 items). Errors are left
+    // to propagate — a failed page must not look like a complete result.
+    let nextRequest: string | undefined = apiPath;
+    let page = 0;
+    while (nextRequest) {
+      if (page >= MAX_DRIVE_ITEM_PAGES) {
+        console.warn(
+          `Reached max page cap (${MAX_DRIVE_ITEM_PAGES}) listing drive ${driveId} at ${folderPath}; results may be truncated.`
+        );
+        break;
+      }
       const response: GraphListResponse<GraphDriveItem> = await client
-        .api(apiPath)
+        .api(nextRequest)
         .get();
       await this.processDriveItemsResponse(
         response.value ?? [],
@@ -284,8 +296,8 @@ export class SharePointService {
           recursive,
         }
       );
-    } catch (error) {
-      console.error("Error getting drive items:", error);
+      nextRequest = response["@odata.nextLink"];
+      page++;
     }
 
     return documents;

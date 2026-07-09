@@ -1,15 +1,15 @@
 "use server";
 
 import { Query } from "@repo/api/client";
-import { createSessionClient } from "@repo/api/server";
+import { createAdminClient, createSessionClient } from "@repo/api/server";
 import type { Memberships, Users } from "@repo/api/types/appwrite";
 import { getCustomerCategories } from "@repo/connectors/24sevenoffice";
+import { revalidateTag, unstable_cache } from "next/cache";
 import { cookies } from "next/headers";
 import { isAuthenticatedAccount } from "@/lib/auth-utils";
 
-// Cookie configuration
-const MEMBERSHIP_COOKIE_NAME = "biso_membership";
-const COOKIE_TTL_SECONDS = 10 * 60; // 10 minutes
+// Server-side cache TTL for the resolved membership status, in seconds.
+const MEMBERSHIP_CACHE_TTL_SECONDS = 10 * 60; // 10 minutes
 const DEFAULT_MEMBERSHIP_FINAGO_TIMEOUT_MS = 3000;
 
 export interface MembershipInfo {
@@ -28,9 +28,21 @@ export interface MembershipStatus {
   reason?: string;
 }
 
-interface CachedMembershipData {
-  expiresAt: number;
-  status: MembershipStatus;
+/**
+ * Thrown inside the cached computation to signal a transient failure that must
+ * NOT be persisted in the server-side cache. Caught by the caller, which maps
+ * `reason` back onto an (uncached) `MembershipStatus`. `unstable_cache` does not
+ * cache thrown errors, so this keeps failures out of the cache while successful
+ * results (including the legitimate "not a member" negatives) are cached.
+ */
+class MembershipComputationError extends Error {
+  readonly reason: string;
+
+  constructor(reason: string) {
+    super(`Membership computation failed: ${reason}`);
+    this.name = "MembershipComputationError";
+    this.reason = reason;
+  }
 }
 
 function readPositiveInteger(
@@ -74,128 +86,142 @@ async function withDeadline<T>(
   }
 }
 
-/**
- * Get membership status for the current user.
- * Uses a short-lived cookie cache to avoid calling Finago on every request.
- *
- * This function is SSR-compatible and can be used in:
- * - Server Components
- * - Server Actions
- * - API Routes
- * - Layouts
- */
-export async function getMembershipStatus(): Promise<MembershipStatus> {
-  const cookieStore = await cookies();
-
-  // 1. Check for cached membership in cookie
-  const cached = getCachedMembership(cookieStore);
-  if (cached) {
-    return cached;
-  }
-
-  // 2. No valid cache - fetch fresh data
-  const freshStatus = await fetchMembershipFromFinago();
-
-  // 3. Cache the result in a cookie
-  cacheMembershipStatus(cookieStore, freshStatus);
-
-  return freshStatus;
-}
-
-/**
- * Force refresh the membership status, bypassing the cache.
- * Useful for when you know the data has changed.
- */
-export async function refreshMembershipStatus(): Promise<MembershipStatus> {
-  const cookieStore = await cookies();
-
-  const freshStatus = await fetchMembershipFromFinago();
-  cacheMembershipStatus(cookieStore, freshStatus);
-
-  return freshStatus;
-}
-
-/**
- * Clear the membership cache.
- * Call this on logout or when you want to force a fresh check.
- */
-async function _clearMembershipCache(): Promise<void> {
-  const cookieStore = await cookies();
-  cookieStore.delete(MEMBERSHIP_COOKIE_NAME);
-}
-
-/**
- * Get cached membership from cookie if valid
- */
-function getCachedMembership(
-  cookieStore: Awaited<ReturnType<typeof cookies>>
-): MembershipStatus | null {
-  try {
-    const cookie = cookieStore.get(MEMBERSHIP_COOKIE_NAME);
-    if (!cookie?.value) {
-      return null;
-    }
-
-    const data: CachedMembershipData = JSON.parse(cookie.value);
-
-    // Check if cache is still valid
-    if (Date.now() > data.expiresAt) {
-      return null;
-    }
-
-    return data.status;
-  } catch (error) {
-    console.error("[Membership] Error reading cache:", error);
-    return null;
-  }
-}
-
-/**
- * Cache membership status in a cookie.
- * Note: This will only succeed in a Server Action or Route Handler context.
- * When called from a Server Component render, the set operation will fail silently.
- */
-function cacheMembershipStatus(
-  cookieStore: Awaited<ReturnType<typeof cookies>>,
-  status: MembershipStatus
-): void {
-  const data: CachedMembershipData = {
-    status,
-    expiresAt: Date.now() + COOKIE_TTL_SECONDS * 1000,
-  };
-
-  try {
-    cookieStore.set(MEMBERSHIP_COOKIE_NAME, JSON.stringify(data), {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      maxAge: COOKIE_TTL_SECONDS,
-      path: "/",
-    });
-  } catch {
-    // Cookie setting is not allowed in Server Component render context.
-    // The cache will be populated on the next Server Action call.
-  }
-}
-
-/**
- * Fetch fresh membership status from Finago
- */
-async function fetchMembershipFromFinago(): Promise<MembershipStatus> {
-  const notAuthenticated: MembershipStatus = {
+function emptyStatus(reason: string): MembershipStatus {
+  return {
     isMember: false,
     memberships: [],
     finagoCategoryIds: [],
-    reason: "not_authenticated",
+    reason,
     checkedAt: Date.now(),
   };
+}
 
+/**
+ * PURE, cacheable computation of membership status keyed by the sanitized
+ * numeric student id.
+ *
+ * This function MUST NOT read `cookies()`, `headers()`, or any request-bound
+ * API — it may run detached (via `unstable_cache`) outside the originating
+ * request. Everything it needs (the numeric student id) is passed in as an
+ * argument. The Appwrite read uses the ADMIN/service-key client
+ * (`createAdminClient`), which authenticates with `APPWRITE_API_KEY` and never
+ * touches the request session cookie, so it works safely when detached. The
+ * security property is preserved because the id is resolved from the
+ * authenticated user's own `student_id` in the dynamic part before this runs.
+ *
+ * On a transient failure (Finago error/timeout) it throws
+ * `MembershipComputationError` so the failure is NOT cached; the successful
+ * "no categories" / matched results ARE returned normally and cached.
+ */
+async function computeMembershipStatus(
+  numericId: number
+): Promise<MembershipStatus> {
+  // 1. Fetch category IDs from Finago (bounded by the per-request deadline).
+  let finagoCategoryIds: number[];
+  try {
+    finagoCategoryIds = await withDeadline(
+      getCustomerCategories(numericId),
+      membershipFinagoTimeoutMs(),
+      "Finago membership category lookup timed out"
+    );
+  } catch (error) {
+    console.error("[Membership] Failed to fetch from Finago:", error);
+    throw new MembershipComputationError("finago_error");
+  }
+
+  // 2. If no categories, user is (legitimately) not a member — cache this.
+  if (!finagoCategoryIds || finagoCategoryIds.length === 0) {
+    return emptyStatus("no_categories");
+  }
+
+  // 3. Query active memberships. Uses the admin client so the cached callback
+  //    has no dependency on the request session cookie (the `memberships`
+  //    table is read("users"); the service key bypasses row permissions).
+  const { db } = await createAdminClient();
+  const membershipsResponse = await db.listRows<Memberships>(
+    "app",
+    "memberships",
+    [Query.equal("status", true), Query.limit(200)]
+  );
+
+  const activeMemberships = membershipsResponse.rows;
+  const finagoCategoryIdStrings = finagoCategoryIds.map((id) => String(id));
+
+  // 4. Match Finago category IDs with membership categories.
+  const matchedMemberships = activeMemberships.filter((membership) => {
+    if (!membership.category) {
+      return false;
+    }
+    return finagoCategoryIdStrings.includes(membership.category);
+  });
+
+  const isMember = matchedMemberships.length > 0;
+
+  return {
+    isMember,
+    memberships: matchedMemberships.map((m) => ({
+      id: m.$id,
+      name: m.name,
+      category: m.category,
+      startDate: m.startDate,
+      expiryDate: m.expiryDate,
+    })),
+    finagoCategoryIds,
+    checkedAt: Date.now(),
+  };
+}
+
+/**
+ * Server-side cached wrapper around `computeMembershipStatus`, keyed per user
+ * by the numeric student id. Persists across requests and users correctly,
+ * needs no cookie write, and cannot be spoofed by the client. Cache is
+ * invalidated after `MEMBERSHIP_CACHE_TTL_SECONDS` or via `revalidateTag`.
+ */
+function getCachedMembershipStatus(numericId: number): Promise<MembershipStatus> {
+  const cacheTag = `membership:${numericId}`;
+  return unstable_cache(
+    () => computeMembershipStatus(numericId),
+    ["membership", cacheTag],
+    {
+      revalidate: MEMBERSHIP_CACHE_TTL_SECONDS,
+      tags: ["membership", cacheTag],
+    }
+  )();
+}
+
+/**
+ * Read the cached membership status for a numeric student id, mapping the
+ * non-cached failure signal back onto an error `MembershipStatus`.
+ */
+async function resolveMembershipStatus(
+  numericId: number
+): Promise<MembershipStatus> {
+  try {
+    return await getCachedMembershipStatus(numericId);
+  } catch (error) {
+    if (error instanceof MembershipComputationError) {
+      return emptyStatus(error.reason);
+    }
+    console.error("[Membership] Unexpected error:", error);
+    return emptyStatus("unexpected_error");
+  }
+}
+
+/**
+ * DYNAMIC part: resolve the current authenticated account and its numeric
+ * student id. Reads cookies/session, so it must stay dynamic and cannot run
+ * inside `unstable_cache`. Returns either the numeric id to look up, or a
+ * terminal `MembershipStatus` for the not-authenticated / no-student-id cases.
+ */
+async function resolveCurrentStudentId(): Promise<
+  { numericId: number } | { status: MembershipStatus }
+> {
   try {
     // 1. Check if user is authenticated
     const cookieStore = await cookies();
     const session = cookieStore.get("a_session_biso");
     if (!session) {
-      return notAuthenticated;
+      return { status: emptyStatus("not_authenticated") };
     }
 
     // 2. Get user profile
@@ -205,114 +231,67 @@ async function fetchMembershipFromFinago(): Promise<MembershipStatus> {
       const currentUser = await account.get();
 
       if (!isAuthenticatedAccount(currentUser)) {
-        return notAuthenticated;
+        return { status: emptyStatus("not_authenticated") };
       }
 
       profile = await sessionDb.getRow<Users>("app", "user", currentUser.$id);
     } catch (error) {
       console.error("[Membership] Failed to get user profile:", error);
-      return notAuthenticated;
+      return { status: emptyStatus("not_authenticated") };
     }
 
     // 3. Get student_id from profile
     const studentId = profile?.student_id;
     if (!studentId) {
-      return {
-        isMember: false,
-        memberships: [],
-        finagoCategoryIds: [],
-        reason: "no_student_id",
-        checkedAt: Date.now(),
-      };
+      return { status: emptyStatus("no_student_id") };
     }
 
     // 4. Sanitize student_id to get numeric company ID
     const sanitizedId = studentId.replace(/[^0-9]/g, "");
     if (!sanitizedId) {
-      return {
-        isMember: false,
-        memberships: [],
-        finagoCategoryIds: [],
-        reason: "invalid_student_id",
-        checkedAt: Date.now(),
-      };
+      return { status: emptyStatus("invalid_student_id") };
     }
 
-    const numericId = Number.parseInt(sanitizedId, 10);
-
-    // 5. Fetch category IDs from Finago
-    let finagoCategoryIds: number[];
-    try {
-      finagoCategoryIds = await withDeadline(
-        getCustomerCategories(numericId),
-        membershipFinagoTimeoutMs(),
-        "Finago membership category lookup timed out"
-      );
-    } catch (error) {
-      console.error("[Membership] Failed to fetch from Finago:", error);
-      return {
-        isMember: false,
-        memberships: [],
-        finagoCategoryIds: [],
-        reason: "finago_error",
-        checkedAt: Date.now(),
-      };
-    }
-
-    // 6. If no categories, user is not a member
-    if (!finagoCategoryIds || finagoCategoryIds.length === 0) {
-      return {
-        isMember: false,
-        memberships: [],
-        finagoCategoryIds: [],
-        reason: "no_categories",
-        checkedAt: Date.now(),
-      };
-    }
-
-    // 7. Query active memberships from database. The memberships table is
-    // read("users") so the session client is sufficient and we don't need
-    // to escalate to the service-key client for this read.
-    const { db } = await createSessionClient();
-    const membershipsResponse = await db.listRows<Memberships>(
-      "app",
-      "memberships",
-      [Query.equal("status", true), Query.limit(200)]
-    );
-
-    const activeMemberships = membershipsResponse.rows;
-    const finagoCategoryIdStrings = finagoCategoryIds.map((id) => String(id));
-
-    // 8. Match Finago category IDs with membership categories
-    const matchedMemberships = activeMemberships.filter((membership) => {
-      if (!membership.category) {
-        return false;
-      }
-      return finagoCategoryIdStrings.includes(membership.category);
-    });
-
-    const isMember = matchedMemberships.length > 0;
-
-    return {
-      isMember,
-      memberships: matchedMemberships.map((m) => ({
-        id: m.$id,
-        name: m.name,
-        category: m.category,
-        startDate: m.startDate,
-        expiryDate: m.expiryDate,
-      })),
-      finagoCategoryIds,
-      checkedAt: Date.now(),
-    };
+    return { numericId: Number.parseInt(sanitizedId, 10) };
   } catch (error) {
     console.error("[Membership] Unexpected error:", error);
-    return {
-      isMember: false,
-      memberships: [],
-      finagoCategoryIds: [],
-      reason: "unexpected_error",
-      checkedAt: Date.now(),
-    };
+    return { status: emptyStatus("unexpected_error") };
   }
+}
+
+/**
+ * Get membership status for the current user.
+ *
+ * Resolves the authenticated user's student id (dynamic, cookie-bound) and then
+ * reads a server-side cache keyed by that id — so the expensive Finago SOAP call
+ * + DB match only run on a cache miss and are shared safely across requests.
+ *
+ * SSR-compatible: usable in Server Components, Server Actions, API Routes, and
+ * Layouts. Never writes cookies, so it is safe to call during render.
+ */
+export async function getMembershipStatus(): Promise<MembershipStatus> {
+  const resolved = await resolveCurrentStudentId();
+  if ("status" in resolved) {
+    return resolved.status;
+  }
+  return resolveMembershipStatus(resolved.numericId);
+}
+
+/**
+ * Force refresh the membership status, bypassing the cache by invalidating the
+ * per-user cache tag before re-reading. Must be called from a Server Action or
+ * Route Handler (where `revalidateTag` is allowed), e.g. the `/api/membership`
+ * route with `?refresh=true`.
+ */
+export async function refreshMembershipStatus(): Promise<MembershipStatus> {
+  const resolved = await resolveCurrentStudentId();
+  if ("status" in resolved) {
+    return resolved.status;
+  }
+
+  // `{ expire: 0 }` purges the tag immediately with read-your-own-writes
+  // semantics, so the re-read below returns freshly computed data. (`updateTag`
+  // is Server-Action-only and would throw from this route handler.)
+  revalidateTag(`membership:${resolved.numericId}`, { expire: 0 });
+  return resolveMembershipStatus(resolved.numericId);
 }

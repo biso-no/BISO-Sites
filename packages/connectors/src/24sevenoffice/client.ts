@@ -5,7 +5,19 @@
  * Uses the soap library for Node.js SOAP client functionality.
  */
 
+import axios from "axios";
 import { createClientAsync, type Client as SoapClient } from "soap";
+
+// Bound every 24SevenOffice HTTP call (WSDL fetch + SOAP method calls) so a
+// hung upstream can never hang a serverless invocation indefinitely.
+const DEFAULT_SOAP_TIMEOUT_MS = 15_000;
+const SOAP_TIMEOUT_MS = Number.parseInt(
+  process.env.TFSO_SOAP_TIMEOUT_MS ?? "",
+  10
+);
+const RESOLVED_SOAP_TIMEOUT_MS = Number.isFinite(SOAP_TIMEOUT_MS)
+  ? SOAP_TIMEOUT_MS
+  : DEFAULT_SOAP_TIMEOUT_MS;
 
 // WSDL endpoints for 24SevenOffice services
 export const WSDL_URLS = {
@@ -40,8 +52,14 @@ export async function createSoapClient(
     return cached;
   }
 
-  // Create new client
-  const client = await createClientAsync(wsdlUrl);
+  // Create new client. `request` (an axios instance) is shared by both the
+  // WSDL-fetch HttpClient and the SOAP-method HttpClient, so a single default
+  // timeout bounds every request all callers make. `wsdl_options.timeout` also
+  // bounds the WSDL fetch explicitly.
+  const client = await createClientAsync(wsdlUrl, {
+    request: axios.create({ timeout: RESOLVED_SOAP_TIMEOUT_MS }),
+    wsdl_options: { timeout: RESOLVED_SOAP_TIMEOUT_MS },
+  });
 
   // Cache the client
   clientCache.set(cacheKey, client);

@@ -1,5 +1,5 @@
 import { ID, Permission, Query, Role } from "./index";
-import { createSessionClient } from "./server";
+import { createAdminClient, createSessionClient } from "./server";
 import type {
   Campus,
   Departments,
@@ -496,6 +496,15 @@ export async function savePageDraft({
   };
 }
 
+/**
+ * Publish a page's translation.
+ *
+ * PRIVILEGED: the row writes use the service-key admin client. Page rows grant
+ * update/delete only to Operations Unit and the owning department team (never
+ * the campus team, by design — see buildPageRowPermissions), so a legitimate
+ * campus approver could not perform this write under RLS. Callers MUST enforce
+ * publish authorization (e.g. assertPublishAccess) BEFORE calling this.
+ */
 export async function publishPage({
   id,
   locale = "no",
@@ -503,7 +512,7 @@ export async function publishPage({
   id: string;
   locale?: "no" | "en";
 }): Promise<void> {
-  const { db } = await createSessionClient();
+  const { db } = await createAdminClient();
 
   const tRes = await db.listRows<PageTranslations>("app", "page_translations", [
     Query.equal("page_id", id),
@@ -556,6 +565,13 @@ export async function publishPage({
   );
 }
 
+/**
+ * Unpublish a page's translation (removes it from the public site).
+ *
+ * PRIVILEGED: same contract as {@link publishPage} — the row writes use the
+ * service-key admin client because campus approvers are not on the page rows'
+ * write ACL. Callers MUST enforce publish authorization first.
+ */
 export async function unpublishPage({
   id,
   locale = "no",
@@ -563,7 +579,7 @@ export async function unpublishPage({
   id: string;
   locale?: "no" | "en";
 }): Promise<void> {
-  const { db } = await createSessionClient();
+  const { db } = await createAdminClient();
 
   const tRes = await db.listRows<PageTranslations>("app", "page_translations", [
     Query.equal("page_id", id),

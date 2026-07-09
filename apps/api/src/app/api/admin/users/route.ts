@@ -12,6 +12,7 @@ import { z } from "zod";
 import {
   canManageCampus,
   createAuditLog,
+  extractJwtFromRequest,
   getAdminScope,
 } from "@/lib/admin-auth";
 
@@ -47,7 +48,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { db } = await createSessionClient();
+    const jwt = extractJwtFromRequest(request);
+    const { db } = await createSessionClient(jwt);
     const searchParams = request.nextUrl.searchParams;
     const limit = Math.min(
       Number.parseInt(searchParams.get("limit") || "50", 10),
@@ -145,7 +147,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     const input = parseResult.data;
-    const { db } = await createSessionClient();
+    const jwt = extractJwtFromRequest(request);
+    const { db } = await createSessionClient(jwt);
     const { db: adminDb } = await createAdminClient();
 
     // Get campus to check authorization and get name

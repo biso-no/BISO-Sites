@@ -12,6 +12,7 @@ import { z } from "zod";
 import {
   canManageCampus,
   createAuditLog,
+  extractJwtFromRequest,
   getAdminScope,
 } from "@/lib/admin-auth";
 
@@ -189,7 +190,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     const { users: usersToCreate } = parseResult.data;
-    const { db } = await createSessionClient();
+    const jwt = extractJwtFromRequest(request);
+    const { db } = await createSessionClient(jwt);
     const { db: adminDb } = await createAdminClient();
 
     const campusResponse = await db.listRows<Campus>("app", "campus");

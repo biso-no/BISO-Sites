@@ -101,8 +101,8 @@ export async function createOrder(
 
   try {
     const order = (await databases.createRow(
-      process.env.APPWRITE_DATABASE_ID!,
-      process.env.APPWRITE_ORDERS_COLLECTION_ID!,
+      (process.env.APPWRITE_DATABASE_ID ?? "app"),
+      (process.env.APPWRITE_ORDERS_COLLECTION_ID ?? "orders"),
       orderId,
       {
         status: OrdersStatus.PENDING,
@@ -155,8 +155,8 @@ export async function updateOrderWithSession(
 ): Promise<void> {
   try {
     await databases.updateRow(
-      process.env.APPWRITE_DATABASE_ID!,
-      process.env.APPWRITE_ORDERS_COLLECTION_ID!,
+      (process.env.APPWRITE_DATABASE_ID ?? "app"),
+      (process.env.APPWRITE_ORDERS_COLLECTION_ID ?? "orders"),
       orderId,
       {
         payment_provider: update.provider,
@@ -174,6 +174,48 @@ export async function updateOrderWithSession(
   }
 }
 
+// Statuses that precede settlement. A settled/terminal order must never regress
+// to one of these.
+const PRE_SETTLEMENT_STATUSES: OrdersStatus[] = [
+  OrdersStatus.PENDING,
+  OrdersStatus.AUTHORIZED,
+];
+
+/**
+ * Guards against stale, out-of-order events regressing an order to an earlier
+ * lifecycle state. Payment providers (Stripe, Vipps) do not guarantee
+ * webhook/callback delivery order, so e.g. a late `checkout.session.completed`
+ * (complete/unpaid → PENDING) can arrive AFTER `async_payment_succeeded`
+ * (→ PAID). Without this guard that stale event would move a settled,
+ * revenue-posted order back to PENDING — hiding fulfillment state and dropping
+ * it from purchase-limit counting until another event corrects it.
+ *
+ * Only *backwards* moves into a pre-settlement state are blocked; every forward
+ * transition and every admin action (PAID → REFUNDED/CANCELLED, or a genuinely
+ * late PAID after a cancel) still applies.
+ */
+function isStaleBackwardTransition(
+  oldStatus: OrdersStatus,
+  newStatus: OrdersStatus
+): boolean {
+  if (oldStatus === newStatus) {
+    return false;
+  }
+  const settledOrTerminal =
+    oldStatus === OrdersStatus.PAID ||
+    oldStatus === OrdersStatus.REFUNDED ||
+    oldStatus === OrdersStatus.CANCELLED ||
+    oldStatus === OrdersStatus.FAILED;
+  if (settledOrTerminal && PRE_SETTLEMENT_STATUSES.includes(newStatus)) {
+    return true;
+  }
+  // A real cancellation moves to CANCELLED, never back to PENDING — so an
+  // authorized order regressing to pending is always a stale event.
+  return (
+    oldStatus === OrdersStatus.AUTHORIZED && newStatus === OrdersStatus.PENDING
+  );
+}
+
 /**
  * Applies a resolved order status transition: reads the current order, adjusts
  * stock + reservations for the old→new transition, then persists the new status
@@ -188,13 +230,22 @@ export async function applyOrderStatusTransition(
   databases: DbClient
 ): Promise<{ newStatus: OrdersStatus }> {
   const currentOrder = (await databases.getRow(
-    process.env.APPWRITE_DATABASE_ID!,
-    process.env.APPWRITE_ORDERS_COLLECTION_ID!,
+    (process.env.APPWRITE_DATABASE_ID ?? "app"),
+    (process.env.APPWRITE_ORDERS_COLLECTION_ID ?? "orders"),
     orderId
   )) as Orders;
 
   const oldStatus: OrdersStatus = currentOrder.status || OrdersStatus.PENDING;
   const orderItems = parseOrderItems(currentOrder.items_json);
+
+  // Ignore stale, out-of-order events that would regress a settled order (e.g. a
+  // late Stripe `complete/unpaid` arriving after the order is already PAID).
+  if (isStaleBackwardTransition(oldStatus, newStatus)) {
+    console.log(
+      `[Order] Ignoring stale transition for ${orderId}: ${oldStatus} -> ${newStatus} (would regress a settled order).`
+    );
+    return { newStatus: oldStatus };
+  }
 
   try {
     const shouldDecrement =
@@ -217,8 +268,8 @@ export async function applyOrderStatusTransition(
         const claimed = await databases.incrementRowColumn<
           Record<string, unknown>
         >({
-          databaseId: process.env.APPWRITE_DATABASE_ID!,
-          tableId: process.env.APPWRITE_ORDERS_COLLECTION_ID!,
+          databaseId: (process.env.APPWRITE_DATABASE_ID ?? "app"),
+          tableId: (process.env.APPWRITE_ORDERS_COLLECTION_ID ?? "orders"),
           rowId: orderId,
           column: "transition_lock",
           value: 1,
@@ -260,8 +311,8 @@ export async function applyOrderStatusTransition(
     }
 
     await databases.updateRow(
-      process.env.APPWRITE_DATABASE_ID!,
-      process.env.APPWRITE_ORDERS_COLLECTION_ID!,
+      (process.env.APPWRITE_DATABASE_ID ?? "app"),
+      (process.env.APPWRITE_ORDERS_COLLECTION_ID ?? "orders"),
       orderId,
       {
         status: newStatus,
@@ -330,8 +381,8 @@ async function readTrackedStock(
   productId: string
 ): Promise<number | null> {
   const product = (await databases.getRow(
-    process.env.APPWRITE_DATABASE_ID!,
-    process.env.APPWRITE_WEBSHOP_PRODUCTS_COLLECTION_ID!,
+    (process.env.APPWRITE_DATABASE_ID ?? "app"),
+    (process.env.APPWRITE_WEBSHOP_PRODUCTS_COLLECTION_ID ?? "webshop_products"),
     productId
   )) as Record<string, unknown>;
   return typeof product.stock === "number" ? product.stock : null;
@@ -355,8 +406,8 @@ async function decrementProductStockAtomically(
   try {
     const updated = await databases.decrementRowColumn<Record<string, unknown>>(
       {
-        databaseId: process.env.APPWRITE_DATABASE_ID!,
-        tableId: process.env.APPWRITE_WEBSHOP_PRODUCTS_COLLECTION_ID!,
+        databaseId: (process.env.APPWRITE_DATABASE_ID ?? "app"),
+        tableId: (process.env.APPWRITE_WEBSHOP_PRODUCTS_COLLECTION_ID ?? "webshop_products"),
         rowId: productId,
         column: "stock",
         value: quantity,
@@ -373,8 +424,8 @@ async function decrementProductStockAtomically(
         `[Stock] OVERSELL product ${productId}: paid quantity ${quantity} exceeds remaining stock ${remaining}; flooring to 0. Manual follow-up required.`
       );
       await databases.updateRow(
-        process.env.APPWRITE_DATABASE_ID!,
-        process.env.APPWRITE_WEBSHOP_PRODUCTS_COLLECTION_ID!,
+        (process.env.APPWRITE_DATABASE_ID ?? "app"),
+        (process.env.APPWRITE_WEBSHOP_PRODUCTS_COLLECTION_ID ?? "webshop_products"),
         productId,
         { stock: 0 }
       );
@@ -422,8 +473,8 @@ async function decrementStockForItems({
       // write races under concurrency — kept only so old callers don't break.
       const newStock = Math.max(0, productStock - itemQuantity);
       await databases.updateRow(
-        process.env.APPWRITE_DATABASE_ID!,
-        process.env.APPWRITE_WEBSHOP_PRODUCTS_COLLECTION_ID!,
+        (process.env.APPWRITE_DATABASE_ID ?? "app"),
+        (process.env.APPWRITE_WEBSHOP_PRODUCTS_COLLECTION_ID ?? "webshop_products"),
         item.product_id,
         { stock: newStock }
       );
@@ -467,8 +518,8 @@ async function restoreStockForItems({
         const updated = await databases.incrementRowColumn<
           Record<string, unknown>
         >({
-          databaseId: process.env.APPWRITE_DATABASE_ID!,
-          tableId: process.env.APPWRITE_WEBSHOP_PRODUCTS_COLLECTION_ID!,
+          databaseId: (process.env.APPWRITE_DATABASE_ID ?? "app"),
+          tableId: (process.env.APPWRITE_WEBSHOP_PRODUCTS_COLLECTION_ID ?? "webshop_products"),
           rowId: item.product_id,
           column: "stock",
           value: itemQuantity,
@@ -482,8 +533,8 @@ async function restoreStockForItems({
       // Legacy fallback for clients without atomic column ops.
       const newStock = productStock + itemQuantity;
       await databases.updateRow(
-        process.env.APPWRITE_DATABASE_ID!,
-        process.env.APPWRITE_WEBSHOP_PRODUCTS_COLLECTION_ID!,
+        (process.env.APPWRITE_DATABASE_ID ?? "app"),
+        (process.env.APPWRITE_WEBSHOP_PRODUCTS_COLLECTION_ID ?? "webshop_products"),
         item.product_id,
         { stock: newStock }
       );
@@ -524,7 +575,7 @@ async function deleteUserReservations({
   try {
     for (let page = 0; page < RESERVATION_CLEANUP_MAX_PAGES; page++) {
       const reservations = await databases.listRows(
-        process.env.APPWRITE_DATABASE_ID!,
+        (process.env.APPWRITE_DATABASE_ID ?? "app"),
         "cart_reservations",
         [
           Query.equal("user_id", userId),
@@ -535,7 +586,7 @@ async function deleteUserReservations({
 
       for (const reservation of reservations.rows) {
         await databases.deleteRow(
-          process.env.APPWRITE_DATABASE_ID!,
+          (process.env.APPWRITE_DATABASE_ID ?? "app"),
           "cart_reservations",
           reservation.$id
         );

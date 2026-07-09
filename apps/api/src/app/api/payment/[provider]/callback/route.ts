@@ -124,7 +124,10 @@ async function handleStripeCallback(req: NextRequest, origin: string | null) {
     const session = event.data.object as StripeWebhookSession;
     const orderId = session.metadata?.orderId;
     if (orderId) {
-      const { status, updateData } = determineStatusFromStripeSession(session);
+      const { status, updateData } = determineStatusFromStripeSession(
+        session,
+        event.type
+      );
       await applyOrderStatusTransition(orderId, status, updateData, db);
       await postFinagoIfPaid(orderId, db);
     }

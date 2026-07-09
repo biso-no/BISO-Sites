@@ -21,8 +21,19 @@ vi.mock("next/headers", () => ({
   cookies: vi.fn(async () => cookieStore),
 }));
 
+vi.mock("next/cache", () => ({
+  // Run the cached callback directly and treat tag revalidation as a no-op so
+  // the test exercises the real computation path without a Next request store.
+  unstable_cache:
+    (fn: (...args: unknown[]) => unknown) =>
+    (...args: unknown[]) =>
+      fn(...args),
+  revalidateTag: vi.fn(),
+}));
+
 vi.mock("@repo/api/server", () => ({
   createSessionClient: vi.fn(async () => ({ account, db })),
+  createAdminClient: vi.fn(async () => ({ db })),
 }));
 
 vi.mock("@repo/connectors/24sevenoffice", () => ({

@@ -14,6 +14,17 @@ type Orders = FinagoOrder;
 
 type AdminDb = Awaited<ReturnType<typeof createAdminClient>>["db"];
 
+// Buyers are redirected here straight after paying. If NEXT_PUBLIC_BASE_URL is
+// missing/empty at runtime, `new URL(path, undefined)` throws — which, on this
+// hot path, means a raw 500 for a customer who has already been charged. Fall
+// back to the known production origin (same fallback as robots.ts/sitemap.ts)
+// so a redirect is always producible.
+const SITE_URL = process.env.NEXT_PUBLIC_BASE_URL || "https://biso.no";
+
+function siteUrl(path: string): URL {
+  return new URL(path, SITE_URL);
+}
+
 /**
  * Re-syncs the order status with the payment provider so the result page is
  * up to date even if the webhook/callback hasn't landed yet. Provider-agnostic.
@@ -60,25 +71,19 @@ function redirectForStatus(
     case "paid":
     case "authorized":
       return NextResponse.redirect(
-        new URL(
-          `/shop/order/${orderId}?success=true`,
-          process.env.NEXT_PUBLIC_BASE_URL
-        )
+        siteUrl(`/shop/order/${orderId}?success=true`)
       );
     case "cancelled":
       return NextResponse.redirect(
-        new URL("/shop/cart?cancelled=true", process.env.NEXT_PUBLIC_BASE_URL)
+        siteUrl("/shop/cart?cancelled=true")
       );
     case "failed":
       return NextResponse.redirect(
-        new URL(
-          "/shop/cart?error=payment_failed",
-          process.env.NEXT_PUBLIC_BASE_URL
-        )
+        siteUrl("/shop/cart?error=payment_failed")
       );
     default:
       return NextResponse.redirect(
-        new URL(`/shop/order/${orderId}`, process.env.NEXT_PUBLIC_BASE_URL)
+        siteUrl(`/shop/order/${orderId}`)
       );
   }
 }
@@ -104,7 +109,7 @@ export async function GET(request: Request) {
     if (!orderId) {
       console.error("[Checkout Return] No orderId provided");
       return NextResponse.redirect(
-        new URL("/shop", process.env.NEXT_PUBLIC_BASE_URL)
+        siteUrl("/shop")
       );
     }
 
@@ -116,7 +121,7 @@ export async function GET(request: Request) {
     if (!order) {
       console.error(`[Checkout Return] Order not found: ${orderId}`);
       return NextResponse.redirect(
-        new URL("/shop?error=order_not_found", process.env.NEXT_PUBLIC_BASE_URL)
+        siteUrl("/shop?error=order_not_found")
       );
     }
 
@@ -135,7 +140,7 @@ export async function GET(request: Request) {
   } catch (error) {
     console.error("[Checkout Return] Error:", error);
     return NextResponse.redirect(
-      new URL("/shop?error=unknown", process.env.NEXT_PUBLIC_BASE_URL)
+      siteUrl("/shop?error=unknown")
     );
   }
 }

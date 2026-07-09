@@ -68,6 +68,7 @@
     "@azure/msal-node": "^5.1.2",
     "openapi-fetch": "^0.17.0",
     "soap": "^1.8.0",
+    "axios": "^1.14.0",
     "woocommerce-rest-ts-api": "^7.1.2",
     "openapi-typescript": "^7.13.0",
     "@parvineyvazov/json-translator": "^4.1.0",

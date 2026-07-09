@@ -27,7 +27,7 @@ function computeManagedCampusNames(
 /**
  * Extracts JWT from Authorization header (Bearer token)
  */
-function extractJwtFromRequest(req: NextRequest): string | undefined {
+export function extractJwtFromRequest(req: NextRequest): string | undefined {
   const authHeader = req.headers.get("authorization");
   if (authHeader?.startsWith("Bearer ")) {
     return authHeader.slice(7);

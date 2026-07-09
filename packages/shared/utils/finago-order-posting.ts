@@ -35,8 +35,8 @@ const FINAGO_POSTING_MARKER = "posting";
 
 function ordersTable() {
   return {
-    dbId: process.env.APPWRITE_DATABASE_ID!,
-    collId: process.env.APPWRITE_ORDERS_COLLECTION_ID!,
+    dbId: process.env.APPWRITE_DATABASE_ID ?? "app",
+    collId: process.env.APPWRITE_ORDERS_COLLECTION_ID ?? "orders",
   };
 }
 
