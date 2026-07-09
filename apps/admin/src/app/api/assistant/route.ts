@@ -72,12 +72,12 @@ import {
   createProduct,
   deleteProduct,
   getProduct,
-  listOrders,
   listProducts,
   updateProduct,
 } from "@/app/(portal)/_actions/shop";
 import { getLocale } from "@/app/actions/locale";
 import { requireApiAuth } from "@/lib/api-auth";
+import { buildAssistantOrderSearchQueries } from "@/lib/assistant-order-search";
 import type { UserAuthContext } from "@/lib/authorization";
 import { CAMPUS_ID_TO_NAME } from "@/lib/campus-constants";
 import { checkIntegrationHealth } from "@/lib/integration-health";
@@ -689,16 +689,17 @@ function buildDeps(
         query?: string;
         status?: string;
       };
-      const rows = await listOrders({ status });
-      const q = query?.trim().toLowerCase();
-      const filtered = q
-        ? rows.filter((order) =>
-            [order.buyer_name, order.buyer_email, order.$id].some((value) =>
-              value?.toLowerCase().includes(q)
-            )
-          )
-        : rows;
-      return filtered.slice(0, MAX_ORDER_RESULTS).map(toOrderSummary);
+      const { db } = await createSessionClient();
+      const result = await db.listRows<Orders>(
+        "app",
+        "orders",
+        buildAssistantOrderSearchQueries(ctx, {
+          limit: MAX_ORDER_RESULTS,
+          query,
+          status,
+        })
+      );
+      return result.rows.map(toOrderSummary);
     },
 
     getOrderSummary: async (input) => {

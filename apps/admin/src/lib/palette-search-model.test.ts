@@ -3,6 +3,7 @@ import { Query } from "@repo/api";
 import type { UserAuthContext } from "@/lib/authorization";
 import {
   buildHitHref,
+  canSearchDepartments,
   departmentScopeQueries,
   jobScopeQueries,
   pickTitle,
@@ -71,6 +72,22 @@ describe("departmentScopeQueries", () => {
     expect(departmentScopeQueries(makeCtx())[0]).toContain(
       "__no_scope_resolved__"
     );
+  });
+});
+
+describe("canSearchDepartments", () => {
+  test("matches the portal departments navigation gate", () => {
+    expect(canSearchDepartments(makeCtx({ roles: ["globaladmin"] }))).toBe(
+      true
+    );
+    expect(canSearchDepartments(makeCtx({ roles: ["campusadmin"] }))).toBe(
+      true
+    );
+    expect(
+      canSearchDepartments(
+        makeCtx({ departmentTeamIds: ["sg-app-dept-social"] })
+      )
+    ).toBe(false);
   });
 });
 

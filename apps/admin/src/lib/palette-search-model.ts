@@ -1,5 +1,6 @@
 import { Query } from "@repo/api";
 import type { UserAuthContext } from "@/lib/authorization";
+import { hasNavAccess } from "@/lib/roles";
 
 export type PaletteEntityGroup =
   | "departments"
@@ -54,6 +55,14 @@ export function departmentScopeQueries(ctx: UserAuthContext): string[] {
     return [Query.equal("campus_id", ctx.resolvedCampusIds)];
   }
   return [NO_SCOPE_FILTER];
+}
+
+export function canSearchDepartments(ctx: UserAuthContext): boolean {
+  return hasNavAccess(
+    "portal.departments",
+    ctx.roles,
+    ctx.departmentTeamIds.length > 0
+  );
 }
 
 interface TranslationLike {

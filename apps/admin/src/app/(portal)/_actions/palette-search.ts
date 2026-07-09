@@ -14,6 +14,7 @@ import type {
 import { requireAuth, type UserAuthContext } from "@/lib/authorization";
 import {
   buildHitHref,
+  canSearchDepartments,
   departmentScopeQueries,
   jobScopeQueries,
   type PaletteSearchHit,
@@ -182,6 +183,7 @@ export async function searchEverything(
     return [];
   }
   const { db } = await createSessionClient();
+  const hasDepartmentSearchAccess = canSearchDepartments(ctx);
   const canShop = hasNavAccess(
     "portal.shop",
     ctx.roles,
@@ -193,7 +195,7 @@ export async function searchEverything(
     searchEvents(db, ctx, q),
     searchNews(db, ctx, q),
     searchPages(db, ctx, q),
-    searchDepartments(db, ctx, q),
+    ...(hasDepartmentSearchAccess ? [searchDepartments(db, ctx, q)] : []),
     ...(canShop ? [searchProducts(db, ctx, q), searchOrders(db, ctx, q)] : []),
   ];
   const settled = await Promise.allSettled(tasks);
