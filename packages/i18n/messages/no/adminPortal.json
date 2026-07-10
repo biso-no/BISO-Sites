@@ -48,6 +48,11 @@
     "back": "Tilbake",
     "signOut": "Logg ut"
   },
+  "inboxRealtime": {
+    "newApproval": "Ny godkjenningsforespørsel fra {email}",
+    "newSubmission": "Nytt skjemasvar mottatt",
+    "open": "Åpne"
+  },
   "common": {
     "save": "Lagre",
     "discard": "Forkast",

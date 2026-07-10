@@ -16,6 +16,7 @@ import {
 import { hasNavAccess, type NavKey } from "@/lib/roles";
 import { OPEN_ASSISTANT_EVENT } from "./_components/assistant/assistant-widget";
 import { CampusSwitcher } from "./_components/campus-switcher";
+import { useInboxCounts } from "./_components/inbox-realtime-provider";
 import { SERIF_STACK, STUDIO } from "./_components/studio";
 
 interface SidebarUser {
@@ -37,6 +38,8 @@ export function Sidebar({ user, roles, inboxCount }: SidebarProps) {
   const router = useRouter();
   const t = useTranslations("adminPortal.nav");
   const tSidebar = useTranslations("adminPortal.sidebar");
+  const liveCounts = useInboxCounts();
+  const liveInboxCount = liveCounts?.total ?? inboxCount;
 
   const tree = useMemo(
     () =>
@@ -147,7 +150,7 @@ export function Sidebar({ user, roles, inboxCount }: SidebarProps) {
           node.kind === "leaf" ? (
             <SidebarLink
               active={activePath === node.path}
-              badge={node.path === "/inbox" ? inboxCount : undefined}
+              badge={node.path === "/inbox" ? liveInboxCount : undefined}
               href={node.path}
               icon={node.icon}
               key={node.path}
