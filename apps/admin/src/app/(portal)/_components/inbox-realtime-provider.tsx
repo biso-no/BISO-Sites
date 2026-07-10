@@ -63,6 +63,12 @@ export function InboxRealtimeProvider({
   pathnameRef.current = pathname;
   const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Server re-renders (navigation, campus switch) pass fresh counts; the
+  // server value is authoritative and must win over stale client state.
+  useEffect(() => {
+    setCounts(initialCounts);
+  }, [initialCounts]);
+
   // Collapse event bursts into one refetch; lists on /inbox/* re-render via
   // router.refresh() so all campus/role scoping stays server-side (spec §3).
   const scheduleRefresh = useCallback(() => {
@@ -97,7 +103,8 @@ export function InboxRealtimeProvider({
         setSessionReady(true);
       })
       .catch(() => {
-        /* no session -> no socket; page behaves as before */
+        // No session -> no socket; page keeps request/response behavior.
+        console.warn("[realtime] session bridge failed");
       });
     return () => {
       cancelled = true;
