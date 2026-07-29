@@ -21,6 +21,7 @@ import {
   assertWriteAccess,
   hasRowAccess,
 } from "@/lib/utils/authorization";
+import { getNewsTranslationInputs } from "../news/[id]/_components/news-studio-state";
 import { logAuditEvent } from "./audit-log";
 import { NEWS_PAGE_SIZE, type NewsFormValues, newsSchema } from "./schemas";
 
@@ -120,11 +121,14 @@ export async function createNews(values: NewsFormValues) {
       validated.data.campus_id,
       validated.data.department_id ?? null
     );
+    const status = validated.data.status;
+    if (status === "published") {
+      assertPublishAccess(ctx, validated.data.campus_id);
+    }
 
     const { db } = await createSessionClient();
 
     const lookups = await loadRecruitmentLookups(db);
-    const status = "draft";
     const { campusTeam, deptTeam } = deriveContentRowTeams(lookups, {
       campus_id: validated.data.campus_id,
       department_id: validated.data.department_id ?? null,
@@ -151,28 +155,34 @@ export async function createNews(values: NewsFormValues) {
       })
     );
 
-    await db.createRow(
-      "app",
-      "content_translations",
-      "unique()",
-      {
-        content_id: article.$id,
-        content_type: "news",
-        locale: validated.data.locale,
-        title: validated.data.title,
-        description: validated.data.description ?? "",
-        additional_fields: JSON.stringify({
-          category: validated.data.category,
-          author: validated.data.author,
-        }),
-      },
-      buildContentTranslationPermissions({
-        audience: "public",
-        status,
-        ownerUserId: ctx.userId,
-        writeTeams: deptTeam ? [deptTeam] : [],
-        readTeams: campusTeam ? [campusTeam] : [],
-      })
+    const translationPermissions = buildContentTranslationPermissions({
+      audience: "public",
+      status,
+      ownerUserId: ctx.userId,
+      writeTeams: deptTeam ? [deptTeam] : [],
+      readTeams: campusTeam ? [campusTeam] : [],
+    });
+    const translations = getNewsTranslationInputs(validated.data);
+    await Promise.all(
+      translations.map((translation) =>
+        db.createRow(
+          "app",
+          "content_translations",
+          "unique()",
+          {
+            additional_fields: JSON.stringify({
+              author: validated.data.author,
+              category: validated.data.category,
+            }),
+            content_id: article.$id,
+            content_type: "news",
+            description: translation.description,
+            locale: translation.locale,
+            title: translation.title,
+          },
+          translationPermissions
+        )
+      )
     );
 
     await logAuditEvent(ctx, "news_created", {
@@ -255,70 +265,70 @@ export async function updateNews(id: string, values: NewsFormValues) {
       })
     );
 
-    const existingTranslation = await db.listRows<ContentTranslations>(
+    const currentTranslations = await db.listRows<ContentTranslations>(
       "app",
       "content_translations",
       [
         Query.equal("content_type", "news"),
         Query.equal("content_id", id),
-        Query.equal("locale", validated.data.locale),
-        Query.limit(1),
-      ]
-    );
-
-    const translationData = {
-      content_id: id,
-      content_type: "news",
-      locale: validated.data.locale,
-      title: validated.data.title,
-      description: validated.data.description ?? "",
-      additional_fields: JSON.stringify({
-        category: validated.data.category,
-        author: validated.data.author,
-      }),
-    };
-
-    if (existingTranslation.rows[0]) {
-      await db.updateRow(
-        "app",
-        "content_translations",
-        existingTranslation.rows[0].$id,
-        translationData,
-        translationPermissions
-      );
-    } else {
-      await db.createRow(
-        "app",
-        "content_translations",
-        "unique()",
-        translationData,
-        translationPermissions
-      );
-    }
-
-    // Re-stamp permissions on translations for other locales so a status
-    // transition (publish/unpublish) keeps every translation row in sync and
-    // never leaves a stale read(any) on an unpublished article.
-    const otherTranslations = await db.listRows<ContentTranslations>(
-      "app",
-      "content_translations",
-      [
-        Query.equal("content_type", "news"),
-        Query.equal("content_id", id),
-        Query.notEqual("locale", validated.data.locale),
         Query.limit(10),
       ]
     );
+    const currentByLocale = new Map<string, ContentTranslations>(
+      currentTranslations.rows.map((translation) => [
+        translation.locale,
+        translation,
+      ])
+    );
+    const submittedTranslations = getNewsTranslationInputs(validated.data);
+    const submittedLocales = new Set(
+      submittedTranslations.map((translation) => translation.locale)
+    );
+
     await Promise.all(
-      otherTranslations.rows.map((translation) =>
-        db.updateRow(
-          "app",
-          "content_translations",
-          translation.$id,
-          {},
-          translationPermissions
+      submittedTranslations.map((translation) => {
+        const existingTranslation = currentByLocale.get(translation.locale);
+        const data = {
+          additional_fields: JSON.stringify({
+            author: validated.data.author,
+            category: validated.data.category,
+          }),
+          content_id: id,
+          content_type: "news",
+          description: translation.description,
+          locale: translation.locale,
+          title: translation.title,
+        };
+        return existingTranslation
+          ? db.updateRow(
+              "app",
+              "content_translations",
+              existingTranslation.$id,
+              data,
+              translationPermissions
+            )
+          : db.createRow(
+              "app",
+              "content_translations",
+              "unique()",
+              data,
+              translationPermissions
+            );
+      })
+    );
+
+    await Promise.all(
+      currentTranslations.rows
+        .filter((translation) => !submittedLocales.has(translation.locale))
+        .map((translation) =>
+          db.updateRow(
+            "app",
+            "content_translations",
+            translation.$id,
+            {},
+            translationPermissions
+          )
         )
-      )
     );
 
     await logAuditEvent(ctx, "news_updated", {

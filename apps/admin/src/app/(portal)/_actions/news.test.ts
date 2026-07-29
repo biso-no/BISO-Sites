@@ -1,0 +1,194 @@
+import { beforeEach, describe, expect, mock, test } from "bun:test";
+import type { UserAuthContext } from "@/lib/authorization";
+import type { NewsFormValues } from "./schemas";
+
+const db = {
+  createRow: mock(),
+  listRows: mock(),
+  updateRow: mock(),
+};
+
+const campusAdminCtx: UserAuthContext = {
+  activeCampusId: undefined,
+  campusNames: ["Oslo"],
+  campusTeamIds: ["sg-app-campus-oslo"],
+  departmentNames: [],
+  departmentTeamIds: [],
+  email: "admin@example.com",
+  managedCampuses: ["Oslo"],
+  managedCampusIds: ["campus-oslo"],
+  name: "Oslo Admin",
+  resolvedCampusIds: ["campus-oslo"],
+  resolvedDepartmentIds: [],
+  roles: ["campusadmin"],
+  userId: "user-1",
+};
+
+const publishedValues: NewsFormValues = {
+  author: "BISO",
+  campus_id: "campus-oslo",
+  category: "announcement",
+  department_id: null,
+  description_en: "English body",
+  description_no: "Norsk brødtekst",
+  image: "",
+  slug: "student-news",
+  status: "published",
+  sticky: true,
+  title_en: "English title",
+  title_no: "Norsk tittel",
+};
+
+mock.module("@repo/api/server", () => ({
+  createSessionClient: mock(async () => ({ db })),
+}));
+
+mock.module("@/lib/authorization", () => ({
+  requireAuth: mock(async () => campusAdminCtx),
+}));
+
+mock.module("@/lib/recruitment", () => ({
+  loadRecruitmentLookups: mock(async () => ({
+    campusIdsByName: new Map([["Oslo", "campus-oslo"]]),
+    campusNamesById: new Map([["campus-oslo", "Oslo"]]),
+    departmentIdsByName: new Map(),
+    departmentNamesById: new Map(),
+  })),
+}));
+
+mock.module("next/cache", () => ({
+  revalidatePath: mock(() => undefined),
+}));
+
+mock.module("./audit-log", () => ({
+  logAuditEvent: mock(async () => undefined),
+}));
+
+const { createNews, updateNews } = await import("./news");
+
+function mockExistingArticleAndTranslations({
+  translations,
+}: {
+  translations: Record<string, unknown>[];
+}): void {
+  db.listRows.mockImplementation(
+    async (_databaseId: string, tableId: string) => ({
+      rows:
+        tableId === "news"
+          ? [
+              {
+                $id: "news-1",
+                campus_id: "campus-oslo",
+                department_id: null,
+                status: "draft",
+              },
+            ]
+          : translations,
+      total: tableId === "news" ? 1 : translations.length,
+    })
+  );
+}
+
+beforeEach(() => {
+  db.createRow.mockReset();
+  db.listRows.mockReset();
+  db.updateRow.mockReset();
+
+  db.createRow.mockImplementation(
+    async (
+      _databaseId: string,
+      tableId: string,
+      rowId: string,
+      data: Record<string, unknown>
+    ) => ({ $id: tableId === "news" ? "news-1" : rowId, ...data })
+  );
+  db.updateRow.mockImplementation(
+    async (
+      _databaseId: string,
+      _tableId: string,
+      rowId: string,
+      data: Record<string, unknown>
+    ) => ({ $id: rowId, ...data })
+  );
+  mockExistingArticleAndTranslations({ translations: [] });
+});
+
+describe("news persistence", () => {
+  test("creates a published row and both translations", async () => {
+    const result = await createNews(publishedValues);
+
+    expect(result).toEqual({ data: "news-1" });
+    expect(db.createRow).toHaveBeenCalledWith(
+      "app",
+      "news",
+      "unique()",
+      expect.objectContaining({ status: "published" }),
+      expect.any(Array)
+    );
+    expect(db.createRow).toHaveBeenCalledWith(
+      "app",
+      "content_translations",
+      "unique()",
+      expect.objectContaining({ locale: "no", title: "Norsk tittel" }),
+      expect.any(Array)
+    );
+    expect(db.createRow).toHaveBeenCalledWith(
+      "app",
+      "content_translations",
+      "unique()",
+      expect.objectContaining({ locale: "en", title: "English title" }),
+      expect.any(Array)
+    );
+  });
+
+  test("does not create an empty optional locale", async () => {
+    await createNews({
+      ...publishedValues,
+      description_en: "",
+      status: "draft",
+      title_en: "",
+    });
+
+    const translationCalls = db.createRow.mock.calls.filter(
+      (call) => call[1] === "content_translations"
+    );
+    expect(translationCalls).toHaveLength(1);
+    expect(translationCalls[0]?.[3]).toEqual(
+      expect.objectContaining({ locale: "no" })
+    );
+  });
+
+  test("upserts new locale and preserves an omitted existing locale", async () => {
+    mockExistingArticleAndTranslations({
+      translations: [
+        {
+          $id: "translation-en",
+          content_id: "news-1",
+          locale: "en",
+          title: "Existing English",
+        },
+      ],
+    });
+
+    await updateNews("news-1", {
+      ...publishedValues,
+      description_en: "",
+      title_en: "",
+    });
+
+    expect(db.createRow).toHaveBeenCalledWith(
+      "app",
+      "content_translations",
+      "unique()",
+      expect.objectContaining({ locale: "no" }),
+      expect.any(Array)
+    );
+    expect(db.updateRow).toHaveBeenCalledWith(
+      "app",
+      "content_translations",
+      "translation-en",
+      {},
+      expect.any(Array)
+    );
+  });
+});
