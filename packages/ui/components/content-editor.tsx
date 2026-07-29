@@ -6,6 +6,8 @@ import { LegacyContentEditor } from './content-editor-legacy';
 export type ContentEditorVariant = 'base' | 'events' | 'news' | 'jobs' | 'products';
 
 export interface ContentEditorProps {
+  ariaLabel?: string;
+  id?: string;
   variant?: ContentEditorVariant;
   value: string | null | undefined;
   onChange: (value: string) => void;

@@ -16,6 +16,39 @@ export interface NewsTranslationInput {
   title: string;
 }
 
+export const getNewsArticleEditorState = (
+  values: NewsFormValues,
+  locale: NewsLocale
+): { editorKey: NewsLocale; value: string } => {
+  const value = locale === "no" ? values.description_no : values.description_en;
+  return {
+    editorKey: locale,
+    value: value ?? "",
+  };
+};
+
+export const getNewsStepCompletion = (
+  values: NewsFormValues,
+  locale: NewsLocale
+): [boolean, boolean, boolean, boolean] => {
+  const hasEssentialFields = Boolean(
+    (values.title_no.trim() || values.title_en.trim()) &&
+      values.slug.trim() &&
+      values.campus_id
+  );
+  const description =
+    locale === "no" ? values.description_no : values.description_en;
+  const hasArticleBody = Boolean(description?.trim());
+  const hasCoverImage = Boolean(values.image);
+
+  return [
+    hasEssentialFields,
+    hasArticleBody,
+    hasCoverImage,
+    hasEssentialFields && hasArticleBody && hasCoverImage,
+  ];
+};
+
 const parseCategory = (
   translation: ContentTranslations | undefined
 ): string | null => {

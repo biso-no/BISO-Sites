@@ -17,6 +17,8 @@ import { editorV1Plugins, editorV1VariantMeta } from './plugins';
 import { EditorV1Helper, EditorV1Toolbar } from './toolbar';
 
 export interface ContentEditorV1Props {
+  ariaLabel?: string;
+  id?: string;
   variant: EditorV1Variant;
   value: string | null | undefined;
   onChange: (value: string) => void;
@@ -27,8 +29,10 @@ export interface ContentEditorV1Props {
 }
 
 export function ContentEditorV1({
+  ariaLabel,
   className,
   disabled = false,
+  id,
   minHeight = 240,
   onChange,
   placeholder,
@@ -83,9 +87,11 @@ export function ContentEditorV1({
         <EditorV1Helper variant={variant} />
         <EditorContainer variant="default">
           <Editor
+            aria-label={ariaLabel}
             variant="none"
             placeholder={placeholder ?? meta.placeholder}
             disabled={disabled}
+            id={id}
             className="size-full px-5 py-4 text-sm text-white/90"
             style={{ minHeight }}
           />

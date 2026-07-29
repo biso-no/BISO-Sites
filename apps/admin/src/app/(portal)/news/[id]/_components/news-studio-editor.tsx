@@ -13,6 +13,8 @@ import { ImageUploadField } from "../../../_components/image-upload-field";
 import { NewsStudioPreview } from "./news-studio-preview";
 import {
   createNewsStudioDefaults,
+  getNewsArticleEditorState,
+  getNewsStepCompletion,
   type NewsLocale,
   type NewsWithTranslations,
 } from "./news-studio-state";
@@ -204,12 +206,14 @@ function NewsStudioHeader({
 }
 
 function NewsStudioStepRail({
+  completedSteps,
   dirty,
   locale,
   onLocaleChange,
   onStepChange,
   step,
 }: {
+  completedSteps: readonly boolean[];
   dirty: boolean;
   locale: NewsLocale;
   onLocaleChange: (locale: NewsLocale) => void;
@@ -221,7 +225,7 @@ function NewsStudioStepRail({
       <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
         {NEWS_STEPS.map((name, index) => {
           const active = index === step;
-          const complete = index < step;
+          const complete = completedSteps[index] ?? false;
 
           return (
             <button
@@ -302,7 +306,7 @@ function NewsStudioFooter({
   const progress = ((step + 1) / NEWS_STEPS.length) * 100;
 
   return (
-    <footer className="sticky bottom-0 z-20 flex items-center gap-3 border-slate-200 border-t bg-[#faf7f2]/92 px-4 py-3 backdrop-blur-xl md:px-8">
+    <footer className="sticky bottom-0 z-20 flex flex-wrap items-center gap-3 border-slate-200 border-t bg-[#faf7f2]/92 px-4 py-3 backdrop-blur-xl md:px-8">
       <div className="hidden w-40 sm:block">
         <div className="h-1.5 overflow-hidden rounded-full bg-slate-200">
           <div
@@ -314,16 +318,7 @@ function NewsStudioFooter({
           {NEWS_STEPS[step]}
         </p>
       </div>
-      <div className="ml-auto flex items-center gap-2">
-        <button
-          className="hidden items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 font-medium text-[#001731] text-sm disabled:opacity-60 sm:inline-flex"
-          disabled={pendingStatus !== null}
-          onClick={onSaveDraft}
-          type="button"
-        >
-          <Save size={15} />
-          {pendingStatus === "draft" ? "Saving..." : labels.saveDraft}
-        </button>
+      <div className="ml-auto flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto">
         {step > 0 && (
           <button
             className="rounded-lg border border-slate-200 bg-white px-3 py-2 font-medium text-slate-600 text-sm"
@@ -333,7 +328,7 @@ function NewsStudioFooter({
             Back
           </button>
         )}
-        {step < NEWS_STEPS.length - 1 ? (
+        {step < NEWS_STEPS.length - 1 && (
           <button
             className="inline-flex items-center gap-2 rounded-lg bg-[#001731] px-4 py-2 font-medium text-sm text-white"
             onClick={onContinue}
@@ -342,17 +337,25 @@ function NewsStudioFooter({
             Continue
             <ArrowRight size={15} />
           </button>
-        ) : (
-          <button
-            className="inline-flex items-center gap-2 rounded-lg bg-[#001731] px-4 py-2 font-medium text-sm text-white disabled:opacity-60"
-            disabled={pendingStatus !== null}
-            onClick={onPublish}
-            type="button"
-          >
-            <Send size={15} />
-            {pendingStatus === "published" ? "Publishing..." : labels.publish}
-          </button>
         )}
+        <button
+          className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 font-medium text-[#001731] text-sm disabled:opacity-60 sm:flex-none"
+          disabled={pendingStatus !== null}
+          onClick={onSaveDraft}
+          type="button"
+        >
+          <Save size={15} />
+          {pendingStatus === "draft" ? "Saving..." : labels.saveDraft}
+        </button>
+        <button
+          className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg bg-[#001731] px-4 py-2 font-medium text-sm text-white disabled:opacity-60 sm:flex-none"
+          disabled={pendingStatus !== null}
+          onClick={onPublish}
+          type="button"
+        >
+          <Send size={15} />
+          {pendingStatus === "published" ? "Publishing..." : labels.publish}
+        </button>
       </div>
     </footer>
   );
@@ -482,6 +485,8 @@ function NewsEssentialsStep({
 function NewsArticleStep({ locale, setValue, values }: StepProps) {
   const descriptionKey = locale === "no" ? "description_no" : "description_en";
   const languageLabel = locale === "no" ? "Norwegian" : "English";
+  const editorState = getNewsArticleEditorState(values, locale);
+  const editorId = `news-description-${locale}`;
 
   return (
     <div className="space-y-4">
@@ -499,16 +504,19 @@ function NewsArticleStep({ locale, setValue, values }: StepProps) {
       </div>
       <label
         className="block font-medium text-[11px] text-slate-500 uppercase tracking-[0.12em]"
-        htmlFor={`news-description-${locale}`}
+        htmlFor={editorId}
       >
         Article body · {languageLabel}
       </label>
-      <div id={`news-description-${locale}`}>
+      <div>
         <ContentEditor
+          ariaLabel={`Article body · ${languageLabel}`}
+          id={editorId}
+          key={editorState.editorKey}
           minHeight={420}
           onChange={(value) => setValue(descriptionKey, value)}
           placeholder={`Write the ${languageLabel.toLowerCase()} article here...`}
-          value={values[descriptionKey]}
+          value={editorState.value}
           variant="news"
         />
       </div>
@@ -534,8 +542,10 @@ function NewsMediaVisibilityStep({
       </div>
 
       <StudioField htmlFor="news-cover-image" label="Cover image">
-        <div id="news-cover-image">
+        <div>
           <ImageUploadField
+            inputId="news-cover-image"
+            label="Cover image"
             onChange={(url) => setValue("image", url)}
             value={values.image ?? null}
           />
@@ -696,6 +706,49 @@ function NewsReviewStep({
   );
 }
 
+function NewsMobilePreview({
+  campusName,
+  departmentName,
+  locale,
+  onToggle,
+  open,
+  values,
+}: {
+  campusName: string;
+  departmentName: string;
+  locale: NewsLocale;
+  onToggle: () => void;
+  open: boolean;
+  values: NewsFormValues;
+}) {
+  return (
+    <section className="mb-7 overflow-hidden rounded-xl border border-slate-200 bg-[#e8f2f7] lg:hidden">
+      <button
+        aria-controls="news-mobile-preview"
+        aria-expanded={open}
+        className="flex w-full items-center justify-between px-4 py-3 text-left"
+        onClick={onToggle}
+        type="button"
+      >
+        <span className="font-medium text-[#15803d] text-sm">Live preview</span>
+        <span className="text-slate-500 text-xs">
+          {open ? "Hide preview" : "Show preview"}
+        </span>
+      </button>
+      {open && (
+        <div className="border-slate-200 border-t p-4" id="news-mobile-preview">
+          <NewsStudioPreview
+            campusName={campusName}
+            departmentName={departmentName}
+            locale={locale}
+            values={values}
+          />
+        </div>
+      )}
+    </section>
+  );
+}
+
 export function NewsStudioEditor({
   allowedDepartmentIds,
   article,
@@ -714,6 +767,7 @@ export function NewsStudioEditor({
   );
   const [departments, setDepartments] = useState(initialDepartments);
   const [dirty, setDirty] = useState(false);
+  const [mobilePreviewOpen, setMobilePreviewOpen] = useState(false);
   const [pendingStatus, setPendingStatus] = useState<
     NewsFormValues["status"] | null
   >(null);
@@ -734,6 +788,7 @@ export function NewsStudioEditor({
     availableDepartments.find(
       (department) => department.$id === values.department_id
     )?.Name ?? "All departments";
+  const completedSteps = getNewsStepCompletion(values, locale);
 
   const setValue = <Key extends keyof NewsFormValues>(
     key: Key,
@@ -798,6 +853,7 @@ export function NewsStudioEditor({
           pendingStatus={pendingStatus}
         />
         <NewsStudioStepRail
+          completedSteps={completedSteps}
           dirty={dirty}
           locale={locale}
           onLocaleChange={setLocale}
@@ -816,6 +872,14 @@ export function NewsStudioEditor({
                   Step {step + 1} of {NEWS_STEPS.length} · {NEWS_STEPS[step]}
                 </span>
               </div>
+              <NewsMobilePreview
+                campusName={campusName}
+                departmentName={departmentName}
+                locale={locale}
+                onToggle={() => setMobilePreviewOpen((current) => !current)}
+                open={mobilePreviewOpen}
+                values={values}
+              />
               {step === 0 && (
                 <NewsEssentialsStep
                   campuses={campuses}

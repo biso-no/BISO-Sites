@@ -1,9 +1,26 @@
 import { describe, expect, test } from "bun:test";
-import { newsSchema } from "../../../_actions/schemas";
+import { type NewsFormValues, newsSchema } from "../../../_actions/schemas";
 import {
   createNewsStudioDefaults,
+  getNewsArticleEditorState,
+  getNewsStepCompletion,
   getNewsTranslationInputs,
 } from "./news-studio-state";
+
+const createValues = (): NewsFormValues => ({
+  author: null,
+  campus_id: "campus-oslo",
+  category: null,
+  department_id: null,
+  description_en: "",
+  description_no: "Norsk brødtekst",
+  image: "",
+  slug: "student-news",
+  status: "draft",
+  sticky: false,
+  title_en: "",
+  title_no: "Norsk tittel",
+});
 
 describe("news studio state", () => {
   test("maps translations by locale rather than row order", () => {
@@ -82,5 +99,44 @@ describe("news studio state", () => {
     });
 
     expect(result.success).toBeFalse();
+  });
+
+  test("switching to a missing locale creates a fresh empty editor state", () => {
+    const values = createValues();
+
+    expect(getNewsArticleEditorState(values, "no")).toEqual({
+      editorKey: "no",
+      value: "Norsk brødtekst",
+    });
+    expect(getNewsArticleEditorState(values, "en")).toEqual({
+      editorKey: "en",
+      value: "",
+    });
+  });
+
+  test("derives step completion from content rather than visited steps", () => {
+    const values = createValues();
+
+    expect(getNewsStepCompletion(values, "no")).toEqual([
+      true,
+      true,
+      false,
+      false,
+    ]);
+
+    values.image = "https://example.com/cover.jpg";
+    expect(getNewsStepCompletion(values, "no")).toEqual([
+      true,
+      true,
+      true,
+      true,
+    ]);
+
+    expect(getNewsStepCompletion(values, "en")).toEqual([
+      true,
+      false,
+      true,
+      false,
+    ]);
   });
 });

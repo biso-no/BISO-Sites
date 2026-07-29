@@ -37,6 +37,8 @@ import { ProductsEditorPlugins } from './editor/plugins/products';
 export type ContentEditorVariant = 'base' | 'events' | 'news' | 'jobs' | 'products';
 
 export interface ContentEditorProps {
+  ariaLabel?: string;
+  id?: string;
   /** Content type — selects the appropriate plugin set */
   variant?: ContentEditorVariant;
   /** Stored value: Plate JSON string, plain text, or null/undefined */
@@ -66,7 +68,9 @@ function getPlugins(variant: ContentEditorVariant): any[] {
 // ── ContentEditor ─────────────────────────────────────────────────────────────
 
 export function LegacyContentEditor({
+  ariaLabel,
   variant = 'base',
+  id,
   value,
   onChange,
   placeholder = 'Write something incredible…',
@@ -122,9 +126,11 @@ export function LegacyContentEditor({
         {/* Content area */}
         <EditorContainer variant="default">
           <Editor
+            aria-label={ariaLabel}
             variant="none"
             placeholder={placeholder}
             disabled={disabled}
+            id={id}
             className="size-full px-5 py-4 text-sm text-white/90"
             style={{ minHeight }}
           />
@@ -136,4 +142,3 @@ export function LegacyContentEditor({
     </div>
   );
 }
-
