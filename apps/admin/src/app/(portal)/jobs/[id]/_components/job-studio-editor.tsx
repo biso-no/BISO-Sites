@@ -52,8 +52,10 @@ import {
   type DescriptionBlockType,
   descriptionBlocksToHtml,
   htmlToDescriptionBlocks,
+  isTextDescriptionBlock,
   newBlock,
   stripHtml,
+  type TextDescriptionBlock,
 } from "../../../_components/description-blocks";
 
 interface JobStudioEditorProps {
@@ -469,7 +471,7 @@ function DescriptionBlockRow({
   shouldFocus,
   showSlashMenu,
 }: {
-  block: DescriptionBlock;
+  block: TextDescriptionBlock;
   dragging: boolean;
   onChange: (text: string) => void;
   onChangeType: (type: DescriptionBlockType) => void;
@@ -769,7 +771,11 @@ function DescriptionBlockEditor({
 
   function updateBlock(id: string, text: string) {
     commit(
-      blocks.map((block) => (block.id === id ? { ...block, text } : block))
+      blocks.map((block) =>
+        block.id === id && isTextDescriptionBlock(block)
+          ? { ...block, text }
+          : block
+      )
     );
   }
 
@@ -794,7 +800,11 @@ function DescriptionBlockEditor({
     setFocusBlockId(id);
     setSlashBlockId(null);
     commit(
-      blocks.map((block) => (block.id === id ? { ...block, type } : block))
+      blocks.map((block) =>
+        block.id === id && isTextDescriptionBlock(block)
+          ? { ...block, type }
+          : block
+      )
     );
   }
 
@@ -802,7 +812,12 @@ function DescriptionBlockEditor({
     setSlashBlockId(null);
     if (blocks.length === 1) {
       setFocusBlockId(id);
-      commit([{ ...blocks[0], text: "", type: "p" }]);
+      const [first] = blocks;
+      commit([
+        first && isTextDescriptionBlock(first)
+          ? { ...first, text: "", type: "p" }
+          : newBlock("p"),
+      ]);
       return;
     }
 
@@ -835,7 +850,7 @@ function DescriptionBlockEditor({
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-      {blocks.map((block) => (
+      {blocks.filter(isTextDescriptionBlock).map((block) => (
         <DescriptionBlockRow
           block={block}
           dragging={draggingBlockId === block.id}
@@ -931,9 +946,9 @@ function PhonePreview({
   const body = locale === "no" ? form.description_no : form.description_en;
   const descriptionBlocks = useMemo(
     () =>
-      htmlToDescriptionBlocks(body).filter(
-        (block) => block.text.trim().length > 0
-      ),
+      htmlToDescriptionBlocks(body)
+        .filter(isTextDescriptionBlock)
+        .filter((block) => block.text.trim().length > 0),
     [body]
   );
   const teaser =

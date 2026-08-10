@@ -30,7 +30,9 @@ import {
   type DescriptionBlockType,
   descriptionBlocksToHtml,
   htmlToDescriptionBlocks,
+  isTextDescriptionBlock,
   newBlock,
+  type TextDescriptionBlock,
 } from "./description-blocks";
 
 const COLOR = {
@@ -77,7 +79,7 @@ function DescriptionBlockRow({
   shouldFocus,
   showSlashMenu,
 }: {
-  block: DescriptionBlock;
+  block: TextDescriptionBlock;
   dragging: boolean;
   onChange: (text: string) => void;
   onChangeType: (type: DescriptionBlockType) => void;
@@ -382,7 +384,11 @@ export function DescriptionBlockEditor({
 
   function updateBlock(id: string, text: string) {
     commit(
-      blocks.map((block) => (block.id === id ? { ...block, text } : block))
+      blocks.map((block) =>
+        block.id === id && isTextDescriptionBlock(block)
+          ? { ...block, text }
+          : block
+      )
     );
   }
 
@@ -407,7 +413,11 @@ export function DescriptionBlockEditor({
     setFocusBlockId(id);
     setSlashBlockId(null);
     commit(
-      blocks.map((block) => (block.id === id ? { ...block, type } : block))
+      blocks.map((block) =>
+        block.id === id && isTextDescriptionBlock(block)
+          ? { ...block, type }
+          : block
+      )
     );
   }
 
@@ -415,7 +425,12 @@ export function DescriptionBlockEditor({
     setSlashBlockId(null);
     if (blocks.length === 1) {
       setFocusBlockId(id);
-      commit([{ ...blocks[0], text: "", type: "p" }]);
+      const [first] = blocks;
+      commit([
+        first && isTextDescriptionBlock(first)
+          ? { ...first, text: "", type: "p" }
+          : newBlock("p"),
+      ]);
       return;
     }
 
@@ -448,7 +463,7 @@ export function DescriptionBlockEditor({
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-      {blocks.map((block) => (
+      {blocks.filter(isTextDescriptionBlock).map((block) => (
         <DescriptionBlockRow
           block={block}
           dragging={draggingBlockId === block.id}

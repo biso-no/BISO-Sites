@@ -32,11 +32,19 @@ type PlateNode = Record<string, unknown> & {
   text?: unknown;
 };
 
-const PLATE_TEXT_NODE = /"text"\s*:/;
 const TOP_LEVEL_BLOCK =
   /<figure\b([^>]*)>([\s\S]*?)<\/figure>|<(h[1-6]|p|li)\b[^>]*>([\s\S]*?)<\/\3>/gi;
 const HTML_ATTRIBUTE =
   /([\w:-]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+)))?/g;
+const HTML_ENTITY = /&(nbsp|amp|lt|gt|quot|#039);/g;
+const HTML_ENTITY_VALUES: Record<string, string> = {
+  "&#039;": "'",
+  "&amp;": "&",
+  "&gt;": ">",
+  "&lt;": "<",
+  "&nbsp;": " ",
+  "&quot;": '"',
+};
 
 function newId(): string {
   return globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`;
@@ -59,13 +67,10 @@ export function escapeHtml(value: string): string {
 }
 
 export function decodeHtml(value: string): string {
-  return value
-    .replace(/&nbsp;/g, " ")
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&#039;/g, "'");
+  return value.replace(
+    HTML_ENTITY,
+    (entity) => HTML_ENTITY_VALUES[entity] ?? entity
+  );
 }
 
 export function newBlock(
@@ -77,6 +82,12 @@ export function newBlock(
 
 export function newMediaBlock(media: NewMediaBlock): MediaDescriptionBlock {
   return { ...media, id: newId(), type: "media" };
+}
+
+export function isTextDescriptionBlock(
+  block: DescriptionBlock
+): block is TextDescriptionBlock {
+  return block.type !== "media";
 }
 
 /** Pull plain text out of a single Plate node, recursing into children. */
@@ -209,7 +220,7 @@ function textBlockType(tag: string): DescriptionBlockType {
 
 export function htmlToDescriptionBlocks(value: string): DescriptionBlock[] {
   const trimmed = value.trim();
-  if (trimmed.startsWith("[") && PLATE_TEXT_NODE.test(trimmed)) {
+  if (trimmed.startsWith("[")) {
     const migrated = plateJsonToBlocks(trimmed);
     if (migrated) {
       return migrated;
