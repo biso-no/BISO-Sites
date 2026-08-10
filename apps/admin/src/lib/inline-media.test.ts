@@ -14,6 +14,7 @@ test.each([
   ["photo.webp", "image/webp", "image"],
   ["vector.svg", "image/svg+xml", "image"],
   ["clip.mp4", "video/mp4", "video"],
+  ["voice.mp4", "audio/mp4", "audio"],
   ["clip.webm", "video/webm", "video"],
   ["clip.mov", "video/quicktime", "video"],
   ["voice.mp3", "audio/mpeg", "audio"],
@@ -56,6 +57,7 @@ test("rejects active and mismatched content", () => {
   ).toBeNull();
   expect(classifyInlineMedia("photo.jpg", "application/javascript")).toBeNull();
   expect(classifyInlineMedia("vector.svg", "text/html")).toBeNull();
+  expect(classifyInlineMedia("clip.mp4", "audio/mpeg")).toBeNull();
   expect(classifyInlineMedia("clip.mov", "video/mp4")).toBeNull();
   expect(classifyInlineMedia("voice.m4a", "audio/mpeg")).toBeNull();
   expect(classifyInlineMedia("voice.webm", "video/mp4")).toBeNull();

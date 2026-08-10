@@ -26,7 +26,7 @@ const EXTENSION_MEDIA_TYPES: Readonly<
   m4a: { "audio/mp4": "audio", "audio/x-m4a": "audio" },
   mov: { "video/quicktime": "video" },
   mp3: { "audio/mpeg": "audio" },
-  mp4: { "video/mp4": "video" },
+  mp4: { "audio/mp4": "audio", "video/mp4": "video" },
   ogg: { "audio/ogg": "audio" },
   pdf: { "application/pdf": "file" },
   png: { "image/png": "image" },
