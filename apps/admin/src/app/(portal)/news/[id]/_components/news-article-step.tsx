@@ -1,5 +1,5 @@
-import { ContentEditor } from "@repo/ui/components/content-editor";
 import type { NewsFormValues } from "../../../_actions/schemas";
+import { DescriptionBlockEditor } from "../../../_components/description-block-editor";
 import {
   getNewsArticleEditorState,
   type NewsLocale,
@@ -22,7 +22,6 @@ export function NewsArticleStep({
   const descriptionKey = locale === "no" ? "description_no" : "description_en";
   const languageLabel = locale === "no" ? "Norwegian" : "English";
   const editorState = getNewsArticleEditorState(values, locale);
-  const editorId = `news-description-${locale}`;
 
   return (
     <div className="space-y-4">
@@ -38,24 +37,19 @@ export function NewsArticleStep({
           work on the other version.
         </p>
       </div>
-      <label
-        className="block font-medium text-[11px] text-slate-500 uppercase tracking-[0.12em]"
-        htmlFor={editorId}
-      >
-        Article body · {languageLabel}
-      </label>
-      <div>
-        <ContentEditor
-          ariaLabel={`Article body · ${languageLabel}`}
-          id={editorId}
-          key={editorState.editorKey}
-          minHeight={420}
-          onChange={(value) => setValue(descriptionKey, value)}
-          placeholder={`Write the ${languageLabel.toLowerCase()} article here...`}
-          value={editorState.value}
-          variant="news"
-        />
-      </div>
+      <fieldset className="m-0 min-w-0 border-0 p-0">
+        <legend className="block font-medium text-[11px] text-slate-500 uppercase tracking-[0.12em]">
+          Article body · {languageLabel}
+        </legend>
+        <div>
+          <DescriptionBlockEditor
+            key={editorState.editorKey}
+            onChange={(value) => setValue(descriptionKey, value)}
+            placeholder={`Write the ${languageLabel.toLowerCase()} article here...`}
+            value={editorState.value}
+          />
+        </div>
+      </fieldset>
     </div>
   );
 }
