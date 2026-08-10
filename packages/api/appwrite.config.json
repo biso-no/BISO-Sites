@@ -9409,6 +9409,11 @@
         "gif",
         "webp",
         "svg",
+        "mp4",
+        "webm",
+        "mp3",
+        "wav",
+        "ogg",
         "pdf"
       ],
       "compression": "none",
