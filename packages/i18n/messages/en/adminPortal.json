@@ -48,6 +48,11 @@
     "back": "Back",
     "signOut": "Sign out"
   },
+  "inboxRealtime": {
+    "newApproval": "New approval request from {email}",
+    "newSubmission": "New form submission received",
+    "open": "Open"
+  },
   "common": {
     "save": "Save",
     "discard": "Discard",

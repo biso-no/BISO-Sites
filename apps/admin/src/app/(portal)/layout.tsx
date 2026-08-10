@@ -3,6 +3,7 @@ import { getTranslations } from "next-intl/server";
 import { getUserRolesForClient, requireAdminAccess } from "@/lib/authorization";
 import { getInboxCounts } from "./_actions/inbox";
 import { AdminShell } from "./_components/admin-shell";
+import { InboxRealtimeProvider } from "./_components/inbox-realtime-provider";
 
 type UserRoles = Awaited<ReturnType<typeof getUserRolesForClient>>;
 type AuthContext = Awaited<ReturnType<typeof requireAdminAccess>>;
@@ -45,13 +46,19 @@ export default async function PortalAdminLayout({
   };
 
   return (
-    <AdminShell
-      aiCopilotEnabled={aiCopilotEnabled}
-      inboxCount={inboxCounts.total}
-      roles={roles}
-      user={user}
+    <InboxRealtimeProvider
+      activeCampusId={ctx.activeCampusId ?? null}
+      initialCounts={inboxCounts}
+      isApprover={roles.isGlobalAdmin || roles.isCampusAdmin}
     >
-      {children}
-    </AdminShell>
+      <AdminShell
+        aiCopilotEnabled={aiCopilotEnabled}
+        inboxCount={inboxCounts.total}
+        roles={roles}
+        user={user}
+      >
+        {children}
+      </AdminShell>
+    </InboxRealtimeProvider>
   );
 }

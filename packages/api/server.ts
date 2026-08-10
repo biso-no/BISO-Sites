@@ -140,7 +140,11 @@ function configureServerClient(client: Client): Client {
         ...transport,
         signal: createTimeoutSignal(),
       },
-    };
+      // node-appwrite 26 types prepareRequest against undici's RequestInit,
+      // whose BodyInit rejects the DOM ReadableStream in our spread of the
+      // SDK-produced options. The values are the SDK's own; only the two
+      // RequestInit declarations disagree.
+    } as ReturnType<Client["prepareRequest"]>;
   };
 
   client.call = async (...args: Parameters<Client["call"]>) => {
