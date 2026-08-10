@@ -7,7 +7,7 @@ import {
   recruitmentVacancyUpsertSchema,
 } from "@repo/shared/types/recruitment";
 import { z } from "zod";
-import { hasPlateTextContent } from "@/lib/plate-content";
+import { hasRichContent } from "@/lib/plate-content";
 
 export const benefitSchema = z.object({
   title_nb: z.string().min(1, "Title (NO) is required"),
@@ -74,7 +74,7 @@ export const newsSchema = z
       return;
     }
 
-    if (hasPlateTextContent(values.description_no) && !values.title_no.trim()) {
+    if (hasRichContent(values.description_no) && !values.title_no.trim()) {
       context.addIssue({
         code: "custom",
         message:
@@ -82,7 +82,7 @@ export const newsSchema = z
         path: ["title_no"],
       });
     }
-    if (hasPlateTextContent(values.description_en) && !values.title_en.trim()) {
+    if (hasRichContent(values.description_en) && !values.title_en.trim()) {
       context.addIssue({
         code: "custom",
         message:

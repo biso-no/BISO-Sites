@@ -103,6 +103,38 @@ describe("news studio state", () => {
     ]);
   });
 
+  test("keeps a media-only locale in translation inputs", () => {
+    const values = {
+      ...createValues(),
+      description_en: JSON.stringify([
+        {
+          children: [{ text: "" }],
+          type: "img",
+          url: "https://example.com/image.jpg",
+        },
+      ]),
+    };
+
+    expect(getNewsTranslationInputs(values)).toEqual([
+      {
+        description: "Norsk brødtekst",
+        locale: "no",
+        title: "Norsk tittel",
+      },
+      {
+        description: JSON.stringify([
+          {
+            children: [{ text: "" }],
+            type: "img",
+            url: "https://example.com/image.jpg",
+          },
+        ]),
+        locale: "en",
+        title: "",
+      },
+    ]);
+  });
+
   test("requires a headline in at least one locale", () => {
     const result = newsSchema.safeParse({
       author: null,

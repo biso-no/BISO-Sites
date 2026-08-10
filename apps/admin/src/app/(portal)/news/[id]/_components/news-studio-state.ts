@@ -3,7 +3,7 @@ import type {
   ContentTranslations,
   News,
 } from "@repo/api/types/appwrite";
-import { hasPlateTextContent } from "@/lib/plate-content";
+import { hasRichContent } from "@/lib/plate-content";
 import type { NewsFormValues } from "../../../_actions/schemas";
 
 export type NewsLocale = "no" | "en";
@@ -78,7 +78,7 @@ export const getNewsStepCompletion = (
   );
   const description =
     locale === "no" ? values.description_no : values.description_en;
-  const hasArticleBody = hasPlateTextContent(description);
+  const hasArticleBody = hasRichContent(description);
   const hasCoverImage = Boolean(values.image);
 
   return [
@@ -188,6 +188,6 @@ export const getNewsTranslationInputs = (
 
   return translations.filter(
     (translation) =>
-      translation.title || hasPlateTextContent(translation.description)
+      translation.title || hasRichContent(translation.description)
   );
 };

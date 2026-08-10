@@ -1,26 +1,29 @@
-interface PlateTextNode {
+interface PlateNode {
   children?: unknown;
+  src?: unknown;
   text?: unknown;
+  url?: unknown;
 }
 
-const getPlateNodeText = (node: unknown): string => {
+const hasPlateNodeContent = (node: unknown): boolean => {
   if (!(node && typeof node === "object")) {
-    return "";
+    return false;
   }
 
-  const { children, text } = node as PlateTextNode;
-  if (typeof text === "string") {
-    return text;
+  const { children, src, text, url } = node as PlateNode;
+  if (typeof text === "string" && text.trim()) {
+    return true;
   }
-  if (Array.isArray(children)) {
-    return children.map(getPlateNodeText).join("");
+  if (typeof url === "string" && url.trim()) {
+    return true;
   }
-  return "";
+  if (typeof src === "string" && src.trim()) {
+    return true;
+  }
+  return Array.isArray(children) && children.some(hasPlateNodeContent);
 };
 
-export const hasPlateTextContent = (
-  value: string | null | undefined
-): boolean => {
+export const hasRichContent = (value: string | null | undefined): boolean => {
   const trimmed = value?.trim() ?? "";
   if (!trimmed) {
     return false;
@@ -34,7 +37,7 @@ export const hasPlateTextContent = (
     if (!Array.isArray(document)) {
       return true;
     }
-    return document.some((node) => getPlateNodeText(node).trim().length > 0);
+    return document.some(hasPlateNodeContent);
   } catch {
     return true;
   }

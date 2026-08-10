@@ -3,6 +3,7 @@ import { getTranslations } from "next-intl/server";
 import { requireNavAccess } from "@/lib/authorization";
 import { listCampuses, listDepartmentsForCampus } from "../../_actions/lookups";
 import { getNewsArticle } from "../../_actions/news";
+import { getNewsAllowedDepartmentIds } from "./_components/news-studio-access";
 import { NewsStudioEditor } from "./_components/news-studio-editor";
 
 interface Props {
@@ -52,14 +53,10 @@ export default async function NewsEditorPage({ params }: Props) {
     ? await listDepartmentsForCampus(campusIdForDepartments)
     : [];
   const isDepartmentUser = !(isGlobalAdmin || isCampusAdmin);
-  const allowedDepartmentIds =
-    isDepartmentUser && ctx.resolvedDepartmentIds.length > 0
-      ? departments
-          .filter((department) =>
-            ctx.resolvedDepartmentIds.includes(department.$id)
-          )
-          .map((department) => department.$id)
-      : undefined;
+  const allowedDepartmentIds = getNewsAllowedDepartmentIds(
+    isDepartmentUser,
+    ctx.resolvedDepartmentIds.map((id) => ({ department_ref: { $id: id } }))
+  );
   const initialDepartments = allowedDepartmentIds
     ? departments.filter((department) =>
         allowedDepartmentIds.includes(department.$id)
