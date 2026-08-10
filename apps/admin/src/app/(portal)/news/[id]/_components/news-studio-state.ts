@@ -77,12 +77,11 @@ export const createNewsStudioDefaults = (
   const english = article?.translation_refs.find(
     (translation) => translation.locale === "en"
   );
-  const primary = norwegian ?? english;
 
   return {
     author: article?.author ?? null,
     campus_id: article?.campus_id ?? defaultCampusId ?? campuses[0]?.$id ?? "",
-    category: parseCategory(primary),
+    category: parseCategory(norwegian) ?? parseCategory(english),
     department_id: article?.department_id ?? null,
     description_en: english?.description ?? "",
     description_no: norwegian?.description ?? "",
@@ -94,6 +93,11 @@ export const createNewsStudioDefaults = (
     title_no: norwegian?.title ?? "",
   };
 };
+
+export const getNewsSavedValues = (
+  values: NewsFormValues,
+  status: NewsFormValues["status"]
+): NewsFormValues => ({ ...values, status });
 
 export const getNewsTranslationInputs = (
   values: NewsFormValues

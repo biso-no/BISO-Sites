@@ -1,6 +1,6 @@
 "use server";
 
-import { Query } from "@repo/api";
+import { Permission, Query, Role } from "@repo/api";
 import { createSessionClient } from "@repo/api/server";
 import type {
   ContentTranslations,
@@ -21,9 +21,108 @@ import {
   assertWriteAccess,
   hasRowAccess,
 } from "@/lib/utils/authorization";
-import { getNewsTranslationInputs } from "../news/[id]/_components/news-studio-state";
+import {
+  getNewsTranslationInputs,
+  type NewsTranslationInput,
+} from "../news/[id]/_components/news-studio-state";
 import { logAuditEvent } from "./audit-log";
 import { NEWS_PAGE_SIZE, type NewsFormValues, newsSchema } from "./schemas";
+
+type NewsDatabase = Awaited<ReturnType<typeof createSessionClient>>["db"];
+type TranslationPermissions = ReturnType<
+  typeof buildContentTranslationPermissions
+>;
+type RowPermissions = ReturnType<typeof buildContentRowPermissions>;
+
+const buildStagingNewsRowPermissions = (
+  canonicalPermissions: RowPermissions,
+  creatorUserId: string
+): RowPermissions => {
+  const creator = Role.user(creatorUserId);
+  return [
+    ...new Set([
+      ...canonicalPermissions,
+      Permission.read(creator),
+      Permission.update(creator),
+      Permission.delete(creator),
+    ]),
+  ];
+};
+
+const createNewsTranslations = async (
+  db: NewsDatabase,
+  articleId: string,
+  translations: NewsTranslationInput[],
+  additionalFields: string,
+  permissions: TranslationPermissions,
+  translationIds: string[]
+): Promise<void> => {
+  for (const translation of translations) {
+    const createdTranslation = await db.createRow(
+      "app",
+      "content_translations",
+      "unique()",
+      {
+        additional_fields: additionalFields,
+        content_id: articleId,
+        content_type: "news",
+        description: translation.description,
+        locale: translation.locale,
+        title: translation.title,
+      },
+      permissions
+    );
+    translationIds.push(createdTranslation.$id);
+  }
+};
+
+const publishStagedNewsTranslations = async (
+  db: NewsDatabase,
+  translationIds: string[],
+  translationPermissions: TranslationPermissions
+): Promise<void> => {
+  for (const translationId of translationIds) {
+    await db.updateRow(
+      "app",
+      "content_translations",
+      translationId,
+      {},
+      translationPermissions
+    );
+  }
+};
+
+const finalizeStagedNewsRow = async (
+  db: NewsDatabase,
+  articleId: string,
+  status: NewsFormValues["status"],
+  rowPermissions: RowPermissions
+): Promise<void> => {
+  await db.updateRow(
+    "app",
+    "news",
+    articleId,
+    { status: status as NewsStatus },
+    rowPermissions
+  );
+};
+
+const rollbackCreatedNews = async (
+  db: NewsDatabase,
+  articleId: string,
+  translationIds: string[]
+): Promise<void> => {
+  await Promise.allSettled(
+    translationIds.map((translationId) =>
+      db.deleteRow("app", "content_translations", translationId)
+    )
+  );
+  try {
+    await db.deleteRow("app", "news", articleId);
+  } catch {
+    // Best-effort rollback: the original persistence error is more useful.
+  }
+};
 
 export async function listNews(opts?: {
   campusId?: string;
@@ -112,6 +211,8 @@ export async function createNews(values: NewsFormValues) {
     return { error: validated.error.flatten().fieldErrors };
   }
 
+  let rollback: (() => Promise<void>) | null = null;
+
   try {
     // News is reachable by department users (see NAV_ACCESS), so authorize
     // against both the target campus and department — matching the
@@ -121,8 +222,8 @@ export async function createNews(values: NewsFormValues) {
       validated.data.campus_id,
       validated.data.department_id ?? null
     );
-    const status = validated.data.status;
-    if (status === "published") {
+    const requestedStatus = validated.data.status;
+    if (requestedStatus === "published") {
       assertPublishAccess(ctx, validated.data.campus_id);
     }
 
@@ -134,55 +235,80 @@ export async function createNews(values: NewsFormValues) {
       department_id: validated.data.department_id ?? null,
     });
 
+    const stagingStatus =
+      requestedStatus === "published" ? "draft" : requestedStatus;
     const article = await db.createRow(
       "app",
       "news",
       "unique()",
       {
         slug: validated.data.slug,
-        status: status as NewsStatus,
+        status: stagingStatus as NewsStatus,
         campus_id: validated.data.campus_id,
         department_id: validated.data.department_id ?? null,
         image: validated.data.image || null,
         sticky: validated.data.sticky ?? false,
         author: validated.data.author ?? null,
       },
-      buildContentRowPermissions({
-        status,
-        audience: "public",
-        campusTeam,
-        deptTeam,
-      })
+      buildStagingNewsRowPermissions(
+        buildContentRowPermissions({
+          status: stagingStatus,
+          audience: "public",
+          campusTeam,
+          deptTeam,
+        }),
+        ctx.userId
+      )
     );
 
-    const translationPermissions = buildContentTranslationPermissions({
+    const stagingTranslationPermissions = buildContentTranslationPermissions({
       audience: "public",
-      status,
+      status: stagingStatus,
       ownerUserId: ctx.userId,
       writeTeams: deptTeam ? [deptTeam] : [],
       readTeams: campusTeam ? [campusTeam] : [],
     });
     const translations = getNewsTranslationInputs(validated.data);
-    await Promise.all(
-      translations.map((translation) =>
-        db.createRow(
-          "app",
-          "content_translations",
-          "unique()",
-          {
-            additional_fields: JSON.stringify({
-              author: validated.data.author,
-              category: validated.data.category,
-            }),
-            content_id: article.$id,
-            content_type: "news",
-            description: translation.description,
-            locale: translation.locale,
-            title: translation.title,
-          },
-          translationPermissions
-        )
-      )
+    const createdTranslationIds: string[] = [];
+    rollback = () =>
+      rollbackCreatedNews(db, article.$id, createdTranslationIds);
+    await createNewsTranslations(
+      db,
+      article.$id,
+      translations,
+      JSON.stringify({
+        author: validated.data.author,
+        category: validated.data.category,
+      }),
+      stagingTranslationPermissions,
+      createdTranslationIds
+    );
+
+    if (requestedStatus === "published") {
+      const publishedTranslationPermissions =
+        buildContentTranslationPermissions({
+          audience: "public",
+          status: requestedStatus,
+          ownerUserId: ctx.userId,
+          writeTeams: deptTeam ? [deptTeam] : [],
+          readTeams: campusTeam ? [campusTeam] : [],
+        });
+      await publishStagedNewsTranslations(
+        db,
+        createdTranslationIds,
+        publishedTranslationPermissions
+      );
+    }
+    await finalizeStagedNewsRow(
+      db,
+      article.$id,
+      requestedStatus,
+      buildContentRowPermissions({
+        status: requestedStatus,
+        audience: "public",
+        campusTeam,
+        deptTeam,
+      })
     );
 
     await logAuditEvent(ctx, "news_created", {
@@ -192,6 +318,7 @@ export async function createNews(values: NewsFormValues) {
     revalidatePath("/news");
     return { data: article.$id };
   } catch (error) {
+    await rollback?.();
     return {
       error: error instanceof Error ? error.message : "Failed to save article",
     };

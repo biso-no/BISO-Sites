@@ -68,6 +68,27 @@ export const newsSchema = z
         path: ["title_no"],
       });
     }
+
+    if (values.status !== "published") {
+      return;
+    }
+
+    if (values.description_no?.trim() && !values.title_no.trim()) {
+      context.addIssue({
+        code: "custom",
+        message:
+          "A Norwegian headline is required when Norwegian content is provided",
+        path: ["title_no"],
+      });
+    }
+    if (values.description_en?.trim() && !values.title_en.trim()) {
+      context.addIssue({
+        code: "custom",
+        message:
+          "An English headline is required when English content is provided",
+        path: ["title_en"],
+      });
+    }
   });
 export const NEWS_PAGE_SIZE = 20;
 export type NewsFormValues = z.infer<typeof newsSchema>;

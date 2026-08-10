@@ -3,6 +3,7 @@ import { type NewsFormValues, newsSchema } from "../../../_actions/schemas";
 import {
   createNewsStudioDefaults,
   getNewsArticleEditorState,
+  getNewsSavedValues,
   getNewsStepCompletion,
   getNewsTranslationInputs,
 } from "./news-studio-state";
@@ -99,6 +100,59 @@ describe("news studio state", () => {
     });
 
     expect(result.success).toBeFalse();
+  });
+
+  test("requires a headline for every populated locale when publishing", () => {
+    const values = {
+      ...createValues(),
+      description_en: "English body without a title",
+      status: "published" as const,
+    };
+
+    const publishedResult = newsSchema.safeParse(values);
+    const draftResult = newsSchema.safeParse({ ...values, status: "draft" });
+
+    expect(publishedResult.success).toBeFalse();
+    if (!publishedResult.success) {
+      expect(publishedResult.error.flatten().fieldErrors.title_en).toEqual([
+        "An English headline is required when English content is provided",
+      ]);
+    }
+    expect(draftResult.success).toBeTrue();
+  });
+
+  test("uses category metadata from the locale that defines it", () => {
+    const values = createNewsStudioDefaults(
+      {
+        campus_id: "campus-oslo",
+        translation_refs: [
+          {
+            additional_fields: JSON.stringify({}),
+            locale: "no",
+            title: "Norsk tittel",
+          },
+          {
+            additional_fields: JSON.stringify({ category: "press" }),
+            locale: "en",
+            title: "English title",
+          },
+        ],
+      } as never,
+      [] as never,
+      "campus-oslo"
+    );
+
+    expect(values.category).toBe("press");
+  });
+
+  test("synchronizes local status with the successful submission", () => {
+    const values = createValues();
+
+    expect(getNewsSavedValues(values, "published")).toEqual({
+      ...values,
+      status: "published",
+    });
+    expect(values.status).toBe("draft");
   });
 
   test("switching to a missing locale creates a fresh empty editor state", () => {

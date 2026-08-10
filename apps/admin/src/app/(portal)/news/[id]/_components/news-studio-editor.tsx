@@ -13,6 +13,7 @@ import { NewsArticleStep } from "./news-article-step";
 import { NewsStudioPreview } from "./news-studio-preview";
 import {
   createNewsStudioDefaults,
+  getNewsSavedValues,
   getNewsStepCompletion,
   type NewsLocale,
   type NewsWithTranslations,
@@ -228,6 +229,7 @@ function NewsStudioStepRail({
 
           return (
             <button
+              aria-current={active ? "step" : undefined}
               className="inline-flex shrink-0 items-center gap-2 rounded-full px-2 py-1.5 pr-3 text-xs transition"
               key={name}
               onClick={() => onStepChange(index)}
@@ -267,6 +269,7 @@ function NewsStudioStepRail({
         <legend className="sr-only">Article language</legend>
         {(["no", "en"] as const).map((item) => (
           <button
+            aria-pressed={locale === item}
             className="rounded-md px-3 py-1.5 font-medium text-xs"
             key={item}
             onClick={() => onLocaleChange(item)}
@@ -765,7 +768,7 @@ export function NewsStudioEditor({
   };
 
   const submit = async (status: NewsFormValues["status"]): Promise<void> => {
-    const payload = { ...values, status };
+    const payload = getNewsSavedValues(values, status);
     const validated = newsSchema.safeParse(payload);
     if (!validated.success) {
       toast.error(labels.saveError);
@@ -783,6 +786,7 @@ export function NewsStudioEditor({
         );
         return;
       }
+      setValues(getNewsSavedValues(validated.data, status));
       setDirty(false);
       toast.success(
         status === "published" ? labels.publishSuccess : labels.saveSuccess

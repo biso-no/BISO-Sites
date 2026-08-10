@@ -1,9 +1,11 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { Permission, Role } from "@repo/api";
 import type { UserAuthContext } from "@/lib/authorization";
 import type { NewsFormValues } from "./schemas";
 
 const db = {
   createRow: mock(),
+  deleteRow: mock(),
   listRows: mock(),
   updateRow: mock(),
 };
@@ -91,6 +93,7 @@ function mockExistingArticleAndTranslations({
 
 beforeEach(() => {
   db.createRow.mockReset();
+  db.deleteRow.mockReset();
   db.listRows.mockReset();
   db.updateRow.mockReset();
 
@@ -110,11 +113,12 @@ beforeEach(() => {
       data: Record<string, unknown>
     ) => ({ $id: rowId, ...data })
   );
+  db.deleteRow.mockImplementation(async () => undefined);
   mockExistingArticleAndTranslations({ translations: [] });
 });
 
 describe("news persistence", () => {
-  test("creates a published row and both translations", async () => {
+  test("stages a new article privately before publishing it", async () => {
     const result = await createNews(publishedValues);
 
     expect(result).toEqual({ data: "news-1" });
@@ -122,7 +126,7 @@ describe("news persistence", () => {
       "app",
       "news",
       "unique()",
-      expect.objectContaining({ status: "published" }),
+      expect.objectContaining({ status: "draft" }),
       expect.any(Array)
     );
     expect(db.createRow).toHaveBeenCalledWith(
@@ -139,9 +143,70 @@ describe("news persistence", () => {
       expect.objectContaining({ locale: "en", title: "English title" }),
       expect.any(Array)
     );
+    expect(db.updateRow).toHaveBeenCalledWith(
+      "app",
+      "news",
+      "news-1",
+      expect.objectContaining({ status: "published" }),
+      expect.any(Array)
+    );
+
+    const parentCreateCall = db.createRow.mock.calls.find(
+      (call) => call[1] === "news"
+    );
+    const parentPublishCall = db.updateRow.mock.calls.find(
+      (call) => call[1] === "news" && call[3]?.status === "published"
+    );
+    const creatorUpdatePermission = Permission.update(
+      Role.user(campusAdminCtx.userId)
+    );
+    const creatorDeletePermission = Permission.delete(
+      Role.user(campusAdminCtx.userId)
+    );
+
+    expect(parentCreateCall?.[4]).toContain(creatorUpdatePermission);
+    expect(parentCreateCall?.[4]).toContain(creatorDeletePermission);
+    expect(parentPublishCall?.[4]).not.toContain(creatorUpdatePermission);
+    expect(parentPublishCall?.[4]).not.toContain(creatorDeletePermission);
   });
 
-  test("does not create an empty optional locale", async () => {
+  test("removes a staged article when a translation write fails", async () => {
+    db.createRow.mockImplementation(
+      (
+        _databaseId: string,
+        tableId: string,
+        _rowId: string,
+        data: Record<string, unknown>
+      ) => {
+        if (tableId === "news") {
+          return { $id: "news-1", ...data };
+        }
+        if (data.locale === "en") {
+          throw new Error("Translation write failed");
+        }
+        return { $id: "translation-no", ...data };
+      }
+    );
+
+    const result = await createNews(publishedValues);
+
+    expect(result).toEqual({ error: "Translation write failed" });
+    expect(db.deleteRow).toHaveBeenCalledWith(
+      "app",
+      "content_translations",
+      "translation-no"
+    );
+    expect(db.deleteRow).toHaveBeenCalledWith("app", "news", "news-1");
+    expect(db.updateRow).not.toHaveBeenCalledWith(
+      "app",
+      "news",
+      "news-1",
+      expect.objectContaining({ status: "published" }),
+      expect.any(Array)
+    );
+  });
+
+  test("does not create an empty optional locale or retain staging access", async () => {
     await createNews({
       ...publishedValues,
       description_en: "",
@@ -155,6 +220,16 @@ describe("news persistence", () => {
     expect(translationCalls).toHaveLength(1);
     expect(translationCalls[0]?.[3]).toEqual(
       expect.objectContaining({ locale: "no" })
+    );
+
+    const parentDraftCall = db.updateRow.mock.calls.find(
+      (call) => call[1] === "news" && call[3]?.status === "draft"
+    );
+    expect(parentDraftCall?.[4]).not.toContain(
+      Permission.update(Role.user(campusAdminCtx.userId))
+    );
+    expect(parentDraftCall?.[4]).not.toContain(
+      Permission.delete(Role.user(campusAdminCtx.userId))
     );
   });
 
