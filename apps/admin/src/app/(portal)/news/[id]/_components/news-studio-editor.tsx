@@ -3,7 +3,7 @@
 import type { Campus, Departments } from "@repo/api/types/appwrite";
 import { ArrowLeft, ArrowRight, Check, Circle, Save, Send } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { listDepartmentsForCampus } from "../../../_actions/lookups";
 import { createNews, updateNews } from "../../../_actions/news";
@@ -17,6 +17,7 @@ import {
   getNewsStepCompletion,
   type NewsLocale,
   type NewsWithTranslations,
+  refreshNewsDepartments,
 } from "./news-studio-state";
 
 interface NewsStudioLabels {
@@ -720,6 +721,7 @@ export function NewsStudioEditor({
   labels,
 }: NewsStudioEditorProps) {
   const router = useRouter();
+  const departmentRequestSequence = useRef(0);
   const [step, setStep] = useState(0);
   const [locale, setLocale] = useState<NewsLocale>("no");
   const [values, setValues] = useState(() =>
@@ -761,10 +763,12 @@ export function NewsStudioEditor({
   const handleCampusChange = async (campusId: string): Promise<void> => {
     setValue("campus_id", campusId);
     setValue("department_id", null);
-    const nextDepartments = campusId
-      ? await listDepartmentsForCampus(campusId)
-      : [];
-    setDepartments(nextDepartments);
+    await refreshNewsDepartments({
+      campusId,
+      loadDepartments: listDepartmentsForCampus,
+      requestSequence: departmentRequestSequence,
+      setDepartments,
+    });
   };
 
   const submit = async (status: NewsFormValues["status"]): Promise<void> => {

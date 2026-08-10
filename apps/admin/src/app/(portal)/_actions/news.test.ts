@@ -233,7 +233,7 @@ describe("news persistence", () => {
     );
   });
 
-  test("upserts new locale and preserves an omitted existing locale", async () => {
+  test("deletes an existing locale after its content is cleared", async () => {
     mockExistingArticleAndTranslations({
       translations: [
         {
@@ -258,12 +258,10 @@ describe("news persistence", () => {
       expect.objectContaining({ locale: "no" }),
       expect.any(Array)
     );
-    expect(db.updateRow).toHaveBeenCalledWith(
+    expect(db.deleteRow).toHaveBeenCalledWith(
       "app",
       "content_translations",
-      "translation-en",
-      {},
-      expect.any(Array)
+      "translation-en"
     );
   });
 });

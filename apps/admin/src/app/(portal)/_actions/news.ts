@@ -448,13 +448,7 @@ export async function updateNews(id: string, values: NewsFormValues) {
       currentTranslations.rows
         .filter((translation) => !submittedLocales.has(translation.locale))
         .map((translation) =>
-          db.updateRow(
-            "app",
-            "content_translations",
-            translation.$id,
-            {},
-            translationPermissions
-          )
+          db.deleteRow("app", "content_translations", translation.$id)
         )
     );
 

@@ -16,6 +16,34 @@ export interface NewsTranslationInput {
   title: string;
 }
 
+interface RefreshNewsDepartmentsOptions<Department> {
+  campusId: string;
+  loadDepartments: (campusId: string) => Promise<Department[]>;
+  requestSequence: { current: number };
+  setDepartments: (departments: Department[]) => void;
+}
+
+export const refreshNewsDepartments = async <Department>(
+  options: RefreshNewsDepartmentsOptions<Department>
+): Promise<void> => {
+  const requestId = options.requestSequence.current + 1;
+  options.requestSequence.current = requestId;
+  options.setDepartments([]);
+
+  if (!options.campusId) {
+    return;
+  }
+
+  try {
+    const departments = await options.loadDepartments(options.campusId);
+    if (options.requestSequence.current === requestId) {
+      options.setDepartments(departments);
+    }
+  } catch {
+    // The current request already cleared stale options before loading.
+  }
+};
+
 export const getNewsArticleEditorState = (
   values: NewsFormValues,
   locale: NewsLocale

@@ -6,6 +6,7 @@ import {
   getNewsSavedValues,
   getNewsStepCompletion,
   getNewsTranslationInputs,
+  refreshNewsDepartments,
 } from "./news-studio-state";
 
 const createValues = (): NewsFormValues => ({
@@ -192,5 +193,65 @@ describe("news studio state", () => {
       true,
       false,
     ]);
+  });
+
+  test("ignores departments returned by an earlier campus lookup", async () => {
+    let resolveOslo: (departments: string[]) => void = () => undefined;
+    let resolveBergen: (departments: string[]) => void = () => undefined;
+    const oslo = new Promise<string[]>((resolve) => {
+      resolveOslo = resolve;
+    });
+    const bergen = new Promise<string[]>((resolve) => {
+      resolveBergen = resolve;
+    });
+    const requestSequence = { current: 0 };
+    const appliedDepartments: string[][] = [];
+    const loadDepartments = (campusId: string): Promise<string[]> =>
+      campusId === "campus-oslo" ? oslo : bergen;
+    const setDepartments = (departments: string[]): void => {
+      appliedDepartments.push(departments);
+    };
+
+    const osloRequest = refreshNewsDepartments({
+      campusId: "campus-oslo",
+      loadDepartments,
+      requestSequence,
+      setDepartments,
+    });
+    const bergenRequest = refreshNewsDepartments({
+      campusId: "campus-bergen",
+      loadDepartments,
+      requestSequence,
+      setDepartments,
+    });
+    resolveBergen(["bergen-department"]);
+    await bergenRequest;
+    resolveOslo(["oslo-department"]);
+    await osloRequest;
+
+    expect(appliedDepartments).toEqual([[], [], ["bergen-department"]]);
+  });
+
+  test("clears stale departments when the current lookup fails", async () => {
+    let departments = ["old-department"];
+    const requestSequence = { current: 0 };
+    let rejectLookup: (error: Error) => void = () => undefined;
+    const lookup = new Promise<string[]>((_resolve, reject) => {
+      rejectLookup = reject;
+    });
+
+    const request = refreshNewsDepartments({
+      campusId: "campus-bergen",
+      loadDepartments: () => lookup,
+      requestSequence,
+      setDepartments: (nextDepartments) => {
+        departments = nextDepartments;
+      },
+    });
+
+    expect(departments).toEqual([]);
+    rejectLookup(new Error("Lookup failed"));
+    await request;
+    expect(departments).toEqual([]);
   });
 });
