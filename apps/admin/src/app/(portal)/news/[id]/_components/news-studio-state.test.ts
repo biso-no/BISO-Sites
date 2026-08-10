@@ -6,6 +6,7 @@ import {
   getNewsSavedValues,
   getNewsStepCompletion,
   getNewsTranslationInputs,
+  reconcileNewsSavedState,
   refreshNewsDepartments,
 } from "./news-studio-state";
 
@@ -154,6 +155,48 @@ describe("news studio state", () => {
       status: "published",
     });
     expect(values.status).toBe("draft");
+  });
+
+  test("preserves edits made after a save starts", () => {
+    const submittedValues = createValues();
+    const currentValues = {
+      ...submittedValues,
+      title_no: "Edited while saving",
+    };
+
+    expect(
+      reconcileNewsSavedState({
+        currentValues,
+        hasConcurrentEdits: true,
+        status: "published",
+        submittedValues,
+      })
+    ).toEqual({
+      dirty: true,
+      values: {
+        ...currentValues,
+        status: "published",
+      },
+    });
+  });
+
+  test("clears dirty state when no edits happened during save", () => {
+    const submittedValues = createValues();
+
+    expect(
+      reconcileNewsSavedState({
+        currentValues: submittedValues,
+        hasConcurrentEdits: false,
+        status: "published",
+        submittedValues,
+      })
+    ).toEqual({
+      dirty: false,
+      values: {
+        ...submittedValues,
+        status: "published",
+      },
+    });
   });
 
   test("switching to a missing locale creates a fresh empty editor state", () => {

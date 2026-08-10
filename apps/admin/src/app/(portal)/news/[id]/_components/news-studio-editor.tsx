@@ -17,6 +17,7 @@ import {
   getNewsStepCompletion,
   type NewsLocale,
   type NewsWithTranslations,
+  reconcileNewsSavedState,
   refreshNewsDepartments,
 } from "./news-studio-state";
 
@@ -722,6 +723,7 @@ export function NewsStudioEditor({
 }: NewsStudioEditorProps) {
   const router = useRouter();
   const departmentRequestSequence = useRef(0);
+  const editRevision = useRef(0);
   const [step, setStep] = useState(0);
   const [locale, setLocale] = useState<NewsLocale>("no");
   const [values, setValues] = useState(() =>
@@ -756,6 +758,7 @@ export function NewsStudioEditor({
     key: Key,
     value: NewsFormValues[Key]
   ): void => {
+    editRevision.current += 1;
     setValues((current) => ({ ...current, [key]: value }));
     setDirty(true);
   };
@@ -779,6 +782,7 @@ export function NewsStudioEditor({
       return;
     }
 
+    const submittedRevision = editRevision.current;
     setPendingStatus(status);
     try {
       const result = isNew
@@ -790,8 +794,17 @@ export function NewsStudioEditor({
         );
         return;
       }
-      setValues(getNewsSavedValues(validated.data, status));
-      setDirty(false);
+      const hasConcurrentEdits = editRevision.current !== submittedRevision;
+      setValues(
+        (current) =>
+          reconcileNewsSavedState({
+            currentValues: current,
+            hasConcurrentEdits,
+            status,
+            submittedValues: validated.data,
+          }).values
+      );
+      setDirty(hasConcurrentEdits);
       toast.success(
         status === "published" ? labels.publishSuccess : labels.saveSuccess
       );

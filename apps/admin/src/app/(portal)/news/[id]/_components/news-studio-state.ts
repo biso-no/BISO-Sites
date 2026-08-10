@@ -127,6 +127,26 @@ export const getNewsSavedValues = (
   status: NewsFormValues["status"]
 ): NewsFormValues => ({ ...values, status });
 
+interface ReconcileNewsSavedStateOptions {
+  currentValues: NewsFormValues;
+  hasConcurrentEdits: boolean;
+  status: NewsFormValues["status"];
+  submittedValues: NewsFormValues;
+}
+
+export const reconcileNewsSavedState = (
+  options: ReconcileNewsSavedStateOptions
+): { dirty: boolean; values: NewsFormValues } => {
+  const values = options.hasConcurrentEdits
+    ? options.currentValues
+    : options.submittedValues;
+
+  return {
+    dirty: options.hasConcurrentEdits,
+    values: getNewsSavedValues(values, options.status),
+  };
+};
+
 export const getNewsTranslationInputs = (
   values: NewsFormValues
 ): NewsTranslationInput[] => {
