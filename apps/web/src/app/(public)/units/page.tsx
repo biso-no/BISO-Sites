@@ -12,8 +12,6 @@ export const metadata: Metadata = {
     "Explore the student-run units and departments that make up BISO across BI Norwegian Business School campuses.",
 };
 
-export const revalidate = 0;
-
 async function DepartmentsContent() {
   const locale = await getLocale();
 

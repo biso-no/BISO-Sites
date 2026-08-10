@@ -2,8 +2,6 @@ import { Query } from "@repo/api/client";
 import { createAdminClient } from "@repo/api/server";
 import { NextResponse } from "next/server";
 
-export const dynamic = "force-dynamic";
-
 export async function GET() {
   try {
     const { users } = await createAdminClient();

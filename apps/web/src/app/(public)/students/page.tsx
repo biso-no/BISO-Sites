@@ -16,8 +16,6 @@ import { getGlobalMembershipBenefits } from "@/app/actions/membership";
 import { getDepartments } from "@/lib/actions/departments";
 import { StudentsPageClient } from "./students-page-client";
 
-export const revalidate = 0;
-
 export default async function StudentsPage() {
   const locale = (await getLocale()) as Locale;
 

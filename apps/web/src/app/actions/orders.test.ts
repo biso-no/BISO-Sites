@@ -45,6 +45,10 @@ vi.mock("@/app/actions/purchase-limits", () => ({
   validatePurchaseLimits: vi.fn(async () => ({ allowed: true })),
 }));
 
+vi.mock("@/lib/anon-session", () => ({
+  ensureAnonymousSession: vi.fn(async () => undefined),
+}));
+
 vi.mock("@/lib/types/webshop", () => ({
   parseProductMetadata: vi.fn(() => ({})),
 }));

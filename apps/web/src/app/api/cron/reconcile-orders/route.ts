@@ -180,5 +180,3 @@ export function GET(request: Request) {
 export function POST(request: Request) {
   return handle(request);
 }
-
-export const dynamic = "force-dynamic";

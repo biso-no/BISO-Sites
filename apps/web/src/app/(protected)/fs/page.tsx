@@ -5,6 +5,7 @@ import { Card } from "@repo/ui/components/ui/card";
 import { PLACEHOLDER_IMAGE } from "@repo/ui/lib/placeholder-images";
 import { FileText, Plus } from "lucide-react";
 import Link from "next/link";
+import { connection } from "next/server";
 import { Suspense } from "react";
 import { ExpenseCard } from "@/components/expense/expense-card";
 import { ExpenseListSkeleton } from "@/components/expense/expense-skeleton";
@@ -53,6 +54,8 @@ async function ExpenseList() {
 }
 
 export default async function ExpensesPage() {
+  await connection();
+
   if (!(await isFeatureEnabled("expenses_module"))) {
     return (
       <div className="min-h-screen bg-linear-to-b from-section to-background">

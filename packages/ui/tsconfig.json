@@ -10,7 +10,8 @@
       "@repo/*": ["../*"],
       "@repo/ui/*": ["./*"]
     },
-    "strictNullChecks": true
+    "strictNullChecks": true,
+    "types": ["bun", "node"]
   },
   "include": ["**/*.ts", "**/*.tsx"],
   "exclude": ["node_modules"]

@@ -23,9 +23,6 @@ const ABOUT_SUBROUTES = [
   "academics-contact",
 ];
 
-export const revalidate = 3600;
-export const dynamic = "force-dynamic";
-
 interface SlugWithTimestamp {
   $updatedAt: string;
   slug: string | null;

@@ -90,8 +90,3 @@ export async function generateMetadata({ params }: JobPageProps) {
     },
   };
 }
-
-export function generateStaticParams() {
-  // Statically generate known open vacancies at build time; ISR handles new ones.
-  return [];
-}

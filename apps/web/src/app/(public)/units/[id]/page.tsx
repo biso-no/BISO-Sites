@@ -7,8 +7,6 @@ import { getLoggedInUser } from "@/lib/actions/user";
 import { DepartmentHero } from "./components/department-hero";
 import { DepartmentTabsClient } from "./components/department-tabs-client";
 
-export const revalidate = 0;
-
 async function DepartmentDetailsContent({ id }: { id: string }) {
   const locale = await getLocale();
   const department = await getDepartmentById(id, locale);

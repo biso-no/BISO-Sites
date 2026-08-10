@@ -8,5 +8,3 @@ import { NextResponse } from "next/server";
 export function POST() {
   return new NextResponse(null, { status: 204 });
 }
-
-export const runtime = "nodejs";

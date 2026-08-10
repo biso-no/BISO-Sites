@@ -14,8 +14,6 @@ import { getUserPreferences } from "@/lib/auth-utils";
 import type { CampusData } from "@/lib/types/campus-data";
 import { MembershipPageClient } from "./membership-page-client";
 
-export const revalidate = 0;
-
 export default async function MembershipPage() {
   const prefs = await getUserPreferences();
 

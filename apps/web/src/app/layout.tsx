@@ -67,4 +67,4 @@ export default async function RootLayout({
   );
 }
 
-export const dynamic = "force-dynamic";
+export const instant = false;

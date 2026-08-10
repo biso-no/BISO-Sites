@@ -15,8 +15,6 @@ import { listNews } from "@/app/actions/news";
 import { getDepartments } from "@/lib/actions/departments";
 import { CampusPageClient } from "./components/campus-page-client";
 
-export const revalidate = 0;
-
 export default async function CampusPage() {
   const locale = (await getLocale()) as Locale;
 

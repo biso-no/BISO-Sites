@@ -3,7 +3,8 @@
   "compilerOptions": {
     "outDir": "dist",
     "rootDir": ".",
-    "strictNullChecks": true
+    "strictNullChecks": true,
+    "types": ["node", "react"]
   },
   "exclude": ["node_modules", "dist"]
 }

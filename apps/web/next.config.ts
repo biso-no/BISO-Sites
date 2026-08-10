@@ -20,6 +20,8 @@ const baseConfig: NextConfig = {
   productionBrowserSourceMaps: false,
   outputFileTracingRoot: path.join(import.meta.dirname, "../../"),
   output: "standalone",
+  cacheComponents: true,
+  partialPrefetching: true,
   images: {
     remotePatterns: [
       {
@@ -52,6 +54,7 @@ const baseConfig: NextConfig = {
 
   experimental: {
     authInterrupts: true,
+    hideLogsAfterAbort: true,
     serverActions: {
       bodySizeLimit: "10mb",
     },
