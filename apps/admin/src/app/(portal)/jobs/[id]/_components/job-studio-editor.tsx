@@ -493,11 +493,6 @@ function PhonePreview({
           50% { transform: translate(8px, -6px) rotate(0.4deg); }
           100% { transform: translate(0, 0) rotate(0deg); }
         }
-        [contenteditable][data-placeholder]:empty::before {
-          content: attr(data-placeholder);
-          color: rgb(203 213 225);
-          font-style: italic;
-        }
         .job-preview-scroll {
           scrollbar-width: none;
         }

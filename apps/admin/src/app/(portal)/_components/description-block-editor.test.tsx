@@ -12,6 +12,46 @@ const renderEditor = (value: string) =>
     <DescriptionBlockEditor onChange={() => undefined} value={value} />
   );
 
+test("renders a visible passed placeholder only for an empty text block", () => {
+  const placeholder = "Write the Norwegian article here…";
+  const emptyHtml = renderToStaticMarkup(
+    <DescriptionBlockEditor
+      onChange={() => undefined}
+      placeholder={placeholder}
+      value="<p></p><h2></h2><li></li>"
+    />
+  );
+  const populatedHtml = renderToStaticMarkup(
+    <DescriptionBlockEditor
+      onChange={() => undefined}
+      placeholder={placeholder}
+      value="<p>Published article text</p>"
+    />
+  );
+  const visiblePlaceholders =
+    emptyHtml.match(
+      /<span aria-hidden="true" style="[^"]*pointer-events:none[^"]*">[^<]+<\/span>/g
+    ) ?? [];
+  const paragraphPlaceholder = visiblePlaceholders.find((element) =>
+    element.endsWith(`>${placeholder}</span>`)
+  );
+  const headingPlaceholder = visiblePlaceholders.find((element) =>
+    element.endsWith(">Section heading…</span>")
+  );
+  const listPlaceholder = visiblePlaceholders.find((element) =>
+    element.endsWith(">A point, a perk, a detail…</span>")
+  );
+
+  expect(visiblePlaceholders).toHaveLength(3);
+  expect(paragraphPlaceholder).toContain("font-size:15.5px");
+  expect(paragraphPlaceholder).toContain("left:0");
+  expect(headingPlaceholder).toContain("font-size:26px");
+  expect(headingPlaceholder).toContain("left:0");
+  expect(listPlaceholder).toContain("font-size:15.5px");
+  expect(listPlaceholder).toContain("left:20px");
+  expect(populatedHtml).not.toContain(`>${placeholder}</span>`);
+});
+
 test("offers the shared inline media upload control", () => {
   const html = renderEditor("");
   expect(html).toContain(">Media</button>");

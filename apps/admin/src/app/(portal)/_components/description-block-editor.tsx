@@ -284,6 +284,16 @@ function DescriptionBlockRow({
       outline: "none",
     };
   })();
+  const placeholderStyle: React.CSSProperties = {
+    ...contentStyle,
+    color: "rgb(203 213 225)",
+    fontStyle: "italic",
+    left: block.type === "l" ? 20 : 0,
+    pointerEvents: "none",
+    position: "absolute",
+    right: 0,
+    top: 0,
+  };
 
   return (
     // biome-ignore lint/a11y/noNoninteractiveElementInteractions: drop target wraps semantic editable text
@@ -338,11 +348,15 @@ function DescriptionBlockRow({
             }}
           />
         )}
+        {block.text.length === 0 && (
+          <span aria-hidden style={placeholderStyle}>
+            {placeholder}
+          </span>
+        )}
         {/* biome-ignore lint/a11y/useSemanticElements: contentEditable maintains the document editing UX */}
         <div
           aria-label={placeholder}
           contentEditable
-          data-placeholder={placeholder}
           onInput={(event) => onChange(event.currentTarget.innerText)}
           onKeyDown={(event) => {
             if (event.key === "Enter" && !event.shiftKey) {
