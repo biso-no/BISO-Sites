@@ -837,12 +837,14 @@ function MediaBlockRow({
 export interface DescriptionBlockEditorProps {
   onChange: (value: string) => void;
   placeholder?: string;
+  uploadMedia?: (file: File) => Promise<InlineMediaUpload>;
   value: string;
 }
 
 export function DescriptionBlockEditor({
   onChange,
   placeholder,
+  uploadMedia = uploadInlineMedia,
   value,
 }: DescriptionBlockEditorProps) {
   const [blocks, setBlocks] = useState(() => htmlToDescriptionBlocks(value));
@@ -1028,7 +1030,7 @@ export function DescriptionBlockEditor({
 
     setIsUploadingMedia(true);
     try {
-      const uploaded = await uploadInlineMedia(file);
+      const uploaded = await uploadMedia(file);
       const currentBlocks = blocksRef.current;
       const nextBlocks = applyPendingMediaUpload(
         currentBlocks,
