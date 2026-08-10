@@ -1,12 +1,13 @@
 import { PlateContentRenderer } from "@repo/ui/components/plate-content-renderer";
 import Image from "next/image";
 import type { NewsFormValues } from "../../../_actions/schemas";
-import type { NewsLocale } from "./news-studio-state";
+import { formatNewsPreviewDate, type NewsLocale } from "./news-studio-state";
 
 interface NewsStudioPreviewProps {
   campusName: string;
   departmentName: string;
   locale: NewsLocale;
+  previewTimestamp: string;
   values: NewsFormValues;
 }
 
@@ -14,6 +15,7 @@ export function NewsStudioPreview({
   campusName,
   departmentName,
   locale,
+  previewTimestamp,
   values,
 }: NewsStudioPreviewProps) {
   const title = locale === "no" ? values.title_no : values.title_en;
@@ -47,7 +49,8 @@ export function NewsStudioPreview({
           {title || "Article headline"}
         </h2>
         <p className="text-slate-500 text-sm">
-          {values.author || "BISO"} · {new Date().toLocaleDateString()}
+          {values.author || "BISO"} ·{" "}
+          {formatNewsPreviewDate(previewTimestamp, locale)}
         </p>
         <PlateContentRenderer
           className="prose-sm text-slate-700"

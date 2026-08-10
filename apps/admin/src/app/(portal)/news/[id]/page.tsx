@@ -93,6 +93,7 @@ export default async function NewsEditorPage({ params }: Props) {
         saveError: t("saveError"),
         publishSuccess: t("publishSuccess"),
       }}
+      previewTimestamp={article?.$createdAt ?? new Date().toISOString()}
     />
   );
 }

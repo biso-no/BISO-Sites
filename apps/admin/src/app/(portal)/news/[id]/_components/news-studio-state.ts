@@ -3,6 +3,7 @@ import type {
   ContentTranslations,
   News,
 } from "@repo/api/types/appwrite";
+import { hasPlateTextContent } from "@/lib/plate-content";
 import type { NewsFormValues } from "../../../_actions/schemas";
 
 export type NewsLocale = "no" | "en";
@@ -55,6 +56,17 @@ export const getNewsArticleEditorState = (
   };
 };
 
+export const formatNewsPreviewDate = (
+  timestamp: string,
+  locale: NewsLocale
+): string =>
+  new Intl.DateTimeFormat(locale === "no" ? "nb-NO" : "en-GB", {
+    day: "2-digit",
+    month: "2-digit",
+    timeZone: "Europe/Oslo",
+    year: "numeric",
+  }).format(new Date(timestamp));
+
 export const getNewsStepCompletion = (
   values: NewsFormValues,
   locale: NewsLocale
@@ -66,7 +78,7 @@ export const getNewsStepCompletion = (
   );
   const description =
     locale === "no" ? values.description_no : values.description_en;
-  const hasArticleBody = Boolean(description?.trim());
+  const hasArticleBody = hasPlateTextContent(description);
   const hasCoverImage = Boolean(values.image);
 
   return [
@@ -127,6 +139,17 @@ export const getNewsSavedValues = (
   status: NewsFormValues["status"]
 ): NewsFormValues => ({ ...values, status });
 
+export const getNewsEditorInteractionProps = (
+  isNew: boolean,
+  pendingStatus: NewsFormValues["status"] | null
+): { "aria-busy": boolean; inert: boolean } => {
+  const locked = isNew && pendingStatus !== null;
+  return {
+    "aria-busy": locked,
+    inert: locked,
+  };
+};
+
 interface ReconcileNewsSavedStateOptions {
   currentValues: NewsFormValues;
   hasConcurrentEdits: boolean;
@@ -164,6 +187,7 @@ export const getNewsTranslationInputs = (
   ];
 
   return translations.filter(
-    (translation) => translation.title || translation.description
+    (translation) =>
+      translation.title || hasPlateTextContent(translation.description)
   );
 };

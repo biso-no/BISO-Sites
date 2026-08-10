@@ -3,6 +3,7 @@ import { type NewsFormValues, newsSchema } from "../../../_actions/schemas";
 import {
   createNewsStudioDefaults,
   getNewsArticleEditorState,
+  getNewsEditorInteractionProps,
   getNewsSavedValues,
   getNewsStepCompletion,
   getNewsTranslationInputs,
@@ -81,6 +82,23 @@ describe("news studio state", () => {
         description: "",
         locale: "no",
         title: "Bare norsk",
+      },
+    ]);
+  });
+
+  test("treats an empty editor document as an empty optional locale", () => {
+    const values = {
+      ...createValues(),
+      description_en: JSON.stringify([{ children: [{ text: "" }], type: "p" }]),
+      status: "published" as const,
+    };
+
+    expect(newsSchema.safeParse(values).success).toBeTrue();
+    expect(getNewsTranslationInputs(values)).toEqual([
+      {
+        description: "Norsk brødtekst",
+        locale: "no",
+        title: "Norsk tittel",
       },
     ]);
   });
@@ -180,6 +198,21 @@ describe("news studio state", () => {
     });
   });
 
+  test("locks the editing surface only while creating an article", () => {
+    expect(getNewsEditorInteractionProps(true, "draft")).toEqual({
+      "aria-busy": true,
+      inert: true,
+    });
+    expect(getNewsEditorInteractionProps(false, "draft")).toEqual({
+      "aria-busy": false,
+      inert: false,
+    });
+    expect(getNewsEditorInteractionProps(true, null)).toEqual({
+      "aria-busy": false,
+      inert: false,
+    });
+  });
+
   test("clears dirty state when no edits happened during save", () => {
     const submittedValues = createValues();
 
@@ -234,6 +267,22 @@ describe("news studio state", () => {
       true,
       false,
       true,
+      false,
+    ]);
+  });
+
+  test("does not complete the article step for an empty editor document", () => {
+    const values = {
+      ...createValues(),
+      description_no: JSON.stringify([
+        { children: [{ text: "  " }], type: "p" },
+      ]),
+    };
+
+    expect(getNewsStepCompletion(values, "no")).toEqual([
+      true,
+      false,
+      false,
       false,
     ]);
   });

@@ -13,6 +13,7 @@ import { NewsArticleStep } from "./news-article-step";
 import { NewsStudioPreview } from "./news-studio-preview";
 import {
   createNewsStudioDefaults,
+  getNewsEditorInteractionProps,
   getNewsSavedValues,
   getNewsStepCompletion,
   type NewsLocale,
@@ -49,6 +50,7 @@ interface NewsStudioEditorProps {
   initialDepartments: Departments[];
   isNew: boolean;
   labels: NewsStudioLabels;
+  previewTimestamp: string;
 }
 
 interface StepProps {
@@ -674,6 +676,7 @@ function NewsMobilePreview({
   locale,
   onToggle,
   open,
+  previewTimestamp,
   values,
 }: {
   campusName: string;
@@ -681,6 +684,7 @@ function NewsMobilePreview({
   locale: NewsLocale;
   onToggle: () => void;
   open: boolean;
+  previewTimestamp: string;
   values: NewsFormValues;
 }) {
   return (
@@ -703,6 +707,7 @@ function NewsMobilePreview({
             campusName={campusName}
             departmentName={departmentName}
             locale={locale}
+            previewTimestamp={previewTimestamp}
             values={values}
           />
         </div>
@@ -720,6 +725,7 @@ export function NewsStudioEditor({
   initialDepartments,
   isNew,
   labels,
+  previewTimestamp,
 }: NewsStudioEditorProps) {
   const router = useRouter();
   const departmentRequestSequence = useRef(0);
@@ -753,6 +759,10 @@ export function NewsStudioEditor({
       (department) => department.$id === values.department_id
     )?.Name ?? "All departments";
   const completedSteps = getNewsStepCompletion(values, locale);
+  const editorInteractionProps = getNewsEditorInteractionProps(
+    isNew,
+    pendingStatus
+  );
 
   const setValue = <Key extends keyof NewsFormValues>(
     key: Key,
@@ -838,7 +848,10 @@ export function NewsStudioEditor({
           onStepChange={setStep}
           step={step}
         />
-        <main className="grid min-h-0 flex-1 lg:grid-cols-[minmax(0,1fr)_minmax(360px,460px)]">
+        <main
+          {...editorInteractionProps}
+          className="grid min-h-0 flex-1 lg:grid-cols-[minmax(0,1fr)_minmax(360px,460px)]"
+        >
           <section className="min-h-0 overflow-y-auto px-4 py-8 md:px-8">
             <div className="mx-auto max-w-3xl">
               <div className="mb-7 flex items-center gap-3 text-slate-500 text-xs">
@@ -856,6 +869,7 @@ export function NewsStudioEditor({
                 locale={locale}
                 onToggle={() => setMobilePreviewOpen((current) => !current)}
                 open={mobilePreviewOpen}
+                previewTimestamp={previewTimestamp}
                 values={values}
               />
               {step === 0 && (
@@ -910,6 +924,7 @@ export function NewsStudioEditor({
                 campusName={campusName}
                 departmentName={departmentName}
                 locale={locale}
+                previewTimestamp={previewTimestamp}
                 values={values}
               />
             </div>
