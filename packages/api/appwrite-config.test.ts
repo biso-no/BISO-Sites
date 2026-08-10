@@ -23,6 +23,32 @@ const BROAD_CREATE_PERMISSIONS = new Set(['create("any")', 'create("users")']);
 
 const MAX_BUCKET_FILE_SIZE_BYTES = 100_000_000;
 
+const REQUIRED_MEDIA_EXTENSIONS = [
+  "jpg",
+  "jpeg",
+  "png",
+  "gif",
+  "webp",
+  "svg",
+  "mp4",
+  "webm",
+  "mov",
+  "mp3",
+  "wav",
+  "ogg",
+  "m4a",
+  "pdf",
+  "txt",
+  "csv",
+  "zip",
+  "doc",
+  "docx",
+  "xls",
+  "xlsx",
+  "ppt",
+  "pptx",
+] as const;
+
 function loadConfig(): AppwriteConfig {
   return JSON.parse(
     readFileSync(join(import.meta.dirname, "appwrite.config.json"), "utf8")
@@ -67,6 +93,18 @@ describe("appwrite bucket permissions", () => {
       );
       expect(bucket?.maximumFileSize, bucketId).toBeLessThan(
         MAX_BUCKET_FILE_SIZE_BYTES
+      );
+    }
+  });
+
+  test("media bucket supports every approved publishing extension", () => {
+    const config = loadConfig();
+    const mediaBucket = config.buckets.find((bucket) => bucket.$id === "media");
+
+    expect(mediaBucket).toBeDefined();
+    for (const extension of REQUIRED_MEDIA_EXTENSIONS) {
+      expect(mediaBucket?.allowedFileExtensions, extension).toContain(
+        extension
       );
     }
   });

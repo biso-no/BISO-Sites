@@ -12,19 +12,39 @@ export interface InlineMediaUpload {
 }
 
 const EXTENSION_MEDIA_TYPES: Readonly<
-  Record<string, { mediaKind: InlineMediaKind; mimeTypes: readonly string[] }>
+  Record<string, Readonly<Record<string, InlineMediaKind>>>
 > = {
-  gif: { mediaKind: "image", mimeTypes: ["image/gif"] },
-  jpeg: { mediaKind: "image", mimeTypes: ["image/jpeg"] },
-  jpg: { mediaKind: "image", mimeTypes: ["image/jpeg"] },
-  mp3: { mediaKind: "audio", mimeTypes: ["audio/mpeg"] },
-  mp4: { mediaKind: "video", mimeTypes: ["video/mp4"] },
-  ogg: { mediaKind: "audio", mimeTypes: ["audio/ogg"] },
-  pdf: { mediaKind: "file", mimeTypes: ["application/pdf"] },
-  png: { mediaKind: "image", mimeTypes: ["image/png"] },
-  wav: { mediaKind: "audio", mimeTypes: ["audio/wav"] },
-  webm: { mediaKind: "video", mimeTypes: ["video/webm"] },
-  webp: { mediaKind: "image", mimeTypes: ["image/webp"] },
+  csv: { "text/csv": "file" },
+  doc: { "application/msword": "file" },
+  docx: {
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+      "file",
+  },
+  gif: { "image/gif": "image" },
+  jpeg: { "image/jpeg": "image" },
+  jpg: { "image/jpeg": "image" },
+  m4a: { "audio/mp4": "audio", "audio/x-m4a": "audio" },
+  mov: { "video/quicktime": "video" },
+  mp3: { "audio/mpeg": "audio" },
+  mp4: { "video/mp4": "video" },
+  ogg: { "audio/ogg": "audio" },
+  pdf: { "application/pdf": "file" },
+  png: { "image/png": "image" },
+  ppt: { "application/vnd.ms-powerpoint": "file" },
+  pptx: {
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation":
+      "file",
+  },
+  svg: { "image/svg+xml": "image" },
+  txt: { "text/plain": "file" },
+  wav: { "audio/wav": "audio" },
+  webm: { "audio/webm": "audio", "video/webm": "video" },
+  webp: { "image/webp": "image" },
+  xls: { "application/vnd.ms-excel": "file" },
+  xlsx: {
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "file",
+  },
+  zip: { "application/zip": "file" },
 };
 
 const FILENAME_REGEX = /[^a-z0-9._-]/gi;
@@ -39,13 +59,8 @@ export function classifyInlineMedia(
     return null;
   }
 
-  const mediaType = EXTENSION_MEDIA_TYPES[extension];
   const normalizedMimeType = mimeType.trim().toLowerCase();
-  if (!mediaType?.mimeTypes.includes(normalizedMimeType)) {
-    return null;
-  }
-
-  return mediaType.mediaKind;
+  return EXTENSION_MEDIA_TYPES[extension]?.[normalizedMimeType] ?? null;
 }
 
 export function sanitizeInlineMediaFilename(fileName: string): string {

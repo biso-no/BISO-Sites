@@ -12,21 +12,61 @@ test.each([
   ["photo.png", "image/png", "image"],
   ["photo.gif", "image/gif", "image"],
   ["photo.webp", "image/webp", "image"],
+  ["vector.svg", "image/svg+xml", "image"],
   ["clip.mp4", "video/mp4", "video"],
   ["clip.webm", "video/webm", "video"],
+  ["clip.mov", "video/quicktime", "video"],
   ["voice.mp3", "audio/mpeg", "audio"],
   ["voice.wav", "audio/wav", "audio"],
   ["voice.ogg", "audio/ogg", "audio"],
+  ["voice.m4a", "audio/mp4", "audio"],
+  ["voice.m4a", "audio/x-m4a", "audio"],
+  ["voice.webm", "audio/webm", "audio"],
   ["guide.pdf", "application/pdf", "file"],
+  ["notes.txt", "text/plain", "file"],
+  ["data.csv", "text/csv", "file"],
+  ["archive.zip", "application/zip", "file"],
+  ["letter.doc", "application/msword", "file"],
+  [
+    "letter.docx",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "file",
+  ],
+  ["budget.xls", "application/vnd.ms-excel", "file"],
+  [
+    "budget.xlsx",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "file",
+  ],
+  ["slides.ppt", "application/vnd.ms-powerpoint", "file"],
+  [
+    "slides.pptx",
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    "file",
+  ],
 ] as const)("classifies %s", (filename, mimeType, expected) => {
   expect(classifyInlineMedia(filename, mimeType)).toBe(expected);
 });
 
 test("rejects active and mismatched content", () => {
   expect(classifyInlineMedia("page.html", "text/html")).toBeNull();
-  expect(classifyInlineMedia("vector.svg", "image/svg+xml")).toBeNull();
+  expect(classifyInlineMedia("script.js", "application/javascript")).toBeNull();
+  expect(
+    classifyInlineMedia("installer.exe", "application/x-msdownload")
+  ).toBeNull();
   expect(classifyInlineMedia("photo.jpg", "application/javascript")).toBeNull();
-  expect(classifyInlineMedia("clip.mp4", "audio/mpeg")).toBeNull();
+  expect(classifyInlineMedia("vector.svg", "text/html")).toBeNull();
+  expect(classifyInlineMedia("clip.mov", "video/mp4")).toBeNull();
+  expect(classifyInlineMedia("voice.m4a", "audio/mpeg")).toBeNull();
+  expect(classifyInlineMedia("voice.webm", "video/mp4")).toBeNull();
+  expect(classifyInlineMedia("notes.txt", "text/html")).toBeNull();
+  expect(classifyInlineMedia("letter.docx", "application/msword")).toBeNull();
+  expect(
+    classifyInlineMedia(
+      "letter.docm",
+      "application/vnd.ms-word.document.macroenabled.12"
+    )
+  ).toBeNull();
 });
 
 test("classifies case-insensitive extensions and MIME tokens", () => {
