@@ -117,6 +117,39 @@ describe("page builder", () => {
     );
   });
 
+  it("persists canonical ownership relations with their scalar compatibility twins", async () => {
+    db.upsertRow
+      .mockResolvedValueOnce({ $id: "page-1" })
+      .mockResolvedValueOnce({ $id: "tr-no" });
+    db.listRows
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    await savePageDraft({ id: null, doc, locale: "no", ctx });
+
+    expect(db.upsertRow).toHaveBeenNthCalledWith(
+      1,
+      "app",
+      "pages",
+      expect.any(String),
+      expect.objectContaining({
+        campus: "os",
+        campus_id: "os",
+        department: "dept-1",
+        department_id: "dept-1",
+      }),
+      expect.any(Array)
+    );
+    expect(db.upsertRow).toHaveBeenNthCalledWith(
+      2,
+      "app",
+      "page_translations",
+      expect.any(String),
+      expect.objectContaining({ page: "page-1", page_id: "page-1" }),
+      expect.any(Array)
+    );
+  });
+
   it("increments the slug when a new autosaved page uses an existing slug", async () => {
     db.upsertRow
       .mockResolvedValueOnce({ $id: "page-2" })

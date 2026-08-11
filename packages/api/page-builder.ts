@@ -156,7 +156,11 @@ export interface PageAuthCtx {
   userId: string;
 }
 
-function resolveCampusId(ctx: PageAuthCtx): string | null {
+/**
+ * The campus a page save will be attributed to for this author. Exported so
+ * the admin action can authorize the requested scope before persisting.
+ */
+export function resolvePageCampusId(ctx: PageAuthCtx): string | null {
   if (ctx.roles.includes("globaladmin")) {
     return ctx.activeCampusId ?? null;
   }
@@ -167,6 +171,13 @@ function resolveCampusId(ctx: PageAuthCtx): string | null {
     return ctx.resolvedCampusIds[0];
   }
   return null;
+}
+
+/** Normalize an Appwrite relationship value (row object or ID) to its ID. */
+function relatedId(
+  value: string | { $id: string } | null | undefined
+): string | null {
+  return typeof value === "string" ? value : (value?.$id ?? null);
 }
 
 export function pageDocToJson(doc: PageDoc): string {
@@ -265,8 +276,10 @@ function toEditorLoadResult(row: Pages): PageEditorLoadResult {
       slug: row.slug ?? "untitled",
       status: row.status,
       visibility: row.visibility,
-      departmentId: row.department_id ?? "",
-      campusId: row.campus_id,
+      // Relationship ownership is canonical; scalar columns remain as
+      // migration-era compatibility metadata for pre-backfill rows.
+      departmentId: relatedId(row.department) ?? row.department_id ?? "",
+      campusId: relatedId(row.campus) ?? row.campus_id,
     },
     translations,
     availableLocales: [...PAGE_LOCALES],
@@ -345,13 +358,14 @@ export async function getPage(
 
 export async function getPageById(
   id: string,
-  locale: PageEditorLocale = "no"
+  locale: PageEditorLocale = "no",
+  dbOverride?: PageDatabase
 ): Promise<{
   row: Pages;
   translation: PageTranslations | null;
   doc: PageDoc | null;
 } | null> {
-  const result = await getPageEditorById(id);
+  const result = await getPageEditorById(id, dbOverride);
   if (!result) {
     return null;
   }
@@ -396,7 +410,7 @@ export async function getPageEditorById(
 
   const res = await db.listRows<Pages>("app", "pages", [
     Query.equal("$id", id),
-    Query.select(["*", "translation_refs.*"]),
+    Query.select(["*", "translation_refs.*", "campus.$id", "department.$id"]),
     Query.limit(1),
   ]);
 
@@ -418,8 +432,10 @@ export async function savePageDraft({
   locale?: PageEditorLocale;
   ctx: PageAuthCtx;
 }): Promise<{ pageId: string; slug: string; translationId: string }> {
-  const { db } = await createSessionClient();
-  const campusId = resolveCampusId(ctx);
+  // PRIVILEGED: callers must authorize the requested scope before invoking
+  // this helper; the write goes through the service-key admin client.
+  const { db } = await createAdminClient();
+  const campusId = resolvePageCampusId(ctx);
   let normalizedDoc = normalizeDocForSave(doc);
 
   if (!id) {
@@ -446,7 +462,7 @@ export async function savePageDraft({
     deptTeam: teams.deptTeam,
   });
 
-  const page = await db.upsertRow<Pages>(
+  const page = await db.upsertRow(
     "app",
     "pages",
     id ?? ID.unique(),
@@ -454,8 +470,12 @@ export async function savePageDraft({
       slug: normalizedDoc.meta.slug,
       status: pageStatus,
       visibility,
-      department_id: departmentId,
+      // Canonical ownership relationships; the scalar columns remain as
+      // migration-era compatibility metadata only.
+      campus: campusId,
       campus_id: campusId,
+      department: departmentId,
+      department_id: departmentId,
     },
     pagePermissions
   );

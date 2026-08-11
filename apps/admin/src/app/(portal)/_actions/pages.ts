@@ -10,12 +10,18 @@ import {
   publishPage as pbPublishPage,
   savePageTranslationDraft as pbSavePageTranslationDraft,
   unpublishPage as pbUnpublishPage,
+  resolvePageCampusId,
   savePageDraft,
 } from "@repo/api/page-builder";
 import { createAdminClient, createSessionClient } from "@repo/api/server";
 import type { Pages, PageViewEvents } from "@repo/api/types/appwrite";
 import { revalidatePath } from "next/cache";
 import { requireAuth, type UserAuthContext } from "@/lib/authorization";
+import {
+  applyContentRelationshipScopeQueries,
+  assertContentOwnership,
+  getContentOwnership,
+} from "@/lib/content-authorization";
 import {
   type AutoTranslationOptions,
   getTargetLocale,
@@ -34,12 +40,15 @@ import {
   applyScopeQueries,
   assertPublishAccess,
   assertWriteAccess,
+  hasRowAccess,
 } from "@/lib/utils/authorization";
 import { logAuditEvent } from "./audit-log";
 
 export async function listPages(opts?: { status?: string; campusId?: string }) {
   const ctx = await requireAuth();
-  const { db } = await createSessionClient();
+  // Private admin read: the service client bypasses row security, so the
+  // relationship scope filters below are the authorization boundary.
+  const { db } = await createAdminClient();
 
   const queries: string[] = [
     Query.select(["*", "translation_refs.*"]),
@@ -54,7 +63,7 @@ export async function listPages(opts?: { status?: string; campusId?: string }) {
   // Single source of truth for campus/department scoping: campus admins see
   // their managed campuses, department users see their department(s), and
   // global admins see everything (or their active-campus filter if set).
-  queries.push(...applyScopeQueries(ctx));
+  queries.push(...applyContentRelationshipScopeQueries(ctx));
 
   const response = await db.listRows<Pages>("app", "pages", queries);
   return response.rows;
@@ -149,13 +158,33 @@ async function _getPageViewStats(days = 14): Promise<PageViewDay[]> {
 }
 
 export async function getPageById(id: string, locale: "no" | "en" = "no") {
-  await requireAuth();
-  return pbGetPageById(id, locale);
+  const ctx = await requireAuth();
+  const { db } = await createAdminClient();
+  const result = await pbGetPageById(id, locale, db);
+  if (!result) {
+    return null;
+  }
+  // Treat a row outside the caller's campus/department scope as not found.
+  const ownership = getContentOwnership(result.row, { legacyFallback: true });
+  if (!hasRowAccess(ctx, ownership.campus, ownership.department)) {
+    return null;
+  }
+  return result;
 }
 
 export async function getPageEditorById(id: string) {
-  await requireAuth();
-  return pbGetPageEditorById(id);
+  const ctx = await requireAuth();
+  const { db } = await createAdminClient();
+  const result = await pbGetPageEditorById(id, db);
+  if (!result) {
+    return null;
+  }
+  if (
+    !hasRowAccess(ctx, result.page.campusId, result.page.departmentId || null)
+  ) {
+    return null;
+  }
+  return result;
 }
 
 export async function getPageEditorLocales(): Promise<PageEditorLocale[]> {
@@ -201,6 +230,22 @@ export async function savePageEditorDoc({
   const ctx = await requireAuth();
   try {
     const scopedDoc = ensureDepartmentForScoping(doc, ctx);
+    // savePageDraft persists through the admin client, so authorization must
+    // happen here: the persisted scope for updates, and the requested scope
+    // (author-derived campus + submitted department) for every save. Pages
+    // already support national scope, so a global admin may keep a null
+    // campus.
+    const { db } = await createAdminClient();
+    if (id) {
+      const existing = await db.getRow<Pages>("app", "pages", id);
+      const persisted = getContentOwnership(existing, { legacyFallback: true });
+      assertWriteAccess(ctx, persisted.campus, persisted.department);
+    }
+    await assertContentOwnership(db, ctx, {
+      allowGlobalCampus: true,
+      campusId: resolvePageCampusId(ctx),
+      departmentId: scopedDoc.meta.department || null,
+    });
     const { pageId, slug } = await savePageDraft({
       id,
       doc: scopedDoc,
@@ -235,10 +280,11 @@ export async function publishPageAction(
     // and the publish write use the admin client so an authorized campus
     // approver — who is not on the page rows' write ACL — isn't blocked by RLS.
     const { db } = await createAdminClient();
-    // Publishing is gated by campus/global admin — a department user with
-    // row-level write on the draft must not be able to push a page live.
+    // Publishing follows the general write scope: department members may
+    // publish their own department's pages, campus/global admins their scope.
     const page = await db.getRow<Pages>("app", "pages", id);
-    assertPublishAccess(ctx, page.campus_id);
+    const ownership = getContentOwnership(page, { legacyFallback: true });
+    assertPublishAccess(ctx, ownership.campus, ownership.department);
 
     if (
       translationOptions?.enabled &&
@@ -362,10 +408,11 @@ export async function unpublishPageAction(
     // by role below, and the write must not be blocked by RLS for a campus
     // approver who is not on the page rows' write ACL.
     const { db } = await createAdminClient();
-    // Unpublishing (removing from the public site) is a publish-gated action,
-    // same as publishing — restrict it to campus/global admins.
+    // Unpublishing (removing from the public site) is publish-gated the same
+    // way as publishing: general write scope over the page's ownership.
     const page = await db.getRow<Pages>("app", "pages", id);
-    assertPublishAccess(ctx, page.campus_id);
+    const ownership = getContentOwnership(page, { legacyFallback: true });
+    assertPublishAccess(ctx, ownership.campus, ownership.department);
 
     await pbUnpublishPage({ id, locale });
     await logAuditEvent(ctx, "page_unpublished", {
@@ -390,7 +437,8 @@ export async function deletePageAction(id: string) {
     // Archiving is a write, not a publish — gate it like deleteEvent/deleteNews
     // so a user can only archive pages within their campus/department scope.
     const page = await db.getRow<Pages>("app", "pages", id);
-    assertWriteAccess(ctx, page.campus_id, page.department_id);
+    const ownership = getContentOwnership(page, { legacyFallback: true });
+    assertWriteAccess(ctx, ownership.campus, ownership.department);
 
     await db.updateRow("app", "pages", id, { status: "archived" });
     await logAuditEvent(ctx, "page_deleted", {

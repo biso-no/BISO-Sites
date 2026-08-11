@@ -69,6 +69,7 @@ mock.module("@repo/api/page-builder", () => ({
   getPageById: mock(async () => null),
   getPageEditorById: getPageEditorByIdSpy,
   publishPage: publishPageSpy,
+  resolvePageCampusId: mock(() => "campus-oslo"),
   savePageDraft: mock(async () => ({
     pageId: "page-1",
     slug: "page",
@@ -94,6 +95,7 @@ mock.module("@/lib/utils/authorization", () => ({
   applyScopeQueries: mock(() => []),
   assertPublishAccess: mock(() => undefined),
   assertWriteAccess: mock(() => undefined),
+  hasRowAccess: mock(() => true),
 }));
 mock.module("@/lib/page-document-translation", () => ({
   getPageTranslationSource: (document: PageDoc) => ({
