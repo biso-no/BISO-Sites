@@ -1,7 +1,7 @@
 "use server";
 
 import { Query } from "@repo/api";
-import { createSessionClient } from "@repo/api/server";
+import { createAdminClient, createSessionClient } from "@repo/api/server";
 import type {
   ContentTranslations,
   Orders,
@@ -10,6 +10,17 @@ import type {
 } from "@repo/api/types/appwrite";
 import { revalidatePath } from "next/cache";
 import { requireAuth } from "@/lib/authorization";
+import {
+  type AutoTranslationOptions,
+  type ContentLocale,
+  getTargetLocale,
+  isCurrentTranslationSource,
+} from "@/lib/content-translation";
+import {
+  parseAutoTranslationOptions,
+  scheduleContentTranslation,
+  translateContentFields,
+} from "@/lib/content-translation.server";
 import { loadRecruitmentLookups } from "@/lib/recruitment";
 import {
   buildContentRowPermissions,
@@ -34,6 +45,195 @@ interface TranslationData {
   title: string;
 }
 
+interface ProductTranslationDraft {
+  description: string;
+  name: string;
+}
+
+type GenerateProductTranslationDraftInput = ProductTranslationDraft & {
+  campusId: string;
+  departmentId?: string | null;
+  sourceLocale: ContentLocale;
+};
+
+interface ScheduleProductTranslationInput {
+  autoTranslation?: AutoTranslationOptions;
+  permissions: string[];
+  productId: string;
+  values: ProductFormValues;
+}
+
+const getProductTranslationSource = (
+  values: ProductFormValues,
+  locale: ContentLocale
+): ProductTranslationDraft =>
+  locale === "no"
+    ? {
+        description: values.description?.trim() ?? "",
+        name: values.name.trim(),
+      }
+    : {
+        description: values.description_en?.trim() ?? "",
+        name: values.name_en?.trim() ?? "",
+      };
+
+const hasProductTranslationContent = (
+  translation: ProductTranslationDraft
+): boolean => Boolean(translation.name || translation.description);
+
+const translateProductDraft = async (
+  sourceLocale: ContentLocale,
+  source: ProductTranslationDraft
+): Promise<ProductTranslationDraft> => {
+  const translated = await translateContentFields({
+    contentType: "shop product",
+    fields: [
+      { format: "plain", key: "name", value: source.name },
+      {
+        format: "html",
+        key: "description",
+        value: source.description,
+      },
+    ],
+    sourceLocale,
+    targetLocale: getTargetLocale(sourceLocale),
+  });
+  return {
+    description: translated.description ?? "",
+    name: translated.name ?? "",
+  };
+};
+
+const scheduleProductTranslation = ({
+  autoTranslation,
+  permissions,
+  productId,
+  values,
+}: ScheduleProductTranslationInput): boolean => {
+  const sourceLocale = autoTranslation?.sourceLocale;
+  const source = sourceLocale
+    ? getProductTranslationSource(values, sourceLocale)
+    : undefined;
+
+  return scheduleContentTranslation({
+    enabled: Boolean(autoTranslation?.enabled && source?.name.trim()),
+    task: async () => {
+      if (!(source && sourceLocale)) {
+        return;
+      }
+      const translated = await translateProductDraft(sourceLocale, source);
+      const { db } = await createAdminClient();
+      const currentProduct = await db.getRow<WebshopProducts>(
+        "app",
+        "webshop_products",
+        productId
+      );
+      if (
+        !isCurrentTranslationSource(
+          {
+            campusId: values.campus_id,
+            departmentId: values.department_id ?? null,
+            memberOnly: values.member_only,
+            status: values.status,
+          },
+          {
+            campusId: currentProduct.campus_id,
+            departmentId: currentProduct.departmentId ?? null,
+            memberOnly: currentProduct.member_only,
+            status: currentProduct.status,
+          }
+        )
+      ) {
+        return;
+      }
+      const currentTranslations = await db.listRows<ContentTranslations>(
+        "app",
+        "content_translations",
+        [
+          Query.equal("content_type", "product"),
+          Query.equal("content_id", productId),
+          Query.limit(5),
+        ]
+      );
+      const currentSource = currentTranslations.rows.find(
+        (translation) => translation.locale === sourceLocale
+      );
+      if (
+        !(
+          currentSource &&
+          isCurrentTranslationSource(
+            { description: source.description, name: source.name },
+            {
+              description: currentSource.description ?? "",
+              name: currentSource.title ?? "",
+            }
+          )
+        )
+      ) {
+        return;
+      }
+
+      const targetLocale = getTargetLocale(sourceLocale);
+      const currentTarget = currentTranslations.rows.find(
+        (translation) => translation.locale === targetLocale
+      );
+      const translatedFields = {
+        description: translated.description,
+        title: translated.name,
+      };
+      if (currentTarget) {
+        await db.updateRow(
+          "app",
+          "content_translations",
+          currentTarget.$id,
+          translatedFields,
+          permissions
+        );
+        return;
+      }
+      await db.createRow(
+        "app",
+        "content_translations",
+        "unique()",
+        {
+          ...translatedFields,
+          content_id: productId,
+          content_type: "product",
+          locale: targetLocale,
+          short_description: null,
+        },
+        permissions
+      );
+    },
+  });
+};
+
+export async function generateProductTranslationDraft(
+  input: GenerateProductTranslationDraftInput
+) {
+  const ctx = await requireAuth();
+  if (input.sourceLocale !== "no" && input.sourceLocale !== "en") {
+    return { error: "Unsupported source locale" };
+  }
+  const source = {
+    description: input.description ?? "",
+    name: input.name ?? "",
+  };
+  if (!hasProductTranslationContent(source)) {
+    return { error: "Add source content before translating" };
+  }
+
+  try {
+    assertWriteAccess(ctx, input.campusId, input.departmentId ?? null);
+    return { data: await translateProductDraft(input.sourceLocale, source) };
+  } catch (error) {
+    return {
+      error:
+        error instanceof Error ? error.message : "Failed to translate product",
+    };
+  }
+}
+
 async function upsertTranslation(
   db: Awaited<ReturnType<typeof createSessionClient>>["db"],
   existing: ContentTranslations | undefined,
@@ -54,6 +254,41 @@ async function upsertTranslation(
       "content_translations",
       "unique()",
       data,
+      permissions
+    );
+  }
+}
+
+async function syncNorwegianProductTranslation(
+  db: Awaited<ReturnType<typeof createSessionClient>>["db"],
+  existing: ContentTranslations | undefined,
+  productId: string,
+  values: ProductFormValues,
+  permissions: string[]
+): Promise<void> {
+  const translation = getProductTranslationSource(values, "no");
+  if (hasProductTranslationContent(translation)) {
+    await upsertTranslation(
+      db,
+      existing,
+      {
+        content_id: productId,
+        content_type: "product",
+        description: translation.description,
+        locale: "no",
+        short_description: values.short_description ?? null,
+        title: translation.name,
+      },
+      permissions
+    );
+    return;
+  }
+  if (existing) {
+    await db.updateRow(
+      "app",
+      "content_translations",
+      existing.$id,
+      {},
       permissions
     );
   }
@@ -165,7 +400,10 @@ export async function getProduct(id: string) {
   return { ...product, translation_refs: translationsResponse.rows };
 }
 
-export async function createProduct(values: ProductFormValues) {
+export async function createProduct(
+  values: ProductFormValues,
+  autoTranslation?: AutoTranslationOptions
+) {
   const ctx = await requireAuth();
   const validated = productSchema.safeParse(values);
   if (!validated.success) {
@@ -173,12 +411,16 @@ export async function createProduct(values: ProductFormValues) {
   }
 
   try {
+    const translationOptions = parseAutoTranslationOptions(autoTranslation);
     assertWriteAccess(ctx, validated.data.campus_id);
+    if (validated.data.status === "published") {
+      assertPublishAccess(ctx, validated.data.campus_id);
+    }
 
     const { db } = await createSessionClient();
 
     const lookups = await loadRecruitmentLookups(db);
-    const status = "draft";
+    const status = validated.data.status;
     const audience = validated.data.member_only ? "members" : "public";
     const { campusTeam, deptTeam } = deriveContentRowTeams(lookups, {
       campus_id: validated.data.campus_id,
@@ -208,20 +450,26 @@ export async function createProduct(values: ProductFormValues) {
       rowPermissions
     );
 
-    await db.createRow(
-      "app",
-      "content_translations",
-      "unique()",
-      {
-        content_id: product.$id,
-        content_type: "product",
-        locale: "no",
-        title: validated.data.name,
-        description: validated.data.description ?? "",
-        short_description: validated.data.short_description ?? null,
-      },
-      translationPermissions
+    const norwegianTranslation = getProductTranslationSource(
+      validated.data,
+      "no"
     );
+    if (hasProductTranslationContent(norwegianTranslation)) {
+      await db.createRow(
+        "app",
+        "content_translations",
+        "unique()",
+        {
+          content_id: product.$id,
+          content_type: "product",
+          locale: "no",
+          title: norwegianTranslation.name,
+          description: norwegianTranslation.description,
+          short_description: validated.data.short_description ?? null,
+        },
+        translationPermissions
+      );
+    }
 
     if (validated.data.name_en || validated.data.description_en) {
       await db.createRow(
@@ -245,8 +493,16 @@ export async function createProduct(values: ProductFormValues) {
       resourceId: product.$id,
       resourceType: "product",
     });
+    const translationQueued = scheduleProductTranslation({
+      autoTranslation: translationOptions,
+      permissions: translationPermissions,
+      productId: product.$id,
+      values: validated.data,
+    });
     revalidatePath("/shop");
-    return { data: product.$id };
+    return translationQueued
+      ? { data: product.$id, translationQueued: true as const }
+      : { data: product.$id };
   } catch (error) {
     return {
       error: error instanceof Error ? error.message : "Failed to save product",
@@ -254,7 +510,11 @@ export async function createProduct(values: ProductFormValues) {
   }
 }
 
-export async function updateProduct(id: string, values: ProductFormValues) {
+export async function updateProduct(
+  id: string,
+  values: ProductFormValues,
+  autoTranslation?: AutoTranslationOptions
+) {
   const ctx = await requireAuth();
   const validated = productSchema.safeParse(values);
   if (!validated.success) {
@@ -274,6 +534,7 @@ export async function updateProduct(id: string, values: ProductFormValues) {
   }
 
   try {
+    const translationOptions = parseAutoTranslationOptions(autoTranslation);
     assertWriteAccess(ctx, product.campus_id, product.departmentId);
     assertWriteAccess(
       ctx,
@@ -335,17 +596,11 @@ export async function updateProduct(id: string, values: ProductFormValues) {
       (t) => t.locale === "en"
     );
 
-    await upsertTranslation(
+    await syncNorwegianProductTranslation(
       db,
       noTranslation,
-      {
-        content_id: id,
-        content_type: "product",
-        locale: "no",
-        title: validated.data.name,
-        description: validated.data.description ?? "",
-        short_description: validated.data.short_description ?? null,
-      },
+      id,
+      validated.data,
       translationPermissions
     );
 
@@ -381,9 +636,17 @@ export async function updateProduct(id: string, values: ProductFormValues) {
       resourceType: "product",
       payload: { status: validated.data.status },
     });
+    const translationQueued = scheduleProductTranslation({
+      autoTranslation: translationOptions,
+      permissions: translationPermissions,
+      productId: id,
+      values: validated.data,
+    });
     revalidatePath("/shop");
     revalidatePath(`/shop/${id}`);
-    return { data: id };
+    return translationQueued
+      ? { data: id, translationQueued: true as const }
+      : { data: id };
   } catch (error) {
     return {
       error: error instanceof Error ? error.message : "Failed to save product",

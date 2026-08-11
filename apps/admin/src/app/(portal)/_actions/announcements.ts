@@ -1,14 +1,23 @@
 "use server";
 
-import { openai } from "@ai-sdk/openai";
 import { ID, Query } from "@repo/api";
 import { createAdminClient } from "@repo/api/server";
 import type { Announcements } from "@repo/api/types/appwrite";
-import { generateObject } from "ai";
 import { revalidatePath } from "next/cache";
-import { z } from "zod";
 import { buildDeepLink, dispatchAnnouncement } from "@/lib/announcements/send";
 import { requireAuth } from "@/lib/authorization";
+import {
+  type AutoTranslationOptions,
+  type ContentLocale,
+  getTargetLocale,
+  isCurrentTranslationSource,
+} from "@/lib/content-translation";
+import {
+  contentLocaleSchema,
+  parseAutoTranslationOptions,
+  scheduleContentTranslation,
+  translateContentFields,
+} from "@/lib/content-translation.server";
 import {
   applyScopeQueries,
   assertPublishAccess,
@@ -23,20 +32,280 @@ import {
 } from "./schemas";
 
 const EMAIL_PATTERN = /@/;
+const TRANSLATION_PENDING_KEY = "translation_pending";
 
-const announcementTranslationDraftSchema = z.object({
-  title_en: z.string().trim().min(1),
-  body_en: z.string().trim().optional().default(""),
+interface AnnouncementTranslationSnapshot {
+  body: string;
+  title: string;
+}
+
+interface AnnouncementDeliverySnapshot {
+  audienceType: string;
+  audienceValue: string | null;
+  campusId: string | null;
+  category: string;
+  deepLink: string | null;
+  eventId: string | null;
+  push: boolean;
+  scheduledAt: string | null;
+  status: string;
+}
+
+interface AnnouncementDeliveryClaim {
+  snapshot: AnnouncementDeliverySnapshot;
+  token: string;
+}
+
+type AnnouncementTranslationDraftInput = AnnouncementTranslationSnapshot & {
+  campusId: string | null;
+  sourceLocale: ContentLocale;
+};
+
+type AnnouncementAdminClient = Awaited<ReturnType<typeof createAdminClient>>;
+
+type AnnouncementMutationResult =
+  | {
+      data: string;
+      error?: undefined;
+      translationQueued?: true;
+    }
+  | {
+      data?: undefined;
+      error: string | Record<string, string[] | undefined>;
+      translationQueued?: undefined;
+    };
+
+type SendAnnouncementResult =
+  | {
+      data: {
+        recipients?: number;
+        status: "queued" | "scheduled" | "sent";
+      };
+      error?: undefined;
+      translationQueued?: true;
+    }
+  | {
+      data?: undefined;
+      error: string;
+      translationQueued?: undefined;
+    };
+
+const getAnnouncementTranslationSnapshot = (
+  announcement: Pick<
+    Announcements,
+    "body_en" | "body_no" | "title_en" | "title_no"
+  >,
+  sourceLocale: ContentLocale
+): AnnouncementTranslationSnapshot =>
+  sourceLocale === "no"
+    ? {
+        body: announcement.body_no ?? "",
+        title: announcement.title_no ?? "",
+      }
+    : {
+        body: announcement.body_en ?? "",
+        title: announcement.title_en,
+      };
+
+const getAnnouncementValuesTranslationSnapshot = (
+  values: AnnouncementFormValues,
+  sourceLocale: ContentLocale
+): AnnouncementTranslationSnapshot =>
+  sourceLocale === "no"
+    ? { body: values.body_no ?? "", title: values.title_no ?? "" }
+    : { body: values.body_en ?? "", title: values.title_en };
+
+const translateAnnouncementSnapshot = async (
+  source: AnnouncementTranslationSnapshot,
+  sourceLocale: ContentLocale
+): Promise<AnnouncementTranslationSnapshot> => {
+  const translated = await translateContentFields({
+    contentType: "announcement",
+    fields: [
+      { format: "plain", key: "title", value: source.title },
+      { format: "html", key: "body", value: source.body },
+    ],
+    sourceLocale,
+    targetLocale: getTargetLocale(sourceLocale),
+  });
+  return {
+    body: translated.body ?? "",
+    title: translated.title ?? "",
+  };
+};
+
+const hasAnnouncementTranslationSource = ({
+  title,
+}: AnnouncementTranslationSnapshot): boolean => Boolean(title.trim());
+
+const getAnnouncementDeliverySnapshot = (
+  announcement: Announcements
+): AnnouncementDeliverySnapshot => ({
+  audienceType: announcement.audience_type,
+  audienceValue: announcement.audience_value ?? null,
+  campusId: announcement.campus_id ?? null,
+  category: announcement.category,
+  deepLink: announcement.deep_link ?? null,
+  eventId: announcement.event_id ?? null,
+  push: announcement.push,
+  scheduledAt: announcement.scheduled_at ?? null,
+  status: announcement.status,
 });
 
-const announcementTranslationResultSchema = z.object({
-  title_no: z.string().describe("Norwegian Bokmål announcement title"),
-  body_no: z
-    .string()
-    .describe(
-      "Natural Norwegian Bokmål HTML preserving p, h3, ul, li, strong and em tags"
-    ),
-});
+const buildTranslationPendingData = (token: string): string =>
+  JSON.stringify({ [TRANSLATION_PENDING_KEY]: token });
+
+const getTranslationPendingToken = (data: string | null): string | null => {
+  if (!data) {
+    return null;
+  }
+  try {
+    const parsed = JSON.parse(data) as Record<string, unknown>;
+    const token = parsed[TRANSLATION_PENDING_KEY];
+    return typeof token === "string" ? token : null;
+  } catch {
+    return null;
+  }
+};
+
+const loadClaimedAnnouncement = async (
+  client: AnnouncementAdminClient,
+  announcementId: string,
+  claim: AnnouncementDeliveryClaim
+): Promise<Announcements | null> => {
+  const response = await client.db.listRows<Announcements>(
+    "app",
+    "announcements",
+    [Query.equal("$id", announcementId), Query.limit(1)]
+  );
+  const current = response.rows[0];
+  if (
+    !(
+      current &&
+      getTranslationPendingToken(current.data) === claim.token &&
+      isCurrentTranslationSource(
+        claim.snapshot,
+        getAnnouncementDeliverySnapshot(current)
+      )
+    )
+  ) {
+    return null;
+  }
+  return current;
+};
+
+const translateAndPersistAnnouncement = async ({
+  announcementId,
+  client,
+  deliveryClaim,
+  source,
+  sourceLocale,
+}: {
+  announcementId: string;
+  client: AnnouncementAdminClient;
+  deliveryClaim?: AnnouncementDeliveryClaim;
+  source: AnnouncementTranslationSnapshot;
+  sourceLocale: ContentLocale;
+}): Promise<Announcements | null> => {
+  const translated = await translateAnnouncementSnapshot(source, sourceLocale);
+  const response = await client.db.listRows<Announcements>(
+    "app",
+    "announcements",
+    [Query.equal("$id", announcementId), Query.limit(1)]
+  );
+  const current = response.rows[0];
+  if (!current) {
+    return null;
+  }
+  const currentSource = getAnnouncementTranslationSnapshot(
+    current,
+    sourceLocale
+  );
+  if (!isCurrentTranslationSource({ ...source }, { ...currentSource })) {
+    return null;
+  }
+  if (
+    deliveryClaim &&
+    !(
+      getTranslationPendingToken(current.data) === deliveryClaim.token &&
+      isCurrentTranslationSource(
+        deliveryClaim.snapshot,
+        getAnnouncementDeliverySnapshot(current)
+      )
+    )
+  ) {
+    return null;
+  }
+
+  const destinationColumns =
+    getTargetLocale(sourceLocale) === "en"
+      ? { body_en: translated.body, title_en: translated.title }
+      : { body_no: translated.body, title_no: translated.title };
+  await client.db.updateRow(
+    "app",
+    "announcements",
+    announcementId,
+    destinationColumns
+  );
+  return { ...current, ...destinationColumns };
+};
+
+const scheduleAnnouncementTranslation = ({
+  announcementId,
+  options,
+  source,
+}: {
+  announcementId: string;
+  options?: AutoTranslationOptions;
+  source: AnnouncementTranslationSnapshot;
+}): boolean => {
+  if (!(options?.enabled && hasAnnouncementTranslationSource(source))) {
+    return false;
+  }
+
+  return scheduleContentTranslation({
+    enabled: true,
+    task: async () => {
+      const client = await createAdminClient();
+      await translateAndPersistAnnouncement({
+        announcementId,
+        client,
+        source,
+        sourceLocale: options.sourceLocale,
+      });
+    },
+  });
+};
+
+export async function generateAnnouncementTranslationDraft(
+  input: AnnouncementTranslationDraftInput
+) {
+  const ctx = await requireAuth();
+  if (!contentLocaleSchema.safeParse(input.sourceLocale).success) {
+    return { error: "Unsupported source locale" };
+  }
+  if (!(input.title.trim() || input.body.trim())) {
+    return { error: "Add source-language announcement content first." };
+  }
+
+  try {
+    if (input.campusId) {
+      assertWriteAccess(ctx, input.campusId);
+    } else if (!ctx.roles.includes("globaladmin")) {
+      return { error: "A campus is required for non-global admins." };
+    }
+    return {
+      data: await translateAnnouncementSnapshot(input, input.sourceLocale),
+    };
+  } catch (error) {
+    return {
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to generate announcement translation",
+    };
+  }
+}
 
 function buildDataPayload(announcement: Announcements): string {
   return JSON.stringify({
@@ -168,7 +437,10 @@ export async function getAnnouncement(id: string) {
   return announcement;
 }
 
-export async function createAnnouncement(values: AnnouncementFormValues) {
+export async function createAnnouncement(
+  values: AnnouncementFormValues,
+  autoTranslation?: AutoTranslationOptions
+): Promise<AnnouncementMutationResult> {
   const ctx = await requireAuth();
   const validated = announcementSchema.safeParse(values);
   if (!validated.success) {
@@ -184,6 +456,7 @@ export async function createAnnouncement(values: AnnouncementFormValues) {
   }
 
   try {
+    const translationOptions = parseAutoTranslationOptions(autoTranslation);
     const { db } = await createAdminClient();
     const audienceValue = await normalizeAudienceValue(
       validated.data.audience_type,
@@ -211,8 +484,19 @@ export async function createAnnouncement(values: AnnouncementFormValues) {
       },
     });
 
+    const translationQueued = scheduleAnnouncementTranslation({
+      announcementId: announcement.$id,
+      options: translationOptions,
+      source: getAnnouncementValuesTranslationSnapshot(
+        validated.data,
+        translationOptions?.sourceLocale ?? "en"
+      ),
+    });
     revalidatePath("/communications");
-    return { data: announcement.$id };
+    return {
+      data: announcement.$id,
+      ...(translationQueued ? { translationQueued: true as const } : {}),
+    };
   } catch (error) {
     return {
       error:
@@ -225,8 +509,9 @@ export async function createAnnouncement(values: AnnouncementFormValues) {
 
 export async function updateAnnouncement(
   id: string,
-  values: AnnouncementFormValues
-) {
+  values: AnnouncementFormValues,
+  autoTranslation?: AutoTranslationOptions
+): Promise<AnnouncementMutationResult> {
   const ctx = await requireAuth();
   const validated = announcementSchema.safeParse(values);
   if (!validated.success) {
@@ -234,6 +519,7 @@ export async function updateAnnouncement(
   }
 
   try {
+    const translationOptions = parseAutoTranslationOptions(autoTranslation);
     const { db } = await createAdminClient();
     const existing = await db.listRows<Announcements>("app", "announcements", [
       Query.equal("$id", id),
@@ -254,12 +540,10 @@ export async function updateAnnouncement(
       validated.data.audience_value
     );
 
-    await db.updateRow(
-      "app",
-      "announcements",
-      id,
-      buildAnnouncementColumns(validated.data, audienceValue)
-    );
+    await db.updateRow("app", "announcements", id, {
+      ...buildAnnouncementColumns(validated.data, audienceValue),
+      ...(getTranslationPendingToken(announcement.data) ? { data: null } : {}),
+    });
 
     await logAuditEvent(ctx, "announcement.update", {
       resourceId: id,
@@ -270,9 +554,20 @@ export async function updateAnnouncement(
       },
     });
 
+    const translationQueued = scheduleAnnouncementTranslation({
+      announcementId: id,
+      options: translationOptions,
+      source: getAnnouncementValuesTranslationSnapshot(
+        validated.data,
+        translationOptions?.sourceLocale ?? "en"
+      ),
+    });
     revalidatePath("/communications");
     revalidatePath(`/communications/${id}`);
-    return { data: id };
+    return {
+      data: id,
+      ...(translationQueued ? { translationQueued: true as const } : {}),
+    };
   } catch (error) {
     return {
       error:
@@ -318,17 +613,149 @@ export async function deleteAnnouncement(id: string) {
   }
 }
 
-export async function sendAnnouncement(id: string) {
+const dispatchPersistedAnnouncement = async ({
+  announcement,
+  client,
+  ctx,
+}: {
+  announcement: Announcements;
+  client: AnnouncementAdminClient;
+  ctx: Awaited<ReturnType<typeof requireAuth>>;
+}): Promise<SendAnnouncementResult> => {
+  const dataPayload = buildDataPayload(announcement);
+  const enriched: Announcements = {
+    ...announcement,
+    data: dataPayload,
+    deep_link: announcement.deep_link ?? buildDeepLink(announcement),
+  };
+
+  let recipients = 0;
+  try {
+    const result = await dispatchAnnouncement(enriched, {
+      db: client.db,
+      messaging: client.messaging,
+      users: client.users,
+    });
+    recipients = result.recipients;
+  } catch (error) {
+    console.error("Failed to dispatch announcement:", error);
+    await client.db.updateRow("app", "announcements", announcement.$id, {
+      status: "failed",
+      data: dataPayload,
+    });
+    return { error: "Failed to send announcement" };
+  }
+
+  await client.db.updateRow("app", "announcements", announcement.$id, {
+    status: "sent",
+    sent_at: new Date().toISOString(),
+    data: dataPayload,
+    deep_link: enriched.deep_link,
+  });
+
+  await logAuditEvent(ctx, "announcement.send", {
+    resourceId: announcement.$id,
+    resourceType: "announcement",
+    payload: {
+      audience_type: announcement.audience_type,
+      recipients,
+    },
+  });
+
+  revalidatePath("/communications");
+  revalidatePath(`/communications/${announcement.$id}`);
+  return { data: { status: "sent" as const, recipients } };
+};
+
+const queueScheduledAnnouncement = async ({
+  announcement,
+  automaticSource,
+  client,
+  ctx,
+  translationOptions,
+}: {
+  announcement: Announcements;
+  automaticSource: AnnouncementTranslationSnapshot | null;
+  client: AnnouncementAdminClient;
+  ctx: Awaited<ReturnType<typeof requireAuth>>;
+  translationOptions?: AutoTranslationOptions;
+}): Promise<SendAnnouncementResult> => {
+  const deliveryToken = translationOptions?.enabled ? ID.unique() : null;
+  const scheduledAnnouncement = {
+    ...announcement,
+    data: deliveryToken ? buildTranslationPendingData(deliveryToken) : null,
+    status: "scheduled",
+  } as Announcements;
+  await client.db.updateRow("app", "announcements", announcement.$id, {
+    data: scheduledAnnouncement.data,
+    status: scheduledAnnouncement.status,
+  });
+  await logAuditEvent(ctx, "announcement.schedule", {
+    payload: { scheduled_at: announcement.scheduled_at },
+    resourceId: announcement.$id,
+    resourceType: "announcement",
+  });
+
+  const translationQueued = Boolean(deliveryToken && automaticSource);
+  if (deliveryToken && automaticSource && translationOptions?.enabled) {
+    const deliveryClaim: AnnouncementDeliveryClaim = {
+      snapshot: getAnnouncementDeliverySnapshot(scheduledAnnouncement),
+      token: deliveryToken,
+    };
+    scheduleContentTranslation({
+      enabled: true,
+      task: async () => {
+        const backgroundClient = await createAdminClient();
+        const translatedAnnouncement = await translateAndPersistAnnouncement({
+          announcementId: announcement.$id,
+          client: backgroundClient,
+          deliveryClaim,
+          source: automaticSource,
+          sourceLocale: translationOptions.sourceLocale,
+        });
+        if (!translatedAnnouncement) {
+          return;
+        }
+        const claimedAnnouncement = await loadClaimedAnnouncement(
+          backgroundClient,
+          announcement.$id,
+          deliveryClaim
+        );
+        if (!claimedAnnouncement) {
+          return;
+        }
+        await backgroundClient.db.updateRow(
+          "app",
+          "announcements",
+          announcement.$id,
+          { data: null }
+        );
+      },
+    });
+  }
+  revalidatePath("/communications");
+  return {
+    data: { status: "scheduled" },
+    ...(translationQueued ? { translationQueued: true } : {}),
+  };
+};
+
+export async function sendAnnouncement(
+  id: string,
+  autoTranslation?: AutoTranslationOptions
+): Promise<SendAnnouncementResult> {
   const ctx = await requireAuth();
 
   try {
+    const translationOptions = parseAutoTranslationOptions(autoTranslation);
     // Announcements use row security; admin operations go through the
     // service-key client (authorization enforced here via assertPublishAccess).
-    const { db, messaging, users } = await createAdminClient();
-    const existing = await db.listRows<Announcements>("app", "announcements", [
-      Query.equal("$id", id),
-      Query.limit(1),
-    ]);
+    const client = await createAdminClient();
+    const existing = await client.db.listRows<Announcements>(
+      "app",
+      "announcements",
+      [Query.equal("$id", id), Query.limit(1)]
+    );
     const announcement = existing.rows[0];
     if (!announcement) {
       return { error: "Announcement not found" };
@@ -337,109 +764,92 @@ export async function sendAnnouncement(id: string) {
     // Sending is a publish-grade action: require campus/global admin.
     assertPublishAccess(ctx, announcement.campus_id);
 
-    // Future-dated: just mark as scheduled. The scheduled-dispatch cron sends it.
+    const automaticSource = translationOptions?.enabled
+      ? getAnnouncementTranslationSnapshot(
+          announcement,
+          translationOptions.sourceLocale
+        )
+      : null;
+    if (automaticSource && !hasAnnouncementTranslationSource(automaticSource)) {
+      return { error: "Add source-language announcement content first." };
+    }
+
+    // Future-dated: mark as scheduled. When translation is enabled, a claim in
+    // `data` keeps the cron from delivering until the deferred translation has
+    // completed and cleared the claim.
     if (
       announcement.scheduled_at &&
       new Date(announcement.scheduled_at).getTime() > Date.now()
     ) {
-      await db.updateRow("app", "announcements", id, {
-        status: "scheduled",
+      return await queueScheduledAnnouncement({
+        announcement,
+        automaticSource,
+        client,
+        ctx,
+        translationOptions,
       });
-      await logAuditEvent(ctx, "announcement.schedule", {
-        resourceId: id,
-        resourceType: "announcement",
-        payload: { scheduled_at: announcement.scheduled_at },
-      });
-      revalidatePath("/communications");
-      return { data: { status: "scheduled" as const } };
     }
 
-    // Persist the data payload contract on the row before dispatch so the
-    // helper and downstream consumers read a consistent value.
-    const dataPayload = buildDataPayload(announcement);
-    const enriched: Announcements = {
-      ...announcement,
-      data: dataPayload,
-      deep_link: announcement.deep_link ?? buildDeepLink(announcement),
-    };
-
-    let recipients = 0;
-    try {
-      const result = await dispatchAnnouncement(enriched, {
-        db,
-        messaging,
-        users,
+    if (translationOptions?.enabled) {
+      if (!automaticSource) {
+        return { error: "Add source-language announcement content first." };
+      }
+      const deliveryToken = ID.unique();
+      const claimedAnnouncement = {
+        ...announcement,
+        data: buildTranslationPendingData(deliveryToken),
+      } as Announcements;
+      const deliveryClaim: AnnouncementDeliveryClaim = {
+        snapshot: getAnnouncementDeliverySnapshot(claimedAnnouncement),
+        token: deliveryToken,
+      };
+      await client.db.updateRow("app", "announcements", id, {
+        data: claimedAnnouncement.data,
       });
-      recipients = result.recipients;
-    } catch (error) {
-      console.error("Failed to dispatch announcement:", error);
-      await db.updateRow("app", "announcements", id, {
-        status: "failed",
-        data: dataPayload,
+      scheduleContentTranslation({
+        enabled: true,
+        task: async () => {
+          const backgroundClient = await createAdminClient();
+          const translatedAnnouncement = await translateAndPersistAnnouncement({
+            announcementId: id,
+            client: backgroundClient,
+            deliveryClaim,
+            source: automaticSource,
+            sourceLocale: translationOptions.sourceLocale,
+          });
+          if (!translatedAnnouncement) {
+            return;
+          }
+          const currentClaimedAnnouncement = await loadClaimedAnnouncement(
+            backgroundClient,
+            id,
+            deliveryClaim
+          );
+          if (!currentClaimedAnnouncement) {
+            return;
+          }
+          const result = await dispatchPersistedAnnouncement({
+            announcement: currentClaimedAnnouncement,
+            client: backgroundClient,
+            ctx,
+          });
+          if ("error" in result) {
+            throw new Error(result.error);
+          }
+        },
       });
-      return { error: "Failed to send announcement" };
+      return { data: { status: "queued" as const } };
     }
 
-    await db.updateRow("app", "announcements", id, {
-      status: "sent",
-      sent_at: new Date().toISOString(),
-      data: dataPayload,
-      deep_link: enriched.deep_link,
+    return await dispatchPersistedAnnouncement({
+      announcement,
+      client,
+      ctx,
     });
-
-    await logAuditEvent(ctx, "announcement.send", {
-      resourceId: id,
-      resourceType: "announcement",
-      payload: {
-        audience_type: announcement.audience_type,
-        recipients,
-      },
-    });
-
-    revalidatePath("/communications");
-    revalidatePath(`/communications/${id}`);
-    return { data: { status: "sent" as const, recipients } };
   } catch (error) {
     return {
       error:
         error instanceof Error ? error.message : "Failed to send announcement",
-    };
-  }
-}
-
-export async function generateAnnouncementNorwegianDraft(input: {
-  title_en: string;
-  body_en?: string;
-}) {
-  await requireAuth();
-  const validated = announcementTranslationDraftSchema.safeParse(input);
-  if (!validated.success) {
-    return { error: "Add an English title first." };
-  }
-
-  try {
-    const { object } = await generateObject({
-      model: openai("gpt-5-nano"),
-      schema: announcementTranslationResultSchema,
-      prompt: `Translate this push announcement to Norwegian Bokmål. Return a natural-sounding translation appropriate for Norwegian students.
-Keep the tone clear, concise, and student-facing.
-Preserve the simple HTML structure in the body. Only use p, h3, ul, li, strong and em tags.
-Do not add information that is not present in the source.
-
-Title:
-${validated.data.title_en}
-
-Body HTML:
-${validated.data.body_en}`,
-    });
-
-    return { data: object };
-  } catch (error) {
-    return {
-      error:
-        error instanceof Error
-          ? error.message
-          : "Failed to generate Norwegian draft",
     };
   }
 }

@@ -19,6 +19,17 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { dispatchAnnouncement } from "@/lib/announcements/send";
 import { requireAuth } from "@/lib/authorization";
+import {
+  type AutoTranslationOptions,
+  type ContentLocale,
+  getTargetLocale,
+  isCurrentTranslationSource,
+} from "@/lib/content-translation";
+import {
+  parseAutoTranslationOptions,
+  scheduleContentTranslation,
+  translateContentFields,
+} from "@/lib/content-translation.server";
 import { loadRecruitmentLookups } from "@/lib/recruitment";
 import {
   buildContentRowPermissions,
@@ -35,22 +46,24 @@ import { logAuditEvent } from "./audit-log";
 import { EVENTS_PAGE_SIZE, type EventFormValues, eventSchema } from "./schemas";
 
 type SessionDb = Awaited<ReturnType<typeof createSessionClient>>["db"];
+type EventAuthContext = Awaited<ReturnType<typeof requireAuth>>;
 
-const eventTranslationDraftSchema = z.object({
-  title_en: z.string().trim().min(1),
-  description_en: z.string().trim().min(1),
-  short_description_en: z.string().trim().nullable().optional(),
-});
-
-const eventTranslationResultSchema = z.object({
-  title_no: z.string().describe("Norwegian Bokmål event title"),
-  description_no: z
-    .string()
-    .describe("Natural Norwegian Bokmål HTML preserving p, h3, ul and li tags"),
-  short_description_no: z
-    .string()
-    .describe("Norwegian one-line teaser, maximum 280 characters"),
-});
+const eventTranslationDraftSchema = z
+  .object({
+    campusId: z.string().trim().min(1),
+    description: z.string().trim(),
+    departmentId: z.string().trim().nullable().optional(),
+    shortDescription: z.string().trim().nullable().optional(),
+    sourceLocale: z.enum(["no", "en"]),
+    title: z.string().trim(),
+  })
+  .refine(
+    (value) =>
+      Boolean(
+        value.title || value.description || value.shortDescription?.trim()
+      ),
+    "Add source content first."
+  );
 
 const eventSuggestionDraftSchema = z.object({
   current_description: z.string().trim().optional().default(""),
@@ -65,6 +78,12 @@ const eventSuggestionResultSchema = z.object({
       "Section body as simple HTML (p, h3, ul, li). Useful for a run-of-show, what-to-bring, schedule, or similar block."
     ),
 });
+
+interface EventTranslationSnapshot {
+  description: string;
+  short_description: string;
+  title: string;
+}
 
 /**
  * Send a published-event push through the unified announcement delivery path.
@@ -175,6 +194,168 @@ async function upsertEventTranslation(
     data,
     permissions
   );
+}
+
+function getEventTranslationSnapshot(
+  values: EventFormValues,
+  locale: ContentLocale
+): EventTranslationSnapshot {
+  if (locale === "no") {
+    return {
+      description: values.description_no ?? "",
+      short_description: values.short_description_no ?? "",
+      title: values.title_no,
+    };
+  }
+  return {
+    description: values.description_en ?? "",
+    short_description: values.short_description_en ?? "",
+    title: values.title_en,
+  };
+}
+
+async function translateEventSnapshot(
+  source: EventTranslationSnapshot,
+  sourceLocale: ContentLocale
+): Promise<EventTranslationSnapshot> {
+  const translated = await translateContentFields({
+    contentType: "event",
+    fields: [
+      { format: "plain", key: "title", value: source.title },
+      {
+        format: "plain",
+        key: "short_description",
+        value: source.short_description,
+      },
+      { format: "html", key: "description", value: source.description },
+    ],
+    sourceLocale,
+    targetLocale: getTargetLocale(sourceLocale),
+  });
+  return {
+    description: translated.description ?? "",
+    short_description: translated.short_description ?? "",
+    title: translated.title ?? "",
+  };
+}
+
+function scheduleEventTranslation(input: {
+  campusId: string | null;
+  departmentId: string | null;
+  enabled: boolean;
+  eventId: string;
+  memberOnly: boolean;
+  source: EventTranslationSnapshot;
+  sourceLocale: ContentLocale;
+  status: string;
+}): boolean {
+  const hasSource = Boolean(input.source.title.trim());
+  if (!(input.enabled && hasSource)) {
+    return false;
+  }
+  return scheduleContentTranslation({
+    enabled: true,
+    task: async () => {
+      const translated = await translateEventSnapshot(
+        input.source,
+        input.sourceLocale
+      );
+      const { db } = await createAdminClient();
+      const currentEvent = await db.getRow<Events>(
+        "app",
+        "events",
+        input.eventId
+      );
+      if (
+        !isCurrentTranslationSource(
+          {
+            campusId: input.campusId,
+            departmentId: input.departmentId,
+            memberOnly: input.memberOnly,
+            status: input.status,
+          },
+          {
+            campusId: currentEvent.campus_id,
+            departmentId: currentEvent.department_id ?? null,
+            memberOnly: currentEvent.member_only,
+            status: currentEvent.status,
+          }
+        )
+      ) {
+        return;
+      }
+      const sourceRows = await db.listRows<ContentTranslations>(
+        "app",
+        "content_translations",
+        [
+          Query.equal("content_type", "event"),
+          Query.equal("content_id", input.eventId),
+          Query.equal("locale", input.sourceLocale),
+          Query.limit(1),
+        ]
+      );
+      const currentSource = sourceRows.rows[0];
+      if (!currentSource) {
+        return;
+      }
+      const currentSnapshot: EventTranslationSnapshot = {
+        description: currentSource.description ?? "",
+        short_description: currentSource.short_description ?? "",
+        title: currentSource.title ?? "",
+      };
+      if (!isCurrentTranslationSource(input.source, currentSnapshot)) {
+        return;
+      }
+      const { translationPermissions } = await buildEventPermissions(db, {
+        campusId: input.campusId,
+        departmentId: input.departmentId,
+        memberOnly: input.memberOnly,
+        status: input.status,
+      });
+      await upsertEventTranslation(
+        db,
+        input.eventId,
+        getTargetLocale(input.sourceLocale),
+        {
+          description: translated.description,
+          shortDescription: translated.short_description || null,
+          title: translated.title,
+        },
+        translationPermissions
+      );
+    },
+  });
+}
+
+function scheduleEventFormTranslation(
+  eventId: string,
+  values: EventFormValues,
+  status: string,
+  autoTranslation?: AutoTranslationOptions
+): boolean {
+  const sourceLocale = autoTranslation?.sourceLocale ?? "en";
+  return scheduleEventTranslation({
+    campusId: values.campus_id,
+    departmentId: values.department_id ?? null,
+    enabled: autoTranslation?.enabled ?? false,
+    eventId,
+    memberOnly: values.member_only,
+    source: getEventTranslationSnapshot(values, sourceLocale),
+    sourceLocale,
+    status,
+  });
+}
+
+function assertEventPublishTransitionAccess(
+  ctx: EventAuthContext,
+  event: Events,
+  values: EventFormValues
+): void {
+  if (event.status !== "published" && values.status !== "published") {
+    return;
+  }
+  assertPublishAccess(ctx, event.campus_id);
+  assertPublishAccess(ctx, values.campus_id);
 }
 
 /**
@@ -356,7 +537,10 @@ export async function getEvent(id: string) {
   return { ...event, translation_refs: translationsResponse.rows };
 }
 
-export async function createEvent(values: EventFormValues) {
+export async function createEvent(
+  values: EventFormValues,
+  autoTranslation?: AutoTranslationOptions
+) {
   const ctx = await requireAuth();
   const validated = eventSchema.safeParse(values);
   if (!validated.success) {
@@ -368,11 +552,15 @@ export async function createEvent(values: EventFormValues) {
     validated.data.campus_id,
     validated.data.department_id
   );
+  if (validated.data.status === "published") {
+    assertPublishAccess(ctx, validated.data.campus_id);
+  }
 
   try {
+    const translationOptions = parseAutoTranslationOptions(autoTranslation);
     const { db } = await createSessionClient();
 
-    const status = "draft";
+    const status = validated.data.status;
     const { rowPermissions, translationPermissions } =
       await buildEventPermissions(db, {
         status,
@@ -417,18 +605,39 @@ export async function createEvent(values: EventFormValues) {
       ),
     ]);
 
+    const translationQueued = scheduleEventFormTranslation(
+      event.$id,
+      validated.data,
+      status,
+      translationOptions
+    );
+
     await logAuditEvent(ctx, "event.create", {
       resourceId: event.$id,
       resourceType: "event",
       payload: {
         campus_id: validated.data.campus_id,
         department_id: validated.data.department_id ?? null,
-        status: "draft",
+        status,
       },
     });
 
+    if (status === "published" && validated.data.notify_push) {
+      await sendEventAnnouncement({
+        bodyEn: validated.data.short_description_en ?? null,
+        bodyNo: validated.data.short_description_no ?? null,
+        campusId: validated.data.campus_id ?? null,
+        eventId: event.$id,
+        titleEn: validated.data.title_en,
+        titleNo: validated.data.title_no || null,
+      });
+    }
+
     revalidatePath("/events");
-    return { data: event.$id };
+    return {
+      data: event.$id,
+      ...(translationQueued ? { translationQueued: true as const } : {}),
+    };
   } catch (error) {
     return {
       error: error instanceof Error ? error.message : "Failed to create event",
@@ -436,7 +645,11 @@ export async function createEvent(values: EventFormValues) {
   }
 }
 
-export async function updateEvent(id: string, values: EventFormValues) {
+export async function updateEvent(
+  id: string,
+  values: EventFormValues,
+  autoTranslation?: AutoTranslationOptions
+) {
   const ctx = await requireAuth();
   const validated = eventSchema.safeParse(values);
   if (!validated.success) {
@@ -444,6 +657,7 @@ export async function updateEvent(id: string, values: EventFormValues) {
   }
 
   try {
+    const translationOptions = parseAutoTranslationOptions(autoTranslation);
     const { db } = await createSessionClient();
 
     const existing = await db.listRows<Events>("app", "events", [
@@ -461,10 +675,7 @@ export async function updateEvent(id: string, values: EventFormValues) {
       validated.data.campus_id,
       validated.data.department_id ?? null
     );
-    if (event.status === "published" || validated.data.status === "published") {
-      assertPublishAccess(ctx, event.campus_id);
-      assertPublishAccess(ctx, validated.data.campus_id);
-    }
+    assertEventPublishTransitionAccess(ctx, event, validated.data);
 
     const { rowPermissions, translationPermissions } =
       await buildEventPermissions(db, {
@@ -510,6 +721,13 @@ export async function updateEvent(id: string, values: EventFormValues) {
       ),
     ]);
 
+    const translationQueued = scheduleEventFormTranslation(
+      id,
+      validated.data,
+      validated.data.status,
+      translationOptions
+    );
+
     await logAuditEvent(ctx, "event.update", {
       resourceId: id,
       resourceType: "event",
@@ -533,7 +751,10 @@ export async function updateEvent(id: string, values: EventFormValues) {
 
     revalidatePath("/events");
     revalidatePath(`/events/${id}`);
-    return { data: id };
+    return {
+      data: id,
+      ...(translationQueued ? { translationQueued: true as const } : {}),
+    };
   } catch (error) {
     return {
       error: error instanceof Error ? error.message : "Failed to update event",
@@ -688,43 +909,56 @@ export async function publishEvent(id: string) {
   }
 }
 
-export async function generateEventNorwegianDraft(input: {
-  title_en: string;
-  description_en: string;
-  short_description_en?: string;
+export async function generateEventTranslationDraft(input: {
+  campusId: string;
+  description: string;
+  departmentId?: string | null;
+  shortDescription?: string | null;
+  sourceLocale: ContentLocale;
+  title: string;
 }) {
-  await requireAuth();
+  const ctx = await requireAuth();
   const validated = eventTranslationDraftSchema.safeParse(input);
   if (!validated.success) {
-    return { error: "Add an English title and description first." };
+    return { error: "Add source content first." };
   }
 
   try {
-    const { object } = await generateObject({
-      model: openai("gpt-5-nano"),
-      schema: eventTranslationResultSchema,
-      prompt: `Translate this event content to Norwegian Bokmål. Return a natural-sounding translation appropriate for Norwegian students.
-Keep the tone warm, inviting, and student-facing.
-Preserve the simple HTML structure in the description. Only use p, h3, ul and li tags.
-Do not add information that is not present in the source.
-
-Title:
-${validated.data.title_en}
-
-Teaser:
-${validated.data.short_description_en ?? ""}
-
-Description HTML:
-${validated.data.description_en}`,
-    });
-
-    return { data: object };
+    assertWriteAccess(
+      ctx,
+      validated.data.campusId,
+      validated.data.departmentId ?? null
+    );
+    const translated = await translateEventSnapshot(
+      {
+        description: validated.data.description,
+        short_description: validated.data.shortDescription ?? "",
+        title: validated.data.title,
+      },
+      validated.data.sourceLocale
+    );
+    if (getTargetLocale(validated.data.sourceLocale) === "en") {
+      return {
+        data: {
+          description_en: translated.description,
+          short_description_en: translated.short_description,
+          title_en: translated.title,
+        },
+      };
+    }
+    return {
+      data: {
+        description_no: translated.description,
+        short_description_no: translated.short_description,
+        title_no: translated.title,
+      },
+    };
   } catch (error) {
     return {
       error:
         error instanceof Error
           ? error.message
-          : "Failed to generate Norwegian draft",
+          : "Failed to generate translation draft",
     };
   }
 }

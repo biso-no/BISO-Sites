@@ -8,6 +8,7 @@ import {
   getPageById as pbGetPageById,
   getPageEditorById as pbGetPageEditorById,
   publishPage as pbPublishPage,
+  savePageTranslationDraft as pbSavePageTranslationDraft,
   unpublishPage as pbUnpublishPage,
   savePageDraft,
 } from "@repo/api/page-builder";
@@ -15,6 +16,20 @@ import { createAdminClient, createSessionClient } from "@repo/api/server";
 import type { Pages, PageViewEvents } from "@repo/api/types/appwrite";
 import { revalidatePath } from "next/cache";
 import { requireAuth, type UserAuthContext } from "@/lib/authorization";
+import {
+  type AutoTranslationOptions,
+  getTargetLocale,
+  isCurrentTranslationSource,
+} from "@/lib/content-translation";
+import {
+  contentLocaleSchema,
+  parseAutoTranslationOptions,
+  scheduleContentTranslation,
+} from "@/lib/content-translation.server";
+import {
+  getPageTranslationSource,
+  translatePageDocument,
+} from "@/lib/page-document-translation";
 import {
   applyScopeQueries,
   assertPublishAccess,
@@ -206,10 +221,16 @@ export async function savePageEditorDoc({
 
 export async function publishPageAction(
   id: string,
-  locale: "no" | "en" = "no"
+  locale: "no" | "en" = "no",
+  autoTranslation: AutoTranslationOptions = {
+    enabled: false,
+    sourceLocale: locale,
+  }
 ) {
   const ctx = await requireAuth();
   try {
+    const publishedLocale = contentLocaleSchema.parse(locale);
+    const translationOptions = parseAutoTranslationOptions(autoTranslation);
     // Authorization is enforced here by role (assertPublishAccess); the reads
     // and the publish write use the admin client so an authorized campus
     // approver — who is not on the page rows' write ACL — isn't blocked by RLS.
@@ -219,16 +240,116 @@ export async function publishPageAction(
     const page = await db.getRow<Pages>("app", "pages", id);
     assertPublishAccess(ctx, page.campus_id);
 
-    await pbPublishPage({ id, locale });
+    if (
+      translationOptions?.enabled &&
+      translationOptions.sourceLocale !== publishedLocale
+    ) {
+      throw new Error("The translation source must match the published locale");
+    }
+    const sourceDocument = translationOptions?.enabled
+      ? await getPageSourceDocument(id, publishedLocale, db)
+      : null;
+
+    await pbPublishPage({ id, locale: publishedLocale });
     await logAuditEvent(ctx, "page_published", {
       resourceId: id,
       resourceType: "page",
     });
     revalidatePath("/pages");
+    const publishedPageVersion = sourceDocument
+      ? (await db.getRow<Pages>("app", "pages", id)).$updatedAt
+      : null;
+    const translationQueued =
+      sourceDocument && publishedPageVersion
+        ? scheduleContentTranslation({
+            enabled: true,
+            task: () =>
+              translatePublishedPage({
+                id,
+                publishedPageVersion,
+                sourceDocument,
+                sourceLocale: publishedLocale,
+              }),
+          })
+        : false;
+    return { translationQueued };
   } catch (e) {
     console.error("[publishPageAction]", e);
     throw new Error(e instanceof Error ? e.message : "Failed to publish page");
   }
+}
+
+async function getPageSourceDocument(
+  id: string,
+  locale: PageEditorLocale,
+  db: Awaited<ReturnType<typeof createAdminClient>>["db"]
+): Promise<PageDoc | null> {
+  const editor = await pbGetPageEditorById(id, db);
+  const translation = editor?.translations[locale];
+  return translation?.draftDocument ?? translation?.publishedDocument ?? null;
+}
+
+async function translatePublishedPage({
+  id,
+  publishedPageVersion,
+  sourceDocument,
+  sourceLocale,
+}: {
+  id: string;
+  publishedPageVersion: string;
+  sourceDocument: PageDoc;
+  sourceLocale: PageEditorLocale;
+}): Promise<void> {
+  const { db } = await createAdminClient();
+  const targetLocale = getTargetLocale(sourceLocale);
+  const translatedDocument = await translatePageDocument({
+    document: sourceDocument,
+    sourceLocale,
+    targetLocale,
+  });
+  const [currentPage, currentSource] = await Promise.all([
+    db.getRow<Pages>("app", "pages", id),
+    getPageSourceDocument(id, sourceLocale, db),
+  ]);
+  if (
+    !(
+      currentPage.status === "published" &&
+      currentPage.$updatedAt === publishedPageVersion &&
+      currentSource &&
+      isCurrentTranslationSource(
+        getPageTranslationSource(sourceDocument),
+        getPageTranslationSource(currentSource)
+      )
+    )
+  ) {
+    return;
+  }
+
+  await pbSavePageTranslationDraft({
+    doc: {
+      ...translatedDocument,
+      meta: { ...translatedDocument.meta, status: "published" },
+    },
+    id,
+    locale: targetLocale,
+  });
+  const pageBeforeDestinationPublish = await db.getRow<Pages>(
+    "app",
+    "pages",
+    id
+  );
+  if (
+    pageBeforeDestinationPublish.status !== "published" ||
+    pageBeforeDestinationPublish.$updatedAt !== publishedPageVersion
+  ) {
+    return;
+  }
+  await pbPublishPage({
+    id,
+    locale: targetLocale,
+    updateParentStatus: false,
+  });
+  revalidatePath("/pages");
 }
 
 export async function unpublishPageAction(

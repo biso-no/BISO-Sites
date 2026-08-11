@@ -1,11 +1,13 @@
 import { describe, expect, test } from "bun:test";
 import { type NewsFormValues, newsSchema } from "../../../_actions/schemas";
 import {
+  applyNewsTranslationDraft,
   createNewsStudioDefaults,
   getNewsArticleEditorState,
   getNewsEditorInteractionProps,
   getNewsSavedValues,
   getNewsStepCompletion,
+  getNewsTranslationDraftSource,
   getNewsTranslationInputs,
   reconcileNewsSavedState,
   refreshNewsDepartments,
@@ -27,6 +29,48 @@ const createValues = (): NewsFormValues => ({
 });
 
 describe("news studio state", () => {
+  test("extracts the active locale as the manual translation source", () => {
+    const values = {
+      ...createValues(),
+      description_en: "English body",
+      title_en: "English title",
+    };
+
+    expect(getNewsTranslationDraftSource(values, "no")).toEqual({
+      description: "Norsk brødtekst",
+      title: "Norsk tittel",
+    });
+    expect(getNewsTranslationDraftSource(values, "en")).toEqual({
+      description: "English body",
+      title: "English title",
+    });
+  });
+
+  test("applies a manual draft only to the destination locale", () => {
+    const values = createValues();
+
+    expect(
+      applyNewsTranslationDraft(values, "no", {
+        description: "English body",
+        title: "English title",
+      })
+    ).toEqual({
+      ...values,
+      description_en: "English body",
+      title_en: "English title",
+    });
+    expect(
+      applyNewsTranslationDraft(values, "en", {
+        description: "Norsk oversettelse",
+        title: "Norsk overskrift",
+      })
+    ).toEqual({
+      ...values,
+      description_no: "Norsk oversettelse",
+      title_no: "Norsk overskrift",
+    });
+  });
+
   test("maps translations by locale rather than row order", () => {
     const article = {
       $id: "news-1",

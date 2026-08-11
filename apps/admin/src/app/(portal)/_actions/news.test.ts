@@ -42,6 +42,7 @@ const publishedValues: NewsFormValues = {
 };
 
 mock.module("@repo/api/server", () => ({
+  createAdminClient: mock(async () => ({ db })),
   createSessionClient: mock(async () => ({ db })),
 }));
 

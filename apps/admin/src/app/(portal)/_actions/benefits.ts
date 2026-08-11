@@ -1,7 +1,7 @@
 "use server";
 
 import { Query } from "@repo/api";
-import { createSessionClient } from "@repo/api/server";
+import { createAdminClient, createSessionClient } from "@repo/api/server";
 import type {
   CampusBenefits,
   CampusBenefitsStatus,
@@ -10,6 +10,18 @@ import type {
 import { revalidatePath } from "next/cache";
 import { requireAuth } from "@/lib/authorization";
 import {
+  type AutoTranslationOptions,
+  type ContentLocale,
+  getTargetLocale,
+  isCurrentTranslationSource,
+} from "@/lib/content-translation";
+import {
+  contentLocaleSchema,
+  parseAutoTranslationOptions,
+  scheduleContentTranslation,
+  translateContentFields,
+} from "@/lib/content-translation.server";
+import {
   applyScopeQueries,
   assertPublishAccess,
   assertWriteAccess,
@@ -17,6 +29,184 @@ import {
 } from "@/lib/utils/authorization";
 import { logAuditEvent } from "./audit-log";
 import { type BenefitFormValues, benefitSchema } from "./schemas";
+
+interface BenefitTranslationSnapshot {
+  description: string;
+  teaser: string;
+  title: string;
+}
+
+type BenefitTranslationDraftInput = BenefitTranslationSnapshot & {
+  campusId: string;
+  sourceLocale: ContentLocale;
+};
+
+type BenefitMutationResult =
+  | {
+      data: string;
+      error?: undefined;
+      translationQueued?: true;
+    }
+  | {
+      data?: undefined;
+      error: string | Record<string, string[] | undefined>;
+      translationQueued?: undefined;
+    };
+
+const getBenefitTranslationSnapshot = (
+  benefit: Pick<
+    CampusBenefits,
+    | "description_en"
+    | "description_nb"
+    | "teaser_en"
+    | "teaser_nb"
+    | "title_en"
+    | "title_nb"
+  >,
+  sourceLocale: ContentLocale
+): BenefitTranslationSnapshot =>
+  sourceLocale === "no"
+    ? {
+        description: benefit.description_nb,
+        teaser: benefit.teaser_nb ?? "",
+        title: benefit.title_nb,
+      }
+    : {
+        description: benefit.description_en,
+        teaser: benefit.teaser_en ?? "",
+        title: benefit.title_en,
+      };
+
+const getBenefitValuesTranslationSnapshot = (
+  values: BenefitFormValues,
+  sourceLocale: ContentLocale
+): BenefitTranslationSnapshot =>
+  sourceLocale === "no"
+    ? {
+        description: values.description_nb,
+        teaser: values.teaser_nb ?? "",
+        title: values.title_nb,
+      }
+    : {
+        description: values.description_en,
+        teaser: values.teaser_en ?? "",
+        title: values.title_en,
+      };
+
+const translateBenefitSnapshot = async (
+  source: BenefitTranslationSnapshot,
+  sourceLocale: ContentLocale
+): Promise<BenefitTranslationSnapshot> => {
+  const translated = await translateContentFields({
+    contentType: "member benefit",
+    fields: [
+      { format: "plain", key: "title", value: source.title },
+      { format: "html", key: "description", value: source.description },
+      { format: "plain", key: "teaser", value: source.teaser },
+    ],
+    sourceLocale,
+    targetLocale: getTargetLocale(sourceLocale),
+  });
+  return {
+    description: translated.description ?? "",
+    teaser: translated.teaser ?? "",
+    title: translated.title ?? "",
+  };
+};
+
+const hasBenefitTranslationSource = ({
+  description,
+  title,
+}: BenefitTranslationSnapshot): boolean =>
+  Boolean(description.trim() && title.trim());
+
+const scheduleBenefitTranslation = ({
+  benefitId,
+  options,
+  source,
+}: {
+  benefitId: string;
+  options?: AutoTranslationOptions;
+  source: BenefitTranslationSnapshot;
+}): boolean => {
+  if (!(options?.enabled && hasBenefitTranslationSource(source))) {
+    return false;
+  }
+
+  return scheduleContentTranslation({
+    enabled: true,
+    task: async () => {
+      const translated = await translateBenefitSnapshot(
+        source,
+        options.sourceLocale
+      );
+      const { db } = await createAdminClient();
+      const response = await db.listRows<CampusBenefits>(
+        "app",
+        "campus_benefits",
+        [Query.equal("$id", benefitId), Query.limit(1)]
+      );
+      const current = response.rows[0];
+      if (!current) {
+        return;
+      }
+      const currentSource = getBenefitTranslationSnapshot(
+        current,
+        options.sourceLocale
+      );
+      if (!isCurrentTranslationSource({ ...source }, { ...currentSource })) {
+        return;
+      }
+
+      const destinationColumns =
+        getTargetLocale(options.sourceLocale) === "en"
+          ? {
+              description_en: translated.description,
+              teaser_en: translated.teaser,
+              title_en: translated.title,
+            }
+          : {
+              description_nb: translated.description,
+              teaser_nb: translated.teaser,
+              title_nb: translated.title,
+            };
+      await db.updateRow(
+        "app",
+        "campus_benefits",
+        benefitId,
+        destinationColumns
+      );
+    },
+  });
+};
+
+export async function generateBenefitTranslationDraft(
+  input: BenefitTranslationDraftInput
+) {
+  const ctx = await requireAuth();
+  if (!contentLocaleSchema.safeParse(input.sourceLocale).success) {
+    return { error: "Unsupported source locale" };
+  }
+  if (
+    !(input.title.trim() || input.description.trim() || input.teaser.trim())
+  ) {
+    return { error: "Add source-language benefit content first." };
+  }
+
+  try {
+    assertWriteAccess(ctx, input.campusId);
+    return {
+      data: await translateBenefitSnapshot(input, input.sourceLocale),
+    };
+  } catch (error) {
+    return {
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to generate benefit translation",
+    };
+  }
+}
 
 export async function listBenefits(opts?: {
   campusId?: string;
@@ -68,7 +258,10 @@ export async function getBenefit(id: string) {
   return benefit;
 }
 
-export async function createBenefit(values: BenefitFormValues) {
+export async function createBenefit(
+  values: BenefitFormValues,
+  autoTranslation?: AutoTranslationOptions
+): Promise<BenefitMutationResult> {
   const ctx = await requireAuth();
   const validated = benefitSchema.safeParse(values);
   if (!validated.success) {
@@ -76,13 +269,17 @@ export async function createBenefit(values: BenefitFormValues) {
   }
 
   try {
+    const translationOptions = parseAutoTranslationOptions(autoTranslation);
     assertWriteAccess(ctx, validated.data.campus_id);
+    if (validated.data.status === "published") {
+      assertPublishAccess(ctx, validated.data.campus_id);
+    }
 
     const { db } = await createSessionClient();
 
     const benefit = await db.createRow("app", "campus_benefits", "unique()", {
       campus_id: validated.data.campus_id,
-      status: "draft" as CampusBenefitsStatus,
+      status: validated.data.status as CampusBenefitsStatus,
       kind: validated.data.kind,
       redemption_type: validated.data.redemption_type,
       redemption_value: validated.data.redemption_value ?? null,
@@ -106,8 +303,19 @@ export async function createBenefit(values: BenefitFormValues) {
       resourceId: benefit.$id,
       resourceType: "campus_benefit",
     });
+    const translationQueued = scheduleBenefitTranslation({
+      benefitId: benefit.$id,
+      options: translationOptions,
+      source: getBenefitValuesTranslationSnapshot(
+        validated.data,
+        translationOptions?.sourceLocale ?? "no"
+      ),
+    });
     revalidatePath("/benefits");
-    return { data: benefit.$id };
+    return {
+      data: benefit.$id,
+      ...(translationQueued ? { translationQueued: true as const } : {}),
+    };
   } catch (error) {
     return {
       error: error instanceof Error ? error.message : "Failed to save benefit",
@@ -115,7 +323,11 @@ export async function createBenefit(values: BenefitFormValues) {
   }
 }
 
-export async function updateBenefit(id: string, values: BenefitFormValues) {
+export async function updateBenefit(
+  id: string,
+  values: BenefitFormValues,
+  autoTranslation?: AutoTranslationOptions
+): Promise<BenefitMutationResult> {
   const ctx = await requireAuth();
   const validated = benefitSchema.safeParse(values);
   if (!validated.success) {
@@ -134,6 +346,7 @@ export async function updateBenefit(id: string, values: BenefitFormValues) {
   }
 
   try {
+    const translationOptions = parseAutoTranslationOptions(autoTranslation);
     assertWriteAccess(ctx, benefit.campus_id);
     assertWriteAccess(ctx, validated.data.campus_id);
     if (
@@ -171,9 +384,20 @@ export async function updateBenefit(id: string, values: BenefitFormValues) {
       resourceType: "campus_benefit",
       payload: { status: validated.data.status },
     });
+    const translationQueued = scheduleBenefitTranslation({
+      benefitId: id,
+      options: translationOptions,
+      source: getBenefitValuesTranslationSnapshot(
+        validated.data,
+        translationOptions?.sourceLocale ?? "no"
+      ),
+    });
     revalidatePath("/benefits");
     revalidatePath(`/benefits/${id}`);
-    return { data: id };
+    return {
+      data: id,
+      ...(translationQueued ? { translationQueued: true as const } : {}),
+    };
   } catch (error) {
     return {
       error: error instanceof Error ? error.message : "Failed to save benefit",

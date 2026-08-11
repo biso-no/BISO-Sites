@@ -1,7 +1,7 @@
 "use server";
 
 import { Permission, Query, Role } from "@repo/api";
-import { createSessionClient } from "@repo/api/server";
+import { createAdminClient, createSessionClient } from "@repo/api/server";
 import type {
   ContentTranslations,
   News,
@@ -9,6 +9,17 @@ import type {
 } from "@repo/api/types/appwrite";
 import { revalidatePath } from "next/cache";
 import { requireAuth } from "@/lib/authorization";
+import {
+  type AutoTranslationOptions,
+  type ContentLocale,
+  getTargetLocale,
+  isCurrentTranslationSource,
+} from "@/lib/content-translation";
+import {
+  parseAutoTranslationOptions,
+  scheduleContentTranslation,
+  translateContentFields,
+} from "@/lib/content-translation.server";
 import { loadRecruitmentLookups } from "@/lib/recruitment";
 import {
   buildContentRowPermissions,
@@ -23,6 +34,7 @@ import {
 } from "@/lib/utils/authorization";
 import {
   getNewsTranslationInputs,
+  type NewsTranslationDraft,
   type NewsTranslationInput,
 } from "../news/[id]/_components/news-studio-state";
 import { logAuditEvent } from "./audit-log";
@@ -33,6 +45,171 @@ type TranslationPermissions = ReturnType<
   typeof buildContentTranslationPermissions
 >;
 type RowPermissions = ReturnType<typeof buildContentRowPermissions>;
+
+type GenerateNewsTranslationDraftInput = NewsTranslationDraft & {
+  campusId: string;
+  departmentId?: string | null;
+  sourceLocale: ContentLocale;
+};
+
+interface ScheduleNewsTranslationInput {
+  additionalFields: string;
+  articleId: string;
+  autoTranslation?: AutoTranslationOptions;
+  permissions: TranslationPermissions;
+  values: NewsFormValues;
+}
+
+const translateNewsDraft = async (
+  sourceLocale: ContentLocale,
+  source: NewsTranslationDraft
+): Promise<NewsTranslationDraft> => {
+  const translated = await translateContentFields({
+    contentType: "news article",
+    fields: [
+      { format: "plain", key: "title", value: source.title },
+      {
+        format: "html",
+        key: "description",
+        value: source.description,
+      },
+    ],
+    sourceLocale,
+    targetLocale: getTargetLocale(sourceLocale),
+  });
+  return {
+    description: translated.description ?? "",
+    title: translated.title ?? "",
+  };
+};
+
+const scheduleNewsTranslation = ({
+  additionalFields,
+  articleId,
+  autoTranslation,
+  permissions,
+  values,
+}: ScheduleNewsTranslationInput): boolean => {
+  const sourceLocale = autoTranslation?.sourceLocale;
+  const source = sourceLocale
+    ? getNewsTranslationInputs(values).find(
+        (translation) => translation.locale === sourceLocale
+      )
+    : undefined;
+
+  return scheduleContentTranslation({
+    enabled: Boolean(autoTranslation?.enabled && source?.title.trim()),
+    task: async () => {
+      if (!(source && sourceLocale)) {
+        return;
+      }
+      const translated = await translateNewsDraft(sourceLocale, source);
+      const { db } = await createAdminClient();
+      const currentArticle = await db.getRow<News>("app", "news", articleId);
+      if (
+        !isCurrentTranslationSource(
+          {
+            campusId: values.campus_id,
+            departmentId: values.department_id ?? null,
+            status: values.status,
+          },
+          {
+            campusId: currentArticle.campus_id,
+            departmentId: currentArticle.department_id ?? null,
+            status: currentArticle.status,
+          }
+        )
+      ) {
+        return;
+      }
+      const currentTranslations = await db.listRows<ContentTranslations>(
+        "app",
+        "content_translations",
+        [
+          Query.equal("content_type", "news"),
+          Query.equal("content_id", articleId),
+          Query.limit(10),
+        ]
+      );
+      const currentSource = currentTranslations.rows.find(
+        (translation) => translation.locale === sourceLocale
+      );
+      if (
+        !(
+          currentSource &&
+          isCurrentTranslationSource(
+            { description: source.description, title: source.title },
+            {
+              description: currentSource.description ?? "",
+              title: currentSource.title ?? "",
+            }
+          )
+        )
+      ) {
+        return;
+      }
+      if ((currentSource.additional_fields ?? "") !== additionalFields) {
+        return;
+      }
+
+      const targetLocale = getTargetLocale(sourceLocale);
+      const currentTarget = currentTranslations.rows.find(
+        (translation) => translation.locale === targetLocale
+      );
+      const data = {
+        additional_fields: additionalFields,
+        content_id: articleId,
+        content_type: "news" as const,
+        description: translated.description,
+        locale: targetLocale,
+        title: translated.title,
+      };
+      if (currentTarget) {
+        await db.updateRow(
+          "app",
+          "content_translations",
+          currentTarget.$id,
+          data,
+          permissions
+        );
+        return;
+      }
+      await db.createRow(
+        "app",
+        "content_translations",
+        "unique()",
+        data,
+        permissions
+      );
+    },
+  });
+};
+
+export async function generateNewsTranslationDraft(
+  input: GenerateNewsTranslationDraftInput
+) {
+  const ctx = await requireAuth();
+  if (input.sourceLocale !== "no" && input.sourceLocale !== "en") {
+    return { error: "Unsupported source locale" };
+  }
+  const source = {
+    description: input.description ?? "",
+    title: input.title ?? "",
+  };
+  if (!(source.title.trim() || source.description.trim())) {
+    return { error: "Add source content before translating" };
+  }
+
+  try {
+    assertWriteAccess(ctx, input.campusId, input.departmentId ?? null);
+    return { data: await translateNewsDraft(input.sourceLocale, source) };
+  } catch (error) {
+    return {
+      error:
+        error instanceof Error ? error.message : "Failed to translate news",
+    };
+  }
+}
 
 const buildStagingNewsRowPermissions = (
   canonicalPermissions: RowPermissions,
@@ -204,7 +381,10 @@ export async function getNewsArticle(id: string) {
   return { ...article, translation_refs: translationsResponse.rows };
 }
 
-export async function createNews(values: NewsFormValues) {
+export async function createNews(
+  values: NewsFormValues,
+  autoTranslation?: AutoTranslationOptions
+) {
   const ctx = await requireAuth();
   const validated = newsSchema.safeParse(values);
   if (!validated.success) {
@@ -214,6 +394,7 @@ export async function createNews(values: NewsFormValues) {
   let rollback: (() => Promise<void>) | null = null;
 
   try {
+    const translationOptions = parseAutoTranslationOptions(autoTranslation);
     // News is reachable by department users (see NAV_ACCESS), so authorize
     // against both the target campus and department — matching the
     // update/delete paths, which pass the row's department_id.
@@ -268,6 +449,11 @@ export async function createNews(values: NewsFormValues) {
       writeTeams: deptTeam ? [deptTeam] : [],
       readTeams: campusTeam ? [campusTeam] : [],
     });
+    let finalTranslationPermissions = stagingTranslationPermissions;
+    const additionalFields = JSON.stringify({
+      author: validated.data.author,
+      category: validated.data.category,
+    });
     const translations = getNewsTranslationInputs(validated.data);
     const createdTranslationIds: string[] = [];
     rollback = () =>
@@ -276,10 +462,7 @@ export async function createNews(values: NewsFormValues) {
       db,
       article.$id,
       translations,
-      JSON.stringify({
-        author: validated.data.author,
-        category: validated.data.category,
-      }),
+      additionalFields,
       stagingTranslationPermissions,
       createdTranslationIds
     );
@@ -293,6 +476,7 @@ export async function createNews(values: NewsFormValues) {
           writeTeams: deptTeam ? [deptTeam] : [],
           readTeams: campusTeam ? [campusTeam] : [],
         });
+      finalTranslationPermissions = publishedTranslationPermissions;
       await publishStagedNewsTranslations(
         db,
         createdTranslationIds,
@@ -315,8 +499,17 @@ export async function createNews(values: NewsFormValues) {
       resourceId: article.$id,
       resourceType: "news",
     });
+    const translationQueued = scheduleNewsTranslation({
+      additionalFields,
+      articleId: article.$id,
+      autoTranslation: translationOptions,
+      permissions: finalTranslationPermissions,
+      values: validated.data,
+    });
     revalidatePath("/news");
-    return { data: article.$id };
+    return translationQueued
+      ? { data: article.$id, translationQueued: true as const }
+      : { data: article.$id };
   } catch (error) {
     await rollback?.();
     return {
@@ -325,7 +518,11 @@ export async function createNews(values: NewsFormValues) {
   }
 }
 
-export async function updateNews(id: string, values: NewsFormValues) {
+export async function updateNews(
+  id: string,
+  values: NewsFormValues,
+  autoTranslation?: AutoTranslationOptions
+) {
   const ctx = await requireAuth();
   const validated = newsSchema.safeParse(values);
   if (!validated.success) {
@@ -344,6 +541,7 @@ export async function updateNews(id: string, values: NewsFormValues) {
   }
 
   try {
+    const translationOptions = parseAutoTranslationOptions(autoTranslation);
     assertWriteAccess(ctx, article.campus_id, article.department_id);
     assertWriteAccess(
       ctx,
@@ -457,9 +655,21 @@ export async function updateNews(id: string, values: NewsFormValues) {
       resourceType: "news",
       payload: { status: validated.data.status },
     });
+    const translationQueued = scheduleNewsTranslation({
+      additionalFields: JSON.stringify({
+        author: validated.data.author,
+        category: validated.data.category,
+      }),
+      articleId: id,
+      autoTranslation: translationOptions,
+      permissions: translationPermissions,
+      values: validated.data,
+    });
     revalidatePath("/news");
     revalidatePath(`/news/${id}`);
-    return { data: id };
+    return translationQueued
+      ? { data: id, translationQueued: true as const }
+      : { data: id };
   } catch (error) {
     return {
       error: error instanceof Error ? error.message : "Failed to save article",

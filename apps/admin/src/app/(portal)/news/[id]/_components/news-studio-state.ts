@@ -17,6 +17,8 @@ export interface NewsTranslationInput {
   title: string;
 }
 
+export type NewsTranslationDraft = Omit<NewsTranslationInput, "locale">;
+
 interface RefreshNewsDepartmentsOptions<Department> {
   campusId: string;
   loadDepartments: (campusId: string) => Promise<Department[]>;
@@ -169,6 +171,37 @@ export const reconcileNewsSavedState = (
     values: getNewsSavedValues(values, options.status),
   };
 };
+
+export const getNewsTranslationDraftSource = (
+  values: NewsFormValues,
+  sourceLocale: NewsLocale
+): NewsTranslationDraft =>
+  sourceLocale === "no"
+    ? {
+        description: values.description_no ?? "",
+        title: values.title_no,
+      }
+    : {
+        description: values.description_en ?? "",
+        title: values.title_en,
+      };
+
+export const applyNewsTranslationDraft = (
+  values: NewsFormValues,
+  sourceLocale: NewsLocale,
+  draft: NewsTranslationDraft
+): NewsFormValues =>
+  sourceLocale === "no"
+    ? {
+        ...values,
+        description_en: draft.description,
+        title_en: draft.title,
+      }
+    : {
+        ...values,
+        description_no: draft.description,
+        title_no: draft.title,
+      };
 
 export const getNewsTranslationInputs = (
   values: NewsFormValues

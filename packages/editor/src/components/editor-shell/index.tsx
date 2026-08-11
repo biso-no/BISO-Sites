@@ -12,7 +12,7 @@ import {
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
-import { useEffect, useRef, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { EditorCallbacksContext } from "@/editor/callbacks";
 import { useBlocks } from "@/editor/hooks";
 import { useEditorStore } from "@/editor/store";
@@ -47,6 +47,7 @@ interface Props {
     doc: PageDoc,
     locale: EditorLocale
   ) => Promise<{ slug?: string } | undefined>;
+  topbarActions?: ReactNode;
   translatingLocale?: EditorLocale | null;
   uploadFile: (fd: FormData) => Promise<{ fileId: string; url: string }>;
 }
@@ -67,6 +68,7 @@ export function EditorShell({
   onDocChange,
   onTranslateLocale,
   translatingLocale,
+  topbarActions,
 }: Props) {
   const setDoc = useEditorStore((s) => s.setDoc);
   const doc = useEditorStore((s) => s.doc);
@@ -242,7 +244,7 @@ export function EditorShell({
               zIndex: 2,
             }}
           >
-            <Topbar />
+            <Topbar actions={topbarActions} />
             <div className="pe-shell">
               <PalettePane />
               <CanvasPane

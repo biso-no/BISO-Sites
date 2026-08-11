@@ -44,8 +44,12 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
+  AutoTranslateControl,
+  TranslationReviewCard,
+} from "@/app/_components/content-translation-controls";
+import {
   createEvent,
-  generateEventNorwegianDraft,
+  generateEventTranslationDraft,
   suggestEventDescriptionSection,
   updateEvent,
 } from "../../../_actions/events";
@@ -1439,10 +1443,8 @@ function EssentialsStep({
   departments,
   initialDepartments,
   locale,
-  onTranslateNo,
   set,
   setLocale,
-  translating,
   values,
 }: {
   allowedDepartmentIds?: string[];
@@ -1451,13 +1453,11 @@ function EssentialsStep({
   departments: Departments[];
   initialDepartments: Departments[];
   locale: LocaleCode;
-  onTranslateNo: () => Promise<void>;
   set: <K extends keyof EventUpsertInput>(
     key: K,
     value: EventUpsertInput[K]
   ) => void;
   setLocale: (locale: LocaleCode) => void;
-  translating: boolean;
   values: EventUpsertInput;
 }) {
   const [slugEditing, setSlugEditing] = useState(false);
@@ -1725,15 +1725,6 @@ function EssentialsStep({
               type="button"
             >
               <Sparkles size={11} /> Pre-fill from past socials
-            </button>
-            <button
-              disabled={translating}
-              onClick={onTranslateNo}
-              style={aiButtonStyle()}
-              type="button"
-            >
-              <Languages size={11} />
-              {translating ? "Translating..." : "Generate Norwegian"}
             </button>
             <button
               onClick={() => toast.message("Maybe next time")}
@@ -2771,15 +2762,22 @@ function TicketsStep({
 /*                                Review step                                 */
 /* -------------------------------------------------------------------------- */
 
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Review rows intentionally keep their feature-specific display rules together.
 function ReviewStep({
   blocksEn,
   departments,
+  locale,
+  onTranslate,
   setStep,
+  translating,
   values,
 }: {
   blocksEn: DescriptionBlock[];
   departments: Departments[];
+  locale: LocaleCode;
+  onTranslate: () => void;
   setStep: (step: StepIndex) => void;
+  translating: boolean;
   values: EventUpsertInput;
 }) {
   const department = departments.find((d) => d.$id === values.department_id);
@@ -2879,6 +2877,22 @@ function ReviewStep({
         </p>
       </div>
 
+      <TranslationReviewCard
+        className="mb-4"
+        disabled={
+          !(locale === "en"
+            ? values.title_en ||
+              stripHtml(values.description_en ?? "") ||
+              values.short_description_en
+            : values.title_no ||
+              stripHtml(values.description_no ?? "") ||
+              values.short_description_no)
+        }
+        isTranslating={translating}
+        onTranslate={onTranslate}
+        sourceLocale={locale}
+      />
+
       <div
         style={{
           background: "rgba(255,255,255,.5)",
@@ -2937,18 +2951,11 @@ function ReviewStep({
 
       <div style={{ marginTop: 18 }}>
         <AiCard
-          body="The Norwegian translation hasn't been reviewed yet — students switching to NO will see the AI version. Also: registration closes the night before doors — students who decide late might miss the cutoff."
+          body="Registration closes the night before doors — students who decide late might miss the cutoff."
           gemColor="linear-gradient(135deg, #6b1e1e, #b04545)"
-          title="Two reminders before you publish."
+          title="One reminder before you publish."
         >
           <div style={{ display: "flex", gap: 6 }}>
-            <button
-              onClick={() => toast.message("Open NO translation review")}
-              style={aiButtonStyle()}
-              type="button"
-            >
-              Review NO translation
-            </button>
             <button
               onClick={() => toast.message("Push registration cutoff")}
               style={aiButtonStyle()}
@@ -2968,7 +2975,10 @@ function ReviewStep({
 /* -------------------------------------------------------------------------- */
 
 function ActionBar({
+  autoTranslate,
   dirty,
+  locale,
+  onAutoTranslateChange,
   onDraft,
   onPublish,
   setStep,
@@ -2976,7 +2986,10 @@ function ActionBar({
   submitting,
   values,
 }: {
+  autoTranslate: boolean;
   dirty: boolean;
+  locale: LocaleCode;
+  onAutoTranslateChange: (checked: boolean) => void;
   onDraft: () => void;
   onPublish: () => void;
   setStep: (step: StepIndex) => void;
@@ -3007,6 +3020,7 @@ function ActionBar({
         borderTop: `0.5px solid ${BRAND.rule}`,
         bottom: 0,
         display: "flex",
+        flexWrap: "wrap",
         gap: 10,
         marginTop: "auto",
         padding: "14px 36px",
@@ -3057,6 +3071,14 @@ function ActionBar({
         )}
       </div>
       <div style={{ flex: 1 }} />
+      <AutoTranslateControl
+        checked={autoTranslate}
+        className="max-w-[280px]"
+        disabled={submitting}
+        onCheckedChange={onAutoTranslateChange}
+        operation="save or publish"
+        sourceLocale={locale}
+      />
       <button
         onClick={() => toast.message("Preview is in the right pane")}
         style={actionBtnStyle()}
@@ -4008,6 +4030,7 @@ export function EventStudioEditor({
   const [submitting, setSubmitting] = useState(false);
   const [suggesting, setSuggesting] = useState(false);
   const [translating, setTranslating] = useState(false);
+  const [autoTranslate, setAutoTranslate] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [departments, setDepartments] =
     useState<Departments[]>(initialDepartments);
@@ -4119,17 +4142,48 @@ export function EventStudioEditor({
     toast.success("Run-of-show added");
   }
 
-  async function handleTranslateNo() {
-    if (!(values.title_en?.trim() && values.description_en?.trim())) {
-      toast.error("Add an English title and description first");
+  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Translation replacement keeps both locale branches explicit so destination writes remain auditable.
+  async function handleTranslate() {
+    const source =
+      locale === "no"
+        ? {
+            description: values.description_no ?? "",
+            shortDescription: values.short_description_no,
+            title: values.title_no,
+          }
+        : {
+            description: values.description_en ?? "",
+            shortDescription: values.short_description_en,
+            title: values.title_en,
+          };
+    const destinationHasContent =
+      locale === "no"
+        ? Boolean(
+            values.title_en.trim() ||
+              stripHtml(values.description_en ?? "").trim() ||
+              values.short_description_en?.trim()
+          )
+        : Boolean(
+            values.title_no.trim() ||
+              stripHtml(values.description_no ?? "").trim() ||
+              values.short_description_no?.trim()
+          );
+    if (
+      destinationHasContent &&
+      // biome-ignore lint/suspicious/noAlert: Matches the existing translation replacement confirmation used by other publishing studios.
+      !window.confirm(
+        "Replace the existing destination-language content with a new translation?"
+      )
+    ) {
       return;
     }
     setTranslating(true);
     try {
-      const result = await generateEventNorwegianDraft({
-        description_en: values.description_en ?? "",
-        short_description_en: values.short_description_en ?? undefined,
-        title_en: values.title_en,
+      const result = await generateEventTranslationDraft({
+        ...source,
+        campusId: values.campus_id,
+        departmentId: values.department_id ?? null,
+        sourceLocale: locale,
       });
 
       if ("error" in result && result.error) {
@@ -4137,21 +4191,41 @@ export function EventStudioEditor({
         return;
       }
       if (!("data" in result && result.data)) {
-        toast.error("Failed to generate Norwegian draft");
+        toast.error("Failed to generate translation draft");
         return;
       }
 
-      const noBlocks = htmlToDescriptionBlocks(result.data.description_no);
-      setBlocksNo(noBlocks);
-      setValues((prev) => ({
-        ...prev,
-        description_no: result.data.description_no,
-        short_description_no: result.data.short_description_no,
-        title_no: result.data.title_no,
-      }));
+      if (locale === "en" && "title_no" in result.data) {
+        const descriptionNo = result.data.description_no ?? "";
+        const shortDescriptionNo = result.data.short_description_no ?? "";
+        const titleNo = result.data.title_no ?? "";
+        const noBlocks = htmlToDescriptionBlocks(descriptionNo);
+        setBlocksNo(noBlocks);
+        setValues((prev) => ({
+          ...prev,
+          description_no: descriptionNo,
+          short_description_no: shortDescriptionNo,
+          title_no: titleNo,
+        }));
+        setLocale("no");
+        setPreviewLocale("no");
+      } else if (locale === "no" && "title_en" in result.data) {
+        const descriptionEn = result.data.description_en ?? "";
+        const shortDescriptionEn = result.data.short_description_en ?? "";
+        const titleEn = result.data.title_en ?? "";
+        const enBlocks = htmlToDescriptionBlocks(descriptionEn);
+        setBlocksEn(enBlocks);
+        setValues((prev) => ({
+          ...prev,
+          description_en: descriptionEn,
+          short_description_en: shortDescriptionEn,
+          title_en: titleEn,
+        }));
+        setLocale("en");
+        setPreviewLocale("en");
+      }
       setDirty(true);
-      setLocale("no");
-      toast.success("Norwegian draft generated");
+      toast.success("Translation draft generated");
     } finally {
       setTranslating(false);
     }
@@ -4168,16 +4242,26 @@ export function EventStudioEditor({
     }
     try {
       const result = isNew
-        ? await createEvent(validated.data)
-        : await updateEvent(event?.$id ?? "", validated.data);
+        ? await createEvent(validated.data, {
+            enabled: autoTranslate,
+            sourceLocale: locale,
+          })
+        : await updateEvent(event?.$id ?? "", validated.data, {
+            enabled: autoTranslate,
+            sourceLocale: locale,
+          });
       if ("error" in result && result.error) {
         toast.error(labels.saveError);
         return;
       }
-      toast.success(
+      const successMessage =
         status === EventsStatus.PUBLISHED
           ? labels.publishSuccess
-          : labels.saveSuccess
+          : labels.saveSuccess;
+      toast.success(
+        "translationQueued" in result && result.translationQueued
+          ? `${successMessage} Translation queued.`
+          : successMessage
       );
       setDirty(false);
       if (isNew && "data" in result && typeof result.data === "string") {
@@ -4323,10 +4407,8 @@ export function EventStudioEditor({
                 departments={departments}
                 initialDepartments={initialDepartments}
                 locale={locale}
-                onTranslateNo={handleTranslateNo}
                 set={set}
                 setLocale={setLocale}
-                translating={translating}
                 values={values}
               />
             )}
@@ -4356,13 +4438,19 @@ export function EventStudioEditor({
               <ReviewStep
                 blocksEn={blocksEn}
                 departments={departments}
+                locale={locale}
+                onTranslate={handleTranslate}
                 setStep={setStep}
+                translating={translating}
                 values={values}
               />
             )}
           </div>
           <ActionBar
+            autoTranslate={autoTranslate}
             dirty={dirty}
+            locale={locale}
+            onAutoTranslateChange={setAutoTranslate}
             onDraft={() => submit(EventsStatus.DRAFT)}
             onPublish={() => submit(EventsStatus.PUBLISHED)}
             setStep={setStep}

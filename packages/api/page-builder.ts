@@ -386,10 +386,13 @@ export async function getPageById(
   };
 }
 
+type PageDatabase = Awaited<ReturnType<typeof createSessionClient>>["db"];
+
 export async function getPageEditorById(
-  id: string
+  id: string,
+  dbOverride?: PageDatabase
 ): Promise<PageEditorLoadResult | null> {
-  const { db } = await createSessionClient();
+  const db = dbOverride ?? (await createSessionClient()).db;
 
   const res = await db.listRows<Pages>("app", "pages", [
     Query.equal("$id", id),
@@ -498,6 +501,70 @@ export async function savePageDraft({
 }
 
 /**
+ * Save one translated draft without mutating the parent page.
+ *
+ * PRIVILEGED: callers must authorize access before invoking this helper. It is
+ * intended for deferred translation work, where the request session may have
+ * already completed.
+ */
+export async function savePageTranslationDraft({
+  id,
+  doc,
+  locale,
+}: {
+  id: string;
+  doc: PageDoc;
+  locale: PageEditorLocale;
+}): Promise<{ translationId: string }> {
+  const { db } = await createAdminClient();
+  const pageRes = await db.listRows<Pages>("app", "pages", [
+    Query.equal("$id", id),
+    Query.limit(1),
+  ]);
+  const page = pageRes.rows[0];
+  if (!page) {
+    throw new Error("Page not found");
+  }
+
+  const normalizedDoc = normalizeDocForSave(doc);
+  const existingRes = await db.listRows<PageTranslations>(
+    "app",
+    "page_translations",
+    [
+      Query.equal("page_id", id),
+      Query.equal("locale", locale as PageTranslationsLocale),
+      Query.limit(1),
+    ]
+  );
+  const existing = existingRes.rows[0];
+  const teams = await loadPageRowTeams(db, page);
+  const permissions = buildPageRowPermissions({
+    isPublished:
+      page.status === PagesStatus.PUBLISHED &&
+      (existing?.is_published ?? false),
+    audience: pageAudience(page.visibility),
+    campusTeam: teams.campusTeam,
+    deptTeam: teams.deptTeam,
+  });
+  const translation = await db.upsertRow<PageTranslations>(
+    "app",
+    "page_translations",
+    existing?.$id ?? ID.unique(),
+    {
+      page_id: id,
+      page: id as unknown as Pages,
+      locale: locale as PageTranslationsLocale,
+      draft_document: pageDocToJson(normalizedDoc),
+      title: normalizedDoc.meta.title,
+      description: normalizedDoc.meta.description ?? null,
+      is_published: existing?.is_published ?? false,
+    },
+    permissions
+  );
+  return { translationId: translation.$id };
+}
+
+/**
  * Publish a page's translation.
  *
  * PRIVILEGED: the row writes use the service-key admin client. Page rows grant
@@ -509,9 +576,11 @@ export async function savePageDraft({
 export async function publishPage({
   id,
   locale = "no",
+  updateParentStatus = true,
 }: {
   id: string;
   locale?: "no" | "en";
+  updateParentStatus?: boolean;
 }): Promise<void> {
   const { db } = await createAdminClient();
 
@@ -555,15 +624,17 @@ export async function publishPage({
     publishedPermissions
   );
 
-  await db.updateRow(
-    "app",
-    "pages",
-    id,
-    {
-      status: "published" as PagesStatus,
-    },
-    publishedPermissions
-  );
+  if (updateParentStatus) {
+    await db.updateRow(
+      "app",
+      "pages",
+      id,
+      {
+        status: "published" as PagesStatus,
+      },
+      publishedPermissions
+    );
+  }
 }
 
 /**
