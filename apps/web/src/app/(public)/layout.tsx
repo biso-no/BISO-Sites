@@ -9,6 +9,14 @@ import { cachedNavFeatured } from "@/lib/data/public-content";
 
 const EMPTY_FEATURED = { event: null, news: null, project: null };
 
+// Request-bound gating (session → membership status) lives in this layout, so
+// there is no meaningful static shell for it yet. `instant = false` exempts
+// THIS segment from instant-navigation validation — the root layout's export
+// does not cascade; each segment opts out for itself. Descendant pages remain
+// validated. Follow-up: stream membership via Suspense to restore instant
+// navigation for the public tree.
+export const instant = false;
+
 export default async function PublicLayout({
   children,
 }: {
