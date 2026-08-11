@@ -10,7 +10,6 @@ import type { EventUpsertInput } from "@repo/shared/types/events";
 import {
   adminDb,
   assertWriteAccessSpy,
-  createAdminClientSpy,
   deferredTask,
   resetTranslationHarness,
   scheduleContentTranslationSpy,
@@ -123,13 +122,42 @@ describe("event auto-translation scheduling", () => {
       { enabled: false, sourceLocale: "en" }
     );
 
-    expect(sessionDb.createRow).toHaveBeenCalledWith(
+    expect(adminDb.upsertRow).toHaveBeenCalledWith(
       "app",
       "events",
       expect.any(String),
       expect.objectContaining({ status: EventsStatus.PUBLISHED }),
       expect.any(Array)
     );
+  });
+
+  test("persists ownership and both nested locales in one write", async () => {
+    await createEvent(eventValues, { enabled: false, sourceLocale: "en" });
+
+    expect(adminDb.upsertRow).toHaveBeenCalledWith(
+      "app",
+      "events",
+      expect.any(String),
+      expect.objectContaining({
+        campus: "campus-oslo",
+        department: null,
+        translation_refs: expect.arrayContaining([
+          expect.objectContaining({
+            $permissions: expect.any(Array),
+            content_type: "event",
+            locale: "no",
+            title: "Norsk kildetittel",
+          }),
+          expect.objectContaining({
+            content_type: "event",
+            locale: "en",
+            title: "English source title",
+          }),
+        ]),
+      }),
+      expect.any(Array)
+    );
+    expect(sessionDb.createRow).not.toHaveBeenCalled();
   });
 
   test("does not schedule when auto-translation is disabled", async () => {
@@ -167,21 +195,22 @@ describe("event auto-translation scheduling", () => {
     expect(deferredTask).toBeUndefined();
   });
 
-  test("schedules after persistence and writes only the destination locale", async () => {
-    adminDb.listRows
-      .mockImplementationOnce(async () => ({
-        rows: [
-          {
-            $id: "source-en",
-            description: "<p>English source</p>",
-            locale: "en",
-            short_description: "English source teaser",
-            title: "English source title",
-          },
-        ],
-        total: 1,
-      }))
-      .mockImplementationOnce(async () => ({ rows: [], total: 0 }));
+  test("schedules after persistence and links only the destination locale", async () => {
+    adminDb.getRow.mockResolvedValueOnce({
+      campus_id: "campus-oslo",
+      department_id: null,
+      member_only: false,
+      status: "draft",
+      translation_refs: [
+        {
+          $id: "source-en",
+          description: "<p>English source</p>",
+          locale: "en",
+          short_description: "English source teaser",
+          title: "English source title",
+        },
+      ],
+    });
     adminDb.createRow.mockImplementation(async () => ({
       $id: "translation-no",
     }));
@@ -194,7 +223,6 @@ describe("event auto-translation scheduling", () => {
     expect(deferredTask).toBeDefined();
     await deferredTask?.();
 
-    expect(createAdminClientSpy).toHaveBeenCalledTimes(1);
     expect(adminDb.createRow).toHaveBeenCalledTimes(1);
     expect(adminDb.createRow).toHaveBeenCalledWith(
       "app",
@@ -204,6 +232,7 @@ describe("event auto-translation scheduling", () => {
         content_id: "event-1",
         content_type: "event",
         description: "<p>Norsk beskrivelse</p>",
+        event_ref: "event-1",
         locale: "no",
         short_description: "Norsk ingress",
         title: "Norsk tittel",
@@ -213,9 +242,50 @@ describe("event auto-translation scheduling", () => {
     expect(adminDb.updateRow).not.toHaveBeenCalled();
   });
 
+  test("updates an already linked destination without relinking it", async () => {
+    adminDb.getRow.mockResolvedValueOnce({
+      campus_id: "campus-oslo",
+      department_id: null,
+      member_only: false,
+      status: "draft",
+      translation_refs: [
+        {
+          $id: "source-en",
+          description: "<p>English source</p>",
+          locale: "en",
+          short_description: "English source teaser",
+          title: "English source title",
+        },
+        {
+          $id: "target-no",
+          description: "<p>Gammel norsk</p>",
+          locale: "no",
+          short_description: "Gammel ingress",
+          title: "Gammel tittel",
+        },
+      ],
+    });
+
+    await createEvent(eventValues, { enabled: true, sourceLocale: "en" });
+    await deferredTask?.();
+
+    expect(adminDb.updateRow).toHaveBeenCalledWith(
+      "app",
+      "content_translations",
+      "target-no",
+      expect.objectContaining({ locale: "no", title: "Norsk tittel" }),
+      expect.any(Array)
+    );
+    expect(adminDb.createRow).not.toHaveBeenCalled();
+  });
+
   test("skips the destination write when the submitted source is stale", async () => {
-    adminDb.listRows.mockImplementationOnce(async () => ({
-      rows: [
+    adminDb.getRow.mockResolvedValueOnce({
+      campus_id: "campus-oslo",
+      department_id: null,
+      member_only: false,
+      status: "draft",
+      translation_refs: [
         {
           $id: "source-en",
           description: "<p>Newer English source</p>",
@@ -224,8 +294,7 @@ describe("event auto-translation scheduling", () => {
           title: "English source title",
         },
       ],
-      total: 1,
-    }));
+    });
 
     await createEvent(eventValues, { enabled: true, sourceLocale: "en" });
     await deferredTask?.();
@@ -250,7 +319,7 @@ describe("event auto-translation scheduling", () => {
   });
 
   test("does not schedule when the primary write fails", async () => {
-    sessionDb.createRow.mockImplementationOnce(() => {
+    adminDb.upsertRow.mockImplementationOnce(() => {
       throw new Error("primary failed");
     });
 

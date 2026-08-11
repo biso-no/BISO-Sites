@@ -110,10 +110,12 @@ export const resetTranslationHarness = (): void => {
   }
   adminDb.getRow.mockReset();
   sessionDb.listRows.mockImplementation(async () => ({ rows: [], total: 0 }));
-  adminDb.upsertRow.mockImplementation(() => {
-    primaryWriteCompleted = true;
-    return { $id: "job-1" };
-  });
+  adminDb.upsertRow.mockImplementation(
+    (_databaseId: string, tableId: string) => {
+      primaryWriteCompleted = true;
+      return { $id: tableId === "events" ? "event-1" : "job-1" };
+    }
+  );
   adminDb.getRow.mockImplementation(
     async (_databaseId: string, tableId: string) =>
       tableId === "events"

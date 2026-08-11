@@ -1,7 +1,7 @@
 "use server";
 
 import { ID, Permission, Query, Role } from "@repo/api";
-import { createAdminClient, createSessionClient } from "@repo/api/server";
+import { createAdminClient, type createSessionClient } from "@repo/api/server";
 import {
   type Announcements,
   AnnouncementsAudienceType,
@@ -16,6 +16,7 @@ import type { AnnouncementWriteInput } from "@repo/api/types/inputs";
 import { createTypedRow } from "@repo/api/write";
 import { revalidatePath } from "next/cache";
 import { requireAuth, type UserAuthContext } from "@/lib/authorization";
+import { getContentOwnership } from "@/lib/content-authorization";
 import { assertWriteAccess, hasRowAccess } from "@/lib/utils/authorization";
 import { sendAnnouncement } from "./announcements";
 import { logAuditEvent } from "./audit-log";
@@ -33,8 +34,9 @@ const ATTENDEE_PAGE_SIZE = 200;
 type SessionDb = Awaited<ReturnType<typeof createSessionClient>>["db"];
 
 /**
- * Load an event and assert the caller can see it (campus/department scope).
- * Returns null when missing or out of scope so callers fail closed.
+ * Load an event and assert the caller can see it (relationship ownership with
+ * scalar fallback for pre-backfill rows). Returns null when missing or out of
+ * scope so callers fail closed.
  */
 async function loadScopedEvent(
   db: SessionDb,
@@ -46,10 +48,20 @@ async function loadScopedEvent(
     Query.limit(1),
   ]);
   const event = response.rows[0];
-  if (!(event && hasRowAccess(ctx, event.campus_id, event.department_id))) {
+  if (!event) {
+    return null;
+  }
+  const ownership = getContentOwnership(event, { legacyFallback: true });
+  if (!hasRowAccess(ctx, ownership.campus, ownership.department)) {
     return null;
   }
   return event;
+}
+
+/** Assert segment-mutation access against the parent event's ownership. */
+function assertEventScopeAccess(ctx: UserAuthContext, event: Events): void {
+  const ownership = getContentOwnership(event, { legacyFallback: true });
+  assertWriteAccess(ctx, ownership.campus, ownership.department);
 }
 
 async function loadSegment(
@@ -109,7 +121,7 @@ export async function listSegments(
   eventId: string
 ): Promise<SegmentWithCount[]> {
   const ctx = await requireAuth();
-  const { db } = await createSessionClient();
+  const { db } = await createAdminClient();
 
   const event = await loadScopedEvent(db, ctx, eventId);
   if (!event) {
@@ -142,12 +154,12 @@ export async function createSegment(values: SegmentFormValues) {
   }
 
   try {
-    const { db } = await createSessionClient();
+    const { db } = await createAdminClient();
     const event = await loadScopedEvent(db, ctx, validated.data.event_id);
     if (!event) {
       return { error: "Event not found" };
     }
-    assertWriteAccess(ctx, event.campus_id, event.department_id);
+    assertEventScopeAccess(ctx, event);
 
     const segment = await db.createRow(
       "app",
@@ -183,7 +195,7 @@ export async function updateSegment(id: string, values: SegmentFormValues) {
   }
 
   try {
-    const { db } = await createSessionClient();
+    const { db } = await createAdminClient();
     const segment = await loadSegment(db, id);
     if (!segment) {
       return { error: "Segment not found" };
@@ -192,7 +204,7 @@ export async function updateSegment(id: string, values: SegmentFormValues) {
     if (!event) {
       return { error: "Event not found" };
     }
-    assertWriteAccess(ctx, event.campus_id, event.department_id);
+    assertEventScopeAccess(ctx, event);
 
     // event_segments has rowSecurity disabled and no collection-level update
     // permission, so writes go through the service-key client (authorization is
@@ -228,7 +240,7 @@ export async function deleteSegment(id: string) {
   const ctx = await requireAuth();
 
   try {
-    const { db } = await createSessionClient();
+    const { db } = await createAdminClient();
     const segment = await loadSegment(db, id);
     if (!segment) {
       return { error: "Segment not found" };
@@ -237,7 +249,7 @@ export async function deleteSegment(id: string) {
     if (!event) {
       return { error: "Event not found" };
     }
-    assertWriteAccess(ctx, event.campus_id, event.department_id);
+    assertEventScopeAccess(ctx, event);
 
     // Member rows carry per-user permissions and event_segments has no
     // collection-level delete permission, so deletes use the service-key client
@@ -432,12 +444,12 @@ export async function importAttendeesCsv(
   const ctx = await requireAuth();
 
   try {
-    const { db: sessionDb } = await createSessionClient();
+    const { db: sessionDb } = await createAdminClient();
     const event = await loadScopedEvent(sessionDb, ctx, eventId);
     if (!event) {
       return { error: "Event not found" };
     }
-    assertWriteAccess(ctx, event.campus_id, event.department_id);
+    assertEventScopeAccess(ctx, event);
 
     const parsed = parseCsv(csvText);
     if (parsed.length === 0) {
@@ -513,7 +525,7 @@ export async function listAttendees(
   eventId: string
 ): Promise<EventAttendees[]> {
   const ctx = await requireAuth();
-  const { db: sessionDb } = await createSessionClient();
+  const { db: sessionDb } = await createAdminClient();
 
   const event = await loadScopedEvent(sessionDb, ctx, eventId);
   if (!event) {
@@ -576,7 +588,7 @@ export async function assignToSegment(
   const ctx = await requireAuth();
 
   try {
-    const { db } = await createSessionClient();
+    const { db } = await createAdminClient();
     const segment = await loadSegment(db, segmentId);
     if (!segment) {
       return { error: "Segment not found" };
@@ -585,7 +597,7 @@ export async function assignToSegment(
     if (!event) {
       return { error: "Event not found" };
     }
-    assertWriteAccess(ctx, event.campus_id, event.department_id);
+    assertEventScopeAccess(ctx, event);
 
     // segment_members rows are readable only by their assigned user (row
     // security), so an admin must read/write them with the service-key client —
@@ -674,12 +686,12 @@ export async function autoAssign(
   const ctx = await requireAuth();
 
   try {
-    const { db } = await createSessionClient();
+    const { db } = await createAdminClient();
     const event = await loadScopedEvent(db, ctx, eventId);
     if (!event) {
       return { error: "Event not found" };
     }
-    assertWriteAccess(ctx, event.campus_id, event.department_id);
+    assertEventScopeAccess(ctx, event);
 
     const segmentsResponse = await db.listRows<EventSegments>(
       "app",
@@ -833,7 +845,7 @@ export async function messageSegment(
   }
 
   try {
-    const { db } = await createSessionClient();
+    const { db } = await createAdminClient();
     const segment = await loadSegment(db, segmentId);
     if (!segment) {
       return { error: "Segment not found" };
@@ -842,7 +854,7 @@ export async function messageSegment(
     if (!event) {
       return { error: "Event not found" };
     }
-    assertWriteAccess(ctx, event.campus_id, event.department_id);
+    assertEventScopeAccess(ctx, event);
 
     // announcements are service-key-only to create (so app users can't forge
     // them); author via the admin client after the access check above.

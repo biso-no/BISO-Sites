@@ -2,7 +2,7 @@
 
 import { openai } from "@ai-sdk/openai";
 import { ID, Query } from "@repo/api";
-import { createAdminClient, createSessionClient } from "@repo/api/server";
+import { createAdminClient } from "@repo/api/server";
 import {
   type ContentTranslations,
   type Events,
@@ -19,6 +19,11 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { dispatchAnnouncement } from "@/lib/announcements/send";
 import { requireAuth } from "@/lib/authorization";
+import {
+  applyContentRelationshipScopeQueries,
+  assertContentOwnership,
+  getContentOwnership,
+} from "@/lib/content-authorization";
 import {
   type AutoTranslationOptions,
   type ContentLocale,
@@ -37,7 +42,6 @@ import {
   deriveContentRowTeams,
 } from "@/lib/utils";
 import {
-  applyScopeQueries,
   assertPublishAccess,
   assertWriteAccess,
   hasRowAccess,
@@ -45,8 +49,19 @@ import {
 import { logAuditEvent } from "./audit-log";
 import { EVENTS_PAGE_SIZE, type EventFormValues, eventSchema } from "./schemas";
 
-type SessionDb = Awaited<ReturnType<typeof createSessionClient>>["db"];
+type AdminDb = Awaited<ReturnType<typeof createAdminClient>>["db"];
 type EventAuthContext = Awaited<ReturnType<typeof requireAuth>>;
+
+type EventWithTranslations = Events & {
+  translation_refs?: ContentTranslations[] | null;
+};
+
+const EVENT_RELATIONSHIP_SELECT = Query.select([
+  "*",
+  "campus.$id",
+  "department.$id",
+  "translation_refs.*",
+]);
 
 const eventTranslationDraftSchema = z
   .object({
@@ -116,6 +131,7 @@ async function sendEventAnnouncement(input: {
         body_en: input.bodyEn,
         body_no: input.bodyNo,
         event_id: input.eventId,
+        campus: input.campusId,
         campus_id: input.campusId,
         deep_link: deepLink,
         push: true,
@@ -142,57 +158,67 @@ function serializeAdditionalFields(payload: {
   return JSON.stringify({ short_description: payload.short_description });
 }
 
-async function upsertEventTranslation(
-  db: SessionDb,
+interface NestedEventTranslation {
+  $id?: string;
+  $permissions: string[];
+  additional_fields: string | null;
+  content_id: string;
+  content_type: "event";
+  description: string;
+  locale: ContentLocale;
+  short_description: string | null;
+  title: string;
+}
+
+/**
+ * Nested relationship children for the event upsert: an existing `$id` makes
+ * Appwrite update-and-keep that child, omitting it creates and links a new
+ * one. Explicit `$permissions` avoid relying on permission inheritance.
+ */
+function buildNestedEventTranslation(
   eventId: string,
-  locale: "no" | "en",
-  payload: {
-    title: string;
-    description: string;
-    shortDescription: string | null;
-  },
+  locale: ContentLocale,
+  values: EventFormValues,
+  existingByLocale: Map<string, ContentTranslations>,
   permissions: string[]
-): Promise<void> {
-  const existing = await db.listRows<ContentTranslations>(
+): NestedEventTranslation {
+  const snapshot = getEventTranslationSnapshot(values, locale);
+  const existing = existingByLocale.get(locale);
+  return {
+    ...(existing ? { $id: existing.$id } : {}),
+    $permissions: permissions,
+    additional_fields: serializeAdditionalFields({
+      short_description: snapshot.short_description || null,
+    }),
+    content_id: eventId,
+    content_type: "event",
+    description: snapshot.description,
+    locale,
+    short_description: snapshot.short_description || null,
+    title: snapshot.title,
+  };
+}
+
+/**
+ * Existing locales are looked up by content metadata, not the relation: rows
+ * that predate the relationship backfill are unlinked, and matching them here
+ * both prevents duplicate locale rows and re-links them on the next save.
+ */
+async function loadEventTranslationsByLocale(
+  db: AdminDb,
+  eventId: string
+): Promise<Map<string, ContentTranslations>> {
+  const current = await db.listRows<ContentTranslations>(
     "app",
     "content_translations",
     [
       Query.equal("content_type", "event"),
       Query.equal("content_id", eventId),
-      Query.equal("locale", locale),
-      Query.limit(1),
+      Query.limit(10),
     ]
   );
-
-  const data = {
-    content_id: eventId,
-    content_type: "event",
-    locale,
-    title: payload.title,
-    description: payload.description,
-    short_description: payload.shortDescription,
-    additional_fields: serializeAdditionalFields({
-      short_description: payload.shortDescription,
-    }),
-  };
-
-  if (existing.rows[0]) {
-    await db.updateRow(
-      "app",
-      "content_translations",
-      existing.rows[0].$id,
-      data,
-      permissions
-    );
-    return;
-  }
-
-  await db.createRow(
-    "app",
-    "content_translations",
-    ID.unique(),
-    data,
-    permissions
+  return new Map(
+    current.rows.map((translation) => [translation.locale, translation])
   );
 }
 
@@ -260,12 +286,17 @@ function scheduleEventTranslation(input: {
         input.source,
         input.sourceLocale
       );
+      // Fresh admin client: the request that scheduled this callback is done.
       const { db } = await createAdminClient();
-      const currentEvent = await db.getRow<Events>(
+      const currentEvent = await db.getRow<EventWithTranslations>(
         "app",
         "events",
-        input.eventId
+        input.eventId,
+        [EVENT_RELATIONSHIP_SELECT]
       );
+      const ownership = getContentOwnership(currentEvent, {
+        legacyFallback: true,
+      });
       if (
         !isCurrentTranslationSource(
           {
@@ -275,8 +306,8 @@ function scheduleEventTranslation(input: {
             status: input.status,
           },
           {
-            campusId: currentEvent.campus_id,
-            departmentId: currentEvent.department_id ?? null,
+            campusId: ownership.campus,
+            departmentId: ownership.department,
             memberOnly: currentEvent.member_only,
             status: currentEvent.status,
           }
@@ -284,17 +315,12 @@ function scheduleEventTranslation(input: {
       ) {
         return;
       }
-      const sourceRows = await db.listRows<ContentTranslations>(
-        "app",
-        "content_translations",
-        [
-          Query.equal("content_type", "event"),
-          Query.equal("content_id", input.eventId),
-          Query.equal("locale", input.sourceLocale),
-          Query.limit(1),
-        ]
+      // The synchronous save linked the source locale before scheduling, so
+      // the parent relation is the authoritative read path here.
+      const currentTranslations = currentEvent.translation_refs ?? [];
+      const currentSource = currentTranslations.find(
+        (translation) => translation.locale === input.sourceLocale
       );
-      const currentSource = sourceRows.rows[0];
       if (!currentSource) {
         return;
       }
@@ -312,15 +338,38 @@ function scheduleEventTranslation(input: {
         memberOnly: input.memberOnly,
         status: input.status,
       });
-      await upsertEventTranslation(
-        db,
-        input.eventId,
-        getTargetLocale(input.sourceLocale),
-        {
-          description: translated.description,
-          shortDescription: translated.short_description || null,
-          title: translated.title,
-        },
+
+      const targetLocale = getTargetLocale(input.sourceLocale);
+      const currentTarget = currentTranslations.find(
+        (translation) => translation.locale === targetLocale
+      );
+      const data = {
+        additional_fields: serializeAdditionalFields({
+          short_description: translated.short_description || null,
+        }),
+        content_id: input.eventId,
+        content_type: "event",
+        description: translated.description,
+        locale: targetLocale,
+        short_description: translated.short_description || null,
+        title: translated.title,
+      };
+      if (currentTarget) {
+        await db.updateRow(
+          "app",
+          "content_translations",
+          currentTarget.$id,
+          data,
+          translationPermissions
+        );
+        return;
+      }
+      await db.createRow(
+        "app",
+        "content_translations",
+        ID.unique(),
+        // A fresh destination row must arrive already related to its parent.
+        { ...data, event_ref: input.eventId },
         translationPermissions
       );
     },
@@ -354,8 +403,9 @@ function assertEventPublishTransitionAccess(
   if (event.status !== "published" && values.status !== "published") {
     return;
   }
-  assertPublishAccess(ctx, event.campus_id);
-  assertPublishAccess(ctx, values.campus_id);
+  const persisted = getContentOwnership(event, { legacyFallback: true });
+  assertPublishAccess(ctx, persisted.campus, persisted.department);
+  assertPublishAccess(ctx, values.campus_id, values.department_id ?? null);
 }
 
 /**
@@ -364,7 +414,7 @@ function assertEventPublishTransitionAccess(
  * to derive team IDs.
  */
 async function buildEventPermissions(
-  db: SessionDb,
+  db: AdminDb,
   opts: {
     status: string;
     memberOnly: boolean;
@@ -397,7 +447,11 @@ async function buildEventPermissions(
 function buildEventColumns(values: EventFormValues): Record<string, unknown> {
   return {
     slug: values.slug,
+    // Canonical ownership relationships; the scalar columns remain as
+    // migration-era compatibility metadata only.
+    campus: values.campus_id,
     campus_id: values.campus_id,
+    department: values.department_id ?? null,
     department_id: values.department_id ?? null,
     category: (values.category ?? null) as EventsCategory | null,
     tags: values.tags ?? [],
@@ -428,6 +482,23 @@ function buildEventColumns(values: EventFormValues): Record<string, unknown> {
   };
 }
 
+function buildEventTranslationChildren(
+  eventId: string,
+  values: EventFormValues,
+  existingByLocale: Map<string, ContentTranslations>,
+  permissions: string[]
+): NestedEventTranslation[] {
+  return (["no", "en"] as const).map((locale) =>
+    buildNestedEventTranslation(
+      eventId,
+      locale,
+      values,
+      existingByLocale,
+      permissions
+    )
+  );
+}
+
 export async function listEvents(opts?: {
   campusId?: string;
   departmentId?: string;
@@ -437,7 +508,9 @@ export async function listEvents(opts?: {
   page?: number;
 }) {
   const ctx = await requireAuth();
-  const { db } = await createSessionClient();
+  // Private admin read: the service client bypasses row security, so the
+  // relationship scope filters below are the authorization boundary.
+  const { db } = await createAdminClient();
   const page = Math.max(1, opts?.page ?? 1);
   const search = opts?.search?.trim().toLowerCase() ?? "";
   const timeframe = opts?.timeframe ?? "all";
@@ -445,16 +518,15 @@ export async function listEvents(opts?: {
   const queries: string[] = [
     Query.orderDesc("$updatedAt"),
     Query.select(["*", "translation_refs.*"]),
-    // events has a campus_id but no department_id column.
-    ...applyScopeQueries(ctx, { departmentField: null }),
+    ...applyContentRelationshipScopeQueries(ctx),
   ];
 
   if (opts?.campusId) {
-    queries.push(Query.equal("campus_id", opts.campusId));
+    queries.push(Query.equal("campus.$id", opts.campusId));
   }
 
   if (opts?.departmentId) {
-    queries.push(Query.equal("department_id", opts.departmentId));
+    queries.push(Query.equal("department.$id", opts.departmentId));
   }
 
   if (opts?.status && opts.status !== "all") {
@@ -512,15 +584,19 @@ export async function listEvents(opts?: {
 
 export async function getEvent(id: string) {
   const ctx = await requireAuth();
-  const { db } = await createSessionClient();
+  const { db } = await createAdminClient();
 
   const response = await db.listRows<Events>("app", "events", [
     Query.equal("$id", id),
     Query.limit(1),
   ]);
   const event = response.rows[0];
+  if (!event) {
+    return null;
+  }
   // Treat a row outside the caller's campus/department scope as not found.
-  if (!(event && hasRowAccess(ctx, event.campus_id, event.department_id))) {
+  const ownership = getContentOwnership(event, { legacyFallback: true });
+  if (!hasRowAccess(ctx, ownership.campus, ownership.department)) {
     return null;
   }
 
@@ -547,18 +623,21 @@ export async function createEvent(
     return { error: validated.error.flatten().fieldErrors };
   }
 
-  assertWriteAccess(
-    ctx,
-    validated.data.campus_id,
-    validated.data.department_id
-  );
-  if (validated.data.status === "published") {
-    assertPublishAccess(ctx, validated.data.campus_id);
-  }
-
   try {
     const translationOptions = parseAutoTranslationOptions(autoTranslation);
-    const { db } = await createSessionClient();
+    const { db } = await createAdminClient();
+    await assertContentOwnership(db, ctx, {
+      allowGlobalCampus: false,
+      campusId: validated.data.campus_id,
+      departmentId: validated.data.department_id ?? null,
+    });
+    if (validated.data.status === "published") {
+      assertPublishAccess(
+        ctx,
+        validated.data.campus_id,
+        validated.data.department_id ?? null
+      );
+    }
 
     const status = validated.data.status;
     const { rowPermissions, translationPermissions } =
@@ -569,41 +648,23 @@ export async function createEvent(
         departmentId: validated.data.department_id ?? null,
       });
 
-    const event = await db.createRow(
+    const eventId = ID.unique();
+    const event = await db.upsertRow(
       "app",
       "events",
-      ID.unique(),
+      eventId,
       {
         ...buildEventColumns(validated.data),
         status: status as EventsStatus,
+        translation_refs: buildEventTranslationChildren(
+          eventId,
+          validated.data,
+          new Map(),
+          translationPermissions
+        ),
       },
       rowPermissions
     );
-
-    await Promise.all([
-      upsertEventTranslation(
-        db,
-        event.$id,
-        "no",
-        {
-          title: validated.data.title_no,
-          description: validated.data.description_no ?? "",
-          shortDescription: validated.data.short_description_no ?? null,
-        },
-        translationPermissions
-      ),
-      upsertEventTranslation(
-        db,
-        event.$id,
-        "en",
-        {
-          title: validated.data.title_en,
-          description: validated.data.description_en ?? "",
-          shortDescription: validated.data.short_description_en ?? null,
-        },
-        translationPermissions
-      ),
-    ]);
 
     const translationQueued = scheduleEventFormTranslation(
       event.$id,
@@ -658,7 +719,7 @@ export async function updateEvent(
 
   try {
     const translationOptions = parseAutoTranslationOptions(autoTranslation);
-    const { db } = await createSessionClient();
+    const { db } = await createAdminClient();
 
     const existing = await db.listRows<Events>("app", "events", [
       Query.equal("$id", id),
@@ -669,12 +730,15 @@ export async function updateEvent(
       return { error: "Event not found" };
     }
 
-    assertWriteAccess(ctx, event.campus_id, event.department_id);
-    assertWriteAccess(
-      ctx,
-      validated.data.campus_id,
-      validated.data.department_id ?? null
-    );
+    // Authorize both the persisted scope and the requested scope so ownership
+    // transfers require access on each side.
+    const persisted = getContentOwnership(event, { legacyFallback: true });
+    assertWriteAccess(ctx, persisted.campus, persisted.department);
+    await assertContentOwnership(db, ctx, {
+      allowGlobalCampus: false,
+      campusId: validated.data.campus_id,
+      departmentId: validated.data.department_id ?? null,
+    });
     assertEventPublishTransitionAccess(ctx, event, validated.data);
 
     const { rowPermissions, translationPermissions } =
@@ -685,41 +749,23 @@ export async function updateEvent(
         departmentId: validated.data.department_id ?? null,
       });
 
-    await db.updateRow(
+    const existingByLocale = await loadEventTranslationsByLocale(db, id);
+    await db.upsertRow(
       "app",
       "events",
       id,
       {
         ...buildEventColumns(validated.data),
         status: validated.data.status,
+        translation_refs: buildEventTranslationChildren(
+          id,
+          validated.data,
+          existingByLocale,
+          translationPermissions
+        ),
       },
       rowPermissions
     );
-
-    await Promise.all([
-      upsertEventTranslation(
-        db,
-        id,
-        "no",
-        {
-          title: validated.data.title_no,
-          description: validated.data.description_no ?? "",
-          shortDescription: validated.data.short_description_no ?? null,
-        },
-        translationPermissions
-      ),
-      upsertEventTranslation(
-        db,
-        id,
-        "en",
-        {
-          title: validated.data.title_en,
-          description: validated.data.description_en ?? "",
-          shortDescription: validated.data.short_description_en ?? null,
-        },
-        translationPermissions
-      ),
-    ]);
 
     const translationQueued = scheduleEventFormTranslation(
       id,
@@ -766,7 +812,7 @@ export async function deleteEvent(id: string) {
   const ctx = await requireAuth();
 
   try {
-    const { db } = await createSessionClient();
+    const { db } = await createAdminClient();
 
     const existing = await db.listRows<Events>("app", "events", [
       Query.equal("$id", id),
@@ -777,7 +823,8 @@ export async function deleteEvent(id: string) {
       return { error: "Event not found" };
     }
 
-    assertWriteAccess(ctx, event.campus_id, event.department_id);
+    const ownership = getContentOwnership(event, { legacyFallback: true });
+    assertWriteAccess(ctx, ownership.campus, ownership.department);
 
     const translations = await db.listRows<ContentTranslations>(
       "app",
@@ -814,7 +861,7 @@ export async function publishEvent(id: string) {
   const ctx = await requireAuth();
 
   try {
-    const { db } = await createSessionClient();
+    const { db } = await createAdminClient();
 
     const existing = await db.listRows<Events>("app", "events", [
       Query.equal("$id", id),
@@ -825,14 +872,15 @@ export async function publishEvent(id: string) {
       return { error: "Event not found" };
     }
 
-    assertPublishAccess(ctx, event.campus_id);
+    const ownership = getContentOwnership(event, { legacyFallback: true });
+    assertPublishAccess(ctx, ownership.campus, ownership.department);
 
     const { rowPermissions, translationPermissions } =
       await buildEventPermissions(db, {
         status: "published",
         memberOnly: event.member_only,
-        campusId: event.campus_id,
-        departmentId: event.department_id ?? null,
+        campusId: ownership.campus,
+        departmentId: ownership.department,
       });
 
     await db.updateRow(
@@ -873,19 +921,10 @@ export async function publishEvent(id: string) {
     });
 
     if (event.notify_push) {
-      const translationsResult = await db.listRows<ContentTranslations>(
-        "app",
-        "content_translations",
-        [
-          Query.equal("content_type", "event"),
-          Query.equal("content_id", id),
-          Query.limit(2),
-        ]
-      );
-      const enTranslation = translationsResult.rows.find(
+      const enTranslation = publishTranslations.rows.find(
         (row) => row.locale === "en"
       );
-      const noTranslation = translationsResult.rows.find(
+      const noTranslation = publishTranslations.rows.find(
         (row) => row.locale === "no"
       );
 
@@ -895,7 +934,7 @@ export async function publishEvent(id: string) {
         titleNo: noTranslation?.title ?? null,
         bodyEn: enTranslation?.short_description ?? null,
         bodyNo: noTranslation?.short_description ?? null,
-        campusId: event.campus_id ?? null,
+        campusId: ownership.campus,
       });
     }
 
