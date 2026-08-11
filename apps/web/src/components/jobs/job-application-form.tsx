@@ -139,20 +139,27 @@ function QuestionInput({
   }
 
   if (question.type === "multi_select") {
-    const selectedOptions = answer ? answer.split(",").map(s => s.trim()) : [];
+    const selectedOptions = answer
+      ? answer.split(",").map((s) => s.trim())
+      : [];
     return (
       <div className="flex flex-col gap-2">
         {(question.options ?? []).map((opt) => {
           const isSelected = selectedOptions.includes(opt);
           return (
-            <label key={opt} className="flex items-center gap-2 text-sm text-muted-foreground">
+            <label
+              className="flex items-center gap-2 text-muted-foreground text-sm"
+              key={opt}
+            >
               <Checkbox
                 checked={isSelected}
                 onCheckedChange={(checked) => {
                   if (checked) {
                     onChange([...selectedOptions, opt].join(", "));
                   } else {
-                    onChange(selectedOptions.filter((o) => o !== opt).join(", "));
+                    onChange(
+                      selectedOptions.filter((o) => o !== opt).join(", ")
+                    );
                   }
                 }}
               />

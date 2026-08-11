@@ -1,3 +1,4 @@
+import { cookies } from "next/headers";
 import { getLocale } from "@/app/actions/locale";
 import { Footer } from "@/components/layout/footer";
 import { PublicProviders } from "@/components/layout/public-providers";
@@ -5,6 +6,8 @@ import { Navigation } from "@/components/nav/mega-nav";
 import { OnboardingPopout } from "@/components/onboarding/onboarding-popout";
 import { getMembershipStatus } from "@/lib/actions/membership";
 import { getLoggedInUser } from "@/lib/actions/user";
+import { SESSION_COOKIE } from "@/lib/cookie-prefs";
+import { sessionNavFeatured } from "@/lib/data/nav-featured";
 import { cachedNavFeatured } from "@/lib/data/public-content";
 
 const EMPTY_FEATURED = { event: null, news: null, project: null };
@@ -22,14 +25,21 @@ export default async function PublicLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const [membershipStatus, userData, locale] = await Promise.all([
+  const [membershipStatus, userData, locale, cookieStore] = await Promise.all([
     getMembershipStatus(),
     getLoggedInUser(),
     getLocale(),
+    cookies(),
   ]);
-  // Cached, shared across all anonymous visitors; a cold-cache Appwrite
-  // failure degrades to an empty featured column instead of a render error.
-  const featured = await cachedNavFeatured(locale).catch(() => EMPTY_FEATURED);
+  // Anonymous visitors (all bot/monitor traffic) share one cached result;
+  // session holders get a per-request read so member-only rows still surface
+  // in the nav. A failure degrades to an empty featured column, and never
+  // poisons the shared cache.
+  const hasSession = Boolean(cookieStore.get(SESSION_COOKIE));
+  const featured = await (hasSession
+    ? sessionNavFeatured(locale)
+    : cachedNavFeatured(locale)
+  ).catch(() => EMPTY_FEATURED);
 
   const needsOnboarding = !!userData?.user && !userData?.profile;
 

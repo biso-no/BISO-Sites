@@ -1,4 +1,6 @@
+import type { Locale } from "@repo/i18n/config";
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import { Suspense } from "react";
 import { AboutSection } from "@/components/home/about-section";
 import { EventsSection } from "@/components/home/events-section";
@@ -13,6 +15,7 @@ import {
   NewsSkeleton,
 } from "@/components/home/skeletons";
 import { getUserPreferences } from "@/lib/auth-utils";
+import { SESSION_COOKIE } from "@/lib/cookie-prefs";
 import {
   cachedCampuses,
   cachedHomeCounts,
@@ -20,7 +23,9 @@ import {
   cachedPublishedEvents,
   cachedPublishedNews,
 } from "@/lib/data/public-content";
+import { listEvents } from "../actions/events";
 import { getLocale } from "../actions/locale";
+import { listNews } from "../actions/news";
 
 export const metadata: Metadata = {
   title: "BISO – BI Student Organisation",
@@ -34,26 +39,62 @@ const HOME_NEWS_LIMIT = 3;
 const HERO_EVENTS_LIMIT = 3;
 const HERO_NEWS_LIMIT = 2;
 
+// Member-scoped feeds: anonymous visitors (all bot/monitor traffic) share the
+// "use cache" guest result; session holders read per-request so member-only
+// rows (row perms `team:biso-members`) still appear in their feeds.
+function homeEvents(
+  hasSession: boolean,
+  locale: Locale,
+  campusKey: string | null,
+  limit: number
+) {
+  if (hasSession) {
+    return listEvents({
+      campus: campusKey ?? "all",
+      limit,
+      locale,
+      status: "published",
+    });
+  }
+  return cachedPublishedEvents(locale, campusKey, limit).catch(() => []);
+}
+
+function homeNews(
+  hasSession: boolean,
+  locale: Locale,
+  campusKey: string | null,
+  limit: number
+) {
+  if (hasSession) {
+    return listNews({
+      campus: campusKey ?? "all",
+      limit,
+      locale,
+      status: "published",
+    });
+  }
+  return cachedPublishedNews(locale, campusKey, limit).catch(() => []);
+}
+
 export default async function HomePage() {
-  const [prefs, locale] = await Promise.all([
+  const [prefs, locale, cookieStore] = await Promise.all([
     getUserPreferences(),
     getLocale(),
+    cookies(),
   ]);
   const campusId = prefs?.campusId;
   const campusKey = campusId && campusId !== "all" ? campusId : null;
+  const hasSession = Boolean(cookieStore.get(SESSION_COOKIE));
 
-  // All cached (`"use cache"` + guest client): shared across every visitor,
-  // keyed only by locale/campus. Failures fall back per-slice so a transient
-  // Appwrite error renders an emptier homepage instead of a 500 — and is
-  // never cached.
+  // Campuses/partners/counts are not member-scoped and stay cached for
+  // everyone. Failures fall back per-slice so a transient Appwrite error
+  // renders an emptier homepage instead of a 500 — and is never cached.
   const [heroEvents, heroNews, events, news, campuses, counts, partners] =
     await Promise.all([
-      cachedPublishedEvents(locale, null, HERO_EVENTS_LIMIT).catch(() => []),
-      cachedPublishedNews(locale, null, HERO_NEWS_LIMIT).catch(() => []),
-      cachedPublishedEvents(locale, campusKey, HOME_EVENTS_LIMIT).catch(
-        () => []
-      ),
-      cachedPublishedNews(locale, campusKey, HOME_NEWS_LIMIT).catch(() => []),
+      homeEvents(hasSession, locale, null, HERO_EVENTS_LIMIT),
+      homeNews(hasSession, locale, null, HERO_NEWS_LIMIT),
+      homeEvents(hasSession, locale, campusKey, HOME_EVENTS_LIMIT),
+      homeNews(hasSession, locale, campusKey, HOME_NEWS_LIMIT),
       cachedCampuses(campusKey, false, true).catch(() => []),
       cachedHomeCounts(campusKey).catch(() => ({
         eventCount: 0,
