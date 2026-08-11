@@ -117,13 +117,14 @@ describe("admin content update scoping", () => {
       campus_id: "campus-bergen",
       category: null,
       department_id: null,
-      description: "Body",
+      description_en: "",
+      description_no: "Body",
       image: "",
-      locale: "no",
       slug: "campus-news",
       status: "draft",
       sticky: false,
-      title: "Campus news",
+      title_en: "",
+      title_no: "Campus news",
     });
 
     expect(result).toEqual({ error: unauthorizedCampusError });

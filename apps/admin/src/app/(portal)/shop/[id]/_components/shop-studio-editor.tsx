@@ -33,7 +33,9 @@ import {
   type DescriptionBlockType,
   descriptionBlocksToHtml,
   htmlToDescriptionBlocks,
+  isTextDescriptionBlock,
   newBlock,
+  type TextDescriptionBlock,
 } from "../../../_components/description-blocks";
 
 /* -------------------------------------------------------------------------- */
@@ -579,7 +581,7 @@ function ProductDescriptionBlockRow({
   shouldFocus,
   showSlashMenu,
 }: {
-  block: DescriptionBlock;
+  block: TextDescriptionBlock;
   dragging: boolean;
   onChange: (text: string) => void;
   onChangeType: (type: DescriptionBlockType) => void;
@@ -846,7 +848,13 @@ function ProductDescriptionBlockEditor({
   const [slashBlockId, setSlashBlockId] = useState<string | null>(null);
 
   function updateBlock(id: string, text: string) {
-    onChange(blocks.map((b) => (b.id === id ? { ...b, text } : b)));
+    onChange(
+      blocks.map((block) =>
+        block.id === id && isTextDescriptionBlock(block)
+          ? { ...block, text }
+          : block
+      )
+    );
   }
 
   function insertBlock(afterId: string, type: DescriptionBlockType = "p") {
@@ -869,7 +877,13 @@ function ProductDescriptionBlockEditor({
   function changeBlockType(id: string, type: DescriptionBlockType) {
     setFocusBlockId(id);
     setSlashBlockId(null);
-    onChange(blocks.map((b) => (b.id === id ? { ...b, type } : b)));
+    onChange(
+      blocks.map((block) =>
+        block.id === id && isTextDescriptionBlock(block)
+          ? { ...block, type }
+          : block
+      )
+    );
   }
 
   function deleteBlock(id: string) {
@@ -877,9 +891,11 @@ function ProductDescriptionBlockEditor({
     if (blocks.length === 1) {
       setFocusBlockId(id);
       const first = blocks[0];
-      if (first) {
-        onChange([{ ...first, text: "", type: "p" }]);
-      }
+      onChange([
+        first && isTextDescriptionBlock(first)
+          ? { ...first, text: "", type: "p" }
+          : newBlock("p"),
+      ]);
       return;
     }
     const idx = blocks.findIndex((b) => b.id === id);
@@ -911,7 +927,7 @@ function ProductDescriptionBlockEditor({
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-      {blocks.map((block) => (
+      {blocks.filter(isTextDescriptionBlock).map((block) => (
         <ProductDescriptionBlockRow
           block={block}
           dragging={draggingBlockId === block.id}
@@ -2237,8 +2253,9 @@ function ReviewStep({
       detail: "Title · Category · Campus",
     },
     {
-      done:
-        blocksNo.length > 0 && blocksNo.some((b) => b.text.trim().length > 0),
+      done: blocksNo.some(
+        (block) => isTextDescriptionBlock(block) && block.text.trim().length > 0
+      ),
       label: "Description",
       step: 1 as const,
       detail: "Norwegian description blocks",
@@ -2569,7 +2586,8 @@ function PreviewPane({
   const hasMemberPrice =
     memberPrice !== null && memberPrice > 0 && memberPrice < regularPrice;
   const descPreview = blocksNo
-    .map((b) => b.text)
+    .filter(isTextDescriptionBlock)
+    .map((block) => block.text)
     .join(" ")
     .slice(0, 120);
 

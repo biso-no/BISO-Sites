@@ -8,12 +8,18 @@ import { uploadMediaFile } from "../_actions/upload";
 import { STUDIO } from "./studio";
 
 interface ImageUploadFieldProps {
+  inputId?: string;
   label?: string;
   onChange: (url: string | null) => void;
   value: string | null;
 }
 
-export function ImageUploadField({ value, onChange }: ImageUploadFieldProps) {
+export function ImageUploadField({
+  inputId,
+  label,
+  value,
+  onChange,
+}: ImageUploadFieldProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -63,7 +69,9 @@ export function ImageUploadField({ value, onChange }: ImageUploadFieldProps) {
       {/* Hidden file input */}
       <input
         accept="image/jpeg,image/png,image/gif,image/webp,image/svg+xml"
+        aria-label={label ?? "Upload image"}
         className="sr-only"
+        id={inputId}
         onChange={handleInputChange}
         ref={inputRef}
         type="file"

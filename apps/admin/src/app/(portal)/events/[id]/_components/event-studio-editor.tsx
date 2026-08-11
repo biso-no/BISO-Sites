@@ -60,8 +60,10 @@ import {
   type DescriptionBlockType,
   descriptionBlocksToHtml,
   htmlToDescriptionBlocks,
+  isTextDescriptionBlock,
   newBlock,
   stripHtml,
+  type TextDescriptionBlock,
 } from "../../../_components/description-blocks";
 
 /* -------------------------------------------------------------------------- */
@@ -750,7 +752,7 @@ function EventDescriptionBlockRow({
   shouldFocus,
   showSlashMenu,
 }: {
-  block: DescriptionBlock;
+  block: TextDescriptionBlock;
   dragging: boolean;
   onChange: (text: string) => void;
   onChangeType: (type: DescriptionBlockType) => void;
@@ -1033,7 +1035,13 @@ function EventDescriptionBlockEditor({
   const [slashBlockId, setSlashBlockId] = useState<string | null>(null);
 
   function updateBlock(id: string, text: string) {
-    onChangeBlocks(blocks.map((b) => (b.id === id ? { ...b, text } : b)));
+    onChangeBlocks(
+      blocks.map((block) =>
+        block.id === id && isTextDescriptionBlock(block)
+          ? { ...block, text }
+          : block
+      )
+    );
   }
 
   function insertBlock(afterId: string, type: DescriptionBlockType = "p") {
@@ -1056,7 +1064,13 @@ function EventDescriptionBlockEditor({
   function changeBlockType(id: string, type: DescriptionBlockType) {
     setFocusBlockId(id);
     setSlashBlockId(null);
-    onChangeBlocks(blocks.map((b) => (b.id === id ? { ...b, type } : b)));
+    onChangeBlocks(
+      blocks.map((block) =>
+        block.id === id && isTextDescriptionBlock(block)
+          ? { ...block, type }
+          : block
+      )
+    );
   }
 
   function deleteBlock(id: string) {
@@ -1064,7 +1078,11 @@ function EventDescriptionBlockEditor({
     if (blocks.length === 1) {
       setFocusBlockId(id);
       const first = blocks[0];
-      onChangeBlocks([{ ...first, text: "", type: "p" }]);
+      onChangeBlocks([
+        first && isTextDescriptionBlock(first)
+          ? { ...first, text: "", type: "p" }
+          : newBlock("p"),
+      ]);
       return;
     }
     const idx = blocks.findIndex((b) => b.id === id);
@@ -1096,7 +1114,7 @@ function EventDescriptionBlockEditor({
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-      {blocks.map((block) => (
+      {blocks.filter(isTextDescriptionBlock).map((block) => (
         <EventDescriptionBlockRow
           block={block}
           dragging={draggingBlockId === block.id}
@@ -2781,7 +2799,7 @@ function ReviewStep({
       { label: "Teaser", value: teaser, step: 0 },
       {
         label: "Description",
-        value: `${blocksEn.filter((b) => b.text.trim().length > 0).length} blocks`,
+        value: `${blocksEn.filter(isTextDescriptionBlock).filter((block) => block.text.trim().length > 0).length} blocks`,
         step: 1,
       },
       {
@@ -3749,7 +3767,7 @@ function EventPreviewPane({
                   </div>
                 )}
 
-                {descBlocks.map((block) => {
+                {descBlocks.filter(isTextDescriptionBlock).map((block) => {
                   if (block.type === "h") {
                     return (
                       <h4

@@ -7,6 +7,7 @@ import {
   recruitmentVacancyUpsertSchema,
 } from "@repo/shared/types/recruitment";
 import { z } from "zod";
+import { hasRichContent } from "@/lib/plate-content";
 
 export const benefitSchema = z.object({
   title_nb: z.string().min(1, "Title (NO) is required"),
@@ -39,22 +40,57 @@ export type EventFormValues = EventUpsertInput;
 export const jobSchema = recruitmentVacancyUpsertSchema;
 export type JobFormValues = RecruitmentVacancyUpsertInput;
 
-export const newsSchema = z.object({
-  title: z.string().min(1, "Title is required"),
-  description: z.string().optional().nullable(),
-  campus_id: z.string().min(1, "Campus is required"),
-  department_id: z.string().optional().nullable(),
-  slug: z
-    .string()
-    .min(1, "Slug is required")
-    .regex(/^[a-z0-9-]+$/, "Slug must be lowercase alphanumeric with hyphens"),
-  status: z.enum(["draft", "published"]),
-  locale: z.enum(["no", "en"]),
-  author: z.string().optional().nullable(),
-  category: z.string().optional().nullable(),
-  image: z.string().url().optional().nullable().or(z.literal("")),
-  sticky: z.boolean().default(false),
-});
+export const newsSchema = z
+  .object({
+    title_no: z.string(),
+    description_no: z.string().optional().nullable(),
+    title_en: z.string(),
+    description_en: z.string().optional().nullable(),
+    campus_id: z.string().min(1, "Campus is required"),
+    department_id: z.string().optional().nullable(),
+    slug: z
+      .string()
+      .min(1, "Slug is required")
+      .regex(
+        /^[a-z0-9-]+$/,
+        "Slug must be lowercase alphanumeric with hyphens"
+      ),
+    status: z.enum(["draft", "published"]),
+    author: z.string().optional().nullable(),
+    category: z.string().optional().nullable(),
+    image: z.string().url().optional().nullable().or(z.literal("")),
+    sticky: z.boolean().default(false),
+  })
+  .superRefine((values, context) => {
+    if (!(values.title_no.trim() || values.title_en.trim())) {
+      context.addIssue({
+        code: "custom",
+        message: "A Norwegian or English headline is required",
+        path: ["title_no"],
+      });
+    }
+
+    if (values.status !== "published") {
+      return;
+    }
+
+    if (hasRichContent(values.description_no) && !values.title_no.trim()) {
+      context.addIssue({
+        code: "custom",
+        message:
+          "A Norwegian headline is required when Norwegian content is provided",
+        path: ["title_no"],
+      });
+    }
+    if (hasRichContent(values.description_en) && !values.title_en.trim()) {
+      context.addIssue({
+        code: "custom",
+        message:
+          "An English headline is required when English content is provided",
+        path: ["title_en"],
+      });
+    }
+  });
 export const NEWS_PAGE_SIZE = 20;
 export type NewsFormValues = z.infer<typeof newsSchema>;
 

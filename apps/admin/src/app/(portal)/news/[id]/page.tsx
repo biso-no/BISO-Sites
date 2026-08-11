@@ -1,9 +1,10 @@
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { requireNavAccess } from "@/lib/authorization";
-import { listCampuses } from "../../_actions/lookups";
+import { listCampuses, listDepartmentsForCampus } from "../../_actions/lookups";
 import { getNewsArticle } from "../../_actions/news";
-import { NewsEditorClient } from "./_components/news-editor-client";
+import { getNewsAllowedDepartmentIds } from "./_components/news-studio-access";
+import { NewsStudioEditor } from "./_components/news-studio-editor";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -47,12 +48,29 @@ export default async function NewsEditorPage({ params }: Props) {
         return allowed.includes(c.$id);
       });
 
+  const campusIdForDepartments = article?.campus_id ?? effectiveCampusId;
+  const departments = campusIdForDepartments
+    ? await listDepartmentsForCampus(campusIdForDepartments)
+    : [];
+  const isDepartmentUser = !(isGlobalAdmin || isCampusAdmin);
+  const allowedDepartmentIds = getNewsAllowedDepartmentIds(
+    isDepartmentUser,
+    ctx.resolvedDepartmentIds.map((id) => ({ department_ref: { $id: id } }))
+  );
+  const initialDepartments = allowedDepartmentIds
+    ? departments.filter((department) =>
+        allowedDepartmentIds.includes(department.$id)
+      )
+    : departments;
+
   return (
-    <NewsEditorClient
+    <NewsStudioEditor
+      allowedDepartmentIds={allowedDepartmentIds}
       article={article}
       campuses={filteredCampuses}
       canChangeCampus={canChangeCampus}
       defaultCampusId={effectiveCampusId}
+      initialDepartments={initialDepartments}
       isNew={isNew}
       labels={{
         back: t("title"),
@@ -72,6 +90,7 @@ export default async function NewsEditorPage({ params }: Props) {
         saveError: t("saveError"),
         publishSuccess: t("publishSuccess"),
       }}
+      previewTimestamp={article?.$createdAt ?? new Date().toISOString()}
     />
   );
 }
