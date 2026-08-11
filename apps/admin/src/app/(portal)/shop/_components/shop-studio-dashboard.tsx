@@ -31,6 +31,8 @@ type ProductWithTranslations = WebshopProducts & {
 interface ShopStudioDashboardProps {
   initialOrders: Orders[];
   initialProducts: ProductWithTranslations[];
+  /** Order/customer operations are hidden from department product authors. */
+  showOrders: boolean;
 }
 
 type CatalogFilter = "all" | "published" | "drafts" | "pending" | "archived";
@@ -1492,6 +1494,7 @@ function OrderRow({ order }: { order: Orders }) {
 export function ShopStudioDashboard({
   initialOrders,
   initialProducts,
+  showOrders,
 }: ShopStudioDashboardProps) {
   const t = useTranslations("adminPortal.shop");
   const ts = useTranslations("adminPortal.shop.studio");
@@ -1751,11 +1754,12 @@ export function ShopStudioDashboard({
           margin: "20px 0 0",
         }}
       >
-        {(
-          [
-            { key: "catalog", label: ts("tabs.catalog") },
-            { key: "orders", label: shop("orders.title") },
-          ] as const
+        {(showOrders
+          ? ([
+              { key: "catalog", label: ts("tabs.catalog") },
+              { key: "orders", label: shop("orders.title") },
+            ] as const)
+          : ([{ key: "catalog", label: ts("tabs.catalog") }] as const)
         ).map((tab) => {
           const isActive = activeTab === tab.key;
           const hasBadge = tab.key === "orders" && pendingOrderCount > 0;
@@ -1831,17 +1835,19 @@ export function ShopStudioDashboard({
           border: `0.5px solid ${BRAND.rule}`,
           borderRadius: 14,
           display: "grid",
-          gridTemplateColumns: "repeat(4, 1fr)",
+          gridTemplateColumns: showOrders ? "repeat(4, 1fr)" : "repeat(3, 1fr)",
           margin: "22px 0 28px",
           overflow: "hidden",
         }}
       >
         <KpiCard label={ts("kpi.liveProducts")} value={liveCount} />
-        <KpiCard
-          currency="NOK"
-          label={ts("kpi.revenue30d")}
-          value={paidRevenue}
-        />
+        {showOrders && (
+          <KpiCard
+            currency="NOK"
+            label={ts("kpi.revenue30d")}
+            value={paidRevenue}
+          />
+        )}
         <KpiCard
           alert={lowStockCount > 0}
           label={t("fields.lowStock")}
