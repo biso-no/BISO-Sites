@@ -258,50 +258,43 @@ async function translateJobSnapshot(
   };
 }
 
-async function upsertJobTranslation(
+/**
+ * Persist a deferred destination locale through the parent `jobs.translations`
+ * relation. The relation is one-way (no child back-reference), so a standalone
+ * child row would be an orphan; instead the complete relation is replaced with
+ * every existing translation ID plus the destination entry — an object with
+ * `$id` to update in place, or without one so Appwrite creates and links it.
+ * The parent's own permissions are left untouched by omitting the permissions
+ * argument.
+ */
+async function persistDeferredJobTranslation(
   db: Db,
   jobId: string,
   locale: ContentLocale,
   translation: JobTranslationSnapshot,
-  permissions: string[]
+  permissions: string[],
+  currentRows: ContentTranslations[]
 ): Promise<void> {
-  const existing = await db.listRows<ContentTranslations>(
-    "app",
-    "content_translations",
-    [
-      Query.equal("content_type", "job"),
-      Query.equal("content_id", jobId),
-      Query.equal("locale", locale),
-      Query.limit(1),
-    ]
-  );
-  const data = {
-    additional_fields: null,
-    content_id: jobId,
-    content_type: "job" as const,
-    description: translation.description,
-    locale,
-    short_description: translation.short_description || null,
-    title: translation.title,
-  };
-  const current = existing.rows[0];
-  if (current) {
-    await db.updateRow(
-      "app",
-      "content_translations",
-      current.$id,
-      data,
-      permissions
-    );
-    return;
-  }
-  await db.createRow(
-    "app",
-    "content_translations",
-    ID.unique(),
-    data,
-    permissions
-  );
+  const target = currentRows.find((row) => row.locale === locale);
+  const others = currentRows
+    .filter((row) => row.locale !== locale)
+    .map((row) => row.$id);
+  await db.upsertRow("app", "jobs", jobId, {
+    translations: [
+      ...others,
+      {
+        ...(target ? { $id: target.$id } : {}),
+        $permissions: permissions,
+        additional_fields: null,
+        content_id: jobId,
+        content_type: "job" as const,
+        description: translation.description,
+        locale,
+        short_description: translation.short_description || null,
+        title: translation.title,
+      },
+    ],
+  });
 }
 
 function scheduleJobTranslation(input: {
@@ -350,17 +343,21 @@ function scheduleJobTranslation(input: {
       ) {
         return;
       }
-      const sourceRows = await db.listRows<ContentTranslations>(
+      // One reload of every locale row for this vacancy, immediately before
+      // persistence: the source for the stale check, and the complete set so
+      // the one-way parent relation can be replaced without dropping locales.
+      const currentRows = await db.listRows<ContentTranslations>(
         "app",
         "content_translations",
         [
           Query.equal("content_type", "job"),
           Query.equal("content_id", input.jobId),
-          Query.equal("locale", input.sourceLocale),
-          Query.limit(1),
+          Query.limit(10),
         ]
       );
-      const currentSource = sourceRows.rows[0];
+      const currentSource = currentRows.rows.find(
+        (row) => row.locale === input.sourceLocale
+      );
       if (!currentSource) {
         return;
       }
@@ -378,12 +375,13 @@ function scheduleJobTranslation(input: {
         status: input.status,
         writeTeams: [...RECRUITMENT_STAFF_TEAMS],
       });
-      await upsertJobTranslation(
+      await persistDeferredJobTranslation(
         db,
         input.jobId,
         getTargetLocale(input.sourceLocale),
         translated,
-        permissions
+        permissions,
+        currentRows.rows
       );
     },
   });

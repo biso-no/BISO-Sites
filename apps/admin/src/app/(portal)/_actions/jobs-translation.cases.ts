@@ -151,23 +151,18 @@ describe("job auto-translation scheduling", () => {
     expect(deferredTask).toBeUndefined();
   });
 
-  test("schedules after persistence and writes only the destination locale", async () => {
-    adminDb.listRows
-      .mockImplementationOnce(async () => ({
-        rows: [
-          {
-            $id: "source-en",
-            description: "<p>English source</p>",
-            locale: "en",
-            short_description: "English source teaser",
-            title: "English source title",
-          },
-        ],
-        total: 1,
-      }))
-      .mockImplementationOnce(async () => ({ rows: [], total: 0 }));
-    adminDb.createRow.mockImplementation(async () => ({
-      $id: "translation-no",
+  test("keeps the deferred destination inside the one-way parent relation", async () => {
+    adminDb.listRows.mockImplementationOnce(async () => ({
+      rows: [
+        {
+          $id: "source-en",
+          description: "<p>English source</p>",
+          locale: "en",
+          short_description: "English source teaser",
+          title: "English source title",
+        },
+      ],
+      total: 1,
     }));
 
     const result = await createJob(jobValues, {
@@ -179,22 +174,54 @@ describe("job auto-translation scheduling", () => {
     await deferredTask?.();
 
     expect(createAdminClientSpy).toHaveBeenCalledTimes(2);
-    expect(adminDb.createRow).toHaveBeenCalledTimes(1);
-    expect(adminDb.createRow).toHaveBeenCalledWith(
-      "app",
-      "content_translations",
-      expect.any(String),
-      expect.objectContaining({
-        content_id: "job-1",
-        content_type: "job",
-        description: "<p>Norsk beskrivelse</p>",
-        locale: "no",
-        short_description: "Norsk ingress",
-        title: "Norsk tittel",
-      }),
-      expect.any(Array)
-    );
+    expect(adminDb.upsertRow).toHaveBeenLastCalledWith("app", "jobs", "job-1", {
+      translations: [
+        "source-en",
+        expect.objectContaining({
+          content_id: "job-1",
+          content_type: "job",
+          description: "<p>Norsk beskrivelse</p>",
+          locale: "no",
+          short_description: "Norsk ingress",
+          title: "Norsk tittel",
+        }),
+      ],
+    });
+    expect(adminDb.createRow).not.toHaveBeenCalled();
     expect(adminDb.updateRow).not.toHaveBeenCalled();
+  });
+
+  test("updates an existing destination in place through the parent relation", async () => {
+    adminDb.listRows.mockImplementationOnce(async () => ({
+      rows: [
+        {
+          $id: "source-en",
+          description: "<p>English source</p>",
+          locale: "en",
+          short_description: "English source teaser",
+          title: "English source title",
+        },
+        {
+          $id: "target-no",
+          description: "<p>Gammel norsk</p>",
+          locale: "no",
+          short_description: "Gammel ingress",
+          title: "Gammel tittel",
+        },
+      ],
+      total: 2,
+    }));
+
+    await createJob(jobValues, { enabled: true, sourceLocale: "en" });
+    await deferredTask?.();
+
+    expect(adminDb.upsertRow).toHaveBeenLastCalledWith("app", "jobs", "job-1", {
+      translations: [
+        "source-en",
+        expect.objectContaining({ $id: "target-no", locale: "no" }),
+      ],
+    });
+    expect(adminDb.createRow).not.toHaveBeenCalled();
   });
 
   test("skips the destination write when the submitted source is stale", async () => {
