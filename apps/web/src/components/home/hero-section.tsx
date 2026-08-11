@@ -1,19 +1,14 @@
 import type { Events, News } from "@repo/api/types/appwrite";
-import { listEvents } from "@/app/actions/events";
-import { getLocale } from "@/app/actions/locale";
-import { listNews } from "@/app/actions/news";
 import { HeroCarousel } from "./hero-carousel";
 
-export async function HeroSection() {
-  const locale = await getLocale();
+interface HeroSectionProps {
+  events: Events[];
+  news: News[];
+}
 
-  // Fetch featured events and news
-  const [events, news] = await Promise.all([
-    listEvents({ locale, status: "published", limit: 3 }),
-    listNews({ locale, status: "published", limit: 2 }),
-  ]);
-
-  // Combine and shuffle for variety
+// Data comes from the page (cached public readers) so the hero doesn't issue
+// its own duplicate Appwrite queries per render.
+export function HeroSection({ events, news }: HeroSectionProps) {
   const featuredContent: Array<Events | News> = [...events, ...news].slice(
     0,
     5

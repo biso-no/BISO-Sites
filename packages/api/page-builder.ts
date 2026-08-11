@@ -308,13 +308,14 @@ async function resolveUniquePageSlug(
 
 export async function getPage(
   slug: string,
-  locale: PageEditorLocale = "no"
+  locale: PageEditorLocale = "no",
+  dbOverride?: Awaited<ReturnType<typeof createSessionClient>>["db"]
 ): Promise<{
   row: Pages;
   translation: PageTranslations | null;
   doc: PageDoc | null;
 } | null> {
-  const { db } = await createSessionClient();
+  const db = dbOverride ?? (await createSessionClient()).db;
 
   const res = await db.listRows<Pages>("app", "pages", [
     Query.equal("slug", slug),

@@ -1,22 +1,27 @@
-import { getNavFeatured } from "@/app/actions/nav";
+import { getLocale } from "@/app/actions/locale";
 import { Footer } from "@/components/layout/footer";
 import { PublicProviders } from "@/components/layout/public-providers";
 import { Navigation } from "@/components/nav/mega-nav";
 import { OnboardingPopout } from "@/components/onboarding/onboarding-popout";
 import { getMembershipStatus } from "@/lib/actions/membership";
 import { getLoggedInUser } from "@/lib/actions/user";
+import { cachedNavFeatured } from "@/lib/data/public-content";
 
-// Anonymous session is now handled automatically by middleware
+const EMPTY_FEATURED = { event: null, news: null, project: null };
+
 export default async function PublicLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const [membershipStatus, userData, featured] = await Promise.all([
+  const [membershipStatus, userData, locale] = await Promise.all([
     getMembershipStatus(),
     getLoggedInUser(),
-    getNavFeatured(),
+    getLocale(),
   ]);
+  // Cached, shared across all anonymous visitors; a cold-cache Appwrite
+  // failure degrades to an empty featured column instead of a render error.
+  const featured = await cachedNavFeatured(locale).catch(() => EMPTY_FEATURED);
 
   const needsOnboarding = !!userData?.user && !userData?.profile;
 

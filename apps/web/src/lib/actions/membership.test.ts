@@ -44,6 +44,16 @@ vi.mock("@/lib/auth-utils", () => ({
   isAuthenticatedAccount: vi.fn(() => true),
 }));
 
+// Membership now resolves the account through the request-memoized
+// getLoggedInUser(); this suite tests the Finago/caching logic, so user
+// resolution is stubbed as an authenticated member with a student id.
+vi.mock("@/lib/actions/user", () => ({
+  getLoggedInUser: vi.fn(async () => ({
+    user: { $id: "user-1" },
+    profile: { student_id: "BI-12345" },
+  })),
+}));
+
 import { refreshMembershipStatus } from "./membership";
 
 describe("membership actions", () => {

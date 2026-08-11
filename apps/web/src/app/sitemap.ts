@@ -1,13 +1,5 @@
-import { Query } from "@repo/api";
-import { createSessionClient } from "@repo/api/server";
-import type { Pages } from "@repo/api/types/appwrite";
-import { PagesStatus, PagesVisibility } from "@repo/api/types/appwrite";
 import type { MetadataRoute } from "next";
-import { listEvents } from "@/app/actions/events";
-import { listJobs } from "@/app/actions/jobs";
-import { listLargeEvents } from "@/app/actions/large-events";
-import { listNews } from "@/app/actions/news";
-import { listProducts } from "@/app/actions/webshop";
+import { cachedSitemapEntries } from "@/lib/data/public-content";
 
 const BASE = process.env.NEXT_PUBLIC_BASE_URL || "https://web.biso.no";
 
@@ -46,20 +38,6 @@ function mapSlugRoutes(
     }));
 }
 
-async function listEditorPages(): Promise<MetadataRoute.Sitemap> {
-  try {
-    const { db } = await createSessionClient();
-    const result = await db.listRows<Pages>("app", "pages", [
-      Query.equal("status", PagesStatus.PUBLISHED),
-      Query.equal("visibility", PagesVisibility.PUBLIC),
-      Query.limit(500),
-    ]);
-    return mapSlugRoutes("", result.rows, "weekly", 0.5);
-  } catch {
-    return [];
-  }
-}
-
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const staticRoutes: MetadataRoute.Sitemap = [
     { url: `${BASE}/`, changeFrequency: "weekly", priority: 1 },
@@ -92,25 +70,25 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${BASE}/terms`, changeFrequency: "yearly", priority: 0.2 },
   ];
 
-  // Each listing is best-effort: if one upstream call fails the rest still
-  // produce a valid (partial) sitemap rather than a 500.
-  const [jobs, events, news, products, projects, editorPages] =
-    await Promise.all([
-      listJobs({ limit: 500 }).catch(() => []),
-      listEvents({ status: "published", limit: 500 }).catch(() => []),
-      listNews({ status: "published", limit: 500 }).catch(() => []),
-      listProducts({ status: "published", limit: 500 }).catch(() => []),
-      listLargeEvents({ activeOnly: false, limit: 500 }).catch(() => []),
-      listEditorPages(),
-    ]);
+  // One cached, minimal-select (slug + timestamp) read serves every crawler;
+  // inside the cached reader each listing is still best-effort so a failing
+  // table produces a partial sitemap rather than a 500.
+  const entries = await cachedSitemapEntries().catch(() => ({
+    events: [],
+    jobs: [],
+    news: [],
+    pages: [],
+    products: [],
+    projects: [],
+  }));
 
   return [
     ...staticRoutes,
-    ...mapSlugRoutes("/jobs", jobs, "weekly", 0.8),
-    ...mapSlugRoutes("/events", events, "weekly", 0.7),
-    ...mapSlugRoutes("/news", news, "weekly", 0.7),
-    ...mapSlugRoutes("/shop", products, "weekly", 0.6),
-    ...mapSlugRoutes("/projects", projects, "weekly", 0.6),
-    ...editorPages,
+    ...mapSlugRoutes("/jobs", entries.jobs, "weekly", 0.8),
+    ...mapSlugRoutes("/events", entries.events, "weekly", 0.7),
+    ...mapSlugRoutes("/news", entries.news, "weekly", 0.7),
+    ...mapSlugRoutes("/shop", entries.products, "weekly", 0.6),
+    ...mapSlugRoutes("/projects", entries.projects, "weekly", 0.6),
+    ...mapSlugRoutes("", entries.pages, "weekly", 0.5),
   ];
 }

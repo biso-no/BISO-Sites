@@ -30,6 +30,10 @@ function plainDb(db: TablesDB): TablesDB {
             target,
             args
           );
+          // Must be a JSON round-trip, NOT structuredClone: node-appwrite
+          // responses carry non-cloneable function properties (a lazy
+          // `() => JSONbig.stringify(data)` serializer) that JSON.stringify
+          // silently drops but structuredClone rejects with DataCloneError.
           return JSON.parse(JSON.stringify(result));
         };
       }
@@ -197,6 +201,30 @@ export async function createSessionClient(jwt?: string) {
     },
     get messaging() {
       return new Messaging(client);
+    },
+  };
+}
+
+/**
+ * Cookie-free, unauthenticated (guest) server client. Sees exactly what an
+ * anonymous visitor sees — table/row `read("any")` permissions only. Unlike
+ * `createSessionClient()` it never touches `cookies()`, so it is safe to call
+ * inside `"use cache"` functions, which must not read request-bound APIs.
+ */
+// biome-ignore lint/suspicious/useAwait: keep the same async factory shape as the other clients.
+export async function createPublicClient() {
+  const client = configureServerClient(
+    new Client()
+      .setEndpoint(NEXT_PUBLIC_APPWRITE_ENDPOINT)
+      .setProject(APPWRITE_PROJECT)
+  );
+
+  return {
+    get db() {
+      return plainDb(new TablesDB(client));
+    },
+    get storage() {
+      return new Storage(client);
     },
   };
 }

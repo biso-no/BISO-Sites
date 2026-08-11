@@ -14,6 +14,16 @@
 export const LOCALE_COOKIE = "NEXT_LOCALE";
 export const CAMPUS_COOKIE = "campusId";
 
+/**
+ * Appwrite session cookie name. Presence of this cookie is the cheap local
+ * signal that an Appwrite session *may* exist — readers must check it before
+ * making any `account.*` call, because for cookieless visitors (crawlers,
+ * uptime monitors, first-time users) such calls are guaranteed-401 network
+ * round-trips into Appwrite. See WEB_APP_APPWRITE_INCIDENT_AUDIT.md (F-2/F-3).
+ */
+export const SESSION_COOKIE =
+  process.env.APPWRITE_SESSION_COOKIE || "a_session_biso";
+
 const ONE_YEAR_SECONDS = 60 * 60 * 24 * 365;
 
 export function prefCookieOptions() {
