@@ -60,9 +60,9 @@ async function resolveCampusNameForPath(
 }
 
 type SharePointUploadOutcome =
-  | { error: string; spResult?: never }
+  | { error: string; ok: false }
   | {
-      error?: never;
+      ok: true;
       spResult: Awaited<ReturnType<SharePointService["uploadNewFile"]>>;
     };
 
@@ -71,7 +71,7 @@ async function uploadDocumentToSharePoint(input: {
   campusName: string | null;
   category: DocumentsCategory;
   fileName: string;
-  language: string;
+  language: DocumentsLanguage;
 }): Promise<SharePointUploadOutcome> {
   const sp = getSharePointService();
   let driveId: string;
@@ -79,7 +79,10 @@ async function uploadDocumentToSharePoint(input: {
     driveId = await resolveDocumentsDriveId(sp);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    return { error: `Could not resolve SharePoint drive: ${message}` };
+    return {
+      error: `Could not resolve SharePoint drive: ${message}`,
+      ok: false,
+    };
   }
 
   const folderPath = resolveFolderPath(
@@ -90,6 +93,7 @@ async function uploadDocumentToSharePoint(input: {
 
   try {
     return {
+      ok: true,
       spResult: await sp.uploadNewFile(
         driveId,
         folderPath,
@@ -99,24 +103,24 @@ async function uploadDocumentToSharePoint(input: {
     };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    return { error: `SharePoint upload failed: ${message}` };
+    return { error: `SharePoint upload failed: ${message}`, ok: false };
   }
 }
 
 function validateDocumentFile(
   formData: FormData
-): { error: string; file?: never } | { error?: never; file: File } {
+): { error: string; ok: false } | { file: File; ok: true } {
   const file = formData.get("file");
   if (!(file instanceof File) || file.size === 0) {
-    return { error: "A PDF file is required" };
+    return { error: "A PDF file is required", ok: false };
   }
   if (file.type !== "application/pdf") {
-    return { error: "Only PDF files are allowed" };
+    return { error: "Only PDF files are allowed", ok: false };
   }
   if (file.size > MAX_DOCUMENT_BYTES) {
-    return { error: "File must be under 50 MB" };
+    return { error: "File must be under 50 MB", ok: false };
   }
-  return { file };
+  return { file, ok: true };
 }
 
 export async function listDocuments(opts?: { status?: string; page?: number }) {
@@ -208,7 +212,7 @@ export async function createDocument(
   }
 
   const fileCheck = validateDocumentFile(formData);
-  if (fileCheck.error) {
+  if (!fileCheck.ok) {
     return { error: fileCheck.error, sharePointError: false };
   }
   const file = fileCheck.file;
@@ -221,9 +225,9 @@ export async function createDocument(
     campusName,
     category: category as DocumentsCategory,
     fileName: file.name,
-    language,
+    language: language as DocumentsLanguage,
   });
-  if (upload.error) {
+  if (!upload.ok) {
     return { error: upload.error, sharePointError: true };
   }
   const spResult = upload.spResult;
@@ -355,7 +359,7 @@ export async function uploadNewVersion(
   assertWriteAccess(ctx, versionOwnership.campus, versionOwnership.department);
 
   const fileCheck = validateDocumentFile(formData);
-  if (fileCheck.error) {
+  if (!fileCheck.ok) {
     return { error: fileCheck.error, sharePointError: false };
   }
   const buffer = Buffer.from(await fileCheck.file.arrayBuffer());
