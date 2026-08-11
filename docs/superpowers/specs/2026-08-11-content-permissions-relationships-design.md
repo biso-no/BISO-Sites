@@ -48,6 +48,10 @@ content-authoring policy.
   relationship.
 - A campus manager or global administrator can create campus-wide content by
   leaving the department relationship empty.
+- A global administrator can create content without a campus relationship only
+  for feature types that already support a national/global scope: national
+  documents and global announcements. Campus and department authors always
+  require a campus relationship.
 - Changing ownership is authorized against both the old and new scope.
 - A department relationship must belong to the selected campus. A campus
   manager cannot accidentally attach content to a department in another
@@ -122,7 +126,7 @@ The canonical ownership tuple is:
 
 ```ts
 interface ContentOwnership {
-  campus: string; // related campus row ID
+  campus: string | null; // related campus row ID; null only for global scope
   department: string | null; // related department row ID
 }
 ```
@@ -173,6 +177,9 @@ Query.equal("department.$id", allowedDepartmentIds)
 A global administrator may optionally apply the active-campus filter. A campus
 manager is filtered by managed campuses. A department member is filtered by
 both campus and department. Missing or unresolved scope fails closed.
+Feature types that support national/global rows may use a null campus only when
+the caller is a global administrator; every other authoring path requires a
+resolved campus relationship.
 
 Single-row reads load the row with the admin client and immediately validate
 its relationships before returning any content. Create actions validate the
@@ -291,14 +298,14 @@ Page translations retain their existing unique `(page_id, locale)` index.
 
 ## Feature Access Matrix
 
-| Actor | General content | Campus-wide content | Jobs and applicants |
-| --- | --- | --- | --- |
-| National Operations Unit/global admin | All campuses and departments | Yes | Yes, break-glass |
-| Campus management | Managed campus, all departments | Yes | No, unless also HR |
-| Department member | Own campus and department | No | No, unless HR |
-| HR member | Own department general content | No | All recruitment in HR member's campus |
-| National HR | Own department general content | No | All recruitment |
-| Authenticated user without resolved scope | None | No | No |
+| Actor | General content | Campus-wide content | National/global content | Jobs and applicants |
+| --- | --- | --- | --- | --- |
+| National Operations Unit/global admin | All campuses and departments | Yes | Yes, where supported | Yes, break-glass |
+| Campus management | Managed campus, all departments | Yes | No | No, unless also HR |
+| Department member | Own campus and department | No | No | No, unless HR |
+| HR member | Own department general content | No | No | All recruitment in HR member's campus |
+| National HR | Own department general content | No | No | All recruitment |
+| Authenticated user without resolved scope | None | No | No | No |
 
 General publishing navigation includes pages, news, events, product publishing,
 benefits, announcements, and documents for department members. Operational
@@ -338,6 +345,8 @@ must not deploy before the schema columns exist.
   or changed.
 - Cross-campus departments are rejected even for a campus manager.
 - A department user cannot clear ownership to create campus-wide content.
+- A non-global user cannot clear the campus relationship; a global user may do
+  so only for national documents and global announcements.
 - Authorization errors do not reveal whether an out-of-scope row exists.
 - A synchronous parent/relationship failure returns an action error and does
   not schedule automatic translation.
@@ -361,6 +370,8 @@ must not deploy before the schema columns exist.
   delete only related department content;
 - department member cannot use a null department, another department, or a
   department in another campus;
+- only a global administrator can use a null campus for a feature that supports
+  national/global content;
 - unresolved memberships fail closed;
 - HR and global break-glass access jobs, while campus management and other
   departments cannot;
