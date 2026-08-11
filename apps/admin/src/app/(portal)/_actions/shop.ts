@@ -1,6 +1,6 @@
 "use server";
 
-import { Query } from "@repo/api";
+import { ID, Query } from "@repo/api";
 import { createAdminClient, createSessionClient } from "@repo/api/server";
 import type {
   ContentTranslations,
@@ -10,6 +10,11 @@ import type {
 } from "@repo/api/types/appwrite";
 import { revalidatePath } from "next/cache";
 import { requireAuth } from "@/lib/authorization";
+import {
+  applyContentRelationshipScopeQueries,
+  assertContentOwnership,
+  getContentOwnership,
+} from "@/lib/content-authorization";
 import {
   type AutoTranslationOptions,
   type ContentLocale,
@@ -36,14 +41,11 @@ import {
 import { logAuditEvent } from "./audit-log";
 import { type ProductFormValues, productSchema } from "./schemas";
 
-interface TranslationData {
-  content_id: string;
-  content_type: string;
-  description: string;
-  locale: string;
-  short_description: string | null;
-  title: string;
-}
+type AdminDb = Awaited<ReturnType<typeof createAdminClient>>["db"];
+
+type ProductWithTranslations = WebshopProducts & {
+  translation_refs?: ContentTranslations[] | null;
+};
 
 interface ProductTranslationDraft {
   description: string;
@@ -62,6 +64,13 @@ interface ScheduleProductTranslationInput {
   productId: string;
   values: ProductFormValues;
 }
+
+const PRODUCT_RELATIONSHIP_SELECT = Query.select([
+  "*",
+  "campus.$id",
+  "department.$id",
+  "translation_refs.*",
+]);
 
 const getProductTranslationSource = (
   values: ProductFormValues,
@@ -122,12 +131,17 @@ const scheduleProductTranslation = ({
         return;
       }
       const translated = await translateProductDraft(sourceLocale, source);
+      // Fresh admin client: the request that scheduled this callback is done.
       const { db } = await createAdminClient();
-      const currentProduct = await db.getRow<WebshopProducts>(
+      const currentProduct = await db.getRow<ProductWithTranslations>(
         "app",
         "webshop_products",
-        productId
+        productId,
+        [PRODUCT_RELATIONSHIP_SELECT]
       );
+      const ownership = getContentOwnership(currentProduct, {
+        legacyFallback: true,
+      });
       if (
         !isCurrentTranslationSource(
           {
@@ -137,8 +151,8 @@ const scheduleProductTranslation = ({
             status: values.status,
           },
           {
-            campusId: currentProduct.campus_id,
-            departmentId: currentProduct.departmentId ?? null,
+            campusId: ownership.campus,
+            departmentId: ownership.department,
             memberOnly: currentProduct.member_only,
             status: currentProduct.status,
           }
@@ -146,16 +160,10 @@ const scheduleProductTranslation = ({
       ) {
         return;
       }
-      const currentTranslations = await db.listRows<ContentTranslations>(
-        "app",
-        "content_translations",
-        [
-          Query.equal("content_type", "product"),
-          Query.equal("content_id", productId),
-          Query.limit(5),
-        ]
-      );
-      const currentSource = currentTranslations.rows.find(
+      // The synchronous save linked the source locale before scheduling, so
+      // the parent relation is the authoritative read path here.
+      const currentTranslations = currentProduct.translation_refs ?? [];
+      const currentSource = currentTranslations.find(
         (translation) => translation.locale === sourceLocale
       );
       if (
@@ -174,7 +182,7 @@ const scheduleProductTranslation = ({
       }
 
       const targetLocale = getTargetLocale(sourceLocale);
-      const currentTarget = currentTranslations.rows.find(
+      const currentTarget = currentTranslations.find(
         (translation) => translation.locale === targetLocale
       );
       const translatedFields = {
@@ -194,12 +202,14 @@ const scheduleProductTranslation = ({
       await db.createRow(
         "app",
         "content_translations",
-        "unique()",
+        ID.unique(),
         {
           ...translatedFields,
           content_id: productId,
           content_type: "product",
           locale: targetLocale,
+          // A fresh destination row must arrive already related to its parent.
+          product_ref: productId,
           short_description: null,
         },
         permissions
@@ -234,70 +244,98 @@ export async function generateProductTranslationDraft(
   }
 }
 
-async function upsertTranslation(
-  db: Awaited<ReturnType<typeof createSessionClient>>["db"],
-  existing: ContentTranslations | undefined,
-  data: TranslationData,
-  permissions: string[]
-) {
-  if (existing) {
-    await db.updateRow(
-      "app",
-      "content_translations",
-      existing.$id,
-      data,
-      permissions
-    );
-  } else {
-    await db.createRow(
-      "app",
-      "content_translations",
-      "unique()",
-      data,
-      permissions
-    );
-  }
+interface NestedProductTranslation {
+  $id?: string;
+  $permissions: string[];
+  content_id?: string;
+  content_type?: "product";
+  description?: string;
+  locale?: string;
+  short_description?: string | null;
+  title?: string;
 }
 
-async function syncNorwegianProductTranslation(
-  db: Awaited<ReturnType<typeof createSessionClient>>["db"],
-  existing: ContentTranslations | undefined,
+/**
+ * Nested relationship children for the product upsert. Locales with submitted
+ * content carry full data (`$id` reuses an existing row); existing locales the
+ * form left untouched are included by `$id` with `$permissions` only, so a
+ * status transition re-stamps their visibility without unlinking or editing.
+ */
+function buildProductTranslationChildren(
   productId: string,
   values: ProductFormValues,
+  existingByLocale: Map<string, ContentTranslations>,
   permissions: string[]
-): Promise<void> {
-  const translation = getProductTranslationSource(values, "no");
-  if (hasProductTranslationContent(translation)) {
-    await upsertTranslation(
-      db,
-      existing,
-      {
-        content_id: productId,
-        content_type: "product",
-        description: translation.description,
-        locale: "no",
-        short_description: values.short_description ?? null,
-        title: translation.name,
-      },
-      permissions
-    );
-    return;
+): NestedProductTranslation[] {
+  const children: NestedProductTranslation[] = [];
+
+  const norwegian = getProductTranslationSource(values, "no");
+  const existingNo = existingByLocale.get("no");
+  if (hasProductTranslationContent(norwegian)) {
+    children.push({
+      ...(existingNo ? { $id: existingNo.$id } : {}),
+      $permissions: permissions,
+      content_id: productId,
+      content_type: "product",
+      description: norwegian.description,
+      locale: "no",
+      short_description: values.short_description ?? null,
+      title: norwegian.name,
+    });
+  } else if (existingNo) {
+    children.push({ $id: existingNo.$id, $permissions: permissions });
   }
-  if (existing) {
-    await db.updateRow(
-      "app",
-      "content_translations",
-      existing.$id,
-      {},
-      permissions
-    );
+
+  const existingEn = existingByLocale.get("en");
+  if (values.name_en || values.description_en) {
+    children.push({
+      ...(existingEn ? { $id: existingEn.$id } : {}),
+      $permissions: permissions,
+      content_id: productId,
+      content_type: "product",
+      description: values.description_en ?? values.description ?? "",
+      locale: "en",
+      short_description: values.short_description ?? null,
+      title: values.name_en ?? values.name,
+    });
+  } else if (existingEn) {
+    children.push({ $id: existingEn.$id, $permissions: permissions });
   }
+
+  return children;
+}
+
+/**
+ * Existing locales are looked up by content metadata, not the relation: rows
+ * that predate the relationship backfill are unlinked, and matching them here
+ * both prevents duplicate locale rows and re-links them on the next save.
+ */
+async function loadProductTranslationsByLocale(
+  db: AdminDb,
+  productId: string
+): Promise<Map<string, ContentTranslations>> {
+  const current = await db.listRows<ContentTranslations>(
+    "app",
+    "content_translations",
+    [
+      Query.equal("content_type", "product"),
+      Query.equal("content_id", productId),
+      Query.limit(5),
+    ]
+  );
+  return new Map(
+    current.rows.map((translation) => [translation.locale, translation])
+  );
 }
 
 function buildProductFields(data: ProductFormValues) {
   return {
     slug: data.slug,
+    // Canonical ownership relationships; the scalar columns remain as
+    // migration-era compatibility metadata only.
+    campus: data.campus_id,
     campus_id: data.campus_id,
+    department: data.department_id ?? null,
     departmentId: data.department_id ?? null,
     category: data.category ?? null,
     regular_price: data.regular_price,
@@ -315,19 +353,46 @@ function buildProductFields(data: ProductFormValues) {
   };
 }
 
+async function buildProductPermissions(
+  db: AdminDb,
+  values: ProductFormValues
+): Promise<{ rowPermissions: string[]; translationPermissions: string[] }> {
+  const lookups = await loadRecruitmentLookups(db);
+  const audience = values.member_only ? "members" : "public";
+  const { campusTeam, deptTeam } = deriveContentRowTeams(lookups, {
+    campus_id: values.campus_id,
+    department_id: values.department_id ?? null,
+  });
+  return {
+    rowPermissions: buildContentRowPermissions({
+      status: values.status,
+      audience,
+      campusTeam,
+      deptTeam,
+    }),
+    translationPermissions: buildContentTranslationPermissions({
+      audience,
+      status: values.status,
+      writeTeams: deptTeam ? [deptTeam] : [],
+      readTeams: campusTeam ? [campusTeam] : [],
+    }),
+  };
+}
+
 export async function listProducts(opts?: {
   campusId?: string;
   status?: string;
   category?: string;
 }) {
   const ctx = await requireAuth();
-  const { db } = await createSessionClient();
+  // Private admin read: the service client bypasses row security, so the
+  // relationship scope filters below are the authorization boundary.
+  const { db } = await createAdminClient();
 
   const queries: string[] = [
     Query.orderDesc("$updatedAt"),
     Query.limit(100),
-    // webshop_products uses `departmentId` (camelCase), not `department_id`.
-    ...applyScopeQueries(ctx, { departmentField: "departmentId" }),
+    ...applyContentRelationshipScopeQueries(ctx),
   ];
 
   if (opts?.status && opts.status !== "all") {
@@ -372,7 +437,7 @@ export async function listProducts(opts?: {
 
 export async function getProduct(id: string) {
   const ctx = await requireAuth();
-  const { db } = await createSessionClient();
+  const { db } = await createAdminClient();
 
   const response = await db.listRows<WebshopProducts>(
     "app",
@@ -380,10 +445,12 @@ export async function getProduct(id: string) {
     [Query.equal("$id", id), Query.limit(1)]
   );
   const product = response.rows[0];
+  if (!product) {
+    return null;
+  }
   // Treat a row outside the caller's campus/department scope as not found.
-  if (
-    !(product && hasRowAccess(ctx, product.campus_id, product.departmentId))
-  ) {
+  const ownership = getContentOwnership(product, { legacyFallback: true });
+  if (!hasRowAccess(ctx, ownership.campus, ownership.department)) {
     return null;
   }
 
@@ -412,82 +479,40 @@ export async function createProduct(
 
   try {
     const translationOptions = parseAutoTranslationOptions(autoTranslation);
-    assertWriteAccess(ctx, validated.data.campus_id);
+    const { db } = await createAdminClient();
+    await assertContentOwnership(db, ctx, {
+      allowGlobalCampus: false,
+      campusId: validated.data.campus_id,
+      departmentId: validated.data.department_id ?? null,
+    });
     if (validated.data.status === "published") {
-      assertPublishAccess(ctx, validated.data.campus_id);
+      assertPublishAccess(
+        ctx,
+        validated.data.campus_id,
+        validated.data.department_id ?? null
+      );
     }
 
-    const { db } = await createSessionClient();
+    const { rowPermissions, translationPermissions } =
+      await buildProductPermissions(db, validated.data);
 
-    const lookups = await loadRecruitmentLookups(db);
-    const status = validated.data.status;
-    const audience = validated.data.member_only ? "members" : "public";
-    const { campusTeam, deptTeam } = deriveContentRowTeams(lookups, {
-      campus_id: validated.data.campus_id,
-      department_id: validated.data.department_id ?? null,
-    });
-    const rowPermissions = buildContentRowPermissions({
-      status,
-      audience,
-      campusTeam,
-      deptTeam,
-    });
-    const translationPermissions = buildContentTranslationPermissions({
-      audience,
-      status,
-      writeTeams: deptTeam ? [deptTeam] : [],
-      readTeams: campusTeam ? [campusTeam] : [],
-    });
-
-    const product = await db.createRow(
+    const productId = ID.unique();
+    const product = await db.upsertRow(
       "app",
       "webshop_products",
-      "unique()",
+      productId,
       {
         ...buildProductFields(validated.data),
-        status: status as WebshopProductsStatus,
+        status: validated.data.status as WebshopProductsStatus,
+        translation_refs: buildProductTranslationChildren(
+          productId,
+          validated.data,
+          new Map(),
+          translationPermissions
+        ),
       },
       rowPermissions
     );
-
-    const norwegianTranslation = getProductTranslationSource(
-      validated.data,
-      "no"
-    );
-    if (hasProductTranslationContent(norwegianTranslation)) {
-      await db.createRow(
-        "app",
-        "content_translations",
-        "unique()",
-        {
-          content_id: product.$id,
-          content_type: "product",
-          locale: "no",
-          title: norwegianTranslation.name,
-          description: norwegianTranslation.description,
-          short_description: validated.data.short_description ?? null,
-        },
-        translationPermissions
-      );
-    }
-
-    if (validated.data.name_en || validated.data.description_en) {
-      await db.createRow(
-        "app",
-        "content_translations",
-        "unique()",
-        {
-          content_id: product.$id,
-          content_type: "product",
-          locale: "en",
-          title: validated.data.name_en ?? validated.data.name,
-          description:
-            validated.data.description_en ?? validated.data.description ?? "",
-          short_description: validated.data.short_description ?? null,
-        },
-        translationPermissions
-      );
-    }
 
     await logAuditEvent(ctx, "product_created", {
       resourceId: product.$id,
@@ -521,7 +546,7 @@ export async function updateProduct(
     return { error: validated.error.flatten().fieldErrors };
   }
 
-  const { db } = await createSessionClient();
+  const { db } = await createAdminClient();
 
   const existing = await db.listRows<WebshopProducts>(
     "app",
@@ -535,101 +560,47 @@ export async function updateProduct(
 
   try {
     const translationOptions = parseAutoTranslationOptions(autoTranslation);
-    assertWriteAccess(ctx, product.campus_id, product.departmentId);
-    assertWriteAccess(
-      ctx,
-      validated.data.campus_id,
-      validated.data.department_id ?? null
-    );
+    // Authorize both the persisted scope and the requested scope so ownership
+    // transfers require access on each side.
+    const persisted = getContentOwnership(product, { legacyFallback: true });
+    assertWriteAccess(ctx, persisted.campus, persisted.department);
+    await assertContentOwnership(db, ctx, {
+      allowGlobalCampus: false,
+      campusId: validated.data.campus_id,
+      departmentId: validated.data.department_id ?? null,
+    });
     if (
       product.status === "published" ||
       validated.data.status === "published"
     ) {
-      assertPublishAccess(ctx, product.campus_id);
-      assertPublishAccess(ctx, validated.data.campus_id);
+      assertPublishAccess(ctx, persisted.campus, persisted.department);
+      assertPublishAccess(
+        ctx,
+        validated.data.campus_id,
+        validated.data.department_id ?? null
+      );
     }
 
-    const lookups = await loadRecruitmentLookups(db);
-    const audience = validated.data.member_only ? "members" : "public";
-    const { campusTeam, deptTeam } = deriveContentRowTeams(lookups, {
-      campus_id: validated.data.campus_id,
-      department_id: validated.data.department_id ?? null,
-    });
-    const rowPermissions = buildContentRowPermissions({
-      status: validated.data.status,
-      audience,
-      campusTeam,
-      deptTeam,
-    });
-    const translationPermissions = buildContentTranslationPermissions({
-      audience,
-      status: validated.data.status,
-      writeTeams: deptTeam ? [deptTeam] : [],
-      readTeams: campusTeam ? [campusTeam] : [],
-    });
+    const { rowPermissions, translationPermissions } =
+      await buildProductPermissions(db, validated.data);
 
-    await db.updateRow(
+    const existingByLocale = await loadProductTranslationsByLocale(db, id);
+    await db.upsertRow(
       "app",
       "webshop_products",
       id,
       {
         ...buildProductFields(validated.data),
         status: validated.data.status as WebshopProductsStatus,
+        translation_refs: buildProductTranslationChildren(
+          id,
+          validated.data,
+          existingByLocale,
+          translationPermissions
+        ),
       },
       rowPermissions
     );
-
-    const existingTranslations = await db.listRows<ContentTranslations>(
-      "app",
-      "content_translations",
-      [
-        Query.equal("content_type", "product"),
-        Query.equal("content_id", id),
-        Query.limit(5),
-      ]
-    );
-
-    const noTranslation = existingTranslations.rows.find(
-      (t) => t.locale === "no"
-    );
-    const enTranslation = existingTranslations.rows.find(
-      (t) => t.locale === "en"
-    );
-
-    await syncNorwegianProductTranslation(
-      db,
-      noTranslation,
-      id,
-      validated.data,
-      translationPermissions
-    );
-
-    if (validated.data.name_en || validated.data.description_en) {
-      await upsertTranslation(
-        db,
-        enTranslation,
-        {
-          content_id: id,
-          content_type: "product",
-          locale: "en",
-          title: validated.data.name_en ?? validated.data.name,
-          description:
-            validated.data.description_en ?? validated.data.description ?? "",
-          short_description: validated.data.short_description ?? null,
-        },
-        translationPermissions
-      );
-    } else if (enTranslation) {
-      // English content was not edited this time; still re-stamp its
-      // permissions so a status transition never leaves a stale read(any).
-      await db.updateRow(
-        "app",
-        "content_translations",
-        enTranslation.$id,
-        {},
-        translationPermissions
-      );
-    }
 
     await logAuditEvent(ctx, "product_updated", {
       resourceId: id,
@@ -656,7 +627,7 @@ export async function updateProduct(
 
 export async function deleteProduct(id: string) {
   const ctx = await requireAuth();
-  const { db } = await createSessionClient();
+  const { db } = await createAdminClient();
 
   const existing = await db.listRows<WebshopProducts>(
     "app",
@@ -669,7 +640,8 @@ export async function deleteProduct(id: string) {
   }
 
   try {
-    assertWriteAccess(ctx, product.campus_id, product.departmentId);
+    const ownership = getContentOwnership(product, { legacyFallback: true });
+    assertWriteAccess(ctx, ownership.campus, ownership.department);
 
     const translations = await db.listRows("app", "content_translations", [
       Query.equal("content_type", "product"),
@@ -701,6 +673,8 @@ export async function listOrders(opts?: {
   status?: string;
 }) {
   const ctx = await requireAuth();
+  // Orders remain an operational commerce surface with its own narrow session
+  // authorization — they are intentionally outside the general content model.
   const { db } = await createSessionClient();
 
   const queries: string[] = [

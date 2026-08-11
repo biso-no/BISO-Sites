@@ -32,6 +32,7 @@ const adminDb = {
   getRow: mock(),
   listRows: mock(),
   updateRow: mock(),
+  upsertRow: mock(),
 };
 
 const campusAdminCtx: UserAuthContext = {
@@ -118,6 +119,7 @@ beforeEach(() => {
   adminDb.getRow.mockReset();
   adminDb.listRows.mockReset();
   adminDb.updateRow.mockReset();
+  adminDb.upsertRow.mockReset();
 
   sessionDb.createRow.mockImplementation(
     async (
@@ -155,11 +157,31 @@ beforeEach(() => {
       data: Record<string, unknown>
     ) => ({ $id: rowId, ...data })
   );
+  adminDb.upsertRow.mockImplementation(
+    async (
+      _databaseId: string,
+      tableId: string,
+      rowId: string,
+      data: Record<string, unknown>
+    ) => ({
+      $id: tableId === "webshop_products" ? "product-1" : rowId,
+      ...data,
+    })
+  );
+  adminDb.listRows.mockResolvedValue({ rows: [], total: 0 });
   adminDb.getRow.mockResolvedValue({
     campus_id: "campus-oslo",
     departmentId: null,
     member_only: false,
     status: "draft",
+    translation_refs: [
+      {
+        $id: "translation-no",
+        description: "<p>Norske detaljer</p>",
+        locale: "no",
+        title: "Norsk produkt",
+      },
+    ],
   });
 });
 
@@ -216,11 +238,14 @@ describe("shop translation", () => {
       sourceLocale: "no",
     });
 
-    const translationCalls = sessionDb.createRow.mock.calls.filter(
-      (call) => call[1] === "content_translations"
+    const parentCall = adminDb.upsertRow.mock.calls.find(
+      (call) => call[1] === "webshop_products"
     );
-    expect(translationCalls).toHaveLength(1);
-    expect(translationCalls[0]?.[3]).toEqual(
+    const children = (
+      parentCall?.[3] as { translation_refs: Record<string, unknown>[] }
+    ).translation_refs;
+    expect(children).toHaveLength(1);
+    expect(children[0]).toEqual(
       expect.objectContaining({ locale: "no", title: "Norsk produkt" })
     );
     expect(afterSpy).not.toHaveBeenCalled();
@@ -232,7 +257,7 @@ describe("shop translation", () => {
       { enabled: false, sourceLocale: "no" }
     );
 
-    expect(sessionDb.createRow).toHaveBeenCalledWith(
+    expect(adminDb.upsertRow).toHaveBeenCalledWith(
       "app",
       "webshop_products",
       expect.any(String),
@@ -262,8 +287,12 @@ describe("shop translation", () => {
   });
 
   test("updates only the fresh English destination after persistence", async () => {
-    adminDb.listRows.mockResolvedValue({
-      rows: [
+    adminDb.getRow.mockResolvedValue({
+      campus_id: "campus-oslo",
+      departmentId: null,
+      member_only: false,
+      status: "draft",
+      translation_refs: [
         {
           $id: "translation-no",
           description: "<p>Norske detaljer</p>",
@@ -277,7 +306,6 @@ describe("shop translation", () => {
           title: "Old English product",
         },
       ],
-      total: 2,
     });
 
     const result = await createProduct(norwegianValues, {
@@ -305,8 +333,12 @@ describe("shop translation", () => {
   });
 
   test("updates only the fresh Norwegian destination from English", async () => {
-    adminDb.listRows.mockResolvedValue({
-      rows: [
+    adminDb.getRow.mockResolvedValue({
+      campus_id: "campus-oslo",
+      departmentId: null,
+      member_only: false,
+      status: "draft",
+      translation_refs: [
         {
           $id: "translation-no",
           description: "Gamle norske detaljer",
@@ -320,7 +352,6 @@ describe("shop translation", () => {
           title: "English product",
         },
       ],
-      total: 2,
     });
 
     await createProduct(
@@ -349,9 +380,39 @@ describe("shop translation", () => {
     expect(adminDb.createRow).not.toHaveBeenCalled();
   });
 
+  test("links a fresh destination locale to its product", async () => {
+    const result = await createProduct(norwegianValues, {
+      enabled: true,
+      sourceLocale: "no",
+    });
+
+    expect(result).toEqual({ data: "product-1", translationQueued: true });
+    await deferredCallback?.();
+
+    expect(adminDb.createRow).toHaveBeenCalledWith(
+      "app",
+      "content_translations",
+      expect.any(String),
+      expect.objectContaining({
+        content_id: "product-1",
+        content_type: "product",
+        description: "<p>English details</p>",
+        locale: "en",
+        product_ref: "product-1",
+        title: "English product",
+      }),
+      expect.any(Array)
+    );
+    expect(adminDb.updateRow).not.toHaveBeenCalled();
+  });
+
   test("skips a stale source snapshot", async () => {
-    adminDb.listRows.mockResolvedValue({
-      rows: [
+    adminDb.getRow.mockResolvedValue({
+      campus_id: "campus-oslo",
+      departmentId: null,
+      member_only: false,
+      status: "draft",
+      translation_refs: [
         {
           $id: "translation-no",
           description: "<p>Redigerte detaljer</p>",
@@ -359,7 +420,6 @@ describe("shop translation", () => {
           title: "Redigert produkt",
         },
       ],
-      total: 1,
     });
 
     await createProduct(norwegianValues, {
