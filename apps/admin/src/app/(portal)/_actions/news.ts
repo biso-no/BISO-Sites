@@ -1,7 +1,7 @@
 "use server";
 
-import { Permission, Query, Role } from "@repo/api";
-import { createAdminClient, createSessionClient } from "@repo/api/server";
+import { ID, Query } from "@repo/api";
+import { createAdminClient } from "@repo/api/server";
 import type {
   ContentTranslations,
   News,
@@ -9,6 +9,11 @@ import type {
 } from "@repo/api/types/appwrite";
 import { revalidatePath } from "next/cache";
 import { requireAuth } from "@/lib/authorization";
+import {
+  applyContentRelationshipScopeQueries,
+  assertContentOwnership,
+  getContentOwnership,
+} from "@/lib/content-authorization";
 import {
   type AutoTranslationOptions,
   type ContentLocale,
@@ -27,7 +32,6 @@ import {
   deriveContentRowTeams,
 } from "@/lib/utils";
 import {
-  applyScopeQueries,
   assertPublishAccess,
   assertWriteAccess,
   hasRowAccess,
@@ -40,11 +44,14 @@ import {
 import { logAuditEvent } from "./audit-log";
 import { NEWS_PAGE_SIZE, type NewsFormValues, newsSchema } from "./schemas";
 
-type NewsDatabase = Awaited<ReturnType<typeof createSessionClient>>["db"];
+type NewsDatabase = Awaited<ReturnType<typeof createAdminClient>>["db"];
 type TranslationPermissions = ReturnType<
   typeof buildContentTranslationPermissions
 >;
-type RowPermissions = ReturnType<typeof buildContentRowPermissions>;
+
+type NewsWithTranslations = News & {
+  translation_refs?: ContentTranslations[] | null;
+};
 
 type GenerateNewsTranslationDraftInput = NewsTranslationDraft & {
   campusId: string;
@@ -59,6 +66,13 @@ interface ScheduleNewsTranslationInput {
   permissions: TranslationPermissions;
   values: NewsFormValues;
 }
+
+const NEWS_RELATIONSHIP_SELECT = Query.select([
+  "*",
+  "campus.$id",
+  "department.$id",
+  "translation_refs.*",
+]);
 
 const translateNewsDraft = async (
   sourceLocale: ContentLocale,
@@ -104,8 +118,17 @@ const scheduleNewsTranslation = ({
         return;
       }
       const translated = await translateNewsDraft(sourceLocale, source);
+      // Fresh admin client: the request that scheduled this callback is done.
       const { db } = await createAdminClient();
-      const currentArticle = await db.getRow<News>("app", "news", articleId);
+      const currentArticle = await db.getRow<NewsWithTranslations>(
+        "app",
+        "news",
+        articleId,
+        [NEWS_RELATIONSHIP_SELECT]
+      );
+      const ownership = getContentOwnership(currentArticle, {
+        legacyFallback: true,
+      });
       if (
         !isCurrentTranslationSource(
           {
@@ -114,24 +137,18 @@ const scheduleNewsTranslation = ({
             status: values.status,
           },
           {
-            campusId: currentArticle.campus_id,
-            departmentId: currentArticle.department_id ?? null,
+            campusId: ownership.campus,
+            departmentId: ownership.department,
             status: currentArticle.status,
           }
         )
       ) {
         return;
       }
-      const currentTranslations = await db.listRows<ContentTranslations>(
-        "app",
-        "content_translations",
-        [
-          Query.equal("content_type", "news"),
-          Query.equal("content_id", articleId),
-          Query.limit(10),
-        ]
-      );
-      const currentSource = currentTranslations.rows.find(
+      // The synchronous save linked the source locale before scheduling, so
+      // the parent relation is the authoritative read path here.
+      const currentTranslations = currentArticle.translation_refs ?? [];
+      const currentSource = currentTranslations.find(
         (translation) => translation.locale === sourceLocale
       );
       if (
@@ -153,7 +170,7 @@ const scheduleNewsTranslation = ({
       }
 
       const targetLocale = getTargetLocale(sourceLocale);
-      const currentTarget = currentTranslations.rows.find(
+      const currentTarget = currentTranslations.find(
         (translation) => translation.locale === targetLocale
       );
       const data = {
@@ -177,8 +194,9 @@ const scheduleNewsTranslation = ({
       await db.createRow(
         "app",
         "content_translations",
-        "unique()",
-        data,
+        ID.unique(),
+        // A fresh destination row must arrive already related to its parent.
+        { ...data, news_ref: articleId },
         permissions
       );
     },
@@ -211,94 +229,64 @@ export async function generateNewsTranslationDraft(
   }
 }
 
-const buildStagingNewsRowPermissions = (
-  canonicalPermissions: RowPermissions,
-  creatorUserId: string
-): RowPermissions => {
-  const creator = Role.user(creatorUserId);
-  return [
-    ...new Set([
-      ...canonicalPermissions,
-      Permission.read(creator),
-      Permission.update(creator),
-      Permission.delete(creator),
-    ]),
-  ];
-};
+interface NestedTranslationChild {
+  $id?: string;
+  $permissions: TranslationPermissions;
+  additional_fields: string;
+  content_id: string;
+  content_type: "news";
+  description: string;
+  locale: string;
+  title: string;
+}
 
-const createNewsTranslations = async (
-  db: NewsDatabase,
+/**
+ * Nested relationship children for the parent upsert: an existing `$id` makes
+ * Appwrite update-and-keep that child, omitting it creates and links a new
+ * one. Explicit `$permissions` avoid relying on permission inheritance.
+ */
+const buildNestedTranslations = (
   articleId: string,
   translations: NewsTranslationInput[],
+  existingByLocale: Map<string, ContentTranslations>,
   additionalFields: string,
-  permissions: TranslationPermissions,
-  translationIds: string[]
-): Promise<void> => {
-  for (const translation of translations) {
-    const createdTranslation = await db.createRow(
-      "app",
-      "content_translations",
-      "unique()",
-      {
-        additional_fields: additionalFields,
-        content_id: articleId,
-        content_type: "news",
-        description: translation.description,
-        locale: translation.locale,
-        title: translation.title,
-      },
-      permissions
-    );
-    translationIds.push(createdTranslation.$id);
-  }
-};
+  permissions: TranslationPermissions
+): NestedTranslationChild[] =>
+  translations.map((translation) => {
+    const existing = existingByLocale.get(translation.locale);
+    return {
+      ...(existing ? { $id: existing.$id } : {}),
+      $permissions: permissions,
+      additional_fields: additionalFields,
+      content_id: articleId,
+      content_type: "news",
+      description: translation.description,
+      locale: translation.locale,
+      title: translation.title,
+    };
+  });
 
-const publishStagedNewsTranslations = async (
+/**
+ * Existing locales are looked up by content metadata, not the relation: rows
+ * that predate the relationship backfill are unlinked, and matching them here
+ * both prevents duplicate locale rows and re-links them on the next save.
+ */
+const loadTranslationsByLocale = async (
   db: NewsDatabase,
-  translationIds: string[],
-  translationPermissions: TranslationPermissions
-): Promise<void> => {
-  for (const translationId of translationIds) {
-    await db.updateRow(
-      "app",
-      "content_translations",
-      translationId,
-      {},
-      translationPermissions
-    );
-  }
-};
-
-const finalizeStagedNewsRow = async (
-  db: NewsDatabase,
-  articleId: string,
-  status: NewsFormValues["status"],
-  rowPermissions: RowPermissions
-): Promise<void> => {
-  await db.updateRow(
+  articleId: string
+): Promise<Map<string, ContentTranslations>> => {
+  const current = await db.listRows<ContentTranslations>(
     "app",
-    "news",
-    articleId,
-    { status: status as NewsStatus },
-    rowPermissions
+    "content_translations",
+    [
+      Query.equal("content_type", "news"),
+      Query.equal("content_id", articleId),
+      Query.limit(10),
+    ]
   );
-};
-
-const rollbackCreatedNews = async (
-  db: NewsDatabase,
-  articleId: string,
-  translationIds: string[]
-): Promise<void> => {
-  await Promise.allSettled(
-    translationIds.map((translationId) =>
-      db.deleteRow("app", "content_translations", translationId)
-    )
+  return new Map(
+    current.rows.map((translation) => [translation.locale, translation])
   );
-  try {
-    await db.deleteRow("app", "news", articleId);
-  } catch {
-    // Best-effort rollback: the original persistence error is more useful.
-  }
 };
 
 export async function listNews(opts?: {
@@ -307,14 +295,16 @@ export async function listNews(opts?: {
   page?: number;
 }) {
   const ctx = await requireAuth();
-  const { db } = await createSessionClient();
+  // Private admin read: the service client bypasses row security, so the
+  // relationship scope filters below are the authorization boundary.
+  const { db } = await createAdminClient();
   const page = Math.max(1, opts?.page ?? 1);
 
   const queries: string[] = [
     Query.orderDesc("$updatedAt"),
     Query.limit(NEWS_PAGE_SIZE),
     Query.offset((page - 1) * NEWS_PAGE_SIZE),
-    ...applyScopeQueries(ctx),
+    ...applyContentRelationshipScopeQueries(ctx),
   ];
 
   if (opts?.status && opts.status !== "all") {
@@ -354,17 +344,19 @@ export async function listNews(opts?: {
 
 export async function getNewsArticle(id: string) {
   const ctx = await requireAuth();
-  const { db } = await createSessionClient();
+  const { db } = await createAdminClient();
 
   const response = await db.listRows<News>("app", "news", [
     Query.equal("$id", id),
     Query.limit(1),
   ]);
   const article = response.rows[0];
+  if (!article) {
+    return null;
+  }
   // Treat a row outside the caller's campus/department scope as not found.
-  if (
-    !(article && hasRowAccess(ctx, article.campus_id, article.department_id))
-  ) {
+  const ownership = getContentOwnership(article, { legacyFallback: true });
+  if (!hasRowAccess(ctx, ownership.campus, ownership.department)) {
     return null;
   }
 
@@ -391,104 +383,68 @@ export async function createNews(
     return { error: validated.error.flatten().fieldErrors };
   }
 
-  let rollback: (() => Promise<void>) | null = null;
-
   try {
     const translationOptions = parseAutoTranslationOptions(autoTranslation);
-    // News is reachable by department users (see NAV_ACCESS), so authorize
-    // against both the target campus and department — matching the
-    // update/delete paths, which pass the row's department_id.
-    assertWriteAccess(
-      ctx,
-      validated.data.campus_id,
-      validated.data.department_id ?? null
-    );
-    const requestedStatus = validated.data.status;
-    if (requestedStatus === "published") {
-      assertPublishAccess(ctx, validated.data.campus_id);
+    const { db } = await createAdminClient();
+    // Requested ownership is untrusted client input: verify the department
+    // belongs to the campus and the caller may author in that scope.
+    await assertContentOwnership(db, ctx, {
+      allowGlobalCampus: false,
+      campusId: validated.data.campus_id,
+      departmentId: validated.data.department_id ?? null,
+    });
+    if (validated.data.status === "published") {
+      assertPublishAccess(
+        ctx,
+        validated.data.campus_id,
+        validated.data.department_id ?? null
+      );
     }
-
-    const { db } = await createSessionClient();
 
     const lookups = await loadRecruitmentLookups(db);
     const { campusTeam, deptTeam } = deriveContentRowTeams(lookups, {
       campus_id: validated.data.campus_id,
       department_id: validated.data.department_id ?? null,
     });
-
-    const stagingStatus =
-      requestedStatus === "published" ? "draft" : requestedStatus;
-    const article = await db.createRow(
-      "app",
-      "news",
-      "unique()",
-      {
-        slug: validated.data.slug,
-        status: stagingStatus as NewsStatus,
-        campus_id: validated.data.campus_id,
-        department_id: validated.data.department_id ?? null,
-        image: validated.data.image || null,
-        sticky: validated.data.sticky ?? false,
-        author: validated.data.author ?? null,
-      },
-      buildStagingNewsRowPermissions(
-        buildContentRowPermissions({
-          status: stagingStatus,
-          audience: "public",
-          campusTeam,
-          deptTeam,
-        }),
-        ctx.userId
-      )
-    );
-
-    const stagingTranslationPermissions = buildContentTranslationPermissions({
+    const translationPermissions = buildContentTranslationPermissions({
       audience: "public",
-      status: stagingStatus,
+      status: validated.data.status,
       ownerUserId: ctx.userId,
       writeTeams: deptTeam ? [deptTeam] : [],
       readTeams: campusTeam ? [campusTeam] : [],
     });
-    let finalTranslationPermissions = stagingTranslationPermissions;
     const additionalFields = JSON.stringify({
       author: validated.data.author,
       category: validated.data.category,
     });
-    const translations = getNewsTranslationInputs(validated.data);
-    const createdTranslationIds: string[] = [];
-    rollback = () =>
-      rollbackCreatedNews(db, article.$id, createdTranslationIds);
-    await createNewsTranslations(
-      db,
-      article.$id,
-      translations,
-      additionalFields,
-      stagingTranslationPermissions,
-      createdTranslationIds
-    );
 
-    if (requestedStatus === "published") {
-      const publishedTranslationPermissions =
-        buildContentTranslationPermissions({
-          audience: "public",
-          status: requestedStatus,
-          ownerUserId: ctx.userId,
-          writeTeams: deptTeam ? [deptTeam] : [],
-          readTeams: campusTeam ? [campusTeam] : [],
-        });
-      finalTranslationPermissions = publishedTranslationPermissions;
-      await publishStagedNewsTranslations(
-        db,
-        createdTranslationIds,
-        publishedTranslationPermissions
-      );
-    }
-    await finalizeStagedNewsRow(
-      db,
-      article.$id,
-      requestedStatus,
+    const articleId = ID.unique();
+    const article = await db.upsertRow(
+      "app",
+      "news",
+      articleId,
+      {
+        slug: validated.data.slug,
+        status: validated.data.status as NewsStatus,
+        // Canonical ownership relationships; the scalar columns remain as
+        // migration-era compatibility metadata only.
+        campus: validated.data.campus_id,
+        campus_id: validated.data.campus_id,
+        department: validated.data.department_id ?? null,
+        department_id: validated.data.department_id ?? null,
+        image: validated.data.image || null,
+        sticky: validated.data.sticky ?? false,
+        author: validated.data.author ?? null,
+        translation_refs: buildNestedTranslations(
+          articleId,
+          getNewsTranslationInputs(validated.data),
+          new Map(),
+          additionalFields,
+          translationPermissions
+        ),
+      },
       buildContentRowPermissions({
-        status: requestedStatus,
+        status: validated.data.status,
         audience: "public",
         campusTeam,
         deptTeam,
@@ -503,7 +459,7 @@ export async function createNews(
       additionalFields,
       articleId: article.$id,
       autoTranslation: translationOptions,
-      permissions: finalTranslationPermissions,
+      permissions: translationPermissions,
       values: validated.data,
     });
     revalidatePath("/news");
@@ -511,7 +467,6 @@ export async function createNews(
       ? { data: article.$id, translationQueued: true as const }
       : { data: article.$id };
   } catch (error) {
-    await rollback?.();
     return {
       error: error instanceof Error ? error.message : "Failed to save article",
     };
@@ -529,7 +484,7 @@ export async function updateNews(
     return { error: validated.error.flatten().fieldErrors };
   }
 
-  const { db } = await createSessionClient();
+  const { db } = await createAdminClient();
 
   const existing = await db.listRows<News>("app", "news", [
     Query.equal("$id", id),
@@ -542,18 +497,25 @@ export async function updateNews(
 
   try {
     const translationOptions = parseAutoTranslationOptions(autoTranslation);
-    assertWriteAccess(ctx, article.campus_id, article.department_id);
-    assertWriteAccess(
-      ctx,
-      validated.data.campus_id,
-      validated.data.department_id ?? null
-    );
+    // Authorize both the persisted scope and the requested scope so ownership
+    // transfers require access on each side.
+    const persisted = getContentOwnership(article, { legacyFallback: true });
+    assertWriteAccess(ctx, persisted.campus, persisted.department);
+    await assertContentOwnership(db, ctx, {
+      allowGlobalCampus: false,
+      campusId: validated.data.campus_id,
+      departmentId: validated.data.department_id ?? null,
+    });
     if (
       article.status === "published" ||
       validated.data.status === "published"
     ) {
-      assertPublishAccess(ctx, article.campus_id);
-      assertPublishAccess(ctx, validated.data.campus_id);
+      assertPublishAccess(ctx, persisted.campus, persisted.department);
+      assertPublishAccess(
+        ctx,
+        validated.data.campus_id,
+        validated.data.department_id ?? null
+      );
     }
 
     const lookups = await loadRecruitmentLookups(db);
@@ -568,19 +530,38 @@ export async function updateNews(
       writeTeams: deptTeam ? [deptTeam] : [],
       readTeams: campusTeam ? [campusTeam] : [],
     });
+    const additionalFields = JSON.stringify({
+      author: validated.data.author,
+      category: validated.data.category,
+    });
 
-    await db.updateRow(
+    const existingByLocale = await loadTranslationsByLocale(db, id);
+    const submittedTranslations = getNewsTranslationInputs(validated.data);
+    const submittedLocales = new Set(
+      submittedTranslations.map((translation) => translation.locale)
+    );
+
+    await db.upsertRow(
       "app",
       "news",
       id,
       {
         slug: validated.data.slug,
         status: validated.data.status as NewsStatus,
+        campus: validated.data.campus_id,
         campus_id: validated.data.campus_id,
+        department: validated.data.department_id ?? null,
         department_id: validated.data.department_id ?? null,
         image: validated.data.image || null,
         sticky: validated.data.sticky ?? false,
         author: validated.data.author ?? null,
+        translation_refs: buildNestedTranslations(
+          id,
+          submittedTranslations,
+          existingByLocale,
+          additionalFields,
+          translationPermissions
+        ),
       },
       buildContentRowPermissions({
         status: validated.data.status,
@@ -590,60 +571,9 @@ export async function updateNews(
       })
     );
 
-    const currentTranslations = await db.listRows<ContentTranslations>(
-      "app",
-      "content_translations",
-      [
-        Query.equal("content_type", "news"),
-        Query.equal("content_id", id),
-        Query.limit(10),
-      ]
-    );
-    const currentByLocale = new Map<string, ContentTranslations>(
-      currentTranslations.rows.map((translation) => [
-        translation.locale,
-        translation,
-      ])
-    );
-    const submittedTranslations = getNewsTranslationInputs(validated.data);
-    const submittedLocales = new Set(
-      submittedTranslations.map((translation) => translation.locale)
-    );
-
+    // A locale the editor cleared is really deleted, not just unlinked.
     await Promise.all(
-      submittedTranslations.map((translation) => {
-        const existingTranslation = currentByLocale.get(translation.locale);
-        const data = {
-          additional_fields: JSON.stringify({
-            author: validated.data.author,
-            category: validated.data.category,
-          }),
-          content_id: id,
-          content_type: "news",
-          description: translation.description,
-          locale: translation.locale,
-          title: translation.title,
-        };
-        return existingTranslation
-          ? db.updateRow(
-              "app",
-              "content_translations",
-              existingTranslation.$id,
-              data,
-              translationPermissions
-            )
-          : db.createRow(
-              "app",
-              "content_translations",
-              "unique()",
-              data,
-              translationPermissions
-            );
-      })
-    );
-
-    await Promise.all(
-      currentTranslations.rows
+      [...existingByLocale.values()]
         .filter((translation) => !submittedLocales.has(translation.locale))
         .map((translation) =>
           db.deleteRow("app", "content_translations", translation.$id)
@@ -656,10 +586,7 @@ export async function updateNews(
       payload: { status: validated.data.status },
     });
     const translationQueued = scheduleNewsTranslation({
-      additionalFields: JSON.stringify({
-        author: validated.data.author,
-        category: validated.data.category,
-      }),
+      additionalFields,
       articleId: id,
       autoTranslation: translationOptions,
       permissions: translationPermissions,
@@ -679,7 +606,7 @@ export async function updateNews(
 
 export async function deleteNews(id: string) {
   const ctx = await requireAuth();
-  const { db } = await createSessionClient();
+  const { db } = await createAdminClient();
 
   const existing = await db.listRows<News>("app", "news", [
     Query.equal("$id", id),
@@ -691,7 +618,8 @@ export async function deleteNews(id: string) {
   }
 
   try {
-    assertWriteAccess(ctx, article.campus_id, article.department_id);
+    const ownership = getContentOwnership(article, { legacyFallback: true });
+    assertWriteAccess(ctx, ownership.campus, ownership.department);
 
     const translations = await db.listRows("app", "content_translations", [
       Query.equal("content_type", "news"),

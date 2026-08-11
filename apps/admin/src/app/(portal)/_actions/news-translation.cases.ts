@@ -21,17 +21,13 @@ const generateObjectSpy = mock(async ({ prompt }: { prompt: string }) => ({
   },
 }));
 
-const sessionDb = {
-  createRow: mock(),
-  deleteRow: mock(),
-  listRows: mock(),
-  updateRow: mock(),
-};
 const adminDb = {
   createRow: mock(),
+  deleteRow: mock(),
   getRow: mock(),
   listRows: mock(),
   updateRow: mock(),
+  upsertRow: mock(),
 };
 
 const campusAdminCtx: UserAuthContext = {
@@ -65,6 +61,8 @@ const norwegianValues: NewsFormValues = {
   title_no: "Norsk tittel",
 };
 
+const SOURCE_ADDITIONAL_FIELDS = '{"author":"BISO","category":"announcement"}';
+
 mock.module("next/server", () => ({ after: afterSpy }));
 mock.module("ai", () => ({ generateObject: generateObjectSpy }));
 mock.module("@ai-sdk/openai", () => ({
@@ -72,7 +70,7 @@ mock.module("@ai-sdk/openai", () => ({
 }));
 mock.module("@repo/api/server", () => ({
   createAdminClient: mock(async () => ({ db: adminDb })),
-  createSessionClient: mock(async () => ({ db: sessionDb })),
+  createSessionClient: mock(async () => ({ db: adminDb })),
 }));
 mock.module("@/lib/authorization", () => ({
   requireAuth: mock(async () => campusAdminCtx),
@@ -94,36 +92,28 @@ mock.module("./audit-log", () => ({
 
 const { createNews, generateNewsTranslationDraft } = await import("./news");
 
+function mockCurrentArticle(article: Record<string, unknown>): void {
+  adminDb.getRow.mockImplementation(
+    async (_databaseId: string, tableId: string, rowId: string) => {
+      if (tableId === "news") {
+        return { $id: rowId, ...article };
+      }
+      return { $id: rowId, campus: { $id: "campus-oslo" } };
+    }
+  );
+}
+
 beforeEach(() => {
   deferredCallback = undefined;
   afterSpy.mockClear();
   generateObjectSpy.mockClear();
-  sessionDb.createRow.mockReset();
-  sessionDb.deleteRow.mockReset();
-  sessionDb.listRows.mockReset();
-  sessionDb.updateRow.mockReset();
   adminDb.createRow.mockReset();
+  adminDb.deleteRow.mockReset();
   adminDb.getRow.mockReset();
   adminDb.listRows.mockReset();
   adminDb.updateRow.mockReset();
+  adminDb.upsertRow.mockReset();
 
-  sessionDb.createRow.mockImplementation(
-    async (
-      _databaseId: string,
-      tableId: string,
-      rowId: string,
-      data: Record<string, unknown>
-    ) => ({ $id: tableId === "news" ? "news-1" : rowId, ...data })
-  );
-  sessionDb.updateRow.mockImplementation(
-    async (
-      _databaseId: string,
-      _tableId: string,
-      rowId: string,
-      data: Record<string, unknown>
-    ) => ({ $id: rowId, ...data })
-  );
-  sessionDb.deleteRow.mockImplementation(async () => undefined);
   adminDb.createRow.mockImplementation(
     async (
       _databaseId: string,
@@ -140,10 +130,29 @@ beforeEach(() => {
       data: Record<string, unknown>
     ) => ({ $id: rowId, ...data })
   );
-  adminDb.getRow.mockResolvedValue({
+  adminDb.upsertRow.mockImplementation(
+    async (
+      _databaseId: string,
+      tableId: string,
+      rowId: string,
+      data: Record<string, unknown>
+    ) => ({ $id: tableId === "news" ? "news-1" : rowId, ...data })
+  );
+  adminDb.deleteRow.mockImplementation(async () => undefined);
+  adminDb.listRows.mockResolvedValue({ rows: [], total: 0 });
+  mockCurrentArticle({
     campus_id: "campus-oslo",
     department_id: null,
     status: "draft",
+    translation_refs: [
+      {
+        $id: "translation-no",
+        additional_fields: SOURCE_ADDITIONAL_FIELDS,
+        description: "<p>Norsk brødtekst</p>",
+        locale: "no",
+        title: "Norsk tittel",
+      },
+    ],
   });
 });
 
@@ -216,20 +225,7 @@ describe("news translation", () => {
     expect(afterSpy).not.toHaveBeenCalled();
   });
 
-  test("schedules after persistence and creates only the fresh destination locale", async () => {
-    adminDb.listRows.mockResolvedValue({
-      rows: [
-        {
-          $id: "translation-no",
-          additional_fields: '{"author":"BISO","category":"announcement"}',
-          description: "<p>Norsk brødtekst</p>",
-          locale: "no",
-          title: "Norsk tittel",
-        },
-      ],
-      total: 1,
-    });
-
+  test("schedules after persistence and links the fresh destination locale", async () => {
     const result = await createNews(norwegianValues, {
       enabled: true,
       sourceLocale: "no",
@@ -237,11 +233,17 @@ describe("news translation", () => {
 
     expect(result).toEqual({ data: "news-1", translationQueued: true });
     expect(afterSpy).toHaveBeenCalledTimes(1);
-    expect(sessionDb.updateRow).toHaveBeenCalledWith(
+    // The synchronous save already persisted the linked source child.
+    expect(adminDb.upsertRow).toHaveBeenCalledWith(
       "app",
       "news",
-      "news-1",
-      expect.objectContaining({ status: "draft" }),
+      expect.any(String),
+      expect.objectContaining({
+        campus: "campus-oslo",
+        translation_refs: [
+          expect.objectContaining({ locale: "no", title: "Norsk tittel" }),
+        ],
+      }),
       expect.any(Array)
     );
     expect(adminDb.createRow).not.toHaveBeenCalled();
@@ -251,12 +253,13 @@ describe("news translation", () => {
     expect(adminDb.createRow).toHaveBeenCalledWith(
       "app",
       "content_translations",
-      "unique()",
+      expect.any(String),
       expect.objectContaining({
         content_id: "news-1",
         content_type: "news",
         description: "<p>English body</p>",
         locale: "en",
+        news_ref: "news-1",
         title: "English title",
       }),
       expect.any(Array)
@@ -264,17 +267,56 @@ describe("news translation", () => {
     expect(adminDb.updateRow).not.toHaveBeenCalled();
   });
 
-  test("skips a stale source snapshot", async () => {
-    adminDb.listRows.mockResolvedValue({
-      rows: [
+  test("updates an already linked destination without relinking it", async () => {
+    mockCurrentArticle({
+      campus_id: "campus-oslo",
+      department_id: null,
+      status: "draft",
+      translation_refs: [
+        {
+          $id: "translation-no",
+          additional_fields: SOURCE_ADDITIONAL_FIELDS,
+          description: "<p>Norsk brødtekst</p>",
+          locale: "no",
+          title: "Norsk tittel",
+        },
         {
           $id: "translation-en",
+          additional_fields: SOURCE_ADDITIONAL_FIELDS,
+          description: "<p>Old English</p>",
+          locale: "en",
+          title: "Old English title",
+        },
+      ],
+    });
+
+    await createNews(norwegianValues, { enabled: true, sourceLocale: "no" });
+    await deferredCallback?.();
+
+    expect(adminDb.updateRow).toHaveBeenCalledWith(
+      "app",
+      "content_translations",
+      "translation-en",
+      expect.objectContaining({ locale: "en", title: "English title" }),
+      expect.any(Array)
+    );
+    expect(adminDb.createRow).not.toHaveBeenCalled();
+  });
+
+  test("skips a stale source snapshot", async () => {
+    mockCurrentArticle({
+      campus_id: "campus-oslo",
+      department_id: null,
+      status: "draft",
+      translation_refs: [
+        {
+          $id: "translation-en",
+          additional_fields: SOURCE_ADDITIONAL_FIELDS,
           description: "<p>Edited English body</p>",
           locale: "en",
           title: "Edited English title",
         },
       ],
-      total: 1,
     });
 
     await createNews(
@@ -295,10 +337,19 @@ describe("news translation", () => {
   });
 
   test("skips translation when the article publication state changes", async () => {
-    adminDb.getRow.mockResolvedValueOnce({
+    mockCurrentArticle({
       campus_id: "campus-oslo",
       department_id: null,
       status: "published",
+      translation_refs: [
+        {
+          $id: "translation-no",
+          additional_fields: SOURCE_ADDITIONAL_FIELDS,
+          description: "<p>Norsk brødtekst</p>",
+          locale: "no",
+          title: "Norsk tittel",
+        },
+      ],
     });
 
     await createNews(norwegianValues, {
