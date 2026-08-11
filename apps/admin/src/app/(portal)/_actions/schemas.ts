@@ -261,6 +261,7 @@ export const documentMetadataSchema = z.object({
   ]),
   scope: z.enum(["national", "campus"]),
   campus_id: z.string().optional().nullable(),
+  department_id: z.string().optional().nullable(),
   language: z.enum(["no", "en"]),
   version: z.string().optional().nullable(),
   version_number: z.coerce.number().int().positive().default(1),

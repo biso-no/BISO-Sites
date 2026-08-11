@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
   announcementSchema,
   benefitSchema,
+  documentMetadataSchema,
   eventSchema,
   jobSchema,
   productSchema,
@@ -111,6 +112,22 @@ describe("source-aware bilingual content schemas", () => {
     expect(
       benefitSchema.parse({ ...base, department_id: null }).department_id
     ).toBeNull();
+  });
+
+  test("documents carry an optional department ownership id", () => {
+    const base = {
+      category: "campus-bylaws" as const,
+      language: "no" as const,
+      scope: "campus" as const,
+      status: "draft" as const,
+      title: "Vedtekter",
+    };
+
+    expect(
+      documentMetadataSchema.parse({ ...base, department_id: "dept-1" })
+        .department_id
+    ).toBe("dept-1");
+    expect(documentMetadataSchema.parse(base).department_id).toBeUndefined();
   });
 
   test("announcements carry an optional department ownership id", () => {

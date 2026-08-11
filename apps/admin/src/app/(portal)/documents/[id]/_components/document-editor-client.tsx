@@ -16,6 +16,7 @@ import {
   updateDocumentMetadata,
   uploadNewVersion,
 } from "../../../_actions/documents";
+import { DepartmentCombobox } from "../../../_components/department-combobox";
 import { EditorHeader } from "../../../_components/editor-header";
 import { PdfUploadField } from "../../../_components/pdf-upload-field";
 import { PortalButton } from "../../../_components/portal-button";
@@ -30,8 +31,11 @@ import { STUDIO, studioSurface } from "../../../_components/studio";
 interface DocumentEditorClientProps {
   campuses: Campus[];
   document: Documents | null;
+  initialDepartmentId: string | null;
   isNew: boolean;
   labels: Record<string, string>;
+  /** Single-department authors are pinned to their department. */
+  lockDepartment: boolean;
 }
 
 const SCOPE_OPTIONS = [
@@ -60,8 +64,10 @@ function formatBytes(bytes: number | null): string {
 export function DocumentEditorClient({
   campuses,
   document,
+  initialDepartmentId,
   isNew,
   labels,
+  lockDepartment,
 }: DocumentEditorClientProps) {
   const router = useRouter();
   const [isSaving, setIsSaving] = useState(false);
@@ -93,6 +99,7 @@ export function DocumentEditorClient({
       scope:
         (document?.scope as DocumentMetadataFormValues["scope"]) ?? "national",
       campus_id: document?.campus_id ?? "",
+      department_id: initialDepartmentId,
       language: (document?.language ??
         "no") as DocumentMetadataFormValues["language"],
       version: document?.version ?? "",
@@ -127,6 +134,10 @@ export function DocumentEditorClient({
                 validated.data.scope === "national"
                   ? null
                   : validated.data.campus_id || null,
+              department_id:
+                validated.data.scope === "national"
+                  ? null
+                  : (validated.data.department_id ?? null),
             },
             formData
           );
@@ -150,6 +161,10 @@ export function DocumentEditorClient({
               validated.data.scope === "national"
                 ? null
                 : validated.data.campus_id || null,
+            department_id:
+              validated.data.scope === "national"
+                ? null
+                : (validated.data.department_id ?? null),
           });
           if ("error" in result) {
             toast.error(result.error);
@@ -337,6 +352,31 @@ export function DocumentEditorClient({
               }
             </form.Subscribe>
           </div>
+
+          <form.Subscribe
+            selector={(state) =>
+              [state.values.scope, state.values.campus_id] as const
+            }
+          >
+            {([scope, campusId]) =>
+              scope === "campus" ? (
+                <form.Field name="department_id">
+                  {(field) => (
+                    <PortalField label={labels.department ?? "Department"}>
+                      <DepartmentCombobox
+                        campusId={campusId || null}
+                        disabled={lockDepartment}
+                        initialDepartments={[]}
+                        onChange={(id) => field.handleChange(id)}
+                        placeholder="Campus-wide (no department)"
+                        value={field.state.value ?? null}
+                      />
+                    </PortalField>
+                  )}
+                </form.Field>
+              ) : null
+            }
+          </form.Subscribe>
 
           <div className="grid grid-cols-3 gap-4">
             <form.Field name="version">

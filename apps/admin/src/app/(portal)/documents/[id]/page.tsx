@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { requireNavAccess } from "@/lib/authorization";
+import { getContentOwnership } from "@/lib/content-authorization";
 import { getDocument } from "../../_actions/documents";
 import { listCampuses } from "../../_actions/lookups";
 import { DocumentEditorClient } from "./_components/document-editor-client";
@@ -10,7 +11,7 @@ interface Props {
 }
 
 export default async function DocumentEditorPage({ params }: Props) {
-  await requireNavAccess("portal.documents");
+  const ctx = await requireNavAccess("portal.documents");
   const { id } = await params;
   const t = await getTranslations("adminPortal.documents");
   const tc = await getTranslations("adminPortal.common");
@@ -25,10 +26,23 @@ export default async function DocumentEditorPage({ params }: Props) {
     notFound();
   }
 
+  // Department authors are pinned to their own department; campus/global
+  // admins may pick any department in the campus or keep it campus-wide.
+  const isAdmin =
+    ctx.roles.includes("globaladmin") || ctx.managedCampusIds.length > 0;
+  const pinnedDepartmentId =
+    !isAdmin && ctx.resolvedDepartmentIds.length === 1
+      ? ctx.resolvedDepartmentIds[0]
+      : null;
+  const persistedDepartmentId = document
+    ? getContentOwnership(document, { legacyFallback: true }).department
+    : null;
+
   return (
     <DocumentEditorClient
       campuses={campuses}
       document={document}
+      initialDepartmentId={persistedDepartmentId ?? pinnedDepartmentId}
       isNew={isNew}
       labels={{
         back: t("title"),
@@ -64,6 +78,7 @@ export default async function DocumentEditorPage({ params }: Props) {
         languageNo: t("languages.no"),
         languageEn: t("languages.en"),
       }}
+      lockDepartment={Boolean(pinnedDepartmentId)}
     />
   );
 }

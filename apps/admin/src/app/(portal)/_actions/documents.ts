@@ -1,7 +1,7 @@
 "use server";
 
 import { Query } from "@repo/api";
-import { createSessionClient } from "@repo/api/server";
+import { createAdminClient } from "@repo/api/server";
 import type {
   Campus,
   Documents,
@@ -15,13 +15,17 @@ import {
   SharePointService,
 } from "@repo/connectors/sharepoint";
 import { revalidatePath } from "next/cache";
-import { requireAuth, type UserAuthContext } from "@/lib/authorization";
+import { requireAuth } from "@/lib/authorization";
+import {
+  applyContentRelationshipScopeQueries,
+  assertContentOwnership,
+  getContentOwnership,
+} from "@/lib/content-authorization";
 import {
   resolveDocumentsDriveId,
   resolveFolderPath,
 } from "@/lib/documents/sharepoint-mapping";
 import {
-  applyScopeQueries,
   assertPublishAccess,
   assertWriteAccess,
   hasRowAccess,
@@ -37,28 +41,11 @@ function getSharePointService() {
   return new SharePointService(getSharePointConfig());
 }
 
-function getDocumentCreateAccessError(
-  ctx: UserAuthContext,
-  data: DocumentMetadataFormValues
-): string | null {
-  if (data.scope === "national" && !ctx.roles.includes("globaladmin")) {
-    return "Only global admins can create national documents";
-  }
-
-  try {
-    assertWriteAccess(ctx, data.campus_id ?? null);
-    if (data.status === "published") {
-      assertPublishAccess(ctx, data.campus_id ?? null);
-    }
-    return null;
-  } catch (error) {
-    return error instanceof Error ? error.message : "Document access denied";
-  }
-}
-
 export async function listDocuments(opts?: { status?: string; page?: number }) {
   const ctx = await requireAuth();
-  const { db } = await createSessionClient();
+  // Private admin read: the service client bypasses row security, so the
+  // relationship scope filters below are the authorization boundary.
+  const { db } = await createAdminClient();
   const page = Math.max(1, opts?.page ?? 1);
 
   const queries: string[] = [
@@ -66,8 +53,7 @@ export async function listDocuments(opts?: { status?: string; page?: number }) {
     Query.orderDesc("$updatedAt"),
     Query.limit(DOCUMENTS_PAGE_SIZE),
     Query.offset((page - 1) * DOCUMENTS_PAGE_SIZE),
-    // documents is campus-scoped only (no department_id column).
-    ...applyScopeQueries(ctx, { departmentField: null }),
+    ...applyContentRelationshipScopeQueries(ctx),
   ];
 
   if (opts?.status && opts.status !== "all") {
@@ -80,15 +66,19 @@ export async function listDocuments(opts?: { status?: string; page?: number }) {
 
 export async function getDocument(id: string) {
   const ctx = await requireAuth();
-  const { db } = await createSessionClient();
+  const { db } = await createAdminClient();
 
   const response = await db.listRows<Documents>("app", "documents", [
     Query.equal("$id", id),
     Query.limit(1),
   ]);
   const doc = response.rows[0] ?? null;
-  // Treat a row outside the caller's campus scope as not found.
-  if (!(doc && hasRowAccess(ctx, doc.campus_id))) {
+  if (!doc) {
+    return null;
+  }
+  // Treat a row outside the caller's campus/department scope as not found.
+  const ownership = getContentOwnership(doc, { legacyFallback: true });
+  if (!hasRowAccess(ctx, ownership.campus, ownership.department)) {
     return null;
   }
   return doc;
@@ -109,10 +99,32 @@ export async function createDocument(
 
   const { campus_id, scope, category, language } = validated.data;
 
-  const accessError = getDocumentCreateAccessError(ctx, validated.data);
-  if (accessError) {
+  if (scope === "national" && !ctx.roles.includes("globaladmin")) {
     return {
-      error: accessError,
+      error: "Only global admins can create national documents",
+      sharePointError: false,
+    };
+  }
+
+  const { db } = await createAdminClient();
+  try {
+    // National documents may keep a null campus (global admins only); campus
+    // documents require a campus, and department authors their own department.
+    await assertContentOwnership(db, ctx, {
+      allowGlobalCampus: scope === "national",
+      campusId: campus_id ?? null,
+      departmentId: validated.data.department_id ?? null,
+    });
+    if (validated.data.status === "published") {
+      assertPublishAccess(
+        ctx,
+        campus_id ?? null,
+        validated.data.department_id ?? null
+      );
+    }
+  } catch (error) {
+    return {
+      error: error instanceof Error ? error.message : "Document access denied",
       sharePointError: false,
     };
   }
@@ -133,8 +145,7 @@ export async function createDocument(
   // Resolve campus name for subfolder path (used by campus-bylaws)
   let campusName: string | null = null;
   if (scope === "campus" && campus_id) {
-    const { db: dbForCampus } = await createSessionClient();
-    const campusRows = await dbForCampus.listRows<Campus>("app", "campus", [
+    const campusRows = await db.listRows<Campus>("app", "campus", [
       Query.equal("$id", campus_id),
       Query.limit(1),
     ]);
@@ -171,13 +182,16 @@ export async function createDocument(
     };
   }
 
-  const { db } = await createSessionClient();
-  const doc = await db.upsertRow<Documents>("app", "documents", "unique()", {
+  const doc = await db.upsertRow("app", "documents", "unique()", {
     title: validated.data.title,
     description: validated.data.description ?? null,
     category: validated.data.category as DocumentsCategory,
     scope: validated.data.scope as DocumentsScope,
+    // Canonical ownership relationships; the scalar column remains as
+    // migration-era compatibility metadata only.
+    campus: campus_id ?? null,
     campus_id: campus_id ?? null,
+    department: validated.data.department_id ?? null,
     language: language as DocumentsLanguage,
     version: validated.data.version ?? null,
     version_number: validated.data.version_number,
@@ -208,7 +222,7 @@ export async function updateDocumentMetadata(
     return { error: "Invalid form data" };
   }
 
-  const { db } = await createSessionClient();
+  const { db } = await createAdminClient();
   const existing = await db.listRows<Documents>("app", "documents", [
     Query.equal("$id", id),
     Query.limit(1),
@@ -225,11 +239,22 @@ export async function updateDocumentMetadata(
     return { error: "Only global admins can manage national documents" };
   }
 
-  assertWriteAccess(ctx, doc.campus_id);
-  assertWriteAccess(ctx, validated.data.campus_id ?? null);
+  // Authorize both the persisted scope and the requested scope so ownership
+  // transfers require access on each side.
+  const persisted = getContentOwnership(doc, { legacyFallback: true });
+  assertWriteAccess(ctx, persisted.campus, persisted.department);
+  await assertContentOwnership(db, ctx, {
+    allowGlobalCampus: validated.data.scope === "national",
+    campusId: validated.data.campus_id ?? null,
+    departmentId: validated.data.department_id ?? null,
+  });
   if (doc.status === "published" || validated.data.status === "published") {
-    assertPublishAccess(ctx, doc.campus_id);
-    assertPublishAccess(ctx, validated.data.campus_id ?? null);
+    assertPublishAccess(ctx, persisted.campus, persisted.department);
+    assertPublishAccess(
+      ctx,
+      validated.data.campus_id ?? null,
+      validated.data.department_id ?? null
+    );
   }
 
   await db.updateRow("app", "documents", id, {
@@ -237,7 +262,9 @@ export async function updateDocumentMetadata(
     description: validated.data.description ?? null,
     category: validated.data.category as DocumentsCategory,
     scope: validated.data.scope as DocumentsScope,
+    campus: validated.data.campus_id ?? null,
     campus_id: validated.data.campus_id ?? null,
+    department: validated.data.department_id ?? null,
     language: validated.data.language,
     version: validated.data.version ?? null,
     status: validated.data.status as DocumentsStatus,
@@ -267,7 +294,7 @@ export async function uploadNewVersion(
   | { error: string; sharePointError: boolean; data?: never }
 > {
   const ctx = await requireAuth();
-  const { db } = await createSessionClient();
+  const { db } = await createAdminClient();
 
   const existing = await db.listRows<Documents>("app", "documents", [
     Query.equal("$id", id),
@@ -278,7 +305,8 @@ export async function uploadNewVersion(
     return { error: "Document not found", sharePointError: false };
   }
 
-  assertWriteAccess(ctx, doc.campus_id);
+  const versionOwnership = getContentOwnership(doc, { legacyFallback: true });
+  assertWriteAccess(ctx, versionOwnership.campus, versionOwnership.department);
 
   const file = formData.get("file");
   if (!(file instanceof File) || file.size === 0) {
@@ -331,7 +359,7 @@ export async function deleteDocument(
   id: string
 ): Promise<{ data: true } | { error: string }> {
   const ctx = await requireAuth();
-  const { db } = await createSessionClient();
+  const { db } = await createAdminClient();
 
   const existing = await db.listRows<Documents>("app", "documents", [
     Query.equal("$id", id),
@@ -342,7 +370,8 @@ export async function deleteDocument(
     return { error: "Document not found" };
   }
 
-  assertWriteAccess(ctx, doc.campus_id);
+  const ownership = getContentOwnership(doc, { legacyFallback: true });
+  assertWriteAccess(ctx, ownership.campus, ownership.department);
 
   // NOTE: We do NOT delete the file from SharePoint — the SP version history
   // is preserved intentionally. Only the Appwrite metadata row is removed.
