@@ -38,18 +38,21 @@ describe("jobScopeQueries", () => {
     ).toEqual([Query.equal("campus.$id", ["1"])]);
   });
 
-  test("campus admin filters by managed campuses", () => {
+  test("HR members filter by their campuses", () => {
     expect(
-      jobScopeQueries(
-        makeCtx({ managedCampusIds: ["1", "2"], roles: ["campusadmin"] })
-      )
-    ).toEqual([Query.equal("campus.$id", ["1", "2"])]);
+      jobScopeQueries(makeCtx({ resolvedCampusIds: ["1"], roles: ["hr"] }))
+    ).toEqual([Query.equal("campus.$id", ["1"])]);
   });
 
-  test("department user filters by department relationship", () => {
-    expect(jobScopeQueries(makeCtx({ resolvedDepartmentIds: ["d1"] }))).toEqual(
-      [Query.equal("department.$id", ["d1"])]
-    );
+  test("SECURITY: campus admins and department users fail closed", () => {
+    for (const ctx of [
+      makeCtx({ managedCampusIds: ["1", "2"], roles: ["campusadmin"] }),
+      makeCtx({ resolvedDepartmentIds: ["d1"] }),
+    ]) {
+      const queries = jobScopeQueries(ctx);
+      expect(queries).toHaveLength(1);
+      expect(queries[0]).toContain("__no_scope_resolved__");
+    }
   });
 
   test("SECURITY: unresolved scope fails closed", () => {

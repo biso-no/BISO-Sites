@@ -23,8 +23,9 @@ export interface PaletteSearchHit {
 const NO_SCOPE_FILTER = Query.equal("$id", "__no_scope_resolved__");
 
 /**
- * Jobs scope by relationship (campus.$id / department.$id) — the jobs list
- * action scopes the same way; the flat campus_id column is not authoritative.
+ * Jobs scope by relationship (campus.$id) for the HR/global roles that may
+ * reach recruitment at all. HR members search every vacancy in their campus;
+ * anyone else fails closed (the palette additionally gates on portal.jobs).
  */
 export function jobScopeQueries(ctx: UserAuthContext): string[] {
   if (ctx.roles.includes("globaladmin")) {
@@ -32,11 +33,8 @@ export function jobScopeQueries(ctx: UserAuthContext): string[] {
       ? [Query.equal("campus.$id", [ctx.activeCampusId])]
       : [];
   }
-  if (ctx.roles.includes("campusadmin") && ctx.managedCampusIds.length > 0) {
-    return [Query.equal("campus.$id", ctx.managedCampusIds)];
-  }
-  if (ctx.resolvedDepartmentIds.length > 0) {
-    return [Query.equal("department.$id", ctx.resolvedDepartmentIds)];
+  if (ctx.roles.includes("hr") && ctx.resolvedCampusIds.length > 0) {
+    return [Query.equal("campus.$id", ctx.resolvedCampusIds)];
   }
   return [NO_SCOPE_FILTER];
 }
