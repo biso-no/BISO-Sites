@@ -6,6 +6,7 @@ import type { Memberships } from "@repo/api/types/appwrite";
 import { getCustomerCategories } from "@repo/connectors/24sevenoffice";
 import { revalidateTag, unstable_cache } from "next/cache";
 import { unstable_rethrow } from "next/navigation";
+import { connection } from "next/server";
 import { getLoggedInUser } from "@/lib/actions/user";
 
 // Server-side cache TTL for the resolved membership status, in seconds.
@@ -220,6 +221,12 @@ async function resolveMembershipStatus(
 async function resolveCurrentStudentId(): Promise<
   { numericId: number } | { status: MembershipStatus }
 > {
+  // Membership status is per-request state (session-derived, wall-clock
+  // `checkedAt` stamps). `connection()` declares that explicitly, so
+  // prerendering stops here instead of running into `Date.now()` — the
+  // cookie read alone doesn't abort the prerender pass, it just resolves
+  // to an empty store and would let execution continue.
+  await connection();
   try {
     // 1.+2. Resolve the authenticated account + profile through the
     // request-memoized getLoggedInUser() so the layout's call and this one

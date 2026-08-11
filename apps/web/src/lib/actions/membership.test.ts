@@ -31,6 +31,11 @@ vi.mock("next/cache", () => ({
   revalidateTag: vi.fn(),
 }));
 
+vi.mock("next/server", () => ({
+  // Request-bound marker — a no-op outside a real Next request scope.
+  connection: vi.fn(async () => undefined),
+}));
+
 vi.mock("@repo/api/server", () => ({
   createSessionClient: vi.fn(async () => ({ account, db })),
   createAdminClient: vi.fn(async () => ({ db })),
