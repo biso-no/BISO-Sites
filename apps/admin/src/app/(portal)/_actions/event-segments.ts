@@ -12,6 +12,8 @@ import {
   type SegmentMembers,
   type Users,
 } from "@repo/api/types/appwrite";
+import type { AnnouncementWriteInput } from "@repo/api/types/inputs";
+import { createTypedRow } from "@repo/api/write";
 import { revalidatePath } from "next/cache";
 import { requireAuth, type UserAuthContext } from "@/lib/authorization";
 import { assertWriteAccess, hasRowAccess } from "@/lib/utils/authorization";
@@ -846,29 +848,27 @@ export async function messageSegment(
     // them); author via the admin client after the access check above.
     const { db: adminDb } = await createAdminClient();
     const eventId = segment.event_id ?? null;
-    const announcement = await adminDb.createRow<Announcements>(
-      "app",
-      "announcements",
-      ID.unique(),
-      {
-        status: AnnouncementsStatus.DRAFT,
-        category: validated.data.category,
-        audience_type: AnnouncementsAudienceType.SEGMENT,
-        audience_value: segmentId,
-        title_en: validated.data.title_en,
-        title_no: validated.data.title_no ?? null,
-        body_en: validated.data.body_en ?? null,
-        body_no: validated.data.body_no ?? null,
-        event_id: eventId,
-        campus_id: segment.campus_id ?? event.campus_id ?? null,
-        push: validated.data.push,
-        deep_link: eventId ? `biso://event?id=${eventId}` : null,
-        data: null,
-        scheduled_at: null,
-        sent_at: null,
-        created_by: ctx.userId,
-      }
-    );
+    const announcement = await createTypedRow<
+      Announcements,
+      AnnouncementWriteInput
+    >(adminDb, "app", "announcements", ID.unique(), {
+      status: AnnouncementsStatus.DRAFT,
+      category: validated.data.category,
+      audience_type: AnnouncementsAudienceType.SEGMENT,
+      audience_value: segmentId,
+      title_en: validated.data.title_en,
+      title_no: validated.data.title_no ?? null,
+      body_en: validated.data.body_en ?? null,
+      body_no: validated.data.body_no ?? null,
+      event_id: eventId,
+      campus_id: segment.campus_id ?? event.campus_id ?? null,
+      push: validated.data.push,
+      deep_link: eventId ? `biso://event?id=${eventId}` : null,
+      data: null,
+      scheduled_at: null,
+      sent_at: null,
+      created_by: ctx.userId,
+    });
 
     await logAuditEvent(ctx, "event_segment.message", {
       resourceId: segmentId,

@@ -1,5 +1,6 @@
 import type { Models } from "../index";
 import type {
+  Announcements,
   CandidateProfiles,
   JobApplicationAnswers,
   JobApplications,
@@ -25,6 +26,11 @@ type WriteInput<
 > = Omit<T, keyof Models.Row | IdRels | Drop> & {
   [K in IdRels]?: string | T[K] | null;
 };
+
+export type AnnouncementWriteInput = WriteInput<
+  Announcements,
+  "campus" | "department"
+>;
 
 export type JobWriteInput = WriteInput<
   Jobs,
