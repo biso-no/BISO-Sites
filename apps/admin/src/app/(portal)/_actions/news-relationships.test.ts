@@ -99,7 +99,7 @@ beforeEach(() => {
   db.upsertRow.mockReset();
 
   db.getRow.mockImplementation(
-    async (_databaseId: string, tableId: string, rowId: string) => {
+    (_databaseId: string, tableId: string, rowId: string) => {
       if (tableId === "departments") {
         return { $id: rowId, campus: { $id: "campus-oslo" } };
       }

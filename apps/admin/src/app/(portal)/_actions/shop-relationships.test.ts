@@ -104,7 +104,7 @@ const { createProduct, deleteProduct, getProduct, listOrders, updateProduct } =
 
 function mockProductRow(product: Record<string, unknown> | null): void {
   adminDb.listRows.mockImplementation(
-    async (_databaseId: string, tableId: string) => {
+    (_databaseId: string, tableId: string) => {
       if (tableId === "webshop_products") {
         return { rows: product ? [product] : [], total: product ? 1 : 0 };
       }
@@ -124,7 +124,7 @@ beforeEach(() => {
   sessionDb.listRows.mockReset();
 
   adminDb.getRow.mockImplementation(
-    async (_databaseId: string, tableId: string, rowId: string) => {
+    (_databaseId: string, tableId: string, rowId: string) => {
       if (tableId === "departments") {
         return { $id: rowId, campus: { $id: "campus-oslo" } };
       }
@@ -201,7 +201,7 @@ describe("product relationship persistence", () => {
   test("updateProduct keeps an untouched existing locale linked", async () => {
     currentCtx = campusAdminCtx;
     adminDb.listRows.mockImplementation(
-      async (_databaseId: string, tableId: string) => {
+      (_databaseId: string, tableId: string) => {
         if (tableId === "webshop_products") {
           return {
             rows: [

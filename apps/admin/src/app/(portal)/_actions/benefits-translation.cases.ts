@@ -154,7 +154,7 @@ beforeEach(() => {
     title_nb: "Norsk tittel",
   };
   adminDb.upsertRow.mockImplementation(
-    async (
+    (
       _databaseId: string,
       _tableId: string,
       _rowId: string,

@@ -41,6 +41,84 @@ function getSharePointService() {
   return new SharePointService(getSharePointConfig());
 }
 
+const MAX_DOCUMENT_BYTES = 50 * 1024 * 1024;
+
+/** Campus name feeds the SharePoint subfolder path (used by campus-bylaws). */
+async function resolveCampusNameForPath(
+  db: Awaited<ReturnType<typeof createAdminClient>>["db"],
+  scope: string,
+  campusId: string | null | undefined
+): Promise<string | null> {
+  if (!(scope === "campus" && campusId)) {
+    return null;
+  }
+  const campusRows = await db.listRows<Campus>("app", "campus", [
+    Query.equal("$id", campusId),
+    Query.limit(1),
+  ]);
+  return campusRows.rows[0]?.name ?? null;
+}
+
+type SharePointUploadOutcome =
+  | { error: string; spResult?: never }
+  | {
+      error?: never;
+      spResult: Awaited<ReturnType<SharePointService["uploadNewFile"]>>;
+    };
+
+async function uploadDocumentToSharePoint(input: {
+  buffer: Buffer;
+  campusName: string | null;
+  category: DocumentsCategory;
+  fileName: string;
+  language: string;
+}): Promise<SharePointUploadOutcome> {
+  const sp = getSharePointService();
+  let driveId: string;
+  try {
+    driveId = await resolveDocumentsDriveId(sp);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return { error: `Could not resolve SharePoint drive: ${message}` };
+  }
+
+  const folderPath = resolveFolderPath(
+    input.category,
+    input.language,
+    input.campusName
+  );
+
+  try {
+    return {
+      spResult: await sp.uploadNewFile(
+        driveId,
+        folderPath,
+        input.fileName,
+        input.buffer
+      ),
+    };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return { error: `SharePoint upload failed: ${message}` };
+  }
+}
+
+function validateDocumentFile(
+  formData: FormData
+): { error: string; file?: never } | { error?: never; file: File } {
+  const file = formData.get("file");
+  if (!(file instanceof File) || file.size === 0) {
+    return { error: "A PDF file is required" };
+  }
+  if (file.type !== "application/pdf") {
+    return { error: "Only PDF files are allowed" };
+  }
+  if (file.size > MAX_DOCUMENT_BYTES) {
+    return { error: "File must be under 50 MB" };
+  }
+  return { file };
+}
+
 export async function listDocuments(opts?: { status?: string; page?: number }) {
   const ctx = await requireAuth();
   // Private admin read: the service client bypasses row security, so the
@@ -129,58 +207,26 @@ export async function createDocument(
     };
   }
 
-  const file = formData.get("file");
-  if (!(file instanceof File) || file.size === 0) {
-    return { error: "A PDF file is required", sharePointError: false };
+  const fileCheck = validateDocumentFile(formData);
+  if (fileCheck.error) {
+    return { error: fileCheck.error, sharePointError: false };
   }
-  if (file.type !== "application/pdf") {
-    return { error: "Only PDF files are allowed", sharePointError: false };
-  }
-  if (file.size > 50 * 1024 * 1024) {
-    return { error: "File must be under 50 MB", sharePointError: false };
-  }
+  const file = fileCheck.file;
 
   const buffer = Buffer.from(await file.arrayBuffer());
+  const campusName = await resolveCampusNameForPath(db, scope, campus_id);
 
-  // Resolve campus name for subfolder path (used by campus-bylaws)
-  let campusName: string | null = null;
-  if (scope === "campus" && campus_id) {
-    const campusRows = await db.listRows<Campus>("app", "campus", [
-      Query.equal("$id", campus_id),
-      Query.limit(1),
-    ]);
-    campusName = campusRows.rows[0]?.name ?? null;
-  }
-
-  // Auto-resolve SharePoint drive ID and folder path
-  const sp = getSharePointService();
-  let driveId: string;
-  try {
-    driveId = await resolveDocumentsDriveId(sp);
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    return {
-      error: `Could not resolve SharePoint drive: ${message}`,
-      sharePointError: true,
-    };
-  }
-
-  const folderPath = resolveFolderPath(
-    category as DocumentsCategory,
+  const upload = await uploadDocumentToSharePoint({
+    buffer,
+    campusName,
+    category: category as DocumentsCategory,
+    fileName: file.name,
     language,
-    campusName
-  );
-
-  let spResult: Awaited<ReturnType<SharePointService["uploadNewFile"]>>;
-  try {
-    spResult = await sp.uploadNewFile(driveId, folderPath, file.name, buffer);
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    return {
-      error: `SharePoint upload failed: ${message}`,
-      sharePointError: true,
-    };
+  });
+  if (upload.error) {
+    return { error: upload.error, sharePointError: true };
   }
+  const spResult = upload.spResult;
 
   const doc = await db.upsertRow("app", "documents", "unique()", {
     title: validated.data.title,
@@ -308,18 +354,11 @@ export async function uploadNewVersion(
   const versionOwnership = getContentOwnership(doc, { legacyFallback: true });
   assertWriteAccess(ctx, versionOwnership.campus, versionOwnership.department);
 
-  const file = formData.get("file");
-  if (!(file instanceof File) || file.size === 0) {
-    return { error: "A PDF file is required", sharePointError: false };
+  const fileCheck = validateDocumentFile(formData);
+  if (fileCheck.error) {
+    return { error: fileCheck.error, sharePointError: false };
   }
-  if (file.type !== "application/pdf") {
-    return { error: "Only PDF files are allowed", sharePointError: false };
-  }
-  if (file.size > 50 * 1024 * 1024) {
-    return { error: "File must be under 50 MB", sharePointError: false };
-  }
-
-  const buffer = Buffer.from(await file.arrayBuffer());
+  const buffer = Buffer.from(await fileCheck.file.arrayBuffer());
 
   let spResult: Awaited<ReturnType<SharePointService["replaceFileInPlace"]>>;
   try {

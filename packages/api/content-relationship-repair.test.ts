@@ -16,7 +16,7 @@ type RowsByTable = Record<string, Record<string, unknown>[]>;
 
 function mockTables(rowsByTable: RowsByTable): void {
   db.listRows.mockImplementation(
-    async (_databaseId: string, tableId: string, queries: string[] = []) => {
+    (_databaseId: string, tableId: string, queries: string[] = []) => {
       // The engine paginates with cursorAfter; a single page per table is
       // enough for tests — return nothing once a cursor is present.
       const hasCursor = queries.some((query) => query.includes("cursorAfter"));
@@ -25,12 +25,14 @@ function mockTables(rowsByTable: RowsByTable): void {
     }
   );
   db.getRow.mockImplementation(
-    async (_databaseId: string, tableId: string, rowId: string) => {
+    (_databaseId: string, tableId: string, rowId: string) => {
       const row = (rowsByTable[tableId] ?? []).find(
         (candidate) => candidate.$id === rowId
       );
       if (!row) {
-        throw new Error("Row with the requested ID could not be found");
+        return Promise.reject(
+          new Error("Row with the requested ID could not be found")
+        );
       }
       return row;
     }

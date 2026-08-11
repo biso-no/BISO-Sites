@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { z } from "zod";
 
-const translatePageDocument = mock(async ({ document }: { document: unknown }) =>
-  document
+const translatePageDocument = mock(
+  async ({ document }: { document: unknown }) => document
 );
 
 const authContext = {

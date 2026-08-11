@@ -117,14 +117,12 @@ const { createEvent, getEvent, updateEvent } = await import("./events");
 const { createSegment } = await import("./event-segments");
 
 function mockEventRow(event: Record<string, unknown> | null): void {
-  db.listRows.mockImplementation(
-    async (_databaseId: string, tableId: string) => {
-      if (tableId === "events") {
-        return { rows: event ? [event] : [], total: event ? 1 : 0 };
-      }
-      return { rows: [], total: 0 };
+  db.listRows.mockImplementation((_databaseId: string, tableId: string) => {
+    if (tableId === "events") {
+      return { rows: event ? [event] : [], total: event ? 1 : 0 };
     }
-  );
+    return { rows: [], total: 0 };
+  });
 }
 
 beforeEach(() => {
@@ -137,7 +135,7 @@ beforeEach(() => {
   db.upsertRow.mockReset();
 
   db.getRow.mockImplementation(
-    async (_databaseId: string, tableId: string, rowId: string) => {
+    (_databaseId: string, tableId: string, rowId: string) => {
       if (tableId === "departments") {
         return { $id: rowId, campus: { $id: "campus-oslo" } };
       }

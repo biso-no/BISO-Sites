@@ -92,9 +92,9 @@ describe("cutoverContentPermissions", () => {
   });
 
   it("records per-table failures without aborting the rest", async () => {
-    db.getTable.mockImplementation(async ({ tableId }: { tableId: string }) => {
+    db.getTable.mockImplementation(({ tableId }: { tableId: string }) => {
       if (tableId === "news") {
-        throw new Error("network down");
+        return Promise.reject(new Error("network down"));
       }
       return {
         $id: tableId,

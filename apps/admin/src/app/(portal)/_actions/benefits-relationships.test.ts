@@ -97,14 +97,12 @@ mock.module("./audit-log", () => ({
 const { createBenefit, getBenefit, updateBenefit } = await import("./benefits");
 
 function mockBenefitRow(benefit: Record<string, unknown> | null): void {
-  db.listRows.mockImplementation(
-    async (_databaseId: string, tableId: string) => {
-      if (tableId === "campus_benefits") {
-        return { rows: benefit ? [benefit] : [], total: benefit ? 1 : 0 };
-      }
-      return { rows: [], total: 0 };
+  db.listRows.mockImplementation((_databaseId: string, tableId: string) => {
+    if (tableId === "campus_benefits") {
+      return { rows: benefit ? [benefit] : [], total: benefit ? 1 : 0 };
     }
-  );
+    return { rows: [], total: 0 };
+  });
 }
 
 beforeEach(() => {
@@ -117,7 +115,7 @@ beforeEach(() => {
   db.upsertRow.mockReset();
 
   db.getRow.mockImplementation(
-    async (_databaseId: string, tableId: string, rowId: string) => {
+    (_databaseId: string, tableId: string, rowId: string) => {
       if (tableId === "departments") {
         return { $id: rowId, campus: { $id: "campus-oslo" } };
       }
@@ -224,34 +222,32 @@ describe("benefit relationship persistence", () => {
   });
 
   test("updateBenefit reuses an existing locale child by id", async () => {
-    db.listRows.mockImplementation(
-      async (_databaseId: string, tableId: string) => {
-        if (tableId === "campus_benefits") {
-          return {
-            rows: [
-              {
-                $id: "benefit-1",
-                campus: { $id: "campus-oslo" },
-                department: { $id: "dept-1" },
-                status: "draft",
-              },
-            ],
-            total: 1,
-          };
-        }
+    db.listRows.mockImplementation((_databaseId: string, tableId: string) => {
+      if (tableId === "campus_benefits") {
         return {
           rows: [
             {
-              $id: "translation-no",
-              content_id: "benefit-1",
-              locale: "no",
-              title: "Gammel tittel",
+              $id: "benefit-1",
+              campus: { $id: "campus-oslo" },
+              department: { $id: "dept-1" },
+              status: "draft",
             },
           ],
           total: 1,
         };
       }
-    );
+      return {
+        rows: [
+          {
+            $id: "translation-no",
+            content_id: "benefit-1",
+            locale: "no",
+            title: "Gammel tittel",
+          },
+        ],
+        total: 1,
+      };
+    });
 
     await updateBenefit("benefit-1", departmentValues);
 

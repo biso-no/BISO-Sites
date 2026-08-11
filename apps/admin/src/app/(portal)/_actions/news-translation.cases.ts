@@ -94,7 +94,7 @@ const { createNews, generateNewsTranslationDraft } = await import("./news");
 
 function mockCurrentArticle(article: Record<string, unknown>): void {
   adminDb.getRow.mockImplementation(
-    async (_databaseId: string, tableId: string, rowId: string) => {
+    (_databaseId: string, tableId: string, rowId: string) => {
       if (tableId === "news") {
         return { $id: rowId, ...article };
       }
