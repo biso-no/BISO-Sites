@@ -40,6 +40,7 @@ import {
   type AnnouncementFormValues,
   announcementSchema,
 } from "../../_actions/schemas";
+import { DepartmentCombobox } from "../../_components/department-combobox";
 import { DescriptionBlockEditor } from "../../_components/description-block-editor";
 
 /* -------------------------------------------------------------------------- */
@@ -160,6 +161,9 @@ interface AnnouncementStudioEditorProps {
   campuses: CampusOption[];
   defaultCampusId: string;
   isNew: boolean;
+  /** Single-department authors are pinned to their department. */
+  lockDepartment: boolean;
+  pinnedDepartmentId: string | null;
 }
 
 export type { AnnouncementStudioEditorProps };
@@ -251,7 +255,8 @@ function categoryAccent(id: CategoryId): string {
 
 function buildInitialValues(
   announcement: Announcements | null,
-  defaultCampusId: string
+  defaultCampusId: string,
+  pinnedDepartmentId: string | null
 ): AnnouncementFormValues {
   let audienceValue = announcement?.audience_value ?? "";
   if (announcement?.audience_type === "users" && announcement.audience_value) {
@@ -275,9 +280,22 @@ function buildInitialValues(
     audience_value: audienceValue,
     event_id: announcement?.event_id ?? null,
     campus_id: announcement?.campus_id ?? defaultCampusId ?? null,
+    department_id: announcementDepartmentId(announcement) ?? pinnedDepartmentId,
     push: announcement?.push ?? true,
     scheduled_at: announcement?.scheduled_at ?? null,
   };
+}
+
+function announcementDepartmentId(
+  announcement: Announcements | null
+): string | null {
+  const department = (
+    announcement as { department?: string | { $id: string } | null } | null
+  )?.department;
+  if (!department) {
+    return null;
+  }
+  return typeof department === "string" ? department : department.$id;
 }
 
 function isFutureSchedule(scheduledAt: string | null | undefined): boolean {
@@ -908,10 +926,12 @@ function AudienceDetail({
 
 function DistributionStep({
   campusOptions,
+  lockDepartment,
   set,
   values,
 }: {
   campusOptions: Array<{ value: string; label: string }>;
+  lockDepartment: boolean;
   set: <K extends keyof AnnouncementFormValues>(
     key: K,
     value: AnnouncementFormValues[K]
@@ -967,6 +987,20 @@ function DistributionStep({
               </option>
             ))}
           </select>
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <FieldLabel help="Owning department; leave empty for campus-wide">
+            <Globe size={12} /> Department
+          </FieldLabel>
+          <DepartmentCombobox
+            campusId={values.campus_id ?? null}
+            disabled={lockDepartment}
+            initialDepartments={[]}
+            onChange={(id) => set("department_id", id)}
+            placeholder="Campus-wide (no department)"
+            value={values.department_id ?? null}
+          />
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -1815,13 +1849,15 @@ export function AnnouncementStudioEditor({
   campuses,
   defaultCampusId,
   isNew,
+  lockDepartment,
+  pinnedDepartmentId,
 }: AnnouncementStudioEditorProps) {
   const router = useRouter();
   const [step, setStep] = useState<StepIndex>(0);
   const [locale, setLocale] = useState<LocaleCode>("en");
   const [previewLocale, setPreviewLocale] = useState<LocaleCode>("en");
   const [values, setValues] = useState<AnnouncementFormValues>(() =>
-    buildInitialValues(announcement, defaultCampusId)
+    buildInitialValues(announcement, defaultCampusId, pinnedDepartmentId)
   );
   const [dirty, setDirty] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -2111,6 +2147,7 @@ export function AnnouncementStudioEditor({
             {step === 2 && (
               <DistributionStep
                 campusOptions={campusOptions}
+                lockDepartment={lockDepartment}
                 set={set}
                 values={values}
               />

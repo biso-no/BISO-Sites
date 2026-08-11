@@ -3,8 +3,11 @@ import type { UserAuthContext } from "@/lib/authorization";
 
 const db = {
   createRow: mock(),
+  deleteRow: mock(),
+  getRow: mock(),
   listRows: mock(),
   updateRow: mock(),
+  upsertRow: mock(),
 };
 
 const campusAdminCtx: UserAuthContext = {
@@ -24,6 +27,7 @@ const campusAdminCtx: UserAuthContext = {
 };
 
 mock.module("@repo/api/server", () => ({
+  createAdminClient: mock(async () => ({ db })),
   createSessionClient: mock(async () => ({ db })),
 }));
 
@@ -78,8 +82,11 @@ function mockExistingRows(rowsByTable: Record<string, unknown[]>): void {
 describe("admin content update scoping", () => {
   beforeEach(() => {
     db.createRow.mockReset();
+    db.deleteRow.mockReset();
+    db.getRow.mockReset();
     db.listRows.mockReset();
     db.updateRow.mockReset();
+    db.upsertRow.mockReset();
 
     db.createRow.mockImplementation(
       async (
@@ -90,6 +97,14 @@ describe("admin content update scoping", () => {
       ) => ({ $id: rowId, ...data })
     );
     db.updateRow.mockImplementation(
+      async (
+        _databaseId: string,
+        _tableId: string,
+        rowId: string,
+        data: Record<string, unknown>
+      ) => ({ $id: rowId, ...data })
+    );
+    db.upsertRow.mockImplementation(
       async (
         _databaseId: string,
         _tableId: string,

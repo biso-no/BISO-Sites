@@ -113,6 +113,18 @@ describe("source-aware bilingual content schemas", () => {
     ).toBeNull();
   });
 
+  test("announcements carry an optional department ownership id", () => {
+    const base = {
+      title_en: "English title",
+    };
+
+    expect(
+      announcementSchema.parse({ ...base, department_id: "dept-1" })
+        .department_id
+    ).toBe("dept-1");
+    expect(announcementSchema.parse(base).department_id).toBeUndefined();
+  });
+
   test("accepts one named locale for products", () => {
     const base = {
       campus_id: "campus-oslo",

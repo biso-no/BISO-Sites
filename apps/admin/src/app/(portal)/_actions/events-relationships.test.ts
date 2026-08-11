@@ -105,11 +105,12 @@ mock.module("next/cache", () => ({
 mock.module("./audit-log", () => ({
   logAuditEvent: mock(async () => undefined),
 }));
-mock.module("./announcements", () => ({
-  sendAnnouncement: mock(async () => ({ data: true })),
-}));
+// NOTE: never mock.module("./announcements") here — bun module mocks are
+// process-wide and would clobber the real announcements action module for
+// every later test file in the suite.
 mock.module("@/lib/announcements/send", () => ({
-  dispatchAnnouncement: mock(async () => undefined),
+  buildDeepLink: mock(() => "biso://announcements/announcement-1"),
+  dispatchAnnouncement: mock(async () => ({ recipients: 0 })),
 }));
 
 const { createEvent, getEvent, updateEvent } = await import("./events");

@@ -7,6 +7,11 @@ import { revalidatePath } from "next/cache";
 import { buildDeepLink, dispatchAnnouncement } from "@/lib/announcements/send";
 import { requireAuth } from "@/lib/authorization";
 import {
+  applyContentRelationshipScopeQueries,
+  assertContentOwnership,
+  getContentOwnership,
+} from "@/lib/content-authorization";
+import {
   type AutoTranslationOptions,
   type ContentLocale,
   getTargetLocale,
@@ -19,7 +24,6 @@ import {
   translateContentFields,
 } from "@/lib/content-translation.server";
 import {
-  applyScopeQueries,
   assertPublishAccess,
   assertWriteAccess,
   hasRowAccess,
@@ -45,6 +49,7 @@ interface AnnouncementDeliverySnapshot {
   campusId: string | null;
   category: string;
   deepLink: string | null;
+  departmentId: string | null;
   eventId: string | null;
   push: boolean;
   scheduledAt: string | null;
@@ -140,17 +145,21 @@ const hasAnnouncementTranslationSource = ({
 
 const getAnnouncementDeliverySnapshot = (
   announcement: Announcements
-): AnnouncementDeliverySnapshot => ({
-  audienceType: announcement.audience_type,
-  audienceValue: announcement.audience_value ?? null,
-  campusId: announcement.campus_id ?? null,
-  category: announcement.category,
-  deepLink: announcement.deep_link ?? null,
-  eventId: announcement.event_id ?? null,
-  push: announcement.push,
-  scheduledAt: announcement.scheduled_at ?? null,
-  status: announcement.status,
-});
+): AnnouncementDeliverySnapshot => {
+  const ownership = getContentOwnership(announcement, { legacyFallback: true });
+  return {
+    audienceType: announcement.audience_type,
+    audienceValue: announcement.audience_value ?? null,
+    campusId: ownership.campus,
+    category: announcement.category,
+    deepLink: announcement.deep_link ?? null,
+    departmentId: ownership.department,
+    eventId: announcement.event_id ?? null,
+    push: announcement.push,
+    scheduledAt: announcement.scheduled_at ?? null,
+    status: announcement.status,
+  };
+};
 
 const buildTranslationPendingData = (token: string): string =>
   JSON.stringify({ [TRANSLATION_PENDING_KEY]: token });
@@ -383,7 +392,11 @@ function buildAnnouncementColumns(
     audience_type: values.audience_type,
     audience_value: audienceValue,
     event_id: values.event_id || null,
+    // Canonical ownership relationships; the scalar column remains as
+    // migration-era compatibility metadata only.
+    campus: values.campus_id || null,
     campus_id: values.campus_id || null,
+    department: values.department_id ?? null,
     push: values.push,
     scheduled_at: values.scheduled_at || null,
     deep_link: values.event_id ? `biso://event?id=${values.event_id}` : null,
@@ -401,8 +414,7 @@ export async function listAnnouncements(opts?: {
 
   const queries: string[] = [
     Query.orderDesc("$updatedAt"),
-    // announcements is campus-scoped only (no department_id column).
-    ...applyScopeQueries(ctx, { departmentField: null }),
+    ...applyContentRelationshipScopeQueries(ctx),
     Query.limit(ANNOUNCEMENTS_PAGE_SIZE),
     Query.offset((page - 1) * ANNOUNCEMENTS_PAGE_SIZE),
   ];
@@ -431,7 +443,12 @@ export async function getAnnouncement(id: string) {
     Query.limit(1),
   ]);
   const announcement = response.rows[0];
-  if (!(announcement && hasRowAccess(ctx, announcement.campus_id))) {
+  if (!announcement) {
+    return null;
+  }
+  // Treat a row outside the caller's campus/department scope as not found.
+  const ownership = getContentOwnership(announcement, { legacyFallback: true });
+  if (!hasRowAccess(ctx, ownership.campus, ownership.department)) {
     return null;
   }
   return announcement;
@@ -447,17 +464,16 @@ export async function createAnnouncement(
     return { error: validated.error.flatten().fieldErrors };
   }
 
-  // Global admins may target a null (app-wide) campus; otherwise require write
-  // access to the chosen campus.
-  if (validated.data.campus_id) {
-    assertWriteAccess(ctx, validated.data.campus_id);
-  } else if (!ctx.roles.includes("globaladmin")) {
-    return { error: "A campus is required for non-global admins." };
-  }
-
   try {
     const translationOptions = parseAutoTranslationOptions(autoTranslation);
     const { db } = await createAdminClient();
+    // Global announcements (null campus) stay global-admin only; everyone
+    // else needs a campus, and department authors their own department.
+    await assertContentOwnership(db, ctx, {
+      allowGlobalCampus: true,
+      campusId: validated.data.campus_id || null,
+      departmentId: validated.data.department_id ?? null,
+    });
     const audienceValue = await normalizeAudienceValue(
       validated.data.audience_type,
       validated.data.audience_value
@@ -530,10 +546,17 @@ export async function updateAnnouncement(
       return { error: "Announcement not found" };
     }
 
-    assertWriteAccess(ctx, announcement.campus_id);
-    if (validated.data.campus_id) {
-      assertWriteAccess(ctx, validated.data.campus_id);
-    }
+    // Authorize both the persisted scope and the requested scope so ownership
+    // transfers require access on each side.
+    const persisted = getContentOwnership(announcement, {
+      legacyFallback: true,
+    });
+    assertWriteAccess(ctx, persisted.campus, persisted.department);
+    await assertContentOwnership(db, ctx, {
+      allowGlobalCampus: true,
+      campusId: validated.data.campus_id || null,
+      departmentId: validated.data.department_id ?? null,
+    });
 
     const audienceValue = await normalizeAudienceValue(
       validated.data.audience_type,
@@ -592,7 +615,10 @@ export async function deleteAnnouncement(id: string) {
       return { error: "Announcement not found" };
     }
 
-    assertWriteAccess(ctx, announcement.campus_id);
+    const ownership = getContentOwnership(announcement, {
+      legacyFallback: true,
+    });
+    assertWriteAccess(ctx, ownership.campus, ownership.department);
 
     await db.deleteRow("app", "announcements", id);
 
@@ -761,8 +787,12 @@ export async function sendAnnouncement(
       return { error: "Announcement not found" };
     }
 
-    // Sending is a publish-grade action: require campus/global admin.
-    assertPublishAccess(ctx, announcement.campus_id);
+    // Sending is publish-grade: general write scope over the announcement's
+    // ownership (department members may send their own department's).
+    const sendOwnership = getContentOwnership(announcement, {
+      legacyFallback: true,
+    });
+    assertPublishAccess(ctx, sendOwnership.campus, sendOwnership.department);
 
     const automaticSource = translationOptions?.enabled
       ? getAnnouncementTranslationSnapshot(
@@ -828,6 +858,17 @@ export async function sendAnnouncement(
           if (!currentClaimedAnnouncement) {
             return;
           }
+          // The claim froze the ownership snapshot, but re-assert the actor
+          // against the reloaded row before anything is delivered.
+          const claimedOwnership = getContentOwnership(
+            currentClaimedAnnouncement,
+            { legacyFallback: true }
+          );
+          assertPublishAccess(
+            ctx,
+            claimedOwnership.campus,
+            claimedOwnership.department
+          );
           const result = await dispatchPersistedAnnouncement({
             announcement: currentClaimedAnnouncement,
             client: backgroundClient,

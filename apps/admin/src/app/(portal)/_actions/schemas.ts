@@ -179,6 +179,7 @@ export const announcementSchema = z
     audience_value: z.string().optional().nullable(),
     event_id: z.string().optional().nullable(),
     campus_id: z.string().optional().nullable(),
+    department_id: z.string().optional().nullable(),
     push: z.boolean().default(true),
     scheduled_at: z.string().optional().nullable(),
   })
