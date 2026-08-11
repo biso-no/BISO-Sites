@@ -31,6 +31,11 @@ vi.mock("next/cache", () => ({
   revalidateTag: vi.fn(),
 }));
 
+vi.mock("next/server", () => ({
+  // Request-bound marker — a no-op outside a real Next request scope.
+  connection: vi.fn(async () => undefined),
+}));
+
 vi.mock("@repo/api/server", () => ({
   createSessionClient: vi.fn(async () => ({ account, db })),
   createAdminClient: vi.fn(async () => ({ db })),
@@ -42,6 +47,16 @@ vi.mock("@repo/connectors/24sevenoffice", () => ({
 
 vi.mock("@/lib/auth-utils", () => ({
   isAuthenticatedAccount: vi.fn(() => true),
+}));
+
+// Membership now resolves the account through the request-memoized
+// getLoggedInUser(); this suite tests the Finago/caching logic, so user
+// resolution is stubbed as an authenticated member with a student id.
+vi.mock("@/lib/actions/user", () => ({
+  getLoggedInUser: vi.fn(async () => ({
+    user: { $id: "user-1" },
+    profile: { student_id: "BI-12345" },
+  })),
 }));
 
 import { refreshMembershipStatus } from "./membership";

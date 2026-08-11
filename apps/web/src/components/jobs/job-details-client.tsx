@@ -27,15 +27,41 @@ interface JobDetailsClientProps {
   job: RecruitmentVacancy;
 }
 
-function mapEmploymentType(type: string | undefined | null): string | undefined {
-  if (!type) return undefined;
+function mapEmploymentType(
+  type: string | undefined | null
+): string | undefined {
+  if (!type) {
+    return undefined;
+  }
   const t = type.toLowerCase();
-  if (t.includes("full time") || t.includes("full-time") || t.includes("full_time") || t.includes("100%")) return "FULL_TIME";
-  if (t.includes("part time") || t.includes("part-time") || t.includes("part_time") || t.includes("deltid")) return "PART_TIME";
-  if (t.includes("intern")) return "INTERN";
-  if (t.includes("volunteer") || t.includes("frivillig")) return "VOLUNTEER";
-  if (t.includes("contract")) return "CONTRACTOR";
-  if (t.includes("temporary") || t.includes("temp")) return "TEMPORARY";
+  if (
+    t.includes("full time") ||
+    t.includes("full-time") ||
+    t.includes("full_time") ||
+    t.includes("100%")
+  ) {
+    return "FULL_TIME";
+  }
+  if (
+    t.includes("part time") ||
+    t.includes("part-time") ||
+    t.includes("part_time") ||
+    t.includes("deltid")
+  ) {
+    return "PART_TIME";
+  }
+  if (t.includes("intern")) {
+    return "INTERN";
+  }
+  if (t.includes("volunteer") || t.includes("frivillig")) {
+    return "VOLUNTEER";
+  }
+  if (t.includes("contract")) {
+    return "CONTRACTOR";
+  }
+  if (t.includes("temporary") || t.includes("temp")) {
+    return "TEMPORARY";
+  }
   return "OTHER";
 }
 

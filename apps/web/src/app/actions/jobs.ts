@@ -51,17 +51,19 @@ import { cache } from "react";
 
 // ---------- public reads (session/guest client — enforces row permissions) ----------
 
+// Primitive arguments only: React cache() keys on argument identity
+// (Object.is), so an options object allocated fresh at each call site would
+// never hit the memo. See WEB_APP_APPWRITE_INCIDENT_AUDIT.md (F-6b).
 const _listJobs = cache(
-  async (params: {
-    campus?: string | null;
-    department?: string | null;
-    locale?: string;
-    limit?: number;
-    search?: string;
-  }): Promise<RecruitmentVacancy[]> => {
+  async (
+    campus: string | null,
+    department: string | null,
+    locale: string,
+    limit: number,
+    search: string
+  ): Promise<RecruitmentVacancy[]> => {
     try {
       const { db } = await createSessionClient();
-      const { campus, department, limit = 100, locale = "en", search } = params;
 
       const queries: string[] = [
         Query.equal("status", JobsStatus.PUBLISHED),
@@ -114,13 +116,13 @@ export async function listJobs(params: {
   search?: string;
   status?: string;
 }): Promise<RecruitmentVacancy[]> {
-  return _listJobs({
-    campus: params.campus,
-    department: params.department,
-    locale: params.locale,
-    limit: params.limit,
-    search: params.search,
-  });
+  return _listJobs(
+    params.campus ?? null,
+    params.department ?? null,
+    params.locale ?? "en",
+    params.limit ?? 100,
+    params.search ?? ""
+  );
 }
 
 const _getJobBySlug = cache(

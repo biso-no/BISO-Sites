@@ -3,39 +3,62 @@ import { type Models, Permission, Role } from "@repo/api";
 import { createAdminClient, createSessionClient } from "@repo/api/server";
 import type { Users } from "@repo/api/types/appwrite";
 import { cookies } from "next/headers";
+import { unstable_rethrow } from "next/navigation";
+import { cache } from "react";
 import { isAuthenticatedAccount } from "@/lib/auth-utils";
+import { SESSION_COOKIE } from "@/lib/cookie-prefs";
 
 const _BASE_URL = process.env.NEXT_PUBLIC_BASE_URL;
 
+/**
+ * Request-memoized: the public layout, membership resolution, and several
+ * pages all need the current user in one render — `cache()` collapses those
+ * into a single `account.get()` + profile read per request.
+ */
+const _getLoggedInUser = cache(
+  async (): Promise<{
+    user: Models.User<Models.Preferences>;
+    profile: Users | null;
+  } | null> => {
+    try {
+      const cookiesStore = await cookies();
+      const session = cookiesStore.get(SESSION_COOKIE);
+      if (!session) {
+        return null;
+      }
+      const { account, db } = await createSessionClient();
+
+      const user = await account.get();
+
+      if (!isAuthenticatedAccount(user)) {
+        return null;
+      }
+
+      try {
+        const profile = await db.getRow<Users>("app", "user", user.$id);
+        return { user, profile };
+      } catch {
+        // Profile row doesn't exist yet — return the account anyway.
+        return { user, profile: null };
+      }
+    } catch (error) {
+      // Never swallow Next.js control-flow signals (prerender bailout,
+      // redirect, notFound) thrown by cookies() & co. — doing so lets
+      // prerendering continue past the dynamic access and trips
+      // blocking-prerender errors downstream.
+      unstable_rethrow(error);
+      console.error("Error getting logged in user!!", error);
+      return null;
+    }
+  }
+);
+
+// biome-ignore lint/suspicious/useAwait: async required by "use server" — returns memoized promise
 export async function getLoggedInUser(): Promise<{
   user: Models.User<Models.Preferences>;
   profile: Users | null;
 } | null> {
-  try {
-    const cookiesStore = await cookies();
-    const session = cookiesStore.get("a_session_biso");
-    if (!session) {
-      return null;
-    }
-    const { account, db } = await createSessionClient();
-
-    const user = await account.get();
-
-    if (!isAuthenticatedAccount(user)) {
-      return null;
-    }
-
-    try {
-      const profile = await db.getRow<Users>("app", "user", user.$id);
-      return { user, profile };
-    } catch {
-      // Profile row doesn't exist yet — return the account anyway.
-      return { user, profile: null };
-    }
-  } catch (error) {
-    console.error("Error getting logged in user!!", error);
-    return null;
-  }
+  return _getLoggedInUser();
 }
 
 export async function listIdentities() {

@@ -1,12 +1,13 @@
 "use server";
 
 import { Query } from "@repo/api/client";
-import { createAdminClient, createSessionClient } from "@repo/api/server";
-import type { Memberships, Users } from "@repo/api/types/appwrite";
+import { createAdminClient } from "@repo/api/server";
+import type { Memberships } from "@repo/api/types/appwrite";
 import { getCustomerCategories } from "@repo/connectors/24sevenoffice";
 import { revalidateTag, unstable_cache } from "next/cache";
-import { cookies } from "next/headers";
-import { isAuthenticatedAccount } from "@/lib/auth-utils";
+import { unstable_rethrow } from "next/navigation";
+import { connection } from "next/server";
+import { getLoggedInUser } from "@/lib/actions/user";
 
 // Server-side cache TTL for the resolved membership status, in seconds.
 const MEMBERSHIP_CACHE_TTL_SECONDS = 10 * 60; // 10 minutes
@@ -204,6 +205,8 @@ async function resolveMembershipStatus(
     if (error instanceof MembershipComputationError) {
       return emptyStatus(error.reason);
     }
+    // Preserve Next.js control-flow signals (prerender bailout, redirect).
+    unstable_rethrow(error);
     console.error("[Membership] Unexpected error:", error);
     return emptyStatus("unexpected_error");
   }
@@ -218,32 +221,23 @@ async function resolveMembershipStatus(
 async function resolveCurrentStudentId(): Promise<
   { numericId: number } | { status: MembershipStatus }
 > {
+  // Membership status is per-request state (session-derived, wall-clock
+  // `checkedAt` stamps). `connection()` declares that explicitly, so
+  // prerendering stops here instead of running into `Date.now()` — the
+  // cookie read alone doesn't abort the prerender pass, it just resolves
+  // to an empty store and would let execution continue.
+  await connection();
   try {
-    // 1. Check if user is authenticated
-    const cookieStore = await cookies();
-    const session = cookieStore.get("a_session_biso");
-    if (!session) {
-      return { status: emptyStatus("not_authenticated") };
-    }
-
-    // 2. Get user profile
-    let profile: Users | null = null;
-    try {
-      const { account, db: sessionDb } = await createSessionClient();
-      const currentUser = await account.get();
-
-      if (!isAuthenticatedAccount(currentUser)) {
-        return { status: emptyStatus("not_authenticated") };
-      }
-
-      profile = await sessionDb.getRow<Users>("app", "user", currentUser.$id);
-    } catch (error) {
-      console.error("[Membership] Failed to get user profile:", error);
+    // 1.+2. Resolve the authenticated account + profile through the
+    // request-memoized getLoggedInUser() so the layout's call and this one
+    // share a single account.get()/profile read per render.
+    const userData = await getLoggedInUser();
+    if (!userData) {
       return { status: emptyStatus("not_authenticated") };
     }
 
     // 3. Get student_id from profile
-    const studentId = profile?.student_id;
+    const studentId = userData.profile?.student_id;
     if (!studentId) {
       return { status: emptyStatus("no_student_id") };
     }
@@ -256,6 +250,10 @@ async function resolveCurrentStudentId(): Promise<
 
     return { numericId: Number.parseInt(sanitizedId, 10) };
   } catch (error) {
+    // Preserve Next.js control-flow signals (prerender bailout, redirect)
+    // rethrown out of getLoggedInUser() — swallowing them lets prerendering
+    // run past the dynamic access and trips blocking-prerender errors.
+    unstable_rethrow(error);
     console.error("[Membership] Unexpected error:", error);
     return { status: emptyStatus("unexpected_error") };
   }

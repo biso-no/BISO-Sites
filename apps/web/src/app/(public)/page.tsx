@@ -1,4 +1,6 @@
+import type { Locale } from "@repo/i18n/config";
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import { Suspense } from "react";
 import { AboutSection } from "@/components/home/about-section";
 import { EventsSection } from "@/components/home/events-section";
@@ -13,10 +15,15 @@ import {
   NewsSkeleton,
 } from "@/components/home/skeletons";
 import { getUserPreferences } from "@/lib/auth-utils";
-import { getPartners } from "../actions/about";
-import { getCampuses } from "../actions/campus";
+import { SESSION_COOKIE } from "@/lib/cookie-prefs";
+import {
+  cachedCampuses,
+  cachedHomeCounts,
+  cachedPartners,
+  cachedPublishedEvents,
+  cachedPublishedNews,
+} from "@/lib/data/public-content";
 import { listEvents } from "../actions/events";
-import { listJobs } from "../actions/jobs";
 import { getLocale } from "../actions/locale";
 import { listNews } from "../actions/news";
 
@@ -26,33 +33,75 @@ export const metadata: Metadata = {
     "BI Student Organisation (BISO) is the student association at BI Norwegian Business School — events, volunteer opportunities, student benefits, and campus life across Oslo, Bergen, Trondheim, and Stavanger.",
 };
 
+// Enough for the homepage grid — the full listing lives on /events.
+const HOME_EVENTS_LIMIT = 12;
+const HOME_NEWS_LIMIT = 3;
+const HERO_EVENTS_LIMIT = 3;
+const HERO_NEWS_LIMIT = 2;
+
+// Member-scoped feeds: anonymous visitors (all bot/monitor traffic) share the
+// "use cache" guest result; session holders read per-request so member-only
+// rows (row perms `team:biso-members`) still appear in their feeds.
+function homeEvents(
+  hasSession: boolean,
+  locale: Locale,
+  campusKey: string | null,
+  limit: number
+) {
+  if (hasSession) {
+    return listEvents({
+      campus: campusKey ?? "all",
+      limit,
+      locale,
+      status: "published",
+    });
+  }
+  return cachedPublishedEvents(locale, campusKey, limit).catch(() => []);
+}
+
+function homeNews(
+  hasSession: boolean,
+  locale: Locale,
+  campusKey: string | null,
+  limit: number
+) {
+  if (hasSession) {
+    return listNews({
+      campus: campusKey ?? "all",
+      limit,
+      locale,
+      status: "published",
+    });
+  }
+  return cachedPublishedNews(locale, campusKey, limit).catch(() => []);
+}
+
 export default async function HomePage() {
-  const prefs = await getUserPreferences();
-  const campusId = prefs?.campusId;
-
-  const partners = await getPartners();
-
-  const locale = await getLocale();
-  const [events, jobs, campuses, news] = await Promise.all([
-    listEvents({
-      locale,
-      status: "published",
-      limit: 1000,
-      campus: campusId ?? "all",
-    }),
-    listJobs({ locale, status: "published", limit: 1000 }),
-    getCampuses({
-      selectedCampusId: campusId ?? "all",
-      includeDepartments: true,
-      includeNational: false,
-    }),
-    listNews({
-      campus: campusId ?? "all",
-      locale,
-      status: "published",
-      limit: 3,
-    }),
+  const [prefs, locale, cookieStore] = await Promise.all([
+    getUserPreferences(),
+    getLocale(),
+    cookies(),
   ]);
+  const campusId = prefs?.campusId;
+  const campusKey = campusId && campusId !== "all" ? campusId : null;
+  const hasSession = Boolean(cookieStore.get(SESSION_COOKIE));
+
+  // Campuses/partners/counts are not member-scoped and stay cached for
+  // everyone. Failures fall back per-slice so a transient Appwrite error
+  // renders an emptier homepage instead of a 500 — and is never cached.
+  const [heroEvents, heroNews, events, news, campuses, counts, partners] =
+    await Promise.all([
+      homeEvents(hasSession, locale, null, HERO_EVENTS_LIMIT),
+      homeNews(hasSession, locale, null, HERO_NEWS_LIMIT),
+      homeEvents(hasSession, locale, campusKey, HOME_EVENTS_LIMIT),
+      homeNews(hasSession, locale, campusKey, HOME_NEWS_LIMIT),
+      cachedCampuses(campusKey, false, true).catch(() => []),
+      cachedHomeCounts(campusKey).catch(() => ({
+        eventCount: 0,
+        jobCount: 0,
+      })),
+      cachedPartners().catch(() => []),
+    ]);
   const departments = campuses.reduce(
     (acc, campus) => acc + campus.departments.length,
     0
@@ -60,14 +109,14 @@ export default async function HomePage() {
   return (
     <div className="min-h-screen bg-linear-to-b from-background via-section to-background">
       <Suspense fallback={<HeroSkeleton />}>
-        <HeroSection />
+        <HeroSection events={heroEvents} news={heroNews} />
       </Suspense>
 
       <Suspense fallback={<AboutSkeleton />}>
         <AboutSection
           departmentsCount={departments}
-          eventCount={events.length}
-          jobCount={jobs.length}
+          eventCount={counts.eventCount}
+          jobCount={counts.jobCount}
         />
       </Suspense>
 

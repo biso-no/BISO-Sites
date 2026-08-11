@@ -8,7 +8,11 @@ import type {
   CampusMetadata,
 } from "@repo/api/types/appwrite";
 import { cookies } from "next/headers";
-import { CAMPUS_COOKIE, prefCookieOptions } from "@/lib/cookie-prefs";
+import {
+  CAMPUS_COOKIE,
+  prefCookieOptions,
+  SESSION_COOKIE,
+} from "@/lib/cookie-prefs";
 
 export async function getCampusMetadata(): Promise<
   Record<string, CampusMetadata>
@@ -134,12 +138,18 @@ export async function getCampusData(_campusId?: string) {
 export async function getActiveCampus(): Promise<string | null> {
   // Cookie is the source of truth — works for anonymous visitors with no
   // Appwrite session at all.
-  const cookieCampus = (await cookies()).get(CAMPUS_COOKIE)?.value;
+  const cookieStore = await cookies();
+  const cookieCampus = cookieStore.get(CAMPUS_COOKIE)?.value;
   if (cookieCampus) {
     return cookieCampus === "all" ? null : cookieCampus;
   }
 
-  // Fall back to an authenticated user's stored preference (cross-device).
+  // Fall back to an authenticated user's stored preference (cross-device) —
+  // only when a session cookie exists; otherwise account.get() is a
+  // guaranteed-401 round-trip for every cookieless visitor.
+  if (!cookieStore.get(SESSION_COOKIE)) {
+    return null;
+  }
   try {
     const { account } = await createSessionClient();
     const user = await account.get();
@@ -159,9 +169,14 @@ export async function getActiveCampus(): Promise<string | null> {
 export async function setActiveCampus(campusId: string | null): Promise<void> {
   const value = campusId === null ? "all" : campusId;
 
-  (await cookies()).set(CAMPUS_COOKIE, value, prefCookieOptions());
+  const cookieStore = await cookies();
+  cookieStore.set(CAMPUS_COOKIE, value, prefCookieOptions());
 
-  // Best-effort: never provisions a session for anonymous visitors.
+  // Best-effort: never provisions a session for anonymous visitors, and
+  // skipped entirely when no session cookie exists (the call could only 401).
+  if (!cookieStore.get(SESSION_COOKIE)) {
+    return;
+  }
   try {
     const { account } = await createSessionClient();
     const user = await account.get();

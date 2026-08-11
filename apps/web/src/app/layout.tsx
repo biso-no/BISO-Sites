@@ -67,4 +67,9 @@ export default async function RootLayout({
   );
 }
 
+// Next 16.3 cacheComponents escape hatch: routes here read cookies
+// (locale/campus prefs) at the top level, so they cannot produce a static
+// shell yet. `instant = false` permits blocking dynamic routes at build time.
+// Follow-up: move cookie reads behind Suspense boundaries per route, then
+// remove this to get static shells + working partial prefetching.
 export const instant = false;

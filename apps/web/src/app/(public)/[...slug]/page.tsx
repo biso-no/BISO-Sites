@@ -1,35 +1,59 @@
 import { getPage } from "@repo/api/page-builder";
 import type { PageDoc } from "@repo/editor";
+import type { Locale } from "@repo/i18n/config";
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
+import { cache } from "react";
 import { getLocale } from "@/app/actions/locale";
+import { SESSION_COOKIE } from "@/lib/cookie-prefs";
+import { cachedPublishedPage } from "@/lib/data/public-content";
 import { RenderedPage } from "./_components/rendered-page";
 
 interface Props {
   params: Promise<{ slug?: string[] }>;
 }
 
+/**
+ * Request-memoized page resolution — generateMetadata and the page body both
+ * call this, but it runs once per request. The publicly-cached lookup serves
+ * every anonymous visitor from cache; pages it cannot see (members-only row
+ * permissions) fall back to the visitor's own session, and only when a
+ * session cookie actually exists.
+ */
+const resolvePage = cache(async (slug: string, locale: Locale) => {
+  const publicPage = await cachedPublishedPage(slug, locale).catch(() => null);
+  if (publicPage) {
+    return publicPage;
+  }
+
+  if (!(await cookies()).get(SESSION_COOKIE)) {
+    return null;
+  }
+  try {
+    return await getPage(slug, locale);
+  } catch {
+    return null;
+  }
+});
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug: segments } = await params;
   if (!segments || segments.length === 0) {
     return {};
   }
-  try {
-    const slug = segments.join("/");
-    const locale = await getLocale();
-    const result = await getPage(slug, locale);
-    const title = result?.translation?.title;
-    const description = result?.translation?.description ?? undefined;
-    if (!title) {
-      return {};
-    }
-    return {
-      title: `${title} | BISO`,
-      description: description?.slice(0, 160),
-    };
-  } catch {
+  const slug = segments.join("/");
+  const locale = await getLocale();
+  const result = await resolvePage(slug, locale);
+  const title = result?.translation?.title;
+  const description = result?.translation?.description ?? undefined;
+  if (!title) {
     return {};
   }
+  return {
+    title: `${title} | BISO`,
+    description: description?.slice(0, 160),
+  };
 }
 
 export default async function DynamicPage({ params }: Props) {
@@ -42,7 +66,7 @@ export default async function DynamicPage({ params }: Props) {
 
   const slug = segments.join("/");
   const locale = await getLocale();
-  const result = await getPage(slug, locale);
+  const result = await resolvePage(slug, locale);
 
   if (!(result?.translation?.is_published && result.doc)) {
     notFound();

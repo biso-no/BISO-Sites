@@ -1,22 +1,45 @@
-import { getNavFeatured } from "@/app/actions/nav";
+import { cookies } from "next/headers";
+import { getLocale } from "@/app/actions/locale";
 import { Footer } from "@/components/layout/footer";
 import { PublicProviders } from "@/components/layout/public-providers";
 import { Navigation } from "@/components/nav/mega-nav";
 import { OnboardingPopout } from "@/components/onboarding/onboarding-popout";
 import { getMembershipStatus } from "@/lib/actions/membership";
 import { getLoggedInUser } from "@/lib/actions/user";
+import { SESSION_COOKIE } from "@/lib/cookie-prefs";
+import { sessionNavFeatured } from "@/lib/data/nav-featured";
+import { cachedNavFeatured } from "@/lib/data/public-content";
 
-// Anonymous session is now handled automatically by middleware
+const EMPTY_FEATURED = { event: null, news: null, project: null };
+
+// Request-bound gating (session → membership status) lives in this layout, so
+// there is no meaningful static shell for it yet. `instant = false` exempts
+// THIS segment from instant-navigation validation — the root layout's export
+// does not cascade; each segment opts out for itself. Descendant pages remain
+// validated. Follow-up: stream membership via Suspense to restore instant
+// navigation for the public tree.
+export const instant = false;
+
 export default async function PublicLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const [membershipStatus, userData, featured] = await Promise.all([
+  const [membershipStatus, userData, locale, cookieStore] = await Promise.all([
     getMembershipStatus(),
     getLoggedInUser(),
-    getNavFeatured(),
+    getLocale(),
+    cookies(),
   ]);
+  // Anonymous visitors (all bot/monitor traffic) share one cached result;
+  // session holders get a per-request read so member-only rows still surface
+  // in the nav. A failure degrades to an empty featured column, and never
+  // poisons the shared cache.
+  const hasSession = Boolean(cookieStore.get(SESSION_COOKIE));
+  const featured = await (hasSession
+    ? sessionNavFeatured(locale)
+    : cachedNavFeatured(locale)
+  ).catch(() => EMPTY_FEATURED);
 
   const needsOnboarding = !!userData?.user && !userData?.profile;
 
