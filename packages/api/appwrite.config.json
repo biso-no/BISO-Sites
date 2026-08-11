@@ -10271,6 +10271,17 @@
                         "description"
                     ],
                     "orders": []
+                },
+                {
+                    "key": "uniq_content_locale",
+                    "type": "unique",
+                    "status": "available",
+                    "columns": [
+                        "content_type",
+                        "content_id",
+                        "locale"
+                    ],
+                    "orders": []
                 }
             ]
         },

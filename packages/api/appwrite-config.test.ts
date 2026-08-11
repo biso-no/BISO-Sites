@@ -11,10 +11,17 @@ interface AppwriteColumn {
   type: string;
 }
 
+interface AppwriteIndex {
+  columns?: string[];
+  key: string;
+  type: string;
+}
+
 interface AppwriteTable {
   $id: string;
   $permissions?: string[];
   columns?: AppwriteColumn[];
+  indexes?: AppwriteIndex[];
 }
 
 interface AppwriteBucket {
@@ -134,6 +141,20 @@ describe("content translation relationships", () => {
     expect(column?.relatedTable).toBe("content_translations");
     expect(column?.twoWay).toBe(false);
     expect(column?.onDelete).toBe("cascade");
+  });
+
+  test("one locale per content item is enforced by a unique index", () => {
+    const contentTranslations = loadConfig().tables.find(
+      (table) => table.$id === "content_translations"
+    );
+
+    expect(contentTranslations?.indexes).toContainEqual(
+      expect.objectContaining({
+        columns: ["content_type", "content_id", "locale"],
+        key: "uniq_content_locale",
+        type: "unique",
+      })
+    );
   });
 });
 
