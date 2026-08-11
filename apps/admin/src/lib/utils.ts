@@ -78,7 +78,6 @@ export function sanitizeSlug(text: string): string {
     .replace(/^-+|-+$/g, "");
 }
 
-const OPERATIONS_UNIT_TEAM = "sg-app-dept-operationsunit";
 const MEMBERS_TEAM = "biso-members";
 
 /**
@@ -123,18 +122,19 @@ export function deriveContentRowTeams(
 
 /**
  * Build Appwrite $permissions for a top-level content row (event, news,
- * webshop_product, page).
+ * webshop_product, page, benefit, document).
  *
- * READ:
- *  - published + public → `read(any)` (publicly visible).
- *  - otherwise (draft/archived OR members-only) → team-scoped reads only:
- *    Operations Unit, the owning campus team, the owning department team, and
- *    biso-members ONLY when the row is published AND member-only.
- *    This guarantees unpublished rows are never `read(any)`.
+ * Row permissions describe CONSUMER visibility only — authoring goes through
+ * the admin client after application-level authorization, so no team ever
+ * receives row-level create/update/delete:
+ *  - published + public → `read(any)`;
+ *  - published + members → read for the members team;
+ *  - any other status (draft, archived, scheduled, …) → no permissions at
+ *    all; the row is service-only.
  *
- * WRITE (update/delete):
- *  - always Operations Unit + the owning department team. The campus team
- *    NEVER receives write access.
+ * The `campusTeam`/`deptTeam` inputs are accepted for call-site compatibility
+ * but intentionally ignored: dynamically mirrored teams must never appear in
+ * row ACLs, or permissions drift the moment Azure groups change.
  */
 export function buildContentRowPermissions(opts: {
   status: string;
@@ -142,51 +142,26 @@ export function buildContentRowPermissions(opts: {
   campusTeam?: string | null;
   deptTeam?: string | null;
 }): string[] {
-  const { status, audience = "public", campusTeam, deptTeam } = opts;
-  const published = isPublishedStatus(status);
-
-  const writeTeams = [
-    ...new Set([OPERATIONS_UNIT_TEAM, ...(deptTeam ? [deptTeam] : [])]),
-  ];
-
-  const readPerms =
-    published && audience === "public"
-      ? [Permission.read(Role.any())]
-      : [
-          Permission.read(Role.team(OPERATIONS_UNIT_TEAM)),
-          ...(campusTeam ? [Permission.read(Role.team(campusTeam))] : []),
-          ...(deptTeam ? [Permission.read(Role.team(deptTeam))] : []),
-          ...(published && audience === "members"
-            ? [Permission.read(Role.team(MEMBERS_TEAM))]
-            : []),
-        ];
-
-  return [
-    ...new Set([
-      ...readPerms,
-      ...writeTeams.flatMap((t) => [
-        Permission.update(Role.team(t)),
-        Permission.delete(Role.team(t)),
-      ]),
-    ]),
-  ];
+  const { status, audience = "public" } = opts;
+  if (!isPublishedStatus(status)) {
+    return [];
+  }
+  return audience === "members"
+    ? [Permission.read(Role.team(MEMBERS_TEAM))]
+    : [Permission.read(Role.any())];
 }
 
 /**
  * Build Appwrite $permissions for a content_translations / page_translations
- * row.
+ * row. Translation rows receive visibility equivalent to their parent (see
+ * `buildContentRowPermissions`): published public → `read(any)`, published
+ * member-only → members-team read, anything else → service-only.
  *
- * Public content (events, news, shop, pages, departments): readable by anyone.
- * Member-only content: readable by team:biso-members + write teams only.
- * Write teams (update/delete) are the department team(s) that own the content.
- *
- * Read access mirrors the parent content row (see `buildContentRowPermissions`):
- *  - published + public → `read(any)`.
- *  - otherwise → team-only: Operations Unit, the owning department team(s)
- *    (`writeTeams`), the owning campus team (`readTeams`, read-only), the owner, and
- *    biso-members ONLY when the parent is published AND member-only.
- * A draft/archived parent is therefore never `read(any)` and never readable by
- * biso-members. Omitting `status` preserves the previous published default.
+ * The `writeTeams`/`readTeams`/`ownerUserId` inputs are accepted for call-site
+ * compatibility but intentionally ignored — authoring never lives in row ACLs.
+ * Omitting `status` preserves the previous published default. Recruitment
+ * translations use `buildJobTranslationPermissions` instead, because their
+ * staff read access is a static (non-mirrored) team list.
  */
 export function buildContentTranslationPermissions(opts: {
   audience?: "public" | "members";
@@ -195,40 +170,12 @@ export function buildContentTranslationPermissions(opts: {
   readTeams?: string[];
   ownerUserId?: string;
 }): string[] {
-  const {
-    audience = "public",
-    status,
-    writeTeams,
-    readTeams = [],
-    ownerUserId,
-  } = opts;
+  const { audience = "public", status } = opts;
   const published = status === undefined || isPublishedStatus(status);
-
-  const readPerms =
-    published && audience === "public"
-      ? [Permission.read(Role.any())]
-      : [
-          Permission.read(Role.team(OPERATIONS_UNIT_TEAM)),
-          ...writeTeams.map((t) => Permission.read(Role.team(t))),
-          ...readTeams.map((t) => Permission.read(Role.team(t))),
-          ...(published && audience === "members"
-            ? [Permission.read(Role.team(MEMBERS_TEAM))]
-            : []),
-          ...(ownerUserId ? [Permission.read(Role.user(ownerUserId))] : []),
-        ];
-
-  const writePerms = [
-    ...writeTeams.flatMap((t) => [
-      Permission.update(Role.team(t)),
-      Permission.delete(Role.team(t)),
-    ]),
-    ...(ownerUserId
-      ? [
-          Permission.update(Role.user(ownerUserId)),
-          Permission.delete(Role.user(ownerUserId)),
-        ]
-      : []),
-  ];
-
-  return [...new Set([...readPerms, ...writePerms])];
+  if (!published) {
+    return [];
+  }
+  return audience === "members"
+    ? [Permission.read(Role.team(MEMBERS_TEAM))]
+    : [Permission.read(Role.any())];
 }

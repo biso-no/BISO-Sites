@@ -62,6 +62,7 @@ mock.module("@/lib/recruitment", () => ({
   assertRecruitmentApplicationReviewAccess: mock(() => undefined),
   assertRecruitmentVacancyWriteAccess: assertRecruitmentVacancyWriteAccessSpy,
   buildJobRowPermissions: mock(() => ['read("any")']),
+  buildJobTranslationPermissions: mock(() => ['read("any")']),
   buildRecruitmentApplicationRecord: mock((value: unknown) => value),
   canReviewRecruitmentVacancy: mock(() => true),
   loadRecruitmentLookups: mock(async () => ({

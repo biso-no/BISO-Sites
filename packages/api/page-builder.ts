@@ -1,96 +1,36 @@
 import { ID, Permission, Query, Role } from "./index";
 import { createAdminClient, createSessionClient } from "./server";
 import type {
-  Campus,
-  Departments,
   Pages,
   PageTranslations,
   PageTranslationsLocale,
 } from "./types/appwrite";
 import { PagesStatus, PagesVisibility } from "./types/appwrite";
 
-const OPERATIONS_UNIT_TEAM = "sg-app-dept-operationsunit";
 const MEMBERS_TEAM = "biso-members";
-
-interface PageRowTeams {
-  campusTeam: string | null;
-  deptTeam: string | null;
-}
-
-/**
- * Load campus/department display-name lookups so we can derive the owning
- * Appwrite team IDs for a page. Mirrors the admin app's
- * `loadRecruitmentLookups` / `deriveContentRowTeams`, kept self-contained here
- * to avoid a cross-package import.
- */
-async function loadPageRowTeams(
-  db: Awaited<ReturnType<typeof createSessionClient>>["db"],
-  page: { campus_id?: string | null; department_id?: string | null }
-): Promise<PageRowTeams> {
-  const [campuses, departments] = await Promise.all([
-    db.listRows<Campus>("app", "campus", [Query.limit(100)]),
-    db.listRows<Departments>("app", "departments", [Query.limit(500)]),
-  ]);
-
-  const campusName = page.campus_id
-    ? campuses.rows.find((c) => c.$id === page.campus_id)?.name
-    : null;
-  const campusTeam = campusName
-    ? `sg-app-campus-${campusName.toLowerCase().replace(/\s+/g, "")}`
-    : null;
-
-  const deptName = page.department_id
-    ? departments.rows.find((d) => d.$id === page.department_id)?.Name
-    : null;
-  const deptTeam = deptName
-    ? `sg-app-dept-${deptName.toLowerCase().replace(/\s+/g, "")}`
-    : null;
-
-  return { campusTeam, deptTeam };
-}
 
 /**
  * Build Appwrite $permissions for a page or page_translations row.
  *
- * Published + public pages get `read(any)`; everything else (draft/archived,
- * or authenticated-only visibility) is restricted to team-scoped reads, so an
- * unpublished page is never publicly readable. Write (update/delete) always
- * goes to Operations Unit plus the owning department team — never the campus
- * team.
+ * Row permissions describe CONSUMER visibility only — authoring goes through
+ * the admin client behind application-level authorization, so no team ever
+ * receives row-level write access:
+ *  - published + public → `read(any)`;
+ *  - published + members → members-team read;
+ *  - anything else (draft/archived, unpublished translation) → no
+ *    permissions; the row is service-only.
  */
 function buildPageRowPermissions(opts: {
   isPublished: boolean;
   audience: "public" | "members";
-  campusTeam: string | null;
-  deptTeam: string | null;
 }): string[] {
-  const { isPublished, audience, campusTeam, deptTeam } = opts;
-
-  const writeTeams = [
-    ...new Set([OPERATIONS_UNIT_TEAM, ...(deptTeam ? [deptTeam] : [])]),
-  ];
-
-  const readPerms =
-    isPublished && audience === "public"
-      ? [Permission.read(Role.any())]
-      : [
-          Permission.read(Role.team(OPERATIONS_UNIT_TEAM)),
-          ...(campusTeam ? [Permission.read(Role.team(campusTeam))] : []),
-          ...(deptTeam ? [Permission.read(Role.team(deptTeam))] : []),
-          ...(isPublished && audience === "members"
-            ? [Permission.read(Role.team(MEMBERS_TEAM))]
-            : []),
-        ];
-
-  return [
-    ...new Set([
-      ...readPerms,
-      ...writeTeams.flatMap((t) => [
-        Permission.update(Role.team(t)),
-        Permission.delete(Role.team(t)),
-      ]),
-    ]),
-  ];
+  const { isPublished, audience } = opts;
+  if (!isPublished) {
+    return [];
+  }
+  return audience === "members"
+    ? [Permission.read(Role.team(MEMBERS_TEAM))]
+    : [Permission.read(Role.any())];
 }
 
 function pageAudience(visibility: PagesVisibility): "public" | "members" {
@@ -451,15 +391,9 @@ export async function savePageDraft({
     : PagesStatus.DRAFT;
   const departmentId = normalizedDoc.meta.department || null;
   const visibility = PagesVisibility.PUBLIC;
-  const teams = await loadPageRowTeams(db, {
-    campus_id: campusId,
-    department_id: departmentId,
-  });
   const pagePermissions = buildPageRowPermissions({
     isPublished: pageStatus === PagesStatus.PUBLISHED,
     audience: pageAudience(visibility),
-    campusTeam: teams.campusTeam,
-    deptTeam: teams.deptTeam,
   });
 
   const page = await db.upsertRow(
@@ -493,8 +427,6 @@ export async function savePageDraft({
   const translationPermissions = buildPageRowPermissions({
     isPublished: pageStatus === PagesStatus.PUBLISHED && translationPublished,
     audience: pageAudience(visibility),
-    campusTeam: teams.campusTeam,
-    deptTeam: teams.deptTeam,
   });
 
   const translation = await db.upsertRow<PageTranslations>(
@@ -557,14 +489,11 @@ export async function savePageTranslationDraft({
     ]
   );
   const existing = existingRes.rows[0];
-  const teams = await loadPageRowTeams(db, page);
   const permissions = buildPageRowPermissions({
     isPublished:
       page.status === PagesStatus.PUBLISHED &&
       (existing?.is_published ?? false),
     audience: pageAudience(page.visibility),
-    campusTeam: teams.campusTeam,
-    deptTeam: teams.deptTeam,
   });
   const translation = await db.upsertRow<PageTranslations>(
     "app",
@@ -621,15 +550,9 @@ export async function publishPage({
   ]);
   const pageRow = pageRes.rows[0];
   const visibility = pageRow?.visibility ?? PagesVisibility.PUBLIC;
-  const teams = await loadPageRowTeams(db, {
-    campus_id: pageRow?.campus_id ?? null,
-    department_id: pageRow?.department_id ?? null,
-  });
   const publishedPermissions = buildPageRowPermissions({
     isPublished: true,
     audience: pageAudience(visibility),
-    campusTeam: teams.campusTeam,
-    deptTeam: teams.deptTeam,
   });
 
   await db.updateRow(
@@ -685,15 +608,9 @@ export async function unpublishPage({
   ]);
   const pageRow = pageRes.rows[0];
   const visibility = pageRow?.visibility ?? PagesVisibility.PUBLIC;
-  const teams = await loadPageRowTeams(db, {
-    campus_id: pageRow?.campus_id ?? null,
-    department_id: pageRow?.department_id ?? null,
-  });
   const draftPermissions = buildPageRowPermissions({
     isPublished: false,
     audience: pageAudience(visibility),
-    campusTeam: teams.campusTeam,
-    deptTeam: teams.deptTeam,
   });
 
   const translation = tRes.rows[0];

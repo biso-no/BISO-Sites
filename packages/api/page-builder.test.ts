@@ -186,14 +186,10 @@ describe("page builder", () => {
     db.upsertRow
       .mockResolvedValueOnce({ $id: "page-1" })
       .mockResolvedValueOnce({ $id: "tr-no" });
-    db.listRows
-      // campus + department lookups (loadPageRowTeams)
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [] })
-      // existing translation lookup
-      .mockResolvedValueOnce({
-        rows: [{ $id: "tr-no", is_published: false }],
-      });
+    // existing translation lookup (no team lookups remain)
+    db.listRows.mockResolvedValueOnce({
+      rows: [{ $id: "tr-no", is_published: false }],
+    });
 
     await savePageDraft({ id: "page-1", doc, locale: "no", ctx });
 
@@ -220,8 +216,7 @@ describe("page builder", () => {
           },
         ],
       })
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [] })
+      // existing translation lookup
       .mockResolvedValueOnce({ rows: [] });
     db.upsertRow.mockResolvedValueOnce({ $id: "tr-en" });
 

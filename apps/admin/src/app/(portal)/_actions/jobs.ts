@@ -11,7 +11,6 @@ import type {
 import {
   fetchRecruitmentListRows,
   getRecruitmentJobById,
-  RECRUITMENT_STAFF_TEAMS,
 } from "@repo/shared/recruitment";
 import {
   assertRecruitmentApplicationTransition,
@@ -50,12 +49,13 @@ import {
   assertRecruitmentApplicationReviewAccess,
   assertRecruitmentVacancyWriteAccess,
   buildJobRowPermissions,
+  buildJobTranslationPermissions,
   buildRecruitmentApplicationRecord,
   canReviewRecruitmentVacancy,
   loadRecruitmentLookups,
   toRecruitmentAdminScope,
 } from "@/lib/recruitment";
-import { buildContentTranslationPermissions } from "@/lib/utils";
+
 import { logAuditEvent } from "./audit-log";
 
 // Shorthand type for the db accessor — both admin and session clients return the same shape.
@@ -369,12 +369,10 @@ function scheduleJobTranslation(input: {
       if (!isCurrentTranslationSource(input.source, currentSnapshot)) {
         return;
       }
-      const permissions = buildContentTranslationPermissions({
-        audience: input.audience,
-        readTeams: [],
-        status: input.status,
-        writeTeams: [...RECRUITMENT_STAFF_TEAMS],
-      });
+      const permissions = buildJobTranslationPermissions(
+        input.audience,
+        input.status
+      );
       await persistDeferredJobTranslation(
         db,
         input.jobId,
@@ -560,13 +558,10 @@ export async function createJob(
     const jobId = ID.unique();
     const audience = validated.data.audience ?? "public";
     const jobPerms = buildJobRowPermissions(audience, validated.data.status);
-    const translationPerms = buildContentTranslationPermissions({
+    const translationPerms = buildJobTranslationPermissions(
       audience,
-      status: validated.data.status,
-      // Recruitment editors only: admin + HR. Campus is scoping, never a perm.
-      writeTeams: [...RECRUITMENT_STAFF_TEAMS],
-      readTeams: [],
-    });
+      validated.data.status
+    );
     const payload = await buildJobUpsertPayload(
       sessionDb,
       jobId,
@@ -649,12 +644,10 @@ export async function updateJob(
     const audience =
       validated.data.audience ?? vacancy.metadata.audience ?? "public";
     const jobPerms = buildJobRowPermissions(audience, validated.data.status);
-    const translationPerms = buildContentTranslationPermissions({
+    const translationPerms = buildJobTranslationPermissions(
       audience,
-      status: validated.data.status,
-      writeTeams: [...RECRUITMENT_STAFF_TEAMS],
-      readTeams: [],
-    });
+      validated.data.status
+    );
     const payload = await buildJobUpsertPayload(
       sessionDb,
       id,
