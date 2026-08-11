@@ -3,6 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { requireNavAccess } from "@/lib/authorization";
+import { hasNavAccess } from "@/lib/roles";
 import { listBenefits } from "../_actions/benefits";
 import { EmptyState } from "../_components/empty-state";
 import { StatusBadge } from "../_components/status-badge";
@@ -14,18 +15,27 @@ import {
 } from "../_components/studio";
 
 export default async function BenefitsPage() {
-  await requireNavAccess("portal.benefits");
+  const ctx = await requireNavAccess("portal.benefits");
   const t = await getTranslations("adminPortal.benefits");
 
   const benefits = await listBenefits();
+  // Partner administration keeps its narrower gate — department-only benefit
+  // authors never see the partner surface.
+  const canViewPartners = hasNavAccess(
+    "portal.benefitsPartners",
+    ctx.roles,
+    ctx.departmentTeamIds.length > 0
+  );
 
   return (
     <div className="pb-12">
       <StudioPageHeader description={t("description")} title={t("title")}>
-        <StudioLinkButton href="/benefits/partners">
-          <ExternalLink size={14} />
-          {t("actions.viewPartners")}
-        </StudioLinkButton>
+        {canViewPartners && (
+          <StudioLinkButton href="/benefits/partners">
+            <ExternalLink size={14} />
+            {t("actions.viewPartners")}
+          </StudioLinkButton>
+        )}
         <StudioLinkButton href="/benefits/new" variant="primary">
           <Plus size={15} />
           {t("create")}

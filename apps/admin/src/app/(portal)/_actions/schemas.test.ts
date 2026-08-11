@@ -91,6 +91,28 @@ describe("source-aware bilingual content schemas", () => {
     ).toBeTrue();
   });
 
+  test("benefits carry an optional department ownership id", () => {
+    const base = {
+      campus_id: "campus-oslo",
+      category: "discount",
+      description_en: "",
+      description_nb: "Norsk beskrivelse",
+      kind: "offer" as const,
+      redemption_type: "none" as const,
+      status: "draft" as const,
+      title_en: "",
+      title_nb: "Norsk fordel",
+    };
+
+    expect(
+      benefitSchema.parse({ ...base, department_id: "dept-1" }).department_id
+    ).toBe("dept-1");
+    expect(benefitSchema.parse(base).department_id).toBeUndefined();
+    expect(
+      benefitSchema.parse({ ...base, department_id: null }).department_id
+    ).toBeNull();
+  });
+
   test("accepts one named locale for products", () => {
     const base = {
       campus_id: "campus-oslo",

@@ -1,14 +1,20 @@
 "use server";
 
-import { Query } from "@repo/api";
+import { ID, Query } from "@repo/api";
 import { createAdminClient, createSessionClient } from "@repo/api/server";
 import type {
   CampusBenefits,
   CampusBenefitsStatus,
+  ContentTranslations,
   Partners,
 } from "@repo/api/types/appwrite";
 import { revalidatePath } from "next/cache";
 import { requireAuth } from "@/lib/authorization";
+import {
+  applyContentRelationshipScopeQueries,
+  assertContentOwnership,
+  getContentOwnership,
+} from "@/lib/content-authorization";
 import {
   type AutoTranslationOptions,
   type ContentLocale,
@@ -21,14 +27,21 @@ import {
   scheduleContentTranslation,
   translateContentFields,
 } from "@/lib/content-translation.server";
+import { loadRecruitmentLookups } from "@/lib/recruitment";
 import {
-  applyScopeQueries,
+  buildContentRowPermissions,
+  buildContentTranslationPermissions,
+  deriveContentRowTeams,
+} from "@/lib/utils";
+import {
   assertPublishAccess,
   assertWriteAccess,
   hasRowAccess,
 } from "@/lib/utils/authorization";
 import { logAuditEvent } from "./audit-log";
 import { type BenefitFormValues, benefitSchema } from "./schemas";
+
+type AdminDb = Awaited<ReturnType<typeof createAdminClient>>["db"];
 
 interface BenefitTranslationSnapshot {
   description: string;
@@ -120,6 +133,134 @@ const hasBenefitTranslationSource = ({
 }: BenefitTranslationSnapshot): boolean =>
   Boolean(description.trim() && title.trim());
 
+const hasBenefitLocaleContent = (
+  snapshot: BenefitTranslationSnapshot
+): boolean => Boolean(snapshot.title.trim() || snapshot.description.trim());
+
+interface NestedBenefitTranslation {
+  $id?: string;
+  $permissions: string[];
+  additional_fields: null;
+  content_id: string;
+  content_type: "memberBenefit";
+  description: string;
+  locale: ContentLocale;
+  short_description: string | null;
+  title: string;
+}
+
+/**
+ * Linked `content_translations` children mirroring the inline bilingual
+ * columns, so existing consumers keep reading the inline fields while the
+ * relationship becomes complete. An existing `$id` updates that child in
+ * place; omitting it creates and links a new one.
+ */
+const buildBenefitTranslationChildren = (
+  benefitId: string,
+  values: BenefitFormValues,
+  existingByLocale: Map<string, ContentTranslations>,
+  permissions: string[]
+): NestedBenefitTranslation[] => {
+  const children: NestedBenefitTranslation[] = [];
+  for (const locale of ["no", "en"] as const) {
+    const snapshot = getBenefitValuesTranslationSnapshot(values, locale);
+    const existing = existingByLocale.get(locale);
+    if (!(hasBenefitLocaleContent(snapshot) || existing)) {
+      continue;
+    }
+    children.push({
+      ...(existing ? { $id: existing.$id } : {}),
+      $permissions: permissions,
+      additional_fields: null,
+      content_id: benefitId,
+      content_type: "memberBenefit",
+      description: snapshot.description,
+      locale,
+      short_description: snapshot.teaser || null,
+      title: snapshot.title,
+    });
+  }
+  return children;
+};
+
+/**
+ * Existing locales are looked up by content metadata, not the relation: rows
+ * that predate the relationship backfill are unlinked, and matching them here
+ * both prevents duplicate locale rows and re-links them on the next save.
+ */
+const loadBenefitTranslationsByLocale = async (
+  db: AdminDb,
+  benefitId: string
+): Promise<Map<string, ContentTranslations>> => {
+  const current = await db.listRows<ContentTranslations>(
+    "app",
+    "content_translations",
+    [
+      Query.equal("content_type", "memberBenefit"),
+      Query.equal("content_id", benefitId),
+      Query.limit(5),
+    ]
+  );
+  return new Map(
+    current.rows.map((translation) => [translation.locale, translation])
+  );
+};
+
+const buildBenefitPermissions = async (
+  db: AdminDb,
+  values: Pick<
+    BenefitFormValues,
+    "campus_id" | "department_id" | "is_member_only" | "status"
+  >
+): Promise<{ rowPermissions: string[]; translationPermissions: string[] }> => {
+  const lookups = await loadRecruitmentLookups(db);
+  const audience = values.is_member_only ? "members" : "public";
+  const { campusTeam, deptTeam } = deriveContentRowTeams(lookups, {
+    campus_id: values.campus_id,
+    department_id: values.department_id ?? null,
+  });
+  return {
+    rowPermissions: buildContentRowPermissions({
+      status: values.status,
+      audience,
+      campusTeam,
+      deptTeam,
+    }),
+    translationPermissions: buildContentTranslationPermissions({
+      audience,
+      status: values.status,
+      writeTeams: deptTeam ? [deptTeam] : [],
+      readTeams: campusTeam ? [campusTeam] : [],
+    }),
+  };
+};
+
+const buildBenefitColumns = (values: BenefitFormValues) => ({
+  // Canonical ownership relationships; the scalar column remains as
+  // migration-era compatibility metadata only.
+  campus: values.campus_id,
+  campus_id: values.campus_id,
+  department: values.department_id ?? null,
+  status: values.status as CampusBenefitsStatus,
+  kind: values.kind,
+  redemption_type: values.redemption_type,
+  redemption_value: values.redemption_value ?? null,
+  category: values.category,
+  partner_name: values.partner_name ?? null,
+  title_nb: values.title_nb,
+  title_en: values.title_en,
+  description_nb: values.description_nb,
+  description_en: values.description_en,
+  teaser_nb: values.teaser_nb ?? null,
+  teaser_en: values.teaser_en ?? null,
+  image_url: values.image_url || null,
+  is_featured: values.is_featured ?? false,
+  is_member_only: values.is_member_only ?? true,
+  publish_start: values.publish_start ?? null,
+  publish_end: values.publish_end ?? null,
+  sort_order: values.sort_order ?? 0,
+});
+
 const scheduleBenefitTranslation = ({
   benefitId,
   options,
@@ -140,6 +281,7 @@ const scheduleBenefitTranslation = ({
         source,
         options.sourceLocale
       );
+      // Fresh admin client: the request that scheduled this callback is done.
       const { db } = await createAdminClient();
       const response = await db.listRows<CampusBenefits>(
         "app",
@@ -158,8 +300,9 @@ const scheduleBenefitTranslation = ({
         return;
       }
 
+      const targetLocale = getTargetLocale(options.sourceLocale);
       const destinationColumns =
-        getTargetLocale(options.sourceLocale) === "en"
+        targetLocale === "en"
           ? {
               description_en: translated.description,
               teaser_en: translated.teaser,
@@ -175,6 +318,48 @@ const scheduleBenefitTranslation = ({
         "campus_benefits",
         benefitId,
         destinationColumns
+      );
+
+      // Mirror the destination into its linked content_translations child so
+      // the relationship stays complete alongside the inline columns.
+      const ownership = getContentOwnership(current, { legacyFallback: true });
+      const { translationPermissions } = await buildBenefitPermissions(db, {
+        campus_id: ownership.campus ?? "",
+        department_id: ownership.department,
+        is_member_only: current.is_member_only ?? true,
+        status: current.status,
+      });
+      const existingByLocale = await loadBenefitTranslationsByLocale(
+        db,
+        benefitId
+      );
+      const existingTarget = existingByLocale.get(targetLocale);
+      const childData = {
+        additional_fields: null,
+        content_id: benefitId,
+        content_type: "memberBenefit" as const,
+        description: translated.description,
+        locale: targetLocale,
+        short_description: translated.teaser || null,
+        title: translated.title,
+      };
+      if (existingTarget) {
+        await db.updateRow(
+          "app",
+          "content_translations",
+          existingTarget.$id,
+          childData,
+          translationPermissions
+        );
+        return;
+      }
+      await db.createRow(
+        "app",
+        "content_translations",
+        ID.unique(),
+        // A fresh destination row must arrive already related to its parent.
+        { ...childData, memberBenefit: benefitId },
+        translationPermissions
       );
     },
   });
@@ -214,7 +399,9 @@ export async function listBenefits(opts?: {
   kind?: string;
 }) {
   const ctx = await requireAuth();
-  const { db } = await createSessionClient();
+  // Private admin read: the service client bypasses row security, so the
+  // relationship scope filters below are the authorization boundary.
+  const { db } = await createAdminClient();
 
   const queries: string[] = [
     Query.orderAsc("sort_order"),
@@ -230,9 +417,7 @@ export async function listBenefits(opts?: {
     queries.push(Query.equal("kind", opts.kind));
   }
 
-  // campus_benefits is campus-scoped only (no department column). This also
-  // honors the global-admin campus switcher (activeCampusId).
-  queries.push(...applyScopeQueries(ctx, { departmentField: null }));
+  queries.push(...applyContentRelationshipScopeQueries(ctx));
 
   const response = await db.listRows<CampusBenefits>(
     "app",
@@ -244,15 +429,19 @@ export async function listBenefits(opts?: {
 
 export async function getBenefit(id: string) {
   const ctx = await requireAuth();
-  const { db } = await createSessionClient();
+  const { db } = await createAdminClient();
 
   const response = await db.listRows<CampusBenefits>("app", "campus_benefits", [
     Query.equal("$id", id),
     Query.limit(1),
   ]);
   const benefit = response.rows[0] ?? null;
-  // Treat a row outside the caller's campus scope as not found.
-  if (!(benefit && hasRowAccess(ctx, benefit.campus_id))) {
+  if (!benefit) {
+    return null;
+  }
+  // Treat a row outside the caller's campus/department scope as not found.
+  const ownership = getContentOwnership(benefit, { legacyFallback: true });
+  if (!hasRowAccess(ctx, ownership.campus, ownership.department)) {
     return null;
   }
   return benefit;
@@ -270,34 +459,39 @@ export async function createBenefit(
 
   try {
     const translationOptions = parseAutoTranslationOptions(autoTranslation);
-    assertWriteAccess(ctx, validated.data.campus_id);
+    const { db } = await createAdminClient();
+    await assertContentOwnership(db, ctx, {
+      allowGlobalCampus: false,
+      campusId: validated.data.campus_id,
+      departmentId: validated.data.department_id ?? null,
+    });
     if (validated.data.status === "published") {
-      assertPublishAccess(ctx, validated.data.campus_id);
+      assertPublishAccess(
+        ctx,
+        validated.data.campus_id,
+        validated.data.department_id ?? null
+      );
     }
 
-    const { db } = await createSessionClient();
+    const { rowPermissions, translationPermissions } =
+      await buildBenefitPermissions(db, validated.data);
 
-    const benefit = await db.createRow("app", "campus_benefits", "unique()", {
-      campus_id: validated.data.campus_id,
-      status: validated.data.status as CampusBenefitsStatus,
-      kind: validated.data.kind,
-      redemption_type: validated.data.redemption_type,
-      redemption_value: validated.data.redemption_value ?? null,
-      category: validated.data.category,
-      partner_name: validated.data.partner_name ?? null,
-      title_nb: validated.data.title_nb,
-      title_en: validated.data.title_en,
-      description_nb: validated.data.description_nb,
-      description_en: validated.data.description_en,
-      teaser_nb: validated.data.teaser_nb ?? null,
-      teaser_en: validated.data.teaser_en ?? null,
-      image_url: validated.data.image_url || null,
-      is_featured: validated.data.is_featured ?? false,
-      is_member_only: validated.data.is_member_only ?? true,
-      publish_start: validated.data.publish_start ?? null,
-      publish_end: validated.data.publish_end ?? null,
-      sort_order: validated.data.sort_order ?? 0,
-    });
+    const benefitId = ID.unique();
+    const benefit = await db.upsertRow(
+      "app",
+      "campus_benefits",
+      benefitId,
+      {
+        ...buildBenefitColumns(validated.data),
+        contentTranslations: buildBenefitTranslationChildren(
+          benefitId,
+          validated.data,
+          new Map(),
+          translationPermissions
+        ),
+      },
+      rowPermissions
+    );
 
     await logAuditEvent(ctx, "benefit_created", {
       resourceId: benefit.$id,
@@ -334,7 +528,7 @@ export async function updateBenefit(
     return { error: validated.error.flatten().fieldErrors };
   }
 
-  const { db } = await createSessionClient();
+  const { db } = await createAdminClient();
 
   const existing = await db.listRows<CampusBenefits>("app", "campus_benefits", [
     Query.equal("$id", id),
@@ -347,37 +541,46 @@ export async function updateBenefit(
 
   try {
     const translationOptions = parseAutoTranslationOptions(autoTranslation);
-    assertWriteAccess(ctx, benefit.campus_id);
-    assertWriteAccess(ctx, validated.data.campus_id);
+    // Authorize both the persisted scope and the requested scope so ownership
+    // transfers require access on each side.
+    const persisted = getContentOwnership(benefit, { legacyFallback: true });
+    assertWriteAccess(ctx, persisted.campus, persisted.department);
+    await assertContentOwnership(db, ctx, {
+      allowGlobalCampus: false,
+      campusId: validated.data.campus_id,
+      departmentId: validated.data.department_id ?? null,
+    });
     if (
       benefit.status === "published" ||
       validated.data.status === "published"
     ) {
-      assertPublishAccess(ctx, benefit.campus_id);
-      assertPublishAccess(ctx, validated.data.campus_id);
+      assertPublishAccess(ctx, persisted.campus, persisted.department);
+      assertPublishAccess(
+        ctx,
+        validated.data.campus_id,
+        validated.data.department_id ?? null
+      );
     }
 
-    await db.updateRow("app", "campus_benefits", id, {
-      campus_id: validated.data.campus_id,
-      status: validated.data.status as CampusBenefitsStatus,
-      kind: validated.data.kind,
-      redemption_type: validated.data.redemption_type,
-      redemption_value: validated.data.redemption_value ?? null,
-      category: validated.data.category,
-      partner_name: validated.data.partner_name ?? null,
-      title_nb: validated.data.title_nb,
-      title_en: validated.data.title_en,
-      description_nb: validated.data.description_nb,
-      description_en: validated.data.description_en,
-      teaser_nb: validated.data.teaser_nb ?? null,
-      teaser_en: validated.data.teaser_en ?? null,
-      image_url: validated.data.image_url || null,
-      is_featured: validated.data.is_featured ?? false,
-      is_member_only: validated.data.is_member_only ?? true,
-      publish_start: validated.data.publish_start ?? null,
-      publish_end: validated.data.publish_end ?? null,
-      sort_order: validated.data.sort_order ?? 0,
-    });
+    const { rowPermissions, translationPermissions } =
+      await buildBenefitPermissions(db, validated.data);
+    const existingByLocale = await loadBenefitTranslationsByLocale(db, id);
+
+    await db.upsertRow(
+      "app",
+      "campus_benefits",
+      id,
+      {
+        ...buildBenefitColumns(validated.data),
+        contentTranslations: buildBenefitTranslationChildren(
+          id,
+          validated.data,
+          existingByLocale,
+          translationPermissions
+        ),
+      },
+      rowPermissions
+    );
 
     await logAuditEvent(ctx, "benefit_updated", {
       resourceId: id,
@@ -407,7 +610,7 @@ export async function updateBenefit(
 
 async function _deleteBenefit(id: string) {
   const ctx = await requireAuth();
-  const { db } = await createSessionClient();
+  const { db } = await createAdminClient();
 
   const existing = await db.listRows<CampusBenefits>("app", "campus_benefits", [
     Query.equal("$id", id),
@@ -418,7 +621,8 @@ async function _deleteBenefit(id: string) {
     return { error: "Benefit not found" };
   }
 
-  assertWriteAccess(ctx, benefit.campus_id);
+  const ownership = getContentOwnership(benefit, { legacyFallback: true });
+  assertWriteAccess(ctx, ownership.campus, ownership.department);
 
   await db.deleteRow("app", "campus_benefits", id);
 
@@ -428,6 +632,7 @@ async function _deleteBenefit(id: string) {
 
 export async function listPartners(opts?: { campusId?: string }) {
   const ctx = await requireAuth();
+  // Partner administration keeps its existing narrow, campus-scoped access.
   const { db } = await createSessionClient();
 
   const queries: string[] = [Query.orderAsc("name"), Query.limit(100)];

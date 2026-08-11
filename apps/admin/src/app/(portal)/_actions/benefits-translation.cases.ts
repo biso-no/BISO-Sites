@@ -10,9 +10,16 @@ const sessionDb = {
   updateRow: mock(),
 };
 const adminDb = {
+  createRow: mock(),
+  deleteRow: mock(),
+  getRow: mock(),
   listRows: mock(),
   updateRow: mock(),
+  upsertRow: mock(),
 };
+
+// Mutable current benefit row served for campus_benefits lookups.
+let benefitRow: Record<string, unknown>;
 const scheduledTasks: Array<() => Promise<void>> = [];
 const scheduleContentTranslation = mock(
   ({ enabled, task }: { enabled: boolean; task: () => Promise<void> }) => {
@@ -59,6 +66,15 @@ mock.module("@repo/api/server", () => ({
 }));
 
 mock.module("@/lib/authorization", () => ({ requireAuth }));
+
+mock.module("@/lib/recruitment", () => ({
+  loadRecruitmentLookups: mock(async () => ({
+    campusIdsByName: new Map([["Oslo", "campus-oslo"]]),
+    campusNamesById: new Map([["campus-oslo", "Oslo"]]),
+    departmentIdsByName: new Map(),
+    departmentNamesById: new Map(),
+  })),
+}));
 
 mock.module("@/lib/content-translation.server", () => ({
   contentLocaleSchema: {
@@ -118,11 +134,27 @@ beforeEach(() => {
   sessionDb.createRow.mockReset();
   sessionDb.listRows.mockReset();
   sessionDb.updateRow.mockReset();
+  adminDb.createRow.mockReset();
+  adminDb.deleteRow.mockReset();
+  adminDb.getRow.mockReset();
   adminDb.listRows.mockReset();
   adminDb.updateRow.mockReset();
+  adminDb.upsertRow.mockReset();
 
-  sessionDb.createRow.mockImplementation(
-    (
+  benefitRow = {
+    $id: "benefit-1",
+    campus_id: "campus-oslo",
+    description_en: "",
+    description_nb: "<p>Norsk beskrivelse</p>",
+    is_member_only: true,
+    status: "draft",
+    teaser_en: null,
+    teaser_nb: "Norsk ingress",
+    title_en: "",
+    title_nb: "Norsk tittel",
+  };
+  adminDb.upsertRow.mockImplementation(
+    async (
       _databaseId: string,
       _tableId: string,
       _rowId: string,
@@ -132,31 +164,20 @@ beforeEach(() => {
       return { $id: "benefit-1", ...data };
     }
   );
-  sessionDb.listRows.mockResolvedValue({
-    rows: [
-      {
-        $id: "benefit-1",
-        campus_id: "campus-oslo",
-        status: "draft",
-      },
-    ],
-    total: 1,
-  });
-  sessionDb.updateRow.mockResolvedValue({ $id: "benefit-1" });
-  adminDb.listRows.mockResolvedValue({
-    rows: [
-      {
-        $id: "benefit-1",
-        description_en: "",
-        description_nb: "<p>Norsk beskrivelse</p>",
-        teaser_en: null,
-        teaser_nb: "Norsk ingress",
-        title_en: "",
-        title_nb: "Norsk tittel",
-      },
-    ],
-    total: 1,
-  });
+  adminDb.listRows.mockImplementation(
+    async (_databaseId: string, tableId: string) =>
+      tableId === "campus_benefits"
+        ? { rows: [benefitRow], total: 1 }
+        : { rows: [], total: 0 }
+  );
+  adminDb.createRow.mockImplementation(
+    async (
+      _databaseId: string,
+      _tableId: string,
+      rowId: string,
+      data: Record<string, unknown>
+    ) => ({ $id: rowId, ...data })
+  );
   adminDb.updateRow.mockResolvedValue({ $id: "benefit-1" });
 });
 
@@ -223,11 +244,12 @@ describe("benefit automatic translation", () => {
       { enabled: false, sourceLocale: "no" }
     );
 
-    expect(sessionDb.createRow).toHaveBeenCalledWith(
+    expect(adminDb.upsertRow).toHaveBeenCalledWith(
       "app",
       "campus_benefits",
       expect.any(String),
-      expect.objectContaining({ status: "published" })
+      expect.objectContaining({ status: "published" }),
+      expect.any(Array)
     );
   });
 
@@ -252,6 +274,21 @@ describe("benefit automatic translation", () => {
         teaser_en: "English teaser",
         title_en: "English title",
       }
+    );
+    // The destination is mirrored into a linked content_translations child.
+    expect(adminDb.createRow).toHaveBeenCalledWith(
+      "app",
+      "content_translations",
+      expect.any(String),
+      expect.objectContaining({
+        content_id: "benefit-1",
+        content_type: "memberBenefit",
+        locale: "en",
+        memberBenefit: "benefit-1",
+        short_description: "English teaser",
+        title: "English title",
+      }),
+      expect.any(Array)
     );
   });
 
@@ -285,29 +322,20 @@ describe("benefit automatic translation", () => {
   });
 
   test("skips the destination write when the submitted source is stale", async () => {
-    adminDb.listRows.mockResolvedValue({
-      rows: [
-        {
-          $id: "benefit-1",
-          description_en: "",
-          description_nb: "<p>Changed after save</p>",
-          teaser_en: null,
-          teaser_nb: "Norsk ingress",
-          title_en: "",
-          title_nb: "Norsk tittel",
-        },
-      ],
-      total: 1,
-    });
-
     await updateBenefit(
       "benefit-1",
       norwegianValues,
       enabledNorwegianTranslation
     );
     expect(scheduledTasks).toHaveLength(1);
+
+    benefitRow = {
+      ...benefitRow,
+      description_nb: "<p>Changed after save</p>",
+    };
     await scheduledTasks[0]?.();
 
     expect(adminDb.updateRow).not.toHaveBeenCalled();
+    expect(adminDb.createRow).not.toHaveBeenCalled();
   });
 });

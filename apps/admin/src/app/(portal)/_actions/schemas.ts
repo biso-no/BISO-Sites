@@ -18,6 +18,7 @@ export const benefitSchema = z
     teaser_nb: z.string().optional().nullable(),
     teaser_en: z.string().optional().nullable(),
     campus_id: z.string().min(1, "Campus is required"),
+    department_id: z.string().optional().nullable(),
     status: z.enum(["draft", "published", "archived"]),
     kind: z.enum(["offer", "perk", "service"]),
     redemption_type: z.enum(["none", "code", "link", "qr", "onsite"]),

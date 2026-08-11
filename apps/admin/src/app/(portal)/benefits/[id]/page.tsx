@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { requireNavAccess } from "@/lib/authorization";
+import { getContentOwnership } from "@/lib/content-authorization";
 import { getBenefit } from "../../_actions/benefits";
 import { listCampuses } from "../../_actions/lookups";
 import { BenefitEditorClient } from "./_components/benefit-editor-client";
@@ -10,7 +11,7 @@ interface Props {
 }
 
 export default async function BenefitEditorPage({ params }: Props) {
-  await requireNavAccess("portal.benefits");
+  const ctx = await requireNavAccess("portal.benefits");
   const { id } = await params;
   const t = await getTranslations("adminPortal.benefits");
 
@@ -24,10 +25,24 @@ export default async function BenefitEditorPage({ params }: Props) {
     notFound();
   }
 
+  // Department authors are pinned to their own department; campus/global
+  // admins may pick any department in the campus or keep it campus-wide.
+  const isAdmin =
+    ctx.roles.includes("globaladmin") || ctx.managedCampusIds.length > 0;
+  const pinnedDepartmentId =
+    !isAdmin && ctx.resolvedDepartmentIds.length === 1
+      ? ctx.resolvedDepartmentIds[0]
+      : null;
+  const persistedDepartmentId = benefit
+    ? getContentOwnership(benefit, { legacyFallback: true }).department
+    : null;
+
   return (
     <BenefitEditorClient
       benefit={benefit}
       campuses={campuses}
+      initialDepartmentId={persistedDepartmentId ?? pinnedDepartmentId}
+      initialDepartments={[]}
       isNew={isNew}
       labels={{
         back: t("title"),
@@ -53,6 +68,7 @@ export default async function BenefitEditorPage({ params }: Props) {
         saveError: t("saveError"),
         publishSuccess: t("publishSuccess"),
       }}
+      lockDepartment={Boolean(pinnedDepartmentId)}
     />
   );
 }

@@ -1,6 +1,10 @@
 "use client";
 
-import type { Campus, CampusBenefits } from "@repo/api/types/appwrite";
+import type {
+  Campus,
+  CampusBenefits,
+  Departments,
+} from "@repo/api/types/appwrite";
 import { ContentEditor } from "@repo/ui/components/content-editor";
 import { useForm } from "@tanstack/react-form";
 import Image from "next/image";
@@ -21,6 +25,7 @@ import {
   generateBenefitTranslationDraft,
   updateBenefit,
 } from "../../../_actions/benefits";
+import { DepartmentCombobox } from "../../../_components/department-combobox";
 import { EditorHeader } from "../../../_components/editor-header";
 import { ImageUploadField } from "../../../_components/image-upload-field";
 import { PortalButton } from "../../../_components/portal-button";
@@ -39,8 +44,12 @@ import {
 interface BenefitEditorClientProps {
   benefit: CampusBenefits | null;
   campuses: Campus[];
+  initialDepartmentId: string | null;
+  initialDepartments: Departments[];
   isNew: boolean;
   labels: Record<string, string>;
+  /** Single-department authors are pinned to their department. */
+  lockDepartment: boolean;
 }
 
 const KIND_OPTIONS = [
@@ -117,8 +126,11 @@ const getBenefitSaveMessage = ({
 export function BenefitEditorClient({
   benefit,
   campuses,
+  initialDepartmentId,
+  initialDepartments,
   isNew,
   labels,
+  lockDepartment,
 }: BenefitEditorClientProps) {
   const router = useRouter();
   const [isPublishing, setIsPublishing] = useState(false);
@@ -184,6 +196,7 @@ export function BenefitEditorClient({
       teaser_nb: benefit?.teaser_nb ?? null,
       teaser_en: benefit?.teaser_en ?? null,
       campus_id: benefit?.campus_id ?? campuses[0]?.$id ?? "",
+      department_id: initialDepartmentId,
       status: (benefit?.status as BenefitFormValues["status"]) ?? "draft",
       kind: (benefit?.kind as BenefitFormValues["kind"]) ?? "offer",
       redemption_type:
@@ -477,6 +490,25 @@ export function BenefitEditorClient({
               )}
             </form.Field>
           </div>
+
+          <form.Subscribe selector={(state) => state.values.campus_id}>
+            {(campusId) => (
+              <form.Field name="department_id">
+                {(field) => (
+                  <PortalField label={labels.department ?? "Department"}>
+                    <DepartmentCombobox
+                      campusId={campusId || null}
+                      disabled={lockDepartment}
+                      initialDepartments={initialDepartments}
+                      onChange={(id) => field.handleChange(id)}
+                      placeholder="Campus-wide (no department)"
+                      value={field.state.value ?? null}
+                    />
+                  </PortalField>
+                )}
+              </form.Field>
+            )}
+          </form.Subscribe>
 
           <div className="space-y-3 pt-2">
             <PortalField label="Translation source">
