@@ -185,7 +185,8 @@
     "needsBiLink": {
       "title": "Koble til BI-studentkontoen din",
       "body": "Vi bekrefter medlemskapet ditt mot BI-studentregisteret. Å logge inn med studentmailen er ikke nok — du må koble til selve kontoen.",
-      "cta": "Koble til BI Student-konto"
+      "cta": "Koble til BI Student-konto",
+      "linkFailed": "Vi fikk ikke fullført koblingen. Vennligst prøv igjen, eller kontakt oss hvis det fortsetter å mislykkes."
     },
     "needsDirectoryRecord": {
       "title": "Vi kunne ikke bekrefte BI-registreringen din",

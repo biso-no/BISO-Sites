@@ -1,25 +1,31 @@
 "use client";
 
 import { clientAccount, OAuthProvider } from "@repo/api/client";
+import { Alert, AlertDescription } from "@repo/ui/components/ui/alert";
 import { Button } from "@repo/ui/components/ui/button";
 import { Card } from "@repo/ui/components/ui/card";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useTransition } from "react";
 
+// Each of these gate states is a single-purpose page with no other heading on
+// it — the title here is the page's only <h1>, not a subsection heading.
 function StateCard({
   title,
   body,
+  alert,
   children,
 }: {
+  alert?: React.ReactNode;
   body: string;
   children?: React.ReactNode;
   title: string;
 }) {
   return (
     <Card className="mx-auto max-w-xl p-8 text-center">
-      <h2 className="mb-2 font-bold text-foreground text-xl">{title}</h2>
+      <h1 className="mb-2 font-bold text-foreground text-xl">{title}</h1>
       <p className="mb-6 text-muted-foreground text-sm">{body}</p>
+      {alert ? <div className="mb-6">{alert}</div> : null}
       <div className="flex flex-wrap justify-center gap-3">{children}</div>
     </Card>
   );
@@ -36,7 +42,11 @@ export function SignedOutState() {
   );
 }
 
-export function NeedsBiLinkState() {
+export function NeedsBiLinkState({
+  linkFailed = false,
+}: {
+  linkFailed?: boolean;
+}) {
   const t = useTranslations("membership.join.needsBiLink");
   const [isLinking, startLink] = useTransition();
 
@@ -53,7 +63,17 @@ export function NeedsBiLinkState() {
   };
 
   return (
-    <StateCard body={t("body")} title={t("title")}>
+    <StateCard
+      alert={
+        linkFailed ? (
+          <Alert className="text-left" variant="destructive">
+            <AlertDescription>{t("linkFailed")}</AlertDescription>
+          </Alert>
+        ) : null
+      }
+      body={t("body")}
+      title={t("title")}
+    >
       <Button disabled={isLinking} onClick={link}>
         {t("cta")}
       </Button>

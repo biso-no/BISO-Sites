@@ -31,7 +31,7 @@ type BiUser = Users & {
 export default async function MembershipJoinPage({
   searchParams,
 }: {
-  searchParams: Promise<{ linked?: string }>;
+  searchParams: Promise<{ linked?: string; oidc_failed?: string }>;
 }) {
   const params = await searchParams;
   if (params.linked === "1") {
@@ -40,6 +40,7 @@ export default async function MembershipJoinPage({
     // re-evaluates, so the very next render can move past `needs_bi_link`.
     await syncBiStudentIdentity();
   }
+  const linkFailed = params.oidc_failed === "1";
 
   const [userData, status, plans, flags] = await Promise.all([
     getLoggedInUser(),
@@ -62,7 +63,7 @@ export default async function MembershipJoinPage({
     return <SignedOutState />;
   }
   if (gate.state === "needs_bi_link") {
-    return <NeedsBiLinkState />;
+    return <NeedsBiLinkState linkFailed={linkFailed} />;
   }
   if (gate.state === "needs_directory_record") {
     return <RetryDirectoryState />;
