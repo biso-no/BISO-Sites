@@ -206,6 +206,7 @@ export interface MembershipProductSyncItem {
   categoryName: string | null;
   expiryDate: string;
   isActive: boolean;
+  price: number;
   productId: number;
   productName: string;
   productNo: string;

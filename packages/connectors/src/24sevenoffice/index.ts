@@ -45,6 +45,12 @@ export {
   previewMembershipSync,
   syncMembershipsFrom24SO,
 } from "./membership-sync";
+// Membership sync row merge (administrator-owned price/canPurchase)
+export type {
+  ExistingMembershipRow,
+  MembershipSyncItemLike,
+} from "./membership-sync-merge";
+export { mergeMembershipRow } from "./membership-sync-merge";
 // Products management
 export { getMembershipProducts, getProducts } from "./products";
 // Finago REST API
