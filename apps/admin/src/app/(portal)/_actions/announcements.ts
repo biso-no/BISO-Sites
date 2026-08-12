@@ -63,6 +63,7 @@ interface AnnouncementDeliveryClaim {
 
 type AnnouncementTranslationDraftInput = AnnouncementTranslationSnapshot & {
   campusId: string | null;
+  departmentId?: string | null;
   sourceLocale: ContentLocale;
 };
 
@@ -299,7 +300,10 @@ export async function generateAnnouncementTranslationDraft(
 
   try {
     if (input.campusId) {
-      assertWriteAccess(ctx, input.campusId);
+      // Department authors own their department's announcements, so the
+      // selected department has to travel with the campus or they fail this
+      // check.
+      assertWriteAccess(ctx, input.campusId, input.departmentId ?? null);
     } else if (!ctx.roles.includes("globaladmin")) {
       return { error: "A campus is required for non-global admins." };
     }

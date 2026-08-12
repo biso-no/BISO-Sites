@@ -58,6 +58,23 @@ const campusAdminContext: UserAuthContext = {
   userId: "user-1",
 };
 
+/** Pure department author: no managed campus, one resolved department. */
+const departmentAuthorContext: UserAuthContext = {
+  activeCampusId: undefined,
+  campusNames: ["Oslo"],
+  campusTeamIds: ["sg-app-campus-oslo"],
+  departmentNames: ["Marketing"],
+  departmentTeamIds: ["sg-app-dept-marketing"],
+  email: "author@example.com",
+  managedCampuses: [],
+  managedCampusIds: [],
+  name: "Marketing Author",
+  resolvedCampusIds: ["campus-oslo"],
+  resolvedDepartmentIds: ["dept-marketing"],
+  roles: ["department"],
+  userId: "user-2",
+};
+
 const requireAuth = mock(async () => campusAdminContext);
 
 mock.module("@repo/api/server", () => ({
@@ -193,6 +210,45 @@ describe("benefit manual translation", () => {
 
     expect(result).toEqual({
       error: "Unauthorized: no write access to this campus",
+    });
+    expect(translateContentFields).not.toHaveBeenCalled();
+  });
+
+  test("allows a department author to translate their own department's benefit", async () => {
+    requireAuth.mockImplementationOnce(async () => departmentAuthorContext);
+
+    const result = await generateBenefitTranslationDraft({
+      campusId: "campus-oslo",
+      departmentId: "dept-marketing",
+      description: "<p>Norsk beskrivelse</p>",
+      sourceLocale: "no",
+      teaser: "Norsk ingress",
+      title: "Norsk tittel",
+    });
+
+    expect(result).toEqual({
+      data: {
+        description: "<p>English description</p>",
+        teaser: "English teaser",
+        title: "English title",
+      },
+    });
+  });
+
+  test("denies a department author outside their department", async () => {
+    requireAuth.mockImplementationOnce(async () => departmentAuthorContext);
+
+    const result = await generateBenefitTranslationDraft({
+      campusId: "campus-oslo",
+      departmentId: "dept-other",
+      description: "<p>Norsk beskrivelse</p>",
+      sourceLocale: "no",
+      teaser: "Norsk ingress",
+      title: "Norsk tittel",
+    });
+
+    expect(result).toEqual({
+      error: "Unauthorized: no write access to this department",
     });
     expect(translateContentFields).not.toHaveBeenCalled();
   });

@@ -209,7 +209,7 @@ describe("repairContentRelationships", () => {
   it("backfills ownership relationships from legacy scalar columns", async () => {
     mockTables({
       campus: [{ $id: "campus-oslo" }],
-      departments: [{ $id: "dept-1" }],
+      departments: [{ $id: "dept-1", campus: { $id: "campus-oslo" } }],
       news: [
         {
           $id: "news-1",
@@ -239,7 +239,7 @@ describe("repairContentRelationships", () => {
 
   it("uses the webshop departmentId legacy spelling", async () => {
     mockTables({
-      departments: [{ $id: "dept-1" }],
+      departments: [{ $id: "dept-1", campus_id: "campus-oslo" }],
       webshop_products: [
         {
           $id: "product-1",
@@ -263,6 +263,80 @@ describe("repairContentRelationships", () => {
       rowId: "product-1",
       tableId: "webshop_products",
       value: "dept-1",
+    });
+  });
+
+  it("refuses to backfill a department from another campus", async () => {
+    mockTables({
+      campus: [{ $id: "campus-oslo" }],
+      departments: [{ $id: "dept-bergen", campus: { $id: "campus-bergen" } }],
+      news: [
+        {
+          $id: "news-1",
+          campus: { $id: "campus-oslo" },
+          campus_id: "campus-oslo",
+          department: null,
+          department_id: "dept-bergen",
+        },
+      ],
+    });
+
+    const report = await repairContentRelationships(db, { apply: true });
+
+    expect(db.updateRow).not.toHaveBeenCalled();
+    expect(report.ownershipBackfills).toEqual([]);
+    expect(report.errors).toContainEqual({
+      id: "news/news-1",
+      message:
+        "department target dept-bergen belongs to campus campus-bergen, row campus is campus-oslo",
+    });
+    expect(hasUnsafeFindings(report)).toBe(true);
+  });
+
+  it("refuses to backfill a department when the row has no campus", async () => {
+    mockTables({
+      departments: [{ $id: "dept-1", campus: { $id: "campus-oslo" } }],
+      news: [
+        {
+          $id: "news-1",
+          campus: null,
+          campus_id: null,
+          department: null,
+          department_id: "dept-1",
+        },
+      ],
+    });
+
+    const report = await repairContentRelationships(db, { apply: true });
+
+    expect(db.updateRow).not.toHaveBeenCalled();
+    expect(report.errors).toContainEqual({
+      id: "news/news-1",
+      message: "department target dept-1 cannot be verified: row has no campus",
+    });
+    expect(hasUnsafeFindings(report)).toBe(true);
+  });
+
+  it("reports a missing department target instead of backfilling it", async () => {
+    mockTables({
+      campus: [{ $id: "campus-oslo" }],
+      news: [
+        {
+          $id: "news-1",
+          campus: { $id: "campus-oslo" },
+          campus_id: "campus-oslo",
+          department: null,
+          department_id: "dept-gone",
+        },
+      ],
+    });
+
+    const report = await repairContentRelationships(db, { apply: true });
+
+    expect(db.updateRow).not.toHaveBeenCalled();
+    expect(report.errors).toContainEqual({
+      id: "news/news-1",
+      message: "department target dept-gone does not exist",
     });
   });
 
@@ -299,6 +373,86 @@ describe("repairContentRelationships", () => {
       jobId: "job-1",
       translationIds: ["tr-no", "tr-en"],
     });
+  });
+
+  it("keeps job children the pass skipped when rebuilding the relation", async () => {
+    mockTables({
+      content_translations: [
+        {
+          $id: "tr-en",
+          content_id: "job-1",
+          content_type: "job",
+          locale: "en",
+        },
+        // Historical child: no content_id, so it is reported as an orphan and
+        // never lands in the job's expected set.
+        {
+          $id: "tr-legacy",
+          content_id: null,
+          content_type: "job",
+          locale: "no",
+        },
+      ],
+      jobs: [
+        {
+          $id: "job-1",
+          translations: [{ $id: "tr-legacy" }],
+        },
+      ],
+    });
+
+    const report = await repairContentRelationships(db, { apply: true });
+
+    expect(db.upsertRow).toHaveBeenCalledWith("app", "jobs", "job-1", {
+      translations: ["tr-legacy", "tr-en"],
+    });
+    expect(report.jobRelinked).toContainEqual({
+      jobId: "job-1",
+      translationIds: ["tr-legacy", "tr-en"],
+    });
+    expect(report.orphans).toContainEqual({
+      contentId: null,
+      contentType: "job",
+      translationId: "tr-legacy",
+    });
+  });
+
+  it("keeps a duplicate-group child linked when rebuilding the relation", async () => {
+    mockTables({
+      content_translations: [
+        {
+          $id: "tr-dup-a",
+          content_id: "job-1",
+          content_type: "job",
+          locale: "no",
+        },
+        {
+          $id: "tr-dup-b",
+          content_id: "job-1",
+          content_type: "job",
+          locale: "no",
+        },
+        {
+          $id: "tr-en",
+          content_id: "job-1",
+          content_type: "job",
+          locale: "en",
+        },
+      ],
+      jobs: [
+        {
+          $id: "job-1",
+          translations: [{ $id: "tr-dup-a" }],
+        },
+      ],
+    });
+
+    const report = await repairContentRelationships(db, { apply: true });
+
+    expect(db.upsertRow).toHaveBeenCalledWith("app", "jobs", "job-1", {
+      translations: ["tr-dup-a", "tr-en"],
+    });
+    expect(hasUnsafeFindings(report)).toBe(true);
   });
 
   it("leaves a complete job relation untouched", async () => {

@@ -48,6 +48,14 @@ team grants" to a **scoped service boundary**:
 - Row-permission audit: every existing published row already carries row-level
   read permissions, so removing table-level reads cannot hide legacy content.
 - `uniq_content_locale` created and locked into the schema contract test.
+- Two engine hardenings landed after that run (2026-08-12), so re-run the
+  dry-run before any further `--apply`: rebuilding the one-way `jobs.translations`
+  relation now writes the **union** of the current and expected children instead
+  of replacing it (a child the pass skips — duplicate group, missing or foreign
+  `content_id` — can no longer be silently unlinked), and a `department`
+  backfill is refused unless the department's own campus matches the row's
+  campus. Cross-campus, campus-less, and unverifiable pairs are reported as
+  errors, because `assertContentOwnership` rejects that tuple on every write.
 
 ### Remaining owner steps (in order)
 

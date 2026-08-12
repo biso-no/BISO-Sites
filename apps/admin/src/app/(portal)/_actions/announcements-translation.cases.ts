@@ -204,6 +204,55 @@ describe("announcement manual translation", () => {
     expect(translateContentFields).not.toHaveBeenCalled();
   });
 
+  test("allows a department author to translate their own department's announcement", async () => {
+    requireAuth.mockImplementationOnce(async () => ({
+      ...globalAdminContext,
+      campusNames: ["Oslo"],
+      departmentNames: ["Marketing"],
+      departmentTeamIds: ["sg-app-dept-marketing"],
+      resolvedCampusIds: ["campus-oslo"],
+      resolvedDepartmentIds: ["dept-marketing"],
+      roles: ["department"],
+    }));
+
+    const result = await generateAnnouncementTranslationDraft({
+      body: "<p>English body</p>",
+      campusId: "campus-oslo",
+      departmentId: "dept-marketing",
+      sourceLocale: "en",
+      title: "English title",
+    });
+
+    expect(result).toEqual({
+      data: { body: "<p>Norsk brødtekst</p>", title: "Norsk tittel" },
+    });
+  });
+
+  test("denies a department author outside their department", async () => {
+    requireAuth.mockImplementationOnce(async () => ({
+      ...globalAdminContext,
+      campusNames: ["Oslo"],
+      departmentNames: ["Marketing"],
+      departmentTeamIds: ["sg-app-dept-marketing"],
+      resolvedCampusIds: ["campus-oslo"],
+      resolvedDepartmentIds: ["dept-marketing"],
+      roles: ["department"],
+    }));
+
+    const result = await generateAnnouncementTranslationDraft({
+      body: "<p>English body</p>",
+      campusId: "campus-oslo",
+      departmentId: "dept-other",
+      sourceLocale: "en",
+      title: "English title",
+    });
+
+    expect(result).toEqual({
+      error: "Unauthorized: no write access to this department",
+    });
+    expect(translateContentFields).not.toHaveBeenCalled();
+  });
+
   test("maps English and Norwegian drafts in both directions", async () => {
     const norwegian = await generateAnnouncementTranslationDraft({
       body: "<p>English body</p>",

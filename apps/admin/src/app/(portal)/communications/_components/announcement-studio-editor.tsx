@@ -1983,6 +1983,7 @@ export function AnnouncementStudioEditor({
       const result = await generateAnnouncementTranslationDraft({
         ...source,
         campusId: values.campus_id ?? null,
+        departmentId: values.department_id ?? null,
         sourceLocale: locale,
       });
       if ("error" in result && result.error) {

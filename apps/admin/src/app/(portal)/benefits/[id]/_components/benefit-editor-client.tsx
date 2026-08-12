@@ -234,6 +234,7 @@ export function BenefitEditorClient({
     try {
       const result = await generateBenefitTranslationDraft({
         campusId: values.campus_id,
+        departmentId: values.department_id ?? null,
         ...source,
         sourceLocale,
       });

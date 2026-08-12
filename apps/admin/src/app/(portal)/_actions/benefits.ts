@@ -51,6 +51,7 @@ interface BenefitTranslationSnapshot {
 
 type BenefitTranslationDraftInput = BenefitTranslationSnapshot & {
   campusId: string;
+  departmentId?: string | null;
   sourceLocale: ContentLocale;
 };
 
@@ -379,7 +380,9 @@ export async function generateBenefitTranslationDraft(
   }
 
   try {
-    assertWriteAccess(ctx, input.campusId);
+    // Department authors own their department's benefits, so the selected
+    // department has to travel with the campus or they fail this check.
+    assertWriteAccess(ctx, input.campusId, input.departmentId ?? null);
     return {
       data: await translateBenefitSnapshot(input, input.sourceLocale),
     };
