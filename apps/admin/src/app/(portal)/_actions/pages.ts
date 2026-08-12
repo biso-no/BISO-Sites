@@ -305,12 +305,19 @@ export async function publishPageAction(
     const publishedPageVersion = sourceDocument
       ? (await db.getRow<Pages>("app", "pages", id)).$updatedAt
       : null;
+    // Translation drafts live in `page_translations`, which never touches the
+    // parent row, so the version pin above cannot see a concurrent edit of the
+    // destination locale. Snapshot it too.
+    const destinationDocument = sourceDocument
+      ? await getPageSourceDocument(id, getTargetLocale(publishedLocale), db)
+      : null;
     const translationQueued =
       sourceDocument && publishedPageVersion
         ? scheduleContentTranslation({
             enabled: true,
             task: () =>
               translatePublishedPage({
+                destinationDocument,
                 id,
                 publishedPageVersion,
                 sourceDocument,
@@ -335,12 +342,26 @@ async function getPageSourceDocument(
   return translation?.draftDocument ?? translation?.publishedDocument ?? null;
 }
 
+/** Whole-document equality on the translatable fields, in both directions. */
+function isSamePageDocument(a: PageDoc | null, b: PageDoc | null): boolean {
+  if (!(a && b)) {
+    return !(a || b);
+  }
+  return (
+    JSON.stringify(getPageTranslationSource(a)) ===
+    JSON.stringify(getPageTranslationSource(b))
+  );
+}
+
 async function translatePublishedPage({
+  destinationDocument,
   id,
   publishedPageVersion,
   sourceDocument,
   sourceLocale,
 }: {
+  /** The target locale as this publish left it — see the stale check below. */
+  destinationDocument: PageDoc | null;
   id: string;
   publishedPageVersion: string;
   sourceDocument: PageDoc;
@@ -353,9 +374,10 @@ async function translatePublishedPage({
     sourceLocale,
     targetLocale,
   });
-  const [currentPage, currentSource] = await Promise.all([
+  const [currentPage, currentSource, currentDestination] = await Promise.all([
     db.getRow<Pages>("app", "pages", id),
     getPageSourceDocument(id, sourceLocale, db),
+    getPageSourceDocument(id, targetLocale, db),
   ]);
   if (
     !(
@@ -368,6 +390,11 @@ async function translatePublishedPage({
       )
     )
   ) {
+    return;
+  }
+  // An editor who worked on the destination locale while the model request was
+  // in flight owns the newer document.
+  if (!isSamePageDocument(destinationDocument, currentDestination)) {
     return;
   }
 

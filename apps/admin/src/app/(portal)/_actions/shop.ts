@@ -60,6 +60,8 @@ type GenerateProductTranslationDraftInput = ProductTranslationDraft & {
 
 interface ScheduleProductTranslationInput {
   autoTranslation?: AutoTranslationOptions;
+  /** Locale rows as they stood before the save — see the stale check below. */
+  existingByLocale: Map<string, ContentTranslations>;
   permissions: string[];
   productId: string;
   values: ProductFormValues;
@@ -90,6 +92,47 @@ const hasProductTranslationContent = (
   translation: ProductTranslationDraft
 ): boolean => Boolean(translation.name || translation.description);
 
+/** Whether the form carried content for this locale at all. */
+const hasSubmittedProductLocale = (
+  values: ProductFormValues,
+  locale: ContentLocale
+): boolean =>
+  locale === "no"
+    ? hasProductTranslationContent(getProductTranslationSource(values, "no"))
+    : Boolean(values.name_en || values.description_en);
+
+/** What a save writes for a submitted locale — English falls back to the shared fields. */
+const getSubmittedProductTranslation = (
+  values: ProductFormValues,
+  locale: ContentLocale
+): ProductTranslationDraft =>
+  locale === "no"
+    ? getProductTranslationSource(values, "no")
+    : {
+        description: values.description_en ?? values.description ?? "",
+        name: values.name_en ?? values.name,
+      };
+
+/**
+ * The locale as this save leaves it: submitted content when the form carried
+ * any, otherwise the existing row, which the upsert re-links by `$id` without
+ * editing it.
+ */
+const getSavedProductTranslation = (
+  values: ProductFormValues,
+  locale: ContentLocale,
+  existingByLocale: Map<string, ContentTranslations>
+): ProductTranslationDraft => {
+  if (hasSubmittedProductLocale(values, locale)) {
+    return getSubmittedProductTranslation(values, locale);
+  }
+  const existing = existingByLocale.get(locale);
+  return {
+    description: existing?.description ?? "",
+    name: existing?.title ?? "",
+  };
+};
+
 const translateProductDraft = async (
   sourceLocale: ContentLocale,
   source: ProductTranslationDraft
@@ -115,6 +158,7 @@ const translateProductDraft = async (
 
 const scheduleProductTranslation = ({
   autoTranslation,
+  existingByLocale,
   permissions,
   productId,
   values,
@@ -185,6 +229,20 @@ const scheduleProductTranslation = ({
       const currentTarget = currentTranslations.find(
         (translation) => translation.locale === targetLocale
       );
+      // The destination is only ours to overwrite while it still holds exactly
+      // what this save left there. An editor who translated the other locale by
+      // hand while the model request was in flight owns the newer text.
+      if (
+        !isCurrentTranslationSource(
+          getSavedProductTranslation(values, targetLocale, existingByLocale),
+          {
+            description: currentTarget?.description ?? "",
+            name: currentTarget?.title ?? "",
+          }
+        )
+      ) {
+        return;
+      }
       const translatedFields = {
         description: translated.description,
         title: translated.name,
@@ -269,37 +327,23 @@ function buildProductTranslationChildren(
 ): NestedProductTranslation[] {
   const children: NestedProductTranslation[] = [];
 
-  const norwegian = getProductTranslationSource(values, "no");
-  const existingNo = existingByLocale.get("no");
-  if (hasProductTranslationContent(norwegian)) {
-    children.push({
-      ...(existingNo ? { $id: existingNo.$id } : {}),
-      $permissions: permissions,
-      content_id: productId,
-      content_type: "product",
-      description: norwegian.description,
-      locale: "no",
-      short_description: values.short_description ?? null,
-      title: norwegian.name,
-    });
-  } else if (existingNo) {
-    children.push({ $id: existingNo.$id, $permissions: permissions });
-  }
-
-  const existingEn = existingByLocale.get("en");
-  if (values.name_en || values.description_en) {
-    children.push({
-      ...(existingEn ? { $id: existingEn.$id } : {}),
-      $permissions: permissions,
-      content_id: productId,
-      content_type: "product",
-      description: values.description_en ?? values.description ?? "",
-      locale: "en",
-      short_description: values.short_description ?? null,
-      title: values.name_en ?? values.name,
-    });
-  } else if (existingEn) {
-    children.push({ $id: existingEn.$id, $permissions: permissions });
+  for (const locale of ["no", "en"] as const) {
+    const existing = existingByLocale.get(locale);
+    if (hasSubmittedProductLocale(values, locale)) {
+      const submitted = getSubmittedProductTranslation(values, locale);
+      children.push({
+        ...(existing ? { $id: existing.$id } : {}),
+        $permissions: permissions,
+        content_id: productId,
+        content_type: "product",
+        description: submitted.description,
+        locale,
+        short_description: values.short_description ?? null,
+        title: submitted.name,
+      });
+    } else if (existing) {
+      children.push({ $id: existing.$id, $permissions: permissions });
+    }
   }
 
   return children;
@@ -520,6 +564,7 @@ export async function createProduct(
     });
     const translationQueued = scheduleProductTranslation({
       autoTranslation: translationOptions,
+      existingByLocale: new Map(),
       permissions: translationPermissions,
       productId: product.$id,
       values: validated.data,
@@ -609,6 +654,7 @@ export async function updateProduct(
     });
     const translationQueued = scheduleProductTranslation({
       autoTranslation: translationOptions,
+      existingByLocale,
       permissions: translationPermissions,
       productId: id,
       values: validated.data,

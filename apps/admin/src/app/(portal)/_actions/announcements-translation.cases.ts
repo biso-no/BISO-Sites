@@ -329,6 +329,31 @@ describe("announcement automatic translation", () => {
     );
   });
 
+  test("skips a destination edited while the translation was running", async () => {
+    db.listRows.mockResolvedValue({
+      rows: [
+        {
+          ...announcementRow,
+          // Hand-written Norwegian between scheduling and now.
+          body_no: "<p>Hand-written Norwegian</p>",
+          title_no: "Hand-written Norwegian title",
+        },
+      ],
+      total: 1,
+    });
+
+    await updateAnnouncement(
+      "announcement-1",
+      englishValues,
+      enabledEnglishTranslation
+    );
+    expect(scheduledTasks).toHaveLength(1);
+    db.updateRow.mockClear();
+    await scheduledTasks[0]?.();
+
+    expect(db.updateRow).not.toHaveBeenCalled();
+  });
+
   test("does not queue an empty selected source locale", async () => {
     const result = await createAnnouncement(
       {

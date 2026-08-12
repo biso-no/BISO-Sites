@@ -217,43 +217,65 @@ describe("page auto-translation", () => {
   });
 
   test("skips the destination write when the source changes during translation", async () => {
-    getPageEditorByIdSpy
-      .mockImplementationOnce(async () => ({
-        availableLocales: ["no", "en"],
-        page: {
-          campusId: "campus-oslo",
-          departmentId: "department-1",
-          id: "page-1",
-          slug: "page",
-          status: "draft",
-          visibility: "public",
-        },
-        translations: { no: { draftDocument: sourceDocument } },
-      }))
-      .mockImplementationOnce(async () => ({
-        availableLocales: ["no", "en"],
-        page: {
-          campusId: "campus-oslo",
-          departmentId: "department-1",
-          id: "page-1",
-          slug: "page",
-          status: "draft",
-          visibility: "public",
-        },
-        translations: {
-          no: {
-            draftDocument: {
-              ...sourceDocument,
-              meta: { ...sourceDocument.meta, title: "Newer title" },
-            },
-          },
-        },
-      }));
+    // One stateful mock: the deferred pass re-reads through the same spy, so
+    // flipping the state between the publish and the callback is what makes the
+    // source look edited.
+    let currentSource = sourceDocument;
+    getPageEditorByIdSpy.mockImplementation(async () => ({
+      availableLocales: ["no", "en"],
+      page: {
+        campusId: "campus-oslo",
+        departmentId: "department-1",
+        id: "page-1",
+        slug: "page",
+        status: "draft",
+        visibility: "public",
+      },
+      translations: { no: { draftDocument: currentSource } },
+    }));
 
     await publishPageAction("page-1", "no", {
       enabled: true,
       sourceLocale: "no",
     });
+    currentSource = {
+      ...sourceDocument,
+      meta: { ...sourceDocument.meta, title: "Newer title" },
+    };
+    await deferredTask?.();
+
+    expect(translatePageDocumentSpy).toHaveBeenCalledTimes(1);
+    expect(savePageTranslationDraftSpy).not.toHaveBeenCalled();
+    expect(operations).toEqual(["publish:no"]);
+  });
+
+  test("skips a destination document edited during translation", async () => {
+    let englishDocument: PageDoc | null = null;
+    getPageEditorByIdSpy.mockImplementation(async () => ({
+      availableLocales: ["no", "en"],
+      page: {
+        campusId: "campus-oslo",
+        departmentId: "department-1",
+        id: "page-1",
+        slug: "page",
+        status: "draft",
+        visibility: "public",
+      },
+      translations: {
+        no: { draftDocument: sourceDocument },
+        ...(englishDocument ? { en: { draftDocument: englishDocument } } : {}),
+      },
+    }));
+
+    await publishPageAction("page-1", "no", {
+      enabled: true,
+      sourceLocale: "no",
+    });
+    // Hand-written English between scheduling and now.
+    englishDocument = {
+      ...translatedDocument,
+      meta: { ...translatedDocument.meta, title: "Hand-written English" },
+    };
     await deferredTask?.();
 
     expect(translatePageDocumentSpy).toHaveBeenCalledTimes(1);

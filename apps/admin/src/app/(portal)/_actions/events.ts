@@ -267,6 +267,8 @@ async function translateEventSnapshot(
 
 function scheduleEventTranslation(input: {
   campusId: string | null;
+  /** The target locale as this save left it — see the stale check below. */
+  destination: EventTranslationSnapshot;
   departmentId: string | null;
   enabled: boolean;
   eventId: string;
@@ -343,6 +345,18 @@ function scheduleEventTranslation(input: {
       const currentTarget = currentTranslations.find(
         (translation) => translation.locale === targetLocale
       );
+      // The destination is only ours to overwrite while it still holds exactly
+      // what this save wrote. An editor who translated the other locale by hand
+      // while the model request was in flight owns the newer text.
+      if (
+        !isCurrentTranslationSource(input.destination, {
+          description: currentTarget?.description ?? "",
+          short_description: currentTarget?.short_description ?? "",
+          title: currentTarget?.title ?? "",
+        })
+      ) {
+        return;
+      }
       const data = {
         additional_fields: serializeAdditionalFields({
           short_description: translated.short_description || null,
@@ -386,6 +400,10 @@ function scheduleEventFormTranslation(
   return scheduleEventTranslation({
     campusId: values.campus_id,
     departmentId: values.department_id ?? null,
+    destination: getEventTranslationSnapshot(
+      values,
+      getTargetLocale(sourceLocale)
+    ),
     enabled: autoTranslation?.enabled ?? false,
     eventId,
     memberOnly: values.member_only,

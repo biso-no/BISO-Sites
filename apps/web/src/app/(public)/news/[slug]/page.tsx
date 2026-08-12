@@ -8,6 +8,7 @@ import { ArticleHero } from "@/components/news/article-hero";
 import { ArticleMetaRail } from "@/components/news/article-meta-rail";
 import { ArticleSkeleton } from "@/components/news/article-skeleton";
 import { RelatedArticles } from "@/components/news/related-articles";
+import { serializeJsonLd } from "@/lib/json-ld";
 import {
   buildLead,
   buildSummary,
@@ -110,8 +111,8 @@ async function NewsArticle({ slug }: { slug: string }) {
   return (
     <div className="bg-background">
       <script
-        // biome-ignore lint/security/noDangerouslySetInnerHtml: JSON-LD payload is serialized from typed server data.
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        // biome-ignore lint/security/noDangerouslySetInnerHtml: JSON-LD payload, HTML-escaped by serializeJsonLd.
+        dangerouslySetInnerHTML={{ __html: serializeJsonLd(jsonLd) }}
         type="application/ld+json"
       />
 

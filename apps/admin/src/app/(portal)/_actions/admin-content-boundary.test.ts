@@ -104,6 +104,23 @@ describe("draft discovery boundary", () => {
     );
     expect(sessionDb.listRows).not.toHaveBeenCalled();
   });
+
+  test("jobs stay on the scalar scope so legacy vacancies remain visible", async () => {
+    await listDrafts();
+
+    // Recruitment is outside the relationship-canonical content set, and the
+    // ownership repair leaves job relations to the recruitment rollout, so a
+    // relationship filter here would hide every pre-relationship vacancy.
+    const jobsCall = adminDb.listRows.mock.calls.find(
+      (call) => call[1] === "jobs"
+    );
+    expect(jobsCall?.[2]).toEqual(
+      expect.arrayContaining([
+        Query.equal("campus_id", ["campus-oslo"]),
+        Query.equal("department_id", ["dept-1"]),
+      ])
+    );
+  });
 });
 
 describe("palette search boundary", () => {

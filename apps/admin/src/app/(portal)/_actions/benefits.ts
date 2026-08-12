@@ -264,10 +264,13 @@ const buildBenefitColumns = (values: BenefitFormValues) => ({
 
 const scheduleBenefitTranslation = ({
   benefitId,
+  destination,
   options,
   source,
 }: {
   benefitId: string;
+  /** The target locale as this save left it — see the stale check below. */
+  destination: BenefitTranslationSnapshot;
   options?: AutoTranslationOptions;
   source: BenefitTranslationSnapshot;
 }): boolean => {
@@ -302,6 +305,17 @@ const scheduleBenefitTranslation = ({
       }
 
       const targetLocale = getTargetLocale(options.sourceLocale);
+      // The destination is only ours to overwrite while it still holds exactly
+      // what this save wrote. An editor who translated the other locale by hand
+      // while the model request was in flight owns the newer text.
+      if (
+        !isCurrentTranslationSource(
+          { ...destination },
+          { ...getBenefitTranslationSnapshot(current, targetLocale) }
+        )
+      ) {
+        return;
+      }
       const destinationColumns =
         targetLocale === "en"
           ? {
@@ -502,6 +516,10 @@ export async function createBenefit(
     });
     const translationQueued = scheduleBenefitTranslation({
       benefitId: benefit.$id,
+      destination: getBenefitValuesTranslationSnapshot(
+        validated.data,
+        getTargetLocale(translationOptions?.sourceLocale ?? "no")
+      ),
       options: translationOptions,
       source: getBenefitValuesTranslationSnapshot(
         validated.data,
@@ -592,6 +610,10 @@ export async function updateBenefit(
     });
     const translationQueued = scheduleBenefitTranslation({
       benefitId: id,
+      destination: getBenefitValuesTranslationSnapshot(
+        validated.data,
+        getTargetLocale(translationOptions?.sourceLocale ?? "no")
+      ),
       options: translationOptions,
       source: getBenefitValuesTranslationSnapshot(
         validated.data,

@@ -301,6 +301,8 @@ function scheduleJobTranslation(input: {
   audience: "members" | "public";
   campusId: string;
   departmentId: string | null;
+  /** The target locale as this save left it — see the stale check below. */
+  destination: JobTranslationSnapshot;
   enabled: boolean;
   jobId: string;
   source: JobTranslationSnapshot;
@@ -367,6 +369,21 @@ function scheduleJobTranslation(input: {
         title: currentSource.title ?? "",
       };
       if (!isCurrentTranslationSource(input.source, currentSnapshot)) {
+        return;
+      }
+      // The destination is only ours to overwrite while it still holds exactly
+      // what this save wrote. An editor who translated the other locale by hand
+      // while the model request was in flight owns the newer text.
+      const currentTarget = currentRows.rows.find(
+        (row) => row.locale === getTargetLocale(input.sourceLocale)
+      );
+      if (
+        !isCurrentTranslationSource(input.destination, {
+          description: currentTarget?.description ?? "",
+          short_description: currentTarget?.short_description ?? "",
+          title: currentTarget?.title ?? "",
+        })
+      ) {
         return;
       }
       const permissions = buildJobTranslationPermissions(
@@ -580,6 +597,10 @@ export async function createJob(
       audience,
       campusId: validated.data.campus_id,
       departmentId: validated.data.department_id ?? null,
+      destination: getJobTranslationSnapshot(
+        validated.data,
+        getTargetLocale(translationOptions?.sourceLocale ?? "en")
+      ),
       enabled: translationOptions?.enabled ?? false,
       jobId: job.$id,
       source: getJobTranslationSnapshot(
@@ -661,6 +682,10 @@ export async function updateJob(
       audience,
       campusId: validated.data.campus_id,
       departmentId: validated.data.department_id ?? null,
+      destination: getJobTranslationSnapshot(
+        validated.data,
+        getTargetLocale(translationOptions?.sourceLocale ?? "en")
+      ),
       enabled: translationOptions?.enabled ?? false,
       jobId: id,
       source: getJobTranslationSnapshot(

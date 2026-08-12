@@ -103,9 +103,8 @@ mock.module("./audit-log", () => ({
   logAuditEvent: mock(async () => undefined),
 }));
 
-const { createProduct, generateProductTranslationDraft } = await import(
-  "./shop"
-);
+const { createProduct, generateProductTranslationDraft, updateProduct } =
+  await import("./shop");
 
 beforeEach(() => {
   deferredCallback = undefined;
@@ -301,17 +300,24 @@ describe("shop translation", () => {
         },
         {
           $id: "translation-en",
-          description: "Old English details",
+          description: "<p>Submitted English</p>",
           locale: "en",
-          title: "Old English product",
+          title: "Submitted English product",
         },
       ],
     });
 
-    const result = await createProduct(norwegianValues, {
-      enabled: true,
-      sourceLocale: "no",
-    });
+    const result = await createProduct(
+      {
+        ...norwegianValues,
+        description_en: "<p>Submitted English</p>",
+        name_en: "Submitted English product",
+      },
+      {
+        enabled: true,
+        sourceLocale: "no",
+      }
+    );
 
     expect(result).toEqual({ data: "product-1", translationQueued: true });
     expect(afterSpy).toHaveBeenCalledTimes(1);
@@ -332,7 +338,65 @@ describe("shop translation", () => {
     expect(adminDb.createRow).not.toHaveBeenCalled();
   });
 
-  test("updates only the fresh Norwegian destination from English", async () => {
+  test("replaces an untouched destination the form never carried", async () => {
+    const oldEnglish = {
+      $id: "translation-en",
+      description: "Gamle engelske detaljer",
+      locale: "en",
+      title: "Gammelt engelsk produkt",
+    };
+    const norwegian = {
+      $id: "translation-no",
+      description: "<p>Norske detaljer</p>",
+      locale: "no",
+      title: "Norsk produkt",
+    };
+    adminDb.listRows.mockImplementation(
+      async (_databaseId: string, tableId: string) =>
+        tableId === "webshop_products"
+          ? {
+              rows: [
+                {
+                  $id: "product-1",
+                  campus_id: "campus-oslo",
+                  departmentId: null,
+                  member_only: false,
+                  status: "draft",
+                },
+              ],
+              total: 1,
+            }
+          : { rows: [norwegian, oldEnglish], total: 2 }
+    );
+    adminDb.getRow.mockResolvedValue({
+      campus_id: "campus-oslo",
+      departmentId: null,
+      member_only: false,
+      status: "draft",
+      translation_refs: [norwegian, oldEnglish],
+    });
+
+    await updateProduct("product-1", norwegianValues, {
+      enabled: true,
+      sourceLocale: "no",
+    });
+    await deferredCallback?.();
+
+    // The save left the English row exactly as it found it, so the deferred
+    // translation is still the newest writer for that locale.
+    expect(adminDb.updateRow).toHaveBeenCalledWith(
+      "app",
+      "content_translations",
+      "translation-en",
+      {
+        description: "<p>English details</p>",
+        title: "English product",
+      },
+      expect.any(Array)
+    );
+  });
+
+  test("skips a destination edited while the translation was running", async () => {
     adminDb.getRow.mockResolvedValue({
       campus_id: "campus-oslo",
       departmentId: null,
@@ -341,10 +405,41 @@ describe("shop translation", () => {
       translation_refs: [
         {
           $id: "translation-no",
-          description: "Gamle norske detaljer",
+          description: "<p>Norske detaljer</p>",
           locale: "no",
-          title: "Gammelt norsk produkt",
+          title: "Norsk produkt",
         },
+        {
+          // Hand-written between scheduling and now — newer than this save.
+          $id: "translation-en",
+          description: "<p>Hand-written English</p>",
+          locale: "en",
+          title: "Hand-written English product",
+        },
+      ],
+    });
+
+    await createProduct(
+      {
+        ...norwegianValues,
+        description_en: "<p>Submitted English</p>",
+        name_en: "Submitted English product",
+      },
+      { enabled: true, sourceLocale: "no" }
+    );
+    await deferredCallback?.();
+
+    expect(adminDb.updateRow).not.toHaveBeenCalled();
+    expect(adminDb.createRow).not.toHaveBeenCalled();
+  });
+
+  test("updates only the fresh Norwegian destination from English", async () => {
+    adminDb.getRow.mockResolvedValue({
+      campus_id: "campus-oslo",
+      departmentId: null,
+      member_only: false,
+      status: "draft",
+      translation_refs: [
         {
           $id: "translation-en",
           description: "<p>English details</p>",
@@ -367,17 +462,21 @@ describe("shop translation", () => {
     expect(afterSpy).toHaveBeenCalledTimes(1);
     await deferredCallback?.();
 
-    expect(adminDb.updateRow).toHaveBeenCalledWith(
+    expect(adminDb.createRow).toHaveBeenCalledWith(
       "app",
       "content_translations",
-      "translation-no",
-      {
+      expect.any(String),
+      expect.objectContaining({
+        content_id: "product-1",
+        content_type: "product",
         description: "<p>Norske detaljer</p>",
+        locale: "no",
+        product_ref: "product-1",
         title: "Norsk produkt",
-      },
+      }),
       expect.any(Array)
     );
-    expect(adminDb.createRow).not.toHaveBeenCalled();
+    expect(adminDb.updateRow).not.toHaveBeenCalled();
   });
 
   test("links a fresh destination locale to its product", async () => {

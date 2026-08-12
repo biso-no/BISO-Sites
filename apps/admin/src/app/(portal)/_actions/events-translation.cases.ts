@@ -215,10 +215,18 @@ describe("event auto-translation scheduling", () => {
       $id: "translation-no",
     }));
 
-    const result = await createEvent(eventValues, {
-      enabled: true,
-      sourceLocale: "en",
-    });
+    const result = await createEvent(
+      {
+        ...eventValues,
+        description_no: "",
+        short_description_no: "",
+        title_no: "",
+      },
+      {
+        enabled: true,
+        sourceLocale: "en",
+      }
+    );
     expect(result).toEqual({ data: "event-1", translationQueued: true });
     expect(deferredTask).toBeDefined();
     await deferredTask?.();
@@ -258,10 +266,10 @@ describe("event auto-translation scheduling", () => {
         },
         {
           $id: "target-no",
-          description: "<p>Gammel norsk</p>",
+          description: "<p>Norsk kilde</p>",
           locale: "no",
-          short_description: "Gammel ingress",
-          title: "Gammel tittel",
+          short_description: "Norsk kildeingress",
+          title: "Norsk kildetittel",
         },
       ],
     });
@@ -276,6 +284,38 @@ describe("event auto-translation scheduling", () => {
       expect.objectContaining({ locale: "no", title: "Norsk tittel" }),
       expect.any(Array)
     );
+    expect(adminDb.createRow).not.toHaveBeenCalled();
+  });
+
+  test("skips a destination edited while the translation was running", async () => {
+    adminDb.getRow.mockResolvedValueOnce({
+      campus_id: "campus-oslo",
+      department_id: null,
+      member_only: false,
+      status: "draft",
+      translation_refs: [
+        {
+          $id: "source-en",
+          description: "<p>English source</p>",
+          locale: "en",
+          short_description: "English source teaser",
+          title: "English source title",
+        },
+        {
+          // Hand-written between scheduling and now — newer than this save.
+          $id: "target-no",
+          description: "<p>Manuelt oversatt</p>",
+          locale: "no",
+          short_description: "Manuell ingress",
+          title: "Manuell tittel",
+        },
+      ],
+    });
+
+    await createEvent(eventValues, { enabled: true, sourceLocale: "en" });
+    await deferredTask?.();
+
+    expect(adminDb.updateRow).not.toHaveBeenCalled();
     expect(adminDb.createRow).not.toHaveBeenCalled();
   });
 

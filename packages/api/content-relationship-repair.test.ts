@@ -237,6 +237,32 @@ describe("repairContentRelationships", () => {
     });
   });
 
+  it("backfills job ownership so the vacancy lists can scope by relation", async () => {
+    mockTables({
+      campus: [{ $id: "campus-oslo" }],
+      departments: [{ $id: "dept-hr", campus_id: "campus-oslo" }],
+      jobs: [
+        {
+          $id: "job-1",
+          campus: null,
+          campus_id: "campus-oslo",
+          department: null,
+          department_id: "dept-hr",
+        },
+      ],
+    });
+
+    const report = await repairContentRelationships(db, { apply: true });
+
+    expect(db.updateRow).toHaveBeenCalledWith("app", "jobs", "job-1", {
+      campus: "campus-oslo",
+    });
+    expect(db.updateRow).toHaveBeenCalledWith("app", "jobs", "job-1", {
+      department: "dept-hr",
+    });
+    expect(hasUnsafeFindings(report)).toBe(false);
+  });
+
   it("uses the webshop departmentId legacy spelling", async () => {
     mockTables({
       departments: [{ $id: "dept-1", campus_id: "campus-oslo" }],

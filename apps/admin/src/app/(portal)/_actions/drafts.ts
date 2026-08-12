@@ -14,7 +14,10 @@ import {
   applyContentRelationshipScopeQueries,
   getContentOwnership,
 } from "@/lib/content-authorization";
-import { assertPublishAccess } from "@/lib/utils/authorization";
+import {
+  applyScopeQueries,
+  assertPublishAccess,
+} from "@/lib/utils/authorization";
 import { logAuditEvent } from "./audit-log";
 
 export interface DraftItem {
@@ -34,6 +37,11 @@ export async function listDrafts(): Promise<DraftItem[]> {
   const { db } = await createAdminClient();
   const scopeQueries = applyContentRelationshipScopeQueries(ctx);
   const eventScopeQueries = scopeQueries;
+  // Jobs are outside the relationship-canonical content set (recruitment keeps
+  // its own scope model), and the ownership repair never backfills them, so
+  // legacy vacancies still carry ownership only on the scalar columns. Scope
+  // them there or every pre-relationship draft disappears from this queue.
+  const jobScopeQueries = applyScopeQueries(ctx);
 
   const drafts: DraftItem[] = [];
 
@@ -42,7 +50,7 @@ export async function listDrafts(): Promise<DraftItem[]> {
     Query.equal("status", "draft"),
     Query.orderDesc("$updatedAt"),
     Query.limit(50),
-    ...scopeQueries,
+    ...jobScopeQueries,
   ]);
 
   // Fetch draft events

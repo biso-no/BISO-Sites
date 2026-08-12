@@ -18,6 +18,7 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { serializeJsonLd } from "@/lib/json-ld";
 import { JobApplicationForm } from "./job-application-form";
 
 interface JobDetailsClientProps {
@@ -110,8 +111,8 @@ function JobPostingSchema({ job }: { job: RecruitmentVacancy }) {
 
   return (
     <script
-      // biome-ignore lint/security/noDangerouslySetInnerHtml: structured data only
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+      // biome-ignore lint/security/noDangerouslySetInnerHtml: JSON-LD payload, HTML-escaped by serializeJsonLd.
+      dangerouslySetInnerHTML={{ __html: serializeJsonLd(schema) }}
       type="application/ld+json"
     />
   );

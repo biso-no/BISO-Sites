@@ -165,10 +165,18 @@ describe("job auto-translation scheduling", () => {
       total: 1,
     }));
 
-    const result = await createJob(jobValues, {
-      enabled: true,
-      sourceLocale: "en",
-    });
+    const result = await createJob(
+      {
+        ...jobValues,
+        description_no: "",
+        short_description_no: "",
+        title_no: "",
+      },
+      {
+        enabled: true,
+        sourceLocale: "en",
+      }
+    );
     expect(result).toEqual({ data: "job-1", translationQueued: true });
     expect(deferredTask).toBeDefined();
     await deferredTask?.();
@@ -203,10 +211,10 @@ describe("job auto-translation scheduling", () => {
         },
         {
           $id: "target-no",
-          description: "<p>Gammel norsk</p>",
+          description: "<p>Norsk kilde</p>",
           locale: "no",
-          short_description: "Gammel ingress",
-          title: "Gammel tittel",
+          short_description: "Norsk kildeingress",
+          title: "Norsk kildetittel",
         },
       ],
       total: 2,
@@ -222,6 +230,35 @@ describe("job auto-translation scheduling", () => {
       ],
     });
     expect(adminDb.createRow).not.toHaveBeenCalled();
+  });
+
+  test("skips a destination edited while the translation was running", async () => {
+    adminDb.listRows.mockImplementationOnce(async () => ({
+      rows: [
+        {
+          $id: "source-en",
+          description: "<p>English source</p>",
+          locale: "en",
+          short_description: "English source teaser",
+          title: "English source title",
+        },
+        {
+          // Hand-written between scheduling and now — newer than this save.
+          $id: "target-no",
+          description: "<p>Manuelt oversatt</p>",
+          locale: "no",
+          short_description: "Manuell ingress",
+          title: "Manuell tittel",
+        },
+      ],
+      total: 2,
+    }));
+
+    await createJob(jobValues, { enabled: true, sourceLocale: "en" });
+    await deferredTask?.();
+
+    expect(adminDb.createRow).not.toHaveBeenCalled();
+    expect(adminDb.updateRow).not.toHaveBeenCalled();
   });
 
   test("skips the destination write when the submitted source is stale", async () => {

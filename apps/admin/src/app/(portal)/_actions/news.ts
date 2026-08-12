@@ -97,6 +97,31 @@ const translateNewsDraft = async (
   };
 };
 
+/**
+ * The destination is only ours to overwrite while it still holds exactly what
+ * this save wrote. An editor who translated the other locale by hand while the
+ * model request was in flight owns the newer text.
+ */
+const isUntouchedNewsDestination = (
+  values: NewsFormValues,
+  targetLocale: ContentLocale,
+  currentTarget: ContentTranslations | undefined
+): boolean => {
+  const scheduledTarget = getNewsTranslationInputs(values).find(
+    (translation) => translation.locale === targetLocale
+  );
+  return isCurrentTranslationSource(
+    {
+      description: scheduledTarget?.description ?? "",
+      title: scheduledTarget?.title ?? "",
+    },
+    {
+      description: currentTarget?.description ?? "",
+      title: currentTarget?.title ?? "",
+    }
+  );
+};
+
 const scheduleNewsTranslation = ({
   additionalFields,
   articleId,
@@ -173,6 +198,9 @@ const scheduleNewsTranslation = ({
       const currentTarget = currentTranslations.find(
         (translation) => translation.locale === targetLocale
       );
+      if (!isUntouchedNewsDestination(values, targetLocale, currentTarget)) {
+        return;
+      }
       const data = {
         additional_fields: additionalFields,
         content_id: articleId,

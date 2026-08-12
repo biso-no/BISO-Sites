@@ -208,12 +208,15 @@ const translateAndPersistAnnouncement = async ({
   announcementId,
   client,
   deliveryClaim,
+  destination,
   source,
   sourceLocale,
 }: {
   announcementId: string;
   client: AnnouncementAdminClient;
   deliveryClaim?: AnnouncementDeliveryClaim;
+  /** The target locale as this save left it — see the stale check below. */
+  destination: AnnouncementTranslationSnapshot;
   source: AnnouncementTranslationSnapshot;
   sourceLocale: ContentLocale;
 }): Promise<Announcements | null> => {
@@ -247,8 +250,21 @@ const translateAndPersistAnnouncement = async ({
     return null;
   }
 
+  // The destination is only ours to overwrite while it still holds exactly what
+  // this save wrote. An editor who translated the other locale by hand while the
+  // model request was in flight owns the newer text.
+  const targetLocale = getTargetLocale(sourceLocale);
+  if (
+    !isCurrentTranslationSource(
+      { ...destination },
+      { ...getAnnouncementTranslationSnapshot(current, targetLocale) }
+    )
+  ) {
+    return null;
+  }
+
   const destinationColumns =
-    getTargetLocale(sourceLocale) === "en"
+    targetLocale === "en"
       ? { body_en: translated.body, title_en: translated.title }
       : { body_no: translated.body, title_no: translated.title };
   await client.db.updateRow(
@@ -262,10 +278,13 @@ const translateAndPersistAnnouncement = async ({
 
 const scheduleAnnouncementTranslation = ({
   announcementId,
+  destination,
   options,
   source,
 }: {
   announcementId: string;
+  /** The target locale as this save left it — see the stale check below. */
+  destination: AnnouncementTranslationSnapshot;
   options?: AutoTranslationOptions;
   source: AnnouncementTranslationSnapshot;
 }): boolean => {
@@ -280,6 +299,7 @@ const scheduleAnnouncementTranslation = ({
       await translateAndPersistAnnouncement({
         announcementId,
         client,
+        destination,
         source,
         sourceLocale: options.sourceLocale,
       });
@@ -506,6 +526,10 @@ export async function createAnnouncement(
 
     const translationQueued = scheduleAnnouncementTranslation({
       announcementId: announcement.$id,
+      destination: getAnnouncementValuesTranslationSnapshot(
+        validated.data,
+        getTargetLocale(translationOptions?.sourceLocale ?? "en")
+      ),
       options: translationOptions,
       source: getAnnouncementValuesTranslationSnapshot(
         validated.data,
@@ -583,6 +607,10 @@ export async function updateAnnouncement(
 
     const translationQueued = scheduleAnnouncementTranslation({
       announcementId: id,
+      destination: getAnnouncementValuesTranslationSnapshot(
+        validated.data,
+        getTargetLocale(translationOptions?.sourceLocale ?? "en")
+      ),
       options: translationOptions,
       source: getAnnouncementValuesTranslationSnapshot(
         validated.data,
@@ -740,6 +768,10 @@ const queueScheduledAnnouncement = async ({
           announcementId: announcement.$id,
           client: backgroundClient,
           deliveryClaim,
+          destination: getAnnouncementTranslationSnapshot(
+            scheduledAnnouncement,
+            getTargetLocale(translationOptions.sourceLocale)
+          ),
           source: automaticSource,
           sourceLocale: translationOptions.sourceLocale,
         });
@@ -848,6 +880,10 @@ export async function sendAnnouncement(
             announcementId: id,
             client: backgroundClient,
             deliveryClaim,
+            destination: getAnnouncementTranslationSnapshot(
+              announcement,
+              getTargetLocale(translationOptions.sourceLocale)
+            ),
             source: automaticSource,
             sourceLocale: translationOptions.sourceLocale,
           });

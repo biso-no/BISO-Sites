@@ -62,6 +62,9 @@ const OWNERSHIP_TABLES: OwnershipTableRule[] = [
   { departmentField: "department_id", tableId: "events" },
   { departmentField: "departmentId", tableId: "webshop_products" },
   { departmentField: "department_id", tableId: "pages" },
+  // Recruitment keeps its own scope model, but the vacancy lists already filter
+  // on `campus.$id` / `department.$id`, so legacy jobs need the relations too.
+  { departmentField: "department_id", tableId: "jobs" },
   // The last three have no historical department scalar: rows stay
   // campus-wide until an editor assigns a department.
   { departmentField: null, tableId: "campus_benefits" },

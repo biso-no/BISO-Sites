@@ -283,14 +283,21 @@ describe("news translation", () => {
         {
           $id: "translation-en",
           additional_fields: SOURCE_ADDITIONAL_FIELDS,
-          description: "<p>Old English</p>",
+          description: "<p>Submitted English</p>",
           locale: "en",
-          title: "Old English title",
+          title: "Submitted English title",
         },
       ],
     });
 
-    await createNews(norwegianValues, { enabled: true, sourceLocale: "no" });
+    await createNews(
+      {
+        ...norwegianValues,
+        description_en: "<p>Submitted English</p>",
+        title_en: "Submitted English title",
+      },
+      { enabled: true, sourceLocale: "no" }
+    );
     await deferredCallback?.();
 
     expect(adminDb.updateRow).toHaveBeenCalledWith(
@@ -300,6 +307,44 @@ describe("news translation", () => {
       expect.objectContaining({ locale: "en", title: "English title" }),
       expect.any(Array)
     );
+    expect(adminDb.createRow).not.toHaveBeenCalled();
+  });
+
+  test("skips a destination edited while the translation was running", async () => {
+    mockCurrentArticle({
+      campus_id: "campus-oslo",
+      department_id: null,
+      status: "draft",
+      translation_refs: [
+        {
+          $id: "translation-no",
+          additional_fields: SOURCE_ADDITIONAL_FIELDS,
+          description: "<p>Norsk brødtekst</p>",
+          locale: "no",
+          title: "Norsk tittel",
+        },
+        {
+          // Hand-written between scheduling and now — newer than this save.
+          $id: "translation-en",
+          additional_fields: SOURCE_ADDITIONAL_FIELDS,
+          description: "<p>Hand-written English</p>",
+          locale: "en",
+          title: "Hand-written English title",
+        },
+      ],
+    });
+
+    await createNews(
+      {
+        ...norwegianValues,
+        description_en: "<p>Submitted English</p>",
+        title_en: "Submitted English title",
+      },
+      { enabled: true, sourceLocale: "no" }
+    );
+    await deferredCallback?.();
+
+    expect(adminDb.updateRow).not.toHaveBeenCalled();
     expect(adminDb.createRow).not.toHaveBeenCalled();
   });
 

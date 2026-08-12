@@ -377,6 +377,26 @@ describe("benefit automatic translation", () => {
     expect(result).toEqual({ data: "benefit-1" });
   });
 
+  test("skips a destination edited while the translation was running", async () => {
+    await updateBenefit(
+      "benefit-1",
+      norwegianValues,
+      enabledNorwegianTranslation
+    );
+    expect(scheduledTasks).toHaveLength(1);
+
+    // Hand-written English between scheduling and now — newer than this save.
+    benefitRow = {
+      ...benefitRow,
+      description_en: "<p>Hand-written English</p>",
+      title_en: "Hand-written English title",
+    };
+    await scheduledTasks[0]?.();
+
+    expect(adminDb.updateRow).not.toHaveBeenCalled();
+    expect(adminDb.createRow).not.toHaveBeenCalled();
+  });
+
   test("skips the destination write when the submitted source is stale", async () => {
     await updateBenefit(
       "benefit-1",
