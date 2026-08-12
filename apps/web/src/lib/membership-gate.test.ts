@@ -89,14 +89,14 @@ describe("resolveMembershipGate", () => {
     expect(gate.offeredPlans).toEqual([]);
   });
 
-  it("uses the latest expiry when several memberships match", () => {
+  it("uses the latest expiry when several memberships match (descending order)", () => {
     const gate = resolveMembershipGate(
       input({
         status: {
           isMember: true,
           memberships: [
-            { expiryDate: "2026-12-31" },
             { expiryDate: "2029-06-30" },
+            { expiryDate: "2026-12-31" },
           ],
         },
       })
@@ -105,8 +105,55 @@ describe("resolveMembershipGate", () => {
     expect(gate.offeredPlans).toEqual([]);
   });
 
-  it("reports already_member when the catalog is empty", () => {
-    const gate = resolveMembershipGate(input({ plans: [] }));
+  it("reports already_member when the catalog is empty and user is a member", () => {
+    const gate = resolveMembershipGate(
+      input({
+        plans: [],
+        status: { isMember: true, memberships: [{ expiryDate: "2026-12-31" }] },
+      })
+    );
     expect(gate.state).toBe("already_member");
+    expect(gate.currentExpiry).toBe("2026-12-31");
+  });
+
+  it("reports no_plans_available when the catalog is empty and user is not a member", () => {
+    const gate = resolveMembershipGate(input({ plans: [] }));
+    expect(gate.state).toBe("no_plans_available");
+    expect(gate.offeredPlans).toEqual([]);
+    expect(gate.currentExpiry).toBeNull();
+  });
+
+  it("requires sign in even if other checks would fail", () => {
+    expect(
+      resolveMembershipGate(
+        input({
+          isAuthenticated: false,
+          studentId: null,
+          employeeId: null,
+        })
+      ).state
+    ).toBe("signed_out");
+  });
+
+  it("requires BI link even if employee ID is also missing", () => {
+    expect(
+      resolveMembershipGate(
+        input({
+          studentId: null,
+          employeeId: null,
+        })
+      ).state
+    ).toBe("needs_bi_link");
+  });
+
+  it("requires directory record even if catalog is empty", () => {
+    expect(
+      resolveMembershipGate(
+        input({
+          employeeId: null,
+          plans: [],
+        })
+      ).state
+    ).toBe("needs_directory_record");
   });
 });
