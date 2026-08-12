@@ -27,18 +27,31 @@ export type StartMembershipCheckoutResult =
 
 const CHECKOUT_TIMEOUT_MS = 10_000;
 
+// Not exported: keyed strictly by the validated provider literal so the
+// outbound URL can only ever contain one of these two known-good segments —
+// never the raw, publicly-supplied `input.provider` string.
+const PROVIDER_PATHS = {
+  vipps: "vipps",
+  stripe: "stripe",
+} as const;
+
 /**
  * Starts a membership purchase.
  *
- * Fails closed on every precondition — authentication, BI link, Azure employee
- * id, campus validity, plan availability — so no student can be charged for a
- * membership this system could not then register in Finago. The price is not
- * sent: the API re-reads it from the `memberships` table.
+ * Fails closed on every precondition — provider validity, the provider kill
+ * switch, campus validity, authentication, BI link, Azure employee id, plan
+ * availability — so no student can be charged for a membership this system
+ * could not then register in Finago. The price is not sent: the API
+ * re-reads it from the `memberships` table.
  */
 export async function startMembershipCheckout(
   input: StartMembershipCheckoutInput
 ): Promise<StartMembershipCheckoutResult> {
   try {
+    if (!Object.hasOwn(PROVIDER_PATHS, input.provider)) {
+      return { success: false, error: "Invalid payment provider." };
+    }
+
     const flags = await getFeatureFlagStates();
     const providerEnabled =
       input.provider === "vipps" ? flags.payments_vipps : flags.payments_stripe;
@@ -49,7 +62,7 @@ export async function startMembershipCheckout(
       };
     }
 
-    if (!CAMPUS_INVOICE_NAMES[input.campusId]) {
+    if (!Object.hasOwn(CAMPUS_INVOICE_NAMES, input.campusId)) {
       return { success: false, error: "Select a valid campus." };
     }
 
@@ -106,8 +119,9 @@ export async function startMembershipCheckout(
       return { success: false, error: "Checkout is misconfigured." };
     }
 
+    const providerPath = PROVIDER_PATHS[input.provider];
     const response = await fetch(
-      `${apiBaseUrl}/api/payment/${input.provider}/membership-checkout`,
+      `${apiBaseUrl}/api/payment/${providerPath}/membership-checkout`,
       {
         method: "POST",
         headers: {

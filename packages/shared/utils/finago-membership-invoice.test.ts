@@ -97,6 +97,14 @@ describe("buildMembershipInvoiceOrder", () => {
     expect(() => build("99")).toThrow("Unknown campus id: 99");
   });
 
+  it.each([
+    "constructor",
+    "toString",
+    "__proto__",
+  ])("throws on the inherited Object.prototype member %j instead of treating it as a valid campus", (campusId) => {
+    expect(() => build(campusId)).toThrow(`Unknown campus id: ${campusId}`);
+  });
+
   it("maps every campus to its 24SO department at order and row level with correct names", () => {
     const campuses: [string, number, string][] = [
       ["1", 1, "Oslo"],

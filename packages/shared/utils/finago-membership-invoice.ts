@@ -77,10 +77,14 @@ function buildDimensions(
   campusId: string,
   plan: MembershipPlan
 ): UserDefinedDimension[] {
-  const campusName = CAMPUS_INVOICE_NAMES[campusId];
-  if (campusName === undefined) {
+  // `Object.hasOwn` guards against prototype-chain lookups (e.g. campusId ===
+  // "constructor" or "toString" resolving to an inherited Object.prototype
+  // member instead of `undefined`), which a plain `=== undefined` check on a
+  // bracket access would miss.
+  if (!Object.hasOwn(CAMPUS_INVOICE_NAMES, campusId)) {
     throw new Error(`Unknown campus id: ${campusId}`);
   }
+  const campusName = CAMPUS_INVOICE_NAMES[campusId];
 
   return [
     {
@@ -104,10 +108,14 @@ export function buildMembershipInvoiceOrder({
   invoicedOn,
   plan,
 }: BuildMembershipInvoiceParams): MembershipInvoiceOrder {
-  const departmentId = CAMPUS_INVOICE_DEPARTMENT_IDS[campusId];
-  if (departmentId === undefined) {
+  // `Object.hasOwn` guards against prototype-chain lookups (e.g. campusId ===
+  // "constructor" or "toString" resolving to an inherited Object.prototype
+  // member instead of `undefined`), which a plain `=== undefined` check on a
+  // bracket access would miss.
+  if (!Object.hasOwn(CAMPUS_INVOICE_DEPARTMENT_IDS, campusId)) {
     throw new Error(`Unknown campus id: ${campusId}`);
   }
+  const departmentId = CAMPUS_INVOICE_DEPARTMENT_IDS[campusId];
 
   const dimensions = buildDimensions(campusId, plan);
 
