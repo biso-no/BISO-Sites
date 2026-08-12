@@ -12,6 +12,7 @@ export { getValidSession, hasSession } from "./auth";
 // Category management
 export {
   assignMembershipCategory,
+  buildCustomerCategoryPairs,
   type CustomerCategoryMapping,
   getAllCategories,
   getCustomerCategories,
@@ -66,16 +67,14 @@ export {
   uploadDocument,
 } from "./rest";
 // Customer sync function
-export { hasMembershipProduct, syncMembershipTo24SO } from "./sync";
+export { hasMembershipProduct } from "./sync";
 // Types
 export type {
   CategoryDefinition,
   Company,
   CompanySearchParams,
   Credentials,
-  CustomerData,
   MembershipProductSyncItem,
   MembershipProductSyncResult,
-  MembershipSyncResult,
   Product,
 } from "./types";
