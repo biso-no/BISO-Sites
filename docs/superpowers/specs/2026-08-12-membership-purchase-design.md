@@ -41,11 +41,15 @@ creation. Its behaviour is authoritative wherever this repo and it disagree.
 
 Values taken from it:
 
-| Plan | Price (NOK) | 24SO ProductId | 24SO CategoryId | Accrual months |
-|---|---|---|---|---|
-| Semester | 350 | 54 | 113176 | 6 |
-| 1 year | 550 | 71 | 113178 | 12 |
-| 3 years | 1350 | 82 | 113177 | 36 |
+| Plan | Price (NOK) | 24SO ProductNo | 24SO ProductId | 24SO CategoryId | Accrual months |
+|---|---|---|---|---|---|
+| Semester | 350 | 1009 | 54 | 113176 | 6 |
+| 1 year | 550 | 2004 | 71 | 113178 | 12 |
+| 3 years | 1350 | 3004 | 82 | 113177 | 36 |
+
+`ProductNo` and `ProductId` are distinct 24SO fields. **Invoice rows take
+`ProductId`.** funksjon's `productIdMap` (`1009 → 54`, `2004 → 71`,
+`3004 → 82`) is that `No → Id` translation, not an internal indirection.
 
 Campus → 24SO `DepartmentId`: Oslo 1, Bergen 300, Trondheim 600, Stavanger 800,
 National 1000.
@@ -56,14 +60,10 @@ These IDs are read from the `memberships` table at runtime (see "Catalog"); the
 table above records what the values are expected to be, for review and for
 verifying the sync.
 
-One value needs confirming against live data before the flow is trusted:
-`memberships.membership_id` is written from `product.Id` returned by
-`getMembershipProducts()`, and this design assumes those are the same 54 / 71 /
-82 that funksjon posts as `ProductId`. funksjon reaches them through an
-indirection (`1009 → 54`, `2004 → 71`, `3004 → 82`) whose left-hand side appears
-to be a BI-app product code rather than a 24SO one. If the synced ids turn out
-not to match, the catalog needs an explicit `productId` column rather than
-reusing `membership_id`.
+The catalog already holds the right value and needs no additional column:
+`syncMembershipsFrom24SO` writes `membership_id` from `product.Id`, which is the
+`ProductId` invoice rows require. `product.No` is read into the sync item but
+never persisted, which is correct — nothing in this flow uses `ProductNo`.
 
 ## Current state
 
@@ -362,7 +362,8 @@ Vitest, colocated `*.test.ts`, matching existing convention.
 - category pair shape — a regression test pinning `Key = categoryId,
   Value = customerId`;
 - invoice payload builder: department per campus, both dimension pairs at both
-  levels, accrual date derived from plan start;
+  levels, accrual date derived from plan start, and `ProductId` (not `ProductNo`)
+  on the invoice row;
 - customer create sends `Id` equal to the employee id;
 - fulfilment idempotency across `already_posted`, `claimed_elsewhere`,
   `not_paid`, and the post-side-effect failure that must not release the claim;
@@ -390,8 +391,5 @@ Finago and Graph are mocked throughout. No test performs a live call.
    `appwrite types -l ts ./types`.
 4. Set `price` and `canPurchase` on the three `memberships` rows after the sync
    fix lands.
-5. Confirm the synced `membership_id` values are the 24SO `ProductId`s the BI
-   app invoices against (expected 54, 71, 82). If they are not, the catalog
-   needs an explicit `productId` column.
-6. Verify against a Finago test customer that the invoice this flow produces is
+5. Verify against a Finago test customer that the invoice this flow produces is
    indistinguishable from one the BI app produces.
