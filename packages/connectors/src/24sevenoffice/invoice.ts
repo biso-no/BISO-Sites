@@ -37,23 +37,31 @@ export async function postMembershipInvoice(
   const session = await getValidSession();
   const client = await createAuthenticatedClient("invoice", session);
 
-  const [result]: [SaveInvoicesResult] = await client.SaveInvoicesAsync({
-    invoices: { InvoiceOrder: order },
-  });
+  try {
+    const [result]: [SaveInvoicesResult] = await client.SaveInvoicesAsync({
+      invoices: { InvoiceOrder: order },
+    });
 
-  const apiMessage = result.SaveInvoicesResult?.APIException?.Message;
-  if (apiMessage) {
-    throw new Error(`24SO Invoice Error: ${apiMessage}`);
+    const apiMessage = result.SaveInvoicesResult?.APIException?.Message;
+    if (apiMessage) {
+      throw new Error(`24SO Invoice Error: ${apiMessage}`);
+    }
+
+    const saved = result.SaveInvoicesResult?.InvoiceOrder;
+    const invoice = Array.isArray(saved) ? saved[0] : saved;
+    if (!invoice?.OrderId) {
+      throw new Error("Failed to create invoice - no OrderId returned");
+    }
+
+    console.log(
+      `[24SO Invoice] Created membership invoice ${invoice.OrderId} for customer ${order.CustomerId}`
+    );
+    return invoice.OrderId;
+  } catch (error) {
+    console.error(
+      `[24SO Invoice] Failed to create invoice for customer ${order.CustomerId}:`,
+      error
+    );
+    throw error;
   }
-
-  const saved = result.SaveInvoicesResult?.InvoiceOrder;
-  const invoice = Array.isArray(saved) ? saved[0] : saved;
-  if (!invoice?.OrderId) {
-    throw new Error("Failed to create invoice - no OrderId returned");
-  }
-
-  console.log(
-    `[24SO Invoice] Created membership invoice ${invoice.OrderId} for customer ${order.CustomerId}`
-  );
-  return invoice.OrderId;
 }
