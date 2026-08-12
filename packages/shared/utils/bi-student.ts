@@ -10,7 +10,7 @@
 export const BI_STUDENT_EMAIL_DOMAIN = "bi.no";
 
 const NON_DIGITS_RE = /\D/g;
-const HAS_DIGIT_RE = /\d/;
+const BI_STUDENT_LOCAL_PART_RE = /^s\d+$/;
 
 export function sanitizeStudentNumber(
   raw: string | null | undefined
@@ -26,6 +26,17 @@ export function sanitizeStudentNumber(
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+/**
+ * Parse a BI student email address and extract identifiers.
+ *
+ * Accepts only the strict BI student format: `s<digits>@bi.no` (e.g., `s1715738@bi.no`).
+ * Non-student bi.no addresses (e.g., staff: `firstname.lastname@bi.no`) are rejected
+ * to prevent fabricated student numbers.
+ *
+ * @param email The email address to parse (trimmed and lowercased internally)
+ * @returns Object with `studentId` (lowercased local part) and `studentNumber` (digits only),
+ *          or null if the email does not match the strict student format
+ */
 export function parseBiStudentEmail(
   email: string | null | undefined
 ): { studentId: string; studentNumber: number } | null {
@@ -45,7 +56,7 @@ export function parseBiStudentEmail(
   }
 
   const studentId = normalized.slice(0, atIndex);
-  if (!HAS_DIGIT_RE.test(studentId)) {
+  if (!BI_STUDENT_LOCAL_PART_RE.test(studentId)) {
     return null;
   }
 

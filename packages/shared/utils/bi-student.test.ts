@@ -28,6 +28,18 @@ describe("parseBiStudentEmail", () => {
     expect(parseBiStudentEmail("firstname.lastname@bi.no")).toBeNull();
   });
 
+  it("rejects staff addresses with numeric disambiguation", () => {
+    expect(parseBiStudentEmail("ola.nordmann2@bi.no")).toBeNull();
+  });
+
+  it("rejects a local part without the s prefix", () => {
+    expect(parseBiStudentEmail("1715738@bi.no")).toBeNull();
+  });
+
+  it("rejects a local part with characters after the digits", () => {
+    expect(parseBiStudentEmail("s1715738x@bi.no")).toBeNull();
+  });
+
   it("rejects empty input", () => {
     expect(parseBiStudentEmail(null)).toBeNull();
     expect(parseBiStudentEmail("")).toBeNull();
@@ -42,5 +54,6 @@ describe("sanitizeStudentNumber", () => {
   it("returns null when no digits remain", () => {
     expect(sanitizeStudentNumber("abc")).toBeNull();
     expect(sanitizeStudentNumber(null)).toBeNull();
+    expect(sanitizeStudentNumber(undefined)).toBeNull();
   });
 });
