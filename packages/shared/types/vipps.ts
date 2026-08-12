@@ -31,6 +31,14 @@ export interface CheckoutSessionParams {
     variationName?: string;
     customFields?: Record<string, string>;
     customFieldLabels?: Record<string, string>;
+    // Membership-purchase-only display metadata. Not read by fulfilment (which
+    // re-derives the plan from the DB via `product_id`) — carried through only
+    // so the order/receipt view can show the plan's Finago product id,
+    // category, and duration without a second lookup.
+    membership_id?: string;
+    category_id?: string;
+    duration?: string;
+    accrual_months?: number;
   }>;
   memberDiscountPercent?: number;
   membershipApplied?: boolean;
