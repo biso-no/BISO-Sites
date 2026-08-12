@@ -37,6 +37,15 @@ function paidOrder(overrides: Record<string, unknown> = {}) {
   };
 }
 
+const MEMBERSHIP_ITEMS_JSON = JSON.stringify([
+  {
+    product_id: "71",
+    product_type: "membership",
+    quantity: 1,
+    unit_price: 550,
+  },
+]);
+
 describe("postFinagoTransactionForOrder", () => {
   beforeEach(() => {
     process.env.APPWRITE_DATABASE_ID = "app";
@@ -139,22 +148,61 @@ describe("postFinagoTransactionForOrder", () => {
 
   it("skips membership orders so revenue is not booked twice", async () => {
     db.getRow.mockResolvedValue(
-      paidOrder({
-        items_json: JSON.stringify([
-          {
-            product_id: "71",
-            product_type: "membership",
-            quantity: 1,
-            unit_price: 550,
-          },
-        ]),
-      })
+      paidOrder({ items_json: MEMBERSHIP_ITEMS_JSON })
     );
 
     const result = await postFinagoTransactionForOrder("order-1", db);
 
     expect(result).toEqual({ posted: false, reason: "membership_order" });
     expect(postShopTransaction).not.toHaveBeenCalled();
+  });
+
+  it("stamps the membership-exclusion sentinel so the order drops out of the reconcile sweep for good", async () => {
+    db.getRow.mockResolvedValue(
+      paidOrder({ items_json: MEMBERSHIP_ITEMS_JSON })
+    );
+
+    const result = await postFinagoTransactionForOrder("order-1", db);
+
+    expect(result).toEqual({ posted: false, reason: "membership_order" });
+    expect(db.updateRow).toHaveBeenCalledWith("app", "orders", "order-1", {
+      finago_transaction_id: "membership",
+    });
+    expect(postShopTransaction).not.toHaveBeenCalled();
+  });
+
+  it("treats a membership order already carrying the exclusion sentinel as already_posted and writes nothing", async () => {
+    db.getRow.mockResolvedValue(
+      paidOrder({
+        items_json: MEMBERSHIP_ITEMS_JSON,
+        finago_transaction_id: "membership",
+      })
+    );
+
+    const result = await postFinagoTransactionForOrder("order-1", db);
+
+    expect(result).toEqual({ posted: false, reason: "already_posted" });
+    expect(db.updateRow).not.toHaveBeenCalled();
+    expect(postShopTransaction).not.toHaveBeenCalled();
+  });
+
+  it("does not stamp an unpaid membership order", async () => {
+    db.getRow.mockResolvedValue(
+      paidOrder({ items_json: MEMBERSHIP_ITEMS_JSON, status: "pending" })
+    );
+
+    const result = await postFinagoTransactionForOrder("order-1", db);
+
+    expect(result).toEqual({ posted: false, reason: "not_paid" });
+    expect(db.updateRow).not.toHaveBeenCalled();
+    expect(postShopTransaction).not.toHaveBeenCalled();
+  });
+
+  it("leaves a normal shop order unaffected by the membership exclusion", async () => {
+    const result = await postFinagoTransactionForOrder("order-1", db);
+
+    expect(result).toEqual({ posted: true, transactionId: "finago-tx-1" });
+    expect(postShopTransaction).toHaveBeenCalled();
   });
 
   it("stamps a marker before posting and keeps it (no release) when the 24SO post fails", async () => {
