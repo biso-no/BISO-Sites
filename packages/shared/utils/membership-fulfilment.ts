@@ -230,6 +230,12 @@ async function postToFinago(
   db: DbClient
 ): Promise<number | null> {
   const { dbId, ordersId } = tables();
+  // Tracks whether postMembershipInvoice already succeeded, so the catch
+  // below can tell "nothing landed in Finago yet" apart from "the invoice
+  // exists in Finago but recording its id here failed" — the latter is the
+  // worst case (a real invoice with no local breadcrumb) and needs the
+  // invoice id in the log for manual reconciliation.
+  let invoiceId: number | undefined;
   try {
     const { firstName, lastName } = splitName(order.buyer_name);
     const customerId = await upsertMembershipCustomer({
@@ -242,7 +248,7 @@ async function postToFinago(
 
     await assignMembershipCategory(customerId, plan.categoryId);
 
-    const invoiceId = await postMembershipInvoice({
+    invoiceId = await postMembershipInvoice({
       ...invoicePayload,
       CustomerId: customerId,
     });
@@ -256,10 +262,17 @@ async function postToFinago(
     );
     return invoiceId;
   } catch (error) {
-    console.error(
-      `[Membership] Fulfilment attempted for order ${orderId}; leaving marker for manual recovery:`,
-      error
-    );
+    if (invoiceId === undefined) {
+      console.error(
+        `[Membership] Fulfilment attempted for order ${orderId}; leaving marker for manual recovery:`,
+        error
+      );
+    } else {
+      console.error(
+        `[Membership] Order ${orderId} was invoiced in Finago as ${invoiceId} but recording it failed; reconcile manually.`,
+        error
+      );
+    }
     return null;
   }
 }

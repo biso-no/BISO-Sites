@@ -109,7 +109,13 @@ describe("fulfilMembershipOrder", () => {
     db.incrementRowColumn.mockResolvedValue({ membership_fulfilment_lock: 1 });
     db.decrementRowColumn.mockResolvedValue({ membership_fulfilment_lock: 0 });
     db.updateRow.mockResolvedValue({});
-    upsertMembershipCustomer.mockResolvedValue(9_001_234);
+    // Deliberately different from profile.bi_employee_id ("9001234"):
+    // upsertMembershipCustomer resolves-or-creates and can legitimately
+    // return a different 24SO company id for an existing customer record. If
+    // postToFinago regressed to using identity.employeeId instead of this
+    // resolved id, the assertions below on assignMembershipCategory /
+    // postMembershipInvoice would fail.
+    upsertMembershipCustomer.mockResolvedValue(5_550_001);
     assignMembershipCategory.mockResolvedValue(undefined);
     postMembershipInvoice.mockResolvedValue(556_677);
   });
@@ -130,10 +136,10 @@ describe("fulfilMembershipOrder", () => {
         studentNumber: 1_715_738,
       })
     );
-    expect(assignMembershipCategory).toHaveBeenCalledWith(9_001_234, 113_178);
+    expect(assignMembershipCategory).toHaveBeenCalledWith(5_550_001, 113_178);
     expect(postMembershipInvoice).toHaveBeenCalledWith(
       expect.objectContaining({
-        CustomerId: 9_001_234,
+        CustomerId: 5_550_001,
         DepartmentId: 300,
         AccrualLength: 12,
       })
