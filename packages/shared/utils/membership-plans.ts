@@ -57,16 +57,19 @@ const DURATION_BY_ACCRUAL: Record<6 | 12 | 36, MembershipDuration> = {
  * Snaps the calendar span between the product's parsed start and expiry to the
  * nearest supported accrual length. Product names encode e.g. "fall 2026"
  * (Aug–Dec, 4 calendar months) which must still book as a 6-month accrual.
+ *
+ * Returns null if either date fails to parse (e.g. corrupted 24SO sync data).
+ * Callers must not silently default unparseable dates to a standard accrual.
  */
 export function deriveAccrualMonths(
   startDate: string,
   expiryDate: string
-): 6 | 12 | 36 {
+): 6 | 12 | 36 | null {
   const start = new Date(startDate);
   const expiry = new Date(expiryDate);
 
   if (Number.isNaN(start.getTime()) || Number.isNaN(expiry.getTime())) {
-    return 12;
+    return null;
   }
 
   const months =
@@ -75,6 +78,7 @@ export function deriveAccrualMonths(
 
   let closest: 6 | 12 | 36 = ACCRUAL_OPTIONS[0];
   for (const option of ACCRUAL_OPTIONS) {
+    // Exact tie (e.g. 24 months equidistant from 12 and 36) resolves to the lower option
     if (Math.abs(option - months) < Math.abs(closest - months)) {
       closest = option;
     }
@@ -103,6 +107,9 @@ export function toMembershipPlan(
   }
 
   const accrualMonths = deriveAccrualMonths(row.startDate, row.expiryDate);
+  if (accrualMonths === null) {
+    return null;
+  }
 
   return {
     id: row.$id,
