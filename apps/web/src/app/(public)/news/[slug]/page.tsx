@@ -1,100 +1,152 @@
-import type { ContentTranslations } from "@repo/api/types/appwrite";
-import { PlateContentRenderer } from "@repo/ui/components/plate-content-renderer";
 import type { Metadata } from "next";
-import Image from "next/image";
 import { notFound } from "next/navigation";
+import { Suspense } from "react";
 import { getLocale } from "@/app/actions/locale";
-import { getNewsBySlug } from "@/app/actions/news";
-import { PublicPageHeader } from "@/components/public/public-page-header";
+import { getNewsBySlug, listNews } from "@/app/actions/news";
+import { ArticleBody } from "@/components/news/article-body";
+import { ArticleHero } from "@/components/news/article-hero";
+import { ArticleMetaRail } from "@/components/news/article-meta-rail";
+import { ArticleSkeleton } from "@/components/news/article-skeleton";
+import { RelatedArticles } from "@/components/news/related-articles";
+import {
+  buildLead,
+  buildSummary,
+  formatArticleDate,
+  pickTranslation,
+  readingMinutes,
+  toPlainText,
+} from "@/lib/news-article";
 
-function pickTranslation(item: Awaited<ReturnType<typeof getNewsBySlug>>) {
-  if (!(item && Array.isArray(item.translation_refs))) {
-    return null;
-  }
-  return (
-    item.translation_refs.find(
-      (entry): entry is ContentTranslations =>
-        typeof entry === "object" && entry !== null && "title" in entry
-    ) ?? null
-  );
+const RELATED_COUNT = 3;
+const RELATED_POOL = 8;
+
+interface NewsDetailProps {
+  params: Promise<{ slug: string }>;
 }
 
 export async function generateMetadata({
   params,
-}: {
-  params: Promise<{ slug: string }>;
-}): Promise<Metadata> {
+}: NewsDetailProps): Promise<Metadata> {
   const { slug } = await params;
   try {
     const locale = await getLocale();
     const item = await getNewsBySlug(slug, locale);
     const translation = pickTranslation(item);
-    const title = translation?.title ?? "News";
-    const description =
-      translation?.short_description ??
-      translation?.description?.slice(0, 160) ??
-      undefined;
-    return { title: `${title} | BISO`, description };
+    if (!translation) {
+      return { title: "News | BISO" };
+    }
+
+    const description = buildSummary(
+      translation.short_description,
+      toPlainText(translation.description)
+    );
+
+    return {
+      title: `${translation.title} | BISO`,
+      description,
+      openGraph: {
+        type: "article",
+        title: translation.title,
+        description,
+        publishedTime: item?.$createdAt,
+        images: item?.image ? [item.image] : undefined,
+      },
+    };
   } catch {
     return { title: "News | BISO" };
   }
 }
 
-export default async function PublicNewsDetailBySlug({
-  params,
-}: {
-  params: Promise<{ slug: string }>;
-}) {
-  const { slug } = await params;
-
+async function NewsArticle({ slug }: { slug: string }) {
   const locale = await getLocale();
   const item = await getNewsBySlug(slug, locale);
 
-  if (!item) {
-    return notFound();
-  }
-  if (item.status && item.status !== "published") {
+  if (!item || (item.status && item.status !== "published")) {
     return notFound();
   }
 
-  const translation = Array.isArray(item.translation_refs)
-    ? item.translation_refs.find(
-        (entry): entry is ContentTranslations =>
-          typeof entry === "object" && entry !== null && "title" in entry
-      )
-    : null;
-  const title = translation?.title ?? "News";
-  const description = translation?.description ?? "";
+  const translation = pickTranslation(item);
+  const title = translation?.title ?? "";
+  const body = translation?.description ?? "";
+  const plainBody = toPlainText(body);
+  const lead = buildLead(translation?.short_description, plainBody);
+  const summary = buildSummary(translation?.short_description, plainBody);
+
+  // Same-campus articles lead the "keep reading" row; everything else fills in
+  // behind them, so a Bergen reader is offered Bergen stories first.
+  const pool = await listNews({
+    locale,
+    status: "published",
+    limit: RELATED_POOL,
+  });
+  const related = pool
+    .filter((entry) => entry.$id !== item.$id)
+    .sort((a, b) => {
+      const aLocal = a.campus_id === item.campus_id ? 0 : 1;
+      const bLocal = b.campus_id === item.campus_id ? 0 : 1;
+      return aLocal - bLocal;
+    })
+    .slice(0, RELATED_COUNT);
+
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "NewsArticle",
+    headline: title,
+    description: summary,
+    datePublished: item.$createdAt,
+    dateModified: item.$updatedAt,
+    inLanguage: locale === "no" ? "nb-NO" : "en",
+    image: item.image ? [item.image] : undefined,
+    author: item.author
+      ? { "@type": "Person", name: item.author }
+      : { "@type": "Organization", name: "BI Student Organisation" },
+    publisher: {
+      "@type": "Organization",
+      name: "BI Student Organisation",
+    },
+    mainEntityOfPage: `${process.env.NEXT_PUBLIC_BASE_URL ?? "https://web.biso.no"}/news/${slug}`,
+  };
 
   return (
-    <div className="space-y-6">
-      <PublicPageHeader
-        breadcrumbs={[
-          { label: "Home", href: "/" },
-          { label: "News", href: "/news" },
-          { label: title },
-        ]}
-        subtitle={[
-          new Date(item.$createdAt).toLocaleDateString(),
-          item.campus?.name,
-          item.department?.Name,
-        ]
-          .filter(Boolean)
-          .join(" · ")}
-        title={title}
+    <div className="bg-background">
+      <script
+        // biome-ignore lint/security/noDangerouslySetInnerHtml: JSON-LD payload is serialized from typed server data.
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        type="application/ld+json"
       />
-      {item.image && (
-        <div className="relative h-64 w-full overflow-hidden rounded-lg">
-          <Image
-            alt={title}
-            className="object-cover"
-            fill
-            sizes="(max-width: 768px) 100vw, 768px"
-            src={item.image}
-          />
+
+      <ArticleHero article={item} lead={lead} title={title} />
+
+      {/* The reading card rides up over the hero — the article starts before
+          the image ends, which is what makes the page read as one story. */}
+      <div className="relative z-10 mx-auto -mt-16 max-w-6xl px-4 pb-20 sm:px-6 lg:px-8 lg:pb-28">
+        <div className="rounded-3xl border border-brand-border bg-card p-6 shadow-[0_30px_70px_-40px_rgba(0,23,49,0.5)] sm:p-10 lg:p-14">
+          <div className="grid gap-8 lg:grid-cols-[minmax(0,13rem)_minmax(0,1fr)] lg:gap-16">
+            <ArticleMetaRail
+              articleId={item.$id}
+              author={item.author}
+              lead={summary}
+              minutes={readingMinutes(plainBody)}
+              publishedOn={formatArticleDate(item.$createdAt, locale)}
+              title={title}
+            />
+            <ArticleBody value={body} />
+          </div>
         </div>
-      )}
-      <PlateContentRenderer value={description} />
+      </div>
+
+      <RelatedArticles articles={related} />
     </div>
+  );
+}
+
+export default async function PublicNewsDetailBySlug({
+  params,
+}: NewsDetailProps) {
+  const { slug } = await params;
+  return (
+    <Suspense fallback={<ArticleSkeleton />}>
+      <NewsArticle slug={slug} />
+    </Suspense>
   );
 }

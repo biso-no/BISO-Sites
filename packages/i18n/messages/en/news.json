@@ -3,5 +3,20 @@
     "title": "Latest News &",
     "subtitle": "Student Stories",
     "description": "Stay updated with the latest happenings, achievements, and stories from the BISO community."
+  },
+  "article": {
+    "eyebrow": "News",
+    "backToNews": "All news",
+    "published": "Published",
+    "readingTime": "Reading time",
+    "minutes": "{minutes} min",
+    "writtenBy": "Written by",
+    "campus": "Campus",
+    "unit": "Unit",
+    "share": "Share",
+    "linkCopied": "Link copied",
+    "relatedEyebrow": "Keep reading",
+    "relatedTitle": "More from BISO",
+    "relatedAction": "Browse all news"
   }
 }
