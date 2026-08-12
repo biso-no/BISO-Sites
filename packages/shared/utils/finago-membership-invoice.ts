@@ -77,10 +77,15 @@ function buildDimensions(
   campusId: string,
   plan: MembershipPlan
 ): UserDefinedDimension[] {
+  const campusName = CAMPUS_INVOICE_NAMES[campusId];
+  if (campusName === undefined) {
+    throw new Error(`Unknown campus id: ${campusId}`);
+  }
+
   return [
     {
       Type: "UserDefined",
-      Name: CAMPUS_INVOICE_NAMES[campusId] as string,
+      Name: campusName,
       Value: campusId,
       TypeId: "101",
     },

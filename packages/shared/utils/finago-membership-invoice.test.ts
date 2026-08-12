@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { buildMembershipInvoiceOrder } from "./finago-membership-invoice";
+import {
+  buildMembershipInvoiceOrder,
+  CAMPUS_INVOICE_DEPARTMENT_IDS,
+  CAMPUS_INVOICE_NAMES,
+} from "./finago-membership-invoice";
 import type { MembershipPlan } from "./membership-plans";
 
 const yearPlan: MembershipPlan = {
@@ -91,5 +95,92 @@ describe("buildMembershipInvoiceOrder", () => {
 
   it("throws on an unknown campus rather than defaulting to Oslo", () => {
     expect(() => build("99")).toThrow("Unknown campus id: 99");
+  });
+
+  it("maps every campus to its 24SO department at order and row level with correct names", () => {
+    const campuses: [string, number, string][] = [
+      ["1", 1, "Oslo"],
+      ["2", 300, "Bergen"],
+      ["3", 600, "Trondheim"],
+      ["4", 800, "Stavanger"],
+      ["5", 1000, "National"],
+    ];
+
+    for (const [campusId, expectedDept, expectedName] of campuses) {
+      const order = buildMembershipInvoiceOrder({
+        campusId,
+        customerId: 1_715_738,
+        plan: yearPlan,
+        invoicedOn: "2026-08-12",
+      });
+
+      expect(order.DepartmentId).toBe(expectedDept);
+      expect(order.InvoiceRows.InvoiceRow.DepartmentId).toBe(expectedDept);
+      expect(order.UserDefinedDimensions.UserDefinedDimension[0]).toEqual({
+        Type: "UserDefined",
+        Name: expectedName,
+        Value: campusId,
+        TypeId: "101",
+      });
+      expect(
+        order.InvoiceRows.InvoiceRow.UserDefinedDimensions
+          .UserDefinedDimension[0]
+      ).toEqual({
+        Type: "UserDefined",
+        Name: expectedName,
+        Value: campusId,
+        TypeId: "101",
+      });
+    }
+  });
+
+  it("handles all membership durations correctly", () => {
+    const durations: [
+      "semester" | "year" | "three_years",
+      string,
+      string,
+      number,
+    ][] = [
+      ["semester", "100", "Semester", 6],
+      ["year", "200", "Year", 12],
+      ["three_years", "300", "3 Years", 36],
+    ];
+
+    for (const [
+      duration,
+      expectedId,
+      expectedLabel,
+      expectedAccrual,
+    ] of durations) {
+      const order = buildMembershipInvoiceOrder({
+        campusId: "2",
+        customerId: 1_715_738,
+        plan: { ...yearPlan, duration, accrualMonths: expectedAccrual },
+        invoicedOn: "2026-08-12",
+      });
+
+      expect(order.UserDefinedDimensions.UserDefinedDimension[1]).toEqual({
+        Type: "UserDefined",
+        Name: expectedId,
+        Value: expectedLabel,
+        TypeId: "102",
+      });
+      expect(
+        order.InvoiceRows.InvoiceRow.UserDefinedDimensions
+          .UserDefinedDimension[1]
+      ).toEqual({
+        Type: "UserDefined",
+        Name: expectedId,
+        Value: expectedLabel,
+        TypeId: "102",
+      });
+      expect(order.AccrualLength).toBe(expectedAccrual);
+    }
+  });
+
+  it("ensures campus department and names records have identical key sets", () => {
+    const deptKeys = Object.keys(CAMPUS_INVOICE_DEPARTMENT_IDS).sort();
+    const nameKeys = Object.keys(CAMPUS_INVOICE_NAMES).sort();
+    expect(deptKeys).toEqual(nameKeys);
   });
 });
