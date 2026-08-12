@@ -43,9 +43,9 @@ export async function checkMembership(): Promise<MembershipCheckResult> {
     return {
       ok: true,
       active: status.isMember,
-      membership: status.memberships[0] as unknown as
-        | MembershipData
-        | undefined,
+      membership: status.memberships[0]
+        ? { ...status.memberships[0] }
+        : undefined,
       studentId: studentNumber,
       categories: status.finagoCategoryIds,
     };

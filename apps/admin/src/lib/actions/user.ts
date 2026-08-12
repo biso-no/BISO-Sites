@@ -12,6 +12,51 @@ function buildProfileRowPermissions(userId: string): string[] {
   return [Permission.read(userRole), Permission.update(userRole)];
 }
 
+// The bi_* columns are pending an `appwrite push tables`; extend locally until
+// packages/api/types/appwrite.ts is regenerated. Mirrors the pattern in
+// apps/web/src/lib/actions/bi-identity.ts.
+type BiUser = Users & {
+  bi_campus_id?: string | null;
+  bi_employee_id?: string | null;
+  bi_linked_at?: string | null;
+};
+
+function isOidcIdentity(identity: { provider?: string } | undefined): boolean {
+  return String(identity?.provider ?? "").toLowerCase() === "oidc";
+}
+
+/**
+ * Clears the BI student link (`student_id` + the `bi_*` enrichment columns)
+ * after the linked OIDC identity has been removed. Writes go through the
+ * admin client — these columns are deliberately outside the self-service
+ * profile-update allow-list, same as `apps/web`'s `syncBiStudentIdentity`.
+ *
+ * The Appwrite identity is already deleted by the time this runs, so a
+ * failure here must not fail the whole unlink action — it is logged and
+ * swallowed, leaving `student_id` stale until the next successful clear or
+ * relink. Unlike `apps/web`, there is no membership cache here to bust.
+ */
+async function clearBiStudentLink(
+  account: Awaited<ReturnType<typeof createSessionClient>>["account"]
+) {
+  try {
+    const user = await account.get();
+    const { db: adminDb } = await createAdminClient();
+
+    await adminDb.updateRow<BiUser>("app", "user", user.$id, {
+      student_id: null,
+      bi_employee_id: null,
+      bi_campus_id: null,
+      bi_linked_at: null,
+    });
+  } catch (error) {
+    console.error(
+      "Failed to clear BI student link after identity removal",
+      error
+    );
+  }
+}
+
 export async function getLoggedInUser(): Promise<{
   user: Models.User<Models.Preferences>;
   profile: Users | null;
@@ -64,7 +109,23 @@ export async function listIdentities() {
 export async function removeIdentity(identityId: string) {
   try {
     const { account } = await createSessionClient();
+
+    // Determine before deleting whether this is the BI Student (OIDC)
+    // identity — deleting it without clearing student_id would let a user
+    // unlink and keep member status/pricing indefinitely (or hand off a
+    // still-"member" account to someone else).
+    const identities = await account.listIdentities().catch(() => null);
+    const removedIdentity = identities?.identities.find(
+      (identity) => identity.$id === identityId
+    );
+    const wasOidc = isOidcIdentity(removedIdentity);
+
     await account.deleteIdentity(identityId);
+
+    if (wasOidc) {
+      await clearBiStudentLink(account);
+    }
+
     return { success: true };
   } catch (error) {
     console.error("Failed to remove identity", error);

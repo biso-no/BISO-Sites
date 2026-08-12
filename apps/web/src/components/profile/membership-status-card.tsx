@@ -171,14 +171,19 @@ function MembershipStatusCard({
   const handleVerificationSuccess = useCallback(
     (payload: MembershipStatusPayload) => {
       const active = payload.isMember === true;
-      setState({
+      // Merge into the previous "ok" state rather than replacing it wholesale
+      // — `/api/membership` has no `studentId` field, so a plain replace would
+      // silently drop it. Nothing renders `studentId` today, but a future
+      // consumer shouldn't get surprised by it vanishing on refresh.
+      setState((prev) => ({
+        ...(prev?.ok ? prev : {}),
         ok: true,
         active,
-        membership: payload.memberships?.[0] as unknown as
-          | Record<string, unknown>
-          | undefined,
+        membership: payload.memberships?.[0]
+          ? { ...payload.memberships[0] }
+          : undefined,
         categories: payload.finagoCategoryIds,
-      });
+      }));
       toast.success(active ? "Membership verified" : "No active membership", {
         description: active ? "Enjoy your benefits across BISO." : undefined,
       });
