@@ -16,7 +16,10 @@ import { type CheckoutSessionParams, Currency } from "@repo/shared/types/vipps";
 import { sanitizeStudentNumber } from "@repo/shared/utils/bi-student";
 import { isFeatureEnabled } from "@repo/shared/utils/feature-flags-server";
 import { CAMPUS_INVOICE_NAMES } from "@repo/shared/utils/finago-membership-invoice";
-import { toMembershipPlan } from "@repo/shared/utils/membership-plans";
+import {
+  type MembershipPlan,
+  toMembershipPlan,
+} from "@repo/shared/utils/membership-plans";
 import { parseOrderItems } from "@repo/shared/utils/order-parsing";
 import {
   createOrder,
@@ -44,6 +47,54 @@ type CheckoutDb = Awaited<ReturnType<typeof createAdminClient>>["db"];
 // same plan later is never blocked.
 const IDEMPOTENCY_WINDOW_MS = 15 * 60 * 1000;
 const RECENT_ORDERS_LIMIT = 20;
+
+// Same deadline discipline as the product checkout route: neither payment
+// helper has an internal timeout, so a hung provider call would otherwise
+// hang this request indefinitely instead of surfacing as a 504.
+const DEFAULT_VIPPS_CHECKOUT_TIMEOUT_MS = 10_000;
+
+class CheckoutTimeoutError extends Error {}
+
+function readPositiveInteger(
+  value: string | undefined,
+  fallback: number
+): number {
+  if (!value) {
+    return fallback;
+  }
+
+  const parsed = Number.parseInt(value, 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function vippsCheckoutTimeoutMs(): number {
+  return readPositiveInteger(
+    process.env.VIPPS_CHECKOUT_TIMEOUT_MS,
+    DEFAULT_VIPPS_CHECKOUT_TIMEOUT_MS
+  );
+}
+
+async function withDeadline<T>(
+  work: Promise<T>,
+  timeoutMs: number,
+  message: string
+): Promise<T> {
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  const deadline = new Promise<never>((_, reject) => {
+    timeout = setTimeout(() => {
+      reject(new CheckoutTimeoutError(message));
+    }, timeoutMs);
+    timeout.unref?.();
+  });
+
+  try {
+    return await Promise.race([work, deadline]);
+  } finally {
+    if (timeout) {
+      clearTimeout(timeout);
+    }
+  }
+}
 
 type SessionOutcome =
   | {
@@ -79,15 +130,24 @@ function isValidBody(
 
 /**
  * Finds a still-pending order this same buyer already created for this same
- * membership plan within the idempotency window and that already has a
- * stored checkout link, so a retried request reuses it instead of creating a
- * duplicate order + payment session. See IDEMPOTENCY_WINDOW_MS for why this
- * exists and how the window was chosen.
+ * membership plan, provider, and campus within the idempotency window and
+ * that already has a stored checkout link, so a retried request reuses it
+ * instead of creating a duplicate order + payment session. See
+ * IDEMPOTENCY_WINDOW_MS for why this exists and how the window was chosen.
+ *
+ * Provider and campus are part of the match, not just the plan: a buyer who
+ * abandons a Vipps attempt and switches to card must get a fresh Stripe
+ * order/session, not the stale Vipps checkout link back under a 200 from the
+ * Stripe route. Likewise a buyer who corrects the campus they picked must get
+ * a fresh order for the new campus — reusing the stale one would book the
+ * eventual Finago invoice to the wrong department.
  */
 async function findIdempotentOrder(
   db: CheckoutDb,
   userId: string,
-  planId: string
+  planId: string,
+  provider: Provider,
+  campusId: string
 ): Promise<{ checkoutUrl: string; orderId: string } | null> {
   const windowStart = new Date(
     Date.now() - IDEMPOTENCY_WINDOW_MS
@@ -95,13 +155,23 @@ async function findIdempotentOrder(
   const recent = await db.listRows<Orders>("app", "orders", [
     Query.equal("userId", userId),
     Query.equal("status", OrdersStatus.PENDING),
+    Query.equal("payment_provider", provider),
+    Query.equal("campus_id", campusId),
     Query.greaterThan("$createdAt", windowStart),
     Query.orderDesc("$createdAt"),
     Query.limit(RECENT_ORDERS_LIMIT),
   ]);
 
   for (const order of recent.rows) {
-    if (!order.payment_link) {
+    // The Query filters above should already scope this, but the match is
+    // re-checked in code rather than trusted blindly, since a wrong reuse
+    // here would hand back the wrong payment provider's checkout link or
+    // misattribute a Finago invoice to the wrong campus.
+    if (
+      !order.payment_link ||
+      order.payment_provider !== provider ||
+      order.campus_id !== campusId
+    ) {
       continue;
     }
     const isSamePlan = parseOrderItems(order.items_json).some(
@@ -113,6 +183,63 @@ async function findIdempotentOrder(
   }
 
   return null;
+}
+
+type IdentityOutcome =
+  | { ok: true; plan: MembershipPlan }
+  | { ok: false; message: string; status: number };
+
+/**
+ * Re-verifies the buyer's identity and the membership plan server side — the
+ * web action's own checks are UX, not authorization, since this endpoint is
+ * separately reachable with any valid JWT. Without an employee id there is no
+ * Finago customer number, so the purchase could not be fulfilled; the price
+ * and plan shape come from the `memberships` row, never from the client.
+ */
+async function resolveMembershipPurchase(
+  db: CheckoutDb,
+  userId: string,
+  planId: string
+): Promise<IdentityOutcome> {
+  const profile = (await db
+    .getRow<BiUser>("app", "user", userId)
+    .catch(() => null)) as BiUser | null;
+  const studentNumber = sanitizeStudentNumber(profile?.student_id);
+  if (studentNumber === null) {
+    return {
+      ok: false,
+      message: "Link your BI student account first",
+      status: 409,
+    };
+  }
+  if (!profile?.bi_employee_id) {
+    return {
+      ok: false,
+      message: "BI student record could not be verified",
+      status: 409,
+    };
+  }
+
+  const row = await db
+    .getRow<Memberships>("app", "memberships", planId)
+    .catch(() => null);
+  if (!(row?.status && row?.canPurchase)) {
+    return {
+      ok: false,
+      message: "That membership is no longer available",
+      status: 409,
+    };
+  }
+  const plan = toMembershipPlan(row);
+  if (!plan) {
+    return {
+      ok: false,
+      message: "That membership is not configured",
+      status: 409,
+    };
+  }
+
+  return { ok: true, plan };
 }
 
 // Resolve credentials before creating the order so a misconfigured provider
@@ -127,11 +254,20 @@ async function startVippsMembershipCheckout(
     return { ok: false, message: "Vipps is not configured", status: 503 };
   }
 
-  const { orderId } = await createOrder(params, db);
+  const { orderId, order } = await createOrder(params, db);
+  // The ePayment `reference` is the order id; the amount is taken from the
+  // persisted order total rather than the pre-persist `params.total`, same
+  // discipline as the product checkout route.
   const returnUrl = `${webBase}/api/checkout/return?orderId=${orderId}`;
-  const payment = await createVippsPayment({ ...params, orderId }, creds, {
-    returnUrl,
-  });
+  const payment = await withDeadline(
+    createVippsPayment(
+      { ...params, total: order.total ?? params.total, orderId },
+      creds,
+      { returnUrl }
+    ),
+    vippsCheckoutTimeoutMs(),
+    "Vipps checkout timed out"
+  );
 
   return {
     ok: true,
@@ -156,10 +292,13 @@ async function startStripeMembershipCheckout(
   const { orderId } = await createOrder(params, db);
   const successUrl = `${webBase}/api/checkout/return?orderId=${orderId}`;
   const cancelUrl = `${webBase}/membership/join?cancelled=true`;
-  const session = await createStripeCheckoutSession(
-    { ...params, orderId },
-    creds,
-    { successUrl, cancelUrl }
+  const session = await withDeadline(
+    createStripeCheckoutSession({ ...params, orderId }, creds, {
+      successUrl,
+      cancelUrl,
+    }),
+    vippsCheckoutTimeoutMs(),
+    "Stripe checkout timed out"
   );
 
   return { ok: true, orderId, session };
@@ -222,35 +361,22 @@ export async function POST(
 
     const { db } = await createAdminClient();
 
-    // Identity is re-verified server side; the web action's checks are UX, not
-    // authorization. Without an employee id there is no Finago customer
-    // number, so the purchase could not be fulfilled — refuse before payment.
-    const profile = (await db
-      .getRow<BiUser>("app", "user", user.$id)
-      .catch(() => null)) as BiUser | null;
-    const studentNumber = sanitizeStudentNumber(profile?.student_id);
-    if (studentNumber === null) {
-      return json({ message: "Link your BI student account first" }, 409);
+    const identity = await resolveMembershipPurchase(db, user.$id, body.planId);
+    if (!identity.ok) {
+      return json({ message: identity.message }, identity.status);
     }
-    if (!profile?.bi_employee_id) {
-      return json({ message: "BI student record could not be verified" }, 409);
-    }
-
-    // Price and plan come from the database, never from the client.
-    const row = await db
-      .getRow<Memberships>("app", "memberships", body.planId)
-      .catch(() => null);
-    if (!(row?.status && row?.canPurchase)) {
-      return json({ message: "That membership is no longer available" }, 409);
-    }
-    const plan = toMembershipPlan(row);
-    if (!plan) {
-      return json({ message: "That membership is not configured" }, 409);
-    }
+    const { plan } = identity;
 
     // Idempotency: before creating anything, look for an order the caller
-    // already started for this plan in the last 15 minutes and reuse it.
-    const existing = await findIdempotentOrder(db, user.$id, plan.id);
+    // already started for this plan, provider, and campus in the last 15
+    // minutes and reuse it.
+    const existing = await findIdempotentOrder(
+      db,
+      user.$id,
+      plan.id,
+      provider,
+      body.campusId
+    );
     if (existing) {
       return json(existing);
     }
@@ -306,6 +432,10 @@ export async function POST(
 
     return json({ checkoutUrl: session.checkoutUrl, orderId });
   } catch (error) {
+    if (error instanceof CheckoutTimeoutError) {
+      return json({ message: error.message }, 504);
+    }
+
     console.error(`[payment/${provider}/membership-checkout] error:`, error);
     return json({ message: "Failed to create checkout session" }, 500);
   }

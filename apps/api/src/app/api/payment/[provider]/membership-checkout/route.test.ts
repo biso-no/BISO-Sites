@@ -97,6 +97,12 @@ async function postVipps(request: NextRequest) {
   });
 }
 
+async function postStripe(request: NextRequest) {
+  return await POST(request, {
+    params: Promise.resolve({ provider: "stripe" }),
+  });
+}
+
 function mockAuthenticatedUser(userId = "user-1") {
   mockedCreateAuthenticatedClient.mockResolvedValue({
     account: {
@@ -277,6 +283,14 @@ describe("membership checkout authorization", () => {
       }),
       expect.anything()
     );
+    // Pins the amount that actually reaches the provider call, not just the
+    // order row — a bug decoupling the two would still pass on createOrder
+    // alone.
+    expect(mockedCreateVippsPayment).toHaveBeenCalledWith(
+      expect.objectContaining({ total: 550 }),
+      expect.anything(),
+      expect.anything()
+    );
   });
 
   it("reuses the existing pending order on a repeat call within the idempotency window instead of creating a duplicate", async () => {
@@ -298,15 +312,18 @@ describe("membership checkout authorization", () => {
       existingOrders: [
         {
           $id: "order-1",
+          campus_id: "1",
           items_json: JSON.stringify([
             { product_id: "71", product_type: "membership", quantity: 1 },
           ]),
           payment_link: "https://vipps.example/checkout",
+          payment_provider: "vipps",
         },
       ],
     });
 
-    // A retry after the caller's own fetch timeout — same plan, same user.
+    // A retry after the caller's own fetch timeout — same plan, same user,
+    // same provider, same campus.
     const second = await postVipps(
       membershipCheckoutRequest({ authorization: "Bearer valid" })
     );
@@ -318,5 +335,102 @@ describe("membership checkout authorization", () => {
     });
     expect(mockedCreateOrder).toHaveBeenCalledTimes(1);
     expect(mockedCreateVippsPayment).toHaveBeenCalledTimes(1);
+  });
+
+  it("creates a fresh order — not the stale Vipps one — when the caller switches to a different payment provider", async () => {
+    // A prior, still-pending Vipps attempt for the same user/plan/campus, with
+    // its own stored checkout link.
+    mockAdminClient({
+      existingOrders: [
+        {
+          $id: "order-1",
+          campus_id: "1",
+          items_json: JSON.stringify([
+            { product_id: "71", product_type: "membership", quantity: 1 },
+          ]),
+          payment_link: "https://vipps.example/checkout",
+          payment_provider: "vipps",
+        },
+      ],
+    });
+    mockedCreateOrder.mockResolvedValue({
+      order: { total: 550 },
+      orderId: "order-2",
+    });
+
+    const response = await postStripe(
+      membershipCheckoutRequest({ authorization: "Bearer valid" })
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      checkoutUrl: "https://stripe.example/checkout",
+      orderId: "order-2",
+    });
+    expect(mockedCreateOrder).toHaveBeenCalledTimes(1);
+    expect(mockedCreateVippsPayment).not.toHaveBeenCalled();
+  });
+
+  it("creates a fresh order when the caller resubmits the same plan and provider under a different campus", async () => {
+    // A prior, still-pending Vipps attempt for campus "1".
+    mockAdminClient({
+      existingOrders: [
+        {
+          $id: "order-1",
+          campus_id: "1",
+          items_json: JSON.stringify([
+            { product_id: "71", product_type: "membership", quantity: 1 },
+          ]),
+          payment_link: "https://vipps.example/checkout",
+          payment_provider: "vipps",
+        },
+      ],
+    });
+    mockedCreateOrder.mockResolvedValue({
+      order: { total: 550 },
+      orderId: "order-2",
+    });
+
+    const response = await postVipps(
+      membershipCheckoutRequest({
+        authorization: "Bearer valid",
+        campusId: "2",
+      })
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual(
+      expect.objectContaining({ orderId: "order-2" })
+    );
+    expect(mockedCreateOrder).toHaveBeenCalledTimes(1);
+    expect(mockedCreateOrder).toHaveBeenCalledWith(
+      expect.objectContaining({ campusId: "2" }),
+      expect.anything()
+    );
+  });
+
+  it("returns 504 when the Vipps checkout call times out, and creates no session", async () => {
+    vi.stubEnv("VIPPS_CHECKOUT_TIMEOUT_MS", "20");
+    mockedCreateVippsPayment.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          setTimeout(() => {
+            resolve({
+              checkoutUrl: "https://vipps.example/checkout",
+              reference: "vipps-session",
+            });
+          }, 100);
+        })
+    );
+
+    const response = await postVipps(
+      membershipCheckoutRequest({ authorization: "Bearer valid" })
+    );
+
+    expect(response.status).toBe(504);
+    await expect(response.json()).resolves.toEqual({
+      message: "Vipps checkout timed out",
+    });
+    expect(mockedUpdateOrderWithSession).not.toHaveBeenCalled();
   });
 });
