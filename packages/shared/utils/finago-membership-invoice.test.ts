@@ -139,7 +139,7 @@ describe("buildMembershipInvoiceOrder", () => {
       "semester" | "year" | "three_years",
       string,
       string,
-      number,
+      6 | 12 | 36,
     ][] = [
       ["semester", "100", "Semester", 6],
       ["year", "200", "Year", 12],
