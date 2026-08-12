@@ -1,11 +1,7 @@
 "use server";
 import { Query } from "@repo/api";
 import { createAdminClient, createSessionClient } from "@repo/api/server";
-import type {
-  ContentTranslations,
-  Orders,
-  Users,
-} from "@repo/api/types/appwrite";
+import type { ContentTranslations, Orders } from "@repo/api/types/appwrite";
 import type { Locale } from "@repo/i18n/config";
 import { getFeatureFlagStates } from "@repo/shared/utils/feature-flags-server";
 import {
@@ -15,6 +11,7 @@ import {
 import { getLocale } from "@/app/actions/locale";
 import { getProduct } from "@/app/actions/products";
 import { validatePurchaseLimits } from "@/app/actions/purchase-limits";
+import { getMembershipStatus } from "@/lib/actions/membership";
 import { ensureAnonymousSession } from "@/lib/anon-session";
 import type { OrderItem } from "@/lib/types/order";
 import { parseProductMetadata } from "@/lib/types/webshop";
@@ -69,26 +66,8 @@ async function getMemberDiscountIfAny(product: Record<string, unknown>) {
     ) {
       return { applied: false, percent: 0 };
     }
-    const { account, db, functions } = await createSessionClient();
-    const user = await account.get().catch(() => null);
-    if (!user?.$id) {
-      return { applied: false, percent: 0 };
-    }
-    const profile = await db.getRow<Users>("app", "user", user.$id);
-    const studentId = profile?.studentId?.student_id;
-    if (!studentId) {
-      return { applied: false, percent: 0 };
-    }
-    const exec = await functions.createExecution(
-      "verify_biso_membership",
-      String(studentId),
-      false
-    );
-    const res = JSON.parse(
-      (exec as { responseBody?: string }).responseBody || "{}"
-    );
-    const isActive = !!res?.membership?.status;
-    if (!isActive) {
+    const status = await getMembershipStatus();
+    if (!status.isMember) {
       return { applied: false, percent: 0 };
     }
     return {

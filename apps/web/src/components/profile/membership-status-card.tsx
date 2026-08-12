@@ -1,6 +1,5 @@
 "use client";
 
-import { clientFunctions } from "@repo/api/client";
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Button } from "@repo/ui/components/ui/button";
 import { Card, CardContent } from "@repo/ui/components/ui/card";
@@ -25,12 +24,27 @@ export type MembershipCheckResult =
     }
   | { ok: false; error: string };
 
-interface MembershipPayload {
-  active?: boolean;
-  categories?: number[];
-  error?: string;
-  membership?: { status?: string };
-  studentId?: number;
+/**
+ * Shape returned by `GET /api/membership` (see
+ * `src/app/api/membership/route.ts`), which wraps `MembershipStatus` from
+ * `@repo/shared/utils/membership-status`. This component is a Client
+ * Component, so it cannot import that server-only module directly — it fetches
+ * the route instead and mirrors the fields it needs here.
+ */
+interface MembershipInfo {
+  category: string | null;
+  expiryDate: string;
+  id: string;
+  name: string;
+  startDate: string;
+}
+
+interface MembershipStatusPayload {
+  checkedAt?: number;
+  finagoCategoryIds?: number[];
+  isMember?: boolean;
+  memberships?: MembershipInfo[];
+  reason?: string;
 }
 
 interface StatusVisuals {
@@ -113,19 +127,6 @@ const getStatusVisuals = ({
   };
 };
 
-const parseExecutionPayload = (exec: unknown): MembershipPayload => {
-  if (!exec || typeof exec !== "object") {
-    return {};
-  }
-
-  const maybeExec = exec as { responseBody?: string; response?: string };
-  try {
-    return JSON.parse(maybeExec.responseBody ?? maybeExec.response ?? "{}");
-  } catch {
-    return {};
-  }
-};
-
 const extractErrorMessage = (error: unknown) => {
   if (error instanceof Error) {
     return error.message;
@@ -168,15 +169,15 @@ function MembershipStatusCard({
   }, []);
 
   const handleVerificationSuccess = useCallback(
-    (payload: MembershipPayload) => {
-      const active =
-        Boolean(payload.membership?.status) || payload.active === true;
+    (payload: MembershipStatusPayload) => {
+      const active = payload.isMember === true;
       setState({
         ok: true,
         active,
-        membership: payload.membership,
-        studentId: payload.studentId,
-        categories: payload.categories,
+        membership: payload.memberships?.[0] as unknown as
+          | Record<string, unknown>
+          | undefined,
+        categories: payload.finagoCategoryIds,
       });
       toast.success(active ? "Membership verified" : "No active membership", {
         description: active ? "Enjoy your benefits across BISO." : undefined,
@@ -195,14 +196,12 @@ function MembershipStatusCard({
     }
     startTransition(async () => {
       try {
-        const exec = await clientFunctions.createExecution(
-          "verify_biso_membership",
-          undefined,
-          false
-        );
-        const payload = parseExecutionPayload(exec);
-        if (payload.error) {
-          handleVerificationError(String(payload.error));
+        const response = await fetch("/api/membership?refresh=true", {
+          cache: "no-store",
+        });
+        const payload = (await response.json()) as MembershipStatusPayload;
+        if (!response.ok) {
+          handleVerificationError("Failed to verify membership status");
           return;
         }
         handleVerificationSuccess(payload);
