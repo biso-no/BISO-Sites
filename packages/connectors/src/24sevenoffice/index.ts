@@ -27,16 +27,12 @@ export {
   getCompaniesByIds,
   getCompanyById,
   searchCustomerByStudentId,
+  upsertMembershipCustomer,
 } from "./company";
 // Department list (SOAP — includes inactive departments)
 export { getAllDepartmentsSoap, type SoapDepartment } from "./departments";
-export type { InvoiceOrder, InvoiceRow } from "./invoice";
 // Invoice management
-export {
-  CAMPUS_DEPARTMENT_IDS,
-  CAMPUS_NAMES,
-  createMembershipInvoice,
-} from "./invoice";
+export { postMembershipInvoice } from "./invoice";
 // Membership product sync (admin)
 export {
   isActiveByDate,

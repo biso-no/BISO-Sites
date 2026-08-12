@@ -1,144 +1,59 @@
 /**
  * 24SevenOffice Invoice Service
  *
- * Creates invoices in 24SevenOffice for membership purchases.
+ * Thin SOAP transport. The payload is built by
+ * `@repo/shared/utils/finago-membership-invoice`, which is where the campus
+ * department map, accrual, and user-defined dimensions live and are tested.
  */
 
 import { getValidSession } from "./auth";
 import { createAuthenticatedClient } from "./client";
 
-export interface InvoiceRow {
-  DepartmentId?: number;
-  DiscountRate?: number;
-  Name?: string;
-  Price: number;
-  ProductId: number;
-  Quantity: number;
-}
-
-export interface InvoiceOrder {
+/**
+ * Minimal structural view of the invoice payload. The canonical shape is
+ * `MembershipInvoiceOrder` in `@repo/shared/utils/finago-membership-invoice`,
+ * which is structurally assignable to this. It is not imported here because
+ * `@repo/connectors` cannot depend on `@repo/shared` (workspace cycle) — this
+ * module is pure transport and does not need the full shape.
+ */
+export interface MembershipInvoicePayload {
   CustomerId: number;
-  DateInvoiced?: string;
-  DateOrdered?: string;
-  DeliveryMethod?: string;
-  DepartmentId?: number;
-  InvoiceRows?: {
-    InvoiceRow: InvoiceRow | InvoiceRow[];
-  };
-  Note?: string;
-  OrderId?: number;
-  OrderStatus?: "None" | "Registered" | "Invoiced" | "PartlyInvoiced";
-  OurReference?: string;
-  PaymentTime?: number;
-  YourReference?: string;
+  [key: string]: unknown;
 }
 
-export interface SaveInvoicesResult {
+interface SaveInvoicesResult {
   SaveInvoicesResult?: {
-    InvoiceOrder?: InvoiceOrder | InvoiceOrder[];
-    APIException?: {
-      Type?: string;
-      Message?: string;
-    };
+    APIException?: { Message?: string; Type?: string };
+    InvoiceOrder?: { OrderId?: number } | Array<{ OrderId?: number }>;
   };
 }
 
 /**
- * Campus to 24SevenOffice DepartmentId mapping
+ * Post a prebuilt membership invoice. Returns the created 24SO OrderId.
  */
-export const CAMPUS_DEPARTMENT_IDS: Record<string, number> = {
-  "1": 2, // Oslo
-  "2": 301, // Bergen
-  "3": 601, // Trondheim
-  "4": 801, // Stavanger
-  "5": 1002, // National
-};
-
-export const CAMPUS_NAMES: Record<string, string> = {
-  "1": "Oslo",
-  "2": "Bergen",
-  "3": "Trondheim",
-  "4": "Stavanger",
-  "5": "National",
-};
-
-export interface CreateMembershipInvoiceParams {
-  campusId: string;
-  customerId: number;
-  price: number;
-  productId: number;
-  productName: string;
-}
-
-/**
- * Create a membership invoice in 24SevenOffice
- *
- * @param params - Invoice creation parameters
- * @returns The created invoice order with OrderId
- */
-export async function createMembershipInvoice(
-  params: CreateMembershipInvoiceParams
-): Promise<InvoiceOrder> {
-  const { customerId, productId, productName, price, campusId } = params;
+export async function postMembershipInvoice(
+  order: MembershipInvoicePayload
+): Promise<number> {
   const session = await getValidSession();
   const client = await createAuthenticatedClient("invoice", session);
 
-  // Get department ID for the campus
-  const departmentId = CAMPUS_DEPARTMENT_IDS[params.campusId];
-  if (!departmentId) {
-    throw new Error(`Invalid campus ID: ${campusId}`);
+  const [result]: [SaveInvoicesResult] = await client.SaveInvoicesAsync({
+    invoices: { InvoiceOrder: order },
+  });
+
+  const apiMessage = result.SaveInvoicesResult?.APIException?.Message;
+  if (apiMessage) {
+    throw new Error(`24SO Invoice Error: ${apiMessage}`);
   }
 
-  const invoiceOrder: InvoiceOrder = {
-    CustomerId: customerId,
-    OrderStatus: "Registered",
-    DateOrdered: new Date().toISOString(),
-    PaymentTime: 14, // 14 days payment term
-    OurReference: "BISO Admin",
-    Note: `Manual membership creation: ${productName}`,
-    DepartmentId: departmentId,
-    InvoiceRows: {
-      InvoiceRow: {
-        ProductId: productId,
-        Price: price,
-        Quantity: 1,
-        Name: productName,
-        DepartmentId: departmentId,
-      },
-    },
-  };
-
-  try {
-    const [result]: [SaveInvoicesResult] = await client.SaveInvoicesAsync({
-      invoices: {
-        InvoiceOrder: invoiceOrder,
-      },
-    });
-
-    // Check for API exceptions
-    if (result.SaveInvoicesResult?.APIException?.Message) {
-      throw new Error(
-        `24SO Invoice Error: ${result.SaveInvoicesResult.APIException.Message}`
-      );
-    }
-
-    const saved = result.SaveInvoicesResult?.InvoiceOrder;
-    if (!saved) {
-      throw new Error("Failed to create invoice - no result returned");
-    }
-
-    const invoice = Array.isArray(saved) ? saved[0] : saved;
-    if (!invoice) {
-      throw new Error("Failed to create invoice - empty result");
-    }
-
-    console.log(
-      `[24SO Invoice] Created invoice for customer ${customerId}: Order ID ${invoice.OrderId}, Department ${departmentId}`
-    );
-
-    return invoice;
-  } catch (error) {
-    console.error("[24SO Invoice] Failed to create invoice:", error);
-    throw error;
+  const saved = result.SaveInvoicesResult?.InvoiceOrder;
+  const invoice = Array.isArray(saved) ? saved[0] : saved;
+  if (!invoice?.OrderId) {
+    throw new Error("Failed to create invoice - no OrderId returned");
   }
+
+  console.log(
+    `[24SO Invoice] Created membership invoice ${invoice.OrderId} for customer ${order.CustomerId}`
+  );
+  return invoice.OrderId;
 }

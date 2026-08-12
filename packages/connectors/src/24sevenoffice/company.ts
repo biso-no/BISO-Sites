@@ -326,3 +326,73 @@ export async function createStudentCustomer(
 
   return company;
 }
+
+export interface UpsertMembershipCustomerParams {
+  email?: string;
+  employeeId: number;
+  firstName: string;
+  lastName: string;
+  studentNumber: number;
+}
+
+/**
+ * Resolve the Finago customer for a membership purchase, creating it when
+ * absent.
+ *
+ * The customer number MUST equal the student's Azure employee id, because
+ * that is what BI's own app uses — so `Id` is sent explicitly on create rather
+ * than letting 24SO allocate one. `ExternalId` carries the sanitized student
+ * number from their BI email address.
+ */
+export async function upsertMembershipCustomer(
+  params: UpsertMembershipCustomerParams
+): Promise<number> {
+  const session = await getValidSession();
+
+  const byCompanyId = await getCompanies(session, {
+    CompanyId: params.employeeId,
+  });
+  if (byCompanyId[0]?.Id) {
+    return byCompanyId[0].Id;
+  }
+
+  const byExternalId = await getCompanies(session, {
+    ExternalId: String(params.studentNumber),
+  });
+  if (byExternalId[0]?.Id) {
+    return byExternalId[0].Id;
+  }
+
+  const client = await createAuthenticatedClient("company", session);
+  const newCompany: Company = {
+    Id: params.employeeId,
+    Name: `(Student) ${params.lastName}, ${params.firstName}`,
+    FirstName: params.firstName,
+    ExternalId: String(params.studentNumber),
+    Type: "Consumer",
+    Private: true,
+    Country: "NO",
+    CurrencyId: "NOK",
+  };
+
+  if (params.email) {
+    newCompany.EmailAddresses = { Primary: { Value: params.email } };
+  }
+
+  const [result]: [SaveCompaniesResult] = await client.SaveCompaniesAsync({
+    companies: { Company: newCompany },
+  });
+
+  const saved = result.SaveCompaniesResult?.Company;
+  const company = Array.isArray(saved) ? saved[0] : saved;
+  if (!company?.Id) {
+    throw new Error(
+      "[24SO Company] Failed to create membership customer - no id returned"
+    );
+  }
+
+  console.log(
+    `[24SO Company] Created membership customer ${company.Id} (ExternalId: ${params.studentNumber})`
+  );
+  return company.Id;
+}
