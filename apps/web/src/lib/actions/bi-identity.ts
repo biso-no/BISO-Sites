@@ -4,6 +4,7 @@ import { createAdminClient, createSessionClient } from "@repo/api/server";
 import type { Users } from "@repo/api/types/appwrite";
 import { getBiDirectoryUser } from "@repo/connectors/azure/bi-directory";
 import { parseBiStudentEmail } from "@repo/shared/utils/bi-student";
+import { membershipCacheTag } from "@repo/shared/utils/membership-status";
 import { revalidateTag } from "next/cache";
 import { unstable_rethrow } from "next/navigation";
 
@@ -101,7 +102,7 @@ export async function syncBiStudentIdentity(): Promise<BiIdentitySyncResult> {
 
     // The live membership check is keyed by the numeric student id; drop the
     // cached "no_student_id" result so status is correct immediately.
-    revalidateTag(`membership:${parsed.studentNumber}`, { expire: 0 });
+    revalidateTag(membershipCacheTag(parsed.studentNumber), { expire: 0 });
 
     if (directoryFailed) {
       return { success: false, error: "directory_unavailable" };
