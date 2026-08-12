@@ -1,5 +1,7 @@
 import { expandDepartmentName } from "@repo/shared/utils/team-roles";
 import { CAMPUS_NAME_TO_ID } from "./campus-constants";
+import { isHrDepartment } from "./recruitment";
+import { ROLES } from "./roles";
 
 export interface TeamParseResult {
   campusNames: string[];
@@ -44,6 +46,12 @@ export function parseTeamMemberships(
         expandDepartmentName(team.name.replace("SG-App-Dept-", ""))
       );
     }
+  }
+
+  // HR membership is a real role: recruitment surfaces gate on it instead of
+  // the broad department pseudo-role.
+  if (isHrDepartment(result.departmentNames)) {
+    result.roles.push(ROLES.HR);
   }
 
   return result;

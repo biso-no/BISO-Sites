@@ -1,96 +1,36 @@
 import { ID, Permission, Query, Role } from "./index";
 import { createAdminClient, createSessionClient } from "./server";
 import type {
-  Campus,
-  Departments,
   Pages,
   PageTranslations,
   PageTranslationsLocale,
 } from "./types/appwrite";
 import { PagesStatus, PagesVisibility } from "./types/appwrite";
 
-const OPERATIONS_UNIT_TEAM = "sg-app-dept-operationsunit";
 const MEMBERS_TEAM = "biso-members";
-
-interface PageRowTeams {
-  campusTeam: string | null;
-  deptTeam: string | null;
-}
-
-/**
- * Load campus/department display-name lookups so we can derive the owning
- * Appwrite team IDs for a page. Mirrors the admin app's
- * `loadRecruitmentLookups` / `deriveContentRowTeams`, kept self-contained here
- * to avoid a cross-package import.
- */
-async function loadPageRowTeams(
-  db: Awaited<ReturnType<typeof createSessionClient>>["db"],
-  page: { campus_id?: string | null; department_id?: string | null }
-): Promise<PageRowTeams> {
-  const [campuses, departments] = await Promise.all([
-    db.listRows<Campus>("app", "campus", [Query.limit(100)]),
-    db.listRows<Departments>("app", "departments", [Query.limit(500)]),
-  ]);
-
-  const campusName = page.campus_id
-    ? campuses.rows.find((c) => c.$id === page.campus_id)?.name
-    : null;
-  const campusTeam = campusName
-    ? `sg-app-campus-${campusName.toLowerCase().replace(/\s+/g, "")}`
-    : null;
-
-  const deptName = page.department_id
-    ? departments.rows.find((d) => d.$id === page.department_id)?.Name
-    : null;
-  const deptTeam = deptName
-    ? `sg-app-dept-${deptName.toLowerCase().replace(/\s+/g, "")}`
-    : null;
-
-  return { campusTeam, deptTeam };
-}
 
 /**
  * Build Appwrite $permissions for a page or page_translations row.
  *
- * Published + public pages get `read(any)`; everything else (draft/archived,
- * or authenticated-only visibility) is restricted to team-scoped reads, so an
- * unpublished page is never publicly readable. Write (update/delete) always
- * goes to Operations Unit plus the owning department team — never the campus
- * team.
+ * Row permissions describe CONSUMER visibility only — authoring goes through
+ * the admin client behind application-level authorization, so no team ever
+ * receives row-level write access:
+ *  - published + public → `read(any)`;
+ *  - published + members → members-team read;
+ *  - anything else (draft/archived, unpublished translation) → no
+ *    permissions; the row is service-only.
  */
 function buildPageRowPermissions(opts: {
   isPublished: boolean;
   audience: "public" | "members";
-  campusTeam: string | null;
-  deptTeam: string | null;
 }): string[] {
-  const { isPublished, audience, campusTeam, deptTeam } = opts;
-
-  const writeTeams = [
-    ...new Set([OPERATIONS_UNIT_TEAM, ...(deptTeam ? [deptTeam] : [])]),
-  ];
-
-  const readPerms =
-    isPublished && audience === "public"
-      ? [Permission.read(Role.any())]
-      : [
-          Permission.read(Role.team(OPERATIONS_UNIT_TEAM)),
-          ...(campusTeam ? [Permission.read(Role.team(campusTeam))] : []),
-          ...(deptTeam ? [Permission.read(Role.team(deptTeam))] : []),
-          ...(isPublished && audience === "members"
-            ? [Permission.read(Role.team(MEMBERS_TEAM))]
-            : []),
-        ];
-
-  return [
-    ...new Set([
-      ...readPerms,
-      ...writeTeams.flatMap((t) => [
-        Permission.update(Role.team(t)),
-        Permission.delete(Role.team(t)),
-      ]),
-    ]),
-  ];
+  const { isPublished, audience } = opts;
+  if (!isPublished) {
+    return [];
+  }
+  return audience === "members"
+    ? [Permission.read(Role.team(MEMBERS_TEAM))]
+    : [Permission.read(Role.any())];
 }
 
 function pageAudience(visibility: PagesVisibility): "public" | "members" {
@@ -156,7 +96,11 @@ export interface PageAuthCtx {
   userId: string;
 }
 
-function resolveCampusId(ctx: PageAuthCtx): string | null {
+/**
+ * The campus a page save will be attributed to for this author. Exported so
+ * the admin action can authorize the requested scope before persisting.
+ */
+export function resolvePageCampusId(ctx: PageAuthCtx): string | null {
   if (ctx.roles.includes("globaladmin")) {
     return ctx.activeCampusId ?? null;
   }
@@ -167,6 +111,13 @@ function resolveCampusId(ctx: PageAuthCtx): string | null {
     return ctx.resolvedCampusIds[0];
   }
   return null;
+}
+
+/** Normalize an Appwrite relationship value (row object or ID) to its ID. */
+function relatedId(
+  value: string | { $id: string } | null | undefined
+): string | null {
+  return typeof value === "string" ? value : (value?.$id ?? null);
 }
 
 export function pageDocToJson(doc: PageDoc): string {
@@ -265,8 +216,10 @@ function toEditorLoadResult(row: Pages): PageEditorLoadResult {
       slug: row.slug ?? "untitled",
       status: row.status,
       visibility: row.visibility,
-      departmentId: row.department_id ?? "",
-      campusId: row.campus_id,
+      // Relationship ownership is canonical; scalar columns remain as
+      // migration-era compatibility metadata for pre-backfill rows.
+      departmentId: relatedId(row.department) ?? row.department_id ?? "",
+      campusId: relatedId(row.campus) ?? row.campus_id,
     },
     translations,
     availableLocales: [...PAGE_LOCALES],
@@ -345,13 +298,14 @@ export async function getPage(
 
 export async function getPageById(
   id: string,
-  locale: PageEditorLocale = "no"
+  locale: PageEditorLocale = "no",
+  dbOverride?: PageDatabase
 ): Promise<{
   row: Pages;
   translation: PageTranslations | null;
   doc: PageDoc | null;
 } | null> {
-  const result = await getPageEditorById(id);
+  const result = await getPageEditorById(id, dbOverride);
   if (!result) {
     return null;
   }
@@ -386,14 +340,17 @@ export async function getPageById(
   };
 }
 
+type PageDatabase = Awaited<ReturnType<typeof createSessionClient>>["db"];
+
 export async function getPageEditorById(
-  id: string
+  id: string,
+  dbOverride?: PageDatabase
 ): Promise<PageEditorLoadResult | null> {
-  const { db } = await createSessionClient();
+  const db = dbOverride ?? (await createSessionClient()).db;
 
   const res = await db.listRows<Pages>("app", "pages", [
     Query.equal("$id", id),
-    Query.select(["*", "translation_refs.*"]),
+    Query.select(["*", "translation_refs.*", "campus.$id", "department.$id"]),
     Query.limit(1),
   ]);
 
@@ -415,8 +372,10 @@ export async function savePageDraft({
   locale?: PageEditorLocale;
   ctx: PageAuthCtx;
 }): Promise<{ pageId: string; slug: string; translationId: string }> {
-  const { db } = await createSessionClient();
-  const campusId = resolveCampusId(ctx);
+  // PRIVILEGED: callers must authorize the requested scope before invoking
+  // this helper; the write goes through the service-key admin client.
+  const { db } = await createAdminClient();
+  const campusId = resolvePageCampusId(ctx);
   let normalizedDoc = normalizeDocForSave(doc);
 
   if (!id) {
@@ -432,18 +391,12 @@ export async function savePageDraft({
     : PagesStatus.DRAFT;
   const departmentId = normalizedDoc.meta.department || null;
   const visibility = PagesVisibility.PUBLIC;
-  const teams = await loadPageRowTeams(db, {
-    campus_id: campusId,
-    department_id: departmentId,
-  });
   const pagePermissions = buildPageRowPermissions({
     isPublished: pageStatus === PagesStatus.PUBLISHED,
     audience: pageAudience(visibility),
-    campusTeam: teams.campusTeam,
-    deptTeam: teams.deptTeam,
   });
 
-  const page = await db.upsertRow<Pages>(
+  const page = await db.upsertRow(
     "app",
     "pages",
     id ?? ID.unique(),
@@ -451,8 +404,12 @@ export async function savePageDraft({
       slug: normalizedDoc.meta.slug,
       status: pageStatus,
       visibility,
-      department_id: departmentId,
+      // Canonical ownership relationships; the scalar columns remain as
+      // migration-era compatibility metadata only.
+      campus: campusId,
       campus_id: campusId,
+      department: departmentId,
+      department_id: departmentId,
     },
     pagePermissions
   );
@@ -470,8 +427,6 @@ export async function savePageDraft({
   const translationPermissions = buildPageRowPermissions({
     isPublished: pageStatus === PagesStatus.PUBLISHED && translationPublished,
     audience: pageAudience(visibility),
-    campusTeam: teams.campusTeam,
-    deptTeam: teams.deptTeam,
   });
 
   const translation = await db.upsertRow<PageTranslations>(
@@ -498,6 +453,67 @@ export async function savePageDraft({
 }
 
 /**
+ * Save one translated draft without mutating the parent page.
+ *
+ * PRIVILEGED: callers must authorize access before invoking this helper. It is
+ * intended for deferred translation work, where the request session may have
+ * already completed.
+ */
+export async function savePageTranslationDraft({
+  id,
+  doc,
+  locale,
+}: {
+  id: string;
+  doc: PageDoc;
+  locale: PageEditorLocale;
+}): Promise<{ translationId: string }> {
+  const { db } = await createAdminClient();
+  const pageRes = await db.listRows<Pages>("app", "pages", [
+    Query.equal("$id", id),
+    Query.limit(1),
+  ]);
+  const page = pageRes.rows[0];
+  if (!page) {
+    throw new Error("Page not found");
+  }
+
+  const normalizedDoc = normalizeDocForSave(doc);
+  const existingRes = await db.listRows<PageTranslations>(
+    "app",
+    "page_translations",
+    [
+      Query.equal("page_id", id),
+      Query.equal("locale", locale as PageTranslationsLocale),
+      Query.limit(1),
+    ]
+  );
+  const existing = existingRes.rows[0];
+  const permissions = buildPageRowPermissions({
+    isPublished:
+      page.status === PagesStatus.PUBLISHED &&
+      (existing?.is_published ?? false),
+    audience: pageAudience(page.visibility),
+  });
+  const translation = await db.upsertRow<PageTranslations>(
+    "app",
+    "page_translations",
+    existing?.$id ?? ID.unique(),
+    {
+      page_id: id,
+      page: id as unknown as Pages,
+      locale: locale as PageTranslationsLocale,
+      draft_document: pageDocToJson(normalizedDoc),
+      title: normalizedDoc.meta.title,
+      description: normalizedDoc.meta.description ?? null,
+      is_published: existing?.is_published ?? false,
+    },
+    permissions
+  );
+  return { translationId: translation.$id };
+}
+
+/**
  * Publish a page's translation.
  *
  * PRIVILEGED: the row writes use the service-key admin client. Page rows grant
@@ -509,9 +525,11 @@ export async function savePageDraft({
 export async function publishPage({
   id,
   locale = "no",
+  updateParentStatus = true,
 }: {
   id: string;
   locale?: "no" | "en";
+  updateParentStatus?: boolean;
 }): Promise<void> {
   const { db } = await createAdminClient();
 
@@ -532,15 +550,9 @@ export async function publishPage({
   ]);
   const pageRow = pageRes.rows[0];
   const visibility = pageRow?.visibility ?? PagesVisibility.PUBLIC;
-  const teams = await loadPageRowTeams(db, {
-    campus_id: pageRow?.campus_id ?? null,
-    department_id: pageRow?.department_id ?? null,
-  });
   const publishedPermissions = buildPageRowPermissions({
     isPublished: true,
     audience: pageAudience(visibility),
-    campusTeam: teams.campusTeam,
-    deptTeam: teams.deptTeam,
   });
 
   await db.updateRow(
@@ -555,15 +567,17 @@ export async function publishPage({
     publishedPermissions
   );
 
-  await db.updateRow(
-    "app",
-    "pages",
-    id,
-    {
-      status: "published" as PagesStatus,
-    },
-    publishedPermissions
-  );
+  if (updateParentStatus) {
+    await db.updateRow(
+      "app",
+      "pages",
+      id,
+      {
+        status: "published" as PagesStatus,
+      },
+      publishedPermissions
+    );
+  }
 }
 
 /**
@@ -594,15 +608,9 @@ export async function unpublishPage({
   ]);
   const pageRow = pageRes.rows[0];
   const visibility = pageRow?.visibility ?? PagesVisibility.PUBLIC;
-  const teams = await loadPageRowTeams(db, {
-    campus_id: pageRow?.campus_id ?? null,
-    department_id: pageRow?.department_id ?? null,
-  });
   const draftPermissions = buildPageRowPermissions({
     isPublished: false,
     audience: pageAudience(visibility),
-    campusTeam: teams.campusTeam,
-    deptTeam: teams.deptTeam,
   });
 
   const translation = tRes.rows[0];

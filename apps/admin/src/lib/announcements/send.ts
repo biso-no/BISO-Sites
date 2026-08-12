@@ -324,6 +324,7 @@ export async function dispatchDueAnnouncements(
   const due = await db.listRows<Announcements>("app", "announcements", [
     Query.equal("status", AnnouncementsStatus.SCHEDULED),
     Query.lessThanEqual("scheduled_at", now.toISOString()),
+    Query.isNull("data"),
     Query.limit(DUE_ANNOUNCEMENTS_PAGE_SIZE),
   ]);
 

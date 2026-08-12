@@ -1,13 +1,14 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
-import { Permission, Role } from "@repo/api";
 import type { UserAuthContext } from "@/lib/authorization";
 import type { NewsFormValues } from "./schemas";
 
 const db = {
   createRow: mock(),
   deleteRow: mock(),
+  getRow: mock(),
   listRows: mock(),
   updateRow: mock(),
+  upsertRow: mock(),
 };
 
 const campusAdminCtx: UserAuthContext = {
@@ -42,6 +43,7 @@ const publishedValues: NewsFormValues = {
 };
 
 mock.module("@repo/api/server", () => ({
+  createAdminClient: mock(async () => ({ db })),
   createSessionClient: mock(async () => ({ db })),
 }));
 
@@ -91,13 +93,24 @@ function mockExistingArticleAndTranslations({
   );
 }
 
+function nestedTranslations(
+  call: unknown[] | undefined
+): Record<string, unknown>[] {
+  const data = call?.[3] as
+    | { translation_refs?: Record<string, unknown>[] }
+    | undefined;
+  return data?.translation_refs ?? [];
+}
+
 beforeEach(() => {
   db.createRow.mockReset();
   db.deleteRow.mockReset();
+  db.getRow.mockReset();
   db.listRows.mockReset();
   db.updateRow.mockReset();
+  db.upsertRow.mockReset();
 
-  db.createRow.mockImplementation(
+  db.upsertRow.mockImplementation(
     async (
       _databaseId: string,
       tableId: string,
@@ -105,108 +118,46 @@ beforeEach(() => {
       data: Record<string, unknown>
     ) => ({ $id: tableId === "news" ? "news-1" : rowId, ...data })
   );
-  db.updateRow.mockImplementation(
-    async (
-      _databaseId: string,
-      _tableId: string,
-      rowId: string,
-      data: Record<string, unknown>
-    ) => ({ $id: rowId, ...data })
-  );
   db.deleteRow.mockImplementation(async () => undefined);
   mockExistingArticleAndTranslations({ translations: [] });
 });
 
 describe("news persistence", () => {
-  test("stages a new article privately before publishing it", async () => {
+  test("persists a published article with both nested locales in one write", async () => {
     const result = await createNews(publishedValues);
 
     expect(result).toEqual({ data: "news-1" });
-    expect(db.createRow).toHaveBeenCalledWith(
+    expect(db.upsertRow).toHaveBeenCalledTimes(1);
+    expect(db.upsertRow).toHaveBeenCalledWith(
       "app",
       "news",
-      "unique()",
-      expect.objectContaining({ status: "draft" }),
+      expect.any(String),
+      expect.objectContaining({
+        campus: "campus-oslo",
+        status: "published",
+        translation_refs: expect.arrayContaining([
+          expect.objectContaining({ locale: "no", title: "Norsk tittel" }),
+          expect.objectContaining({ locale: "en", title: "English title" }),
+        ]),
+      }),
       expect.any(Array)
     );
-    expect(db.createRow).toHaveBeenCalledWith(
-      "app",
-      "content_translations",
-      "unique()",
-      expect.objectContaining({ locale: "no", title: "Norsk tittel" }),
-      expect.any(Array)
-    );
-    expect(db.createRow).toHaveBeenCalledWith(
-      "app",
-      "content_translations",
-      "unique()",
-      expect.objectContaining({ locale: "en", title: "English title" }),
-      expect.any(Array)
-    );
-    expect(db.updateRow).toHaveBeenCalledWith(
-      "app",
-      "news",
-      "news-1",
-      expect.objectContaining({ status: "published" }),
-      expect.any(Array)
-    );
-
-    const parentCreateCall = db.createRow.mock.calls.find(
-      (call) => call[1] === "news"
-    );
-    const parentPublishCall = db.updateRow.mock.calls.find(
-      (call) => call[1] === "news" && call[3]?.status === "published"
-    );
-    const creatorUpdatePermission = Permission.update(
-      Role.user(campusAdminCtx.userId)
-    );
-    const creatorDeletePermission = Permission.delete(
-      Role.user(campusAdminCtx.userId)
-    );
-
-    expect(parentCreateCall?.[4]).toContain(creatorUpdatePermission);
-    expect(parentCreateCall?.[4]).toContain(creatorDeletePermission);
-    expect(parentPublishCall?.[4]).not.toContain(creatorUpdatePermission);
-    expect(parentPublishCall?.[4]).not.toContain(creatorDeletePermission);
+    // Single relationship-aware write: no staged create or finalize pass.
+    expect(db.createRow).not.toHaveBeenCalled();
+    expect(db.updateRow).not.toHaveBeenCalled();
   });
 
-  test("removes a staged article when a translation write fails", async () => {
-    db.createRow.mockImplementation(
-      (
-        _databaseId: string,
-        tableId: string,
-        _rowId: string,
-        data: Record<string, unknown>
-      ) => {
-        if (tableId === "news") {
-          return { $id: "news-1", ...data };
-        }
-        if (data.locale === "en") {
-          throw new Error("Translation write failed");
-        }
-        return { $id: "translation-no", ...data };
-      }
-    );
+  test("returns the persistence error without partial writes", async () => {
+    db.upsertRow.mockRejectedValue(new Error("Translation write failed"));
 
     const result = await createNews(publishedValues);
 
     expect(result).toEqual({ error: "Translation write failed" });
-    expect(db.deleteRow).toHaveBeenCalledWith(
-      "app",
-      "content_translations",
-      "translation-no"
-    );
-    expect(db.deleteRow).toHaveBeenCalledWith("app", "news", "news-1");
-    expect(db.updateRow).not.toHaveBeenCalledWith(
-      "app",
-      "news",
-      "news-1",
-      expect.objectContaining({ status: "published" }),
-      expect.any(Array)
-    );
+    expect(db.createRow).not.toHaveBeenCalled();
+    expect(db.deleteRow).not.toHaveBeenCalled();
   });
 
-  test("does not create an empty optional locale or retain staging access", async () => {
+  test("does not include an empty optional locale", async () => {
     await createNews({
       ...publishedValues,
       description_en: "",
@@ -214,23 +165,9 @@ describe("news persistence", () => {
       title_en: "",
     });
 
-    const translationCalls = db.createRow.mock.calls.filter(
-      (call) => call[1] === "content_translations"
-    );
-    expect(translationCalls).toHaveLength(1);
-    expect(translationCalls[0]?.[3]).toEqual(
-      expect.objectContaining({ locale: "no" })
-    );
-
-    const parentDraftCall = db.updateRow.mock.calls.find(
-      (call) => call[1] === "news" && call[3]?.status === "draft"
-    );
-    expect(parentDraftCall?.[4]).not.toContain(
-      Permission.update(Role.user(campusAdminCtx.userId))
-    );
-    expect(parentDraftCall?.[4]).not.toContain(
-      Permission.delete(Role.user(campusAdminCtx.userId))
-    );
+    const children = nestedTranslations(db.upsertRow.mock.calls[0]);
+    expect(children).toHaveLength(1);
+    expect(children[0]).toEqual(expect.objectContaining({ locale: "no" }));
   });
 
   test("deletes an existing locale after its content is cleared", async () => {
@@ -251,17 +188,41 @@ describe("news persistence", () => {
       title_en: "",
     });
 
-    expect(db.createRow).toHaveBeenCalledWith(
-      "app",
-      "content_translations",
-      "unique()",
-      expect.objectContaining({ locale: "no" }),
-      expect.any(Array)
+    const children = nestedTranslations(
+      db.upsertRow.mock.calls.find((call) => call[1] === "news")
     );
+    expect(children).toHaveLength(1);
+    expect(children[0]).toEqual(expect.objectContaining({ locale: "no" }));
     expect(db.deleteRow).toHaveBeenCalledWith(
       "app",
       "content_translations",
       "translation-en"
     );
+  });
+
+  test("reuses an existing locale row instead of duplicating it", async () => {
+    mockExistingArticleAndTranslations({
+      translations: [
+        {
+          $id: "translation-no",
+          content_id: "news-1",
+          locale: "no",
+          title: "Gammel tittel",
+        },
+      ],
+    });
+
+    await updateNews("news-1", publishedValues);
+
+    const children = nestedTranslations(
+      db.upsertRow.mock.calls.find((call) => call[1] === "news")
+    );
+    expect(children).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ $id: "translation-no", locale: "no" }),
+        expect.not.objectContaining({ $id: expect.any(String) }),
+      ])
+    );
+    expect(db.deleteRow).not.toHaveBeenCalled();
   });
 });

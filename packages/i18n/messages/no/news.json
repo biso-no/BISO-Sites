@@ -3,5 +3,20 @@
     "title": "Siste Nytt &",
     "subtitle": "Studenthistorier",
     "description": "Hold deg oppdatert med de siste hendelsene, prestasjonene og historiene fra BISO-samfunnet."
+  },
+  "article": {
+    "eyebrow": "Nyhet",
+    "backToNews": "Alle nyheter",
+    "published": "Publisert",
+    "readingTime": "Lesetid",
+    "minutes": "{minutes} min",
+    "writtenBy": "Skrevet av",
+    "campus": "Campus",
+    "unit": "Enhet",
+    "share": "Del",
+    "linkCopied": "Lenke kopiert",
+    "relatedEyebrow": "Les videre",
+    "relatedTitle": "Mer fra BISO",
+    "relatedAction": "Se alle nyheter"
   }
 }

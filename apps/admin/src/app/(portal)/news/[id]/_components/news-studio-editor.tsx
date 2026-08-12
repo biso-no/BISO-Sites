@@ -5,17 +5,28 @@ import { ArrowLeft, ArrowRight, Check, Circle, Save, Send } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import {
+  AutoTranslateControl,
+  TranslationReviewCard,
+} from "@/app/_components/content-translation-controls";
+import { getTargetLocale } from "@/lib/content-translation";
 import { listDepartmentsForCampus } from "../../../_actions/lookups";
-import { createNews, updateNews } from "../../../_actions/news";
+import {
+  createNews,
+  generateNewsTranslationDraft,
+  updateNews,
+} from "../../../_actions/news";
 import { type NewsFormValues, newsSchema } from "../../../_actions/schemas";
 import { ImageUploadField } from "../../../_components/image-upload-field";
 import { NewsArticleStep } from "./news-article-step";
 import { NewsStudioPreview } from "./news-studio-preview";
 import {
+  applyNewsTranslationDraft,
   createNewsStudioDefaults,
   getNewsEditorInteractionProps,
   getNewsSavedValues,
   getNewsStepCompletion,
+  getNewsTranslationDraftSource,
   type NewsLocale,
   type NewsWithTranslations,
   reconcileNewsSavedState,
@@ -74,9 +85,11 @@ interface MediaVisibilityStepProps extends StepProps {
 interface ReviewStepProps extends StepProps {
   campusName: string;
   departmentName: string;
+  isTranslating: boolean;
   labels: NewsStudioLabels;
   onPublish: () => Promise<void>;
   onSaveDraft: () => Promise<void>;
+  onTranslate: () => Promise<void>;
   pendingStatus: NewsFormValues["status"] | null;
 }
 
@@ -144,21 +157,27 @@ function StudioField({
 }
 
 function NewsStudioHeader({
+  autoTranslate,
   articleTitle,
   isNew,
   labels,
   onDiscard,
+  onAutoTranslateChange,
   onPublish,
   onSaveDraft,
   pendingStatus,
+  sourceLocale,
 }: {
+  autoTranslate: boolean;
   articleTitle: string;
   isNew: boolean;
   labels: NewsStudioLabels;
   onDiscard: () => void;
+  onAutoTranslateChange: (checked: boolean) => void;
   onPublish: () => Promise<void>;
   onSaveDraft: () => Promise<void>;
   pendingStatus: NewsFormValues["status"] | null;
+  sourceLocale: NewsLocale;
 }) {
   return (
     <header className="flex items-center gap-3 border-slate-200 border-b bg-[#faf7f2] px-4 py-4 md:px-8">
@@ -179,6 +198,14 @@ function NewsStudioHeader({
         </h1>
       </div>
       <div className="hidden items-center gap-2 md:flex">
+        <AutoTranslateControl
+          checked={autoTranslate}
+          className="max-w-xs"
+          disabled={pendingStatus !== null}
+          onCheckedChange={onAutoTranslateChange}
+          operation="save or publish"
+          sourceLocale={sourceLocale}
+        />
         <button
           className="rounded-lg border border-slate-200 bg-white px-3 py-2 font-medium text-slate-600 text-sm transition hover:text-[#001731]"
           onClick={onDiscard}
@@ -293,21 +320,27 @@ function NewsStudioStepRail({
 }
 
 function NewsStudioFooter({
+  autoTranslate,
   labels,
   onBack,
+  onAutoTranslateChange,
   onContinue,
   onPublish,
   onSaveDraft,
   pendingStatus,
   step,
+  sourceLocale,
 }: {
+  autoTranslate: boolean;
   labels: NewsStudioLabels;
   onBack: () => void;
+  onAutoTranslateChange: (checked: boolean) => void;
   onContinue: () => void;
   onPublish: () => Promise<void>;
   onSaveDraft: () => Promise<void>;
   pendingStatus: NewsFormValues["status"] | null;
   step: number;
+  sourceLocale: NewsLocale;
 }) {
   const progress = ((step + 1) / NEWS_STEPS.length) * 100;
 
@@ -325,6 +358,14 @@ function NewsStudioFooter({
         </p>
       </div>
       <div className="ml-auto flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto">
+        <AutoTranslateControl
+          checked={autoTranslate}
+          className="w-full md:hidden"
+          disabled={pendingStatus !== null}
+          onCheckedChange={onAutoTranslateChange}
+          operation="save or publish"
+          sourceLocale={sourceLocale}
+        />
         {step > 0 && (
           <button
             className="rounded-lg border border-slate-200 bg-white px-3 py-2 font-medium text-slate-600 text-sm"
@@ -567,8 +608,10 @@ function NewsReviewStep({
   departmentName,
   labels,
   locale,
+  isTranslating,
   onPublish,
   onSaveDraft,
+  onTranslate,
   pendingStatus,
   values,
 }: ReviewStepProps) {
@@ -645,6 +688,13 @@ function NewsReviewStep({
             : `${otherLocale} also has localized content.`}
         </p>
       </div>
+
+      <TranslationReviewCard
+        disabled={pendingStatus !== null}
+        isTranslating={isTranslating}
+        onTranslate={onTranslate}
+        sourceLocale={locale}
+      />
 
       <div className="flex flex-wrap gap-3">
         <button
@@ -738,6 +788,8 @@ export function NewsStudioEditor({
   const [departments, setDepartments] = useState(initialDepartments);
   const [dirty, setDirty] = useState(false);
   const [mobilePreviewOpen, setMobilePreviewOpen] = useState(false);
+  const [autoTranslate, setAutoTranslate] = useState(false);
+  const [isTranslating, setIsTranslating] = useState(false);
   const [pendingStatus, setPendingStatus] = useState<
     NewsFormValues["status"] | null
   >(null);
@@ -784,6 +836,42 @@ export function NewsStudioEditor({
     });
   };
 
+  const handleTranslate = async (): Promise<void> => {
+    const source = getNewsTranslationDraftSource(values, locale);
+    const targetLocale = getTargetLocale(locale);
+    const target = getNewsTranslationDraftSource(values, targetLocale);
+    if (
+      (target.title.trim() || target.description.trim()) &&
+      // biome-ignore lint/suspicious/noAlert: Match the existing translation replacement confirmation pattern.
+      !window.confirm("Replace the existing translated news draft?")
+    ) {
+      return;
+    }
+
+    setIsTranslating(true);
+    try {
+      const result = await generateNewsTranslationDraft({
+        ...source,
+        campusId: values.campus_id,
+        departmentId: values.department_id ?? null,
+        sourceLocale: locale,
+      });
+      if (result.error || !result.data) {
+        toast.error(result.error || "Failed to translate article");
+        return;
+      }
+      editRevision.current += 1;
+      setValues((current) =>
+        applyNewsTranslationDraft(current, locale, result.data)
+      );
+      setDirty(true);
+      setLocale(targetLocale);
+      toast.success("Translation draft generated");
+    } finally {
+      setIsTranslating(false);
+    }
+  };
+
   const submit = async (status: NewsFormValues["status"]): Promise<void> => {
     const payload = getNewsSavedValues(values, status);
     const validated = newsSchema.safeParse(payload);
@@ -796,8 +884,14 @@ export function NewsStudioEditor({
     setPendingStatus(status);
     try {
       const result = isNew
-        ? await createNews(validated.data)
-        : await updateNews(article!.$id, validated.data);
+        ? await createNews(validated.data, {
+            enabled: autoTranslate,
+            sourceLocale: locale,
+          })
+        : await updateNews(article!.$id, validated.data, {
+            enabled: autoTranslate,
+            sourceLocale: locale,
+          });
       if (result.error) {
         toast.error(
           typeof result.error === "string" ? result.error : labels.saveError
@@ -815,8 +909,12 @@ export function NewsStudioEditor({
           }).values
       );
       setDirty(hasConcurrentEdits);
+      const successMessage =
+        status === "published" ? labels.publishSuccess : labels.saveSuccess;
       toast.success(
-        status === "published" ? labels.publishSuccess : labels.saveSuccess
+        "translationQueued" in result && result.translationQueued
+          ? `${successMessage} Translation queued.`
+          : successMessage
       );
       if (isNew) {
         router.push(`/news/${result.data}`);
@@ -833,12 +931,15 @@ export function NewsStudioEditor({
       <div className="flex min-h-screen flex-col">
         <NewsStudioHeader
           articleTitle={values.title_no || values.title_en}
+          autoTranslate={autoTranslate}
           isNew={isNew}
           labels={labels}
+          onAutoTranslateChange={setAutoTranslate}
           onDiscard={() => router.push("/news")}
           onPublish={() => submit("published")}
           onSaveDraft={() => submit("draft")}
           pendingStatus={pendingStatus}
+          sourceLocale={locale}
         />
         <NewsStudioStepRail
           completedSteps={completedSteps}
@@ -903,10 +1004,12 @@ export function NewsStudioEditor({
                 <NewsReviewStep
                   campusName={campusName}
                   departmentName={departmentName}
+                  isTranslating={isTranslating}
                   labels={labels}
                   locale={locale}
                   onPublish={() => submit("published")}
                   onSaveDraft={() => submit("draft")}
+                  onTranslate={handleTranslate}
                   pendingStatus={pendingStatus}
                   setValue={setValue}
                   values={values}
@@ -931,7 +1034,9 @@ export function NewsStudioEditor({
           </aside>
         </main>
         <NewsStudioFooter
+          autoTranslate={autoTranslate}
           labels={labels}
+          onAutoTranslateChange={setAutoTranslate}
           onBack={() => setStep((current) => Math.max(0, current - 1))}
           onContinue={() =>
             setStep((current) => Math.min(NEWS_STEPS.length - 1, current + 1))
@@ -939,6 +1044,7 @@ export function NewsStudioEditor({
           onPublish={() => submit("published")}
           onSaveDraft={() => submit("draft")}
           pendingStatus={pendingStatus}
+          sourceLocale={locale}
           step={step}
         />
       </div>

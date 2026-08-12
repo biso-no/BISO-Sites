@@ -153,6 +153,20 @@ export function buildJobRowPermissions(
   ];
 }
 
+/**
+ * Row permissions for a job translation: consumer visibility equivalent to the
+ * vacancy (published public → read(any); published members → members team)
+ * plus the static recruitment staff grants. Unlike general content, the staff
+ * list is a fixed pair of teams — never dynamically mirrored ones — so keeping
+ * it in row ACLs cannot drift.
+ */
+export function buildJobTranslationPermissions(
+  audience: "public" | "members",
+  status?: string
+): string[] {
+  return buildJobRowPermissions(audience, status);
+}
+
 export function assertRecruitmentVacancyWriteAccess(
   scope: AdminScope,
   lookups: RecruitmentLookups,

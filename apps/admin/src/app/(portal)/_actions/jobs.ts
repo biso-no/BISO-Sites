@@ -11,7 +11,6 @@ import type {
 import {
   fetchRecruitmentListRows,
   getRecruitmentJobById,
-  RECRUITMENT_STAFF_TEAMS,
 } from "@repo/shared/recruitment";
 import {
   assertRecruitmentApplicationTransition,
@@ -36,15 +35,27 @@ import { z } from "zod";
 import { requireAuth } from "@/lib/authorization";
 import { CAMPUS_ID_TO_NAME } from "@/lib/campus-constants";
 import {
+  type AutoTranslationOptions,
+  type ContentLocale,
+  getTargetLocale,
+  isCurrentTranslationSource,
+} from "@/lib/content-translation";
+import {
+  parseAutoTranslationOptions,
+  scheduleContentTranslation,
+  translateContentFields,
+} from "@/lib/content-translation.server";
+import {
   assertRecruitmentApplicationReviewAccess,
   assertRecruitmentVacancyWriteAccess,
   buildJobRowPermissions,
+  buildJobTranslationPermissions,
   buildRecruitmentApplicationRecord,
   canReviewRecruitmentVacancy,
   loadRecruitmentLookups,
   toRecruitmentAdminScope,
 } from "@/lib/recruitment";
-import { buildContentTranslationPermissions } from "@/lib/utils";
+
 import { logAuditEvent } from "./audit-log";
 
 // Shorthand type for the db accessor — both admin and session clients return the same shape.
@@ -66,21 +77,22 @@ const APPLICATION_SELECT = [
   "job.translations.title",
 ] as const;
 
-const jobTranslationDraftSchema = z.object({
-  description_en: z.string().trim().min(1),
-  short_description: z.string().trim().nullable().optional(),
-  title_en: z.string().trim().min(1),
-});
-
-const jobTranslationResultSchema = z.object({
-  description_no: z
-    .string()
-    .describe("Natural Norwegian Bokmål HTML preserving p, h3, ul and li tags"),
-  short_description: z
-    .string()
-    .describe("Norwegian one-line teaser, maximum 280 characters"),
-  title_no: z.string().describe("Norwegian Bokmål job title"),
-});
+const jobTranslationDraftSchema = z
+  .object({
+    campusId: z.string().trim().min(1),
+    description: z.string().trim(),
+    departmentId: z.string().trim().nullable().optional(),
+    shortDescription: z.string().trim().nullable().optional(),
+    sourceLocale: z.enum(["no", "en"]),
+    title: z.string().trim(),
+  })
+  .refine(
+    (value) =>
+      Boolean(
+        value.title || value.description || value.shortDescription?.trim()
+      ),
+    "Add source content first."
+  );
 
 const jobSuggestionDraftSchema = z.object({
   campus: z.string().trim().optional(),
@@ -96,6 +108,12 @@ const jobSuggestionResultSchema = z.object({
   bullets: z.array(z.string()).min(2).max(4),
   heading: z.string(),
 });
+
+interface JobTranslationSnapshot {
+  description: string;
+  short_description: string;
+  title: string;
+}
 
 export interface RecruitmentReviewerOption {
   email: string | null;
@@ -195,6 +213,193 @@ async function buildJobTranslationsPayload(
       input.short_description_en ?? null
     ),
   ];
+}
+
+function getJobTranslationSnapshot(
+  values: RecruitmentVacancyUpsertInput,
+  locale: ContentLocale
+): JobTranslationSnapshot {
+  if (locale === "no") {
+    return {
+      description: values.description_no,
+      short_description: values.short_description_no ?? "",
+      title: values.title_no,
+    };
+  }
+  return {
+    description: values.description_en,
+    short_description: values.short_description_en ?? "",
+    title: values.title_en,
+  };
+}
+
+async function translateJobSnapshot(
+  source: JobTranslationSnapshot,
+  sourceLocale: ContentLocale
+): Promise<JobTranslationSnapshot> {
+  const translated = await translateContentFields({
+    contentType: "job vacancy",
+    fields: [
+      { format: "plain", key: "title", value: source.title },
+      {
+        format: "plain",
+        key: "short_description",
+        value: source.short_description,
+      },
+      { format: "html", key: "description", value: source.description },
+    ],
+    sourceLocale,
+    targetLocale: getTargetLocale(sourceLocale),
+  });
+  return {
+    description: translated.description ?? "",
+    short_description: translated.short_description ?? "",
+    title: translated.title ?? "",
+  };
+}
+
+/**
+ * Persist a deferred destination locale through the parent `jobs.translations`
+ * relation. The relation is one-way (no child back-reference), so a standalone
+ * child row would be an orphan; instead the complete relation is replaced with
+ * every existing translation ID plus the destination entry — an object with
+ * `$id` to update in place, or without one so Appwrite creates and links it.
+ * The parent's own permissions are left untouched by omitting the permissions
+ * argument.
+ */
+async function persistDeferredJobTranslation(
+  db: Db,
+  jobId: string,
+  locale: ContentLocale,
+  translation: JobTranslationSnapshot,
+  permissions: string[],
+  currentRows: ContentTranslations[]
+): Promise<void> {
+  const target = currentRows.find((row) => row.locale === locale);
+  const others = currentRows
+    .filter((row) => row.locale !== locale)
+    .map((row) => row.$id);
+  await db.upsertRow("app", "jobs", jobId, {
+    translations: [
+      ...others,
+      {
+        ...(target ? { $id: target.$id } : {}),
+        $permissions: permissions,
+        additional_fields: null,
+        content_id: jobId,
+        content_type: "job" as const,
+        description: translation.description,
+        locale,
+        short_description: translation.short_description || null,
+        title: translation.title,
+      },
+    ],
+  });
+}
+
+function scheduleJobTranslation(input: {
+  audience: "members" | "public";
+  campusId: string;
+  departmentId: string | null;
+  /** The target locale as this save left it — see the stale check below. */
+  destination: JobTranslationSnapshot;
+  enabled: boolean;
+  jobId: string;
+  source: JobTranslationSnapshot;
+  sourceLocale: ContentLocale;
+  status: RecruitmentVacancyUpsertInput["status"];
+}): boolean {
+  const hasSource = Boolean(
+    input.source.title.trim() && input.source.description.trim()
+  );
+  if (!(input.enabled && hasSource)) {
+    return false;
+  }
+  return scheduleContentTranslation({
+    enabled: true,
+    task: async () => {
+      const translated = await translateJobSnapshot(
+        input.source,
+        input.sourceLocale
+      );
+      const { db } = await createAdminClient();
+      const currentJob = await db.getRow<Jobs>("app", "jobs", input.jobId);
+      const currentMetadata = parseRecruitmentVacancyMetadata(
+        currentJob.metadata
+      );
+      if (
+        !isCurrentTranslationSource(
+          {
+            audience: input.audience,
+            campusId: input.campusId,
+            departmentId: input.departmentId,
+            status: input.status,
+          },
+          {
+            audience: currentMetadata.audience ?? "public",
+            campusId: currentJob.campus_id,
+            departmentId: currentJob.department_id ?? null,
+            status: currentJob.status,
+          }
+        )
+      ) {
+        return;
+      }
+      // One reload of every locale row for this vacancy, immediately before
+      // persistence: the source for the stale check, and the complete set so
+      // the one-way parent relation can be replaced without dropping locales.
+      const currentRows = await db.listRows<ContentTranslations>(
+        "app",
+        "content_translations",
+        [
+          Query.equal("content_type", "job"),
+          Query.equal("content_id", input.jobId),
+          Query.limit(10),
+        ]
+      );
+      const currentSource = currentRows.rows.find(
+        (row) => row.locale === input.sourceLocale
+      );
+      if (!currentSource) {
+        return;
+      }
+      const currentSnapshot: JobTranslationSnapshot = {
+        description: currentSource.description ?? "",
+        short_description: currentSource.short_description ?? "",
+        title: currentSource.title ?? "",
+      };
+      if (!isCurrentTranslationSource(input.source, currentSnapshot)) {
+        return;
+      }
+      // The destination is only ours to overwrite while it still holds exactly
+      // what this save wrote. An editor who translated the other locale by hand
+      // while the model request was in flight owns the newer text.
+      const currentTarget = currentRows.rows.find(
+        (row) => row.locale === getTargetLocale(input.sourceLocale)
+      );
+      if (
+        !isCurrentTranslationSource(input.destination, {
+          description: currentTarget?.description ?? "",
+          short_description: currentTarget?.short_description ?? "",
+          title: currentTarget?.title ?? "",
+        })
+      ) {
+        return;
+      }
+      const permissions = buildJobTranslationPermissions(
+        input.audience,
+        input.status
+      );
+      await persistDeferredJobTranslation(
+        db,
+        input.jobId,
+        getTargetLocale(input.sourceLocale),
+        translated,
+        permissions,
+        currentRows.rows
+      );
+    },
+  });
 }
 
 export async function listJobs(opts?: {
@@ -346,7 +551,10 @@ async function buildJobUpsertPayload(
   };
 }
 
-export async function createJob(values: RecruitmentVacancyUpsertInput) {
+export async function createJob(
+  values: RecruitmentVacancyUpsertInput,
+  autoTranslation?: AutoTranslationOptions
+) {
   const ctx = await requireAuth();
   const validated = recruitmentVacancyUpsertSchema.safeParse(values);
   if (!validated.success) {
@@ -354,6 +562,7 @@ export async function createJob(values: RecruitmentVacancyUpsertInput) {
   }
 
   try {
+    const translationOptions = parseAutoTranslationOptions(autoTranslation);
     const { db: sessionDb } = await createSessionClient();
     const { db: adminDb } = await createAdminClient();
     const scope = toRecruitmentAdminScope(ctx);
@@ -366,13 +575,10 @@ export async function createJob(values: RecruitmentVacancyUpsertInput) {
     const jobId = ID.unique();
     const audience = validated.data.audience ?? "public";
     const jobPerms = buildJobRowPermissions(audience, validated.data.status);
-    const translationPerms = buildContentTranslationPermissions({
+    const translationPerms = buildJobTranslationPermissions(
       audience,
-      status: validated.data.status,
-      // Recruitment editors only: admin + HR. Campus is scoping, never a perm.
-      writeTeams: [...RECRUITMENT_STAFF_TEAMS],
-      readTeams: [],
-    });
+      validated.data.status
+    );
     const payload = await buildJobUpsertPayload(
       sessionDb,
       jobId,
@@ -387,6 +593,24 @@ export async function createJob(values: RecruitmentVacancyUpsertInput) {
       jobPerms
     );
 
+    const translationQueued = scheduleJobTranslation({
+      audience,
+      campusId: validated.data.campus_id,
+      departmentId: validated.data.department_id ?? null,
+      destination: getJobTranslationSnapshot(
+        validated.data,
+        getTargetLocale(translationOptions?.sourceLocale ?? "en")
+      ),
+      enabled: translationOptions?.enabled ?? false,
+      jobId: job.$id,
+      source: getJobTranslationSnapshot(
+        validated.data,
+        translationOptions?.sourceLocale ?? "en"
+      ),
+      sourceLocale: translationOptions?.sourceLocale ?? "en",
+      status: validated.data.status,
+    });
+
     await logAuditEvent(ctx, "recruitment.vacancy.create", {
       payload: {
         campus_id: validated.data.campus_id,
@@ -399,7 +623,10 @@ export async function createJob(values: RecruitmentVacancyUpsertInput) {
 
     revalidatePath("/jobs");
     revalidatePath("/");
-    return { data: job.$id };
+    return {
+      data: job.$id,
+      ...(translationQueued ? { translationQueued: true as const } : {}),
+    };
   } catch (error) {
     return {
       error: error instanceof Error ? error.message : "Failed to create job",
@@ -409,7 +636,8 @@ export async function createJob(values: RecruitmentVacancyUpsertInput) {
 
 export async function updateJob(
   id: string,
-  values: RecruitmentVacancyUpsertInput
+  values: RecruitmentVacancyUpsertInput,
+  autoTranslation?: AutoTranslationOptions
 ) {
   const ctx = await requireAuth();
   const validated = recruitmentVacancyUpsertSchema.safeParse(values);
@@ -418,6 +646,7 @@ export async function updateJob(
   }
 
   try {
+    const translationOptions = parseAutoTranslationOptions(autoTranslation);
     const { db: sessionDb } = await createSessionClient();
     const { db: adminDb } = await createAdminClient();
     const scope = toRecruitmentAdminScope(ctx);
@@ -436,12 +665,10 @@ export async function updateJob(
     const audience =
       validated.data.audience ?? vacancy.metadata.audience ?? "public";
     const jobPerms = buildJobRowPermissions(audience, validated.data.status);
-    const translationPerms = buildContentTranslationPermissions({
+    const translationPerms = buildJobTranslationPermissions(
       audience,
-      status: validated.data.status,
-      writeTeams: [...RECRUITMENT_STAFF_TEAMS],
-      readTeams: [],
-    });
+      validated.data.status
+    );
     const payload = await buildJobUpsertPayload(
       sessionDb,
       id,
@@ -450,6 +677,24 @@ export async function updateJob(
       vacancy.metadata
     );
     await adminDb.upsertRow("app", "jobs", id, payload, jobPerms);
+
+    const translationQueued = scheduleJobTranslation({
+      audience,
+      campusId: validated.data.campus_id,
+      departmentId: validated.data.department_id ?? null,
+      destination: getJobTranslationSnapshot(
+        validated.data,
+        getTargetLocale(translationOptions?.sourceLocale ?? "en")
+      ),
+      enabled: translationOptions?.enabled ?? false,
+      jobId: id,
+      source: getJobTranslationSnapshot(
+        validated.data,
+        translationOptions?.sourceLocale ?? "en"
+      ),
+      sourceLocale: translationOptions?.sourceLocale ?? "en",
+      status: validated.data.status,
+    });
 
     await logAuditEvent(ctx, "recruitment.vacancy.update", {
       payload: {
@@ -463,7 +708,10 @@ export async function updateJob(
 
     revalidatePath("/jobs");
     revalidatePath(`/jobs/${id}`);
-    return { data: id };
+    return {
+      data: id,
+      ...(translationQueued ? { translationQueued: true as const } : {}),
+    };
   } catch (error) {
     console.error("[updateJob] error", error);
     return {
@@ -472,43 +720,57 @@ export async function updateJob(
   }
 }
 
-export async function generateJobNorwegianDraft(values: {
-  description_en: string;
-  short_description?: string | null;
-  title_en: string;
+export async function generateJobTranslationDraft(values: {
+  campusId: string;
+  description: string;
+  departmentId?: string | null;
+  shortDescription?: string | null;
+  sourceLocale: ContentLocale;
+  title: string;
 }) {
-  await requireAuth();
+  const ctx = await requireAuth();
   const validated = jobTranslationDraftSchema.safeParse(values);
   if (!validated.success) {
-    return { error: "Add an English title and description first." };
+    return { error: "Add source content first." };
   }
 
   try {
-    const { object } = await generateObject({
-      model: openai("gpt-5-nano"),
-      schema: jobTranslationResultSchema,
-      prompt: `Translate this BISO recruitment vacancy from English to Norwegian Bokmål.
-Keep the tone warm, direct, and student-facing.
-Preserve the simple HTML structure in the description. Only use p, h3, ul and li tags.
-Do not add information that is not present in the source.
-
-Title:
-${validated.data.title_en}
-
-Teaser:
-${validated.data.short_description ?? ""}
-
-Description HTML:
-${validated.data.description_en}`,
+    const { db } = await createSessionClient();
+    const lookups = await loadRecruitmentLookups(db);
+    assertRecruitmentVacancyWriteAccess(toRecruitmentAdminScope(ctx), lookups, {
+      campus_id: validated.data.campusId,
+      department_id: validated.data.departmentId ?? null,
     });
-
-    return { data: object };
+    const translated = await translateJobSnapshot(
+      {
+        description: validated.data.description,
+        short_description: validated.data.shortDescription ?? "",
+        title: validated.data.title,
+      },
+      validated.data.sourceLocale
+    );
+    if (getTargetLocale(validated.data.sourceLocale) === "en") {
+      return {
+        data: {
+          description_en: translated.description,
+          short_description_en: translated.short_description,
+          title_en: translated.title,
+        },
+      };
+    }
+    return {
+      data: {
+        description_no: translated.description,
+        short_description_no: translated.short_description,
+        title_no: translated.title,
+      },
+    };
   } catch (error) {
     return {
       error:
         error instanceof Error
           ? error.message
-          : "Failed to generate Norwegian draft",
+          : "Failed to generate translation draft",
     };
   }
 }

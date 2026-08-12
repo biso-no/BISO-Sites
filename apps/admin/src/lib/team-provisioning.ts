@@ -13,31 +13,6 @@ const DATABASE_ID = "app";
 const HR_TEAM_ID = "sg-app-dept-hr";
 
 /**
- * All content and translation tables that SG-App-Dept-* teams need create
- * access on. Campus teams (SG-App-Campus-*) are never granted table-level
- * permissions — they exist only for authorization context.
- *
- * Both content tables (rowSecurity: true) and translation tables
- * (rowSecurity: true) get create-only here; update/delete is controlled
- * entirely at the row level via $permissions set at insert time.
- *
- * `jobs` is intentionally excluded: recruitment is HR-exclusive, so job
- * table access is provisioned only to the HR team via
- * `grantTeamRecruitmentAccess` — it is not part of the general dept content
- * grant. (HR already holds table-level create on `jobs` in
- * `packages/api/appwrite.config.json`, and job rows are written via the admin
- * client which bypasses row security.)
- */
-const CONTENT_TABLES = [
-  "events",
-  "news",
-  "webshop_products",
-  "pages",
-  "content_translations",
-  "page_translations",
-] as const;
-
-/**
  * Restricted recruitment tables carrying applicant PII, interview data, and
  * booking-token data. The base schema grants create-only to Operations Unit;
  * this provisioning path adds HR create-only when the HR department team is
@@ -56,37 +31,12 @@ const RESTRICTED_RECRUITMENT_TABLES = [
   "recruitment_booking_tokens",
 ] as const;
 
-/**
- * Grant a dept team create-only permission on all content and translation tables.
- *
- * Only called for SG-App-Dept-* teams (never Campus teams).
- * Row-level update/delete is assigned at insert time via buildContentPermissions.
- */
-export async function grantTeamContentAccess(teamId: string): Promise<void> {
-  const { db } = await createAdminClient();
-
-  const createPerm = `create("team:${teamId}")`;
-
-  for (const tableId of CONTENT_TABLES) {
-    try {
-      const table = await db.getTable({ databaseId: DATABASE_ID, tableId });
-
-      if (!table.$permissions.includes(createPerm)) {
-        await db.updateTable({
-          databaseId: DATABASE_ID,
-          tableId,
-          permissions: [...table.$permissions, createPerm],
-        });
-        console.info(`Granted create on ${tableId} to team ${teamId}`);
-      }
-    } catch (err) {
-      console.error(
-        `Failed to grant content access for team ${teamId} on table ${tableId}:`,
-        err
-      );
-    }
-  }
-}
+// NOTE: dynamic `create("team:sg-app-*")` grants on general content tables
+// are gone. Content authoring goes through the admin client behind
+// application-level authorization (see apps/admin/src/lib/content-authorization.ts),
+// so mirrored teams never enter content table or row ACLs and permissions can
+// no longer drift as Azure groups come and go. Recruitment provisioning below
+// is the only remaining table-permission mutation.
 
 /**
  * Provision recruitment table access for the HR team only. Recruitment is

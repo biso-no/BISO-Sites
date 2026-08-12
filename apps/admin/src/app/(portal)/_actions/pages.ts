@@ -8,7 +8,9 @@ import {
   getPageById as pbGetPageById,
   getPageEditorById as pbGetPageEditorById,
   publishPage as pbPublishPage,
+  savePageTranslationDraft as pbSavePageTranslationDraft,
   unpublishPage as pbUnpublishPage,
+  resolvePageCampusId,
   savePageDraft,
 } from "@repo/api/page-builder";
 import { createAdminClient, createSessionClient } from "@repo/api/server";
@@ -16,15 +18,37 @@ import type { Pages, PageViewEvents } from "@repo/api/types/appwrite";
 import { revalidatePath } from "next/cache";
 import { requireAuth, type UserAuthContext } from "@/lib/authorization";
 import {
+  applyContentRelationshipScopeQueries,
+  assertContentOwnership,
+  getContentOwnership,
+} from "@/lib/content-authorization";
+import {
+  type AutoTranslationOptions,
+  getTargetLocale,
+  isCurrentTranslationSource,
+} from "@/lib/content-translation";
+import {
+  contentLocaleSchema,
+  parseAutoTranslationOptions,
+  scheduleContentTranslation,
+} from "@/lib/content-translation.server";
+import {
+  getPageTranslationSource,
+  translatePageDocument,
+} from "@/lib/page-document-translation";
+import {
   applyScopeQueries,
   assertPublishAccess,
   assertWriteAccess,
+  hasRowAccess,
 } from "@/lib/utils/authorization";
 import { logAuditEvent } from "./audit-log";
 
 export async function listPages(opts?: { status?: string; campusId?: string }) {
   const ctx = await requireAuth();
-  const { db } = await createSessionClient();
+  // Private admin read: the service client bypasses row security, so the
+  // relationship scope filters below are the authorization boundary.
+  const { db } = await createAdminClient();
 
   const queries: string[] = [
     Query.select(["*", "translation_refs.*"]),
@@ -39,7 +63,7 @@ export async function listPages(opts?: { status?: string; campusId?: string }) {
   // Single source of truth for campus/department scoping: campus admins see
   // their managed campuses, department users see their department(s), and
   // global admins see everything (or their active-campus filter if set).
-  queries.push(...applyScopeQueries(ctx));
+  queries.push(...applyContentRelationshipScopeQueries(ctx));
 
   const response = await db.listRows<Pages>("app", "pages", queries);
   return response.rows;
@@ -134,13 +158,33 @@ async function _getPageViewStats(days = 14): Promise<PageViewDay[]> {
 }
 
 export async function getPageById(id: string, locale: "no" | "en" = "no") {
-  await requireAuth();
-  return pbGetPageById(id, locale);
+  const ctx = await requireAuth();
+  const { db } = await createAdminClient();
+  const result = await pbGetPageById(id, locale, db);
+  if (!result) {
+    return null;
+  }
+  // Treat a row outside the caller's campus/department scope as not found.
+  const ownership = getContentOwnership(result.row, { legacyFallback: true });
+  if (!hasRowAccess(ctx, ownership.campus, ownership.department)) {
+    return null;
+  }
+  return result;
 }
 
 export async function getPageEditorById(id: string) {
-  await requireAuth();
-  return pbGetPageEditorById(id);
+  const ctx = await requireAuth();
+  const { db } = await createAdminClient();
+  const result = await pbGetPageEditorById(id, db);
+  if (!result) {
+    return null;
+  }
+  if (
+    !hasRowAccess(ctx, result.page.campusId, result.page.departmentId || null)
+  ) {
+    return null;
+  }
+  return result;
 }
 
 export async function getPageEditorLocales(): Promise<PageEditorLocale[]> {
@@ -186,6 +230,22 @@ export async function savePageEditorDoc({
   const ctx = await requireAuth();
   try {
     const scopedDoc = ensureDepartmentForScoping(doc, ctx);
+    // savePageDraft persists through the admin client, so authorization must
+    // happen here: the persisted scope for updates, and the requested scope
+    // (author-derived campus + submitted department) for every save. Pages
+    // already support national scope, so a global admin may keep a null
+    // campus.
+    const { db } = await createAdminClient();
+    if (id) {
+      const existing = await db.getRow<Pages>("app", "pages", id);
+      const persisted = getContentOwnership(existing, { legacyFallback: true });
+      assertWriteAccess(ctx, persisted.campus, persisted.department);
+    }
+    await assertContentOwnership(db, ctx, {
+      allowGlobalCampus: true,
+      campusId: resolvePageCampusId(ctx),
+      departmentId: scopedDoc.meta.department || null,
+    });
     const { pageId, slug } = await savePageDraft({
       id,
       doc: scopedDoc,
@@ -206,29 +266,163 @@ export async function savePageEditorDoc({
 
 export async function publishPageAction(
   id: string,
-  locale: "no" | "en" = "no"
+  locale: "no" | "en" = "no",
+  autoTranslation: AutoTranslationOptions = {
+    enabled: false,
+    sourceLocale: locale,
+  }
 ) {
   const ctx = await requireAuth();
   try {
+    const publishedLocale = contentLocaleSchema.parse(locale);
+    const translationOptions = parseAutoTranslationOptions(autoTranslation);
     // Authorization is enforced here by role (assertPublishAccess); the reads
     // and the publish write use the admin client so an authorized campus
     // approver — who is not on the page rows' write ACL — isn't blocked by RLS.
     const { db } = await createAdminClient();
-    // Publishing is gated by campus/global admin — a department user with
-    // row-level write on the draft must not be able to push a page live.
+    // Publishing follows the general write scope: department members may
+    // publish their own department's pages, campus/global admins their scope.
     const page = await db.getRow<Pages>("app", "pages", id);
-    assertPublishAccess(ctx, page.campus_id);
+    const ownership = getContentOwnership(page, { legacyFallback: true });
+    assertPublishAccess(ctx, ownership.campus, ownership.department);
 
-    await pbPublishPage({ id, locale });
+    if (
+      translationOptions?.enabled &&
+      translationOptions.sourceLocale !== publishedLocale
+    ) {
+      throw new Error("The translation source must match the published locale");
+    }
+    const sourceDocument = translationOptions?.enabled
+      ? await getPageSourceDocument(id, publishedLocale, db)
+      : null;
+
+    await pbPublishPage({ id, locale: publishedLocale });
     await logAuditEvent(ctx, "page_published", {
       resourceId: id,
       resourceType: "page",
     });
     revalidatePath("/pages");
+    const publishedPageVersion = sourceDocument
+      ? (await db.getRow<Pages>("app", "pages", id)).$updatedAt
+      : null;
+    // Translation drafts live in `page_translations`, which never touches the
+    // parent row, so the version pin above cannot see a concurrent edit of the
+    // destination locale. Snapshot it too.
+    const destinationDocument = sourceDocument
+      ? await getPageSourceDocument(id, getTargetLocale(publishedLocale), db)
+      : null;
+    const translationQueued =
+      sourceDocument && publishedPageVersion
+        ? scheduleContentTranslation({
+            enabled: true,
+            task: () =>
+              translatePublishedPage({
+                destinationDocument,
+                id,
+                publishedPageVersion,
+                sourceDocument,
+                sourceLocale: publishedLocale,
+              }),
+          })
+        : false;
+    return { translationQueued };
   } catch (e) {
     console.error("[publishPageAction]", e);
     throw new Error(e instanceof Error ? e.message : "Failed to publish page");
   }
+}
+
+async function getPageSourceDocument(
+  id: string,
+  locale: PageEditorLocale,
+  db: Awaited<ReturnType<typeof createAdminClient>>["db"]
+): Promise<PageDoc | null> {
+  const editor = await pbGetPageEditorById(id, db);
+  const translation = editor?.translations[locale];
+  return translation?.draftDocument ?? translation?.publishedDocument ?? null;
+}
+
+/** Whole-document equality on the translatable fields, in both directions. */
+function isSamePageDocument(a: PageDoc | null, b: PageDoc | null): boolean {
+  if (!(a && b)) {
+    return !(a || b);
+  }
+  return (
+    JSON.stringify(getPageTranslationSource(a)) ===
+    JSON.stringify(getPageTranslationSource(b))
+  );
+}
+
+async function translatePublishedPage({
+  destinationDocument,
+  id,
+  publishedPageVersion,
+  sourceDocument,
+  sourceLocale,
+}: {
+  /** The target locale as this publish left it — see the stale check below. */
+  destinationDocument: PageDoc | null;
+  id: string;
+  publishedPageVersion: string;
+  sourceDocument: PageDoc;
+  sourceLocale: PageEditorLocale;
+}): Promise<void> {
+  const { db } = await createAdminClient();
+  const targetLocale = getTargetLocale(sourceLocale);
+  const translatedDocument = await translatePageDocument({
+    document: sourceDocument,
+    sourceLocale,
+    targetLocale,
+  });
+  const [currentPage, currentSource, currentDestination] = await Promise.all([
+    db.getRow<Pages>("app", "pages", id),
+    getPageSourceDocument(id, sourceLocale, db),
+    getPageSourceDocument(id, targetLocale, db),
+  ]);
+  if (
+    !(
+      currentPage.status === "published" &&
+      currentPage.$updatedAt === publishedPageVersion &&
+      currentSource &&
+      isCurrentTranslationSource(
+        getPageTranslationSource(sourceDocument),
+        getPageTranslationSource(currentSource)
+      )
+    )
+  ) {
+    return;
+  }
+  // An editor who worked on the destination locale while the model request was
+  // in flight owns the newer document.
+  if (!isSamePageDocument(destinationDocument, currentDestination)) {
+    return;
+  }
+
+  await pbSavePageTranslationDraft({
+    doc: {
+      ...translatedDocument,
+      meta: { ...translatedDocument.meta, status: "published" },
+    },
+    id,
+    locale: targetLocale,
+  });
+  const pageBeforeDestinationPublish = await db.getRow<Pages>(
+    "app",
+    "pages",
+    id
+  );
+  if (
+    pageBeforeDestinationPublish.status !== "published" ||
+    pageBeforeDestinationPublish.$updatedAt !== publishedPageVersion
+  ) {
+    return;
+  }
+  await pbPublishPage({
+    id,
+    locale: targetLocale,
+    updateParentStatus: false,
+  });
+  revalidatePath("/pages");
 }
 
 export async function unpublishPageAction(
@@ -241,10 +435,11 @@ export async function unpublishPageAction(
     // by role below, and the write must not be blocked by RLS for a campus
     // approver who is not on the page rows' write ACL.
     const { db } = await createAdminClient();
-    // Unpublishing (removing from the public site) is a publish-gated action,
-    // same as publishing — restrict it to campus/global admins.
+    // Unpublishing (removing from the public site) is publish-gated the same
+    // way as publishing: general write scope over the page's ownership.
     const page = await db.getRow<Pages>("app", "pages", id);
-    assertPublishAccess(ctx, page.campus_id);
+    const ownership = getContentOwnership(page, { legacyFallback: true });
+    assertPublishAccess(ctx, ownership.campus, ownership.department);
 
     await pbUnpublishPage({ id, locale });
     await logAuditEvent(ctx, "page_unpublished", {
@@ -269,7 +464,8 @@ export async function deletePageAction(id: string) {
     // Archiving is a write, not a publish — gate it like deleteEvent/deleteNews
     // so a user can only archive pages within their campus/department scope.
     const page = await db.getRow<Pages>("app", "pages", id);
-    assertWriteAccess(ctx, page.campus_id, page.department_id);
+    const ownership = getContentOwnership(page, { legacyFallback: true });
+    assertWriteAccess(ctx, ownership.campus, ownership.department);
 
     await db.updateRow("app", "pages", id, { status: "archived" });
     await logAuditEvent(ctx, "page_deleted", {

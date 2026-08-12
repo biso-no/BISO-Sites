@@ -1,7 +1,7 @@
 "use server";
 
 import { Query } from "@repo/api";
-import { createSessionClient } from "@repo/api/server";
+import { createAdminClient } from "@repo/api/server";
 import type {
   Departments,
   Events,
@@ -12,6 +12,7 @@ import type {
   WebshopProducts,
 } from "@repo/api/types/appwrite";
 import { requireAuth, type UserAuthContext } from "@/lib/authorization";
+import { applyContentRelationshipScopeQueries } from "@/lib/content-authorization";
 import {
   buildHitHref,
   canSearchDepartments,
@@ -20,13 +21,13 @@ import {
   type PaletteSearchHit,
   pickTitle,
 } from "@/lib/palette-search-model";
-import { hasNavAccess } from "@/lib/roles";
+import { canViewShopOperations, hasNavAccess } from "@/lib/roles";
 import { applyScopeQueries } from "@/lib/utils/authorization";
 
 const LIMIT = 5;
 const MIN_QUERY_LENGTH = 2;
 
-type Db = Awaited<ReturnType<typeof createSessionClient>>["db"];
+type Db = Awaited<ReturnType<typeof createAdminClient>>["db"];
 
 async function searchJobs(
   db: Db,
@@ -58,8 +59,7 @@ async function searchEvents(
     Query.select(["*", "translation_refs.*"]),
     Query.search("translation_refs.title", q),
     Query.limit(LIMIT),
-    // events is nav-gated away from pure department users; campus scope only
-    ...applyScopeQueries(ctx, { departmentField: null }),
+    ...applyContentRelationshipScopeQueries(ctx),
   ]);
   return rows.rows.map((row) => ({
     group: "events" as const,
@@ -79,7 +79,7 @@ async function searchNews(
     Query.select(["*", "translation_refs.*"]),
     Query.search("translation_refs.title", q),
     Query.limit(LIMIT),
-    ...applyScopeQueries(ctx),
+    ...applyContentRelationshipScopeQueries(ctx),
   ]);
   return rows.rows.map((row) => ({
     group: "news" as const,
@@ -100,7 +100,7 @@ async function searchPages(
     Query.select(["*", "translation_refs.*"]),
     Query.contains("translation_refs.title", q),
     Query.limit(LIMIT),
-    ...applyScopeQueries(ctx),
+    ...applyContentRelationshipScopeQueries(ctx),
   ]);
   return rows.rows.map((row) => ({
     group: "pages" as const,
@@ -139,8 +139,7 @@ async function searchProducts(
     Query.select(["*", "translation_refs.*"]),
     Query.search("translation_refs.title", q),
     Query.limit(LIMIT),
-    // webshop_products uses camelCase departmentId
-    ...applyScopeQueries(ctx, { departmentField: "departmentId" }),
+    ...applyContentRelationshipScopeQueries(ctx),
   ]);
   return rows.rows.map((row) => ({
     group: "products" as const,
@@ -182,21 +181,33 @@ export async function searchEverything(
   if (q.length < MIN_QUERY_LENGTH) {
     return [];
   }
-  const { db } = await createSessionClient();
+  // Private admin reads: the relationship scope filters inside each search
+  // are the authorization boundary.
+  const { db } = await createAdminClient();
+  const hasDepartmentMembership = ctx.departmentTeamIds.length > 0;
   const hasDepartmentSearchAccess = canSearchDepartments(ctx);
+  const canJobs = hasNavAccess(
+    "portal.jobs",
+    ctx.roles,
+    hasDepartmentMembership
+  );
   const canShop = hasNavAccess(
     "portal.shop",
     ctx.roles,
-    ctx.departmentTeamIds.length > 0
+    hasDepartmentMembership
   );
+  // Orders are an operational commerce surface — never shown to department
+  // product authors.
+  const canOrders = canViewShopOperations(ctx.roles);
 
   const tasks = [
-    searchJobs(db, ctx, q),
+    ...(canJobs ? [searchJobs(db, ctx, q)] : []),
     searchEvents(db, ctx, q),
     searchNews(db, ctx, q),
     searchPages(db, ctx, q),
     ...(hasDepartmentSearchAccess ? [searchDepartments(db, ctx, q)] : []),
-    ...(canShop ? [searchProducts(db, ctx, q), searchOrders(db, ctx, q)] : []),
+    ...(canShop ? [searchProducts(db, ctx, q)] : []),
+    ...(canOrders ? [searchOrders(db, ctx, q)] : []),
   ];
   const settled = await Promise.allSettled(tasks);
   // Failures degrade silently — search is additive, never blocking.

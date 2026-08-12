@@ -1,6 +1,10 @@
 "use client";
 
-import type { Campus, CampusBenefits } from "@repo/api/types/appwrite";
+import type {
+  Campus,
+  CampusBenefits,
+  Departments,
+} from "@repo/api/types/appwrite";
 import { ContentEditor } from "@repo/ui/components/content-editor";
 import { useForm } from "@tanstack/react-form";
 import Image from "next/image";
@@ -8,10 +12,20 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 import {
+  AutoTranslateControl,
+  TranslationReviewCard,
+} from "@/app/_components/content-translation-controls";
+import {
   type BenefitFormValues,
   benefitSchema,
 } from "@/app/(portal)/_actions/schemas";
-import { createBenefit, updateBenefit } from "../../../_actions/benefits";
+import type { ContentLocale } from "@/lib/content-translation";
+import {
+  createBenefit,
+  generateBenefitTranslationDraft,
+  updateBenefit,
+} from "../../../_actions/benefits";
+import { DepartmentCombobox } from "../../../_components/department-combobox";
 import { EditorHeader } from "../../../_components/editor-header";
 import { ImageUploadField } from "../../../_components/image-upload-field";
 import { PortalButton } from "../../../_components/portal-button";
@@ -30,8 +44,12 @@ import {
 interface BenefitEditorClientProps {
   benefit: CampusBenefits | null;
   campuses: Campus[];
+  initialDepartmentId: string | null;
+  initialDepartments: Departments[];
   isNew: boolean;
   labels: Record<string, string>;
+  /** Single-department authors are pinned to their department. */
+  lockDepartment: boolean;
 }
 
 const KIND_OPTIONS = [
@@ -58,16 +76,72 @@ const CATEGORY_OPTIONS = [
   ),
 ];
 
+interface BenefitEditorTranslationDraft {
+  description: string;
+  teaser: string;
+  title: string;
+}
+
+const getBenefitEditorTranslationDraft = (
+  values: BenefitFormValues,
+  locale: ContentLocale
+): BenefitEditorTranslationDraft =>
+  locale === "no"
+    ? {
+        description: values.description_nb,
+        teaser: values.teaser_nb ?? "",
+        title: values.title_nb,
+      }
+    : {
+        description: values.description_en,
+        teaser: values.teaser_en ?? "",
+        title: values.title_en,
+      };
+
+const hasBenefitTranslationContent = ({
+  description,
+  teaser,
+  title,
+}: BenefitEditorTranslationDraft): boolean =>
+  Boolean(description.trim() || teaser.trim() || title.trim());
+
+const getBenefitSaveMessage = ({
+  published,
+  queued,
+  labels,
+}: {
+  published: boolean;
+  queued: boolean;
+  labels: BenefitEditorClientProps["labels"];
+}): string => {
+  if (queued) {
+    return published
+      ? "Benefit published; translation queued"
+      : "Benefit saved; translation queued";
+  }
+  return published ? labels.publishSuccess : labels.saveSuccess;
+};
+
 // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: component manages form state, preview sync, and conditional submit
 export function BenefitEditorClient({
   benefit,
   campuses,
+  initialDepartmentId,
+  initialDepartments,
   isNew,
   labels,
+  lockDepartment,
 }: BenefitEditorClientProps) {
   const router = useRouter();
   const [isPublishing, setIsPublishing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isTranslating, setIsTranslating] = useState(false);
+  const [autoTranslate, setAutoTranslate] = useState(false);
+  const [confirmTranslationOverwrite, setConfirmTranslationOverwrite] =
+    useState(false);
+  const [sourceLocale, setSourceLocale] = useState<ContentLocale>(() =>
+    benefit?.title_en || !benefit?.title_nb ? "en" : "no"
+  );
 
   // Preview state
   const [previewTitle, setPreviewTitle] = useState(benefit?.title_en ?? "");
@@ -89,13 +163,25 @@ export function BenefitEditorClient({
       return;
     }
     const result = isNew
-      ? await createBenefit(validated.data)
-      : await updateBenefit(benefit!.$id, validated.data);
+      ? await createBenefit(validated.data, {
+          enabled: autoTranslate,
+          sourceLocale,
+        })
+      : await updateBenefit(benefit!.$id, validated.data, {
+          enabled: autoTranslate,
+          sourceLocale,
+        });
     if (result.error) {
       toast.error(labels.saveError);
       return;
     }
-    toast.success(isPublishing ? labels.publishSuccess : labels.saveSuccess);
+    toast.success(
+      getBenefitSaveMessage({
+        labels,
+        published: validated.data.status === "published",
+        queued: result.translationQueued === true,
+      })
+    );
     if (isNew && result.data) {
       router.push(`/benefits/${result.data}`);
     }
@@ -110,6 +196,7 @@ export function BenefitEditorClient({
       teaser_nb: benefit?.teaser_nb ?? null,
       teaser_en: benefit?.teaser_en ?? null,
       campus_id: benefit?.campus_id ?? campuses[0]?.$id ?? "",
+      department_id: initialDepartmentId,
       status: (benefit?.status as BenefitFormValues["status"]) ?? "draft",
       kind: (benefit?.kind as BenefitFormValues["kind"]) ?? "offer",
       redemption_type:
@@ -128,6 +215,55 @@ export function BenefitEditorClient({
     onSubmit: async ({ value }) => handleFormSubmit(value),
   });
 
+  async function handleTranslate() {
+    const values = form.state.values;
+    const source = getBenefitEditorTranslationDraft(values, sourceLocale);
+    const targetLocale = sourceLocale === "no" ? "en" : "no";
+    const destination = getBenefitEditorTranslationDraft(values, targetLocale);
+    if (
+      hasBenefitTranslationContent(destination) &&
+      !confirmTranslationOverwrite
+    ) {
+      setConfirmTranslationOverwrite(true);
+      toast.warning("Click Generate again to replace the translated draft.");
+      return;
+    }
+
+    setConfirmTranslationOverwrite(false);
+    setIsTranslating(true);
+    try {
+      const result = await generateBenefitTranslationDraft({
+        campusId: values.campus_id,
+        departmentId: values.department_id ?? null,
+        ...source,
+        sourceLocale,
+      });
+      if (result.error || !result.data) {
+        toast.error(result.error ?? "Failed to generate benefit translation");
+        return;
+      }
+
+      if (targetLocale === "en") {
+        form.setFieldValue("title_en", result.data.title);
+        form.setFieldValue("description_en", result.data.description);
+        form.setFieldValue("teaser_en", result.data.teaser);
+        setPreviewTitle(result.data.title);
+      } else {
+        form.setFieldValue("title_nb", result.data.title);
+        form.setFieldValue("description_nb", result.data.description);
+        form.setFieldValue("teaser_nb", result.data.teaser);
+      }
+      setSourceLocale(targetLocale);
+      toast.success(
+        targetLocale === "en"
+          ? "English draft generated"
+          : "Norwegian draft generated"
+      );
+    } finally {
+      setIsTranslating(false);
+    }
+  }
+
   const campusOptions = [
     { value: "", label: "— Select campus —" },
     ...campuses.map((c) => ({ value: c.$id, label: c.name })),
@@ -141,6 +277,14 @@ export function BenefitEditorClient({
         status={isNew ? undefined : benefit?.status}
         title={isNew ? "New Benefit" : (benefit?.title_en ?? "Edit Benefit")}
       >
+        <AutoTranslateControl
+          checked={autoTranslate}
+          className="max-w-xs"
+          disabled={isSaving || isPublishing}
+          onCheckedChange={setAutoTranslate}
+          operation="save or publish"
+          sourceLocale={sourceLocale}
+        />
         <PortalButton
           onClick={() => router.push("/benefits")}
           size="sm"
@@ -346,6 +490,52 @@ export function BenefitEditorClient({
                 </PortalField>
               )}
             </form.Field>
+          </div>
+
+          <form.Subscribe selector={(state) => state.values.campus_id}>
+            {(campusId) => (
+              <form.Field name="department_id">
+                {(field) => (
+                  <PortalField label={labels.department ?? "Department"}>
+                    <DepartmentCombobox
+                      campusId={campusId || null}
+                      disabled={lockDepartment}
+                      initialDepartments={initialDepartments}
+                      onChange={(id) => field.handleChange(id)}
+                      placeholder="Campus-wide (no department)"
+                      value={field.state.value ?? null}
+                    />
+                  </PortalField>
+                )}
+              </form.Field>
+            )}
+          </form.Subscribe>
+
+          <div className="space-y-3 pt-2">
+            <PortalField label="Translation source">
+              <PortalSelect
+                onChange={(event) => {
+                  setSourceLocale(event.target.value as ContentLocale);
+                  setConfirmTranslationOverwrite(false);
+                }}
+                options={[
+                  { label: "Norwegian", value: "no" },
+                  { label: "English", value: "en" },
+                ]}
+                value={sourceLocale}
+              />
+            </PortalField>
+            <TranslationReviewCard
+              isTranslating={isTranslating}
+              onTranslate={handleTranslate}
+              sourceLocale={sourceLocale}
+            />
+            {confirmTranslationOverwrite && (
+              <p className="text-amber-700 text-sm">
+                The destination already has content. Click Generate again to
+                replace it.
+              </p>
+            )}
           </div>
         </div>
 

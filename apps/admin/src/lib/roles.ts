@@ -17,6 +17,7 @@
 export const ROLES = {
   GLOBAL_ADMIN: "globaladmin", // National + OperationsUnit
   CAMPUS_ADMIN: "campusadmin", // Ledelsen{City} + Campus-{City}
+  HR: "hr", // Membership in the HR department (normalized team name "hr")
 } as const;
 
 // Pseudo-role for any user with at least one SG-App-Dept-* membership
@@ -41,12 +42,12 @@ export const NAV_ACCESS = {
   shopCustomers: [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
   shopSettings: [ROLES.GLOBAL_ADMIN],
   expenses: [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
-  jobs: [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN, DEPARTMENT_ROLE],
-  jobsApplications: [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN, DEPARTMENT_ROLE],
-  // events is campus-scoped only (no department_id column), so pure department
-  // users are excluded — applyScopeQueries would otherwise fail closed for them.
-  events: [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
-  eventsNew: [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
+  // Recruitment is HR-exclusive with global-admin break-glass access; campus
+  // management and non-HR departments get no jobs/applicant surface.
+  jobs: [ROLES.GLOBAL_ADMIN, ROLES.HR],
+  jobsApplications: [ROLES.GLOBAL_ADMIN, ROLES.HR],
+  events: [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN, DEPARTMENT_ROLE],
+  eventsNew: [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN, DEPARTMENT_ROLE],
   units: [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
   users: [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
   varsling: [ROLES.GLOBAL_ADMIN],
@@ -58,30 +59,47 @@ export const NAV_ACCESS = {
   benefits: [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
   benefitsPartners: [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
   benefitsAnalytics: [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
-  // New admin portal (/admin/*) nav keys
+  // New admin portal (/admin/*) nav keys.
+  // General publishing surfaces (pages, news, events, shop products, benefits,
+  // communications, documents) are open to department members; the data layer
+  // scopes them to their own campus + department via ownership relationships.
   "portal.dashboard": [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
   "portal.pages": [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN, DEPARTMENT_ROLE],
   "portal.departments": [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
-  "portal.jobs": [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN, DEPARTMENT_ROLE],
-  "portal.events": [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
-  "portal.shop": [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
-  "portal.benefits": [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
+  // Recruitment stays HR-only with global break-glass — the broad department
+  // pseudo-role must never open jobs or applicant data.
+  "portal.jobs": [ROLES.GLOBAL_ADMIN, ROLES.HR],
+  "portal.events": [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN, DEPARTMENT_ROLE],
+  "portal.shop": [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN, DEPARTMENT_ROLE],
+  "portal.benefits": [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN, DEPARTMENT_ROLE],
   "portal.benefitsPartners": [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
   "portal.news": [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN, DEPARTMENT_ROLE],
-  // Announcements are campus-scoped (no department_id column), so department
-  // users are excluded — applyScopeQueries would otherwise filter by a column
-  // the announcements collection doesn't have.
-  "portal.communications": [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
+  "portal.communications": [
+    ROLES.GLOBAL_ADMIN,
+    ROLES.CAMPUS_ADMIN,
+    DEPARTMENT_ROLE,
+  ],
   "portal.activity": [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
   "portal.drafts": [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
   "portal.settings": [ROLES.GLOBAL_ADMIN],
-  "portal.documents": [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
+  "portal.documents": [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN, DEPARTMENT_ROLE],
   "portal.it": [ROLES.GLOBAL_ADMIN],
   "portal.analytics": [ROLES.GLOBAL_ADMIN],
   "portal.inbox": [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
 } as const;
 
 export type NavKey = keyof typeof NAV_ACCESS;
+
+/**
+ * Order/customer operations are commerce surfaces, not publishing surfaces:
+ * department product authors may manage their catalog but never see orders.
+ */
+export function canViewShopOperations(userRoles: string[]): boolean {
+  return (
+    userRoles.includes(ROLES.GLOBAL_ADMIN) ||
+    userRoles.includes(ROLES.CAMPUS_ADMIN)
+  );
+}
 
 /**
  * Check if a set of user roles/pseudo-roles grants access to a navigation item.
