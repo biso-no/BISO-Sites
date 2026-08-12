@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mergeMembershipRow } from "./membership-sync-merge";
+import { mergeMembershipRow, parsePrice } from "./membership-sync-merge";
 
 const syncItem = {
   productId: 54,
@@ -53,5 +53,35 @@ describe("mergeMembershipRow", () => {
       { price: 400, canPurchase: true }
     );
     expect(merged).toMatchObject({ name: "Renamed", status: false });
+  });
+});
+
+describe("parsePrice", () => {
+  it("passes through a numeric price", () => {
+    expect(parsePrice(350)).toBe(350);
+  });
+
+  it("coerces a string-numeric price", () => {
+    expect(parsePrice("350")).toBe(350);
+  });
+
+  it("defaults an absent price to 0", () => {
+    expect(parsePrice(undefined)).toBe(0);
+  });
+
+  it("defaults a null price to 0", () => {
+    expect(parsePrice(null)).toBe(0);
+  });
+
+  it("defaults a non-numeric price to 0", () => {
+    expect(parsePrice("garbage")).toBe(0);
+  });
+
+  it("clamps a negative price to 0", () => {
+    expect(parsePrice(-50)).toBe(0);
+  });
+
+  it("defaults a non-finite price to 0", () => {
+    expect(parsePrice(Number.POSITIVE_INFINITY)).toBe(0);
   });
 });

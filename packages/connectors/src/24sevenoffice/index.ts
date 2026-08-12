@@ -50,7 +50,7 @@ export type {
   ExistingMembershipRow,
   MembershipSyncItemLike,
 } from "./membership-sync-merge";
-export { mergeMembershipRow } from "./membership-sync-merge";
+export { mergeMembershipRow, parsePrice } from "./membership-sync-merge";
 // Products management
 export { getMembershipProducts, getProducts } from "./products";
 // Finago REST API

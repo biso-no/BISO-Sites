@@ -8,7 +8,7 @@
 import { createAdminClient } from "@repo/api/server";
 import type { Memberships } from "@repo/api/types/appwrite";
 import { getAllCategories } from "./categories";
-import { mergeMembershipRow } from "./membership-sync-merge";
+import { mergeMembershipRow, parsePrice } from "./membership-sync-merge";
 import { getMembershipProducts } from "./products";
 import type {
   CategoryDefinition,
@@ -86,17 +86,6 @@ export function isActiveByDate(expiryDate: string): boolean {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   return expiry >= today;
-}
-
-/**
- * Parse a product's price defensively. The SOAP client types `Price` as a
- * `number`, but the actual response is XML-derived and can hand back the
- * field as a string, empty, or absent entirely — coerce and fall back to 0
- * rather than writing `NaN` into Appwrite.
- */
-function parsePrice(rawPrice: unknown): number {
-  const parsed = Number(rawPrice);
-  return Number.isFinite(parsed) ? parsed : 0;
 }
 
 /**

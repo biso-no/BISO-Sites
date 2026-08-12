@@ -15,4 +15,5 @@ export {
   type ExistingMembershipRow,
   type MembershipSyncItemLike,
   mergeMembershipRow,
+  parsePrice,
 } from "@repo/connectors/24sevenoffice";

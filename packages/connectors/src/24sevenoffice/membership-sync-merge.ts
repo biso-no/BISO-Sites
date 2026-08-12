@@ -28,6 +28,21 @@ export interface ExistingMembershipRow {
   price?: number | null;
 }
 
+/**
+ * Parse a product's price defensively. The 24SO SOAP client types `Price` as
+ * a `number`, but the actual response is XML-derived and can hand back the
+ * field as a string, empty, absent, or otherwise malformed — coerce and fall
+ * back to 0 rather than writing `NaN` into Appwrite. Negative values are
+ * clamped to 0: a negative ERP price is meaningless, and 0 already means
+ * "not priced yet" everywhere downstream (`toMembershipPlan` rejects
+ * non-positive prices), so a corrupt input simply becomes unsellable rather
+ * than charging a negative amount.
+ */
+export function parsePrice(rawPrice: unknown): number {
+  const parsed = Number(rawPrice);
+  return Number.isFinite(parsed) ? Math.max(0, parsed) : 0;
+}
+
 export function mergeMembershipRow(
   item: MembershipSyncItemLike,
   existing: ExistingMembershipRow | null
