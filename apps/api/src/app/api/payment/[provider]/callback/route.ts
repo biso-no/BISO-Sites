@@ -11,6 +11,10 @@ import {
 } from "@repo/payment/vipps";
 import { postFinagoTransactionForOrder } from "@repo/shared/utils/finago-order-posting";
 import {
+  fulfilMembershipOrder,
+  isMembershipOrder,
+} from "@repo/shared/utils/membership-fulfilment";
+import {
   determineStatusFromStripeSession,
   type StripeSessionLike,
 } from "@repo/shared/utils/stripe-pure";
@@ -32,21 +36,32 @@ type StripeWebhookSession = StripeSessionLike & {
 type CallbackDb = Awaited<ReturnType<typeof createAdminClient>>["db"];
 
 /**
- * Best-effort Finago posting after a paid/authorized transition. Never fails
- * the webhook response — a missed post is recovered by the reconciliation
- * cron, and the atomic claim prevents duplicates.
+ * Best-effort settlement after a paid/authorized transition. Membership
+ * orders are fulfilled as a 24SO invoice (fulfilMembershipOrder); every other
+ * order is posted as a shop ledger transaction (postFinagoTransactionForOrder)
+ * — never both, or the same revenue would be booked twice. Never fails the
+ * webhook response — a missed settlement is recovered by the reconciliation
+ * cron, and the atomic claim inside each helper prevents duplicates.
  */
-async function postFinagoIfPaid(orderId: string, db: CallbackDb) {
+async function settleFinagoIfPaid(orderId: string, db: CallbackDb) {
   try {
     const order = (await db.getRow("app", "orders", orderId)) as {
+      items_json?: string | null;
       status?: string;
     } | null;
-    if (order?.status === "paid" || order?.status === "authorized") {
-      await postFinagoTransactionForOrder(orderId, db);
+    if (
+      !(order && (order.status === "paid" || order.status === "authorized"))
+    ) {
+      return;
     }
+    if (isMembershipOrder(order)) {
+      await fulfilMembershipOrder(orderId, db);
+      return;
+    }
+    await postFinagoTransactionForOrder(orderId, db);
   } catch (error) {
     console.error(
-      `[payment/callback] Finago posting failed for ${orderId}:`,
+      `[payment/callback] Finago settlement failed for ${orderId}:`,
       error
     );
   }
@@ -91,10 +106,11 @@ async function handleVippsCallback(req: NextRequest, origin: string | null) {
   // payment, captures if needed, and applies the transition idempotently.
   await reconcileVippsPayment(event.reference, db);
 
-  // Post revenue to Finago from the webhook too, so mobile buyers who never
-  // hit the browser return route still get a ledger entry. The atomic posting
-  // claim inside the helper makes this safe alongside the return route/cron.
-  await postFinagoIfPaid(event.reference, db);
+  // Settle revenue from the webhook too, so mobile buyers who never hit the
+  // browser return route still get a ledger entry or membership invoice. The
+  // atomic claim inside each helper makes this safe alongside the return
+  // route and reconciliation cron.
+  await settleFinagoIfPaid(event.reference, db);
 
   return json({ received: true });
 }
@@ -129,7 +145,7 @@ async function handleStripeCallback(req: NextRequest, origin: string | null) {
         event.type
       );
       await applyOrderStatusTransition(orderId, status, updateData, db);
-      await postFinagoIfPaid(orderId, db);
+      await settleFinagoIfPaid(orderId, db);
     }
   }
 

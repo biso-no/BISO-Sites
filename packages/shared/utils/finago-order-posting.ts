@@ -1,5 +1,6 @@
 import type { Orders as BaseOrders } from "@repo/api/types/appwrite";
 import { postShopTransaction } from "@repo/connectors/24sevenoffice";
+import { isMembershipOrder } from "./membership-fulfilment";
 import { parseOrderItems } from "./order-parsing";
 import type { DbClient } from "./vipps-order-ops";
 
@@ -16,6 +17,7 @@ export interface FinagoPostingResult {
   reason?:
     | "already_posted"
     | "claimed_elsewhere"
+    | "membership_order"
     | "not_found"
     | "not_paid"
     | "post_failed";
@@ -119,6 +121,11 @@ export async function postFinagoTransactionForOrder(
   }
   if (!POSTABLE_STATUSES.has(order.status ?? "")) {
     return { posted: false, reason: "not_paid" };
+  }
+  // Memberships are booked as a 24SO invoice by fulfilMembershipOrder, not as a
+  // shop ledger transaction. Posting both would record the same revenue twice.
+  if (isMembershipOrder(order)) {
+    return { posted: false, reason: "membership_order" };
   }
   if (order.finago_transaction_id) {
     // Either a real transaction id (already posted) or the in-flight/manual-

@@ -137,6 +137,26 @@ describe("postFinagoTransactionForOrder", () => {
     expect(postShopTransaction).not.toHaveBeenCalled();
   });
 
+  it("skips membership orders so revenue is not booked twice", async () => {
+    db.getRow.mockResolvedValue(
+      paidOrder({
+        items_json: JSON.stringify([
+          {
+            product_id: "71",
+            product_type: "membership",
+            quantity: 1,
+            unit_price: 550,
+          },
+        ]),
+      })
+    );
+
+    const result = await postFinagoTransactionForOrder("order-1", db);
+
+    expect(result).toEqual({ posted: false, reason: "membership_order" });
+    expect(postShopTransaction).not.toHaveBeenCalled();
+  });
+
   it("stamps a marker before posting and keeps it (no release) when the 24SO post fails", async () => {
     postShopTransaction.mockRejectedValue(new Error("24SO down"));
 
