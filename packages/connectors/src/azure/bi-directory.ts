@@ -8,6 +8,8 @@
  * populate them consistently.
  */
 
+import "server-only";
+
 import { GraphUserService } from "./users";
 
 export interface BiDirectoryUser {

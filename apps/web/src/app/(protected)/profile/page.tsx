@@ -13,6 +13,7 @@ import Link from "next/link";
 import type { MembershipCheckResult } from "@/components/profile/membership-status-card";
 import MembershipStatusCard from "@/components/profile/membership-status-card";
 import { ProfileTabs } from "@/components/profile/profile-tabs";
+import { syncBiStudentIdentity } from "@/lib/actions/bi-identity";
 import { getLoggedInUser, listIdentities } from "@/lib/actions/user";
 import { checkMembership } from "@/lib/profile";
 
@@ -21,7 +22,18 @@ export const metadata: Metadata = {
   description: "View and manage your profile and privacy settings.",
 };
 
-export default async function PublicProfilePage() {
+interface PublicProfilePageProps {
+  searchParams: Promise<{ error?: string; linked?: string }>;
+}
+
+export default async function PublicProfilePage({
+  searchParams,
+}: PublicProfilePageProps) {
+  const params = await searchParams;
+  if (params.linked === "1") {
+    await syncBiStudentIdentity();
+  }
+
   const userData = await getLoggedInUser();
   let identitiesResp: {
     identities?: { $id: string; provider: string }[];

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { OnboardingFlow } from "@/components/onboarding/onboarding-flow";
+import { syncBiStudentIdentity } from "@/lib/actions/bi-identity";
 import { getLoggedInUser } from "@/lib/actions/user";
 
 export const metadata: Metadata = {
@@ -20,6 +21,10 @@ export default async function OnboardingPage({
   searchParams,
 }: OnboardingPageProps) {
   const params = await searchParams;
+  if (params.linked === "1") {
+    await syncBiStudentIdentity();
+  }
+
   const userData = await getLoggedInUser();
 
   if (!userData) {
