@@ -367,7 +367,58 @@ gate's own state model was wrong — an empty catalog caused *non-members* to
 be told they were `already_member`. Rather than escalate a straightforward
 "telling someone they're already a member when they're not is simply wrong"
 fix, a distinct `no_plans_available` state was added directly (owner informed
-in-session, not formally ruled on). This is why the join flow renders **six**
+in-session, not formally ruled on). This is why the join flow renders **seven**
 gate states, not the five the mid-build task briefs describe: signed out,
 needs BI link, needs directory record, already member, no plans available,
-eligible.
+membership check unavailable, eligible. (The seventh, `membership_check_
+unavailable`, was added later while fixing the whole-branch review's finding
+that a Finago outage let an existing member buy overlapping cover.)
+
+
+## Residual risks accepted at merge
+
+Surfaced by the final whole-branch re-review after the fix wave. None blocks
+merge; all are recorded so nobody has to rediscover them.
+
+- **Cron observability.** `reconcile-orders/route.ts` counts `errors` only for
+  `reason === "finago_failed"`. The new `customer_lookup_failed` is not
+  counted, so a sustained 24SO search outage retries quietly every sweep while
+  the response body still reports `errors: 0`. Worth adding before you rely on
+  that endpoint's output for alerting.
+- **Corrupt `items_json` loses its breadcrumb.** A membership order whose
+  `items_json` fails to parse reads as a non-membership order, so it now gets
+  stamped `not_membership` and leaves the sweep permanently. It was already
+  unfulfillable before this change, so nothing new is stranded — but it no
+  longer keeps showing up as a signal.
+- **Drain latency on first deploy.** With a backlog of N paid shop orders older
+  than the sweep cutoff, it takes up to ceil(N/50) cron runs before the budget
+  is reliably free for membership orders. It converges on its own.
+- **Stale-claim clock nudge.** Stamping a shop order refreshes its
+  `$updatedAt`, resetting `releaseStaleFinagoClaim`'s 30-minute staleness
+  timer for that row once. Worst case is one extra 30-minute delay before a
+  crashed Finago claim ages out; it happens at most once per order.
+- **Best-effort marker clear.** If the abort path's marker clear fails while
+  the claim release succeeds, the order keeps the `"fulfilling"` marker and
+  drops out of the `IS NULL` sweep — stranded with only a log line.
+- **Lookup-failure guard covers the searches, not the session.** A
+  `getValidSession()` failure inside `upsertMembershipCustomer` (a 24SO auth
+  outage) still surfaces as a generic error, so the marker is retained and the
+  order waits for manual recovery even though nothing was written to Finago.
+- **`stampNonMembershipOrder` has no direct unit test.** The cron test mocks it
+  out; nothing asserts the sentinel value or the `updateRow` shape.
+- **`/api/auth/bi-link` is a GET with a side effect and no CSRF token.** Any
+  page can drive a logged-in user's browser to it, re-running a Graph lookup
+  and a self-idempotent write. It is not attacker-steerable — it only ever
+  writes the session user's own row from their own OIDC identity — and
+  `/profile?linked=1` had the identical property before this branch, so it is
+  not a regression. But it is now a cheap dedicated endpoint with no rate
+  limit.
+- **`SITE_URL` fallback differs across the app.** `api/auth/bi-link/route.ts`
+  mirrors `api/checkout/return/route.ts` exactly, including a `https://biso.no`
+  fallback, while `robots.ts`/`sitemap.ts`/`layout.tsx` fall back to
+  `https://web.biso.no`. Only matters if `NEXT_PUBLIC_BASE_URL` is unset, and
+  `turbo.json` declares it.
+- **`packages/api/appwrite.config.json` was hand-edited.** Root `CLAUDE.md`
+  marks it auto-generated and off-limits. The owner approved editing it for the
+  five new columns; the `idx_orders_membership_invoice` index added during the
+  fix wave follows the same approval. Owner action 3 covers pushing both.
