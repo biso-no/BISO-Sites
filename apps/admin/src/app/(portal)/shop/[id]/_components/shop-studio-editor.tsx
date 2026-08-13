@@ -26,7 +26,16 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
-import { createProduct, updateProduct } from "../../../_actions/shop";
+import {
+  AutoTranslateControl,
+  TranslationReviewCard,
+} from "@/app/_components/content-translation-controls";
+import { getTargetLocale } from "@/lib/content-translation";
+import {
+  createProduct,
+  generateProductTranslationDraft,
+  updateProduct,
+} from "../../../_actions/shop";
 import { uploadMediaFile } from "../../../_actions/upload";
 import {
   type DescriptionBlock,
@@ -2215,50 +2224,63 @@ function PhotosVisibilityStep({
 /* -------------------------------------------------------------------------- */
 
 function ReviewStep({
+  blocksEn,
   blocksNo,
   campusId,
   campuses,
   category,
   handleSubmit,
   isPending,
+  isTranslating,
+  localeLang,
   localImages,
   localVariants,
   regularPrice,
+  onTranslate,
   setActiveStep,
   setStatus,
   status,
   titleNo,
+  titleEn,
 }: {
+  blocksEn: DescriptionBlock[];
   blocksNo: DescriptionBlock[];
   campusId: string;
   campuses: Campus[];
   category: string | null;
   handleSubmit: (targetStatus: string) => void;
   isPending: boolean;
+  isTranslating: boolean;
+  localeLang: LocaleCode;
   localImages: string[];
   localVariants: ProductVariant[];
   regularPrice: number;
+  onTranslate: () => Promise<void>;
   setActiveStep: (s: 0 | 1 | 2 | 3 | 4) => void;
   setStatus: (
     v: "draft" | "pending_approval" | "published" | "archived"
   ) => void;
   status: "draft" | "pending_approval" | "published" | "archived";
   titleNo: string;
+  titleEn: string;
 }) {
+  const activeBlocks = localeLang === "no" ? blocksNo : blocksEn;
+  const activeTitle = localeLang === "no" ? titleNo : titleEn;
   const checks = [
     {
-      done: Boolean(titleNo.trim()) && Boolean(category) && Boolean(campusId),
+      done:
+        Boolean(activeTitle.trim()) && Boolean(category) && Boolean(campusId),
       label: "Essentials",
       step: 0 as const,
       detail: "Title · Category · Campus",
     },
     {
-      done: blocksNo.some(
+      done: activeBlocks.some(
         (block) => isTextDescriptionBlock(block) && block.text.trim().length > 0
       ),
       label: "Description",
       step: 1 as const,
-      detail: "Norwegian description blocks",
+      detail: `${localeLang.toUpperCase()} description blocks`,
     },
     {
       done: regularPrice > 0 || localVariants.length > 0,
@@ -2302,6 +2324,13 @@ function ReviewStep({
           Click any row to jump back and edit. When ready, choose a status and
           save.
         </p>
+        <TranslationReviewCard
+          className="mb-5"
+          disabled={isPending}
+          isTranslating={isTranslating}
+          onTranslate={onTranslate}
+          sourceLocale={localeLang}
+        />
         <div
           style={{
             background: "rgba(255,255,255,.5)",
@@ -2401,7 +2430,7 @@ function ReviewStep({
             Product summary
           </div>
           <div style={{ color: BRAND.ink, fontSize: 13.5 }}>
-            <b>{titleNo || "Untitled product"}</b>
+            <b>{activeTitle || "Untitled product"}</b>
           </div>
           <div style={{ color: BRAND.ink3, fontSize: 12, marginTop: 4 }}>
             {campus?.name ?? "No campus"} ·{" "}
@@ -2545,6 +2574,7 @@ function ReviewStep({
 
 // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Phone preview composes many small visual elements that are clearer when colocated than split across components.
 function PreviewPane({
+  blocksEn,
   blocksNo,
   category,
   coverPattern,
@@ -2559,6 +2589,7 @@ function PreviewPane({
   titleEn,
   titleNo,
 }: {
+  blocksEn: DescriptionBlock[];
   blocksNo: DescriptionBlock[];
   category: string | null;
   coverPattern: string;
@@ -2585,7 +2616,8 @@ function PreviewPane({
   const hasPrice = regularPrice > 0;
   const hasMemberPrice =
     memberPrice !== null && memberPrice > 0 && memberPrice < regularPrice;
-  const descPreview = blocksNo
+  const activeBlocks = localeLang === "no" ? blocksNo : blocksEn;
+  const descPreview = activeBlocks
     .filter(isTextDescriptionBlock)
     .map((block) => block.text)
     .join(" ")
@@ -3167,6 +3199,8 @@ export function ShopStudioEditor({
   const [activeStep, setActiveStep] = useState<0 | 1 | 2 | 3 | 4>(0);
   const [localeLang, setLocaleLang] = useState<"en" | "no">("no");
   const [slugEditing, setSlugEditing] = useState(false);
+  const [autoTranslate, setAutoTranslate] = useState(false);
+  const [isTranslating, setIsTranslating] = useState(false);
 
   function buildPayload(targetStatus: string) {
     return {
@@ -3209,20 +3243,72 @@ export function ShopStudioEditor({
     startTransition(async () => {
       const values = buildPayload(targetStatus);
       const result = isNew
-        ? await createProduct(values)
-        : await updateProduct(product!.$id, values);
+        ? await createProduct(values, {
+            enabled: autoTranslate,
+            sourceLocale: localeLang,
+          })
+        : await updateProduct(product!.$id, values, {
+            enabled: autoTranslate,
+            sourceLocale: localeLang,
+          });
 
       if ("error" in result) {
         toast.error("Failed to save product");
       } else {
         const msg =
           targetStatus === "published" ? "Product published!" : "Draft saved";
-        toast.success(msg);
+        toast.success(
+          "translationQueued" in result && result.translationQueued
+            ? `${msg} Translation queued.`
+            : msg
+        );
         if (isNew) {
           router.push("/shop");
         }
       }
     });
+  }
+
+  async function handleTranslate() {
+    const sourceBlocks = localeLang === "no" ? blocksNo : blocksEn;
+    const targetBlocks = localeLang === "no" ? blocksEn : blocksNo;
+    const sourceName = localeLang === "no" ? titleNo : titleEn;
+    const targetName = localeLang === "no" ? titleEn : titleNo;
+    if (
+      (targetName.trim() || descriptionBlocksToHtml(targetBlocks).trim()) &&
+      // biome-ignore lint/suspicious/noAlert: Match the existing translation replacement confirmation pattern.
+      !window.confirm("Replace the existing translated product draft?")
+    ) {
+      return;
+    }
+
+    setIsTranslating(true);
+    try {
+      const result = await generateProductTranslationDraft({
+        campusId,
+        description: descriptionBlocksToHtml(sourceBlocks),
+        departmentId,
+        name: sourceName,
+        sourceLocale: localeLang,
+      });
+      if (result.error || !result.data) {
+        toast.error(result.error || "Failed to translate product");
+        return;
+      }
+
+      const targetLocale = getTargetLocale(localeLang);
+      if (targetLocale === "en") {
+        setTitleEn(result.data.name);
+        setBlocksEn(htmlToDescriptionBlocks(result.data.description));
+      } else {
+        setTitleNo(result.data.name);
+        setBlocksNo(htmlToDescriptionBlocks(result.data.description));
+      }
+      setLocaleLang(targetLocale);
+      toast.success("Translation draft generated");
+    } finally {
+      setIsTranslating(false);
+    }
   }
 
   return (
@@ -3378,18 +3464,23 @@ export function ShopStudioEditor({
             )}
             {activeStep === 4 && (
               <ReviewStep
+                blocksEn={blocksEn}
                 blocksNo={blocksNo}
                 campuses={campuses}
                 campusId={campusId}
                 category={category}
                 handleSubmit={handleSubmit}
                 isPending={isPending}
+                isTranslating={isTranslating}
+                localeLang={localeLang}
                 localImages={localImages}
                 localVariants={localVariants}
+                onTranslate={handleTranslate}
                 regularPrice={regularPrice}
                 setActiveStep={setActiveStep}
                 setStatus={setStatus}
                 status={status}
+                titleEn={titleEn}
                 titleNo={titleNo}
               />
             )}
@@ -3434,6 +3525,14 @@ export function ShopStudioEditor({
             <div />
           )}
           <div style={{ alignItems: "center", display: "flex", gap: 10 }}>
+            <AutoTranslateControl
+              checked={autoTranslate}
+              className="max-w-xs"
+              disabled={isPending}
+              onCheckedChange={setAutoTranslate}
+              operation="save or publish"
+              sourceLocale={localeLang}
+            />
             <button
               disabled={isPending}
               onClick={() => handleSubmit("draft")}
@@ -3495,6 +3594,7 @@ export function ShopStudioEditor({
         }}
       >
         <PreviewPane
+          blocksEn={blocksEn}
           blocksNo={blocksNo}
           category={category}
           coverPattern={coverPattern}

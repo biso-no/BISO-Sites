@@ -15,6 +15,7 @@ import "@repo/editor/theme/styles.css";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
+import { AutoTranslateControl } from "@/app/_components/content-translation-controls";
 import {
   publishPageAction,
   savePageEditorDoc,
@@ -153,6 +154,7 @@ export function PageEditorClient({
     useState<EditorLocale | null>(null);
   const [translatingLocale, setTranslatingLocale] =
     useState<EditorLocale | null>(null);
+  const [autoTranslate, setAutoTranslate] = useState(false);
 
   const activeDoc =
     documents[activeLocale] ??
@@ -308,7 +310,10 @@ export function PageEditorClient({
       return;
     }
     try {
-      await publishPageAction(currentPageId, locale);
+      const result = await publishPageAction(currentPageId, locale, {
+        enabled: autoTranslate,
+        sourceLocale: locale,
+      });
       setDocuments((current) => {
         const doc = current[locale];
         if (!doc) {
@@ -319,7 +324,11 @@ export function PageEditorClient({
           [locale]: { ...doc, meta: { ...doc.meta, status: "published" } },
         };
       });
-      toast.success("Page published to biso.no");
+      toast.success(
+        result.translationQueued
+          ? "Page published. Translation queued."
+          : "Page published to biso.no"
+      );
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Publish failed");
     }
@@ -361,6 +370,15 @@ export function PageEditorClient({
         onTranslateLocale={handleTranslateLocale}
         onUnpublish={handleUnpublish}
         savePage={handleSave}
+        topbarActions={
+          <AutoTranslateControl
+            checked={autoTranslate}
+            compact
+            onCheckedChange={setAutoTranslate}
+            operation="publish"
+            sourceLocale={activeLocale}
+          />
+        }
         translatingLocale={translatingLocale}
         uploadFile={handleUpload}
       />

@@ -196,58 +196,74 @@ export type RecruitmentVacancyMetadata = z.infer<
   typeof recruitmentVacancyMetadataSchema
 >;
 
-export const recruitmentVacancyUpsertSchema = z.object({
-  title_no: z.string().trim().min(1, "Title (NO) is required"),
-  title_en: z.string().trim().min(1, "Title (EN) is required"),
-  description_no: z.string().trim().min(1, "Description (NO) is required"),
-  description_en: z.string().trim().min(1, "Description (EN) is required"),
-  campus_id: z.string().trim().min(1, "Campus is required"),
-  department_id: nullableTrimmedString(50),
-  slug: z
-    .string()
-    .trim()
-    .min(1, "Slug is required")
-    .regex(/^[a-z0-9-]+$/, "Slug must be lowercase alphanumeric with hyphens"),
-  status: z.nativeEnum(JobsStatus),
-  company: nullableTrimmedString(200),
-  employment_type: nullableTrimmedString(100),
-  paid: z.boolean().default(false),
-  short_description_no: nullableTrimmedString(280),
-  short_description_en: nullableTrimmedString(280),
-  location: nullableTrimmedString(200),
-  application_deadline: nullableDateString,
-  contact_name: nullableTrimmedString(200),
-  contact_email: z.preprocess((value) => {
-    if (typeof value !== "string") {
-      return value;
+export const recruitmentVacancyUpsertSchema = z
+  .object({
+    title_no: z.string().trim(),
+    title_en: z.string().trim(),
+    description_no: z.string().trim(),
+    description_en: z.string().trim(),
+    campus_id: z.string().trim().min(1, "Campus is required"),
+    department_id: nullableTrimmedString(50),
+    slug: z
+      .string()
+      .trim()
+      .min(1, "Slug is required")
+      .regex(
+        /^[a-z0-9-]+$/,
+        "Slug must be lowercase alphanumeric with hyphens"
+      ),
+    status: z.nativeEnum(JobsStatus),
+    company: nullableTrimmedString(200),
+    employment_type: nullableTrimmedString(100),
+    paid: z.boolean().default(false),
+    short_description_no: nullableTrimmedString(280),
+    short_description_en: nullableTrimmedString(280),
+    location: nullableTrimmedString(200),
+    application_deadline: nullableDateString,
+    contact_name: nullableTrimmedString(200),
+    contact_email: z.preprocess((value) => {
+      if (typeof value !== "string") {
+        return value;
+      }
+      const trimmed = value.trim();
+      return trimmed.length > 0 ? trimmed : null;
+    }, z.email().nullable().optional()),
+    cv_required: z.boolean().default(false),
+    tags: z.array(z.string().trim().min(1).max(40)).max(4).default([]),
+    commitment: nullableTrimmedString(120),
+    term: nullableTrimmedString(120),
+    start_date: nullableDateString,
+    audience: recruitmentAudienceSchema.nullable().optional(),
+    contact_role: nullableTrimmedString(120),
+    cover_pattern: nullableInteger,
+    cover_image_file_id: nullableTrimmedString(200),
+    cover_image_url: nullableTrimmedString(1000),
+    auto_translate: z.boolean().default(false),
+    push_to_inboxes: z.boolean().default(false),
+    newsletter: z.boolean().default(false),
+    publication_mode: recruitmentPublicationModeSchema.nullable().optional(),
+    scheduled_publish_at: nullableDateString,
+    auto_screen: z.boolean().default(true),
+    custom_questions: recruitmentCustomQuestionsSchema.optional().default([]),
+    interview_template: recruitmentInterviewTemplateSchema
+      .optional()
+      .default({ rounds: [] }),
+    screening_rubric: recruitmentScreeningRubricSchema
+      .optional()
+      .default({ must_have: [], nice_to_have: [], criteria: [] }),
+  })
+  .superRefine((values, context) => {
+    const hasNorwegian = Boolean(values.title_no && values.description_no);
+    const hasEnglish = Boolean(values.title_en && values.description_en);
+    if (hasNorwegian || hasEnglish) {
+      return;
     }
-    const trimmed = value.trim();
-    return trimmed.length > 0 ? trimmed : null;
-  }, z.email().nullable().optional()),
-  cv_required: z.boolean().default(false),
-  tags: z.array(z.string().trim().min(1).max(40)).max(4).default([]),
-  commitment: nullableTrimmedString(120),
-  term: nullableTrimmedString(120),
-  start_date: nullableDateString,
-  audience: recruitmentAudienceSchema.nullable().optional(),
-  contact_role: nullableTrimmedString(120),
-  cover_pattern: nullableInteger,
-  cover_image_file_id: nullableTrimmedString(200),
-  cover_image_url: nullableTrimmedString(1000),
-  auto_translate: z.boolean().default(false),
-  push_to_inboxes: z.boolean().default(false),
-  newsletter: z.boolean().default(false),
-  publication_mode: recruitmentPublicationModeSchema.nullable().optional(),
-  scheduled_publish_at: nullableDateString,
-  auto_screen: z.boolean().default(true),
-  custom_questions: recruitmentCustomQuestionsSchema.optional().default([]),
-  interview_template: recruitmentInterviewTemplateSchema
-    .optional()
-    .default({ rounds: [] }),
-  screening_rubric: recruitmentScreeningRubricSchema
-    .optional()
-    .default({ must_have: [], nice_to_have: [], criteria: [] }),
-});
+    context.addIssue({
+      code: "custom",
+      message: "Complete either the Norwegian or English vacancy content",
+      path: ["title_no"],
+    });
+  });
 
 export type RecruitmentVacancyUpsertInput = z.infer<
   typeof recruitmentVacancyUpsertSchema

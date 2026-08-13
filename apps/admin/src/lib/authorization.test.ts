@@ -67,4 +67,24 @@ describe("admin authorization team parsing", () => {
     expect(parsed.campusTeamIds).toEqual(["sg-app-campus-oslo"]);
     expect(parsed.campusNames).toEqual(["Oslo"]);
   });
+
+  test("only HR department names derive the hr role", () => {
+    const hr = parseTeamMemberships([{ $id: "sg-app-dept-hr", name: "HR" }]);
+    expect(hr.roles).toContain("hr");
+
+    const spaced = parseTeamMemberships([
+      { $id: "sg-app-dept-hr", name: " h r " },
+    ]);
+    expect(spaced.roles).toContain("hr");
+
+    const marketing = parseTeamMemberships([
+      { $id: "sg-app-dept-marketing", name: "Marketing" },
+    ]);
+    expect(marketing.roles).not.toContain("hr");
+
+    const opsUnit = parseTeamMemberships([
+      { $id: "legacy-guid", name: "SG-App-Dept-OperationsUnit" },
+    ]);
+    expect(opsUnit.roles).not.toContain("hr");
+  });
 });

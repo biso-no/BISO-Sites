@@ -1,6 +1,7 @@
 {
     "projectId": "biso",
     "projectName": "BISO",
+    "endpoint": "https://appwrite.biso.no/v1",
     "settings": {
         "services": {
             "account": true,
@@ -684,32 +685,6 @@
                     "twoWayKey": "user",
                     "onDelete": "setNull",
                     "side": "child"
-                },
-                {
-                    "key": "bi_employee_id",
-                    "type": "string",
-                    "required": false,
-                    "array": false,
-                    "size": 32,
-                    "default": null,
-                    "encrypt": false
-                },
-                {
-                    "key": "bi_campus_id",
-                    "type": "string",
-                    "required": false,
-                    "array": false,
-                    "size": 8,
-                    "default": null,
-                    "encrypt": false
-                },
-                {
-                    "key": "bi_linked_at",
-                    "type": "datetime",
-                    "required": false,
-                    "array": false,
-                    "default": null,
-                    "format": ""
                 }
             ],
             "indexes": [
@@ -9353,24 +9328,6 @@
                     "default": 0,
                     "min": 0,
                     "max": 1000000
-                },
-                {
-                    "key": "membership_invoice_id",
-                    "type": "string",
-                    "required": false,
-                    "array": false,
-                    "size": 64,
-                    "default": null,
-                    "encrypt": false
-                },
-                {
-                    "key": "membership_fulfilment_lock",
-                    "type": "integer",
-                    "required": false,
-                    "array": false,
-                    "default": 0,
-                    "min": 0,
-                    "max": 1000000
                 }
             ],
             "indexes": [
@@ -9395,17 +9352,6 @@
                     "status": "available",
                     "columns": [
                         "finago_transaction_id"
-                    ],
-                    "orders": [
-                        "ASC"
-                    ]
-                },
-                {
-                    "key": "idx_orders_membership_invoice",
-                    "type": "key",
-                    "status": "available",
-                    "columns": [
-                        "membership_invoice_id"
                     ],
                     "orders": [
                         "ASC"

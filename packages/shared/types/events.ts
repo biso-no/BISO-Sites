@@ -62,55 +62,77 @@ export interface EventRecord
   translation_refs: EventTranslation[];
 }
 
-export const eventUpsertSchema = z.object({
-  title_no: z.string().trim().min(1, "Title (NO) is required"),
-  title_en: z.string().trim().min(1, "Title (EN) is required"),
-  description_no: z.string().trim().optional().nullable(),
-  description_en: z.string().trim().optional().nullable(),
-  short_description_no: nullableTrimmedString(280),
-  short_description_en: nullableTrimmedString(280),
-  campus_id: z.string().trim().min(1, "Campus is required"),
-  department_id: nullableTrimmedString(50),
-  slug: z
-    .string()
-    .trim()
-    .min(1, "Slug is required")
-    .regex(/^[a-z0-9-]+$/, "Slug must be lowercase alphanumeric with hyphens"),
-  status: z.nativeEnum(EventsStatus),
-  category: z.nativeEnum(EventsCategory).nullable().optional(),
-  tags: z.array(z.string().trim().min(1).max(60)).max(5).optional().default([]),
-  start_date: nullableDateString,
-  end_date: nullableDateString,
-  registration_deadline: nullableDateString,
-  location_mode: z
-    .nativeEnum(EventsLocationMode)
-    .default(EventsLocationMode.PHYSICAL),
-  location: nullableTrimmedString(300),
-  online_url: nullableTrimmedString(500),
-  capacity: z.coerce.number().int().min(0).default(0),
-  waitlist: z.boolean().default(false),
-  cover_pattern: z
-    .nativeEnum(EventsCoverPattern)
-    .default(EventsCoverPattern.DOTTED),
-  image: z.string().url().nullable().optional().or(z.literal("")),
-  pricing_mode: z.nativeEnum(EventsPricingMode).default(EventsPricingMode.FREE),
-  price: z.coerce.number().min(0).nullable().optional(),
-  member_price: z.coerce.number().min(0).nullable().optional(),
-  ticket_url: z.string().url().nullable().optional().or(z.literal("")),
-  member_only: z.boolean().default(false),
-  is_collection: z.boolean().default(false),
-  notify_push: z.boolean().default(false),
-  publish_mode: z.nativeEnum(EventsPublishMode).default(EventsPublishMode.NOW),
-  scheduled_publish_at: nullableDateString,
-  contact_name: nullableTrimmedString(120),
-  contact_role: nullableTrimmedString(120),
-  contact_email: z.preprocess((value) => {
-    if (typeof value !== "string") {
-      return value;
+export const eventUpsertSchema = z
+  .object({
+    title_no: z.string().trim(),
+    title_en: z.string().trim(),
+    description_no: z.string().trim().optional().nullable(),
+    description_en: z.string().trim().optional().nullable(),
+    short_description_no: nullableTrimmedString(280),
+    short_description_en: nullableTrimmedString(280),
+    campus_id: z.string().trim().min(1, "Campus is required"),
+    department_id: nullableTrimmedString(50),
+    slug: z
+      .string()
+      .trim()
+      .min(1, "Slug is required")
+      .regex(
+        /^[a-z0-9-]+$/,
+        "Slug must be lowercase alphanumeric with hyphens"
+      ),
+    status: z.nativeEnum(EventsStatus),
+    category: z.nativeEnum(EventsCategory).nullable().optional(),
+    tags: z
+      .array(z.string().trim().min(1).max(60))
+      .max(5)
+      .optional()
+      .default([]),
+    start_date: nullableDateString,
+    end_date: nullableDateString,
+    registration_deadline: nullableDateString,
+    location_mode: z
+      .nativeEnum(EventsLocationMode)
+      .default(EventsLocationMode.PHYSICAL),
+    location: nullableTrimmedString(300),
+    online_url: nullableTrimmedString(500),
+    capacity: z.coerce.number().int().min(0).default(0),
+    waitlist: z.boolean().default(false),
+    cover_pattern: z
+      .nativeEnum(EventsCoverPattern)
+      .default(EventsCoverPattern.DOTTED),
+    image: z.string().url().nullable().optional().or(z.literal("")),
+    pricing_mode: z
+      .nativeEnum(EventsPricingMode)
+      .default(EventsPricingMode.FREE),
+    price: z.coerce.number().min(0).nullable().optional(),
+    member_price: z.coerce.number().min(0).nullable().optional(),
+    ticket_url: z.string().url().nullable().optional().or(z.literal("")),
+    member_only: z.boolean().default(false),
+    is_collection: z.boolean().default(false),
+    notify_push: z.boolean().default(false),
+    publish_mode: z
+      .nativeEnum(EventsPublishMode)
+      .default(EventsPublishMode.NOW),
+    scheduled_publish_at: nullableDateString,
+    contact_name: nullableTrimmedString(120),
+    contact_role: nullableTrimmedString(120),
+    contact_email: z.preprocess((value) => {
+      if (typeof value !== "string") {
+        return value;
+      }
+      const trimmed = value.trim();
+      return trimmed.length > 0 ? trimmed : null;
+    }, z.email().nullable().optional()),
+  })
+  .superRefine((values, context) => {
+    if (values.title_no || values.title_en) {
+      return;
     }
-    const trimmed = value.trim();
-    return trimmed.length > 0 ? trimmed : null;
-  }, z.email().nullable().optional()),
-});
+    context.addIssue({
+      code: "custom",
+      message: "A Norwegian or English title is required",
+      path: ["title_no"],
+    });
+  });
 
 export type EventUpsertInput = z.infer<typeof eventUpsertSchema>;

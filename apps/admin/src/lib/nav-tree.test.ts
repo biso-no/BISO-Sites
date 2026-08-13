@@ -9,6 +9,7 @@ import {
 const globalAdmin = { hasDepartmentMembership: true, roles: ["globaladmin"] };
 const campusAdmin = { hasDepartmentMembership: true, roles: ["campusadmin"] };
 const departmentUser = { hasDepartmentMembership: true, roles: [] };
+const hrUser = { hasDepartmentMembership: true, roles: ["hr"] };
 const noAccess = { hasDepartmentMembership: false, roles: [] };
 
 function labels(nodes: ReturnType<typeof filterNavTree>) {
@@ -37,9 +38,9 @@ describe("filterNavTree", () => {
     expect(labels(nodes)).not.toContain("analytics");
   });
 
-  test("department user sees only the content group with pages/news/jobs", () => {
+  test("department user sees general publishing surfaces but never jobs", () => {
     const nodes = filterNavTree(departmentUser);
-    expect(nodes).toHaveLength(1);
+    expect(labels(nodes)).toEqual(["content", "shop", "documents"]);
     const content = nodes[0];
     if (content?.kind !== "group") {
       throw new Error("expected content group");
@@ -47,8 +48,30 @@ describe("filterNavTree", () => {
     expect(content.children.map((c) => c.labelKey)).toEqual([
       "pages",
       "news",
-      "jobs",
+      "events",
+      "communications",
+      "benefits",
     ]);
+  });
+
+  test("HR user additionally sees jobs", () => {
+    const nodes = filterNavTree(hrUser);
+    const content = nodes[0];
+    if (content?.kind !== "group") {
+      throw new Error("expected content group");
+    }
+    expect(content.children.map((c) => c.labelKey)).toContain("jobs");
+  });
+
+  test("campus admin no longer sees jobs without HR membership", () => {
+    const nodes = filterNavTree(campusAdmin);
+    const content = nodes.find(
+      (node) => node.kind === "group" && node.labelKey === "content"
+    );
+    if (content?.kind !== "group") {
+      throw new Error("expected content group");
+    }
+    expect(content.children.map((c) => c.labelKey)).not.toContain("jobs");
   });
 
   test("SECURITY: user with no roles and no membership sees nothing", () => {

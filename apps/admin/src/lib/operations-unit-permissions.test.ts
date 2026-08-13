@@ -8,28 +8,24 @@ import {
 const OPS_TEAM = "sg-app-dept-operationsunit";
 
 describe("Operations Unit Appwrite backstop", () => {
-  test("content rows use Operations Unit instead of a literal admin team", () => {
+  test("draft content rows are service-only — no team ACL at all", () => {
     const permissions = buildContentRowPermissions({
       campusTeam: "sg-app-campus-oslo",
       deptTeam: "sg-app-dept-marketing",
       status: "draft",
     });
 
-    expect(permissions).toContain(`read("team:${OPS_TEAM}")`);
-    expect(permissions).toContain(`update("team:${OPS_TEAM}")`);
-    expect(permissions).toContain(`delete("team:${OPS_TEAM}")`);
-    expect(permissions.join(" ")).not.toContain("team:admin");
+    expect(permissions).toEqual([]);
   });
 
-  test("content translations use Operations Unit read access instead of a literal admin team", () => {
+  test("draft content translations are service-only — no team ACL at all", () => {
     const permissions = buildContentTranslationPermissions({
       readTeams: ["sg-app-campus-oslo"],
       status: "draft",
       writeTeams: ["sg-app-dept-marketing"],
     });
 
-    expect(permissions).toContain(`read("team:${OPS_TEAM}")`);
-    expect(permissions.join(" ")).not.toContain("team:admin");
+    expect(permissions).toEqual([]);
   });
 
   test("approval routing falls back to Operations Unit", () => {

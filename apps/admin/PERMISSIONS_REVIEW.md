@@ -1,8 +1,90 @@
 # Permissions & Roles Review — admin app
 
 Status: living document. Phase 1 fixes applied on `claude/permissions-roles-review-nsjyA`.
-Phase 2 code/schema hardening is implemented; staging/prod still need team
-existence checks and any required row-permission backfill before cutover.
+Phase 3 (relationship-scoped service boundary, 2026-08-11) is implemented on
+`codex/content-auto-translation`; only the live table-permission cutover
+remains, deliberately deferred until after production deployment.
+
+## Phase 3 — Relationship-scoped publishing (2026-08-11)
+
+The authorization model changed from "session client + dynamically provisioned
+team grants" to a **scoped service boundary**:
+
+- Appwrite **relationships** (`campus`, `department`) are the canonical content
+  ownership source on `news`, `events`, `webshop_products`, `pages`,
+  `campus_benefits`, `announcements`, and `documents`. Scalar columns
+  (`campus_id`, `department_id`, `departmentId`) remain as migration-era
+  compatibility metadata only.
+- Every general-content Server Action authenticates, resolves scope from
+  `sg-app-*` teams, authorizes via `assertContentOwnership` /
+  `applyContentRelationshipScopeQueries`
+  (`apps/admin/src/lib/content-authorization.ts`), then reads/writes with the
+  **admin client**. Department members publish directly within their own
+  campus + department; campus management covers its campus; only global admins
+  may use a null campus (global announcements, national documents; pages keep
+  their pre-existing national scope).
+- Jobs stay HR-exclusive (`ROLES.HR` derived from the normalized HR department
+  name) with global-admin break-glass; the broad `department` pseudo-role no
+  longer opens recruitment navigation, search, or data.
+- Translations are real relations: synchronous saves nest
+  `translation_refs`/`contentTranslations` children in the parent upsert, and
+  deferred `after()` callbacks attach only the destination locale
+  (`news_ref`/`event_ref`/`product_ref`/`memberBenefit`; jobs replace their
+  complete one-way `translations` relation). A unique
+  `(content_type, content_id, locale)` index (`uniq_content_locale`) makes the
+  deferred upserts idempotent.
+- Row `$permissions` are **consumer-only**: published public → `read("any")`,
+  published member-only → `read("team:biso-members")`, everything else
+  service-only. Job rows/translations additionally keep the static
+  Operations Unit + HR staff grants. `grantTeamContentAccess` and its M365-sync
+  calls are removed — mirrored teams never enter content ACLs again.
+
+### Repair evidence (run 2026-08-11 against project `biso`)
+
+- `bun run --cwd packages/api repair:content-relationships` — dry-run, then
+  `--apply`, then a converging dry-run: 4 translations already linked, 1
+  ownership backfill applied (`news/6a7ae8476aefd433caee campus=5`), 0
+  duplicates / orphans / wrong parents.
+- Row-permission audit: every existing published row already carries row-level
+  read permissions, so removing table-level reads cannot hide legacy content.
+- `uniq_content_locale` created and locked into the schema contract test.
+- Engine changes landed after that run (2026-08-12), so re-run the dry-run
+  before any further `--apply`:
+  - Rebuilding the one-way `jobs.translations` relation now writes the **union**
+    of the current and expected children instead of replacing it, so a child the
+    pass skips (duplicate group, missing or foreign `content_id`) can no longer
+    be silently unlinked.
+  - A `department` backfill is refused unless the department's own campus
+    matches the row's campus. Cross-campus, campus-less, and unverifiable pairs
+    are reported as errors, because `assertContentOwnership` rejects that tuple
+    on every write.
+  - `jobs` joined `OWNERSHIP_TABLES`: the vacancy lists already filter on
+    `campus.$id` / `department.$id`, so legacy job rows need the relations too.
+    Until that backfill has run, `listDrafts` deliberately scopes jobs by the
+    scalar columns.
+
+### Remaining owner steps (in order)
+
+1. Merge and deploy the admin app (Tasks 2–14 must be live **before** any
+   permission reduction).
+2. `bun run --cwd packages/api cutover:content-permissions` (dry-run review),
+   then `-- --apply`. Only the nine general tables change, each to an empty
+   table-permission array: `events`, `news`, `webshop_products`, `pages`,
+   `campus_benefits`, `announcements`, `documents`, `content_translations`,
+   `page_translations`.
+3. `cd packages/api && appwrite pull tables`, then lock the contract with a
+   test in `appwrite-config-permissions.test.ts`:
+   `expect(table?.$permissions, tableId).toEqual([])` for each of the nine
+   tables (import `GENERAL_CONTENT_TABLES` from
+   `content-permission-cutover.ts`).
+4. Manual role-matrix smoke with one global, campus-management, department,
+   and HR account.
+5. Separately verified follow-ups: drop the legacy `create("users")` grant on
+   the `user` profile table once the external mobile app is confirmed not to
+   client-create profile rows (see `KNOWN_BROAD_CREATE_EXCEPTIONS` in
+   `packages/api/appwrite-config.test.ts`), and consider changing
+   `events.department` from `onDelete: cascade` to `setNull` so deleting a
+   department can never delete its events.
 
 ## TL;DR
 

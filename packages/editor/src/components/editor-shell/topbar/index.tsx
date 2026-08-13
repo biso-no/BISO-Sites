@@ -1,10 +1,11 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { useState } from "react";
 import { useEditorCallbacks } from "@/editor/callbacks";
 import { useMeta, useSaving } from "@/editor/hooks";
 
-export function Topbar() {
+export function Topbar({ actions }: { actions?: ReactNode }) {
   const meta = useMeta();
   const saving = useSaving();
   const { onExit, onPublish, onUnpublish, activeLocale } = useEditorCallbacks();
@@ -87,6 +88,7 @@ export function Topbar() {
           )}
           {saving === "idle" && null}
         </span>
+        {!isPublished && actions}
         {(onPublish || onUnpublish) && (
           <button
             className={`pe-publish${isPublished ? "pe-publish--live" : ""}`}

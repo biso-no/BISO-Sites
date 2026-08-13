@@ -62,7 +62,7 @@ export function ArticleCard({ article, variant, index = 0 }: ArticleCardProps) {
   const description = translation?.description ?? "";
   const categoryColor = categoryColors.default;
   const imageUrl = article.image || PLACEHOLDER_IMAGE;
-  const articleLink = `/news/${article.$id}`;
+  const articleLink = `/news/${article.slug || article.$id}`;
   const relativeTime = getRelativeTime(article.$createdAt);
 
   // Clean description

@@ -195,14 +195,23 @@ describe("assertPublishAccess", () => {
   });
 
   test("campus admin cannot publish to an unmanaged campus", () => {
-    expect(() => assertPublishAccess(campusAdmin, "2")).toThrow(
-      "Forbidden: publish requires campus or global admin access"
-    );
+    expect(() => assertPublishAccess(campusAdmin, "2")).toThrow();
   });
 
-  test("department user cannot publish even within their own campus", () => {
-    expect(() => assertPublishAccess(departmentUser, "1")).toThrow(
-      "Forbidden: publish requires campus or global admin access"
-    );
+  test("department user can publish within their campus and department", () => {
+    expect(() =>
+      assertPublishAccess(departmentUser, "1", "dept-1")
+    ).not.toThrow();
+  });
+
+  test("department user cannot publish without a department scope", () => {
+    expect(() => assertPublishAccess(departmentUser, "1")).toThrow();
+  });
+
+  test("department user cannot publish to another campus or department", () => {
+    expect(() => assertPublishAccess(departmentUser, "2", "dept-1")).toThrow();
+    expect(() =>
+      assertPublishAccess(departmentUser, "1", "dept-other")
+    ).toThrow();
   });
 });

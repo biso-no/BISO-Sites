@@ -43,6 +43,14 @@ export default async function AnnouncementEditorPage({ params }: Props) {
     defaultCampusId = ctx.resolvedCampusIds[0] ?? "";
   }
 
+  // Department authors are pinned to their own department; campus/global
+  // admins may pick any department in the campus or keep it campus-wide.
+  const isAdmin = isGlobalAdmin || isCampusAdmin;
+  const pinnedDepartmentId =
+    !isAdmin && ctx.resolvedDepartmentIds.length === 1
+      ? ctx.resolvedDepartmentIds[0]
+      : null;
+
   return (
     <AnnouncementStudioEditor
       allowGlobalCampus={isGlobalAdmin}
@@ -53,6 +61,8 @@ export default async function AnnouncementEditorPage({ params }: Props) {
       }))}
       defaultCampusId={defaultCampusId}
       isNew={isNew}
+      lockDepartment={Boolean(pinnedDepartmentId)}
+      pinnedDepartmentId={pinnedDepartmentId}
     />
   );
 }

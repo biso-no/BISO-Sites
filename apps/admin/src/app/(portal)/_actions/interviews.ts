@@ -101,7 +101,10 @@ async function applyGraphScheduling(
   );
   const organizerUpn = lead?.email ?? panelEmails[0] ?? ctx.email ?? null;
   if (!organizerUpn) {
-    return { interview, warning: "No valid organizer found for the calendar invite." };
+    return {
+      interview,
+      warning: "No valid organizer found for the calendar invite.",
+    };
   }
   try {
     const scheduled = await scheduleInterviewOnGraph({
@@ -138,7 +141,8 @@ async function applyGraphScheduling(
     );
     return {
       interview,
-      warning: "Failed to sync with Microsoft calendar. The interview was saved, but no Teams meeting or Outlook invite was created.",
+      warning:
+        "Failed to sync with Microsoft calendar. The interview was saved, but no Teams meeting or Outlook invite was created.",
     };
   }
   return { interview };
@@ -146,7 +150,10 @@ async function applyGraphScheduling(
 
 export async function createInterview(
   values: RecruitmentInterviewCreateInput
-): Promise<{ data?: InterviewWithParticipants & { warning?: string }; error?: string }> {
+): Promise<{
+  data?: InterviewWithParticipants & { warning?: string };
+  error?: string;
+}> {
   const ctx = await requireAuth();
   const validated = recruitmentInterviewCreateSchema.safeParse(values);
   if (!validated.success) {

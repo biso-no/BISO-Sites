@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import type { UserAuthContext } from "@/lib/authorization";
 import {
   buildJobRowPermissions,
+  buildJobTranslationPermissions,
   isHrDepartment,
   toRecruitmentAdminScope,
 } from "./recruitment";
@@ -82,6 +83,19 @@ describe("toRecruitmentAdminScope", () => {
     expect(scope.isCampusAdmin).toBe(false);
     expect(scope.managedCampusNames).toEqual([]);
     expect(scope.managedDepartmentNames).toEqual([]);
+  });
+});
+
+describe("buildJobTranslationPermissions", () => {
+  test("keeps recruitment staff access with parent-equivalent visibility", () => {
+    const published = buildJobTranslationPermissions("public", "published");
+    expect(published).toContain('read("any")');
+    expect(published).toContain('update("team:sg-app-dept-operationsunit")');
+    expect(published).toContain('update("team:sg-app-dept-hr")');
+
+    const draft = buildJobTranslationPermissions("public", "draft");
+    expect(draft).not.toContain('read("any")');
+    expect(draft).toContain('read("team:sg-app-dept-hr")');
   });
 });
 

@@ -2,7 +2,7 @@
 
 import { openai } from "@ai-sdk/openai";
 import { ID, Query } from "@repo/api";
-import { createAdminClient, createSessionClient } from "@repo/api/server";
+import { createAdminClient } from "@repo/api/server";
 import {
   type ContentTranslations,
   type Events,
@@ -19,6 +19,22 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { dispatchAnnouncement } from "@/lib/announcements/send";
 import { requireAuth } from "@/lib/authorization";
+import {
+  applyContentRelationshipScopeQueries,
+  assertContentOwnership,
+  getContentOwnership,
+} from "@/lib/content-authorization";
+import {
+  type AutoTranslationOptions,
+  type ContentLocale,
+  getTargetLocale,
+  isCurrentTranslationSource,
+} from "@/lib/content-translation";
+import {
+  parseAutoTranslationOptions,
+  scheduleContentTranslation,
+  translateContentFields,
+} from "@/lib/content-translation.server";
 import { loadRecruitmentLookups } from "@/lib/recruitment";
 import {
   buildContentRowPermissions,
@@ -26,7 +42,6 @@ import {
   deriveContentRowTeams,
 } from "@/lib/utils";
 import {
-  applyScopeQueries,
   assertPublishAccess,
   assertWriteAccess,
   hasRowAccess,
@@ -34,23 +49,36 @@ import {
 import { logAuditEvent } from "./audit-log";
 import { EVENTS_PAGE_SIZE, type EventFormValues, eventSchema } from "./schemas";
 
-type SessionDb = Awaited<ReturnType<typeof createSessionClient>>["db"];
+type AdminDb = Awaited<ReturnType<typeof createAdminClient>>["db"];
+type EventAuthContext = Awaited<ReturnType<typeof requireAuth>>;
 
-const eventTranslationDraftSchema = z.object({
-  title_en: z.string().trim().min(1),
-  description_en: z.string().trim().min(1),
-  short_description_en: z.string().trim().nullable().optional(),
-});
+type EventWithTranslations = Events & {
+  translation_refs?: ContentTranslations[] | null;
+};
 
-const eventTranslationResultSchema = z.object({
-  title_no: z.string().describe("Norwegian Bokmål event title"),
-  description_no: z
-    .string()
-    .describe("Natural Norwegian Bokmål HTML preserving p, h3, ul and li tags"),
-  short_description_no: z
-    .string()
-    .describe("Norwegian one-line teaser, maximum 280 characters"),
-});
+const EVENT_RELATIONSHIP_SELECT = Query.select([
+  "*",
+  "campus.$id",
+  "department.$id",
+  "translation_refs.*",
+]);
+
+const eventTranslationDraftSchema = z
+  .object({
+    campusId: z.string().trim().min(1),
+    description: z.string().trim(),
+    departmentId: z.string().trim().nullable().optional(),
+    shortDescription: z.string().trim().nullable().optional(),
+    sourceLocale: z.enum(["no", "en"]),
+    title: z.string().trim(),
+  })
+  .refine(
+    (value) =>
+      Boolean(
+        value.title || value.description || value.shortDescription?.trim()
+      ),
+    "Add source content first."
+  );
 
 const eventSuggestionDraftSchema = z.object({
   current_description: z.string().trim().optional().default(""),
@@ -65,6 +93,12 @@ const eventSuggestionResultSchema = z.object({
       "Section body as simple HTML (p, h3, ul, li). Useful for a run-of-show, what-to-bring, schedule, or similar block."
     ),
 });
+
+interface EventTranslationSnapshot {
+  description: string;
+  short_description: string;
+  title: string;
+}
 
 /**
  * Send a published-event push through the unified announcement delivery path.
@@ -97,6 +131,7 @@ async function sendEventAnnouncement(input: {
         body_en: input.bodyEn,
         body_no: input.bodyNo,
         event_id: input.eventId,
+        campus: input.campusId,
         campus_id: input.campusId,
         deep_link: deepLink,
         push: true,
@@ -123,58 +158,272 @@ function serializeAdditionalFields(payload: {
   return JSON.stringify({ short_description: payload.short_description });
 }
 
-async function upsertEventTranslation(
-  db: SessionDb,
+interface NestedEventTranslation {
+  $id?: string;
+  $permissions: string[];
+  additional_fields: string | null;
+  content_id: string;
+  content_type: "event";
+  description: string;
+  locale: ContentLocale;
+  short_description: string | null;
+  title: string;
+}
+
+/**
+ * Nested relationship children for the event upsert: an existing `$id` makes
+ * Appwrite update-and-keep that child, omitting it creates and links a new
+ * one. Explicit `$permissions` avoid relying on permission inheritance.
+ */
+function buildNestedEventTranslation(
   eventId: string,
-  locale: "no" | "en",
-  payload: {
-    title: string;
-    description: string;
-    shortDescription: string | null;
-  },
+  locale: ContentLocale,
+  values: EventFormValues,
+  existingByLocale: Map<string, ContentTranslations>,
   permissions: string[]
-): Promise<void> {
-  const existing = await db.listRows<ContentTranslations>(
+): NestedEventTranslation {
+  const snapshot = getEventTranslationSnapshot(values, locale);
+  const existing = existingByLocale.get(locale);
+  return {
+    ...(existing ? { $id: existing.$id } : {}),
+    $permissions: permissions,
+    additional_fields: serializeAdditionalFields({
+      short_description: snapshot.short_description || null,
+    }),
+    content_id: eventId,
+    content_type: "event",
+    description: snapshot.description,
+    locale,
+    short_description: snapshot.short_description || null,
+    title: snapshot.title,
+  };
+}
+
+/**
+ * Existing locales are looked up by content metadata, not the relation: rows
+ * that predate the relationship backfill are unlinked, and matching them here
+ * both prevents duplicate locale rows and re-links them on the next save.
+ */
+async function loadEventTranslationsByLocale(
+  db: AdminDb,
+  eventId: string
+): Promise<Map<string, ContentTranslations>> {
+  const current = await db.listRows<ContentTranslations>(
     "app",
     "content_translations",
     [
       Query.equal("content_type", "event"),
       Query.equal("content_id", eventId),
-      Query.equal("locale", locale),
-      Query.limit(1),
+      Query.limit(10),
     ]
   );
+  return new Map(
+    current.rows.map((translation) => [translation.locale, translation])
+  );
+}
 
-  const data = {
-    content_id: eventId,
-    content_type: "event",
-    locale,
-    title: payload.title,
-    description: payload.description,
-    short_description: payload.shortDescription,
-    additional_fields: serializeAdditionalFields({
-      short_description: payload.shortDescription,
-    }),
+function getEventTranslationSnapshot(
+  values: EventFormValues,
+  locale: ContentLocale
+): EventTranslationSnapshot {
+  if (locale === "no") {
+    return {
+      description: values.description_no ?? "",
+      short_description: values.short_description_no ?? "",
+      title: values.title_no,
+    };
+  }
+  return {
+    description: values.description_en ?? "",
+    short_description: values.short_description_en ?? "",
+    title: values.title_en,
   };
+}
 
-  if (existing.rows[0]) {
-    await db.updateRow(
-      "app",
-      "content_translations",
-      existing.rows[0].$id,
-      data,
-      permissions
-    );
+async function translateEventSnapshot(
+  source: EventTranslationSnapshot,
+  sourceLocale: ContentLocale
+): Promise<EventTranslationSnapshot> {
+  const translated = await translateContentFields({
+    contentType: "event",
+    fields: [
+      { format: "plain", key: "title", value: source.title },
+      {
+        format: "plain",
+        key: "short_description",
+        value: source.short_description,
+      },
+      { format: "html", key: "description", value: source.description },
+    ],
+    sourceLocale,
+    targetLocale: getTargetLocale(sourceLocale),
+  });
+  return {
+    description: translated.description ?? "",
+    short_description: translated.short_description ?? "",
+    title: translated.title ?? "",
+  };
+}
+
+function scheduleEventTranslation(input: {
+  campusId: string | null;
+  /** The target locale as this save left it — see the stale check below. */
+  destination: EventTranslationSnapshot;
+  departmentId: string | null;
+  enabled: boolean;
+  eventId: string;
+  memberOnly: boolean;
+  source: EventTranslationSnapshot;
+  sourceLocale: ContentLocale;
+  status: string;
+}): boolean {
+  const hasSource = Boolean(input.source.title.trim());
+  if (!(input.enabled && hasSource)) {
+    return false;
+  }
+  return scheduleContentTranslation({
+    enabled: true,
+    task: async () => {
+      const translated = await translateEventSnapshot(
+        input.source,
+        input.sourceLocale
+      );
+      // Fresh admin client: the request that scheduled this callback is done.
+      const { db } = await createAdminClient();
+      const currentEvent = await db.getRow<EventWithTranslations>(
+        "app",
+        "events",
+        input.eventId,
+        [EVENT_RELATIONSHIP_SELECT]
+      );
+      const ownership = getContentOwnership(currentEvent, {
+        legacyFallback: true,
+      });
+      if (
+        !isCurrentTranslationSource(
+          {
+            campusId: input.campusId,
+            departmentId: input.departmentId,
+            memberOnly: input.memberOnly,
+            status: input.status,
+          },
+          {
+            campusId: ownership.campus,
+            departmentId: ownership.department,
+            memberOnly: currentEvent.member_only,
+            status: currentEvent.status,
+          }
+        )
+      ) {
+        return;
+      }
+      // The synchronous save linked the source locale before scheduling, so
+      // the parent relation is the authoritative read path here.
+      const currentTranslations = currentEvent.translation_refs ?? [];
+      const currentSource = currentTranslations.find(
+        (translation) => translation.locale === input.sourceLocale
+      );
+      if (!currentSource) {
+        return;
+      }
+      const currentSnapshot: EventTranslationSnapshot = {
+        description: currentSource.description ?? "",
+        short_description: currentSource.short_description ?? "",
+        title: currentSource.title ?? "",
+      };
+      if (!isCurrentTranslationSource(input.source, currentSnapshot)) {
+        return;
+      }
+      const { translationPermissions } = await buildEventPermissions(db, {
+        campusId: input.campusId,
+        departmentId: input.departmentId,
+        memberOnly: input.memberOnly,
+        status: input.status,
+      });
+
+      const targetLocale = getTargetLocale(input.sourceLocale);
+      const currentTarget = currentTranslations.find(
+        (translation) => translation.locale === targetLocale
+      );
+      // The destination is only ours to overwrite while it still holds exactly
+      // what this save wrote. An editor who translated the other locale by hand
+      // while the model request was in flight owns the newer text.
+      if (
+        !isCurrentTranslationSource(input.destination, {
+          description: currentTarget?.description ?? "",
+          short_description: currentTarget?.short_description ?? "",
+          title: currentTarget?.title ?? "",
+        })
+      ) {
+        return;
+      }
+      const data = {
+        additional_fields: serializeAdditionalFields({
+          short_description: translated.short_description || null,
+        }),
+        content_id: input.eventId,
+        content_type: "event",
+        description: translated.description,
+        locale: targetLocale,
+        short_description: translated.short_description || null,
+        title: translated.title,
+      };
+      if (currentTarget) {
+        await db.updateRow(
+          "app",
+          "content_translations",
+          currentTarget.$id,
+          data,
+          translationPermissions
+        );
+        return;
+      }
+      await db.createRow(
+        "app",
+        "content_translations",
+        ID.unique(),
+        // A fresh destination row must arrive already related to its parent.
+        { ...data, event_ref: input.eventId },
+        translationPermissions
+      );
+    },
+  });
+}
+
+function scheduleEventFormTranslation(
+  eventId: string,
+  values: EventFormValues,
+  status: string,
+  autoTranslation?: AutoTranslationOptions
+): boolean {
+  const sourceLocale = autoTranslation?.sourceLocale ?? "en";
+  return scheduleEventTranslation({
+    campusId: values.campus_id,
+    departmentId: values.department_id ?? null,
+    destination: getEventTranslationSnapshot(
+      values,
+      getTargetLocale(sourceLocale)
+    ),
+    enabled: autoTranslation?.enabled ?? false,
+    eventId,
+    memberOnly: values.member_only,
+    source: getEventTranslationSnapshot(values, sourceLocale),
+    sourceLocale,
+    status,
+  });
+}
+
+function assertEventPublishTransitionAccess(
+  ctx: EventAuthContext,
+  event: Events,
+  values: EventFormValues
+): void {
+  if (event.status !== "published" && values.status !== "published") {
     return;
   }
-
-  await db.createRow(
-    "app",
-    "content_translations",
-    ID.unique(),
-    data,
-    permissions
-  );
+  const persisted = getContentOwnership(event, { legacyFallback: true });
+  assertPublishAccess(ctx, persisted.campus, persisted.department);
+  assertPublishAccess(ctx, values.campus_id, values.department_id ?? null);
 }
 
 /**
@@ -183,7 +432,7 @@ async function upsertEventTranslation(
  * to derive team IDs.
  */
 async function buildEventPermissions(
-  db: SessionDb,
+  db: AdminDb,
   opts: {
     status: string;
     memberOnly: boolean;
@@ -216,7 +465,11 @@ async function buildEventPermissions(
 function buildEventColumns(values: EventFormValues): Record<string, unknown> {
   return {
     slug: values.slug,
+    // Canonical ownership relationships; the scalar columns remain as
+    // migration-era compatibility metadata only.
+    campus: values.campus_id,
     campus_id: values.campus_id,
+    department: values.department_id ?? null,
     department_id: values.department_id ?? null,
     category: (values.category ?? null) as EventsCategory | null,
     tags: values.tags ?? [],
@@ -247,6 +500,23 @@ function buildEventColumns(values: EventFormValues): Record<string, unknown> {
   };
 }
 
+function buildEventTranslationChildren(
+  eventId: string,
+  values: EventFormValues,
+  existingByLocale: Map<string, ContentTranslations>,
+  permissions: string[]
+): NestedEventTranslation[] {
+  return (["no", "en"] as const).map((locale) =>
+    buildNestedEventTranslation(
+      eventId,
+      locale,
+      values,
+      existingByLocale,
+      permissions
+    )
+  );
+}
+
 export async function listEvents(opts?: {
   campusId?: string;
   departmentId?: string;
@@ -256,7 +526,9 @@ export async function listEvents(opts?: {
   page?: number;
 }) {
   const ctx = await requireAuth();
-  const { db } = await createSessionClient();
+  // Private admin read: the service client bypasses row security, so the
+  // relationship scope filters below are the authorization boundary.
+  const { db } = await createAdminClient();
   const page = Math.max(1, opts?.page ?? 1);
   const search = opts?.search?.trim().toLowerCase() ?? "";
   const timeframe = opts?.timeframe ?? "all";
@@ -264,16 +536,15 @@ export async function listEvents(opts?: {
   const queries: string[] = [
     Query.orderDesc("$updatedAt"),
     Query.select(["*", "translation_refs.*"]),
-    // events has a campus_id but no department_id column.
-    ...applyScopeQueries(ctx, { departmentField: null }),
+    ...applyContentRelationshipScopeQueries(ctx),
   ];
 
   if (opts?.campusId) {
-    queries.push(Query.equal("campus_id", opts.campusId));
+    queries.push(Query.equal("campus.$id", opts.campusId));
   }
 
   if (opts?.departmentId) {
-    queries.push(Query.equal("department_id", opts.departmentId));
+    queries.push(Query.equal("department.$id", opts.departmentId));
   }
 
   if (opts?.status && opts.status !== "all") {
@@ -331,15 +602,19 @@ export async function listEvents(opts?: {
 
 export async function getEvent(id: string) {
   const ctx = await requireAuth();
-  const { db } = await createSessionClient();
+  const { db } = await createAdminClient();
 
   const response = await db.listRows<Events>("app", "events", [
     Query.equal("$id", id),
     Query.limit(1),
   ]);
   const event = response.rows[0];
+  if (!event) {
+    return null;
+  }
   // Treat a row outside the caller's campus/department scope as not found.
-  if (!(event && hasRowAccess(ctx, event.campus_id, event.department_id))) {
+  const ownership = getContentOwnership(event, { legacyFallback: true });
+  if (!hasRowAccess(ctx, ownership.campus, ownership.department)) {
     return null;
   }
 
@@ -356,23 +631,33 @@ export async function getEvent(id: string) {
   return { ...event, translation_refs: translationsResponse.rows };
 }
 
-export async function createEvent(values: EventFormValues) {
+export async function createEvent(
+  values: EventFormValues,
+  autoTranslation?: AutoTranslationOptions
+) {
   const ctx = await requireAuth();
   const validated = eventSchema.safeParse(values);
   if (!validated.success) {
     return { error: validated.error.flatten().fieldErrors };
   }
 
-  assertWriteAccess(
-    ctx,
-    validated.data.campus_id,
-    validated.data.department_id
-  );
-
   try {
-    const { db } = await createSessionClient();
+    const translationOptions = parseAutoTranslationOptions(autoTranslation);
+    const { db } = await createAdminClient();
+    await assertContentOwnership(db, ctx, {
+      allowGlobalCampus: false,
+      campusId: validated.data.campus_id,
+      departmentId: validated.data.department_id ?? null,
+    });
+    if (validated.data.status === "published") {
+      assertPublishAccess(
+        ctx,
+        validated.data.campus_id,
+        validated.data.department_id ?? null
+      );
+    }
 
-    const status = "draft";
+    const status = validated.data.status;
     const { rowPermissions, translationPermissions } =
       await buildEventPermissions(db, {
         status,
@@ -381,41 +666,30 @@ export async function createEvent(values: EventFormValues) {
         departmentId: validated.data.department_id ?? null,
       });
 
-    const event = await db.createRow(
+    const eventId = ID.unique();
+    const event = await db.upsertRow(
       "app",
       "events",
-      ID.unique(),
+      eventId,
       {
         ...buildEventColumns(validated.data),
         status: status as EventsStatus,
+        translation_refs: buildEventTranslationChildren(
+          eventId,
+          validated.data,
+          new Map(),
+          translationPermissions
+        ),
       },
       rowPermissions
     );
 
-    await Promise.all([
-      upsertEventTranslation(
-        db,
-        event.$id,
-        "no",
-        {
-          title: validated.data.title_no,
-          description: validated.data.description_no ?? "",
-          shortDescription: validated.data.short_description_no ?? null,
-        },
-        translationPermissions
-      ),
-      upsertEventTranslation(
-        db,
-        event.$id,
-        "en",
-        {
-          title: validated.data.title_en,
-          description: validated.data.description_en ?? "",
-          shortDescription: validated.data.short_description_en ?? null,
-        },
-        translationPermissions
-      ),
-    ]);
+    const translationQueued = scheduleEventFormTranslation(
+      event.$id,
+      validated.data,
+      status,
+      translationOptions
+    );
 
     await logAuditEvent(ctx, "event.create", {
       resourceId: event.$id,
@@ -423,12 +697,26 @@ export async function createEvent(values: EventFormValues) {
       payload: {
         campus_id: validated.data.campus_id,
         department_id: validated.data.department_id ?? null,
-        status: "draft",
+        status,
       },
     });
 
+    if (status === "published" && validated.data.notify_push) {
+      await sendEventAnnouncement({
+        bodyEn: validated.data.short_description_en ?? null,
+        bodyNo: validated.data.short_description_no ?? null,
+        campusId: validated.data.campus_id ?? null,
+        eventId: event.$id,
+        titleEn: validated.data.title_en,
+        titleNo: validated.data.title_no || null,
+      });
+    }
+
     revalidatePath("/events");
-    return { data: event.$id };
+    return {
+      data: event.$id,
+      ...(translationQueued ? { translationQueued: true as const } : {}),
+    };
   } catch (error) {
     return {
       error: error instanceof Error ? error.message : "Failed to create event",
@@ -436,7 +724,11 @@ export async function createEvent(values: EventFormValues) {
   }
 }
 
-export async function updateEvent(id: string, values: EventFormValues) {
+export async function updateEvent(
+  id: string,
+  values: EventFormValues,
+  autoTranslation?: AutoTranslationOptions
+) {
   const ctx = await requireAuth();
   const validated = eventSchema.safeParse(values);
   if (!validated.success) {
@@ -444,7 +736,8 @@ export async function updateEvent(id: string, values: EventFormValues) {
   }
 
   try {
-    const { db } = await createSessionClient();
+    const translationOptions = parseAutoTranslationOptions(autoTranslation);
+    const { db } = await createAdminClient();
 
     const existing = await db.listRows<Events>("app", "events", [
       Query.equal("$id", id),
@@ -455,16 +748,16 @@ export async function updateEvent(id: string, values: EventFormValues) {
       return { error: "Event not found" };
     }
 
-    assertWriteAccess(ctx, event.campus_id, event.department_id);
-    assertWriteAccess(
-      ctx,
-      validated.data.campus_id,
-      validated.data.department_id ?? null
-    );
-    if (event.status === "published" || validated.data.status === "published") {
-      assertPublishAccess(ctx, event.campus_id);
-      assertPublishAccess(ctx, validated.data.campus_id);
-    }
+    // Authorize both the persisted scope and the requested scope so ownership
+    // transfers require access on each side.
+    const persisted = getContentOwnership(event, { legacyFallback: true });
+    assertWriteAccess(ctx, persisted.campus, persisted.department);
+    await assertContentOwnership(db, ctx, {
+      allowGlobalCampus: false,
+      campusId: validated.data.campus_id,
+      departmentId: validated.data.department_id ?? null,
+    });
+    assertEventPublishTransitionAccess(ctx, event, validated.data);
 
     const { rowPermissions, translationPermissions } =
       await buildEventPermissions(db, {
@@ -474,41 +767,30 @@ export async function updateEvent(id: string, values: EventFormValues) {
         departmentId: validated.data.department_id ?? null,
       });
 
-    await db.updateRow(
+    const existingByLocale = await loadEventTranslationsByLocale(db, id);
+    await db.upsertRow(
       "app",
       "events",
       id,
       {
         ...buildEventColumns(validated.data),
         status: validated.data.status,
+        translation_refs: buildEventTranslationChildren(
+          id,
+          validated.data,
+          existingByLocale,
+          translationPermissions
+        ),
       },
       rowPermissions
     );
 
-    await Promise.all([
-      upsertEventTranslation(
-        db,
-        id,
-        "no",
-        {
-          title: validated.data.title_no,
-          description: validated.data.description_no ?? "",
-          shortDescription: validated.data.short_description_no ?? null,
-        },
-        translationPermissions
-      ),
-      upsertEventTranslation(
-        db,
-        id,
-        "en",
-        {
-          title: validated.data.title_en,
-          description: validated.data.description_en ?? "",
-          shortDescription: validated.data.short_description_en ?? null,
-        },
-        translationPermissions
-      ),
-    ]);
+    const translationQueued = scheduleEventFormTranslation(
+      id,
+      validated.data,
+      validated.data.status,
+      translationOptions
+    );
 
     await logAuditEvent(ctx, "event.update", {
       resourceId: id,
@@ -533,7 +815,10 @@ export async function updateEvent(id: string, values: EventFormValues) {
 
     revalidatePath("/events");
     revalidatePath(`/events/${id}`);
-    return { data: id };
+    return {
+      data: id,
+      ...(translationQueued ? { translationQueued: true as const } : {}),
+    };
   } catch (error) {
     return {
       error: error instanceof Error ? error.message : "Failed to update event",
@@ -545,7 +830,7 @@ export async function deleteEvent(id: string) {
   const ctx = await requireAuth();
 
   try {
-    const { db } = await createSessionClient();
+    const { db } = await createAdminClient();
 
     const existing = await db.listRows<Events>("app", "events", [
       Query.equal("$id", id),
@@ -556,7 +841,8 @@ export async function deleteEvent(id: string) {
       return { error: "Event not found" };
     }
 
-    assertWriteAccess(ctx, event.campus_id, event.department_id);
+    const ownership = getContentOwnership(event, { legacyFallback: true });
+    assertWriteAccess(ctx, ownership.campus, ownership.department);
 
     const translations = await db.listRows<ContentTranslations>(
       "app",
@@ -593,7 +879,7 @@ export async function publishEvent(id: string) {
   const ctx = await requireAuth();
 
   try {
-    const { db } = await createSessionClient();
+    const { db } = await createAdminClient();
 
     const existing = await db.listRows<Events>("app", "events", [
       Query.equal("$id", id),
@@ -604,14 +890,15 @@ export async function publishEvent(id: string) {
       return { error: "Event not found" };
     }
 
-    assertPublishAccess(ctx, event.campus_id);
+    const ownership = getContentOwnership(event, { legacyFallback: true });
+    assertPublishAccess(ctx, ownership.campus, ownership.department);
 
     const { rowPermissions, translationPermissions } =
       await buildEventPermissions(db, {
         status: "published",
         memberOnly: event.member_only,
-        campusId: event.campus_id,
-        departmentId: event.department_id ?? null,
+        campusId: ownership.campus,
+        departmentId: ownership.department,
       });
 
     await db.updateRow(
@@ -652,19 +939,10 @@ export async function publishEvent(id: string) {
     });
 
     if (event.notify_push) {
-      const translationsResult = await db.listRows<ContentTranslations>(
-        "app",
-        "content_translations",
-        [
-          Query.equal("content_type", "event"),
-          Query.equal("content_id", id),
-          Query.limit(2),
-        ]
-      );
-      const enTranslation = translationsResult.rows.find(
+      const enTranslation = publishTranslations.rows.find(
         (row) => row.locale === "en"
       );
-      const noTranslation = translationsResult.rows.find(
+      const noTranslation = publishTranslations.rows.find(
         (row) => row.locale === "no"
       );
 
@@ -674,7 +952,7 @@ export async function publishEvent(id: string) {
         titleNo: noTranslation?.title ?? null,
         bodyEn: enTranslation?.short_description ?? null,
         bodyNo: noTranslation?.short_description ?? null,
-        campusId: event.campus_id ?? null,
+        campusId: ownership.campus,
       });
     }
 
@@ -688,43 +966,56 @@ export async function publishEvent(id: string) {
   }
 }
 
-export async function generateEventNorwegianDraft(input: {
-  title_en: string;
-  description_en: string;
-  short_description_en?: string;
+export async function generateEventTranslationDraft(input: {
+  campusId: string;
+  description: string;
+  departmentId?: string | null;
+  shortDescription?: string | null;
+  sourceLocale: ContentLocale;
+  title: string;
 }) {
-  await requireAuth();
+  const ctx = await requireAuth();
   const validated = eventTranslationDraftSchema.safeParse(input);
   if (!validated.success) {
-    return { error: "Add an English title and description first." };
+    return { error: "Add source content first." };
   }
 
   try {
-    const { object } = await generateObject({
-      model: openai("gpt-5-nano"),
-      schema: eventTranslationResultSchema,
-      prompt: `Translate this event content to Norwegian Bokmål. Return a natural-sounding translation appropriate for Norwegian students.
-Keep the tone warm, inviting, and student-facing.
-Preserve the simple HTML structure in the description. Only use p, h3, ul and li tags.
-Do not add information that is not present in the source.
-
-Title:
-${validated.data.title_en}
-
-Teaser:
-${validated.data.short_description_en ?? ""}
-
-Description HTML:
-${validated.data.description_en}`,
-    });
-
-    return { data: object };
+    assertWriteAccess(
+      ctx,
+      validated.data.campusId,
+      validated.data.departmentId ?? null
+    );
+    const translated = await translateEventSnapshot(
+      {
+        description: validated.data.description,
+        short_description: validated.data.shortDescription ?? "",
+        title: validated.data.title,
+      },
+      validated.data.sourceLocale
+    );
+    if (getTargetLocale(validated.data.sourceLocale) === "en") {
+      return {
+        data: {
+          description_en: translated.description,
+          short_description_en: translated.short_description,
+          title_en: translated.title,
+        },
+      };
+    }
+    return {
+      data: {
+        description_no: translated.description,
+        short_description_no: translated.short_description,
+        title_no: translated.title,
+      },
+    };
   } catch (error) {
     return {
       error:
         error instanceof Error
           ? error.message
-          : "Failed to generate Norwegian draft",
+          : "Failed to generate translation draft",
     };
   }
 }

@@ -1,7 +1,7 @@
 "use server";
 
 import { Query } from "@repo/api";
-import { createSessionClient } from "@repo/api/server";
+import { createAdminClient } from "@repo/api/server";
 import type {
   ContentTranslations,
   Events,
@@ -10,6 +10,10 @@ import type {
 } from "@repo/api/types/appwrite";
 import { revalidatePath } from "next/cache";
 import { requireAuth } from "@/lib/authorization";
+import {
+  applyContentRelationshipScopeQueries,
+  getContentOwnership,
+} from "@/lib/content-authorization";
 import {
   applyScopeQueries,
   assertPublishAccess,
@@ -28,11 +32,16 @@ export interface DraftItem {
 
 export async function listDrafts(): Promise<DraftItem[]> {
   const ctx = await requireAuth();
-  const { db } = await createSessionClient();
-  const scopeQueries = applyScopeQueries(ctx);
-  // events has no department_id column — scope it by campus only so a
-  // department user's (campus + department) scope never queries a missing field.
-  const eventScopeQueries = applyScopeQueries(ctx, { departmentField: null });
+  // Private admin read: the service client bypasses row security, so the
+  // relationship scope filters below are the authorization boundary.
+  const { db } = await createAdminClient();
+  const scopeQueries = applyContentRelationshipScopeQueries(ctx);
+  const eventScopeQueries = scopeQueries;
+  // Jobs are outside the relationship-canonical content set (recruitment keeps
+  // its own scope model), and the ownership repair never backfills them, so
+  // legacy vacancies still carry ownership only on the scalar columns. Scope
+  // them there or every pre-relationship draft disappears from this queue.
+  const jobScopeQueries = applyScopeQueries(ctx);
 
   const drafts: DraftItem[] = [];
 
@@ -41,7 +50,7 @@ export async function listDrafts(): Promise<DraftItem[]> {
     Query.equal("status", "draft"),
     Query.orderDesc("$updatedAt"),
     Query.limit(50),
-    ...scopeQueries,
+    ...jobScopeQueries,
   ]);
 
   // Fetch draft events
@@ -147,13 +156,13 @@ export async function approveDraft(id: string, type: "job" | "event" | "news") {
   const table = tableMap[type];
 
   try {
-    const { db } = await createSessionClient();
+    const { db } = await createAdminClient();
 
-    // Load the draft and verify the caller may publish for its campus.
-    // A campus admin must manage the draft's campus; campus team membership
-    // alone grants nothing (publishing is enforced at the app layer).
+    // Load the draft and verify the caller may publish for its ownership
+    // scope; campus team membership alone grants nothing.
     const row = await db.getRow<Jobs | Events | News>("app", table, id);
-    assertPublishAccess(ctx, row.campus_id);
+    const ownership = getContentOwnership(row, { legacyFallback: true });
+    assertPublishAccess(ctx, ownership.campus, ownership.department);
 
     await db.updateRow("app", table, id, { status: "published" });
 

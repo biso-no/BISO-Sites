@@ -11,7 +11,6 @@ import {
   Check,
   ChevronRight,
   Globe,
-  Languages,
   Link2,
   Megaphone,
   Save,
@@ -24,8 +23,16 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 import {
+  AutoTranslateControl,
+  TranslationReviewCard,
+} from "@/app/_components/content-translation-controls";
+import type {
+  AutoTranslationOptions,
+  ContentLocale,
+} from "@/lib/content-translation";
+import {
   createAnnouncement,
-  generateAnnouncementNorwegianDraft,
+  generateAnnouncementTranslationDraft,
   sendAnnouncement,
   updateAnnouncement,
 } from "../../_actions/announcements";
@@ -33,6 +40,7 @@ import {
   type AnnouncementFormValues,
   announcementSchema,
 } from "../../_actions/schemas";
+import { DepartmentCombobox } from "../../_components/department-combobox";
 import { DescriptionBlockEditor } from "../../_components/description-block-editor";
 
 /* -------------------------------------------------------------------------- */
@@ -63,7 +71,7 @@ const MONO = "ui-monospace, Menlo, Monaco, monospace";
 const STEPS = ["Essentials", "Content", "Distribution", "Review"] as const;
 
 type StepIndex = 0 | 1 | 2 | 3;
-type LocaleCode = "en" | "no";
+type LocaleCode = ContentLocale;
 
 type CategoryId = AnnouncementFormValues["category"];
 type AudienceType = AnnouncementFormValues["audience_type"];
@@ -153,6 +161,9 @@ interface AnnouncementStudioEditorProps {
   campuses: CampusOption[];
   defaultCampusId: string;
   isNew: boolean;
+  /** Single-department authors are pinned to their department. */
+  lockDepartment: boolean;
+  pinnedDepartmentId: string | null;
 }
 
 export type { AnnouncementStudioEditorProps };
@@ -194,6 +205,37 @@ function clampText(value: string, max: number): string {
   return `${value.slice(0, max).trimEnd()}…`;
 }
 
+interface AnnouncementEditorTranslationDraft {
+  body: string;
+  title: string;
+}
+
+const getAnnouncementEditorTranslationDraft = (
+  values: AnnouncementFormValues,
+  locale: LocaleCode
+): AnnouncementEditorTranslationDraft =>
+  locale === "en"
+    ? { body: values.body_en ?? "", title: values.title_en }
+    : { body: values.body_no ?? "", title: values.title_no ?? "" };
+
+const hasAnnouncementTranslationContent = ({
+  body,
+  title,
+}: AnnouncementEditorTranslationDraft): boolean =>
+  Boolean(body.trim() || title.trim());
+
+const getAnnouncementSendMessage = (
+  status: "queued" | "scheduled" | "sent"
+): string => {
+  if (status === "scheduled") {
+    return "Announcement scheduled";
+  }
+  if (status === "queued") {
+    return "Announcement saved; translation and delivery queued";
+  }
+  return "Announcement sent";
+};
+
 function categoryById(id: CategoryId) {
   return CATEGORIES.find((category) => category.id === id) ?? CATEGORIES[0];
 }
@@ -213,7 +255,8 @@ function categoryAccent(id: CategoryId): string {
 
 function buildInitialValues(
   announcement: Announcements | null,
-  defaultCampusId: string
+  defaultCampusId: string,
+  pinnedDepartmentId: string | null
 ): AnnouncementFormValues {
   let audienceValue = announcement?.audience_value ?? "";
   if (announcement?.audience_type === "users" && announcement.audience_value) {
@@ -237,9 +280,22 @@ function buildInitialValues(
     audience_value: audienceValue,
     event_id: announcement?.event_id ?? null,
     campus_id: announcement?.campus_id ?? defaultCampusId ?? null,
+    department_id: announcementDepartmentId(announcement) ?? pinnedDepartmentId,
     push: announcement?.push ?? true,
     scheduled_at: announcement?.scheduled_at ?? null,
   };
+}
+
+function announcementDepartmentId(
+  announcement: Announcements | null
+): string | null {
+  const department = (
+    announcement as { department?: string | { $id: string } | null } | null
+  )?.department;
+  if (!department) {
+    return null;
+  }
+  return typeof department === "string" ? department : department.$id;
 }
 
 function isFutureSchedule(scheduledAt: string | null | undefined): boolean {
@@ -631,78 +687,6 @@ function SelectCard({
   );
 }
 
-function AiCard({
-  body,
-  children,
-  title,
-}: {
-  body: string;
-  children?: React.ReactNode;
-  title: string;
-}) {
-  return (
-    <div
-      style={{
-        alignItems: "flex-start",
-        background:
-          "linear-gradient(180deg, rgba(26,119,233,0.05), rgba(26,119,233,0.02))",
-        border: "0.5px dashed rgba(26,119,233,.5)",
-        borderRadius: 10,
-        display: "flex",
-        gap: 12,
-        margin: "4px 0 14px",
-        padding: "12px 14px",
-      }}
-    >
-      <span
-        style={{
-          alignItems: "center",
-          background: "linear-gradient(135deg, #1A77E9, #3DA9E0)",
-          borderRadius: 8,
-          boxShadow: "0 2px 4px rgba(26,119,233,.3)",
-          color: "white",
-          display: "grid",
-          flexShrink: 0,
-          height: 28,
-          placeItems: "center",
-          width: 28,
-        }}
-      >
-        <Languages size={14} />
-      </span>
-      <div style={{ flex: 1 }}>
-        <b style={{ fontSize: 13, fontWeight: 500 }}>{title}</b>
-        <p
-          style={{
-            color: BRAND.ink2,
-            fontSize: 12.5,
-            lineHeight: 1.4,
-            margin: "2px 0 8px",
-          }}
-        >
-          {body}
-        </p>
-        {children}
-      </div>
-    </div>
-  );
-}
-
-function aiButtonStyle(primary?: boolean): React.CSSProperties {
-  return {
-    alignItems: "center",
-    background: primary ? BRAND.bisoBlue : "rgba(255,255,255,.7)",
-    border: `0.5px solid ${primary ? BRAND.bisoBlue : "rgba(26,119,233,.4)"}`,
-    borderRadius: 6,
-    color: primary ? "white" : BRAND.ink,
-    cursor: "pointer",
-    display: "flex",
-    fontSize: 11.5,
-    gap: 4,
-    padding: "5px 10px",
-  };
-}
-
 function StepIntro({ eyebrow, title }: { eyebrow: string; title: string }) {
   return (
     <div style={{ padding: "8px 0 18px" }}>
@@ -824,20 +808,16 @@ function EssentialsStep({
 
 function ContentStep({
   locale,
-  onTranslateNo,
   set,
   setLocale,
-  translating,
   values,
 }: {
   locale: LocaleCode;
-  onTranslateNo: () => Promise<void>;
   set: <K extends keyof AnnouncementFormValues>(
     key: K,
     value: AnnouncementFormValues[K]
   ) => void;
   setLocale: (locale: LocaleCode) => void;
-  translating: boolean;
   values: AnnouncementFormValues;
 }) {
   const bodyValue = locale === "en" ? values.body_en : values.body_no;
@@ -860,28 +840,6 @@ function ContentStep({
         }
         value={bodyValue ?? ""}
       />
-
-      <div style={{ marginTop: 22 }}>
-        <AiCard
-          body="Draft the Norwegian title and body from your English copy. Simple formatting (headings, bullets, bold) is preserved — review before you send."
-          title="Translate to Norwegian"
-        >
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-            <button
-              disabled={translating}
-              onClick={onTranslateNo}
-              style={{
-                ...aiButtonStyle(true),
-                opacity: translating ? 0.6 : 1,
-              }}
-              type="button"
-            >
-              <Languages size={11} />
-              {translating ? "Translating…" : "Translate to Norwegian"}
-            </button>
-          </div>
-        </AiCard>
-      </div>
     </div>
   );
 }
@@ -968,10 +926,12 @@ function AudienceDetail({
 
 function DistributionStep({
   campusOptions,
+  lockDepartment,
   set,
   values,
 }: {
   campusOptions: Array<{ value: string; label: string }>;
+  lockDepartment: boolean;
   set: <K extends keyof AnnouncementFormValues>(
     key: K,
     value: AnnouncementFormValues[K]
@@ -1027,6 +987,20 @@ function DistributionStep({
               </option>
             ))}
           </select>
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <FieldLabel help="Owning department; leave empty for campus-wide">
+            <Globe size={12} /> Department
+          </FieldLabel>
+          <DepartmentCombobox
+            campusId={values.campus_id ?? null}
+            disabled={lockDepartment}
+            initialDepartments={[]}
+            onChange={(id) => set("department_id", id)}
+            placeholder="Campus-wide (no department)"
+            value={values.department_id ?? null}
+          />
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -1134,11 +1108,19 @@ function buildReviewRows(
 
 function ReviewStep({
   campusOptions,
+  confirmTranslationOverwrite,
+  locale,
+  onTranslate,
   setStep,
+  translating,
   values,
 }: {
   campusOptions: Array<{ value: string; label: string }>;
+  confirmTranslationOverwrite: boolean;
+  locale: LocaleCode;
+  onTranslate: () => void;
   setStep: (step: StepIndex) => void;
+  translating: boolean;
   values: AnnouncementFormValues;
 }) {
   const rows = buildReviewRows(values, campusOptions);
@@ -1157,6 +1139,21 @@ function ReviewStep({
         Click any row to jump back and edit. The previews on the right show
         exactly how this lands on a phone and in the in-app inbox.
       </p>
+
+      <TranslationReviewCard
+        className="mb-5"
+        isTranslating={translating}
+        onTranslate={onTranslate}
+        sourceLocale={locale}
+      />
+      {confirmTranslationOverwrite && (
+        <p
+          style={{ color: BRAND.gold, fontSize: 12.5, margin: "-10px 0 18px" }}
+        >
+          The destination already has content. Click Generate again to replace
+          it.
+        </p>
+      )}
 
       <div
         style={{
@@ -1222,7 +1219,10 @@ function ReviewStep({
 /* -------------------------------------------------------------------------- */
 
 function ActionBar({
+  autoTranslate,
   dirty,
+  locale,
+  onAutoTranslateChange,
   onSaveDraft,
   onSend,
   scheduledFuture,
@@ -1232,7 +1232,10 @@ function ActionBar({
   submitting,
   values,
 }: {
+  autoTranslate: boolean;
   dirty: boolean;
+  locale: LocaleCode;
+  onAutoTranslateChange: (checked: boolean) => void;
   onSaveDraft: () => void;
   onSend: () => void;
   scheduledFuture: boolean;
@@ -1268,6 +1271,7 @@ function ActionBar({
         borderTop: `0.5px solid ${BRAND.rule}`,
         bottom: 0,
         display: "flex",
+        flexWrap: "wrap",
         gap: 10,
         marginTop: "auto",
         padding: "14px 36px",
@@ -1311,6 +1315,14 @@ function ActionBar({
         )}
       </div>
       <div style={{ flex: 1 }} />
+      <AutoTranslateControl
+        checked={autoTranslate}
+        className="min-w-[250px]"
+        disabled={submitting || sending}
+        onCheckedChange={onAutoTranslateChange}
+        operation="save or send"
+        sourceLocale={locale}
+      />
       <button
         disabled={submitting}
         onClick={onSaveDraft}
@@ -1837,18 +1849,23 @@ export function AnnouncementStudioEditor({
   campuses,
   defaultCampusId,
   isNew,
+  lockDepartment,
+  pinnedDepartmentId,
 }: AnnouncementStudioEditorProps) {
   const router = useRouter();
   const [step, setStep] = useState<StepIndex>(0);
   const [locale, setLocale] = useState<LocaleCode>("en");
   const [previewLocale, setPreviewLocale] = useState<LocaleCode>("en");
   const [values, setValues] = useState<AnnouncementFormValues>(() =>
-    buildInitialValues(announcement, defaultCampusId)
+    buildInitialValues(announcement, defaultCampusId, pinnedDepartmentId)
   );
   const [dirty, setDirty] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [translating, setTranslating] = useState(false);
+  const [autoTranslate, setAutoTranslate] = useState(false);
+  const [confirmTranslationOverwrite, setConfirmTranslationOverwrite] =
+    useState(false);
 
   const campusOptions = [
     ...(allowGlobalCampus
@@ -1865,33 +1882,53 @@ export function AnnouncementStudioEditor({
     setDirty(true);
   }
 
-  async function persist(): Promise<string | null> {
+  async function persist(
+    autoTranslation?: AutoTranslationOptions
+  ): Promise<{ id: string; translationQueued: boolean } | null> {
     const validated = announcementSchema.safeParse(values);
     if (!validated.success) {
       toast.error("Please fix the highlighted fields before continuing.");
       return null;
     }
     const result = isNew
-      ? await createAnnouncement(validated.data)
-      : await updateAnnouncement(announcement?.$id ?? "", validated.data);
+      ? await createAnnouncement(validated.data, autoTranslation)
+      : await updateAnnouncement(
+          announcement?.$id ?? "",
+          validated.data,
+          autoTranslation
+        );
     if (result.error) {
       toast.error(errorMessage(result.error, "Failed to save announcement"));
       return null;
     }
     setDirty(false);
-    return typeof result.data === "string"
-      ? result.data
-      : (announcement?.$id ?? null);
+    const id =
+      typeof result.data === "string"
+        ? result.data
+        : (announcement?.$id ?? null);
+    return id
+      ? {
+          id,
+          translationQueued: result.translationQueued === true,
+        }
+      : null;
   }
 
   async function handleSaveDraft() {
     setIsSaving(true);
     try {
-      const id = await persist();
-      if (id) {
-        toast.success("Draft saved");
+      const saved = await persist({
+        enabled: autoTranslate,
+        sourceLocale: locale,
+      });
+      if (saved) {
+        toast.success(
+          saved.translationQueued
+            ? "Draft saved; translation queued"
+            : "Draft saved"
+        );
         if (isNew) {
-          router.push(`/communications/${id}`);
+          router.push(`/communications/${saved.id}`);
         }
       }
     } finally {
@@ -1902,53 +1939,82 @@ export function AnnouncementStudioEditor({
   async function handleSend() {
     setIsSending(true);
     try {
-      const id = await persist();
-      if (!id) {
+      const saved = await persist();
+      if (!saved) {
         return;
       }
-      const result = await sendAnnouncement(id);
-      if (result.error) {
+      const result = await sendAnnouncement(saved.id, {
+        enabled: autoTranslate,
+        sourceLocale: locale,
+      });
+      if (!result.data) {
         toast.error(errorMessage(result.error, "Failed to send announcement"));
         return;
       }
-      toast.success(
-        result.data?.status === "scheduled"
-          ? "Announcement scheduled"
-          : "Announcement sent"
-      );
+      toast.success(getAnnouncementSendMessage(result.data.status));
       router.push("/communications");
     } finally {
       setIsSending(false);
     }
   }
 
-  async function handleTranslateNo() {
-    if (!values.title_en.trim()) {
-      toast.error("Add an English title first.");
+  async function handleTranslate() {
+    const source = getAnnouncementEditorTranslationDraft(values, locale);
+    const targetLocale = locale === "en" ? "no" : "en";
+    const destination = getAnnouncementEditorTranslationDraft(
+      values,
+      targetLocale
+    );
+    if (!hasAnnouncementTranslationContent(source)) {
+      toast.error("Add source-language announcement content first.");
       return;
     }
+    if (
+      hasAnnouncementTranslationContent(destination) &&
+      !confirmTranslationOverwrite
+    ) {
+      setConfirmTranslationOverwrite(true);
+      toast.warning("Click Generate again to replace the translated draft.");
+      return;
+    }
+    setConfirmTranslationOverwrite(false);
     setTranslating(true);
     try {
-      const result = await generateAnnouncementNorwegianDraft({
-        title_en: values.title_en,
-        body_en: values.body_en ?? undefined,
+      const result = await generateAnnouncementTranslationDraft({
+        ...source,
+        campusId: values.campus_id ?? null,
+        departmentId: values.department_id ?? null,
+        sourceLocale: locale,
       });
       if ("error" in result && result.error) {
         toast.error(result.error);
         return;
       }
       if (!("data" in result && result.data)) {
-        toast.error("Failed to generate Norwegian draft");
+        toast.error("Failed to generate announcement translation");
         return;
       }
-      setValues((prev) => ({
-        ...prev,
-        body_no: result.data.body_no,
-        title_no: result.data.title_no,
-      }));
+      setValues((previous) =>
+        targetLocale === "no"
+          ? {
+              ...previous,
+              body_no: result.data.body,
+              title_no: result.data.title,
+            }
+          : {
+              ...previous,
+              body_en: result.data.body,
+              title_en: result.data.title,
+            }
+      );
       setDirty(true);
-      setLocale("no");
-      toast.success("Norwegian draft generated");
+      setLocale(targetLocale);
+      setPreviewLocale(targetLocale);
+      toast.success(
+        targetLocale === "no"
+          ? "Norwegian draft generated"
+          : "English draft generated"
+      );
     } finally {
       setTranslating(false);
     }
@@ -2074,16 +2140,15 @@ export function AnnouncementStudioEditor({
             {step === 1 && (
               <ContentStep
                 locale={locale}
-                onTranslateNo={handleTranslateNo}
                 set={set}
                 setLocale={setLocale}
-                translating={translating}
                 values={values}
               />
             )}
             {step === 2 && (
               <DistributionStep
                 campusOptions={campusOptions}
+                lockDepartment={lockDepartment}
                 set={set}
                 values={values}
               />
@@ -2091,13 +2156,20 @@ export function AnnouncementStudioEditor({
             {step === 3 && (
               <ReviewStep
                 campusOptions={campusOptions}
+                confirmTranslationOverwrite={confirmTranslationOverwrite}
+                locale={locale}
+                onTranslate={handleTranslate}
                 setStep={setStep}
+                translating={translating}
                 values={values}
               />
             )}
           </div>
           <ActionBar
+            autoTranslate={autoTranslate}
             dirty={dirty}
+            locale={locale}
+            onAutoTranslateChange={setAutoTranslate}
             onSaveDraft={handleSaveDraft}
             onSend={handleSend}
             scheduledFuture={scheduledFuture}

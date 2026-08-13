@@ -4,7 +4,6 @@ import { listAllUserMemberships } from "@repo/shared/utils/appwrite-memberships"
 import { expandDeptName } from "./campus-constants";
 import {
   grantDeptTeamAccess,
-  grantTeamContentAccess,
   grantTeamRecruitmentAccess,
 } from "./team-provisioning";
 
@@ -102,18 +101,13 @@ async function syncTeamMembership(
 }
 
 /**
- * Ensure a dept team holds the table-level create grants on content and
- * recruitment tables. Both underlying grants are idempotent — they read the
- * current table permissions and only write when the grant is missing — so this
- * is safe (and cheap once provisioned) to run on every sync. It exists because
- * the content tables no longer carry a broad `create("users")` grant; each dept
- * team gets a `create("team:…")` grant instead, and running this outside the
- * team-creation path backfills teams that predate those per-team grants (or an
- * environment where the config was applied before the grants existed) so staff
- * don't silently lose the ability to create events/news/products/pages.
+ * Ensure a dept team holds the table-level grants it still needs. General
+ * content tables no longer receive dynamic team grants — authoring goes
+ * through the admin client behind application authorization — so the only
+ * remaining provisioning is HR's recruitment access (a no-op for every other
+ * team). Idempotent and safe to run on every sync.
  */
 async function ensureDeptTeamTableGrants(teamId: string): Promise<void> {
-  await grantTeamContentAccess(teamId);
   await grantTeamRecruitmentAccess(teamId);
 }
 

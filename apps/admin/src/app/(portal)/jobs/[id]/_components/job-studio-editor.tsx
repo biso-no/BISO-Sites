@@ -13,7 +13,6 @@ import {
   CalendarDays,
   Check,
   Globe,
-  Languages,
   Lock,
   Newspaper,
   Pencil,
@@ -24,15 +23,18 @@ import {
   Trash2,
   Upload,
   Users,
-  Wand2,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
+  AutoTranslateControl,
+  TranslationReviewCard,
+} from "@/app/_components/content-translation-controls";
+import {
   createJob,
-  generateJobNorwegianDraft,
+  generateJobTranslationDraft,
   suggestJobDescriptionSection,
   updateJob,
 } from "../../../_actions/jobs";
@@ -660,6 +662,9 @@ export function JobStudioEditor({
   const [isSuggesting, setIsSuggesting] = useState(false);
   const [isTranslating, setIsTranslating] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [autoTranslate, setAutoTranslate] = useState(() =>
+    Boolean(job?.metadata.auto_translate)
+  );
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const campusName = useMemo(
@@ -725,34 +730,93 @@ export function JobStudioEditor({
     setValue("description_no", value);
   }
 
-  async function handleTranslateToNorwegian() {
+  function handleAutoTranslateChange(checked: boolean) {
+    setAutoTranslate(checked);
+    setValue("auto_translate", checked);
+  }
+
+  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Translation replacement keeps both locale branches explicit so destination writes remain auditable.
+  async function handleTranslate() {
+    const source =
+      locale === "no"
+        ? {
+            description: form.description_no,
+            shortDescription: form.short_description_no,
+            title: form.title_no,
+          }
+        : {
+            description: form.description_en,
+            shortDescription: form.short_description_en,
+            title: form.title_en,
+          };
+    const destinationHasContent =
+      locale === "no"
+        ? Boolean(
+            form.title_en.trim() ||
+              stripHtml(form.description_en).trim() ||
+              form.short_description_en?.trim()
+          )
+        : Boolean(
+            form.title_no.trim() ||
+              stripHtml(form.description_no).trim() ||
+              form.short_description_no?.trim()
+          );
+    if (
+      destinationHasContent &&
+      // biome-ignore lint/suspicious/noAlert: Matches the existing translation replacement confirmation used by other publishing studios.
+      !window.confirm(
+        "Replace the existing destination-language content with a new translation?"
+      )
+    ) {
+      return;
+    }
+
     setIsTranslating(true);
-    const result = await generateJobNorwegianDraft({
-      description_en: form.description_en,
-      short_description: form.short_description_en,
-      title_en: form.title_en,
-    });
-    setIsTranslating(false);
+    try {
+      const result = await generateJobTranslationDraft({
+        ...source,
+        campusId: form.campus_id,
+        departmentId: form.department_id ?? null,
+        sourceLocale: locale,
+      });
 
-    if (result.error) {
-      toast.error(result.error);
-      return;
-    }
-    if (!result.data) {
-      toast.error("Failed to generate Norwegian draft");
-      return;
-    }
+      if (result.error) {
+        toast.error(result.error);
+        return;
+      }
+      if (!result.data) {
+        toast.error("Failed to generate translation draft");
+        return;
+      }
 
-    setForm((current) => ({
-      ...current,
-      auto_translate: true,
-      description_no: result.data.description_no,
-      short_description_no: result.data.short_description,
-      title_no: result.data.title_no,
-    }));
-    setDirty(true);
-    setLocale("no");
-    toast.success("Norwegian draft generated");
+      if (locale === "en" && "title_no" in result.data) {
+        const descriptionNo = result.data.description_no ?? "";
+        const shortDescriptionNo = result.data.short_description_no ?? "";
+        const titleNo = result.data.title_no ?? "";
+        setForm((current) => ({
+          ...current,
+          description_no: descriptionNo,
+          short_description_no: shortDescriptionNo,
+          title_no: titleNo,
+        }));
+        setLocale("no");
+      } else if (locale === "no" && "title_en" in result.data) {
+        const descriptionEn = result.data.description_en ?? "";
+        const shortDescriptionEn = result.data.short_description_en ?? "";
+        const titleEn = result.data.title_en ?? "";
+        setForm((current) => ({
+          ...current,
+          description_en: descriptionEn,
+          short_description_en: shortDescriptionEn,
+          title_en: titleEn,
+        }));
+        setLocale("en");
+      }
+      setDirty(true);
+      toast.success("Translation draft generated");
+    } finally {
+      setIsTranslating(false);
+    }
   }
 
   async function handleSuggestDescriptionSection() {
@@ -771,7 +835,7 @@ export function JobStudioEditor({
     });
     setIsSuggesting(false);
 
-    if (result.error) {
+    if ("error" in result && result.error) {
       toast.error(result.error);
       return;
     }
@@ -829,8 +893,14 @@ export function JobStudioEditor({
     }
 
     const result = isNew
-      ? await createJob(validated.data)
-      : await updateJob(job!.$id, validated.data);
+      ? await createJob(validated.data, {
+          enabled: autoTranslate,
+          sourceLocale: locale,
+        })
+      : await updateJob(job!.$id, validated.data, {
+          enabled: autoTranslate,
+          sourceLocale: locale,
+        });
 
     setIsPublishing(false);
     setIsSaving(false);
@@ -841,13 +911,17 @@ export function JobStudioEditor({
     }
 
     setDirty(false);
-    toast.success(
+    const successMessage =
       status === JobsStatus.PUBLISHED
         ? labels.publishSuccess
-        : labels.saveSuccess
+        : labels.saveSuccess;
+    toast.success(
+      "translationQueued" in result && result.translationQueued
+        ? `${successMessage} Translation queued.`
+        : successMessage
     );
 
-    if (isNew && result.data) {
+    if (isNew && "data" in result && result.data) {
       router.push(`/jobs/${result.data}`);
       return;
     }
@@ -877,6 +951,14 @@ export function JobStudioEditor({
             </h1>
           </div>
           <div className="hidden items-center gap-2 md:flex">
+            <AutoTranslateControl
+              checked={autoTranslate}
+              className="max-w-[280px]"
+              disabled={isSaving || isPublishing}
+              onCheckedChange={handleAutoTranslateChange}
+              operation="save or publish"
+              sourceLocale={locale}
+            />
             <button
               className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 font-medium text-slate-600 text-sm transition hover:text-[#001731]"
               onClick={() => router.push("/jobs")}
@@ -1055,47 +1137,6 @@ export function JobStudioEditor({
                       })}
                     </div>
                   </Field>
-
-                  <div className="flex gap-3 rounded-xl border border-[#F7D64A]/45 bg-[#F7D64A]/10 p-4">
-                    <Sparkles
-                      className="mt-0.5 shrink-0 text-[#a16207]"
-                      size={20}
-                    />
-                    <div className="min-w-0 flex-1">
-                      <p className="font-medium text-sm">Translation helper</p>
-                      <p className="mt-1 text-slate-600 text-sm">
-                        Generate a Norwegian draft from the English title,
-                        teaser, and description. Review before publishing.
-                      </p>
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        <button
-                          className="inline-flex items-center gap-2 rounded-lg bg-[#001731] px-3 py-2 font-medium text-sm text-white transition disabled:cursor-not-allowed disabled:opacity-55"
-                          disabled={
-                            isTranslating ||
-                            !form.title_en.trim() ||
-                            !stripHtml(form.description_en).trim()
-                          }
-                          onClick={handleTranslateToNorwegian}
-                          type="button"
-                        >
-                          <Languages size={15} />
-                          {isTranslating
-                            ? "Generating..."
-                            : "Generate Norwegian"}
-                        </button>
-                        <button
-                          className="inline-flex items-center gap-2 rounded-lg border border-[#F7D64A]/50 bg-white/60 px-3 py-2 font-medium text-[#713f12] text-sm"
-                          onClick={() =>
-                            setValue("auto_translate", !form.auto_translate)
-                          }
-                          type="button"
-                        >
-                          <Wand2 size={15} />
-                          Auto-translate {form.auto_translate ? "on" : "off"}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
                 </div>
               )}
 
@@ -1846,6 +1887,22 @@ export function JobStudioEditor({
                       Jump back to any section before saving or publishing.
                     </p>
                   </div>
+                  <TranslationReviewCard
+                    disabled={
+                      !(
+                        (locale === "en"
+                          ? form.title_en ||
+                            stripHtml(form.description_en) ||
+                            form.short_description_en
+                          : form.title_no ||
+                            stripHtml(form.description_no) ||
+                            form.short_description_no) ?? false
+                      )
+                    }
+                    isTranslating={isTranslating}
+                    onTranslate={handleTranslate}
+                    sourceLocale={locale}
+                  />
                   <div className="overflow-hidden rounded-xl border border-slate-200 bg-white/65">
                     {[
                       ["Title (EN)", form.title_en, 0],
@@ -1959,9 +2016,17 @@ export function JobStudioEditor({
           </aside>
         </main>
 
-        <footer className="sticky bottom-0 z-20 flex items-center gap-3 border-slate-200 border-t bg-[#faf7f2]/92 px-4 py-3 backdrop-blur-xl md:px-8">
+        <footer className="sticky bottom-0 z-20 flex flex-wrap items-center gap-3 border-slate-200 border-t bg-[#faf7f2]/92 px-4 py-3 backdrop-blur-xl md:px-8">
           <ProgressBar step={step} />
-          <div className="ml-auto flex items-center gap-2">
+          <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
+            <AutoTranslateControl
+              checked={autoTranslate}
+              className="max-w-[280px] md:hidden"
+              disabled={isSaving || isPublishing}
+              onCheckedChange={handleAutoTranslateChange}
+              operation="save or publish"
+              sourceLocale={locale}
+            />
             <button
               className="hidden items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 font-medium text-[#001731] text-sm sm:inline-flex"
               disabled={isSaving}
