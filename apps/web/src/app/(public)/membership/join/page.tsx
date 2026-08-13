@@ -3,6 +3,7 @@ import { getFeatureFlagStates } from "@repo/shared/utils/feature-flags-server";
 import { Alert, AlertDescription } from "@repo/ui/components/ui/alert";
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
+import { ShopHeroShell } from "@/components/shop/shop-hero-shell";
 import { getMembershipStatus } from "@/lib/actions/membership";
 import { getLoggedInUser } from "@/lib/actions/user";
 import { getPurchasableMembershipPlans } from "@/lib/membership-catalog";
@@ -79,12 +80,12 @@ export default async function MembershipJoinPage({
   });
 
   const notice = paymentFailed ? (
-    <Alert className="mx-auto mb-6 max-w-2xl" variant="destructive">
+    <Alert className="mb-8 rounded-2xl" variant="destructive">
       <AlertDescription>{t("paymentFailed.body")}</AlertDescription>
     </Alert>
   ) : (
     cancelled && (
-      <Alert className="mx-auto mb-6 max-w-2xl">
+      <Alert className="mb-8 rounded-2xl">
         <AlertDescription>{t("cancelled.body")}</AlertDescription>
       </Alert>
     )
@@ -118,9 +119,16 @@ export default async function MembershipJoinPage({
   }
 
   return (
-    <>
-      {notice}
-      {body}
-    </>
+    <div className="min-h-screen bg-linear-to-b from-section to-background">
+      <ShopHeroShell
+        heightClass="h-[32vh] min-h-[240px]"
+        subtitle={t("subtitle")}
+        title={t("title")}
+      />
+      <div className="mx-auto max-w-3xl px-4 py-12 sm:px-6">
+        {notice}
+        {body}
+      </div>
+    </div>
   );
 }

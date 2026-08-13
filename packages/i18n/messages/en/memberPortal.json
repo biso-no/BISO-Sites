@@ -203,14 +203,21 @@
     "plans": {
       "semester": "Semester",
       "year": "One Year",
-      "three-year": "Three Years"
+      "three_years": "Three Years"
     },
     "popular": "Most Popular",
     "monthly": "~{price} NOK/month",
     "save": "Save {percent}%",
     "joinNow": "Join BISO Now",
     "processing": "Processing...",
-    "socialProof": "Join 10,000+ BI students already saving"
+    "socialProof": "Join 10,000+ BI students already saving",
+    "benefits": {
+      "discounts": "Exclusive discounts at 50+ partners",
+      "events": "Member-only events access",
+      "career": "Career resources and networking",
+      "card": "Digital membership card",
+      "priority": "Priority access to sold-out events"
+    }
   },
   "locked": {
     "description": "Unlock this content and all member benefits",

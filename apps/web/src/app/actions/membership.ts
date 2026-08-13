@@ -2,6 +2,8 @@
 
 import { createSessionClient } from "@repo/api/server";
 import type { CampusData } from "@repo/api/types/appwrite";
+import type { MembershipPlan } from "@repo/shared/utils/membership-plans";
+import { getPurchasableMembershipPlans } from "@/lib/membership-catalog";
 
 const NATIONAL_CAMPUS_ID = "5";
 const NATIONAL_CAMPUS_NAME = "national";
@@ -37,4 +39,16 @@ export async function getGlobalMembershipBenefits(): Promise<CampusData | null> 
     console.error("Failed to fetch global membership benefits:", error);
     return null;
   }
+}
+
+/**
+ * Client-callable wrapper around the catalog read — the member portal's CTA
+ * section renders inside a client component tree, so it fetches this on
+ * mount rather than receiving it as a prop from a server component several
+ * layers up.
+ */
+export async function getMembershipPlansForPurchase(): Promise<
+  MembershipPlan[]
+> {
+  return await getPurchasableMembershipPlans();
 }

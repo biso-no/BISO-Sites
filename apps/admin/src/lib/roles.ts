@@ -86,6 +86,7 @@ export const NAV_ACCESS = {
   "portal.it": [ROLES.GLOBAL_ADMIN],
   "portal.analytics": [ROLES.GLOBAL_ADMIN],
   "portal.inbox": [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
+  "portal.members": [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
 } as const;
 
 export type NavKey = keyof typeof NAV_ACCESS;

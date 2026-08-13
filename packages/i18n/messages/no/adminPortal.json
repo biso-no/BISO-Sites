@@ -21,6 +21,7 @@
     "drafts": "Gjennomgå utkast",
     "approvals": "Godkjenninger",
     "inbox": "Innboks",
+    "members": "Medlemmer",
     "content": "Innhold",
     "organization": "Organisasjon",
     "system": "System",
@@ -1119,6 +1120,36 @@
     },
     "saveSuccess": "Innstillinger lagret",
     "saveError": "Kunne ikke lagre innstillinger"
+  },
+  "members": {
+    "title": "Medlemmer",
+    "description": "Alle med et BISO-medlemskap, på tvers av campusene du har tilgang til.",
+    "searchPlaceholder": "Søk på navn eller e-post…",
+    "empty": "Ingen medlemmer funnet",
+    "emptyDescription": "Prøv et annet søk eller filter.",
+    "unnamed": "Uten navn",
+    "noCampus": "Ingen campus registrert",
+    "noPlan": "Ingen medlemskap",
+    "noExpiry": "Ingen utløpsdato registrert",
+    "filters": {
+      "all": "Alle",
+      "active": "Aktive",
+      "inactive": "Inaktive"
+    },
+    "status": {
+      "active": "Aktiv",
+      "inactive": "Ikke medlem"
+    },
+    "detail": {
+      "back": "Tilbake til medlemmer",
+      "contact": "Kontakt",
+      "campus": "Campus",
+      "expiry": "Utløper",
+      "membershipHistory": "Medlemskapshistorikk",
+      "noHistory": "Ingen medlemskapshistorikk registrert.",
+      "notFound": "Fant ikke medlemmet",
+      "planPrice": "{price} kr"
+    }
   },
   "unauthorized": {
     "tagline": "Tilgang nektet",

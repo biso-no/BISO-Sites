@@ -208,6 +208,7 @@
     "alreadyMember": {
       "title": "You're already a member",
       "body": "Your membership runs until {expiry}.",
+      "bodyUnknownExpiry": "You already have an active membership.",
       "cta": "Go to the member portal"
     },
     "noPlansAvailable": {
@@ -221,22 +222,22 @@
       "year": "One year",
       "three_years": "Three years",
       "price": "{price} kr",
-      "extends": "Extends your membership to {expiry}"
+      "extends": "Extends your membership to {expiry}",
+      "popular": "Most popular"
     },
     "campus": {
       "legend": "Which campus do you study at?",
       "help": "We can't detect this automatically, and your invoice is booked to your campus."
     },
     "pay": {
-      "legend": "Pay with",
+      "legend": "Complete your membership",
+      "summary": "Your membership",
       "vipps": "Vipps",
-      "stripe": "Card",
-      "submit": "Pay {price} kr",
-      "working": "Starting checkout…",
+      "vippsAlt": "Pay with Vipps",
+      "stripe": "Pay with card",
       "unavailable": "Online payment isn't available right now. Please contact us to complete your purchase."
     },
     "errors": {
-      "noPlan": "Choose a membership length.",
       "noCampus": "Choose your campus.",
       "generic": "Something went wrong. Please try again."
     }

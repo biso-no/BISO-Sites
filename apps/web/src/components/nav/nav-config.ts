@@ -73,7 +73,7 @@ export const STUDENT_COLUMNS: NavColumnConfig[] = [
       {
         id: "membership-buy",
         labelKey: "links.buyMembership",
-        href: "/shop/membership",
+        href: "/membership/join",
         icon: CreditCard,
       },
     ],

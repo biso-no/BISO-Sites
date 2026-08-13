@@ -12,6 +12,7 @@ import {
   MapPin,
   Package,
   Receipt,
+  Sparkles,
   XCircle,
 } from "lucide-react";
 import Link from "next/link";
@@ -234,6 +235,59 @@ async function CustomerInfoCard({ order }: { order: Orders }) {
   );
 }
 
+async function MembershipWelcomeCard() {
+  const t = await getTranslations("shop");
+  return (
+    <Card className="rounded-3xl border border-brand-border bg-brand-muted p-6 shadow-sm">
+      <div className="flex items-start gap-3">
+        <Sparkles className="mt-0.5 h-5 w-5 shrink-0 text-brand" />
+        <div>
+          <h4 className="mb-2 font-semibold text-foreground">
+            {t("order.membershipWelcome.title")}
+          </h4>
+          <p className="mb-4 text-muted-foreground text-sm">
+            {t("order.membershipWelcome.desc")}
+          </p>
+          <Link
+            className="font-medium text-brand text-sm hover:underline"
+            href="/member"
+          >
+            {t("order.membershipWelcome.cta")}
+          </Link>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+function getHeroTitleKey(showSuccess: boolean, isMembershipOnly: boolean) {
+  if (!showSuccess) {
+    return "order.detailsTitle";
+  }
+  return isMembershipOnly
+    ? "order.membershipConfirmedTitle"
+    : "order.confirmedTitle";
+}
+
+function SecondaryInfoCard({
+  isMembershipOnly,
+  isPaid,
+  pickupLocation,
+}: {
+  isMembershipOnly: boolean;
+  isPaid: boolean;
+  pickupLocation: string;
+}) {
+  if (!isPaid) {
+    return null;
+  }
+  return isMembershipOnly ? (
+    <MembershipWelcomeCard />
+  ) : (
+    <PickupInfoCard pickupLocation={pickupLocation} />
+  );
+}
+
 async function PickupInfoCard({ pickupLocation }: { pickupLocation: string }) {
   const t = await getTranslations("shop");
   return (
@@ -405,6 +459,8 @@ async function OrderDetails({
   );
 
   const rawItems = parseItems(order.items_json);
+  const purchaseType = resolvePurchaseType(rawItems);
+  const isMembershipOnly = purchaseType === "membership";
   const receiptItems: ReceiptItem[] = rawItems.map((item) => ({
     name: item.title || item.name || "Product",
     quantity: item.quantity,
@@ -427,9 +483,7 @@ async function OrderDetails({
   // transition — so the client cart must be reset for both, not just "paid".
   const reservationsCleared =
     isSuccess && (status === "paid" || status === "authorized");
-  const heroTitle = showSuccess
-    ? t("order.confirmedTitle")
-    : t("order.detailsTitle");
+  const heroTitle = t(getHeroTitleKey(showSuccess, isMembershipOnly));
 
   return (
     <>
@@ -439,7 +493,7 @@ async function OrderDetails({
           campus={campusName ?? undefined}
           orderId={order.$id}
           revenue={order.total}
-          type={resolvePurchaseType(rawItems)}
+          type={purchaseType}
         />
       ) : null}
 
@@ -500,9 +554,11 @@ async function OrderDetails({
 
             <div className="space-y-6">
               <CustomerInfoCard order={order} />
-              {status === "paid" ? (
-                <PickupInfoCard pickupLocation={pickupLocation} />
-              ) : null}
+              <SecondaryInfoCard
+                isMembershipOnly={isMembershipOnly}
+                isPaid={status === "paid"}
+                pickupLocation={pickupLocation}
+              />
 
               <div className="space-y-3">
                 <OrderActionsClient type="shop" />
