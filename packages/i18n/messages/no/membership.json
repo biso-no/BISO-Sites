@@ -173,5 +173,72 @@
     },
     "primary": "Bli medlem i dag",
     "secondary": "Snakk med oss om medlemskap"
+  },
+  "join": {
+    "title": "Bli medlem i BISO",
+    "subtitle": "Kjøp medlemskapet ditt her hvis BI Student-appen ikke fungerer for deg.",
+    "signedOut": {
+      "title": "Logg inn for å fortsette",
+      "body": "Medlemskapet er knyttet til studentregisteret ditt, så du må ha en BISO-konto før du kan kjøpe et.",
+      "cta": "Logg inn"
+    },
+    "needsBiLink": {
+      "title": "Koble til BI-studentkontoen din",
+      "body": "Vi bekrefter medlemskapet ditt mot BI-studentregisteret. Å logge inn med studentmailen er ikke nok — du må koble til selve kontoen.",
+      "cta": "Koble til BI Student-konto",
+      "linkFailed": "Vi fikk ikke fullført koblingen. Vennligst prøv igjen, eller kontakt oss hvis det fortsetter å mislykkes."
+    },
+    "needsDirectoryRecord": {
+      "title": "Vi kunne ikke bekrefte BI-registreringen din",
+      "body": "BI-kontoen din er koblet til, men vi fikk ikke lest studentnummeret BISOs økonomisystem trenger. Du er ikke belastet noe.",
+      "retry": "Prøv igjen",
+      "contact": "Kontakt oss"
+    },
+    "checkUnavailable": {
+      "title": "Vi kan ikke sjekke medlemskapet ditt akkurat nå",
+      "body": "Noe gikk galt da vi skulle nå medlemssystemet vårt. Du er ikke belastet noe — prøv igjen om noen minutter.",
+      "cta": "Prøv igjen"
+    },
+    "cancelled": {
+      "body": "Betalingen din ble avbrutt. Du er ikke belastet noe — velg et medlemskap nedenfor når du er klar."
+    },
+    "paymentFailed": {
+      "body": "Betalingen din gikk ikke gjennom, så du er ikke belastet noe. Prøv gjerne igjen nedenfor."
+    },
+    "alreadyMember": {
+      "title": "Du er allerede medlem",
+      "body": "Medlemskapet ditt løper til {expiry}.",
+      "cta": "Gå til medlemsportalen"
+    },
+    "noPlansAvailable": {
+      "title": "Medlemskap kan ikke kjøpes akkurat nå",
+      "body": "Vi har ikke noe medlemskap åpent for kjøp for øyeblikket. Dette handler ikke om kontoen din — ta kontakt, og vi hjelper deg videre.",
+      "cta": "Kontakt oss"
+    },
+    "plan": {
+      "legend": "Velg lengde",
+      "semester": "Ett semester",
+      "year": "Ett år",
+      "three_years": "Tre år",
+      "price": "{price} kr",
+      "extends": "Utvider medlemskapet ditt til {expiry}"
+    },
+    "campus": {
+      "legend": "Hvilken campus studerer du ved?",
+      "help": "Vi kan ikke oppdage dette automatisk, og fakturaen din bokføres på campusen din."
+    },
+    "pay": {
+      "legend": "Betal med",
+      "vipps": "Vipps",
+      "stripe": "Kort",
+      "submit": "Betal {price} kr",
+      "working": "Starter betaling…",
+      "unavailable": "Nettbetaling er ikke tilgjengelig akkurat nå. Vennligst kontakt oss for å fullføre kjøpet."
+    },
+    "errors": {
+      "noPlan": "Velg en medlemskapslengde.",
+      "noCampus": "Velg campusen din.",
+      "generic": "Noe gikk feil. Vennligst prøv igjen."
+    }
   }
 }

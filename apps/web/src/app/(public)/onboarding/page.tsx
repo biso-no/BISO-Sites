@@ -16,10 +16,17 @@ interface OnboardingPageProps {
   }>;
 }
 
+// A BI OIDC link completes at /api/auth/bi-link, which runs the sync + cache
+// invalidation itself and only then redirects here with `?linked=1` — see
+// that route's doc comment. This page never re-runs the sync: `params.linked`
+// below is read purely as a UI flag (mid-OAuth-flow bookkeeping), not a
+// trigger — a refresh of this URL is now inert instead of re-running the
+// Graph call and the DB write.
 export default async function OnboardingPage({
   searchParams,
 }: OnboardingPageProps) {
   const params = await searchParams;
+
   const userData = await getLoggedInUser();
 
   if (!userData) {

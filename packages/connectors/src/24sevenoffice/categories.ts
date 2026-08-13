@@ -16,29 +16,44 @@ import type {
 } from "./types";
 
 /**
+ * Build the KeyValuePairs 24SevenOffice's `SaveCustomerCategories` expects.
+ *
+ * The API's Key is the CATEGORY id and Value is the COMPANY id — the
+ * opposite of what the parameter names suggest. `getCustomerCategoryTree`
+ * reads them back with the same orientation. Re-exported by
+ * `@repo/shared/utils/finago-category-pairs` for regression testing, since
+ * this package has no vitest runner.
+ */
+export function buildCustomerCategoryPairs(
+  customerId: number,
+  categoryIds: number[]
+): Array<{ Key: string; Value: string }> {
+  return categoryIds
+    .filter((id) => Number.isFinite(id))
+    .map((categoryId) => ({
+      Key: String(categoryId),
+      Value: String(customerId),
+    }));
+}
+
+/**
  * Assign categories to a customer in 24SevenOffice
  *
  * @param companyId - The 24SO company/customer ID
- * @param categories - Array of category names to assign
+ * @param categoryIds - Array of category IDs to assign
  */
 export async function saveCustomerCategories(
   companyId: number,
-  categories: string[]
+  categoryIds: number[]
 ): Promise<void> {
-  if (categories.length === 0) {
+  const categoryPairs = buildCustomerCategoryPairs(companyId, categoryIds);
+  if (categoryPairs.length === 0) {
     console.log("[24SO Categories] No categories to assign");
     return;
   }
 
   const session = await getValidSession();
   const client = await createAuthenticatedClient("company", session);
-
-  // Build category key-value pairs
-  // Key = CompanyId, Value = Category name
-  const categoryPairs: KeyValuePair[] = categories.map((category) => ({
-    Key: companyId.toString(),
-    Value: category,
-  }));
 
   try {
     const [result]: [SaveCustomerCategoriesResult] =
@@ -48,7 +63,6 @@ export async function saveCustomerCategories(
         },
       });
 
-    // Check for API exceptions in response
     const exceptions = result.SaveCustomerCategoriesResult?.APIException;
     if (exceptions) {
       const errorList = Array.isArray(exceptions) ? exceptions : [exceptions];
@@ -66,7 +80,7 @@ export async function saveCustomerCategories(
     }
 
     console.log(
-      `[24SO Categories] Assigned categories to customer ${companyId}: ${categories.join(", ")}`
+      `[24SO Categories] Assigned categories to customer ${companyId}: ${categoryIds.join(", ")}`
     );
   } catch (error) {
     console.error("[24SO Categories] Failed to save categories:", error);
@@ -75,13 +89,13 @@ export async function saveCustomerCategories(
 }
 
 /**
- * Assign a single category to a customer
+ * Assign a single category to a customer.
  */
 export function assignMembershipCategory(
   companyId: number,
-  category: string
+  categoryId: number
 ): Promise<void> {
-  return saveCustomerCategories(companyId, [category]);
+  return saveCustomerCategories(companyId, [categoryId]);
 }
 
 /**

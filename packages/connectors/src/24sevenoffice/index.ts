@@ -12,6 +12,7 @@ export { getValidSession, hasSession } from "./auth";
 // Category management
 export {
   assignMembershipCategory,
+  buildCustomerCategoryPairs,
   type CustomerCategoryMapping,
   getAllCategories,
   getCustomerCategories,
@@ -25,17 +26,14 @@ export {
   findOrCreateCompany,
   getCompaniesByIds,
   getCompanyById,
+  MembershipCustomerLookupError,
   searchCustomerByStudentId,
+  upsertMembershipCustomer,
 } from "./company";
 // Department list (SOAP — includes inactive departments)
 export { getAllDepartmentsSoap, type SoapDepartment } from "./departments";
-export type { InvoiceOrder, InvoiceRow } from "./invoice";
 // Invoice management
-export {
-  CAMPUS_DEPARTMENT_IDS,
-  CAMPUS_NAMES,
-  createMembershipInvoice,
-} from "./invoice";
+export { postMembershipInvoice } from "./invoice";
 // Membership product sync (admin)
 export {
   isActiveByDate,
@@ -44,6 +42,12 @@ export {
   previewMembershipSync,
   syncMembershipsFrom24SO,
 } from "./membership-sync";
+// Membership sync row merge (administrator-owned price/canPurchase)
+export type {
+  ExistingMembershipRow,
+  MembershipSyncItemLike,
+} from "./membership-sync-merge";
+export { mergeMembershipRow, parsePrice } from "./membership-sync-merge";
 // Products management
 export { getMembershipProducts, getProducts } from "./products";
 // Finago REST API
@@ -66,16 +70,14 @@ export {
   uploadDocument,
 } from "./rest";
 // Customer sync function
-export { hasMembershipProduct, syncMembershipTo24SO } from "./sync";
+export { hasMembershipProduct } from "./sync";
 // Types
 export type {
   CategoryDefinition,
   Company,
   CompanySearchParams,
   Credentials,
-  CustomerData,
   MembershipProductSyncItem,
   MembershipProductSyncResult,
-  MembershipSyncResult,
   Product,
 } from "./types";

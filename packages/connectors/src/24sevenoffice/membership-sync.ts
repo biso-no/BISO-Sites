@@ -6,7 +6,9 @@
  */
 
 import { createAdminClient } from "@repo/api/server";
+import type { Memberships } from "@repo/api/types/appwrite";
 import { getAllCategories } from "./categories";
+import { mergeMembershipRow, parsePrice } from "./membership-sync-merge";
 import { getMembershipProducts } from "./products";
 import type {
   CategoryDefinition,
@@ -126,43 +128,56 @@ function buildSyncItem(
     expiryDate,
     startDate,
     isActive,
+    price: parsePrice(product.Price),
   };
 }
 
 /**
- * Upsert a membership to Appwrite
+ * True when an Appwrite SDK error's `code` indicates the row was not found.
+ */
+function isNotFoundError(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    error.code === 404
+  );
+}
+
+/**
+ * Upsert a membership to Appwrite.
+ *
+ * Reads the existing row first (rather than blind-updating and creating on a
+ * 404 catch) so `mergeMembershipRow` can decide whether an administrator-set
+ * `price`/`canPurchase` should be preserved. A read failure that is not a 404
+ * — e.g. a network or permissions error — is rethrown instead of being
+ * treated as "row doesn't exist", so it can't silently fall through to a
+ * duplicate create attempt.
  */
 async function upsertMembership(
   db: Awaited<ReturnType<typeof createAdminClient>>["db"],
   syncItem: MembershipProductSyncItem
 ): Promise<"created" | "updated"> {
   const docId = String(syncItem.productId);
-  const docData = {
-    membership_id: docId,
-    name: syncItem.productName,
-    category: syncItem.categoryId ? String(syncItem.categoryId) : null,
-    expiryDate: syncItem.expiryDate,
-    startDate: syncItem.startDate,
-    status: syncItem.isActive,
-    price: 0,
-    canPurchase: false,
-  };
 
+  let existing: Memberships | null = null;
   try {
+    existing = await db.getRow<Memberships>("app", "memberships", docId);
+  } catch (readError: unknown) {
+    if (!isNotFoundError(readError)) {
+      throw readError;
+    }
+  }
+
+  const docData = mergeMembershipRow(syncItem, existing);
+
+  if (existing) {
     await db.updateRow("app", "memberships", docId, docData);
     return "updated";
-  } catch (updateError: unknown) {
-    if (
-      typeof updateError === "object" &&
-      updateError !== null &&
-      "code" in updateError &&
-      updateError.code === 404
-    ) {
-      await db.createRow("app", "memberships", docId, docData);
-      return "created";
-    }
-    throw updateError;
   }
+
+  await db.createRow("app", "memberships", docId, docData);
+  return "created";
 }
 
 /**
@@ -290,6 +305,7 @@ export async function previewMembershipSync(): Promise<
       expiryDate,
       startDate,
       isActive,
+      price: parsePrice(product.Price),
     });
   }
 

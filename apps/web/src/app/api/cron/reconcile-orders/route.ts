@@ -6,6 +6,13 @@ import {
   postFinagoTransactionForOrder,
   releaseStaleFinagoClaim,
 } from "@repo/shared/utils/finago-order-posting";
+import {
+  fulfilMembershipOrder,
+  isMembershipOrder,
+  type MembershipOrder,
+  releaseStaleMembershipClaim,
+  stampNonMembershipOrder,
+} from "@repo/shared/utils/membership-fulfilment";
 import { safeSecretCompare } from "@repo/shared/utils/secrets";
 import { NextResponse } from "next/server";
 import { isProd } from "@/lib/utils";
@@ -16,15 +23,20 @@ import { isProd } from "@/lib/utils";
  * with an `x-cron-secret` header; can also be hit manually with
  * `Authorization: Bearer ${CRON_SECRET}`.
  *
- * Two passes per run:
+ * Three passes per run:
  * 1. Payment reconcile — pending/authorized Vipps orders older than the grace
  *    window are re-fetched from Vipps (capture-if-authorized + idempotent
  *    status transition). Recovers orders whose webhook never landed and
  *    mobile buyers who never returned to the site.
- * 2. Finago recovery — paid/authorized orders with no `finago_transaction_id`
- *    get their ledger posting retried (stale posting claims are released
- *    first). The atomic claim inside postFinagoTransactionForOrder keeps this
- *    safe alongside the webhook and return-route triggers.
+ * 2. Finago recovery — paid/authorized shop orders with no
+ *    `finago_transaction_id` get their ledger posting retried (stale posting
+ *    claims are released first). The atomic claim inside
+ *    postFinagoTransactionForOrder keeps this safe alongside the webhook and
+ *    return-route triggers.
+ * 3. Membership recovery — paid/authorized membership orders with no
+ *    `membership_invoice_id` get fulfilment retried (stale fulfilment claims
+ *    are released first), the same way as pass 2. Recovers mobile buyers who
+ *    never return to the browser return route.
  *
  * Recommended schedule: every 10-15 minutes.
  */
@@ -133,6 +145,68 @@ async function sweepMissingFinagoPostings(db: AdminDb): Promise<{
   return { posted, released, errors };
 }
 
+async function recoverMembershipFulfilment(db: AdminDb): Promise<{
+  fulfilled: number;
+  released: number;
+  errors: number;
+}> {
+  let fulfilled = 0;
+  let released = 0;
+  let errors = 0;
+
+  const orders = await db.listRows<MembershipOrder>("app", "orders", [
+    Query.equal("status", ["paid", "authorized"]),
+    Query.isNull("membership_invoice_id"),
+    Query.lessThan("$createdAt", cutoffIso()),
+    Query.limit(SWEEP_LIMIT),
+  ]);
+
+  for (const order of orders.rows) {
+    if (!isMembershipOrder(order)) {
+      // membership_invoice_id is only ever written for a membership order,
+      // so an unstamped shop order matches this sweep's `IS NULL` query
+      // forever. Stamp the non-membership sentinel so it drops out
+      // permanently instead of consuming the sweep's row budget on every
+      // future run — without this, a large-enough backlog of old paid shop
+      // orders starves out genuinely unfulfilled membership orders (this
+      // sweep has no ordering clause and a capped row limit).
+      await stampNonMembershipOrder(order.$id, db);
+      continue;
+    }
+    try {
+      if (await releaseStaleMembershipClaim(order, db)) {
+        released += 1;
+        // Lock was stale; retry on the next sweep rather than immediately, so
+        // a still-running fulfiller isn't raced.
+        continue;
+      }
+      if ((order.membership_fulfilment_lock ?? 0) > 0) {
+        // A live (non-stale) claim is held by an active fulfiller. Do not
+        // probe it: calling fulfilMembershipOrder here would touch the row and
+        // refresh $updatedAt every sweep, so a claim left behind by a crashed
+        // fulfiller could never age past the stale-claim window and would
+        // strand the paid order unfulfilled. Wait for the holder to finish or
+        // for releaseStaleMembershipClaim above to reclaim it.
+        continue;
+      }
+      const result = await fulfilMembershipOrder(order.$id, db);
+      if (result.fulfilled) {
+        fulfilled += 1;
+      } else if (result.reason === "finago_failed") {
+        errors += 1;
+      }
+    } catch (error) {
+      errors += 1;
+      console.error(
+        `[Reconcile Orders] Membership recovery failed for order ${order.$id}:`,
+        error
+      );
+    }
+  }
+
+  return { fulfilled, released, errors };
+}
+
 async function handle(request: Request) {
   const cronSecret = process.env.CRON_SECRET;
 
@@ -152,6 +226,7 @@ async function handle(request: Request) {
     const { db } = await createAdminClient();
     const reconcile = await sweepUnsettledOrders(db);
     const finago = await sweepMissingFinagoPostings(db);
+    const membership = await recoverMembershipFulfilment(db);
 
     return NextResponse.json(
       {
@@ -159,7 +234,9 @@ async function handle(request: Request) {
         reconciled: reconcile.reconciled,
         finagoPosted: finago.posted,
         staleClaimsReleased: finago.released,
-        errors: reconcile.errors + finago.errors,
+        membershipFulfilled: membership.fulfilled,
+        membershipClaimsReleased: membership.released,
+        errors: reconcile.errors + finago.errors + membership.errors,
         timestamp: new Date().toISOString(),
       },
       { headers: { "Cache-Control": "no-store" } }

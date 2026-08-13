@@ -5,6 +5,7 @@ import { createAuthenticatedClient } from "@/lib/auth";
 import { POST } from "./route";
 
 const mocks = vi.hoisted(() => ({
+  computeMembershipStatus: vi.fn(),
   createOrder: vi.fn(),
   createStripeCheckoutSession: vi.fn(),
   createVippsPayment: vi.fn(),
@@ -23,6 +24,9 @@ vi.mock("@/lib/auth", () => ({
 vi.mock("@repo/shared/utils/feature-flags-server", () => ({
   isFeatureEnabled: vi.fn().mockResolvedValue(true),
 }));
+vi.mock("@repo/shared/utils/membership-status", () => ({
+  computeMembershipStatus: mocks.computeMembershipStatus,
+}));
 vi.mock("@repo/payment/credentials", () => ({
   resolveStripeCredentials: mocks.resolveStripeCredentials,
   resolveVippsCredentials: mocks.resolveVippsCredentials,
@@ -40,6 +44,7 @@ vi.mock("@repo/shared/utils/vipps-order-ops", () => ({
 
 const mockedCreateAdminClient = vi.mocked(createAdminClient);
 const mockedCreateAuthenticatedClient = vi.mocked(createAuthenticatedClient);
+const mockedComputeMembershipStatus = mocks.computeMembershipStatus;
 const mockedResolveStripeCredentials = mocks.resolveStripeCredentials;
 const mockedResolveVippsCredentials = mocks.resolveVippsCredentials;
 const mockedCreateStripeCheckoutSession = mocks.createStripeCheckoutSession;
@@ -102,18 +107,37 @@ async function postVipps(request: NextRequest) {
   });
 }
 
-function mockAuthenticatedUser(userId = "session-user") {
+function mockAuthenticatedUser(
+  userId = "session-user",
+  profile: Record<string, unknown> = { student_id: null }
+) {
   mockedCreateAuthenticatedClient.mockResolvedValue({
     account: {
       get: vi.fn().mockResolvedValue({ $id: userId }),
     },
     db: {
-      getRow: vi.fn().mockResolvedValue({ studentId: null }),
+      getRow: vi.fn().mockResolvedValue(profile),
     },
     functions: {
       createExecution: vi.fn(),
     },
   } as unknown as Awaited<ReturnType<typeof createAuthenticatedClient>>);
+}
+
+const discountProductRow = {
+  ...productRow,
+  metadata: JSON.stringify({
+    member_discount_enabled: true,
+    member_discount_percent: 50,
+  }),
+};
+
+function mockAdminClientWithProduct(product: Record<string, unknown>) {
+  mockedCreateAdminClient.mockResolvedValue({
+    db: {
+      getRow: vi.fn().mockResolvedValue(product),
+    },
+  } as unknown as Awaited<ReturnType<typeof createAdminClient>>);
 }
 
 function mockAdminClient() {
@@ -448,5 +472,112 @@ describe("payment checkout authorization", () => {
       message: "Vipps checkout timed out",
     });
     expect(mockedUpdateOrderWithSession).not.toHaveBeenCalled();
+  });
+
+  describe("member discount pricing", () => {
+    it("applies the member discount for an active Finago member", async () => {
+      mockAdminClientWithProduct(discountProductRow);
+      mockAuthenticatedUser("session-user", { student_id: "1715738" });
+      mockedComputeMembershipStatus.mockResolvedValue({
+        checkedAt: Date.now(),
+        finagoCategoryIds: [123],
+        isMember: true,
+        memberships: [],
+      });
+
+      const response = await postVipps(
+        checkoutRequest({ authorization: "Bearer valid", total: 99.5 })
+      );
+
+      expect(response.status).toBe(200);
+      expect(mockedComputeMembershipStatus).toHaveBeenCalledWith(1_715_738);
+      expect(mockedCreateOrder).toHaveBeenCalledWith(
+        expect.objectContaining({
+          items: [
+            expect.objectContaining({
+              price: 99.5,
+              productId: "product-1",
+              unit_price: 99.5,
+            }),
+          ],
+          membershipApplied: true,
+          memberDiscountPercent: 50,
+          subtotal: 99.5,
+          total: 99.5,
+        }),
+        expect.anything()
+      );
+    });
+
+    it("charges full price for a non-member with a linked student id", async () => {
+      mockAdminClientWithProduct(discountProductRow);
+      mockAuthenticatedUser("session-user", { student_id: "1715738" });
+      mockedComputeMembershipStatus.mockResolvedValue({
+        checkedAt: Date.now(),
+        finagoCategoryIds: [],
+        isMember: false,
+        memberships: [],
+      });
+
+      const response = await postVipps(
+        checkoutRequest({ authorization: "Bearer valid", total: 199 })
+      );
+
+      expect(response.status).toBe(200);
+      expect(mockedComputeMembershipStatus).toHaveBeenCalledWith(1_715_738);
+      expect(mockedCreateOrder).toHaveBeenCalledWith(
+        expect.objectContaining({
+          items: [expect.objectContaining({ price: 199, unit_price: 199 })],
+          membershipApplied: false,
+          subtotal: 199,
+          total: 199,
+        }),
+        expect.anything()
+      );
+    });
+
+    it("fails closed to full price when the Finago membership lookup throws", async () => {
+      mockAdminClientWithProduct(discountProductRow);
+      mockAuthenticatedUser("session-user", { student_id: "1715738" });
+      mockedComputeMembershipStatus.mockRejectedValue(
+        new Error("Finago unavailable")
+      );
+
+      const response = await postVipps(
+        checkoutRequest({ authorization: "Bearer valid", total: 199 })
+      );
+
+      expect(response.status).toBe(200);
+      expect(mockedCreateOrder).toHaveBeenCalledWith(
+        expect.objectContaining({
+          items: [expect.objectContaining({ price: 199, unit_price: 199 })],
+          membershipApplied: false,
+          subtotal: 199,
+          total: 199,
+        }),
+        expect.anything()
+      );
+    });
+
+    it("charges full price and skips the Finago lookup when the profile has no student id", async () => {
+      mockAdminClientWithProduct(discountProductRow);
+      mockAuthenticatedUser("session-user", { student_id: null });
+
+      const response = await postVipps(
+        checkoutRequest({ authorization: "Bearer valid", total: 199 })
+      );
+
+      expect(response.status).toBe(200);
+      expect(mockedComputeMembershipStatus).not.toHaveBeenCalled();
+      expect(mockedCreateOrder).toHaveBeenCalledWith(
+        expect.objectContaining({
+          items: [expect.objectContaining({ price: 199, unit_price: 199 })],
+          membershipApplied: false,
+          subtotal: 199,
+          total: 199,
+        }),
+        expect.anything()
+      );
+    });
   });
 });

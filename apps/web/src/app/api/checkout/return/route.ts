@@ -6,6 +6,10 @@ import {
   type FinagoOrder,
   postFinagoTransactionForOrder,
 } from "@repo/shared/utils/finago-order-posting";
+import {
+  fulfilMembershipOrder,
+  isMembershipOrder,
+} from "@repo/shared/utils/membership-fulfilment";
 import { determineStatusFromStripeSession } from "@repo/shared/utils/stripe-pure";
 import { applyOrderStatusTransition } from "@repo/shared/utils/vipps-order-ops";
 import { NextResponse } from "next/server";
@@ -63,9 +67,23 @@ async function syncOrderStatusFromProvider(
   }
 }
 
+/**
+ * Paid/authorized and the default (pending) case fall through to the shared
+ * `/shop/order/[orderId]` status page regardless of order type — it already
+ * renders membership purchases generically (see `resolvePurchaseType` there)
+ * and there is no separate membership confirmation page. Cancelled/failed are
+ * different: those destinations point at the shop cart, which a membership
+ * buyer never touched (membership orders are created directly by
+ * membership-checkout, bypassing the cart entirely), so sending them there
+ * would be confusing. Route those two back to the join flow instead, matching
+ * the cancelUrl the Stripe membership checkout already uses
+ * (`/membership/join?cancelled=true`, see apps/api's membership-checkout
+ * route) for consistency.
+ */
 function redirectForStatus(
   status: string | null | undefined,
-  orderId: string
+  orderId: string,
+  isMembership: boolean
 ): NextResponse {
   switch (status) {
     case "paid":
@@ -74,9 +92,21 @@ function redirectForStatus(
         siteUrl(`/shop/order/${orderId}?success=true`)
       );
     case "cancelled":
-      return NextResponse.redirect(siteUrl("/shop/cart?cancelled=true"));
+      return NextResponse.redirect(
+        siteUrl(
+          isMembership
+            ? "/membership/join?cancelled=true"
+            : "/shop/cart?cancelled=true"
+        )
+      );
     case "failed":
-      return NextResponse.redirect(siteUrl("/shop/cart?error=payment_failed"));
+      return NextResponse.redirect(
+        siteUrl(
+          isMembership
+            ? "/membership/join?error=payment_failed"
+            : "/shop/cart?error=payment_failed"
+        )
+      );
     default:
       return NextResponse.redirect(siteUrl(`/shop/order/${orderId}`));
   }
@@ -90,10 +120,12 @@ function redirectForStatus(
  * before showing the outcome, handling races where the callback may not have
  * been processed yet.
  *
- * Finago (24SO) revenue posting is attempted here as one of three redundant
- * triggers (webhook callback, this return route, reconciliation cron) — the
- * atomic posting claim inside postFinagoTransactionForOrder guarantees only
- * one of them actually posts.
+ * Revenue settlement is attempted here as one of three redundant triggers
+ * (webhook callback, this return route, reconciliation cron): membership
+ * orders are fulfilled as a 24SO invoice (fulfilMembershipOrder), everything
+ * else is posted as a shop ledger transaction (postFinagoTransactionForOrder)
+ * — the atomic claim inside each helper guarantees only one of the three
+ * triggers actually settles a given order.
  */
 export async function GET(request: Request) {
   try {
@@ -122,11 +154,17 @@ export async function GET(request: Request) {
 
     console.info(`[Checkout Return] Order ${orderId} status: ${status}`);
 
+    const isMembership = isMembershipOrder(updatedOrder ?? order);
+
     if (status === "authorized" || status === "paid") {
-      await postFinagoTransactionForOrder(orderId, db);
+      if (isMembership) {
+        await fulfilMembershipOrder(orderId, db);
+      } else {
+        await postFinagoTransactionForOrder(orderId, db);
+      }
     }
 
-    return redirectForStatus(status, orderId);
+    return redirectForStatus(status, orderId, isMembership);
   } catch (error) {
     console.error("[Checkout Return] Error:", error);
     return NextResponse.redirect(siteUrl("/shop?error=unknown"));

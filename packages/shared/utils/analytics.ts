@@ -24,6 +24,7 @@ export type AnalyticsEventName =
   | "checkout_start"
   | "checkout_provider_selected"
   | "membership_cta_click"
+  | "membership_purchase_start"
   | "job_application_step"
   | "job_application_submit"
   | "varsling_submit"

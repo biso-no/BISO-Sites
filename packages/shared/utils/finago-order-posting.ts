@@ -1,5 +1,6 @@
 import type { Orders as BaseOrders } from "@repo/api/types/appwrite";
 import { postShopTransaction } from "@repo/connectors/24sevenoffice";
+import { isMembershipOrder } from "./membership-fulfilment";
 import { parseOrderItems } from "./order-parsing";
 import type { DbClient } from "./vipps-order-ops";
 
@@ -16,6 +17,7 @@ export interface FinagoPostingResult {
   reason?:
     | "already_posted"
     | "claimed_elsewhere"
+    | "membership_order"
     | "not_found"
     | "not_paid"
     | "post_failed";
@@ -32,6 +34,16 @@ const POSTABLE_STATUSES = new Set(["authorized", "paid"]);
 // second 24SO transaction. Such an order is left for manual recovery. Mirrors
 // the expense-posting claim marker.
 const FINAGO_POSTING_MARKER = "posting";
+
+// Stamped into `finago_transaction_id` for a membership order in place of a
+// real transaction id — reusing the same "non-transaction sentinel in this
+// column" convention as FINAGO_POSTING_MARKER above, not a new abuse of the
+// field. Without this, a membership order would satisfy the reconciliation
+// cron's `finago_transaction_id IS NULL` sweep query forever (it never gets a
+// real transaction id posted), re-entering that capped window on every cron
+// run for the order's entire lifetime and eventually crowding out genuinely
+// unposted shop orders.
+const MEMBERSHIP_LEDGER_EXCLUSION = "membership";
 
 function ordersTable() {
   return {
@@ -121,9 +133,33 @@ export async function postFinagoTransactionForOrder(
     return { posted: false, reason: "not_paid" };
   }
   if (order.finago_transaction_id) {
-    // Either a real transaction id (already posted) or the in-flight/manual-
-    // recovery marker — both mean no automatic path may post this order again.
+    // Either a real transaction id (already posted), the in-flight/manual-
+    // recovery marker, or the membership-exclusion sentinel stamped below —
+    // all three mean no automatic path may post this order again. Checking
+    // this before the membership check means a membership order that has
+    // already been stamped short-circuits here on any later call instead of
+    // attempting (and skipping) a redundant stamp write every time.
     return { posted: false, reason: "already_posted" };
+  }
+  // Memberships are booked as a 24SO invoice by fulfilMembershipOrder, not as a
+  // shop ledger transaction. Posting both would record the same revenue twice.
+  // Stamp the exclusion sentinel (see MEMBERSHIP_LEDGER_EXCLUSION) so this row
+  // permanently drops out of the reconciliation cron's sweep instead of
+  // re-entering it forever. Best-effort: a failed write must not change the
+  // outcome for the caller — a later call (this sweep or the next) will
+  // simply try to stamp it again, which is harmless.
+  if (isMembershipOrder(order)) {
+    await db
+      .updateRow(dbId, collId, orderId, {
+        finago_transaction_id: MEMBERSHIP_LEDGER_EXCLUSION,
+      })
+      .catch((error) => {
+        console.error(
+          `[Finago] Failed to stamp membership exclusion for order ${orderId}:`,
+          error
+        );
+      });
+    return { posted: false, reason: "membership_order" };
   }
 
   if (db.incrementRowColumn) {

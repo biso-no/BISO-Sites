@@ -5,13 +5,28 @@
  * Types are defined manually here based on the published API spec.
  */
 
-import { CAMPUS_DEPARTMENT_IDS } from "../invoice";
 import { getAccessToken } from "./auth";
 import { finago } from "./client";
 import { DEPARTMENT_DIMENSION_TYPE } from "./departments";
 import type { components } from "./schema";
 
 const BASE_URL = "https://rest.api.24sevenoffice.com/v1";
+
+/**
+ * Campus to 24SevenOffice DepartmentId mapping for webshop general-ledger
+ * transactions. This is a distinct legacy department scheme from the one
+ * membership invoices use (`CAMPUS_INVOICE_DEPARTMENT_IDS` in
+ * `@repo/shared/utils/finago-membership-invoice`) and is unrelated to
+ * membership purchases, so it is kept local rather than imported — this
+ * package cannot depend on `@repo/shared` (workspace cycle).
+ */
+const SHOP_CAMPUS_DEPARTMENT_IDS: Record<string, number> = {
+  "1": 2, // Oslo
+  "2": 301, // Bergen
+  "3": 601, // Trondheim
+  "4": 801, // Stavanger
+  "5": 1002, // National
+};
 
 interface TransactionLine {
   accountNumber: number;
@@ -85,7 +100,7 @@ export async function postShopTransaction(
   }
 
   const departmentId = params.campusId
-    ? CAMPUS_DEPARTMENT_IDS[params.campusId]
+    ? SHOP_CAMPUS_DEPARTMENT_IDS[params.campusId]
     : undefined;
 
   const departmentDimension: TransactionLine["dimensions"] = departmentId

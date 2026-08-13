@@ -14,7 +14,9 @@ import {
 import { createStripeCheckoutSession } from "@repo/payment/stripe";
 import { createVippsPayment } from "@repo/payment/vipps";
 import { type CheckoutSessionParams, Currency } from "@repo/shared/types/vipps";
+import { sanitizeStudentNumber } from "@repo/shared/utils/bi-student";
 import { isFeatureEnabled } from "@repo/shared/utils/feature-flags-server";
+import { computeMembershipStatus } from "@repo/shared/utils/membership-status";
 import {
   checkMaxPerOrder,
   evaluatePerUserLimit,
@@ -406,21 +408,13 @@ async function getMemberDiscountIfAny(
 
   try {
     const profile = await authClient.db.getRow<Users>("app", "user", userId);
-    const studentId = profile?.studentId?.student_id;
-    if (!studentId) {
+    const studentNumber = sanitizeStudentNumber(profile?.student_id);
+    if (studentNumber === null) {
       return { applied: false, percent: 0 };
     }
 
-    const exec = await authClient.functions.createExecution(
-      "verify_biso_membership",
-      String(studentId),
-      false
-    );
-    const res = JSON.parse(
-      (exec as { responseBody?: string }).responseBody || "{}"
-    );
-    const isActive = Boolean(res?.membership?.status);
-    if (!isActive) {
+    const status = await computeMembershipStatus(studentNumber);
+    if (!status.isMember) {
       return { applied: false, percent: 0 };
     }
 

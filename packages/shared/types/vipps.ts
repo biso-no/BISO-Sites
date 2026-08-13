@@ -31,6 +31,19 @@ export interface CheckoutSessionParams {
     variationName?: string;
     customFields?: Record<string, string>;
     customFieldLabels?: Record<string, string>;
+    // Membership-purchase-only snapshot of the plan as purchased. Fulfilment
+    // (`resolvePurchasedPlan` in membership-fulfilment.ts) prefers this over
+    // a fresh `memberships` catalog read, since an administrator can edit or
+    // remove the catalog row between payment and fulfilment — the invoice
+    // must book what the student actually paid, not today's catalog. Falls
+    // back to a catalog read only when this snapshot is absent (orders that
+    // predate it). `price`/`unit_price` above double as the snapshotted
+    // price; `start_date` is the plan's parsed accrual start.
+    membership_id?: string;
+    category_id?: string;
+    duration?: string;
+    accrual_months?: number;
+    start_date?: string;
   }>;
   memberDiscountPercent?: number;
   membershipApplied?: boolean;

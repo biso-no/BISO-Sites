@@ -173,5 +173,72 @@
     },
     "primary": "Join today",
     "secondary": "Talk to us about membership"
+  },
+  "join": {
+    "title": "Join BISO",
+    "subtitle": "Buy your membership here if the BI Student app isn't working for you.",
+    "signedOut": {
+      "title": "Sign in to continue",
+      "body": "Membership is tied to your student record, so you need a BISO account before you can buy one.",
+      "cta": "Sign in"
+    },
+    "needsBiLink": {
+      "title": "Link your BI student account",
+      "body": "We verify your membership against your BI student record. Signing in with your student email isn't enough — link the account itself.",
+      "cta": "Link BI Student account",
+      "linkFailed": "We couldn't complete the link. Please try again, or contact us if it keeps failing."
+    },
+    "needsDirectoryRecord": {
+      "title": "We couldn't verify your BI record",
+      "body": "Your BI account is linked, but we couldn't read the student number BISO's finance system needs. We haven't charged you anything.",
+      "retry": "Try again",
+      "contact": "Contact us"
+    },
+    "checkUnavailable": {
+      "title": "We can't check your membership right now",
+      "body": "Something went wrong reaching our membership system. We haven't charged you anything — please try again in a few minutes.",
+      "cta": "Try again"
+    },
+    "cancelled": {
+      "body": "Your payment was cancelled. Nothing was charged — pick a plan below whenever you're ready."
+    },
+    "paymentFailed": {
+      "body": "Your payment didn't go through, so nothing was charged. Please try again below."
+    },
+    "alreadyMember": {
+      "title": "You're already a member",
+      "body": "Your membership runs until {expiry}.",
+      "cta": "Go to the member portal"
+    },
+    "noPlansAvailable": {
+      "title": "Membership isn't purchasable right now",
+      "body": "We don't have a membership plan open for purchase at the moment. This isn't about your account — get in touch and we'll sort it out.",
+      "cta": "Contact us"
+    },
+    "plan": {
+      "legend": "Choose how long",
+      "semester": "One semester",
+      "year": "One year",
+      "three_years": "Three years",
+      "price": "{price} kr",
+      "extends": "Extends your membership to {expiry}"
+    },
+    "campus": {
+      "legend": "Which campus do you study at?",
+      "help": "We can't detect this automatically, and your invoice is booked to your campus."
+    },
+    "pay": {
+      "legend": "Pay with",
+      "vipps": "Vipps",
+      "stripe": "Card",
+      "submit": "Pay {price} kr",
+      "working": "Starting checkout…",
+      "unavailable": "Online payment isn't available right now. Please contact us to complete your purchase."
+    },
+    "errors": {
+      "noPlan": "Choose a membership length.",
+      "noCampus": "Choose your campus.",
+      "generic": "Something went wrong. Please try again."
+    }
   }
 }

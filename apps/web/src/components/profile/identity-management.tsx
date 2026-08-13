@@ -66,13 +66,6 @@ export function IdentityManagement({
     return p;
   };
 
-  const successUrl = useMemo(() => {
-    if (typeof window === "undefined") {
-      return "";
-    }
-    return `${window.location.origin}/profile?linked=1`;
-  }, []);
-
   const failureUrl = useMemo(() => {
     if (typeof window === "undefined") {
       return "";
@@ -83,6 +76,17 @@ export function IdentityManagement({
   const linkProvider = (provider: OAuthProvider) => {
     startLinkTransition(async () => {
       try {
+        const base = window.location.origin;
+        // Only the OIDC (BI Student) provider needs the BI sync: its success
+        // URL routes through /api/auth/bi-link, which runs the sync + cache
+        // invalidation outside the render path and only then redirects back
+        // here — see that route's doc comment for why. Other providers
+        // (Microsoft/BISO) don't touch BI identity fields, so they go
+        // straight back to /profile.
+        const successUrl =
+          provider === OAuthProvider.Oidc
+            ? `${base}/api/auth/bi-link?returnTo=/profile`
+            : `${base}/profile?linked=1`;
         await clientAccount.createOAuth2Session(
           provider,
           successUrl,
