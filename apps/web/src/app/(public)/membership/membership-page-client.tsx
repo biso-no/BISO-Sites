@@ -503,7 +503,7 @@ export function MembershipPageClient({
                     size="lg"
                   >
                     <Link
-                      href="/shop/membership/"
+                      href="/membership/join/"
                       onClick={() =>
                         trackEvent("membership_cta_click", {
                           source: "membership_page",
@@ -862,7 +862,7 @@ export function MembershipPageClient({
                     size="lg"
                   >
                     <Link
-                      href="/shop/membership/"
+                      href="/membership/join/"
                       onClick={() =>
                         trackEvent("membership_cta_click", {
                           source: "membership_page",

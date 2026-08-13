@@ -32,6 +32,13 @@ const baseConfig: NextConfig = {
     // Next 16 requires every quality used by <Image quality={…}> to be
     // declared (hero uses 85; 75 is the default).
     qualities: [75, 85],
+    // Next's optimizer 400s any .svg source by default (XSS risk from
+    // untrusted SVGs). Our SVGs are trusted static files under public/images
+    // (brand marks, payment-provider logos), never user-uploaded — allow them
+    // through, with the CSP Next recommends for this flag as defense in depth.
+    dangerouslyAllowSVG: true,
+    contentDispositionType: "attachment",
+    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
     remotePatterns: [
       {
         protocol: "https",

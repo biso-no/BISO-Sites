@@ -208,6 +208,7 @@
     "alreadyMember": {
       "title": "Du er allerede medlem",
       "body": "Medlemskapet ditt løper til {expiry}.",
+      "bodyUnknownExpiry": "Du har allerede et aktivt medlemskap.",
       "cta": "Gå til medlemsportalen"
     },
     "noPlansAvailable": {
@@ -221,22 +222,22 @@
       "year": "Ett år",
       "three_years": "Tre år",
       "price": "{price} kr",
-      "extends": "Utvider medlemskapet ditt til {expiry}"
+      "extends": "Utvider medlemskapet ditt til {expiry}",
+      "popular": "Mest populær"
     },
     "campus": {
       "legend": "Hvilken campus studerer du ved?",
       "help": "Vi kan ikke oppdage dette automatisk, og fakturaen din bokføres på campusen din."
     },
     "pay": {
-      "legend": "Betal med",
+      "legend": "Fullfør medlemskapet",
+      "summary": "Ditt medlemskap",
       "vipps": "Vipps",
-      "stripe": "Kort",
-      "submit": "Betal {price} kr",
-      "working": "Starter betaling…",
+      "vippsAlt": "Betal med Vipps",
+      "stripe": "Betal med kort",
       "unavailable": "Nettbetaling er ikke tilgjengelig akkurat nå. Vennligst kontakt oss for å fullføre kjøpet."
     },
     "errors": {
-      "noPlan": "Velg en medlemskapslengde.",
       "noCampus": "Velg campusen din.",
       "generic": "Noe gikk feil. Vennligst prøv igjen."
     }

@@ -9,6 +9,18 @@
 
 export type MembershipDuration = "semester" | "year" | "three_years";
 
+/** The duration surfaced as "Popular" everywhere a plan picker renders one. */
+export const POPULAR_MEMBERSHIP_DURATION: MembershipDuration = "year";
+
+/** Shared NOK formatter for every membership price display (purchase flow,
+ * member portal CTA, admin). Always nb-NO regardless of UI locale — same
+ * convention as the shop checkout's own currency formatting. */
+export const membershipPriceFormatter = new Intl.NumberFormat("nb-NO", {
+  style: "currency",
+  currency: "NOK",
+  maximumFractionDigits: 0,
+});
+
 export interface MembershipPlan {
   accrualMonths: 6 | 12 | 36;
   categoryId: number;

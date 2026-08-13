@@ -19,6 +19,7 @@ import {
   Newspaper,
   Settings,
   ShoppingCart,
+  Users,
 } from "lucide-react";
 import { hasNavAccess, type NavKey } from "@/lib/roles";
 
@@ -55,6 +56,7 @@ const leaf = (
 export const NAV_TREE: NavNode[] = [
   leaf("overview", "portal.dashboard", "/", LayoutDashboard),
   leaf("inbox", "portal.inbox", "/inbox", Inbox),
+  leaf("members", "portal.members", "/members", Users),
   {
     children: [
       leaf("pages", "portal.pages", "/pages", Layers),

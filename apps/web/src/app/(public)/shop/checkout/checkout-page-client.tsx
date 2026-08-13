@@ -24,9 +24,10 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { type FormEvent, type ReactNode, useState, useTransition } from "react";
+import { type FormEvent, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { createCartCheckoutSession } from "@/app/actions/orders";
+import { StepCard } from "@/components/shared/step-card";
 import { type CartItem, useCart } from "@/lib/contexts/cart-context";
 
 const NOK = new Intl.NumberFormat("nb-NO", {
@@ -59,33 +60,6 @@ function buildCheckoutLineTitle(item: CartItem) {
     : "";
 
   return optionSummary ? `${item.name} (${optionSummary})` : item.name;
-}
-
-function StepCard({
-  step,
-  title,
-  badge,
-  children,
-}: {
-  step: number;
-  title: string;
-  badge?: ReactNode;
-  children: ReactNode;
-}) {
-  return (
-    <section className="rounded-3xl border border-border/60 bg-card p-6 shadow-sm sm:p-8">
-      <div className="mb-6 flex items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand font-semibold text-sm text-white">
-            {step}
-          </span>
-          <h2 className="font-semibold text-foreground text-lg">{title}</h2>
-        </div>
-        {badge}
-      </div>
-      {children}
-    </section>
-  );
 }
 
 function CheckoutSkeleton() {
@@ -480,7 +454,7 @@ export function CheckoutPageClient({
             <Alert className="mt-5" variant="destructive">
               <AlertCircle className="h-4 w-4" />
               <AlertTitle>{t("checkout.submit.failed")}</AlertTitle>
-              <AlertDescription className="break-words">
+              <AlertDescription className="wrap-break-word">
                 {errorMessage}
               </AlertDescription>
             </Alert>

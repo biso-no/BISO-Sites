@@ -195,8 +195,14 @@
   },
   "order": {
     "confirmedTitle": "Order Confirmed!",
+    "membershipConfirmedTitle": "Welcome to BISO!",
     "detailsTitle": "Order Details",
     "orderNumber": "Order #{id}",
+    "membershipWelcome": {
+      "title": "You're a member now",
+      "desc": "Your membership is active. All discounts and benefits are available right away in the BISO app and the member portal.",
+      "cta": "Go to the member portal"
+    },
     "success": {
       "title": "Thank you for your purchase!",
       "desc": "Your payment is confirmed and your order is being processed. You'll receive a confirmation email shortly with pickup details."

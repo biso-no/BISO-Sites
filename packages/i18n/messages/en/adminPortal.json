@@ -21,6 +21,7 @@
     "drafts": "Review Drafts",
     "approvals": "Approvals",
     "inbox": "Inbox",
+    "members": "Members",
     "content": "Content",
     "organization": "Organization",
     "system": "System",
@@ -1119,6 +1120,36 @@
     },
     "saveSuccess": "Settings saved",
     "saveError": "Failed to save settings"
+  },
+  "members": {
+    "title": "Members",
+    "description": "Everyone with a BISO membership, across the campuses you can see.",
+    "searchPlaceholder": "Search by name or email…",
+    "empty": "No members found",
+    "emptyDescription": "Try a different search or filter.",
+    "unnamed": "Unnamed",
+    "noCampus": "No campus on file",
+    "noPlan": "No plan",
+    "noExpiry": "No expiry on file",
+    "filters": {
+      "all": "All",
+      "active": "Active",
+      "inactive": "Inactive"
+    },
+    "status": {
+      "active": "Active",
+      "inactive": "Not a member"
+    },
+    "detail": {
+      "back": "Back to members",
+      "contact": "Contact",
+      "campus": "Campus",
+      "expiry": "Expires",
+      "membershipHistory": "Membership history",
+      "noHistory": "No membership history on file.",
+      "notFound": "Member not found",
+      "planPrice": "{price} kr"
+    }
   },
   "unauthorized": {
     "tagline": "Access denied",

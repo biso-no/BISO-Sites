@@ -195,8 +195,14 @@
   },
   "order": {
     "confirmedTitle": "Bestilling bekreftet!",
+    "membershipConfirmedTitle": "Velkommen som BISO-medlem!",
     "detailsTitle": "Bestillingsdetaljer",
     "orderNumber": "Bestilling #{id}",
+    "membershipWelcome": {
+      "title": "Du er nå medlem",
+      "desc": "Medlemskapet ditt er aktivert. Alle rabatter og fordeler er tilgjengelige i BISO-appen og medlemsportalen med det samme.",
+      "cta": "Gå til medlemsportalen"
+    },
     "success": {
       "title": "Takk for kjøpet!",
       "desc": "Betalingen er bekreftet og bestillingen behandles. Du får snart en bekreftelse på e-post med hentedetaljer."

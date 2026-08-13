@@ -226,7 +226,7 @@ export function ShopListClient({
                     {t("emptyState.membershipBody")}
                   </p>
                   <Button asChild size="sm">
-                    <Link href="/shop/membership">
+                    <Link href="/membership/join">
                       {t("emptyState.membershipCta")}
                     </Link>
                   </Button>

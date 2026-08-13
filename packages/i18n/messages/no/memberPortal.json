@@ -203,14 +203,21 @@
     "plans": {
       "semester": "Semester",
       "year": "Ett år",
-      "three-year": "Tre år"
+      "three_years": "Tre år"
     },
     "popular": "Mest populær",
     "monthly": "~{price} NOK/måned",
     "save": "Spar {percent}%",
     "joinNow": "Bli BISO-medlem nå",
     "processing": "Behandler...",
-    "socialProof": "Bli med 10 000+ BI-studenter som allerede sparer"
+    "socialProof": "Bli med 10 000+ BI-studenter som allerede sparer",
+    "benefits": {
+      "discounts": "Eksklusive rabatter hos 50+ partnere",
+      "events": "Tilgang til medlemsarrangementer",
+      "career": "Karriereressurser og nettverksbygging",
+      "card": "Digitalt medlemskort",
+      "priority": "Prioritert tilgang til utsolgte arrangementer"
+    }
   },
   "locked": {
     "description": "Lås opp dette innholdet og alle medlemsfordeler",

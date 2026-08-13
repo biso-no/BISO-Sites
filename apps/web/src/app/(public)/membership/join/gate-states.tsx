@@ -4,13 +4,23 @@ import { clientAccount, OAuthProvider } from "@repo/api/client";
 import { Alert, AlertDescription } from "@repo/ui/components/ui/alert";
 import { Button } from "@repo/ui/components/ui/button";
 import { Card } from "@repo/ui/components/ui/card";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  Link2,
+  LogIn,
+  RefreshCw,
+  UserSearch,
+} from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import type { ComponentType } from "react";
 import { useTransition } from "react";
 
-// Each of these gate states is a single-purpose page with no other heading on
-// it — the title here is the page's only <h1>, not a subsection heading.
+// The page's <h1> lives in the branded hero shell above (join/page.tsx); this
+// is the state's own secondary heading.
 function StateCard({
+  icon: Icon,
   title,
   body,
   alert,
@@ -19,11 +29,15 @@ function StateCard({
   alert?: React.ReactNode;
   body: string;
   children?: React.ReactNode;
+  icon: ComponentType<{ className?: string }>;
   title: string;
 }) {
   return (
-    <Card className="mx-auto max-w-xl p-8 text-center">
-      <h1 className="mb-2 font-bold text-foreground text-xl">{title}</h1>
+    <Card className="mx-auto max-w-xl rounded-3xl border-border/60 p-8 text-center shadow-sm sm:p-10">
+      <div className="mx-auto mb-5 flex h-12 w-12 items-center justify-center rounded-full bg-brand-muted">
+        <Icon className="h-6 w-6 text-brand-dark dark:text-brand" />
+      </div>
+      <h2 className="mb-2 font-bold text-foreground text-xl">{title}</h2>
       <p className="mb-6 text-muted-foreground text-sm">{body}</p>
       {alert ? <div className="mb-6">{alert}</div> : null}
       <div className="flex flex-wrap justify-center gap-3">{children}</div>
@@ -34,7 +48,7 @@ function StateCard({
 export function SignedOutState() {
   const t = useTranslations("membership.join.signedOut");
   return (
-    <StateCard body={t("body")} title={t("title")}>
+    <StateCard body={t("body")} icon={LogIn} title={t("title")}>
       <Button asChild>
         <Link href="/auth/login?redirectTo=/membership/join">{t("cta")}</Link>
       </Button>
@@ -75,6 +89,7 @@ export function NeedsBiLinkState({
         ) : null
       }
       body={t("body")}
+      icon={Link2}
       title={t("title")}
     >
       <Button disabled={isLinking} onClick={link}>
@@ -93,7 +108,7 @@ export function NeedsDirectoryRecordState({
 }) {
   const t = useTranslations("membership.join.needsDirectoryRecord");
   return (
-    <StateCard body={t("body")} title={t("title")}>
+    <StateCard body={t("body")} icon={UserSearch} title={t("title")}>
       <Button disabled={isRetrying} onClick={onRetry} variant="outline">
         {t("retry")}
       </Button>
@@ -107,7 +122,11 @@ export function NeedsDirectoryRecordState({
 export function AlreadyMemberState({ expiry }: { expiry: string | null }) {
   const t = useTranslations("membership.join.alreadyMember");
   return (
-    <StateCard body={t("body", { expiry: expiry ?? "—" })} title={t("title")}>
+    <StateCard
+      body={expiry ? t("body", { expiry }) : t("bodyUnknownExpiry")}
+      icon={CheckCircle2}
+      title={t("title")}
+    >
       <Button asChild>
         <Link href="/member">{t("cta")}</Link>
       </Button>
@@ -126,7 +145,7 @@ export function AlreadyMemberState({ expiry }: { expiry: string | null }) {
 export function MembershipCheckUnavailableState() {
   const t = useTranslations("membership.join.checkUnavailable");
   return (
-    <StateCard body={t("body")} title={t("title")}>
+    <StateCard body={t("body")} icon={RefreshCw} title={t("title")}>
       <Button asChild>
         <Link href="/membership/join">{t("cta")}</Link>
       </Button>
@@ -143,7 +162,7 @@ export function MembershipCheckUnavailableState() {
 export function NoPlansAvailableState() {
   const t = useTranslations("membership.join.noPlansAvailable");
   return (
-    <StateCard body={t("body")} title={t("title")}>
+    <StateCard body={t("body")} icon={AlertTriangle} title={t("title")}>
       <Button asChild>
         <Link href="/contact">{t("cta")}</Link>
       </Button>
