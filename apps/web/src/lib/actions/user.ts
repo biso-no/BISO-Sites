@@ -1,5 +1,5 @@
 "use server";
-import { type Models, Permission, Role } from "@repo/api";
+import type { Models } from "@repo/api";
 import { createAdminClient, createSessionClient } from "@repo/api/server";
 import type { Users } from "@repo/api/types/appwrite";
 import { sanitizeStudentNumber } from "@repo/shared/utils/bi-student";
@@ -8,6 +8,7 @@ import { revalidateTag } from "next/cache";
 import { cookies } from "next/headers";
 import { unstable_rethrow } from "next/navigation";
 import { cache } from "react";
+import { buildProfileRowPermissions } from "@/lib/actions/profile-permissions";
 import { isAuthenticatedAccount } from "@/lib/auth-utils";
 import { SESSION_COOKIE } from "@/lib/cookie-prefs";
 
@@ -179,11 +180,6 @@ const PROFILE_WRITABLE_FIELDS = [
 ] as const satisfies readonly (keyof Users)[];
 
 type WritableProfileField = (typeof PROFILE_WRITABLE_FIELDS)[number];
-
-function buildProfileRowPermissions(userId: string): string[] {
-  const userRole = Role.user(userId);
-  return [Permission.read(userRole), Permission.update(userRole)];
-}
 
 function pickWritableProfileFields(
   input: Partial<Users>

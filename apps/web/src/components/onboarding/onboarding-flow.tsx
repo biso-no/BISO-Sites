@@ -366,9 +366,12 @@ export function OnboardingFlow({
   const triggerOidc = () => {
     setState((prev) => ({ ...prev, pendingOAuth: true }));
     const base = window.location.origin;
+    // Success routes through /api/auth/bi-link, which runs the sync + cache
+    // invalidation outside the render path and only then redirects back
+    // here with ?linked=1 — see that route's doc comment for why.
     clientAccount.createOAuth2Session(
       OAuthProvider.Oidc,
-      `${base}/onboarding?linked=1`,
+      `${base}/api/auth/bi-link?returnTo=/onboarding`,
       `${base}/onboarding?oidc_failed=1`,
       ["openid", "email", "profile"]
     );

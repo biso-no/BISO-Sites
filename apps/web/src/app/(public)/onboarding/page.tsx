@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { OnboardingFlow } from "@/components/onboarding/onboarding-flow";
-import { syncBiStudentIdentity } from "@/lib/actions/bi-identity";
 import { getLoggedInUser } from "@/lib/actions/user";
 
 export const metadata: Metadata = {
@@ -17,13 +16,16 @@ interface OnboardingPageProps {
   }>;
 }
 
+// A BI OIDC link completes at /api/auth/bi-link, which runs the sync + cache
+// invalidation itself and only then redirects here with `?linked=1` — see
+// that route's doc comment. This page never re-runs the sync: `params.linked`
+// below is read purely as a UI flag (mid-OAuth-flow bookkeeping), not a
+// trigger — a refresh of this URL is now inert instead of re-running the
+// Graph call and the DB write.
 export default async function OnboardingPage({
   searchParams,
 }: OnboardingPageProps) {
   const params = await searchParams;
-  if (params.linked === "1") {
-    await syncBiStudentIdentity();
-  }
 
   const userData = await getLoggedInUser();
 

@@ -13,7 +13,6 @@ import Link from "next/link";
 import type { MembershipCheckResult } from "@/components/profile/membership-status-card";
 import MembershipStatusCard from "@/components/profile/membership-status-card";
 import { ProfileTabs } from "@/components/profile/profile-tabs";
-import { syncBiStudentIdentity } from "@/lib/actions/bi-identity";
 import { getLoggedInUser, listIdentities } from "@/lib/actions/user";
 import { checkMembership } from "@/lib/profile";
 
@@ -22,18 +21,14 @@ export const metadata: Metadata = {
   description: "View and manage your profile and privacy settings.",
 };
 
-interface PublicProfilePageProps {
-  searchParams: Promise<{ error?: string; linked?: string }>;
-}
-
-export default async function PublicProfilePage({
-  searchParams,
-}: PublicProfilePageProps) {
-  const params = await searchParams;
-  if (params.linked === "1") {
-    await syncBiStudentIdentity();
-  }
-
+// A BI (or Microsoft) OIDC link completes at /api/auth/bi-link, which runs
+// the sync + cache invalidation itself and only then redirects here with
+// `?linked=1` — see that route's doc comment. This page never re-runs the
+// sync: it starts a brand-new request (this route group is already dynamic
+// via `getLoggedInUser()`'s cookie read), so the reads below already see
+// whatever the route handler just wrote. The `linked`/`error` query params
+// carry no behaviour on this page — they're read by nothing here.
+export default async function PublicProfilePage() {
   const userData = await getLoggedInUser();
   let identitiesResp: {
     identities?: { $id: string; provider: string }[];

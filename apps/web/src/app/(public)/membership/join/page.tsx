@@ -1,13 +1,15 @@
 import type { Users } from "@repo/api/types/appwrite";
 import { getFeatureFlagStates } from "@repo/shared/utils/feature-flags-server";
+import { Alert, AlertDescription } from "@repo/ui/components/ui/alert";
 import type { Metadata } from "next";
-import { syncBiStudentIdentity } from "@/lib/actions/bi-identity";
+import { getTranslations } from "next-intl/server";
 import { getMembershipStatus } from "@/lib/actions/membership";
 import { getLoggedInUser } from "@/lib/actions/user";
 import { getPurchasableMembershipPlans } from "@/lib/membership-catalog";
 import { resolveMembershipGate } from "@/lib/membership-gate";
 import {
   AlreadyMemberState,
+  MembershipCheckUnavailableState,
   NeedsBiLinkState,
   NoPlansAvailableState,
   SignedOutState,
@@ -28,25 +30,42 @@ type BiUser = Users & {
   bi_employee_id?: string | null;
 };
 
+interface MembershipJoinPageProps {
+  searchParams: Promise<{
+    cancelled?: string;
+    error?: string;
+    linked?: string;
+    oidc_failed?: string;
+  }>;
+}
+
+/**
+ * A BI OIDC link completes at /api/auth/bi-link, which runs the sync + cache
+ * invalidation itself and only then redirects here with `?linked=1` — see
+ * that route's doc comment. This page never re-runs the sync (a refresh of
+ * this URL is inert), and never reads a request-memoized value that could
+ * predate the write: the redirect from that route always starts a fresh
+ * request, so `getLoggedInUser()`/`getMembershipStatus()` below see it.
+ */
 export default async function MembershipJoinPage({
   searchParams,
-}: {
-  searchParams: Promise<{ linked?: string; oidc_failed?: string }>;
-}) {
+}: MembershipJoinPageProps) {
   const params = await searchParams;
-  if (params.linked === "1") {
-    // Completes the BI account link started by NeedsBiLinkState's OIDC
-    // redirect: writes student_id + bi_employee_id before the gate below
-    // re-evaluates, so the very next render can move past `needs_bi_link`.
-    await syncBiStudentIdentity();
-  }
   const linkFailed = params.oidc_failed === "1";
+  // /api/checkout/return sends a membership buyer back here on a cancelled or
+  // failed payment (see redirectForStatus there) instead of the shop cart,
+  // since a membership order never touched the cart. Neither param changes
+  // which gate state renders — payment outcome is orthogonal to purchase
+  // eligibility — they only add an acknowledgement banner above it.
+  const cancelled = params.cancelled === "true";
+  const paymentFailed = params.error === "payment_failed";
 
-  const [userData, status, plans, flags] = await Promise.all([
+  const [userData, status, plans, flags, t] = await Promise.all([
     getLoggedInUser(),
     getMembershipStatus(),
     getPurchasableMembershipPlans(),
     getFeatureFlagStates(),
+    getTranslations("membership.join"),
   ]);
 
   const profile = userData?.profile as BiUser | null | undefined;
@@ -59,31 +78,49 @@ export default async function MembershipJoinPage({
     studentId: userData?.profile?.student_id,
   });
 
+  const notice = paymentFailed ? (
+    <Alert className="mx-auto mb-6 max-w-2xl" variant="destructive">
+      <AlertDescription>{t("paymentFailed.body")}</AlertDescription>
+    </Alert>
+  ) : (
+    cancelled && (
+      <Alert className="mx-auto mb-6 max-w-2xl">
+        <AlertDescription>{t("cancelled.body")}</AlertDescription>
+      </Alert>
+    )
+  );
+
+  let body: React.ReactNode;
   if (gate.state === "signed_out") {
-    return <SignedOutState />;
-  }
-  if (gate.state === "needs_bi_link") {
-    return <NeedsBiLinkState linkFailed={linkFailed} />;
-  }
-  if (gate.state === "needs_directory_record") {
-    return <RetryDirectoryState />;
-  }
-  if (gate.state === "already_member") {
-    return <AlreadyMemberState expiry={gate.currentExpiry} />;
-  }
-  if (gate.state === "no_plans_available") {
-    return <NoPlansAvailableState />;
+    body = <SignedOutState />;
+  } else if (gate.state === "needs_bi_link") {
+    body = <NeedsBiLinkState linkFailed={linkFailed} />;
+  } else if (gate.state === "needs_directory_record") {
+    body = <RetryDirectoryState />;
+  } else if (gate.state === "membership_check_unavailable") {
+    body = <MembershipCheckUnavailableState />;
+  } else if (gate.state === "already_member") {
+    body = <AlreadyMemberState expiry={gate.currentExpiry} />;
+  } else if (gate.state === "no_plans_available") {
+    body = <NoPlansAvailableState />;
+  } else {
+    body = (
+      <JoinWizard
+        currentExpiry={gate.currentExpiry}
+        defaultCampusId={profile?.bi_campus_id ?? null}
+        plans={gate.offeredPlans}
+        providers={{
+          stripe: flags.payments_stripe,
+          vipps: flags.payments_vipps,
+        }}
+      />
+    );
   }
 
   return (
-    <JoinWizard
-      currentExpiry={gate.currentExpiry}
-      defaultCampusId={profile?.bi_campus_id ?? null}
-      plans={gate.offeredPlans}
-      providers={{
-        stripe: flags.payments_stripe,
-        vipps: flags.payments_vipps,
-      }}
-    />
+    <>
+      {notice}
+      {body}
+    </>
   );
 }

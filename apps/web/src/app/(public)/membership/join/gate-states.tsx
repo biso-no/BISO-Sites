@@ -53,9 +53,12 @@ export function NeedsBiLinkState({
   const link = () => {
     startLink(async () => {
       const base = window.location.origin;
+      // Success routes through /api/auth/bi-link, which runs the sync +
+      // cache invalidation outside the render path and only then redirects
+      // back here — see that route's doc comment for why.
       await clientAccount.createOAuth2Session(
         OAuthProvider.Oidc,
-        `${base}/membership/join?linked=1`,
+        `${base}/api/auth/bi-link?returnTo=/membership/join`,
         `${base}/membership/join?oidc_failed=1`,
         ["openid", "email", "profile"]
       );
@@ -113,10 +116,29 @@ export function AlreadyMemberState({ expiry }: { expiry: string | null }) {
 }
 
 /**
- * Sixth gate state: authenticated, linked, and directory-verified, but the
- * catalog currently has no plan on offer and the student is NOT already a
- * member. Distinct from `AlreadyMemberState` — reusing that copy here would
- * tell a non-member they already have membership, which is false.
+ * Authenticated, linked, and directory-verified, but the live Finago
+ * membership read itself failed transiently — never fall through to the
+ * catalog here: an existing member shown the full catalog during an outage
+ * could pay for cover they already have. `Link href` is a plain navigation
+ * (not a client refresh) so the retry always starts a genuinely fresh
+ * request rather than re-reading anything cached client-side.
+ */
+export function MembershipCheckUnavailableState() {
+  const t = useTranslations("membership.join.checkUnavailable");
+  return (
+    <StateCard body={t("body")} title={t("title")}>
+      <Button asChild>
+        <Link href="/membership/join">{t("cta")}</Link>
+      </Button>
+    </StateCard>
+  );
+}
+
+/**
+ * Authenticated, linked, and directory-verified, but the catalog currently
+ * has no plan on offer and the student is NOT already a member. Distinct
+ * from `AlreadyMemberState` — reusing that copy here would tell a non-member
+ * they already have membership, which is false.
  */
 export function NoPlansAvailableState() {
   const t = useTranslations("membership.join.noPlansAvailable");

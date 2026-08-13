@@ -194,6 +194,17 @@
       "retry": "Prøv igjen",
       "contact": "Kontakt oss"
     },
+    "checkUnavailable": {
+      "title": "Vi kan ikke sjekke medlemskapet ditt akkurat nå",
+      "body": "Noe gikk galt da vi skulle nå medlemssystemet vårt. Du er ikke belastet noe — prøv igjen om noen minutter.",
+      "cta": "Prøv igjen"
+    },
+    "cancelled": {
+      "body": "Betalingen din ble avbrutt. Du er ikke belastet noe — velg et medlemskap nedenfor når du er klar."
+    },
+    "paymentFailed": {
+      "body": "Betalingen din gikk ikke gjennom, så du er ikke belastet noe. Prøv gjerne igjen nedenfor."
+    },
     "alreadyMember": {
       "title": "Du er allerede medlem",
       "body": "Medlemskapet ditt løper til {expiry}.",

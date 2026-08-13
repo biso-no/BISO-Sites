@@ -7,6 +7,7 @@ import { parseBiStudentEmail } from "@repo/shared/utils/bi-student";
 import { membershipCacheTag } from "@repo/shared/utils/membership-status";
 import { revalidateTag } from "next/cache";
 import { unstable_rethrow } from "next/navigation";
+import { buildProfileRowPermissions } from "@/lib/actions/profile-permissions";
 
 // The bi_* columns are pending an `appwrite push tables`; extend locally until
 // packages/api/types/appwrite.ts is regenerated.
@@ -15,6 +16,20 @@ type BiUser = Users & {
   bi_employee_id?: string | null;
   bi_linked_at?: string | null;
 };
+
+/**
+ * True when an Appwrite SDK error's `code` indicates the row was not found.
+ * Mirrors the identical helper in
+ * `packages/connectors/src/24sevenoffice/membership-sync.ts`.
+ */
+function isRowNotFoundError(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    (error as { code?: unknown }).code === 404
+  );
+}
 
 export type BiIdentitySyncResult =
   | {
@@ -98,11 +113,50 @@ export async function syncBiStudentIdentity(): Promise<BiIdentitySyncResult> {
       }
     }
 
-    await db.updateRow<BiUser>("app", "user", user.$id, update);
+    try {
+      await db.updateRow<BiUser>("app", "user", user.$id, update);
+    } catch (error) {
+      if (!isRowNotFoundError(error)) {
+        throw error;
+      }
+      // The profile row is created LAZILY — only at the final onboarding
+      // wizard step (see `updateProfile` in `src/lib/actions/user.ts`) —
+      // while this BI-link step runs earlier, on the very first return leg.
+      // A brand-new user linking during onboarding has no row yet for
+      // updateRow to find, every time. Create it instead, using the same
+      // shape/permissions `updateProfile` falls back to for the identical
+      // gap. `PROFILE_WRITABLE_FIELDS` stays untouched — these bi_* columns
+      // remain outside self-service by design; this write goes through the
+      // admin client, same as the update above.
+      //
+      // createRow's typed signature wants the full row; we're seeding a
+      // partial profile the user fills in over time (same gap `updateProfile`
+      // hits). Omit the generic so the Appwrite SDK accepts the partial
+      // payload.
+      await db.createRow(
+        "app",
+        "user",
+        user.$id,
+        update,
+        buildProfileRowPermissions(user.$id)
+      );
+    }
 
     // The live membership check is keyed by the numeric student id; drop the
-    // cached "no_student_id" result so status is correct immediately.
-    revalidateTag(membershipCacheTag(parsed.studentNumber), { expire: 0 });
+    // cached "no_student_id" result so status is correct immediately. This is
+    // wrapped on its own: `revalidateTag` throws unconditionally when called
+    // during a Server Component render phase (verified against the pinned
+    // next@16.3.0 in this repo), and `unstable_rethrow` below does not
+    // recognize that error as one of its control-flow signals, so it would
+    // otherwise fall through to the catch and misreport a write that just
+    // succeeded as `directory_unavailable`. The write above has already
+    // landed by this point regardless of what happens here.
+    try {
+      revalidateTag(membershipCacheTag(parsed.studentNumber), { expire: 0 });
+    } catch (error) {
+      unstable_rethrow(error);
+      console.error("[BI Identity] Cache invalidation failed:", error);
+    }
 
     if (directoryFailed) {
       return { success: false, error: "directory_unavailable" };

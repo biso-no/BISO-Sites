@@ -194,6 +194,17 @@
       "retry": "Try again",
       "contact": "Contact us"
     },
+    "checkUnavailable": {
+      "title": "We can't check your membership right now",
+      "body": "Something went wrong reaching our membership system. We haven't charged you anything — please try again in a few minutes.",
+      "cta": "Try again"
+    },
+    "cancelled": {
+      "body": "Your payment was cancelled. Nothing was charged — pick a plan below whenever you're ready."
+    },
+    "paymentFailed": {
+      "body": "Your payment didn't go through, so nothing was charged. Please try again below."
+    },
     "alreadyMember": {
       "title": "You're already a member",
       "body": "Your membership runs until {expiry}.",

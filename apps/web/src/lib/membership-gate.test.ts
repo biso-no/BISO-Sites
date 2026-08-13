@@ -156,4 +156,78 @@ describe("resolveMembershipGate", () => {
       ).state
     ).toBe("needs_directory_record");
   });
+
+  it("routes a transient Finago failure to membership_check_unavailable instead of the catalog", () => {
+    const gate = resolveMembershipGate(
+      input({
+        status: {
+          isMember: false,
+          memberships: [],
+          reason: "finago_error",
+        },
+      })
+    );
+    expect(gate.state).toBe("membership_check_unavailable");
+    expect(gate.offeredPlans).toEqual([]);
+    expect(gate.currentExpiry).toBeNull();
+  });
+
+  it("routes an unexpected status-resolution error to membership_check_unavailable too", () => {
+    expect(
+      resolveMembershipGate(
+        input({
+          status: {
+            isMember: false,
+            memberships: [],
+            reason: "unexpected_error",
+          },
+        })
+      ).state
+    ).toBe("membership_check_unavailable");
+  });
+
+  it("does NOT treat a legitimate no_categories result as unavailable — falls through to the catalog", () => {
+    // no_categories is a real, cacheable "not a member" result, not a
+    // transient failure — must not be confused with finago_error/
+    // unexpected_error.
+    const gate = resolveMembershipGate(
+      input({
+        status: {
+          isMember: false,
+          memberships: [],
+          reason: "no_categories",
+        },
+      })
+    );
+    expect(gate.state).toBe("eligible");
+    expect(gate.offeredPlans).toEqual(plans);
+  });
+
+  it("prioritizes the transient-failure state over an existing member's own status, so an outage can't be paid over", () => {
+    // The scenario the finding describes: an existing member must not see the
+    // full catalog (with currentExpiry defaulting to null) during a Finago
+    // outage and risk buying overlapping cover.
+    const gate = resolveMembershipGate(
+      input({
+        status: {
+          isMember: true,
+          memberships: [{ expiryDate: "2026-12-31" }],
+          reason: "finago_error",
+        },
+      })
+    );
+    expect(gate.state).toBe("membership_check_unavailable");
+    expect(gate.currentExpiry).toBeNull();
+  });
+
+  it("requires directory record even during a transient status failure", () => {
+    expect(
+      resolveMembershipGate(
+        input({
+          employeeId: null,
+          status: { isMember: false, memberships: [], reason: "finago_error" },
+        })
+      ).state
+    ).toBe("needs_directory_record");
+  });
 });
