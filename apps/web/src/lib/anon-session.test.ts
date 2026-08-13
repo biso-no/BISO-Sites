@@ -26,6 +26,14 @@ vi.mock("next/headers", () => ({
 }));
 
 import { ensureAnonymousSession } from "./anon-session";
+import { LEGACY_SESSION_COOKIE, SESSION_COOKIE } from "./cookie-prefs";
+
+/** Mock `cookies().get()` per cookie name rather than for every name at once. */
+function mockCookies(present: Record<string, string>) {
+  cookieStore.get.mockImplementation((name: string) =>
+    name in present ? { value: present[name] } : undefined
+  );
+}
 
 describe("ensureAnonymousSession", () => {
   beforeEach(() => {
@@ -38,7 +46,7 @@ describe("ensureAnonymousSession", () => {
   });
 
   it("keeps a valid existing session and validates via the cookie path, not setJWT", async () => {
-    cookieStore.get.mockReturnValue({ value: "session-secret" });
+    mockCookies({ [SESSION_COOKIE]: "session-secret" });
     account.get.mockResolvedValue({ $id: "user-1" });
 
     const result = await ensureAnonymousSession();
@@ -47,12 +55,12 @@ describe("ensureAnonymousSession", () => {
     // The session secret must NOT be passed as the JWT argument — a no-arg
     // call reads the cookie via setSession instead.
     expect(createSessionClient).toHaveBeenCalledWith();
-    expect(cookieStore.delete).not.toHaveBeenCalled();
+    expect(cookieStore.set).not.toHaveBeenCalled();
     expect(adminAccount.createAnonymousSession).not.toHaveBeenCalled();
   });
 
-  it("deletes a dead cookie and mints a fresh anonymous session", async () => {
-    cookieStore.get.mockReturnValue({ value: "stale-secret" });
+  it("expires a dead cookie with attributes that match, then mints a fresh session", async () => {
+    mockCookies({ [SESSION_COOKIE]: "stale-secret" });
     account.get.mockRejectedValue(new Error("user deleted"));
     adminAccount.createAnonymousSession.mockResolvedValue({
       secret: "new-secret",
@@ -61,16 +69,22 @@ describe("ensureAnonymousSession", () => {
     const result = await ensureAnonymousSession();
 
     expect(result).toBe(true);
-    expect(cookieStore.delete).toHaveBeenCalled();
+    // A bare cookies().delete(name) omits the domain and silently no-ops on a
+    // `.biso.no`-scoped cookie, so expiry must go through set() with maxAge 0.
     expect(cookieStore.set).toHaveBeenCalledWith(
-      expect.any(String),
+      SESSION_COOKIE,
+      "",
+      expect.objectContaining({ maxAge: 0 })
+    );
+    expect(cookieStore.set).toHaveBeenCalledWith(
+      SESSION_COOKIE,
       "new-secret",
       expect.objectContaining({ httpOnly: true })
     );
   });
 
   it("mints a session when no cookie exists", async () => {
-    cookieStore.get.mockReturnValue(undefined);
+    mockCookies({});
     adminAccount.createAnonymousSession.mockResolvedValue({
       secret: "fresh-secret",
     });
@@ -80,5 +94,42 @@ describe("ensureAnonymousSession", () => {
     expect(result).toBe(true);
     expect(createSessionClient).not.toHaveBeenCalled();
     expect(cookieStore.set).toHaveBeenCalled();
+  });
+
+  it("carries a pre-rename session onto the current cookie name and retires the legacy one", async () => {
+    // `a_session_biso` is Appwrite's own cookie name for project `biso`; while
+    // it is scoped to `.biso.no` the browser replays it to appwrite.biso.no and
+    // breaks admin OAuth with 409 user_already_exists.
+    mockCookies({ [LEGACY_SESSION_COOKIE]: "pre-rename-secret" });
+    account.get.mockResolvedValue({ $id: "user-1" });
+
+    const result = await ensureAnonymousSession();
+
+    expect(result).toBe(true);
+    // Session survives the rename — no forced re-login.
+    expect(adminAccount.createAnonymousSession).not.toHaveBeenCalled();
+    expect(cookieStore.set).toHaveBeenCalledWith(
+      SESSION_COOKIE,
+      "pre-rename-secret",
+      expect.objectContaining({ httpOnly: true })
+    );
+    expect(cookieStore.set).toHaveBeenCalledWith(
+      LEGACY_SESSION_COOKIE,
+      "",
+      expect.objectContaining({ maxAge: 0 })
+    );
+  });
+
+  it("does not touch the legacy cookie when it is absent", async () => {
+    mockCookies({ [SESSION_COOKIE]: "session-secret" });
+    account.get.mockResolvedValue({ $id: "user-1" });
+
+    await ensureAnonymousSession();
+
+    expect(cookieStore.set).not.toHaveBeenCalledWith(
+      LEGACY_SESSION_COOKIE,
+      "",
+      expect.anything()
+    );
   });
 });

@@ -1,8 +1,10 @@
 import { createAdminClient, createSessionClient } from "@repo/api/server";
 import { cookies } from "next/headers";
-
-const SESSION_COOKIE_NAME =
-  process.env.APPWRITE_SESSION_COOKIE || "a_session_biso";
+import {
+  expiredSessionCookieOptions,
+  LEGACY_SESSION_COOKIE,
+  SESSION_COOKIE as SESSION_COOKIE_NAME,
+} from "@/lib/cookie-prefs";
 
 const THIRTY_DAYS_SECONDS = 60 * 60 * 24 * 30;
 
@@ -16,6 +18,20 @@ function sessionCookieOptions() {
     maxAge: THIRTY_DAYS_SECONDS,
     ...(isProduction ? { domain: ".biso.no" } : {}),
   };
+}
+
+/**
+ * Expire the pre-rename cookie so the browser stops sending our session to
+ * appwrite.biso.no under Appwrite's own cookie name. No-op when absent, so
+ * repeat calls cost nothing. See LEGACY_SESSION_COOKIE in `cookie-prefs.ts`.
+ */
+function retireLegacySessionCookie(
+  cookieStore: Awaited<ReturnType<typeof cookies>>,
+  legacyCookie: { value: string } | undefined
+) {
+  if (legacyCookie) {
+    cookieStore.set(LEGACY_SESSION_COOKIE, "", expiredSessionCookieOptions());
+  }
 }
 
 /**
@@ -35,16 +51,29 @@ function sessionCookieOptions() {
  */
 export async function ensureAnonymousSession(): Promise<boolean> {
   const cookieStore = await cookies();
-  const existingCookie = cookieStore.get(SESSION_COOKIE_NAME);
+  const currentCookie = cookieStore.get(SESSION_COOKIE_NAME);
+  // Sessions issued before the cookie rename still live under the old name.
+  const legacyCookie = cookieStore.get(LEGACY_SESSION_COOKIE);
+  const existingCookie = currentCookie ?? legacyCookie;
   if (existingCookie) {
     try {
       // No-arg call so the cookie value is applied via setSession — the
       // parameter of createSessionClient is a JWT, not a session secret.
       const { account } = await createSessionClient();
       await account.get();
+      if (!currentCookie) {
+        // Carry the still-valid session over to the current cookie name.
+        cookieStore.set(
+          SESSION_COOKIE_NAME,
+          existingCookie.value,
+          sessionCookieOptions()
+        );
+      }
+      retireLegacySessionCookie(cookieStore, legacyCookie);
       return true;
     } catch {
-      cookieStore.delete(SESSION_COOKIE_NAME);
+      cookieStore.set(SESSION_COOKIE_NAME, "", expiredSessionCookieOptions());
+      retireLegacySessionCookie(cookieStore, legacyCookie);
     }
   }
 

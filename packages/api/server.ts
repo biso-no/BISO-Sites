@@ -56,6 +56,13 @@ const NEXT_PUBLIC_APPWRITE_ENDPOINT =
   "https://appwrite.biso.no/v1";
 const SESSION_COOKIE_NAME =
   process.env.APPWRITE_SESSION_COOKIE || "a_session_biso";
+/**
+ * Read-only fallback for an app that has renamed its session cookie. Sessions
+ * issued under the previous name keep resolving until the old cookie expires;
+ * writes always use SESSION_COOKIE_NAME. Unset for apps that never renamed.
+ */
+const SESSION_COOKIE_FALLBACK_NAME =
+  process.env.APPWRITE_SESSION_COOKIE_FALLBACK;
 const DEFAULT_APPWRITE_REQUEST_TIMEOUT_MS = 8000;
 const APPWRITE_TIMEOUT_ERROR_TYPE = "appwrite_timeout";
 const APPWRITE_REQUEST_TIMEOUT_MS = readPositiveInteger(
@@ -176,7 +183,12 @@ export async function createSessionClient(jwt?: string) {
   if (jwt) {
     client.setJWT(jwt);
   } else {
-    const session = (await cookies()).get(SESSION_COOKIE_NAME);
+    const cookieStore = await cookies();
+    const session =
+      cookieStore.get(SESSION_COOKIE_NAME) ??
+      (SESSION_COOKIE_FALLBACK_NAME
+        ? cookieStore.get(SESSION_COOKIE_FALLBACK_NAME)
+        : undefined);
 
     if (session) {
       client.setSession(session.value);

@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { type NextRequest, NextResponse } from "next/server";
+import { LEGACY_SESSION_COOKIE, SESSION_COOKIE } from "@/lib/cookie-prefs";
 
 // Server-only: APPWRITE_API_KEY must NOT use the NEXT_PUBLIC_ prefix or it
 // would be bundled into every browser JS chunk.
@@ -7,9 +8,11 @@ const APPWRITE_ENDPOINT = process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT;
 const PROJECT_ID = process.env.NEXT_PUBLIC_APPWRITE_PROJECT || "biso";
 const API_KEY = process.env.APPWRITE_API_KEY;
 
-// Cookie name mapping
+// Appwrite issues its session as `a_session_<projectId>`. We re-emit it under
+// our own name so the browser never sends it back to appwrite.biso.no as if it
+// were Appwrite's own cookie. See LEGACY_SESSION_COOKIE in `cookie-prefs.ts`.
 const COOKIE_NAME_MAP: Record<string, string> = {
-  a_session_biso: "a_session_biso",
+  [LEGACY_SESSION_COOKIE]: SESSION_COOKIE,
 };
 
 function setSessionCookie(response: NextResponse, name: string, value: string) {

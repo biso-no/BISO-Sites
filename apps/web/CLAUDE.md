@@ -34,14 +34,27 @@ next-intl messages), `not-found.tsx`, `unauthorized.tsx`, `robots.ts`,
 
 ## Auth
 
-- Session cookie: `a_session_biso` (override with `APPWRITE_SESSION_COOKIE`).
+- Session cookie: `a_session_biso_web` (override with `APPWRITE_SESSION_COOKIE`).
+  **Never name it `a_session_biso`.** That is byte-for-byte the cookie Appwrite
+  itself issues for project `biso` (`a_session_<projectId>`), and because this
+  app scopes the cookie to `.biso.no` while Appwrite is hosted at
+  `appwrite.biso.no`, the browser replays our session to Appwrite on every
+  top-level navigation — including the OAuth callback. Appwrite then treats the
+  web visitor as the account being signed in, which broke `admin.biso.no`
+  sign-in with `409 user_already_exists`. Sessions issued under the old name are
+  still *read* via `APPWRITE_SESSION_COOKIE_FALLBACK` (see
+  `LEGACY_SESSION_COOKIE` in `src/lib/cookie-prefs.ts`) and expired on every
+  path that writes a new one; drop both once the 30-day cookies have aged out.
+- Expire session cookies with `cookies().set(name, "", expiredSessionCookieOptions())`,
+  not `cookies().delete(name)` — a bare `delete` omits the `Domain` attribute and
+  silently no-ops against the `.biso.no`-scoped cookie in prod.
 - **No anonymous sessions are minted on page view.** There is no `middleware.ts`
   / `proxy.ts` — eager provisioning was removed because cookieless clients
   (crawlers, link unfurlers, uptime monitors) each triggered a fresh anonymous
   Appwrite user, accumulating thousands of junk accounts. Anonymous sessions are
   now provisioned **lazily**, only inside actions that genuinely need a per-user
   identity, via `ensureAnonymousSession()` in `src/lib/anon-session.ts` (no-op if
-  a session cookie already exists; sets the `a_session_biso` cookie cross-subdomain
+  a session cookie already exists; sets the `a_session_biso_web` cookie cross-subdomain
   `.biso.no` in prod, `lax` locally). Currently called from
   `createOrUpdateReservation` (cart). Call it at the start of any new action that
   must write rows owned by the visitor.
@@ -154,7 +167,7 @@ All consumed server-side only:
 - `images.remotePatterns` only allows `appwrite.biso.no`, `biso.no`, and
   `via.placeholder.com`. New image sources need an entry.
 - There is **no middleware** and sessions are provisioned lazily, so the
-  `a_session_biso` cookie is **not** guaranteed to exist on any given request.
+  `a_session_biso_web` cookie is **not** guaranteed to exist on any given request.
   Never assume an anonymous session is present — read it defensively, and call
   `ensureAnonymousSession()` first in any action that needs a per-user identity
   (see Auth section).
