@@ -102,6 +102,15 @@ All consumed server-side only:
   `/api/payment/vipps/callback`.
 - OpenAI (`@ai-sdk/openai`) for expense OCR / description endpoints under
   `/api/expense/*` and `src/lib/actions/expense-ocr.ts`.
+- Membership purchase → `/membership/join`. Requires an authenticated user with
+  a linked BI Student (OIDC) identity whose profile carries `student_id` and
+  `bi_employee_id` (populated by `syncBiStudentIdentity` on the OAuth return
+  leg). Plans come from the `memberships` table; the trusted checkout lives in
+  `apps/api` at `/api/payment/[provider]/membership-checkout`. Fulfilment
+  (Finago customer → category → invoice) is `fulfilMembershipOrder` in
+  `@repo/shared/utils/membership-fulfilment`, triggered from the payment
+  webhook, `/api/checkout/return`, and the reconcile cron. Membership orders are
+  excluded from `postFinagoTransactionForOrder`. Env: `BI_AZURE_*`.
 
 ## Environment variables
 
