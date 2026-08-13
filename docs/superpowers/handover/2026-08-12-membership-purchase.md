@@ -52,18 +52,17 @@ applied them because they're cosmetic/non-blocking, not because they're hard.
 
 - `scripts/verify-membership-schema.mjs:62` — missing-table error message has
   a different format than the missing-column error message. Cosmetic only.
-- `apps/web/src/lib/membership-catalog.ts:26` — comment says "newest expiry
+- `apps/web/src/lib/membership-catalog.ts:10` — comment says "newest expiry
   first"; the actual sort is `accrualMonths` ascending. Code is correct, the
   comment is wrong.
-- `packages/connectors/src/azure/bi-directory.ts:89` — `user.employeeId ?? null`
+- `packages/connectors/src/azure/bi-directory.ts:76` — `user.employeeId ?? null`
   doesn't catch an empty-string `employeeId`, which would then become the
   Finago customer number. Suggested fix: `user.employeeId?.trim() || null`.
 - Task 14's action-layer doc comment lists the precondition check order
   differently from the order the code actually checks them in
   (`apps/web/src/app/actions/membership-purchase.ts`).
-- `packages/shared/utils/finago-membership-invoice.ts` (or wherever
-  `ParsedOrderItem` is consumed in the fulfilment path) has redundant
-  `as { product_type?: string }` casts — `ParsedOrderItem` already types those
+- `packages/shared/utils/membership-fulfilment.ts:55` and `:166` — redundant
+  `as { product_type?: string }` casts; `ParsedOrderItem` already types those
   fields.
 - Norwegian copy polish in `membership.join.needsBiLink.linkFailed`: the
   closing clause "hvis det fortsetter å mislykkes" calques English "keeps
@@ -71,6 +70,22 @@ applied them because they're cosmetic/non-blocking, not because they're hard.
   and neuter "det" mismatches common-gender "koblingen". Reviewer's suggested
   replacement: **"kontakt oss hvis koblingen fortsatt ikke fungerer."** The
   rest of that string block was independently judged genuinely idiomatic.
+
+### Purchase-eligibility hot path — `apps/web/src/lib/membership-gate.ts`
+These three came out of the same Task 13 review pass and all sit inside the
+function that decides whether a user can buy a membership and at what price —
+surfaced separately from the general test-gap list below because of *where*
+they live, not because any one of them is individually severe.
+
+- `offeredPlans` aliases `input.plans` by reference when `currentExpiry` is
+  `null`. A future caller that mutates the returned array in place would
+  mutate its own catalog input.
+- `filter(Boolean)` only screens an empty-string `expiryDate` — a malformed
+  non-empty value (e.g. `"N/A"`) would sort alongside valid ISO strings and
+  could end up selected as `currentExpiry`.
+- `isMember: true` with every membership on the account carrying an empty
+  `expiryDate` silently yields the full catalog instead of surfacing an
+  error.
 
 ### Operational items — worth a follow-up ticket
 - **Orphaned PENDING membership orders never get reconciled.** The reconcile
@@ -100,12 +115,30 @@ applied them because they're cosmetic/non-blocking, not because they're hard.
   them. Pre-existing UX gap, not membership-specific, but membership orders
   now hit it too.
 
+### Dead code and cleanup candidates
+- `MembershipSyncResult` interface in
+  `packages/connectors/src/24sevenoffice/types.ts:151` is now fully dead
+  (zero repo references). Left in place because `types.ts` was outside this
+  branch's file list — a candidate for a future `knip` pass.
+
+### Undocumented edge-case behaviour
+- `resolveCampusHint`'s substring match can false-positive, and the first
+  match wins with no tie-break. Judged acceptable because the hint is
+  non-authoritative and user-overridable (the user can correct the campus
+  before purchasing) — but that reasoning isn't written down anywhere near
+  the code itself.
+
 ### Test/coverage gaps
 - `packages/shared/utils/bi-student.test.ts` — `sanitizeStudentNumber(undefined)`
   branch is untested.
 - Tie-breaking at the exact midpoint of `deriveAccrualMonths`'s nearest-match
   snapping (`months === 24` → snaps to 12) is undocumented and untested.
   (The snapping behaviour itself is intentional — see Design decisions below.)
+- Task 3's own build report (`task-3-report.md:42`, an ephemeral file inside
+  the now-deleted `.superpowers/` workspace) overstated its test coverage,
+  claiming "all rejection paths tested" when coverage was actually scoped to
+  `toMembershipPlan` only. Noted here purely so the discrepancy isn't lost
+  along with the report it was found in — nothing to action against live code.
 - `packages/shared/utils/membership-plans.test.ts:50` — a comment claims the
   22-month test case is "equidistant from 12 and 36"; it isn't (distances are
   10 vs. 14). The assertion is correct, only the comment's rationale is wrong.
@@ -138,6 +171,14 @@ applied them because they're cosmetic/non-blocking, not because they're hard.
   `params.linked` to decide whether to bounce to `/profile`, and changing
   that redirect shape risked a regression there not worth taking in a fix
   round.
+- `apps/web/src/lib/actions/membership.test.ts` mocks `unstable_cache` as a
+  passthrough, so the "transient failures are not cached" guarantee is not
+  actually verified by any test — the happy-path, `no_categories`, and
+  auth-failure branches all go untested as a result. Pre-existing pattern,
+  not a regression introduced by this branch's move of the caching wrapper.
+- No dedicated test file exists for
+  `packages/shared/utils/membership-status.ts`, unlike its siblings in that
+  directory.
 - `apps/web`'s `clearBiStudentLink`: the pre-clear `getRow` is
   `.catch(() => null)`. If that read fails while the subsequent `updateRow`
   still succeeds, the membership cache tag is never busted, so `isMember`
@@ -168,6 +209,11 @@ applied them because they're cosmetic/non-blocking, not because they're hard.
   throws correctly — verified by inspection only.
 - `membership-gate.test.ts:79-90` still lacks a `currentExpiry` assertion
   (behaviour verified correct by inspection during review, not by test).
+- The `buildDimensions` prototype-key test (added in Task 14's fix round)
+  would still pass even if only the outer prototype-key guard were
+  hardened, because the outer guard short-circuits before the inner one is
+  reached. Both guards are genuinely present in the shipped code — this is a
+  test-independence gap only, not a coverage gap.
 - `errors.noPlan` copy key in the join wizard is unreachable in practice
   (`planId` defaults to `plans[0]`, and an empty catalog is routed away
   before the wizard ever mounts).

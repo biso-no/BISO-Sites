@@ -383,13 +383,26 @@ Finago and Graph are mocked throughout. No test performs a live call.
 
 ## Owner actions
 
+> The authoritative, fuller version of this list — plus deferred follow-ups,
+> the two (now three) pre-existing failures blocking a repo-wide green build,
+> and the design rulings made during the build — lives in
+> `docs/superpowers/handover/2026-08-12-membership-purchase.md`. This section
+> is kept in sync with it; if the two ever disagree, the handover doc wins.
+
 1. Create the BI-tenant app registration credentials and set `BI_AZURE_*` in
    `apps/web` and `apps/api` environments.
 2. Grant `User.Read.All` application permission with admin consent in BI's
    tenant, and confirm `employeeId` is populated for students.
 3. `appwrite push tables` for the five new columns, then
-   `appwrite types -l ts ./types`.
+   `appwrite types -l ts ./types`. Until this runs, the flow fails at the
+   first write. `bun scripts/verify-membership-schema.mjs` validates the full
+   column specs, not just presence.
 4. Set `price` and `canPurchase` on the three `memberships` rows after the sync
    fix lands.
 5. Verify against a Finago test customer that the invoice this flow produces is
-   indistinguishable from one the BI app produces.
+   indistinguishable from one the BI app produces — specifically `ProductId`,
+   `DepartmentId`, both user-defined dimension pairs, and the accrual.
+6. Manually smoke-test all six gate states in the browser (no automated test
+   substitutes for this) — signed out, needs BI link, needs directory record,
+   already member, no plans available, eligible — in both English and
+   Norwegian.
