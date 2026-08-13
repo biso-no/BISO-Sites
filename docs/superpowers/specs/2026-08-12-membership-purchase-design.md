@@ -393,10 +393,16 @@ Finago and Graph are mocked throughout. No test performs a live call.
    `apps/web` and `apps/api` environments.
 2. Grant `User.Read.All` application permission with admin consent in BI's
    tenant, and confirm `employeeId` is populated for students.
-3. `appwrite push tables` for the five new columns, then
-   `appwrite types -l ts ./types`. Until this runs, the flow fails at the
-   first write. `bun scripts/verify-membership-schema.mjs` validates the full
-   column specs, not just presence.
+3. `appwrite push tables` for the five new columns plus the
+   `idx_orders_membership_invoice` index on `orders.membership_invoice_id`,
+   then `appwrite types -l ts ./types`. Until this runs, the flow fails at
+   the first write. `bun scripts/lint-membership-schema-config.mjs` (renamed
+   from `verify-membership-schema.mjs`) validates the full column specs
+   against the LOCAL config file only — it is a config lint, not a post-push
+   check, since it never contacts Appwrite. For a real post-push check, run
+   `appwrite tables-db list-columns --database-id app --table-id user --json`
+   and the equivalent for `orders`; see the handover for the full command
+   and what to look for.
 4. Set `price` and `canPurchase` on the three `memberships` rows after the sync
    fix lands.
 5. Verify against a Finago test customer that the invoice this flow produces is

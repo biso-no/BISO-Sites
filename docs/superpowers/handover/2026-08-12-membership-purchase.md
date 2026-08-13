@@ -20,12 +20,30 @@ nothing breaks silently, but nobody can buy a membership either.
 2. **Grant `User.Read.All`** (application permission, admin consent) in BI's
    tenant. Confirm `employeeId` is populated for students — the whole
    Finago-customer-id scheme is built on it.
-3. **Push the schema.** `appwrite push tables` for the five new columns, then
-   regenerate types: `appwrite types -l ts ./types`. **Until this runs, the
-   flow fails at the first write** (the columns don't exist yet).
-   `bun scripts/verify-membership-schema.mjs` validates the full column specs
-   (type/size/min/max/default), not just key presence — run it after the push
-   to confirm before smoke-testing.
+3. **Push the schema.** `appwrite push tables` for the five new columns plus
+   the new `idx_orders_membership_invoice` index on `orders.membership_invoice_id`
+   (added alongside the fix for the cron-starvation defect below — mirrors the
+   existing `idx_orders_finago` index), then regenerate types:
+   `appwrite types -l ts ./types`. **Until this runs, the flow fails at the
+   first write** (the columns don't exist yet).
+
+   `bun scripts/lint-membership-schema-config.mjs` (renamed from
+   `verify-membership-schema.mjs`, which claimed to be a post-push check it
+   could not actually perform) validates the full column specs (type/size/
+   min/max/default) in the LOCAL `packages/api/appwrite.config.json` file
+   only — it never contacts Appwrite, so it cannot confirm the push ran,
+   succeeded, or targeted the right project. Run it before the push as a
+   config lint if you like, but it is not a substitute for a real post-push
+   check. For that, list the live columns instead:
+
+   ```
+   appwrite tables-db list-columns --database-id app --table-id user --json
+   appwrite tables-db list-columns --database-id app --table-id orders --json
+   ```
+
+   and confirm `bi_employee_id` / `bi_campus_id` / `bi_linked_at` appear on
+   `user`, and `membership_invoice_id` / `membership_fulfilment_lock` appear
+   on `orders` — before smoke-testing.
 4. **Set `price` and `canPurchase`** on the three `memberships` rows. The
    catalog is empty until then, and the purchase page shows
    `no_plans_available` for every visitor, member or not.
@@ -50,7 +68,9 @@ line numbers may drift.
 These are small enough that a reviewer flagged the fix inline; nobody has
 applied them because they're cosmetic/non-blocking, not because they're hard.
 
-- `scripts/verify-membership-schema.mjs:62` — missing-table error message has
+- `scripts/lint-membership-schema-config.mjs` (renamed from
+  `verify-membership-schema.mjs` in the whole-branch review round; see the
+  reframed Owner action 3 above) — the missing-table error message still has
   a different format than the missing-column error message. Cosmetic only.
 - `apps/web/src/lib/membership-catalog.ts:10` — comment says "newest expiry
   first"; the actual sort is `accrualMonths` ascending. Code is correct, the
@@ -94,12 +114,11 @@ they live, not because any one of them is individually severe.
   forever. Cosmetic, not financial — no membership is granted, no charge is
   made — but it will inflate the admin Shop dashboard's pending-order count
   over time.
-- **`/membership/join` only reads the `linked` / `oidc_failed` return-leg
-  params**, not the newer `?cancelled=true` / `?error=payment_failed` ones
-  that `/api/checkout/return` now sends for membership orders. A buyer who
-  cancels or fails payment lands back on the join page with no
-  acknowledgement of what happened (better than the shop cart flow's
-  behaviour, but still silent). Needs a follow-up.
+- ~~`/membership/join` only reads the `linked` / `oidc_failed` return-leg
+  params, not the newer `?cancelled=true` / `?error=payment_failed` ones~~ —
+  **fixed in the whole-branch review round (C3).** The page now reads both
+  and renders an acknowledgement banner above the gate state; copy added to
+  both i18n bundles (`join.cancelled`, `join.paymentFailed`).
 - Two membership-order classifiers exist and can drift independently:
   `isMembershipOrder` (used by fulfilment) checks `product_type`;
   `/shop/order/[orderId]`'s `resolvePurchaseType` checks a `/member/i` regex
@@ -149,11 +168,17 @@ they live, not because any one of them is individually severe.
   builder share the same array/object references. Harmless for
   JSON-serialization-then-POST today; worth knowing if a future change starts
   mutating one copy in place.
-- `getCompanies` (24SevenOffice connector, shared by 4 callers) swallows
+- ~~`getCompanies` (24SevenOffice connector, shared by 4 callers) swallows
   search errors and returns `[]`, so a transient lookup failure looks
-  identical to "customer not found." Verified this cannot mint a duplicate
-  Finago customer (the id is deterministically pinned to `employeeId`) — it's
-  a debuggability gap, not a correctness one.
+  identical to "customer not found."~~ — **fixed for the membership path in
+  the whole-branch review round (I5).** `getCompanies` now takes an optional
+  `{ throwOnError: true }`; `upsertMembershipCustomer` (the 5th caller, and
+  the only one that creates with an explicit pinned `Id`) uses it and
+  propagates a `MembershipCustomerLookupError`, which `fulfilMembershipOrder`
+  treats as a hard abort (claim released, marker cleared, cron retries)
+  instead of falling through to a create call that would silently overwrite
+  an existing curated customer record. The other four callers are unchanged —
+  a "not found" there was never destructive, only a debuggability gap.
 - `MembershipInvoicePayload` only requires `CustomerId` at the type level; a
   future caller that hand-constructs a payload instead of going through
   `buildMembershipInvoiceOrder` would still type-check. (This branch's own
@@ -165,12 +190,15 @@ they live, not because any one of them is individually severe.
   failed." Plan-mandated, not fixed.
 - TOCTOU on the `bi_campus_id` read-then-write in `bi-identity.ts`; harmless
   today because a race just re-writes the same value.
-- `?linked=1` on the OAuth return leg is never stripped from the URL, so a
-  page refresh re-runs the Graph call and the DB write. Deliberately not
-  fixed via `redirect()` because `onboarding/page.tsx` also reads
-  `params.linked` to decide whether to bounce to `/profile`, and changing
-  that redirect shape risked a regression there not worth taking in a fix
-  round.
+- ~~`?linked=1` on the OAuth return leg is never stripped from the URL, so a
+  page refresh re-runs the Graph call and the DB write.~~ — **fixed in the
+  whole-branch review round (C1–C3).** The sync now runs once, in a new route
+  handler (`/api/auth/bi-link`), before the OAuth redirect ever reaches
+  `/membership/join`, `/onboarding`, or `/profile`. Those pages still read
+  `?linked=1` off the query string (unchanged, and `onboarding/page.tsx`'s
+  bounce-to-`/profile` logic was deliberately left alone — see the C1–C3 fix
+  notes), but purely as a UI flag now; refreshing the URL no longer re-runs
+  anything.
 - `apps/web/src/lib/actions/membership.test.ts` mocks `unstable_cache` as a
   passthrough, so the "transient failures are not cached" guarantee is not
   actually verified by any test — the happy-path, `no_categories`, and
