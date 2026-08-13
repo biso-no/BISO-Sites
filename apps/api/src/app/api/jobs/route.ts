@@ -1,20 +1,29 @@
 import { type NextRequest, NextResponse } from "next/server";
-
-const WP_JOBS_URL = "https://biso.no/wp-json/wp/v2/awsm_job_openings";
-const TIMEOUT_MS = 10_000;
+import { readAppConfig } from "@/lib/app-config";
+import { applyCorsHeaders, corsPreflightResponse } from "@/lib/cors";
+import type { PublicLocale } from "@/lib/public-content";
+import { listPublicJobs } from "@/lib/public-jobs";
+import { fetchWordPressJobs } from "@/lib/wordpress-proxy";
 
 export const runtime = "nodejs";
 
+const DEFAULT_PER_PAGE = 10;
+const MAX_PER_PAGE = 100;
+
 export async function POST(req: NextRequest) {
+  const origin = req.headers.get("origin");
+
   try {
     const body = await req.json().catch(() => ({}));
     const {
       campusId,
-      per_page = 10,
+      per_page = DEFAULT_PER_PAGE,
       page = 1,
       includeExpired = false,
       departmentId,
       verv,
+      search,
+      locale = "no",
     } = body as {
       campusId?: string;
       per_page?: number;
@@ -22,57 +31,58 @@ export async function POST(req: NextRequest) {
       includeExpired?: boolean;
       departmentId?: string;
       verv?: string;
+      search?: string;
+      locale?: string;
     };
 
-    const url = new URL(WP_JOBS_URL);
-    if (campusId) {
-      url.searchParams.set("campus_id", String(campusId));
-    }
-    url.searchParams.set("per_page", String(per_page));
-    url.searchParams.set("page", String(page));
-    url.searchParams.set("include_expired", includeExpired ? "true" : "false");
-    if (departmentId) {
-      url.searchParams.set("department_id", departmentId);
-    }
-    if (verv) {
-      url.searchParams.set("verv", verv);
+    if (readAppConfig().content.jobs_source === "wordpress") {
+      const wordPressResponse = await fetchWordPressJobs({
+        campusId,
+        per_page,
+        page,
+        includeExpired,
+        departmentId,
+        verv,
+      });
+      return applyCorsHeaders(wordPressResponse, origin);
     }
 
-    const response = await fetch(url.toString(), {
-      headers: { Accept: "application/json", "User-Agent": "BisoApp/1.0" },
-      signal: AbortSignal.timeout(TIMEOUT_MS),
+    const perPage = Math.min(Math.max(1, Number(per_page) || 1), MAX_PER_PAGE);
+    const safePage = Math.max(1, Number(page) || 1);
+    const safeLocale: PublicLocale = locale === "en" ? "en" : "no";
+
+    const { items, total } = await listPublicJobs({
+      campusId: campusId ? String(campusId) : undefined,
+      departmentId: departmentId ? String(departmentId) : undefined,
+      perPage,
+      page: safePage,
+      includeExpired: Boolean(includeExpired),
+      search,
+      locale: safeLocale,
     });
 
-    if (!response.ok) {
-      return NextResponse.json(
-        {
-          error: `WordPress error: ${response.status}`,
-          code: "UPSTREAM_ERROR",
-        },
-        { status: 502 }
-      );
-    }
-
-    const data = await response.json();
-    const jobs = Array.isArray(data) ? data : (data.jobs ?? []);
-    const totalJobs =
-      Number.parseInt(response.headers.get("x-wp-total") ?? "", 10) ||
-      (data.total_jobs as number | undefined) ||
-      jobs.length;
-
-    return NextResponse.json({ jobs, total_jobs: totalJobs });
+    return applyCorsHeaders(
+      NextResponse.json({
+        jobs: items,
+        total_jobs: total,
+        page: safePage,
+        per_page: perPage,
+        source: "biso",
+      }),
+      origin
+    );
   } catch (err) {
-    const error = err as { name?: string };
-    if (error.name === "TimeoutError") {
-      return NextResponse.json(
-        { error: "Request timed out", code: "TIMEOUT" },
-        { status: 502 }
-      );
-    }
     console.error("[jobs] Unexpected error:", err);
-    return NextResponse.json(
-      { error: "Internal server error", code: "INTERNAL_ERROR" },
-      { status: 500 }
+    return applyCorsHeaders(
+      NextResponse.json(
+        { error: "Internal server error", code: "INTERNAL_ERROR" },
+        { status: 500 }
+      ),
+      origin
     );
   }
+}
+
+export function OPTIONS(req: NextRequest) {
+  return corsPreflightResponse(req.headers.get("origin"));
 }

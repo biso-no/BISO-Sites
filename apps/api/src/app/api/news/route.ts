@@ -1,8 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { readAppConfig } from "@/lib/app-config";
 import { applyCorsHeaders, corsPreflightResponse } from "@/lib/cors";
-import { listPublicEvents, type PublicLocale } from "@/lib/public-content";
-import { fetchWordPressEvents } from "@/lib/wordpress-proxy";
+import { listPublicNews, type PublicLocale } from "@/lib/public-content";
 
 export const runtime = "nodejs";
 
@@ -18,46 +16,32 @@ export async function POST(req: NextRequest) {
       campusId,
       per_page = DEFAULT_PER_PAGE,
       page = 1,
-      include_past = false,
       search,
       locale = "no",
     } = body as {
       campusId?: string;
       per_page?: number;
       page?: number;
-      include_past?: boolean;
       search?: string;
       locale?: string;
     };
-
-    if (readAppConfig().content.events_source === "wordpress") {
-      const wordPressResponse = await fetchWordPressEvents({
-        campusId,
-        per_page,
-        page,
-        include_past,
-        search,
-      });
-      return applyCorsHeaders(wordPressResponse, origin);
-    }
 
     const perPage = Math.min(Math.max(1, Number(per_page) || 1), MAX_PER_PAGE);
     const safePage = Math.max(1, Number(page) || 1);
     const safeLocale: PublicLocale = locale === "en" ? "en" : "no";
 
-    const { items, total } = await listPublicEvents({
+    const { items, total } = await listPublicNews({
       campusId: campusId ? String(campusId) : undefined,
       perPage,
       page: safePage,
-      includePast: Boolean(include_past),
       search,
       locale: safeLocale,
     });
 
     return applyCorsHeaders(
       NextResponse.json({
-        events: items,
-        total_events: total,
+        news: items,
+        total_news: total,
         page: safePage,
         per_page: perPage,
         source: "biso",
@@ -65,7 +49,7 @@ export async function POST(req: NextRequest) {
       origin
     );
   } catch (err) {
-    console.error("[events] Unexpected error:", err);
+    console.error("[news] Unexpected error:", err);
     return applyCorsHeaders(
       NextResponse.json(
         { error: "Internal server error", code: "INTERNAL_ERROR" },

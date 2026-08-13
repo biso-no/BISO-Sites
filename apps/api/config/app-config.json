@@ -1,7 +1,7 @@
 {
   "content": {
-    "events_source": "wordpress",
-    "jobs_source": "wordpress",
+    "events_source": "biso",
+    "jobs_source": "biso",
     "products_source": "woocommerce"
   },
   "features": {
