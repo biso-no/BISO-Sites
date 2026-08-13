@@ -52,10 +52,18 @@ nothing breaks silently, but nobody can buy a membership either.
    `DepartmentId`, both user-defined dimension pairs, and the derived accrual
    period. This is the one step no amount of unit testing substitutes for —
    it's checking against Finago's actual interpretation, not our code's.
-6. **Manual browser smoke of all six gate states** — no subagent could do
+6. **Manual browser smoke of all seven gate states** — no subagent could do
    this. In both English and Norwegian: signed out, needs BI link, needs
    directory record (BI link succeeded but no student record found),
-   already member, no plans available, eligible (through to checkout).
+   already member, no plans available, membership check unavailable,
+   eligible (through to checkout).
+
+   The "membership check unavailable" state only renders while the live
+   Finago read is failing, so it will not appear during a normal pass —
+   reproduce it deliberately (for example by setting
+   `MEMBERSHIP_FINAGO_TIMEOUT_MS` very low) and confirm an existing member is
+   NOT offered plans during an outage. That state exists specifically so a
+   member cannot be sold cover overlapping what they already have.
 
 ## Known follow-ups
 

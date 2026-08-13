@@ -408,7 +408,10 @@ Finago and Graph are mocked throughout. No test performs a live call.
 5. Verify against a Finago test customer that the invoice this flow produces is
    indistinguishable from one the BI app produces — specifically `ProductId`,
    `DepartmentId`, both user-defined dimension pairs, and the accrual.
-6. Manually smoke-test all six gate states in the browser (no automated test
+6. Manually smoke-test all seven gate states in the browser (no automated test
    substitutes for this) — signed out, needs BI link, needs directory record,
-   already member, no plans available, eligible — in both English and
-   Norwegian.
+   already member, no plans available, membership check unavailable, eligible
+   — in both English and Norwegian. The "membership check unavailable" state
+   only appears while Finago is unreachable, so reproduce it deliberately
+   (e.g. point `MEMBERSHIP_FINAGO_TIMEOUT_MS` very low) rather than waiting to
+   stumble into it.
