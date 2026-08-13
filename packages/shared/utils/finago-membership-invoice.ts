@@ -70,12 +70,20 @@ export interface BuildMembershipInvoiceParams {
   campusId: string;
   customerId: number;
   invoicedOn: string;
-  plan: MembershipPlan;
+  // Only these five fields are read below — callers may pass either a full
+  // `MembershipPlan` (the live catalog) or a narrower snapshot reconstructed
+  // from what was actually charged at checkout (see
+  // `membership-fulfilment.ts`'s `PurchasedPlanSnapshot`), which is what the
+  // invoice should book from whenever it's available.
+  plan: Pick<
+    MembershipPlan,
+    "accrualMonths" | "duration" | "price" | "productId" | "startDate"
+  >;
 }
 
 function buildDimensions(
   campusId: string,
-  plan: MembershipPlan
+  plan: Pick<MembershipPlan, "duration">
 ): UserDefinedDimension[] {
   // `Object.hasOwn` guards against prototype-chain lookups (e.g. campusId ===
   // "constructor" or "toString" resolving to an inherited Object.prototype

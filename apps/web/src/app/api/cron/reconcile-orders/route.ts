@@ -11,6 +11,7 @@ import {
   isMembershipOrder,
   type MembershipOrder,
   releaseStaleMembershipClaim,
+  stampNonMembershipOrder,
 } from "@repo/shared/utils/membership-fulfilment";
 import { safeSecretCompare } from "@repo/shared/utils/secrets";
 import { NextResponse } from "next/server";
@@ -162,6 +163,14 @@ async function recoverMembershipFulfilment(db: AdminDb): Promise<{
 
   for (const order of orders.rows) {
     if (!isMembershipOrder(order)) {
+      // membership_invoice_id is only ever written for a membership order,
+      // so an unstamped shop order matches this sweep's `IS NULL` query
+      // forever. Stamp the non-membership sentinel so it drops out
+      // permanently instead of consuming the sweep's row budget on every
+      // future run — without this, a large-enough backlog of old paid shop
+      // orders starves out genuinely unfulfilled membership orders (this
+      // sweep has no ordering clause and a capped row limit).
+      await stampNonMembershipOrder(order.$id, db);
       continue;
     }
     try {

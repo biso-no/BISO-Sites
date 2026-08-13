@@ -26,6 +26,7 @@ export {
   findOrCreateCompany,
   getCompaniesByIds,
   getCompanyById,
+  MembershipCustomerLookupError,
   searchCustomerByStudentId,
   upsertMembershipCustomer,
 } from "./company";

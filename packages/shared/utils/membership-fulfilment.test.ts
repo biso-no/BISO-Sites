@@ -3,9 +3,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const upsertMembershipCustomer = vi.hoisted(() => vi.fn());
 const assignMembershipCategory = vi.hoisted(() => vi.fn());
 const postMembershipInvoice = vi.hoisted(() => vi.fn());
+// Defined once and shared between the mock factory and the tests below, so
+// `error instanceof MembershipCustomerLookupError` inside the module under
+// test (which imports this same mocked binding) actually matches.
+const MembershipCustomerLookupError = vi.hoisted(
+  () => class MembershipCustomerLookupError extends Error {}
+);
 
 vi.mock("@repo/connectors/24sevenoffice", () => ({
   assignMembershipCategory,
+  MembershipCustomerLookupError,
   postMembershipInvoice,
   upsertMembershipCustomer,
 }));
@@ -31,6 +38,24 @@ const MEMBERSHIP_ITEMS = JSON.stringify([
     product_type: "membership",
     membership_id: "71",
     quantity: 1,
+    unit_price: 550,
+  },
+]);
+
+// Carries the full checkout-time snapshot (category_id/duration/
+// accrual_months/start_date on top of the fields MEMBERSHIP_ITEMS already
+// has) — this is what a membership-checkout-route order actually persists.
+const SNAPSHOTTED_MEMBERSHIP_ITEMS = JSON.stringify([
+  {
+    product_id: "71",
+    product_type: "membership",
+    membership_id: "71",
+    category_id: "113178",
+    duration: "year",
+    accrual_months: 12,
+    start_date: "2026-08-01",
+    quantity: 1,
+    price: 550,
     unit_price: 550,
   },
 ]);
@@ -216,5 +241,79 @@ describe("fulfilMembershipOrder", () => {
     expect(result).toEqual({ fulfilled: false, reason: "finago_failed" });
     // The invoice may exist upstream; never auto-retry.
     expect(db.decrementRowColumn).not.toHaveBeenCalled();
+  });
+
+  it("books the invoice from the checkout-time snapshot, not a since-changed catalog price (I1)", async () => {
+    // The administrator raised the catalog price AFTER this order was paid —
+    // wireReads' planRow (price 550) must never be consulted when a full
+    // snapshot is present on the order item.
+    wireReads(
+      paidMembershipOrder({ items_json: SNAPSHOTTED_MEMBERSHIP_ITEMS })
+    );
+
+    const result = await fulfilMembershipOrder("order-1", db);
+
+    expect(result).toEqual({ fulfilled: true, invoiceId: 556_677 });
+    expect(postMembershipInvoice).toHaveBeenCalledWith(
+      expect.objectContaining({
+        PaymentAmount: 550,
+        AccrualDate: "2026-08-01",
+        AccrualLength: 12,
+        InvoiceRows: {
+          InvoiceRow: expect.objectContaining({ Price: 550, ProductId: 71 }),
+        },
+      })
+    );
+    expect(assignMembershipCategory).toHaveBeenCalledWith(5_550_001, 113_178);
+    // The catalog read is skipped entirely when the snapshot is usable —
+    // "memberships" must never appear among the tables read.
+    const tablesRead = db.getRow.mock.calls.map((call: unknown[]) => call[1]);
+    expect(tablesRead).not.toContain("memberships");
+  });
+
+  it("falls back to the catalog price for an older order that predates the snapshot (I1)", async () => {
+    // MEMBERSHIP_ITEMS (no category_id/duration/accrual_months/start_date)
+    // represents an order placed before this snapshot existed.
+    wireReads(paidMembershipOrder());
+
+    const result = await fulfilMembershipOrder("order-1", db);
+
+    expect(result).toEqual({ fulfilled: true, invoiceId: 556_677 });
+    // planRow's price/dates (from wireReads) are what get booked.
+    expect(postMembershipInvoice).toHaveBeenCalledWith(
+      expect.objectContaining({ PaymentAmount: 550, AccrualLength: 12 })
+    );
+    const tablesRead = db.getRow.mock.calls.map((call: unknown[]) => call[1]);
+    expect(tablesRead).toContain("memberships");
+  });
+
+  it("releases the claim and clears the marker when the Finago customer LOOKUP fails, instead of falling through to an overwrite-risking create (I5)", async () => {
+    wireReads(paidMembershipOrder());
+    upsertMembershipCustomer.mockRejectedValue(
+      new MembershipCustomerLookupError("24SO search timed out")
+    );
+
+    const result = await fulfilMembershipOrder("order-1", db);
+
+    expect(result).toEqual({
+      fulfilled: false,
+      reason: "customer_lookup_failed",
+    });
+    expect(assignMembershipCategory).not.toHaveBeenCalled();
+    expect(postMembershipInvoice).not.toHaveBeenCalled();
+    // Unlike a generic post-marker Finago failure, a pure lookup failure
+    // never touched Finago — safe (and required) to release for retry.
+    expect(db.decrementRowColumn).toHaveBeenCalled();
+    // The marker itself must be cleared too, not just the lock: leaving
+    // FULFILMENT_MARKER in `membership_invoice_id` would still trip
+    // `fulfilMembershipOrder`'s own already-fulfilled guard AND keep the
+    // cron sweep's `IS NULL` query from ever matching this row again —
+    // stranding it even with the lock released.
+    expect(db.updateRow).toHaveBeenCalledWith(
+      expect.any(String),
+      "orders",
+      "order-1",
+      { membership_invoice_id: null }
+    );
   });
 });

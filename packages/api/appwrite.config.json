@@ -319,6 +319,13 @@
           "status": "available",
           "columns": ["finago_transaction_id"],
           "orders": ["ASC"]
+        },
+        {
+          "key": "idx_orders_membership_invoice",
+          "type": "key",
+          "status": "available",
+          "columns": ["membership_invoice_id"],
+          "orders": ["ASC"]
         }
       ]
     },

@@ -67,12 +67,25 @@ export async function findOrCreateCompany(
   return await saveCompany(session, customer);
 }
 
+interface GetCompaniesOptions {
+  // When true, a search failure is rethrown instead of being swallowed into
+  // an empty result. Off by default so the other four (pre-existing) callers
+  // keep their exact current behaviour — see `upsertMembershipCustomer` for
+  // the one caller that needs to distinguish "genuinely not found" (safe to
+  // fall through to create) from "the search itself failed" (never safe to
+  // treat as not-found: a false negative here would fall through to a
+  // pinned-`Id` create that overwrites, not merely duplicates, an existing
+  // curated customer record).
+  throwOnError?: boolean;
+}
+
 /**
  * Search for companies in 24SevenOffice
  */
 async function getCompanies(
   sessionToken: string,
-  searchParams: CompanySearchParams
+  searchParams: CompanySearchParams,
+  options?: GetCompaniesOptions
 ): Promise<Company[]> {
   try {
     const client = await createAuthenticatedClient("company", sessionToken);
@@ -94,6 +107,9 @@ async function getCompanies(
     return Array.isArray(companies) ? companies : [companies];
   } catch (error) {
     console.error("[24SO Company] Search failed:", error);
+    if (options?.throwOnError) {
+      throw error;
+    }
     return [];
   }
 }
@@ -336,6 +352,26 @@ export interface UpsertMembershipCustomerParams {
 }
 
 /**
+ * Thrown by `upsertMembershipCustomer` when the existing-customer LOOKUP
+ * itself fails (transient 24SO error/timeout), as opposed to a genuine "no
+ * such customer" result. Callers must treat this as a hard stop, never fall
+ * through to create: `upsertMembershipCustomer` creates with an explicit,
+ * pinned `Id` (the Azure employee id), which 24SO treats as an upsert-by-id —
+ * so creating on a false "not found" doesn't mint a duplicate, it silently
+ * overwrites (Name/ExternalId/EmailAddresses/etc.) any existing curated
+ * customer record.
+ */
+export class MembershipCustomerLookupError extends Error {
+  constructor(cause: unknown) {
+    super(
+      "Failed to look up an existing Finago customer for a membership purchase"
+    );
+    this.name = "MembershipCustomerLookupError";
+    this.cause = cause;
+  }
+}
+
+/**
  * Resolve the Finago customer for a membership purchase, creating it when
  * absent.
  *
@@ -343,22 +379,40 @@ export interface UpsertMembershipCustomerParams {
  * that is what BI's own app uses — so `Id` is sent explicitly on create rather
  * than letting 24SO allocate one. `ExternalId` carries the sanitized student
  * number from their BI email address.
+ *
+ * Both lookups use `throwOnError` and let a search failure propagate as
+ * `MembershipCustomerLookupError` rather than falling through to create — see
+ * that error's doc comment for why a false "not found" here is unsafe.
  */
 export async function upsertMembershipCustomer(
   params: UpsertMembershipCustomerParams
 ): Promise<number> {
   const session = await getValidSession();
 
-  const byCompanyId = await getCompanies(session, {
-    CompanyId: params.employeeId,
-  });
+  let byCompanyId: Company[];
+  try {
+    byCompanyId = await getCompanies(
+      session,
+      { CompanyId: params.employeeId },
+      { throwOnError: true }
+    );
+  } catch (error) {
+    throw new MembershipCustomerLookupError(error);
+  }
   if (byCompanyId[0]?.Id) {
     return byCompanyId[0].Id;
   }
 
-  const byExternalId = await getCompanies(session, {
-    ExternalId: String(params.studentNumber),
-  });
+  let byExternalId: Company[];
+  try {
+    byExternalId = await getCompanies(
+      session,
+      { ExternalId: String(params.studentNumber) },
+      { throwOnError: true }
+    );
+  } catch (error) {
+    throw new MembershipCustomerLookupError(error);
+  }
   if (byExternalId[0]?.Id) {
     return byExternalId[0].Id;
   }

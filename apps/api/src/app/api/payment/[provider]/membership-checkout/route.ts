@@ -396,6 +396,11 @@ export async function POST(
           category_id: String(plan.categoryId),
           duration: plan.duration,
           accrual_months: plan.accrualMonths,
+          // Snapshotted so fulfilment can book the Finago invoice's
+          // AccrualDate from what was actually selected at checkout instead
+          // of re-reading the (possibly since-changed) catalog row — see
+          // `resolvePurchasedPlan` in membership-fulfilment.ts.
+          start_date: plan.startDate,
         },
       ],
       subtotal: plan.price,
