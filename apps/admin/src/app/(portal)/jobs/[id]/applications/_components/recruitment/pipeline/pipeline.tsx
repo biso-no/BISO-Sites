@@ -143,7 +143,9 @@ export function Pipeline() {
     const nextStatus = STATUS_BY_STAGE[stage];
     const toMove = Array.from(selectedIds)
       .map((id) => candidates.find((c) => c.id === id))
-      .filter((c): c is WorkspaceCandidate => c !== undefined && c.stage !== stage);
+      .filter(
+        (c): c is WorkspaceCandidate => c !== undefined && c.stage !== stage
+      );
 
     if (toMove.length === 0) {
       setSelectedIds(new Set());
@@ -151,7 +153,10 @@ export function Pipeline() {
     }
 
     const valid = toMove.filter((c) =>
-      canTransitionRecruitmentApplicationStatus(c.stage as JobApplicationsStatus, nextStatus)
+      canTransitionRecruitmentApplicationStatus(
+        c.stage as JobApplicationsStatus,
+        nextStatus
+      )
     );
 
     if (valid.length !== toMove.length) {
@@ -167,16 +172,20 @@ export function Pipeline() {
     for (const c of valid) {
       updateCandidate(c.id, { stage: nextStatus });
     }
-    
+
     setSelectedIds(new Set());
 
     startTransition(async () => {
       const results = await Promise.allSettled(
         valid.map((c) =>
-          updateJobApplicationStatus(c.id, { status: nextStatus }).then((res) => {
-            if (res.error) throw new Error(res.error);
-            return res;
-          })
+          updateJobApplicationStatus(c.id, { status: nextStatus }).then(
+            (res) => {
+              if (res.error) {
+                throw new Error(res.error);
+              }
+              return res;
+            }
+          )
         )
       );
 
@@ -188,7 +197,9 @@ export function Pipeline() {
             updateCandidate(c.id, { stage: previousStages.get(c.id)! });
           }
         }
-        flashToast(`Moved ${valid.length - failures.length}/${valid.length} candidates. ${failures.length} failed.`);
+        flashToast(
+          `Moved ${valid.length - failures.length}/${valid.length} candidates. ${failures.length} failed.`
+        );
       } else if (valid.length > 1) {
         flashToast(`Successfully moved ${valid.length} candidates.`);
       }

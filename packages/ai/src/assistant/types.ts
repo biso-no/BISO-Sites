@@ -7,6 +7,8 @@ import type { clientTools } from "./tools/client-tools";
  * and used to filter which server tools are exposed.
  */
 export interface AssistantCapabilities {
+  /** Analytics (Umami) read access (globaladmin only) */
+  analytics: boolean;
   /** Approval: user can approve/reject requests routed to their team */
   canApprove: boolean;
   /** Per-content-domain access level */
@@ -21,8 +23,6 @@ export interface AssistantCapabilities {
   };
   /** M365 management tools available (globaladmin only) */
   m365: boolean;
-  /** Analytics (Umami) read access (globaladmin only) */
-  analytics: boolean;
   /** Settings management tools available (globaladmin only) */
   settings: boolean;
 }
