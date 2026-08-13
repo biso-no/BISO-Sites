@@ -20,7 +20,31 @@ nothing breaks silently, but nobody can buy a membership either.
 2. **Grant `User.Read.All`** (application permission, admin consent) in BI's
    tenant. Confirm `employeeId` is populated for students — the whole
    Finago-customer-id scheme is built on it.
-3. **Push the schema.** `appwrite push tables` for the five new columns plus
+3. **Push the schema.** ⚠️ **Pull before you push.**
+
+   `packages/api/appwrite.config.json` was found to be STALE during this build:
+   ten relationship columns and one unique index existed in the live project but
+   were absent from the committed file (`announcements`/`campus_benefits`/
+   `documents` `campus`+`department`, `campus`'s reverse relations,
+   `pages.department`, `content_translations.uniq_content_locale`). Because
+   `appwrite push tables` is **declarative** — it pushes the local file as the
+   desired state — pushing the stale file would have DROPPED all of them.
+
+   That was resolved on this branch by running `appwrite pull tables` and
+   re-applying the membership columns on top (commits `23cac95d` then
+   `6ead7d76`). But the same trap recurs whenever the console and the file
+   drift. Before running the push below, pull again and confirm the only
+   difference is the membership schema:
+
+   ```
+   appwrite pull tables            # refresh from live
+   git diff --stat packages/api/appwrite.config.json
+   ```
+
+   If that diff shows anything being REMOVED, stop and reconcile — something
+   changed live since this branch was written.
+
+   Then push `appwrite push tables` for the five new columns plus
    the new `idx_orders_membership_invoice` index on `orders.membership_invoice_id`
    (added alongside the fix for the cron-starvation defect below — mirrors the
    existing `idx_orders_finago` index), then regenerate types:
