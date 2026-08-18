@@ -1,0 +1,26 @@
+{
+  "name": "@repo/wp-import",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "extract": "bun --env-file=.env scripts/extract.ts",
+    "transform": "bun --env-file=.env scripts/transform.ts",
+    "load": "bun --env-file=.env scripts/load.ts",
+    "test": "bun test",
+    "check-types": "tsc --noEmit",
+    "lint": "biome lint ."
+  },
+  "devDependencies": {
+    "@repo/typescript-config": "workspace:*",
+    "@types/node": "catalog:",
+    "typescript": "catalog:"
+  },
+  "dependencies": {
+    "@ai-sdk/openai": "catalog:",
+    "@repo/shared": "workspace:*",
+    "ai": "catalog:",
+    "node-appwrite": "catalog:",
+    "zod": "catalog:"
+  }
+}

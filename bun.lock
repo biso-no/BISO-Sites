@@ -415,6 +415,22 @@
         "typescript": "catalog:",
       },
     },
+    "packages/wp-import": {
+      "name": "@repo/wp-import",
+      "version": "0.0.0",
+      "dependencies": {
+        "@ai-sdk/openai": "catalog:",
+        "@repo/shared": "workspace:*",
+        "ai": "catalog:",
+        "node-appwrite": "catalog:",
+        "zod": "catalog:",
+      },
+      "devDependencies": {
+        "@repo/typescript-config": "workspace:*",
+        "@types/node": "catalog:",
+        "typescript": "catalog:",
+      },
+    },
   },
   "catalog": {
     "@ai-sdk/anthropic": "^3.0.81",
@@ -1167,6 +1183,8 @@
     "@repo/typescript-config": ["@repo/typescript-config@workspace:packages/typescript-config"],
 
     "@repo/ui": ["@repo/ui@workspace:packages/ui"],
+
+    "@repo/wp-import": ["@repo/wp-import@workspace:packages/wp-import"],
 
     "@rolldown/binding-android-arm64": ["@rolldown/binding-android-arm64@1.0.0-rc.12", "", { "os": "android", "cpu": "arm64" }, "sha512-pv1y2Fv0JybcykuiiD3qBOBdz6RteYojRFY1d+b95WVuzx211CRh+ytI/+9iVyWQ6koTh5dawe4S/yRfOFjgaA=="],
 
