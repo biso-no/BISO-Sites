@@ -144,13 +144,16 @@ describe("transformProduct", () => {
     expect(reject?.reason).toContain("price");
   });
 
-  test("stores variations as variants_json", () => {
+  test("stores variations as variants_json in the shape the shop studio parses", () => {
     const store = {
       ...baseStore,
       type: "variable",
       variations: [
         {
-          attributes: [{ name: "Member status", value: "BISO member" }],
+          attributes: [
+            { name: "Member status", value: "BISO member" },
+            { name: "Duration", value: "Semester" },
+          ],
           id: 63_463,
         },
       ],
@@ -161,8 +164,74 @@ describe("transformProduct", () => {
       },
     };
     const { product } = transformProduct({ ...basePost, store });
+    const variants = JSON.parse(String(product?.row.variants_json));
 
-    expect(JSON.parse(String(product?.row.variants_json))).toHaveLength(1);
+    expect(variants).toHaveLength(1);
+    expect(variants[0]).toEqual({
+      id: "63463",
+      name: "BISO member / Semester",
+      price: 0,
+      stock: 0,
+      type: "default",
+    });
+  });
+
+  test("imports a variable product as draft, even when the WordPress post is published", () => {
+    const store = {
+      ...baseStore,
+      type: "variable",
+      variations: [
+        { attributes: [{ name: "Duration", value: "Semester" }], id: 1 },
+      ],
+      prices: {
+        currency_minor_unit: 0,
+        price: "250",
+        price_range: { max_amount: "1500", min_amount: "250" },
+      },
+    };
+    const { product, warnings } = transformProduct({
+      ...basePost,
+      status: "publish",
+      store,
+    });
+
+    expect(product?.row.status).toBe("draft");
+    expect(warnings.some((w) => w.includes("variable"))).toBe(true);
+  });
+
+  test("caps variants_json at 8192 chars by trimming variants from the end", () => {
+    const manyVariations = Array.from({ length: 400 }, (_, index) => ({
+      attributes: [{ name: "Duration", value: `Option ${index}` }],
+      id: index,
+    }));
+    const store = {
+      ...baseStore,
+      type: "variable",
+      variations: manyVariations,
+    };
+    const { product } = transformProduct({ ...basePost, store });
+
+    expect(String(product?.row.variants_json).length).toBeLessThanOrEqual(8192);
+  });
+
+  test("maps the WooCommerce default category to null instead of the literal 'Uncategorized'", () => {
+    const store = {
+      ...baseStore,
+      categories: [{ id: 1, name: "Uncategorized", slug: "uncategorized" }],
+    };
+    const { product } = transformProduct({ ...basePost, store });
+
+    expect(product?.row.category).toBeNull();
+  });
+
+  test("keeps a real category name", () => {
+    const store = {
+      ...baseStore,
+      categories: [{ id: 2, name: "Merch", slug: "merch" }],
+    };
+    const { product } = transformProduct({ ...basePost, store });
+
+    expect(product?.row.category).toBe("Merch");
   });
 
   test("flags member-status variants instead of guessing member_price", () => {

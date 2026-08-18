@@ -145,4 +145,33 @@ describe("transformJob", () => {
     expect(job?.descriptionHtml.startsWith("<p>")).toBe(true);
     expect(job?.descriptionHtml).not.toContain("\n\n");
   });
+
+  test("caps metadata at 2000 chars by dropping tags first", () => {
+    // 948/948 is chosen so the full payload (with the "PR" tag) is just over
+    // the 2000-char cap, but dropping tags alone brings it back under —
+    // pinning "drop tags first" as the specific remedy, not a cruder
+    // truncation of employment_type/location.
+    const { job } = transformJob(
+      {
+        ...baseJob,
+        job_type: "a".repeat(948),
+        location: "b".repeat(948),
+        verv: ["PR"],
+      },
+      DEPARTMENTS,
+      new Map()
+    );
+    const metadata = JSON.parse(String(job?.row.metadata));
+
+    expect(String(job?.row.metadata).length).toBeLessThanOrEqual(2000);
+    expect(metadata.tags).toEqual([]);
+    expect(metadata.employment_type).toBe("a".repeat(948));
+  });
+
+  test("keeps tags when metadata is well under the 2000 char cap", () => {
+    const { job } = transformJob(baseJob, DEPARTMENTS, new Map());
+    const metadata = JSON.parse(String(job?.row.metadata));
+
+    expect(metadata.tags).toEqual(["PR"]);
+  });
 });

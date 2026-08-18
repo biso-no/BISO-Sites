@@ -14,6 +14,31 @@ import { detectLocale } from "./locale";
 
 const MAX_METADATA_TAGS = 4;
 const MAX_TAG_LENGTH = 40;
+const MAX_METADATA_JSON_LENGTH = 2000;
+
+interface JobMetadata {
+  auto_screen: true;
+  auto_translate: false;
+  company: null;
+  employment_type: string | null;
+  location: string | null;
+  tags: string[];
+}
+
+/**
+ * Defensive cap so an unusually long free-text `employment_type`/`location`
+ * value can never fail the whole load with a jobs.metadata (size 2000)
+ * validation error. Tags are dropped first — they're already the most
+ * disposable part of metadata (capped at MAX_METADATA_TAGS short strings)
+ * and losing them beats a load run dying mid-way on one row.
+ */
+function buildMetadataJson(metadata: JobMetadata): string {
+  const json = JSON.stringify(metadata);
+  if (json.length <= MAX_METADATA_JSON_LENGTH) {
+    return json;
+  }
+  return JSON.stringify({ ...metadata, tags: [] });
+}
 
 export interface TransformedJob {
   departmentConfidence: number;
@@ -140,7 +165,7 @@ export function transformJob(
     .filter((verv) => verv.length > 0 && verv.length <= MAX_TAG_LENGTH)
     .slice(0, MAX_METADATA_TAGS);
 
-  const metadata = {
+  const metadata: JobMetadata = {
     auto_screen: true,
     auto_translate: false,
     company: null,
@@ -158,7 +183,7 @@ export function transformJob(
     campus_id: campusId,
     department: departmentId,
     department_id: departmentId,
-    metadata: JSON.stringify(metadata),
+    metadata: buildMetadataJson(metadata),
     slug: input.slug,
     status,
   };
