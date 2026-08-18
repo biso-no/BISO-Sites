@@ -27,9 +27,18 @@ import {
 } from "../src/transform/locale";
 import type { TransformedProduct } from "../src/transform/products";
 
+const CONTENT_FLAGS = ["jobs", "products", "orders"] as const;
+
 const args = new Set(process.argv.slice(2));
 const apply = args.has("--apply");
 const wants = (name: string): boolean => args.has(`--${name}`);
+
+if (!CONTENT_FLAGS.some((flag) => wants(flag))) {
+  console.error(
+    `Nothing to load — pass at least one content flag: ${CONTENT_FLAGS.map((f) => `--${f}`).join(", ")} (add --apply to write; omit it for a dry run).`
+  );
+  process.exit(1);
+}
 
 // Validate Appwrite configuration before touching the filesystem, so a
 // missing .env fails fast with a clear message instead of surfacing as an
