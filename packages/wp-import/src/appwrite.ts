@@ -1,7 +1,7 @@
 import { Client, Query, TablesDB } from "node-appwrite";
 import type { DepartmentRecord } from "./transform/departments";
 
-export function createDb(): TablesDB {
+export function clientFromEnv(): Client {
   const endpoint =
     process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT ?? process.env.APPWRITE_ENDPOINT;
   const project =
@@ -14,9 +14,11 @@ export function createDb(): TablesDB {
     );
   }
 
-  return new TablesDB(
-    new Client().setEndpoint(endpoint).setProject(project).setKey(apiKey)
-  );
+  return new Client().setEndpoint(endpoint).setProject(project).setKey(apiKey);
+}
+
+export function createDb(): TablesDB {
+  return new TablesDB(clientFromEnv());
 }
 
 export async function loadDepartments(
