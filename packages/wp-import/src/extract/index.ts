@@ -1,0 +1,180 @@
+import type { WpClient } from "../wp/client";
+
+export interface WpJob {
+  campus: string[];
+  content: string;
+  date_posted: string;
+  department: string[];
+  expiry_date: string | null;
+  id: number;
+  is_expired: boolean;
+  job_type: string | null;
+  location: string | null;
+  slug: string;
+  thumbnail: unknown[];
+  title: string;
+  url: string;
+  verv: string[];
+}
+
+export interface WpJobPost {
+  content: { rendered: string };
+  date: string;
+  id: number;
+  link: string;
+  slug: string;
+  status: string;
+  title: { rendered: string };
+}
+
+export interface WpProductPost {
+  acf: Record<string, string | false>;
+  content: { rendered: string };
+  id: number;
+  slug: string;
+  status: string;
+  title: { rendered: string };
+}
+
+export interface WcStoreProduct {
+  categories: Array<{ id: number; name: string; slug: string }>;
+  description: string;
+  id: number;
+  images: Array<{ alt: string; id: number; src: string }>;
+  name: string;
+  prices: {
+    currency_minor_unit: number;
+    price: string;
+    price_range: { max_amount: string; min_amount: string } | null;
+  };
+  short_description: string;
+  slug: string;
+  type: string;
+  variations: Array<{
+    attributes: Array<{ name: string; value: string }>;
+    id: number;
+  }>;
+}
+
+export interface WcOrder {
+  billing: {
+    email: string;
+    first_name: string;
+    last_name: string;
+    phone: string;
+  };
+  currency: string;
+  date_created: string;
+  discount_total: string;
+  id: number;
+  line_items: Array<{
+    name: string;
+    price: number;
+    product_id: number;
+    quantity: number;
+    total: string;
+  }>;
+  payment_method_title: string;
+  status: string;
+  total: string;
+}
+
+const RELATIVE_WINDOW = /^(\d+)([dmy])$/;
+
+export function parseSince(value: string, now: Date): string {
+  if (value === "all") {
+    return new Date(0).toISOString();
+  }
+
+  const relative = RELATIVE_WINDOW.exec(value);
+  if (relative) {
+    const amount = Number.parseInt(relative[1] ?? "0", 10);
+    const unit = relative[2];
+    const date = new Date(now.getTime());
+    if (unit === "d") {
+      date.setUTCDate(date.getUTCDate() - amount);
+    } else if (unit === "m") {
+      date.setUTCMonth(date.getUTCMonth() - amount);
+    } else {
+      date.setUTCFullYear(date.getUTCFullYear() - amount);
+    }
+    return date.toISOString();
+  }
+
+  const explicit = new Date(`${value}T00:00:00.000Z`);
+  if (Number.isNaN(explicit.getTime())) {
+    throw new Error(`Unrecognised --since value: ${value}`);
+  }
+  return explicit.toISOString();
+}
+
+/**
+ * Jobs need two sources joined on the post id: /custom/v1/jobs is the only
+ * endpoint that resolves the campus/verv taxonomies (they are not registered
+ * with show_in_rest), and /wp/v2/awsm_job_openings is the only source of the
+ * raw post content and date.
+ */
+export async function extractJobs(
+  client: WpClient,
+  sinceIso: string
+): Promise<Array<WpJob & { post: WpJobPost }>> {
+  const posts = await client.fetchAllPages<WpJobPost>(
+    "/wp/v2/awsm_job_openings"
+  );
+  const postsById = new Map(posts.map((post) => [post.id, post]));
+
+  const custom: WpJob[] = [];
+  let page = 1;
+  let totalPages = 1;
+  do {
+    const body = await client.fetchJson<{
+      jobs: WpJob[];
+      pagination: { total_pages: number };
+    }>("/custom/v1/jobs", {
+      includeExpired: "true",
+      page: String(page),
+      per_page: "100",
+    });
+    custom.push(...body.jobs);
+    totalPages = body.pagination.total_pages;
+    page += 1;
+  } while (page <= totalPages);
+
+  const since = new Date(sinceIso).getTime();
+
+  return custom.flatMap((job) => {
+    const post = postsById.get(job.id);
+    if (!post) {
+      return [];
+    }
+    if (new Date(post.date).getTime() < since) {
+      return [];
+    }
+    return [{ ...job, post }];
+  });
+}
+
+/**
+ * Products also need two sources: /wp/v2/product carries the ACF
+ * campus/department IDs, /wc/store/v1/products carries prices and images.
+ */
+export async function extractProducts(
+  client: WpClient
+): Promise<Array<WpProductPost & { store: WcStoreProduct | null }>> {
+  const posts = await client.fetchAllPages<WpProductPost>("/wp/v2/product");
+  const store = await client.fetchAllPages<WcStoreProduct>(
+    "/wc/store/v1/products"
+  );
+  const storeById = new Map(store.map((product) => [product.id, product]));
+
+  return posts.map((post) => ({
+    ...post,
+    store: storeById.get(post.id) ?? null,
+  }));
+}
+
+export async function extractOrders(client: WpClient): Promise<WcOrder[]> {
+  return await client.fetchAllPages<WcOrder>("/wc/v3/orders", {
+    status: "any",
+  });
+}
