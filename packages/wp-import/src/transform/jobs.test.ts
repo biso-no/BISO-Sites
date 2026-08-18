@@ -23,6 +23,7 @@ const baseJob = {
       rendered: "<p>Karrieredagene rekrutterer til en ny manager.</p>",
     },
     date: "2026-08-01T14:56:35",
+    date_gmt: "2026-08-01T12:56:35",
     id: 63_903,
     link: "https://biso.no/undergruppe/pr-manager/",
     slug: "pr-manager",
