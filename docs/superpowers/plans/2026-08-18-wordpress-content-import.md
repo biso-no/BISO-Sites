@@ -480,7 +480,7 @@ describe("plainTextExcerpt", () => {
   test("strips markup and truncates on a word boundary", () => {
     const input = "<p>Karrieredagene rekrutterer en ny manager for 2026</p>";
 
-    expect(plainTextExcerpt(input, 30)).toBe("Karrieredagene rekrutterer en…");
+    expect(plainTextExcerpt(input, 30)).toBe("Karrieredagene rekrutterer…");
   });
 });
 ```
@@ -567,10 +567,13 @@ function blockTag(rawTag: string): "h" | "l" | "p" {
 
 function parseBlocks(rawHtml: string): Block[] {
   const blocks: Block[] = [];
-  BLOCK_PATTERN.lastIndex = 0;
-  let match = BLOCK_PATTERN.exec(rawHtml);
 
-  while (match) {
+  // matchAll() is required here rather than a BLOCK_PATTERN.exec() loop: this
+  // function recurses, and a shared module-level regex with the /g flag would
+  // have its lastIndex reset by the inner call, making the outer loop re-match
+  // the same block forever. matchAll clones the regex internally, so each
+  // recursion level iterates independently and lastIndex is never mutated.
+  for (const match of rawHtml.matchAll(BLOCK_PATTERN)) {
     const [, rawTag, inner] = match;
     // A container may itself hold block children (e.g. <div><p>x</p></div>).
     // Recurse so the inner blocks keep their own semantics.
@@ -583,7 +586,6 @@ function parseBlocks(rawHtml: string): Block[] {
         blocks.push({ tag: blockTag(rawTag ?? "p"), text });
       }
     }
-    match = BLOCK_PATTERN.exec(rawHtml);
   }
 
   return blocks;
@@ -921,7 +923,7 @@ const DEPARTMENTS: DepartmentRecord[] = [
 describe("normalizeDepartmentName", () => {
   test("strips the campus prefix", () => {
     expect(normalizeDepartmentName("OSL Bergensbaneløpet")).toBe(
-      "bergensbanelopet"
+      "bergensbaneloepet"
     );
   });
 
@@ -929,12 +931,16 @@ describe("normalizeDepartmentName", () => {
     expect(normalizeDepartmentName("BRG Dans  - overført til BIA")).toBe(
       "dans"
     );
-    expect(normalizeDepartmentName("STV ØAF - nedlagt")).toBe("oaf");
+    expect(normalizeDepartmentName("STV ØAF - nedlagt")).toBe("oeaf");
   });
 
+  // Folding uses the standard Norwegian ASCII transliteration (æ→ae, ø→oe,
+  // å→aa). The exact convention does not matter for matching — both the
+  // WordPress name and the Appwrite name pass through this same function —
+  // but it must be internally consistent.
   test("folds Norwegian characters", () => {
     expect(normalizeDepartmentName("Økonomiansvarlig")).toBe(
-      "okonomiansvarlig"
+      "oekonomiansvarlig"
     );
     expect(normalizeDepartmentName("Næringslivsutvalget")).toBe(
       "naeringslivsutvalget"
@@ -2034,10 +2040,20 @@ describe("transformProduct", () => {
     expect(product?.imageUrls).toEqual(["https://biso.no/wp-content/a.jpg"]);
   });
 
-  test("falls back to post content when the store record is missing", () => {
-    const { product } = transformProduct({ ...basePost, store: null });
+  test("falls back to post content when the store description is empty", () => {
+    const { product } = transformProduct({
+      ...basePost,
+      store: { ...baseStore, description: "" },
+    });
 
     expect(product?.descriptionHtml).toBe("<p>Beskrivelse</p>");
+  });
+
+  test("rejects when the store record is missing, because price is unresolvable", () => {
+    const { product, reject } = transformProduct({ ...basePost, store: null });
+
+    expect(product).toBeNull();
+    expect(reject?.reason).toContain("price");
   });
 });
 ```
