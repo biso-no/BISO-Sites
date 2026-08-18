@@ -61,7 +61,7 @@
 
 **Interfaces:**
 - Consumes: nothing (first task).
-- Produces: `WpClient` class with `fetchAllPages<T>(path: string, params?: Record<string, string>): Promise<T[]>` and `fetchJson<T>(path: string, params?: Record<string, string>): Promise<T>`; types `ContentLocale`, `CampusId`, `ImportReport`, `RejectRow`.
+- Produces: `WpClient` class with `fetchAllPages<T>(path: string, params?: Record<string, string>): Promise<T[]>` and `fetchJson<T>(path: string, params?: Record<string, string>): Promise<T>`; types `ContentLocale`, `FetchLike`, `ImportReport`, `RejectRow`; const `CAMPUS_IDS`.
 
 - [ ] **Step 1: Create the package manifest**
 
@@ -138,6 +138,20 @@ export const CAMPUS_IDS: Record<string, string> = {
   Stavanger: "4",
   Trondheim: "3",
 };
+
+/**
+ * Structural type for the `fetch` used by this package's clients.
+ *
+ * Deliberately NOT `typeof fetch`: Bun's global `fetch` type is merged with a
+ * `fetch.preconnect` static, so a plain mock function can never satisfy it and
+ * every test double would need an `as unknown as typeof fetch` double-cast.
+ * A double-cast suppresses exactly the type errors that type-checking test
+ * files exists to surface, so the seam is typed structurally instead.
+ */
+export type FetchLike = (
+  input: string | URL | Request,
+  init?: RequestInit
+) => Promise<Response>;
 
 export interface RejectRow {
   /** WordPress post id. */
@@ -236,7 +250,7 @@ export interface WpClientOptions {
   /** WooCommerce consumer key — only required for /wc/v3 routes. */
   consumerKey?: string;
   consumerSecret?: string;
-  fetchImpl?: typeof fetch;
+  fetchImpl?: FetchLike;
 }
 
 const sleep = (ms: number): Promise<void> =>
@@ -248,7 +262,7 @@ export class WpClient {
   private readonly baseUrl: string;
   private readonly consumerKey?: string;
   private readonly consumerSecret?: string;
-  private readonly fetchImpl: typeof fetch;
+  private readonly fetchImpl: FetchLike;
 
   constructor(options: WpClientOptions) {
     this.baseUrl = options.baseUrl.replace(/\/$/, "");
@@ -3164,7 +3178,9 @@ git commit -m "feat(wp-import): add transform CLI with department review loop"
 
 **Interfaces:**
 - Consumes: `node-appwrite` `Storage`, `ID`, `Permission`, `Role`.
-- Produces: `mirrorImage(deps: MirrorDeps, sourceUrl: string): Promise<string>` returning an Appwrite file ID, and `type MirrorDeps = { upload: (file: File) => Promise<{ $id: string }>; fetchImpl?: typeof fetch; cache: Map<string, string> }`.
+- Produces: `mirrorImage(deps: MirrorDeps, sourceUrl: string): Promise<string>` returning an Appwrite file ID, and `type MirrorDeps = { upload: (file: File) => Promise<{ $id: string }>; fetchImpl?: FetchLike; cache: Map<string, string> }`.
+
+**Note:** `fetchImpl` is typed `FetchLike` (from `../types`, added in Task 1), **not** `typeof fetch`. Bun's global `fetch` type is merged with a `fetch.preconnect` static, so a plain mock function cannot satisfy `typeof fetch` and every test double would need an `as unknown as typeof fetch` double-cast — which would suppress the very type errors that type-checking test files exists to surface.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -3238,10 +3254,12 @@ Expected: FAIL — cannot resolve `./media`.
 `packages/wp-import/src/media.ts`:
 
 ```ts
+import type { FetchLike } from "./types";
+
 export interface MirrorDeps {
   /** sourceUrl → Appwrite file id, so a re-run never re-uploads. */
   cache: Map<string, string>;
-  fetchImpl?: typeof fetch;
+  fetchImpl?: FetchLike;
   upload: (file: File) => Promise<{ $id: string }>;
 }
 
