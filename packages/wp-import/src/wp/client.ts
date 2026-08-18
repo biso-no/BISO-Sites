@@ -4,6 +4,7 @@ const DEFAULT_PER_PAGE = "100";
 const MAX_RETRIES = 3;
 const RETRYABLE_STATUSES = new Set([429, 500, 502, 503, 504]);
 const TRAILING_SLASH_REGEX = /\/$/;
+const SENSITIVE_QUERY_PARAMS = ["consumer_key", "consumer_secret"];
 
 export interface WpClientOptions {
   baseUrl: string;
@@ -17,6 +18,26 @@ const sleep = (ms: number): Promise<void> =>
   new Promise((resolve) => {
     setTimeout(resolve, ms);
   });
+
+/**
+ * Strips consumer_key/consumer_secret from a URL before it can land in a
+ * thrown error message. Defense-in-depth: credentials no longer travel as
+ * query params (see authHeaders below), but a redacted URL is still safe to
+ * log even if some future caller passes them as params directly.
+ */
+function redactUrl(url: string): string {
+  try {
+    const parsed = new URL(url);
+    for (const param of SENSITIVE_QUERY_PARAMS) {
+      if (parsed.searchParams.has(param)) {
+        parsed.searchParams.set(param, "REDACTED");
+      }
+    }
+    return parsed.toString();
+  } catch {
+    return url;
+  }
+}
 
 export class WpClient {
   private readonly baseUrl: string;
@@ -36,32 +57,50 @@ export class WpClient {
     for (const [key, value] of Object.entries(params)) {
       url.searchParams.set(key, value);
     }
-    if (path.startsWith("/wc/v3") && this.consumerKey && this.consumerSecret) {
-      url.searchParams.set("consumer_key", this.consumerKey);
-      url.searchParams.set("consumer_secret", this.consumerSecret);
-    }
     return url.toString();
   }
 
-  private async request(url: string): Promise<Response> {
+  /**
+   * WooCommerce REST auth as a `Basic` header rather than
+   * ?consumer_key=&consumer_secret= query parameters. A 401 while setting
+   * these up is the *expected* first failure, and query-string credentials
+   * would land in both the thrown error message below and biso.no's HTTP
+   * access logs — a header does neither.
+   */
+  private authHeaders(path: string): Record<string, string> {
+    if (
+      !(path.startsWith("/wc/v3") && this.consumerKey && this.consumerSecret)
+    ) {
+      return {};
+    }
+    const token = Buffer.from(
+      `${this.consumerKey}:${this.consumerSecret}`
+    ).toString("base64");
+    return { Authorization: `Basic ${token}` };
+  }
+
+  private async request(url: string, path: string): Promise<Response> {
     let lastError = "";
     for (let attempt = 0; attempt < MAX_RETRIES; attempt += 1) {
       const response = await this.fetchImpl(url, {
-        headers: { "User-Agent": "biso-wp-import/1.0" },
+        headers: {
+          "User-Agent": "biso-wp-import/1.0",
+          ...this.authHeaders(path),
+        },
       });
       if (response.ok) {
         return response;
       }
       if (!RETRYABLE_STATUSES.has(response.status)) {
         throw new Error(
-          `WordPress request failed with ${response.status} for ${url}`
+          `WordPress request failed with ${response.status} for ${redactUrl(url)}`
         );
       }
       lastError = `${response.status}`;
       await sleep(2 ** attempt * 500);
     }
     throw new Error(
-      `WordPress request failed after ${MAX_RETRIES} retries (${lastError}) for ${url}`
+      `WordPress request failed after ${MAX_RETRIES} retries (${lastError}) for ${redactUrl(url)}`
     );
   }
 
@@ -69,7 +108,7 @@ export class WpClient {
     path: string,
     params: Record<string, string> = {}
   ): Promise<T> {
-    const response = await this.request(this.buildUrl(path, params));
+    const response = await this.request(this.buildUrl(path, params), path);
     return (await response.json()) as T;
   }
 
@@ -87,7 +126,7 @@ export class WpClient {
         ...params,
         page: String(page),
       });
-      const response = await this.request(url);
+      const response = await this.request(url, path);
       const header = response.headers.get("X-WP-TotalPages");
       totalPages = header ? Number.parseInt(header, 10) || 1 : 1;
       const body = (await response.json()) as T[];
