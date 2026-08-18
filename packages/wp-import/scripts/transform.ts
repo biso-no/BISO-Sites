@@ -5,6 +5,7 @@ import { parseCsv, toCsv } from "../src/transform/csv";
 import {
   AUTO_ACCEPT_CONFIDENCE,
   matchDepartment,
+  preserveUnseenResolvedRows,
 } from "../src/transform/departments";
 import { departmentMappingKey, transformJob } from "../src/transform/jobs";
 import { transformOrder } from "../src/transform/orders";
@@ -55,13 +56,13 @@ console.log(`Loaded ${departments.length} departments from Appwrite`);
 // ---- Department mapping review file -------------------------------------
 const mappingPath = `${mappings}departments.csv`;
 const resolved = new Map<string, string>();
+const previousMappingRows = new Map<string, Record<string, string>>();
 if (existsSync(mappingPath)) {
   for (const row of parseCsv(await readFile(mappingPath, "utf8"))) {
+    const key = departmentMappingKey(row.wp_campus_id ?? "", row.wp_name ?? "");
+    previousMappingRows.set(key, row);
     if (row.resolved_id) {
-      resolved.set(
-        departmentMappingKey(row.wp_campus_id ?? "", row.wp_name ?? ""),
-        row.resolved_id
-      );
+      resolved.set(key, row.resolved_id);
     }
   }
   console.log(`Loaded ${resolved.size} human-resolved department mappings`);
@@ -91,7 +92,7 @@ for (const job of jobSnapshots) {
     seen.set(departmentMappingKey(campusId, name), { campusId, name });
   }
 }
-const mappingRows = [...seen.values()].map((entry) => {
+const currentMappingRows = [...seen.values()].map((entry) => {
   const key = departmentMappingKey(entry.campusId, entry.name);
   const match = matchDepartment(entry.name, entry.campusId, departments);
   return {
@@ -106,6 +107,14 @@ const mappingRows = [...seen.values()].map((entry) => {
     wp_name: entry.name,
   };
 });
+// A pair reviewed in a previous run but absent from this snapshot (a
+// narrower --since window, or the pair simply didn't recur) would otherwise
+// silently lose its hand-entered resolved_id here.
+const mappingRows = preserveUnseenResolvedRows(
+  currentMappingRows,
+  previousMappingRows,
+  new Set(seen.keys())
+);
 mappingRows.sort((a, b) => Number(a.confidence) - Number(b.confidence));
 await writeFile(
   mappingPath,

@@ -56,6 +56,32 @@ function tokenSimilarity(left: string, right: string): number {
   return (2 * shared) / (a.size + b.size);
 }
 
+export type DepartmentMappingRow = Record<string, string>;
+
+/**
+ * Appends any previously-reviewed mapping row whose (campus, name) pair is
+ * absent from the current snapshot. `resolved_id` is hand-entered review
+ * work — silently dropping it because a narrower/newer snapshot no longer
+ * surfaces that pair is the worst failure mappings/departments.csv can have,
+ * so every row a human has already resolved is carried forward untouched.
+ * Unresolved rows that drop out of the snapshot are not preserved; they
+ * carry no human work and would otherwise bloat the file with stale
+ * suggestions forever.
+ */
+export function preserveUnseenResolvedRows(
+  currentRows: DepartmentMappingRow[],
+  previousRows: Map<string, DepartmentMappingRow>,
+  seenKeys: Set<string>
+): DepartmentMappingRow[] {
+  const preserved: DepartmentMappingRow[] = [];
+  for (const [key, row] of previousRows) {
+    if (row.resolved_id && !seenKeys.has(key)) {
+      preserved.push(row);
+    }
+  }
+  return [...currentRows, ...preserved];
+}
+
 export function matchDepartment(
   wpName: string,
   campusId: string,

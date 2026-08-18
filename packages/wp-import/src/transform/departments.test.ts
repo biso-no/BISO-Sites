@@ -4,6 +4,7 @@ import {
   type DepartmentRecord,
   matchDepartment,
   normalizeDepartmentName,
+  preserveUnseenResolvedRows,
 } from "./departments";
 
 const DEPARTMENTS: DepartmentRecord[] = [
@@ -104,5 +105,73 @@ describe("matchDepartment", () => {
 
   test("handles an empty department list without throwing", () => {
     expect(matchDepartment("Anything", "1", []).departmentId).toBeNull();
+  });
+});
+
+describe("preserveUnseenResolvedRows", () => {
+  test("carries forward a previously-resolved row whose pair is absent from the current snapshot", () => {
+    const previousRows = new Map([
+      [
+        "1::Retired Dept",
+        {
+          confidence: "0.90",
+          resolved_id: "21",
+          suggested_id: "21",
+          suggested_name: "OSL Bergensbaneløpet",
+          wp_campus_id: "1",
+          wp_name: "Retired Dept",
+        },
+      ],
+    ]);
+
+    const result = preserveUnseenResolvedRows([], previousRows, new Set());
+
+    expect(result).toHaveLength(1);
+    expect(result[0]?.resolved_id).toBe("21");
+    expect(result[0]?.wp_name).toBe("Retired Dept");
+  });
+
+  test("does not duplicate a row that the current snapshot already saw", () => {
+    const currentRows = [
+      {
+        confidence: "1.00",
+        resolved_id: "21",
+        suggested_id: "21",
+        suggested_name: "OSL Bergensbaneløpet",
+        wp_campus_id: "1",
+        wp_name: "Bergensbaneløpet",
+      },
+    ];
+    const previousRows = new Map([
+      ["1::Bergensbaneløpet", currentRows[0] as Record<string, string>],
+    ]);
+
+    const result = preserveUnseenResolvedRows(
+      currentRows,
+      previousRows,
+      new Set(["1::Bergensbaneløpet"])
+    );
+
+    expect(result).toHaveLength(1);
+  });
+
+  test("drops an unresolved row that fell out of the snapshot, since it carries no human work", () => {
+    const previousRows = new Map([
+      [
+        "1::Never Reviewed",
+        {
+          confidence: "0.10",
+          resolved_id: "",
+          suggested_id: "",
+          suggested_name: "",
+          wp_campus_id: "1",
+          wp_name: "Never Reviewed",
+        },
+      ],
+    ]);
+
+    const result = preserveUnseenResolvedRows([], previousRows, new Set());
+
+    expect(result).toHaveLength(0);
   });
 });
