@@ -121,10 +121,23 @@ numeric id:
 
 `load` always calls `db.upsertRow`, never `createRow`. Re-running
 `load --apply` on the same data writes to the same row ids, so row counts
-stay flat and content simply gets overwritten in place — no duplicates, no
-extra cleanup. This also means every row imported by this tool is
-identifiable by its `$id` prefix, which is what rollback and verification
-below rely on.
+stay flat and content simply gets overwritten in place. This also means
+every row imported by this tool is identifiable by its `$id` prefix, which
+is what rollback and verification below rely on.
+
+**Rows are idempotent; image storage is not.** The `mediaCache` in
+`scripts/load.ts` is a plain `Map` created fresh for the lifetime of one
+`load --products --apply` run, so it only dedupes source URLs *within* that
+run. Re-running `load --products --apply` re-downloads and re-uploads every
+product image, each one gets a **new** Appwrite file id, the product rows
+are rewritten to point at those new ids, and the files from the previous run
+stay in the `media` bucket, now referenced by nothing. Rows always end up
+pointing at valid files, so nothing breaks — but each re-apply leaves behind
+one orphaned copy of every product image. There is no persisted
+source-URL → file-id cache across runs (deliberately — building one is
+disproportionate for a one-time migration), so prefer getting the dry run
+right and applying once. If you do re-apply, plan to clean up orphaned files
+in the `media` bucket afterward (see Rollback).
 
 ## Rollback
 
@@ -187,11 +200,52 @@ for (;;) {
 `content_translations` rows are written as a relationship attribute on the
 parent row (`translations` on `jobs`, `translation_refs` on
 `webshop_products`), so deleting the parent row removes its translations
-too — no separate cleanup pass needed there. Images uploaded to the `media`
-storage bucket during a product import are **not** automatically deleted by
-the above; if a rollback needs to reclaim storage, list files uploaded
-during the run's time window and delete them from the `media` bucket
-separately.
+too — no separate cleanup pass needed there.
+
+**Images are not covered by row deletion.** `delete-rows --queries
+startsWith("$id","wpprod")` removes the product rows but never touches the
+`media` bucket, and the uploaded file ids are `ID.unique()` — random, not
+`wpprod`-prefixed — so they can't be swept by an id-prefix query the way
+rows can. Capture the file ids from the rows' `images` column **before**
+deleting the rows, then delete each file individually
+(`appwrite storage delete-file` has no bulk/query form, unlike
+`delete-rows`):
+
+```ts
+import { Query } from "node-appwrite";
+import { Storage } from "node-appwrite";
+import { clientFromEnv, createDb } from "./src/appwrite";
+
+const db = createDb();
+const storage = new Storage(clientFromEnv());
+const fileIds = new Set<string>();
+
+let cursor: string | undefined;
+for (;;) {
+  const queries = [Query.startsWith("$id", "wpprod"), Query.limit(100)];
+  if (cursor) queries.push(Query.cursorAfter(cursor));
+  const page = await db.listRows({
+    databaseId: "app",
+    tableId: "webshop_products",
+    queries,
+  });
+  for (const row of page.rows) {
+    for (const id of (row.images as string[] | undefined) ?? []) {
+      fileIds.add(id);
+    }
+  }
+  if (page.rows.length < 100) break;
+  cursor = page.rows.at(-1)?.$id;
+}
+
+for (const fileId of fileIds) {
+  await storage.deleteFile({ bucketId: "media", fileId });
+}
+```
+
+Run this (or at least the collection half) before `delete-rows` on
+`webshop_products` — once the rows are gone, the `images` column that names
+which files belong to this import is gone with them.
 
 ## Dry-run semantics
 
@@ -311,9 +365,12 @@ a live Appwrite project. Before trusting an `--apply` run against the real
 
 4. **Idempotency**: note the row counts from step 1, re-run
    `bun run load --jobs --products --apply` (and `--orders` if applicable),
-   then repeat step 1. Counts must be unchanged — the run should log the
+   then repeat step 1. Row counts must be unchanged — the run should log the
    same `succeeded` total with zero net new rows, because every write is an
-   upsert against the same `wpjob`/`wpprod`/`wporder` id.
+   upsert against the same `wpjob`/`wpprod`/`wporder` id. (The `media`
+   bucket's file count is expected to *grow* on this re-run — see "Rows are
+   idempotent; image storage is not" above — so don't read that growth as a
+   defect.)
 
 5. **Admin studio spot check**: start the admin app
    (`bun run dev --filter=admin`), open the recruitment/job studio and the
