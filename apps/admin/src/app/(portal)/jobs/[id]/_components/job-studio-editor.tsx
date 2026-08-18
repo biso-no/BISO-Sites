@@ -102,8 +102,6 @@ const EMPLOYMENT_TYPES = [
   { value: "", label: "Select type" },
   { value: "full_time", label: "Full-time" },
   { value: "part_time", label: "Part-time" },
-  { value: "internship", label: "Internship" },
-  { value: "freelance", label: "Freelance" },
   { value: "volunteer", label: "Volunteer" },
 ] as const;
 
@@ -114,11 +112,8 @@ const TAG_OPTIONS = [
   "International",
   "Marketing",
   "Finance",
-  "Tech",
   "Sustainability",
   "One-time",
-  "Long-term",
-  "Remote-friendly",
 ] as const;
 
 type LocaleCode = "en" | "no";
@@ -1493,7 +1488,7 @@ export function JobStudioEditor({
                           <input
                             className={inputClass("flex-1")}
                             name="mh"
-                            placeholder="e.g. 2+ years React experience"
+                            placeholder="e.g. Currently studying HR"
                           />
                           <button
                             className="inline-flex items-center gap-1.5 rounded-lg bg-[#001731] px-3 py-2 font-medium text-sm text-white"
@@ -1583,7 +1578,7 @@ export function JobStudioEditor({
                           <input
                             className={inputClass("flex-1")}
                             name="nth"
-                            placeholder="e.g. Familiarity with TypeScript"
+                            placeholder="e.g. Familiarity with recruitment"
                           />
                           <button
                             className="inline-flex items-center gap-1.5 rounded-lg bg-[#001731] px-3 py-2 font-medium text-sm text-white"
