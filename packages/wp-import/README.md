@@ -42,11 +42,14 @@ bun run extract --since=3m --jobs --products
 #   snapshot under-counts.
 
 # 2. Transform snapshots into Appwrite-shaped rows + a department mapping file
-bun run transform --since=3m
+#    (transform has no --since of its own — the window was already applied
+#    at extract time, above; transform just processes whatever is in
+#    snapshots/*.json)
+bun run transform
 
 # 3. Review mappings/departments.csv (see below), fill in `resolved_id`,
 #    commit it, then re-run transform so it picks up your resolutions:
-bun run transform --since=3m
+bun run transform
 
 # 4. Dry run — prints what would be written, makes no network writes and no
 #    AI calls
@@ -61,7 +64,7 @@ Orders follow the same `extract` → `transform` → `load` shape, gated on
 
 ```bash
 bun run extract --since=3m --orders
-bun run transform --since=3m
+bun run transform
 bun run load --orders            # dry run
 bun run load --orders --apply
 ```
@@ -97,7 +100,10 @@ normalized name) and writes every pair it saw to
 
 Re-running `transform` reloads any `resolved_id` you've filled in (keyed by
 `campus_id + wp_name`) and rebuilds the CSV from the current snapshot,
-preserving your resolutions for pairs it sees again. Commit
+preserving your resolutions for pairs it sees again — and also for pairs it
+*doesn't* see again (a narrower `--since` window, or a job that no longer
+appears): any previously-resolved row is carried forward unchanged rather
+than silently dropped, since `resolved_id` is hand-entered work. Commit
 `mappings/departments.csv` once it's reviewed — it is checked-in state, not a
 throwaway artifact.
 
@@ -303,9 +309,9 @@ investigating before `load --apply`.
 
 | Path | Committed? | Contents |
 |---|---|---|
-| `fixtures/` | Yes | Small hand-curated sample payloads used by tests. |
+| `fixtures/` | Yes | Committed reference snapshots of real WordPress/WooCommerce API responses, kept for context when reading or extending the transforms — nothing in this package's test suite reads them; the unit tests use their own inline fixtures. |
 | `mappings/` | Yes (after first review) | `departments.csv` — the reviewed job-department mapping. This is the one piece of generated output that must be committed. |
-| `snapshots/` | No (gitignored) | Raw `extract` output and the intermediate `transformed.json` from `transform`. Regenerate by re-running the pipeline; never commit a stale snapshot. |
+| `snapshots/` | No (gitignored) | Raw `extract` output and the intermediate `transformed.json` from `transform`. Regenerate by re-running the pipeline; never commit a stale snapshot. `snapshots/orders.json` and `transformed.json` hold buyer names, emails and phone numbers — delete the whole `snapshots/` directory once the cutover is verified and this tool won't be run again; being gitignored keeps it out of the repo, but it still sits on disk until you remove it. |
 | `reports/` | No (gitignored) | `*-rejects.csv` and `warnings.txt` from the most recent `transform` run. Read these locally after each run; they aren't meant to be historical record. |
 
 ## Verification checklist (for the operator running the real import)
