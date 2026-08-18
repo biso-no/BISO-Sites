@@ -20,6 +20,13 @@ export interface WpJob {
 export interface WpJobPost {
   content: { rendered: string };
   date: string;
+  /**
+   * The site's local `date` has no timezone suffix, so `new Date(post.date)`
+   * parses it in the *host machine's* local time. `date_gmt` is always UTC
+   * and is what the `--since` cutoff must be compared against so the
+   * extraction window doesn't depend on which machine runs it.
+   */
+  date_gmt: string;
   id: number;
   link: string;
   slug: string;
@@ -147,7 +154,7 @@ export async function extractJobs(
     if (!post) {
       return [];
     }
-    if (new Date(post.date).getTime() < since) {
+    if (new Date(`${post.date_gmt}Z`).getTime() < since) {
       return [];
     }
     return [{ ...job, post }];
