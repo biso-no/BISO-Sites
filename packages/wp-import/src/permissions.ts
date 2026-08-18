@@ -1,4 +1,4 @@
-import { buildRecruitmentStaffRowPermissions } from "../../../packages/shared/recruitment";
+import { buildRecruitmentStaffRowPermissions } from "@repo/shared/recruitment";
 import { Permission, Role } from "node-appwrite";
 
 /**
