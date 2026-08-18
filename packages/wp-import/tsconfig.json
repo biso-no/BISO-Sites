@@ -3,8 +3,9 @@
   "compilerOptions": {
     "outDir": "dist",
     "rootDir": ".",
-    "strictNullChecks": true
+    "strictNullChecks": true,
+    "types": ["bun", "node"]
   },
   "include": ["src/**/*.ts", "scripts/**/*.ts"],
-  "exclude": ["node_modules", "dist", "**/*.test.ts"]
+  "exclude": ["node_modules", "dist"]
 }
