@@ -11,6 +11,21 @@ const STATUS_MAP: Record<string, string> = {
   refunded: "refunded",
 };
 
+/**
+ * Stamped into `finago_transaction_id` for every imported order, reusing the
+ * "non-transaction sentinel in this column" convention documented next to
+ * FINAGO_POSTING_MARKER / MEMBERSHIP_LEDGER_EXCLUSION in
+ * packages/shared/utils/finago-order-posting.ts. The reconcile cron
+ * (apps/web/src/app/api/cron/reconcile-orders/route.ts) sweeps every
+ * paid/authorized order with `finago_transaction_id IS NULL` and posts it to
+ * the live 24SevenOffice ledger — with the column left unset, every imported
+ * historical WooCommerce order would be swept and posted as fabricated
+ * revenue within ~10 minutes of `load --orders --apply`. Stamping this
+ * sentinel keeps the row permanently out of that query, the same way the
+ * membership sentinel keeps membership orders out of it.
+ */
+export const WORDPRESS_IMPORT_LEDGER_EXCLUSION = "wordpress-import";
+
 export function mapOrderStatus(wooStatus: string): string | null {
   return STATUS_MAP[wooStatus] ?? null;
 }
@@ -78,6 +93,7 @@ export function transformOrder(
       buyer_phone: order.billing.phone || null,
       currency: "NOK",
       discount_total: Number.isNaN(discountTotal) ? 0 : discountTotal,
+      finago_transaction_id: WORDPRESS_IMPORT_LEDGER_EXCLUSION,
       items_json: JSON.stringify(items),
       payment_provider: order.payment_method_title || null,
       status,

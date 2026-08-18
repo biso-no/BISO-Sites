@@ -1,5 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { mapOrderStatus, transformOrder } from "./orders";
+import {
+  mapOrderStatus,
+  transformOrder,
+  WORDPRESS_IMPORT_LEDGER_EXCLUSION,
+} from "./orders";
 
 const baseOrder = {
   billing: {
@@ -127,13 +131,24 @@ describe("transformOrder", () => {
     expect("reject" in result).toBe(true);
   });
 
-  test("does not set finago or lock fields", () => {
+  test("does not set lock fields", () => {
     const result = transformOrder(baseOrder, new Map());
     if (!("row" in result)) {
       throw new Error("expected a row");
     }
 
-    expect(result.row.finago_transaction_id).toBeUndefined();
+    expect(result.row.finago_posting_lock).toBeUndefined();
     expect(result.row.transition_lock).toBeUndefined();
+  });
+
+  test("stamps the wordpress-import sentinel into finago_transaction_id so the reconcile cron never posts an imported order to the live ledger", () => {
+    const result = transformOrder(baseOrder, new Map());
+    if (!("row" in result)) {
+      throw new Error("expected a row");
+    }
+
+    expect(result.row.finago_transaction_id).toBe(
+      WORDPRESS_IMPORT_LEDGER_EXCLUSION
+    );
   });
 });
