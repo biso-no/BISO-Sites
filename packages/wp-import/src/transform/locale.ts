@@ -111,7 +111,7 @@ export async function translateFields({
   }
 
   const { object } = await generateObject({
-    model: openai("gpt-4o-mini"),
+    model: openai("gpt-5-nano"),
     prompt: [
       `Translate the following ${contentType} fields from ${LANGUAGE_NAMES[sourceLocale]} to ${LANGUAGE_NAMES[targetLocale]}.`,
       "Preserve the HTML structure exactly: keep every <p>, <h3>, <ul> and <li> tag and their order.",
