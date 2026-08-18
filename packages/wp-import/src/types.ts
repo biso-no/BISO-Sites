@@ -23,3 +23,17 @@ export interface ImportReport {
   rejected: RejectRow[];
   warnings: string[];
 }
+
+/**
+ * Structural type for the `fetch` used by this package's clients.
+ *
+ * Deliberately NOT `typeof fetch`: Bun's global `fetch` type is merged with a
+ * `fetch.preconnect` static, so a plain mock function can never satisfy it and
+ * every test double would need an `as unknown as typeof fetch` double-cast.
+ * A double-cast suppresses exactly the type errors test type-checking exists
+ * to surface, so the seam is typed structurally instead.
+ */
+export type FetchLike = (
+  input: string | URL | Request,
+  init?: RequestInit
+) => Promise<Response>;

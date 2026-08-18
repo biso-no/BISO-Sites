@@ -3,7 +3,7 @@ import { WpClient } from "./client";
 
 function stubFetch(pages: Array<{ body: unknown; totalPages: number }>) {
   let call = 0;
-  return ((): Promise<Response> => {
+  return (): Promise<Response> => {
     const page = pages[call];
     call += 1;
     if (!page) {
@@ -15,7 +15,7 @@ function stubFetch(pages: Array<{ body: unknown; totalPages: number }>) {
         status: 200,
       })
     );
-  }) as unknown as typeof fetch;
+  };
 }
 
 describe("WpClient.fetchAllPages", () => {
@@ -47,8 +47,7 @@ describe("WpClient.fetchAllPages", () => {
   test("throws a descriptive error on 401 so a partial import cannot happen", async () => {
     const client = new WpClient({
       baseUrl: "https://example.test",
-      fetchImpl: (async () =>
-        new Response("nope", { status: 401 })) as unknown as typeof fetch,
+      fetchImpl: async () => new Response("nope", { status: 401 }),
     });
 
     await expect(client.fetchAllPages("/wc/v3/orders")).rejects.toThrow("401");

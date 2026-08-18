@@ -1,3 +1,5 @@
+import type { FetchLike } from "../types";
+
 const DEFAULT_PER_PAGE = "100";
 const MAX_RETRIES = 3;
 const RETRYABLE_STATUSES = new Set([429, 500, 502, 503, 504]);
@@ -8,7 +10,7 @@ export interface WpClientOptions {
   /** WooCommerce consumer key — only required for /wc/v3 routes. */
   consumerKey?: string;
   consumerSecret?: string;
-  fetchImpl?: typeof fetch;
+  fetchImpl?: FetchLike;
 }
 
 const sleep = (ms: number): Promise<void> =>
@@ -20,7 +22,7 @@ export class WpClient {
   private readonly baseUrl: string;
   private readonly consumerKey?: string;
   private readonly consumerSecret?: string;
-  private readonly fetchImpl: typeof fetch;
+  private readonly fetchImpl: FetchLike;
 
   constructor(options: WpClientOptions) {
     this.baseUrl = options.baseUrl.replace(TRAILING_SLASH_REGEX, "");
