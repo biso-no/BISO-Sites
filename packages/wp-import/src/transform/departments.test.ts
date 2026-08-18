@@ -72,7 +72,11 @@ describe("matchDepartment", () => {
   });
 
   test("matches on token overlap for partial names", () => {
-    const result = matchDepartment("International Management", "1", DEPARTMENTS);
+    const result = matchDepartment(
+      "International Management",
+      "1",
+      DEPARTMENTS
+    );
 
     expect(result.departmentId).toBe("11");
     expect(result.confidence).toBeGreaterThanOrEqual(AUTO_ACCEPT_CONFIDENCE);

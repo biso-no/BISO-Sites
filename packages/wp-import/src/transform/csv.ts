@@ -1,4 +1,5 @@
 const NEEDS_QUOTING = /[",\n]/;
+const TRAILING_CARRIAGE_RETURN = /\r$/;
 
 function splitRow(row: string): string[] {
   const fields: string[] = [];
@@ -59,10 +60,12 @@ function splitRows(text: string): string[] {
     rows.push(current);
   }
 
-  return rows.map((row) => row.replace(/\r$/, "")).filter((row) => row !== "");
+  return rows
+    .map((row) => row.replace(TRAILING_CARRIAGE_RETURN, ""))
+    .filter((row) => row !== "");
 }
 
-export function parseCsv(text: string): Array<Record<string, string>> {
+export function parseCsv(text: string): Record<string, string>[] {
   const rows = splitRows(text);
   const header = rows.shift();
   if (!header) {
@@ -81,13 +84,11 @@ export function parseCsv(text: string): Array<Record<string, string>> {
 }
 
 function escapeField(value: string): string {
-  return NEEDS_QUOTING.test(value)
-    ? `"${value.replace(/"/g, '""')}"`
-    : value;
+  return NEEDS_QUOTING.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
 }
 
 export function toCsv(
-  rows: Array<Record<string, string>>,
+  rows: Record<string, string>[],
   columns: string[]
 ): string {
   const lines = [columns.join(",")];

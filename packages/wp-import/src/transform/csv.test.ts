@@ -29,10 +29,7 @@ describe("parseCsv", () => {
 
 describe("toCsv", () => {
   test("writes a header and quotes fields that need it", () => {
-    const csv = toCsv(
-      [{ name: "BRG NU, Bergen", id: "313" }],
-      ["id", "name"]
-    );
+    const csv = toCsv([{ name: "BRG NU, Bergen", id: "313" }], ["id", "name"]);
 
     expect(csv).toBe('id,name\n313,"BRG NU, Bergen"\n');
   });

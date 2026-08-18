@@ -5,16 +5,66 @@ import type { ContentLocale } from "../types";
 
 /** Frequent Norwegian Bokmål function words that are rare in English. */
 const NORWEGIAN_MARKERS = [
-  "og", "som", "til", "ikke", "være", "har", "med", "for", "det", "den",
-  "av", "en", "et", "er", "på", "vi", "du", "din", "ditt", "vil", "kan",
-  "skal", "eller", "men", "å", "om", "ved", "fra", "under", "mellom",
+  "og",
+  "som",
+  "til",
+  "ikke",
+  "være",
+  "har",
+  "med",
+  "for",
+  "det",
+  "den",
+  "av",
+  "en",
+  "et",
+  "er",
+  "på",
+  "vi",
+  "du",
+  "din",
+  "ditt",
+  "vil",
+  "kan",
+  "skal",
+  "eller",
+  "men",
+  "å",
+  "om",
+  "ved",
+  "fra",
+  "under",
+  "mellom",
 ];
 
 /** Frequent English function words that are rare in Norwegian. */
 const ENGLISH_MARKERS = [
-  "the", "and", "you", "will", "with", "for", "are", "have", "this", "that",
-  "your", "our", "from", "they", "their", "which", "about", "would", "should",
-  "been", "we", "of", "to", "in", "is", "as",
+  "the",
+  "and",
+  "you",
+  "will",
+  "with",
+  "for",
+  "are",
+  "have",
+  "this",
+  "that",
+  "your",
+  "our",
+  "from",
+  "they",
+  "their",
+  "which",
+  "about",
+  "would",
+  "should",
+  "been",
+  "we",
+  "of",
+  "to",
+  "in",
+  "is",
+  "as",
 ];
 
 const NORWEGIAN_LETTERS = /[æøå]/gi;
@@ -69,9 +119,7 @@ export function detectLocale(text: string): {
 }
 
 const translationSchema = z.object({
-  translations: z.array(
-    z.object({ key: z.string(), translated: z.string() })
-  ),
+  translations: z.array(z.object({ key: z.string(), translated: z.string() })),
 });
 
 const LANGUAGE_NAMES: Record<ContentLocale, string> = {

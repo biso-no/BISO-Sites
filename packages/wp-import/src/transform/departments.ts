@@ -1,15 +1,15 @@
 export const AUTO_ACCEPT_CONFIDENCE = 0.85;
 
 export interface DepartmentRecord {
+  campus_id: string;
   Id: string;
   Name: string;
-  campus_id: string;
 }
 
 export interface DepartmentMatch {
+  confidence: number;
   departmentId: string | null;
   matchedName: string | null;
-  confidence: number;
 }
 
 const CAMPUS_PREFIX = /^(osl|brg|trd|stv)\s+/i;
@@ -18,7 +18,7 @@ const STATUS_SUFFIX =
 const PARENTHESISED = /\([^)]*\)/g;
 const NON_ALPHANUMERIC = /[^a-z0-9]+/g;
 
-const CHARACTER_FOLDS: Array<[RegExp, string]> = [
+const CHARACTER_FOLDS: [RegExp, string][] = [
   [/æ/g, "ae"],
   [/ø/g, "oe"],
   [/å/g, "aa"],

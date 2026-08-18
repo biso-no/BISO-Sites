@@ -1,5 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { buildJobPermissions, buildPublicContentPermissions } from "./permissions";
+import {
+  buildJobPermissions,
+  buildPublicContentPermissions,
+} from "./permissions";
 
 describe("buildPublicContentPermissions", () => {
   test("grants public read to published content", () => {
