@@ -39,12 +39,21 @@ import {
   type ContentLocale,
   getTargetLocale,
   isCurrentTranslationSource,
+  type TranslationField,
 } from "@/lib/content-translation";
 import {
   parseAutoTranslationOptions,
   scheduleContentTranslation,
   translateContentFields,
 } from "@/lib/content-translation.server";
+import {
+  applyDescriptionMerge,
+  computeJobTranslationMemory,
+  type JobTranslationMemory,
+  parseJobTranslationMemory,
+  planDescriptionMerge,
+  serializeJobTranslationMemory,
+} from "@/lib/job-translation-memory";
 import {
   assertRecruitmentApplicationReviewAccess,
   assertRecruitmentVacancyWriteAccess,
@@ -160,7 +169,7 @@ async function buildJobTranslationsPayload(
     title: string;
     description: string;
     short_description: string | null;
-    additional_fields: null;
+    additional_fields: string | null;
   }>
 > {
   const existing = await db.listRows<ContentTranslations>(
@@ -189,7 +198,10 @@ async function buildJobTranslationsPayload(
     return {
       ...(existingRow ? { $id: existingRow.$id } : {}),
       $permissions: translationPerms,
-      additional_fields: null,
+      // Preserve the translation-memory cache — this write only persists the
+      // authored title/description/short description; wiping the cache here
+      // would force the next auto-translation pass back to a full rewrite.
+      additional_fields: existingRow?.additional_fields ?? null,
       content_id: jobId,
       content_type: "job" as const,
       description,
@@ -259,6 +271,76 @@ async function translateJobSnapshot(
 }
 
 /**
+ * Same translation as `translateJobSnapshot`, but reuses whatever's already
+ * in the target locale for any title/short description/description
+ * paragraph whose source text hasn't changed since the cached translation
+ * memory was recorded. Only the changed/new pieces are sent to the model —
+ * this is what keeps an unrelated edit from rewriting an already-reviewed
+ * translation end to end.
+ */
+async function translateJobSnapshotIncremental(
+  source: JobTranslationSnapshot,
+  sourceLocale: ContentLocale,
+  currentTarget: JobTranslationSnapshot,
+  cache: JobTranslationMemory | null
+): Promise<{
+  memory: JobTranslationMemory;
+  translation: JobTranslationSnapshot;
+}> {
+  const memory = computeJobTranslationMemory(source);
+  const titleReusable = cache !== null && cache.titleHash === memory.titleHash;
+  const shortDescriptionReusable =
+    cache !== null &&
+    cache.shortDescriptionHash === memory.shortDescriptionHash;
+  const plan = planDescriptionMerge(
+    source.description,
+    currentTarget.description,
+    cache?.descriptionBlockHashes ?? null
+  );
+
+  const fields: TranslationField[] = [];
+  if (!titleReusable) {
+    fields.push({ format: "plain", key: "title", value: source.title });
+  }
+  if (!shortDescriptionReusable) {
+    fields.push({
+      format: "plain",
+      key: "short_description",
+      value: source.short_description,
+    });
+  }
+  for (const segment of plan.segments) {
+    if (segment.needsTranslation) {
+      fields.push({
+        format: "plain",
+        key: segment.fieldKey,
+        value: segment.sourceText,
+      });
+    }
+  }
+
+  const translatedFields =
+    fields.length > 0
+      ? await translateContentFields({
+          contentType: "job vacancy",
+          fields,
+          sourceLocale,
+          targetLocale: getTargetLocale(sourceLocale),
+        })
+      : {};
+
+  const translation: JobTranslationSnapshot = {
+    description: applyDescriptionMerge(plan, translatedFields),
+    short_description: shortDescriptionReusable
+      ? currentTarget.short_description
+      : (translatedFields.short_description ?? ""),
+    title: titleReusable ? currentTarget.title : (translatedFields.title ?? ""),
+  };
+
+  return { memory, translation };
+}
+
+/**
  * Persist a deferred destination locale through the parent `jobs.translations`
  * relation. The relation is one-way (no child back-reference), so a standalone
  * child row would be an orphan; instead the complete relation is replaced with
@@ -266,6 +348,12 @@ async function translateJobSnapshot(
  * `$id` to update in place, or without one so Appwrite creates and links it.
  * The parent's own permissions are left untouched by omitting the permissions
  * argument.
+ *
+ * Uses `updateRow`, not `upsertRow`: this only ever targets an existing job
+ * row with a partial payload (just `translations`). `upsertRow` validates as
+ * a full-document replace and rejects a partial payload for missing required
+ * columns like `slug` even when the row already has one — `updateRow` is the
+ * partial-patch operation.
  */
 async function persistDeferredJobTranslation(
   db: Db,
@@ -273,19 +361,20 @@ async function persistDeferredJobTranslation(
   locale: ContentLocale,
   translation: JobTranslationSnapshot,
   permissions: string[],
-  currentRows: ContentTranslations[]
+  currentRows: ContentTranslations[],
+  translationMemory: JobTranslationMemory
 ): Promise<void> {
   const target = currentRows.find((row) => row.locale === locale);
   const others = currentRows
     .filter((row) => row.locale !== locale)
     .map((row) => row.$id);
-  await db.upsertRow("app", "jobs", jobId, {
+  await db.updateRow("app", "jobs", jobId, {
     translations: [
       ...others,
       {
         ...(target ? { $id: target.$id } : {}),
         $permissions: permissions,
-        additional_fields: null,
+        additional_fields: serializeJobTranslationMemory(translationMemory),
         content_id: jobId,
         content_type: "job" as const,
         description: translation.description,
@@ -318,10 +407,6 @@ function scheduleJobTranslation(input: {
   return scheduleContentTranslation({
     enabled: true,
     task: async () => {
-      const translated = await translateJobSnapshot(
-        input.source,
-        input.sourceLocale
-      );
       const { db } = await createAdminClient();
       const currentJob = await db.getRow<Jobs>("app", "jobs", input.jobId);
       const currentMetadata = parseRecruitmentVacancyMetadata(
@@ -377,15 +462,25 @@ function scheduleJobTranslation(input: {
       const currentTarget = currentRows.rows.find(
         (row) => row.locale === getTargetLocale(input.sourceLocale)
       );
+      const currentTargetSnapshot: JobTranslationSnapshot = {
+        description: currentTarget?.description ?? "",
+        short_description: currentTarget?.short_description ?? "",
+        title: currentTarget?.title ?? "",
+      };
       if (
-        !isCurrentTranslationSource(input.destination, {
-          description: currentTarget?.description ?? "",
-          short_description: currentTarget?.short_description ?? "",
-          title: currentTarget?.title ?? "",
-        })
+        !isCurrentTranslationSource(input.destination, currentTargetSnapshot)
       ) {
         return;
       }
+      const cache = parseJobTranslationMemory(
+        currentTarget?.additional_fields ?? null
+      );
+      const { memory, translation } = await translateJobSnapshotIncremental(
+        input.source,
+        input.sourceLocale,
+        currentTargetSnapshot,
+        cache
+      );
       const permissions = buildJobTranslationPermissions(
         input.audience,
         input.status
@@ -394,9 +489,10 @@ function scheduleJobTranslation(input: {
         db,
         input.jobId,
         getTargetLocale(input.sourceLocale),
-        translated,
+        translation,
         permissions,
-        currentRows.rows
+        currentRows.rows,
+        memory
       );
     },
   });

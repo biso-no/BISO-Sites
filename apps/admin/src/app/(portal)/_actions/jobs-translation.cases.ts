@@ -182,7 +182,10 @@ describe("job auto-translation scheduling", () => {
     await deferredTask?.();
 
     expect(createAdminClientSpy).toHaveBeenCalledTimes(2);
-    expect(adminDb.upsertRow).toHaveBeenLastCalledWith("app", "jobs", "job-1", {
+    // The deferred write patches only `translations` on an existing job, so
+    // it must go through updateRow (partial patch) — upsertRow validates as
+    // a full-document replace and would reject this for a missing `slug`.
+    expect(adminDb.updateRow).toHaveBeenLastCalledWith("app", "jobs", "job-1", {
       translations: [
         "source-en",
         expect.objectContaining({
@@ -196,7 +199,7 @@ describe("job auto-translation scheduling", () => {
       ],
     });
     expect(adminDb.createRow).not.toHaveBeenCalled();
-    expect(adminDb.updateRow).not.toHaveBeenCalled();
+    expect(adminDb.upsertRow).toHaveBeenCalledTimes(1);
   });
 
   test("updates an existing destination in place through the parent relation", async () => {
@@ -223,7 +226,7 @@ describe("job auto-translation scheduling", () => {
     await createJob(jobValues, { enabled: true, sourceLocale: "en" });
     await deferredTask?.();
 
-    expect(adminDb.upsertRow).toHaveBeenLastCalledWith("app", "jobs", "job-1", {
+    expect(adminDb.updateRow).toHaveBeenLastCalledWith("app", "jobs", "job-1", {
       translations: [
         "source-en",
         expect.objectContaining({ $id: "target-no", locale: "no" }),

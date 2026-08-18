@@ -21,19 +21,31 @@ export const createAdminClientSpy = mock(async () => ({ db: adminDb }));
 export const assertRecruitmentVacancyWriteAccessSpy = mock(() => undefined);
 export const assertWriteAccessSpy = mock(() => undefined);
 
+// Keyed by source value rather than by a fixed field name, since the
+// incremental job translator sends dynamic per-block keys (`desc_0`, ...)
+// instead of a single canonical `description` field. Covers both the
+// whole-blob values the manual "generate draft" path sends (HTML-wrapped)
+// and the block-extracted plain-text values the auto-translate path sends.
+const VALUE_TRANSLATIONS: Record<string, string> = {
+  "<p>English source</p>": "<p>Norsk beskrivelse</p>",
+  "<p>Norsk kilde</p>": "<p>English description</p>",
+  "English source": "Norsk beskrivelse",
+  "English source teaser": "Norsk ingress",
+  "English source title": "Norsk tittel",
+  "English teaser": "Norsk ingress",
+  "English title": "Norsk tittel",
+  "Norsk ingress": "English teaser",
+  "Norsk tittel": "English title",
+};
+
 export const translateContentFieldsSpy = mock(
-  async ({ sourceLocale }: { sourceLocale: "en" | "no" }) =>
-    sourceLocale === "no"
-      ? {
-          description: "<p>English description</p>",
-          short_description: "English teaser",
-          title: "English title",
-        }
-      : {
-          description: "<p>Norsk beskrivelse</p>",
-          short_description: "Norsk ingress",
-          title: "Norsk tittel",
-        }
+  async ({ fields }: { fields: Array<{ key: string; value: string }> }) =>
+    Object.fromEntries(
+      fields.map((field) => [
+        field.key,
+        VALUE_TRANSLATIONS[field.value] ?? field.value,
+      ])
+    )
 );
 
 export let deferredTask: (() => Promise<void>) | undefined;
