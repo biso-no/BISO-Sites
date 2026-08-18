@@ -72,6 +72,40 @@ describe("buildTranslationRows", () => {
 
     expect(rows).toHaveLength(1);
   });
+
+  test("truncates a translated short_description to 500 chars", () => {
+    const rows = buildTranslationRows({
+      contentId: "wpjob1",
+      contentType: "job",
+      permissions: [],
+      source: {
+        description: "<p>a</p>",
+        locale: "no",
+        shortDescription: "a".repeat(600),
+        title: "a",
+      },
+      target: null,
+    });
+
+    expect(rows[0]?.short_description).toHaveLength(500);
+  });
+
+  test("truncates a translated description to 8000 chars", () => {
+    const rows = buildTranslationRows({
+      contentId: "wpjob1",
+      contentType: "job",
+      permissions: [],
+      source: {
+        description: "a".repeat(9000),
+        locale: "no",
+        shortDescription: null,
+        title: "a",
+      },
+      target: null,
+    });
+
+    expect(rows[0]?.description).toHaveLength(8000);
+  });
 });
 
 describe("buildJobUpsert", () => {
