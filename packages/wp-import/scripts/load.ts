@@ -1,6 +1,10 @@
 import { readFile } from "node:fs/promises";
 import { ID, Storage } from "node-appwrite";
-import { clientFromEnv, createDb } from "../src/appwrite";
+import {
+  clientFromEnv,
+  createDb,
+  loadContentTranslationIds,
+} from "../src/appwrite";
 import {
   buildJobUpsert,
   buildProductUpsert,
@@ -66,6 +70,11 @@ const upsert = async (
 };
 
 if (wants("jobs")) {
+  // Read-only, so fetched unconditionally (dry run or --apply) — a second
+  // `load --jobs --apply` must resume by upserting existing rows in place,
+  // not colliding on content_translations' uniq_content_locale index.
+  const existingJobTranslationIds = await loadContentTranslationIds(db, "job");
+
   let succeeded = 0;
   let failed = 0;
   for (const job of payload.jobs) {
@@ -75,6 +84,7 @@ if (wants("jobs")) {
       const translationInput = {
         contentId: job.rowId,
         contentType: "job",
+        existingIds: existingJobTranslationIds,
         permissions: buildJobPermissions(status),
         source: {
           description: job.descriptionHtml,
@@ -137,6 +147,12 @@ if (wants("products")) {
       file,
     });
 
+  // Same resume guarantee as the jobs branch above.
+  const existingProductTranslationIds = await loadContentTranslationIds(
+    db,
+    "product"
+  );
+
   let succeeded = 0;
   let failed = 0;
   for (const product of payload.products) {
@@ -170,6 +186,7 @@ if (wants("products")) {
       const translationInput = {
         contentId: product.rowId,
         contentType: "product",
+        existingIds: existingProductTranslationIds,
         permissions: buildPublicContentPermissions(status),
         source: {
           description: product.descriptionHtml,

@@ -1,5 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { buildJobUpsert, buildTranslationRows } from "./index";
+import {
+  buildJobUpsert,
+  buildTranslationRows,
+  translationKey,
+} from "./index";
 
 const job = {
   departmentConfidence: 1,
@@ -105,6 +109,51 @@ describe("buildTranslationRows", () => {
     });
 
     expect(rows[0]?.description).toHaveLength(8000);
+  });
+
+  test("omits $id when no existing row matches, so upsertRow creates a new row", () => {
+    const rows = buildTranslationRows({
+      contentId: "wpjob1",
+      contentType: "job",
+      existingIds: new Map([[translationKey("wpjob2", "no"), "existing-id"]]),
+      permissions: [],
+      source: {
+        description: "<p>a</p>",
+        locale: "no",
+        shortDescription: null,
+        title: "a",
+      },
+      target: null,
+    });
+
+    expect(rows[0]?.$id).toBeUndefined();
+  });
+
+  test("threads the existing row's $id per locale so a second load --apply upserts in place instead of colliding on uniq_content_locale", () => {
+    const rows = buildTranslationRows({
+      contentId: "wpjob1",
+      contentType: "job",
+      existingIds: new Map([
+        [translationKey("wpjob1", "no"), "row-no"],
+        [translationKey("wpjob1", "en"), "row-en"],
+      ]),
+      permissions: [],
+      source: {
+        description: "<p>a</p>",
+        locale: "no",
+        shortDescription: null,
+        title: "a",
+      },
+      target: {
+        description: "<p>b</p>",
+        locale: "en",
+        shortDescription: null,
+        title: "b",
+      },
+    });
+
+    expect(rows[0]?.$id).toBe("row-no");
+    expect(rows[1]?.$id).toBe("row-en");
   });
 });
 
