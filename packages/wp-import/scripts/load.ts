@@ -7,13 +7,16 @@ import {
 } from "../src/appwrite";
 import {
   buildJobUpsert,
+  buildProductCampusIndex,
   buildProductUpsert,
   buildTranslationRows,
+  resolveOrderCampusId,
   type TranslationPayload,
 } from "../src/load/index";
 import { mirrorImage } from "../src/media";
 import {
   buildJobPermissions,
+  buildOrderPermissions,
   buildPublicContentPermissions,
 } from "../src/permissions";
 import type { TransformedJob } from "../src/transform/jobs";
@@ -249,16 +252,37 @@ if (wants("products")) {
 }
 
 if (wants("orders")) {
+  // Campus is derived from the ordered products' ACF campus — the data
+  // already lives in snapshots/transformed.json, no extra Appwrite read.
+  const productCampusByRowId = buildProductCampusIndex(payload.products);
+
   let succeeded = 0;
   let failed = 0;
+  let unresolvedCampus = 0;
   for (const order of payload.orders) {
     try {
-      await upsert("orders", order.rowId, order.row);
+      const userId =
+        typeof order.row.userId === "string" ? order.row.userId : null;
+      const campusId = resolveOrderCampusId(
+        order.row.items_json,
+        productCampusByRowId
+      );
+      if (!campusId) {
+        unresolvedCampus += 1;
+      }
+
+      await upsert("orders", order.rowId, {
+        ...order.row,
+        $permissions: buildOrderPermissions(userId),
+        campus_id: campusId,
+      });
       succeeded += 1;
     } catch (error) {
       failed += 1;
       console.error(`  order ${order.rowId} failed: ${String(error)}`);
     }
   }
-  console.log(`Orders: ${succeeded} succeeded, ${failed} failed`);
+  console.log(
+    `Orders: ${succeeded} succeeded, ${failed} failed, ${unresolvedCampus} without a resolvable campus_id`
+  );
 }

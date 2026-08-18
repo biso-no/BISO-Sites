@@ -100,3 +100,60 @@ export function buildProductUpsert(
     translation_refs: translations,
   };
 }
+
+/**
+ * Maps each transformed product's rowId (e.g. "wpprod37313") to its
+ * campus_id, so an order's line items can resolve a campus without another
+ * Appwrite round trip — the data already lives in snapshots/transformed.json.
+ */
+export function buildProductCampusIndex(
+  products: Array<{ row: Record<string, unknown>; rowId: string }>
+): Map<string, string> {
+  const byRowId = new Map<string, string>();
+  for (const product of products) {
+    if (typeof product.row.campus_id === "string") {
+      byRowId.set(product.rowId, product.row.campus_id);
+    }
+  }
+  return byRowId;
+}
+
+/**
+ * Derives an order's campus_id from its first line item whose product_id
+ * resolves against `productCampusByRowId`. Returns null (never throws) on a
+ * missing/malformed items_json so one bad order can't take down the whole
+ * orders branch — the caller counts nulls in its summary instead.
+ */
+export function resolveOrderCampusId(
+  itemsJson: unknown,
+  productCampusByRowId: Map<string, string>
+): string | null {
+  if (typeof itemsJson !== "string") {
+    return null;
+  }
+
+  let items: unknown;
+  try {
+    items = JSON.parse(itemsJson);
+  } catch {
+    return null;
+  }
+  if (!Array.isArray(items)) {
+    return null;
+  }
+
+  for (const item of items) {
+    const productId =
+      item && typeof item === "object" && "product_id" in item
+        ? (item as { product_id: unknown }).product_id
+        : null;
+    if (typeof productId === "string") {
+      const campusId = productCampusByRowId.get(productId);
+      if (campusId) {
+        return campusId;
+      }
+    }
+  }
+
+  return null;
+}

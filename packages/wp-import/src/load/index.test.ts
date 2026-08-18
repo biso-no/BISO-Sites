@@ -1,7 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import {
   buildJobUpsert,
+  buildProductCampusIndex,
   buildTranslationRows,
+  resolveOrderCampusId,
   translationKey,
 } from "./index";
 
@@ -154,6 +156,61 @@ describe("buildTranslationRows", () => {
 
     expect(rows[0]?.$id).toBe("row-no");
     expect(rows[1]?.$id).toBe("row-en");
+  });
+});
+
+describe("buildProductCampusIndex", () => {
+  test("maps a product rowId to its campus_id", () => {
+    const index = buildProductCampusIndex([
+      { row: { campus_id: "1" }, rowId: "wpprod37313" },
+    ]);
+
+    expect(index.get("wpprod37313")).toBe("1");
+  });
+
+  test("skips a product with no string campus_id", () => {
+    const index = buildProductCampusIndex([
+      { row: { campus_id: null }, rowId: "wpprod1" },
+    ]);
+
+    expect(index.has("wpprod1")).toBe(false);
+  });
+});
+
+describe("resolveOrderCampusId", () => {
+  const campusByRowId = new Map([["wpprod37313", "1"]]);
+
+  test("resolves the campus from the first line item whose product_id matches", () => {
+    const itemsJson = JSON.stringify([
+      { product_id: "wpprod37313", quantity: 1 },
+    ]);
+
+    expect(resolveOrderCampusId(itemsJson, campusByRowId)).toBe("1");
+  });
+
+  test("skips a line item whose product_id does not resolve and tries the next", () => {
+    const itemsJson = JSON.stringify([
+      { product_id: "wpprod-unknown" },
+      { product_id: "wpprod37313" },
+    ]);
+
+    expect(resolveOrderCampusId(itemsJson, campusByRowId)).toBe("1");
+  });
+
+  test("returns null when no line item resolves", () => {
+    const itemsJson = JSON.stringify([{ product_id: "wpprod-unknown" }]);
+
+    expect(resolveOrderCampusId(itemsJson, campusByRowId)).toBeNull();
+  });
+
+  test("returns null instead of throwing on malformed items_json", () => {
+    expect(resolveOrderCampusId("not json", campusByRowId)).toBeNull();
+    expect(resolveOrderCampusId(null, campusByRowId)).toBeNull();
+    expect(resolveOrderCampusId(undefined, campusByRowId)).toBeNull();
+  });
+
+  test("returns null when items_json is not an array", () => {
+    expect(resolveOrderCampusId('{"foo":"bar"}', campusByRowId)).toBeNull();
   });
 });
 
