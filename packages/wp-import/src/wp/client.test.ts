@@ -1,5 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import { WpClient } from "./client";
+import { WpClient, type WpProgressEvent } from "./client";
+
+const RETRY_EXHAUSTED = /after 3 retries \(network error/;
 
 function stubFetch(pages: Array<{ body: unknown; totalPages: number }>) {
   let call = 0;
@@ -123,5 +125,100 @@ describe("WpClient.fetchAllPages", () => {
 
     const headers = new Headers(capturedHeaders);
     expect(headers.get("Authorization")).toBeNull();
+  });
+});
+
+describe("WpClient progress reporting", () => {
+  test("emits a page event per page with cumulative counts and the X-WP-Total header", async () => {
+    const events: WpProgressEvent[] = [];
+    const client = new WpClient({
+      baseUrl: "https://example.test",
+      fetchImpl: () => {
+        const call = events.length;
+        return Promise.resolve(
+          new Response(JSON.stringify([{ id: call }, { id: call + 100 }]), {
+            headers: {
+              "X-WP-Total": "4",
+              "X-WP-TotalPages": "2",
+            },
+            status: 200,
+          })
+        );
+      },
+      onProgress: (event) => events.push(event),
+    });
+
+    await client.fetchAllPages("/wc/v3/orders");
+
+    expect(events).toHaveLength(2);
+    expect(events[0]).toMatchObject({
+      kind: "page",
+      page: 1,
+      path: "/wc/v3/orders",
+      received: 2,
+      total: 4,
+      totalPages: 2,
+    });
+    expect(events[1]).toMatchObject({ page: 2, received: 4 });
+  });
+
+  test("emits a retry event naming the timeout, then succeeds on the next attempt", async () => {
+    const events: WpProgressEvent[] = [];
+    let attempts = 0;
+    const client = new WpClient({
+      baseUrl: "https://example.test",
+      fetchImpl: () => {
+        attempts += 1;
+        if (attempts === 1) {
+          const timeout = new Error("The operation timed out.");
+          timeout.name = "TimeoutError";
+          return Promise.reject(timeout);
+        }
+        return Promise.resolve(
+          new Response(JSON.stringify([{ id: 1 }]), {
+            headers: { "X-WP-TotalPages": "1" },
+            status: 200,
+          })
+        );
+      },
+      onProgress: (event) => events.push(event),
+      timeoutMs: 25,
+    });
+
+    const rows = await client.fetchAllPages("/wc/v3/orders");
+
+    expect(rows).toHaveLength(1);
+    const retry = events.find((event) => event.kind === "retry");
+    expect(retry).toMatchObject({
+      attempt: 1,
+      maxRetries: 3,
+      reason: "timeout after 25ms",
+    });
+  });
+
+  test("does not retry a definitive HTTP status", async () => {
+    let attempts = 0;
+    const client = new WpClient({
+      baseUrl: "https://example.test",
+      fetchImpl: () => {
+        attempts += 1;
+        return Promise.resolve(new Response("nope", { status: 404 }));
+      },
+    });
+
+    await expect(client.fetchAllPages("/wc/v3/orders")).rejects.toThrow("404");
+    expect(attempts).toBe(1);
+  });
+
+  test("gives up after the retry budget and reports the last transport failure", async () => {
+    const client = new WpClient({
+      baseUrl: "https://example.test",
+      fetchImpl: () => Promise.reject(new Error("socket hang up")),
+      timeoutMs: 25,
+    });
+
+    await expect(client.fetchAllPages("/wc/v3/orders")).rejects.toThrow(
+      RETRY_EXHAUSTED
+    );
   });
 });

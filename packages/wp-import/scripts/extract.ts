@@ -5,7 +5,7 @@ import {
   extractProducts,
   parseSince,
 } from "../src/extract/index";
-import { WpClient } from "../src/wp/client";
+import { WpClient, type WpProgressEvent } from "../src/wp/client";
 
 const args = new Set(process.argv.slice(2));
 const sinceArg =
@@ -18,10 +18,30 @@ const only = (name: string): boolean =>
   !(args.has("--jobs") || args.has("--products") || args.has("--orders"));
 
 const baseUrl = process.env.WP_BASE_URL ?? "https://biso.no";
+
+/**
+ * Extraction is a long silent wait otherwise: the orders endpoint alone runs
+ * to thousands of records across a hundred-plus pages, and without per-page
+ * output there is no way to tell a slow endpoint from a stalled one.
+ */
+const reportProgress = (event: WpProgressEvent): void => {
+  if (event.kind === "retry") {
+    console.error(
+      `    ${event.path} retry ${event.attempt}/${event.maxRetries}: ${event.reason} — backing off ${event.backoffMs}ms`
+    );
+    return;
+  }
+  const of = event.total === null ? "" : ` of ${event.total}`;
+  console.log(
+    `    ${event.path} page ${event.page}/${event.totalPages} — ${event.received}${of} records (${event.elapsedMs}ms)`
+  );
+};
+
 const client = new WpClient({
   baseUrl,
   consumerKey: process.env.WC_CONSUMER_KEY,
   consumerSecret: process.env.WC_CONSUMER_SECRET,
+  onProgress: reportProgress,
 });
 
 const outputDir = new URL("../snapshots/", import.meta.url).pathname;
@@ -44,6 +64,12 @@ if (only("products")) {
 }
 if (only("orders")) {
   if (process.env.WC_CONSUMER_KEY && process.env.WC_CONSUMER_SECRET) {
+    // --since scopes jobs only; orders are imported as a full historical
+    // archive. Said out loud because the whole WooCommerce order history is
+    // far more than an operator who just passed --since=3m expects.
+    console.log(
+      "  orders: --since does not apply — fetching the complete order history"
+    );
     await write("orders", await extractOrders(client));
   } else {
     console.error(
