@@ -31,10 +31,31 @@ export function mapOrderStatus(wooStatus: string): string | null {
   return STATUS_MAP[wooStatus] ?? null;
 }
 
+/**
+ * One `order_items` row. `rowId` is derived from the WooCommerce line-item id
+ * so a re-run updates the same child rather than appending a duplicate — per
+ * Appwrite's nested-write rules, a nested child whose `$id` already exists is
+ * updated, and one without an id gets a fresh unique id every time.
+ */
+export interface TransformedOrderItem {
+  name: string;
+  product_id: string;
+  quantity: number;
+  rowId: string;
+  title: string;
+  unit_price: number;
+}
+
 export function transformOrder(
   order: WcOrder,
   userIdByEmail: Map<string, string>
-): { row: Record<string, unknown>; rowId: string } | { reject: RejectRow } {
+):
+  | {
+      items: TransformedOrderItem[];
+      row: Record<string, unknown>;
+      rowId: string;
+    }
+  | { reject: RejectRow } {
   const label = `Order #${order.id}`;
 
   if (order.currency !== "NOK") {
@@ -72,8 +93,11 @@ export function transformOrder(
 
   const items = order.line_items.map((item) => ({
     name: item.name,
+    // Flat id retained alongside the `product` relationship the loader
+    // attaches: an order line must survive its product row being deleted.
     product_id: `wpprod${item.product_id}`,
     quantity: item.quantity,
+    rowId: `wpitem${item.id}`,
     title: item.name,
     unit_price: item.price,
   }));
@@ -88,6 +112,7 @@ export function transformOrder(
     `${order.billing.first_name} ${order.billing.last_name}`.trim();
 
   return {
+    items,
     row: {
       // `orders` has no date column, so these overrides are the only record
       // of when the purchase actually happened.
@@ -101,7 +126,6 @@ export function transformOrder(
       currency: "NOK",
       discount_total: Number.isNaN(discountTotal) ? 0 : discountTotal,
       finago_transaction_id: WORDPRESS_IMPORT_LEDGER_EXCLUSION,
-      items_json: JSON.stringify(items),
       payment_provider: order.payment_method_title || null,
       status,
       subtotal: Number.isNaN(subtotal) ? total : subtotal,

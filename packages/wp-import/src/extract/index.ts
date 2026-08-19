@@ -88,6 +88,8 @@ export interface WcOrder {
   discount_total: string;
   id: number;
   line_items: Array<{
+    /** WooCommerce line-item id — the stable half of the order_items row id. */
+    id: number;
     name: string;
     price: number;
     product_id: number;

@@ -305,6 +305,52 @@ investigating before `load --apply`.
   this fallback is load-bearing for roughly 41% of the catalogue, not a rare
   edge case.
 
+## Order line items
+
+Orders write their lines as rows in the **`order_items`** table, not into
+`orders.items_json` — that column is removed from
+`packages/api/appwrite.config.json` by this branch.
+
+The importer nests the children inside the order upsert, so one write creates
+the order and its lines together:
+
+```ts
+upsert("orders", "wporder1234", {
+  ...orderRow,
+  $permissions: permissions,
+  order_items: [
+    { $id: "wpitem987", $permissions: permissions, name: "Booklocker", ... },
+  ],
+});
+```
+
+Each line's `$id` comes from the WooCommerce line-item id (`wpitem<id>`), so a
+second `load --orders --apply` updates the same rows rather than appending
+duplicates.
+
+**The `product` relationship is only attached when that product is in the same
+import.** Appwrite rejects a write whose relationship names a row that does not
+exist, and an order can easily reference a product that was rejected at
+transform time or that predates the current catalogue — the order history
+reaches back years. The flat `product_id` string is always written, so an
+unlinked line still records what was bought. The load summary reports how many
+lines ended up unlinked:
+
+```
+Orders: 14039 succeeded, 0 failed, 12 without a resolvable campus_id, 431 line items with no matching product row
+```
+
+A non-zero count there is expected, not a fault.
+
+**Reading them back requires an opt-in query.** Recent Appwrite versions do not
+return related rows by default:
+
+```ts
+queries: [Query.select(["*", "order_items.*"])]
+```
+
+Omit it and `order_items` is absent from the response — not an empty array.
+
 ## Historical timestamps
 
 None of `orders`, `jobs` or `webshop_products` has a creation-date column of

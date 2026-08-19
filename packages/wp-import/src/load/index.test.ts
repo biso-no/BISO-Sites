@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
   buildJobUpsert,
+  buildOrderItemRows,
   buildProductCampusIndex,
   buildTranslationRows,
   resolveOrderCampusId,
@@ -177,40 +178,85 @@ describe("buildProductCampusIndex", () => {
   });
 });
 
+const orderItem = (productId: string, rowId = "wpitem1") => ({
+  name: "Booklocker",
+  product_id: productId,
+  quantity: 1,
+  rowId,
+  title: "Booklocker",
+  unit_price: 250,
+});
+
 describe("resolveOrderCampusId", () => {
   const campusByRowId = new Map([["wpprod37313", "1"]]);
 
   test("resolves the campus from the first line item whose product_id matches", () => {
-    const itemsJson = JSON.stringify([
-      { product_id: "wpprod37313", quantity: 1 },
-    ]);
-
-    expect(resolveOrderCampusId(itemsJson, campusByRowId)).toBe("1");
+    expect(
+      resolveOrderCampusId([orderItem("wpprod37313")], campusByRowId)
+    ).toBe("1");
   });
 
   test("skips a line item whose product_id does not resolve and tries the next", () => {
-    const itemsJson = JSON.stringify([
-      { product_id: "wpprod-unknown" },
-      { product_id: "wpprod37313" },
-    ]);
-
-    expect(resolveOrderCampusId(itemsJson, campusByRowId)).toBe("1");
+    expect(
+      resolveOrderCampusId(
+        [
+          orderItem("wpprod-unknown", "wpitem1"),
+          orderItem("wpprod37313", "wpitem2"),
+        ],
+        campusByRowId
+      )
+    ).toBe("1");
   });
 
   test("returns null when no line item resolves", () => {
-    const itemsJson = JSON.stringify([{ product_id: "wpprod-unknown" }]);
-
-    expect(resolveOrderCampusId(itemsJson, campusByRowId)).toBeNull();
+    expect(
+      resolveOrderCampusId([orderItem("wpprod-unknown")], campusByRowId)
+    ).toBeNull();
   });
 
-  test("returns null instead of throwing on malformed items_json", () => {
-    expect(resolveOrderCampusId("not json", campusByRowId)).toBeNull();
-    expect(resolveOrderCampusId(null, campusByRowId)).toBeNull();
-    expect(resolveOrderCampusId(undefined, campusByRowId)).toBeNull();
+  test("returns null for an order with no line items", () => {
+    expect(resolveOrderCampusId([], campusByRowId)).toBeNull();
+  });
+});
+
+describe("buildOrderItemRows", () => {
+  const permissions = ['read("user:abc")'];
+
+  test("moves rowId into $id and carries the parent permissions", () => {
+    const [row] = buildOrderItemRows(
+      [orderItem("wpprod37313", "wpitem987")],
+      new Set(["wpprod37313"]),
+      permissions
+    );
+
+    expect(row?.$id).toBe("wpitem987");
+    expect(row?.$permissions).toEqual(permissions);
+    expect(row?.rowId).toBeUndefined();
+    expect(row?.name).toBe("Booklocker");
+    expect(row?.unit_price).toBe(250);
   });
 
-  test("returns null when items_json is not an array", () => {
-    expect(resolveOrderCampusId('{"foo":"bar"}', campusByRowId)).toBeNull();
+  test("links the product relationship when that product is being imported", () => {
+    const [row] = buildOrderItemRows(
+      [orderItem("wpprod37313")],
+      new Set(["wpprod37313"]),
+      permissions
+    );
+
+    expect(row?.product).toBe("wpprod37313");
+    expect(row?.product_id).toBe("wpprod37313");
+  });
+
+  test("omits the relationship for a product that is not being imported, since Appwrite rejects a dangling relationship", () => {
+    const [row] = buildOrderItemRows(
+      [orderItem("wpprod-rejected")],
+      new Set(["wpprod37313"]),
+      permissions
+    );
+
+    expect("product" in (row ?? {})).toBe(false);
+    // The line still records what was bought.
+    expect(row?.product_id).toBe("wpprod-rejected");
   });
 });
 

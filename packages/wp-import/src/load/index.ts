@@ -2,6 +2,7 @@ import {
   buildJobPermissions,
   buildPublicContentPermissions,
 } from "../permissions";
+import type { TransformedOrderItem } from "../transform/orders";
 import type { ContentLocale } from "../types";
 
 export interface TranslationPayload {
@@ -125,35 +126,47 @@ export function buildProductCampusIndex(
  * orders branch — the caller counts nulls in its summary instead.
  */
 export function resolveOrderCampusId(
-  itemsJson: unknown,
+  items: TransformedOrderItem[],
   productCampusByRowId: Map<string, string>
 ): string | null {
-  if (typeof itemsJson !== "string") {
-    return null;
-  }
-
-  let items: unknown;
-  try {
-    items = JSON.parse(itemsJson);
-  } catch {
-    return null;
-  }
-  if (!Array.isArray(items)) {
-    return null;
-  }
-
   for (const item of items) {
-    const productId =
-      item && typeof item === "object" && "product_id" in item
-        ? (item as { product_id: unknown }).product_id
-        : null;
-    if (typeof productId === "string") {
-      const campusId = productCampusByRowId.get(productId);
-      if (campusId) {
-        return campusId;
-      }
+    const campusId = productCampusByRowId.get(item.product_id);
+    if (campusId) {
+      return campusId;
     }
   }
 
   return null;
+}
+
+/**
+ * Builds the nested `order_items` children for one order.
+ *
+ * The `product` relationship is attached **only** when that product row is
+ * actually being imported. Appwrite rejects a write whose relationship names a
+ * row that does not exist, and an order can easily reference a product that
+ * was rejected at transform time (no ACF campus, unresolvable price) or that
+ * predates the current catalogue entirely — 14k orders reach back years. The
+ * flat `product_id` string is always written, so an unlinked line still says
+ * what was bought.
+ *
+ * Children carry the parent's permissions explicitly rather than relying on
+ * inheritance, so a buyer can read their own order lines.
+ */
+export function buildOrderItemRows(
+  items: TransformedOrderItem[],
+  importedProductRowIds: Set<string>,
+  permissions: string[]
+): Record<string, unknown>[] {
+  return items.map((item) => {
+    const { rowId, ...columns } = item;
+    return {
+      ...columns,
+      $id: rowId,
+      $permissions: permissions,
+      ...(importedProductRowIds.has(item.product_id)
+        ? { product: item.product_id }
+        : {}),
+    };
+  });
 }

@@ -19,6 +19,7 @@ const baseOrder = {
   id: 1234,
   line_items: [
     {
+      id: 987,
       name: "Booklocker",
       price: 250,
       product_id: 37_313,
@@ -69,16 +70,51 @@ describe("transformOrder", () => {
     expect(result.row.buyer_name).toBe("Ola Nordmann");
   });
 
-  test("points items_json product_id at the new Appwrite product id", () => {
+  test("emits structured order_items rows pointing at the new Appwrite product id", () => {
     const result = transformOrder(baseOrder, new Map());
     if (!("row" in result)) {
       throw new Error("expected a row");
     }
-    const items = JSON.parse(String(result.row.items_json));
 
-    expect(items[0].product_id).toBe("wpprod37313");
-    expect(items[0].quantity).toBe(1);
-    expect(items[0].unit_price).toBe(250);
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0]).toEqual({
+      name: "Booklocker",
+      product_id: "wpprod37313",
+      quantity: 1,
+      rowId: "wpitem987",
+      title: "Booklocker",
+      unit_price: 250,
+    });
+  });
+
+  test("no longer writes items_json — the column is gone from the orders table", () => {
+    const result = transformOrder(baseOrder, new Map());
+    if (!("row" in result)) {
+      throw new Error("expected a row");
+    }
+
+    expect("items_json" in result.row).toBe(false);
+  });
+
+  test("derives each item row id from the WooCommerce line id so a re-run updates rather than duplicates", () => {
+    const result = transformOrder(
+      {
+        ...baseOrder,
+        line_items: [
+          { ...baseOrder.line_items[0], id: 11 },
+          { ...baseOrder.line_items[0], id: 22 },
+        ],
+      },
+      new Map()
+    );
+    if (!("row" in result)) {
+      throw new Error("expected a row");
+    }
+
+    expect(result.items.map((item) => item.rowId)).toEqual([
+      "wpitem11",
+      "wpitem22",
+    ]);
   });
 
   test("links a known buyer email to an Appwrite user id", () => {

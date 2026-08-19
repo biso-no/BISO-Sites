@@ -7,6 +7,7 @@ import {
 } from "../src/appwrite";
 import {
   buildJobUpsert,
+  buildOrderItemRows,
   buildProductCampusIndex,
   buildProductUpsert,
   buildTranslationRows,
@@ -25,6 +26,7 @@ import {
   otherLocale,
   translateFields,
 } from "../src/transform/locale";
+import type { TransformedOrderItem } from "../src/transform/orders";
 import type { TransformedProduct } from "../src/transform/products";
 
 const CONTENT_FLAGS = ["jobs", "products", "orders"] as const;
@@ -51,7 +53,11 @@ const payload = JSON.parse(
   await readFile(`${root}snapshots/transformed.json`, "utf8")
 ) as {
   jobs: TransformedJob[];
-  orders: Array<{ row: Record<string, unknown>; rowId: string }>;
+  orders: Array<{
+    items: TransformedOrderItem[];
+    row: Record<string, unknown>;
+    rowId: string;
+  }>;
   products: TransformedProduct[];
 };
 
@@ -264,26 +270,38 @@ if (wants("orders")) {
   // Campus is derived from the ordered products' ACF campus — the data
   // already lives in snapshots/transformed.json, no extra Appwrite read.
   const productCampusByRowId = buildProductCampusIndex(payload.products);
+  // Only products that actually made it through transform may be named by an
+  // order_items relationship; see buildOrderItemRows.
+  const importedProductRowIds = new Set(
+    payload.products.map((product) => product.rowId)
+  );
 
   let succeeded = 0;
   let failed = 0;
   let unresolvedCampus = 0;
+  let unlinkedItems = 0;
   for (const order of payload.orders) {
     try {
       const userId =
         typeof order.row.userId === "string" ? order.row.userId : null;
-      const campusId = resolveOrderCampusId(
-        order.row.items_json,
-        productCampusByRowId
-      );
+      const campusId = resolveOrderCampusId(order.items, productCampusByRowId);
       if (!campusId) {
         unresolvedCampus += 1;
       }
 
+      const permissions = buildOrderPermissions(userId);
+      const itemRows = buildOrderItemRows(
+        order.items,
+        importedProductRowIds,
+        permissions
+      );
+      unlinkedItems += itemRows.filter((row) => !("product" in row)).length;
+
       await upsert("orders", order.rowId, {
         ...order.row,
-        $permissions: buildOrderPermissions(userId),
+        $permissions: permissions,
         campus_id: campusId,
+        order_items: itemRows,
       });
       succeeded += 1;
     } catch (error) {
@@ -292,6 +310,6 @@ if (wants("orders")) {
     }
   }
   console.log(
-    `Orders: ${succeeded} succeeded, ${failed} failed, ${unresolvedCampus} without a resolvable campus_id`
+    `Orders: ${succeeded} succeeded, ${failed} failed, ${unresolvedCampus} without a resolvable campus_id, ${unlinkedItems} line items with no matching product row`
   );
 }
