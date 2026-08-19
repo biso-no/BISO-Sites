@@ -27,7 +27,8 @@ export interface ProductVariation {
 export type Product = WebshopProducts;
 
 // Helper interface for working with product data including translations
-export interface ProductWithTranslations extends Partial<WebshopProducts> {
+export interface ProductWithTranslations
+  extends Omit<Partial<WebshopProducts>, "variations"> {
   category?: string;
   custom_fields?: ProductCustomField[];
   description?: string;

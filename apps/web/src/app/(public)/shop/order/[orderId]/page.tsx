@@ -1,6 +1,7 @@
 import { Query } from "@repo/api";
 import { createSessionClient } from "@repo/api/server";
 import type { Orders } from "@repo/api/types/appwrite";
+import { getOrderItems } from "@repo/shared/utils/order-parsing";
 import { Card } from "@repo/ui/components/ui/card";
 import { Separator } from "@repo/ui/components/ui/separator";
 import { Skeleton } from "@repo/ui/components/ui/skeleton";
@@ -112,10 +113,6 @@ interface RawOrderItem {
   title?: string;
   unit_price?: number;
   variation_name?: string;
-}
-
-function parseItems(itemsJson: string | null): RawOrderItem[] {
-  return itemsJson ? (JSON.parse(itemsJson) as RawOrderItem[]) : [];
 }
 
 const MEMBERSHIP_ITEM_PATTERN = /member/i;
@@ -458,7 +455,7 @@ async function OrderDetails({
     `order.status.${statusDescKey[status] ?? "pendingDesc"}`
   );
 
-  const rawItems = parseItems(order.items_json);
+  const rawItems = getOrderItems(order) as RawOrderItem[];
   const purchaseType = resolvePurchaseType(rawItems);
   const isMembershipOnly = purchaseType === "membership";
   const receiptItems: ReceiptItem[] = rawItems.map((item) => ({

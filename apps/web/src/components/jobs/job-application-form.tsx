@@ -144,15 +144,17 @@ function QuestionInput({
       : [];
     return (
       <div className="flex flex-col gap-2">
-        {(question.options ?? []).map((opt) => {
+        {(question.options ?? []).map((opt, index) => {
           const isSelected = selectedOptions.includes(opt);
+          const optionId = `${id}-${index}`;
           return (
-            <label
+            <div
               className="flex items-center gap-2 text-muted-foreground text-sm"
               key={opt}
             >
               <Checkbox
                 checked={isSelected}
+                id={optionId}
                 onCheckedChange={(checked) => {
                   if (checked) {
                     onChange([...selectedOptions, opt].join(", "));
@@ -163,8 +165,8 @@ function QuestionInput({
                   }
                 }}
               />
-              {opt}
-            </label>
+              <Label htmlFor={optionId}>{opt}</Label>
+            </div>
           );
         })}
       </div>

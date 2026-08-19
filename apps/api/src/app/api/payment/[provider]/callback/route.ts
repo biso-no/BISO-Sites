@@ -14,6 +14,7 @@ import {
   fulfilMembershipOrder,
   isMembershipOrder,
 } from "@repo/shared/utils/membership-fulfilment";
+import { ORDER_ITEMS_SELECT } from "@repo/shared/utils/order-queries";
 import {
   determineStatusFromStripeSession,
   type StripeSessionLike,
@@ -45,8 +46,11 @@ type CallbackDb = Awaited<ReturnType<typeof createAdminClient>>["db"];
  */
 async function settleFinagoIfPaid(orderId: string, db: CallbackDb) {
   try {
-    const order = (await db.getRow("app", "orders", orderId)) as {
+    const order = (await db.getRow("app", "orders", orderId, [
+      ORDER_ITEMS_SELECT,
+    ])) as {
       items_json?: string | null;
+      order_items?: Record<string, unknown>[];
       status?: string;
     } | null;
     if (

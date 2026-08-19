@@ -13,6 +13,7 @@ import {
   releaseStaleMembershipClaim,
   stampNonMembershipOrder,
 } from "@repo/shared/utils/membership-fulfilment";
+import { ORDER_ITEMS_SELECT } from "@repo/shared/utils/order-queries";
 import { safeSecretCompare } from "@repo/shared/utils/secrets";
 import { NextResponse } from "next/server";
 import { isProd } from "@/lib/utils";
@@ -71,6 +72,7 @@ async function sweepUnsettledOrders(db: AdminDb): Promise<{
     const orders = await db.listRows<FinagoOrder>("app", "orders", [
       Query.equal("status", status),
       Query.lessThan("$createdAt", cutoffIso()),
+      ORDER_ITEMS_SELECT,
       Query.limit(SWEEP_LIMIT),
     ]);
 
@@ -107,6 +109,7 @@ async function sweepMissingFinagoPostings(db: AdminDb): Promise<{
     Query.equal("status", ["paid", "authorized"]),
     Query.isNull("finago_transaction_id"),
     Query.lessThan("$createdAt", cutoffIso()),
+    ORDER_ITEMS_SELECT,
     Query.limit(SWEEP_LIMIT),
   ]);
 
@@ -158,6 +161,7 @@ async function recoverMembershipFulfilment(db: AdminDb): Promise<{
     Query.equal("status", ["paid", "authorized"]),
     Query.isNull("membership_invoice_id"),
     Query.lessThan("$createdAt", cutoffIso()),
+    ORDER_ITEMS_SELECT,
     Query.limit(SWEEP_LIMIT),
   ]);
 

@@ -3,6 +3,7 @@
 import { Query } from "@repo/api";
 import { createSessionClient } from "@repo/api/server";
 import type { Orders } from "@repo/api/types/appwrite";
+import { ORDER_ITEMS_SELECT } from "@repo/shared/utils/order-queries";
 import {
   checkMaxPerOrder,
   evaluatePerUserLimit,
@@ -43,6 +44,7 @@ async function checkMaxPerUser(
     const orders = await db.listRows<Orders>("app", "orders", [
       Query.equal("userId", userId),
       ORDER_STATUS_FILTER,
+      ORDER_ITEMS_SELECT,
       // Without an explicit limit Appwrite returns max 25 rows, which would
       // under-count purchases and let users bypass per-customer limits.
       Query.limit(1000),
@@ -112,6 +114,7 @@ async function _getPurchaseHistory(
     const orders = await db.listRows<Orders>("app", "orders", [
       Query.equal("userId", userId),
       ORDER_STATUS_FILTER,
+      ORDER_ITEMS_SELECT,
       // Without an explicit limit Appwrite returns max 25 rows, which would
       // under-count purchases and let users bypass per-customer limits.
       Query.limit(1000),

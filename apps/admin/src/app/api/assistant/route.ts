@@ -15,6 +15,8 @@ import {
   mergeFlagStates,
 } from "@repo/shared/utils/feature-flags";
 import { isFeatureEnabled } from "@repo/shared/utils/feature-flags-server";
+import { getOrderItems } from "@repo/shared/utils/order-parsing";
+import { ORDER_ITEMS_SELECT } from "@repo/shared/utils/order-queries";
 import type { UIMessage } from "ai";
 import { convertToModelMessages, stepCountIs, streamText } from "ai";
 import { type NextRequest, NextResponse } from "next/server";
@@ -431,17 +433,6 @@ function toOrderSummary(order: Orders) {
   };
 }
 
-function parseOrderItems(itemsJson: string | null | undefined): unknown {
-  if (!itemsJson) {
-    return [];
-  }
-  try {
-    return JSON.parse(itemsJson);
-  } catch {
-    return [];
-  }
-}
-
 function buildDeps(
   _activeFormSchemaId: string | undefined,
   ctx: UserAuthContext
@@ -709,10 +700,12 @@ function buildDeps(
       }
       // Session client — row security limits access to permitted orders.
       const { db } = await createSessionClient();
-      const order = await db.getRow<Orders>("app", "orders", orderId);
+      const order = await db.getRow<Orders>("app", "orders", orderId, [
+        ORDER_ITEMS_SELECT,
+      ]);
       return {
         ...toOrderSummary(order),
-        items: parseOrderItems(order.items_json),
+        items: getOrderItems(order),
       };
     },
 

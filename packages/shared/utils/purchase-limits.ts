@@ -1,4 +1,4 @@
-import { parseOrderItems } from "./order-parsing";
+import { getOrderItems } from "./order-parsing";
 
 export interface PurchaseLimitResult {
   allowed: boolean;
@@ -9,6 +9,7 @@ export interface PurchaseLimitResult {
 
 interface OrderForLimits {
   items_json?: string | null;
+  order_items?: Record<string, unknown>[] | null;
 }
 
 /**
@@ -27,7 +28,7 @@ export function summarizePurchases(
   let orderCount = 0;
 
   for (const order of orders) {
-    const items = parseOrderItems(order.items_json);
+    const items = getOrderItems(order);
     for (const item of items) {
       if (item.product_id === productId) {
         totalPurchased += typeof item.quantity === "number" ? item.quantity : 0;

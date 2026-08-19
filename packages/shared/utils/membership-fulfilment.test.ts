@@ -112,7 +112,18 @@ function wireReads(order: Record<string, unknown>) {
 
 describe("isMembershipOrder", () => {
   it("detects the membership marker", () => {
-    expect(isMembershipOrder({ items_json: MEMBERSHIP_ITEMS })).toBe(true);
+    expect(
+      isMembershipOrder({
+        order_items: [
+          {
+            product: { $id: "71" },
+            product_type: "membership",
+            quantity: 1,
+            unit_price: 550,
+          },
+        ],
+      })
+    ).toBe(true);
   });
 
   it("rejects a normal shop order", () => {

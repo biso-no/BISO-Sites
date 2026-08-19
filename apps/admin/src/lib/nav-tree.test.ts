@@ -17,10 +17,11 @@ function labels(nodes: ReturnType<typeof filterNavTree>) {
 }
 
 describe("filterNavTree", () => {
-  test("global admin sees all 8 top-level entries", () => {
+  test("global admin sees all 9 top-level entries", () => {
     expect(labels(filterNavTree(globalAdmin))).toEqual([
       "overview",
       "inbox",
+      "members",
       "content",
       "shop",
       "organization",

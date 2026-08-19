@@ -1,7 +1,8 @@
 import { ID, Permission, Query, Role } from "@repo/api";
 import { type Orders, OrdersStatus } from "@repo/api/types/appwrite";
 import type { CheckoutSessionParams } from "../types/vipps";
-import { type ParsedOrderItem, parseOrderItems } from "./order-parsing";
+import { getOrderItems, type ParsedOrderItem } from "./order-parsing";
+import { ORDER_ITEMS_SELECT } from "./order-queries";
 
 export interface DbClient {
   createRow: (
@@ -20,7 +21,12 @@ export interface DbClient {
     min?: number;
   }) => Promise<T>;
   deleteRow: (dbId: string, collId: string, docId: string) => Promise<unknown>;
-  getRow: (dbId: string, collId: string, docId: string) => Promise<unknown>;
+  getRow: (
+    dbId: string,
+    collId: string,
+    docId: string,
+    queries?: string[]
+  ) => Promise<unknown>;
   incrementRowColumn?: <T = unknown>(params: {
     databaseId: string;
     tableId: string;
@@ -42,7 +48,10 @@ export interface DbClient {
   ) => Promise<unknown>;
 }
 
-function buildStoredOrderItems(items: CheckoutSessionParams["items"]) {
+function buildStoredOrderItems(
+  orderId: string,
+  items: CheckoutSessionParams["items"]
+) {
   return items.map((item) => {
     const {
       productId,
@@ -64,13 +73,27 @@ function buildStoredOrderItems(items: CheckoutSessionParams["items"]) {
         value,
       })
     );
+    const unitPrice = Number(rest.unit_price ?? rest.price ?? 0);
+    const displayName =
+      rest.title ??
+      (variationName ? `${rest.name} — ${variationName}` : rest.name);
 
     return {
-      ...rest,
-      product_id: productId,
-      ...(variationId ? { variation_id: variationId } : {}),
-      ...(variationName ? { variation_name: variationName } : {}),
-      ...(customFieldList.length > 0 ? { custom_fields: customFieldList } : {}),
+      accrual_months: rest.accrual_months ?? null,
+      category_id: rest.category_id ?? null,
+      custom_fields_json:
+        customFieldList.length > 0 ? JSON.stringify(customFieldList) : null,
+      duration: rest.duration ?? null,
+      line_total: unitPrice * rest.quantity,
+      membership_id: rest.membership_id ?? null,
+      name: displayName,
+      order: orderId,
+      product: productId,
+      product_type: rest.product_type ?? null,
+      quantity: rest.quantity,
+      start_date: rest.start_date ?? null,
+      unit_price: unitPrice,
+      variation: variationId ?? null,
     };
   });
 }
@@ -98,6 +121,7 @@ export async function createOrder(
   databases: DbClient
 ): Promise<{ orderId: string; order: Orders }> {
   const orderId = ID.unique();
+  let orderCreated = false;
 
   try {
     const order = (await databases.createRow(
@@ -117,16 +141,36 @@ export async function createOrder(
         discount_total: params.discountTotal || null,
         total: params.total,
         currency: params.currency,
-        items_json: JSON.stringify(buildStoredOrderItems(params.items)),
         membership_applied: params.membershipApplied || null,
         member_discount_percent: params.memberDiscountPercent || null,
         campus_id: params.campusId || null,
       },
       buildOrderPermissions(params.userId)
     )) as Orders;
+    orderCreated = true;
+
+    const itemPermissions = buildOrderPermissions(params.userId);
+    for (const item of buildStoredOrderItems(orderId, params.items)) {
+      await databases.createRow(
+        process.env.APPWRITE_DATABASE_ID ?? "app",
+        process.env.APPWRITE_ORDER_ITEMS_COLLECTION_ID ?? "order_items",
+        ID.unique(),
+        item,
+        itemPermissions
+      );
+    }
 
     return { orderId, order };
   } catch (error) {
+    if (orderCreated) {
+      await databases
+        .deleteRow(
+          process.env.APPWRITE_DATABASE_ID ?? "app",
+          process.env.APPWRITE_ORDERS_COLLECTION_ID ?? "orders",
+          orderId
+        )
+        .catch(() => undefined);
+    }
     console.error("Error creating order:", error);
     throw new Error(
       error instanceof Error
@@ -223,6 +267,7 @@ function isStaleBackwardTransition(
  * and the Stripe callback path share this so stock handling lives in exactly
  * one place.
  */
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: this orchestrates one guarded status transition and preserves its ordering invariants in one place.
 export async function applyOrderStatusTransition(
   orderId: string,
   newStatus: OrdersStatus,
@@ -232,11 +277,12 @@ export async function applyOrderStatusTransition(
   const currentOrder = (await databases.getRow(
     process.env.APPWRITE_DATABASE_ID ?? "app",
     process.env.APPWRITE_ORDERS_COLLECTION_ID ?? "orders",
-    orderId
+    orderId,
+    [ORDER_ITEMS_SELECT]
   )) as Orders;
 
   const oldStatus: OrdersStatus = currentOrder.status || OrdersStatus.PENDING;
-  const orderItems = parseOrderItems(currentOrder.items_json);
+  const orderItems = getOrderItems(currentOrder);
 
   // Ignore stale, out-of-order events that would regress a settled order (e.g. a
   // late Stripe `complete/unpaid` arriving after the order is already PAID).

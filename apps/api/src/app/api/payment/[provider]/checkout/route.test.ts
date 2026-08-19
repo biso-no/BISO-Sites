@@ -348,9 +348,14 @@ describe("payment checkout authorization", () => {
       db: {
         getRow: vi.fn().mockResolvedValue({
           ...productRow,
-          metadata: JSON.stringify({
-            variations: [{ id: "v-large", name: "Large", price_modifier: 50 }],
-          }),
+          variations: [
+            {
+              $id: "v-large",
+              enabled: true,
+              name: "Large",
+              regular_price: 249,
+            },
+          ],
         }),
       },
     } as unknown as Awaited<ReturnType<typeof createAdminClient>>);

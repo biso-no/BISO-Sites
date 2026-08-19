@@ -5,6 +5,7 @@ import type {
   Orders,
   WebshopProducts,
 } from "@repo/api/types/appwrite";
+import { getOrderItems } from "@repo/shared/utils/order-parsing";
 import {
   ChevronRight,
   Download,
@@ -1187,12 +1188,6 @@ function ProductRow({
 
 // ─── OrderRow ─────────────────────────────────────────────────────────────────
 
-interface OrderLineItem {
-  name?: string;
-  product_name?: string;
-  quantity?: number;
-}
-
 interface OrderFilterState {
   dateFrom: string;
   dateTo: string;
@@ -1201,23 +1196,11 @@ interface OrderFilterState {
   query: string;
 }
 
-function parseOrderItems(json: string | null): OrderLineItem[] {
-  if (!json) {
-    return [];
-  }
-  try {
-    const parsed = JSON.parse(json);
-    return Array.isArray(parsed) ? (parsed as OrderLineItem[]) : [];
-  } catch {
-    return [];
-  }
-}
-
 function orderContainsProduct(order: Orders, productFilter: string): boolean {
   if (productFilter === "all") {
     return true;
   }
-  return parseOrderItems(order.items_json).some(
+  return getOrderItems(order).some(
     (item) => (item.name ?? item.product_name) === productFilter
   );
 }
@@ -1279,7 +1262,7 @@ function exportOrdersCSV(orders: Orders[], headers: string[]) {
   const headerRow = headers.map(esc).join(",");
 
   const rows = orders.map((o) => {
-    const items = parseOrderItems(o.items_json);
+    const items = getOrderItems(o);
     const itemsStr = items
       .map(
         (i) =>
@@ -1318,7 +1301,7 @@ function OrderRow({ order }: { order: Orders }) {
   const locale = normalizeLocale(useLocale());
   const t = useTranslations("adminPortal.shop.studio");
   const orderDetails = useTranslations("adminShop.orders.details");
-  const items = parseOrderItems(order.items_json);
+  const items = getOrderItems(order);
   const firstItemName = items[0]?.name ?? items[0]?.product_name ?? "—";
   const extraCount = items.length > 1 ? items.length - 1 : 0;
   const showDiscount = order.discount_total != null && order.discount_total > 0;
@@ -1549,7 +1532,7 @@ export function ShopStudioDashboard({
   const allProductNames = useMemo(() => {
     const names = new Set<string>();
     for (const order of initialOrders) {
-      const items = parseOrderItems(order.items_json);
+      const items = getOrderItems(order);
       for (const item of items) {
         const name = item.name ?? item.product_name;
         if (name) {

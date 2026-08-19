@@ -3153,14 +3153,16 @@ export function ShopStudioEditor({
     htmlToDescriptionBlocks(enTranslation?.description ?? "")
   );
   const [localVariants, setLocalVariants] = useState<ProductVariant[]>(() => {
-    if (!product?.variants_json) {
-      return [];
-    }
-    try {
-      return JSON.parse(product.variants_json) as ProductVariant[];
-    } catch {
-      return [];
-    }
+    return (product?.variations ?? [])
+      .filter((variation) => variation.enabled)
+      .sort((a, b) => a.sort_order - b.sort_order)
+      .map((variation) => ({
+        id: variation.$id,
+        name: variation.name,
+        price: Number(variation.regular_price ?? product?.regular_price ?? 0),
+        stock: Number(variation.stock ?? 0),
+        type: "default",
+      }));
   });
   const [regularPrice, setRegularPrice] = useState<number>(
     product?.regular_price ?? 0
@@ -3223,8 +3225,7 @@ export function ShopStudioEditor({
       member_only: memberOnly,
       image: localImages[0] ?? null,
       stock,
-      variants_json:
-        localVariants.length > 0 ? JSON.stringify(localVariants) : null,
+      variations: localVariants,
       tags,
       images: localImages,
       cover_pattern: coverPattern as

@@ -669,6 +669,32 @@
           "twoWayKey": "user",
           "onDelete": "setNull",
           "side": "child"
+        },
+        {
+          "key": "bi_employee_id",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 32,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "bi_campus_id",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 8,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "bi_linked_at",
+          "type": "datetime",
+          "required": false,
+          "array": false,
+          "default": null,
+          "format": ""
         }
       ],
       "indexes": [
@@ -8561,15 +8587,6 @@
           "elements": ["NOK"]
         },
         {
-          "key": "items_json",
-          "type": "string",
-          "required": false,
-          "array": false,
-          "size": 16384,
-          "default": null,
-          "encrypt": false
-        },
-        {
           "key": "membership_applied",
           "type": "boolean",
           "required": false,
@@ -8674,6 +8691,36 @@
           "default": 0,
           "min": 0,
           "max": 1000000
+        },
+        {
+          "key": "membership_invoice_id",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 64,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "membership_fulfilment_lock",
+          "type": "integer",
+          "required": false,
+          "array": false,
+          "default": 0,
+          "min": 0,
+          "max": 1000000
+        },
+        {
+          "key": "order_items",
+          "type": "relationship",
+          "required": false,
+          "array": false,
+          "relatedTable": "order_items",
+          "relationType": "oneToMany",
+          "twoWay": true,
+          "twoWayKey": "order",
+          "onDelete": "cascade",
+          "side": "parent"
         }
       ],
       "indexes": [
@@ -8689,6 +8736,13 @@
           "type": "key",
           "status": "available",
           "columns": ["finago_transaction_id"],
+          "orders": ["ASC"]
+        },
+        {
+          "key": "idx_orders_membership_invoice",
+          "type": "key",
+          "status": "available",
+          "columns": ["membership_invoice_id"],
           "orders": ["ASC"]
         }
       ]
@@ -9202,15 +9256,6 @@
           "max": 9223372036854775807
         },
         {
-          "key": "variants_json",
-          "type": "string",
-          "required": false,
-          "array": false,
-          "size": 8192,
-          "default": null,
-          "encrypt": false
-        },
-        {
           "key": "tags",
           "type": "string",
           "required": false,
@@ -9263,6 +9308,18 @@
           "default": null,
           "min": 0,
           "max": 99999999
+        },
+        {
+          "key": "variations",
+          "type": "relationship",
+          "required": false,
+          "array": false,
+          "relatedTable": "product_variations",
+          "relationType": "oneToMany",
+          "twoWay": true,
+          "twoWayKey": "product",
+          "onDelete": "cascade",
+          "side": "parent"
         }
       ],
       "indexes": [
@@ -9569,6 +9626,248 @@
           "orders": []
         }
       ]
+    },
+    {
+      "$id": "order_items",
+      "$permissions": [
+        "create(\"team:sg-app-dept-operationsunit\")",
+        "read(\"team:sg-app-dept-operationsunit\")",
+        "update(\"team:sg-app-dept-operationsunit\")",
+        "delete(\"team:sg-app-dept-operationsunit\")"
+      ],
+      "databaseId": "app",
+      "name": "Order Items",
+      "enabled": true,
+      "rowSecurity": true,
+      "columns": [
+        {
+          "key": "order",
+          "type": "relationship",
+          "required": false,
+          "array": false,
+          "relatedTable": "orders",
+          "relationType": "oneToMany",
+          "twoWay": true,
+          "twoWayKey": "order_items",
+          "onDelete": "cascade",
+          "side": "child"
+        },
+        {
+          "key": "name",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 255,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "unit_price",
+          "type": "double",
+          "required": false,
+          "array": false,
+          "default": null,
+          "min": -10000000000000000000,
+          "max": 10000000000000000000
+        },
+        {
+          "key": "quantity",
+          "type": "integer",
+          "required": false,
+          "array": false,
+          "default": null,
+          "min": -1000000,
+          "max": 1000000
+        },
+        {
+          "key": "product_type",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 64,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "custom_fields_json",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 4096,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "membership_id",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 64,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "category_id",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 64,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "duration",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 64,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "accrual_months",
+          "type": "integer",
+          "required": false,
+          "array": false,
+          "default": null,
+          "min": -1000000,
+          "max": 1000000
+        },
+        {
+          "key": "start_date",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 64,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "product",
+          "type": "relationship",
+          "required": false,
+          "array": false,
+          "relatedTable": "webshop_products",
+          "relationType": "manyToOne",
+          "twoWay": false,
+          "twoWayKey": "order_items_internal",
+          "onDelete": "setNull",
+          "side": "parent"
+        },
+        {
+          "key": "variation",
+          "type": "relationship",
+          "required": false,
+          "array": false,
+          "relatedTable": "product_variations",
+          "relationType": "manyToOne",
+          "twoWay": false,
+          "twoWayKey": "order_items",
+          "onDelete": "setNull",
+          "side": "parent"
+        },
+        {
+          "key": "line_total",
+          "type": "double",
+          "required": false,
+          "array": false,
+          "default": null,
+          "min": -1.7976931348623157e308,
+          "max": 1.7976931348623157e308
+        }
+      ],
+      "indexes": []
+    },
+    {
+      "$id": "product_variations",
+      "$permissions": [
+        "read(\"any\")",
+        "create(\"team:sg-app-dept-operationsunit\")",
+        "create(\"team:sg-app-dept-ledelsenoslo\")",
+        "create(\"team:sg-app-dept-ledelsenbergen\")",
+        "create(\"team:sg-app-dept-ledelsentrondheim\")",
+        "create(\"team:sg-app-dept-hr\")"
+      ],
+      "databaseId": "app",
+      "name": "Product Variations",
+      "enabled": true,
+      "rowSecurity": false,
+      "columns": [
+        {
+          "key": "name",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 255,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "regular_price",
+          "type": "double",
+          "required": false,
+          "array": false,
+          "default": null,
+          "min": 0,
+          "max": 1.7976931348623157e308
+        },
+        {
+          "key": "member_price",
+          "type": "double",
+          "required": false,
+          "array": false,
+          "default": null,
+          "min": 0,
+          "max": 1.7976931348623157e308
+        },
+        {
+          "key": "stock",
+          "type": "integer",
+          "required": false,
+          "array": false,
+          "default": null,
+          "min": 0,
+          "max": 9223372036854775807
+        },
+        {
+          "key": "sku",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 64,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "sort_order",
+          "type": "integer",
+          "required": false,
+          "array": false,
+          "default": 0,
+          "min": -9223372036854775808,
+          "max": 9223372036854775807
+        },
+        {
+          "key": "enabled",
+          "type": "boolean",
+          "required": false,
+          "array": false,
+          "default": true
+        },
+        {
+          "key": "product",
+          "type": "relationship",
+          "required": false,
+          "array": false,
+          "relatedTable": "webshop_products",
+          "relationType": "oneToMany",
+          "twoWay": true,
+          "twoWayKey": "variations",
+          "onDelete": "cascade",
+          "side": "child"
+        }
+      ],
+      "indexes": []
     },
     {
       "$id": "departments",

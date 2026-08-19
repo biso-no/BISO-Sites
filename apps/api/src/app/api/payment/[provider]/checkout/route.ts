@@ -17,6 +17,7 @@ import { type CheckoutSessionParams, Currency } from "@repo/shared/types/vipps";
 import { sanitizeStudentNumber } from "@repo/shared/utils/bi-student";
 import { isFeatureEnabled } from "@repo/shared/utils/feature-flags-server";
 import { computeMembershipStatus } from "@repo/shared/utils/membership-status";
+import { ORDER_ITEMS_SELECT } from "@repo/shared/utils/order-queries";
 import {
   checkMaxPerOrder,
   evaluatePerUserLimit,
@@ -67,10 +68,10 @@ interface ProductVariation {
   price_modifier?: number;
 }
 
-interface NormalizedProduct extends WebshopProducts {
+interface NormalizedProduct extends Omit<WebshopProducts, "variations"> {
   metadata_parsed: Record<string, unknown>;
   title: string;
-  variations?: ProductVariation[];
+  variations: ProductVariation[];
 }
 
 type CheckoutDb = Awaited<ReturnType<typeof createAdminClient>>["db"];
@@ -210,6 +211,7 @@ async function ensureLineAvailability({
     const orders = await db.listRows<Orders>("app", "orders", [
       Query.equal("userId", userId),
       ORDER_STATUS_FILTER,
+      ORDER_ITEMS_SELECT,
       Query.limit(1000),
     ]);
     const { totalPurchased } = summarizePurchases(orders.rows, product.$id);
@@ -370,16 +372,23 @@ async function loadProduct(
   const product = await db.getRow<WebshopProducts>(
     getRequiredEnv("APPWRITE_DATABASE_ID"),
     getRequiredEnv("APPWRITE_WEBSHOP_PRODUCTS_COLLECTION_ID"),
-    productId
+    productId,
+    [Query.select(["*", "variations.*"])]
   );
   const metadataParsed = parseProductMetadata(product.metadata);
   const normalizedProduct: NormalizedProduct = {
     ...product,
     metadata_parsed: metadataParsed,
     title: productTitle(product),
-    variations: Array.isArray(metadataParsed.variations)
-      ? (metadataParsed.variations as ProductVariation[])
-      : undefined,
+    variations: (product.variations ?? [])
+      .filter((variation) => variation.enabled)
+      .map((variation) => ({
+        id: variation.$id,
+        name: variation.name,
+        price_modifier:
+          Number(variation.regular_price ?? product.regular_price) -
+          Number(product.regular_price),
+      })),
   };
   cache.set(productId, normalizedProduct);
   return normalizedProduct;

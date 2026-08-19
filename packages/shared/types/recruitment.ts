@@ -3,6 +3,8 @@ import { z } from "zod";
 
 type RecruitmentLocale = "en" | "no";
 
+export const RECRUITMENT_SHORT_DESCRIPTION_MAX_LENGTH = 280;
+
 const nullableTrimmedString = (max: number) =>
   z.preprocess((value) => {
     if (typeof value !== "string") {
@@ -162,7 +164,9 @@ export const recruitmentVacancyMetadataSchema = z.object({
   company: nullableTrimmedString(200),
   employment_type: nullableTrimmedString(100),
   paid: z.boolean().optional().default(false),
-  short_description: nullableTrimmedString(280),
+  short_description: nullableTrimmedString(
+    RECRUITMENT_SHORT_DESCRIPTION_MAX_LENGTH
+  ),
   location: nullableTrimmedString(200),
   contact_name: nullableTrimmedString(200),
   contact_email: z.preprocess((value) => {

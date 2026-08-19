@@ -5,6 +5,7 @@ import { createAdminClient, createSessionClient } from "@repo/api/server";
 import type {
   ContentTranslations,
   Orders,
+  ProductVariations,
   WebshopProducts,
   WebshopProductsStatus,
 } from "@repo/api/types/appwrite";
@@ -387,7 +388,6 @@ function buildProductFields(data: ProductFormValues) {
     member_only: data.member_only ?? false,
     image: data.image || null,
     stock: data.stock ?? null,
-    variants_json: data.variants_json ?? null,
     tags: data.tags ?? null,
     images: data.images ?? null,
     cover_pattern: data.cover_pattern ?? "dotted",
@@ -395,6 +395,60 @@ function buildProductFields(data: ProductFormValues) {
     inventory_mode: data.inventory_mode ?? "unlimited",
     finago_account_number: data.finago_account_number ?? null,
   };
+}
+
+type ProductVariationInput = NonNullable<
+  ProductFormValues["variations"]
+>[number];
+
+function readProductVariations(
+  data: ProductFormValues
+): ProductVariationInput[] {
+  if (data.variations) {
+    return data.variations;
+  }
+  if (!data.variants_json) {
+    return [];
+  }
+  try {
+    const parsed: unknown = JSON.parse(data.variants_json);
+    return Array.isArray(parsed) ? (parsed as ProductVariationInput[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+async function syncProductVariations(
+  db: AdminDb,
+  productId: string,
+  values: ProductFormValues,
+  existingVariations: ProductVariations[] = []
+): Promise<void> {
+  const requested = readProductVariations(values);
+  const existingIds = new Set(
+    existingVariations.map((variation) => variation.$id)
+  );
+  const requestedIds = new Set(requested.map((variation) => variation.id));
+
+  for (const variation of existingVariations) {
+    if (!requestedIds.has(variation.$id)) {
+      await db.deleteRow("app", "product_variations", variation.$id);
+    }
+  }
+
+  for (const [sortOrder, variation] of requested.entries()) {
+    const variationId = existingIds.has(variation.id)
+      ? variation.id
+      : ID.unique();
+    await db.upsertRow("app", "product_variations", variationId, {
+      enabled: true,
+      name: variation.name,
+      product: productId,
+      regular_price: variation.price,
+      sort_order: sortOrder,
+      stock: variation.stock,
+    });
+  }
 }
 
 async function buildProductPermissions(
@@ -435,6 +489,7 @@ export async function listProducts(opts?: {
 
   const queries: string[] = [
     Query.orderDesc("$updatedAt"),
+    Query.select(["*", "variations.*"]),
     Query.limit(100),
     ...applyContentRelationshipScopeQueries(ctx),
   ];
@@ -486,7 +541,11 @@ export async function getProduct(id: string) {
   const response = await db.listRows<WebshopProducts>(
     "app",
     "webshop_products",
-    [Query.equal("$id", id), Query.limit(1)]
+    [
+      Query.equal("$id", id),
+      Query.select(["*", "variations.*"]),
+      Query.limit(1),
+    ]
   );
   const product = response.rows[0];
   if (!product) {
@@ -557,6 +616,7 @@ export async function createProduct(
       },
       rowPermissions
     );
+    await syncProductVariations(db, productId, validated.data);
 
     await logAuditEvent(ctx, "product_created", {
       resourceId: product.$id,
@@ -596,7 +656,11 @@ export async function updateProduct(
   const existing = await db.listRows<WebshopProducts>(
     "app",
     "webshop_products",
-    [Query.equal("$id", id), Query.limit(1)]
+    [
+      Query.equal("$id", id),
+      Query.select(["*", "variations.*"]),
+      Query.limit(1),
+    ]
   );
   const product = existing.rows[0];
   if (!product) {
@@ -645,6 +709,12 @@ export async function updateProduct(
         ),
       },
       rowPermissions
+    );
+    await syncProductVariations(
+      db,
+      id,
+      validated.data,
+      product.variations ?? []
     );
 
     await logAuditEvent(ctx, "product_updated", {
@@ -725,6 +795,12 @@ export async function listOrders(opts?: {
 
   const queries: string[] = [
     Query.orderDesc("$createdAt"),
+    Query.select([
+      "*",
+      "order_items.*",
+      "order_items.product.*",
+      "order_items.variation.*",
+    ]),
     Query.limit(50),
     // orders is campus-scoped only (no department column).
     ...applyScopeQueries(ctx, { departmentField: null }),

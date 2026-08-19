@@ -21,6 +21,11 @@ mock.module("@repo/api/server", () => ({
   createAdminClient: mock(async () => ({ db })),
 }));
 
+mock.module("@repo/connectors/azure/users", () => ({
+  generateTemporaryPassword: mock(() => "Temporary1!Password"),
+  generateUpn: mock(() => "ada.lovelace@biso.no"),
+}));
+
 mock.module("@/lib/it/graph", () => ({
   M365_DOMAIN: "biso.no",
   getGraphService: mock(() => graph),

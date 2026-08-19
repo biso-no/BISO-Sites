@@ -20,7 +20,8 @@ import {
   type MembershipPlan,
   toMembershipPlan,
 } from "@repo/shared/utils/membership-plans";
-import { parseOrderItems } from "@repo/shared/utils/order-parsing";
+import { getOrderItems } from "@repo/shared/utils/order-parsing";
+import { ORDER_ITEMS_SELECT } from "@repo/shared/utils/order-queries";
 import {
   createOrder,
   updateOrderWithSession,
@@ -159,6 +160,7 @@ async function findIdempotentOrder(
     Query.equal("campus_id", campusId),
     Query.greaterThan("$createdAt", windowStart),
     Query.orderDesc("$createdAt"),
+    ORDER_ITEMS_SELECT,
     Query.limit(RECENT_ORDERS_LIMIT),
   ]);
 
@@ -174,7 +176,7 @@ async function findIdempotentOrder(
     ) {
       continue;
     }
-    const isSamePlan = parseOrderItems(order.items_json).some(
+    const isSamePlan = getOrderItems(order).some(
       (item) => item.product_type === "membership" && item.product_id === planId
     );
     if (isSamePlan) {

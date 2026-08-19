@@ -171,6 +171,35 @@ describe("product relationship persistence", () => {
     expect(adminDb.createRow).not.toHaveBeenCalled();
   });
 
+  test("createProduct persists variants in product_variations", async () => {
+    const result = await createProduct({
+      ...departmentValues,
+      variations: [
+        {
+          id: "large",
+          name: "Large",
+          price: 549,
+          stock: 8,
+          type: "default",
+        },
+      ],
+    });
+
+    expect(result).toEqual({ data: expect.any(String) });
+    expect(adminDb.upsertRow).toHaveBeenCalledWith(
+      "app",
+      "product_variations",
+      expect.any(String),
+      expect.objectContaining({
+        enabled: true,
+        name: "Large",
+        regular_price: 549,
+        sort_order: 0,
+        stock: 8,
+      })
+    );
+  });
+
   test("department author cannot create outside their department", async () => {
     const result = await createProduct({
       ...departmentValues,

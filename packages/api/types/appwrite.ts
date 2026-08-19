@@ -494,6 +494,9 @@ export type Users = Models.Row & {
   campus: Campus;
   savedJobs: SavedJobs[];
   payments: Payments[];
+  bi_employee_id: string | null;
+  bi_campus_id: string | null;
+  bi_linked_at: string | null;
 };
 
 export type ContentEntryLocales = Models.Row & {
@@ -1374,7 +1377,6 @@ export type Orders = Models.Row & {
   discount_total: number | null;
   total: number;
   currency: OrdersCurrency;
-  items_json: string | null;
   membership_applied: boolean | null;
   member_discount_percent: number | null;
   campus_id: string | null;
@@ -1387,6 +1389,9 @@ export type Orders = Models.Row & {
   finago_transaction_id: string | null;
   transition_lock: number;
   finago_posting_lock: number;
+  membership_invoice_id: string | null;
+  membership_fulfilment_lock: number;
+  order_items: OrderItems[];
 };
 
 export type LargeEventItem = Models.Row & {
@@ -1443,13 +1448,13 @@ export type WebshopProducts = Models.Row & {
   category: string | null;
   image: string | null;
   stock: number | null;
-  variants_json: string | null;
   tags: string[] | null;
   images: string[] | null;
   cover_pattern: WebshopProductsCoverPattern;
   linked_event_id: string | null;
   inventory_mode: WebshopProductsInventoryMode;
   finago_account_number: number | null;
+  variations: ProductVariations[];
 };
 
 export type Memberships = Models.Row & {
@@ -1480,10 +1485,32 @@ export type ContentTranslations = Models.Row & {
   news_ref: News;
 };
 
-export type FinagoDepartments = Models.Row & {
-  Id: string;
-  Name: string;
-  Campus: string | null;
+export type OrderItems = Models.Row & {
+  order: Orders;
+  name: string | null;
+  unit_price: number | null;
+  quantity: number | null;
+  product_type: string | null;
+  custom_fields_json: string | null;
+  membership_id: string | null;
+  category_id: string | null;
+  duration: string | null;
+  accrual_months: number | null;
+  start_date: string | null;
+  product: WebshopProducts;
+  variation: ProductVariations;
+  line_total: number | null;
+};
+
+export type ProductVariations = Models.Row & {
+  name: string;
+  regular_price: number | null;
+  member_price: number | null;
+  stock: number | null;
+  sku: string | null;
+  sort_order: number;
+  enabled: boolean;
+  product: WebshopProducts;
 };
 
 export type AuthTokens = Models.Row & {

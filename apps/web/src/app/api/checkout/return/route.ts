@@ -10,6 +10,7 @@ import {
   fulfilMembershipOrder,
   isMembershipOrder,
 } from "@repo/shared/utils/membership-fulfilment";
+import { ORDER_ITEMS_SELECT } from "@repo/shared/utils/order-queries";
 import { determineStatusFromStripeSession } from "@repo/shared/utils/stripe-pure";
 import { applyOrderStatusTransition } from "@repo/shared/utils/vipps-order-ops";
 import { NextResponse } from "next/server";
@@ -140,7 +141,9 @@ export async function GET(request: Request) {
     console.info(`[Checkout Return] Verifying order status for: ${orderId}`);
 
     const { db } = await createAdminClient();
-    const order = await db.getRow<Orders>("app", "orders", orderId);
+    const order = await db.getRow<Orders>("app", "orders", orderId, [
+      ORDER_ITEMS_SELECT,
+    ]);
 
     if (!order) {
       console.error(`[Checkout Return] Order not found: ${orderId}`);
@@ -149,7 +152,9 @@ export async function GET(request: Request) {
 
     await syncOrderStatusFromProvider(order, orderId, db);
 
-    const updatedOrder = await db.getRow<Orders>("app", "orders", orderId);
+    const updatedOrder = await db.getRow<Orders>("app", "orders", orderId, [
+      ORDER_ITEMS_SELECT,
+    ]);
     const status = updatedOrder?.status ?? order.status;
 
     console.info(`[Checkout Return] Order ${orderId} status: ${status}`);

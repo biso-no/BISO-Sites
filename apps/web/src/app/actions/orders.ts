@@ -4,6 +4,7 @@ import { createAdminClient, createSessionClient } from "@repo/api/server";
 import type { ContentTranslations, Orders } from "@repo/api/types/appwrite";
 import type { Locale } from "@repo/i18n/config";
 import { getFeatureFlagStates } from "@repo/shared/utils/feature-flags-server";
+import { ORDER_ITEMS_SELECT } from "@repo/shared/utils/order-queries";
 import {
   getAvailableStock,
   getUserReservation,
@@ -40,6 +41,7 @@ async function _getOrders({
       query.push(Query.equal("status", status));
     }
     query.push(Query.orderDesc("$createdAt"));
+    query.push(ORDER_ITEMS_SELECT);
     const orders = await db.listRows<Orders>("app", "orders", query);
     return orders.rows;
   } catch (error) {
@@ -51,7 +53,9 @@ async function _getOrders({
 async function _getOrder(id: string) {
   const { db } = await createSessionClient();
   try {
-    const order = await db.getRow<Orders>("app", "orders", id);
+    const order = await db.getRow<Orders>("app", "orders", id, [
+      ORDER_ITEMS_SELECT,
+    ]);
     return order;
   } catch (error) {
     console.error("Error fetching order:", error);
@@ -218,9 +222,15 @@ async function loadProduct(
     custom_fields: Array.isArray(productMetadata.custom_fields)
       ? productMetadata.custom_fields
       : undefined,
-    variations: Array.isArray(productMetadata.variations)
-      ? productMetadata.variations
-      : undefined,
+    variations: (product.variations ?? [])
+      .filter((variation) => variation.enabled)
+      .map((variation) => ({
+        id: variation.$id,
+        name: variation.name,
+        price_modifier:
+          Number(variation.regular_price ?? product.regular_price) -
+          Number(product.regular_price),
+      })),
     member_discount_enabled: Boolean(productMetadata.member_discount_enabled),
     member_discount_percent: Number(
       productMetadata.member_discount_percent || 0
@@ -625,7 +635,9 @@ export async function getOrder(id: string) {
 
 export async function verifyOrder(orderId: string) {
   const { db } = await createSessionClient();
-  const order = await db.getRow<Orders>("app", "orders", orderId);
+  const order = await db.getRow<Orders>("app", "orders", orderId, [
+    ORDER_ITEMS_SELECT,
+  ]);
   if (!(order?.payment_session_id && order.payment_provider)) {
     return order;
   }
@@ -661,7 +673,9 @@ export async function verifyOrder(orderId: string) {
       }
     }
 
-    return await db.getRow<Orders>("app", "orders", orderId);
+    return await db.getRow<Orders>("app", "orders", orderId, [
+      ORDER_ITEMS_SELECT,
+    ]);
   } catch (error) {
     console.error("[verifyOrder] Failed to verify payment status:", error);
     return order;

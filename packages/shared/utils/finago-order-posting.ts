@@ -1,7 +1,8 @@
 import type { Orders as BaseOrders } from "@repo/api/types/appwrite";
 import { postShopTransaction } from "@repo/connectors/24sevenoffice";
 import { isMembershipOrder } from "./membership-fulfilment";
-import { parseOrderItems } from "./order-parsing";
+import { getOrderItems } from "./order-parsing";
+import { ORDER_ITEMS_SELECT } from "./order-queries";
 import type { DbClient } from "./vipps-order-ops";
 
 // finago_transaction_id / finago_posting_lock live on the Appwrite "orders"
@@ -53,7 +54,7 @@ function ordersTable() {
 }
 
 async function buildFinagoItems(order: FinagoOrder, db: DbClient) {
-  const items = parseOrderItems(order.items_json ?? null);
+  const items = getOrderItems(order);
   const dbId = process.env.APPWRITE_DATABASE_ID;
   const colId = process.env.APPWRITE_WEBSHOP_PRODUCTS_COLLECTION_ID;
 
@@ -124,7 +125,7 @@ export async function postFinagoTransactionForOrder(
   const { dbId, collId } = ordersTable();
 
   const order = (await db
-    .getRow(dbId, collId, orderId)
+    .getRow(dbId, collId, orderId, [ORDER_ITEMS_SELECT])
     .catch(() => null)) as FinagoOrder | null;
   if (!order) {
     return { posted: false, reason: "not_found" };

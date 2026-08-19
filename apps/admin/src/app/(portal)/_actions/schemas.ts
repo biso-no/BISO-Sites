@@ -134,6 +134,19 @@ export const productSchema = z
     member_only: z.boolean().default(false),
     image: z.string().url().optional().nullable().or(z.literal("")),
     stock: z.coerce.number().int().nonnegative().optional().nullable(),
+    variations: z
+      .array(
+        z.object({
+          id: z.string().min(1).max(36),
+          name: z.string().min(1),
+          price: z.coerce.number().nonnegative(),
+          stock: z.coerce.number().int().nonnegative(),
+          type: z.string().optional(),
+        })
+      )
+      .optional(),
+    // Temporary input compatibility for already-open admin tabs. The value is
+    // converted to product_variations rows and is never written to products.
     variants_json: z.string().optional().nullable(),
     tags: z.array(z.string()).optional().nullable(),
     images: z.array(z.string()).optional().nullable(),
