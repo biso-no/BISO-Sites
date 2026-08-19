@@ -13,7 +13,8 @@ const baseOrder = {
     phone: "+4712345678",
   },
   currency: "NOK",
-  date_created: "2026-03-01T10:00:00",
+  date_created_gmt: "2026-03-01T09:00:00",
+  date_modified_gmt: "2026-03-02T11:30:00",
   discount_total: "0.00",
   id: 1234,
   line_items: [
@@ -129,6 +130,42 @@ describe("transformOrder", () => {
     );
 
     expect("reject" in result).toBe(true);
+  });
+
+  test("backdates $createdAt and $updatedAt to the WooCommerce dates so the archive is not stamped at cutover", () => {
+    const result = transformOrder(baseOrder, new Map());
+    if (!("row" in result)) {
+      throw new Error("expected a row");
+    }
+
+    expect(result.row.$createdAt).toBe("2026-03-01T09:00:00.000Z");
+    expect(result.row.$updatedAt).toBe("2026-03-02T11:30:00.000Z");
+  });
+
+  test("reads date_created_gmt as UTC, so a site-local offset never shifts the row", () => {
+    // The same instant WooCommerce would report as 11:00 site-local (+02:00).
+    const result = transformOrder(
+      { ...baseOrder, date_created_gmt: "2026-03-01T11:00:00+02:00" },
+      new Map()
+    );
+    if (!("row" in result)) {
+      throw new Error("expected a row");
+    }
+
+    expect(result.row.$createdAt).toBe("2026-03-01T09:00:00.000Z");
+  });
+
+  test("omits the timestamp overrides when WooCommerce has no usable date", () => {
+    const result = transformOrder(
+      { ...baseOrder, date_created_gmt: "", date_modified_gmt: "" },
+      new Map()
+    );
+    if (!("row" in result)) {
+      throw new Error("expected a row");
+    }
+
+    expect("$createdAt" in result.row).toBe(false);
+    expect("$updatedAt" in result.row).toBe(false);
   });
 
   test("does not set lock fields", () => {

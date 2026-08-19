@@ -11,6 +11,7 @@ import {
   plainTextExcerpt,
 } from "./html";
 import { detectLocale } from "./locale";
+import { buildTimestampOverrides } from "./timestamps";
 
 const MAX_METADATA_TAGS = 4;
 const MAX_TAG_LENGTH = 40;
@@ -175,6 +176,9 @@ export function transformJob(
   };
 
   const row: Record<string, unknown> = {
+    // Backdated to the WordPress publish/modify dates so the archive
+    // sorts correctly in every `$createdAt`-ordered job list.
+    ...buildTimestampOverrides(input.post.date_gmt, input.post.modified_gmt),
     application_deadline: input.expiry_date
       ? new Date(`${input.expiry_date}T00:00:00.000Z`).toISOString()
       : null,

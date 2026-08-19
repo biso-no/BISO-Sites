@@ -29,6 +29,8 @@ export interface WpJobPost {
   date_gmt: string;
   id: number;
   link: string;
+  /** UTC last-modified counterpart of `date_gmt`; backdates `$updatedAt`. */
+  modified_gmt: string;
   slug: string;
   status: string;
   title: { rendered: string };
@@ -37,7 +39,11 @@ export interface WpJobPost {
 export interface WpProductPost {
   acf: Record<string, string | false>;
   content: { rendered: string };
+  /** UTC publish date; backdates `$createdAt`. See `wpGmtToIso`. */
+  date_gmt: string;
   id: number;
+  /** UTC last-modified date; backdates `$updatedAt`. */
+  modified_gmt: string;
   slug: string;
   status: string;
   title: { rendered: string };
@@ -71,7 +77,14 @@ export interface WcOrder {
     phone: string;
   };
   currency: string;
-  date_created: string;
+  /**
+   * WooCommerce's `date_created` is site-local with no timezone suffix; the
+   * `_gmt` variants are UTC and are the ones that may be trusted on any host.
+   * These backdate `$createdAt` / `$updatedAt` — the `orders` table has no
+   * date column of its own.
+   */
+  date_created_gmt: string;
+  date_modified_gmt: string;
   discount_total: string;
   id: number;
   line_items: Array<{

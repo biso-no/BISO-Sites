@@ -26,6 +26,7 @@ const baseJob = {
     date_gmt: "2026-08-01T12:56:35",
     id: 63_903,
     link: "https://biso.no/undergruppe/pr-manager/",
+    modified_gmt: "2026-08-03T09:10:00",
     slug: "pr-manager",
     status: "publish",
     title: { rendered: "PR Manager &#8211; Karrieredagene" },
@@ -38,6 +39,12 @@ const baseJob = {
 };
 
 describe("transformJob", () => {
+  test("backdates $createdAt and $updatedAt to the WordPress post dates", () => {
+    const { job } = transformJob(baseJob, [], new Map());
+
+    expect(job?.row.$createdAt).toBe("2026-08-01T12:56:35.000Z");
+    expect(job?.row.$updatedAt).toBe("2026-08-03T09:10:00.000Z");
+  });
   test("builds a jobs row with a deterministic id", () => {
     const { job, reject } = transformJob(baseJob, DEPARTMENTS, new Map());
 

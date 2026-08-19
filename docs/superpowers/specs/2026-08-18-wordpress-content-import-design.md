@@ -253,6 +253,28 @@ Historical records only: no payment re-processing, no Finago posting,
 - **Currency**: the column is a `NOK`-only enum, so non-NOK orders are rejected
   into the report rather than coerced.
 - `campus_id` is derived from the ACF campus of the ordered products.
+- **Original dates preserved.** See "Historical timestamps" below.
+
+### Historical timestamps
+
+`orders`, `jobs` and `webshop_products` have no creation-date column; the app
+reads `$createdAt` for the shop dashboard's revenue date filter and for the
+default ordering of every job, product and order list. Left to Appwrite, the
+whole archive would be stamped at cutover.
+
+Appwrite lets a server SDK holding an API key set `$createdAt` / `$updatedAt`
+inside `data` on create/update/upsert routes — the documented mechanism for
+migrating historical records. **No schema change is required**, which
+supersedes the earlier note that preserving order dates would need a new
+column.
+
+`buildTimestampOverrides()` maps each source's UTC `*_gmt` dates onto those
+columns: `date_created_gmt`/`date_modified_gmt` for orders, post
+`date_gmt`/`modified_gmt` for jobs and products. The site-local variants are
+deliberately unused — they carry no timezone suffix and would be parsed in the
+host's local time, shifting every row by the operator's UTC offset. An absent
+or unparseable date omits the key so Appwrite stamps its own, degrading to
+today rather than failing the row.
 
 ### Media mirroring
 

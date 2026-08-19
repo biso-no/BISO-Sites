@@ -1,5 +1,6 @@
 import type { WcOrder } from "../extract/index";
 import type { RejectRow } from "../types";
+import { buildTimestampOverrides } from "./timestamps";
 
 const STATUS_MAP: Record<string, string> = {
   cancelled: "cancelled",
@@ -88,6 +89,12 @@ export function transformOrder(
 
   return {
     row: {
+      // `orders` has no date column, so these overrides are the only record
+      // of when the purchase actually happened.
+      ...buildTimestampOverrides(
+        order.date_created_gmt,
+        order.date_modified_gmt
+      ),
       buyer_email: order.billing.email || null,
       buyer_name: buyerName || null,
       buyer_phone: order.billing.phone || null,

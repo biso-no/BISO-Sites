@@ -25,7 +25,9 @@ const baseStore = {
 const basePost = {
   acf: { campus: "1", department_oslo: "21" },
   content: { rendered: "<p>Beskrivelse</p>" },
+  date_gmt: "2025-04-05T08:15:00",
   id: 65_946,
+  modified_gmt: "2025-04-09T13:45:00",
   slug: "overlapstur",
   status: "publish",
   title: { rendered: "overlapstur" },
@@ -98,6 +100,22 @@ describe("resolvePrice", () => {
 });
 
 describe("transformProduct", () => {
+  test("backdates $createdAt and $updatedAt to the WordPress post dates", () => {
+    const { product } = transformProduct({ ...basePost, store: baseStore });
+
+    expect(product?.row.$createdAt).toBe("2025-04-05T08:15:00.000Z");
+    expect(product?.row.$updatedAt).toBe("2025-04-09T13:45:00.000Z");
+  });
+
+  test("falls back to the publish date when the post was never modified", () => {
+    const { product } = transformProduct({
+      ...basePost,
+      modified_gmt: "",
+      store: baseStore,
+    });
+
+    expect(product?.row.$updatedAt).toBe("2025-04-05T08:15:00.000Z");
+  });
   test("builds a webshop_products row from ACF and store data", () => {
     const { product, reject } = transformProduct({
       ...basePost,

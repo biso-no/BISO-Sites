@@ -240,6 +240,26 @@ describe("buildJobUpsert", () => {
     expect(payload.$permissions).toContain('read("any")');
   });
 
+  test("carries the transform's backdated timestamps through to the upsert payload", () => {
+    // The loader hands `data` straight to db.upsertRow, which is where
+    // Appwrite reads these system columns from — a key filter added here
+    // would silently re-stamp the whole archive at cutover.
+    const payload = buildJobUpsert(
+      {
+        ...job,
+        row: {
+          ...job.row,
+          $createdAt: "2026-08-01T12:56:35.000Z",
+          $updatedAt: "2026-08-03T09:10:00.000Z",
+        },
+      },
+      []
+    );
+
+    expect(payload.$createdAt).toBe("2026-08-01T12:56:35.000Z");
+    expect(payload.$updatedAt).toBe("2026-08-03T09:10:00.000Z");
+  });
+
   test("a closed job gets no public read permission", () => {
     const payload = buildJobUpsert(
       { ...job, row: { ...job.row, status: "closed" } },

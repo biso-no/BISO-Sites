@@ -305,6 +305,49 @@ investigating before `load --apply`.
   this fallback is load-bearing for roughly 41% of the catalogue, not a rare
   edge case.
 
+## Historical timestamps
+
+None of `orders`, `jobs` or `webshop_products` has a creation-date column of
+its own — `$createdAt` is the only timestamp the app has, and several views
+depend on it:
+
+| Consumer | Uses |
+|---|---|
+| `shop-studio-dashboard.tsx` `orderIsInDateRange` | `order.$createdAt` for the revenue date filter |
+| `assistant-order-search.ts`, `_actions/shop.ts` | `Query.orderDesc("$createdAt")` |
+| `_actions/jobs.ts`, `apps/web/.../jobs.ts` | `Query.orderDesc("$createdAt")` |
+| `apps/web/.../webshop.ts` | `Query.orderDesc("$createdAt")` |
+
+So the import backdates them. Appwrite lets a server SDK holding an API key
+override `$createdAt` / `$updatedAt` by passing them inside `data` on any
+create/update/upsert route — the documented path for migrating historical
+records ([timestamp
+overrides](https://appwrite.io/docs/products/databases/timestamp-overrides)).
+No schema change is required.
+
+`buildTimestampOverrides()` (`src/transform/timestamps.ts`) maps each source's
+UTC dates onto those columns:
+
+| Table | `$createdAt` | `$updatedAt` |
+|---|---|---|
+| `orders` | `date_created_gmt` | `date_modified_gmt` |
+| `jobs` | post `date_gmt` | post `modified_gmt` |
+| `webshop_products` | post `date_gmt` | post `modified_gmt` |
+
+Always the `*_gmt` variants: WordPress and WooCommerce also emit site-local
+`date` / `date_created` with no timezone suffix, which `new Date()` would parse
+in the *host machine's* local time and silently shift every row by the
+operator's UTC offset. `wpGmtToIso()` appends the missing `Z`.
+
+A source date that is absent or unparseable leaves the key off the payload
+entirely, and Appwrite stamps its own timestamp — so a bad date degrades to
+today rather than failing the row. A missing modification date falls back to
+the creation date, so an imported row never claims to have been edited at
+import time.
+
+Because the values are derived from the source data, they are stable across
+re-runs: upserting the same order twice writes the same `$createdAt`.
+
 ## Working directories: what's committed vs. generated
 
 | Path | Committed? | Contents |

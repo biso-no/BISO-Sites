@@ -5,6 +5,7 @@ import {
   normalizeDescriptionHtml,
   plainTextExcerpt,
 } from "./html";
+import { buildTimestampOverrides } from "./timestamps";
 
 /** ACF department field suffix per Appwrite campus.$id. */
 const DEPARTMENT_FIELD_BY_CAMPUS: Record<string, string> = {
@@ -219,6 +220,9 @@ export function transformProduct(
   const publishedStatus = input.status === "publish" ? "published" : "draft";
 
   const row: Record<string, unknown> = {
+    // Backdated to the WordPress publish/modify dates; `webshop_products` has
+    // no date column and the storefront lists by `$createdAt`.
+    ...buildTimestampOverrides(input.date_gmt, input.modified_gmt),
     campus: campusId,
     campus_id: campusId,
     category,
