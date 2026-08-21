@@ -1,7 +1,8 @@
 import { ResponseType } from "@microsoft/microsoft-graph-client";
 import { createAdminClient } from "@repo/api/server";
 import { createGraphClient } from "@repo/connectors/azure";
-import { NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
+import { createAuthenticatedClient } from "@/lib/auth";
 
 export const maxDuration = 300; // 5 minutes for fetching/buffering images
 
@@ -25,6 +26,40 @@ interface DepartmentMember {
   phone: string;
   profilePhotoUrl?: string;
   role: string;
+}
+
+/**
+ * What an unauthenticated visitor receives. The campus page and the mobile
+ * campus screen render name, role, and photo only — `email`/`phone` are fetched
+ * from Graph because they are needed server-side (email keys the photo lookup
+ * and the manager-first sort) but they are not part of the public payload.
+ */
+type PublicDepartmentMember = Omit<DepartmentMember, "email" | "phone">;
+
+function toPublicMember(member: DepartmentMember): PublicDepartmentMember {
+  const { email: _email, phone: _phone, ...rest } = member;
+  return rest;
+}
+
+/**
+ * This directory is intentionally public — campus leadership is shown to
+ * signed-out visitors on the web and in the app. Contact details are not:
+ * returning staff email and phone to anonymous callers turns the endpoint into
+ * a scrapeable address book for every volunteer in the organisation. Signed-in
+ * callers still get the full record, so member-facing contact UIs keep working.
+ *
+ * An anonymous Appwrite session does not count — the web app provisions those
+ * for every visitor, so treating them as authenticated would defeat the check.
+ * A real account always carries an email.
+ */
+async function callerIsAuthenticated(request: NextRequest): Promise<boolean> {
+  try {
+    const { account } = await createAuthenticatedClient(request);
+    const user = await account.get();
+    return Boolean(user.email && user.email.length > 0);
+  } catch {
+    return false;
+  }
 }
 
 const CAMPUS_MAPPINGS = [
@@ -82,7 +117,7 @@ function getCampusInfo(campusId: string) {
 
 // --- Main Route Handler ---
 export async function GET(
-  _request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ campusId: string; departmentId?: string }> }
 ) {
   try {
@@ -217,9 +252,11 @@ export async function GET(
       })
     );
 
+    const includeContactDetails = await callerIsAuthenticated(request);
+
     return NextResponse.json({
       success: true,
-      members,
+      members: includeContactDetails ? members : members.map(toPublicMember),
       count: members.length,
       departmentName,
       campus: campusInfo.name,

@@ -527,7 +527,17 @@ async function reconcileExpenseStatus(expenseId: string): Promise<void> {
 export async function decideApproval(params: {
   rawToken: string;
   decision: "approved" | "rejected";
-  decidedBy: string;
+  /**
+   * Who to credit for the decision, and it must be a *verified* identity — the
+   * Teams bot passes the Bot Framework activity's sender, which the framework
+   * has authenticated.
+   *
+   * Omit it for the emailed web link, where there is no verified identity to
+   * use: anyone holding the link would otherwise get to write their own name
+   * into the audit trail. In that case the step's own `approver_email` is
+   * recorded instead, which is the address the link was actually sent to.
+   */
+  decidedBy?: string;
   reason?: string;
 }): Promise<DecisionResult> {
   const { db } = await createAdminClient();
@@ -600,7 +610,7 @@ export async function decideApproval(params: {
         params.decision === "approved"
           ? ExpenseApprovalsStatus.APPROVED
           : ExpenseApprovalsStatus.REJECTED,
-      decided_by: params.decidedBy,
+      decided_by: params.decidedBy ?? row.approver_email,
       decided_at: new Date().toISOString(),
       reason: params.reason ?? null,
       consumed_at: new Date().toISOString(),

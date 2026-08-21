@@ -20,7 +20,8 @@
   "scripts": {
     "check-types": "tsc --noEmit",
     "lint": "biome lint .",
-    "clean": "git clean -xdf .cache .turbo dist node_modules"
+    "clean": "git clean -xdf .cache .turbo dist node_modules",
+    "test": "vitest run"
   },
   "dependencies": {
     "@ai-sdk/react": "catalog:",
@@ -36,7 +37,9 @@
     "@repo/typescript-config": "workspace:*",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
-    "typescript": "catalog:"
+    "jsdom": "^26.1.0",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   },
   "peerDependencies": {
     "react": ">=19.0.0",

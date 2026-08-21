@@ -1,3 +1,4 @@
+import DOMPurify from "isomorphic-dompurify";
 export const INLINE_MEDIA_MAX_BYTES = 10 * 1024 * 1024;
 
 export type InlineMediaKind = "audio" | "file" | "image" | "video";
@@ -68,4 +69,34 @@ export function sanitizeInlineMediaFilename(fileName: string): string {
     .replace(FILENAME_REGEX, "_")
     .slice(0, MAX_FILENAME_LENGTH);
   return cleaned || "upload";
+}
+
+/**
+ * Strip active content from an uploaded SVG.
+ *
+ * SVG is a document format, not just an image: it can carry `<script>`, event
+ * handlers, and `<foreignObject>`. Media files are stored with `read("any")` on
+ * `appwrite.biso.no`, the same origin that serves the Appwrite API, so a
+ * malicious SVG opened directly at its file URL executes script *on that
+ * origin*. Embedding via `<img>` would not run it, but nothing stops someone
+ * following the raw link.
+ *
+ * SVG stays an allowed upload type because logos genuinely need it — the fix is
+ * to make the stored bytes safe rather than to remove the capability.
+ */
+export function sanitizeSvgUpload(bytes: Buffer): Buffer {
+  const source = bytes.toString("utf8");
+  const cleaned = DOMPurify.sanitize(source, {
+    USE_PROFILES: { svg: true, svgFilters: true },
+    FORBID_TAGS: ["script", "foreignObject", "use", "handler", "set"],
+    FORBID_ATTR: [
+      "onload",
+      "onerror",
+      "onclick",
+      "onmouseover",
+      "href",
+      "xlink:href",
+    ],
+  });
+  return Buffer.from(cleaned, "utf8");
 }

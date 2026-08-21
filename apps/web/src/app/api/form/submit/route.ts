@@ -1,5 +1,6 @@
 import { ID, Permission, Role } from "@repo/api";
 import { createAdminClient } from "@repo/api/server";
+import { consume, RATE_LIMITS } from "@repo/shared/utils/rate-limit";
 import { NextResponse } from "next/server";
 
 interface SubmitPayload {
@@ -17,6 +18,34 @@ const MAX_FIELD_LENGTH = 5000;
 const MAX_FIELDS = 100;
 const MAX_TOPIC_LENGTH = 200;
 const OPERATIONS_UNIT_TEAM_ID = "sg-app-dept-operationsunit";
+
+/**
+ * This endpoint is unauthenticated by design — anyone filling in a form block
+ * on a public page posts here. In email mode it sends an HTML message through
+ * BISO's Appwrite messaging, so without a constraint on the recipient it is an
+ * open mail relay: an attacker picks the destination and, via `data`, the body,
+ * and the mail leaves from BISO's sending identity. That is a domain-reputation
+ * and phishing problem, not just spam.
+ *
+ * The recipient is configured by an editor in the block inspector and then sent
+ * back by the browser, so it cannot be trusted as received. Restricting it to
+ * the organisation's own domain is what makes that untrusted value safe: the
+ * worst an attacker can now do is mail a BISO inbox, which rate limiting bounds.
+ *
+ * Tighten further by resolving the address from the stored page document
+ * instead of the request body — that removes the trust question entirely.
+ */
+const ORG_MAIL_DOMAIN = process.env.M365_DOMAIN || "biso.no";
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const TEAM_ID_PATTERN = /^[a-zA-Z0-9._-]{1,36}$/;
+
+function isOrgRecipient(email: string): boolean {
+  if (!EMAIL_PATTERN.test(email)) {
+    return false;
+  }
+  const domain = email.split("@").at(-1)?.toLowerCase();
+  return domain === ORG_MAIL_DOMAIN.toLowerCase();
+}
 const HTML_ESCAPES: Record<string, string> = {
   "&": "&amp;",
   "<": "&lt;",
@@ -92,6 +121,31 @@ function validatePayload(
 }
 
 export async function POST(request: Request) {
+  // Anonymous endpoint, so the budget keys on the caller IP. See the note on
+  // `consume()` about what a per-instance limiter does and does not cover.
+  const forwarded = request.headers.get("x-forwarded-for");
+  const callerIp =
+    forwarded?.split(",")[0]?.trim() ||
+    request.headers.get("x-real-ip")?.trim() ||
+    "unknown";
+  const budget = consume(
+    `form-submit:ip:${callerIp}`,
+    RATE_LIMITS.publicFormSubmit
+  );
+
+  if (!budget.allowed) {
+    return NextResponse.json(
+      {
+        success: false,
+        message: "Too many submissions. Please wait a moment and try again.",
+      },
+      {
+        status: 429,
+        headers: { "Retry-After": String(budget.retryAfterSeconds) },
+      }
+    );
+  }
+
   let raw: unknown;
   try {
     raw = await request.json();
@@ -128,6 +182,19 @@ export async function POST(request: Request) {
       if (!recipientEmail) {
         return NextResponse.json(
           { success: false, message: "No recipient email configured" },
+          { status: 400 }
+        );
+      }
+
+      if (!isOrgRecipient(recipientEmail)) {
+        console.warn(
+          `[form/submit] refused delivery to non-org recipient: ${recipientEmail}`
+        );
+        return NextResponse.json(
+          {
+            success: false,
+            message: "This form is not configured with a valid recipient.",
+          },
           { status: 400 }
         );
       }
@@ -180,9 +247,17 @@ export async function POST(request: Request) {
       Permission.delete(Role.team(OPERATIONS_UNIT_TEAM_ID)),
     ];
 
-    if (accessTeamId) {
+    // `accessTeamId` arrives from the browser and is written straight into the
+    // row ACL, so it is shape-checked before it becomes a permission. A bad id
+    // is dropped rather than rejected: the submission itself is still valuable,
+    // and Operations Unit retains access either way.
+    if (accessTeamId && TEAM_ID_PATTERN.test(accessTeamId)) {
       rowPermissions.push(Permission.read(Role.team(accessTeamId)));
       rowPermissions.push(Permission.update(Role.team(accessTeamId)));
+    } else if (accessTeamId) {
+      console.warn(
+        `[form/submit] ignored malformed accessTeamId: ${accessTeamId}`
+      );
     }
 
     await db.createRow(

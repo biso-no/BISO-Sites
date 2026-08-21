@@ -103,14 +103,28 @@ function buildStoredOrderItems(
  * has row-level security on, and its collection permissions only expose rows to
  * the Operations Unit team — without a document-level grant the buyer's session
  * client gets a 404 on its own confirmation page. Status writes still go through
- * the admin client, so the buyer only needs read. Anonymous/legacy "guest"
- * orders fall back to public read since there is no account to scope to.
+ * the admin client, so the buyer only needs read.
+ *
+ * There is deliberately no public-read fallback. An order row carries buyer
+ * name, email, phone, the total, the payment intent id, and the receipt URL, so
+ * `read("any")` makes all of that fetchable by anyone who has (or guesses) the
+ * row id — protected only by the id being unguessable.
+ *
+ * Nothing reaches this without an account today: both checkout routes return
+ * 401 before creating an order, so `userId` is always a real Appwrite id. If a
+ * future guest-checkout path does need this, provision an anonymous session
+ * first (`ensureAnonymousSession()` in the web app, already used by the cart)
+ * and scope the grant to that user rather than reopening it to everyone.
+ *
+ * Returning no permissions makes the row service-only, which fails closed: the
+ * confirmation page would 404 rather than the data leaking. Orders created
+ * before this change keep whatever grant they were written with.
  */
 function buildOrderPermissions(userId: string): string[] {
   if (userId && userId !== "guest") {
     return [Permission.read(Role.user(userId))];
   }
-  return [Permission.read(Role.any())];
+  return [];
 }
 
 /**

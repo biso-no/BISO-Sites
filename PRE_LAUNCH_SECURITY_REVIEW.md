@@ -4,6 +4,13 @@ _Independent review ahead of go-live. Scope: security first, then quality and
 performance. Findings were produced by static analysis of the whole monorepo
 (1,273 TS/TSX files across 4 apps and 10 packages) and verified against source._
 
+> **Status: the findings below have been fixed in this branch.** See
+> `PRE_LAUNCH_FIXES.md` for what changed, what is deliberately left open, and
+> the two owner actions that cannot be done from the repo (pushing
+> `appwrite.config.json` with the Appwrite CLI, and backfilling
+> `user.department_ids`). The findings are kept in full below as the rationale
+> for each change.
+
 **Reading note on the Appwrite findings:** they are derived from
 `packages/api/appwrite.config.json`. That file is pulled from the live project
 and can drift. Every finding in the "Appwrite permission model" section must be

@@ -1,10 +1,12 @@
 import { openai } from "@ai-sdk/openai";
 import { getFeatureFlagStates } from "@repo/shared/utils/feature-flags-server";
+import { RATE_LIMITS } from "@repo/shared/utils/rate-limit";
 import { generateObject } from "ai";
 import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createAuthenticatedClient } from "@/lib/auth";
 import { applyCorsHeaders, corsPreflightResponse } from "@/lib/cors";
+import { enforceRateLimit } from "@/lib/rate-limit";
 
 export const maxDuration = 300; // 5 minutes for AI processing
 
@@ -341,12 +343,29 @@ async function extractExpenseDataFromPdf(
 
 export async function POST(req: NextRequest) {
   const origin = req.headers.get("origin");
-  // Auth check - supports both JWT (Authorization header) and session cookie
+  // Auth check - supports both JWT (Authorization header) and session cookie.
+  // `account.get()` throws on an absent or invalid session rather than
+  // returning null, so it has to be caught here — otherwise an unauthenticated
+  // call surfaces as a 500 instead of a 401.
   const { account } = await createAuthenticatedClient(req);
-  const user = await account.get();
+  const user = await account.get().catch(() => null);
 
   if (!user) {
     return buildErrorResponse("Unauthorized", 401, origin);
+  }
+
+  // Every call below is a paid model invocation, so the budget is enforced
+  // before any work is done — including before the feature-flag read, which is
+  // itself a database round-trip.
+  const limited = enforceRateLimit({
+    scope: "expense-ocr",
+    userId: user.$id,
+    req,
+    rules: RATE_LIMITS.expenseOcr,
+    origin,
+  });
+  if (limited) {
+    return limited;
   }
 
   // Kill switch: AI receipt scanning is gated by the OCR flag and the parent

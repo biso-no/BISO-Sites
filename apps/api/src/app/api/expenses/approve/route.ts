@@ -32,11 +32,14 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const origin = req.headers.get("origin");
+  // `decidedBy` is deliberately not read from the body. Holding the link is the
+  // only credential here, so a client-supplied approver name would let whoever
+  // has it choose the name recorded against the decision. `decideApproval`
+  // falls back to the step's own `approver_email` instead.
   const body = (await req.json()) as {
     token?: string;
     decision?: "approved" | "rejected";
     reason?: string;
-    decidedBy?: string;
   };
 
   if (!(body.token && body.decision)) {
@@ -52,7 +55,6 @@ export async function POST(req: NextRequest) {
   const result = await decideApproval({
     rawToken: body.token,
     decision: body.decision,
-    decidedBy: body.decidedBy || "Web approver",
     reason: body.reason,
   });
 

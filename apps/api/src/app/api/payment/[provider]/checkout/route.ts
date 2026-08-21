@@ -23,6 +23,7 @@ import {
   evaluatePerUserLimit,
   summarizePurchases,
 } from "@repo/shared/utils/purchase-limits";
+import { RATE_LIMITS } from "@repo/shared/utils/rate-limit";
 import {
   computeAvailableStock,
   sumReservedQuantity,
@@ -34,6 +35,7 @@ import {
 import { type NextRequest, NextResponse } from "next/server";
 import { createAuthenticatedClient } from "@/lib/auth";
 import { applyCorsHeaders, corsPreflightResponse } from "@/lib/cors";
+import { enforceRateLimit } from "@/lib/rate-limit";
 
 type Provider = "vipps" | "stripe";
 const DEFAULT_VIPPS_CHECKOUT_TIMEOUT_MS = 10_000;
@@ -666,6 +668,19 @@ export async function POST(
     const auth = await authenticateCheckout(req);
     if (!auth) {
       return json({ message: "Authentication required" }, 401);
+    }
+
+    // Deliberately loose — a buyer retrying a declined card must not be told to
+    // come back later. This only catches a runaway client.
+    const limited = enforceRateLimit({
+      scope: "checkout",
+      userId: auth.userId,
+      req,
+      rules: RATE_LIMITS.checkout,
+      origin,
+    });
+    if (limited) {
+      return limited;
     }
 
     // Availability kill switch (Phase A/B). Separate from credential config.

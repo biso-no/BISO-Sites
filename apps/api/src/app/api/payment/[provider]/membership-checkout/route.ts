@@ -22,6 +22,7 @@ import {
 } from "@repo/shared/utils/membership-plans";
 import { getOrderItems } from "@repo/shared/utils/order-parsing";
 import { ORDER_ITEMS_SELECT } from "@repo/shared/utils/order-queries";
+import { RATE_LIMITS } from "@repo/shared/utils/rate-limit";
 import {
   createOrder,
   updateOrderWithSession,
@@ -29,6 +30,7 @@ import {
 import { type NextRequest, NextResponse } from "next/server";
 import { createAuthenticatedClient } from "@/lib/auth";
 import { applyCorsHeaders, corsPreflightResponse } from "@/lib/cors";
+import { enforceRateLimit } from "@/lib/rate-limit";
 
 type Provider = "vipps" | "stripe";
 
@@ -328,6 +330,17 @@ export async function POST(
     const user = await authClient.account.get().catch(() => null);
     if (!user?.$id) {
       return json({ message: "Authentication required" }, 401);
+    }
+
+    const limited = enforceRateLimit({
+      scope: "membership-checkout",
+      userId: user.$id,
+      req,
+      rules: RATE_LIMITS.checkout,
+      origin,
+    });
+    if (limited) {
+      return limited;
     }
 
     const flagKey = provider === "vipps" ? "payments_vipps" : "payments_stripe";

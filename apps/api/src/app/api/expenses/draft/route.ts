@@ -2,6 +2,7 @@ import { ID, type Models, Query } from "@repo/api";
 import { createAdminClient } from "@repo/api/server";
 import { type Expenses, ExpensesStatus } from "@repo/api/types/appwrite";
 import { isFeatureEnabled } from "@repo/shared/utils/feature-flags-server";
+import { RATE_LIMITS } from "@repo/shared/utils/rate-limit";
 import { type NextRequest, NextResponse } from "next/server";
 import { createAuthenticatedClient } from "@/lib/auth";
 import { applyCorsHeaders, corsPreflightResponse } from "@/lib/cors";
@@ -11,6 +12,7 @@ import {
   type ExpenseRowInput,
   parseExpensePayload,
 } from "@/lib/expense-payload";
+import { enforceRateLimit } from "@/lib/rate-limit";
 
 type DraftExpenseRow = Models.Row & ExpenseRowInput;
 
@@ -59,6 +61,18 @@ export async function POST(req: NextRequest) {
 
     const { db, account } = await createAuthenticatedClient(req);
     const user = await account.get();
+
+    const limited = enforceRateLimit({
+      scope: "expense-draft",
+      userId: user.$id,
+      req,
+      rules: RATE_LIMITS.expenseDraft,
+      origin,
+    });
+    if (limited) {
+      return limited;
+    }
+
     const payload = parseExpensePayload(await req.json());
 
     if (!payload) {

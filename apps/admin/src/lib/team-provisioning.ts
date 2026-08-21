@@ -1,4 +1,13 @@
-"use server";
+// Not "use server": every export in a "use server" module becomes a callable
+// Server Action with a public action id. These two are internal helpers called
+// only by `m365-sync.ts`, they take no authenticated context, and
+// `grantDeptTeamAccess` hands update/delete on department rows to whatever
+// teamId it is given — nothing that should be reachable from a browser.
+//
+// `import "server-only"` would be the belt-and-braces addition, but its entry
+// throws under bun test and aborts module evaluation, which breaks
+// `team-provisioning.test.ts`. Dropping the directive is what actually closes
+// the exposure; the guard is not needed for it.
 
 import { Permission, Query, Role } from "@repo/api";
 import { createAdminClient } from "@repo/api/server";

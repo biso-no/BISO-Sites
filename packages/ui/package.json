@@ -87,6 +87,7 @@
     "cmdk": "catalog:",
     "date-fns": "catalog:",
     "embla-carousel-react": "catalog:",
+    "isomorphic-dompurify": "catalog:",
     "lodash": "catalog:",
     "lowlight": "catalog:",
     "lucide-react": "catalog:",

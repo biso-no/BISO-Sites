@@ -9,6 +9,7 @@ import {
   INLINE_MEDIA_MAX_BYTES,
   type InlineMediaKind,
   sanitizeInlineMediaFilename,
+  sanitizeSvgUpload,
 } from "@/lib/inline-media";
 
 export interface InlineMediaUploadInput {
@@ -71,12 +72,20 @@ export async function handleInlineMediaUpload(
     return errorResponse("File too large (max 10 MB)", 413);
   }
 
+  // SVG is a document, not a bitmap — it can carry script. Strip that before it
+  // is stored, because the media bucket is world-readable on the same origin as
+  // the Appwrite API. See `sanitizeSvgUpload`.
+  const rawBytes = Buffer.from(await blob.arrayBuffer());
+  const bytes = mimeType.includes("svg")
+    ? sanitizeSvgUpload(rawBytes)
+    : rawBytes;
+
   const storageResponse = await dependencies.createFile({
-    bytes: Buffer.from(await blob.arrayBuffer()),
+    bytes,
     fileName,
     mediaKind,
     mimeType,
-    size: blob.size,
+    size: bytes.byteLength,
   });
 
   if (!(storageResponse instanceof Response)) {

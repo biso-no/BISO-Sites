@@ -28,13 +28,13 @@
         "email-password": true
       },
       "security": {
-        "duration": 31536000,
+        "duration": 2592000,
         "limit": 0,
         "sessionsLimit": 10,
         "passwordHistory": 0,
-        "passwordDictionary": false,
-        "personalDataCheck": false,
-        "sessionAlerts": false,
+        "passwordDictionary": true,
+        "personalDataCheck": true,
+        "sessionAlerts": true,
         "mockNumbers": []
       }
     }
@@ -80,6 +80,7 @@
         "create(\"team:sg-app-dept-ledelsenoslo\")",
         "create(\"team:sg-app-dept-ledelsenbergen\")",
         "create(\"team:sg-app-dept-ledelsentrondheim\")",
+        "create(\"team:sg-app-dept-ledelsenstavanger\")",
         "create(\"team:sg-app-dept-hr\")"
       ],
       "databaseId": "app",
@@ -441,8 +442,7 @@
         "create(\"team:sg-app-dept-operationsunit\")",
         "read(\"team:sg-app-dept-operationsunit\")",
         "update(\"team:sg-app-dept-operationsunit\")",
-        "delete(\"team:sg-app-dept-operationsunit\")",
-        "create(\"users\")"
+        "delete(\"team:sg-app-dept-operationsunit\")"
       ],
       "databaseId": "app",
       "name": "Users",
@@ -732,8 +732,12 @@
       "$id": "content_entry_locales",
       "$permissions": [
         "read(\"any\")",
-        "update(\"users\")",
-        "delete(\"users\")"
+        "create(\"team:sg-app-dept-operationsunit\")",
+        "create(\"team:sg-app-dept-ledelsenoslo\")",
+        "create(\"team:sg-app-dept-ledelsenbergen\")",
+        "create(\"team:sg-app-dept-ledelsentrondheim\")",
+        "create(\"team:sg-app-dept-ledelsenstavanger\")",
+        "create(\"team:sg-app-dept-hr\")"
       ],
       "databaseId": "app",
       "name": "Content Entry Locales",
@@ -1299,11 +1303,7 @@
     },
     {
       "$id": "teams",
-      "$permissions": [
-        "read(\"any\")",
-        "update(\"users\")",
-        "delete(\"users\")"
-      ],
+      "$permissions": ["read(\"any\")"],
       "databaseId": "app",
       "name": "Teams",
       "enabled": true,
@@ -3685,6 +3685,7 @@
         "create(\"team:sg-app-dept-ledelsenoslo\")",
         "create(\"team:sg-app-dept-ledelsenbergen\")",
         "create(\"team:sg-app-dept-ledelsentrondheim\")",
+        "create(\"team:sg-app-dept-ledelsenstavanger\")",
         "create(\"team:sg-app-dept-hr\")"
       ],
       "databaseId": "app",
@@ -3842,8 +3843,12 @@
       "$id": "content_entries",
       "$permissions": [
         "read(\"any\")",
-        "update(\"users\")",
-        "delete(\"users\")"
+        "create(\"team:sg-app-dept-operationsunit\")",
+        "create(\"team:sg-app-dept-ledelsenoslo\")",
+        "create(\"team:sg-app-dept-ledelsenbergen\")",
+        "create(\"team:sg-app-dept-ledelsentrondheim\")",
+        "create(\"team:sg-app-dept-ledelsenstavanger\")",
+        "create(\"team:sg-app-dept-hr\")"
       ],
       "databaseId": "app",
       "name": "Content Entries",
@@ -5462,6 +5467,7 @@
         "create(\"team:sg-app-dept-ledelsenoslo\")",
         "create(\"team:sg-app-dept-ledelsenbergen\")",
         "create(\"team:sg-app-dept-ledelsentrondheim\")",
+        "create(\"team:sg-app-dept-ledelsenstavanger\")",
         "create(\"team:sg-app-dept-hr\")"
       ],
       "databaseId": "app",
@@ -5982,11 +5988,7 @@
     },
     {
       "$id": "typing_indicators",
-      "$permissions": [
-        "read(\"any\")",
-        "update(\"users\")",
-        "delete(\"users\")"
-      ],
+      "$permissions": ["read(\"any\")"],
       "databaseId": "app",
       "name": "Typing Indicators",
       "enabled": true,
@@ -7468,6 +7470,7 @@
         "create(\"team:sg-app-dept-ledelsenoslo\")",
         "create(\"team:sg-app-dept-ledelsenbergen\")",
         "create(\"team:sg-app-dept-ledelsentrondheim\")",
+        "create(\"team:sg-app-dept-ledelsenstavanger\")",
         "create(\"team:sg-app-dept-hr\")"
       ],
       "databaseId": "app",
@@ -9115,6 +9118,7 @@
         "create(\"team:sg-app-dept-ledelsenoslo\")",
         "create(\"team:sg-app-dept-ledelsenbergen\")",
         "create(\"team:sg-app-dept-ledelsentrondheim\")",
+        "create(\"team:sg-app-dept-ledelsenstavanger\")",
         "create(\"team:sg-app-dept-hr\")"
       ],
       "databaseId": "app",
@@ -9450,6 +9454,7 @@
         "create(\"team:sg-app-dept-ledelsenoslo\")",
         "create(\"team:sg-app-dept-ledelsenbergen\")",
         "create(\"team:sg-app-dept-ledelsentrondheim\")",
+        "create(\"team:sg-app-dept-ledelsenstavanger\")",
         "create(\"team:sg-app-dept-hr\")"
       ],
       "databaseId": "app",
@@ -9786,6 +9791,7 @@
         "create(\"team:sg-app-dept-ledelsenoslo\")",
         "create(\"team:sg-app-dept-ledelsenbergen\")",
         "create(\"team:sg-app-dept-ledelsentrondheim\")",
+        "create(\"team:sg-app-dept-ledelsenstavanger\")",
         "create(\"team:sg-app-dept-hr\")"
       ],
       "databaseId": "app",
@@ -9964,7 +9970,7 @@
       ],
       "compression": "none",
       "encryption": false,
-      "antivirus": false
+      "antivirus": true
     },
     {
       "$id": "documents",
@@ -9981,7 +9987,23 @@
       "name": "Documents",
       "enabled": true,
       "maximumFileSize": 100000000,
-      "allowedFileExtensions": [],
+      "allowedFileExtensions": [
+        "pdf",
+        "doc",
+        "docx",
+        "xls",
+        "xlsx",
+        "ppt",
+        "pptx",
+        "txt",
+        "csv",
+        "jpg",
+        "jpeg",
+        "png",
+        "gif",
+        "webp",
+        "zip"
+      ],
       "compression": "none",
       "encryption": true,
       "antivirus": true

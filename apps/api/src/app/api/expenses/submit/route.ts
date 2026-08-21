@@ -4,10 +4,12 @@ import { createAdminClient } from "@repo/api/server";
 import type { Users } from "@repo/api/types/appwrite";
 import { type Expenses, ExpensesStatus } from "@repo/api/types/appwrite";
 import { isFeatureEnabled } from "@repo/shared/utils/feature-flags-server";
+import { RATE_LIMITS } from "@repo/shared/utils/rate-limit";
 import { type NextRequest, NextResponse } from "next/server";
 import { createAuthenticatedClient } from "@/lib/auth";
 import { applyCorsHeaders, corsPreflightResponse } from "@/lib/cors";
 import { createApprovalChain } from "@/lib/expense-approval";
+import { assertExpenseScope } from "@/lib/expense-ownership";
 import {
   buildExpenseRowInput,
   buildExpenseRowPermissions,
@@ -15,6 +17,7 @@ import {
   parseExpensePayload,
 } from "@/lib/expense-payload";
 import { generateExpensePdf } from "@/lib/pdf/expense-pdf";
+import { enforceRateLimit } from "@/lib/rate-limit";
 
 export type CreateExpenseData = Models.Row &
   ExpenseRowInput & {
@@ -161,6 +164,50 @@ function isProfileComplete(profile: Users): profile is CompleteProfile {
   );
 }
 
+/**
+ * Budget and scope checks that must both pass before a submission does any
+ * expensive or externally-visible work — a submission generates a PDF and
+ * emails an approver, and the approval chain is resolved from the campus and
+ * department carried on the payload.
+ *
+ * Extracted from the handler to keep its cognitive complexity under the lint
+ * ceiling; returns the response to send, or null to continue.
+ */
+async function runSubmitGuards(params: {
+  req: NextRequest;
+  origin: string | null;
+  user: { $id: string };
+  profile: Users;
+  campusId: string;
+  departmentId: string;
+}): Promise<NextResponse | null> {
+  const { req, origin, user, profile, campusId, departmentId } = params;
+
+  const limited = enforceRateLimit({
+    scope: "expense-submit",
+    userId: user.$id,
+    req,
+    rules: RATE_LIMITS.expenseSubmit,
+    origin,
+  });
+  if (limited) {
+    return limited;
+  }
+
+  const scope = await assertExpenseScope({ profile, campusId, departmentId });
+  if (!scope.ok) {
+    return applyCorsHeaders(
+      NextResponse.json(
+        { success: false, error: scope.error },
+        { status: scope.status }
+      ),
+      origin
+    );
+  }
+
+  return null;
+}
+
 export async function POST(req: NextRequest) {
   const origin = req.headers.get("origin");
 
@@ -207,6 +254,18 @@ export async function POST(req: NextRequest) {
         }),
         origin
       );
+    }
+
+    const blocked = await runSubmitGuards({
+      req,
+      origin,
+      user,
+      profile,
+      campusId: expenseData.campus,
+      departmentId: expenseData.department,
+    });
+    if (blocked) {
+      return blocked;
     }
 
     const expenseBody = buildExpenseRowInput(

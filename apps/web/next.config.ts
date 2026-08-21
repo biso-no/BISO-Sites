@@ -68,6 +68,42 @@ const baseConfig: NextConfig = {
     ],
   },
 
+  // biome-ignore lint/suspicious/useAwait: Next.js requires headers() to be async.
+  async headers() {
+    // Baseline hardening for the public site. This app carries the checkout
+    // flow, the reimbursement form (which collects bank account numbers), and
+    // sign-in, so the framing and transport controls matter more here than on
+    // the CMS. A full Content-Security-Policy is deliberately left out: it
+    // needs per-route nonces for Next's inline runtime, and getting it wrong
+    // breaks the payment redirects. `frame-ancestors` is the one CSP directive
+    // that is safe to ship on its own, and it is the modern replacement for
+    // X-Frame-Options (both are sent — older browsers only honour the latter).
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          { key: "X-Frame-Options", value: "DENY" },
+          {
+            key: "Content-Security-Policy",
+            value: "frame-ancestors 'none'",
+          },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          // Keeps the expense approval token in `/fs/approve/{token}` out of
+          // the Referer header on cross-origin subresource requests.
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          {
+            key: "Strict-Transport-Security",
+            value: "max-age=63072000; includeSubDomains; preload",
+          },
+          {
+            key: "Permissions-Policy",
+            value: "camera=(), microphone=(), geolocation=()",
+          },
+        ],
+      },
+    ];
+  },
+
   experimental: {
     authInterrupts: true,
     hideLogsAfterAbort: true,
