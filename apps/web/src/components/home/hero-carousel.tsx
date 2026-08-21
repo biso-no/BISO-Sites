@@ -86,7 +86,7 @@ function getTranslation(item: HeroCarouselItem): ContentTranslations | null {
 function HeroCarouselSlide({ index, item, t }: HeroCarouselSlideProps) {
   const isEvent = "start_date" in item;
   const imageUrl = item?.image;
-  const contentLink = isEvent ? `/events/${item.$id}` : `/news/${item.$id}`;
+  const contentLink = isEvent ? `/events/${item.slug}` : `/news/${item.slug}`;
   const translation = getTranslation(item);
   const title = translation?.title || "";
   const description = translation?.description || "";
