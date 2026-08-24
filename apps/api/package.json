@@ -2,7 +2,7 @@
   "name": "api",
   "private": true,
   "scripts": {
-    "dev": "next dev -p 3003",
+    "dev": "bun --bun next dev -p 3003",
     "build": "next build",
     "deploy:build": "bun run build && bun run deploy:prep",
     "deploy:prep": "set -x && echo '=== Flattening standalone ===' && cp .next/standalone/apps/api/server.js .next/standalone/ && cp -r .next/standalone/apps/api/.next/* .next/standalone/.next/ 2>/dev/null || mkdir -p .next/standalone/.next && cp -r .next/standalone/apps/api/.next/* .next/standalone/.next/ && echo '=== Copying to monorepo root ===' && cp -r .next ../../ && echo '=== Final structure ===' && ls -la ../../.next/standalone/",
