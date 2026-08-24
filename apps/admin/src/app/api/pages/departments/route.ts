@@ -16,12 +16,15 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
 
   try {
-    const departments = await readPageDepartmentsFeed(
-      await feedClient(),
-      searchParams.get("campus_id"),
-      searchParams.get("type")
+    // Passed through unchanged: `total` counts every matching row, which is
+    // more than the page the reader's limit returns.
+    return feedResponse(
+      await readPageDepartmentsFeed(
+        await feedClient(),
+        searchParams.get("campus_id"),
+        searchParams.get("type")
+      )
     );
-    return feedResponse({ departments, total: departments.length });
   } catch {
     return feedResponse({ departments: [], total: 0 });
   }

@@ -39,7 +39,9 @@ function readFeed(request: PageFeedRequest): Promise<unknown[]> {
   const locale = request.locale as PublicLocale;
   switch (request.kind) {
     case "departments":
-      return cachedPageDepartmentsFeed();
+      // The snapshot carries rows; the endpoint's `total` is for consumers
+      // that page, and the block never reads it.
+      return cachedPageDepartmentsFeed().then((feed) => feed.departments);
     case "events":
       return cachedPageEventsFeed(request.department, locale);
     case "jobs":

@@ -35,7 +35,7 @@ import {
 } from "@repo/api/types/appwrite";
 import { isRecruitmentVacancyOpen } from "@repo/shared/types/recruitment";
 import type {
-  PageDepartmentItem,
+  PageDepartmentsFeed,
   PageEventItem,
   PageJobItem,
   PageNewsItem,
@@ -214,6 +214,7 @@ export async function cachedPublishedPage(slug: string, locale: PublicLocale) {
 // the intent spelled out.
 export type {
   PageDepartmentItem,
+  PageDepartmentsFeed,
   PageEventItem,
   PageJobItem,
   PageNewsItem,
@@ -270,7 +271,7 @@ export async function cachedPagePartnersFeed(): Promise<PagePartnerItem[]> {
 export async function cachedPageDepartmentsFeed(
   campusId: string | null = null,
   type: string | null = null
-): Promise<PageDepartmentItem[]> {
+): Promise<PageDepartmentsFeed> {
   "use cache";
   cacheLife("hours");
   const { db } = await createPublicClient();

@@ -293,12 +293,26 @@ export interface PageDepartmentItem {
   type: string | null;
 }
 
+export interface PageDepartmentsFeed {
+  departments: PageDepartmentItem[];
+  /**
+   * Departments matching the filters, which is NOT `departments.length`.
+   *
+   * Appwrite's `total` counts every row matching the query and ignores
+   * `limit`/`offset` (verified against 1.9.6: total stays 134 whether the
+   * limit is 2 or 500). There are more active departments than
+   * `DEPARTMENT_LIMIT`, so collapsing the two would under-report the real
+   * count to anything using this endpoint for counts or pagination.
+   */
+  total: number;
+}
+
 /** Active departments for the auto-source `departmentGrid` block. */
 export async function readPageDepartmentsFeed(
   db: FeedDb,
   campusId: string | null = null,
   type: string | null = null
-): Promise<PageDepartmentItem[]> {
+): Promise<PageDepartmentsFeed> {
   const queries: string[] = [
     Query.select(["$id", "Id", "Name", "campus_id", "type", "logo"]),
     Query.equal("active", true),
@@ -318,12 +332,15 @@ export async function readPageDepartmentsFeed(
     queries
   );
 
-  return departments.rows.map((department) => ({
-    campusId: department.campus_id,
-    id: department.$id,
-    internalId: department.Id,
-    logo: department.logo,
-    name: department.Name,
-    type: department.type,
-  }));
+  return {
+    departments: departments.rows.map((department) => ({
+      campusId: department.campus_id,
+      id: department.$id,
+      internalId: department.Id,
+      logo: department.logo,
+      name: department.Name,
+      type: department.type,
+    })),
+    total: departments.total,
+  };
 }

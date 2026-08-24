@@ -41,7 +41,7 @@ beforeEach(() => {
   cachedPageNewsFeed.mockResolvedValue([]);
   cachedPageJobsFeed.mockResolvedValue([]);
   cachedPagePartnersFeed.mockResolvedValue([]);
-  cachedPageDepartmentsFeed.mockResolvedValue([]);
+  cachedPageDepartmentsFeed.mockResolvedValue({ departments: [], total: 0 });
 });
 
 describe("resolvePageFeeds", () => {
@@ -150,7 +150,12 @@ describe("resolvePageFeeds", () => {
 
   test("global feeds resolve without a department", async () => {
     cachedPagePartnersFeed.mockResolvedValue([{ name: "Partner" }]);
-    cachedPageDepartmentsFeed.mockResolvedValue([{ id: "1", name: "Dept" }]);
+    // The departments reader answers `{ departments, total }` — `total` is
+    // Appwrite's full match count, which the block never reads.
+    cachedPageDepartmentsFeed.mockResolvedValue({
+      departments: [{ id: "1", name: "Dept" }],
+      total: 134,
+    });
 
     const feeds = await resolvePageFeeds(
       doc([
@@ -161,6 +166,9 @@ describe("resolvePageFeeds", () => {
     );
 
     expect(feeds[pageFeedKey("partners")]).toEqual([{ name: "Partner" }]);
+    // Unwrapped to the rows: the snapshot is `Record<string, unknown[]>` and
+    // the block renders an array, so a `{ departments, total }` object here
+    // would make every card render as undefined.
     expect(feeds[pageFeedKey("departments")]).toEqual([
       { id: "1", name: "Dept" },
     ]);
