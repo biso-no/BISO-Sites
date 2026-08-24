@@ -3,11 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "sideEffects": [
-    "./src/blocks/index.ts",
-    "./src/blocks/**/index.tsx",
-    "**/*.css"
-  ],
+  "sideEffects": true,
   "exports": {
     ".": "./src/index.ts",
     "./render": "./src/render/index.ts",
