@@ -3,9 +3,11 @@
 @import "tw-animate-css";
 /* Import shared styles from UI package */
 @import "../../../../packages/ui/styles/globals.css";
+@import "../../../../packages/ui/styles/biso-surface.css";
 @plugin "@tailwindcss/typography";
 /* Define content sources */
 @source "../../../../packages/ui/**/*.{ts,tsx}";
+@source "../../../../packages/editor/src/**/*.{ts,tsx}";
 @source "../../../../packages/tours/**/*.{ts,tsx}";
 @source "../**/*.{ts,tsx}";
 

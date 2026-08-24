@@ -41,7 +41,7 @@ export default async function RootLayout({
 
   return (
     <html
-      className={`${museoSans.variable} ${inter.variable}`}
+      className={`${museoSans.variable} ${inter.variable} biso-surface`}
       lang={locale}
       suppressHydrationWarning
     >

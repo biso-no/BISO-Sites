@@ -143,7 +143,7 @@ export function CopilotPanel() {
               {[
                 "Add a hero section at the top",
                 "Write a subtitle for my hero",
-                "Change the accent colour to leaf green",
+                "Change the accent colour to BISO blue",
                 "Bind the events block to Appwrite",
               ].map((s) => (
                 <button

@@ -2,6 +2,7 @@ export { allBlocks, BLOCK_LIBRARY, getBlock } from "./blocks/registry";
 export { EditorShell } from "./components/editor-shell";
 export type { EditorCallbacks } from "./editor/callbacks";
 export { EditorCallbacksContext, useEditorCallbacks } from "./editor/callbacks";
+export { normalizePageDoc } from "./editor/serialize";
 export { useEditorStore } from "./editor/store";
 export type {
   Block,

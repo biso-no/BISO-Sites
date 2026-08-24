@@ -2,8 +2,14 @@
 
 import "@repo/editor/theme/styles.css";
 import type { Block, PageDoc } from "@repo/editor/render";
-import { getBlock, useEditorStore } from "@repo/editor/render";
-import { useEffect, useRef } from "react";
+import {
+  getBlock,
+  normalizePageDoc,
+  type ResolvedBackground,
+  resolveBackgrounds,
+  useEditorStore,
+} from "@repo/editor/render";
+import { useEffect, useMemo, useRef } from "react";
 
 // This wrapper is a Client Component on purpose. Every block `Render` is
 // itself `"use client"`, and BlockRenderer passes them an `onPatch` function.
@@ -16,6 +22,7 @@ interface Props {
 }
 
 export function RenderedPage({ doc }: Props) {
+  const normalizedDoc = useMemo(() => normalizePageDoc(doc), [doc]);
   // Seed the shared editor store from this page's doc BEFORE the blocks render.
   // Auto-source blocks (events/jobs/news) resolve their live feed from
   // `useEditorStore(s => s.doc.meta.department)`; without seeding they'd read
@@ -25,31 +32,49 @@ export function RenderedPage({ doc }: Props) {
   // mount. This mirrors how EditorShell seeds the store via setDoc.
   const seeded = useRef(false);
   if (!seeded.current) {
-    useEditorStore.setState({ doc });
+    useEditorStore.setState({ doc: normalizedDoc });
     seeded.current = true;
   }
   useEffect(() => {
-    useEditorStore.setState({ doc });
-  }, [doc]);
+    useEditorStore.setState({ doc: normalizedDoc });
+  }, [normalizedDoc]);
 
   const accentStyle = {
-    "--accent": doc.meta.accentColor,
+    "--page-accent": normalizedDoc.meta.accentColor,
   } as React.CSSProperties;
+  const backgrounds = resolveBackgrounds(normalizedDoc.blocks);
 
   return (
-    <div className="pg-page" style={accentStyle}>
-      {doc.blocks.map((block) => (
-        <BlockRenderer block={block as Block} key={(block as Block).id} />
+    <div className="biso-surface pg-page" style={accentStyle}>
+      {normalizedDoc.blocks.map((block, index) => (
+        <BlockRenderer
+          background={backgrounds[index] ?? "default"}
+          block={block as Block}
+          key={(block as Block).id}
+        />
       ))}
     </div>
   );
 }
 
-function BlockRenderer({ block }: { block: Block }) {
+function BlockRenderer({
+  background,
+  block,
+}: {
+  background: ResolvedBackground;
+  block: Block;
+}) {
   const def = getBlock(block.type);
   if (!def) {
     return null;
   }
   const noopPatch = () => undefined;
-  return <def.Render block={block as never} edit={false} onPatch={noopPatch} />;
+  return (
+    <def.Render
+      background={background}
+      block={block as never}
+      edit={false}
+      onPatch={noopPatch}
+    />
+  );
 }

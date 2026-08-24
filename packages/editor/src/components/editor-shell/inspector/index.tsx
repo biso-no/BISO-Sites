@@ -8,6 +8,7 @@ import { useInspectorTab, useSelection } from "@/editor/hooks";
 import { useEditorStore } from "@/editor/store";
 import type { AccentHue } from "@/theme/presets";
 import { HUE_COLORS } from "@/theme/presets";
+import { DesignPanel } from "./design-panel";
 
 export function InspectorPane() {
   const selection = useSelection();
@@ -61,6 +62,7 @@ export function InspectorPane() {
                 doc={doc}
                 onPatch={onPatch}
               />
+              <DesignPanel layout={block.layout} onPatch={onPatch} />
             </>
           ) : (
             <p

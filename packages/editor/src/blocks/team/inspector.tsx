@@ -6,14 +6,9 @@ import {
   InspSection,
 } from "@/components/editor-shell/inspector/insp-parts";
 import type { PageDoc, TeamBlock, TeamMember } from "@/editor/types";
+import { HUE_COLORS } from "@/theme/presets";
 
-const HUES: TeamMember["hue"][] = ["claret", "gold", "leaf", "sky"];
-const HUE_COLORS: Record<TeamMember["hue"], string> = {
-  claret: "#6b1e1e",
-  gold: "#b08a3e",
-  leaf: "#2f5d3a",
-  sky: "#2a4a7a",
-};
+const HUES = Object.keys(HUE_COLORS) as TeamMember["hue"][];
 
 function initials(name: string): string {
   return name
@@ -154,7 +149,7 @@ export function TeamInspector({ block, onPatch }: Props) {
                 name: "New Member",
                 role: "Role",
                 initials: "NM",
-                hue: "claret",
+                hue: "blue",
               },
             ])
           }

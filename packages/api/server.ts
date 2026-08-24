@@ -1,5 +1,6 @@
 "use server";
-import { cookies } from "next/headers";
+
+import { cookies, headers } from "next/headers";
 import {
   Account,
   AppwriteException,
@@ -13,6 +14,38 @@ import {
 } from "node-appwrite";
 
 /**
+ * Returns the base URL of the current deployment.
+ *
+ * This works for:
+ * - Production/custom domains
+ * - Appwrite preview deployments
+ * - Branch deployments
+ * - Local development
+ *
+ * Prefer this over a hardcoded NEXT_PUBLIC_BASE_URL when the URL depends
+ * on the deployment handling the current request.
+ */
+export async function getBaseUrl(): Promise<string> {
+  const requestHeaders = await headers();
+
+  const host =
+    requestHeaders.get("x-forwarded-host") ?? requestHeaders.get("host");
+
+  if (!host) {
+    throw new Error("Unable to determine the current deployment host.");
+  }
+
+  const forwardedProto = requestHeaders.get("x-forwarded-proto");
+  const protocol =
+    forwardedProto?.split(",")[0]?.trim() ??
+    (host.startsWith("localhost") || host.startsWith("127.0.0.1")
+      ? "http"
+      : "https");
+
+  return `${protocol}://${host}`;
+}
+
+/**
  * Wrap a TablesDB instance so that listRows and getRow return plain objects
  * instead of Appwrite SDK class instances, which Next.js cannot serialize
  * across the RSC → Client Component boundary.
@@ -21,6 +54,7 @@ function plainDb(db: TablesDB): TablesDB {
   return new Proxy(db, {
     get(target, prop, receiver) {
       const value = Reflect.get(target, prop, receiver);
+
       if (
         (prop === "listRows" || prop === "getRow") &&
         typeof value === "function"
@@ -30,6 +64,7 @@ function plainDb(db: TablesDB): TablesDB {
             target,
             args
           );
+
           // Must be a JSON round-trip, NOT structuredClone: node-appwrite
           // responses carry non-cloneable function properties (a lazy
           // `() => JSONbig.stringify(data)` serializer) that JSON.stringify
@@ -37,25 +72,31 @@ function plainDb(db: TablesDB): TablesDB {
           return JSON.parse(JSON.stringify(result));
         };
       }
+
       if (typeof value === "function") {
         return value.bind(target);
       }
+
       return value;
     },
   });
 }
 
 const APPWRITE_API_KEY = process.env.APPWRITE_API_KEY;
+
 const APPWRITE_PROJECT =
   process.env.NEXT_PUBLIC_APPWRITE_PROJECT ||
   process.env.APPWRITE_PROJECT_ID ||
   "biso";
+
 const NEXT_PUBLIC_APPWRITE_ENDPOINT =
   process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT ||
   process.env.APPWRITE_ENDPOINT ||
   "https://appwrite.biso.no/v1";
+
 const SESSION_COOKIE_NAME =
   process.env.APPWRITE_SESSION_COOKIE || "a_session_biso";
+
 /**
  * Read-only fallback for an app that has renamed its session cookie. Sessions
  * issued under the previous name keep resolving until the old cookie expires;
@@ -63,8 +104,10 @@ const SESSION_COOKIE_NAME =
  */
 const SESSION_COOKIE_FALLBACK_NAME =
   process.env.APPWRITE_SESSION_COOKIE_FALLBACK;
+
 const DEFAULT_APPWRITE_REQUEST_TIMEOUT_MS = 8000;
 const APPWRITE_TIMEOUT_ERROR_TYPE = "appwrite_timeout";
+
 const APPWRITE_REQUEST_TIMEOUT_MS = readPositiveInteger(
   process.env.APPWRITE_REQUEST_TIMEOUT_MS,
   DEFAULT_APPWRITE_REQUEST_TIMEOUT_MS
@@ -88,6 +131,7 @@ function readPositiveInteger(
   }
 
   const parsed = Number.parseInt(value, 10);
+
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 }
 
@@ -112,6 +156,7 @@ function getSharedTransport(
   };
 
   sharedTransports.set(key, transport);
+
   return transport;
 }
 
@@ -121,10 +166,13 @@ function createTimeoutSignal(): AbortSignal {
   }
 
   const controller = new AbortController();
+
   const timeout = setTimeout(() => {
     controller.abort();
   }, APPWRITE_REQUEST_TIMEOUT_MS);
+
   timeout.unref?.();
+
   return controller.signal;
 }
 
@@ -139,8 +187,8 @@ function configureServerClient(client: Client): Client {
   const prepareRequest = client.prepareRequest.bind(client);
   const call = client.call.bind(client);
 
-  client.prepareRequest = (method, url, headers, params) => {
-    const request = prepareRequest(method, url, headers, params);
+  client.prepareRequest = (method, url, requestHeaders, params) => {
+    const request = prepareRequest(method, url, requestHeaders, params);
     const options = request.options as AppwriteRequestOptions;
     const transport = getSharedTransport(client, options);
 
@@ -184,6 +232,7 @@ export async function createSessionClient(jwt?: string) {
     client.setJWT(jwt);
   } else {
     const cookieStore = await cookies();
+
     const session =
       cookieStore.get(SESSION_COOKIE_NAME) ??
       (SESSION_COOKIE_FALLBACK_NAME
@@ -219,9 +268,11 @@ export async function createSessionClient(jwt?: string) {
 
 /**
  * Cookie-free, unauthenticated (guest) server client. Sees exactly what an
- * anonymous visitor sees — table/row `read("any")` permissions only. Unlike
- * `createSessionClient()` it never touches `cookies()`, so it is safe to call
- * inside `"use cache"` functions, which must not read request-bound APIs.
+ * anonymous visitor sees — table/row `read("any")` permissions only.
+ *
+ * Unlike `createSessionClient()` it never touches `cookies()`, so it is safe
+ * to call inside `"use cache"` functions, which must not read request-bound
+ * APIs.
  */
 // biome-ignore lint/suspicious/useAwait: keep the same async factory shape as the other clients.
 export async function createPublicClient() {
@@ -248,6 +299,7 @@ export async function createAdminClient() {
       "APPWRITE_API_KEY is not configured — admin Appwrite operations cannot run."
     );
   }
+
   const client = configureServerClient(
     new Client()
       .setEndpoint(NEXT_PUBLIC_APPWRITE_ENDPOINT)

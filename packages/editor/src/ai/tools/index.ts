@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { BlockType } from "@/editor/types";
+import { BRAND_ACCENT_VALUES } from "@/theme/presets";
 
 const BLOCK_TYPES = [
   "hero",
@@ -104,9 +105,9 @@ export const pageEditorTools = {
   apply_accent: {
     description:
       "Change the page accent colour (used for headings, highlights, and the block selection outline). " +
-      "Accepts a hex colour. Use one of the brand hues: claret=#6b1e1e, gold=#b08a3e, leaf=#2f5d3a, sky=#2a4a7a.",
+      "Use one of the brand hues: blue=#3DA9E0, navy=#001731, sky=#7CC7EC, gold=#F7D64A, slate=#33566F.",
     parameters: z.object({
-      hex: z.string().describe("Hex colour string, e.g. '#6b1e1e'"),
+      hex: z.enum(BRAND_ACCENT_VALUES).describe("Approved brand accent colour"),
     }),
     execute: async ({ hex }: { hex: string }) => ({
       status: "applied",

@@ -82,7 +82,7 @@ const EMPTY_DOC: PageDoc = {
     title: "Untitled page",
     slug: "untitled",
     department: "biso",
-    accentColor: "#6b1e1e",
+    accentColor: "#3DA9E0",
     status: "draft",
   },
   blocks: [],
