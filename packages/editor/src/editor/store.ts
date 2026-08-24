@@ -81,7 +81,14 @@ const EMPTY_DOC: PageDoc = {
   meta: {
     title: "Untitled page",
     slug: "untitled",
-    department: "biso",
+    /*
+     * Empty, not a sentinel. Auto-source blocks (events/jobs/news) treat this
+     * as the department to fetch, and "biso" is not a real department id —
+     * departments are numeric. Any render that read the default before the
+     * host seeded the store fired a request for a department that cannot
+     * exist; an empty value correctly means "no live feed yet".
+     */
+    department: "",
     accentColor: "#3DA9E0",
     status: "draft",
   },

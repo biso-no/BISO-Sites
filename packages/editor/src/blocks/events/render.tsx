@@ -94,9 +94,11 @@ export function EventsRender({ block, edit, onPatch }: Props) {
               <div className="pg-event-card__title">{ev.title}</div>
               <div className="pg-event-card__where">{ev.where}</div>
             </div>
-            <div className="pg-event-card__foot">
-              <b>{ev.going}</b> going
-            </div>
+            {ev.going > 0 && (
+              <div className="pg-event-card__foot">
+                <b>{ev.going}</b> going
+              </div>
+            )}
           </div>
         ))}
         {items.length === 0 && (
