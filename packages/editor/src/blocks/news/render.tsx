@@ -20,6 +20,7 @@ interface Props {
 
 export function NewsRender({ block, edit, onPatch }: Props) {
   const department = useEditorStore((s) => s.doc.meta.department);
+  const locale = useEditorStore((s) => s.locale);
   const [items, setItems] = useState<NewsItem[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -39,7 +40,7 @@ export function NewsRender({ block, edit, onPatch }: Props) {
     }
     let cancelled = false;
     setLoading(true);
-    fetch(`/api/pages/news?dept=${encodeURIComponent(dept)}`)
+    fetch(`/api/pages/news?dept=${encodeURIComponent(dept)}&locale=${locale}`)
       .then((r) => r.json())
       .then((data: NewsItem[]) => {
         if (!cancelled) {
@@ -59,7 +60,7 @@ export function NewsRender({ block, edit, onPatch }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [dept]);
+  }, [dept, locale]);
 
   return (
     <div className="pg-news pg-block">

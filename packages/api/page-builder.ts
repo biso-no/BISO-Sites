@@ -272,7 +272,18 @@ export async function getPage(
 
   const res = await db.listRows<Pages>("app", "pages", [
     Query.equal("slug", slug),
-    Query.select(["$id", "slug", "translation_refs.*"]),
+    // `status` and `department_id` are read by normalizeDoc below. Without
+    // them in the projection they arrive undefined, which left every page's
+    // `meta.status` undefined and made `meta.department` — the value the
+    // auto-source blocks resolve their feed from — impossible to correct from
+    // the row.
+    Query.select([
+      "$id",
+      "slug",
+      "status",
+      "department_id",
+      "translation_refs.*",
+    ]),
     Query.limit(1),
   ]);
 

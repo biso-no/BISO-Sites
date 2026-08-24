@@ -374,6 +374,13 @@ function jobCommitment(metadata: string | null): string {
 /**
  * Open vacancies for one department. Mirrors the sitemap's rule: a published
  * job past its application deadline is closed, so it must not surface here.
+ *
+ * The open-deadline test is pushed into the query rather than applied to the
+ * page afterwards. Filtering after a `limit` bounds the newest N rows and then
+ * discards the expired ones, so a department whose newest N vacancies have all
+ * expired would report no open roles even while older ones are still open.
+ * `isRecruitmentVacancyOpen` still runs on the result as the authority — it
+ * additionally treats an unparseable deadline as open, which the query cannot.
  */
 export async function cachedPageJobsFeed(
   departmentId: string,
@@ -395,15 +402,18 @@ export async function cachedPageJobsFeed(
     ]),
     Query.equal("status", JobsStatus.PUBLISHED),
     Query.equal("department_id", departmentId),
+    Query.or([
+      Query.isNull("application_deadline"),
+      Query.greaterThanEqual("application_deadline", new Date().toISOString()),
+    ]),
     Query.orderDesc("$createdAt"),
-    Query.limit(FEED_LIMIT * 3),
+    Query.limit(FEED_LIMIT),
   ]);
 
   return jobs.rows
     .filter((job) =>
       isRecruitmentVacancyOpen(job.status, job.application_deadline)
     )
-    .slice(0, FEED_LIMIT)
     .map((job) => ({
       commitment: jobCommitment(job.metadata),
       deadline: formatFeedDate(job.application_deadline, locale),

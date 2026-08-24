@@ -20,6 +20,7 @@ interface Props {
 
 export function JobsRender({ block, edit, onPatch }: Props) {
   const department = useEditorStore((s) => s.doc.meta.department);
+  const locale = useEditorStore((s) => s.locale);
   const [items, setItems] = useState<JobItem[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -39,7 +40,7 @@ export function JobsRender({ block, edit, onPatch }: Props) {
     }
     let cancelled = false;
     setLoading(true);
-    fetch(`/api/pages/jobs?dept=${encodeURIComponent(dept)}`)
+    fetch(`/api/pages/jobs?dept=${encodeURIComponent(dept)}&locale=${locale}`)
       .then((r) => r.json())
       .then((data: JobItem[]) => {
         if (!cancelled) {
@@ -59,7 +60,7 @@ export function JobsRender({ block, edit, onPatch }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [dept]);
+  }, [dept, locale]);
 
   return (
     <div className="pg-jobs pg-block">

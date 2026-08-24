@@ -13,6 +13,7 @@ interface Props {
 
 export function EventsRender({ block, edit, onPatch }: Props) {
   const department = useEditorStore((s) => s.doc.meta.department);
+  const locale = useEditorStore((s) => s.locale);
   const [liveItems, setLiveItems] = useState<EventItem[] | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -28,7 +29,7 @@ export function EventsRender({ block, edit, onPatch }: Props) {
     }
     let cancelled = false;
     setLoading(true);
-    fetch(`/api/pages/events?dept=${encodeURIComponent(dept)}`)
+    fetch(`/api/pages/events?dept=${encodeURIComponent(dept)}&locale=${locale}`)
       .then((r) => r.json())
       .then((data: EventItem[]) => {
         if (!cancelled) {
@@ -48,7 +49,7 @@ export function EventsRender({ block, edit, onPatch }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [dept]);
+  }, [dept, locale]);
 
   const items = (isLive ? liveItems : null) ?? block.items;
   let emptyMessage = "Set a department to load live events.";

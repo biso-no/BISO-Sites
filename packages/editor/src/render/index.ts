@@ -21,7 +21,13 @@ export { resolveBackgrounds } from "../blocks/_primitives/resolve-layout";
 export { allBlocks, getBlock } from "../blocks/index";
 export { fromJSON, normalizePageDoc } from "../editor/serialize";
 export { useEditorStore } from "../editor/store";
-export type { Block, BlockType, PageDoc, PageMeta } from "../editor/types";
+export type {
+  Block,
+  BlockType,
+  EditorLocale,
+  PageDoc,
+  PageMeta,
+} from "../editor/types";
 export type { AccentHue } from "../theme/presets";
 export {
   accentForDepartment,

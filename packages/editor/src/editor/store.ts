@@ -17,6 +17,7 @@ import {
 import type {
   Block,
   BlockType,
+  EditorLocale,
   EditorMode,
   EditorViewport,
   PageDoc,
@@ -43,6 +44,12 @@ interface EditorState {
   // Document mutations
   insertBlock: (type: BlockType, afterId?: string) => string;
   inspectorTab: "block" | "page" | "outline";
+  /**
+   * Locale the page is being rendered in. Auto-source blocks pass it to their
+   * feed endpoints so an English page gets English titles and date formatting
+   * rather than the server-side default.
+   */
+  locale: EditorLocale;
   mode: EditorMode;
   past: HistorySnap[];
   redo: () => void;
@@ -63,6 +70,7 @@ interface EditorState {
   setDoc: (doc: PageDoc) => void;
   setHovered: (id: string | null) => void;
   setInspectorTab: (tab: "block" | "page" | "outline") => void;
+  setLocale: (locale: EditorLocale) => void;
   setMeta: <K extends keyof PageMeta>(key: K, value: PageMeta[K]) => void;
 
   // Mode / viewport
@@ -128,6 +136,7 @@ export const useEditorStore = create<EditorState>()(
       saving: "idle",
       copilotOpen: false,
       inspectorTab: "block",
+      locale: "no",
 
       insertBlock: (type, afterId) => {
         let newId = "";
@@ -216,6 +225,11 @@ export const useEditorStore = create<EditorState>()(
         set((s) => {
           s.copilotOpen = open;
         }),
+      setLocale: (locale) =>
+        set((s) => {
+          s.locale = locale;
+        }),
+
       setInspectorTab: (tab) =>
         set((s) => {
           s.inspectorTab = tab;

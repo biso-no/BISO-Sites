@@ -82,5 +82,5 @@ export default async function DynamicPage({ params }: Props) {
     notFound();
   }
 
-  return <RenderedPage doc={result.doc as PageDoc} />;
+  return <RenderedPage doc={result.doc as PageDoc} locale={locale} />;
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import "@repo/editor/theme/styles.css";
-import type { Block, PageDoc } from "@repo/editor/render";
+import type { Block, EditorLocale, PageDoc } from "@repo/editor/render";
 import {
   getBlock,
   normalizePageDoc,
@@ -19,25 +19,27 @@ import { useEffect, useMemo, useRef } from "react";
 
 interface Props {
   doc: PageDoc;
+  locale: EditorLocale;
 }
 
-export function RenderedPage({ doc }: Props) {
+export function RenderedPage({ doc, locale }: Props) {
   const normalizedDoc = useMemo(() => normalizePageDoc(doc), [doc]);
-  // Seed the shared editor store from this page's doc BEFORE the blocks render.
-  // Auto-source blocks (events/jobs/news) resolve their live feed from
-  // `useEditorStore(s => s.doc.meta.department)`; without seeding they'd read
-  // the store default ("biso") and fetch the wrong department's feed. The
-  // synchronous guard runs once before children first render (no wasted "biso"
-  // fetch); the effect keeps it in sync if the doc prop changes on the same
-  // mount. This mirrors how EditorShell seeds the store via setDoc.
+  // Seed the shared editor store BEFORE the blocks render. Auto-source blocks
+  // (events/jobs/news) resolve their live feed from
+  // `useEditorStore(s => s.doc.meta.department)` and request it in
+  // `s.locale`; without seeding they'd read the store defaults and fetch the
+  // wrong feed in the wrong language. The synchronous guard runs once before
+  // children first render (so no wasted request goes out); the effect keeps
+  // both in sync if the props change on the same mount. This mirrors how
+  // EditorShell seeds the store via setDoc.
   const seeded = useRef(false);
   if (!seeded.current) {
-    useEditorStore.setState({ doc: normalizedDoc });
+    useEditorStore.setState({ doc: normalizedDoc, locale });
     seeded.current = true;
   }
   useEffect(() => {
-    useEditorStore.setState({ doc: normalizedDoc });
-  }, [normalizedDoc]);
+    useEditorStore.setState({ doc: normalizedDoc, locale });
+  }, [normalizedDoc, locale]);
 
   const accentStyle = {
     "--page-accent": normalizedDoc.meta.accentColor,

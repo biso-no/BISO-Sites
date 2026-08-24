@@ -14,9 +14,11 @@ vi.mock("@repo/editor/render", () => ({
   normalizePageDoc: (doc: PageDoc) => doc,
   resolveBackgrounds: () => ["default", "muted"],
   useEditorStore: {
-    setState: () => undefined,
+    setState: (patch: unknown) => seededState.push(patch),
   },
 }));
+
+const seededState: unknown[] = [];
 
 test("mounts the public brand surface without dropping the page accent", () => {
   const doc: PageDoc = {
@@ -33,10 +35,31 @@ test("mounts the public brand surface without dropping the page accent", () => {
     },
   };
 
-  const html = renderToStaticMarkup(createElement(RenderedPage, { doc }));
+  const html = renderToStaticMarkup(
+    createElement(RenderedPage, { doc, locale: "no" })
+  );
 
   expect(html).toMatch(BISO_SURFACE_CLASS);
   expect(html).toContain("--page-accent:#3DA9E0");
   expect(html).toContain('data-background="default"');
   expect(html).toContain('data-background="muted"');
+});
+
+test("seeds the active locale so auto-source blocks request the right language", () => {
+  const doc: PageDoc = {
+    blocks: [],
+    meta: {
+      accentColor: "#3DA9E0",
+      department: "25",
+      slug: "english-page",
+      status: "published",
+      title: "English page",
+    },
+  };
+
+  seededState.length = 0;
+  renderToStaticMarkup(createElement(RenderedPage, { doc, locale: "en" }));
+
+  // Seeding must happen during render, before any block effect fires a fetch.
+  expect(seededState[0]).toMatchObject({ locale: "en" });
 });
