@@ -17,7 +17,7 @@ export async function GET(request: Request) {
 
   try {
     // Passed through unchanged: `total` counts every matching row, which is
-    // more than the page the reader's limit returns.
+    // independent of how many the reader's limit returned.
     return feedResponse(
       await readPageDepartmentsFeed(
         await feedClient(),

@@ -18,9 +18,9 @@ export async function GET(request: Request) {
   const type = searchParams.get("type");
 
   try {
-    // `total` is Appwrite's count of every matching row, not the size of this
-    // page — there are more active departments than the reader's limit, so the
-    // two genuinely differ. Pass the reader's result through unchanged.
+    // Passed through unchanged. `total` is Appwrite's count of every matching
+    // row and is independent of how many this page returned, so it stays
+    // meaningful if the reader's limit is ever exceeded again.
     return feedResponse(await cachedPageDepartmentsFeed(campusId, type));
   } catch {
     return feedFailure({ departments: [], total: 0 });

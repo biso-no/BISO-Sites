@@ -21,11 +21,11 @@ function fakeDb(result: { rows: unknown[]; total: number }) {
 describe("readPageDepartmentsFeed", () => {
   it("reports Appwrite's total, not the size of the returned page", async () => {
     // Appwrite's `total` counts every row matching the query and ignores
-    // limit/offset — verified against 1.9.6, where the same filters report
-    // total 134 whether the limit is 2 or 500. There are more active
-    // departments than this reader's limit, so collapsing `total` into
-    // `departments.length` under-reports the real count to anything using the
-    // endpoint for counts or pagination.
+    // limit/offset — verified against 1.9.6, where the same filters report the
+    // full count whether the limit is 2 or 500. `DEPARTMENT_LIMIT` now exceeds
+    // the real row count, so the two agree in practice; this asserts the
+    // reader still keeps them apart, which is what would make a future
+    // overflow visible rather than silent.
     const rows = Array.from({ length: 100 }, (_, i) => departmentRow(i));
     const db = fakeDb({ rows, total: 134 });
 
@@ -33,6 +33,23 @@ describe("readPageDepartmentsFeed", () => {
 
     expect(feed.departments).toHaveLength(100);
     expect(feed.total).toBe(134);
+  });
+
+  it("asks for more departments than the table can hold", async () => {
+    // The block renders every card it is given and has no pagination, so the
+    // query limit is the only thing standing between the page and a silently
+    // truncated department list. At 100 it dropped 34 of 134 active rows —
+    // alphabetically, so an entire campus prefix vanished.
+    const db = fakeDb({ rows: [], total: 0 });
+    await readPageDepartmentsFeed(db);
+    const [, , queries] = (db.listRows as unknown as ReturnType<typeof vi.fn>)
+      .mock.calls[0];
+
+    const limit = (queries as string[])
+      .map((q) => JSON.parse(q) as { method: string; values?: number[] })
+      .find((q) => q.method === "limit");
+
+    expect(limit?.values?.[0]).toBeGreaterThanOrEqual(300);
   });
 
   it("maps a department row onto the block's shape", async () => {

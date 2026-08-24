@@ -35,7 +35,16 @@ type FeedDb = Awaited<ReturnType<typeof createPublicClient>>["db"];
 export type PageFeedLocale = "en" | "no";
 
 const FEED_LIMIT = 6;
-const DEPARTMENT_LIMIT = 100;
+/**
+ * Headroom, not a page size. The `departmentGrid` block has no pagination, so
+ * whatever this cuts off simply disappears from the page — and because the
+ * query orders by name, a low limit lops off the alphabet's tail rather than
+ * something evenly spread. At 100 that silently dropped 34 of 134 active
+ * departments, taking every STV unit with it. 500 clears even the full
+ * departments table (263 rows, active and inactive), and the whole mapped
+ * payload is ~15KB.
+ */
+const DEPARTMENT_LIMIT = 500;
 const PARTNER_LIMIT = 100;
 
 /** Pick the translation for `locale`, falling back to whatever exists. */
@@ -299,10 +308,12 @@ export interface PageDepartmentsFeed {
    * Departments matching the filters, which is NOT `departments.length`.
    *
    * Appwrite's `total` counts every row matching the query and ignores
-   * `limit`/`offset` (verified against 1.9.6: total stays 134 whether the
-   * limit is 2 or 500). There are more active departments than
-   * `DEPARTMENT_LIMIT`, so collapsing the two would under-report the real
-   * count to anything using this endpoint for counts or pagination.
+   * `limit`/`offset` (verified against 1.9.6: it stays at the full count
+   * whether the limit is 2 or 500). Keep the two separate even now that
+   * `DEPARTMENT_LIMIT` exceeds the real row count: collapsing them would
+   * under-report to anything using this endpoint for counts, and it is what
+   * makes a future overflow of the limit visible instead of silent —
+   * `total > departments.length` means rows were cut.
    */
   total: number;
 }
