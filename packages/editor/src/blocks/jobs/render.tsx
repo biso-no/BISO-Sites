@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { PatchFn } from "@/blocks/types";
-import { useEditorStore } from "@/editor/store";
+import { usePageFeedSource } from "@/editor/page-feed-context";
 import type { JobsBlock } from "@/editor/types";
 
 interface JobItem {
@@ -19,13 +19,15 @@ interface Props {
 }
 
 export function JobsRender({ block, edit, onPatch }: Props) {
-  const department = useEditorStore((s) => s.doc.meta.department);
-  const [items, setItems] = useState<JobItem[]>([]);
-  const [loading, setLoading] = useState(false);
-
+  const { department, locale } = usePageFeedSource();
   const source = block.source || "auto";
   const dept = source === "auto" ? department : source;
   const isLive = !!dept;
+
+  const [items, setItems] = useState<JobItem[]>([]);
+  // Starts true for a live block: its first paint (server render included)
+  // is a pending fetch, not an empty feed.
+  const [loading, setLoading] = useState(isLive);
   let emptyMessage = "Set a department to load live roles.";
   if (loading) {
     emptyMessage = "Loading…";
@@ -39,7 +41,7 @@ export function JobsRender({ block, edit, onPatch }: Props) {
     }
     let cancelled = false;
     setLoading(true);
-    fetch(`/api/pages/jobs?dept=${encodeURIComponent(dept)}`)
+    fetch(`/api/pages/jobs?dept=${encodeURIComponent(dept)}&locale=${locale}`)
       .then((r) => r.json())
       .then((data: JobItem[]) => {
         if (!cancelled) {
@@ -59,7 +61,7 @@ export function JobsRender({ block, edit, onPatch }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [dept]);
+  }, [dept, locale]);
 
   return (
     <div className="pg-jobs pg-block">

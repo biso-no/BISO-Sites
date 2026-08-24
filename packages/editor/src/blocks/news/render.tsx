@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { PatchFn } from "@/blocks/types";
-import { useEditorStore } from "@/editor/store";
+import { usePageFeedSource } from "@/editor/page-feed-context";
 import type { NewsBlock } from "@/editor/types";
 
 interface NewsItem {
@@ -19,13 +19,15 @@ interface Props {
 }
 
 export function NewsRender({ block, edit, onPatch }: Props) {
-  const department = useEditorStore((s) => s.doc.meta.department);
-  const [items, setItems] = useState<NewsItem[]>([]);
-  const [loading, setLoading] = useState(false);
-
+  const { department, locale } = usePageFeedSource();
   const source = block.source || "auto";
   const dept = source === "auto" ? department : source;
   const isLive = !!dept;
+
+  const [items, setItems] = useState<NewsItem[]>([]);
+  // Starts true for a live block: its first paint (server render included)
+  // is a pending fetch, not an empty feed.
+  const [loading, setLoading] = useState(isLive);
   let emptyMessage = "Set a department to load live news.";
   if (loading) {
     emptyMessage = "Loading…";
@@ -39,7 +41,7 @@ export function NewsRender({ block, edit, onPatch }: Props) {
     }
     let cancelled = false;
     setLoading(true);
-    fetch(`/api/pages/news?dept=${encodeURIComponent(dept)}`)
+    fetch(`/api/pages/news?dept=${encodeURIComponent(dept)}&locale=${locale}`)
       .then((r) => r.json())
       .then((data: NewsItem[]) => {
         if (!cancelled) {
@@ -59,7 +61,7 @@ export function NewsRender({ block, edit, onPatch }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [dept]);
+  }, [dept, locale]);
 
   return (
     <div className="pg-news pg-block">

@@ -15,6 +15,16 @@ interface Props {
 }
 
 /**
+ * Opt out of the instant shell. `cacheComponents` otherwise warns that `params`
+ * is read outside a `<Suspense>` boundary, but the streaming fix is wrong here:
+ * once the shell is flushed the response is already committed as 200, so
+ * `notFound()` for an unknown slug can no longer produce a 404. A public
+ * content route must answer crawlers with a real status, so it blocks on
+ * `params` instead. See nextjs.org/docs/messages/instant-shell-url-data.
+ */
+export const instant = false;
+
+/**
  * Request-memoized page resolution — generateMetadata and the page body both
  * call this, but it runs once per request. The publicly-cached lookup serves
  * every anonymous visitor from cache; pages it cannot see (members-only row
@@ -72,5 +82,5 @@ export default async function DynamicPage({ params }: Props) {
     notFound();
   }
 
-  return <RenderedPage doc={result.doc as PageDoc} />;
+  return <RenderedPage doc={result.doc as PageDoc} locale={locale} />;
 }

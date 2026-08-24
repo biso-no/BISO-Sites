@@ -131,6 +131,14 @@ export function EditorShell({
     setOverId(null);
   }
 
+  // Keep the store's locale aligned with the editor's, so the canvas preview
+  // requests auto-source feeds (events/jobs/news) in the language being edited
+  // rather than the store default.
+  const setLocale = useEditorStore((s) => s.setLocale);
+  useEffect(() => {
+    setLocale(activeLocale);
+  }, [activeLocale, setLocale]);
+
   const hydratedLocaleRef = useRef<EditorLocale | null>(null);
 
   // Hydrate store when the editor enters a locale. Subsequent parent mirrors of
