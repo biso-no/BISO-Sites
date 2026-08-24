@@ -17,7 +17,6 @@ const baseConfig: NextConfig = {
     "@repo/tours",
     "@repo/typescript-config",
   ],
-  serverExternalPackages: ["node-appwrite"],
   reactStrictMode: true,
   output: "standalone",
   outputFileTracingRoot: path.join(import.meta.dirname, "../../"),
