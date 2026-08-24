@@ -19,6 +19,10 @@ import "../blocks/index";
 export type { ResolvedBackground } from "../blocks/_primitives/layout-types";
 export { resolveBackgrounds } from "../blocks/_primitives/resolve-layout";
 export { allBlocks, getBlock } from "../blocks/index";
+export {
+  PageFeedProvider,
+  usePageFeedSource,
+} from "../editor/page-feed-context";
 export { fromJSON, normalizePageDoc } from "../editor/serialize";
 export { useEditorStore } from "../editor/store";
 export type {

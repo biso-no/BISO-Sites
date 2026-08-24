@@ -1,5 +1,10 @@
 import { cachedPageJobsFeed } from "@/lib/data/public-content";
-import { feedLocale, feedResponse, requireDepartment } from "../_lib/feed";
+import {
+  feedFailure,
+  feedLocale,
+  feedResponse,
+  requireDepartment,
+} from "../_lib/feed";
 
 /**
  * Open vacancies for a department for the page-builder's auto-source `jobs` block.
@@ -19,6 +24,6 @@ export async function GET(request: Request) {
       await cachedPageJobsFeed(department, feedLocale(searchParams))
     );
   } catch {
-    return feedResponse([]);
+    return feedFailure();
   }
 }

@@ -1,5 +1,10 @@
 import { cachedPageEventsFeed } from "@/lib/data/public-content";
-import { feedLocale, feedResponse, requireDepartment } from "../_lib/feed";
+import {
+  feedFailure,
+  feedLocale,
+  feedResponse,
+  requireDepartment,
+} from "../_lib/feed";
 
 /**
  * Upcoming events for a department for the page-builder's auto-source `events` block.
@@ -19,6 +24,6 @@ export async function GET(request: Request) {
       await cachedPageEventsFeed(department, feedLocale(searchParams))
     );
   } catch {
-    return feedResponse([]);
+    return feedFailure();
   }
 }

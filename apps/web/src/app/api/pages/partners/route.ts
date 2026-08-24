@@ -1,6 +1,6 @@
 import { connection } from "next/server";
 import { cachedPagePartnersFeed } from "@/lib/data/public-content";
-import { feedResponse } from "../_lib/feed";
+import { feedFailure, feedResponse } from "../_lib/feed";
 
 /**
  * National partners for the page-builder's auto-source `partners` block.
@@ -20,6 +20,6 @@ export async function GET() {
   try {
     return feedResponse(await cachedPagePartnersFeed());
   } catch {
-    return feedResponse([]);
+    return feedFailure();
   }
 }

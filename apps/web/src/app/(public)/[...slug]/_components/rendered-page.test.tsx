@@ -1,5 +1,5 @@
 import type { PageDoc } from "@repo/editor/render";
-import { createElement } from "react";
+import { createElement, type ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { expect, test, vi } from "vitest";
 import { RenderedPage } from "./rendered-page";
@@ -16,6 +16,20 @@ vi.mock("@repo/editor/render", () => ({
   useEditorStore: {
     setState: (patch: unknown) => seededState.push(patch),
   },
+  PageFeedProvider: ({
+    children,
+    department,
+    locale,
+  }: {
+    children: ReactNode;
+    department: string;
+    locale: string;
+  }) =>
+    createElement(
+      "div",
+      { "data-feed-department": department, "data-feed-locale": locale },
+      children
+    ),
 }));
 
 const seededState: unknown[] = [];
@@ -45,7 +59,7 @@ test("mounts the public brand surface without dropping the page accent", () => {
   expect(html).toContain('data-background="muted"');
 });
 
-test("seeds the active locale so auto-source blocks request the right language", () => {
+test("hands the feed source to blocks through the provider, not the store", () => {
   const doc: PageDoc = {
     blocks: [],
     meta: {
@@ -58,8 +72,16 @@ test("seeds the active locale so auto-source blocks request the right language",
   };
 
   seededState.length = 0;
-  renderToStaticMarkup(createElement(RenderedPage, { doc, locale: "en" }));
+  const html = renderToStaticMarkup(
+    createElement(RenderedPage, { doc, locale: "en" })
+  );
 
-  // Seeding must happen during render, before any block effect fires a fetch.
+  // The provider is what auto-source blocks read. It must carry this page's
+  // values, because zustand serves `getInitialState` as the SSR snapshot and a
+  // store seeded during render never reaches the server pass.
+  expect(html).toContain('data-feed-department="25"');
+  expect(html).toContain('data-feed-locale="en"');
+
+  // The store is still seeded for everything else that reads it.
   expect(seededState[0]).toMatchObject({ locale: "en" });
 });

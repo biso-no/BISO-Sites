@@ -1,5 +1,10 @@
 import { cachedPageNewsFeed } from "@/lib/data/public-content";
-import { feedLocale, feedResponse, requireDepartment } from "../_lib/feed";
+import {
+  feedFailure,
+  feedLocale,
+  feedResponse,
+  requireDepartment,
+} from "../_lib/feed";
 
 /**
  * Latest news for a department for the page-builder's auto-source `news` block.
@@ -19,6 +24,6 @@ export async function GET(request: Request) {
       await cachedPageNewsFeed(department, feedLocale(searchParams))
     );
   } catch {
-    return feedResponse([]);
+    return feedFailure();
   }
 }

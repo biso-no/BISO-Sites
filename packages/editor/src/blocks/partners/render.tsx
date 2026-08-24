@@ -12,13 +12,20 @@ interface Props {
 
 export function PartnersRender({ block }: Props) {
   const [liveItems, setLiveItems] = useState<PartnerItem[] | null>(null);
+  const isAuto = block.source === "auto";
+  // An auto feed that legitimately returns no partners is *done*, not still
+  // loading. Without tracking completion separately, an empty partners table
+  // rendered "Loading partners…" forever on a published page.
+  const [loading, setLoading] = useState(isAuto);
 
   useEffect(() => {
-    if (block.source !== "auto") {
+    if (!isAuto) {
       setLiveItems(null);
+      setLoading(false);
       return;
     }
     let cancelled = false;
+    setLoading(true);
     fetch("/api/pages/partners")
       .then((r) => r.json())
       .then((data: PartnerItem[]) => {
@@ -30,14 +37,26 @@ export function PartnersRender({ block }: Props) {
         if (!cancelled) {
           setLiveItems(null);
         }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setLoading(false);
+        }
       });
     return () => {
       cancelled = true;
     };
-  }, [block.source]);
+  }, [isAuto]);
 
   const items =
-    (block.source === "auto" ? liveItems : null) ?? block.items ?? [];
+    (isAuto ? liveItems : null) ?? (isAuto ? [] : (block.items ?? []));
+
+  let emptyMessage = "No partners added yet.";
+  if (loading) {
+    emptyMessage = "Loading partners…";
+  } else if (isAuto) {
+    emptyMessage = "No partners to show yet.";
+  }
 
   return (
     <div className="pg-partners pg-block">
@@ -57,9 +76,7 @@ export function PartnersRender({ block }: Props) {
           <p
             style={{ fontSize: 13, color: "var(--ink-3)", gridColumn: "1/-1" }}
           >
-            {block.source === "auto"
-              ? "Loading partners…"
-              : "No partners added yet."}
+            {emptyMessage}
           </p>
         )}
       </div>

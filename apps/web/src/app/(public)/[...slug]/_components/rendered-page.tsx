@@ -5,6 +5,7 @@ import type { Block, EditorLocale, PageDoc } from "@repo/editor/render";
 import {
   getBlock,
   normalizePageDoc,
+  PageFeedProvider,
   type ResolvedBackground,
   resolveBackgrounds,
   useEditorStore,
@@ -24,14 +25,12 @@ interface Props {
 
 export function RenderedPage({ doc, locale }: Props) {
   const normalizedDoc = useMemo(() => normalizePageDoc(doc), [doc]);
-  // Seed the shared editor store BEFORE the blocks render. Auto-source blocks
-  // (events/jobs/news) resolve their live feed from
-  // `useEditorStore(s => s.doc.meta.department)` and request it in
-  // `s.locale`; without seeding they'd read the store defaults and fetch the
-  // wrong feed in the wrong language. The synchronous guard runs once before
-  // children first render (so no wasted request goes out); the effect keeps
-  // both in sync if the props change on the same mount. This mirrors how
-  // EditorShell seeds the store via setDoc.
+  // Seed the shared editor store so anything still reading it (inspectors,
+  // AI tooling) sees this page. The auto-source blocks do NOT rely on this —
+  // they read `PageFeedProvider` below, because zustand hands
+  // `getInitialState` to `useSyncExternalStore` as the server snapshot, so a
+  // store mutated during render is invisible to SSR and the two passes would
+  // disagree about which department to fetch.
   const seeded = useRef(false);
   if (!seeded.current) {
     useEditorStore.setState({ doc: normalizedDoc, locale });
@@ -47,15 +46,20 @@ export function RenderedPage({ doc, locale }: Props) {
   const backgrounds = resolveBackgrounds(normalizedDoc.blocks);
 
   return (
-    <div className="biso-surface pg-page" style={accentStyle}>
-      {normalizedDoc.blocks.map((block, index) => (
-        <BlockRenderer
-          background={backgrounds[index] ?? "default"}
-          block={block as Block}
-          key={(block as Block).id}
-        />
-      ))}
-    </div>
+    <PageFeedProvider
+      department={normalizedDoc.meta.department}
+      locale={locale}
+    >
+      <div className="biso-surface pg-page" style={accentStyle}>
+        {normalizedDoc.blocks.map((block, index) => (
+          <BlockRenderer
+            background={backgrounds[index] ?? "default"}
+            block={block as Block}
+            key={(block as Block).id}
+          />
+        ))}
+      </div>
+    </PageFeedProvider>
   );
 }
 
