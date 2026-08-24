@@ -26,6 +26,22 @@
   /* Page accent — separate from the shared UI's subtle --accent surface. */
   --page-accent: #3da9e0;
 
+  /*
+   * Inverted panels — the dark chips, CTAs and full-bleed heroes that carry
+   * light text. These must flip *together* with the ink/paper ramp, so the
+   * gradient's second stop and the softened text tints get their own tokens
+   * rather than hardcoded hex/rgba. A block that pairs `--inverted-surface`
+   * with `--inverted-on*` stays legible in both themes.
+   */
+  --inverted-surface-2: #2d2520;
+  --inverted-on-soft: rgba(250, 247, 242, 0.7);
+  --inverted-on-faint: rgba(250, 247, 242, 0.5);
+  --inverted-on-hairline: rgba(255, 255, 255, 0.12);
+
+  /* Subtle white lift used for cards sitting on --paper. */
+  --lift: rgba(255, 255, 255, 0.4);
+  --lift-strong: rgba(255, 255, 255, 0.75);
+
   /* Fonts — mapped from Next.js font variables */
   --ui:
     var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, "Segoe UI",
@@ -34,6 +50,50 @@
     var(--font-instrument-serif), "Iowan Old Style", "Palatino Linotype",
     Palatino, Georgia, serif;
   --mono: var(--font-geist-mono), ui-monospace, "SF Mono", Menlo, monospace;
+}
+
+/*
+ * Dark ramp for the paper palette.
+ *
+ * `blocks.css` is written against these paper/ink tokens rather than the
+ * semantic tokens in `@repo/ui`'s `biso-surface.css`, so that file's own
+ * `.dark` block cannot reach block styling — inverting the ramp here is what
+ * makes all 33 blocks readable in dark mode.
+ *
+ * Scoped to `.biso-surface` so the admin's own chrome keeps its palette. Both
+ * selectors are needed: `apps/web` puts `dark` and `biso-surface` on the same
+ * <html> element, while `apps/admin` toggles `dark` on a wrapper outside the
+ * canvas frame. Two classes (0,2,0) also outrank the `:root` block above.
+ */
+.dark.biso-surface,
+.dark .biso-surface {
+  --paper: #14120f;
+  --paper-2: #1c1a16;
+  --paper-3: #24211c;
+
+  --ink: #f5f1ea;
+  --ink-2: #d6cfc2;
+  --ink-3: #a79f90;
+  --ink-4: #7e7768;
+
+  --rule: #322e27;
+  --rule-2: #453f35;
+
+  /* Brand hues lightened to stay legible on dark paper. */
+  --claret: #d18a8a;
+  --claret-2: #e0a0a0;
+  --gold: #d4ad5b;
+  --leaf: #74b585;
+  --sky: #85aade;
+
+  /* Inverted panels invert with the ramp: light surface, dark text. */
+  --inverted-surface-2: #e6dfd2;
+  --inverted-on-soft: rgba(26, 24, 20, 0.72);
+  --inverted-on-faint: rgba(26, 24, 20, 0.55);
+  --inverted-on-hairline: rgba(0, 0, 0, 0.1);
+
+  --lift: rgba(255, 255, 255, 0.05);
+  --lift-strong: rgba(255, 255, 255, 0.09);
 }
 
 /* ---- Base resets ---- */

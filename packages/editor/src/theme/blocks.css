@@ -1,6 +1,20 @@
 /* Block renderer CSS — ported from BISOAdm-4/src/page-blocks.jsx */
 .pg-block {
+  --pg-gutter: 48px;
   position: relative;
+}
+
+/*
+ * Container context for the public render root and the editor canvas frame.
+ *
+ * Blocks size themselves against the *frame*, not the viewport, so the admin's
+ * device preview (`.pe-frame.mob` is a 390px frame inside a wide window) hits
+ * exactly the breakpoints the public site will. Plain `@media` queries would
+ * never fire there.
+ */
+.pg-page,
+.pe-frame {
+  container: pg / inline-size;
 }
 .pg-canvas-page {
   font-family: var(--ui);
@@ -11,7 +25,7 @@
 /* HERO — base */
 .pg-hero {
   position: relative;
-  padding: 48px 48px 56px;
+  padding: 48px var(--pg-gutter) 56px;
   border-bottom: 0.5px solid var(--rule);
 }
 .pg-hero__content {
@@ -61,9 +75,21 @@
 }
 .pg-hero-art {
   position: relative;
+  /*
+   * Without a cap the 4/5 ratio grows without bound on wide screens: at 1440px
+   * the art panel reached 884px tall and, because `.pg-hero--split` aligns to
+   * `end`, left ~630px of empty column beside it.
+   */
+  max-height: 560px;
   aspect-ratio: 4 / 5;
   overflow: hidden;
-  background: linear-gradient(135deg, #2f5d3a 0%, #1a3422 100%);
+  /* Derived from the page accent so the editor's colour picker is visible on
+   * the hero — this was a fixed green that ignored `--page-accent` entirely. */
+  background: linear-gradient(
+    135deg,
+    var(--page-accent, var(--leaf)) 0%,
+    color-mix(in oklab, var(--page-accent, var(--leaf)) 55%, #000) 100%
+  );
   border-radius: 14px;
   box-shadow: 0 30px 60px -30px rgba(26, 24, 20, 0.4);
 }
@@ -78,7 +104,8 @@
   font-family: var(--serif);
   font-size: 28px;
   line-height: 1;
-  color: var(--ink);
+  /* Fixed: this plate is always white, so the glyph must always be dark. */
+  color: #1a1814;
   background: rgba(255, 255, 255, 0.95);
   border-radius: 12px;
 }
@@ -104,7 +131,7 @@
 }
 
 .pg-hero--centered {
-  padding: 72px 48px 80px;
+  padding: 72px var(--pg-gutter) 80px;
   text-align: center;
 }
 .pg-hero--centered .pg-hero__content {
@@ -124,17 +151,21 @@
   display: flex;
   align-items: center;
   min-height: 480px;
-  padding: 80px 48px;
-  background: linear-gradient(135deg, var(--ink) 0%, #2d2520 100%);
+  padding: 80px var(--pg-gutter);
+  background: linear-gradient(
+    135deg,
+    var(--ink) 0%,
+    var(--inverted-surface-2) 100%
+  );
 }
 .pg-hero--full .pg-hero__eyebrow {
-  color: rgba(250, 247, 242, 0.5);
+  color: var(--inverted-on-faint);
 }
 .pg-hero--full .pg-hero__h1 {
   color: var(--paper);
 }
 .pg-hero--full .pg-hero__sub {
-  color: rgba(250, 247, 242, 0.7);
+  color: var(--inverted-on-soft);
 }
 .pg-hero--full .pg-hero__cta {
   color: var(--ink);
@@ -146,7 +177,7 @@
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 0;
-  padding: 40px 48px;
+  padding: 40px var(--pg-gutter);
   border-bottom: 0.5px solid var(--rule);
 }
 .pg-stat {
@@ -176,7 +207,7 @@
 /* TEXT */
 .pg-text {
   max-width: 880px;
-  padding: 48px 48px;
+  padding: 48px var(--pg-gutter);
 }
 .pg-text h2 {
   margin: 0 0 18px;
@@ -229,7 +260,7 @@
 /* QUOTE */
 .pg-quote {
   position: relative;
-  padding: 52px 48px;
+  padding: 52px var(--pg-gutter);
   background: linear-gradient(180deg, var(--paper-2), var(--paper));
   border-top: 0.5px solid var(--rule);
   border-bottom: 0.5px solid var(--rule);
@@ -279,7 +310,7 @@
 
 /* TEAM */
 .pg-team {
-  padding: 48px 48px;
+  padding: 48px var(--pg-gutter);
 }
 .pg-team h2 {
   margin: 0 0 24px;
@@ -300,13 +331,13 @@
   gap: 14px;
   align-items: center;
   padding: 16px;
-  background: rgba(255, 255, 255, 0.4);
+  background: var(--lift);
   border: 0.5px solid var(--rule);
   border-radius: 12px;
   transition: background 0.12s;
 }
 .pg-member:hover {
-  background: rgba(255, 255, 255, 0.75);
+  background: var(--lift-strong);
 }
 .pg-member__av {
   display: grid;
@@ -332,7 +363,7 @@
 
 /* EVENTS */
 .pg-events {
-  padding: 48px 48px;
+  padding: 48px var(--pg-gutter);
   background: var(--paper-2);
   border-top: 0.5px solid var(--rule);
 }
@@ -397,7 +428,7 @@
 .pg-event-card__date-stripe .syn {
   padding: 1px 6px;
   font-size: 9px;
-  background: rgba(255, 255, 255, 0.12);
+  background: var(--inverted-on-hairline);
   border-radius: 999px;
 }
 .pg-event-card__body {
@@ -435,7 +466,7 @@
 
 /* CALLOUT */
 .pg-callout-wrap {
-  padding: 24px 48px;
+  padding: 24px var(--pg-gutter);
 }
 .pg-callout {
   display: flex;
@@ -491,7 +522,7 @@
 
 /* FAQ */
 .pg-faq {
-  padding: 48px 48px;
+  padding: 48px var(--pg-gutter);
   border-top: 0.5px solid var(--rule);
 }
 .pg-faq h2 {
@@ -556,7 +587,7 @@
   display: grid;
   grid-template-columns: 1.2fr 1fr 1fr 1fr;
   gap: 24px;
-  padding: 56px 48px;
+  padding: 56px var(--pg-gutter);
   color: var(--paper);
   background: var(--ink);
   border-top: 0.5px solid var(--rule);
@@ -576,7 +607,7 @@
 .pg-contact__col-label {
   margin-bottom: 6px;
   font-size: 10.5px;
-  color: rgba(250, 247, 242, 0.55);
+  color: var(--inverted-on-faint);
   text-transform: uppercase;
   letter-spacing: 0.08em;
 }
@@ -591,7 +622,7 @@
 
 /* CTA */
 .pg-cta {
-  padding: 48px;
+  padding: var(--pg-gutter);
   text-align: center;
   border-top: 0.5px solid var(--rule);
 }
@@ -625,7 +656,11 @@
   border: 0.5px solid var(--rule);
 }
 .pg-cta--gradient {
-  background: linear-gradient(135deg, var(--ink) 0%, #2d2520 100%);
+  background: linear-gradient(
+    135deg,
+    var(--ink) 0%,
+    var(--inverted-surface-2) 100%
+  );
   border-color: transparent;
 }
 .pg-cta--gradient h2 {
@@ -668,7 +703,7 @@
 
 /* IMAGE */
 .pg-image {
-  padding: 24px 48px;
+  padding: 24px var(--pg-gutter);
 }
 .pg-image__frame {
   display: grid;
@@ -698,7 +733,7 @@
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 10px;
-  padding: 24px 48px;
+  padding: 24px var(--pg-gutter);
 }
 .pg-gallery__tile {
   position: relative;
@@ -747,7 +782,7 @@
 
 /* VIDEO */
 .pg-video {
-  padding: 24px 48px;
+  padding: 24px var(--pg-gutter);
 }
 .pg-video__frame {
   position: relative;
@@ -757,7 +792,7 @@
   overflow: hidden;
   font-family: var(--mono);
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--inverted-on-faint);
   background: var(--ink);
   border-radius: 12px;
 }
@@ -787,7 +822,7 @@
 .pg-twocol {
   display: grid;
   gap: 36px;
-  padding: 32px 48px;
+  padding: 32px var(--pg-gutter);
   border-top: 0.5px solid var(--rule);
 }
 .pg-twocol__col p {
@@ -808,7 +843,7 @@
 
 /* SIGNUP */
 .pg-signup {
-  padding: 36px 48px;
+  padding: 36px var(--pg-gutter);
   border-top: 0.5px solid var(--rule);
 }
 .pg-signup h2 {
@@ -847,7 +882,7 @@
 
 /* TIMELINE */
 .pg-timeline {
-  padding: 36px 48px;
+  padding: 36px var(--pg-gutter);
   border-top: 0.5px solid var(--rule);
 }
 .pg-timeline h2 {
@@ -881,7 +916,7 @@
 /* JOBS / NEWS */
 .pg-jobs,
 .pg-news {
-  padding: 36px 48px;
+  padding: 36px var(--pg-gutter);
   border-top: 0.5px solid var(--rule);
 }
 .pg-jobs h2,
@@ -900,7 +935,7 @@
 .pg-jobs__item,
 .pg-news__item {
   padding: 14px 16px;
-  background: rgba(255, 255, 255, 0.4);
+  background: var(--lift);
   border: 0.5px solid var(--rule);
   border-radius: 10px;
 }
@@ -919,7 +954,7 @@
 
 /* FEATURE GRID */
 .pg-featuregrid {
-  padding: 48px 48px;
+  padding: 48px var(--pg-gutter);
   border-top: 0.5px solid var(--rule);
 }
 .pg-featuregrid__h {
@@ -986,7 +1021,7 @@
 
 /* PARTNERS */
 .pg-partners {
-  padding: 40px 48px;
+  padding: 40px var(--pg-gutter);
   border-top: 0.5px solid var(--rule);
 }
 .pg-partners__h {
@@ -1030,7 +1065,7 @@
 
 /* LINK TILE GRID */
 .pg-linktiles {
-  padding: 40px 48px;
+  padding: 40px var(--pg-gutter);
   border-top: 0.5px solid var(--rule);
 }
 .pg-linktiles__h {
@@ -1080,7 +1115,7 @@
 
 /* TABS */
 .pg-tabs {
-  padding: 36px 48px;
+  padding: 36px var(--pg-gutter);
   border-top: 0.5px solid var(--rule);
 }
 .pg-tabs__nav {
@@ -1165,7 +1200,7 @@
 
 /* DEPARTMENT GRID */
 .pg-deptgrid {
-  padding: 40px 48px;
+  padding: 40px var(--pg-gutter);
   border-top: 0.5px solid var(--rule);
 }
 .pg-deptgrid__h {
@@ -1219,7 +1254,7 @@
 
 /* DOCUMENTS */
 .pg-documents {
-  padding: 40px 48px;
+  padding: 40px var(--pg-gutter);
   border-top: 0.5px solid var(--rule);
 }
 .pg-documents__h {
@@ -1273,7 +1308,7 @@
 
 /* FEATURED CARDS */
 .pg-featcards {
-  padding: 40px 48px;
+  padding: 40px var(--pg-gutter);
   border-top: 0.5px solid var(--rule);
 }
 .pg-featcards__h {
@@ -1324,7 +1359,7 @@
 
 /* CAMPUS SELECTOR */
 .pg-campusselect {
-  padding: 40px 48px;
+  padding: 40px var(--pg-gutter);
   border-top: 0.5px solid var(--rule);
 }
 .pg-campusselect__h {
@@ -1387,7 +1422,7 @@
 
 /* STEP GRID */
 .pg-stepgrid {
-  padding: 48px 48px;
+  padding: 48px var(--pg-gutter);
   border-top: 0.5px solid var(--rule);
 }
 .pg-stepgrid__h {
@@ -1429,7 +1464,7 @@
 
 /* SCROLL ROW */
 .pg-scrollrow {
-  padding: 40px 48px;
+  padding: 40px var(--pg-gutter);
   border-top: 0.5px solid var(--rule);
 }
 .pg-scrollrow__h {
@@ -1479,7 +1514,7 @@
 
 /* PRODUCT GRID */
 .pg-productgrid {
-  padding: 40px 48px;
+  padding: 40px var(--pg-gutter);
   border-top: 0.5px solid var(--rule);
 }
 .pg-productgrid__h {
@@ -1524,7 +1559,7 @@
 
 /* FILTER BAR */
 .pg-filterbar {
-  padding: 20px 48px;
+  padding: 20px var(--pg-gutter);
   border-top: 0.5px solid var(--rule);
 }
 .pg-filterbar__row {
@@ -1555,7 +1590,7 @@
 
 /* PROFILE HEADER */
 .pg-profileheader {
-  padding: 36px 48px;
+  padding: 36px var(--pg-gutter);
   border-top: 0.5px solid var(--rule);
 }
 .pg-profileheader__row {
@@ -1622,7 +1657,7 @@
 /* MULTI-STEP FORM */
 .pg-msform {
   max-width: 640px;
-  padding: 48px 48px;
+  padding: 48px var(--pg-gutter);
   border-top: 0.5px solid var(--rule);
 }
 .pg-msform__heading {
@@ -1739,4 +1774,148 @@ textarea.pg-msform__input {
   margin-bottom: 12px;
   font-size: 40px;
   color: var(--leaf);
+}
+
+/* ==========================================================================
+   PUBLIC RENDER ROOT
+   ========================================================================== */
+
+/*
+ * `.pg-page` wraps the blocks on the public site only — the admin canvas uses
+ * `.pe-frame` — so anything here is scoped to biso.no.
+ *
+ * The site navbar is `position: fixed` and 80px tall. Every hand-built page
+ * reserves its own space beneath it (e.g. /about starts its h1 at y=217);
+ * block-composed pages reserved none, so the first block rendered underneath
+ * the nav and the hero eyebrow overprinted the BISO logo on mobile.
+ */
+.pg-page {
+  --pg-nav-offset: 80px;
+  padding-top: var(--pg-nav-offset);
+}
+
+/* ==========================================================================
+   RESPONSIVE
+   --------------------------------------------------------------------------
+   Container queries, not media queries: the container is the render root
+   (`.pg-page`) or the editor's device frame (`.pe-frame`), so the admin's
+   tablet/mobile preview collapses exactly like the real site does. Before
+   this, `blocks.css` had no breakpoints at all — at 390px the split hero kept
+   its desktop grid and the art column collapsed to a 12px sliver.
+   ========================================================================== */
+
+@container pg (max-width: 900px) {
+  .pg-stats {
+    grid-template-columns: repeat(2, 1fr);
+    row-gap: 28px;
+  }
+  .pg-stat:nth-child(2n + 1) {
+    padding-left: 0;
+    border-left: 0;
+  }
+
+  .pg-contact {
+    grid-template-columns: repeat(2, 1fr);
+    row-gap: 28px;
+  }
+
+  .pg-team-grid,
+  .pg-events-grid,
+  .pg-gallery,
+  .pg-featuregrid__grid--cols3,
+  .pg-featuregrid__grid--cols4 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .pg-hero-art {
+    max-height: 420px;
+  }
+}
+
+@container pg (max-width: 640px) {
+  /* Desktop's 48px gutter leaves too little measure on a phone. */
+  .pg-block {
+    --pg-gutter: 20px;
+  }
+
+  /* Split hero stacks; the art becomes a banner instead of a 4/5 portrait. */
+  .pg-hero--split {
+    grid-template-columns: 1fr;
+    gap: 28px;
+    align-items: start;
+  }
+  .pg-hero-art {
+    max-height: 240px;
+    aspect-ratio: 16 / 10;
+  }
+  .pg-hero--full {
+    min-height: 340px;
+    padding: 48px var(--pg-gutter);
+  }
+  .pg-hero--centered {
+    padding: 48px var(--pg-gutter) 56px;
+  }
+
+  /* Every fixed multi-column grid collapses to a single column. */
+  .pg-stats,
+  .pg-contact,
+  .pg-team-grid,
+  .pg-events-grid,
+  .pg-gallery,
+  .pg-twocol--equal,
+  .pg-twocol--leftWide,
+  .pg-twocol--rightWide,
+  .pg-featuregrid__grid--cols2,
+  .pg-featuregrid__grid--cols3,
+  .pg-featuregrid__grid--cols4 {
+    grid-template-columns: 1fr;
+  }
+  .pg-stat {
+    padding: 0;
+    border-left: 0;
+  }
+  .pg-timeline-item {
+    grid-template-columns: 64px 1fr;
+  }
+
+  /* Display type: the 60px h1 was unchanged at 390px, wrapping to five lines
+   * in a 230px column. `cqi` keeps it fluid inside the frame. */
+  .pg-hero__h1 {
+    font-size: clamp(30px, 10cqi, 60px);
+  }
+  .pg-cta h2,
+  .pg-stat__num {
+    font-size: 34px;
+  }
+  .pg-quote__mark {
+    font-size: 56px;
+  }
+  .pg-quote__body {
+    font-size: 22px;
+  }
+  .pg-text h2,
+  .pg-contact h2 {
+    font-size: 26px;
+  }
+  .pg-team h2,
+  .pg-events h2,
+  .pg-faq h2,
+  .pg-featuregrid__h,
+  .pg-stepgrid__h,
+  .pg-profileheader__stat-num,
+  .pg-msform__heading,
+  .pg-signup h2,
+  .pg-timeline h2,
+  .pg-news h2,
+  .pg-partners__h,
+  .pg-linktiles__h,
+  .pg-deptgrid__h,
+  .pg-documents__h,
+  .pg-featcards__h,
+  .pg-campusselect__h,
+  .pg-scrollrow__h,
+  .pg-productgrid__h,
+  .pg-profileheader__name {
+    font-size: 22px;
+  }
 }
