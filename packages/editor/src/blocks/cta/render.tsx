@@ -44,7 +44,7 @@ export const CtaRender = ({ background, block, edit, onPatch }: Props) => (
   <BlockSection
     background={resolveCtaBackground(block, background)}
     spacing={block.layout?.spacing}
-    width={block.layout?.width ?? "content"}
+    width={block.layout?.width}
   >
     <div className="text-center">
       <BlockHeading

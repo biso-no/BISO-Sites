@@ -82,6 +82,20 @@ describe("CTA surface compatibility", () => {
     expect(html).not.toContain("pg-cta");
   });
 
+  test("uses the same implicit wide width reported by the Design panel", () => {
+    const html = renderToStaticMarkup(
+      <CtaRender
+        background="default"
+        block={cta()}
+        edit={false}
+        onPatch={() => undefined}
+      />
+    );
+
+    expect(html).toContain("max-w-7xl");
+    expect(html).not.toContain("max-w-5xl");
+  });
+
   test("preserves inline title and label editing paths", () => {
     const patches: [string, unknown][] = [];
     const elements = collectElements(

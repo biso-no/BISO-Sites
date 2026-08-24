@@ -51,9 +51,20 @@ describe("brand typography", () => {
     expect(surface).toContain("--font-biso-display:");
     expect(surface).toContain("var(--font-inter)");
     expect(surface).toContain("var(--font-museo)");
-    expect(globals).toContain("--font-sans: var(--font-biso-sans)");
-    expect(globals).toContain("--font-display: var(--font-biso-display)");
+    expect(globals).toContain("--font-sans: var(--font-biso-sans,");
+    expect(globals).toContain("--font-display: var(--font-biso-display,");
     expect(globals).not.toContain("--font-display: var(--font-display)");
+  });
+
+  it("keeps font utilities valid in hosts without the BISO surface", () => {
+    expect(globals).toContain("--font-host-sans:");
+    expect(globals).toContain("--font-host-display:");
+    expect(globals).toContain(
+      "--font-sans: var(--font-biso-sans, var(--font-host-sans))"
+    );
+    expect(globals).toContain(
+      "--font-display: var(--font-biso-display, var(--font-host-display))"
+    );
   });
 });
 

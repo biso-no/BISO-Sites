@@ -46,7 +46,9 @@ following corrections take precedence over conflicting steps below:
 - Font utilities map through distinct `--font-biso-sans` and
   `--font-biso-display` backing variables. This avoids a specificity collision
   between Tailwind's generated `:root` theme properties and the zero-specificity
-  surface mounted directly on web's `<html>` element.
+  surface mounted directly on web's `<html>` element. Host-level Inter/Museo
+  variables and system stacks remain fallbacks when a host imports the shared
+  theme without mounting the BISO surface.
 - `BlockHeading` uses semantic surface tokens only. It must not read
   `text-brand-dark` or another raw brand colour inside a block primitive.
 - Brand and inverted sections rebind the complete semantic surface set used by
@@ -1682,7 +1684,7 @@ export function CtaRender({ background, block, edit, onPatch }: Props) {
     <BlockSection
       background={VARIANT_SURFACE[variant] ?? background}
       spacing={block.layout?.spacing}
-      width={block.layout?.width ?? "content"}
+      width={block.layout?.width}
     >
       <div className="text-center">
         {edit ? (
