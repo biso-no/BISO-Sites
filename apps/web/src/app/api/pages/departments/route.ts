@@ -1,48 +1,26 @@
-import { Query } from "@repo/api";
-import { createAdminClient } from "@repo/api/server";
-import type { Departments } from "@repo/api/types/appwrite";
-import { NextResponse } from "next/server";
+import { cachedPageDepartmentsFeed } from "@/lib/data/public-content";
+import { feedFailure, feedResponse } from "../_lib/feed";
 
+/**
+ * Active departments for the page-builder's auto-source `departmentGrid` block.
+ *
+ * Unlike the other feeds this one answers an object, not a bare array — the
+ * block reads `departments` off the payload, and changing that shape would
+ * break editors running an older bundle.
+ *
+ * It used to read through `createAdminClient()` with no cached reader behind
+ * it; it now goes through `cachedPageDepartmentsFeed` on the guest client like
+ * every other feed. See that reader for why the service key was unnecessary.
+ */
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const campusId = searchParams.get("campus_id");
   const type = searchParams.get("type");
 
   try {
-    const { db } = await createAdminClient();
-
-    const queries: string[] = [
-      Query.equal("active", true),
-      Query.orderAsc("Name"),
-      Query.limit(100),
-    ];
-
-    if (campusId) {
-      queries.push(Query.equal("campus_id", campusId));
-    }
-    if (type) {
-      queries.push(Query.equal("type", type));
-    }
-
-    const result = await db.listRows<Departments>(
-      "app",
-      "departments",
-      queries
-    );
-
-    return NextResponse.json({
-      departments: result.rows.map((d) => ({
-        id: d.$id,
-        internalId: d.Id,
-        name: d.Name,
-        campusId: d.campus_id,
-        type: d.type,
-        logo: d.logo,
-      })),
-      total: result.total,
-    });
-  } catch (error) {
-    console.error("Departments API error:", error);
-    return NextResponse.json({ departments: [], total: 0 }, { status: 500 });
+    const departments = await cachedPageDepartmentsFeed(campusId, type);
+    return feedResponse({ departments, total: departments.length });
+  } catch {
+    return feedFailure({ departments: [], total: 0 });
   }
 }

@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import type { PatchFn } from "@/blocks/types";
 import { usePageFeedSource } from "@/editor/page-feed-context";
+import { pageFeedKey, resolveFeedDepartment } from "@/editor/page-feeds";
 import type { JobsBlock } from "@/editor/types";
+import { useAutoFeed } from "@/editor/use-auto-feed";
 
 interface JobItem {
   commitment: string;
@@ -20,48 +21,22 @@ interface Props {
 
 export function JobsRender({ block, edit, onPatch }: Props) {
   const { department, locale } = usePageFeedSource();
-  const source = block.source || "auto";
-  const dept = source === "auto" ? department : source;
+  const dept = resolveFeedDepartment(block.source, department);
   const isLive = !!dept;
 
-  const [items, setItems] = useState<JobItem[]>([]);
-  // Starts true for a live block: its first paint (server render included)
-  // is a pending fetch, not an empty feed.
-  const [loading, setLoading] = useState(isLive);
+  const { items: liveItems, loading } = useAutoFeed<JobItem>({
+    enabled: isLive,
+    key: pageFeedKey("jobs", dept, locale),
+    url: `/api/pages/jobs?dept=${encodeURIComponent(dept)}&locale=${locale}`,
+  });
+
+  const items = liveItems ?? [];
   let emptyMessage = "Set a department to load live roles.";
   if (loading) {
     emptyMessage = "Loading…";
   } else if (isLive) {
     emptyMessage = "No open roles right now.";
   }
-
-  useEffect(() => {
-    if (!dept) {
-      return;
-    }
-    let cancelled = false;
-    setLoading(true);
-    fetch(`/api/pages/jobs?dept=${encodeURIComponent(dept)}&locale=${locale}`)
-      .then((r) => r.json())
-      .then((data: JobItem[]) => {
-        if (!cancelled) {
-          setItems(data);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setItems([]);
-        }
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [dept, locale]);
 
   return (
     <div className="pg-jobs pg-block">

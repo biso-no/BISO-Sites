@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import type { PatchFn } from "@/blocks/types";
+import { pageFeedKey } from "@/editor/page-feeds";
 import type { DepartmentGridBlock } from "@/editor/types";
+import { useAutoFeed } from "@/editor/use-auto-feed";
 
 interface DeptItem {
   campusId: string | null;
@@ -19,34 +20,24 @@ interface Props {
   onPatch: PatchFn;
 }
 
-export function DepartmentGridRender({ block }: Props) {
-  const [items, setItems] = useState<DeptItem[]>([]);
-  const [loading, setLoading] = useState(true);
+/**
+ * Module scope on purpose: `useAutoFeed` takes this as an effect dependency,
+ * so a closure recreated per render would refetch forever.
+ */
+const selectDepartments = (payload: unknown): DeptItem[] => {
+  const departments = (payload as { departments?: unknown } | null)
+    ?.departments;
+  return Array.isArray(departments) ? (departments as DeptItem[]) : [];
+};
 
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    fetch("/api/pages/departments")
-      .then((r) => r.json())
-      .then((data: { departments: DeptItem[] }) => {
-        if (!cancelled) {
-          setItems(data.departments ?? []);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setItems([]);
-        }
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+export function DepartmentGridRender({ block }: Props) {
+  const { items, loading } = useAutoFeed<DeptItem>({
+    enabled: true,
+    key: pageFeedKey("departments"),
+    select: selectDepartments,
+    url: "/api/pages/departments",
+  });
+  const departments = items ?? [];
 
   return (
     <div
@@ -59,7 +50,7 @@ export function DepartmentGridRender({ block }: Props) {
         </p>
       )}
       <div className="pg-deptgrid__grid">
-        {items.map((dept) => (
+        {departments.map((dept) => (
           <div className="pg-deptgrid__card" key={dept.id}>
             <div className="pg-deptgrid__card-name">{dept.name}</div>
             {dept.type && (
@@ -70,7 +61,7 @@ export function DepartmentGridRender({ block }: Props) {
             )}
           </div>
         ))}
-        {!loading && items.length === 0 && (
+        {!loading && departments.length === 0 && (
           <p
             style={{ fontSize: 13, color: "var(--ink-3)", gridColumn: "1/-1" }}
           >

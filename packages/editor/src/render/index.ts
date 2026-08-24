@@ -21,8 +21,19 @@ export { resolveBackgrounds } from "../blocks/_primitives/resolve-layout";
 export { allBlocks, getBlock } from "../blocks/index";
 export {
   PageFeedProvider,
+  usePageFeedSnapshot,
   usePageFeedSource,
 } from "../editor/page-feed-context";
+export type {
+  PageFeedKind,
+  PageFeedRequest,
+  PageFeedSnapshot,
+} from "../editor/page-feeds";
+export {
+  collectPageFeedRequests,
+  pageFeedKey,
+  resolveFeedDepartment,
+} from "../editor/page-feeds";
 export { fromJSON, normalizePageDoc } from "../editor/serialize";
 export { useEditorStore } from "../editor/store";
 export type {

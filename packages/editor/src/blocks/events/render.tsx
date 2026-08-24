@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import type { PatchFn } from "@/blocks/types";
 import { usePageFeedSource } from "@/editor/page-feed-context";
+import { pageFeedKey, resolveFeedDepartment } from "@/editor/page-feeds";
 import type { EventItem, EventsBlock } from "@/editor/types";
+import { useAutoFeed } from "@/editor/use-auto-feed";
 
 interface Props {
   block: EventsBlock;
@@ -14,43 +15,14 @@ interface Props {
 export function EventsRender({ block, edit, onPatch }: Props) {
   const { department, locale } = usePageFeedSource();
   // "auto" → use page department; any other value → use as explicit table/dept ID
-  const source = block.source || "auto";
-  const dept = source === "auto" ? department : source;
+  const dept = resolveFeedDepartment(block.source, department);
   const isLive = !!dept;
 
-  const [liveItems, setLiveItems] = useState<EventItem[] | null>(null);
-  // Starts true for a live block: its first paint (server render included)
-  // is a pending fetch, not an empty feed.
-  const [loading, setLoading] = useState(isLive);
-
-  useEffect(() => {
-    if (!dept) {
-      setLiveItems(null);
-      return;
-    }
-    let cancelled = false;
-    setLoading(true);
-    fetch(`/api/pages/events?dept=${encodeURIComponent(dept)}&locale=${locale}`)
-      .then((r) => r.json())
-      .then((data: EventItem[]) => {
-        if (!cancelled) {
-          setLiveItems(data);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setLiveItems(null);
-        }
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [dept, locale]);
+  const { items: liveItems, loading } = useAutoFeed<EventItem>({
+    enabled: isLive,
+    key: pageFeedKey("events", dept, locale),
+    url: `/api/pages/events?dept=${encodeURIComponent(dept)}&locale=${locale}`,
+  });
 
   // A live block shows the feed or nothing — never `block.items`. Those are
   // the inspector's "Placeholder events", documented as "shown when no

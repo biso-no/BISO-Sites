@@ -22,22 +22,32 @@ import { getPage } from "@repo/api/page-builder";
 import { createPublicClient } from "@repo/api/server";
 import type {
   Campus,
-  ContentTranslations,
-  Departments,
   Events,
   Jobs,
   LargeEvent,
   News,
   Pages,
-  Partners,
 } from "@repo/api/types/appwrite";
 import {
   JobsStatus,
-  NewsStatus,
   PagesStatus,
   PagesVisibility,
 } from "@repo/api/types/appwrite";
 import { isRecruitmentVacancyOpen } from "@repo/shared/types/recruitment";
+import type {
+  PageDepartmentItem,
+  PageEventItem,
+  PageJobItem,
+  PageNewsItem,
+  PagePartnerItem,
+} from "@repo/shared/utils/page-feeds";
+import {
+  readPageDepartmentsFeed,
+  readPageEventsFeed,
+  readPageJobsFeed,
+  readPageNewsFeed,
+  readPagePartnersFeed,
+} from "@repo/shared/utils/page-feeds";
 import { cacheLife } from "next/cache";
 import type { Partner } from "@/app/actions/about";
 import type { NavFeatured } from "@/lib/types/nav";
@@ -183,88 +193,33 @@ export async function cachedPublishedPage(slug: string, locale: PublicLocale) {
 /* ------------------------------------------------------------------------ *
  * Page-builder auto-source feeds
  *
- * The events/news/jobs/partners blocks in `@repo/editor` fetch these from
- * `/api/pages/*` on the client. Each reader is cached so a page carrying an
- * auto-source block cannot fan one Appwrite round-trip out per visitor.
+ * The events/news/jobs/partners/departmentGrid blocks in `@repo/editor` render
+ * these. The public page resolves them on the SERVER before rendering (see
+ * `./page-feeds`), so the first HTML a crawler receives carries real rows;
+ * `/api/pages/*` serves the same readers to the editor canvas and to any
+ * client-side refetch.
+ *
+ * The queries themselves live in `@repo/shared/utils/page-feeds` because
+ * `apps/admin` runs them too, against its own client. What belongs HERE is the
+ * caching: each wrapper is `"use cache"` on the guest client, so a page
+ * carrying an auto-source block cannot fan one Appwrite round-trip out per
+ * visitor. Keep that split — a query that reaches Appwrite directly from this
+ * app without a `"use cache"` wrapper reintroduces the incident this module
+ * was written for.
  * ------------------------------------------------------------------------ */
 
-const FEED_LIMIT = 6;
+// Re-exported so call sites keep importing feed item types from this module.
+// `export ... from` rather than re-exporting the local import above: the two
+// forms are equivalent to TypeScript, and Biome's `noExportedImports` wants
+// the intent spelled out.
+export type {
+  PageDepartmentItem,
+  PageEventItem,
+  PageJobItem,
+  PageNewsItem,
+  PagePartnerItem,
+} from "@repo/shared/utils/page-feeds";
 
-/** Pick the translation for `locale`, falling back to whatever exists. */
-function pickTranslation(
-  refs: ContentTranslations[] | undefined,
-  locale: PublicLocale
-): ContentTranslations | undefined {
-  if (!Array.isArray(refs) || refs.length === 0) {
-    return;
-  }
-  return refs.find((ref) => ref.locale === locale) ?? refs[0];
-}
-
-function departmentName(department: Departments | undefined): string {
-  return department?.Name ?? "";
-}
-
-function formatFeedDate(value: string | null, locale: PublicLocale): string {
-  if (!value) {
-    return "";
-  }
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) {
-    return "";
-  }
-  return new Intl.DateTimeFormat(locale === "en" ? "en-GB" : "nb-NO", {
-    day: "numeric",
-    month: "short",
-  }).format(parsed);
-}
-
-const HTML_TAG = /<[^>]*>/g;
-const WHITESPACE_RUN = /\s+/g;
-const SUMMARY_MAX = 160;
-const HTML_ENTITIES: Record<string, string> = {
-  "&amp;": "&",
-  "&lt;": "<",
-  "&gt;": ">",
-  "&quot;": '"',
-  "&#39;": "'",
-  "&nbsp;": " ",
-};
-const HTML_ENTITY = /&(?:amp|lt|gt|quot|#39|nbsp);/g;
-
-/**
- * News bodies are stored as HTML, but the news block renders the summary as
- * plain text inside a meta line — without this the public page shows literal
- * `<h3>…</h3><p>…` markup.
- */
-function toPlainSummary(html: string): string {
-  const text = html
-    .replace(HTML_TAG, " ")
-    .replace(HTML_ENTITY, (entity) => HTML_ENTITIES[entity] ?? entity)
-    .replace(WHITESPACE_RUN, " ")
-    .trim();
-  return text.length > SUMMARY_MAX
-    ? `${text.slice(0, SUMMARY_MAX).trimEnd()}…`
-    : text;
-}
-
-export interface PageEventItem {
-  date: string;
-  going: number;
-  title: string;
-  where: string;
-}
-
-/**
- * Upcoming events for one department.
- *
- * `EventItem.going` is always 0: `event_attendees` carries no row permissions
- * (`$permissions: []` in appwrite.config.json), so it is service-only and the
- * guest client cannot read it. Publishing attendance counts would mean routing
- * this through the admin client and exposing data the rest of the public site
- * deliberately never shows — a product decision, not a rendering fix. The
- * events block hides the counter when it is 0.
- */
 export async function cachedPageEventsFeed(
   departmentId: string,
   locale: PublicLocale
@@ -272,38 +227,9 @@ export async function cachedPageEventsFeed(
   "use cache";
   cacheLife("minutes");
   const { db } = await createPublicClient();
-
-  const events = await db.listRows<Events>("app", "events", [
-    Query.select([
-      "$id",
-      "start_date",
-      "location",
-      "translation_refs.locale",
-      "translation_refs.title",
-    ]),
-    Query.equal("status", "published"),
-    Query.equal("department_id", departmentId),
-    Query.greaterThanEqual("start_date", new Date().toISOString()),
-    Query.orderAsc("start_date"),
-    Query.limit(FEED_LIMIT),
-  ]);
-
-  return events.rows.map((event) => ({
-    date: formatFeedDate(event.start_date, locale),
-    going: 0,
-    title: pickTranslation(event.translation_refs, locale)?.title ?? "",
-    where: event.location ?? "",
-  }));
+  return await readPageEventsFeed(db, departmentId, locale);
 }
 
-export interface PageNewsItem {
-  department: string;
-  publishedAt: string;
-  summary: string;
-  title: string;
-}
-
-/** Latest published news for one department. */
 export async function cachedPageNewsFeed(
   departmentId: string,
   locale: PublicLocale
@@ -311,77 +237,9 @@ export async function cachedPageNewsFeed(
   "use cache";
   cacheLife("minutes");
   const { db } = await createPublicClient();
-
-  const news = await db.listRows<News>("app", "news", [
-    Query.select([
-      "$id",
-      "$createdAt",
-      "department.Name",
-      "translation_refs.locale",
-      "translation_refs.title",
-      "translation_refs.short_description",
-      "translation_refs.description",
-    ]),
-    Query.equal("status", NewsStatus.PUBLISHED),
-    Query.equal("department_id", departmentId),
-    Query.orderDesc("$createdAt"),
-    Query.limit(FEED_LIMIT),
-  ]);
-
-  return news.rows.map((row) => {
-    const translation = pickTranslation(row.translation_refs, locale);
-    return {
-      department: departmentName(row.department),
-      publishedAt: formatFeedDate(row.$createdAt, locale),
-      summary: toPlainSummary(
-        translation?.short_description ?? translation?.description ?? ""
-      ),
-      title: translation?.title ?? "",
-    };
-  });
+  return await readPageNewsFeed(db, departmentId, locale);
 }
 
-export interface PageJobItem {
-  commitment: string;
-  deadline: string;
-  department: string;
-  title: string;
-}
-
-/** `jobs.metadata` is a JSON blob; only `commitment` matters to this feed. */
-function jobCommitment(metadata: string | null): string {
-  if (!metadata) {
-    return "";
-  }
-  try {
-    const parsed = JSON.parse(metadata) as {
-      commitment?: unknown;
-      employment_type?: unknown;
-    };
-    // The admin job studio writes `commitment`; rows imported from the legacy
-    // WordPress job board only carry `employment_type`.
-    for (const value of [parsed.commitment, parsed.employment_type]) {
-      if (typeof value === "string" && value.trim()) {
-        return value;
-      }
-    }
-    return "";
-  } catch {
-    return "";
-  }
-}
-
-/**
- * Open vacancies for one department. Mirrors the sitemap's rule: a published
- * job past its application deadline is closed, so it must not surface here.
- *
- * The open-deadline test is pushed into the query rather than applied to the
- * page afterwards. Filtering after a `limit` bounds the newest N rows and then
- * discards the expired ones, so a department whose newest N vacancies have all
- * expired would report no open roles even while older ones are still open.
- * `isRecruitmentVacancyOpen` still runs on the result as the authority — it
- * additionally treats an unparseable deadline as open, which the query cannot.
- */
 export async function cachedPageJobsFeed(
   departmentId: string,
   locale: PublicLocale
@@ -389,62 +247,34 @@ export async function cachedPageJobsFeed(
   "use cache";
   cacheLife("minutes");
   const { db } = await createPublicClient();
-
-  const jobs = await db.listRows<Jobs>("app", "jobs", [
-    Query.select([
-      "$id",
-      "status",
-      "metadata",
-      "application_deadline",
-      "department.Name",
-      "translations.locale",
-      "translations.title",
-    ]),
-    Query.equal("status", JobsStatus.PUBLISHED),
-    Query.equal("department_id", departmentId),
-    Query.or([
-      Query.isNull("application_deadline"),
-      Query.greaterThanEqual("application_deadline", new Date().toISOString()),
-    ]),
-    Query.orderDesc("$createdAt"),
-    Query.limit(FEED_LIMIT),
-  ]);
-
-  return jobs.rows
-    .filter((job) =>
-      isRecruitmentVacancyOpen(job.status, job.application_deadline)
-    )
-    .map((job) => ({
-      commitment: jobCommitment(job.metadata),
-      deadline: formatFeedDate(job.application_deadline, locale),
-      department: departmentName(job.department),
-      title: pickTranslation(job.translations, locale)?.title ?? "",
-    }));
+  return await readPageJobsFeed(db, departmentId, locale);
 }
 
-export interface PagePartnerItem {
-  href?: string;
-  logoSrc?: string;
-  name: string;
-}
-
-/** National partners for the auto-source partners block. */
 export async function cachedPagePartnersFeed(): Promise<PagePartnerItem[]> {
   "use cache";
   cacheLife("hours");
   const { db } = await createPublicClient();
+  return await readPagePartnersFeed(db);
+}
 
-  const partners = await db.listRows<Partners>("app", "partners", [
-    Query.select(["$id", "name", "url", "image_url"]),
-    Query.equal("level", "national"),
-    Query.limit(100),
-  ]);
-
-  return partners.rows.map((partner) => ({
-    href: partner.url ?? undefined,
-    logoSrc: partner.image_url || undefined,
-    name: partner.name,
-  }));
+/**
+ * This feed predates the others and read through `createAdminClient()`, which
+ * put a service-key round-trip on every render of any page carrying the block
+ * — exactly the per-visitor fan-out the rest of this module exists to prevent.
+ * It does not need the service key: `app.departments` grants `read("any")` at
+ * the table level, so the guest client sees the same rows.
+ *
+ * `campusId`/`type` are part of the cache key rather than applied afterwards,
+ * so the unfiltered call the block actually makes stays one hot entry.
+ */
+export async function cachedPageDepartmentsFeed(
+  campusId: string | null = null,
+  type: string | null = null
+): Promise<PageDepartmentItem[]> {
+  "use cache";
+  cacheLife("hours");
+  const { db } = await createPublicClient();
+  return await readPageDepartmentsFeed(db, campusId, type);
 }
 
 interface SitemapRow {

@@ -8,10 +8,14 @@ import type { PublicLocale } from "@/lib/data/queries";
  * swallows failures into its own placeholder items. A 404 or a 500 therefore
  * shows the editor's demo content ("Event title / Where / 0 going") to the
  * public with no visible error, so these routes always answer 200 with an
- * array — empty when there is genuinely nothing to show.
+ * empty payload rather than an error status when there is nothing to show.
+ *
+ * Four of the five feeds answer a bare array; `departments` answers
+ * `{ departments, total }`, which is why the payload here is not narrowed to
+ * an array type.
  */
-export function feedResponse<T>(items: T[]) {
-  return NextResponse.json(items, {
+export function feedResponse(payload: unknown) {
+  return NextResponse.json(payload, {
     headers: {
       // Matches the `cacheLife("minutes")` on the readers behind these routes.
       "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
@@ -22,14 +26,16 @@ export function feedResponse<T>(items: T[]) {
 /**
  * An empty feed caused by a failure, not by an absence of content.
  *
- * Shaped identically so the blocks keep working, but explicitly uncacheable:
+ * Defaults to the bare `[]` four of the five feeds answer with; `departments`
+ * passes its own empty object. Shaped identically to a success so the blocks
+ * keep working, but explicitly uncacheable:
  * sharing `feedResponse`'s headers would let one transient Appwrite blip be
  * stored as a successful empty feed and replayed to every visitor for the next
  * five minutes, long after the backend recovered. It would also undo the
  * reader module's deliberate choice not to cache rejected promises.
  */
-export function feedFailure() {
-  return NextResponse.json([], {
+export function feedFailure(payload: unknown = []) {
+  return NextResponse.json(payload, {
     headers: { "Cache-Control": "no-store" },
   });
 }
