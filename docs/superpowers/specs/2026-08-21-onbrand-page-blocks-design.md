@@ -1,7 +1,7 @@
 # On-brand page blocks
 
 **Date:** 2026-08-21
-**Status:** Approved design, pending implementation plan
+**Status:** Approved design, foundation implementation in progress
 **Scope:** `packages/editor`, `packages/ui`, `apps/web`, `apps/admin`
 
 ## 1. Problem

@@ -23,8 +23,8 @@
   --leaf: #2f5d3a;
   --sky: #2a4a7a;
 
-  /* Accent — overridden per page / department */
-  --accent: var(--claret);
+  /* Page accent — separate from the shared UI's subtle --accent surface. */
+  --page-accent: #3da9e0;
 
   /* Fonts — mapped from Next.js font variables */
   --ui:
@@ -41,48 +41,6 @@
 *::before,
 *::after {
   box-sizing: border-box;
-}
-
-html,
-body {
-  height: 100%;
-}
-
-body {
-  font-family: var(--ui);
-  font-size: 14px;
-  -webkit-font-smoothing: antialiased;
-  line-height: 1.45;
-  color: var(--ink);
-  background: var(--paper);
-  text-rendering: optimizeLegibility;
-}
-
-/* Warm paper noise overlay */
-body::before {
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  content: "";
-  background-image:
-    radial-gradient(
-      circle at 20% 30%,
-      rgba(107, 30, 30, 0.018),
-      transparent 40%
-    ),
-    radial-gradient(
-      circle at 80% 70%,
-      rgba(176, 138, 62, 0.02),
-      transparent 45%
-    );
-  mix-blend-mode: multiply;
-}
-
-/* Text selection */
-::selection {
-  color: var(--ink);
-  background: rgba(107, 30, 30, 0.18);
 }
 
 /* Form element font inheritance */

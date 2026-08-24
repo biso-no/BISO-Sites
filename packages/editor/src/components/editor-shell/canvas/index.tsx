@@ -8,6 +8,8 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Fragment, useCallback } from "react";
+import type { ResolvedBackground } from "@/blocks/_primitives/layout-types";
+import { resolveBackgrounds } from "@/blocks/_primitives/resolve-layout";
 import { getBlock } from "@/blocks/registry";
 import type { PatchFn } from "@/blocks/types";
 import { useEditorCallbacks } from "@/editor/callbacks";
@@ -40,9 +42,9 @@ function DropLine({ active }: { active: boolean }) {
         margin: "1px 0",
         borderRadius: 999,
         flexShrink: 0,
-        background: "var(--accent)",
+        background: "var(--page-accent)",
         boxShadow: active
-          ? "0 0 0 4px color-mix(in srgb, var(--accent) 18%, transparent)"
+          ? "0 0 0 4px color-mix(in srgb, var(--page-accent) 18%, transparent)"
           : "none",
         opacity: active ? 1 : 0,
         transition: "opacity .12s, box-shadow .12s",
@@ -112,7 +114,8 @@ export function CanvasPane({
   } = useEditorCallbacks();
 
   const isDragging = activeDragId !== null || activePaletteType !== null;
-  const frameClass = `pe-frame ${viewport}`;
+  const frameClass = `biso-surface pe-frame ${viewport}`;
+  const backgrounds = resolveBackgrounds(blocks);
   const missingLocales = locales.filter(
     (option) => option.locale !== activeLocale
   );
@@ -220,7 +223,10 @@ export function CanvasPane({
                   </div>
                 )}
 
-                <SortableBlock block={block} />
+                <SortableBlock
+                  background={backgrounds[idx] ?? "default"}
+                  block={block}
+                />
               </Fragment>
             ))}
 
@@ -237,7 +243,13 @@ export function CanvasPane({
   );
 }
 
-function SortableBlock({ block }: { block: Block }) {
+function SortableBlock({
+  background,
+  block,
+}: {
+  background: ResolvedBackground;
+  block: Block;
+}) {
   const mode = useMode();
   const selection = useSelection();
   const hoveredId = useHoveredId();
@@ -359,6 +371,7 @@ function SortableBlock({ block }: { block: Block }) {
       )}
 
       <def.Render
+        background={background}
         block={block as never}
         edit={mode === "edit"}
         onPatch={onPatch}

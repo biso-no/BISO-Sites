@@ -50,7 +50,7 @@ export function DepartmentGridRender({ block }: Props) {
 
   return (
     <div
-      className={`pg-deptgrid pg-deptgrid--${block.layout ?? "grid"} pg-block`}
+      className={`pg-deptgrid pg-deptgrid--${block.variant ?? "grid"} pg-block`}
     >
       {block.heading && <h2 className="pg-deptgrid__h">{block.heading}</h2>}
       {loading && (

@@ -10,6 +10,7 @@ import type {
   FeaturedCardsBlock,
   PageDoc,
 } from "@/editor/types";
+import { HUE_COLORS } from "@/theme/presets";
 
 interface Props {
   block: FeaturedCardsBlock;
@@ -107,7 +108,7 @@ export function FeaturedCardsInspector({ block, onPatch }: Props) {
                 type="color"
                 value={
                   item.stripeAccent.startsWith("var")
-                    ? "#6b1e1e"
+                    ? HUE_COLORS.blue
                     : item.stripeAccent
                 }
               />
@@ -130,7 +131,7 @@ export function FeaturedCardsInspector({ block, onPatch }: Props) {
               {
                 title: "New card",
                 body: "Description.",
-                stripeAccent: "#6b1e1e",
+                stripeAccent: HUE_COLORS.blue,
               },
             ])
           }

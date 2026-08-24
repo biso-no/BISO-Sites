@@ -5,8 +5,10 @@
 // Import blocks to populate the registry (side effects).
 import "../blocks/index";
 
+export type { ResolvedBackground } from "../blocks/_primitives/layout-types";
+export { resolveBackgrounds } from "../blocks/_primitives/resolve-layout";
 export { allBlocks, getBlock } from "../blocks/registry";
-export { fromJSON } from "../editor/serialize";
+export { fromJSON, normalizePageDoc } from "../editor/serialize";
 export { useEditorStore } from "../editor/store";
 export type { Block, BlockType, PageDoc, PageMeta } from "../editor/types";
 export type { AccentHue } from "../theme/presets";

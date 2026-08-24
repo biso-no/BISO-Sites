@@ -18,6 +18,10 @@
   The actual color VALUES are defined by each app
 */
 @theme inline {
+  /* Font tokens */
+  --font-sans: var(--font-biso-sans);
+  --font-display: var(--font-biso-display);
+
   /* Radius tokens */
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);

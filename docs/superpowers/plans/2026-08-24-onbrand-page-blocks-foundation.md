@@ -22,6 +22,62 @@
 - Run `bun x ultracite fix` before every commit; `lefthook` + `lint-staged` enforce it.
 - Commits are authored as the repo owner. **Do not add a `Co-Authored-By` trailer.**
 
+## Approved implementation-review amendments
+
+The plan was reviewed against the branch at `6f66eef3` before execution. The
+following corrections take precedence over conflicting steps below:
+
+- Work in the existing `feat/onbrand-page-blocks` checkout. Task 1 does not
+  create another branch or recommit the existing design documents.
+- The shared dark selector must support both host shapes: web places `dark` and
+  `biso-surface` on the same `<html>` element, while admin places `dark` on a
+  wrapper outside the canvas surface. Use a zero-specificity selector that
+  matches both `.dark.biso-surface` and `.dark .biso-surface`.
+- Tests use the runner-native directory primitive (`import.meta.dirname` for
+  Vitest and `import.meta.dir` for Bun) rather than Node's unavailable ESM
+  `__dirname` global.
+- Admin block backgrounds are resolved in `CanvasPane`, passed into
+  `SortableBlock`, and then passed to `def.Render`; `CanvasPane` does not render
+  block definitions directly. Array lookups retain a safe `"default"` fallback.
+- The public renderer keeps the page accent throughout the migration. Task 9
+  renames its inline custom property from `--accent` to `--page-accent`; it does
+  not remove the value. Retained legacy block CSS and editor selection chrome
+  read `--page-accent` as well, leaving shadcn's `--accent` semantics intact.
+- Font utilities map through distinct `--font-biso-sans` and
+  `--font-biso-display` backing variables. This avoids a specificity collision
+  between Tailwind's generated `:root` theme properties and the zero-specificity
+  surface mounted directly on web's `<html>` element.
+- `BlockHeading` uses semantic surface tokens only. It must not read
+  `text-brand-dark` or another raw brand colour inside a block primitive.
+- Brand and inverted sections rebind the complete semantic surface set used by
+  shared UI controls: background, foreground, card, popover, primary,
+  secondary, muted, accent, border, input, and ring tokens.
+- `Reveal` explicitly checks the user's reduced-motion preference; viewport
+  animation is not assumed to disable itself.
+- Explicit `layout.background` choices take precedence over the CTA's legacy
+  visual variant. A variant supplies a fallback surface only while background
+  remains automatic.
+- The Task 9 palette migration includes the `TeamMember` hue type, empty team
+  data, team inspector, and team renderer so retired hue names cannot be
+  reintroduced by newly-authored content. AI accent input is validated against
+  the fixed brand palette rather than accepting arbitrary hex.
+- The foundation retains legacy `tokens.css` and `blocks.css` until the block
+  migration plan. Claret grep guards therefore target TypeScript block-path
+  defaults and accent write sites, excluding the explicitly retained legacy CSS.
+- New inspector and CTA behavior receive automated regression tests before
+  their production changes. Source-text tests are limited to the CSS ownership
+  boundary that cannot be exercised without compiling both Next.js hosts; the
+  production builds remain the authoritative integration gate.
+- Next.js 16 emits compiled CSS under `.next/static/chunks/`; production utility
+  checks use that path rather than the older `.next/static/css/` location.
+- Next treats route folders beginning with `_` as private implementation
+  folders. Temporary browser/build probes therefore use a non-private scratch
+  route name and are removed immediately after verification.
+- The pre-existing `departmentGrid.layout` string collides with the universal
+  `layout` object. Its grid/list choice is migrated to `variant`, and both host
+  boundaries normalize persisted legacy documents before editing or rendering.
+  The same normalization maps retired `TeamMember` hues to current swatches.
+
 ---
 
 ### Task 1: Branch, and prove the token-scoping assumption
