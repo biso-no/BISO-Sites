@@ -13,7 +13,7 @@ const TRAILING_SLASH_REGEX = /\/+$/;
  * (`a_session_<projectId>`). Never ours — admin's session lives in
  * `a_session_biso_admin`.
  */
-const APPWRITE_OWN_SESSION_COOKIE = "a_session_biso";
+const APPWRITE_OWN_SESSION_COOKIE = process.env.APPWRITE_SESSION_COOKIE!;
 
 /**
  * Expire any `.biso.no`-scoped `a_session_biso` cookie before starting OAuth.
