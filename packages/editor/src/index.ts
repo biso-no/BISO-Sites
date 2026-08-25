@@ -4,8 +4,19 @@ export type { EditorCallbacks } from "./editor/callbacks";
 export { EditorCallbacksContext, useEditorCallbacks } from "./editor/callbacks";
 export {
   PageFeedProvider,
+  usePageFeedSnapshot,
   usePageFeedSource,
 } from "./editor/page-feed-context";
+export type {
+  PageFeedKind,
+  PageFeedRequest,
+  PageFeedSnapshot,
+} from "./editor/page-feeds";
+export {
+  collectPageFeedRequests,
+  pageFeedKey,
+  resolveFeedDepartment,
+} from "./editor/page-feeds";
 export { normalizePageDoc } from "./editor/serialize";
 export { useEditorStore } from "./editor/store";
 export type {

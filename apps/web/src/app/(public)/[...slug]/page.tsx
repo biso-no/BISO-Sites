@@ -7,6 +7,7 @@ import { notFound } from "next/navigation";
 import { cache } from "react";
 import { getLocale } from "@/app/actions/locale";
 import { SESSION_COOKIE } from "@/lib/cookie-prefs";
+import { resolvePageFeeds } from "@/lib/data/page-feeds";
 import { cachedPublishedPage } from "@/lib/data/public-content";
 import { RenderedPage } from "./_components/rendered-page";
 
@@ -82,5 +83,15 @@ export default async function DynamicPage({ params }: Props) {
     notFound();
   }
 
-  return <RenderedPage doc={result.doc as PageDoc} locale={locale} />;
+  const doc = result.doc as PageDoc;
+
+  // Resolve the page's auto-source feeds before rendering, so the HTML this
+  // route emits carries real events/news/jobs rather than the blocks'
+  // "Loading…" placeholder. Awaited deliberately: the blocks read it during
+  // their first (server) paint, so streaming it in later would defeat the
+  // point. Every reader behind this is `"use cache"`, so it costs no extra
+  // Appwrite round-trip per visitor. See `@/lib/data/page-feeds`.
+  const feeds = await resolvePageFeeds(doc, locale);
+
+  return <RenderedPage doc={doc} feeds={feeds} locale={locale} />;
 }

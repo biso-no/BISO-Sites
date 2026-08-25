@@ -8,6 +8,7 @@
     ".": "./src/index.ts",
     "./render": "./src/render/index.ts",
     "./blocks": "./src/blocks/index.ts",
+    "./page-feeds": "./src/editor/page-feeds.ts",
     "./theme": "./src/theme/index.ts",
     "./theme/styles.css": "./src/theme/styles.css",
     "./ai": "./src/ai/index.ts",

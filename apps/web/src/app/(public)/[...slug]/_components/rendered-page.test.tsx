@@ -19,15 +19,21 @@ vi.mock("@repo/editor/render", () => ({
   PageFeedProvider: ({
     children,
     department,
+    feeds,
     locale,
   }: {
     children: ReactNode;
     department: string;
+    feeds?: Record<string, unknown[]>;
     locale: string;
   }) =>
     createElement(
       "div",
-      { "data-feed-department": department, "data-feed-locale": locale },
+      {
+        "data-feed-department": department,
+        "data-feed-keys": Object.keys(feeds ?? {}).join(","),
+        "data-feed-locale": locale,
+      },
       children
     ),
 }));
@@ -84,4 +90,30 @@ test("hands the feed source to blocks through the provider, not the store", () =
 
   // The store is still seeded for everything else that reads it.
   expect(seededState[0]).toMatchObject({ locale: "en" });
+});
+
+test("forwards the server-resolved feeds to the provider", () => {
+  // The whole server-rendering path hangs off this prop: the page resolves the
+  // feeds, this boundary is the only thing that can carry them to the blocks,
+  // and a block whose feed never arrives silently renders "Loading\u2026".
+  const doc: PageDoc = {
+    blocks: [],
+    meta: {
+      accentColor: "#3DA9E0",
+      department: "25",
+      slug: "feed-page",
+      status: "published",
+      title: "Feed page",
+    },
+  };
+
+  const html = renderToStaticMarkup(
+    createElement(RenderedPage, {
+      doc,
+      feeds: { "events|25|no": [{ title: "Kickoff" }] },
+      locale: "no",
+    })
+  );
+
+  expect(html).toContain('data-feed-keys="events|25|no"');
 });
