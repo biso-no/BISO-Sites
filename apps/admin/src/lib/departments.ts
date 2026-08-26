@@ -48,3 +48,56 @@ export function uniqueUnitSlug(base: string, taken: Set<string>): string {
   }
   throw new Error(`Could not find an available unit slug for "${base}"`);
 }
+
+export interface ExistingDepartmentSlug {
+  $id: string;
+  campus_id: string;
+  slug?: string | null;
+}
+
+export interface IncomingDepartment {
+  $id: string;
+  active: boolean;
+  campusId: string;
+  name: string;
+}
+
+/**
+ * Decide which departments receive a slug on this sync run.
+ *
+ * Returns row `$id` → newly assigned slug. Rows already carrying a slug are
+ * absent (a slug, once set, is never rewritten — a 24SO rename must not change
+ * a live URL). Inactive rows are absent too: a closed "OSL Foo - nedlagt" would
+ * otherwise take `foo` at campus 1 and push its live replacement to `foo-2`.
+ */
+export function assignUnitSlugs(
+  existing: ExistingDepartmentSlug[],
+  incoming: IncomingDepartment[]
+): Map<string, string> {
+  const slugged = new Set<string>();
+  const takenByCampus = new Map<string, Set<string>>();
+
+  for (const row of existing) {
+    if (!row.slug) {
+      continue;
+    }
+    slugged.add(row.$id);
+    const taken = takenByCampus.get(row.campus_id) ?? new Set<string>();
+    taken.add(row.slug);
+    takenByCampus.set(row.campus_id, taken);
+  }
+
+  const assigned = new Map<string, string>();
+  for (const department of incoming) {
+    if (slugged.has(department.$id) || !department.active) {
+      continue;
+    }
+    const taken = takenByCampus.get(department.campusId) ?? new Set<string>();
+    const slug = uniqueUnitSlug(unitSlug(department.name), taken);
+    taken.add(slug);
+    takenByCampus.set(department.campusId, taken);
+    assigned.set(department.$id, slug);
+  }
+
+  return assigned;
+}
