@@ -55,9 +55,21 @@ const resolveUnitByKey = cache(async (key: string): Promise<UnitResolution> => {
  * Request-memoized (see `resolveUnitByKey`): the page body and
  * generateMetadata both call this and it must run once. Reads cookies via
  * getActiveCampus, so it is React `cache`, not `"use cache"`.
+ *
+ * Rejects any segment containing "/" before joining. Next.js decodes a
+ * percent-encoded slash inside one path segment without re-splitting on it,
+ * so requesting `/units/oslo%2Ffadderullan` arrives here as the
+ * single-element `["oslo/fadderullan"]`, not two segments. Without this
+ * guard, `resolveUnitByKey`'s join/split round trip would silently turn that
+ * back into `["oslo", "fadderullan"]` and misroute a URL shape neither route
+ * is meant to accept into `resolveCanonical`, rendering 200 instead of 404.
+ * Checking here, before the join, keeps the round trip honest for the two
+ * shapes it actually needs to carry.
  */
 export const resolveUnit = (segments: string[]): Promise<UnitResolution> =>
-  resolveUnitByKey(segments.join("/"));
+  segments.some((segment) => segment.includes("/"))
+    ? Promise.resolve<UnitResolution>({ kind: "notFound" })
+    : resolveUnitByKey(segments.join("/"));
 
 async function resolveCanonical(
   campusSegment: string,
