@@ -124,8 +124,17 @@ owner has authorised for this change.
 
 ### 5.2 Slug generation
 
-New `apps/admin/src/lib/departments.ts` — the same plain module that holds the
-authorization helpers in §7.3 — composing the existing primitives (D12):
+Split across two modules, because the two halves have different audiences:
+
+- **`packages/shared/utils/unit-urls.ts`** — the campus id ↔ URL segment table,
+  `unitPageSlug`, `unitCanonicalPath`, `isUnitPageSlug`. Both apps need these,
+  and `apps/web` has **no** campus map of its own today (`CAMPUS_NAME_TO_ID`
+  lives only in admin), so a shared home is what stops the two from drifting.
+- **`apps/admin/src/lib/departments.ts`** — the *generator* (`unitSlug`,
+  `uniqueUnitSlug`, `assignUnitSlugs`) plus the authorization helpers in §7.3.
+  Admin-only: only the sync generates slugs; web merely reads them.
+
+The generator composes the existing primitives (D12):
 
 ```
 unitSlug(name) =
@@ -145,12 +154,12 @@ unitSlug("TRD Sosialt Utvalg")→ "sosialt-utvalg"
 unitSlug("Sentralt utvalg")   → "sentralt-utvalg"   // no prefix, unchanged
 ```
 
-Two further exports from the same module:
+Collision handling, and the binding itself:
 
 ```
 uniqueUnitSlug(base, takenInCampus: Set<string>) → base | `${base}-2` | …
 
-unitPageSlug(department) → `units/${campusIdToSegment(department.campus_id)}/${department.slug}`
+unitPageSlug({ campusId, slug }) → `units/${campusIdToSegment(campusId)}/${slug}`
 ```
 
 `unitPageSlug` is the single definition of the page↔department binding (D3).
@@ -271,8 +280,11 @@ Each choice is a form posting to a server action that calls
 `setActiveCampus(campusId)`. The action's own re-render then reads the new
 cookie and resolves the department, so the student stays on `/units/fadderullan`
 and sees the page in one round trip — and the filter they just set follows them
-across the whole site, which is the behaviour this option was chosen for. Copy
-goes through `next-intl` like the rest of `(public)`.
+across the whole site, which is the behaviour this option was chosen for.
+
+Copy is **hardcoded English**, matching its neighbours: the `(public)/units`
+subtree calls neither `getTranslations` nor `useTranslations` anywhere today.
+Translating it is a separate, subtree-wide change, not this feature's job.
 
 `setActiveCampus` already exists and is cookie-first, with a best-effort mirror
 to an authenticated user's prefs; it never provisions a session for anonymous
