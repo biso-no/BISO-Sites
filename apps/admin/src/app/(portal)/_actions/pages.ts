@@ -36,6 +36,7 @@ import {
   getPageTranslationSource,
   translatePageDocument,
 } from "@/lib/page-document-translation";
+import { assertUnitPageBindingUnchanged } from "@/lib/unit-page-guard";
 import {
   applyScopeQueries,
   assertPublishAccess,
@@ -238,6 +239,13 @@ export async function savePageEditorDoc({
     const { db } = await createAdminClient();
     if (id) {
       const existing = await db.getRow<Pages>("app", "pages", id);
+      const bindingError = assertUnitPageBindingUnchanged(existing, {
+        department: scopedDoc.meta.department || "",
+        slug: scopedDoc.meta.slug,
+      });
+      if (bindingError) {
+        return { error: bindingError };
+      }
       const persisted = getContentOwnership(existing, { legacyFallback: true });
       assertWriteAccess(ctx, persisted.campus, persisted.department);
     }
