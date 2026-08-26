@@ -79,18 +79,20 @@ describe("departmentScopeQueries", () => {
 });
 
 describe("canSearchDepartments", () => {
-  test("matches the portal departments navigation gate", () => {
+  test("admins and department members can search departments (matches the portal.departments nav gate)", () => {
     expect(canSearchDepartments(makeCtx({ roles: ["globaladmin"] }))).toBe(
       true
     );
     expect(canSearchDepartments(makeCtx({ roles: ["campusadmin"] }))).toBe(
       true
     );
+    // Department members can search departments too: /departments is open to
+    // any SG-App-Dept-* member, not just admins — they can manage their own.
     expect(
       canSearchDepartments(
         makeCtx({ departmentTeamIds: ["sg-app-dept-social"] })
       )
-    ).toBe(false);
+    ).toBe(true);
   });
 });
 
