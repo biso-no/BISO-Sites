@@ -39,6 +39,7 @@ export async function getDepartments({
       "department_ref.$id",
       "department_ref.Id",
       "department_ref.Name",
+      "department_ref.slug",
       "department_ref.campus_id",
       "department_ref.logo",
       "department_ref.active",
