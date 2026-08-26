@@ -1,7 +1,13 @@
 import { describe, expect, test } from "bun:test";
 import { CAMPUS_SEGMENTS } from "@repo/shared/utils/unit-urls";
 import { CAMPUS_ID_TO_NAME, CAMPUS_NAME_TO_ID } from "./campus-constants";
-import { assignUnitSlugs, uniqueUnitSlug, unitSlug } from "./departments";
+import {
+  assignUnitSlugs,
+  canManageDepartment,
+  resolveDepartmentsLanding,
+  uniqueUnitSlug,
+  unitSlug,
+} from "./departments";
 
 describe("unitSlug", () => {
   test("strips the campus prefix so all campuses share one slug", () => {
@@ -160,5 +166,97 @@ describe("assignUnitSlugs", () => {
     );
     expect(assigned.has("300")).toBe(false);
     expect(assigned.get("308")).toBe("fadderullan");
+  });
+});
+
+describe("resolveDepartmentsLanding", () => {
+  test("admins get the full listing", () => {
+    expect(
+      resolveDepartmentsLanding({
+        roles: ["globaladmin"],
+        resolvedDepartmentIds: [],
+      })
+    ).toEqual({ kind: "listing" });
+    expect(
+      resolveDepartmentsLanding({
+        roles: ["campusadmin"],
+        resolvedDepartmentIds: ["308"],
+      })
+    ).toEqual({ kind: "listing" });
+  });
+
+  test("a single-department user is redirected to it", () => {
+    expect(
+      resolveDepartmentsLanding({ roles: [], resolvedDepartmentIds: ["308"] })
+    ).toEqual({ kind: "redirect", departmentId: "308" });
+  });
+
+  test("a multi-department user gets a listing scoped to their own", () => {
+    expect(
+      resolveDepartmentsLanding({
+        roles: [],
+        resolvedDepartmentIds: ["308", "417"],
+      })
+    ).toEqual({ kind: "listing", scopeIds: ["308", "417"] });
+  });
+
+  test("team membership with zero resolved ids is forbidden, not a listing", () => {
+    expect(
+      resolveDepartmentsLanding({ roles: [], resolvedDepartmentIds: [] })
+    ).toEqual({ kind: "forbidden" });
+  });
+});
+
+describe("canManageDepartment", () => {
+  const oslo = { $id: "308", campus_id: "1" };
+
+  test("a global admin manages any department", () => {
+    expect(
+      canManageDepartment(
+        {
+          roles: ["globaladmin"],
+          managedCampusIds: [],
+          resolvedDepartmentIds: [],
+        },
+        oslo
+      )
+    ).toBe(true);
+  });
+
+  test("a campus admin manages departments in their campus only", () => {
+    const ctx = {
+      roles: ["campusadmin"],
+      managedCampusIds: ["1"],
+      resolvedDepartmentIds: [],
+    };
+    expect(canManageDepartment(ctx, oslo)).toBe(true);
+    expect(canManageDepartment(ctx, { $id: "410", campus_id: "2" })).toBe(
+      false
+    );
+  });
+
+  test("a department member manages their own department only", () => {
+    const ctx = {
+      roles: [],
+      managedCampusIds: [],
+      resolvedDepartmentIds: ["308"],
+    };
+    expect(canManageDepartment(ctx, oslo)).toBe(true);
+    expect(canManageDepartment(ctx, { $id: "417", campus_id: "1" })).toBe(
+      false
+    );
+  });
+
+  test("grants are a union: a campus admin also on a cross-campus board keeps both", () => {
+    const ctx = {
+      roles: ["campusadmin"],
+      managedCampusIds: ["1"],
+      resolvedDepartmentIds: ["410"],
+    };
+    expect(canManageDepartment(ctx, oslo)).toBe(true);
+    expect(canManageDepartment(ctx, { $id: "410", campus_id: "2" })).toBe(true);
+    expect(canManageDepartment(ctx, { $id: "999", campus_id: "3" })).toBe(
+      false
+    );
   });
 });

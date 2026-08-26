@@ -9,6 +9,7 @@ import {
   normalizeForCompare,
   stripClosedSuffix,
 } from "./it/department-matching";
+import { ROLES } from "./roles";
 
 const WHITESPACE_TO_DASH = /\s+/g;
 const NON_SLUG_CHARS = /[^a-z0-9-]/g;
@@ -100,4 +101,59 @@ export function assignUnitSlugs(
   }
 
   return assigned;
+}
+
+export interface LandingCtx {
+  resolvedDepartmentIds: string[];
+  roles: string[];
+}
+
+export type DepartmentsLanding =
+  | { kind: "listing"; scopeIds?: string[] }
+  | { kind: "redirect"; departmentId: string }
+  | { kind: "forbidden" };
+
+/**
+ * What /departments should do for this caller.
+ *
+ * The `forbidden` case is not hypothetical: `resolveDepartmentIds` returns []
+ * on lookup failure, and an Azure group with no matching Appwrite row resolves
+ * to nothing. Passing the nav gate while owning no department must not fall
+ * through to the full listing.
+ */
+export function resolveDepartmentsLanding(ctx: LandingCtx): DepartmentsLanding {
+  if (
+    ctx.roles.includes(ROLES.GLOBAL_ADMIN) ||
+    ctx.roles.includes(ROLES.CAMPUS_ADMIN)
+  ) {
+    return { kind: "listing" };
+  }
+  const ids = ctx.resolvedDepartmentIds;
+  if (ids.length === 0) {
+    return { kind: "forbidden" };
+  }
+  if (ids.length === 1) {
+    return { kind: "redirect", departmentId: ids[0] as string };
+  }
+  return { kind: "listing", scopeIds: ids };
+}
+
+export interface ManageCtx {
+  managedCampusIds: string[];
+  resolvedDepartmentIds: string[];
+  roles: string[];
+}
+
+/** Grants are a union — a campus admin may also sit on a board elsewhere. */
+export function canManageDepartment(
+  ctx: ManageCtx,
+  department: { $id: string; campus_id: string }
+): boolean {
+  if (ctx.roles.includes(ROLES.GLOBAL_ADMIN)) {
+    return true;
+  }
+  if (ctx.managedCampusIds.includes(department.campus_id)) {
+    return true;
+  }
+  return ctx.resolvedDepartmentIds.includes(department.$id);
 }
