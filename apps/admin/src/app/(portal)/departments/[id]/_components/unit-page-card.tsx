@@ -26,14 +26,16 @@ interface Labels {
 }
 
 export function UnitPageCard({
-  canonicalUrl,
+  canonicalPath,
   departmentId,
   labels,
+  liveUrl,
   page,
 }: {
-  canonicalUrl: string | null;
+  canonicalPath: string | null;
   departmentId: string;
   labels: Labels;
+  liveUrl: string | null;
   page: Pages | null;
 }) {
   const router = useRouter();
@@ -63,7 +65,7 @@ export function UnitPageCard({
       >
         {labels.pageHeading}
       </h2>
-      {canonicalUrl === null ? (
+      {canonicalPath === null ? (
         <p className="text-sm" style={{ color: STUDIO.ink3 }}>
           {labels.noSlug}
         </p>
@@ -79,7 +81,7 @@ export function UnitPageCard({
             <span style={{ color: STUDIO.ink3 }}>{statusLabel}</span>
             {page ? (
               <code className="text-xs" style={{ color: STUDIO.ink4 }}>
-                {canonicalUrl}
+                {canonicalPath}
               </code>
             ) : (
               <span style={{ color: STUDIO.ink3 }}>{labels.noPage}</span>
@@ -106,10 +108,10 @@ export function UnitPageCard({
               </StudioButton>
             )}
 
-            {isPublished && (
+            {isPublished && liveUrl && (
               <a
                 className="inline-flex items-center gap-1 text-sm underline"
-                href={`${process.env.NEXT_PUBLIC_BASE_URL ?? "https://biso.no"}${canonicalUrl}`}
+                href={liveUrl}
                 rel="noopener"
                 style={{ color: STUDIO.ink3 }}
                 target="_blank"

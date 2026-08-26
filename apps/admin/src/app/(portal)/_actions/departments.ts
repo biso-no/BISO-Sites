@@ -105,10 +105,15 @@ export async function getDepartmentWithPage(
 
   // Admin client: the page row carries no permissions until published, so a
   // session-scoped read would not see a department's own draft.
+  //
+  // Select only what UnitPageCard reads ($id, status) — page_translations rows
+  // carry puck_document/draft_document (string(50000) each), and a wildcard
+  // select here would ship up to ~200KB of draft JSON into the RSC payload for
+  // a card that never renders it.
   const { db: adminDb } = await createAdminClient();
   const pages = await adminDb.listRows<Pages>("app", "pages", [
     Query.equal("slug", slug),
-    Query.select(["*", "translation_refs.*"]),
+    Query.select(["$id", "status"]),
     Query.limit(1),
   ]);
 
@@ -173,6 +178,18 @@ export async function createUnitPage(
       locale: "no",
       ctx,
     });
+
+    // savePageDraft attributes the page to the AUTHOR's campus, which is null
+    // for a global admin with no campus filter. hasRowAccess then denies the
+    // owning campus's admins (authorization.ts:183-185) and applyScopeQueries
+    // drops it from their listing. A unit page belongs to its department's
+    // campus, so correct it here rather than changing savePageDraft for every
+    // page type.
+    await db.updateRow("app", "pages", pageId, {
+      campus: department.campus_id,
+      campus_id: department.campus_id,
+    });
+
     await logAuditEvent(ctx, "unit_page_created", {
       resourceId: pageId,
       resourceType: "page",
