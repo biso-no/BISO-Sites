@@ -836,7 +836,14 @@
     "actions": {
       "editPage": "Edit Page",
       "admins": "Admins",
-      "initialize": "Initialize Page"
+      "initialize": "Initialize Page",
+      "viewLive": "View live",
+      "createPage": "Create page",
+      "noSlug": "This department has no slug yet. Run the department sync to assign one.",
+      "pageHeading": "Public page",
+      "noPage": "No page yet. Create one to give this department its own page on biso.no.",
+      "draft": "Draft",
+      "published": "Published"
     }
   },
   "pages": {

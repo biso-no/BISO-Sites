@@ -836,7 +836,14 @@
     "actions": {
       "editPage": "Rediger side",
       "admins": "Administratorer",
-      "initialize": "Initialiser side"
+      "initialize": "Initialiser side",
+      "viewLive": "Se publisert side",
+      "createPage": "Opprett side",
+      "noSlug": "Denne avdelingen har ingen slug ennå. Kjør avdelingssynkroniseringen for å tildele en.",
+      "pageHeading": "Offentlig side",
+      "noPage": "Ingen side ennå. Opprett én for å gi avdelingen sin egen side på biso.no.",
+      "draft": "Utkast",
+      "published": "Publisert"
     }
   },
   "pages": {

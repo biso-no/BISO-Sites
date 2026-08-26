@@ -1,9 +1,14 @@
 "use server";
 
 import { Query } from "@repo/api";
-import { createSessionClient } from "@repo/api/server";
-import type { Departments } from "@repo/api/types/appwrite";
+import { type PageDoc, savePageDraft } from "@repo/api/page-builder";
+import { createAdminClient, createSessionClient } from "@repo/api/server";
+import type { Departments, Pages } from "@repo/api/types/appwrite";
+import { unitPageSlug } from "@repo/shared/utils/unit-urls";
+import { revalidatePath } from "next/cache";
 import { requireAuth } from "@/lib/authorization";
+import { canManageDepartment } from "@/lib/departments";
+import { logAuditEvent } from "./audit-log";
 
 export async function listDepartments(opts?: {
   campusId?: string;
@@ -71,4 +76,112 @@ async function _getDepartment(id: string) {
     Query.limit(1),
   ]);
   return response.rows[0] ?? null;
+}
+
+const DEFAULT_ACCENT = "#3DA9E0";
+
+export async function getDepartmentWithPage(
+  id: string
+): Promise<{ department: Departments; page: Pages | null } | null> {
+  const ctx = await requireAuth();
+  const { db } = await createSessionClient();
+
+  const found = await db.listRows<Departments>("app", "departments", [
+    Query.equal("$id", id),
+    Query.limit(1),
+  ]);
+  const department = found.rows[0];
+  if (!(department && canManageDepartment(ctx, department))) {
+    return null;
+  }
+
+  const slug = unitPageSlug({
+    campusId: department.campus_id,
+    slug: department.slug,
+  });
+  if (!slug) {
+    return { department, page: null };
+  }
+
+  // Admin client: the page row carries no permissions until published, so a
+  // session-scoped read would not see a department's own draft.
+  const { db: adminDb } = await createAdminClient();
+  const pages = await adminDb.listRows<Pages>("app", "pages", [
+    Query.equal("slug", slug),
+    Query.select(["*", "translation_refs.*"]),
+    Query.limit(1),
+  ]);
+
+  return { department, page: pages.rows[0] ?? null };
+}
+
+export async function createUnitPage(
+  id: string
+): Promise<{ pageId: string } | { error: string }> {
+  const ctx = await requireAuth();
+  try {
+    const { db } = await createAdminClient();
+    const found = await db.listRows<Departments>("app", "departments", [
+      Query.equal("$id", id),
+      Query.limit(1),
+    ]);
+    const department = found.rows[0];
+    if (!(department && canManageDepartment(ctx, department))) {
+      return { error: "You do not have access to this department" };
+    }
+
+    const slug = unitPageSlug({
+      campusId: department.campus_id,
+      slug: department.slug,
+    });
+    if (!slug) {
+      return {
+        error:
+          "This department has no slug yet. Run the department sync, then try again.",
+      };
+    }
+
+    // Idempotent by design. resolveUniquePageSlug silently appends -2 when a
+    // NEW page's slug collides, and a unit page at ".../fadderullan-2" is
+    // permanently unreachable — the web routes only look up the unsuffixed
+    // slug. Reusing an existing row closes that hole.
+    const existing = await db.listRows<Pages>("app", "pages", [
+      Query.equal("slug", slug),
+      Query.select(["$id"]),
+      Query.limit(1),
+    ]);
+    const already = existing.rows[0];
+    if (already) {
+      return { pageId: already.$id };
+    }
+
+    const doc: PageDoc = {
+      blocks: [],
+      meta: {
+        accentColor: DEFAULT_ACCENT,
+        department: department.$id,
+        description: "",
+        slug,
+        status: "draft",
+        title: department.Name,
+      },
+    };
+
+    const { pageId } = await savePageDraft({
+      id: null,
+      doc,
+      locale: "no",
+      ctx,
+    });
+    await logAuditEvent(ctx, "unit_page_created", {
+      resourceId: pageId,
+      resourceType: "page",
+    });
+    revalidatePath("/departments");
+    revalidatePath(`/departments/${id}`);
+    return { pageId };
+  } catch (e) {
+    console.error("[createUnitPage]", e);
+    return { error: e instanceof Error ? e.message : "Could not create page" };
+  }
 }
