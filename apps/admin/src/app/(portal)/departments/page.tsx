@@ -1,7 +1,10 @@
 import { Building2 } from "lucide-react";
 import Image from "next/image";
+import Link from "next/link";
+import { notFound, redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { requireNavAccess } from "@/lib/authorization";
+import { resolveDepartmentsLanding } from "@/lib/departments";
 import { listDepartments } from "../_actions/departments";
 import { listCampuses } from "../_actions/lookups";
 import { EmptyState } from "../_components/empty-state";
@@ -10,11 +13,20 @@ import { SERIF_STACK, STUDIO, StudioIconBox } from "../_components/studio";
 import { SyncDepartmentsButton } from "./sync-button";
 
 export default async function DepartmentsPage() {
-  await requireNavAccess("portal.departments");
+  const ctx = await requireNavAccess("portal.departments");
+  const landing = resolveDepartmentsLanding(ctx);
+
+  if (landing.kind === "forbidden") {
+    notFound();
+  }
+  if (landing.kind === "redirect") {
+    redirect(`/departments/${landing.departmentId}`);
+  }
+
   const t = await getTranslations("adminPortal.departments");
 
   const [departments, campuses] = await Promise.all([
-    listDepartments({ includeInactive: true }),
+    listDepartments({ includeInactive: true, ids: landing.scopeIds }),
     listCampuses(),
   ]);
 
@@ -36,8 +48,9 @@ export default async function DepartmentsPage() {
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {departments.map((dept) => (
-            <div
-              className="group overflow-hidden rounded-2xl border transition hover:bg-white/70"
+            <Link
+              className="group block overflow-hidden rounded-2xl border transition hover:bg-white/70"
+              href={`/departments/${dept.$id}`}
               key={dept.$id}
               style={{
                 background: "rgba(255,255,255,0.46)",
@@ -103,7 +116,7 @@ export default async function DepartmentsPage() {
                   </span>
                 </div>
               </div>
-            </div>
+            </Link>
           ))}
         </div>
       )}

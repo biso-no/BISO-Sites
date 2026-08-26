@@ -7,6 +7,7 @@ import { requireAuth } from "@/lib/authorization";
 
 export async function listDepartments(opts?: {
   campusId?: string;
+  ids?: string[];
   includeInactive?: boolean;
   search?: string;
 }) {
@@ -14,6 +15,16 @@ export async function listDepartments(opts?: {
   const { db } = await createSessionClient();
 
   const queries: string[] = [Query.orderAsc("Name"), Query.limit(200)];
+
+  // Explicit id scoping for department users. The departments table is
+  // read("any"), so this filter IS the authorization boundary — it cannot be
+  // left to row security.
+  if (opts?.ids) {
+    if (opts.ids.length === 0) {
+      return [];
+    }
+    queries.push(Query.equal("$id", opts.ids));
+  }
 
   // The SOAP sync persists inactive 24SO units (active === false). By default
   // keep them out of generic pickers (e.g. the page editor); the departments
