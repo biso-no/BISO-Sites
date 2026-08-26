@@ -121,12 +121,28 @@ describe("assignUnitSlugs", () => {
     expect(assigned.has("308")).toBe(false);
   });
 
+  test("existing rows carrying slug: null are treated as unslugged", () => {
+    const assigned = assignUnitSlugs(
+      [{ $id: "308", campus_id: "1", slug: null }],
+      [{ $id: "308", campusId: "1", name: "OSL Fadderullan", active: true }]
+    );
+    expect(assigned.get("308")).toBe("fadderullan");
+  });
+
   test("respects slugs already taken in the same campus", () => {
     const assigned = assignUnitSlugs(
       [{ $id: "308", campus_id: "1", slug: "fadderullan" }],
       [{ $id: "309", campusId: "1", name: "OSL Fadderullan", active: true }]
     );
     expect(assigned.get("309")).toBe("fadderullan-2");
+  });
+
+  test("an existing slug at one campus does not block the same slug at another campus", () => {
+    const assigned = assignUnitSlugs(
+      [{ $id: "308", campus_id: "1", slug: "fadderullan" }],
+      [{ $id: "410", campusId: "2", name: "BRG Fadderullan", active: true }]
+    );
+    expect(assigned.get("410")).toBe("fadderullan");
   });
 
   test("skips inactive departments so a closed unit cannot hold the slug", () => {

@@ -53,6 +53,13 @@ export async function POST(_request: NextRequest): Promise<NextResponse> {
       Query.select(["$id", "campus_id", "slug"]),
       Query.limit(5000),
     ]);
+    // A truncated read would make every unseen row look unslugged: already
+    // assigned slugs would be rewritten and duplicates minted. Fail closed.
+    if (existing.total > existing.rows.length) {
+      throw new Error(
+        `Department slug pre-read truncated (${existing.rows.length} of ${existing.total}); refusing to assign slugs`
+      );
+    }
     const newSlugs = assignUnitSlugs(
       existing.rows.map((row) => ({
         $id: row.$id,
@@ -78,8 +85,12 @@ export async function POST(_request: NextRequest): Promise<NextResponse> {
           active: activeIds.has(department.id),
           campus_id: getCampusId(deptNum),
           campus: getCampusId(deptNum),
-          // Only present for rows without one: upsertRow patches named columns,
-          // so omitting `slug` leaves an assigned slug untouched.
+          // Spread `{}`, never `{ slug: null }`, when there's nothing new to
+          // set. Omitting the key vs. sending `slug: undefined` makes no
+          // difference on the wire — node-appwrite serializes with
+          // JSONbig.stringify, which drops undefined-valued keys either way.
+          // The real hazard is `null`: upsertRow patches named columns, so an
+          // explicit `null` WOULD write through and wipe an assigned slug.
           ...(assignedSlug ? { slug: assignedSlug } : {}),
         };
         return db.upsertRow<Models.DefaultRow>(
