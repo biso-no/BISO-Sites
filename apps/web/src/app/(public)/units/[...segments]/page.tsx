@@ -1,8 +1,10 @@
 import type { PageDoc } from "@repo/editor";
+import type { Locale } from "@repo/i18n/config";
 import type { Metadata } from "next";
 import { notFound, permanentRedirect } from "next/navigation";
 import { Suspense } from "react";
 import { getLocale } from "@/app/actions/locale";
+import type { DepartmentTranslation } from "@/lib/actions/departments";
 import { getDepartmentById } from "@/lib/actions/departments";
 import { getLoggedInUser } from "@/lib/actions/user";
 import { resolvePageFeeds } from "@/lib/data/page-feeds";
@@ -20,12 +22,47 @@ interface Props {
 
 /**
  * Opt out of the instant shell, for the reason documented on the (public)
- * catch-all: once the shell flushes the response is committed as 200, so
- * notFound() can no longer answer a crawler with a real 404.
+ * catch-all: once the shell flushes, the response is committed as 200 and
+ * notFound() can no longer answer a crawler with a real 404. That is also why
+ * resolution and every notFound()/permanentRedirect() call below run directly
+ * in the page body, before any <Suspense> boundary — a boundary is exactly
+ * the same trap: its fallback can flush as the committed 200 before a
+ * notFound() buried in the suspended subtree ever runs. Suspense only wraps
+ * the tail end of each branch, once no further notFound()/redirect decision
+ * remains, purely to stream in content that cannot change the response
+ * status.
  */
 export const instant = false;
 
-async function UnitContent({ segments }: { segments: string[] }) {
+async function PublishedUnit({
+  doc,
+  locale,
+}: {
+  doc: PageDoc;
+  locale: Locale;
+}) {
+  const feeds = await resolvePageFeeds(doc, locale);
+  return <RenderedPage doc={doc} feeds={feeds} locale={locale} />;
+}
+
+async function DefaultUnitView({
+  department,
+}: {
+  department: DepartmentTranslation;
+}) {
+  const user = await getLoggedInUser();
+  const isMember = user?.profile?.studentId?.isMember ?? false;
+
+  return (
+    <>
+      <DepartmentHero department={department} />
+      <DepartmentTabsClient department={department} isMember={isMember} />
+    </>
+  );
+}
+
+export default async function UnitPage({ params }: Props) {
+  const { segments } = await params;
   const resolution = await resolveUnit(segments);
 
   if (resolution.kind === "notFound") {
@@ -36,11 +73,13 @@ async function UnitContent({ segments }: { segments: string[] }) {
   }
   if (resolution.kind === "chooser") {
     return (
-      <CampusChooser
-        matches={resolution.matches}
-        slug={resolution.slug}
-        unavailableAt={resolution.unavailableAt}
-      />
+      <div className="min-h-screen bg-background">
+        <CampusChooser
+          matches={resolution.matches}
+          slug={resolution.slug}
+          unavailableAt={resolution.unavailableAt}
+        />
+      </div>
     );
   }
 
@@ -57,31 +96,27 @@ async function UnitContent({ segments }: { segments: string[] }) {
 
   if (pageResult?.translation?.is_published && pageResult.doc) {
     const doc = pageResult.doc as PageDoc;
-    const feeds = await resolvePageFeeds(doc, locale);
-    return <RenderedPage doc={doc} feeds={feeds} locale={locale} />;
+    return (
+      <div className="min-h-screen bg-background">
+        <Suspense fallback={<DepartmentLoading />}>
+          <PublishedUnit doc={doc} locale={locale} />
+        </Suspense>
+      </div>
+    );
   }
 
+  // Resolved (and any notFound()) before the boundary below: the auto-source
+  // feed streaming above is safe to defer because it never decides the
+  // response status, but "does this department's page exist at all" must.
   const translated = await getDepartmentById(department.$id, locale);
   if (!translated?.department_ref?.active) {
     notFound();
   }
-  const user = await getLoggedInUser();
-  const isMember = user?.profile?.studentId?.isMember ?? false;
 
-  return (
-    <>
-      <DepartmentHero department={translated} />
-      <DepartmentTabsClient department={translated} isMember={isMember} />
-    </>
-  );
-}
-
-export default async function UnitPage({ params }: Props) {
-  const { segments } = await params;
   return (
     <div className="min-h-screen bg-background">
       <Suspense fallback={<DepartmentLoading />}>
-        <UnitContent segments={segments} />
+        <DefaultUnitView department={translated} />
       </Suspense>
     </div>
   );
@@ -90,6 +125,17 @@ export default async function UnitPage({ params }: Props) {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { segments } = await params;
   const resolution = await resolveUnit(segments);
+
+  if (resolution.kind === "chooser") {
+    // Still real content a crawler can land on directly — give it a title
+    // and keep it out of the index, since the canonical destination is
+    // whichever campus-explicit URL the visitor actually picks.
+    const title = resolution.matches[0]?.Name ?? resolution.slug;
+    return {
+      title: `${title} | BISO`,
+      robots: { index: false },
+    };
+  }
   if (resolution.kind !== "department") {
     return {};
   }
@@ -101,7 +147,15 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     locale
   ).catch(() => null);
 
-  const translated = await getDepartmentById(department.$id, locale);
+  // getDepartmentById issues three uncached listRows calls; only pay for it
+  // when the published page didn't already supply both fields.
+  const needsFallback = !(
+    pageResult?.translation?.title && pageResult?.translation?.description
+  );
+  const translated = needsFallback
+    ? await getDepartmentById(department.$id, locale)
+    : null;
+
   const title =
     pageResult?.translation?.title ?? translated?.title ?? department.Name;
   const description =
