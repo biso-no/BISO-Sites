@@ -37,6 +37,7 @@ interface Props {
   departments: EditorDepartment[];
   initial: PageDoc | null;
   locales: EditorLocaleOption[];
+  lockedMeta?: { department?: boolean; slug?: boolean };
   onDocChange?: (doc: PageDoc, locale: EditorLocale) => void;
   onExit?: () => void;
   onLocaleChange: (locale: EditorLocale) => void;
@@ -59,6 +60,7 @@ export function EditorShell({
   savePage,
   uploadFile,
   departments,
+  lockedMeta,
   onExit,
   onPublish,
   onUnpublish,
@@ -224,6 +226,7 @@ export function EditorShell({
         savePage,
         uploadFile,
         departments,
+        lockedMeta,
         onExit,
         onPublish,
         onUnpublish,

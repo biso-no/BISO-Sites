@@ -29,6 +29,7 @@ interface PageEditorClientProps {
   departments: EditorDepartment[];
   initialLocale: EditorLocale;
   initialPage: PageEditorLoadResult | null;
+  lockedMeta?: { department?: boolean; slug?: boolean };
   pageId: string | null;
 }
 
@@ -144,6 +145,7 @@ export function PageEditorClient({
   availableLocales,
   pageId,
   departments,
+  lockedMeta,
 }: PageEditorClientProps) {
   const router = useRouter();
   const [currentPageId, setCurrentPageId] = useState<string | null>(pageId);
@@ -364,6 +366,7 @@ export function PageEditorClient({
         departments={departments}
         initial={activeDoc}
         locales={localeOptions}
+        lockedMeta={lockedMeta}
         onDocChange={handleDocChange}
         onExit={handleExit}
         onLocaleChange={handleLocaleChange}
