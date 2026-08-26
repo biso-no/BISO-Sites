@@ -2349,6 +2349,15 @@
           "twoWayKey": "department",
           "onDelete": "setNull",
           "side": "child"
+        },
+        {
+          "key": "slug",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 128,
+          "default": null,
+          "encrypt": false
         }
       ],
       "indexes": [
