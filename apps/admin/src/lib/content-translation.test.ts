@@ -12,11 +12,9 @@ const generateObjectSpy = mock(async (_input: unknown) => ({
     ],
   },
 }));
-const openaiSpy = mock((model: string) => model);
 
 mock.module("next/server", () => ({ after: afterSpy }));
 mock.module("ai", () => ({ generateObject: generateObjectSpy }));
-mock.module("@ai-sdk/openai", () => ({ openai: openaiSpy }));
 
 const {
   getAutoTranslationDescription,
@@ -34,7 +32,6 @@ beforeEach(() => {
   deferredCallback = undefined;
   afterSpy.mockClear();
   generateObjectSpy.mockClear();
-  openaiSpy.mockClear();
 });
 
 describe("content translation locale helpers", () => {
@@ -98,10 +95,11 @@ describe("content translation service", () => {
       title: "English title",
     });
     expect(generateObjectSpy).toHaveBeenCalledTimes(1);
-    expect(openaiSpy).toHaveBeenCalledWith("gpt-5-nano");
     const request = generateObjectSpy.mock.calls[0]?.[0] as {
+      model: { modelId: string };
       prompt: string;
     };
+    expect(request.model.modelId).toBe("gpt-5.6-luna");
     expect(request.prompt).toContain("Norwegian Bokmål to English");
     expect(request.prompt).toContain("title");
     expect(request.prompt).toContain("body");

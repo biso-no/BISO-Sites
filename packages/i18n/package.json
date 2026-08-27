@@ -19,11 +19,13 @@
   },
   "dependencies": {
     "@parvineyvazov/json-translator": "catalog:",
-    "next-intl": "catalog:",
-    "openai": "catalog:"
+    "next-intl": "catalog:"
   },
   "devDependencies": {
+    "@repo/ai": "workspace:*",
     "@repo/typescript-config": "workspace:*",
+    "@types/node": "catalog:",
+    "ai": "catalog:",
     "typescript": "catalog:"
   }
 }

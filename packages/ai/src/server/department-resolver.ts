@@ -1,11 +1,11 @@
 import "server-only";
 
-import { openai } from "@ai-sdk/openai";
 import {
   type DepartmentResolution,
   departmentResolutionBatchSchema,
 } from "@repo/shared/types/user-management";
 import { generateObject } from "ai";
+import { MODEL_IDS, resolveModel } from "../models";
 import { DEPARTMENT_ABBREVIATIONS } from "./department-abbreviations";
 
 const GLOSSARY_BLOCK = Object.entries(DEPARTMENT_ABBREVIATIONS)
@@ -15,7 +15,7 @@ const GLOSSARY_BLOCK = Object.entries(DEPARTMENT_ABBREVIATIONS)
 export interface ResolveDepartmentsInput {
   campusLabel: string; // e.g. "Oslo" or "National/unknown" (context only)
   candidates: string[]; // canonical department names the model may choose from
-  model?: string; // defaults to gpt-5.4-mini
+  model?: string; // defaults to the fast tier (gpt-5.6-luna)
   users: Array<{
     email: string; // local-part of the role mailbox, e.g. "finance.nu.oslo"
     office: string; // current officeLocation (campus); only a campus hint
@@ -90,15 +90,16 @@ export async function resolveDepartments(
   if (input.users.length === 0) {
     return [];
   }
-  const model = input.model ?? "gpt-5.4-mini";
+  const model = input.model ?? MODEL_IDS.fast;
   console.info(
     `[dept-resolver] generateObject(${model}) for ${input.campusLabel}: ${input.users.length} users, ${input.candidates.length} candidates`
   );
   const result = await generateObject({
-    model: openai(model),
+    model: resolveModel(model),
     prompt: buildPrompt(input),
     schema: departmentResolutionBatchSchema,
-    system: SYSTEM_PROMPT,
+    instructions: SYSTEM_PROMPT,
+    reasoning: "low",
   });
   return result.object.resolutions;
 }

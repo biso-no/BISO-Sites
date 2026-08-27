@@ -33,6 +33,7 @@
     "zustand": "catalog:"
   },
   "devDependencies": {
+    "@ai-sdk/provider": "catalog:",
     "@repo/typescript-config": "workspace:*",
     "@types/bun": "catalog:",
     "@types/node": "catalog:",

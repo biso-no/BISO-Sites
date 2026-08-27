@@ -18,6 +18,7 @@
     "@ai-sdk/openai": "catalog:",
     "@microsoft/microsoft-graph-client": "catalog:",
     "@react-pdf/renderer": "catalog:",
+    "@repo/ai": "workspace:*",
     "@repo/api": "workspace:*",
     "@repo/connectors": "workspace:*",
     "@repo/payment": "workspace:*",

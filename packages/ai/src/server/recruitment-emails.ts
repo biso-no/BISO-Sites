@@ -1,12 +1,12 @@
 import "server-only";
 
-import { openai } from "@ai-sdk/openai";
 import {
   type RecruitmentAiEmailDraft,
   type RecruitmentVacancy,
   recruitmentAiEmailDraftSchema,
 } from "@repo/shared/types/recruitment";
 import { generateObject } from "ai";
+import { MODEL_IDS, resolveModel } from "../models";
 
 export type RecruitmentEmailStage =
   | "interview_invite"
@@ -82,12 +82,13 @@ Draft the email now.`;
 export async function draftCandidateEmail(
   input: DraftCandidateEmailInput
 ): Promise<RecruitmentAiEmailDraft> {
-  const model = input.model ?? "gpt-5-nano";
+  const model = input.model ?? MODEL_IDS.fast;
   const result = await generateObject({
-    model: openai(model),
+    model: resolveModel(model),
     prompt: buildPrompt(input),
     schema: recruitmentAiEmailDraftSchema,
-    system: SYSTEM_PROMPT,
+    instructions: SYSTEM_PROMPT,
+    reasoning: "low",
   });
   return result.object;
 }

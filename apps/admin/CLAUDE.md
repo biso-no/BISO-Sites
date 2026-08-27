@@ -121,7 +121,7 @@ handler. Any new top-level route segment must add its own auth check.
   `../../packages/editor/src/*` (see `tsconfig.json`). An `@/foo` import may
   resolve into the editor package — keep that in mind when adding files.
 - **AI department remediation**: `/it/users/audit` runs an AI pass
-  (`@repo/ai/server/department-resolver`, `gpt-5-nano`) over every licensed M365
+  (`@repo/ai/server/department-resolver`, fast tier — see `@repo/ai/models`) over every licensed M365
   user, fenced to the canonical department list (off-list answers are forced to
   the Manual tab — never written). Results are persisted as a JSON snapshot in
   the `m365_remediation_snapshot` table and rendered by `remediation-client.tsx`;

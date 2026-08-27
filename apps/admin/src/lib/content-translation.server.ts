@@ -1,4 +1,4 @@
-import { openai } from "@ai-sdk/openai";
+import { fastModel } from "@repo/ai/models";
 import { generateObject } from "ai";
 import { after } from "next/server";
 import { z } from "zod";
@@ -83,7 +83,8 @@ export const translateContentFields = async ({
   }
 
   const { object } = await generateObject({
-    model: openai("gpt-5-nano"),
+    model: fastModel,
+    reasoning: "low",
     prompt: `Translate this ${contentType} from ${LANGUAGE_NAMES[sourceLocale]} to ${LANGUAGE_NAMES[targetLocale]}.
 Return one translation for every supplied field using the exact same key.
 Preserve meaning, tone, proper nouns, URLs, email addresses, placeholders, identifiers, and HTML structure.

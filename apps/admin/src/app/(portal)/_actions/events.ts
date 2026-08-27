@@ -1,6 +1,6 @@
 "use server";
 
-import { openai } from "@ai-sdk/openai";
+import { fastModel } from "@repo/ai/models";
 import { ID, Query } from "@repo/api";
 import { createAdminClient } from "@repo/api/server";
 import {
@@ -1032,7 +1032,8 @@ export async function suggestEventDescriptionSection(input: {
 
   try {
     const { object } = await generateObject({
-      model: openai("gpt-5-nano"),
+      model: fastModel,
+      reasoning: "low",
       schema: eventSuggestionResultSchema,
       prompt: `Suggest one useful description section for a student organization event.
 The output should be a run-of-show block, schedule, what-to-bring list, or similar helpful section that fits the event category.

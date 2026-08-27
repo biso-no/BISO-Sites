@@ -1,4 +1,4 @@
-import { openai } from "@ai-sdk/openai";
+import { fastModel } from "@repo/ai/models";
 import { getFeatureFlagStates } from "@repo/shared/utils/feature-flags-server";
 import { generateObject } from "ai";
 import { type NextRequest, NextResponse } from "next/server";
@@ -55,7 +55,8 @@ export async function POST(req: NextRequest) {
     }
 
     const { object } = await generateObject({
-      model: openai("gpt-5-nano"),
+      model: fastModel,
+      reasoning: "low",
       schema: SummarySchema,
       messages: [
         {

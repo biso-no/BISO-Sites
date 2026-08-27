@@ -1,4 +1,4 @@
-import { openai } from "@ai-sdk/openai";
+import { balancedModel } from "@repo/ai/models";
 import { getFeatureFlagStates } from "@repo/shared/utils/feature-flags-server";
 import { generateObject } from "ai";
 import { type NextRequest, NextResponse } from "next/server";
@@ -201,7 +201,11 @@ function parseExpenseData(
     return extractExpenseDataFromPdf(preparedFile.buffer, purpose);
   }
 
-  return extractExpenseDataFromImage(preparedFile.buffer, purpose);
+  return extractExpenseDataFromImage(
+    preparedFile.buffer,
+    preparedFile.mimeType,
+    purpose
+  );
 }
 
 async function convertAmountToNok(expenseData: ExpenseData) {
@@ -296,17 +300,18 @@ function purposeFromSearchParam(value: string | null): Purpose {
  */
 async function extractExpenseDataFromImage(
   imageBuffer: Buffer,
+  mimeType: string,
   purpose: Purpose
 ): Promise<ExpenseData> {
   const { object } = await generateObject({
-    model: openai("gpt-5-nano"),
+    model: balancedModel,
     schema: ExpenseDataSchema,
     messages: [
       {
         role: "user",
         content: [
           { type: "text", text: purposeToPrompt(purpose) },
-          { type: "image", image: imageBuffer },
+          { type: "file", data: imageBuffer, mediaType: mimeType },
         ],
       },
     ],
@@ -323,7 +328,7 @@ async function extractExpenseDataFromPdf(
   purpose: Purpose
 ): Promise<ExpenseData> {
   const { object } = await generateObject({
-    model: openai("gpt-5-nano"),
+    model: balancedModel,
     schema: ExpenseDataSchema,
     messages: [
       {

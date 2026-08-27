@@ -677,6 +677,40 @@ export type RecruitmentAiDimensionScore = z.infer<
   typeof recruitmentAiDimensionScoreSchema
 >;
 
+/**
+ * Model-facing schema for AI screening.
+ *
+ * Deliberately separate from `recruitmentAiScreeningSchema`: OpenAI's strict
+ * structured outputs reject any property that is missing from `required`, which
+ * is exactly what `.optional()` / `.default()` emit. This schema therefore lists
+ * every field as required, and omits the server-owned metadata
+ * (`generated_at`, `model`, `version`) that the model has no way to know —
+ * `screenApplication` stamps those after the call.
+ *
+ * Keep this in sync with `recruitmentAiScreeningSchema` when adding fields.
+ */
+export const recruitmentAiScreeningOutputSchema = z.object({
+  overall_score: z.number().int().min(1).max(5),
+  normalized_score: z.number().int().min(0).max(100),
+  recommended_status: z.enum(["reviewed", "interview", "rejected"]),
+  summary: z.string().trim().min(1).max(2000),
+  dimension_scores: z.array(recruitmentAiDimensionScoreSchema).max(10),
+  strengths: z.array(z.string().trim().min(1).max(200)).max(10),
+  concerns: z.array(z.string().trim().min(1).max(200)).max(10),
+  red_flags: z.array(z.string().trim().min(1).max(200)).max(10),
+  must_have_matches: z.array(z.string().trim().min(1).max(200)).max(20),
+  must_have_missing: z.array(z.string().trim().min(1).max(200)).max(20),
+});
+
+export type RecruitmentAiScreeningOutput = z.infer<
+  typeof recruitmentAiScreeningOutputSchema
+>;
+
+/**
+ * Persistence schema — parses rows read back from `job_applications`.
+ * The `.default()`s are correct here (older rows may predate a field) but must
+ * never be handed to a model; use `recruitmentAiScreeningOutputSchema` for that.
+ */
 export const recruitmentAiScreeningSchema = z.object({
   overall_score: z.number().int().min(1).max(5),
   normalized_score: z.number().int().min(0).max(100),

@@ -10,7 +10,6 @@
     "build": {
       "dependsOn": ["^build"],
       "env": [
-        "ANTHROPIC_API_KEY",
         "API_BASE_URL",
         "APPWRITE_API_KEY",
         "APPWRITE_BUCKET_ID",

@@ -18,7 +18,13 @@ import { isFeatureEnabled } from "@repo/shared/utils/feature-flags-server";
 import { getOrderItems } from "@repo/shared/utils/order-parsing";
 import { ORDER_ITEMS_SELECT } from "@repo/shared/utils/order-queries";
 import type { UIMessage } from "ai";
-import { convertToModelMessages, stepCountIs, streamText } from "ai";
+import {
+  convertToModelMessages,
+  createUIMessageStreamResponse,
+  isStepCount,
+  streamText,
+  toUIMessageStream,
+} from "ai";
 import { type NextRequest, NextResponse } from "next/server";
 import {
   approveRequest,
@@ -177,7 +183,7 @@ export async function POST(request: NextRequest) {
   const tools = buildAssistantTools(capabilities, deps);
 
   // 8. Build system prompt with full context
-  const system = buildAssistantSystemPrompt({
+  const instructions = buildAssistantSystemPrompt({
     locale,
     user: { name: ctx.name, email: ctx.email },
     roleSummary,
@@ -191,13 +197,15 @@ export async function POST(request: NextRequest) {
   // 9. Stream
   const result = streamText({
     model: chatModel,
-    system,
+    instructions,
     messages: await convertToModelMessages(messages),
     tools,
-    stopWhen: stepCountIs(12),
+    stopWhen: isStepCount(12),
   });
 
-  return result.toUIMessageStreamResponse();
+  return createUIMessageStreamResponse({
+    stream: toUIMessageStream({ stream: result.stream, tools }),
+  });
 }
 
 // ---------------------------------------------------------------------------

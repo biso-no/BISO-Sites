@@ -5,6 +5,7 @@
   "sideEffects": false,
   "exports": {
     "./config": "./src/config.ts",
+    "./models": "./src/models.ts",
     "./prompts": "./src/prompts.ts",
     "./utils": "./src/utils/index.ts",
     "./utils/document-utils": "./src/utils/document-utils.ts",

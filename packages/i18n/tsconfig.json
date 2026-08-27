@@ -6,7 +6,10 @@
     "resolveJsonModule": true,
     "module": "ESNext",
     "moduleResolution": "bundler",
-    "strictNullChecks": true
+    "strictNullChecks": true,
+    // scripts/translate.ts uses node builtins; declare the global types
+    // explicitly instead of relying on a dependency to pull them in.
+    "types": ["node"]
   },
   "include": ["**/*.ts", "**/*.json"],
   "exclude": ["node_modules", "dist"]
