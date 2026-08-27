@@ -2374,6 +2374,13 @@
           "status": "available",
           "columns": ["campus_id"],
           "orders": ["ASC"]
+        },
+        {
+          "key": "department_slug_campus_unique",
+          "type": "unique",
+          "status": "available",
+          "columns": ["slug", "campus_id"],
+          "orders": ["ASC", "ASC"]
         }
       ]
     },
