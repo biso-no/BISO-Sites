@@ -150,6 +150,63 @@ describe("page builder", () => {
     );
   });
 
+  it("uses an explicit campusId override instead of the author-derived campus", async () => {
+    db.upsertRow
+      .mockResolvedValueOnce({ $id: "page-1" })
+      .mockResolvedValueOnce({ $id: "tr-no" });
+    db.listRows
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    // ctx.activeCampusId is "os", but the caller (e.g. createUnitPage) knows
+    // the correct owning campus and passes it explicitly.
+    await savePageDraft({
+      id: null,
+      doc,
+      locale: "no",
+      ctx,
+      campusId: "bg",
+    });
+
+    expect(db.upsertRow).toHaveBeenNthCalledWith(
+      1,
+      "app",
+      "pages",
+      expect.any(String),
+      expect.objectContaining({ campus: "bg", campus_id: "bg" }),
+      expect.any(Array)
+    );
+  });
+
+  it("treats an explicit null campusId override as deliberate, not as 'no override'", async () => {
+    db.upsertRow
+      .mockResolvedValueOnce({ $id: "page-1" })
+      .mockResolvedValueOnce({ $id: "tr-no" });
+    db.listRows
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    // ctx.activeCampusId is "os" and would normally be used, but a present
+    // `campusId: null` (e.g. an existing page's persisted-but-unset campus)
+    // must win over that fallback rather than being treated as "absent".
+    await savePageDraft({
+      id: null,
+      doc,
+      locale: "no",
+      ctx,
+      campusId: null,
+    });
+
+    expect(db.upsertRow).toHaveBeenNthCalledWith(
+      1,
+      "app",
+      "pages",
+      expect.any(String),
+      expect.objectContaining({ campus: null, campus_id: null }),
+      expect.any(Array)
+    );
+  });
+
   it("increments the slug when a new autosaved page uses an existing slug", async () => {
     db.upsertRow
       .mockResolvedValueOnce({ $id: "page-2" })

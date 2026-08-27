@@ -372,21 +372,32 @@ export async function getPageEditorById(
   return toEditorLoadResult(row);
 }
 
-export async function savePageDraft({
-  id,
-  doc,
-  locale = "no",
-  ctx,
-}: {
+export async function savePageDraft(params: {
   id: string | null;
   doc: PageDoc;
   locale?: PageEditorLocale;
   ctx: PageAuthCtx;
+  /**
+   * Explicit campus to persist, overriding the author-derived value. Pass it
+   * when the caller already knows the correct campus for this row (e.g. an
+   * existing page's own persisted campus on update, or a unit page's
+   * department campus on create) — see the presence check below for why an
+   * absent property and an explicit `null` are NOT the same thing.
+   */
+  campusId?: string | null;
 }): Promise<{ pageId: string; slug: string; translationId: string }> {
+  const { id, doc, locale = "no", ctx } = params;
   // PRIVILEGED: callers must authorize the requested scope before invoking
   // this helper; the write goes through the service-key admin client.
   const { db } = await createAdminClient();
-  const campusId = resolvePageCampusId(ctx);
+  // A property PRESENT with value `null` is a deliberate override (e.g. a
+  // national page's legitimate null campus); a property ABSENT means "no
+  // override, derive from the author" as before. `params.campusId ??
+  // resolvePageCampusId(ctx)` cannot tell those apart — it would silently
+  // replace an explicit `null` override with the author's campus, which
+  // defeats the whole point of passing one. Check presence explicitly.
+  const campusId =
+    "campusId" in params ? params.campusId : resolvePageCampusId(ctx);
   let normalizedDoc = normalizeDocForSave(doc);
 
   if (!id) {

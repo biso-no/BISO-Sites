@@ -191,22 +191,19 @@ export async function createUnitPage(
       },
     };
 
+    // Left to itself, savePageDraft attributes the page to the AUTHOR's
+    // campus, which is null for a global admin with no campus filter.
+    // hasRowAccess then denies the owning campus's admins
+    // (authorization.ts:183-185) and applyScopeQueries drops it from their
+    // listing. A unit page belongs to its department's campus, not the
+    // author's, so pass it explicitly rather than relying on the
+    // author-derived default.
     const { pageId } = await savePageDraft({
       id: null,
       doc,
       locale: "no",
       ctx,
-    });
-
-    // savePageDraft attributes the page to the AUTHOR's campus, which is null
-    // for a global admin with no campus filter. hasRowAccess then denies the
-    // owning campus's admins (authorization.ts:183-185) and applyScopeQueries
-    // drops it from their listing. A unit page belongs to its department's
-    // campus, so correct it here rather than changing savePageDraft for every
-    // page type.
-    await db.updateRow("app", "pages", pageId, {
-      campus: department.campus_id,
-      campus_id: department.campus_id,
+      campusId: department.campus_id,
     });
 
     await logAuditEvent(ctx, "unit_page_created", {
