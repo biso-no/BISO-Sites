@@ -14,6 +14,7 @@ import {
 
 interface Labels {
   createPage: string;
+  createPageDisabledInactive: string;
   draft: string;
   editPage: string;
   inactiveLiveNotice: string;
@@ -78,6 +79,15 @@ export function UnitPageCard({
   // every signal here off the per-locale rows so a board that published only
   // Norwegian is not told English is live too.
   const anyPublished = localeStatuses.some((status) => status.published);
+
+  // createUnitPage itself rejects an inactive department (both public
+  // lookups filter active = true, so a page created for one can only ever
+  // 404) — mirror that here so the button isn't offered only to bounce off
+  // a server error. Hiding "View live" for an inactive department while
+  // still offering creation would be half the rule.
+  const noPageYet = !(pageId || slugConflict);
+  const canCreatePage = noPageYet && isDepartmentActive;
+  const showInactiveCreateNotice = noPageYet && !isDepartmentActive;
 
   const handleCreate = () => {
     startTransition(async () => {
@@ -149,7 +159,7 @@ export function UnitPageCard({
                 {labels.editPage}
               </StudioButton>
             ) : (
-              !slugConflict && (
+              canCreatePage && (
                 <StudioButton
                   disabled={pending}
                   onClick={handleCreate}
@@ -174,6 +184,12 @@ export function UnitPageCard({
               </a>
             )}
           </div>
+
+          {showInactiveCreateNotice && (
+            <p className="text-sm" style={{ color: STUDIO.ink3 }}>
+              {labels.createPageDisabledInactive}
+            </p>
+          )}
 
           {anyPublished && !isDepartmentActive && (
             <p className="text-sm" style={{ color: STUDIO.ink3 }}>

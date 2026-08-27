@@ -109,6 +109,7 @@ export default async function DepartmentDetailPage({
         isDepartmentActive={isDepartmentActive}
         labels={{
           createPage: t("actions.createPage"),
+          createPageDisabledInactive: t("actions.createPageDisabledInactive"),
           draft: t("actions.draft"),
           editPage: t("actions.editPage"),
           inactiveLiveNotice: t("actions.inactiveLiveNotice"),

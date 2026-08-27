@@ -45,8 +45,16 @@ export async function listDepartments(opts?: {
 
   if (opts?.campusId) {
     queries.push(Query.equal("campus_id", opts.campusId));
-  } else if (ctx.activeCampusId) {
-    // Global admin scoped to a campus via the switcher.
+  } else if (ctx.activeCampusId && ctx.roles.includes("globaladmin")) {
+    // Global admin scoped to a campus via the switcher. Deliberately gated to
+    // globaladmin: the admin_campus_ctx cookie is readable (and, via
+    // setCampusFilter, writable) by any role, so a non-global-admin's listing
+    // must stay scoped by their managed campuses regardless of its value —
+    // otherwise a campus admin could point the cookie at a campus they don't
+    // manage and see its departments, whose cards then 404 at
+    // getDepartmentWithPage's own canManageDepartment check. Matches
+    // resolvePageCampusId in packages/api/page-builder.ts, which reads
+    // activeCampusId only for global admins.
     queries.push(Query.equal("campus_id", [ctx.activeCampusId]));
   } else if (
     ctx.managedCampusIds.length > 0 &&
@@ -156,6 +164,23 @@ export async function createUnitPage(
     const department = found.rows[0];
     if (!(department && canManageDepartment(ctx, department))) {
       return { error: "You do not have access to this department" };
+    }
+
+    // The sync deliberately keeps an inactive department's slug (see
+    // assignUnitSlugs in lib/departments.ts), so the slug check below would
+    // happily pass here too. But both public lookups
+    // (cachedDepartmentsBySlug, cachedDepartmentBySlugAndCampus in
+    // apps/web/src/lib/data/public-content.ts) filter `active = true`, so a
+    // page created for an inactive department can only ever 404. `active` is
+    // nullable; treat null as active, matching listDepartments' own
+    // `Query.or([equal("active", true), isNull("active")])` and the
+    // isDepartmentActive check on the detail page — the public side's
+    // stricter `=== true` rule does not apply here.
+    if (department.active === false) {
+      return {
+        error:
+          "This department is inactive, so a page cannot be published for it.",
+      };
     }
 
     const slug = unitPageSlug({

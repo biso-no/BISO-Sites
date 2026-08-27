@@ -839,6 +839,7 @@
       "initialize": "Initialiser side",
       "viewLive": "Se publisert side",
       "createPage": "Opprett side",
+      "createPageDisabledInactive": "Denne avdelingen er inaktiv, så det kan ikke opprettes en side for den.",
       "noSlug": "Denne avdelingen har ingen slug ennå. Kjør avdelingssynkroniseringen for å tildele en.",
       "pageHeading": "Offentlig side",
       "noPage": "Ingen side ennå. Opprett én for å gi avdelingen sin egen side på biso.no.",
