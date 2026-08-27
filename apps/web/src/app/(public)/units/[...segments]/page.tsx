@@ -21,6 +21,21 @@ interface Props {
 }
 
 /**
+ * The slug is the binding between a department and its custom page — but the
+ * slug is reusable (a page can predate the `units/` namespace guard, or sit
+ * there with a null `department_id`), so a page found at the canonical slug
+ * is only genuinely *this* department's page if its `department_id` says so.
+ * A null `department_id` must never match: it means "no department", not
+ * "any department".
+ */
+function pageBelongsToDepartment(
+  pageDepartmentId: string | null | undefined,
+  departmentId: string
+): boolean {
+  return pageDepartmentId != null && pageDepartmentId === departmentId;
+}
+
+/**
  * Opt out of the instant shell, for the reason documented on the (public)
  * catch-all: once the shell flushes, the response is committed as 200 and
  * notFound() can no longer answer a crawler with a real 404. That is also why
@@ -95,7 +110,11 @@ export default async function UnitPage({ params }: Props) {
     ? await cachedPublishedPage(canonical.slice(1), locale).catch(() => null)
     : null;
 
-  if (pageResult?.translation?.is_published && pageResult.doc) {
+  if (
+    pageResult?.translation?.is_published &&
+    pageResult.doc &&
+    pageBelongsToDepartment(pageResult.row.department_id, department.$id)
+  ) {
     const doc = pageResult.doc as PageDoc;
     return (
       <div className="min-h-screen bg-background">
@@ -143,9 +162,17 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   const locale = await getLocale();
   const { department, canonical } = resolution;
-  const pageResult = canonical
+  const rawPageResult = canonical
     ? await cachedPublishedPage(canonical.slice(1), locale).catch(() => null)
     : null;
+  // Same ownership check as the page body: a page sitting at this slug that
+  // doesn't belong to this department must not supply its title/description,
+  // or the metadata would describe a different page than the body renders.
+  const pageResult =
+    rawPageResult &&
+    pageBelongsToDepartment(rawPageResult.row.department_id, department.$id)
+      ? rawPageResult
+      : null;
 
   // getDepartmentById issues three uncached listRows calls; only pay for it
   // when the published page didn't already supply both fields.
