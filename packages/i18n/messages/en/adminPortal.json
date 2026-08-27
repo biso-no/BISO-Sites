@@ -842,6 +842,7 @@
       "noSlug": "This department has no slug yet. Run the department sync to assign one.",
       "pageHeading": "Public page",
       "noPage": "No page yet. Create one to give this department its own page on biso.no.",
+      "slugConflict": "This address is already used by another page. Contact BISO IT to resolve it before a page can be created here.",
       "draft": "Draft",
       "published": "Published",
       "notPublished": "Not published",

@@ -842,6 +842,7 @@
       "noSlug": "Denne avdelingen har ingen slug ennå. Kjør avdelingssynkroniseringen for å tildele en.",
       "pageHeading": "Offentlig side",
       "noPage": "Ingen side ennå. Opprett én for å gi avdelingen sin egen side på biso.no.",
+      "slugConflict": "Denne adressen er allerede i bruk av en annen side. Ta kontakt med BISO IT for å løse dette før en side kan opprettes her.",
       "draft": "Utkast",
       "published": "Publisert",
       "notPublished": "Ikke publisert",

@@ -64,7 +64,7 @@ export default async function DepartmentDetailPage({
     notFound();
   }
 
-  const { department, page } = result;
+  const { department, page, slugConflict } = result;
   const campusName =
     campuses.find((c) => c.$id === department.campus_id)?.name ??
     department.campus_id;
@@ -117,11 +117,13 @@ export default async function DepartmentDetailPage({
           notPublished: t("actions.notPublished"),
           pageHeading: t("actions.pageHeading"),
           published: t("actions.published"),
+          slugConflict: t("actions.slugConflict"),
           viewLive: t("actions.viewLive"),
         }}
         liveUrl={liveUrl}
         localeStatuses={toLocaleStatuses(page, (key) => t(key))}
         pageId={page?.$id ?? null}
+        slugConflict={slugConflict}
       />
     </div>
   );

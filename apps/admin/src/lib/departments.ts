@@ -159,7 +159,18 @@ export interface ManageCtx {
   roles: string[];
 }
 
-/** Grants are a union — a campus admin may also sit on a board elsewhere. */
+/**
+ * Precedence deliberately mirrors `hasRowAccess`
+ * (`src/lib/utils/authorization.ts`): global admin, then EXCLUSIVELY managed
+ * campus OR resolved department — never a union of the two. The admin surface
+ * must never promise access (e.g. "Create page") that the editor's own
+ * `hasRowAccess` check will then refuse.
+ *
+ * This is lossless because Appwrite team membership is synced from M365 as
+ * exactly one department and one campus per account: a campus admin's single
+ * department always sits inside the campus they manage, so there is no real
+ * account for which the exclusive and union forms would disagree.
+ */
 export function canManageDepartment(
   ctx: ManageCtx,
   department: { $id: string; campus_id: string }
@@ -167,8 +178,8 @@ export function canManageDepartment(
   if (ctx.roles.includes(ROLES.GLOBAL_ADMIN)) {
     return true;
   }
-  if (ctx.managedCampusIds.includes(department.campus_id)) {
-    return true;
+  if (ctx.managedCampusIds.length > 0) {
+    return ctx.managedCampusIds.includes(department.campus_id);
   }
   return ctx.resolvedDepartmentIds.includes(department.$id);
 }

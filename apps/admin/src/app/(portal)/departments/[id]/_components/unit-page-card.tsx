@@ -22,6 +22,7 @@ interface Labels {
   notPublished: string;
   pageHeading: string;
   published: string;
+  slugConflict: string;
   viewLive: string;
 }
 
@@ -58,6 +59,7 @@ export function UnitPageCard({
   liveUrl,
   localeStatuses,
   pageId,
+  slugConflict,
 }: {
   canonicalPath: string | null;
   departmentId: string;
@@ -66,6 +68,7 @@ export function UnitPageCard({
   liveUrl: string | null;
   localeStatuses: UnitPageLocaleStatus[];
   pageId: string | null;
+  slugConflict: boolean;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -132,7 +135,7 @@ export function UnitPageCard({
             </div>
           ) : (
             <p className="text-sm" style={{ color: STUDIO.ink3 }}>
-              {labels.noPage}
+              {slugConflict ? labels.slugConflict : labels.noPage}
             </p>
           )}
 
@@ -146,14 +149,16 @@ export function UnitPageCard({
                 {labels.editPage}
               </StudioButton>
             ) : (
-              <StudioButton
-                disabled={pending}
-                onClick={handleCreate}
-                variant="primary"
-              >
-                <Plus size={15} />
-                {labels.createPage}
-              </StudioButton>
+              !slugConflict && (
+                <StudioButton
+                  disabled={pending}
+                  onClick={handleCreate}
+                  variant="primary"
+                >
+                  <Plus size={15} />
+                  {labels.createPage}
+                </StudioButton>
+              )
             )}
 
             {anyPublished && liveUrl && (

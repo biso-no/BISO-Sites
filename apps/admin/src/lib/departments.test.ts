@@ -270,14 +270,21 @@ describe("canManageDepartment", () => {
     );
   });
 
-  test("grants are a union: a campus admin also on a cross-campus board keeps both", () => {
+  test("precedence is exclusive: a campus admin's grant comes from managed campuses only, never resolvedDepartmentIds", () => {
     const ctx = {
       roles: ["campusadmin"],
       managedCampusIds: ["1"],
       resolvedDepartmentIds: ["410"],
     };
+    // In-scope campus: granted, same as a plain campus admin.
     expect(canManageDepartment(ctx, oslo)).toBe(true);
-    expect(canManageDepartment(ctx, { $id: "410", campus_id: "2" })).toBe(true);
+    // A department id present in resolvedDepartmentIds is NOT enough on its
+    // own once managedCampusIds is non-empty — its campus (2) is outside the
+    // managed set, so this must be denied to agree with hasRowAccess, even
+    // though the union form used to grant it.
+    expect(canManageDepartment(ctx, { $id: "410", campus_id: "2" })).toBe(
+      false
+    );
     expect(canManageDepartment(ctx, { $id: "999", campus_id: "3" })).toBe(
       false
     );

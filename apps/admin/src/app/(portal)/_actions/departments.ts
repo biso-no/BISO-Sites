@@ -80,9 +80,11 @@ async function _getDepartment(id: string) {
 
 const DEFAULT_ACCENT = "#3DA9E0";
 
-export async function getDepartmentWithPage(
-  id: string
-): Promise<{ department: Departments; page: Pages | null } | null> {
+export async function getDepartmentWithPage(id: string): Promise<{
+  department: Departments;
+  page: Pages | null;
+  slugConflict: boolean;
+} | null> {
   const ctx = await requireAuth();
   const { db } = await createSessionClient();
 
@@ -100,7 +102,7 @@ export async function getDepartmentWithPage(
     slug: department.slug,
   });
   if (!slug) {
-    return { department, page: null };
+    return { department, page: null, slugConflict: false };
   }
 
   // Admin client: the page row carries no permissions until published, so a
@@ -119,13 +121,26 @@ export async function getDepartmentWithPage(
     Query.select([
       "$id",
       "status",
+      "department_id",
       "translation_refs.locale",
       "translation_refs.is_published",
     ]),
     Query.limit(1),
   ]);
 
-  return { department, page: pages.rows[0] ?? null };
+  const foundPage = pages.rows[0];
+  // A page can exist at this slug but belong to someone else (a legacy row,
+  // or a squatter predating createUnitPage's own guard). A null
+  // department_id means "no department", not "any department" — it must not
+  // match either. Only hand back a page that is genuinely this department's;
+  // otherwise report the conflict so the caller can tell "no page yet" apart
+  // from "the address is taken" instead of offering a Create button that
+  // createUnitPage will just reject.
+  if (foundPage && foundPage.department_id !== department.$id) {
+    return { department, page: null, slugConflict: true };
+  }
+
+  return { department, page: foundPage ?? null, slugConflict: false };
 }
 
 export async function createUnitPage(
