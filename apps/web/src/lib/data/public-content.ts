@@ -360,6 +360,12 @@ function sitemapRows(
   }));
 }
 
+export interface UnitSitemapRow {
+  $updatedAt: string;
+  campus_id: string;
+  slug: string | null;
+}
+
 export interface SitemapEntries {
   events: SitemapRow[];
   jobs: SitemapRow[];
@@ -367,6 +373,7 @@ export interface SitemapEntries {
   pages: SitemapRow[];
   products: SitemapRow[];
   projects: SitemapRow[];
+  units: UnitSitemapRow[];
 }
 
 /**
@@ -407,28 +414,43 @@ export async function cachedSitemapEntries(): Promise<SitemapEntries> {
     )
     .catch(() => [] as SitemapRow[]);
 
-  const [jobs, events, news, products, projects, pages] = await Promise.all([
-    openJobs,
-    published("events"),
-    published("news"),
-    published("webshop_products"),
-    db
-      .listRows<LargeEvent>("app", "large_event", [
-        Query.select([...SITEMAP_SELECT]),
-        Query.limit(SITEMAP_LIMIT),
-      ])
-      .then((res) => sitemapRows(res.rows))
-      .catch(() => [] as SitemapRow[]),
-    db
-      .listRows<Pages>("app", "pages", [
-        Query.select([...SITEMAP_SELECT]),
-        Query.equal("status", PagesStatus.PUBLISHED),
-        Query.equal("visibility", PagesVisibility.PUBLIC),
-        Query.limit(SITEMAP_LIMIT),
-      ])
-      .then((res) => sitemapRows(res.rows))
-      .catch(() => [] as SitemapRow[]),
-  ]);
+  const [jobs, events, news, products, projects, pages, units] =
+    await Promise.all([
+      openJobs,
+      published("events"),
+      published("news"),
+      published("webshop_products"),
+      db
+        .listRows<LargeEvent>("app", "large_event", [
+          Query.select([...SITEMAP_SELECT]),
+          Query.limit(SITEMAP_LIMIT),
+        ])
+        .then((res) => sitemapRows(res.rows))
+        .catch(() => [] as SitemapRow[]),
+      db
+        .listRows<Pages>("app", "pages", [
+          Query.select([...SITEMAP_SELECT]),
+          Query.equal("status", PagesStatus.PUBLISHED),
+          Query.equal("visibility", PagesVisibility.PUBLIC),
+          Query.limit(SITEMAP_LIMIT),
+        ])
+        .then((res) => sitemapRows(res.rows))
+        .catch(() => [] as SitemapRow[]),
+      db
+        .listRows<Departments>("app", "departments", [
+          Query.select(["$id", "$updatedAt", "campus_id", "slug"]),
+          Query.equal("active", true),
+          Query.limit(SITEMAP_LIMIT),
+        ])
+        .then((res) =>
+          res.rows.map((row) => ({
+            $updatedAt: row.$updatedAt,
+            campus_id: row.campus_id,
+            slug: row.slug ?? null,
+          }))
+        )
+        .catch(() => [] as UnitSitemapRow[]),
+    ]);
 
-  return { events, jobs, news, pages, products, projects };
+  return { events, jobs, news, pages, products, projects, units };
 }

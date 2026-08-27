@@ -1,3 +1,4 @@
+import { unitCanonicalPath } from "@repo/shared/utils/unit-urls";
 import type { MetadataRoute } from "next";
 import { cachedSitemapEntries } from "@/lib/data/public-content";
 
@@ -80,6 +81,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     pages: [],
     products: [],
     projects: [],
+    units: [],
   }));
 
   return [
@@ -90,5 +92,22 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...mapSlugRoutes("/shop", entries.products, "weekly", 0.6),
     ...mapSlugRoutes("/projects", entries.projects, "weekly", 0.6),
     ...mapSlugRoutes("", entries.pages, "weekly", 0.5),
+    // Only the campus-explicit /units/<campus>/<slug> URLs are listed — the
+    // one-segment /units/<slug> route is cookie-dependent and points its
+    // canonical here.
+    ...entries.units
+      .map((row) => ({
+        path: unitCanonicalPath({ campusId: row.campus_id, slug: row.slug }),
+        lastModified: new Date(row.$updatedAt),
+      }))
+      .filter((row): row is { path: string; lastModified: Date } =>
+        Boolean(row.path)
+      )
+      .map((row) => ({
+        url: `${BASE}${row.path}`,
+        lastModified: row.lastModified,
+        changeFrequency: "weekly" as const,
+        priority: 0.6,
+      })),
   ];
 }
