@@ -77,6 +77,18 @@ export function unitCanonicalPath(target: UnitTarget): string | null {
   return slug ? `/${slug}` : null;
 }
 
+/**
+ * Case-INSENSITIVE, deliberately. Appwrite's `Query.equal` matches slugs
+ * case-insensitively (the same property `resolveUnit` guards against when it
+ * refuses to echo URL casing back as a canonical), so `Units/oslo/fadderullan`
+ * resolves on the public route exactly like `units/oslo/fadderullan`. A
+ * case-sensitive test here would disagree with the lookup it exists to
+ * describe, letting a case variant slip past every guard built on it while
+ * still serving the department's URL.
+ */
 export function isUnitPageSlug(slug: string | null | undefined): boolean {
-  return typeof slug === "string" && slug.startsWith(UNIT_PAGE_SLUG_PREFIX);
+  return (
+    typeof slug === "string" &&
+    slug.toLowerCase().startsWith(UNIT_PAGE_SLUG_PREFIX)
+  );
 }

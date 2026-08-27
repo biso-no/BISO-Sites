@@ -38,7 +38,7 @@ import {
 } from "@/lib/page-document-translation";
 import {
   assertUnitPageBindingUnchanged,
-  assertUnitPageCreationAllowed,
+  assertUnitPageNamespace,
 } from "@/lib/unit-page-guard";
 import {
   applyScopeQueries,
@@ -234,29 +234,34 @@ export async function savePageEditorDoc({
   const ctx = await requireAuth();
   try {
     const scopedDoc = ensureDepartmentForScoping(doc, ctx);
-    if (!id) {
-      // The `units/` namespace is owned by createUnitPage; nothing may claim a
-      // slug in it here. Checked before any lookup because there is no
-      // persisted row to authorize against on a create.
-      const creationError = assertUnitPageCreationAllowed(scopedDoc.meta.slug);
-      if (creationError) {
-        return { error: creationError };
-      }
-    }
     // savePageDraft persists through the admin client, so authorization must
     // happen here: the persisted scope for updates, and the requested scope
     // (author-derived campus + submitted department) for every save. Pages
     // already support national scope, so a global admin may keep a null
     // campus.
     const { db } = await createAdminClient();
-    if (id) {
-      const existing = await db.getRow<Pages>("app", "pages", id);
+    const existing = id ? await db.getRow<Pages>("app", "pages", id) : null;
+    if (existing) {
       const persisted = getContentOwnership(existing, { legacyFallback: true });
-      // Authorization FIRST: the binding guard's message reveals that a page
-      // id exists and is a unit page, so running it before the access check
-      // would turn this action into an existence oracle for any authenticated
-      // portal user posting a crafted id.
+      // Authorization FIRST: the slug guards' messages reveal that a page id
+      // exists and is (or is not) a unit page, so running them before the
+      // access check would turn this action into an existence oracle for any
+      // authenticated portal user posting a crafted id.
       assertWriteAccess(ctx, persisted.campus, persisted.department);
+    }
+    // Every save, create or update: a create-only check is stepped around by
+    // saving an ordinary slug first and renaming into `units/` afterwards.
+    const namespaceError = assertUnitPageNamespace(
+      existing?.slug ?? null,
+      scopedDoc.meta.slug
+    );
+    if (namespaceError) {
+      return { error: namespaceError };
+    }
+    if (existing) {
+      // Complementary to the namespace rule above, which cannot see a unit
+      // page being renamed OUT of the namespace or re-pointed at another
+      // department.
       const bindingError = assertUnitPageBindingUnchanged(existing, {
         department: scopedDoc.meta.department || "",
         slug: scopedDoc.meta.slug,

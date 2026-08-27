@@ -26,25 +26,40 @@ export function assertUnitPageBindingUnchanged(
 }
 
 /**
- * Reserve the `units/` slug namespace against page CREATION.
+ * Reserve the `units/` slug namespace: only `createUnitPage` may put a page
+ * there, and only at its own department's address.
  *
- * `assertUnitPageBindingUnchanged` can only defend a slug that is already
- * persisted, so on its own it leaves the namespace unclaimed: any portal user
- * with `portal.pages` could open /pages/new, type `units/oslo/fadderullan`,
- * keep their OWN department (which is all `assertContentOwnership` checks) and
- * publish another department's URL out from under it — permanently, because
- * `createUnitPage` idempotently hands back whatever page already sits at that
- * slug.
+ * Checked on EVERY save, not just creates. A create-only check is trivially
+ * stepped around: save a page as `about/junk`, then edit the slug to
+ * `units/oslo/fadderullan` and save again. On that second save
+ * `assertUnitPageBindingUnchanged` returns null immediately (the PERSISTED
+ * slug is ordinary, so it never inspects the incoming one), `savePageDraft`
+ * writes the slug verbatim because `resolveUniquePageSlug` only runs for a
+ * create, and the editor's `lockedMeta` never engaged because it too keys off
+ * the persisted slug. The row lands on the victim department's public URL and
+ * locks the victim out of creating its own page.
  *
- * `createUnitPage` is the only legitimate creator of a unit page and it calls
- * `savePageDraft` directly, so this rejection never fires on the real flow.
- * Returns an error message, or null when the creation is allowed.
+ * The rule is "the incoming slug is a unit slug AND is not the exact slug this
+ * row already carries". That covers both a create (nothing persisted, so any
+ * unit slug is a claim) and a rename into the namespace, while leaving a
+ * genuine unit page free to save itself normally. `createUnitPage` calls
+ * `savePageDraft` directly and never reaches this guard.
+ *
+ * Renaming a unit page OUT of the namespace passes here and is caught by
+ * `assertUnitPageBindingUnchanged` instead — the two rules are complementary,
+ * not overlapping.
+ *
+ * Returns an error message, or null when the slug is allowed.
  */
-export function assertUnitPageCreationAllowed(
-  slug: string | null | undefined
+export function assertUnitPageNamespace(
+  persistedSlug: string | null | undefined,
+  nextSlug: string
 ): string | null {
-  if (!isUnitPageSlug(slug)) {
+  if (!isUnitPageSlug(nextSlug)) {
     return null;
   }
-  return 'A unit page is created from its department page, not here. Open the department under Departments and use "Create page".';
+  if (persistedSlug === nextSlug) {
+    return null;
+  }
+  return 'The "units/" address space belongs to department pages. Open the department under Departments and use "Create page" instead.';
 }

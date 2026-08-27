@@ -73,4 +73,21 @@ describe("isUnitPageSlug", () => {
     expect(isUnitPageSlug("about/history")).toBe(false);
     expect(isUnitPageSlug(null)).toBe(false);
   });
+
+  it("does not mistake a slug that merely starts with the letters", () => {
+    expect(isUnitPageSlug("unitsomething")).toBe(false);
+    expect(isUnitPageSlug("units")).toBe(false);
+  });
+
+  /**
+   * Appwrite's Query.equal matches slugs case-insensitively, so
+   * "Units/oslo/fadderullan" serves the same public URL as the lowercase
+   * form. A case-sensitive test here would let a case variant past every
+   * guard built on it while still hijacking the department's address.
+   */
+  it("matches case-insensitively, as Appwrite's slug lookup does", () => {
+    expect(isUnitPageSlug("Units/oslo/fadderullan")).toBe(true);
+    expect(isUnitPageSlug("UNITS/OSLO/FADDERULLAN")).toBe(true);
+    expect(isUnitPageSlug("UnItS/bergen/x")).toBe(true);
+  });
 });
