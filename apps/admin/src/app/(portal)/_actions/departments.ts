@@ -106,14 +106,22 @@ export async function getDepartmentWithPage(
   // Admin client: the page row carries no permissions until published, so a
   // session-scoped read would not see a department's own draft.
   //
-  // Select only what UnitPageCard reads ($id, status) — page_translations rows
-  // carry puck_document/draft_document (string(50000) each), and a wildcard
-  // select here would ship up to ~200KB of draft JSON into the RSC payload for
-  // a card that never renders it.
+  // Select only what UnitPageCard reads — page_translations rows carry
+  // puck_document/draft_document (string(50000) each), so `translation_refs.*`
+  // would ship up to ~200KB of draft JSON into the RSC payload for a card that
+  // never renders it. The two named relationship columns are what the card's
+  // per-locale row needs: publishing is per-locale, and pages.status flips to
+  // "published" as soon as ANY locale is, so the page-level flag alone would
+  // tell a board that published only Norwegian that both locales are live.
   const { db: adminDb } = await createAdminClient();
   const pages = await adminDb.listRows<Pages>("app", "pages", [
     Query.equal("slug", slug),
-    Query.select(["$id", "status"]),
+    Query.select([
+      "$id",
+      "status",
+      "translation_refs.locale",
+      "translation_refs.is_published",
+    ]),
     Query.limit(1),
   ]);
 
@@ -152,11 +160,22 @@ export async function createUnitPage(
     // slug. Reusing an existing row closes that hole.
     const existing = await db.listRows<Pages>("app", "pages", [
       Query.equal("slug", slug),
-      Query.select(["$id"]),
+      Query.select(["$id", "department_id"]),
       Query.limit(1),
     ]);
     const already = existing.rows[0];
     if (already) {
+      // Only hand back a page that genuinely belongs to THIS department.
+      // Anything else at this slug is a squatter (savePageEditorDoc now
+      // refuses to create one, but rows predating that guard can exist), and
+      // returning it would drop this board straight into another
+      // department's editor.
+      if (already.department_id !== department.$id) {
+        return {
+          error:
+            "Another department already owns a page at this address. Contact BISO IT to sort it out.",
+        };
+      }
       return { pageId: already.$id };
     }
 

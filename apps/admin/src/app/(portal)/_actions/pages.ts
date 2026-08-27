@@ -36,7 +36,10 @@ import {
   getPageTranslationSource,
   translatePageDocument,
 } from "@/lib/page-document-translation";
-import { assertUnitPageBindingUnchanged } from "@/lib/unit-page-guard";
+import {
+  assertUnitPageBindingUnchanged,
+  assertUnitPageCreationAllowed,
+} from "@/lib/unit-page-guard";
 import {
   applyScopeQueries,
   assertPublishAccess,
@@ -231,6 +234,15 @@ export async function savePageEditorDoc({
   const ctx = await requireAuth();
   try {
     const scopedDoc = ensureDepartmentForScoping(doc, ctx);
+    if (!id) {
+      // The `units/` namespace is owned by createUnitPage; nothing may claim a
+      // slug in it here. Checked before any lookup because there is no
+      // persisted row to authorize against on a create.
+      const creationError = assertUnitPageCreationAllowed(scopedDoc.meta.slug);
+      if (creationError) {
+        return { error: creationError };
+      }
+    }
     // savePageDraft persists through the admin client, so authorization must
     // happen here: the persisted scope for updates, and the requested scope
     // (author-derived campus + submitted department) for every save. Pages
@@ -239,6 +251,12 @@ export async function savePageEditorDoc({
     const { db } = await createAdminClient();
     if (id) {
       const existing = await db.getRow<Pages>("app", "pages", id);
+      const persisted = getContentOwnership(existing, { legacyFallback: true });
+      // Authorization FIRST: the binding guard's message reveals that a page
+      // id exists and is a unit page, so running it before the access check
+      // would turn this action into an existence oracle for any authenticated
+      // portal user posting a crafted id.
+      assertWriteAccess(ctx, persisted.campus, persisted.department);
       const bindingError = assertUnitPageBindingUnchanged(existing, {
         department: scopedDoc.meta.department || "",
         slug: scopedDoc.meta.slug,
@@ -246,8 +264,6 @@ export async function savePageEditorDoc({
       if (bindingError) {
         return { error: bindingError };
       }
-      const persisted = getContentOwnership(existing, { legacyFallback: true });
-      assertWriteAccess(ctx, persisted.campus, persisted.department);
     }
     await assertContentOwnership(db, ctx, {
       allowGlobalCampus: true,

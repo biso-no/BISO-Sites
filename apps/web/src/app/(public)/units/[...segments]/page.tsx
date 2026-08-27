@@ -88,11 +88,12 @@ export default async function UnitPage({ params }: Props) {
 
   // A published custom page overrides the default view. canonical is
   // "/units/<campus>/<slug>"; the page's storage slug is the same without the
-  // leading slash.
-  const pageResult = await cachedPublishedPage(
-    canonical.slice(1),
-    locale
-  ).catch(() => null);
+  // leading slash. A null canonical means the department has no slug, and the
+  // slug IS the page binding — no page can exist, so skip the lookup rather
+  // than querying a bogus key.
+  const pageResult = canonical
+    ? await cachedPublishedPage(canonical.slice(1), locale).catch(() => null)
+    : null;
 
   if (pageResult?.translation?.is_published && pageResult.doc) {
     const doc = pageResult.doc as PageDoc;
@@ -142,10 +143,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   const locale = await getLocale();
   const { department, canonical } = resolution;
-  const pageResult = await cachedPublishedPage(
-    canonical.slice(1),
-    locale
-  ).catch(() => null);
+  const pageResult = canonical
+    ? await cachedPublishedPage(canonical.slice(1), locale).catch(() => null)
+    : null;
 
   // getDepartmentById issues three uncached listRows calls; only pay for it
   // when the published page didn't already supply both fields.
@@ -168,7 +168,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     title: `${title} | BISO`,
     description: description?.slice(0, 160),
     // The one-segment URL points at the campus-explicit one so the two routes
-    // never compete as duplicate content.
-    alternates: { canonical },
+    // never compete as duplicate content. A not-yet-slugged department has no
+    // campus-explicit URL at all, so it advertises no canonical rather than an
+    // empty <link rel="canonical">.
+    ...(canonical ? { alternates: { canonical } } : {}),
   };
 }

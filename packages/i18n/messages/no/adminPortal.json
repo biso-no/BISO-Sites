@@ -843,7 +843,10 @@
       "pageHeading": "Offentlig side",
       "noPage": "Ingen side ennå. Opprett én for å gi avdelingen sin egen side på biso.no.",
       "draft": "Utkast",
-      "published": "Publisert"
+      "published": "Publisert",
+      "notPublished": "Ikke publisert",
+      "localeNo": "Norsk",
+      "localeEn": "Engelsk"
     }
   },
   "pages": {

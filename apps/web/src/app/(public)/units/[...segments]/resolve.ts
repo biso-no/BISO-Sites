@@ -13,7 +13,14 @@ import {
 } from "@/lib/data/public-content";
 
 export type UnitResolution =
-  | { kind: "department"; department: Departments; canonical: string }
+  /**
+   * `canonical` is null only for a department that has no slug yet — reachable
+   * exclusively through the legacy /units/<24SO id> URL. Such a department can
+   * never own a bound page (the binding IS the slug), so consumers must skip
+   * the page lookup and omit the canonical link element rather than
+   * substituting a placeholder.
+   */
+  | { kind: "department"; department: Departments; canonical: string | null }
   | {
       kind: "chooser";
       slug: string;
@@ -105,10 +112,19 @@ async function resolveFiltered(slug: string): Promise<UnitResolution> {
     // department has nowhere useful to send it, so it 404s directly rather
     // than 301-ing to a slug that 404s a second time.
     const legacy = await cachedDepartmentById(slug);
-    if (legacy?.active && legacy.slug) {
+    if (!legacy?.active) {
+      return { kind: "notFound" };
+    }
+    if (legacy.slug) {
       return { kind: "redirect", to: `/units/${legacy.slug}` };
     }
-    return { kind: "notFound" };
+    // Active but not yet slugged: the 24SO sync is a manual button, so a
+    // department created between runs — or one whose slug assignment failed
+    // inside the sync's Promise.allSettled — legitimately has no slug. Both
+    // department card link sites fall back to /units/<$id> precisely for this
+    // case, so it must keep rendering the default tabbed view rather than
+    // 404ing. There is nowhere to redirect and no canonical URL to advertise.
+    return { kind: "department", department: legacy, canonical: null };
   }
 
   const activeCampusId = await getActiveCampus();

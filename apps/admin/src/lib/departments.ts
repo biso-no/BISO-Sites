@@ -18,6 +18,15 @@ const EDGE_DASH = /^-+|-+$/g;
 const MAX_SLUG_ATTEMPTS = 1000;
 
 /**
+ * `pages.slug` is string(128) and a unit page's slug is
+ * `units/<campus-segment>/<department-slug>` — 16 characters of prefix at the
+ * longest campus ("units/trondheim/"), plus room for a `-NN` collision suffix.
+ * A 24SO unit name has no length limit of its own, so cap the department slug
+ * well inside that budget rather than letting Appwrite reject the page.
+ */
+const MAX_UNIT_SLUG_LENGTH = 100;
+
+/**
  * Campus-agnostic URL slug for a department.
  *
  * "OSL Fadderullan" and "BRG Fadderullan" both yield "fadderullan" — the four
@@ -26,12 +35,18 @@ const MAX_SLUG_ATTEMPTS = 1000;
  *
  * Built on `normalizeForCompare`, which already strips the OSL|BRG|TRD|STV
  * prefix and folds ø→o, æ→ae, å→a. Do not add a second normalizer.
+ *
+ * Capped at MAX_UNIT_SLUG_LENGTH so the derived page slug always fits
+ * `pages.slug`; the trailing-dash trim runs again after the cut, because
+ * slicing mid-word can leave one behind.
  */
 export function unitSlug(name: string): string {
   const slug = normalizeForCompare(stripClosedSuffix(name))
     .replace(WHITESPACE_TO_DASH, "-")
     .replace(NON_SLUG_CHARS, "")
     .replace(REPEATED_DASH, "-")
+    .replace(EDGE_DASH, "")
+    .slice(0, MAX_UNIT_SLUG_LENGTH)
     .replace(EDGE_DASH, "");
   return slug || "unit";
 }

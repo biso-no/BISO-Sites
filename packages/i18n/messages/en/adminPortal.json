@@ -843,7 +843,10 @@
       "pageHeading": "Public page",
       "noPage": "No page yet. Create one to give this department its own page on biso.no.",
       "draft": "Draft",
-      "published": "Published"
+      "published": "Published",
+      "notPublished": "Not published",
+      "localeNo": "Norwegian",
+      "localeEn": "English"
     }
   },
   "pages": {

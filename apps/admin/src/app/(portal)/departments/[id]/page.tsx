@@ -1,3 +1,5 @@
+import { PAGE_LOCALES } from "@repo/api/page-builder";
+import type { Pages } from "@repo/api/types/appwrite";
 import { unitCanonicalPath } from "@repo/shared/utils/unit-urls";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
@@ -5,9 +7,41 @@ import { requireNavAccess } from "@/lib/authorization";
 import { getDepartmentWithPage } from "../../_actions/departments";
 import { listCampuses } from "../../_actions/lookups";
 import { PageHeader } from "../../_components/page-header";
-import { UnitPageCard } from "./_components/unit-page-card";
+import {
+  UnitPageCard,
+  type UnitPageLocaleStatus,
+} from "./_components/unit-page-card";
 
 const TRAILING_SLASH_RE = /\/$/;
+
+const LOCALE_LABEL_KEY: Record<string, string> = {
+  en: "actions.localeEn",
+  no: "actions.localeNo",
+};
+
+/**
+ * One row per editor locale, whether or not a translation exists.
+ *
+ * `pages.status` is page-level and flips to "published" as soon as any single
+ * locale is published, while the public route gates on the per-locale
+ * `page_translations.is_published`. Reporting the page-level flag would tell a
+ * board that published only Norwegian that English is live as well.
+ */
+function toLocaleStatuses(
+  page: Pages | null,
+  label: (key: string) => string
+): UnitPageLocaleStatus[] {
+  const translations = page?.translation_refs ?? [];
+  return PAGE_LOCALES.map((locale) => {
+    const translation = translations.find((row) => row.locale === locale);
+    return {
+      exists: Boolean(translation),
+      label: label(LOCALE_LABEL_KEY[locale] ?? locale),
+      locale,
+      published: translation?.is_published === true,
+    };
+  });
+}
 
 export default async function DepartmentDetailPage({
   params,
@@ -66,12 +100,14 @@ export default async function DepartmentDetailPage({
           editPage: t("actions.editPage"),
           noPage: t("actions.noPage"),
           noSlug: t("actions.noSlug"),
+          notPublished: t("actions.notPublished"),
           pageHeading: t("actions.pageHeading"),
           published: t("actions.published"),
           viewLive: t("actions.viewLive"),
         }}
         liveUrl={liveUrl}
-        page={page}
+        localeStatuses={toLocaleStatuses(page, (key) => t(key))}
+        pageId={page?.$id ?? null}
       />
     </div>
   );

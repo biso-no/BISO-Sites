@@ -1,5 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { assertUnitPageBindingUnchanged } from "./unit-page-guard";
+import {
+  assertUnitPageBindingUnchanged,
+  assertUnitPageCreationAllowed,
+} from "./unit-page-guard";
 
 const persisted = {
   department_id: "308",
@@ -45,12 +48,41 @@ describe("assertUnitPageBindingUnchanged", () => {
     ).toBeNull();
   });
 
-  test("treats a page with no persisted slug as ordinary", () => {
+  /**
+   * This guard only ever sees a PERSISTED row, so it cannot defend the
+   * `units/` namespace against a brand-new page claiming a slug inside it —
+   * that is assertUnitPageCreationAllowed's job, below. Keeping the case here
+   * documents the split rather than the hole it used to be.
+   */
+  test("cannot judge a page with no persisted slug — creation guard's job", () => {
     expect(
       assertUnitPageBindingUnchanged(
         { department_id: null, slug: null },
         { department: "308", slug: "units/oslo/fadderullan" }
       )
     ).toBeNull();
+  });
+});
+
+describe("assertUnitPageCreationAllowed", () => {
+  test("leaves an ordinary new page unconstrained", () => {
+    expect(assertUnitPageCreationAllowed("about/history")).toBeNull();
+    expect(assertUnitPageCreationAllowed("")).toBeNull();
+    expect(assertUnitPageCreationAllowed(null)).toBeNull();
+    expect(assertUnitPageCreationAllowed("unitsomething")).toBeNull();
+  });
+
+  test("refuses a new page claiming a slug in the units/ namespace", () => {
+    expect(assertUnitPageCreationAllowed("units/oslo/fadderullan")).toContain(
+      "created from its department page"
+    );
+  });
+
+  test("refuses the namespace prefix itself and any depth under it", () => {
+    expect(assertUnitPageCreationAllowed("units/")).not.toBeNull();
+    expect(assertUnitPageCreationAllowed("units/oslo")).not.toBeNull();
+    expect(
+      assertUnitPageCreationAllowed("units/oslo/fadderullan/extra")
+    ).not.toBeNull();
   });
 });

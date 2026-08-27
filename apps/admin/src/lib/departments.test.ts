@@ -42,6 +42,29 @@ describe("unitSlug", () => {
     expect(unitSlug("!!!")).toBe("unit");
     expect(unitSlug("")).toBe("unit");
   });
+
+  /**
+   * pages.slug is string(128) and the unit page slug prepends up to
+   * "units/trondheim/" (16 chars). An uncapped 24SO name would produce a page
+   * slug Appwrite refuses to store.
+   */
+  test("caps the slug so units/<campus>/<slug> fits pages.slug", () => {
+    const slug = unitSlug(`OSL ${"a".repeat(300)}`);
+    expect(slug.length).toBe(100);
+    expect(`units/trondheim/${slug}`.length).toBeLessThanOrEqual(128);
+  });
+
+  test("does not leave a trailing dash when the cut lands on one", () => {
+    // "abc-" repeats with period 4, so index 99 — the last character kept —
+    // is a dash. Without the post-cut trim this slug would end in "-".
+    const slug = unitSlug(`OSL ${"abc ".repeat(40)}`);
+    expect(slug.endsWith("-")).toBe(false);
+    expect(slug).toBe("abc-".repeat(25).slice(0, 99));
+  });
+
+  test("leaves a name inside the cap untouched", () => {
+    expect(unitSlug("OSL Fadderullan")).toBe("fadderullan");
+  });
 });
 
 describe("uniqueUnitSlug", () => {

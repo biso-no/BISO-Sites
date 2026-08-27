@@ -1,7 +1,5 @@
 "use client";
 
-import type { Pages } from "@repo/api/types/appwrite";
-import { PagesStatus } from "@repo/api/types/appwrite";
 import { ExternalLink, Plus, SquarePen } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTransition } from "react";
@@ -20,9 +18,35 @@ interface Labels {
   editPage: string;
   noPage: string;
   noSlug: string;
+  notPublished: string;
   pageHeading: string;
   published: string;
   viewLive: string;
+}
+
+/**
+ * One row per editor locale. `exists` distinguishes "there is a draft in this
+ * language" from "this language was never written", which the labels below
+ * report differently.
+ */
+export interface UnitPageLocaleStatus {
+  exists: boolean;
+  label: string;
+  locale: string;
+  published: boolean;
+}
+
+function localeStatusLabel(
+  status: UnitPageLocaleStatus,
+  labels: Labels
+): string {
+  if (status.published) {
+    return labels.published;
+  }
+  if (status.exists) {
+    return labels.draft;
+  }
+  return labels.notPublished;
 }
 
 export function UnitPageCard({
@@ -30,19 +54,24 @@ export function UnitPageCard({
   departmentId,
   labels,
   liveUrl,
-  page,
+  localeStatuses,
+  pageId,
 }: {
   canonicalPath: string | null;
   departmentId: string;
   labels: Labels;
   liveUrl: string | null;
-  page: Pages | null;
+  localeStatuses: UnitPageLocaleStatus[];
+  pageId: string | null;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
 
-  const isPublished = page?.status === PagesStatus.PUBLISHED;
-  const statusLabel = page && (isPublished ? labels.published : labels.draft);
+  // Publishing is per-locale (page_translations.is_published) while
+  // pages.status flips to "published" the moment ANY locale goes live. Drive
+  // every signal here off the per-locale rows so a board that published only
+  // Norwegian is not told English is live too.
+  const anyPublished = localeStatuses.some((status) => status.published);
 
   const handleCreate = () => {
     startTransition(async () => {
@@ -71,27 +100,43 @@ export function UnitPageCard({
         </p>
       ) : (
         <div className="flex flex-col gap-4">
-          <div className="flex items-center gap-2 text-sm">
-            <span
-              className="inline-block h-2 w-2 rounded-full"
-              style={{
-                background: isPublished ? STUDIO.claret : STUDIO.ink4,
-              }}
-            />
-            <span style={{ color: STUDIO.ink3 }}>{statusLabel}</span>
-            {page ? (
+          {pageId ? (
+            <div className="flex flex-col gap-2">
               <code className="text-xs" style={{ color: STUDIO.ink4 }}>
                 {canonicalPath}
               </code>
-            ) : (
-              <span style={{ color: STUDIO.ink3 }}>{labels.noPage}</span>
-            )}
-          </div>
+              <ul className="flex flex-wrap gap-x-6 gap-y-1">
+                {localeStatuses.map((status) => (
+                  <li
+                    className="flex items-center gap-2 text-sm"
+                    key={status.locale}
+                  >
+                    <span
+                      className="inline-block h-2 w-2 rounded-full"
+                      style={{
+                        background: status.published
+                          ? STUDIO.claret
+                          : STUDIO.ink4,
+                      }}
+                    />
+                    <span style={{ color: STUDIO.ink3 }}>{status.label}</span>
+                    <span style={{ color: STUDIO.ink4 }}>
+                      {localeStatusLabel(status, labels)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : (
+            <p className="text-sm" style={{ color: STUDIO.ink3 }}>
+              {labels.noPage}
+            </p>
+          )}
 
           <div className="flex flex-wrap items-center gap-2">
-            {page ? (
+            {pageId ? (
               <StudioButton
-                onClick={() => router.push(`/pages/${page.$id}`)}
+                onClick={() => router.push(`/pages/${pageId}`)}
                 variant="primary"
               >
                 <SquarePen size={15} />
@@ -108,7 +153,7 @@ export function UnitPageCard({
               </StudioButton>
             )}
 
-            {isPublished && liveUrl && (
+            {anyPublished && liveUrl && (
               <a
                 className="inline-flex items-center gap-1 text-sm underline"
                 href={liveUrl}
