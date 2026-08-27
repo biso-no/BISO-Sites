@@ -235,6 +235,20 @@ export async function savePageEditorDoc({
   const ctx = await requireAuth();
   try {
     const scopedDoc = ensureDepartmentForScoping(doc, ctx);
+    // Normalize the incoming slug ONCE, before any guard inspects it, and
+    // reuse that exact value everywhere — the guards and the persisted row.
+    // resolveUniquePageSlug (packages/api/page-builder.ts) trims the slug
+    // before writing it, but assertUnitPageNamespace/isUnitPageSlug used to
+    // see the raw, untrimmed value. A padded slug like
+    // " units/oslo/fadderullan" therefore slipped past the reserved-namespace
+    // guard here and then landed at the exact canonical unit slug once
+    // persisted — passing the guard but stealing the department's address.
+    // Trimming here, once, keeps the checked value and the stored value
+    // byte-identical.
+    const normalizedDoc: PageDoc = {
+      ...scopedDoc,
+      meta: { ...scopedDoc.meta, slug: scopedDoc.meta.slug.trim() },
+    };
     // savePageDraft persists through the admin client, so authorization must
     // happen here: the persisted scope for updates, and the requested scope
     // (author-derived campus + submitted department) for every save. Pages
@@ -260,7 +274,7 @@ export async function savePageEditorDoc({
     // saving an ordinary slug first and renaming into `units/` afterwards.
     const namespaceError = assertUnitPageNamespace(
       existing?.slug ?? null,
-      scopedDoc.meta.slug
+      normalizedDoc.meta.slug
     );
     if (namespaceError) {
       return { error: namespaceError };
@@ -270,8 +284,8 @@ export async function savePageEditorDoc({
       // page being renamed OUT of the namespace or re-pointed at another
       // department.
       const bindingError = assertUnitPageBindingUnchanged(existing, {
-        department: scopedDoc.meta.department || "",
-        slug: scopedDoc.meta.slug,
+        department: normalizedDoc.meta.department || "",
+        slug: normalizedDoc.meta.slug,
       });
       if (bindingError) {
         return { error: bindingError };
@@ -292,11 +306,11 @@ export async function savePageEditorDoc({
     await assertContentOwnership(db, ctx, {
       allowGlobalCampus: true,
       campusId,
-      departmentId: scopedDoc.meta.department || null,
+      departmentId: normalizedDoc.meta.department || null,
     });
     const { pageId, slug } = await savePageDraft({
       id,
-      doc: scopedDoc,
+      doc: normalizedDoc,
       locale,
       ctx,
       campusId,

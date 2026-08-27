@@ -85,10 +85,20 @@ export function unitCanonicalPath(target: UnitTarget): string | null {
  * case-sensitive test here would disagree with the lookup it exists to
  * describe, letting a case variant slip past every guard built on it while
  * still serving the department's URL.
+ *
+ * Also trims surrounding whitespace before checking, matching
+ * `resolveUniquePageSlug` (packages/api/page-builder.ts), which trims a
+ * submitted slug before persisting it. Without this, a padded slug like
+ * `" units/oslo/fadderullan"` would fail this check yet land at the exact
+ * canonical unit slug once storage trims it — a guard/storage disagreement
+ * that let a squatter reserve a department's address out from under it. This
+ * function backs every producer and consumer of the convention (the admin
+ * namespace guard and field lock, the sitemap filter, and both public
+ * routes), so trimming here closes the gap everywhere at once.
  */
 export function isUnitPageSlug(slug: string | null | undefined): boolean {
   return (
     typeof slug === "string" &&
-    slug.toLowerCase().startsWith(UNIT_PAGE_SLUG_PREFIX)
+    slug.trim().toLowerCase().startsWith(UNIT_PAGE_SLUG_PREFIX)
   );
 }

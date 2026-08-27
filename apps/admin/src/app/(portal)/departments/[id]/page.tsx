@@ -84,13 +84,16 @@ export default async function DepartmentDetailPage({
   ).replace(TRAILING_SLASH_RE, "");
   // A sync that marks a department inactive deliberately keeps its slug and
   // page — but both public lookups (cachedDepartmentsBySlug,
-  // cachedDepartmentBySlugAndCampus) filter `active = true`, so the live URL
-  // would always 404 for an inactive department. `active` is nullable;
-  // treat null as active, matching listDepartments' own
-  // `Query.or([equal("active", true), isNull("active")])` — the public
-  // side's stricter `=== true` rule does not apply here, it would just hide
-  // links for legacy rows that do render.
-  const isDepartmentActive = department.active !== false;
+  // cachedDepartmentBySlugAndCampus) filter `Query.equal("active", true)`,
+  // which EXCLUDES a null value. `active` is nullable, and unlike
+  // listDepartments' own `Query.or([equal("active", true),
+  // isNull("active")])` — which governs whether a row appears in the admin
+  // management LISTING, a question null answers "yes" to — this flag answers
+  // "will this be reachable on the public site?", which null answers "no"
+  // to. Treating null as active here would offer a "View live" link that can
+  // never resolve for a legacy department with active: null. Do not "fix"
+  // this to match listDepartments; the two questions are different.
+  const isDepartmentActive = department.active === true;
   const liveUrl =
     canonicalPath && isDepartmentActive
       ? `${webBaseUrl}${canonicalPath}`

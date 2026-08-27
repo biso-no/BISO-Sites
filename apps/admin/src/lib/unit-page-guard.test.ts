@@ -106,6 +106,30 @@ describe("assertUnitPageNamespace", () => {
     ).toContain(CLAIM_REFUSED);
   });
 
+  /**
+   * The caller (savePageEditorDoc in _actions/pages.ts) now trims the
+   * incoming slug once, before it ever reaches this guard or storage — but
+   * this guard is defended in depth via isUnitPageSlug's own trim, in case a
+   * future caller forgets to normalize first. A padded slug like
+   * " units/oslo/fadderullan" is reserved exactly like its trimmed form,
+   * because that is the exact address it lands on once persisted
+   * (resolveUniquePageSlug trims before writing).
+   */
+  test("refuses a padded slug, matching the trimmed form it would persist as", () => {
+    expect(assertUnitPageNamespace(null, " units/oslo/fadderullan")).toContain(
+      CLAIM_REFUSED
+    );
+    expect(assertUnitPageNamespace(null, "units/oslo/fadderullan ")).toContain(
+      CLAIM_REFUSED
+    );
+    expect(assertUnitPageNamespace(null, " Units/oslo/x")).toContain(
+      CLAIM_REFUSED
+    );
+    expect(
+      assertUnitPageNamespace("about/junk", "  units/oslo/fadderullan  ")
+    ).toContain(CLAIM_REFUSED);
+  });
+
   test("lets a genuine unit page save its own unchanged slug", () => {
     expect(
       assertUnitPageNamespace(

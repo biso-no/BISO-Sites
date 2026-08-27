@@ -90,4 +90,17 @@ describe("isUnitPageSlug", () => {
     expect(isUnitPageSlug("UNITS/OSLO/FADDERULLAN")).toBe(true);
     expect(isUnitPageSlug("UnItS/bergen/x")).toBe(true);
   });
+
+  /**
+   * resolveUniquePageSlug (packages/api/page-builder.ts) trims a submitted
+   * slug before persisting it. This check must agree, or a padded slug
+   * passes here as "not reserved" yet lands at the exact canonical unit slug
+   * once storage trims it.
+   */
+  it("trims surrounding whitespace before checking", () => {
+    expect(isUnitPageSlug(" units/oslo/fadderullan")).toBe(true);
+    expect(isUnitPageSlug("units/oslo/fadderullan ")).toBe(true);
+    expect(isUnitPageSlug("  units/oslo/fadderullan  ")).toBe(true);
+    expect(isUnitPageSlug(" Units/oslo/x")).toBe(true);
+  });
 });

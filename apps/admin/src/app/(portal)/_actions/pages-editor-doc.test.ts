@@ -216,4 +216,45 @@ describe("savePageEditorDoc: ordinary (non-unit) pages", () => {
     expect(result).toEqual({ error: expectedError });
     expect(savePageDraftSpy).not.toHaveBeenCalled();
   });
+
+  /**
+   * Regression for the guard/storage mismatch: a leading-space slug used to
+   * pass assertUnitPageNamespace's untrimmed check, then get trimmed down to
+   * the exact canonical unit slug by resolveUniquePageSlug on the way to
+   * storage — stealing the department's address while looking like an
+   * ordinary save. savePageEditorDoc must trim the slug ONCE, before the
+   * guard runs, so the value that is checked and the value that would be
+   * persisted can never disagree.
+   */
+  test("a padded slug reaching into units/ is rejected the same as its trimmed form", async () => {
+    currentCtx = departmentCtx;
+    const doc = makeDoc({
+      department: "",
+      slug: " units/oslo/fadderullan",
+    });
+    const expectedError = assertUnitPageNamespace(
+      null,
+      "units/oslo/fadderullan"
+    );
+    if (!expectedError) {
+      throw new Error("expected assertUnitPageNamespace to reject this slug");
+    }
+
+    const result = await savePageEditorDoc({ id: null, doc });
+
+    expect(result).toEqual({ error: expectedError });
+    expect(savePageDraftSpy).not.toHaveBeenCalled();
+  });
+
+  test("an ordinary slug with surrounding whitespace is trimmed before it reaches savePageDraft", async () => {
+    currentCtx = globalAdminCtx;
+    const doc = makeDoc({ department: "", slug: "  about/team  " });
+
+    const result = await savePageEditorDoc({ id: null, doc });
+
+    expect(result).not.toHaveProperty("error");
+    expect(savePageDraftSpy).toHaveBeenCalledTimes(1);
+    const call = savePageDraftSpy.mock.calls[0]?.[0];
+    expect(call?.doc.meta.slug).toBe("about/team");
+  });
 });

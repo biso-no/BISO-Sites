@@ -35,6 +35,39 @@ function pageBelongsToDepartment(
   return pageDepartmentId != null && pageDepartmentId === departmentId;
 }
 
+type PageLookupResult = Awaited<ReturnType<typeof cachedPublishedPage>>;
+
+/**
+ * The single predicate for "this lookup is genuinely this department's
+ * PUBLISHED custom page" — a published translation, a document to render,
+ * and ownership. The page body and generateMetadata MUST share this exact
+ * predicate, or they can disagree about what the page is.
+ *
+ * That disagreement is reachable, not theoretical: both `pages` and
+ * `page_translations` are `rowSecurity: false` with table-level `read("any")`
+ * (packages/api/appwrite.config.json), so the per-row permissions the publish
+ * flow computes are NOT enforced — a guest client can read an unpublished
+ * draft row. `getPage` (via `cachedPublishedPage`) falls back to
+ * `draft_document` when there is no published document, so checking
+ * ownership alone (as generateMetadata used to) let a department whose `en`
+ * locale has only an unpublished draft leak that draft's title/description
+ * into `<head>` while the body correctly fell back to the default department
+ * view.
+ */
+function publishedUnitPage(
+  pageResult: PageLookupResult,
+  departmentId: string
+): PageLookupResult {
+  if (
+    pageResult?.translation?.is_published &&
+    pageResult.doc &&
+    pageBelongsToDepartment(pageResult.row.department_id, departmentId)
+  ) {
+    return pageResult;
+  }
+  return null;
+}
+
 /**
  * Opt out of the instant shell, for the reason documented on the (public)
  * catch-all: once the shell flushes, the response is committed as 200 and
@@ -106,15 +139,12 @@ export default async function UnitPage({ params }: Props) {
   // leading slash. A null canonical means the department has no slug, and the
   // slug IS the page binding — no page can exist, so skip the lookup rather
   // than querying a bogus key.
-  const pageResult = canonical
+  const rawPageResult = canonical
     ? await cachedPublishedPage(canonical.slice(1), locale).catch(() => null)
     : null;
+  const pageResult = publishedUnitPage(rawPageResult, department.$id);
 
-  if (
-    pageResult?.translation?.is_published &&
-    pageResult.doc &&
-    pageBelongsToDepartment(pageResult.row.department_id, department.$id)
-  ) {
+  if (pageResult) {
     const doc = pageResult.doc as PageDoc;
     return (
       <div className="min-h-screen bg-background">
@@ -165,14 +195,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const rawPageResult = canonical
     ? await cachedPublishedPage(canonical.slice(1), locale).catch(() => null)
     : null;
-  // Same ownership check as the page body: a page sitting at this slug that
-  // doesn't belong to this department must not supply its title/description,
-  // or the metadata would describe a different page than the body renders.
-  const pageResult =
-    rawPageResult &&
-    pageBelongsToDepartment(rawPageResult.row.department_id, department.$id)
-      ? rawPageResult
-      : null;
+  // Same predicate as the page body (see publishedUnitPage): a page sitting
+  // at this slug that isn't published, has no document, or doesn't belong to
+  // this department must not supply its title/description, or the metadata
+  // could describe content the body doesn't render.
+  const pageResult = publishedUnitPage(rawPageResult, department.$id);
 
   // getDepartmentById issues three uncached listRows calls; only pay for it
   // when the published page didn't already supply both fields.

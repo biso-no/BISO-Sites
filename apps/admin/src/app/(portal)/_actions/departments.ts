@@ -170,13 +170,17 @@ export async function createUnitPage(
     // assignUnitSlugs in lib/departments.ts), so the slug check below would
     // happily pass here too. But both public lookups
     // (cachedDepartmentsBySlug, cachedDepartmentBySlugAndCampus in
-    // apps/web/src/lib/data/public-content.ts) filter `active = true`, so a
-    // page created for an inactive department can only ever 404. `active` is
-    // nullable; treat null as active, matching listDepartments' own
-    // `Query.or([equal("active", true), isNull("active")])` and the
-    // isDepartmentActive check on the detail page — the public side's
-    // stricter `=== true` rule does not apply here.
-    if (department.active === false) {
+    // apps/web/src/lib/data/public-content.ts) filter `Query.equal("active",
+    // true)`, which EXCLUDES a null value. `active` is nullable, and unlike
+    // listDepartments' own `Query.or([equal("active", true),
+    // isNull("active")])` — which governs whether a row appears in the admin
+    // management LISTING, a question null answers "yes" to — this check
+    // answers "will this be reachable on the public site?", which null
+    // answers "no" to. Treating null as active here would let a legacy
+    // department with active: null get a page created, published, and
+    // advertised as live that every public URL then 404s. Do not "fix" this
+    // to match listDepartments; the two questions are different.
+    if (department.active !== true) {
       return {
         error:
           "This department is inactive, so a page cannot be published for it.",

@@ -15,10 +15,15 @@ import type { UserAuthContext } from "@/lib/authorization";
  *    so a campus admin could otherwise point it at a campus they don't
  *    manage and see that campus's departments (whose cards then 404 at
  *    getDepartmentWithPage's canManageDepartment check).
- * 2. createUnitPage must reject creating a page for an inactive department —
- *    the sync deliberately keeps an inactive department's slug, so without
- *    this guard the action would create a page that both public lookups
- *    (which filter active = true) can never serve.
+ * 2. createUnitPage must reject creating a page for an inactive department,
+ *    INCLUDING a department whose `active` is null — the sync deliberately
+ *    keeps an inactive department's slug, so without this guard the action
+ *    would create a page that both public lookups (which filter
+ *    `active = true`, excluding null) can never serve. This deliberately
+ *    diverges from listDepartments' own null-as-active treatment, which
+ *    answers a different question (does this row appear in the admin
+ *    management listing) than this guard does (will this be reachable on
+ *    the public site).
  *
  * Only the I/O boundaries are mocked (`@repo/api/server`'s clients,
  * `@repo/api/page-builder`'s `savePageDraft`, auth, revalidation, audit log)
@@ -170,7 +175,12 @@ describe("createUnitPage inactive-department guard", () => {
     expect(savePageDraftSpy).not.toHaveBeenCalled();
   });
 
-  test("treats a null active value as active and proceeds to create the page", async () => {
+  // Unlike listDepartments (which treats a null `active` as active for the
+  // admin management LISTING), createUnitPage must reject it: both public
+  // lookups (cachedDepartmentsBySlug, cachedDepartmentBySlugAndCampus) filter
+  // `Query.equal("active", true)`, which excludes null, so a page created for
+  // a null-active department can only ever 404 on the public site.
+  test("rejects a null active value, unlike listDepartments' null-as-active treatment", async () => {
     currentCtx = makeCtx({ roles: ["globaladmin"] });
     mockAdminRows({
       departments: [
@@ -187,8 +197,11 @@ describe("createUnitPage inactive-department guard", () => {
 
     const result = await createUnitPage("dept-1");
 
-    expect(result).not.toHaveProperty("error");
-    expect(savePageDraftSpy).toHaveBeenCalledTimes(1);
+    expect(result).toEqual({
+      error:
+        "This department is inactive, so a page cannot be published for it.",
+    });
+    expect(savePageDraftSpy).not.toHaveBeenCalled();
   });
 
   test("an active department still reaches page creation", async () => {
