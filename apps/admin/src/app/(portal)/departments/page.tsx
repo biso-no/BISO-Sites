@@ -5,6 +5,7 @@ import { notFound, redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { requireNavAccess } from "@/lib/authorization";
 import { resolveDepartmentsLanding } from "@/lib/departments";
+import { ROLES } from "@/lib/roles";
 import { listDepartments } from "../_actions/departments";
 import { listCampuses } from "../_actions/lookups";
 import { EmptyState } from "../_components/empty-state";
@@ -31,13 +32,16 @@ export default async function DepartmentsPage() {
   ]);
 
   const campusMap = new Map(campuses.map((c) => [c.$id, c.name]));
+  const isGlobalAdmin = ctx.roles.includes(ROLES.GLOBAL_ADMIN);
 
   return (
     <div className="pb-12">
       <PageHeader description={t("description")} title={t("title")} />
-      <div className="mb-6 flex items-center justify-end">
-        <SyncDepartmentsButton />
-      </div>
+      {isGlobalAdmin && (
+        <div className="mb-6 flex items-center justify-end">
+          <SyncDepartmentsButton />
+        </div>
+      )}
 
       {departments.length === 0 ? (
         <EmptyState

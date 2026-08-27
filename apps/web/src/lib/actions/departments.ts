@@ -3,6 +3,7 @@ import { createSessionClient } from "@repo/api/server";
 import {
   type ContentTranslations,
   ContentTranslationsContentType,
+  type Departments,
   type News,
   NewsStatus,
   type WebshopProducts,
@@ -99,11 +100,8 @@ export async function getDepartmentById(
       ]
     );
 
-    if (!result.rows[0]) {
-      return null;
-    }
-
-    const deptTranslation = result.rows[0];
+    const deptTranslation =
+      result.rows[0] ?? (await synthesizeDepartmentTranslation(db, id, locale));
 
     const newsResults = await db.listRows<News>("app", "news", [
       Query.equal("department_id", id),
@@ -182,4 +180,31 @@ export async function getDepartmentById(
     console.error("Error fetching department:", error);
     return null;
   }
+}
+
+/**
+ * Fallback for a department with no `content_translations` row (the sync job
+ * never creates one). The department record alone is enough to render the
+ * default tabbed view, so synthesize the same shape `getDepartmentById`
+ * normally reads off the translation row. Throws (letting the caller's
+ * try/catch turn it into `null`) only when the department itself is gone.
+ */
+async function synthesizeDepartmentTranslation(
+  db: Awaited<ReturnType<typeof createSessionClient>>["db"],
+  id: string,
+  locale: Locale
+): Promise<ContentTranslations> {
+  const department = await db.getRow<Departments>("app", "departments", id, [
+    Query.select(["*", "socials.*", "boardMembers.*"]),
+  ]);
+
+  return {
+    content_id: id,
+    content_type: ContentTranslationsContentType.DEPARTMENT,
+    locale,
+    title: department.Name,
+    description: "",
+    short_description: null,
+    department_ref: department,
+  } as ContentTranslations;
 }

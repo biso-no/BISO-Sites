@@ -1,10 +1,20 @@
 "use client";
 
 import { Button } from "@repo/ui/components/ui/button";
+import { toast } from "sonner";
 
 export function SyncDepartmentsButton() {
   const syncDepartments = async () => {
-    await fetch("/api/units/sync", { method: "POST" });
+    try {
+      const response = await fetch("/api/units/sync", { method: "POST" });
+      if (!response.ok) {
+        toast.error("Failed to sync units");
+        return;
+      }
+      toast.success("Units synced");
+    } catch {
+      toast.error("Failed to sync units");
+    }
   };
 
   return (

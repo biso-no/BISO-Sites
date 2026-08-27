@@ -80,7 +80,7 @@ export default async function DepartmentDetailPage({
   const webBaseUrl = (
     process.env.WEB_PUBLIC_BASE_URL ??
     process.env.NEXT_PUBLIC_WEB_BASE_URL ??
-    "https://app.biso.no"
+    "https://biso.no"
   ).replace(TRAILING_SLASH_RE, "");
   const liveUrl = canonicalPath ? `${webBaseUrl}${canonicalPath}` : null;
 
