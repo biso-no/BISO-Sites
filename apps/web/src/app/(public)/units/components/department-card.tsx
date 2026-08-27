@@ -1,6 +1,7 @@
 "use client";
 
 import type { ContentTranslations } from "@repo/api/types/appwrite";
+import { unitCanonicalPath } from "@repo/shared/utils/unit-urls";
 import { ImageWithFallback } from "@repo/ui/components/image";
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Button } from "@repo/ui/components/ui/button";
@@ -131,7 +132,12 @@ export function DepartmentCard({ department, index }: DepartmentCardProps) {
         <div className="px-6 pb-6">
           <Link
             className="block"
-            href={`/units/${dept?.$id || department.content_id}`}
+            href={
+              unitCanonicalPath({
+                campusId: dept?.campus_id,
+                slug: dept?.slug,
+              }) ?? `/units/${dept?.$id || department.content_id}`
+            }
           >
             <Button className="group w-full bg-linear-to-r from-brand-gradient-from to-brand-gradient-to text-white hover:from-brand-gradient-from/90 hover:to-brand-gradient-to/90">
               Les mer

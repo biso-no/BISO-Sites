@@ -39,7 +39,13 @@ export function jobScopeQueries(ctx: UserAuthContext): string[] {
   return [NO_SCOPE_FILTER];
 }
 
-/** Departments scope by their flat campus_id column (mirrors listDepartments). */
+/**
+ * Global admins and campus admins scope by the flat campus_id column
+ * (mirrors listDepartments); a plain department member scopes by their own
+ * resolved department ids, matching canManageDepartment's exclusive
+ * precedence — every hit the palette surfaces must be one the user can
+ * actually open via /departments/[id].
+ */
 export function departmentScopeQueries(ctx: UserAuthContext): string[] {
   if (ctx.roles.includes("globaladmin")) {
     return ctx.activeCampusId
@@ -49,8 +55,8 @@ export function departmentScopeQueries(ctx: UserAuthContext): string[] {
   if (ctx.managedCampusIds.length > 0) {
     return [Query.equal("campus_id", ctx.managedCampusIds)];
   }
-  if (ctx.resolvedCampusIds.length > 0) {
-    return [Query.equal("campus_id", ctx.resolvedCampusIds)];
+  if (ctx.resolvedDepartmentIds.length > 0) {
+    return [Query.equal("$id", ctx.resolvedDepartmentIds)];
   }
   return [NO_SCOPE_FILTER];
 }
@@ -82,14 +88,14 @@ export function pickTitle(translations: unknown, fallback: string): string {
 }
 
 /**
- * Deep-link when a matching [id] route exists (jobs/events/news have one,
- * product detail is /shop/[id], the page editor is /pages/[id]); departments
- * and orders have no detail route, so they land on their list pages.
+ * Deep-link when a matching [id] route exists (jobs/events/news/departments
+ * have one, product detail is /shop/[id], the page editor is /pages/[id]);
+ * orders have no detail route, so they land on their list page.
  */
 export function buildHitHref(group: PaletteEntityGroup, id: string): string {
   switch (group) {
     case "departments":
-      return "/departments";
+      return `/departments/${id}`;
     case "events":
       return `/events/${id}`;
     case "jobs":

@@ -1,3 +1,4 @@
+import { isUnitPageSlug } from "@repo/shared/utils/unit-urls";
 import { notFound } from "next/navigation";
 import { listDepartments } from "@/app/(portal)/_actions/departments";
 import {
@@ -28,6 +29,13 @@ export default async function PageEditorPage({ params }: Props) {
     notFound();
   }
 
+  // A unit page's slug IS its binding to a department (see the unit pages
+  // spec). Editing either field here would orphan the page, so both are shown
+  // read-only; savePageEditorDoc enforces it server-side.
+  const locked = isUnitPageSlug(pageResult?.page.slug)
+    ? { department: true, slug: true }
+    : undefined;
+
   const editorDepartments = departments.map((d) => ({
     id: d.$id,
     name: d.Name ?? d.$id,
@@ -39,6 +47,7 @@ export default async function PageEditorPage({ params }: Props) {
       departments={editorDepartments}
       initialLocale={initialLocale}
       initialPage={pageResult}
+      lockedMeta={locked}
       pageId={isNew ? null : id}
     />
   );

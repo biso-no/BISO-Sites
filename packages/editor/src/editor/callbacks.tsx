@@ -12,6 +12,12 @@ export interface EditorCallbacks {
   activeLocale: EditorLocale;
   departments: EditorDepartment[];
   locales: EditorLocaleOption[];
+  /**
+   * Meta fields the host has bound to something outside the editor and that
+   * must not be edited here. Unit pages set slug + department: both encode the
+   * page's binding to a department, and changing either orphans the page.
+   */
+  lockedMeta?: { department?: boolean; slug?: boolean };
   onExit?: () => void;
   onLocaleChange: (locale: EditorLocale) => void;
   onPublish?: (locale: EditorLocale) => Promise<void>;

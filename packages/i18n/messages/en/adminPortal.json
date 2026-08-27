@@ -836,7 +836,20 @@
     "actions": {
       "editPage": "Edit Page",
       "admins": "Admins",
-      "initialize": "Initialize Page"
+      "initialize": "Initialize Page",
+      "viewLive": "View live",
+      "createPage": "Create page",
+      "createPageDisabledInactive": "This department is inactive, so a page cannot be created for it.",
+      "noSlug": "This department has no slug yet. Run the department sync to assign one.",
+      "pageHeading": "Public page",
+      "noPage": "No page yet. Create one to give this department its own page on biso.no.",
+      "slugConflict": "This address is already used by another page. Contact BISO IT to resolve it before a page can be created here.",
+      "draft": "Draft",
+      "published": "Published",
+      "notPublished": "Not published",
+      "localeNo": "Norwegian",
+      "localeEn": "English",
+      "inactiveLiveNotice": "This department is inactive, so its published page is not publicly reachable."
     }
   },
   "pages": {

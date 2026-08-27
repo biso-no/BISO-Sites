@@ -1,6 +1,7 @@
 export type { Models } from "node-appwrite";
 export {
   Account,
+  AppwriteException,
   Client,
   Functions,
   ID,

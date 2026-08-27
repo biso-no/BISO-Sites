@@ -372,24 +372,49 @@ export async function getPageEditorById(
   return toEditorLoadResult(row);
 }
 
-export async function savePageDraft({
-  id,
-  doc,
-  locale = "no",
-  ctx,
-}: {
+export async function savePageDraft(params: {
   id: string | null;
   doc: PageDoc;
   locale?: PageEditorLocale;
   ctx: PageAuthCtx;
+  /**
+   * Explicit campus to persist, overriding the author-derived value. Pass it
+   * when the caller already knows the correct campus for this row (e.g. an
+   * existing page's own persisted campus on update, or a unit page's
+   * department campus on create) — see the presence check below for why an
+   * absent property and an explicit `null` are NOT the same thing.
+   */
+  campusId?: string | null;
+  /**
+   * How to handle a slug collision on CREATE (`id === null`).
+   *
+   * - `"suffix"` (default): the historical behavior — probe for a free slug
+   *   and silently append `-2`, `-3`, ... Fine for ordinary editor pages,
+   *   where any reachable slug is an acceptable outcome.
+   * - `"fail"`: skip the suffixing probe entirely and let the write hit the
+   *   `page_slug_unique` index as-is. Use this for slugs whose EXACT value is
+   *   load-bearing (e.g. unit pages, which are only ever looked up at their
+   *   unsuffixed `units/<campus>/<slug>` address — a silently-suffixed
+   *   variant would be permanently unreachable). The caller is responsible
+   *   for catching the resulting 409 and deciding what it means.
+   */
+  slugConflict?: "suffix" | "fail";
 }): Promise<{ pageId: string; slug: string; translationId: string }> {
+  const { id, doc, locale = "no", ctx, slugConflict = "suffix" } = params;
   // PRIVILEGED: callers must authorize the requested scope before invoking
   // this helper; the write goes through the service-key admin client.
   const { db } = await createAdminClient();
-  const campusId = resolvePageCampusId(ctx);
+  // A property PRESENT with value `null` is a deliberate override (e.g. a
+  // national page's legitimate null campus); a property ABSENT means "no
+  // override, derive from the author" as before. `params.campusId ??
+  // resolvePageCampusId(ctx)` cannot tell those apart — it would silently
+  // replace an explicit `null` override with the author's campus, which
+  // defeats the whole point of passing one. Check presence explicitly.
+  const campusId =
+    "campusId" in params ? params.campusId : resolvePageCampusId(ctx);
   let normalizedDoc = normalizeDocForSave(doc);
 
-  if (!id) {
+  if (!id && slugConflict === "suffix") {
     const uniqueSlug = await resolveUniquePageSlug(db, normalizedDoc.meta.slug);
     normalizedDoc = {
       ...normalizedDoc,

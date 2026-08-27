@@ -6,6 +6,7 @@ import type { PatchFn } from "@/blocks/types";
 import { useEditorCallbacks } from "@/editor/callbacks";
 import { useInspectorTab, useSelection } from "@/editor/hooks";
 import { useEditorStore } from "@/editor/store";
+import type { EditorDepartment } from "@/editor/types";
 import type { AccentHue } from "@/theme/presets";
 import { HUE_COLORS } from "@/theme/presets";
 import { DesignPanel } from "./design-panel";
@@ -108,7 +109,7 @@ function PageTab({
   applyAccent: (hex: string) => void;
 }) {
   const setMeta = useEditorStore((s) => s.setMeta);
-  const { departments } = useEditorCallbacks();
+  const { departments, lockedMeta } = useEditorCallbacks();
 
   return (
     <div className="pe-insp-section">
@@ -132,35 +133,33 @@ function PageTab({
       <div className="pe-row">
         <label htmlFor="pe-page-slug">Shared slug</label>
         <input
+          disabled={lockedMeta?.slug}
           id="pe-page-slug"
           onChange={(e) => setMeta("slug", e.target.value)}
+          readOnly={lockedMeta?.slug}
           value={doc.meta.slug}
         />
       </div>
       <div className="pe-row">
         <label htmlFor="pe-page-department">Dept</label>
-        {departments.length > 0 ? (
-          <select
-            id="pe-page-department"
-            onChange={(e) => setMeta("department", e.target.value)}
-            value={doc.meta.department}
-          >
-            <option value="">— none —</option>
-            {departments.map((d) => (
-              <option key={d.id} value={d.id}>
-                {d.name} · {d.id.slice(0, 8)}
-              </option>
-            ))}
-          </select>
-        ) : (
-          <input
-            id="pe-page-department"
-            onChange={(e) => setMeta("department", e.target.value)}
-            placeholder="loading…"
-            value={doc.meta.department}
-          />
-        )}
+        <DepartmentField
+          departments={departments}
+          doc={doc}
+          locked={lockedMeta?.department}
+          onChange={(value) => setMeta("department", value)}
+        />
       </div>
+      {(lockedMeta?.slug || lockedMeta?.department) && (
+        <p
+          style={{
+            fontSize: 10,
+            color: "var(--ink-3)",
+            margin: "2px 0 0",
+          }}
+        >
+          Managed by the department — this page is published at its unit URL.
+        </p>
+      )}
       {doc.meta.department && (
         <p
           style={{
@@ -192,6 +191,63 @@ function PageTab({
         )}
       </div>
     </div>
+  );
+}
+
+/**
+ * Department selector for the page-settings tab. A three-way branch driven by
+ * `locked` and `departments.length` — kept as sequential early returns rather
+ * than a nested ternary (disallowed by this repo's lint config).
+ */
+function DepartmentField({
+  departments,
+  doc,
+  locked,
+  onChange,
+}: {
+  departments: EditorDepartment[];
+  doc: ReturnType<typeof useEditorStore.getState>["doc"];
+  locked?: boolean;
+  onChange: (value: string) => void;
+}) {
+  if (locked) {
+    return (
+      <input
+        disabled
+        id="pe-page-department"
+        readOnly
+        value={
+          departments.find((d) => d.id === doc.meta.department)?.name ??
+          doc.meta.department
+        }
+      />
+    );
+  }
+
+  if (departments.length > 0) {
+    return (
+      <select
+        id="pe-page-department"
+        onChange={(e) => onChange(e.target.value)}
+        value={doc.meta.department}
+      >
+        <option value="">— none —</option>
+        {departments.map((d) => (
+          <option key={d.id} value={d.id}>
+            {d.name} · {d.id.slice(0, 8)}
+          </option>
+        ))}
+      </select>
+    );
+  }
+
+  return (
+    <input
+      id="pe-page-department"
+      onChange={(e) => onChange(e.target.value)}
+      placeholder="loading…"
+      value={doc.meta.department}
+    />
   );
 }
 

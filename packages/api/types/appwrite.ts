@@ -675,6 +675,7 @@ export type Departments = Models.Row & {
   benefits: CampusBenefits[];
   announcements: Announcements[];
   documents: Documents[];
+  slug: string | null;
 };
 
 export type StopPlaces = Models.Row & {
@@ -1512,7 +1513,6 @@ export type ProductVariations = Models.Row & {
   enabled: boolean;
   product: WebshopProducts;
 };
-
 export type AuthTokens = Models.Row & {
   token: string;
 };

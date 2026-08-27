@@ -2349,6 +2349,15 @@
           "twoWayKey": "department",
           "onDelete": "setNull",
           "side": "child"
+        },
+        {
+          "key": "slug",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 128,
+          "default": null,
+          "encrypt": false
         }
       ],
       "indexes": [
@@ -2365,6 +2374,13 @@
           "status": "available",
           "columns": ["campus_id"],
           "orders": ["ASC"]
+        },
+        {
+          "key": "department_slug_campus_unique",
+          "type": "unique",
+          "status": "available",
+          "columns": ["slug", "campus_id"],
+          "orders": ["ASC", "ASC"]
         }
       ]
     },
@@ -7489,7 +7505,7 @@
           "type": "string",
           "required": false,
           "array": false,
-          "size": 30,
+          "size": 128,
           "default": null,
           "encrypt": false
         },
