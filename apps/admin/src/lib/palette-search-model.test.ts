@@ -71,6 +71,19 @@ describe("departmentScopeQueries", () => {
     ).toEqual([Query.equal("campus_id", ["3"])]);
   });
 
+  // Every hit the palette surfaces now deep-links straight into
+  // /departments/[id] (buildHitHref), so a plain department member must be
+  // scoped by the departments they can actually manage — not by campus,
+  // which would surface colleagues' departments and 404 on click. Mirrors
+  // canManageDepartment's third branch in lib/departments.ts.
+  test("plain department member filters by their own resolved department ids, not campus", () => {
+    expect(
+      departmentScopeQueries(
+        makeCtx({ resolvedCampusIds: ["3"], resolvedDepartmentIds: ["d1"] })
+      )
+    ).toEqual([Query.equal("$id", ["d1"])]);
+  });
+
   test("SECURITY: unresolved scope fails closed", () => {
     expect(departmentScopeQueries(makeCtx())[0]).toContain(
       "__no_scope_resolved__"
@@ -121,8 +134,9 @@ describe("buildHitHref", () => {
     expect(buildHitHref("news", "n1")).toBe("/news/n1");
     expect(buildHitHref("pages", "p1")).toBe("/pages/p1");
     expect(buildHitHref("products", "w1")).toBe("/shop/w1");
-    // no [id] routes exist for these — verified against the route tree
-    expect(buildHitHref("departments", "d1")).toBe("/departments");
+    // /departments/[id] exists now (this PR) — departments deep-link too.
+    expect(buildHitHref("departments", "308")).toBe("/departments/308");
+    // orders genuinely have no detail route — guard against an over-broad edit.
     expect(buildHitHref("orders", "o1")).toBe("/shop");
   });
 });
