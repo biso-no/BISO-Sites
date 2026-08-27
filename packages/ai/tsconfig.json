@@ -4,7 +4,9 @@
     "outDir": "dist",
     "rootDir": ".",
     "strictNullChecks": true,
-    "types": ["node", "react"]
+    "types": ["node", "react"],
+    "declaration": false,
+    "declarationMap": false
   },
   "exclude": ["node_modules", "dist"]
 }
