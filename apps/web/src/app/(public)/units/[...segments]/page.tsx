@@ -159,9 +159,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const title =
     pageResult?.translation?.title ?? translated?.title ?? department.Name;
   const description =
-    pageResult?.translation?.description ??
-    translated?.short_description ??
-    translated?.description ??
+    pageResult?.translation?.description ||
+    translated?.short_description ||
+    translated?.description ||
     undefined;
 
   return {
