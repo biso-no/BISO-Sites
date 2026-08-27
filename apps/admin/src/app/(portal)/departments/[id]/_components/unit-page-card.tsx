@@ -16,6 +16,7 @@ interface Labels {
   createPage: string;
   draft: string;
   editPage: string;
+  inactiveLiveNotice: string;
   noPage: string;
   noSlug: string;
   notPublished: string;
@@ -52,6 +53,7 @@ function localeStatusLabel(
 export function UnitPageCard({
   canonicalPath,
   departmentId,
+  isDepartmentActive,
   labels,
   liveUrl,
   localeStatuses,
@@ -59,6 +61,7 @@ export function UnitPageCard({
 }: {
   canonicalPath: string | null;
   departmentId: string;
+  isDepartmentActive: boolean;
   labels: Labels;
   liveUrl: string | null;
   localeStatuses: UnitPageLocaleStatus[];
@@ -166,6 +169,12 @@ export function UnitPageCard({
               </a>
             )}
           </div>
+
+          {anyPublished && !isDepartmentActive && (
+            <p className="text-sm" style={{ color: STUDIO.ink3 }}>
+              {labels.inactiveLiveNotice}
+            </p>
+          )}
         </div>
       )}
     </StudioPanel>

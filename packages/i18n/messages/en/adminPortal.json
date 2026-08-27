@@ -846,7 +846,8 @@
       "published": "Published",
       "notPublished": "Not published",
       "localeNo": "Norwegian",
-      "localeEn": "English"
+      "localeEn": "English",
+      "inactiveLiveNotice": "This department is inactive, so its published page is not publicly reachable."
     }
   },
   "pages": {

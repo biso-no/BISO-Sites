@@ -59,10 +59,12 @@ export function DepartmentHero({ department }: DepartmentHeroProps) {
                       {dept.type.charAt(0).toUpperCase() + dept.type.slice(1)}
                     </Badge>
                   )}
-                  <Badge className="border-white/30 bg-background/20 text-white">
-                    <MapPin className="mr-1 h-3 w-3" />
-                    {dept.campus.name}
-                  </Badge>
+                  {dept.campus?.name && (
+                    <Badge className="border-white/30 bg-background/20 text-white">
+                      <MapPin className="mr-1 h-3 w-3" />
+                      {dept.campus.name}
+                    </Badge>
+                  )}
                 </div>
                 <h1 className="mb-0 font-bold text-4xl text-white md:text-5xl">
                   {department.title}

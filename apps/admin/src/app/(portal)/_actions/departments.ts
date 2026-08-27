@@ -1,6 +1,6 @@
 "use server";
 
-import { Query } from "@repo/api";
+import { AppwriteException, Query } from "@repo/api";
 import { type PageDoc, savePageDraft } from "@repo/api/page-builder";
 import { createAdminClient, createSessionClient } from "@repo/api/server";
 import type { Departments, Pages } from "@repo/api/types/appwrite";
@@ -198,13 +198,55 @@ export async function createUnitPage(
     // listing. A unit page belongs to its department's campus, not the
     // author's, so pass it explicitly rather than relying on the
     // author-derived default.
-    const { pageId } = await savePageDraft({
-      id: null,
-      doc,
-      locale: "no",
-      ctx,
-      campusId: department.campus_id,
-    });
+    //
+    // slugConflict: "fail" — the preflight lookup above is a fast path, not a
+    // lock: two concurrent creates for the same department can both pass it
+    // and both reach here. savePageDraft's default suffixing behavior would
+    // let the loser silently mint "<slug>-2", which is permanently
+    // unreachable (both public routes and this card only ever look up the
+    // unsuffixed slug). The `pages` table's UNIQUE index on `slug`
+    // (`page_slug_unique`) is the only thing that can actually arbitrate a
+    // race, so skip the suffix probe and let the write hit that index — a
+    // collision surfaces as a 409, recovered just below.
+    let pageId: string;
+    try {
+      ({ pageId } = await savePageDraft({
+        id: null,
+        doc,
+        locale: "no",
+        ctx,
+        campusId: department.campus_id,
+        slugConflict: "fail",
+      }));
+    } catch (writeError) {
+      if (
+        !(writeError instanceof AppwriteException && writeError.code === 409)
+      ) {
+        throw writeError;
+      }
+      // Lost the race: another request created a page at this slug between
+      // our preflight and this write. Re-run the exact same ownership check
+      // the preflight above does, against whatever now exists at the slug.
+      const race = await db.listRows<Pages>("app", "pages", [
+        Query.equal("slug", slug),
+        Query.select(["$id", "department_id"]),
+        Query.limit(1),
+      ]);
+      const raceWinner = race.rows[0];
+      if (!raceWinner) {
+        // The unique index rejected the write but nothing is there now
+        // (e.g. the winner's row was since deleted) — propagate rather than
+        // guess.
+        throw writeError;
+      }
+      if (raceWinner.department_id !== department.$id) {
+        return {
+          error:
+            "Another department already owns a page at this address. Contact BISO IT to sort it out.",
+        };
+      }
+      pageId = raceWinner.$id;
+    }
 
     await logAuditEvent(ctx, "unit_page_created", {
       resourceId: pageId,

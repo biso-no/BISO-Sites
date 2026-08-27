@@ -82,7 +82,19 @@ export default async function DepartmentDetailPage({
     process.env.NEXT_PUBLIC_WEB_BASE_URL ??
     "https://biso.no"
   ).replace(TRAILING_SLASH_RE, "");
-  const liveUrl = canonicalPath ? `${webBaseUrl}${canonicalPath}` : null;
+  // A sync that marks a department inactive deliberately keeps its slug and
+  // page — but both public lookups (cachedDepartmentsBySlug,
+  // cachedDepartmentBySlugAndCampus) filter `active = true`, so the live URL
+  // would always 404 for an inactive department. `active` is nullable;
+  // treat null as active, matching listDepartments' own
+  // `Query.or([equal("active", true), isNull("active")])` — the public
+  // side's stricter `=== true` rule does not apply here, it would just hide
+  // links for legacy rows that do render.
+  const isDepartmentActive = department.active !== false;
+  const liveUrl =
+    canonicalPath && isDepartmentActive
+      ? `${webBaseUrl}${canonicalPath}`
+      : null;
 
   return (
     <div className="pb-12">
@@ -94,10 +106,12 @@ export default async function DepartmentDetailPage({
       <UnitPageCard
         canonicalPath={canonicalPath}
         departmentId={department.$id}
+        isDepartmentActive={isDepartmentActive}
         labels={{
           createPage: t("actions.createPage"),
           draft: t("actions.draft"),
           editPage: t("actions.editPage"),
+          inactiveLiveNotice: t("actions.inactiveLiveNotice"),
           noPage: t("actions.noPage"),
           noSlug: t("actions.noSlug"),
           notPublished: t("actions.notPublished"),

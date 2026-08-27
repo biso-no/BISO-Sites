@@ -94,6 +94,8 @@ export async function getDepartmentById(
           "description",
           "short_description",
           "department_ref.*",
+          "department_ref.campus.$id",
+          "department_ref.campus.name",
           "department_ref.socials.*",
           "department_ref.boardMembers.*",
         ]),
@@ -195,7 +197,13 @@ async function synthesizeDepartmentTranslation(
   locale: Locale
 ): Promise<ContentTranslations> {
   const department = await db.getRow<Departments>("app", "departments", id, [
-    Query.select(["*", "socials.*", "boardMembers.*"]),
+    Query.select([
+      "*",
+      "campus.$id",
+      "campus.name",
+      "socials.*",
+      "boardMembers.*",
+    ]),
   ]);
 
   return {

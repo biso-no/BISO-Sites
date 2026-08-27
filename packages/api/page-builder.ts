@@ -385,8 +385,22 @@ export async function savePageDraft(params: {
    * absent property and an explicit `null` are NOT the same thing.
    */
   campusId?: string | null;
+  /**
+   * How to handle a slug collision on CREATE (`id === null`).
+   *
+   * - `"suffix"` (default): the historical behavior — probe for a free slug
+   *   and silently append `-2`, `-3`, ... Fine for ordinary editor pages,
+   *   where any reachable slug is an acceptable outcome.
+   * - `"fail"`: skip the suffixing probe entirely and let the write hit the
+   *   `page_slug_unique` index as-is. Use this for slugs whose EXACT value is
+   *   load-bearing (e.g. unit pages, which are only ever looked up at their
+   *   unsuffixed `units/<campus>/<slug>` address — a silently-suffixed
+   *   variant would be permanently unreachable). The caller is responsible
+   *   for catching the resulting 409 and deciding what it means.
+   */
+  slugConflict?: "suffix" | "fail";
 }): Promise<{ pageId: string; slug: string; translationId: string }> {
-  const { id, doc, locale = "no", ctx } = params;
+  const { id, doc, locale = "no", ctx, slugConflict = "suffix" } = params;
   // PRIVILEGED: callers must authorize the requested scope before invoking
   // this helper; the write goes through the service-key admin client.
   const { db } = await createAdminClient();
@@ -400,7 +414,7 @@ export async function savePageDraft(params: {
     "campusId" in params ? params.campusId : resolvePageCampusId(ctx);
   let normalizedDoc = normalizeDocForSave(doc);
 
-  if (!id) {
+  if (!id && slugConflict === "suffix") {
     const uniqueSlug = await resolveUniquePageSlug(db, normalizedDoc.meta.slug);
     normalizedDoc = {
       ...normalizedDoc,

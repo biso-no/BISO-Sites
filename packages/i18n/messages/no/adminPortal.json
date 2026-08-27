@@ -846,7 +846,8 @@
       "published": "Publisert",
       "notPublished": "Ikke publisert",
       "localeNo": "Norsk",
-      "localeEn": "Engelsk"
+      "localeEn": "Engelsk",
+      "inactiveLiveNotice": "Denne avdelingen er inaktiv, så den publiserte siden er ikke offentlig tilgjengelig."
     }
   },
   "pages": {

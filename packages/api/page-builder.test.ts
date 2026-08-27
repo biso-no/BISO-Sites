@@ -239,6 +239,63 @@ describe("page builder", () => {
     );
   });
 
+  it("skips the suffixing resolver on create when slugConflict is 'fail'", async () => {
+    db.upsertRow
+      .mockResolvedValueOnce({ $id: "page-2" })
+      .mockResolvedValueOnce({ $id: "tr-no" });
+    // Only the page_translations lookup should run — no slug-uniqueness
+    // probe (resolveUniquePageSlug) when slugConflict is "fail".
+    db.listRows.mockResolvedValueOnce({ rows: [] });
+
+    const result = await savePageDraft({
+      id: null,
+      doc,
+      locale: "no",
+      ctx,
+      slugConflict: "fail",
+    });
+
+    expect(result.slug).toBe("shared-slug");
+    expect(db.listRows).toHaveBeenCalledTimes(1);
+    expect(db.upsertRow).toHaveBeenNthCalledWith(
+      1,
+      "app",
+      "pages",
+      expect.any(String),
+      expect.objectContaining({ slug: "shared-slug" }),
+      expect.any(Array)
+    );
+  });
+
+  it("still suffixes on create when slugConflict is left at its 'suffix' default", async () => {
+    db.upsertRow
+      .mockResolvedValueOnce({ $id: "page-2" })
+      .mockResolvedValueOnce({ $id: "tr-no" });
+    db.listRows
+      .mockResolvedValueOnce({ rows: [{ $id: "page-1", slug: "shared-slug" }] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const result = await savePageDraft({ id: null, doc, locale: "no", ctx });
+
+    expect(result.slug).toBe("shared-slug-2");
+  });
+
+  it("propagates a slug-conflict write error unmodified when slugConflict is 'fail', letting the caller decide what it means", async () => {
+    const conflict = Object.assign(new Error("Row already exists"), {
+      code: 409,
+    });
+    db.upsertRow.mockRejectedValueOnce(conflict);
+
+    await expect(
+      savePageDraft({ id: null, doc, locale: "no", ctx, slugConflict: "fail" })
+    ).rejects.toBe(conflict);
+
+    // No suffix-probe listRows call happened before the failing write —
+    // proves the "fail" path truly skipped resolveUniquePageSlug rather than
+    // swallowing the conflict some other way.
+    expect(db.listRows).not.toHaveBeenCalled();
+  });
+
   it("updates an existing locale translation instead of creating a duplicate", async () => {
     db.upsertRow
       .mockResolvedValueOnce({ $id: "page-1" })
