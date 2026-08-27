@@ -5,7 +5,9 @@
       "@/*": ["./src/*"],
       "@repo/ui/*": ["../ui/*"]
     },
-    "types": ["bun", "node"]
+    "types": ["bun", "node"],
+    "declaration": false,
+    "declarationMap": false
   },
   "include": ["src/**/*.ts", "src/**/*.tsx"],
   "exclude": ["node_modules"]
