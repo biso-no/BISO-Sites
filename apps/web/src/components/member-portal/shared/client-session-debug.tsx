@@ -29,7 +29,12 @@ import { ensureClientAppwriteSession } from "@/lib/account-link-client";
  * 3. Bootstrap on demand — runs `ensureClientAppwriteSession()` in isolation,
  *    without the redirect, so the session step can be observed on its own.
  *
- * Renders nothing in production.
+ * Hidden in production unless `NEXT_PUBLIC_BI_LINK_DEBUG=true` is set, which
+ * exists because linking cannot be reproduced on `localhost` at all — a page
+ * there cannot present a cookie to `appwrite.biso.no`, so the OAuth redirect
+ * is always anonymous. Diagnosing this requires a real deployment. The panel
+ * only ever reads the viewer's own account, but it is still developer output:
+ * unset the variable once testing is done.
  */
 
 interface Probe {
@@ -39,7 +44,9 @@ interface Probe {
   userId: string | null;
 }
 
-const IS_DEV = process.env.NODE_ENV !== "production";
+const IS_DEV =
+  process.env.NODE_ENV !== "production" ||
+  process.env.NEXT_PUBLIC_BI_LINK_DEBUG === "true";
 
 function readCookieFallback(): boolean {
   try {

@@ -58,9 +58,18 @@ const DEV_OVERRIDE_PAIR_SEPARATOR = "=";
  * a student id may take. A malformed or non-student right-hand side is
  * ignored rather than trusted.
  *
- * Two independent gates protect it. The variable must be set, and `NODE_ENV`
- * must not be "production" — the second exists so that a value left behind in
- * a production deploy is inert instead of a privilege-escalation path.
+ * The variable is the ONLY gate. There is deliberately no `NODE_ENV` check:
+ * Appwrite account linking cannot be exercised from `localhost` at all — a
+ * page on `localhost:3000` cannot present any cookie to `appwrite.biso.no`,
+ * so the OAuth redirect is always anonymous there — which means this feature
+ * can only be tested against a real deployment.
+ *
+ * That makes an unset variable the whole of the security boundary, so treat
+ * it as live credentials: setting it in production lets the named address
+ * assert the mapped student number, and therefore that student's membership.
+ * Set it only for as long as a test needs, and unset it immediately after.
+ * Every resolution logs at `error` level precisely so a forgotten value is
+ * loud in production logs rather than silent.
  *
  * The matched address comes back as `directoryEmail` so the caller can aim the
  * Graph lookup at the account that actually exists. Synthesizing
@@ -73,10 +82,6 @@ function resolveDevStudentOverride(emails: Array<string | null | undefined>): {
   studentId: string;
   studentNumber: number;
 } | null {
-  if (process.env.NODE_ENV === "production") {
-    return null;
-  }
-
   const raw = process.env[DEV_STUDENT_OVERRIDE_ENV];
   if (!raw) {
     return null;
@@ -112,8 +117,10 @@ function resolveDevStudentOverride(emails: Array<string | null | undefined>): {
       to.includes("@") ? to : `${to}@${BI_STUDENT_EMAIL_DOMAIN}`
     );
     if (parsed) {
-      console.warn(
-        `[BI Identity] ${DEV_STUDENT_OVERRIDE_ENV} active: treating ${from} as ${parsed.studentId}@${BI_STUDENT_EMAIL_DOMAIN}`
+      // Deliberately `error`, not `warn`: this bypasses the student-email
+      // check, and a value left set in production must be impossible to miss.
+      console.error(
+        `[BI Identity] ${DEV_STUDENT_OVERRIDE_ENV} is SET and matched: treating ${from} as ${parsed.studentId}@${BI_STUDENT_EMAIL_DOMAIN}. Unset this variable when testing is done.`
       );
       return { ...parsed, directoryEmail: from };
     }

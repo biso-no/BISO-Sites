@@ -442,9 +442,26 @@ describe("syncBiStudentIdentity", () => {
       });
     });
 
-    it("is inert in production even when the variable is set", async () => {
+    it("still applies in production, because the variable is the only gate", async () => {
+      // Deliberate: linking cannot be exercised from localhost, so this has
+      // to work against a real deployment. An unset variable is the entire
+      // security boundary — which is what the next test pins.
       vi.stubEnv("NODE_ENV", "production");
       vi.stubEnv("BI_DEV_STUDENT_EMAIL_OVERRIDE", `${STAFF_EMAIL}=s1715738`);
+      account.listIdentities.mockResolvedValue({
+        identities: [oidcIdentity(STAFF_EMAIL)],
+      });
+      getBiDirectoryUser.mockResolvedValue(null);
+
+      await expect(syncBiStudentIdentity()).resolves.toMatchObject({
+        success: true,
+        studentId: "s1715738",
+      });
+    });
+
+    it("is inert when the variable is unset, in production or otherwise", async () => {
+      vi.stubEnv("NODE_ENV", "production");
+      vi.stubEnv("BI_DEV_STUDENT_EMAIL_OVERRIDE", "");
       account.listIdentities.mockResolvedValue({
         identities: [oidcIdentity(STAFF_EMAIL)],
       });
