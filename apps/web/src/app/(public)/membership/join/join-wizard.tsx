@@ -18,10 +18,10 @@ import { useState, useTransition } from "react";
 import { startMembershipCheckout } from "@/app/actions/membership-purchase";
 import { MembershipPlanCard } from "@/components/membership/plan-card";
 import { StepCard } from "@/components/shared/step-card";
+import { NATIONAL_CAMPUS_ID } from "@/lib/campus-scope";
 
-// "5" is National — not a study campus, so it is excluded from the invoice
-// name catalog before it ever reaches the campus picker.
-const NATIONAL_CAMPUS_ID = "5";
+// National is not a study campus, so it is excluded from the invoice name
+// catalog before it ever reaches the campus picker.
 
 type PaymentProvider = "vipps" | "stripe";
 

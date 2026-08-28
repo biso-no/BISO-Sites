@@ -51,6 +51,7 @@ import {
 } from "@repo/shared/utils/page-feeds";
 import { cacheLife } from "next/cache";
 import type { Partner } from "@/app/actions/about";
+import { campusScopeIds } from "@/lib/campus-scope";
 import type { NavFeatured } from "@/lib/types/nav";
 import { buildNavFeatured } from "./nav-featured";
 import { type PublicLocale, queryEvents, queryNews } from "./queries";
@@ -100,8 +101,9 @@ export async function cachedHomeCounts(
   const { db } = await createPublicClient();
 
   const eventQueries = [Query.equal("status", "published"), Query.limit(1)];
-  if (campusId) {
-    eventQueries.push(Query.equal("campus_id", campusId));
+  const campusScope = campusScopeIds(campusId);
+  if (campusScope) {
+    eventQueries.push(Query.equal("campus_id", campusScope));
   }
 
   const [eventsRes, jobsRes] = await Promise.all([

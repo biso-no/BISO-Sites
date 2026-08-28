@@ -13,6 +13,7 @@ import type {
   Events,
   News,
 } from "@repo/api/types/appwrite";
+import { campusScopeIds } from "@/lib/campus-scope";
 
 export type Db = Awaited<ReturnType<typeof createSessionClient>>["db"];
 
@@ -104,8 +105,9 @@ export async function queryEvents(
     queries.push(Query.equal("status", status));
   }
 
-  if (campus && campus !== "all") {
-    queries.push(Query.equal("campus_id", campus));
+  const campusScope = campusScopeIds(campus);
+  if (campusScope) {
+    queries.push(Query.equal("campus_id", campusScope));
   }
 
   if (search?.trim()) {
@@ -178,8 +180,9 @@ export async function queryNews(
     queries.push(Query.equal("status", status));
   }
 
-  if (campus && campus !== "all") {
-    queries.push(Query.equal("campus_id", campus));
+  const campusScope = campusScopeIds(campus);
+  if (campusScope) {
+    queries.push(Query.equal("campus_id", campusScope));
   }
 
   if (search?.trim()) {
