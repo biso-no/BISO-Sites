@@ -21,6 +21,7 @@ import Image, { type ImageProps } from "next/image";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
+import { buildTeaser } from "@/lib/content-text";
 
 /**
  * Drop-in robust ImageWithFallback that does NOT force 100x100.
@@ -58,6 +59,20 @@ function ImageWithFallback({
 
 type HeroCarouselItem = Events | News;
 
+const HERO_TEASER_MAX_LENGTH = 180;
+
+/**
+ * Embla swallows pointer moves to drag the track, which also kills native text
+ * selection. Slides opt their copy out with `data-carousel-no-drag` so a drag
+ * that starts on the headline or teaser selects text instead of paging.
+ */
+const NO_DRAG_SELECTOR = "[data-carousel-no-drag]";
+
+function startsOnSelectableText(event: MouseEvent | TouchEvent): boolean {
+  const target = event.target;
+  return target instanceof Element && Boolean(target.closest(NO_DRAG_SELECTOR));
+}
+
 interface HeroCarouselProps {
   featuredContent: HeroCarouselItem[];
 }
@@ -87,9 +102,22 @@ function HeroCarouselSlide({ index, item, t }: HeroCarouselSlideProps) {
   const isEvent = "start_date" in item;
   const imageUrl = item?.image;
   const contentLink = isEvent ? `/events/${item.slug}` : `/news/${item.slug}`;
+  // Whole phrases per content type — interpolating a bare noun into "View all
+  // {x}" produced "Se alle Nyhet"/"View all Event", since the badge needs a
+  // singular and the CTA a plural.
+  const badgeLabel = isEvent ? t("featuredEvent") : t("featuredNews");
+  const viewAllLabel = isEvent
+    ? t("ctas.viewAllEvents")
+    : t("ctas.viewAllNews");
   const translation = getTranslation(item);
   const title = translation?.title || "";
-  const description = translation?.description || "";
+  // Prefer the editor-written teaser; news has no teaser field, so the body's
+  // opening sentences stand in.
+  const teaser = buildTeaser(
+    translation?.short_description,
+    translation?.description,
+    HERO_TEASER_MAX_LENGTH
+  );
 
   return (
     <CarouselItem className="relative h-screen" key={index}>
@@ -121,18 +149,18 @@ function HeroCarouselSlide({ index, item, t }: HeroCarouselSlideProps) {
         >
           <div className="mb-8 inline-flex items-center gap-2 rounded-full border border-white/20 bg-background/10 px-6 py-3 backdrop-blur-md">
             <Sparkles className="h-5 w-5 text-brand" />
-            <span className="text-white/90">
-              {t("featuredContent", {
-                contentType: isEvent ? t("featuredEvent") : t("featuredNews"),
-              })}
-            </span>
+            <span className="text-white/90">{badgeLabel}</span>
           </div>
 
-          <h1 className="mx-auto mb-6 max-w-4xl text-white">{title}</h1>
+          <div className="cursor-text select-text" data-carousel-no-drag>
+            <h1 className="mx-auto mb-6 max-w-4xl text-white">{title}</h1>
 
-          <p className="mx-auto mb-10 max-w-2xl text-lg text-white/80">
-            {(description || "").replace(/<[^>]+>/g, "").slice(0, 180) || "..."}
-          </p>
+            {teaser && (
+              <p className="mx-auto mb-10 max-w-2xl text-lg text-white/80">
+                {teaser}
+              </p>
+            )}
+          </div>
 
           <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
             <Link href={contentLink}>
@@ -149,9 +177,7 @@ function HeroCarouselSlide({ index, item, t }: HeroCarouselSlideProps) {
                 size="lg"
                 variant="outline"
               >
-                {t("viewAll", {
-                  contentType: isEvent ? t("featuredEvent") : t("featuredNews"),
-                })}
+                {viewAllLabel}
               </Button>
             </Link>
           </div>
@@ -288,6 +314,7 @@ export function HeroCarousel({ featuredContent }: HeroCarouselProps) {
       opts={{
         loop: true,
         align: "start",
+        watchDrag: (_api, event) => !startsOnSelectableText(event),
       }}
       plugins={[
         Autoplay({

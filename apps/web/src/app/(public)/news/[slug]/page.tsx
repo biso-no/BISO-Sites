@@ -8,6 +8,7 @@ import { ArticleHero } from "@/components/news/article-hero";
 import { ArticleMetaRail } from "@/components/news/article-meta-rail";
 import { ArticleSkeleton } from "@/components/news/article-skeleton";
 import { RelatedArticles } from "@/components/news/related-articles";
+import { toPlainText } from "@/lib/content-text";
 import { serializeJsonLd } from "@/lib/json-ld";
 import {
   buildLead,
@@ -15,7 +16,6 @@ import {
   formatArticleDate,
   pickTranslation,
   readingMinutes,
-  toPlainText,
 } from "@/lib/news-article";
 
 const RELATED_COUNT = 3;
