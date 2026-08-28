@@ -18,7 +18,6 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
-import { ClientSessionDebug } from "@/components/member-portal/shared/client-session-debug";
 import { startBiAccountLink } from "@/lib/account-link-client";
 import {
   getMembershipShopHref,
@@ -220,8 +219,6 @@ export function LockedContentOverlay({
                       ))}
                     </div>
                   </div>
-
-                  <ClientSessionDebug />
 
                   <Button
                     className="h-12 w-full bg-linear-to-r from-brand-gradient-from to-brand-gradient-to text-base text-white shadow-brand/30 shadow-lg hover:from-brand-gradient-from/90 hover:to-brand-gradient-to/90"
