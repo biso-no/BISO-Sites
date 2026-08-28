@@ -172,7 +172,7 @@ function AssignmentGate({
   const canContinue = Boolean(selectedCampusId && selectedDepartmentId);
 
   return (
-    <div className="flex min-h-dvh items-center justify-center bg-muted/50 p-4 dark:bg-inverted">
+    <div className="flex min-h-[calc(100dvh-5rem)] items-center justify-center bg-muted/50 p-4 dark:bg-inverted">
       <div className="w-full max-w-xl rounded-xl border bg-card p-6 shadow-xl dark:bg-card">
         <div className="mb-6 flex items-start gap-4">
           <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
@@ -792,7 +792,7 @@ export function ExpenseSplitView({
   }
 
   return (
-    <div className="flex min-h-dvh w-full flex-col bg-background md:h-dvh md:flex-row md:overflow-hidden">
+    <div className="flex min-h-[calc(100dvh-5rem)] w-full flex-col bg-background md:h-[calc(100dvh-5rem)] md:flex-row md:overflow-hidden">
       {/* Mobile Tab Navigation */}
       <div className="flex border-border border-b bg-card md:hidden dark:bg-card">
         <Button
@@ -826,7 +826,7 @@ export function ExpenseSplitView({
       {/* Left Pane: Wallet */}
       <div
         className={cn(
-          "w-full shrink-0 border-border border-r bg-card md:max-h-dvh md:w-[350px] md:overflow-y-auto lg:w-[400px] dark:border-white/10 dark:bg-card",
+          "w-full shrink-0 border-border border-r bg-card md:max-h-[calc(100dvh-5rem)] md:w-[350px] md:overflow-y-auto lg:w-[400px] dark:border-white/10 dark:bg-card",
           mobileView === "wallet" ? "block" : "hidden md:block"
         )}
       >

@@ -40,11 +40,16 @@ export default async function NewExpensePage({
       : null;
 
   return (
-    <ExpenseSplitView
-      campuses={campuses}
-      initialDraft={initialDraft}
-      initialProfile={userData.profile || {}}
-      ocrEnabled={ocrEnabled}
-    />
+    // Offsets the fixed mega-nav (h-20). The split view's own height rules are
+    // rebased to `100dvh - 5rem` to match, so it still fills exactly the space
+    // left below the nav instead of overflowing past the viewport.
+    <div className="pt-20">
+      <ExpenseSplitView
+        campuses={campuses}
+        initialDraft={initialDraft}
+        initialProfile={userData.profile || {}}
+        ocrEnabled={ocrEnabled}
+      />
+    </div>
   );
 }

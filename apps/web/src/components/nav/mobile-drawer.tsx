@@ -7,11 +7,16 @@ import {
   AccordionTrigger,
 } from "@repo/ui/components/ui/accordion";
 import { Button } from "@repo/ui/components/ui/button";
+import { LogIn, LogOut } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { useTransition } from "react";
 import { useCampus } from "@/components/context/campus";
 import { LocaleSwitcher } from "@/components/locale-switcher";
 import { SelectCampus } from "@/components/select-campus";
+import { signOut } from "@/lib/server";
+import type { NavAccount } from "@/lib/types/nav";
+import { accountLinksFor } from "./account-menu";
 import { CampusLink } from "./campus-link";
 import { PanelLink } from "./mega-panel";
 import {
@@ -25,6 +30,8 @@ import {
 } from "./nav-config";
 
 interface MobileDrawerProps {
+  /** Resolved server-side; `null` for anonymous visitors. */
+  account: NavAccount | null;
   isMember: boolean;
   onNavigate: () => void;
 }
@@ -32,11 +39,16 @@ interface MobileDrawerProps {
 const HEADING_CLASS =
   "mb-1 font-semibold text-white/50 text-xs uppercase tracking-wider";
 
-export function MobileDrawer({ isMember, onNavigate }: MobileDrawerProps) {
+export function MobileDrawer({
+  account,
+  isMember,
+  onNavigate,
+}: MobileDrawerProps) {
   const t = useTranslations("common.navigation");
   const tProjects = useTranslations("projects.featured");
   const { campuses } = useCampus();
   const router = useRouter();
+  const [isSigningOut, startSignOut] = useTransition();
 
   const go = (href: string) => {
     router.push(href);
@@ -151,6 +163,21 @@ export function MobileDrawer({ isMember, onNavigate }: MobileDrawerProps) {
         ))}
       </div>
 
+      {account && (
+        <div>
+          <p className={HEADING_CLASS}>{t("account.heading")}</p>
+          {accountLinksFor(account).map((link) => (
+            <PanelLink
+              href={link.href}
+              icon={link.icon}
+              key={link.id}
+              label={t(link.labelKey)}
+              onNavigate={onNavigate}
+            />
+          ))}
+        </div>
+      )}
+
       <SelectCampus campuses={campuses} className="w-full text-white" />
       <LocaleSwitcher className="w-full text-white" size="sm" variant="ghost" />
 
@@ -182,6 +209,30 @@ export function MobileDrawer({ isMember, onNavigate }: MobileDrawerProps) {
             onClick={() => go("/membership")}
           >
             {t("becomeMember")}
+          </Button>
+        )}
+        {account ? (
+          <Button
+            className="w-full text-white hover:bg-brand-muted"
+            disabled={isSigningOut}
+            onClick={() =>
+              startSignOut(async () => {
+                await signOut();
+              })
+            }
+            variant="ghost"
+          >
+            <LogOut aria-hidden className="mr-2 h-4 w-4" />
+            {t("account.signOut")}
+          </Button>
+        ) : (
+          <Button
+            className="w-full text-white hover:bg-brand-muted"
+            onClick={() => go("/auth/login")}
+            variant="ghost"
+          >
+            <LogIn aria-hidden className="mr-2 h-4 w-4" />
+            {t("account.signIn")}
           </Button>
         )}
       </div>

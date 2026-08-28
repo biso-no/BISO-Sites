@@ -53,6 +53,15 @@
     "about": "Om oss",
     "openMenu": "Åpne meny",
     "closeMenu": "Lukk meny",
+    "account": {
+      "menuLabel": "Min konto",
+      "heading": "Min konto",
+      "signIn": "Logg inn",
+      "signOut": "Logg ut",
+      "myProfile": "Min profil",
+      "myApplications": "Mine søknader",
+      "financialServices": "Økonomi"
+    },
     "triggers": {
       "students": "For studenter",
       "projects": "Prosjekter",
@@ -68,6 +77,7 @@
       "contact": "Kontakt"
     },
     "links": {
+      "studentsOverview": "For studenter",
       "membershipOverview": "Om medlemskap",
       "membershipBenefits": "Medlemsfordeler",
       "buyMembership": "Kjøp medlemskap",
@@ -86,7 +96,10 @@
       "safety": "Varsling",
       "contact": "Kontakt",
       "business": "For bedrifter",
-      "businessHotspot": "Business Hotspot"
+      "businessHotspot": "Business Hotspot",
+      "documents": "Dokumenter",
+      "drugsPolicy": "Ruspolicy",
+      "press": "Presse & media"
     },
     "featured": {
       "eventLabel": "Neste arrangement",

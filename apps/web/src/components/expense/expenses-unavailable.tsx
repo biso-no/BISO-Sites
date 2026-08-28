@@ -7,7 +7,7 @@ import { Ban } from "lucide-react";
  */
 export function ExpensesUnavailable() {
   return (
-    <div className="mx-auto max-w-3xl px-4 py-20">
+    <div className="mx-auto max-w-3xl px-4 pt-32 pb-20">
       <Card className="border-0 p-12 text-center shadow-lg">
         <Ban className="mx-auto mb-4 h-16 w-16 text-muted-foreground" />
         <h3 className="mb-2 font-semibold text-foreground text-xl">

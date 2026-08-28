@@ -21,7 +21,8 @@ import { useUserMembership } from "@/components/context/membership-provider";
 import { LocaleSwitcher } from "@/components/locale-switcher";
 import { SelectCampus } from "@/components/select-campus";
 import { useCart } from "@/lib/contexts/cart-context";
-import type { NavFeatured } from "@/lib/types/nav";
+import type { NavAccount, NavFeatured } from "@/lib/types/nav";
+import { AccountMenu } from "./account-menu";
 import { DesktopMenu } from "./desktop-menu";
 import { MegaPanel } from "./mega-panel";
 import { MobileDrawer } from "./mobile-drawer";
@@ -35,11 +36,14 @@ const CLOSE_DELAY_MS = 120;
 const EMPTY_FEATURED: NavFeatured = { event: null, project: null, news: null };
 
 interface NavigationProps {
+  /** Resolved server-side; `null` for anonymous visitors. */
+  account?: NavAccount | null;
   featured?: NavFeatured;
   isMember?: boolean;
 }
 
 export function Navigation({
+  account = null,
   featured = EMPTY_FEATURED,
   isMember,
 }: NavigationProps) {
@@ -274,14 +278,16 @@ export function Navigation({
             >
               {t("partner")}
             </Link>
-            <Button
-              className="shrink-0 border-brand bg-transparent text-white hover:bg-brand hover:text-white"
-              onClick={() => router.push("/member")}
-              size="sm"
-              variant="outline"
-            >
-              {t("memberPortal")}
-            </Button>
+            {!account && (
+              <Button
+                className="shrink-0 border-brand bg-transparent text-white hover:bg-brand hover:text-white"
+                onClick={() => router.push("/member")}
+                size="sm"
+                variant="outline"
+              >
+                {t("memberPortal")}
+              </Button>
+            )}
             <Button
               className="hidden shrink-0 border-brand bg-transparent text-white hover:bg-brand hover:text-white 2xl:inline-flex"
               onClick={() => router.push("/jobs")}
@@ -300,6 +306,7 @@ export function Navigation({
             >
               {t("becomeMember")}
             </Button>
+            <AccountMenu account={account} />
           </div>
 
           {/* Mobile controls */}
@@ -365,7 +372,11 @@ export function Navigation({
             exit={{ opacity: 0, height: 0 }}
             initial={{ opacity: 0, height: 0 }}
           >
-            <MobileDrawer isMember={memberActive} onNavigate={closeMobile} />
+            <MobileDrawer
+              account={account}
+              isMember={memberActive}
+              onNavigate={closeMobile}
+            />
           </motion.div>
         )}
       </AnimatePresence>

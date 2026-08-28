@@ -149,7 +149,7 @@ export default async function MyApplicationsPage() {
   const applications = await listMyApplications();
 
   return (
-    <main className="mx-auto max-w-4xl px-4 py-12">
+    <div className="mx-auto max-w-4xl px-4 pt-28 pb-12">
       <header className="mb-8">
         <h1 className="font-semibold text-3xl text-foreground">
           My applications
@@ -183,6 +183,6 @@ export default async function MyApplicationsPage() {
           ))}
         </ul>
       )}
-    </main>
+    </div>
   );
 }
