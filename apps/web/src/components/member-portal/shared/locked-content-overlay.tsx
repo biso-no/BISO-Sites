@@ -17,6 +17,9 @@ import { motion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
+import { toast } from "sonner";
+import { ClientSessionDebug } from "@/components/member-portal/shared/client-session-debug";
+import { startBiAccountLink } from "@/lib/account-link-client";
 import {
   getMembershipShopHref,
   type MembershipDuration,
@@ -51,10 +54,24 @@ export function LockedContentOverlay({
   const t = useTranslations("memberPortal");
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const [isLinking, startLinkTransition] = useTransition();
   const [selectedPlan, setSelectedPlan] = useState<MembershipDuration>("year");
 
   const handleLinkBIEmail = () => {
-    window.location.href = "/api/auth/oauth/bi";
+    // The previous `window.location.href = "/api/auth/oauth/bi"` pointed at a
+    // route handler that does not — and cannot — exist, which is why this
+    // button 404'd. `startBiAccountLink` signs the browser in to Appwrite
+    // first, then starts the OAuth navigation; see that helper for why both
+    // steps are required for a *link* rather than a new signup.
+    startLinkTransition(async () => {
+      try {
+        await startBiAccountLink("/member");
+        // Browser will redirect; no-op here
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        toast.error(`Linking failed: ${message}`);
+      }
+    });
   };
 
   const handlePurchase = () => {
@@ -204,12 +221,17 @@ export function LockedContentOverlay({
                     </div>
                   </div>
 
+                  <ClientSessionDebug />
+
                   <Button
                     className="h-12 w-full bg-linear-to-r from-brand-gradient-from to-brand-gradient-to text-base text-white shadow-brand/30 shadow-lg hover:from-brand-gradient-from/90 hover:to-brand-gradient-to/90"
+                    disabled={isLinking}
                     onClick={handleLinkBIEmail}
                   >
                     <LinkIcon className="mr-2 h-5 w-5" />
-                    {t("states.noBIEmail.linkEmail")}
+                    {isLinking
+                      ? t("locked.processing")
+                      : t("states.noBIEmail.linkEmail")}
                   </Button>
 
                   <p className="mt-4 text-center text-muted-foreground text-xs dark:text-muted-foreground">

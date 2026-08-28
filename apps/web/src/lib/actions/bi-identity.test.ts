@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const account = vi.hoisted(() => ({
   get: vi.fn(),
@@ -313,6 +313,175 @@ describe("syncBiStudentIdentity", () => {
     );
     expect(revalidateTag).toHaveBeenCalledWith("membership:1715738", {
       expire: 0,
+    });
+  });
+  describe("BI_DEV_STUDENT_EMAIL_OVERRIDE", () => {
+    // A staff address in BI's own tenant: same `bi.no` domain the student
+    // format uses, so it clears the domain check and is rejected purely on the
+    // local part. This is the real shape the override exists to unblock — a
+    // BISO employee who has kept a BI staff account but lost their student one.
+    const STAFF_EMAIL = "firstname.lastname@bi.no";
+
+    afterEach(() => {
+      vi.unstubAllEnvs();
+    });
+
+    it("maps an allowlisted non-student address onto the configured student id", async () => {
+      vi.stubEnv("BI_DEV_STUDENT_EMAIL_OVERRIDE", `${STAFF_EMAIL}=s1715738`);
+      account.listIdentities.mockResolvedValue({
+        identities: [oidcIdentity(STAFF_EMAIL)],
+      });
+      getBiDirectoryUser.mockResolvedValue({
+        campusHint: "1",
+        displayName: "Firstname Lastname",
+        employeeId: "9007777",
+        givenName: "Firstname",
+        mail: STAFF_EMAIL,
+        surname: "Lastname",
+      });
+
+      const result = await syncBiStudentIdentity();
+
+      expect(result).toEqual({
+        success: true,
+        studentId: "s1715738",
+        hasEmployeeId: true,
+        campusHint: "1",
+      });
+      // The directory is queried under the address that actually resolves in
+      // the tenant — the signed-in staff account — not the synthesized
+      // `s1715738@bi.no`, whose mailbox is exactly what no longer exists.
+      expect(getBiDirectoryUser).toHaveBeenCalledWith(STAFF_EMAIL);
+      expect(db.updateRow).toHaveBeenCalledWith(
+        "app",
+        "user",
+        "user-1",
+        expect.objectContaining({
+          student_id: "s1715738",
+          bi_employee_id: "9007777",
+          bi_campus_id: "1",
+        })
+      );
+      expect(revalidateTag).toHaveBeenCalledWith("membership:1715738", {
+        expire: 0,
+      });
+    });
+
+    it("leaves the lookup key alone for a genuine student address", async () => {
+      vi.stubEnv("BI_DEV_STUDENT_EMAIL_OVERRIDE", `${STAFF_EMAIL}=s1715738`);
+      account.listIdentities.mockResolvedValue({
+        identities: [oidcIdentity("s1715738@bi.no")],
+      });
+      getBiDirectoryUser.mockResolvedValue(null);
+
+      await syncBiStudentIdentity();
+
+      // A real student never touches the override path, so the lookup key
+      // stays derived from the parsed id even with the variable set.
+      expect(getBiDirectoryUser).toHaveBeenCalledWith("s1715738@bi.no");
+    });
+
+    it("accepts a bare student id on the right-hand side", async () => {
+      vi.stubEnv("BI_DEV_STUDENT_EMAIL_OVERRIDE", `${STAFF_EMAIL}=s1715738`);
+      account.listIdentities.mockResolvedValue({
+        identities: [oidcIdentity(STAFF_EMAIL)],
+      });
+      getBiDirectoryUser.mockResolvedValue(null);
+
+      await expect(syncBiStudentIdentity()).resolves.toMatchObject({
+        success: true,
+        studentId: "s1715738",
+      });
+    });
+
+    it("matches on the account email when the identity carries a different UPN", async () => {
+      vi.stubEnv("BI_DEV_STUDENT_EMAIL_OVERRIDE", `${STAFF_EMAIL}=s1715738`);
+      account.get.mockResolvedValue({ $id: "user-1", email: STAFF_EMAIL });
+      account.listIdentities.mockResolvedValue({
+        identities: [oidcIdentity("some-upn@example.onmicrosoft.com")],
+      });
+      getBiDirectoryUser.mockResolvedValue(null);
+
+      await expect(syncBiStudentIdentity()).resolves.toMatchObject({
+        success: true,
+        studentId: "s1715738",
+      });
+      // The lookup follows whichever candidate matched, not the UPN.
+      expect(getBiDirectoryUser).toHaveBeenCalledWith(STAFF_EMAIL);
+    });
+
+    it("resolves the matching entry out of a comma-separated map", async () => {
+      vi.stubEnv(
+        "BI_DEV_STUDENT_EMAIL_OVERRIDE",
+        `someone.else@bi.no=s2222222,${STAFF_EMAIL}=s1715738`
+      );
+      account.listIdentities.mockResolvedValue({
+        identities: [oidcIdentity(STAFF_EMAIL)],
+      });
+      getBiDirectoryUser.mockResolvedValue(null);
+
+      await expect(syncBiStudentIdentity()).resolves.toMatchObject({
+        success: true,
+        studentId: "s1715738",
+      });
+    });
+
+    it("also maps an address from a different tenant entirely", async () => {
+      vi.stubEnv(
+        "BI_DEV_STUDENT_EMAIL_OVERRIDE",
+        "firstname.lastname@biso.no=s1715738"
+      );
+      account.listIdentities.mockResolvedValue({
+        identities: [oidcIdentity("firstname.lastname@biso.no")],
+      });
+      getBiDirectoryUser.mockResolvedValue(null);
+
+      await expect(syncBiStudentIdentity()).resolves.toMatchObject({
+        success: true,
+        studentId: "s1715738",
+      });
+    });
+
+    it("is inert in production even when the variable is set", async () => {
+      vi.stubEnv("NODE_ENV", "production");
+      vi.stubEnv("BI_DEV_STUDENT_EMAIL_OVERRIDE", `${STAFF_EMAIL}=s1715738`);
+      account.listIdentities.mockResolvedValue({
+        identities: [oidcIdentity(STAFF_EMAIL)],
+      });
+
+      const result = await syncBiStudentIdentity();
+
+      expect(result).toEqual({ success: false, error: "invalid_bi_email" });
+      expect(db.updateRow).not.toHaveBeenCalled();
+    });
+
+    it("rejects an override whose target is not a valid student id", async () => {
+      // A staff bi.no address on the right-hand side would fabricate a student
+      // number if the mapped value were trusted verbatim.
+      vi.stubEnv(
+        "BI_DEV_STUDENT_EMAIL_OVERRIDE",
+        `${STAFF_EMAIL}=ola.nordmann2@bi.no`
+      );
+      account.listIdentities.mockResolvedValue({
+        identities: [oidcIdentity(STAFF_EMAIL)],
+      });
+
+      const result = await syncBiStudentIdentity();
+
+      expect(result).toEqual({ success: false, error: "invalid_bi_email" });
+      expect(db.updateRow).not.toHaveBeenCalled();
+    });
+
+    it("does not map an address that is absent from the allowlist", async () => {
+      vi.stubEnv("BI_DEV_STUDENT_EMAIL_OVERRIDE", `${STAFF_EMAIL}=s1715738`);
+      account.listIdentities.mockResolvedValue({
+        identities: [oidcIdentity("someone.unlisted@bi.no")],
+      });
+
+      const result = await syncBiStudentIdentity();
+
+      expect(result).toEqual({ success: false, error: "invalid_bi_email" });
+      expect(db.updateRow).not.toHaveBeenCalled();
     });
   });
 });

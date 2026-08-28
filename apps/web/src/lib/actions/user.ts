@@ -226,6 +226,60 @@ export async function updateProfile(profile: Partial<Users>) {
   }
 }
 
+/**
+ * Mints a one-time token the browser can trade for a *real* Appwrite session.
+ *
+ * Account linking is the one flow that cannot be driven from the server. When
+ * `account.createOAuth2Session` runs, the Appwrite Web SDK does nothing but
+ * `window.location.href = <endpoint>/account/sessions/oauth2/<provider>?…` —
+ * a plain top-level navigation, carrying no headers. Appwrite decides then and
+ * there whether to *link* the incoming identity or *create a user*, and it
+ * makes that call purely on whether the request arrives with an active session:
+ *
+ *   "If there is already an active session, the new session will be attached
+ *    to the logged-in account. […] If no matching user is found - the server
+ *    will create a new user."
+ *
+ * A navigation can only carry a cookie, and this app's session secret lives in
+ * `a_session_biso_web` — a name Appwrite ignores by design, because naming it
+ * `a_session_biso` is what broke `admin.biso.no` sign-in with
+ * `409 user_already_exists` (see LEGACY_SESSION_COOKIE). `client.setSession()`
+ * does not help either: it only sets an `X-Appwrite-Session` header, which the
+ * redirect never sends. So the browser genuinely has no Appwrite session, and
+ * an OAuth link attempt silently becomes a signup.
+ *
+ * The fix is to let Appwrite issue its own cookie on its own domain. The
+ * browser calls `account.createSession(userId, secret)` with this token — a
+ * real XHR, so Appwrite replies with `Set-Cookie` for `appwrite.biso.no` — and
+ * the subsequent OAuth navigation carries it.
+ *
+ * The token is derived solely from the caller's existing session; it never
+ * accepts a user id. It therefore grants exactly the access the caller already
+ * has, and nothing more.
+ */
+export async function createClientSessionToken(): Promise<{
+  secret: string;
+  userId: string;
+} | null> {
+  try {
+    const { account } = await createSessionClient();
+    const user = await account.get();
+
+    // Same bar as getLoggedInUser: an anonymous session must not be able to
+    // mint a client session and start linking identities onto itself.
+    if (!isAuthenticatedAccount(user)) {
+      return null;
+    }
+
+    const { users } = await createAdminClient();
+    const token = await users.createToken({ userId: user.$id });
+    return { userId: token.userId, secret: token.secret };
+  } catch (error) {
+    console.error("Failed to mint client session token:", error);
+    return null;
+  }
+}
+
 export async function createJWT(): Promise<string | null> {
   try {
     const { account } = await createSessionClient();

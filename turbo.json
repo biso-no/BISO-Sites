@@ -32,6 +32,7 @@
         "BI_AZURE_CLIENT_ID",
         "BI_AZURE_CLIENT_SECRET",
         "BI_AZURE_TENANT_ID",
+        "BI_DEV_STUDENT_EMAIL_OVERRIDE",
         "CRON_SECRET",
         "M365_DOMAIN",
         "NEXT_PUBLIC_API_BASE_URL",

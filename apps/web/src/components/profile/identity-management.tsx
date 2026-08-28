@@ -13,6 +13,7 @@ import {
 import { Link2, Trash2 } from "lucide-react";
 import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
+import { ensureClientAppwriteSession } from "@/lib/account-link-client";
 import { removeIdentity } from "@/lib/actions/user";
 
 interface Identity {
@@ -76,6 +77,14 @@ export function IdentityManagement({
   const linkProvider = (provider: OAuthProvider) => {
     startLinkTransition(async () => {
       try {
+        // Appwrite links an identity only when it can see an active session on
+        // the OAuth navigation, and this app's server-side session is invisible
+        // to the browser's Appwrite client. Without this the redirect silently
+        // creates a second account instead of linking — see
+        // `ensureClientAppwriteSession`. Applies to every provider, not just
+        // OIDC.
+        await ensureClientAppwriteSession();
+
         const base = window.location.origin;
         // Only the OIDC (BI Student) provider needs the BI sync: its success
         // URL routes through /api/auth/bi-link, which runs the sync + cache

@@ -5,7 +5,9 @@ import "@/app/styles.css";
 import Script from "next/script";
 import { NextIntlClientProvider } from "next-intl";
 import { getMessages } from "next-intl/server";
+import { Suspense } from "react";
 import { getLocale } from "@/app/actions/locale";
+import { AccountLinkSessionCleanup } from "@/components/account-link-session-cleanup";
 import { AnalyticsTracker } from "@/components/analytics-tracker";
 export const metadata: Metadata = {
   title: "BI Student Organisation",
@@ -50,6 +52,11 @@ export default async function RootLayout({
           <NextIntlClientProvider locale={locale} messages={messages}>
             <main>
               <AnalyticsTracker locale={locale} />
+              {/* Reads `?linked=1`, so it needs a Suspense boundary — this
+                  layout is not force-dynamic. Renders nothing either way. */}
+              <Suspense fallback={null}>
+                <AccountLinkSessionCleanup />
+              </Suspense>
               {children}
               <Script
                 data-domains="web.biso.no,biso.no,www.biso.no"

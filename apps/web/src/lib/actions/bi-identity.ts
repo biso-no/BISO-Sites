@@ -3,7 +3,10 @@
 import { createAdminClient, createSessionClient } from "@repo/api/server";
 import type { Users } from "@repo/api/types/appwrite";
 import { getBiDirectoryUser } from "@repo/connectors/azure/bi-directory";
-import { parseBiStudentEmail } from "@repo/shared/utils/bi-student";
+import {
+  BI_STUDENT_EMAIL_DOMAIN,
+  parseBiStudentEmail,
+} from "@repo/shared/utils/bi-student";
 import { membershipCacheTag } from "@repo/shared/utils/membership-status";
 import { revalidateTag } from "next/cache";
 import { unstable_rethrow } from "next/navigation";
@@ -29,6 +32,94 @@ function isRowNotFoundError(error: unknown): boolean {
     "code" in error &&
     (error as { code?: unknown }).code === 404
   );
+}
+
+const DEV_STUDENT_OVERRIDE_ENV = "BI_DEV_STUDENT_EMAIL_OVERRIDE";
+const DEV_OVERRIDE_ENTRY_SEPARATOR = ",";
+const DEV_OVERRIDE_PAIR_SEPARATOR = "=";
+
+/**
+ * Dev-only escape hatch for exercising the BI link flow without a live student
+ * account.
+ *
+ * `parseBiStudentEmail` accepts only `s<digits>@bi.no`, which is the correct
+ * production rule — a staff address must never be able to assert a fabricated
+ * student number. The cost is that anyone who has left BI, and so lost their
+ * student mailbox, cannot walk this flow at all while developing against it.
+ *
+ * `BI_DEV_STUDENT_EMAIL_OVERRIDE` maps such an address onto a known student
+ * id, comma-separating to map more than one:
+ *
+ *   BI_DEV_STUDENT_EMAIL_OVERRIDE="firstname.lastname@bi.no=s1715738"
+ *
+ * The right-hand side is put back through `parseBiStudentEmail`, so an
+ * override can only ever yield an id the strict parser would have accepted on
+ * its own: the variable relaxes *which address* is trusted, never *what shape*
+ * a student id may take. A malformed or non-student right-hand side is
+ * ignored rather than trusted.
+ *
+ * Two independent gates protect it. The variable must be set, and `NODE_ENV`
+ * must not be "production" — the second exists so that a value left behind in
+ * a production deploy is inert instead of a privilege-escalation path.
+ *
+ * The matched address comes back as `directoryEmail` so the caller can aim the
+ * Graph lookup at the account that actually exists. Synthesizing
+ * `<studentId>@bi.no` and querying that would always miss — the whole reason
+ * the override is needed is that the student mailbox is gone — leaving
+ * `bi_employee_id` unset and the directory half of this flow untested.
+ */
+function resolveDevStudentOverride(emails: Array<string | null | undefined>): {
+  directoryEmail: string;
+  studentId: string;
+  studentNumber: number;
+} | null {
+  if (process.env.NODE_ENV === "production") {
+    return null;
+  }
+
+  const raw = process.env[DEV_STUDENT_OVERRIDE_ENV];
+  if (!raw) {
+    return null;
+  }
+
+  const candidates = new Set(
+    emails
+      .map((email) => email?.trim().toLowerCase())
+      .filter((email): email is string => Boolean(email))
+  );
+  if (candidates.size === 0) {
+    return null;
+  }
+
+  for (const entry of raw.split(DEV_OVERRIDE_ENTRY_SEPARATOR)) {
+    const separatorIndex = entry.indexOf(DEV_OVERRIDE_PAIR_SEPARATOR);
+    if (separatorIndex <= 0) {
+      continue;
+    }
+
+    const from = entry.slice(0, separatorIndex).trim().toLowerCase();
+    if (!candidates.has(from)) {
+      continue;
+    }
+
+    // Accept either a bare local part (`s1715738`) or a full address on the
+    // right-hand side; both end up validated by the same strict parser.
+    const to = entry
+      .slice(separatorIndex + 1)
+      .trim()
+      .toLowerCase();
+    const parsed = parseBiStudentEmail(
+      to.includes("@") ? to : `${to}@${BI_STUDENT_EMAIL_DOMAIN}`
+    );
+    if (parsed) {
+      console.warn(
+        `[BI Identity] ${DEV_STUDENT_OVERRIDE_ENV} active: treating ${from} as ${parsed.studentId}@${BI_STUDENT_EMAIL_DOMAIN}`
+      );
+      return { ...parsed, directoryEmail: from };
+    }
+  }
+
+  return null;
 }
 
 export type BiIdentitySyncResult =
@@ -74,9 +165,22 @@ export async function syncBiStudentIdentity(): Promise<BiIdentitySyncResult> {
       return { success: false, error: "no_bi_identity" };
     }
 
-    const parsed =
+    // The dev override runs last, only once both strict parses have failed,
+    // and only for an account that has genuinely completed an OIDC link —
+    // the `biIdentity` check above still stands. `user.email` joins the
+    // candidates because the OIDC identity may carry a UPN that differs from
+    // the address the developer actually signs in with.
+    const strict =
       parseBiStudentEmail(biIdentity.providerEmail) ??
       parseBiStudentEmail(biIdentity.providerUid);
+    const override = strict
+      ? null
+      : resolveDevStudentOverride([
+          biIdentity.providerEmail,
+          biIdentity.providerUid,
+          user.email,
+        ]);
+    const parsed = strict ?? override;
     if (!parsed) {
       return { success: false, error: "invalid_bi_email" };
     }
@@ -85,10 +189,15 @@ export async function syncBiStudentIdentity(): Promise<BiIdentitySyncResult> {
     let campusHint: string | null = null;
     let directoryFailed = false;
 
+    // Normally the student address the id was parsed out of. Under the dev
+    // override it is the address the developer actually signed in with, which
+    // is the one the tenant can still resolve — see `resolveDevStudentOverride`.
+    const directoryEmail =
+      override?.directoryEmail ??
+      `${parsed.studentId}@${BI_STUDENT_EMAIL_DOMAIN}`;
+
     try {
-      const directoryUser = await getBiDirectoryUser(
-        `${parsed.studentId}@bi.no`
-      );
+      const directoryUser = await getBiDirectoryUser(directoryEmail);
       employeeId = directoryUser?.employeeId ?? null;
       campusHint = directoryUser?.campusHint ?? null;
     } catch (error) {
