@@ -11,6 +11,7 @@ import {
 } from "@repo/ui/components/ui/dropdown-menu";
 import { cn } from "@repo/ui/lib/utils";
 import { Check, ChevronDown, Globe } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 import { setLocale } from "@/app/actions/locale";
@@ -47,6 +48,7 @@ export function LocaleSwitcher({
   className,
 }: LocaleSwitcherProps) {
   const [isPending, startTransition] = useTransition();
+  const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const currentLocale = useLocale() as Locale;
   const t = useTranslations("common");
@@ -62,8 +64,13 @@ export function LocaleSwitcher({
       try {
         await setLocale(newLocale);
         trackEvent("language_switch", { from: currentLocale, to: newLocale });
-        // Refresh the page to apply the new locale
-        window.location.reload();
+        // Soft-refetch the tree so the root layout re-reads the locale cookie.
+        // A hard `window.location.reload()` here would tear down the still-open
+        // server-action RSC stream mid-read (surfacing as an unhandled
+        // "Error in input stream" in the root error boundary) and, in Firefox,
+        // would also trip form-state restoration that strips `disabled` off
+        // buttons before React hydrates the fresh document.
+        router.refresh();
       } catch (error) {
         console.error("Failed to change locale:", error);
       }
