@@ -8,6 +8,7 @@ import { PLACEHOLDER_IMAGE } from "@repo/ui/lib/placeholder-images";
 import { format } from "date-fns";
 import {
   Calendar,
+  CalendarCheck,
   Clock,
   ExternalLink,
   MapPin,
@@ -19,9 +20,11 @@ import { AnimatePresence, motion } from "motion/react";
 import { useTranslations } from "next-intl";
 import {
   type EventCategory,
+  type EventRegistrationInfo,
   formatEventPrice,
   getEventCategory,
   parseEventMetadata,
+  resolveEventRegistration,
 } from "@/lib/types/event";
 
 interface EventDetailModalProps {
@@ -61,37 +64,81 @@ function PriceDisplay({
   return <div className="font-bold text-2xl text-white">{price}</div>;
 }
 
-function ActionButtons({
-  ticketUrl,
-  onClose,
+/**
+ * A CTA is rendered only when there is a real destination (`ticket_url`).
+ * `expected` shows the deadline/capacity facts and `none` says plainly that no
+ * sign-up exists — neither gets a button that would do nothing when clicked.
+ */
+function RegistrationNotice({
+  registration,
 }: {
-  ticketUrl: string | null | undefined;
-  onClose: () => void;
+  registration: EventRegistrationInfo;
 }) {
   const t = useTranslations("events");
 
+  if (registration.mode === "ticket") {
+    return null;
+  }
+
+  if (registration.mode === "none") {
+    return (
+      <div className="mb-4 flex items-start gap-2 rounded-lg border border-border bg-muted/50 p-4 text-muted-foreground text-sm">
+        <CalendarCheck aria-hidden className="mt-0.5 h-4 w-4 shrink-0" />
+        <span>{t("modal.noRegistrationNeeded")}</span>
+      </div>
+    );
+  }
+
+  const deadlineLabel = registration.deadline
+    ? format(new Date(registration.deadline), "MMMM d, yyyy HH:mm")
+    : null;
+
   return (
-    <div className="flex gap-4">
-      {ticketUrl ? (
-        <Button
-          className="flex-1 border-0 bg-linear-to-r from-brand-gradient-from to-brand-gradient-to text-white hover:from-brand-gradient-from/90 hover:to-brand-gradient-to/90"
-          onClick={() => window.open(ticketUrl, "_blank")}
-        >
-          {t("modal.getTickets")}
-          <ExternalLink className="ml-2 h-4 w-4" />
-        </Button>
-      ) : (
-        <Button className="flex-1 border-0 bg-linear-to-r from-brand-gradient-from to-brand-gradient-to text-white hover:from-brand-gradient-from/90 hover:to-brand-gradient-to/90">
-          {t("modal.registerNow")}
-        </Button>
+    <div className="mb-4 space-y-1 rounded-lg border border-border bg-muted/50 p-4 text-muted-foreground text-sm">
+      <p className="font-medium text-foreground">
+        {t("modal.registrationRequired")}
+      </p>
+      {deadlineLabel && (
+        <p>{t("actions.registrationDeadline", { date: deadlineLabel })}</p>
       )}
-      <Button
-        className="border-brand text-brand-dark hover:bg-brand-muted"
-        onClick={onClose}
-        variant="outline"
-      >
-        {t("modal.close")}
-      </Button>
+      {registration.capacity !== null && (
+        <p>{t("actions.capacityLimited", { count: registration.capacity })}</p>
+      )}
+    </div>
+  );
+}
+
+function ActionButtons({
+  registration,
+  onClose,
+}: {
+  registration: EventRegistrationInfo;
+  onClose: () => void;
+}) {
+  const t = useTranslations("events");
+  const { ticketUrl } = registration;
+
+  return (
+    <div>
+      <RegistrationNotice registration={registration} />
+      <div className="flex gap-4">
+        {ticketUrl && (
+          <Button
+            className="flex-1 border-0 bg-linear-to-r from-brand-gradient-from to-brand-gradient-to text-white hover:from-brand-gradient-from/90 hover:to-brand-gradient-to/90"
+            onClick={() => window.open(ticketUrl, "_blank")}
+          >
+            {t("modal.getTickets")}
+            <ExternalLink className="ml-2 h-4 w-4" />
+          </Button>
+        )}
+        <Button
+          className="border-brand text-brand-dark hover:bg-brand-muted"
+          onClick={onClose}
+          variant="outline"
+        >
+          {t("modal.close")}
+        </Button>
+      </div>
     </div>
   );
 }
@@ -149,6 +196,8 @@ export function EventDetailModal({
 
   // Get image URL
   const imageUrl = eventData?.image || PLACEHOLDER_IMAGE;
+
+  const registration = resolveEventRegistration(eventData);
 
   return (
     <AnimatePresence>
@@ -344,10 +393,7 @@ export function EventDetailModal({
             )}
 
             {/* Action Buttons */}
-            <ActionButtons
-              onClose={onClose}
-              ticketUrl={eventData?.ticket_url}
-            />
+            <ActionButtons onClose={onClose} registration={registration} />
           </div>
         </motion.div>
       </motion.div>

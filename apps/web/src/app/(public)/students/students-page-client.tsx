@@ -23,6 +23,7 @@ import { useTranslations } from "next-intl";
 import { useMemo } from "react";
 import { useCampus } from "@/components/context/campus";
 import type { CampusData } from "@/lib/types/campus-data";
+import { getEventHref } from "@/lib/types/event";
 
 type BenefitKey =
   | "studentBenefits"
@@ -382,6 +383,9 @@ export const StudentsPageClient = ({
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {filteredEvents.map((event) => {
             const translation = getTranslation(event.translation_refs);
+            // The detail route resolves by slug, not $id; rows without a slug
+            // have no reachable page, so the link is dropped instead.
+            const detailHref = getEventHref(event);
 
             return (
               <Card className="border-primary/10" key={event.$id}>
@@ -403,12 +407,14 @@ export const StudentsPageClient = ({
                   <span>
                     {event.location || event.campus?.name || event.campus_id}
                   </span>
-                  <Link
-                    className="underline-offset-2 hover:underline"
-                    href={`/events/${event.$id}`}
-                  >
-                    {t("events.more")}
-                  </Link>
+                  {detailHref && (
+                    <Link
+                      className="underline-offset-2 hover:underline"
+                      href={detailHref}
+                    >
+                      {t("events.more")}
+                    </Link>
+                  )}
                 </CardContent>
               </Card>
             );

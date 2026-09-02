@@ -195,10 +195,18 @@ export function EventDetailsCard({ event }: EventDetailsCardProps) {
 }
 
 interface EventImportantInfoCardProps {
+  /**
+   * False for drop-in events. The confirmation-email bullet only makes sense
+   * when a sign-up actually exists — see `resolveEventRegistration`.
+   */
+  hasRegistration?: boolean;
   price: string;
 }
 
-export function EventImportantInfoCard({ price }: EventImportantInfoCardProps) {
+export function EventImportantInfoCard({
+  hasRegistration = true,
+  price,
+}: EventImportantInfoCardProps) {
   const t = useTranslations("events");
 
   return (
@@ -212,7 +220,11 @@ export function EventImportantInfoCard({ price }: EventImportantInfoCardProps) {
           <ul className="space-y-1 text-muted-foreground text-sm">
             <li>• {t("infoCards.arriveEarly")}</li>
             <li>• {t("infoCards.studentId")}</li>
-            <li>• {t("infoCards.emailConfirmation")}</li>
+            {hasRegistration ? (
+              <li>• {t("infoCards.emailConfirmation")}</li>
+            ) : (
+              <li>• {t("infoCards.noRegistrationNeeded")}</li>
+            )}
             {price !== "Free" && <li>• {t("infoCards.refunds")}</li>}
           </ul>
         </div>

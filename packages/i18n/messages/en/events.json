@@ -42,7 +42,9 @@
     "memberSavings": "Members get this event for {price}! Join BISO to save.",
     "about": "About This Event",
     "highlights": "Event Highlights",
-    "agenda": "Agenda"
+    "agenda": "Agenda",
+    "registrationRequired": "Registration required",
+    "noRegistrationNeeded": "No registration needed — just show up."
   },
   "actions": {
     "getTicket": "Get Your Ticket",
@@ -50,7 +52,13 @@
     "ticketDescription": "Click below to purchase your ticket on Tickster and secure your spot!",
     "registerDescription": "Spaces are limited! Register now to guarantee your attendance.",
     "buyOnTickster": "Buy on Tickster",
-    "shareEvent": "Share Event"
+    "shareEvent": "Share Event",
+    "registrationRequired": "Registration Required",
+    "registrationPendingDescription": "This event takes registration. Sign-up details are announced by the organising unit — contact them if you are unsure.",
+    "registrationDeadline": "Registration closes {date}",
+    "capacityLimited": "Limited to {count} spots",
+    "noRegistrationTitle": "No Registration Needed",
+    "noRegistrationDescription": "Just show up — this event is open to everyone, no sign-up required."
   },
   "collection": {
     "title": "Events in This Collection",
@@ -87,6 +95,7 @@
     "emailConfirmation": "Registration confirmation will be sent via email",
     "refunds": "Refunds available up to 48 hours before the event",
     "questions": "Questions?",
-    "contactTeam": "Contact our events team at"
+    "contactTeam": "Contact our events team at",
+    "noRegistrationNeeded": "No registration needed — just show up"
   }
 }

@@ -15,7 +15,8 @@ import {
   EventImportantInfoCard,
   EventPriceCard,
 } from "@/components/events/event-info-cards";
-import { formatEventPrice } from "@/lib/types/event";
+import { getMembershipStatus } from "@/lib/actions/membership";
+import { formatEventPrice, resolveEventRegistration } from "@/lib/types/event";
 
 interface EventPageProps {
   params: Promise<{
@@ -26,7 +27,10 @@ interface EventPageProps {
 async function EventDetails({ slug }: { slug: string }) {
   const locale = await getLocale();
 
-  const event = await getEventBySlug(slug, locale);
+  const [event, membership] = await Promise.all([
+    getEventBySlug(slug, locale),
+    getMembershipStatus(),
+  ]);
   if (!event) {
     notFound();
   }
@@ -55,6 +59,7 @@ async function EventDetails({ slug }: { slug: string }) {
   }
 
   const price = formatEventPrice(eventData?.price, eventData?.ticket_url);
+  const registration = resolveEventRegistration(eventData);
 
   return (
     <div className="min-h-screen bg-linear-to-b from-section to-background">
@@ -76,7 +81,10 @@ async function EventDetails({ slug }: { slug: string }) {
               />
             )}
 
-            <EventImportantInfoCard price={price} />
+            <EventImportantInfoCard
+              hasRegistration={registration.mode !== "none"}
+              price={price}
+            />
           </div>
 
           {/* Sidebar */}
@@ -84,12 +92,12 @@ async function EventDetails({ slug }: { slug: string }) {
             <EventPriceCard
               collectionCount={collectionEvents?.length || 0}
               event={event}
-              isMember={false}
+              isMember={membership.isMember}
             />
 
             <EventActions
               description={description}
-              ticketUrl={eventData?.ticket_url}
+              event={event}
               title={title}
             />
 
