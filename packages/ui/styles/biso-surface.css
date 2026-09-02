@@ -255,3 +255,28 @@
   --surface-raised: #0b2747;
   --surface-sunken: #00142a;
 }
+
+/*
+ * Headings carry the BISO display face. Without this rule the `--font-display`
+ * token is defined but never applied, so an unstyled heading falls back to the
+ * body font and the site reads as an off-the-shelf template.
+ *
+ * Scoped to the brand surface so the admin chrome keeps its own type, while the
+ * page-editor canvas — which also mounts `.biso-surface` — previews the real thing.
+ * On apps/web `--font-display` resolves through `.biso-surface-v2` above, so this
+ * hands unstyled headings Archivo rather than Museo Sans.
+ *
+ * In `@layer base`, not unlayered: the redesign's `.type-*` roles live in
+ * `@layer components` and some of them (`.type-heading-card`) deliberately pick
+ * the body font. An unlayered rule would outrank every one of them and undo that
+ * choice; from `base` it only reaches headings that style nothing themselves,
+ * which is exactly the case it was written for.
+ *
+ * `:where()` keeps specificity at zero: any `font-*` utility still wins.
+ */
+@layer base {
+  :where(.biso-surface) :where(h1, h2, h3, .font-display) {
+    font-family: var(--font-display);
+    letter-spacing: -0.015em;
+  }
+}

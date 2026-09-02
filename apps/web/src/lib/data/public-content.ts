@@ -64,11 +64,15 @@ export async function cachedPublishedEvents(
   "use cache";
   cacheLife("minutes");
   const { db } = await createPublicClient();
+  // Same `upcomingOnly` the session-scoped path uses. Without it the anonymous
+  // (cached) homepage feed would keep showing finished events while a signed-in
+  // visitor's did not.
   return await queryEvents(db, {
     campus: campusId ?? undefined,
     limit,
     locale,
     status: "published",
+    upcomingOnly: true,
   });
 }
 

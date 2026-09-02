@@ -21,6 +21,12 @@ export interface CampusUnit {
   id: string;
   name: string;
   slug: string | null;
+  /**
+   * Raw `departments.type`. Free text, and null on most rows until the admin
+   * unit-profile editor has been through them — normalise with
+   * `parseUnitCategory` rather than comparing it directly.
+   */
+  type: string | null;
 }
 
 const UNIT_SELECT = [
@@ -30,6 +36,7 @@ const UNIT_SELECT = [
   "abbreviation",
   "campus_id",
   "active",
+  "type",
 ] as const;
 
 export function campusUnits(campusId: string): Promise<CampusUnit[]> {
@@ -62,6 +69,7 @@ export async function activeUnits(
         slug: row.slug,
         abbreviation: row.abbreviation,
         campusId: row.campus_id,
+        type: row.type ?? null,
       }))
       .sort((a, b) => a.name.localeCompare(b.name, "nb"));
   } catch (error) {

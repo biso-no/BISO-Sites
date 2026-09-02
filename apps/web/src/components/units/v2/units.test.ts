@@ -35,11 +35,17 @@ describe("the units index reads the department rows", () => {
 });
 
 describe("PLACEHOLDER-010 — nothing is rendered that has no source", () => {
-  it("offers no type filter", () => {
-    // `departments.type` is null on all 280 rows, so the old page's type
-    // filter had no values to offer.
+  it("derives the category filter from the data, never a static list", () => {
+    // `departments.type` was null on all 280 rows when this page was rebuilt,
+    // which is why it shipped without a type filter. The admin unit-profile
+    // editor gave the column a writer, so the filter is back — but its options
+    // come from the values the loaded units actually carry, and `<FilterChips>`
+    // drops a row left with only "All". Nothing renders while the column is
+    // empty, and no chip is ever offered that returns nothing.
     expect(list).not.toContain("availableTypes");
-    expect(list).not.toContain("unit.type");
+    expect(list).toContain("presentCategories");
+    expect(list).toContain("UNIT_CATEGORIES.filter");
+    expect(list).toContain("parseUnitCategory(unit.type)");
   });
 
   it("shows no member count", () => {

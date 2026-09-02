@@ -32,21 +32,29 @@ const HOME_NEWS_LIMIT = 3;
 // Member-scoped feeds: anonymous visitors (all bot/monitor traffic) share the
 // "use cache" guest result; session holders read per-request so member-only
 // rows (row perms `team:biso-members`) still appear in their feeds.
+// `upcomingOnly` drops finished events after the fetch, so ask for more rows
+// than we render or a couple of past events could empty the section.
+const UPCOMING_OVERFETCH = 4;
+
 function homeEvents(
   hasSession: boolean,
   locale: Locale,
   campusKey: string | null,
   limit: number
 ) {
+  const fetchLimit = limit * UPCOMING_OVERFETCH;
   if (hasSession) {
     return listEvents({
       campus: campusKey ?? "all",
-      limit,
+      limit: fetchLimit,
       locale,
       status: "published",
-    });
+      upcomingOnly: true,
+    }).then((events) => events.slice(0, limit));
   }
-  return cachedPublishedEvents(locale, campusKey, limit).catch(() => []);
+  return cachedPublishedEvents(locale, campusKey, fetchLimit)
+    .then((events) => events.slice(0, limit))
+    .catch(() => []);
 }
 
 function homeNews(

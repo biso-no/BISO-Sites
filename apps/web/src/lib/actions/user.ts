@@ -1,6 +1,10 @@
 "use server";
 import type { Models } from "@repo/api";
-import { createAdminClient, createSessionClient } from "@repo/api/server";
+import {
+  createAdminClient,
+  createSessionClient,
+  createSessionJwt,
+} from "@repo/api/server";
 import type { Users } from "@repo/api/types/appwrite";
 import { sanitizeStudentNumber } from "@repo/shared/utils/bi-student";
 import { membershipCacheTag } from "@repo/shared/utils/membership-status";
@@ -11,7 +15,6 @@ import { cache } from "react";
 import { buildProfileRowPermissions } from "@/lib/actions/profile-permissions";
 import { isAuthenticatedAccount } from "@/lib/auth-utils";
 import { SESSION_COOKIE } from "@/lib/cookie-prefs";
-import { mintSessionJwt } from "./session-jwt";
 
 const _BASE_URL = process.env.NEXT_PUBLIC_BASE_URL;
 
@@ -314,8 +317,12 @@ export async function createClientSessionToken(): Promise<{
 }
 
 export async function createJWT(): Promise<string | null> {
-  const { account } = await createSessionClient();
-  return mintSessionJwt(account);
+  try {
+    return await createSessionJwt();
+  } catch (error) {
+    console.error(error);
+    return null;
+  }
 }
 
 export async function deleteUserData() {

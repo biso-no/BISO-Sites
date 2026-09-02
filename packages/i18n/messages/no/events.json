@@ -51,7 +51,9 @@
     "memberSavings": "Medlemmer får dette arrangementet for {price}! Bli med i BISO for å spare.",
     "about": "Om dette arrangementet",
     "highlights": "Høydepunkter",
-    "agenda": "Program"
+    "agenda": "Program",
+    "registrationRequired": "Påmelding kreves",
+    "noRegistrationNeeded": "Ingen påmelding nødvendig – bare møt opp."
   },
   "actions": {
     "getTicket": "Kjøp billett",
@@ -59,7 +61,13 @@
     "ticketDescription": "Klikk nedenfor for å kjøpe billett på Tickster og sikre deg plass!",
     "registerDescription": "Begrenset antall plasser! Registrer deg nå for å garantere din deltakelse.",
     "buyOnTickster": "Kjøp på Tickster",
-    "shareEvent": "Del arrangement"
+    "shareEvent": "Del arrangement",
+    "registrationRequired": "Påmelding kreves",
+    "registrationPendingDescription": "Dette arrangementet krever påmelding. Enheten som arrangerer kunngjør hvordan du melder deg på — ta kontakt hvis du er usikker.",
+    "registrationDeadline": "Påmeldingsfrist {date}",
+    "capacityLimited": "Begrenset til {count} plasser",
+    "noRegistrationTitle": "Ingen påmelding nødvendig",
+    "noRegistrationDescription": "Bare møt opp — dette arrangementet er åpent for alle, uten påmelding."
   },
   "collection": {
     "title": "Arrangementer i denne samlingen",

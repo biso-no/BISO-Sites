@@ -6,9 +6,13 @@ const account = vi.hoisted(() => ({
 }));
 
 // `createJWT` moved from `Account` to `Users` in node-appwrite@28, so minting
-// now needs the admin client too — see `lib/actions/session-jwt`.
+// now needs the admin client too — see `createSessionJwt` in `@repo/api/server`.
 const users = vi.hoisted(() => ({
   createJWT: vi.fn(),
+}));
+
+const appwrite = vi.hoisted(() => ({
+  createSessionJwt: vi.fn(),
 }));
 
 const membership = vi.hoisted(() => ({
@@ -26,6 +30,7 @@ vi.mock("@repo/api/server", () => ({
     db: { getRow: vi.fn() },
     functions: { createExecution: vi.fn() },
   })),
+  createSessionJwt: appwrite.createSessionJwt,
 }));
 
 vi.mock("@repo/shared/utils/feature-flags-server", () => ({
@@ -92,8 +97,7 @@ function checkoutFetchPayload(fetchMock: ReturnType<typeof vi.fn>) {
 
 describe("order checkout actions", () => {
   beforeEach(() => {
-    account.getSession.mockResolvedValue({ $id: "session-id" });
-    users.createJWT.mockResolvedValue({ jwt: "session-jwt" });
+    appwrite.createSessionJwt.mockResolvedValue("session-jwt");
     account.get.mockResolvedValue({ $id: "session-user" });
     webshop.parseProductMetadata.mockReturnValue({});
     membership.getMembershipStatus.mockResolvedValue({

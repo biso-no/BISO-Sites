@@ -18,6 +18,7 @@
     "operations": "Operations health",
     "payments": "Payments",
     "activity": "Activity",
+    "varsling": "Whistleblowing",
     "drafts": "Review Drafts",
     "approvals": "Approvals",
     "inbox": "Inbox",
@@ -850,6 +851,52 @@
       "localeNo": "Norwegian",
       "localeEn": "English",
       "inactiveLiveNotice": "This department is inactive, so its published page is not publicly reachable."
+    },
+    "categories": {
+      "society": "Society",
+      "academic_association": "Academic association",
+      "project": "Project",
+      "staff_function": "Staff function",
+      "national": "National",
+      "other": "Other"
+    },
+    "filters": {
+      "label": "Filter departments",
+      "all": "All",
+      "uncategorised": "Uncategorised",
+      "missingLogo": "Missing logo",
+      "triageSummary": "{total} units · {uncategorised} uncategorised · {missingLogo} without a logo"
+    },
+    "badges": {
+      "noCategory": "No category",
+      "noLogo": "No logo",
+      "inactive": "Inactive"
+    },
+    "profile": {
+      "heading": "Profile",
+      "description": "The category, imagery and copy shown for this unit on biso.no.",
+      "typeLabel": "Category",
+      "typeNone": "No category",
+      "typeHint": "Drives the type filter on /units and the jobs category filter.",
+      "logoLabel": "Logo",
+      "logoHint": "Square logo. Stored as an Appwrite file id because the column only holds 100 characters.",
+      "heroLabel": "Hero image",
+      "heroHint": "Wide background image at the top of the unit's page.",
+      "contentHeading": "Copy",
+      "titleLabel": "Display name",
+      "titleHint": "Optional. Falls back to the directory name when left empty.",
+      "shortDescriptionLabel": "Short description",
+      "shortDescriptionHint": "Shown on cards and in listings. Max 500 characters.",
+      "descriptionLabel": "Description",
+      "descriptionHint": "The main copy on the unit's page. Required for the locale to be saved.",
+      "save": "Save profile",
+      "saving": "Saving …",
+      "saved": "Profile saved",
+      "imageBrowse": "Drop image or browse",
+      "imageConstraints": "JPG, PNG, GIF, WEBP, SVG · max 10 MB",
+      "imageRemove": "Remove",
+      "imageReplace": "Replace",
+      "imageUploading": "Uploading …"
     }
   },
   "pages": {
@@ -1231,6 +1278,11 @@
       "close": "Close tour",
       "progress": "{current} of {total}"
     },
+    "guideVideo": {
+      "trigger": "Watch the guide",
+      "title": "Recruitment portal guide",
+      "description": "A recorded walkthrough of the recruitment portal — posting a role, reviewing applicants, and everything in between."
+    },
     "recruitmentHr": {
       "welcome": {
         "title": "Welcome to recruitment",
@@ -1278,7 +1330,7 @@
       },
       "finish": {
         "title": "You're all set",
-        "body": "That's the tour. You can replay it anytime from the help menu. Good luck with hiring!"
+        "body": "That's the tour. Watch the full walkthrough below — it's always available from the “Watch the guide” button on the overview. Good luck with hiring!"
       }
     }
   }

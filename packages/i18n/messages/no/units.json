@@ -12,6 +12,8 @@
     "searchPlaceholder": "Søk i enheter…",
     "searchSubmit": "Søk",
     "campusLabel": "Filtrer enheter etter campus",
+    "categoryLabel": "Filtrer enheter etter kategori",
+    "categoryAll": "Alle",
     "results": "{count, plural, one {# enhet} other {# enheter}}",
     "emptyTitle": "Ingen enheter passer med det.",
     "clear": "Tøm filtre"

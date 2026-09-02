@@ -7,6 +7,7 @@ import { FeedSkeleton } from "@/components/ui/loading-shell";
 import { getMembershipStatus } from "@/lib/actions/membership";
 import { getUserPreferences } from "@/lib/auth-utils";
 import { resolveRequestCampus } from "@/lib/campus-scope";
+import { toPlainText } from "@/lib/content-text";
 
 export const metadata = {
   // A campus-scoped feed is a filtered view of the same collection, so it
@@ -51,23 +52,26 @@ async function ShopListV2({
   const needle = searchQuery.trim().toLowerCase();
   const matched = needle
     ? products.filter((product) => {
-        const haystack = (
-          Array.isArray(product.translation_refs)
+        // Descriptions are stored as CMS rich text, so the tags are flattened
+        // away before matching — otherwise a query like "p" or "strong" hits
+        // every product's markup instead of its copy.
+        const haystack = toPlainText(
+          (Array.isArray(product.translation_refs)
             ? product.translation_refs
             : []
-        )
-          .flatMap((entry) =>
-            typeof entry === "object" && entry !== null
-              ? [
-                  (entry as { title?: string }).title,
-                  (entry as { short_description?: string }).short_description,
-                  (entry as { description?: string }).description,
-                ]
-              : []
           )
-          .filter(Boolean)
-          .join(" ")
-          .toLowerCase();
+            .flatMap((entry) =>
+              typeof entry === "object" && entry !== null
+                ? [
+                    (entry as { title?: string }).title,
+                    (entry as { short_description?: string }).short_description,
+                    (entry as { description?: string }).description,
+                  ]
+                : []
+            )
+            .filter(Boolean)
+            .join(" ")
+        ).toLowerCase();
         return haystack.includes(needle);
       })
     : products;

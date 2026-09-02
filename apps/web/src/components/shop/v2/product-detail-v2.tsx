@@ -1,4 +1,6 @@
+import { resolveStorageFileUrl } from "@repo/api/storage";
 import type { WebshopProducts } from "@repo/api/types/appwrite";
+import { PlateContentRenderer } from "@repo/ui/components/plate-content-renderer";
 import { ArrowLeft, MapPin } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -11,6 +13,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Pill } from "@/components/ui/pill";
 import { Prose } from "@/components/ui/prose";
 import { Section } from "@/components/ui/section";
+import { toPlainText } from "@/lib/content-text";
 import { getPrimaryTranslation } from "@/lib/content-translation";
 import { normalizeCampusKey } from "@/lib/shop/pickup-locations";
 import {
@@ -62,6 +65,10 @@ export async function ProductDetailV2({
   const translation = getPrimaryTranslation(product, locale);
   const title = translation?.title ?? "";
   const description = translation?.description ?? "";
+  // The header lede is a bare string slot, so the teaser has to arrive as text.
+  const lede = toPlainText(translation?.short_description) || undefined;
+  // Legacy imports store a bare Appwrite file ID in `image` rather than a URL.
+  const imageUrl = resolveStorageFileUrl(product.image);
 
   const metadata = parseProductMetadata(product.metadata);
   const productOptions = (metadata.product_options as ProductOption[]) || [];
@@ -87,7 +94,7 @@ export async function ProductDetailV2({
           { label: tNav("shop"), href: "/shop" },
           { label: title },
         ]}
-        lede={translation?.short_description ?? undefined}
+        lede={lede}
         meta={
           <>
             {product.category ? (
@@ -137,14 +144,14 @@ export async function ProductDetailV2({
           </aside>
 
           <div className="min-w-0 space-y-10 lg:order-1">
-            {product.image ? (
+            {imageUrl ? (
               <ChevronFrame className="bg-surface-sunken" ratio="4/3">
                 <Image
                   alt=""
                   height={720}
                   priority
                   sizes="(max-width: 1024px) 100vw, 760px"
-                  src={product.image}
+                  src={imageUrl}
                   width={960}
                 />
               </ChevronFrame>
@@ -155,10 +162,12 @@ export async function ProductDetailV2({
                 <h2 className="type-heading-section text-ink">
                   {t("product.description")}
                 </h2>
-                {/* Product copy is plain text, not block-editor output, so the
-                    authored line breaks are the only structure it has. */}
+                {/* Product copy comes out of the CMS's rich-text editor like
+                    every other body field — rendered as plain text it printed
+                    its own markup. Same reader the news, events and jobs
+                    details use. */}
                 <Prose className="mt-5">
-                  <p className="whitespace-pre-line">{description}</p>
+                  <PlateContentRenderer value={description || null} />
                 </Prose>
               </div>
             ) : null}

@@ -1,6 +1,10 @@
 "use server";
 import { Query } from "@repo/api";
-import { createAdminClient, createSessionClient } from "@repo/api/server";
+import {
+  createAdminClient,
+  createSessionClient,
+  createSessionJwt,
+} from "@repo/api/server";
 import type { ContentTranslations, Orders } from "@repo/api/types/appwrite";
 import type { Locale } from "@repo/i18n/config";
 import { getFeatureFlagStates } from "@repo/shared/utils/feature-flags-server";
@@ -13,7 +17,6 @@ import { getLocale } from "@/app/actions/locale";
 import { getProduct } from "@/app/actions/products";
 import { validatePurchaseLimits } from "@/app/actions/purchase-limits";
 import { getMembershipStatus } from "@/lib/actions/membership";
-import { mintSessionJwt } from "@/lib/actions/session-jwt";
 import { ensureAnonymousSession } from "@/lib/anon-session";
 import type { OrderItem } from "@/lib/types/order";
 import { parseProductMetadata } from "@/lib/types/webshop";
@@ -589,10 +592,7 @@ export async function createCartCheckoutSession(
     if (!user?.$id) {
       throw new Error("A valid checkout session is required.");
     }
-    // `account.createJWT()` is gone in node-appwrite@28; `mintSessionJwt`
-    // does the admin-key equivalent while keeping the token bound to this
-    // session and taking its user id from `account.get()`, never from input.
-    const jwt = await mintSessionJwt(account);
+    const jwt = await createSessionJwt().catch(() => null);
     if (!jwt) {
       throw new Error("A valid checkout session is required.");
     }

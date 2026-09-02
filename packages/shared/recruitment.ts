@@ -144,6 +144,7 @@ export const JOB_SELECT = [
   "department.$id",
   "department.Name",
   "department.campus_id",
+  "department.type",
   "translations.*",
 ] as const;
 
@@ -224,6 +225,7 @@ export function buildRecruitmentVacancy(
           $id: job.department.$id,
           Name: job.department.Name,
           campus_id: job.department.campus_id,
+          type: job.department.type ?? null,
         }
       : null,
     department_id: job.department_id,

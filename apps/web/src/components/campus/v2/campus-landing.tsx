@@ -315,6 +315,7 @@ export async function CampusLanding({
                       email={member.email}
                       imageUrl={member.imageUrl}
                       name={member.name}
+                      phone={member.phone}
                       position={member.position}
                     />
                   </li>

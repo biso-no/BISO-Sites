@@ -18,6 +18,7 @@
     "operations": "Driftshelse",
     "payments": "Betaling",
     "activity": "Aktivitet",
+    "varsling": "Varsling",
     "drafts": "Gjennomgå utkast",
     "approvals": "Godkjenninger",
     "inbox": "Innboks",
@@ -850,6 +851,52 @@
       "localeNo": "Norsk",
       "localeEn": "Engelsk",
       "inactiveLiveNotice": "Denne avdelingen er inaktiv, så den publiserte siden er ikke offentlig tilgjengelig."
+    },
+    "categories": {
+      "society": "Forening",
+      "academic_association": "Fagforening",
+      "project": "Prosjekt",
+      "staff_function": "Stabsfunksjon",
+      "national": "Nasjonal",
+      "other": "Annet"
+    },
+    "filters": {
+      "label": "Filtrer avdelinger",
+      "all": "Alle",
+      "uncategorised": "Uten kategori",
+      "missingLogo": "Mangler logo",
+      "triageSummary": "{total} enheter · {uncategorised} uten kategori · {missingLogo} uten logo"
+    },
+    "badges": {
+      "noCategory": "Ingen kategori",
+      "noLogo": "Ingen logo",
+      "inactive": "Inaktiv"
+    },
+    "profile": {
+      "heading": "Profil",
+      "description": "Kategori, bilder og tekst som vises for enheten på biso.no.",
+      "typeLabel": "Kategori",
+      "typeNone": "Ingen kategori",
+      "typeHint": "Styrer typefilteret på /units og jobbfilteret.",
+      "logoLabel": "Logo",
+      "logoHint": "Kvadratisk logo. Lagres som Appwrite-fil-ID fordi kolonnen bare rommer 100 tegn.",
+      "heroLabel": "Toppbilde",
+      "heroHint": "Bredt bakgrunnsbilde øverst på enhetens side.",
+      "contentHeading": "Tekst",
+      "titleLabel": "Visningsnavn",
+      "titleHint": "Valgfritt. Brukes navnet fra katalogen hvis feltet er tomt.",
+      "shortDescriptionLabel": "Kort beskrivelse",
+      "shortDescriptionHint": "Vises på kort og i lister. Maks 500 tegn.",
+      "descriptionLabel": "Beskrivelse",
+      "descriptionHint": "Hovedteksten på enhetens side. Kreves for at språket skal lagres.",
+      "save": "Lagre profil",
+      "saving": "Lagrer …",
+      "saved": "Profilen er lagret",
+      "imageBrowse": "Slipp bilde eller bla gjennom",
+      "imageConstraints": "JPG, PNG, GIF, WEBP, SVG · maks 10 MB",
+      "imageRemove": "Fjern",
+      "imageReplace": "Bytt",
+      "imageUploading": "Laster opp …"
     }
   },
   "pages": {
@@ -1231,6 +1278,11 @@
       "close": "Lukk omvisning",
       "progress": "{current} av {total}"
     },
+    "guideVideo": {
+      "trigger": "Se videoguiden",
+      "title": "Guide til rekrutteringsportalen",
+      "description": "En innspilt gjennomgang av rekrutteringsportalen — fra utlysning til vurdering av søkere, og alt imellom."
+    },
     "recruitmentHr": {
       "welcome": {
         "title": "Velkommen til rekruttering",
@@ -1278,7 +1330,7 @@
       },
       "finish": {
         "title": "Du er klar",
-        "body": "Det var omvisningen. Du kan se den igjen når som helst fra hjelpemenyen. Lykke til med ansettelsene!"
+        "body": "Det var omvisningen. Se hele gjennomgangen under — den ligger alltid tilgjengelig bak «Se videoguiden» på oversikten. Lykke til med ansettelsene!"
       }
     }
   }

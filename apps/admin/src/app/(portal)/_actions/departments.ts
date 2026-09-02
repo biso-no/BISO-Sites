@@ -1,13 +1,23 @@
 "use server";
 
-import { AppwriteException, Query } from "@repo/api";
+import { AppwriteException, ID, Query } from "@repo/api";
 import { type PageDoc, savePageDraft } from "@repo/api/page-builder";
 import { createAdminClient, createSessionClient } from "@repo/api/server";
-import type { Departments, Pages } from "@repo/api/types/appwrite";
+import type {
+  ContentTranslations,
+  Departments,
+  Pages,
+} from "@repo/api/types/appwrite";
+import {
+  assertStorableUnitCategory,
+  UNIT_CATEGORIES,
+} from "@repo/shared/utils/unit-categories";
 import { unitPageSlug } from "@repo/shared/utils/unit-urls";
 import { revalidatePath } from "next/cache";
+import { z } from "zod";
 import { requireAuth } from "@/lib/authorization";
 import { canManageDepartment } from "@/lib/departments";
+import { buildContentTranslationPermissions } from "@/lib/utils";
 import { logAuditEvent } from "./audit-log";
 
 export async function listDepartments(opts?: {
@@ -19,7 +29,11 @@ export async function listDepartments(opts?: {
   const ctx = await requireAuth();
   const { db } = await createSessionClient();
 
-  const queries: string[] = [Query.orderAsc("Name"), Query.limit(200)];
+  // 280 department rows exist today and the management listing triages all of
+  // them in one view (uncategorised / missing logo counts are only truthful if
+  // nothing is silently cut off), so the cap sits comfortably above the row
+  // count rather than at it.
+  const queries: string[] = [Query.orderAsc("Name"), Query.limit(500)];
 
   // Explicit id scoping for department users. The departments table is
   // read("any"), so this filter IS the authorization boundary — it cannot be
@@ -88,10 +102,245 @@ async function _getDepartment(id: string) {
 
 const DEFAULT_ACCENT = "#3DA9E0";
 
+type AdminDb = Awaited<ReturnType<typeof createAdminClient>>["db"];
+
+/** The two locales the public site renders a unit in. */
+const DEPARTMENT_LOCALES = ["no", "en"] as const;
+
+/**
+ * `departments.logo` is `string(100)` in Appwrite and the schema is
+ * auto-generated, so it cannot be widened here. A full storage view URL
+ * (`<endpoint>/storage/buckets/media/files/<id>/view?project=<project>`) is
+ * ~94 characters with a 20-char `ID.unique()` and blows past 100 as soon as
+ * the endpoint, the bucket, or a custom 36-char file id grows — Appwrite then
+ * rejects the whole write. So the column stores the BARE Appwrite file id and
+ * every render site expands it with `resolveStorageFileUrl` from
+ * `@repo/api/storage`, which is exactly the mixed "file id or URL" shape that
+ * helper already exists for (webshop products store it the same way). A
+ * hand-pasted external URL is still accepted as long as it fits.
+ */
+const LOGO_MAX_LENGTH = 100;
+
+/** `content_translations` column sizes — see packages/api/appwrite.config.json. */
+const TRANSLATION_TITLE_MAX = 500;
+const TRANSLATION_SHORT_DESCRIPTION_MAX = 500;
+const TRANSLATION_DESCRIPTION_MAX = 8000;
+
+const departmentTranslationSchema = z.object({
+  description: z.string().max(TRANSLATION_DESCRIPTION_MAX).default(""),
+  short_description: z
+    .string()
+    .max(TRANSLATION_SHORT_DESCRIPTION_MAX)
+    .default(""),
+  title: z.string().max(TRANSLATION_TITLE_MAX).default(""),
+});
+
+const departmentProfileSchema = z
+  .object({
+    hero: z.string().trim().nullable().default(null),
+    logo: z.string().trim().max(LOGO_MAX_LENGTH).nullable().default(null),
+    translations: z.object({
+      en: departmentTranslationSchema,
+      no: departmentTranslationSchema,
+    }),
+    type: z.enum(UNIT_CATEGORIES).nullable().default(null),
+  })
+  .superRefine((values, context) => {
+    for (const locale of DEPARTMENT_LOCALES) {
+      const translation = values.translations[locale];
+      // `content_translations.description` is a REQUIRED column, so a locale
+      // row cannot exist on a teaser alone. Reject it here rather than letting
+      // Appwrite bounce the write with an opaque 400.
+      if (
+        translation.short_description.trim() &&
+        !translation.description.trim()
+      ) {
+        context.addIssue({
+          code: "custom",
+          message: `Add a description for the ${locale === "no" ? "Norwegian" : "English"} teaser`,
+          path: ["translations", locale, "description"],
+        });
+      }
+    }
+  });
+
+export type DepartmentProfileInput = z.input<typeof departmentProfileSchema>;
+
+/**
+ * Existing locales are looked up by content metadata rather than the
+ * `translations` relation: no admin code has ever written a department
+ * translation, so any row that does exist predates the relationship backfill
+ * and is unlinked. Matching on (content_type, content_id) both prevents a
+ * duplicate locale row and re-links the orphan on the next save.
+ */
+async function loadDepartmentTranslations(
+  db: AdminDb,
+  departmentId: string
+): Promise<ContentTranslations[]> {
+  const response = await db.listRows<ContentTranslations>(
+    "app",
+    "content_translations",
+    [
+      Query.equal("content_type", "department"),
+      Query.equal("content_id", departmentId),
+      Query.limit(10),
+    ]
+  );
+  return response.rows;
+}
+
+async function syncDepartmentTranslations(
+  db: AdminDb,
+  department: Departments,
+  input: z.output<typeof departmentProfileSchema>
+): Promise<void> {
+  const existing = await loadDepartmentTranslations(db, department.$id);
+  // Keyed by plain string: `locale` is the generated `ContentTranslationsLocale`
+  // enum, which the "no" | "en" literals below do not widen to.
+  const byLocale = new Map<string, ContentTranslations>(
+    existing.map((row) => [row.locale, row])
+  );
+  // Departments are a public surface (the table itself is read("any")), so the
+  // translation rows carry the same public read. Going through the shared
+  // builder keeps them consistent with every other content type.
+  const permissions = buildContentTranslationPermissions({
+    audience: "public",
+    writeTeams: [],
+  });
+
+  for (const locale of DEPARTMENT_LOCALES) {
+    const submitted = input.translations[locale];
+    const current = byLocale.get(locale);
+    const description = submitted.description.trim();
+    const shortDescription = submitted.short_description.trim();
+
+    if (!description) {
+      // Cleared out. Leaving an empty row behind would keep the unit
+      // advertising a blank description on the public site.
+      if (current) {
+        await db.deleteRow("app", "content_translations", current.$id);
+      }
+      continue;
+    }
+
+    const fields = {
+      description,
+      short_description: shortDescription || null,
+      // `title` is a required column. Fall back to whatever is already stored,
+      // then to the directory name, so an editor who only writes prose never
+      // trips the constraint.
+      title:
+        submitted.title.trim() || current?.title?.trim() || department.Name,
+    };
+
+    if (current) {
+      await db.updateRow(
+        "app",
+        "content_translations",
+        current.$id,
+        fields,
+        permissions
+      );
+      continue;
+    }
+
+    await db.createRow(
+      "app",
+      "content_translations",
+      ID.unique(),
+      {
+        ...fields,
+        additional_fields: null,
+        content_id: department.$id,
+        content_type: "department",
+        // A fresh row must arrive already related to its parent, otherwise it
+        // is only reachable by the metadata lookup above.
+        department_ref: department.$id,
+        locale,
+      },
+      permissions
+    );
+  }
+}
+
+/**
+ * Presentation metadata for a unit: its category, its imagery, and its
+ * per-locale prose.
+ *
+ * Authorization is `canManageDepartment` — a global admin may edit any unit, a
+ * campus admin only units whose `campus_id` is one they manage, and a plain
+ * department member only the units they are actually a member of. The
+ * `departments` table is `read("any")` with update granted solely to the
+ * Operations Unit team, so a session-scoped write would fail for every campus
+ * admin; the admin client is used instead and THIS CHECK is the authorization
+ * boundary.
+ */
+export async function updateDepartment(
+  id: string,
+  values: DepartmentProfileInput
+): Promise<{ success: true } | { error: string }> {
+  const ctx = await requireAuth();
+
+  const parsed = departmentProfileSchema.safeParse(values);
+  if (!parsed.success) {
+    return {
+      error:
+        parsed.error.issues[0]?.message ?? "The unit details are not valid.",
+    };
+  }
+
+  try {
+    const { db } = await createAdminClient();
+    const found = await db.listRows<Departments>("app", "departments", [
+      Query.equal("$id", id),
+      Query.limit(1),
+    ]);
+    const department = found.rows[0];
+    if (!(department && canManageDepartment(ctx, department))) {
+      return { error: "You do not have access to this department" };
+    }
+
+    // `type` is free-text string(20), not a database enum — the assert helper
+    // is the only thing standing between a future category and a rejected
+    // write.
+    const type = parsed.data.type
+      ? assertStorableUnitCategory(parsed.data.type)
+      : null;
+
+    await db.updateRow("app", "departments", id, {
+      hero: parsed.data.hero || null,
+      logo: parsed.data.logo || null,
+      type,
+    });
+
+    await syncDepartmentTranslations(db, department, parsed.data);
+
+    await logAuditEvent(ctx, "department_updated", {
+      payload: {
+        hasHero: Boolean(parsed.data.hero),
+        hasLogo: Boolean(parsed.data.logo),
+        type,
+      },
+      resourceId: id,
+      resourceType: "department",
+    });
+
+    revalidatePath("/departments");
+    revalidatePath(`/departments/${id}`);
+    return { success: true };
+  } catch (e) {
+    console.error("[updateDepartment]", e);
+    return {
+      error: e instanceof Error ? e.message : "Could not save the unit details",
+    };
+  }
+}
+
 export async function getDepartmentWithPage(id: string): Promise<{
   department: Departments;
   page: Pages | null;
   slugConflict: boolean;
+  translations: ContentTranslations[];
 } | null> {
   const ctx = await requireAuth();
   const { db } = await createSessionClient();
@@ -105,12 +354,18 @@ export async function getDepartmentWithPage(id: string): Promise<{
     return null;
   }
 
+  // Admin client throughout: content_translations rows are created with
+  // read("any") only once they are meant to be public, and the profile editor
+  // must see whatever is stored regardless.
+  const { db: adminDb } = await createAdminClient();
+  const translations = await loadDepartmentTranslations(adminDb, id);
+
   const slug = unitPageSlug({
     campusId: department.campus_id,
     slug: department.slug,
   });
   if (!slug) {
-    return { department, page: null, slugConflict: false };
+    return { department, page: null, slugConflict: false, translations };
   }
 
   // Admin client: the page row carries no permissions until published, so a
@@ -123,7 +378,6 @@ export async function getDepartmentWithPage(id: string): Promise<{
   // per-locale row needs: publishing is per-locale, and pages.status flips to
   // "published" as soon as ANY locale is, so the page-level flag alone would
   // tell a board that published only Norwegian that both locales are live.
-  const { db: adminDb } = await createAdminClient();
   const pages = await adminDb.listRows<Pages>("app", "pages", [
     Query.equal("slug", slug),
     Query.select([
@@ -145,10 +399,15 @@ export async function getDepartmentWithPage(id: string): Promise<{
   // from "the address is taken" instead of offering a Create button that
   // createUnitPage will just reject.
   if (foundPage && foundPage.department_id !== department.$id) {
-    return { department, page: null, slugConflict: true };
+    return { department, page: null, slugConflict: true, translations };
   }
 
-  return { department, page: foundPage ?? null, slugConflict: false };
+  return {
+    department,
+    page: foundPage ?? null,
+    slugConflict: false,
+    translations,
+  };
 }
 
 export async function createUnitPage(

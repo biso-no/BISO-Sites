@@ -1,4 +1,9 @@
 import type { RecruitmentVacancy } from "@repo/shared/types/recruitment";
+import {
+  parseUnitCategory,
+  UNIT_CATEGORIES,
+  UNIT_CATEGORY_MESSAGE_KEYS,
+} from "@repo/shared/utils/unit-categories";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { CardGrid } from "@/components/ui/card-grid";
@@ -137,6 +142,29 @@ export async function JobsV2({
   const activeType =
     typeof searchParams.type === "string" ? searchParams.type : "all";
 
+  // The organisational category of the unit that owns the vacancy — societies,
+  // projects, academic associations, staff functions, national. Distinct from
+  // `?type=`, which is the employment type. `departments.type` is free text and
+  // still null on most units, so the options are derived from the loaded jobs
+  // and `<FilterChips>` drops the row entirely while none of them carry one.
+  const activeCategory =
+    parseUnitCategory(searchParams.category) ?? ("all" as const);
+  const presentCategories = new Set(
+    jobs.map((job) => parseUnitCategory(job.department?.type)).filter(Boolean)
+  );
+  const categoryOptions: FilterOption[] = [
+    { value: "all", label: t("filters.all") },
+    ...UNIT_CATEGORIES.filter((value) => presentCategories.has(value)).map(
+      (value) => ({
+        value,
+        label: t(`filters.${UNIT_CATEGORY_MESSAGE_KEYS[value]}`),
+        count: jobs.filter(
+          (job) => parseUnitCategory(job.department?.type) === value
+        ).length,
+      })
+    ),
+  ];
+
   // Employment types come from the data, not a hardcoded list — a value that
   // stops appearing stops being offered.
   const typeOptions: FilterOption[] = [
@@ -168,7 +196,7 @@ export async function JobsV2({
   // `filters.paidOnly` is already translated in both locales.
   // A search must not silently drop the filters already applied.
   const searchHidden: Record<string, string> = {};
-  for (const key of ["campus", "type", "paid", "sort"]) {
+  for (const key of ["campus", "type", "category", "paid", "sort"]) {
     const value = searchParams[key];
     if (typeof value === "string") {
       searchHidden[key] = value;
@@ -192,6 +220,13 @@ export async function JobsV2({
 
   const filtered = jobs.filter((job) => {
     if (activeType !== "all" && job.metadata.employment_type !== activeType) {
+      return false;
+    }
+    // An uncategorised unit only drops out once a category is actively picked.
+    if (
+      activeCategory !== "all" &&
+      parseUnitCategory(job.department?.type) !== activeCategory
+    ) {
       return false;
     }
     return !paidOnly || job.metadata.paid === true;
@@ -233,6 +268,14 @@ export async function JobsV2({
             label={t("filters.employmentTypeLabel")}
             options={typeOptions}
             param="type"
+            searchParams={searchParams}
+          />
+          <FilterChips
+            active={activeCategory}
+            basePath="/jobs"
+            label={t("filters.categoryLabel")}
+            options={categoryOptions}
+            param="category"
             searchParams={searchParams}
           />
           <FilterChips

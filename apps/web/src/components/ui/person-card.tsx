@@ -1,6 +1,6 @@
 import { ImageWithFallback } from "@repo/ui/components/image";
 import { cn } from "@repo/ui/lib/utils";
-import { Mail } from "lucide-react";
+import { Mail, Phone } from "lucide-react";
 
 /**
  * The "Who to contact" card from the reference — avatar, name, role, campus.
@@ -11,6 +11,12 @@ import { Mail } from "lucide-react";
  * invent an address, the action is omitted when absent. Adding `email` to
  * `department_board`, or falling back to `Campus.email`, is the smallest fix;
  * until then these cards are honest about what they know.
+ *
+ * Campus leadership is the one source that does carry contact details: it comes
+ * from Azure AD via Graph, which returns both an address and a work number. Both
+ * were being fetched and thrown away before render, which is why students could
+ * not tell who to write to — so `phone` is offered on the same terms as `email`,
+ * rendered when present and omitted when not.
  */
 export interface PersonCardProps {
   campus?: string | null;
@@ -18,6 +24,7 @@ export interface PersonCardProps {
   email?: string | null;
   imageUrl?: string | null;
   name: string;
+  phone?: string | null;
   /**
    * Job title. Deliberately NOT named `role` — that shadows the ARIA `role`
    * attribute, and both linters and readers trip on `role="Campus Director"`.
@@ -31,6 +38,7 @@ export function PersonCard({
   campus,
   imageUrl,
   email,
+  phone,
   className,
 }: PersonCardProps) {
   return (
@@ -62,14 +70,27 @@ export function PersonCard({
         ) : null}
       </span>
 
-      {email ? (
-        <a
-          aria-label={`Email ${name}`}
-          className="rounded-biso-sm p-1 text-ink-accent transition-colors hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2"
-          href={`mailto:${email}`}
-        >
-          <Mail aria-hidden="true" className="size-5" />
-        </a>
+      {email || phone ? (
+        <span className="flex items-center gap-1">
+          {email ? (
+            <a
+              aria-label={`Email ${name}`}
+              className="rounded-biso-sm p-1 text-ink-accent transition-colors hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2"
+              href={`mailto:${email}`}
+            >
+              <Mail aria-hidden="true" className="size-5" />
+            </a>
+          ) : null}
+          {phone ? (
+            <a
+              aria-label={`Call ${name}`}
+              className="rounded-biso-sm p-1 text-ink-accent transition-colors hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2"
+              href={`tel:${phone.replace(/\s+/g, "")}`}
+            >
+              <Phone aria-hidden="true" className="size-5" />
+            </a>
+          ) : null}
+        </span>
       ) : null}
     </div>
   );

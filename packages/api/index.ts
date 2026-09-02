@@ -20,4 +20,7 @@ export {
   getStorageFileDownloadUrl,
   getStorageFileThumbnailUrl,
   getStorageFileUrl,
+  MEDIA_BUCKET_ID,
+  resolveStorageFileUrl,
+  resolveStorageFileUrls,
 } from "./storage";

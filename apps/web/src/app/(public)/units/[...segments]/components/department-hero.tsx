@@ -1,4 +1,9 @@
+import { resolveStorageFileUrl } from "@repo/api/storage";
 import type { ContentTranslations } from "@repo/api/types/appwrite";
+import {
+  parseUnitCategory,
+  UNIT_CATEGORY_MESSAGE_KEYS,
+} from "@repo/shared/utils/unit-categories";
 import { ImageWithFallback } from "@repo/ui/components/image";
 import { Badge } from "@repo/ui/components/ui/badge";
 import { ArrowLeft, Building2, MapPin } from "lucide-react";
@@ -11,8 +16,17 @@ interface DepartmentHeroProps {
 }
 
 export async function DepartmentHero({ department }: DepartmentHeroProps) {
-  const t = await getTranslations("units.detail");
+  // Two bundles: the page's own chrome, and the shared `jobs.filters` category
+  // labels — every surface that names a unit's category names it identically.
+  const [t, tCategory] = await Promise.all([
+    getTranslations("units.detail"),
+    getTranslations("jobs"),
+  ]);
   const dept = department.department_ref;
+  const category = parseUnitCategory(dept?.type);
+  // `departments.logo` is a string(100): the admin editor stores a bare
+  // Appwrite file id, so expand it to a URL before rendering.
+  const logoUrl = resolveStorageFileUrl(dept?.logo);
 
   // Use custom hero image if available, otherwise use default
   const DEFAULT_HERO_URL =
@@ -42,23 +56,25 @@ export async function DepartmentHero({ department }: DepartmentHeroProps) {
 
           <div className="max-w-3xl">
             <div className="mb-6 flex items-center gap-4">
-              {dept.logo && (
+              {logoUrl && (
                 <div className="h-20 w-20 rounded-xl border border-white/20 bg-background/10 p-3 backdrop-blur-sm">
                   <ImageWithFallback
                     alt={department.title}
                     className="h-full w-full object-contain"
                     height={80}
-                    src={dept.logo}
+                    src={logoUrl}
                     width={80}
                   />
                 </div>
               )}
               <div>
                 <div className="mb-2 flex flex-wrap items-center gap-3">
-                  {dept.type && (
+                  {category && (
                     <Badge className="border-white/30 bg-background/20 text-white">
                       <Building2 className="mr-1 h-3 w-3" />
-                      {dept.type.charAt(0).toUpperCase() + dept.type.slice(1)}
+                      {tCategory(
+                        `filters.${UNIT_CATEGORY_MESSAGE_KEYS[category]}`
+                      )}
                     </Badge>
                   )}
                   {dept.campus?.name && (

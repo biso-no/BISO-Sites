@@ -176,28 +176,33 @@
  * route. With h1-h4 only, admin is byte-identical — 100 elements compared
  * across 10 routes, zero changed. */
 @layer base {
+  /* Tailwind Preflight resets h1-h6 to `font-size: inherit; font-weight:
+   * inherit`, so a heading carrying no `text-<size>` utility renders at body
+   * size — 44 of 271 headings, the homepage hero `<h1>` among them. These rules
+   * restore the hierarchy. Line heights are the tightened ones from the
+   * heading-hierarchy fix: heading leading, not body leading. */
   h1:not([class*="text-"]) {
     font-size: var(--text-2xl);
     font-weight: var(--font-weight-medium);
-    line-height: 1.5;
+    line-height: 1.3;
   }
 
   h2:not([class*="text-"]) {
     font-size: var(--text-xl);
     font-weight: var(--font-weight-medium);
-    line-height: 1.5;
+    line-height: 1.3;
   }
 
   h3:not([class*="text-"]) {
     font-size: var(--text-lg);
     font-weight: var(--font-weight-medium);
-    line-height: 1.5;
+    line-height: 1.4;
   }
 
   h4:not([class*="text-"]) {
     font-size: var(--text-base);
     font-weight: var(--font-weight-medium);
-    line-height: 1.5;
+    line-height: 1.4;
   }
 }
 

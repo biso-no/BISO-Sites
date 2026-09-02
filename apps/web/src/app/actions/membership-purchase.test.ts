@@ -6,9 +6,13 @@ const account = vi.hoisted(() => ({
 }));
 
 // `createJWT` moved from `Account` to `Users` in node-appwrite@28, so minting
-// now needs the admin client too — see `lib/actions/session-jwt`.
+// now needs the admin client too — see `createSessionJwt` in `@repo/api/server`.
 const users = vi.hoisted(() => ({
   createJWT: vi.fn(),
+}));
+
+const appwrite = vi.hoisted(() => ({
+  createSessionJwt: vi.fn(),
 }));
 
 const sessionDb = vi.hoisted(() => ({
@@ -30,6 +34,7 @@ const featureFlags = vi.hoisted(() => ({
 vi.mock("@repo/api/server", () => ({
   createAdminClient: vi.fn(async () => ({ db: adminDb, users })),
   createSessionClient: vi.fn(async () => ({ account, db: sessionDb })),
+  createSessionJwt: appwrite.createSessionJwt,
 }));
 
 vi.mock("@repo/shared/utils/feature-flags-server", () => ({
@@ -83,8 +88,7 @@ describe("startMembershipCheckout", () => {
       payments_vipps: true,
     });
     account.get.mockResolvedValue({ $id: "user-1" });
-    account.getSession.mockResolvedValue({ $id: "session-id" });
-    users.createJWT.mockResolvedValue({ jwt: "session-jwt" });
+    appwrite.createSessionJwt.mockResolvedValue("session-jwt");
     sessionDb.getRow.mockResolvedValue(VALID_PROFILE);
     adminDb.updateRow.mockResolvedValue({});
     catalog.getMembershipPlanById.mockResolvedValue(VALID_PLAN);

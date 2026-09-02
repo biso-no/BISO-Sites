@@ -1,3 +1,4 @@
+import { resolveStorageFileUrl } from "@repo/api/storage";
 import type { WebshopProducts } from "@repo/api/types/appwrite";
 import Image from "next/image";
 import Link from "next/link";
@@ -9,6 +10,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Pill } from "@/components/ui/pill";
 import { Section } from "@/components/ui/section";
 import { CAMPUS_SLUGS, campusIdToSlug } from "@/lib/campus-scope";
+import { toPlainText } from "@/lib/content-text";
 import { getPrimaryTranslation } from "@/lib/content-translation";
 import { ShopSearch } from "./shop-search";
 
@@ -110,6 +112,12 @@ function ProductCard({
   product: WebshopProducts;
 }) {
   const translation = getPrimaryTranslation(product, locale);
+  // Products imported from the old site store a bare Appwrite file ID in
+  // `image`, not a URL, so `next/image` cannot load them unresolved.
+  const imageUrl = resolveStorageFileUrl(product.image);
+  // `short_description` is authored in the CMS's rich-text editor and stored as
+  // HTML; rendered raw it prints the tags.
+  const teaser = toPlainText(translation?.short_description);
   const soldOut = product.stock === 0;
   const savings =
     product.member_price !== null && product.member_price !== undefined
@@ -128,14 +136,14 @@ function ProductCard({
             norm: **39 of the 55 products have none**, so the same rule filled
             the shop with grey parallelograms carrying no information. Prices
             still line up — they are pinned to the bottom of the row. */}
-        {product.image ? (
+        {imageUrl ? (
           <ChevronFrame className="mb-4 bg-surface-sunken" ratio="16/9">
             <Image
               alt=""
               className="transition-transform duration-500 group-hover:scale-[1.03]"
               height={480}
               sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 380px"
-              src={product.image}
+              src={imageUrl}
               width={640}
             />
           </ChevronFrame>
@@ -160,9 +168,9 @@ function ProductCard({
           {translation?.title}
         </span>
 
-        {translation?.short_description ? (
+        {teaser ? (
           <span className="type-body-sm mt-2 line-clamp-2 text-ink-muted">
-            {translation.short_description}
+            {teaser}
           </span>
         ) : null}
 

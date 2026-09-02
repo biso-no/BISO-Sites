@@ -14,7 +14,7 @@ import {
   SelectValue,
 } from "@repo/ui/components/ui/select";
 import { Textarea } from "@repo/ui/components/ui/textarea";
-import { AlertTriangle, CheckCircle } from "lucide-react";
+import { AlertTriangle, CheckCircle, Loader2, Mail } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useId, useState } from "react";
 import { getCampuses } from "@/app/actions/campus";
@@ -22,6 +22,35 @@ import {
   getVarslingSettings,
   submitVarslingCase,
 } from "@/app/actions/varsling";
+
+interface EscalationContact {
+  email: string;
+  role: string;
+}
+
+/**
+ * Read-only escalation contacts (board chair / HR / general manager) shown when
+ * a campus has no configured varsling recipients, so the page never leaves a
+ * reporter with an empty dropdown and a dead submit button.
+ */
+function EscalationContacts({ contacts }: { contacts: EscalationContact[] }) {
+  return (
+    <ul className="mt-3 space-y-2">
+      {contacts.map((contact) => (
+        <li className="flex items-center gap-2 text-sm" key={contact.email}>
+          <Mail className="h-4 w-4 shrink-0 text-brand" />
+          <span className="font-medium">{contact.role}</span>
+          <a
+            className="text-brand underline-offset-2 hover:underline"
+            href={`mailto:${contact.email}`}
+          >
+            {contact.email}
+          </a>
+        </li>
+      ))}
+    </ul>
+  );
+}
 
 export function VarslingForm() {
   const t = useTranslations("varsling");
@@ -32,8 +61,9 @@ export function VarslingForm() {
   const [varslingSettings, setVarslingSettings] = useState<VarslingSettings[]>(
     []
   );
+  const [isLoadingSettings, setIsLoadingSettings] = useState(false);
   const [selectedCampus, setSelectedCampus] = useState<string>("");
-  const [selectedRole, setSelectedRole] = useState<string>("");
+  const [selectedSettingId, setSelectedSettingId] = useState<string>("");
   const [submissionType, setSubmissionType] = useState<
     "harassment" | "witness" | "other"
   >("other");
@@ -44,6 +74,8 @@ export function VarslingForm() {
     type: "success" | "error";
     message: string;
   } | null>(null);
+
+  const escalationContacts = t.raw("contact.contacts") as EscalationContact[];
 
   // Load campuses on mount
   useEffect(() => {
@@ -56,20 +88,36 @@ export function VarslingForm() {
 
   // Load varsling settings when campus is selected
   useEffect(() => {
-    if (selectedCampus) {
-      const fetchSettings = async () => {
-        const settings = await getVarslingSettings(selectedCampus);
-        setVarslingSettings(settings);
-        setSelectedRole(""); // Reset role selection
-      };
-      fetchSettings();
+    if (!selectedCampus) {
+      setVarslingSettings([]);
+      setSelectedSettingId("");
+      return;
     }
+    let cancelled = false;
+    setIsLoadingSettings(true);
+    setSelectedSettingId("");
+    const fetchSettings = async () => {
+      const settings = await getVarslingSettings(selectedCampus);
+      if (cancelled) {
+        return;
+      }
+      setVarslingSettings(settings);
+      setIsLoadingSettings(false);
+    };
+    fetchSettings();
+    return () => {
+      cancelled = true;
+    };
   }, [selectedCampus]);
+
+  const hasContacts = varslingSettings.length > 0;
+  const showEmptyState =
+    Boolean(selectedCampus) && !isLoadingSettings && !hasContacts;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!(selectedCampus && selectedRole && caseDescription.trim())) {
+    if (!(selectedCampus && selectedSettingId && caseDescription.trim())) {
       setSubmitStatus({
         type: "error",
         message: t("form.submit.validation.required"),
@@ -78,7 +126,7 @@ export function VarslingForm() {
     }
 
     const selectedSetting = varslingSettings.find(
-      (s) => s.role_name === selectedRole
+      (s) => s.$id === selectedSettingId
     );
     if (!selectedSetting) {
       setSubmitStatus({
@@ -93,9 +141,7 @@ export function VarslingForm() {
 
     try {
       const result = await submitVarslingCase({
-        campus_id: selectedCampus,
-        role_name: selectedRole,
-        recipient_email: selectedSetting.email,
+        setting_id: selectedSetting.$id,
         submitter_email: email.trim() || undefined,
         case_description: caseDescription.trim(),
         submission_type: submissionType,
@@ -112,7 +158,7 @@ export function VarslingForm() {
 
         // Reset form
         setSelectedCampus("");
-        setSelectedRole("");
+        setSelectedSettingId("");
         setSubmissionType("other");
         setEmail("");
         setCaseDescription("");
@@ -185,26 +231,53 @@ export function VarslingForm() {
         </Select>
       </div>
 
-      {/* Role Selection */}
+      {/* Receiver Selection */}
       {selectedCampus && (
         <div className="space-y-2">
           <Label htmlFor={receiverId}>
             {t("form.fields.receiver.label")} *
           </Label>
-          <Select onValueChange={setSelectedRole} value={selectedRole}>
-            <SelectTrigger id={receiverId}>
-              <SelectValue
-                placeholder={t("form.fields.receiver.placeholder")}
-              />
-            </SelectTrigger>
-            <SelectContent>
-              {varslingSettings.map((setting) => (
-                <SelectItem key={setting.$id} value={setting.role_name}>
-                  {setting.role_name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          {isLoadingSettings && (
+            <p className="flex items-center gap-2 text-muted-foreground text-sm">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              {t("form.fields.receiver.empty.loading")}
+            </p>
+          )}
+          {!isLoadingSettings && hasContacts && (
+            <Select
+              onValueChange={setSelectedSettingId}
+              value={selectedSettingId}
+            >
+              <SelectTrigger id={receiverId}>
+                <SelectValue
+                  placeholder={t("form.fields.receiver.placeholder")}
+                />
+              </SelectTrigger>
+              <SelectContent>
+                {varslingSettings.map((setting) => (
+                  <SelectItem key={setting.$id} value={setting.$id}>
+                    {setting.role_name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+          {showEmptyState && (
+            <Alert className="border-amber-500/30 bg-amber-500/10">
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+                <AlertDescription className="text-amber-900 dark:text-amber-200">
+                  <span className="block font-medium">
+                    {t("form.fields.receiver.empty.title")}
+                  </span>
+                  <span className="mt-1 block">
+                    {t("form.fields.receiver.empty.description")}
+                  </span>
+                  <EscalationContacts contacts={escalationContacts} />
+                </AlertDescription>
+              </div>
+            </Alert>
+          )}
         </div>
       )}
 
@@ -263,20 +336,22 @@ export function VarslingForm() {
       )}
 
       {/* Submit Button */}
-      <Button
-        className="w-full"
-        disabled={
-          isSubmitting ||
-          !selectedCampus ||
-          !selectedRole ||
-          !caseDescription.trim()
-        }
-        size="lg"
-        type="submit"
-        variant="gradient"
-      >
-        {isSubmitting ? t("form.submit.submitting") : t("form.submit.button")}
-      </Button>
+      {!showEmptyState && (
+        <Button
+          className="w-full"
+          disabled={
+            isSubmitting ||
+            !selectedCampus ||
+            !selectedSettingId ||
+            !caseDescription.trim()
+          }
+          size="lg"
+          type="submit"
+          variant="gradient"
+        >
+          {isSubmitting ? t("form.submit.submitting") : t("form.submit.button")}
+        </Button>
+      )}
     </form>
   );
 }

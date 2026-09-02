@@ -16,6 +16,8 @@ interface ListEventsParams {
   locale?: "en" | "no";
   search?: string;
   status?: string;
+  /** Opt-in: hide events that have already finished, sorted soonest-first. */
+  upcomingOnly?: boolean;
 }
 
 export async function listEvents(
@@ -58,6 +60,9 @@ async function _getEvent(
         "ticket_url",
         "image",
         "member_only",
+        "registration_deadline",
+        "capacity",
+        "pricing_mode",
         "collection_id",
         "is_collection",
         "collection_pricing",
@@ -125,6 +130,9 @@ export async function getEventBySlug(
         "ticket_url",
         "image",
         "member_only",
+        "registration_deadline",
+        "capacity",
+        "pricing_mode",
         "collection_id",
         "is_collection",
         "collection_pricing",
@@ -301,6 +309,9 @@ export async function getCollectionEvents(
         "ticket_url",
         "image",
         "member_only",
+        "registration_deadline",
+        "capacity",
+        "pricing_mode",
         "collection_id",
         "is_collection",
         "collection_pricing",

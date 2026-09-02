@@ -1,4 +1,5 @@
 import type { TourDefinition, TourStep } from "@repo/tours/types";
+import { RECRUITMENT_GUIDE_VIDEO_URL } from "./recruitment-guide-video";
 import type { RecruitmentTourContext } from "./registry";
 
 const OVERVIEW = "/jobs";
@@ -122,6 +123,7 @@ export function buildRecruitmentHrTour(
       id: "finish",
       route: OVERVIEW,
       target: { type: "center" },
+      media: { type: "video", src: RECRUITMENT_GUIDE_VIDEO_URL },
       ...copy("finish"),
     },
   ];

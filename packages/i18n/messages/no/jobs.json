@@ -15,9 +15,12 @@
     "societies": "Foreninger",
     "staffFunctions": "Stabsfunksjoner",
     "projects": "Prosjekter",
+    "national": "Nasjonalt",
+    "other": "Annet",
     "paidOnly": "Kun betalte stillinger",
     "showingResults": "Viser {count} {count, plural, one {stilling} other {stillinger}}",
     "employmentTypeLabel": "Filtrer verv etter type",
+    "categoryLabel": "Filtrer verv etter enhetskategori",
     "campusLabel": "Filtrer verv etter campus",
     "searchLabel": "Søk i stillinger",
     "searchSubmit": "Søk"

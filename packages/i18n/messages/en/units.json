@@ -12,6 +12,8 @@
     "searchPlaceholder": "Search units…",
     "searchSubmit": "Search",
     "campusLabel": "Filter units by campus",
+    "categoryLabel": "Filter units by category",
+    "categoryAll": "All",
     "results": "{count, plural, one {# unit} other {# units}}",
     "emptyTitle": "No units match that.",
     "clear": "Clear filters"

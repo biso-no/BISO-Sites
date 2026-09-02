@@ -432,6 +432,12 @@ export interface RecruitmentDepartmentRef {
   $id: string;
   campus_id?: string;
   Name: string;
+  /**
+   * Raw `departments.type` value. Normalise with `parseUnitCategory` from
+   * `@repo/shared/utils/unit-categories` before using it — the column is
+   * free text and is still unpopulated for most units.
+   */
+  type?: string | null;
 }
 
 export interface RecruitmentVacancy {

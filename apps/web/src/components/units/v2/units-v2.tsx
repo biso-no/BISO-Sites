@@ -1,4 +1,9 @@
 import {
+  parseUnitCategory,
+  UNIT_CATEGORIES,
+  UNIT_CATEGORY_MESSAGE_KEYS,
+} from "@repo/shared/utils/unit-categories";
+import {
   CAMPUS_SEGMENTS,
   unitCanonicalPath,
 } from "@repo/shared/utils/unit-urls";
@@ -23,11 +28,16 @@ import { UnitSearch } from "./unit-search";
  * — while `departments` holds 280, 141 of them active. Names, abbreviations
  * and slugs need no translation, so they are read from the department row.
  *
- * **PLACEHOLDER-010.** `type`, `logo`, `hero` and the per-unit description are
- * null on all 280 rows, and `department_board` is empty — so there is no type
- * filter (the column has no values to offer), no unit imagery, no descriptions
- * and no member count. The old page offered a type filter and an "Active
- * members" tile anyway; both were furniture. Everything here has a source.
+ * **PLACEHOLDER-010.** `logo`, `hero` and the per-unit description are null on
+ * all 280 rows, and `department_board` is empty — so there is no unit imagery,
+ * no descriptions and no member count. The old page offered an "Active members"
+ * tile anyway; it was furniture. Everything here has a source.
+ *
+ * `type` was in that list until the admin unit-profile editor gave the column a
+ * writer, so the category filter is back — but derived, never static: options
+ * come from the values the loaded units actually carry, and `<FilterChips>`
+ * renders nothing while that leaves only "All". A filter appears as the 280
+ * rows are triaged and never shows a chip that returns an empty list.
  */
 export interface UnitsV2Props {
   campusId: string | null;
@@ -42,18 +52,44 @@ export async function UnitsV2({
   searchQuery,
   units,
 }: UnitsV2Props) {
-  const [t, tCommon, tNav] = await Promise.all([
+  const [t, tCommon, tNav, tCategory] = await Promise.all([
     getTranslations("units"),
     getTranslations("common"),
     getTranslations("common.navigation"),
+    // Shared with the jobs filter so a category is named the same everywhere.
+    getTranslations("jobs"),
   ]);
 
   const needle = searchQuery.trim().toLowerCase();
-  const visible = needle
+  const searched = needle
     ? units.filter((unit) =>
         `${unit.name} ${unit.abbreviation ?? ""}`.toLowerCase().includes(needle)
       )
     : units;
+
+  const rawCategory =
+    typeof searchParams.category === "string" ? searchParams.category : "all";
+  const activeCategory = parseUnitCategory(rawCategory) ?? "all";
+  const visible =
+    activeCategory === "all"
+      ? searched
+      : searched.filter(
+          (unit) => parseUnitCategory(unit.type) === activeCategory
+        );
+
+  // Only the categories the loaded units carry, in the canonical order.
+  const presentCategories = new Set(
+    units.map((unit) => parseUnitCategory(unit.type)).filter(Boolean)
+  );
+  const categoryOptions: FilterOption[] = [
+    { value: "all", label: t("list.categoryAll") },
+    ...UNIT_CATEGORIES.filter((value) => presentCategories.has(value)).map(
+      (value) => ({
+        value,
+        label: tCategory(`filters.${UNIT_CATEGORY_MESSAGE_KEYS[value]}`),
+      })
+    ),
+  ];
 
   const campusOptions: FilterOption[] = [
     { value: "all", label: tNav("allCampuses") },
@@ -64,9 +100,13 @@ export async function UnitsV2({
   ];
 
   const activeCampus = campusIdToSlug(campusId) ?? "all";
+  // A search must not silently drop the filters already applied.
   const hidden: Record<string, string> = {};
   if (activeCampus !== "all") {
     hidden.campus = activeCampus;
+  }
+  if (activeCategory !== "all") {
+    hidden.category = activeCategory;
   }
 
   // Two figures, both countable. The old page's third tile was "Active
@@ -111,6 +151,14 @@ export async function UnitsV2({
             label={t("list.campusLabel")}
             options={campusOptions}
             param="campus"
+            searchParams={searchParams}
+          />
+          <FilterChips
+            active={activeCategory}
+            basePath="/units"
+            label={t("list.categoryLabel")}
+            options={categoryOptions}
+            param="category"
             searchParams={searchParams}
           />
         </div>

@@ -262,6 +262,26 @@ function configureServerClient(client: Client): Client {
   return client;
 }
 
+/**
+ * The raw Appwrite session secret held in this app's own cookie jar, or `null`
+ * when the caller is signed out.
+ *
+ * Needed by routes that must reach Appwrite over plain `fetch` rather than the
+ * SDK — streaming media, where the SDK's buffered helpers cannot serve HTTP
+ * range requests. Pass it upstream as `X-Appwrite-Session` so Appwrite still
+ * applies the calling user's own permissions.
+ */
+export async function getSessionSecret(): Promise<string | null> {
+  const cookieStore = await cookies();
+  const session =
+    cookieStore.get(SESSION_COOKIE_NAME) ??
+    (SESSION_COOKIE_FALLBACK_NAME
+      ? cookieStore.get(SESSION_COOKIE_FALLBACK_NAME)
+      : undefined);
+
+  return session?.value ?? null;
+}
+
 export async function createSessionClient(jwt?: string) {
   const client = configureServerClient(
     new Client()
@@ -272,16 +292,10 @@ export async function createSessionClient(jwt?: string) {
   if (jwt) {
     client.setJWT(jwt);
   } else {
-    const cookieStore = await cookies();
+    const secret = await getSessionSecret();
 
-    const session =
-      cookieStore.get(SESSION_COOKIE_NAME) ??
-      (SESSION_COOKIE_FALLBACK_NAME
-        ? cookieStore.get(SESSION_COOKIE_FALLBACK_NAME)
-        : undefined);
-
-    if (session) {
-      client.setSession(session.value);
+    if (secret) {
+      client.setSession(secret);
     }
   }
 
@@ -371,4 +385,45 @@ export async function createAdminClient() {
       return new Messaging(client);
     },
   };
+}
+
+/**
+ * Mint a JWT scoped to the caller's own Appwrite session.
+ *
+ * Appwrite 2.0 removed `account.createJWT()`; JWTs are now minted through the
+ * admin-scoped `users.createJWT()`. The security boundary is unchanged: both
+ * the user id and the session id are resolved from the caller's own session
+ * cookie, so this can only ever mint a token for whoever is already signed in,
+ * and the token still dies with that session.
+ *
+ * There is deliberately **no `userId` parameter**: `users.createJWT()` will mint
+ * a token for any id it is handed, so the only thing that keeps this equivalent
+ * to the session-scoped call it replaced is that identity comes from
+ * `account.get()` and nowhere else. Passing `sessionId` back is the other half —
+ * without it Appwrite picks one of the user's sessions on its own, and the token
+ * could outlive the logout of the session that asked for it.
+ *
+ * Returns `null` when there is no usable session. Misconfiguration (a missing
+ * `APPWRITE_API_KEY`) still throws.
+ */
+export async function createSessionJwt(): Promise<string | null> {
+  const { account } = await createSessionClient();
+
+  const [user, session] = await Promise.all([
+    account.get().catch(() => null),
+    account.getSession({ sessionId: "current" }).catch(() => null),
+  ]);
+
+  if (!(user?.$id && session?.$id)) {
+    return null;
+  }
+
+  const { users } = await createAdminClient();
+
+  const { jwt } = await users.createJWT({
+    userId: user.$id,
+    sessionId: session.$id,
+  });
+
+  return jwt;
 }

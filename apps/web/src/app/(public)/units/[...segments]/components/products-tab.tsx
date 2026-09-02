@@ -1,5 +1,6 @@
 "use client";
 
+import { resolveStorageFileUrl } from "@repo/api/storage";
 import type {
   ContentTranslations,
   WebshopProducts,
@@ -13,6 +14,9 @@ import { ChevronRight, ShoppingBag, Tag } from "lucide-react";
 import { motion } from "motion/react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import { buildTeaser } from "@/lib/content-text";
+
+const PRODUCT_TEASER_MAX_LENGTH = 120;
 
 interface ProductsTabProps {
   isMember: boolean;
@@ -103,6 +107,7 @@ const ProductCard = ({
           typeof item === "object" && item !== null && "title" in item
       )
     : null;
+  const imageUrl = resolveStorageFileUrl(productRef?.image);
 
   return (
     <motion.div
@@ -114,12 +119,12 @@ const ProductCard = ({
       <Link href={`/shop/${productRef?.slug || product.$id}`}>
         <Card className="group cursor-pointer overflow-hidden border-0 shadow-lg transition-all hover:shadow-xl">
           <div className="relative h-64 overflow-hidden bg-muted">
-            {productRef?.image && (
+            {imageUrl && (
               <ImageWithFallback
                 alt={translation?.title || "Product"}
                 className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
                 fill
-                src={productRef.image}
+                src={imageUrl}
               />
             )}
             {productRef?.member_only && (
@@ -141,7 +146,11 @@ const ProductCard = ({
               {translation?.title || "Untitled Product"}
             </h3>
             <p className="mb-4 line-clamp-2 text-muted-foreground text-sm">
-              {translation?.short_description || translation?.description || ""}
+              {buildTeaser(
+                translation?.short_description,
+                translation?.description,
+                PRODUCT_TEASER_MAX_LENGTH
+              )}
             </p>
 
             <Separator className="my-4" />
