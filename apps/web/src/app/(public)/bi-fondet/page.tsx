@@ -11,7 +11,7 @@ import { Prose } from "@/components/ui/prose";
 import { Section } from "@/components/ui/section";
 import { SectionHeading } from "@/components/ui/section-heading";
 
-const FINANCE_EMAIL = "au.finance@biso.no";
+const FINANCE_EMAIL = "finance@biso.no";
 
 const linkClass =
   "inline-flex items-center gap-2 text-ink-accent underline underline-offset-4 hover:no-underline focus-visible:rounded-biso-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface";

@@ -646,7 +646,7 @@ export default async function DesignSystemPage({
             <li>
               <PersonCard
                 campus="Oslo"
-                email="post@biso.no"
+                email="contact@biso.no"
                 name="With email"
                 position="Campus Director"
               />
