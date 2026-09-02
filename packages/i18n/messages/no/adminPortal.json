@@ -1231,6 +1231,11 @@
       "close": "Lukk omvisning",
       "progress": "{current} av {total}"
     },
+    "guideVideo": {
+      "trigger": "Se videoguiden",
+      "title": "Guide til rekrutteringsportalen",
+      "description": "En innspilt gjennomgang av rekrutteringsportalen — fra utlysning til vurdering av søkere, og alt imellom."
+    },
     "recruitmentHr": {
       "welcome": {
         "title": "Velkommen til rekruttering",
@@ -1278,7 +1283,7 @@
       },
       "finish": {
         "title": "Du er klar",
-        "body": "Det var omvisningen. Du kan se den igjen når som helst fra hjelpemenyen. Lykke til med ansettelsene!"
+        "body": "Det var omvisningen. Se hele gjennomgangen under — den ligger alltid tilgjengelig bak «Se videoguiden» på oversikten. Lykke til med ansettelsene!"
       }
     }
   }

@@ -10,6 +10,7 @@ import {
   Filter,
   MapPin,
   Pencil,
+  Play,
   Plus,
   Search,
   Sparkles,
@@ -20,6 +21,7 @@ import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
+import { GuideVideoDialog } from "@/components/tours/guide-video-dialog";
 import { deleteJob } from "../../_actions/jobs";
 import { PaginationBar } from "../../_components/pagination-bar";
 
@@ -482,10 +484,12 @@ export function JobStudioDashboard({
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>("all");
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const [guideOpen, setGuideOpen] = useState(false);
   const [, startTransition] = useTransition();
   const t = useTranslations("adminPortal.jobs");
   const ts = useTranslations("adminPortal.jobs.studio");
   const tc = useTranslations("adminPortal.common");
+  const tt = useTranslations("adminPortal.tours");
   const locale = normalizeLocale(useLocale());
 
   const counts = useMemo(
@@ -561,21 +565,43 @@ export function JobStudioDashboard({
             {ts("description")}
           </p>
         </div>
-        <Link
-          className="inline-flex w-fit items-center gap-2 rounded-full px-5 py-3 font-medium text-sm transition hover:-translate-y-0.5 hover:shadow-lg"
-          data-tour="create-vacancy"
-          href="/jobs/new"
-          style={{ background: BRAND.blue, color: BRAND.paper }}
-        >
-          <span
-            className="grid h-6 w-6 place-items-center rounded-full"
-            style={{ background: BRAND.paper, color: BRAND.blue }}
+        <div className="flex w-fit flex-wrap items-center gap-3">
+          <button
+            className="inline-flex items-center gap-2 rounded-full border px-4 py-3 font-medium text-sm transition hover:-translate-y-0.5 hover:shadow-md"
+            onClick={() => setGuideOpen(true)}
+            style={{
+              background: "rgba(255,255,255,0.6)",
+              borderColor: BRAND.rule,
+              color: BRAND.blue,
+            }}
+            type="button"
           >
-            <Plus size={14} />
-          </span>
-          {t("create")}
-        </Link>
+            <span
+              className="grid h-6 w-6 place-items-center rounded-full"
+              style={{ background: BRAND.blue, color: BRAND.paper }}
+            >
+              <Play size={12} />
+            </span>
+            {tt("guideVideo.trigger")}
+          </button>
+          <Link
+            className="inline-flex items-center gap-2 rounded-full px-5 py-3 font-medium text-sm transition hover:-translate-y-0.5 hover:shadow-lg"
+            data-tour="create-vacancy"
+            href="/jobs/new"
+            style={{ background: BRAND.blue, color: BRAND.paper }}
+          >
+            <span
+              className="grid h-6 w-6 place-items-center rounded-full"
+              style={{ background: BRAND.paper, color: BRAND.blue }}
+            >
+              <Plus size={14} />
+            </span>
+            {t("create")}
+          </Link>
+        </div>
       </header>
+
+      <GuideVideoDialog onOpenChange={setGuideOpen} open={guideOpen} />
 
       <section
         className="grid overflow-hidden rounded-2xl border md:grid-cols-4"

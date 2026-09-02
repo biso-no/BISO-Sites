@@ -228,6 +228,26 @@ function configureServerClient(client: Client): Client {
   return client;
 }
 
+/**
+ * The raw Appwrite session secret held in this app's own cookie jar, or `null`
+ * when the caller is signed out.
+ *
+ * Needed by routes that must reach Appwrite over plain `fetch` rather than the
+ * SDK — streaming media, where the SDK's buffered helpers cannot serve HTTP
+ * range requests. Pass it upstream as `X-Appwrite-Session` so Appwrite still
+ * applies the calling user's own permissions.
+ */
+export async function getSessionSecret(): Promise<string | null> {
+  const cookieStore = await cookies();
+  const session =
+    cookieStore.get(SESSION_COOKIE_NAME) ??
+    (SESSION_COOKIE_FALLBACK_NAME
+      ? cookieStore.get(SESSION_COOKIE_FALLBACK_NAME)
+      : undefined);
+
+  return session?.value ?? null;
+}
+
 export async function createSessionClient(jwt?: string) {
   const client = configureServerClient(
     new Client()
@@ -238,16 +258,10 @@ export async function createSessionClient(jwt?: string) {
   if (jwt) {
     client.setJWT(jwt);
   } else {
-    const cookieStore = await cookies();
+    const secret = await getSessionSecret();
 
-    const session =
-      cookieStore.get(SESSION_COOKIE_NAME) ??
-      (SESSION_COOKIE_FALLBACK_NAME
-        ? cookieStore.get(SESSION_COOKIE_FALLBACK_NAME)
-        : undefined);
-
-    if (session) {
-      client.setSession(session.value);
+    if (secret) {
+      client.setSession(secret);
     }
   }
 

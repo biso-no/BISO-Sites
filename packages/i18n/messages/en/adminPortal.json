@@ -1231,6 +1231,11 @@
       "close": "Close tour",
       "progress": "{current} of {total}"
     },
+    "guideVideo": {
+      "trigger": "Watch the guide",
+      "title": "Recruitment portal guide",
+      "description": "A recorded walkthrough of the recruitment portal — posting a role, reviewing applicants, and everything in between."
+    },
     "recruitmentHr": {
       "welcome": {
         "title": "Welcome to recruitment",
@@ -1278,7 +1283,7 @@
       },
       "finish": {
         "title": "You're all set",
-        "body": "That's the tour. You can replay it anytime from the help menu. Good luck with hiring!"
+        "body": "That's the tour. Watch the full walkthrough below — it's always available from the “Watch the guide” button on the overview. Good luck with hiring!"
       }
     }
   }
