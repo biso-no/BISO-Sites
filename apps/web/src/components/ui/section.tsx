@@ -62,10 +62,20 @@ export function Section({
 }: SectionProps) {
   const padY = RHYTHM[rhythm];
 
+  // The nav is transparent until scrolled and is always `data-surface="deep"`,
+  // so its controls are white. Over a `deep` first section that is the intended
+  // look; over a `paper` one in light theme it was **white on white** — the
+  // campus pill, the menu and the cart measured 1:1 against the page behind
+  // them. Painting the nav's own height in the deep colour gives those controls
+  // the surface they are drawn for, and reads as the solid header the scrolled
+  // state already shows. Only a section that both clears the nav and is paper
+  // sits under it, so nothing else is affected.
+  const backdropNeeded = clearNav && tone === "paper";
+
   return (
     <Tag
       aria-labelledby={labelledBy}
-      className={cn(TONE[tone], className)}
+      className={cn(TONE[tone], backdropNeeded && "relative", className)}
       // `data-surface` flips the semantic aliases (--ink, --action, --edge) to
       // their on-navy values, so children never branch on surface themselves.
       data-surface={tone === "deep" ? "deep" : undefined}
@@ -77,6 +87,13 @@ export function Section({
           : padY,
       }}
     >
+      {backdropNeeded ? (
+        <div
+          aria-hidden="true"
+          className="absolute inset-x-0 top-0 bg-deep"
+          style={{ height: NAV_HEIGHT }}
+        />
+      ) : null}
       {width === "none" ? (
         children
       ) : (

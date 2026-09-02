@@ -9,9 +9,11 @@ import {
 import { cn } from "@repo/ui/lib/utils";
 import { Check, ChevronDown, MapPin } from "lucide-react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { Suspense } from "react";
 import { useCampus } from "@/components/context/campus";
-import { campusIdToSlug } from "@/lib/campus-scope";
+import { campusIdToSlug, campusSlugToId } from "@/lib/campus-scope";
 
 /**
  * Campus as a labelled place, not a filter buried in a row of icons.
@@ -27,9 +29,52 @@ import { campusIdToSlug } from "@/lib/campus-scope";
  * choice persists across the rest of the site.
  */
 export function CampusPill({ className }: { className?: string }) {
-  const { campuses, activeCampusId, selectCampus } = useCampus();
+  const { activeCampusId } = useCampus();
+  // `useSearchParams` makes its caller request-dependent. `SiteShell` is a
+  // layout, so it renders in the prerendered shell of every route — reading the
+  // query directly here would take the whole shell out of the prerender and
+  // give back the FCP the redesign bought. The Suspense boundary confines that
+  // to the pill: the shell still prerenders with the server-resolved campus,
+  // and the URL-aware version swaps in on the client.
+  return (
+    <Suspense
+      fallback={
+        <CampusPillView campusId={activeCampusId} className={className} />
+      }
+    >
+      <CampusPillWithUrlScope className={className} />
+    </Suspense>
+  );
+}
+
+/**
+ * A feed scoped by `?campus=` is authoritative for what the page shows, but
+ * `SiteShell` can only see the cookie and user preference. Without this, a
+ * shared `/events?campus=bergen` listed Bergen events under a pill reading
+ * "All Campuses" (or the visitor's own campus) — the header contradicted the
+ * content it sits above.
+ */
+function CampusPillWithUrlScope({ className }: { className?: string }) {
+  const { activeCampusId } = useCampus();
+  const searchParams = useSearchParams();
+  const fromUrl = searchParams.get("campus");
+  const scoped = fromUrl ? campusSlugToId(fromUrl) : null;
+  return (
+    <CampusPillView campusId={scoped ?? activeCampusId} className={className} />
+  );
+}
+
+function CampusPillView({
+  campusId,
+  className,
+}: {
+  campusId: string | null;
+  className?: string;
+}) {
+  const { campuses, selectCampus } = useCampus();
   const t = useTranslations("common.navigation");
 
+  const activeCampusId = campusId;
   const active = campuses.find((campus) => campus.$id === activeCampusId);
   const label = active?.name ?? t("allCampuses");
 

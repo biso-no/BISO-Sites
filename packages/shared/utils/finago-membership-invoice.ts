@@ -80,6 +80,11 @@ export interface BuildMembershipInvoiceParams {
     MembershipPlan,
     "accrualMonths" | "duration" | "price" | "productId" | "startDate"
   >;
+  /**
+   * When the order was placed (`orders.$createdAt`). The accrual period is a
+   * function of this, not of when fulfilment happens to run.
+   */
+  purchasedOn?: string;
 }
 
 /**
@@ -87,18 +92,40 @@ export interface BuildMembershipInvoiceParams {
  *
  * A membership accrues from the half-year boundary containing the **purchase**:
  * bought in the summer half it accrues from 1 July, in the spring half from
- * 1 January. Checkout snapshots that value onto the order item, and it is
- * preferred here — fulfilment can lag payment (a webhook retry, the reconcile
- * cron), and a purchase made on 30 June must not book into July because it was
- * fulfilled the next day.
+ * 1 January.
  *
- * A snapshot is recognised by being its own accrual start; that is what
- * `membershipAccrualStart` being idempotent buys, and it means a legacy
- * snapshot carrying the catalogue row's own date ("01.07.2026", the format the
- * 24SO sync writes) fails the check and falls back to the invoice date rather
- * than reaching the API verbatim in a format it documents as an ISO `date`.
+ * `purchasedOn` is the order row's own `$createdAt` — the moment checkout wrote
+ * the order, which is the same instant it snapshotted `start_date`. Deriving
+ * from it is therefore identical to reading the snapshot for every order
+ * written since that change, and correct for every order written before it,
+ * without having to guess which kind an order is.
+ *
+ * **Why not infer provenance from the snapshot's value.** An earlier version
+ * accepted the snapshot when it was its own accrual start (`membershipAccrual-
+ * Start` is idempotent) and otherwise fell back to the invoice date. Both
+ * halves were unsound, and PR review caught it:
+ *
+ *   - A *legacy* catalogue date that happens to be a half-year boundary —
+ *     `2026-07-01` — passes the idempotence check and is indistinguishable from
+ *     a real snapshot, so an order bought in 2028 could book into July 2026.
+ *   - The fallback used `invoicedOn`, which fulfilment supplies as *today*. A
+ *     retry or the reconcile cron crossing 1 January or 1 July then booked the
+ *     wrong accounting period for an order bought before it.
+ *
+ * The recorded purchase timestamp removes both: it is what the accrual is
+ * defined in terms of, so nothing has to be inferred. `snapshot` is still read
+ * as a fallback for a caller with no order timestamp, and `invoicedOn` behind
+ * that, so this can never return nothing where it previously returned a date.
  */
-function accrualDateFor(snapshot: string, invoicedOn: string): string {
+function accrualDateFor(
+  snapshot: string,
+  invoicedOn: string,
+  purchasedOn?: string
+): string {
+  const fromPurchase = purchasedOn ? membershipAccrualStart(purchasedOn) : null;
+  if (fromPurchase) {
+    return fromPurchase;
+  }
   const fromSnapshot = membershipAccrualStart(snapshot);
   if (fromSnapshot && fromSnapshot === snapshot) {
     return fromSnapshot;
@@ -145,6 +172,7 @@ export function buildMembershipInvoiceOrder({
   campusId,
   customerId,
   invoicedOn,
+  purchasedOn,
   plan,
 }: BuildMembershipInvoiceParams): MembershipInvoiceOrder {
   // `Object.hasOwn` guards against prototype-chain lookups (e.g. campusId ===
@@ -180,7 +208,7 @@ export function buildMembershipInvoiceOrder({
         UserDefinedDimensions: { UserDefinedDimension: dimensions },
       },
     },
-    AccrualDate: accrualDateFor(plan.startDate, invoicedOn),
+    AccrualDate: accrualDateFor(plan.startDate, invoicedOn, purchasedOn),
     AccrualLength: plan.accrualMonths,
     UserDefinedDimensions: { UserDefinedDimension: dimensions },
   };

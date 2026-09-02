@@ -90,6 +90,49 @@ describe("buildMembershipInvoiceOrder", () => {
     expect(order.AccrualDate).toBe("2027-01-01");
   });
 
+  it("books from the recorded purchase date, not the fulfilment run", () => {
+    // `invoicedOn` is whenever fulfilment happens to run — a webhook retry or
+    // the reconcile cron can cross 1 January or 1 July. The accrual must follow
+    // the purchase, so a legacy order bought in December and fulfilled in March
+    // still books into the spring half it was bought in.
+    const order = buildMembershipInvoiceOrder({
+      campusId: "1",
+      customerId: 1,
+      plan: { ...yearPlan, startDate: "01.07.2026" },
+      invoicedOn: "2027-03-14",
+      purchasedOn: "2026-12-20T09:15:00.000+00:00",
+    });
+    expect(order.AccrualDate).toBe("2026-07-01");
+  });
+
+  it("does not trust a legacy catalogue date that looks like an accrual start", () => {
+    // A legacy snapshot carrying the catalogue row's own date is
+    // indistinguishable from a real one when that date happens to be a
+    // half-year boundary — "2026-07-01" is its own accrual start. Booking it
+    // verbatim would put a 2028 purchase into the 2026 summer period. The
+    // recorded purchase date settles it without guessing.
+    const order = buildMembershipInvoiceOrder({
+      campusId: "1",
+      customerId: 1,
+      plan: { ...yearPlan, startDate: "2026-07-01" },
+      invoicedOn: "2028-09-02",
+      purchasedOn: "2028-08-30T12:00:00.000+00:00",
+    });
+    expect(order.AccrualDate).toBe("2028-07-01");
+  });
+
+  it("still resolves an accrual when no purchase date is recorded", () => {
+    // Callers without an order row keep the previous behaviour rather than
+    // losing a date entirely.
+    const order = buildMembershipInvoiceOrder({
+      campusId: "1",
+      customerId: 1,
+      plan: { ...yearPlan, startDate: "2026-01-01" },
+      invoicedOn: "2026-07-02",
+    });
+    expect(order.AccrualDate).toBe("2026-01-01");
+  });
+
   it("emits both user defined dimensions at order and row level", () => {
     const expected = [
       { Type: "UserDefined", Name: "Bergen", Value: "2", TypeId: "101" },

@@ -31,6 +31,38 @@ export interface JobsV2Props {
   searchParams: Record<string, string | string[] | undefined>;
 }
 
+/**
+ * The v1 sort orders, kept because shared `?sort=` URLs still carry them.
+ * `localizeVacancy` sorts the requested locale first, so `translations[0]` is
+ * the displayed title — the same one the card renders.
+ */
+function sortJobs(
+  jobs: RecruitmentVacancy[],
+  sort: string
+): RecruitmentVacancy[] {
+  if (sort === "deadline") {
+    return [...jobs].sort((a, b) => {
+      const da = a.application_deadline
+        ? new Date(a.application_deadline).getTime()
+        : Number.POSITIVE_INFINITY;
+      const db = b.application_deadline
+        ? new Date(b.application_deadline).getTime()
+        : Number.POSITIVE_INFINITY;
+      return da - db;
+    });
+  }
+  if (sort === "alpha") {
+    return [...jobs].sort((a, b) =>
+      (a.translations[0]?.title ?? "").localeCompare(
+        b.translations[0]?.title ?? ""
+      )
+    );
+  }
+  // "newest" is the server's own order; an unrecognised value falls here too
+  // rather than shuffling the list into something the URL did not ask for.
+  return jobs;
+}
+
 function JobCard({
   job,
   locale,
@@ -127,10 +159,35 @@ export async function JobsV2({
     })),
   ];
 
-  const visible =
-    activeType === "all"
-      ? jobs
-      : jobs.filter((job) => job.metadata.employment_type === activeType);
+  // `?paid=true` and `?sort=` are pre-redesign URL contracts: the v1 client
+  // filtered and sorted on them, and shared links still carry them. The v2
+  // filter row does not offer a sort control — the v1 one used hardcoded
+  // English labels and no localized copy for it exists — so `sort` is honoured
+  // for inbound links without being newly settable. `paid` gets a chip, because
+  // `filters.paidOnly` is already translated in both locales.
+  const paidOnly = searchParams.paid === "true";
+  const activeSort =
+    typeof searchParams.sort === "string" ? searchParams.sort : "newest";
+
+  // Offering a filter that can only empty the list is not a choice; FilterChips
+  // already drops itself below two options, so an empty array hides the row.
+  const paidCount = jobs.filter((job) => job.metadata.paid === true).length;
+  const paidOptions: FilterOption[] =
+    paidCount > 0
+      ? [
+          { value: "all", label: t("filters.all") },
+          { value: "true", label: t("filters.paidOnly"), count: paidCount },
+        ]
+      : [];
+
+  const filtered = jobs.filter((job) => {
+    if (activeType !== "all" && job.metadata.employment_type !== activeType) {
+      return false;
+    }
+    return !paidOnly || job.metadata.paid === true;
+  });
+
+  const visible = sortJobs(filtered, activeSort);
 
   return (
     <>
@@ -159,6 +216,14 @@ export async function JobsV2({
             label={t("filters.campusLabel")}
             options={campusOptions}
             param="campus"
+            searchParams={searchParams}
+          />
+          <FilterChips
+            active={paidOnly ? "true" : "all"}
+            basePath="/jobs"
+            label={t("filters.paidOnly")}
+            options={paidOptions}
+            param="paid"
             searchParams={searchParams}
           />
         </div>

@@ -197,15 +197,24 @@ export async function EventsV2({
 
   const activeCategory = parseCategory(searchParams.category);
 
+  // A collection's child sessions are reachable from the collection's own page
+  // (`getCollectionEvents` builds the sibling list there); listing them here as
+  // well makes one event look like several. The v1 feed excluded them with this
+  // predicate and the rewrite dropped it — restored before the counts are
+  // derived, so the category chips agree with what the grid shows.
+  const feed = events.filter(
+    (event) => event.is_collection || !event.collection_id
+  );
+
   const present = EVENT_CATEGORIES.filter((category) =>
-    events.some((event) => event.category === category)
+    feed.some((event) => event.category === category)
   );
   const categoryOptions: FilterOption[] = [
     { value: "all", label: t("filters.all") },
     ...present.map((category) => ({
       value: category,
       label: t(`category.${category}`),
-      count: events.filter((event) => event.category === category).length,
+      count: feed.filter((event) => event.category === category).length,
     })),
   ];
 
@@ -219,8 +228,8 @@ export async function EventsV2({
 
   const visible = sortForFeed(
     activeCategory
-      ? events.filter((event) => event.category === activeCategory)
-      : events,
+      ? feed.filter((event) => event.category === activeCategory)
+      : feed,
     new Date()
   );
 

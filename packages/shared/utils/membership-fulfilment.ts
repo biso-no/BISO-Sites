@@ -365,7 +365,8 @@ async function prepareFulfilment(
   employeeId: number,
   campusId: string,
   plan: PurchasedPlanSnapshot,
-  db: DbClient
+  db: DbClient,
+  purchasedOn?: string
 ): Promise<ReturnType<typeof buildMembershipInvoiceOrder> | null> {
   const { dbId, ordersId } = tables();
   try {
@@ -373,6 +374,10 @@ async function prepareFulfilment(
       campusId,
       customerId: employeeId,
       plan,
+      // The accrual period follows the purchase, not this run: a webhook retry
+      // or the reconcile cron can fulfil an order days later, across 1 January
+      // or 1 July. `DateInvoiced` is still today — that one *is* about now.
+      purchasedOn,
       invoicedOn: new Date().toISOString().slice(0, 10),
     });
     await db.updateRow(dbId, ordersId, orderId, {
@@ -533,7 +538,8 @@ export async function fulfilMembershipOrder(
     identity.employeeId,
     campusId,
     plan,
-    db
+    db,
+    order.$createdAt
   );
   if (!invoicePayload) {
     return { fulfilled: false, reason: "finago_failed" };

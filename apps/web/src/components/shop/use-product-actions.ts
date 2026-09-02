@@ -1,8 +1,5 @@
-import type {
-  ContentTranslations,
-  WebshopProducts,
-} from "@repo/api/types/appwrite";
-import { useTranslations } from "next-intl";
+import type { WebshopProducts } from "@repo/api/types/appwrite";
+import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -11,6 +8,7 @@ import {
   getUserReservation,
 } from "@/app/actions/cart-reservations";
 import { validatePurchaseLimits } from "@/app/actions/purchase-limits";
+import { getPrimaryTranslation } from "@/lib/content-translation";
 import { useCart } from "@/lib/contexts/cart-context";
 import { type ProductOption, parseProductMetadata } from "@/lib/types/webshop";
 
@@ -106,6 +104,7 @@ async function reserveStock(
 }
 
 interface BuildCartItemParams {
+  locale: string;
   metadata: ReturnType<typeof parseProductMetadata>;
   namedOptions: Record<string, string>;
   product: WebshopProducts;
@@ -117,14 +116,14 @@ function buildCartItem({
   productId,
   namedOptions,
   metadata,
+  locale,
 }: BuildCartItemParams) {
   const productRef = product;
-  const translation = Array.isArray(product.translation_refs)
-    ? product.translation_refs.find(
-        (item): item is ContentTranslations =>
-          typeof item === "object" && item !== null && "title" in item
-      )
-    : null;
+  // The v2 detail reader keeps every translation so the page can render the
+  // active locale; taking the first one here put an English-displayed product
+  // into the cart under its Norwegian name. Resolve the same locale the page
+  // rendered with.
+  const translation = getPrimaryTranslation(product, locale);
   const hasOptions = Object.keys(namedOptions).length > 0;
 
   const maxPerUser =
@@ -158,6 +157,7 @@ export function useProductActions(
   userId: string | null
 ) {
   const t = useTranslations("shop.toast");
+  const locale = useLocale();
   const copy: ToastCopy = {
     addedToCart: t("addedToCart"),
     limitExceeded: t("limitExceeded"),
@@ -236,6 +236,7 @@ export function useProductActions(
 
     const namedOptions = buildNamedOptions(productOptions, selectedOptions);
     const cartItem = buildCartItem({
+      locale,
       product,
       productId,
       namedOptions,
