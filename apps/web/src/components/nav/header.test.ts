@@ -11,6 +11,7 @@ const desktopMenu = read("desktop-menu.tsx");
 const drawer = read("mobile-drawer.tsx");
 const campusLink = read("campus-link.tsx");
 const pill = read("../ui/campus-pill.tsx");
+const studentsPanel = read("panels/students-panel.tsx");
 const shell = read("../layout/site-shell.tsx");
 
 /** A `/campus/<slug>` template literal in the source. */
@@ -101,12 +102,12 @@ describe("header (RD-017)", () => {
 });
 
 describe("the campus control", () => {
-  it("is a split button: a link to the campus page and a filter", () => {
-    // One control, two jobs. Picking a campus filters the page you are on;
-    // the named half is the designated way to that campus's own page.
-    expect(pill).toContain("campusLandingHref(campusId)");
+  it("filters, and does not navigate", () => {
+    // The header control has one job. Picking a campus re-scopes the page you
+    // are on; it never takes you to a campus page. The way to a campus's own
+    // page is the Campus column of the "For students" panel.
     expect(pill).toContain("campusSwitchHref(pathname");
-    expect(pill).toContain('aria-label={t("changeCampus")}');
+    expect(pill).not.toContain("campusLandingHref");
   });
 
   it("does not send you to /campus just for choosing a campus", () => {
@@ -136,5 +137,23 @@ describe("the campus control", () => {
     // "Bergen" landed on a list of all five.
     expect(campusLink).toContain("campusLandingHref(campus.$id)");
     expect(campusLink).not.toContain("router.push");
+  });
+
+  it("leads both campus columns with the active campus", () => {
+    // With the header control filtering only, this is the single designated
+    // way to a campus's own page — so it must name the campus you are on, and
+    // fall back to the overview rather than guessing one.
+    expect(studentsPanel).toContain("<ActiveCampusLink");
+    expect(drawer).toContain("<ActiveCampusLink");
+    expect(campusLink).toContain("campusLandingHref(resolved)");
+    expect(campusLink).toContain('t("campusOverview")');
+  });
+
+  it("resolves that campus from the URL, not the cookie alone", () => {
+    // Reading only the stored preference meant following a shared
+    // `/events?campus=bergen` gave a header saying Bergen above a menu
+    // offering the campus overview. Both read `useScopedCampusId` now.
+    expect(campusLink).toContain("useScopedCampusId()");
+    expect(pill).toContain("useScopedCampusId()");
   });
 });

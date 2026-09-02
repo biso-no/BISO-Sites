@@ -114,16 +114,17 @@ export function NavigationV2({
           </Link>
 
           {/* The desktop bar appears only once it fits.
-              Re-measured at the 1340px breakpoint after the campus control
-              was split: logo 161px (`clamp(140,12vw,190)`) + menu 516px
-              (Norwegian, its intrinsic width — the items do not shrink) +
-              utilities 584px (`shrink-0`) + two 16px gaps = 1293px inside a
-              bar that is the viewport less 64px of padding. **That leaves
-              15px of gutter, not 32** — the bar is over budget and has been
-              since the theme switcher joined the row (the 547px in the
-              previous version of this note predates it). It fits, and 1366px
-              laptops get 38px, but there is no room for a seventh control
-              here. Below ~1300px the menu box was
+              Re-measured at the 1340px breakpoint: logo 161px
+              (`clamp(140,12vw,190)`) + menu 516px (Norwegian, its intrinsic
+              width — the items do not shrink) + utilities 595px (`shrink-0`)
+              + two 16px gaps = 1304px inside a bar that is the viewport less
+              64px of padding. **The 547px in the previous version of this note
+              was stale** — it predates the theme switcher joining the row.
+              The real gutter is **4px at 1340 and 27px at 1366**: nothing
+              clips or overflows, but the row is full, and a seventh control
+              here would have to displace something. That is why the link to a
+              campus's page lives in the "For students" panel rather than
+              beside the campus filter. Below ~1300px the menu box was
               squeezed while its contents kept their size and painted straight
               over the campus pill, locale switcher and Shop link — from 1024px
               (where `lg:` turned the bar on) up to about 1340px, in both
@@ -149,12 +150,8 @@ export function NavigationV2({
           </div>
 
           {/* Six utility controls: campus, locale, theme, cart, one CTA,
-              account. `gap-1.5`, not `gap-2`: measured at the 1340px
-              breakpoint the group is 602px wide and the bar had 4px of gutter
-              left before the campus control was split, so five gaps at 8px
-              were the cheapest 10px on the row. The budget below is the real
-              constraint here — see the note on the desktop bar. */}
-          <div className="hidden shrink-0 items-center gap-1.5 min-[1340px]:flex">
+              account. */}
+          <div className="hidden shrink-0 items-center gap-2 min-[1340px]:flex">
             <CampusPill />
             <LocaleSwitcher className="text-ink" size="sm" variant="ghost" />
             <ThemeSwitcher className="text-ink" size="sm" variant="ghost" />

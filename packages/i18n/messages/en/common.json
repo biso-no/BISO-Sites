@@ -123,9 +123,9 @@
     "selectCampus": "Select campus",
     "allCampuses": "All campuses",
     "allCampusesHint": "Show content from every campus",
-    "campusPage": "Campus page",
-    "changeCampus": "Change campus",
-    "filterByCampus": "Filter content by campus"
+    "filterByCampus": "Filter content by campus",
+    "goToCampus": "Go to {campus}",
+    "campusOverview": "Campus overview"
   },
   "notFound": {
     "tagline": "Page not found",

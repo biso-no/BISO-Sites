@@ -15,12 +15,8 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Suspense } from "react";
 import { useCampus } from "@/components/context/campus";
-import {
-  campusLandingHref,
-  campusSlugToId,
-  campusSwitchHref,
-  parseCampusParam,
-} from "@/lib/campus-scope";
+import { useScopedCampusId } from "@/components/context/use-scoped-campus";
+import { campusSwitchHref } from "@/lib/campus-scope";
 
 /**
  * Campus as a labelled place, not a filter buried in a row of icons.
@@ -29,19 +25,19 @@ import {
  * lockup, in this pill, and in the hero — because campus is the site's primary
  * dimension, not a preference. This is the header half of that.
  *
- * **The control does two jobs, so it is a split button.** The named half is a
- * link to that campus's own page; the chevron half opens the filter. An earlier
- * version collapsed the two: every option was a link to `/campus/<slug>`, so
- * choosing Bergen from `/events` answered "show me Bergen" by leaving the
- * events feed entirely. Campus is meant to be a site-wide filter — pick a
- * campus and every feed narrows to it — with one deliberate way to reach the
- * campus page itself. Splitting the control is what makes both reachable
- * without adding a seventh item to a header bar that has no room for one (the
- * utilities group already runs to within 4px of the viewport edge at the
- * 1340px breakpoint).
+ * **This control does one job: it filters.** Pick a campus and the page you are
+ * on narrows to it — the whole site does, as you move through it. It does not
+ * navigate anywhere. An earlier version made every option a link to
+ * `/campus/<slug>`, which turned the site's primary filter into a menu of
+ * destinations: choosing Bergen from `/events` answered "show me Bergen" by
+ * leaving the events feed. The way to a campus's own page is the Campus column
+ * of the "For students" panel, which leads with the active one.
  *
- * Selecting still writes the cookie via `selectCampus`, so the choice carries
- * to pages the URL cannot describe.
+ * Each option is still a real `<Link>`, because the filter belongs in the URL:
+ * `/events?campus=bergen` is shareable, back undoes the switch, and a crawler
+ * sees a distinct page (canonicalled to the unscoped listing). Selecting also
+ * writes the cookie via `selectCampus`, so the choice carries to pages the URL
+ * cannot describe.
  */
 export function CampusPill({ className }: { className?: string }) {
   const { activeCampusId } = useCampus();
@@ -62,49 +58,20 @@ export function CampusPill({ className }: { className?: string }) {
   );
 }
 
-/** `/campus/<slug>` — the campus landing page scopes all its content here. */
-const CAMPUS_PATH = /^\/campus\/([^/]+)/;
-
 /**
  * The URL is authoritative for what the page shows, and `SiteShell` — a layout
- * — can see neither half of it. Without this, a shared `/events?campus=bergen`
- * listed Bergen events under a pill reading "All Campuses" (or the visitor's
- * own campus), and `/campus/bergen` did the same, so the header contradicted
- * the content it sits above.
- *
- * Both the query parameter and the campus landing path are read, because both
- * scope a page independently of the cookie. The pathname and query are also
- * what `campusSwitchHref` needs to rewrite the current URL in place.
+ * — can see neither half of it. `useScopedCampusId` resolves it the way the
+ * routes do; the pathname and query are also what `campusSwitchHref` needs to
+ * rewrite the current URL in place.
  */
 function CampusPillWithUrlScope({ className }: { className?: string }) {
-  const { activeCampusId } = useCampus();
+  const campusId = useScopedCampusId();
   const searchParams = useSearchParams();
   const pathname = usePathname();
 
-  const fromQuery = searchParams.get("campus");
-  const fromPath = CAMPUS_PATH.exec(pathname)?.[1] ?? null;
-
-  // Resolve `?campus=` through the same parser the routes use, rather than
-  // `campusSlugToId` alone. It accepts three things this component previously
-  // did not preserve: `all`, which is an authoritative "no filter" and must not
-  // fall through to the cookie; a numeric campus id, which older links carry;
-  // and an unrecognised value, where the page 404s so the label is moot.
-  const parsed = parseCampusParam(fromQuery ?? undefined);
-  let scoped: string | null = null;
-  let queryIsAuthoritative = false;
-  if (parsed.kind === "campus") {
-    scoped = parsed.id;
-    queryIsAuthoritative = true;
-  } else if (parsed.kind === "all") {
-    queryIsAuthoritative = true;
-  } else if (fromPath) {
-    scoped = campusSlugToId(fromPath);
-    queryIsAuthoritative = scoped !== null;
-  }
-
   return (
     <CampusPillView
-      campusId={queryIsAuthoritative ? scoped : (scoped ?? activeCampusId)}
+      campusId={campusId}
       className={className}
       pathname={pathname}
       search={searchParams.toString()}
@@ -138,72 +105,50 @@ function CampusPillView({
       : campusSwitchHref(pathname, search ?? "", id);
 
   return (
-    <div
-      className={cn(
-        "inline-flex items-center rounded-biso-pill border border-edge text-ink",
-        "focus-within:ring-2 focus-within:ring-focus-ring focus-within:ring-offset-2 focus-within:ring-offset-surface",
-        "hover:border-ink-accent",
-        className
-      )}
-    >
-      {/* The designated way to the campus's own page. A real link, so it
-          prefetches, middle-clicks and opens in a new tab. */}
-      <Link
-        className="type-body-sm inline-flex flex-1 items-center gap-1.5 rounded-biso-pill py-1.5 pr-1.5 pl-2.5 transition-colors hover:text-ink-accent focus-visible:outline-none"
-        href={campusLandingHref(campusId)}
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        className={cn(
+          "type-body-sm inline-flex items-center gap-2 rounded-biso-pill border border-edge px-3 py-1.5 text-ink transition-colors",
+          "hover:border-ink-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface",
+          className
+        )}
       >
         <MapPin aria-hidden="true" className="size-4 text-ink-accent" />
-        <span className="sr-only">{t("campusPage")}: </span>
+        <span className="sr-only">{t("filterByCampus")}: </span>
         {label}
-      </Link>
+        <ChevronDown aria-hidden="true" className="size-4 opacity-60" />
+      </DropdownMenuTrigger>
 
-      <span
-        aria-hidden="true"
-        className="h-4 w-px shrink-0 self-center bg-edge"
-      />
+      <DropdownMenuContent align="end" className="min-w-56">
+        <DropdownMenuLabel className="type-data text-ink-muted">
+          {t("filterByCampus")}
+        </DropdownMenuLabel>
+        <DropdownMenuSeparator />
 
-      <DropdownMenu>
-        {/* `self-stretch` so the target is the full height of the pill rather
-            than the height of a 16px chevron plus padding — 34 x 36 on a phone
-            instead of 34 x 28. */}
-        <DropdownMenuTrigger
-          aria-label={t("changeCampus")}
-          className="inline-flex shrink-0 items-center self-stretch rounded-biso-pill px-2 py-1.5 transition-colors hover:text-ink-accent focus-visible:outline-none"
-        >
-          <ChevronDown aria-hidden="true" className="size-4 opacity-60" />
-        </DropdownMenuTrigger>
+        <CampusOption
+          href={hrefFor(null)}
+          isActive={campusId === null}
+          label={t("allCampuses")}
+          onSelect={() =>
+            selectCampus(null, { refresh: hrefFor(null) === null })
+          }
+        />
 
-        <DropdownMenuContent align="end" className="min-w-56">
-          <DropdownMenuLabel className="type-data text-ink-muted">
-            {t("filterByCampus")}
-          </DropdownMenuLabel>
-          <DropdownMenuSeparator />
-
+        {campuses.map((campus) => (
           <CampusOption
-            href={hrefFor(null)}
-            isActive={campusId === null}
-            label={t("allCampuses")}
+            href={hrefFor(campus.$id)}
+            isActive={campus.$id === campusId}
+            key={campus.$id}
+            label={campus.name}
             onSelect={() =>
-              selectCampus(null, { refresh: hrefFor(null) === null })
+              selectCampus(campus.$id, {
+                refresh: hrefFor(campus.$id) === null,
+              })
             }
           />
-
-          {campuses.map((campus) => (
-            <CampusOption
-              href={hrefFor(campus.$id)}
-              isActive={campus.$id === campusId}
-              key={campus.$id}
-              label={campus.name}
-              onSelect={() =>
-                selectCampus(campus.$id, {
-                  refresh: hrefFor(campus.$id) === null,
-                })
-              }
-            />
-          ))}
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </div>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 

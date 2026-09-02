@@ -17,7 +17,7 @@ import { ThemeSwitcher } from "@/components/theme-switcher";
 import { signOut } from "@/lib/server";
 import type { NavAccount } from "@/lib/types/nav";
 import { accountLinksFor } from "./account-menu";
-import { CampusLink } from "./campus-link";
+import { ActiveCampusLink, CampusLink } from "./campus-link";
 import { PanelLink } from "./mega-panel";
 import {
   ABOUT_COLUMNS,
@@ -80,6 +80,10 @@ export function MobileDrawer({
               ))}
               <div>
                 <p className={HEADING_CLASS}>{t(STUDENT_CAMPUS_HEADING_KEY)}</p>
+                {/* Same as the desktop panel: the campus control at the top of
+                    this drawer only filters, so the way to a campus's own page
+                    is here, leading with the one you are on. */}
+                <ActiveCampusLink onNavigate={onNavigate} />
                 {campuses.map((campus) => (
                   <CampusLink
                     campus={campus}

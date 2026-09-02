@@ -123,9 +123,9 @@
     "selectCampus": "Velg campus",
     "allCampuses": "Alle campus",
     "allCampusesHint": "Vis innhold fra alle campus",
-    "campusPage": "Campusside",
-    "changeCampus": "Bytt campus",
-    "filterByCampus": "Filtrer innhold etter campus"
+    "filterByCampus": "Filtrer innhold etter campus",
+    "goToCampus": "Gå til {campus}",
+    "campusOverview": "Campusoversikt"
   },
   "notFound": {
     "tagline": "Siden finnes ikke",

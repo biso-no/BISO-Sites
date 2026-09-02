@@ -119,14 +119,18 @@ performance item left in `apps/web`**. The fix is to pass the provider only the
 namespaces a page's client components actually read. It needs nothing from this
 redesign.
 
-**The desktop header bar has 15px of gutter left, not 32.** Measured at its
-1340px breakpoint: logo 161 + menu 516 + utilities 584 + two 16px gaps = 1293
-inside 1276 of content box. It fits at every width the bar is shown at (38px at
-1366), and no control is clipped or off-screen — but the row is full. This
-predates the campus work; the 547px figure the source comment used to quote was
-written before the theme switcher joined the row, when the real gutter was 4px.
-**Anything added to that bar has to displace something**, which is why the link
-to a campus's page is half of the campus pill rather than a seventh control.
+**The desktop header bar has 4px of gutter left, not 32.** Measured at its
+1340px breakpoint: logo 161 + menu 516 + utilities 595 + two 16px gaps = 1304
+inside a 1276 content box, so the row eats 28 of its own 32px right gutter.
+Nothing clips, nothing overflows and no control is off-screen — it just has no
+slack (27px at 1366, comfortable from 1440 up). This predates the campus work:
+the 547px figure the source comment quoted was written before the theme
+switcher joined the row and was never re-measured. **Anything added to that bar
+has to displace something**, which is why the link to a campus's page lives in
+the "For students" panel rather than beside the campus filter. Buying slack
+means shortening a control — the locale switcher's "🇳🇴 Norsk" is the widest
+non-CTA item at 113px — or raising the 1340px breakpoint, which would push
+1366px laptops to the hamburger. Neither is worth doing on my judgement alone.
 
 **`/shop` mobile LCP regressed, 1,476 → 3,088 ms** — the only route that got
 worse. It is gated on delivery of the HTML document (removing the network
