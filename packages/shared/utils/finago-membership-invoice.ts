@@ -100,10 +100,10 @@ export interface BuildMembershipInvoiceParams {
  * written since that change, and correct for every order written before it,
  * without having to guess which kind an order is.
  *
- * **Known residual, and the one thing that would close it.** `createOrder` runs
- * *before* the payment session in both provider branches, so `$createdAt` marks
- * when checkout was opened, not when payment was authorized — as does the
- * checkout snapshot, for the same reason. A session opened just before midnight
+ * **Known residual, and the one thing that would close it.** In both provider
+ * branches `createOrder` runs ahead of the payment session, so `$createdAt`
+ * marks when checkout was opened, not when payment was authorized — as does
+ * the checkout snapshot, for the same reason. A session opened just before midnight
  * on 30 June and paid just after therefore still books into the spring half.
  * The window is the few minutes a payment session is in flight across exactly
  * 1 January or 1 July, so it is far smaller than what it replaced (which was

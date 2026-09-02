@@ -8,6 +8,7 @@ import { listNews } from "@/app/actions/news";
 import { CampusLanding } from "@/components/campus/v2/campus-landing";
 import { CAMPUS_SLUGS, campusSlugToId } from "@/lib/campus-scope";
 import { campusUnits } from "@/lib/data/campus-landing";
+import { campusLeadership } from "@/lib/data/campus-leadership";
 import {
   cachedHomeCounts,
   cachedShellCampuses,
@@ -99,7 +100,7 @@ export default async function CampusPage({ params }: Params) {
   // `events` and `jobs` are capped for the preview blocks; the stat row needs
   // campus-wide totals, so those are read separately rather than inferred from
   // the preview lengths.
-  const [events, news, jobs, units, counts] = await Promise.all([
+  const [events, news, jobs, units, counts, leadership] = await Promise.all([
     listEvents({
       status: "published",
       limit: 4,
@@ -120,6 +121,9 @@ export default async function CampusPage({ params }: Params) {
     }),
     campusUnits(campus.id),
     cachedHomeCounts(campus.id),
+    // Separate service (`apps/api` -> Azure AD). It resolves to an empty list
+    // on any failure, so the page renders without the section rather than 500.
+    campusLeadership(campus.id, campus.locale),
   ]);
 
   return (
@@ -132,6 +136,7 @@ export default async function CampusPage({ params }: Params) {
       highlights={campus.highlights}
       jobCount={counts.jobCount}
       jobs={jobs}
+      leadership={leadership}
       locale={campus.locale}
       name={campus.name}
       news={news}

@@ -22,5 +22,9 @@
     "title": "Campuses",
     "lede": "BISO is on every BI campus. Pick yours to see what is on, who runs it and how to reach them.",
     "units": "{count, plural, one {# unit} other {# units}}"
+  },
+  "leadership": {
+    "title": "Management",
+    "lede": "The students elected to run BISO on this campus."
   }
 }

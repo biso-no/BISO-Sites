@@ -7,6 +7,7 @@ import { ChevronFrame } from "@/components/ui/chevron-frame";
 import { DateBlock } from "@/components/ui/date-block";
 import { OptionalLink } from "@/components/ui/optional-link";
 import { Pill } from "@/components/ui/pill";
+import { RowThumb } from "@/components/ui/row-thumb";
 import { Section } from "@/components/ui/section";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { getPrimaryTranslation } from "@/lib/content-translation";
@@ -99,6 +100,7 @@ export async function HomeV2({
                             </Pill>
                           </span>
                         </span>
+                        <RowThumb className="ml-auto" src={event.image} />
                       </OptionalLink>
                     </li>
                   );
@@ -137,6 +139,7 @@ export async function HomeV2({
                             </span>
                           ) : null}
                         </span>
+                        <RowThumb className="ml-auto" src={article.image} />
                       </OptionalLink>
                     </li>
                   );

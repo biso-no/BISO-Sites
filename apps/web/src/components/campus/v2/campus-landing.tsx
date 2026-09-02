@@ -9,12 +9,15 @@ import { CardGrid } from "@/components/ui/card-grid";
 import { DateBlock } from "@/components/ui/date-block";
 import { OptionalLink } from "@/components/ui/optional-link";
 import { PageHeader } from "@/components/ui/page-header";
+import { PersonCard } from "@/components/ui/person-card";
 import { Pill } from "@/components/ui/pill";
+import { RowThumb } from "@/components/ui/row-thumb";
 import { Section } from "@/components/ui/section";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { StatRow } from "@/components/ui/stat-row";
 import { getPrimaryTranslation } from "@/lib/content-translation";
 import type { CampusUnit } from "@/lib/data/campus-landing";
+import type { BoardSection } from "@/lib/data/campus-leadership";
 import { formatArticleDate } from "@/lib/news-article";
 
 /**
@@ -46,6 +49,8 @@ export interface CampusLandingProps {
   /** Campus-wide open total, not `jobs.length` — see `stats` below. */
   jobCount: number;
   jobs: RecruitmentVacancy[];
+  /** Azure AD leadership groups; empty when the board service is unreachable. */
+  leadership: BoardSection[];
   locale: "en" | "no";
   name: string;
   news: News[];
@@ -87,6 +92,7 @@ export async function CampusLanding({
   highlights,
   jobCount,
   jobs,
+  leadership,
   locale,
   name,
   news,
@@ -190,6 +196,7 @@ export async function CampusLanding({
                           </span>
                         ) : null}
                       </span>
+                      <RowThumb className="ml-auto" src={event.image} />
                     </OptionalLink>
                   </li>
                 ))}
@@ -224,6 +231,7 @@ export async function CampusLanding({
                           {getPrimaryTranslation(article, locale)?.title}
                         </span>
                       </span>
+                      <RowThumb className="ml-auto" src={article.image} />
                     </OptionalLink>
                   </li>
                 ))}
@@ -278,6 +286,42 @@ export async function CampusLanding({
               </li>
             ))}
           </ul>
+        </Section>
+      ) : null}
+
+      {/* Who runs this campus. The v1 page had this behind a "Management" tab;
+          the tabs went in RD-023 and the content went with them, which PR
+          feedback flagged. It reads live people from Azure AD, so it is placed
+          after the feeds and before the unit list — the people are the answer
+          to "who do I talk to", which belongs near the contact affordances. */}
+      {leadership.length > 0 ? (
+        <Section className="border-edge border-t" tone="paper">
+          <SectionHeading>{t("leadership.title")}</SectionHeading>
+          <p className="type-body-sm mb-6 max-w-(--measure) text-ink-muted">
+            {t("leadership.lede")}
+          </p>
+          {leadership.map((group) => (
+            <div className="mb-8 last:mb-0" key={group.title || "board"}>
+              {group.title ? (
+                <h3 className="type-heading-card mb-4 text-ink">
+                  {group.title}
+                </h3>
+              ) : null}
+              <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                {group.members.map((member) => (
+                  <li key={`${group.title}-${member.name}`}>
+                    <PersonCard
+                      campus={name}
+                      email={member.email}
+                      imageUrl={member.imageUrl}
+                      name={member.name}
+                      position={member.position}
+                    />
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
         </Section>
       ) : null}
 

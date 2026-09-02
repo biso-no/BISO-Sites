@@ -22,5 +22,9 @@
     "title": "Campuser",
     "lede": "BISO finnes på alle BI-campuser. Velg din for å se hva som skjer, hvem som driver den og hvordan du får tak i dem.",
     "units": "{count, plural, one {# enhet} other {# enheter}}"
+  },
+  "leadership": {
+    "title": "Ledelsen",
+    "lede": "Studentene som er valgt til å drive BISO på denne campusen."
   }
 }
