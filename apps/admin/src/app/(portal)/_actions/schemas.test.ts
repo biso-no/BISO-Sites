@@ -211,3 +211,51 @@ describe("source-aware bilingual content schemas", () => {
     ).toBeFalse();
   });
 });
+
+describe("productSchema image normalization", () => {
+  const base = {
+    campus_id: "campus-oslo",
+    name: "Genser",
+    regular_price: 100,
+    slug: "genser",
+    status: "draft" as const,
+  };
+
+  const MEDIA_URL =
+    "https://appwrite.biso.no/v1/storage/buckets/media/files/6a8564de0036f521c3a4/view?project=biso";
+
+  test("expands a bare imported file ID into a media URL", () => {
+    const parsed = productSchema.parse({
+      ...base,
+      image: "6a8564de0036f521c3a4",
+    });
+
+    expect(parsed.image).toBe(MEDIA_URL);
+  });
+
+  test("leaves an already-resolved URL untouched", () => {
+    expect(productSchema.parse({ ...base, image: MEDIA_URL }).image).toBe(
+      MEDIA_URL
+    );
+  });
+
+  test("treats an empty image as absent", () => {
+    expect(productSchema.parse({ ...base, image: "" }).image).toBeNull();
+    expect(productSchema.parse(base).image).toBeUndefined();
+  });
+
+  test("normalizes every entry of the images gallery", () => {
+    const parsed = productSchema.parse({
+      ...base,
+      images: ["6a8564de0036f521c3a4", MEDIA_URL],
+    });
+
+    expect(parsed.images).toEqual([MEDIA_URL, MEDIA_URL]);
+  });
+
+  test("still rejects a value that is neither a file ID nor a URL", () => {
+    expect(
+      productSchema.safeParse({ ...base, image: "not a url or id" }).success
+    ).toBeFalse();
+  });
+});

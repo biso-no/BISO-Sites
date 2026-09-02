@@ -1,8 +1,10 @@
+import { resolveStorageFileUrl } from "@repo/api/storage";
 import type {
   ContentTranslations,
   WebshopProducts,
 } from "@repo/api/types/appwrite";
 import { ImageWithFallback } from "@repo/ui/components/image";
+import { PlateContentRenderer } from "@repo/ui/components/plate-content-renderer";
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Card } from "@repo/ui/components/ui/card";
 import { PLACEHOLDER_IMAGE } from "@repo/ui/lib/placeholder-images";
@@ -69,7 +71,7 @@ export async function ProductDetailsServer({
       : null;
   const pickupLocation = t(`pickup.campus.${normalizeCampusKey(campusName)}`);
 
-  const imageUrl = productRef.image || PLACEHOLDER_IMAGE;
+  const imageUrl = resolveStorageFileUrl(productRef.image) ?? PLACEHOLDER_IMAGE;
 
   return (
     <div className="min-h-screen bg-linear-to-b from-section to-background">
@@ -159,9 +161,10 @@ export async function ProductDetailsServer({
                 <h2 className="mb-4 font-bold text-2xl text-foreground">
                   {t("product.description")}
                 </h2>
-                <p className="whitespace-pre-line text-muted-foreground leading-relaxed">
-                  {description}
-                </p>
+                <PlateContentRenderer
+                  className="text-muted-foreground leading-relaxed"
+                  value={description || null}
+                />
               </Card>
             </div>
 

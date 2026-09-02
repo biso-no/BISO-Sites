@@ -1,5 +1,6 @@
 "use client";
 
+import { resolveStorageFileUrl } from "@repo/api/storage";
 import type {
   ContentTranslations,
   Orders,
@@ -1017,7 +1018,7 @@ function ProductRow({
     >
       {/* Col 1: thumbnail */}
       <CoverPatternThumbnail
-        image={product.image}
+        image={resolveStorageFileUrl(product.image)}
         pattern={product.cover_pattern}
       />
 

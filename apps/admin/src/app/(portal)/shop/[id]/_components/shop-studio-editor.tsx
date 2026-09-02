@@ -1,5 +1,6 @@
 "use client";
 
+import { resolveStorageFileUrls } from "@repo/api/storage";
 import type {
   Campus,
   ContentTranslations,
@@ -3177,8 +3178,11 @@ export function ShopStudioEditor({
     (product?.inventory_mode as "tracked" | "unlimited") ?? "unlimited"
   );
   const [stock, setStock] = useState<number | null>(product?.stock ?? null);
+  // Products imported from the old site stored bare Appwrite file IDs rather
+  // than full URLs. Resolve on load so the gallery renders and `buildPayload`
+  // writes the row back in the canonical URL form.
   const [localImages, setLocalImages] = useState<string[]>(
-    product?.images ?? []
+    resolveStorageFileUrls(product?.images ?? [product?.image])
   );
   const [coverPattern, setCoverPattern] = useState<string>(
     product?.cover_pattern ?? "dotted"

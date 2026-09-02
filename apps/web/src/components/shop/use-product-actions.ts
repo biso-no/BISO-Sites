@@ -1,3 +1,4 @@
+import { resolveStorageFileUrl } from "@repo/api/storage";
 import type {
   ContentTranslations,
   WebshopProducts,
@@ -125,7 +126,7 @@ function buildCartItem({
     productId,
     slug: productRef.slug ?? "",
     name: translation?.title ?? productRef.slug,
-    image: productRef.image,
+    image: resolveStorageFileUrl(productRef.image),
     category: productRef.category ?? "",
     regularPrice: productRef.regular_price ?? 0,
     memberPrice: productRef.member_price,
