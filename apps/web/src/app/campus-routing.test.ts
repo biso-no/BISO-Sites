@@ -61,12 +61,22 @@ describe("campus routing (RD-016)", () => {
     expect(campusPage).toContain('locale === "no" ? "_nb" : "_en"');
   });
 
-  it("lists campus pages and scoped feeds in the sitemap", () => {
-    expect(sitemap).toContain("CAMPUS_SLUGS.flatMap");
-    // Built as template literals in the source; match without writing a
+  it("lists the campus landing pages in the sitemap", () => {
+    expect(sitemap).toContain("CAMPUS_SLUGS.map");
+    // Built as a template literal in the source; match without writing a
     // placeholder in a plain string, which the linter reads as a mistake.
     expect(sitemap).toMatch(CAMPUS_LANDING_URL);
-    expect(sitemap).toMatch(SCOPED_FEED_URL);
+  });
+
+  it("does not advertise scoped feeds it tells crawlers not to index", () => {
+    // Every scoped feed hard-canonicals back to its unscoped listing, so a
+    // sitemap entry for one asks a crawler to index a URL the page then
+    // disclaims. `sitemap` is comment-stripped, so the prose in `sitemap.ts`
+    // explaining this cannot satisfy the assertion.
+    expect(sitemap).not.toMatch(SCOPED_FEED_URL);
+    for (const [name, source] of Object.entries(feeds)) {
+      expect(source, name).toContain(`canonical: "/${name}"`);
+    }
   });
 
   it("keeps every pre-existing sitemap URL", () => {

@@ -7,6 +7,7 @@ import { useTranslations } from "next-intl";
 import { useCallback, useState } from "react";
 import { useUserMembership } from "@/components/context/membership-provider";
 import { LocaleSwitcher } from "@/components/locale-switcher";
+import { ThemeSwitcher } from "@/components/theme-switcher";
 import { CampusPill } from "@/components/ui/campus-pill";
 import { useCart } from "@/lib/contexts/cart-context";
 import type { NavAccount, NavFeatured } from "@/lib/types/nav";
@@ -28,10 +29,13 @@ import { useMegaPanels } from "./use-mega-panels";
  * keyboard handling in the codebase.
  *
  * What did change (`00-current-state.md` §8.3, `01-design-spec.md` §3.5):
- *   - **Nine utility controls become five.** Theme toggle and member portal
- *     move into the account menu; "Apply verv" goes, because Jobs is now a
- *     top-level nav item; "Partner" moves into the About panel. One primary
- *     CTA remains.
+ *   - **Nine utility controls become six.** The member portal moves into the
+ *     account menu; "Apply verv" goes, because Jobs is now a top-level nav
+ *     item; "Partner" moves into the About panel. One primary CTA remains.
+ *     The theme toggle stays here as `<ThemeSwitcher>`, beside the locale
+ *     switcher: this comment used to say it moved into the account menu, it
+ *     never did, and for an anonymous visitor that menu is a plain sign-in
+ *     button — so a control placed there would not exist for most traffic.
  *   - **Desktop starts at `lg` (1024px), not `xl` (1280px).** Every laptop
  *     under 1280px was getting the hamburger.
  *   - **Three `router.push()` buttons become real `<Link>`s**, restoring
@@ -142,6 +146,7 @@ export function NavigationV2({
           <div className="hidden shrink-0 items-center gap-2 min-[1340px]:flex">
             <CampusPill />
             <LocaleSwitcher className="text-ink" size="sm" variant="ghost" />
+            <ThemeSwitcher className="text-ink" size="sm" variant="ghost" />
             <CartButton
               count={cartCount}
               label={tShop("cart.title")}

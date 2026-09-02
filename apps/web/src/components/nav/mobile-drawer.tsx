@@ -14,6 +14,7 @@ import { useTransition } from "react";
 import { useCampus } from "@/components/context/campus";
 import { LocaleSwitcher } from "@/components/locale-switcher";
 import { SelectCampus } from "@/components/select-campus";
+import { ThemeSwitcher } from "@/components/theme-switcher";
 import { signOut } from "@/lib/server";
 import type { NavAccount } from "@/lib/types/nav";
 import { accountLinksFor } from "./account-menu";
@@ -180,6 +181,7 @@ export function MobileDrawer({
 
       <SelectCampus campuses={campuses} className="w-full text-white" />
       <LocaleSwitcher className="w-full text-white" size="sm" variant="ghost" />
+      <ThemeSwitcher className="w-full text-white" size="sm" variant="ghost" />
 
       <div className="space-y-2">
         <Button

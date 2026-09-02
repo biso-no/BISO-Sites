@@ -191,8 +191,17 @@ export async function ShopV2({
   const activeCategory =
     typeof searchParams.category === "string" ? searchParams.category : "all";
 
+  // A member-only product is not offered to a non-member. The v1 listing
+  // excluded these rows and the rewrite dropped the predicate, which put
+  // restricted products in front of everyone — and nothing downstream stops
+  // them being bought at the regular price, in v1 or here. Filtered before the
+  // category counts so the chips cannot advertise rows the grid will not show.
+  const offered = isMember
+    ? products
+    : products.filter((product) => !product.member_only);
+
   const present = [
-    ...new Set(products.map((product) => product.category).filter(Boolean)),
+    ...new Set(offered.map((product) => product.category).filter(Boolean)),
   ].sort() as string[];
 
   const categoryOptions: FilterOption[] = [
@@ -200,7 +209,7 @@ export async function ShopV2({
     ...present.map((category) => ({
       value: category,
       label: category,
-      count: products.filter((product) => product.category === category).length,
+      count: offered.filter((product) => product.category === category).length,
     })),
   ];
 
@@ -214,8 +223,8 @@ export async function ShopV2({
 
   const visible =
     activeCategory === "all"
-      ? products
-      : products.filter((product) => product.category === activeCategory);
+      ? offered
+      : offered.filter((product) => product.category === activeCategory);
 
   const activeCampus = campusIdToSlug(campusId) ?? "all";
   const hidden: Record<string, string> = {};

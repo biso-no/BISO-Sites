@@ -9,7 +9,7 @@ import {
 import { cn } from "@repo/ui/lib/utils";
 import { Check, ChevronDown, MapPin } from "lucide-react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Suspense } from "react";
 import { useCampus } from "@/components/context/campus";
@@ -47,29 +47,59 @@ export function CampusPill({ className }: { className?: string }) {
   );
 }
 
+/** `/campus/<slug>` — the landing page scopes all of its content from this. */
+const CAMPUS_PATH = /^\/campus\/([^/]+)/;
+
 /**
- * A feed scoped by `?campus=` is authoritative for what the page shows, but
- * `SiteShell` can only see the cookie and user preference. Without this, a
- * shared `/events?campus=bergen` listed Bergen events under a pill reading
- * "All Campuses" (or the visitor's own campus) — the header contradicted the
- * content it sits above.
+ * The URL is authoritative for what the page shows, and `SiteShell` — a layout
+ * — can see neither half of it. Without this, a shared `/events?campus=bergen`
+ * listed Bergen events under a pill reading "All Campuses" (or the visitor's
+ * own campus), and `/campus/bergen` did the same, so the header contradicted
+ * the content it sits above.
+ *
+ * Both the query parameter and the campus landing path are read, because both
+ * scope a page independently of the cookie.
  */
 function CampusPillWithUrlScope({ className }: { className?: string }) {
   const { activeCampusId } = useCampus();
   const searchParams = useSearchParams();
-  const fromUrl = searchParams.get("campus");
-  const scoped = fromUrl ? campusSlugToId(fromUrl) : null;
+  const pathname = usePathname();
+
+  const fromQuery = searchParams.get("campus");
+  const fromPath = CAMPUS_PATH.exec(pathname)?.[1] ?? null;
+  const slug = fromQuery ?? fromPath;
+  const scoped = slug ? campusSlugToId(slug) : null;
+
+  // `resolveRequestCampus` gives `?campus=` precedence over the cookie, so
+  // clearing the cookie alone leaves the page exactly as it was — picking "All
+  // campuses" on `/events?campus=bergen` looked like a dead control. The item
+  // becomes a link that drops the parameter whenever one is present.
+  let clearHref: string | undefined;
+  if (fromQuery) {
+    const next = new URLSearchParams(searchParams.toString());
+    next.delete("campus");
+    const query = next.toString();
+    clearHref = query ? `${pathname}?${query}` : pathname;
+  }
+
   return (
-    <CampusPillView campusId={scoped ?? activeCampusId} className={className} />
+    <CampusPillView
+      campusId={scoped ?? activeCampusId}
+      className={className}
+      clearHref={clearHref}
+    />
   );
 }
 
 function CampusPillView({
   campusId,
   className,
+  clearHref,
 }: {
   campusId: string | null;
   className?: string;
+  /** Present only when the current URL carries a `?campus=` to drop. */
+  clearHref?: string;
 }) {
   const { campuses, selectCampus } = useCampus();
   const t = useTranslations("common.navigation");
@@ -95,16 +125,29 @@ function CampusPillView({
 
       <DropdownMenuContent align="end" className="min-w-52">
         <DropdownMenuItem asChild>
-          <button
-            className="w-full cursor-pointer justify-between"
-            onClick={() => selectCampus(null)}
-            type="button"
-          >
-            {t("allCampuses")}
-            {activeCampusId === null && (
-              <Check aria-hidden="true" className="size-4" />
-            )}
-          </button>
+          {clearHref ? (
+            <Link
+              className="w-full cursor-pointer justify-between"
+              href={clearHref}
+              onClick={() => selectCampus(null)}
+            >
+              {t("allCampuses")}
+              {activeCampusId === null && (
+                <Check aria-hidden="true" className="size-4" />
+              )}
+            </Link>
+          ) : (
+            <button
+              className="w-full cursor-pointer justify-between"
+              onClick={() => selectCampus(null)}
+              type="button"
+            >
+              {t("allCampuses")}
+              {activeCampusId === null && (
+                <Check aria-hidden="true" className="size-4" />
+              )}
+            </button>
+          )}
         </DropdownMenuItem>
 
         {campuses.map((campus) => {

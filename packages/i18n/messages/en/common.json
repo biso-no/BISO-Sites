@@ -223,5 +223,11 @@
     "title": "Reimbursement approval",
     "expired": "This approval link has expired.",
     "notePlaceholder": "Optional note (required reasoning for a rejection helps the submitter)"
+  },
+  "theme": {
+    "label": "Theme",
+    "light": "Light",
+    "dark": "Dark",
+    "system": "System"
   }
 }

@@ -21,7 +21,14 @@ interface ExpenseDetailsProps {
 }
 
 const APPWRITE_ENDPOINT = process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT;
-const APPWRITE_PROJECT = process.env.NEXT_PUBLIC_APPWRITE_PROJECT;
+// `.env.example` declares both names and the operations docs still document the
+// `_ID` one, so a deployment can legitimately have only that set. The v1 route
+// read both; dropping the fallback turned every receipt link into
+// `project=undefined` for those deployments. `expense-split-view.tsx` keeps the
+// same fallback for the same reason.
+const APPWRITE_PROJECT =
+  process.env.NEXT_PUBLIC_APPWRITE_PROJECT ||
+  process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID;
 
 function receiptHref(fileId: string): string {
   return `${APPWRITE_ENDPOINT}/storage/buckets/expenses/files/${fileId}/view?project=${APPWRITE_PROJECT}`;

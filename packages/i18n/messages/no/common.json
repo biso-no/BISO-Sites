@@ -223,5 +223,11 @@
     "title": "Godkjenning av refusjon",
     "expired": "Denne godkjenningslenken har utløpt.",
     "notePlaceholder": "Valgfri kommentar (en begrunnelse hjelper innsenderen ved avslag)"
+  },
+  "theme": {
+    "label": "Tema",
+    "light": "Lyst",
+    "dark": "Mørkt",
+    "system": "System"
   }
 }

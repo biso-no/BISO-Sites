@@ -71,29 +71,28 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "monthly" as const,
       priority: 0.4,
     })),
-    // Campus landing pages, and the campus-scoped variant of the three feeds
-    // listed below. `/projects` has no campus_id to filter on, so it cannot be
-    // scoped at all.
+    // Campus landing pages only.
     //
-    // `/units` and `/shop` DO accept `?campus=` and scope server-side — RD-025
-    // moved `/units` off client-side filtering — so listing them here is
-    // possible and is a deliberate omission, not an oversight. `/units` already
-    // has all 141 of its `/units/<campus>/<slug>` pages in the sitemap below,
-    // which is the campus-specific content a crawler wants; the filtered index
-    // would add five near-duplicate listing pages on top of it. Revisit with
-    // whoever owns SEO rather than flipping it here.
-    ...CAMPUS_SLUGS.flatMap((slug) => [
-      {
-        url: `${BASE}/campus/${slug}`,
-        changeFrequency: "weekly" as const,
-        priority: 0.6,
-      },
-      ...["events", "news", "jobs"].map((feed) => ({
-        url: `${BASE}/${feed}?campus=${slug}`,
-        changeFrequency: "weekly" as const,
-        priority: 0.5,
-      })),
-    ]),
+    // **No `?campus=` feed variants.** They were listed here at first, which
+    // contradicted the pages themselves: `/events`, `/news` and `/jobs` each
+    // hard-canonical every scoped request back to the unscoped feed, so a
+    // sitemap entry for `/events?campus=bergen` tells a crawler "index this"
+    // and the page it lands on replies "no, index /events instead". Caught in
+    // PR review. The canonical is the half worth keeping — a scoped feed is a
+    // filtered view of the same collection and should not compete with the
+    // listing it filters — so the sitemap entries go.
+    //
+    // The campus *landing* pages stay: they self-canonical, and each is a
+    // distinct page rather than a filtered view. `/units` and `/shop` also
+    // accept `?campus=` and are likewise unlisted; `/units` already has all
+    // 141 of its `/units/<campus>/<slug>` pages below, which is the
+    // campus-specific content a crawler actually wants. `/projects` has no
+    // campus_id and cannot be scoped at all.
+    ...CAMPUS_SLUGS.map((slug) => ({
+      url: `${BASE}/campus/${slug}`,
+      changeFrequency: "weekly" as const,
+      priority: 0.6,
+    })),
     { url: `${BASE}/privacy`, changeFrequency: "yearly", priority: 0.2 },
     { url: `${BASE}/terms`, changeFrequency: "yearly", priority: 0.2 },
   ];
