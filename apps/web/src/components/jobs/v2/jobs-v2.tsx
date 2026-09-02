@@ -2,6 +2,7 @@ import type { RecruitmentVacancy } from "@repo/shared/types/recruitment";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { CardGrid } from "@/components/ui/card-grid";
+import { FeedSearch } from "@/components/ui/feed-search";
 import { FilterChips, type FilterOption } from "@/components/ui/filter-chips";
 import { PageHeader } from "@/components/ui/page-header";
 import { Pill } from "@/components/ui/pill";
@@ -165,6 +166,15 @@ export async function JobsV2({
   // English labels and no localized copy for it exists — so `sort` is honoured
   // for inbound links without being newly settable. `paid` gets a chip, because
   // `filters.paidOnly` is already translated in both locales.
+  // A search must not silently drop the filters already applied.
+  const searchHidden: Record<string, string> = {};
+  for (const key of ["campus", "type", "paid", "sort"]) {
+    const value = searchParams[key];
+    if (typeof value === "string") {
+      searchHidden[key] = value;
+    }
+  }
+
   const paidOnly = searchParams.paid === "true";
   const activeSort =
     typeof searchParams.sort === "string" ? searchParams.sort : "newest";
@@ -202,6 +212,21 @@ export async function JobsV2({
 
       <Section tone="paper">
         <div className="mb-8 space-y-3">
+          {/* `?q=` filtered server-side all along; the rewrite dropped the only
+              control that could set it, so the feature was reachable by URL
+              only. */}
+          <FeedSearch
+            action="/jobs"
+            defaultValue={
+              typeof searchParams.q === "string" ? searchParams.q : ""
+            }
+            hidden={searchHidden}
+            label={t("filters.searchLabel")}
+            name="q"
+            placeholder={t("filters.searchPlaceholder")}
+            submitLabel={t("filters.searchSubmit")}
+            surface="jobs"
+          />
           <FilterChips
             active={activeType}
             basePath="/jobs"

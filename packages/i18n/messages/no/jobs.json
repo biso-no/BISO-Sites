@@ -18,7 +18,9 @@
     "paidOnly": "Kun betalte stillinger",
     "showingResults": "Viser {count} {count, plural, one {stilling} other {stillinger}}",
     "employmentTypeLabel": "Filtrer verv etter type",
-    "campusLabel": "Filtrer verv etter campus"
+    "campusLabel": "Filtrer verv etter campus",
+    "searchLabel": "Søk i stillinger",
+    "searchSubmit": "Søk"
   },
   "emptyState": {
     "title": "Ingen stillinger funnet",

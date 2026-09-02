@@ -6,6 +6,7 @@ import type { ReactNode } from "react";
 import { CardGrid } from "@/components/ui/card-grid";
 import { ChevronFrame } from "@/components/ui/chevron-frame";
 import { DateBlock } from "@/components/ui/date-block";
+import { FeedSearch } from "@/components/ui/feed-search";
 import { FilterChips, type FilterOption } from "@/components/ui/filter-chips";
 import { PageHeader } from "@/components/ui/page-header";
 import { Pill } from "@/components/ui/pill";
@@ -17,6 +18,7 @@ import {
   eventPrice,
   isPastEvent,
   parseCategory,
+  pickContent,
   sortForFeed,
 } from "./event-fields";
 
@@ -196,14 +198,41 @@ export async function EventsV2({
   ]);
 
   const activeCategory = parseCategory(searchParams.category);
+  // Searching must not silently drop the category or campus already chosen.
+  const searchHidden: Record<string, string> = {};
+  for (const key of ["campus", "category"]) {
+    const value = searchParams[key];
+    if (typeof value === "string") {
+      searchHidden[key] = value;
+    }
+  }
 
   // A collection's child sessions are reachable from the collection's own page
   // (`getCollectionEvents` builds the sibling list there); listing them here as
   // well makes one event look like several. The v1 feed excluded them with this
   // predicate and the rewrite dropped it — restored before the counts are
   // derived, so the category chips agree with what the grid shows.
+  const searchQuery =
+    typeof searchParams.search === "string"
+      ? searchParams.search.trim().toLowerCase()
+      : "";
+
+  // v1 filtered the fetched list on title and description; `listEvents`
+  // declares a `search` option but never implemented one, so the rewrite lost
+  // the feature outright. Same semantics as v1, over the same 50-row page.
+  const matchesSearch = (event: Events) => {
+    if (!searchQuery) {
+      return true;
+    }
+    const content = pickContent(event.translation_refs, locale);
+    return `${content.title} ${content.shortDescription ?? ""} ${content.description}`
+      .toLowerCase()
+      .includes(searchQuery);
+  };
+
   const feed = events.filter(
-    (event) => event.is_collection || !event.collection_id
+    (event) =>
+      (event.is_collection || !event.collection_id) && matchesSearch(event)
   );
 
   const present = EVENT_CATEGORIES.filter((category) =>
@@ -255,6 +284,18 @@ export async function EventsV2({
 
       <Section tone="paper">
         <div className="mb-8 space-y-3">
+          <FeedSearch
+            action="/events"
+            defaultValue={
+              typeof searchParams.search === "string" ? searchParams.search : ""
+            }
+            hidden={searchHidden}
+            label={t("filters.searchLabel")}
+            name="search"
+            placeholder={t("filters.searchPlaceholder")}
+            submitLabel={t("filters.searchSubmit")}
+            surface="events"
+          />
           <FilterChips
             active={activeCategory ?? "all"}
             basePath="/events"

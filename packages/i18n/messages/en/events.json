@@ -10,7 +10,9 @@
     "clearFilters": "Clear Filters",
     "showingResults": "Showing {count} {count, plural, one {event} other {events}}",
     "categoryLabel": "Filter events by category",
-    "campusLabel": "Filter events by campus"
+    "campusLabel": "Filter events by campus",
+    "searchLabel": "Search events",
+    "searchSubmit": "Search"
   },
   "emptyState": {
     "title": "No events found",

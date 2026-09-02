@@ -18,7 +18,9 @@
     "paidOnly": "Paid Positions Only",
     "showingResults": "Showing {count} {count, plural, one {position} other {positions}}",
     "employmentTypeLabel": "Filter positions by type",
-    "campusLabel": "Filter positions by campus"
+    "campusLabel": "Filter positions by campus",
+    "searchLabel": "Search positions",
+    "searchSubmit": "Search"
   },
   "emptyState": {
     "title": "No positions found",

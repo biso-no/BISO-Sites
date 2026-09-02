@@ -10,7 +10,9 @@
     "clearFilters": "Tøm filtre",
     "showingResults": "Viser {count} {count, plural, one {arrangement} other {arrangementer}}",
     "categoryLabel": "Filtrer arrangementer etter kategori",
-    "campusLabel": "Filtrer arrangementer etter campus"
+    "campusLabel": "Filtrer arrangementer etter campus",
+    "searchLabel": "Søk i arrangementer",
+    "searchSubmit": "Søk"
   },
   "emptyState": {
     "title": "Ingen arrangementer funnet",
