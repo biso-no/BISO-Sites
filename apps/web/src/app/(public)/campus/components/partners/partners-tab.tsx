@@ -79,7 +79,9 @@ export function PartnersTab({
         className="mb-12 text-center"
         initial={{ opacity: 0, y: 20 }}
       >
-        <h2 className="mb-4 text-foreground">{localeCopy.heading}</h2>
+        <h2 className="mb-4 font-bold text-2xl text-foreground md:text-3xl">
+          {localeCopy.heading}
+        </h2>
         <p className="mx-auto max-w-2xl text-muted-foreground">
           {localeCopy.lead(campusName)}
         </p>

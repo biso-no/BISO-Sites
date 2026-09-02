@@ -11,8 +11,10 @@ import type {
 } from "@repo/api/types/appwrite";
 import type { Locale } from "@repo/i18n/config";
 import type { RecruitmentVacancy } from "@repo/shared/types/recruitment";
-import { useMemo } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useMemo } from "react";
 import { useCampus } from "@/components/context/campus";
+import { campusScopeIds } from "@/lib/campus-scope";
 import { CampusHero } from "./campus-hero";
 import { CampusTabs } from "./campus-tabs";
 import { DepartmentsGrid } from "./overview/departments-grid";
@@ -32,6 +34,12 @@ interface CampusPageClientProps {
   jobs: Array<Jobs | RecruitmentVacancy>;
   locale: Locale;
   news: News[];
+  /**
+   * Campus the server fetched with (`null` = every campus). The switcher can
+   * change the selection client-side, so we compare against this and push a
+   * `?campus=` param to re-render the server component when they diverge.
+   */
+  serverCampusId: string | null;
 }
 
 export function CampusPageClient({
@@ -42,8 +50,42 @@ export function CampusPageClient({
   campusData,
   campusMetadata,
   locale,
+  serverCampusId,
 }: CampusPageClientProps) {
-  const { activeCampus, activeCampusId } = useCampus();
+  const router = useRouter();
+  const { activeCampus, activeCampusId, campuses, loading } = useCampus();
+
+  // The campus switcher lives in a client context (cookie + localStorage), so
+  // the selection can change without a server round trip. Mirror it into the
+  // URL — the same pattern as `jobs-list-client` — so the server refetches
+  // with the right campus scope instead of us filtering an already-truncated
+  // list. Wait until the context has settled (campuses loaded) to avoid
+  // navigating on the transient initial `null`.
+  useEffect(() => {
+    if (loading || campuses.length === 0) {
+      return;
+    }
+    const desired = activeCampusId ?? "all";
+    const current = serverCampusId ?? "all";
+    if (desired === current) {
+      return;
+    }
+    const params = new URLSearchParams(window.location.search);
+    if (desired === "all") {
+      params.delete("campus");
+    } else {
+      params.set("campus", desired);
+    }
+    const query = params.toString();
+    router.replace(query ? `/campus?${query}` : "/campus");
+  }, [activeCampusId, campuses.length, loading, router, serverCampusId]);
+
+  // National content (`campus_id === "5"`) rides along with every campus —
+  // `campusScopeIds` is the canonical rule, shared with the server queries.
+  const campusScope = useMemo(
+    () => campusScopeIds(activeCampusId),
+    [activeCampusId]
+  );
 
   // Get campus-specific metadata
   const activeCampusMetadata = useMemo(() => {
@@ -74,27 +116,34 @@ export function CampusPageClient({
     );
   }, [activeCampus, activeCampusId, campusData]);
 
-  // Filter content by campus
+  // Server-side scoping already narrowed these lists; this is the belt-and-
+  // braces pass for the frame between a switcher change and the refetch.
   const campusSpecificEvents = useMemo(() => {
-    if (!activeCampusId) {
+    if (!campusScope) {
       return events;
     }
-    return events.filter((event) => event.campus_id === activeCampusId);
-  }, [events, activeCampusId]);
+    return events.filter(
+      (event) => !!event.campus_id && campusScope.includes(event.campus_id)
+    );
+  }, [events, campusScope]);
 
   const campusSpecificJobs = useMemo(() => {
-    if (!activeCampusId) {
+    if (!campusScope) {
       return jobs;
     }
-    return jobs.filter((job) => job.campus_id === activeCampusId);
-  }, [jobs, activeCampusId]);
+    return jobs.filter(
+      (job) => !!job.campus_id && campusScope.includes(job.campus_id)
+    );
+  }, [jobs, campusScope]);
 
   const campusSpecificNews = useMemo(() => {
-    if (!activeCampusId) {
+    if (!campusScope) {
       return news;
     }
-    return news.filter((item) => item.campus_id === activeCampusId);
-  }, [news, activeCampusId]);
+    return news.filter(
+      (item) => !!item.campus_id && campusScope.includes(item.campus_id)
+    );
+  }, [news, campusScope]);
 
   const campusSpecificDepartments = useMemo(() => {
     if (!activeCampusId) {

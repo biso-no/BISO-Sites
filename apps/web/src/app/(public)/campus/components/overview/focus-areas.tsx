@@ -30,7 +30,7 @@ export function FocusAreas({ campusMetadata, locale }: FocusAreasProps) {
         className="mb-8 text-center"
         initial={{ opacity: 0, y: 20 }}
       >
-        <h2 className="mb-4 text-foreground">
+        <h2 className="mb-4 font-bold text-2xl text-foreground md:text-3xl">
           {locale === "en" ? "Our Focus Areas" : "Våre fokusområder"}
         </h2>
         <p className="mx-auto max-w-2xl text-muted-foreground">

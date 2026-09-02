@@ -33,7 +33,7 @@ export function LatestNews({ news, locale }: LatestNewsProps) {
   return (
     <section>
       <div className="mb-6 flex items-center justify-between">
-        <h2 className="text-foreground">
+        <h2 className="font-bold text-2xl text-foreground md:text-3xl">
           {locale === "en" ? "Latest News" : "Siste nytt"}
         </h2>
         <Button className="text-brand" size="sm" variant="ghost">
@@ -60,15 +60,16 @@ export function LatestNews({ news, locale }: LatestNewsProps) {
               key={article.$id}
               transition={{ delay: index * 0.1 }}
             >
-              <Link href={`/news/${article.$id}`}>
+              <Link href={`/news/${article.slug || article.$id}`}>
                 <Card className="group cursor-pointer border-0 p-4 shadow-md transition-all hover:shadow-lg">
                   <div className="flex gap-4">
                     <div className="h-24 w-24 shrink-0 overflow-hidden rounded-lg">
                       <ImageWithFallback
                         alt={translation?.title ?? "News"}
                         className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
-                        fill
+                        height={96}
                         src={article.image || PLACEHOLDER_IMAGE}
+                        width={96}
                       />
                     </div>
                     <div className="grow">
