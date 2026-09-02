@@ -1,37 +1,57 @@
 "use client";
 
+import { resolveStorageFileUrl } from "@repo/api/storage";
 import type { ContentTranslations } from "@repo/api/types/appwrite";
+import {
+  parseUnitCategory,
+  UNIT_CATEGORY_MESSAGE_KEYS,
+  type UnitCategory,
+} from "@repo/shared/utils/unit-categories";
 import { unitCanonicalPath } from "@repo/shared/utils/unit-urls";
 import { ImageWithFallback } from "@repo/ui/components/image";
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Button } from "@repo/ui/components/ui/button";
 import { Card } from "@repo/ui/components/ui/card";
 import {
+  Briefcase,
   ChevronRight,
-  Heart,
+  Flag,
+  GraduationCap,
   MapPin,
+  Rocket,
+  Shapes,
   Sparkles,
   Target,
   Users,
 } from "lucide-react";
 import { motion } from "motion/react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 
 interface DepartmentCardProps {
   department: ContentTranslations;
   index: number;
 }
 
-const typeColors: Record<string, string> = {
-  committee: "bg-brand-muted text-brand border-brand-border-strong",
-  team: "bg-purple-100 text-purple-700 border-purple-200",
-  service: "bg-green-100 text-green-700 border-green-200",
+const CATEGORY_COLORS: Record<UnitCategory, string> = {
+  society: "bg-purple-100 text-purple-700 border-purple-200",
+  academic_association: "bg-brand-muted text-brand border-brand-border-strong",
+  project: "bg-amber-100 text-amber-700 border-amber-200",
+  staff_function: "bg-green-100 text-green-700 border-green-200",
+  national: "bg-blue-100 text-blue-700 border-blue-200",
+  other: "bg-muted text-muted-foreground border-border",
 };
 
-const typeIcons: Record<string, React.ComponentType<{ className?: string }>> = {
-  committee: Target,
-  team: Users,
-  service: Heart,
+const CATEGORY_ICONS: Record<
+  UnitCategory,
+  React.ComponentType<{ className?: string }>
+> = {
+  society: Users,
+  academic_association: GraduationCap,
+  project: Rocket,
+  staff_function: Briefcase,
+  national: Flag,
+  other: Shapes,
 };
 
 const stripHtml = (html?: string | null) => {
@@ -45,10 +65,15 @@ const stripHtml = (html?: string | null) => {
 };
 
 export function DepartmentCard({ department, index }: DepartmentCardProps) {
+  // Category labels live in the shared `jobs.filters` bundle so units and jobs
+  // name the same categories identically.
+  const t = useTranslations("jobs");
   const dept = department.department_ref;
-  const TypeIcon = typeIcons[dept?.type || "committee"] || Target;
-  const typeColor =
-    typeColors[dept?.type || "committee"] || typeColors.committee;
+  const category = parseUnitCategory(dept?.type);
+  const CategoryIcon = category ? CATEGORY_ICONS[category] : Target;
+  // `departments.logo` is a string(100), so the admin editor stores a bare
+  // Appwrite file id rather than a full view URL. Expand it before rendering.
+  const logoUrl = resolveStorageFileUrl(dept?.logo);
   const plainDescription = stripHtml(
     department.short_description || department.description
   );
@@ -72,22 +97,22 @@ export function DepartmentCard({ department, index }: DepartmentCardProps) {
 
           <div className="relative flex items-start justify-between">
             <div className="flex h-16 w-16 items-center justify-center rounded-xl border border-white/30 bg-background/20 backdrop-blur-sm transition-transform group-hover:scale-110">
-              {dept?.logo ? (
+              {logoUrl ? (
                 <ImageWithFallback
                   alt={department.title}
                   className="h-10 w-10 object-contain"
                   height={40}
-                  src={dept.logo}
+                  src={logoUrl}
                   width={40}
                 />
               ) : (
-                <TypeIcon className="h-8 w-8 text-white" />
+                <CategoryIcon className="h-8 w-8 text-white" />
               )}
             </div>
 
-            {dept?.type && (
-              <Badge className={typeColor}>
-                {dept.type.charAt(0).toUpperCase() + dept.type.slice(1)}
+            {category && (
+              <Badge className={CATEGORY_COLORS[category]}>
+                {t(`filters.${UNIT_CATEGORY_MESSAGE_KEYS[category]}`)}
               </Badge>
             )}
           </div>

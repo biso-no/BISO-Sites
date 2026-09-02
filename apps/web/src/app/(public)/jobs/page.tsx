@@ -13,7 +13,10 @@ export const metadata = {
 interface JobsPageProps {
   searchParams: Promise<{
     campus?: string;
+    /** Organisational category of the owning unit (`departments.type`). */
+    category?: string;
     department?: string;
+    /** Employment type (part-time, volunteer, …) — not the unit category. */
     type?: string;
     q?: string;
     paid?: string;

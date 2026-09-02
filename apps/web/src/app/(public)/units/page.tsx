@@ -1,3 +1,8 @@
+import {
+  parseUnitCategory,
+  UNIT_CATEGORIES,
+  type UnitCategory,
+} from "@repo/shared/utils/unit-categories";
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { getLocale } from "@/app/actions/locale";
@@ -18,14 +23,19 @@ async function DepartmentsContent() {
   // Fetch all active departments with relationships
   const departments = await getDepartments({ isActive: true, locale });
 
-  // Extract unique types dynamically from department_ref
-  const availableTypes = [
-    ...new Set(
-      departments
-        .map((d) => d.department_ref?.type)
-        .filter((type): type is string => Boolean(type))
-    ),
-  ].sort();
+  // Derive the categories actually present in the loaded units. `departments.type`
+  // is free text and largely unpopulated, so options come from the data rather
+  // than from a static list that would mostly yield zero results.
+  const presentCategories = new Set<UnitCategory>();
+  for (const dept of departments) {
+    const category = parseUnitCategory(dept.department_ref?.type);
+    if (category) {
+      presentCategories.add(category);
+    }
+  }
+  const availableCategories = UNIT_CATEGORIES.filter((value) =>
+    presentCategories.has(value)
+  );
 
   // Calculate stats
   const stats = {
@@ -47,7 +57,7 @@ async function DepartmentsContent() {
       {/* Filters with overlap */}
       <div className="relative z-10 mx-auto -mt-8 mb-12 max-w-7xl px-4">
         <DepartmentsListClient
-          availableTypes={availableTypes}
+          availableCategories={availableCategories}
           departments={departments}
         />
       </div>

@@ -1,16 +1,29 @@
+import { resolveStorageFileUrl } from "@repo/api/storage";
 import type { ContentTranslations } from "@repo/api/types/appwrite";
+import {
+  parseUnitCategory,
+  UNIT_CATEGORY_MESSAGE_KEYS,
+} from "@repo/shared/utils/unit-categories";
 import { ImageWithFallback } from "@repo/ui/components/image";
 import { Badge } from "@repo/ui/components/ui/badge";
 import { ArrowLeft, Building2, MapPin } from "lucide-react";
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 import { SocialLinks } from "./social-links";
 
 interface DepartmentHeroProps {
   department: ContentTranslations;
 }
 
-export function DepartmentHero({ department }: DepartmentHeroProps) {
+export async function DepartmentHero({ department }: DepartmentHeroProps) {
+  // Category labels come from the shared `jobs.filters` bundle so every surface
+  // names the same categories identically.
+  const t = await getTranslations("jobs");
   const dept = department.department_ref;
+  const category = parseUnitCategory(dept?.type);
+  // `departments.logo` is a string(100): the admin editor stores a bare
+  // Appwrite file id, so expand it to a URL before rendering.
+  const logoUrl = resolveStorageFileUrl(dept?.logo);
 
   // Use custom hero image if available, otherwise use default
   const DEFAULT_HERO_URL =
@@ -40,23 +53,23 @@ export function DepartmentHero({ department }: DepartmentHeroProps) {
 
           <div className="max-w-3xl">
             <div className="mb-6 flex items-center gap-4">
-              {dept.logo && (
+              {logoUrl && (
                 <div className="h-20 w-20 rounded-xl border border-white/20 bg-background/10 p-3 backdrop-blur-sm">
                   <ImageWithFallback
                     alt={department.title}
                     className="h-full w-full object-contain"
                     height={80}
-                    src={dept.logo}
+                    src={logoUrl}
                     width={80}
                   />
                 </div>
               )}
               <div>
                 <div className="mb-2 flex flex-wrap items-center gap-3">
-                  {dept.type && (
+                  {category && (
                     <Badge className="border-white/30 bg-background/20 text-white">
                       <Building2 className="mr-1 h-3 w-3" />
-                      {dept.type.charAt(0).toUpperCase() + dept.type.slice(1)}
+                      {t(`filters.${UNIT_CATEGORY_MESSAGE_KEYS[category]}`)}
                     </Badge>
                   )}
                   {dept.campus?.name && (

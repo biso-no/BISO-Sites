@@ -1,6 +1,12 @@
 "use client";
 
 import type { RecruitmentVacancy } from "@repo/shared/types/recruitment";
+import {
+  parseUnitCategory,
+  UNIT_CATEGORIES,
+  UNIT_CATEGORY_MESSAGE_KEYS,
+  type UnitCategory,
+} from "@repo/shared/utils/unit-categories";
 import { Button } from "@repo/ui/components/ui/button";
 import { Input } from "@repo/ui/components/ui/input";
 import {
@@ -31,6 +37,15 @@ const SORT_OPTIONS = [
 ] as const;
 
 type SortOption = (typeof SORT_OPTIONS)[number]["value"];
+
+/**
+ * Organisational category of the unit that owns the vacancy. `departments.type`
+ * is free text and still unpopulated for most units, so this returns `null`
+ * whenever the owning unit has no usable category.
+ */
+function vacancyCategory(job: RecruitmentVacancy): UnitCategory | null {
+  return parseUnitCategory(job.department?.type);
+}
 
 function sortJobs(
   jobs: RecruitmentVacancy[],
@@ -73,6 +88,9 @@ export function JobsListClient({
   const [employmentType, setEmploymentType] = useState(
     searchParams.get("type") ?? "all"
   );
+  const [category, setCategory] = useState(
+    () => parseUnitCategory(searchParams.get("category")) ?? "all"
+  );
   const [sort, setSort] = useState<SortOption>(
     (searchParams.get("sort") as SortOption | null) ?? "newest"
   );
@@ -84,6 +102,20 @@ export function JobsListClient({
       jobs.map((j) => j.metadata.employment_type).filter(Boolean)
     );
     return Array.from(types);
+  }, [jobs]);
+
+  // Derive unit categories actually present in the loaded jobs. `departments.type`
+  // is largely unpopulated, so a static list of every category would render six
+  // options that all return nothing.
+  const categories = useMemo(() => {
+    const present = new Set<UnitCategory>();
+    for (const job of jobs) {
+      const parsed = vacancyCategory(job);
+      if (parsed) {
+        present.add(parsed);
+      }
+    }
+    return UNIT_CATEGORIES.filter((value) => present.has(value));
   }, [jobs]);
 
   // Derive unique departments
@@ -162,23 +194,42 @@ export function JobsListClient({
           job.metadata.employment_type === employmentType;
         const matchesDept =
           department === "all" || job.department_id === department;
+        // Uncategorised units only drop out when a category is actively picked.
+        const matchesCategory =
+          category === "all" || vacancyCategory(job) === category;
 
-        return matchesSearch && matchesPaid && matchesType && matchesDept;
+        return (
+          matchesSearch &&
+          matchesPaid &&
+          matchesType &&
+          matchesDept &&
+          matchesCategory
+        );
       }),
       sort
     );
-  }, [jobs, searchQuery, showPaidOnly, employmentType, department, sort]);
+  }, [
+    jobs,
+    searchQuery,
+    showPaidOnly,
+    employmentType,
+    department,
+    category,
+    sort,
+  ]);
 
   function clearAllFilters() {
     setSearchQuery("");
     setShowPaidOnly(false);
     setEmploymentType("all");
     setDepartment("all");
+    setCategory("all");
     setSort("newest");
     updateUrl({
       q: null,
       paid: null,
       type: null,
+      category: null,
       department: null,
       sort: null,
     });
@@ -189,6 +240,7 @@ export function JobsListClient({
     showPaidOnly ||
     employmentType !== "all" ||
     department !== "all" ||
+    category !== "all" ||
     sort !== "newest";
 
   function handleViewDetails(job: RecruitmentVacancy) {
@@ -270,6 +322,32 @@ export function JobsListClient({
                           {departments.map(([id, name]) => (
                             <SelectItem key={id} value={id}>
                               {name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+
+                    {categories.length > 0 && (
+                      <Select
+                        onValueChange={(v) => {
+                          setCategory(v);
+                          updateUrl({ category: v });
+                        }}
+                        value={category}
+                      >
+                        <SelectTrigger className="h-9 w-48">
+                          <SelectValue placeholder={t("filters.all")} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">
+                            {t("filters.all")}
+                          </SelectItem>
+                          {categories.map((value) => (
+                            <SelectItem key={value} value={value}>
+                              {t(
+                                `filters.${UNIT_CATEGORY_MESSAGE_KEYS[value]}`
+                              )}
                             </SelectItem>
                           ))}
                         </SelectContent>

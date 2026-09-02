@@ -1,5 +1,6 @@
 import { PAGE_LOCALES } from "@repo/api/page-builder";
-import type { Pages } from "@repo/api/types/appwrite";
+import type { ContentTranslations, Pages } from "@repo/api/types/appwrite";
+import { parseUnitCategory } from "@repo/shared/utils/unit-categories";
 import { unitCanonicalPath } from "@repo/shared/utils/unit-urls";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
@@ -11,6 +12,10 @@ import {
   UnitPageCard,
   type UnitPageLocaleStatus,
 } from "./_components/unit-page-card";
+import {
+  UnitProfileCard,
+  type UnitProfileInitialValues,
+} from "./_components/unit-profile-card";
 
 const TRAILING_SLASH_RE = /\/$/;
 
@@ -43,6 +48,33 @@ function toLocaleStatuses(
   });
 }
 
+/**
+ * Seed the profile form from the unit's `content_translations` rows.
+ *
+ * No admin code has ever written a department translation, so in practice
+ * every unit starts with both locales blank — but a row can exist from a
+ * manual/legacy write, and it must not be silently overwritten by an empty
+ * form.
+ */
+function toProfileTranslations(
+  translations: ContentTranslations[]
+): UnitProfileInitialValues["translations"] {
+  // Keyed by plain string: `locale` is the generated `ContentTranslationsLocale`
+  // enum, which the "no" | "en" literals below do not widen to.
+  const byLocale = new Map<string, ContentTranslations>(
+    translations.map((row) => [row.locale, row])
+  );
+  const read = (locale: "en" | "no") => {
+    const row = byLocale.get(locale);
+    return {
+      description: row?.description ?? "",
+      short_description: row?.short_description ?? "",
+      title: row?.title ?? "",
+    };
+  };
+  return { en: read("en"), no: read("no") };
+}
+
 export default async function DepartmentDetailPage({
   params,
 }: {
@@ -64,7 +96,7 @@ export default async function DepartmentDetailPage({
     notFound();
   }
 
-  const { department, page, slugConflict } = result;
+  const { department, page, slugConflict, translations } = result;
   const campusName =
     campuses.find((c) => c.$id === department.campus_id)?.name ??
     department.campus_id;
@@ -99,10 +131,16 @@ export default async function DepartmentDetailPage({
       ? `${webBaseUrl}${canonicalPath}`
       : null;
 
+  // `departments.type` is free-text string(20), so normalise it through the
+  // shared parser rather than trusting whatever the row happens to hold.
+  const category = parseUnitCategory(department.type);
+
   return (
     <div className="pb-12">
       <PageHeader
-        description={[campusName, department.type].filter(Boolean).join(" · ")}
+        description={[campusName, category ? t(`categories.${category}`) : null]
+          .filter(Boolean)
+          .join(" · ")}
         title={department.Name}
       />
 
@@ -128,6 +166,16 @@ export default async function DepartmentDetailPage({
         localeStatuses={toLocaleStatuses(page, (key) => t(key))}
         pageId={page?.$id ?? null}
         slugConflict={slugConflict}
+      />
+
+      <UnitProfileCard
+        departmentId={department.$id}
+        initial={{
+          hero: department.hero,
+          logo: department.logo,
+          translations: toProfileTranslations(translations),
+          type: category,
+        }}
       />
     </div>
   );
