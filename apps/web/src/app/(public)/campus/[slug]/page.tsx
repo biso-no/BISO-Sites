@@ -8,7 +8,10 @@ import { listNews } from "@/app/actions/news";
 import { CampusLanding } from "@/components/campus/v2/campus-landing";
 import { CAMPUS_SLUGS, campusSlugToId } from "@/lib/campus-scope";
 import { campusUnits } from "@/lib/data/campus-landing";
-import { cachedShellCampuses } from "@/lib/data/public-content";
+import {
+  cachedHomeCounts,
+  cachedShellCampuses,
+} from "@/lib/data/public-content";
 
 /**
  * A campus as a place you can link to.
@@ -93,7 +96,10 @@ export default async function CampusPage({ params }: Params) {
 
   // Every feed that can be campus-scoped, scoped. `/projects` has no
   // `campus_id` to filter on, so it is not offered here.
-  const [events, news, jobs, units] = await Promise.all([
+  // `events` and `jobs` are capped for the preview blocks; the stat row needs
+  // campus-wide totals, so those are read separately rather than inferred from
+  // the preview lengths.
+  const [events, news, jobs, units, counts] = await Promise.all([
     listEvents({
       status: "published",
       limit: 4,
@@ -113,15 +119,18 @@ export default async function CampusPage({ params }: Params) {
       campus: campus.id,
     }),
     campusUnits(campus.id),
+    cachedHomeCounts(campus.id),
   ]);
 
   return (
     <CampusLanding
       description={campus.description}
       email={campus.email}
+      eventCount={counts.eventCount}
       events={events}
       focusAreas={campus.focusAreas}
       highlights={campus.highlights}
+      jobCount={counts.jobCount}
       jobs={jobs}
       locale={campus.locale}
       name={campus.name}

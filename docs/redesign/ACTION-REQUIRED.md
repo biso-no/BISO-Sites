@@ -11,7 +11,7 @@ you are not surprised by it later.
 | | Group | Items | Effort |
 |---|---|---|---|
 | §1 | Empty database tables — pages render, with nothing in them | 8 | Content work |
-| §2 | Schema columns that don't exist yet | 3 | Appwrite console + regenerate types |
+| §2 | Schema columns that don't exist yet | 4 | Appwrite console + regenerate types |
 | §3 | Content and assets BISO owns | 5 | Writing / brand |
 | §4 | Decisions | 5 | Judgement |
 | §5 | Known issues being carried deliberately | 3 | None — read only |
@@ -60,6 +60,7 @@ Until then the corresponding UI is deliberately absent, not broken.
 | **PLACEHOLDER-002** | `workload_pct: integer?` | `jobs` | The "20% / 15% / 10%" workload badge on job cards |
 | **PLACEHOLDER-003** | `category` enum | `news` | News category pills. Mirror the 8-value `EventsCategory` that already exists. Today `News` has only `metadata: string[]`, untyped and unvalidated |
 | **PLACEHOLDER-007** | `email` | `department_board` | The email icon on contact cards. `Campus.email` works as a fallback, or link to `/contact` instead |
+| — | `paid_at: datetime?` | `orders` | **A membership invoice booking into the wrong half-year.** The 24SO accrual period is derived from `orders.$createdAt`, but `createOrder` runs *before* the payment session, so that timestamp marks when checkout opened, not when it was paid. A session opened just before midnight on 30 June and paid just after books into the spring half. Once the column exists, write it in `applyOrderStatusTransition` on the PAID/AUTHORIZED transition and prefer it in `accrualDateFor` — the code already takes an optional timestamp for exactly this. Found in PR review; the window is minutes, twice a year |
 
 ---
 

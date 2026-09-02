@@ -13,7 +13,11 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Suspense } from "react";
 import { useCampus } from "@/components/context/campus";
-import { campusIdToSlug, campusSlugToId } from "@/lib/campus-scope";
+import {
+  campusIdToSlug,
+  campusSlugToId,
+  parseCampusParam,
+} from "@/lib/campus-scope";
 
 /**
  * Campus as a labelled place, not a filter buried in a row of icons.
@@ -67,8 +71,24 @@ function CampusPillWithUrlScope({ className }: { className?: string }) {
 
   const fromQuery = searchParams.get("campus");
   const fromPath = CAMPUS_PATH.exec(pathname)?.[1] ?? null;
-  const slug = fromQuery ?? fromPath;
-  const scoped = slug ? campusSlugToId(slug) : null;
+
+  // Resolve `?campus=` through the same parser the routes use, rather than
+  // `campusSlugToId` alone. It accepts three things this component previously
+  // did not preserve: `all`, which is an authoritative "no filter" and must not
+  // fall through to the cookie; a numeric campus id, which older links carry;
+  // and an unrecognised value, where the page 404s so the label is moot.
+  const parsed = parseCampusParam(fromQuery ?? undefined);
+  let scoped: string | null = null;
+  let queryIsAuthoritative = false;
+  if (parsed.kind === "campus") {
+    scoped = parsed.id;
+    queryIsAuthoritative = true;
+  } else if (parsed.kind === "all") {
+    queryIsAuthoritative = true;
+  } else if (fromPath) {
+    scoped = campusSlugToId(fromPath);
+    queryIsAuthoritative = scoped !== null;
+  }
 
   // `resolveRequestCampus` gives `?campus=` precedence over the cookie, so
   // clearing the cookie alone leaves the page exactly as it was — picking "All
@@ -84,7 +104,7 @@ function CampusPillWithUrlScope({ className }: { className?: string }) {
 
   return (
     <CampusPillView
-      campusId={scoped ?? activeCampusId}
+      campusId={queryIsAuthoritative ? scoped : (scoped ?? activeCampusId)}
       className={className}
       clearHref={clearHref}
     />

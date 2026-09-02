@@ -100,6 +100,22 @@ export interface BuildMembershipInvoiceParams {
  * written since that change, and correct for every order written before it,
  * without having to guess which kind an order is.
  *
+ * **Known residual, and the one thing that would close it.** `createOrder` runs
+ * *before* the payment session in both provider branches, so `$createdAt` marks
+ * when checkout was opened, not when payment was authorized — as does the
+ * checkout snapshot, for the same reason. A session opened just before midnight
+ * on 30 June and paid just after therefore still books into the spring half.
+ * The window is the few minutes a payment session is in flight across exactly
+ * 1 January or 1 July, so it is far smaller than what it replaced (which was
+ * wrong by the whole fulfilment lag, or by years), but it is not nothing.
+ *
+ * Closing it needs an authorization timestamp persisted on the order at the
+ * PAID/AUTHORIZED transition in `applyOrderStatusTransition`, and preferred
+ * here ahead of `purchasedOn`. `orders` has no datetime column to hold one and
+ * its schema is managed in the Appwrite console, so that column is a deliberate
+ * prerequisite rather than an oversight — tracked in
+ * `docs/redesign/ACTION-REQUIRED.md` §2.
+ *
  * **Why not infer provenance from the snapshot's value.** An earlier version
  * accepted the snapshot when it was its own accrual start (`membershipAccrual-
  * Start` is idempotent) and otherwise fell back to the invoice date. Both

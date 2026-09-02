@@ -1,16 +1,17 @@
 import type { Events, News } from "@repo/api/types/appwrite";
 import Image from "next/image";
-import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import type { Partner } from "@/app/actions/about";
 import { CardGrid } from "@/components/ui/card-grid";
 import { ChevronFrame } from "@/components/ui/chevron-frame";
 import { DateBlock } from "@/components/ui/date-block";
+import { OptionalLink } from "@/components/ui/optional-link";
 import { Pill } from "@/components/ui/pill";
 import { Section } from "@/components/ui/section";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { getPrimaryTranslation } from "@/lib/content-translation";
 import { HeroChevron } from "./hero-chevron";
+import { PartnerLink } from "./partner-link";
 
 /**
  * The redesigned home page.
@@ -71,9 +72,9 @@ export async function HomeV2({
                   const translation = getPrimaryTranslation(event, locale);
                   return (
                     <li key={event.$id}>
-                      <Link
+                      <OptionalLink
                         className="flex items-start gap-4 rounded-biso-md border border-edge p-4 transition-colors hover:border-ink-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2"
-                        href={`/events/${event.slug}`}
+                        href={event.slug ? `/events/${event.slug}` : null}
                       >
                         {event.start_date ? (
                           <DateBlock date={event.start_date} locale={locale} />
@@ -98,7 +99,7 @@ export async function HomeV2({
                             </Pill>
                           </span>
                         </span>
-                      </Link>
+                      </OptionalLink>
                     </li>
                   );
                 })}
@@ -122,9 +123,9 @@ export async function HomeV2({
                   const translation = getPrimaryTranslation(article, locale);
                   return (
                     <li key={article.$id}>
-                      <Link
+                      <OptionalLink
                         className="flex items-start gap-4 rounded-biso-md border border-edge p-4 transition-colors hover:border-ink-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2"
-                        href={`/news/${article.slug}`}
+                        href={article.slug ? `/news/${article.slug}` : null}
                       >
                         <span className="min-w-0">
                           <span className="type-heading-card block text-ink">
@@ -136,7 +137,7 @@ export async function HomeV2({
                             </span>
                           ) : null}
                         </span>
-                      </Link>
+                      </OptionalLink>
                     </li>
                   );
                 })}
@@ -152,8 +153,8 @@ export async function HomeV2({
         <Section tone="paper">
           <SectionHeading>{t("partners.title")}</SectionHeading>
           <CardGrid columns={4}>
-            {partners.slice(0, 8).map((partner) => (
-              <li key={partner.$id}>
+            {partners.slice(0, 8).map((partner) => {
+              const logo = (
                 <ChevronFrame
                   className="border border-edge bg-surface-raised"
                   ratio="16/9"
@@ -167,8 +168,19 @@ export async function HomeV2({
                     width={220}
                   />
                 </ChevronFrame>
-              </li>
-            ))}
+              );
+              return (
+                <li key={partner.$id}>
+                  {partner.url ? (
+                    <PartnerLink name={partner.name} url={partner.url}>
+                      {logo}
+                    </PartnerLink>
+                  ) : (
+                    logo
+                  )}
+                </li>
+              );
+            })}
           </CardGrid>
         </Section>
       )}

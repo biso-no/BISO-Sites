@@ -7,6 +7,7 @@ import { getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
 import { CardGrid } from "@/components/ui/card-grid";
 import { DateBlock } from "@/components/ui/date-block";
+import { OptionalLink } from "@/components/ui/optional-link";
 import { PageHeader } from "@/components/ui/page-header";
 import { Pill } from "@/components/ui/pill";
 import { Section } from "@/components/ui/section";
@@ -37,9 +38,13 @@ import { formatArticleDate } from "@/lib/news-article";
 export interface CampusLandingProps {
   description: string | null;
   email: string | null;
+  /** Campus-wide published total, not `events.length` — see `stats` below. */
+  eventCount: number;
   events: Events[];
   focusAreas: string[];
   highlights: string[];
+  /** Campus-wide open total, not `jobs.length` — see `stats` below. */
+  jobCount: number;
   jobs: RecruitmentVacancy[];
   locale: "en" | "no";
   name: string;
@@ -76,9 +81,11 @@ function rowClass(): string {
 export async function CampusLanding({
   description,
   email,
+  eventCount,
   events,
   focusAreas,
   highlights,
+  jobCount,
   jobs,
   locale,
   name,
@@ -94,12 +101,16 @@ export async function CampusLanding({
 
   const intlLocale = locale === "no" ? "nb-NO" : "en-GB";
 
-  // Only counts with a source behind them. `units` is this campus's active
-  // departments, `events` and `jobs` are what is published and open here.
+  // Only counts with a source behind them, and only *totals* — `events` and
+  // `jobs` arrive capped at 4 and 3 for the preview blocks below, so their
+  // lengths were reporting "4 events" for a campus with forty. The totals come
+  // from `cachedHomeCounts`, which reads the query `total` for events and
+  // applies the open-deadline rule for jobs. `units` is unlimited (500 cap) and
+  // is its own total.
   const stats = [
     { label: t("stats.units"), count: units.length },
-    { label: t("stats.events"), count: events.length },
-    { label: t("stats.jobs"), count: jobs.length },
+    { label: t("stats.events"), count: eventCount },
+    { label: t("stats.jobs"), count: jobCount },
   ]
     .filter((stat) => stat.count > 0)
     .map((stat) => ({ label: stat.label, value: String(stat.count) }));
@@ -159,7 +170,10 @@ export async function CampusLanding({
               <ul className="space-y-3">
                 {events.map((event) => (
                   <li key={event.$id}>
-                    <Link className={rowClass()} href={`/events/${event.slug}`}>
+                    <OptionalLink
+                      className={rowClass()}
+                      href={event.slug ? `/events/${event.slug}` : null}
+                    >
                       {event.start_date ? (
                         <DateBlock
                           date={event.start_date}
@@ -176,7 +190,7 @@ export async function CampusLanding({
                           </span>
                         ) : null}
                       </span>
-                    </Link>
+                    </OptionalLink>
                   </li>
                 ))}
               </ul>
@@ -194,7 +208,10 @@ export async function CampusLanding({
               <ul className="space-y-3">
                 {news.map((article) => (
                   <li key={article.$id}>
-                    <Link className={rowClass()} href={`/news/${article.slug}`}>
+                    <OptionalLink
+                      className={rowClass()}
+                      href={article.slug ? `/news/${article.slug}` : null}
+                    >
                       <span className="min-w-0">
                         <span className="type-data block text-ink-muted">
                           {formatArticleDate(
@@ -207,7 +224,7 @@ export async function CampusLanding({
                           {getPrimaryTranslation(article, locale)?.title}
                         </span>
                       </span>
-                    </Link>
+                    </OptionalLink>
                   </li>
                 ))}
               </ul>
