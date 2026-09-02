@@ -153,7 +153,9 @@ function HeroCarouselSlide({ index, item, t }: HeroCarouselSlideProps) {
           </div>
 
           <div className="cursor-text select-text" data-carousel-no-drag>
-            <h1 className="mx-auto mb-6 max-w-4xl text-white">{title}</h1>
+            <h1 className="mx-auto mb-6 max-w-4xl font-bold text-4xl text-white md:text-5xl lg:text-6xl">
+              {title}
+            </h1>
 
             {teaser && (
               <p className="mx-auto mb-10 max-w-2xl text-lg text-white/80">
@@ -246,7 +248,7 @@ export function HeroCarousel({ featuredContent }: HeroCarouselProps) {
 
             <motion.h1
               animate={{ opacity: 1, y: 0 }}
-              className="mb-6 text-white"
+              className="mb-6 font-bold text-4xl text-white md:text-5xl lg:text-6xl"
               initial={{ opacity: 0, y: 20 }}
               transition={{ delay: 0.3, duration: 0.8 }}
             >

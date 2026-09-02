@@ -125,3 +125,18 @@
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
 }
+
+/*
+ * Headings carry the BISO display face (Museo Sans). Without this rule the
+ * `--font-display` token is defined but never applied, so every heading falls
+ * back to Inter and the public site reads as an off-the-shelf template.
+ *
+ * Scoped to the brand surface so the admin chrome keeps its own type, while the
+ * page-editor canvas — which also mounts `.biso-surface` — previews the real thing.
+ *
+ * `:where()` keeps specificity at zero: any `font-*` utility on the element still wins.
+ */
+:where(.biso-surface) :where(h1, h2, h3, .font-display) {
+  font-family: var(--font-display);
+  letter-spacing: -0.015em;
+}

@@ -140,31 +140,46 @@
 
 /* Base typography - shared across apps */
 @layer base {
+  /*
+   * Tailwind Preflight resets h1-h6 to `font-size: inherit; font-weight: inherit`,
+   * so a heading carrying no `text-<size>` utility renders at body size. These
+   * rules restore the default hierarchy.
+   *
+   * No `:not()` guard is needed: Tailwind emits its utilities into the later
+   * `utilities` layer, which outranks `base` regardless of specificity, so
+   * `text-4xl` (and responsive variants like `md:text-5xl`) still win here.
+   *
+   * The previous guard — `:where(:not(:has([class*=" text-"]), :not(:has([class^="text-"]))))`
+   * — never matched: `:not(A, B)` requires both to fail, and any ancestor
+   * containing a `text-*` element fails the first clause. These defaults were
+   * therefore dead, and every unsized heading (the public hero `<h1>` included)
+   * collapsed to 16px.
+   */
+  h1 {
+    font-size: var(--text-2xl);
+    font-weight: var(--font-weight-medium);
+    line-height: 1.3;
+  }
+
+  h2 {
+    font-size: var(--text-xl);
+    font-weight: var(--font-weight-medium);
+    line-height: 1.3;
+  }
+
+  h3 {
+    font-size: var(--text-lg);
+    font-weight: var(--font-weight-medium);
+    line-height: 1.4;
+  }
+
+  h4 {
+    font-size: var(--text-base);
+    font-weight: var(--font-weight-medium);
+    line-height: 1.4;
+  }
+
   :where(:not(:has([class*=" text-"]), :not(:has([class^="text-"])))) {
-    h1 {
-      font-size: var(--text-2xl);
-      font-weight: var(--font-weight-medium);
-      line-height: 1.5;
-    }
-
-    h2 {
-      font-size: var(--text-xl);
-      font-weight: var(--font-weight-medium);
-      line-height: 1.5;
-    }
-
-    h3 {
-      font-size: var(--text-lg);
-      font-weight: var(--font-weight-medium);
-      line-height: 1.5;
-    }
-
-    h4 {
-      font-size: var(--text-base);
-      font-weight: var(--font-weight-medium);
-      line-height: 1.5;
-    }
-
     p {
       font-size: var(--text-base);
       font-weight: var(--font-weight-normal);
