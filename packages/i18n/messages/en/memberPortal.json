@@ -78,7 +78,9 @@
       "daysUntilRenewal": "Until Renewal",
       "estimatedSavings": "Estimated Savings",
       "potential": "Save more by using benefits"
-    }
+    },
+    "discoverEyebrow": "Discover BISO Benefits",
+    "discoverTitle": "See What You're Missing"
   },
   "profile": {
     "title": "Personal Information",

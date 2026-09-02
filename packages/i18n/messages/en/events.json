@@ -8,7 +8,9 @@
     "Sports": "Sports",
     "Culture": "Culture",
     "clearFilters": "Clear Filters",
-    "showingResults": "Showing {count} {count, plural, one {event} other {events}}"
+    "showingResults": "Showing {count} {count, plural, one {event} other {events}}",
+    "categoryLabel": "Filter events by category",
+    "campusLabel": "Filter events by campus"
   },
   "emptyState": {
     "title": "No events found",
@@ -28,7 +30,12 @@
     "individualPricing": "Individual pricing: Register for each event separately",
     "viewCollection": "View Collection",
     "viewDetails": "View Details",
-    "locationTba": "Location TBA"
+    "locationTba": "Location TBA",
+    "free": "Free",
+    "priceTba": "Price TBA",
+    "past": "Past",
+    "registerNow": "Register",
+    "infoOnly": "Info only"
   },
   "modal": {
     "memberPrice": "Member Price",
@@ -88,5 +95,29 @@
     "refunds": "Refunds available up to 48 hours before the event",
     "questions": "Questions?",
     "contactTeam": "Contact our events team at"
+  },
+  "category": {
+    "social": "Social",
+    "career": "Career",
+    "workshop": "Workshop",
+    "talk": "Talk",
+    "party": "Party",
+    "sport": "Sport",
+    "academic": "Academic",
+    "trip": "Trip"
+  },
+  "detail": {
+    "share": "Share",
+    "copied": "Link copied",
+    "getTickets": "Get tickets",
+    "noRegistration": "No online registration for this event — get in touch with the organiser if you have questions.",
+    "organiser": "Organiser",
+    "capacity": "Capacity",
+    "capacityValue": "{count} places",
+    "registrationDeadline": "Registration deadline",
+    "onlineLink": "Online",
+    "joinOnline": "Join online",
+    "tags": "Topics",
+    "translationFallback": "This description is only available in English."
   }
 }

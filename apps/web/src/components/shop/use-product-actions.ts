@@ -2,6 +2,7 @@ import type {
   ContentTranslations,
   WebshopProducts,
 } from "@repo/api/types/appwrite";
+import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -40,11 +41,27 @@ function buildNamedOptions(
   return namedOptions;
 }
 
-function getStockErrorMessage(currentStock: number | null): string {
+/**
+ * RD-032: the five toasts here were the last hardcoded English strings in the
+ * shop. They are built from `shop.toast.*` now, so the message has to be
+ * resolved by the caller — a hook cannot reach `getTranslations`.
+ */
+interface ToastCopy {
+  addedToCart: string;
+  limitExceeded: string;
+  outOfStock: string;
+  reserveFailed: string;
+  stockAvailable: (count: number) => string;
+}
+
+function getStockErrorMessage(
+  currentStock: number | null,
+  copy: ToastCopy
+): string {
   if (currentStock === 0) {
-    return "This item is out of stock";
+    return copy.outOfStock;
   }
-  return `Only ${currentStock} available (others reserved in carts)`;
+  return copy.stockAvailable(currentStock ?? 0);
 }
 
 async function checkStockAvailability(
@@ -140,6 +157,14 @@ export function useProductActions(
   product: WebshopProducts,
   userId: string | null
 ) {
+  const t = useTranslations("shop.toast");
+  const copy: ToastCopy = {
+    addedToCart: t("addedToCart"),
+    limitExceeded: t("limitExceeded"),
+    outOfStock: t("outOfStock"),
+    reserveFailed: t("reserveFailed"),
+    stockAvailable: (count: number) => t("onlyAvailable", { count }),
+  };
   const { addItem } = useCart();
   const [addedToCart, setAddedToCart] = useState(false);
   const [errors, setErrors] = useState<Record<string, boolean>>({});
@@ -184,7 +209,7 @@ export function useProductActions(
       hasStock
     );
     if (!stockCheck.available) {
-      toast.error(getStockErrorMessage(stockCheck.currentStock));
+      toast.error(getStockErrorMessage(stockCheck.currentStock, copy));
       setAvailableStock(stockCheck.currentStock);
       return;
     }
@@ -196,13 +221,13 @@ export function useProductActions(
       metadata
     );
     if (!limitCheck.allowed) {
-      toast.error(limitCheck.reason || "Purchase limit exceeded");
+      toast.error(limitCheck.reason || copy.limitExceeded);
       return;
     }
 
     const reservation = await reserveStock(productId, quantity, hasStock);
     if (!reservation.success) {
-      toast.error("Failed to reserve stock. Please try again.");
+      toast.error(copy.reserveFailed);
       return;
     }
     if (reservation.newAvailable !== null) {
@@ -219,7 +244,7 @@ export function useProductActions(
     addItem(cartItem);
 
     setAddedToCart(true);
-    toast.success("Added to cart");
+    toast.success(copy.addedToCart);
     setTimeout(() => setAddedToCart(false), 3000);
   };
 

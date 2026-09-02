@@ -26,6 +26,13 @@ type PurchasedPlanSnapshot = Pick<
   | "productId"
   | "startDate"
 >;
+// Note on `startDate`: on a `MembershipPlan` it is the catalogue row's own
+// start, but what checkout snapshots onto the order item — and therefore what
+// arrives here — is the **accrual start for that purchase** (1 January or
+// 1 July, whichever half-year the purchase fell into). Orders placed before
+// that change carry the catalogue date instead, which
+// `buildMembershipInvoiceOrder` detects and replaces with one derived from the
+// invoice date.
 
 // Pending an `appwrite push tables`; extend locally until the generated types
 // are regenerated.

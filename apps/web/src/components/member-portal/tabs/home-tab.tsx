@@ -317,6 +317,7 @@ function MemberOverview({
 }
 
 function NonMemberOverview({ benefits }: { benefits: CampusBenefits[] }) {
+  const t = useTranslations("memberPortal.overview");
   return (
     <>
       {/* Welcome section for non-members */}
@@ -328,11 +329,11 @@ function NonMemberOverview({ benefits }: { benefits: CampusBenefits[] }) {
         <div className="mb-6 inline-flex items-center gap-2 rounded-full bg-brand-muted px-4 py-2">
           <Sparkles className="h-4 w-4 text-brand" />
           <span className="text-brand-dark dark:text-brand">
-            Discover BISO Benefits
+            {t("discoverEyebrow")}
           </span>
         </div>
         <h2 className="mb-4 font-bold text-3xl text-foreground dark:text-foreground">
-          See What You&apos;re Missing
+          {t("discoverTitle")}
         </h2>
         <p className="mx-auto max-w-2xl text-muted-foreground dark:text-muted-foreground">
           As a BISO member, you unlock exclusive discounts and benefits from our

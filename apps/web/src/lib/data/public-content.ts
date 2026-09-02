@@ -155,6 +155,33 @@ export async function cachedCampuses(
   return campuses.rows;
 }
 
+/**
+ * Campus list for the site chrome. Never throws.
+ *
+ * `SiteShell` renders on every page, so this must degrade to an empty switcher
+ * rather than take the page down. The catch has to live **inside** the
+ * `"use cache"` scope: during static export a rejection thrown out of a cached
+ * function aborts the page render before any caller's `.catch()` or
+ * `try/catch` runs. `cachedNavFeatured` avoids the same trap the same way — its
+ * `buildNavFeatured` catches per slice.
+ *
+ * Includes National, matching what `getCampuses()` returned by default to the
+ * client-side provider this replaced.
+ */
+export async function cachedShellCampuses(): Promise<Campus[]> {
+  "use cache";
+  cacheLife("hours");
+  try {
+    const { db } = await createPublicClient();
+    const campuses = await db.listRows<Campus>("app", "campus", [
+      Query.limit(500),
+    ]);
+    return campuses.rows;
+  } catch {
+    return [];
+  }
+}
+
 export async function cachedPartners(): Promise<Partner[]> {
   "use cache";
   cacheLife("hours");
@@ -185,12 +212,29 @@ export async function cachedNavFeatured(
  * Published block-editor page for the public catch-all route. Guest
  * permissions only — members-only pages come back null here and the route
  * falls back to a session-scoped lookup.
+ *
+ * **The page row's own status is checked here, not only the translation's.**
+ * `getPage` returns whatever row matches the slug; the routes then tested
+ * `translation.is_published` alone. Publishing a translation and later
+ * archiving the page leaves that flag set, so `/uten-navn-2` — an archived
+ * page carrying an editor demo headline — was serving 200 to the public. This
+ * function is the one that promises "published", so it enforces it.
  */
 export async function cachedPublishedPage(slug: string, locale: PublicLocale) {
   "use cache";
   cacheLife("minutes");
   const { db } = await createPublicClient();
-  return await getPage(slug, locale, db);
+  const result = await getPage(slug, locale, db);
+  return isPublishedPage(result) ? result : null;
+}
+
+/** A page is public only when the row and the translation both say so. */
+export function isPublishedPage(
+  result: Awaited<ReturnType<typeof getPage>>
+): boolean {
+  return Boolean(
+    result?.row?.status === "published" && result.translation?.is_published
+  );
 }
 
 const DEPARTMENT_SELECT = [

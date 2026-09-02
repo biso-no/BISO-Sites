@@ -1,118 +1,96 @@
 import { isFeatureEnabled } from "@repo/shared/utils/feature-flags-server";
-import { ImageWithFallback } from "@repo/ui/components/image";
-import { Button } from "@repo/ui/components/ui/button";
-import { Card } from "@repo/ui/components/ui/card";
-import { PLACEHOLDER_IMAGE } from "@repo/ui/lib/placeholder-images";
-import { FileText, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
+import type { Metadata } from "next";
 import Link from "next/link";
 import { connection } from "next/server";
+import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
-import { ExpenseCard } from "@/components/expense/expense-card";
-import { ExpenseListSkeleton } from "@/components/expense/expense-skeleton";
-import { ExpensesUnavailable } from "@/components/expense/expenses-unavailable";
+import { getLocale } from "@/app/actions/locale";
+import { ExpenseCard } from "@/components/expense/v2/expense-card";
+import { ExpensesUnavailable } from "@/components/expense/v2/expenses-unavailable";
+import { ListSkeleton } from "@/components/ui/loading-shell";
+import { PageHeader } from "@/components/ui/page-header";
+import { Section } from "@/components/ui/section";
 import { getExpenses } from "@/lib/actions/expense";
 
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("expenses");
+  return { title: `${t("title")} | BISO`, description: t("lede") };
+}
+
+const primaryAction =
+  "type-label inline-flex items-center gap-2 rounded-biso-pill bg-action px-5 py-3 text-action-ink transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface";
+
 async function ExpenseList() {
-  const result = await getExpenses();
+  const [result, locale, t] = await Promise.all([
+    getExpenses(),
+    getLocale(),
+    getTranslations("expenses"),
+  ]);
 
   if (!result.success) {
     return (
-      <Card className="border-0 p-12 text-center shadow-lg">
-        <p className="mb-4 text-red-600">Failed to load expenses</p>
-        <p className="text-muted-foreground">{result.error}</p>
-      </Card>
+      <div className="rounded-biso-md border border-danger/40 bg-danger/5 p-6">
+        <h2 className="type-heading-card text-danger">
+          {t("loadFailedTitle")}
+        </h2>
+        <p className="type-body mt-2 text-ink-muted">{result.error}</p>
+      </div>
     );
   }
 
   if (result.expenses.length === 0) {
     return (
-      <Card className="border-0 p-12 text-center shadow-lg">
-        <FileText className="mx-auto mb-4 h-16 w-16 text-muted-foreground" />
-        <h3 className="mb-2 font-semibold text-foreground text-xl">
-          No reimbursements yet
-        </h3>
-        <p className="mb-6 text-muted-foreground">
-          Submit your first reimbursement to get started
+      <div className="flex flex-col items-start gap-4 rounded-biso-md border border-edge p-10">
+        <h2 className="type-heading-card text-ink">{t("emptyTitle")}</h2>
+        <p className="type-body max-w-(--measure) text-ink-muted">
+          {t("emptyBody")}
         </p>
-        <Link href="/fs/new">
-          <Button className="bg-linear-to-r from-brand-gradient-from to-brand-gradient-to text-white hover:from-brand-gradient-from/90 hover:to-brand-gradient-to/90">
-            <Plus className="mr-2 h-5 w-5" />
-            Submit New Reimbursement
-          </Button>
+        <Link className={`mt-2 ${primaryAction}`} href="/fs/new">
+          <Plus aria-hidden="true" className="size-4 shrink-0" />
+          {t("submitNew")}
         </Link>
-      </Card>
+      </div>
     );
   }
 
   return (
-    <div className="grid gap-6">
-      {result.expenses.map((expense, index) => (
-        <ExpenseCard expense={expense} index={index} key={expense.$id} />
+    <ul className="flex flex-col gap-5">
+      {result.expenses.map((expense) => (
+        <ExpenseCard expense={expense} key={expense.$id} locale={locale} />
       ))}
-    </div>
+    </ul>
   );
 }
 
 export default async function ExpensesPage() {
   await connection();
 
+  const t = await getTranslations("expenses");
+
   if (!(await isFeatureEnabled("expenses_module"))) {
-    return (
-      <div className="min-h-screen bg-linear-to-b from-section to-background">
-        <ExpensesUnavailable />
-      </div>
-    );
+    return <ExpensesUnavailable />;
   }
 
   return (
-    <div className="min-h-screen bg-linear-to-b from-section to-background">
-      {/* Hero Section */}
-      <div className="relative h-[50vh] overflow-hidden">
-        <ImageWithFallback
-          alt="Reimbursements"
-          className="object-cover"
-          fill
-          src={PLACEHOLDER_IMAGE}
-        />
-        <div className="absolute inset-0 bg-linear-to-br from-brand-overlay-from via-brand-overlay-via to-brand-overlay-to" />
+    <>
+      <PageHeader
+        actions={
+          <Link className={primaryAction} href="/fs/new">
+            <Plus aria-hidden="true" className="size-4 shrink-0" />
+            {t("submitNew")}
+          </Link>
+        }
+        breadcrumbs={[{ label: t("title") }]}
+        lede={t("lede")}
+        title={t("title")}
+      />
 
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="mx-auto max-w-4xl px-4 text-center">
-            <h1 className="mb-6 font-bold text-5xl text-white">
-              Reimbursements
-            </h1>
-            <p className="mx-auto mb-8 max-w-2xl text-lg text-white/90">
-              Submit and track your expense reimbursements. Get reimbursed for
-              approved expenses quickly and easily.
-            </p>
-            <Link href="/fs/new">
-              <Button
-                className="bg-background text-brand-dark hover:bg-background/90"
-                size="lg"
-              >
-                <Plus className="mr-2 h-5 w-5" />
-                Submit New Reimbursement
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </div>
-
-      {/* Reimbursements List */}
-      <div className="mx-auto max-w-6xl px-4 py-12">
-        <div className="mb-8">
-          <h2 className="mb-2 font-bold text-3xl text-foreground">
-            Your Reimbursements
-          </h2>
-          <p className="text-muted-foreground">
-            Track the status of your submitted reimbursements
-          </p>
-        </div>
-
-        <Suspense fallback={<ExpenseListSkeleton />}>
+      <Section tone="paper">
+        <Suspense fallback={<ListSkeleton />}>
           <ExpenseList />
         </Suspense>
-      </div>
-    </div>
+      </Section>
+    </>
   );
 }

@@ -8,7 +8,10 @@ import { cache } from "react";
 import { getLocale } from "@/app/actions/locale";
 import { SESSION_COOKIE } from "@/lib/cookie-prefs";
 import { resolvePageFeeds } from "@/lib/data/page-feeds";
-import { cachedPublishedPage } from "@/lib/data/public-content";
+import {
+  cachedPublishedPage,
+  isPublishedPage,
+} from "@/lib/data/public-content";
 import { RenderedPage } from "./_components/rendered-page";
 
 interface Props {
@@ -42,7 +45,10 @@ const resolvePage = cache(async (slug: string, locale: Locale) => {
     return null;
   }
   try {
-    return await getPage(slug, locale);
+    // Same gate the cached lookup applies: an archived page whose translation
+    // still carries `is_published` is not public.
+    const result = await getPage(slug, locale);
+    return isPublishedPage(result) ? result : null;
   } catch {
     return null;
   }

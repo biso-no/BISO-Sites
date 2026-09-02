@@ -1,0 +1,28 @@
+{
+  "title": "Documents",
+  "intro": "Official documents, bylaws, and guidelines that govern the BI Student Organisation.",
+  "search": {
+    "label": "Search documents",
+    "submit": "Search"
+  },
+  "filter": {
+    "label": "Filter documents by category",
+    "all": "All"
+  },
+  "empty": "No documents have been published yet.",
+  "emptyFiltered": "No documents match your search.",
+  "clearFilters": "Clear",
+  "row": {
+    "view": "Open",
+    "download": "Download",
+    "updated": "Updated",
+    "campus": "Campus"
+  },
+  "categories": {
+    "national-statutes": "National Statutes",
+    "campus-bylaws": "Campus Bylaws",
+    "code-of-conduct": "Code of Conduct",
+    "business-regulations": "Business Regulations",
+    "communication-guidelines": "Communication Guidelines"
+  }
+}

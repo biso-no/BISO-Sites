@@ -1,96 +1,57 @@
-"use client";
-
-import { Button } from "@repo/ui/components/ui/button";
-import { Card } from "@repo/ui/components/ui/card";
-import { ArrowRight, Users } from "lucide-react";
-import { motion } from "motion/react";
+import { ArrowLeft } from "lucide-react";
+import type { Metadata } from "next";
 import Link from "next/link";
-import { useTranslations } from "next-intl";
-import { AboutHero } from "@/components/about/about-hero";
+import { getTranslations } from "next-intl/server";
+import { PageHeader } from "@/components/ui/page-header";
+import { Prose } from "@/components/ui/prose";
+import { Section } from "@/components/ui/section";
 
-export default function AboutAlumniPage() {
-  const t = useTranslations("about.pages.alumni");
-  const tAbout = useTranslations("about");
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("about.pages.alumni");
+  return { title: `${t("title")} | BISO`, description: t("intro") };
+}
+
+export default async function AboutAlumniPage() {
+  const [t, tCommon, tAbout] = await Promise.all([
+    getTranslations("about.pages.alumni"),
+    getTranslations("common"),
+    getTranslations("about"),
+  ]);
 
   return (
-    <div className="min-h-screen bg-linear-to-b from-section to-background">
-      <AboutHero
+    <>
+      <PageHeader
         breadcrumbs={[
-          { label: "Home", href: "/" },
+          { label: tCommon("breadcrumbs.home"), href: "/" },
           { label: tAbout("hub.title"), href: "/about" },
           { label: t("title") },
         ]}
-        compact
-        icon={<Users className="h-8 w-8 text-white" />}
-        subtitle={t("intro")}
+        lede={t("intro")}
         title={t("title")}
       />
 
-      {/* Main content */}
-      <section className="py-16" id="about-content">
-        <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
-          <motion.div
-            className="prose prose-lg max-w-none"
-            initial={{ opacity: 0, y: 20 }}
-            transition={{ duration: 0.6 }}
-            viewport={{ once: true }}
-            whileInView={{ opacity: 1, y: 0 }}
-          >
-            <p className="text-lg text-muted-foreground leading-relaxed">
-              {t("content")}
-            </p>
-          </motion.div>
-        </div>
-      </section>
+      <Section id="about-content" tone="paper" width="prose">
+        <Prose>
+          <p>{t("content")}</p>
+        </Prose>
 
-      {/* CTA Card */}
-      <section className="py-8">
-        <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            transition={{ duration: 0.5 }}
-            viewport={{ once: true }}
-            whileInView={{ opacity: 1, y: 0 }}
-          >
-            <Card className="overflow-hidden">
-              <div className="flex flex-col items-center justify-between gap-6 bg-linear-to-r from-brand-gradient-from/10 to-brand-gradient-to/10 p-8 md:flex-row">
-                <div>
-                  <h3 className="mb-2 font-semibold text-foreground text-xl">
-                    {t("title")}
-                  </h3>
-                  <p className="text-muted-foreground">{t("intro")}</p>
-                </div>
-                <Button
-                  asChild
-                  className="bg-linear-to-r from-brand-gradient-from to-brand-gradient-to text-white shadow-lg hover:opacity-90"
-                  size="lg"
-                >
-                  <Link href="/alumni">
-                    {t("cta")}
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                  </Link>
-                </Button>
-              </div>
-            </Card>
-          </motion.div>
-        </div>
-      </section>
+        {/* PLACEHOLDER-008: the `cta` copy reads "Go to Alumni site", so this
+            was always meant to link to an external alumni site. It pointed at
+            `/alumni`, which is not a route in this app and returned 404. No
+            alumni URL exists anywhere in the repo, so no button is rendered
+            rather than one pointing somewhere invented. The v1 page also
+            repeated the title and intro in a card below the same intro; that
+            duplication goes with it. Restore a real link here once the URL is
+            known. */}
 
-      {/* Back to about */}
-      <section className="py-16">
-        <div className="mx-auto max-w-4xl px-4 text-center sm:px-6 lg:px-8">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            transition={{ duration: 0.5 }}
-            viewport={{ once: true }}
-            whileInView={{ opacity: 1, y: 0 }}
-          >
-            <Button asChild size="lg" variant="outline">
-              <Link href="/about">← {tAbout("hub.title")}</Link>
-            </Button>
-          </motion.div>
-        </div>
-      </section>
-    </div>
+        <Link
+          className="mt-12 inline-flex items-center gap-2 text-ink-accent underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+          href="/about"
+        >
+          <ArrowLeft aria-hidden="true" className="h-4 w-4" />
+          <span className="type-label">{tAbout("hub.title")}</span>
+        </Link>
+      </Section>
+    </>
   );
 }

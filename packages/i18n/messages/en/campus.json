@@ -1,0 +1,26 @@
+{
+  "stats": {
+    "units": "Units here",
+    "events": "Published events",
+    "jobs": "Open positions"
+  },
+  "seeAll": {
+    "events": "All events here",
+    "news": "All news here",
+    "jobs": "All positions here"
+  },
+  "empty": {
+    "events": "Nothing on the calendar here right now.",
+    "news": "No news from this campus yet."
+  },
+  "units": {
+    "title": "Units on this campus",
+    "lede": "{count, plural, one {# active student unit} other {# active student units}} — societies, committees and academic associations."
+  },
+  "focusAreas": "Focus areas",
+  "index": {
+    "title": "Campuses",
+    "lede": "BISO is on every BI campus. Pick yours to see what is on, who runs it and how to reach them.",
+    "units": "{count, plural, one {# unit} other {# units}}"
+  }
+}

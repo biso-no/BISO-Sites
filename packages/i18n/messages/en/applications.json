@@ -1,0 +1,23 @@
+{
+  "title": "My applications",
+  "lede": "See the status of every BISO position you've applied for, plus any upcoming interview details.",
+  "emptyTitle": "No applications yet",
+  "emptyBody": "When you apply for a BISO vacancy, it'll show up here so you can track its progress and interview times.",
+  "browse": "Browse open positions",
+  "vacancy": "Vacancy",
+  "viewVacancy": "View vacancy",
+  "applied": "Applied {date}",
+  "reviewer": "Reviewer: {name}",
+  "interview": "Upcoming interview · {title}",
+  "joinMeeting": "Join meeting",
+  "answers": "Your answers ({count})",
+  "storedUntil": "Stored until {date}",
+  "tbd": "TBD",
+  "status": {
+    "submitted": "Submitted",
+    "reviewed": "Reviewed",
+    "interview": "Interview",
+    "accepted": "Accepted",
+    "rejected": "Not selected"
+  }
+}

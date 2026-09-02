@@ -11,6 +11,7 @@ import {
   CardTitle,
 } from "@repo/ui/components/ui/card";
 import { Link2, Trash2 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { ensureClientAppwriteSession } from "@/lib/account-link-client";
@@ -27,6 +28,7 @@ export function IdentityManagement({
 }: {
   initialIdentities: Identity[] | undefined;
 }) {
+  const t = useTranslations("common.profile");
   const [identities, setIdentities] = useState<Identity[] | undefined>(
     initialIdentities
   );
@@ -141,7 +143,7 @@ export function IdentityManagement({
     <div className="space-y-6">
       <Card className="border border-primary/10">
         <CardHeader>
-          <CardTitle>Linked Accounts</CardTitle>
+          <CardTitle>{t("identities.heading")}</CardTitle>
           <CardDescription>
             Link your BISO account and your BI Student account. Linking your BI
             Student account lets us verify your paid semester membership for
@@ -155,7 +157,8 @@ export function IdentityManagement({
               disabled={isLinking}
               onClick={() => linkProvider(OAuthProvider.Microsoft)}
             >
-              <Link2 className="mr-2 h-4 w-4" /> Link BISO
+              <Link2 className="mr-2 h-4 w-4" />
+              {t("identities.linkBiso")}
             </Button>
             <Button
               className="rounded-lg"
@@ -163,26 +166,23 @@ export function IdentityManagement({
               onClick={() => linkProvider(OAuthProvider.Oidc)}
               variant="outline"
             >
-              <Link2 className="mr-2 h-4 w-4" /> Link BI Student
+              <Link2 className="mr-2 h-4 w-4" />
+              {t("identities.linkBi")}
             </Button>
           </div>
-          <p className="text-primary-60 text-xs">
-            When linking, you will be redirected to complete the OAuth flow.
-          </p>
+          <p className="text-primary-60 text-xs">{t("identities.oauthNote")}</p>
         </CardContent>
       </Card>
 
       <Card className="border border-primary/10">
         <CardHeader>
-          <CardTitle>Connected Identities</CardTitle>
-          <CardDescription>
-            Accounts currently connected to your profile
-          </CardDescription>
+          <CardTitle>{t("identities.title")}</CardTitle>
+          <CardDescription>{t("identities.body")}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           {(identities?.length || 0) === 0 ? (
             <div className="text-primary-60 text-sm">
-              No identities linked yet.
+              {t("identities.empty")}
             </div>
           ) : (
             identities?.map((id) => (

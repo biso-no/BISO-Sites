@@ -1,130 +1,107 @@
 "use client";
+
 import type { Campus } from "@repo/api/types/appwrite";
 import { trackEvent } from "@repo/shared/utils/analytics";
-import { useHydration } from "@repo/ui/hooks/use-hydration";
 import { useRouter } from "next/navigation";
 import {
   createContext,
   useCallback,
   useContext,
-  useEffect,
   useMemo,
   useState,
 } from "react";
-import { getCampuses, setActiveCampus } from "@/app/actions/campus";
+import { setActiveCampus } from "@/app/actions/campus";
 
+/**
+ * Selected campus, with the server as the single source of truth.
+ *
+ * **What this replaces.** Campus previously lived in three places that
+ * disagreed (00-current-state.md §6.5): the `campusId` cookie (read by every
+ * server render), `localStorage["biso-active-campus"]` (read by this provider),
+ * and an authenticated user's `prefs.campusId`. On a first visit the provider
+ * defaulted to *the first campus in the list* while the server, seeing no
+ * cookie, filtered *nothing* — so the switcher could display "Oslo" above
+ * unfiltered national content.
+ *
+ * Now `SiteShell` resolves the campus server-side via `getActiveCampus()`
+ * (cookie → user prefs → null) and passes it in. The provider holds only the
+ * optimistic value between a click and the refresh that follows, so the label
+ * and the content it describes cannot disagree.
+ *
+ * `localStorage` is gone. A stale key from before this change is simply never
+ * read, so no migration is needed.
+ *
+ * The provider also no longer fetches on mount: `SiteShell` already has the
+ * campus list, which removes a hydrate-then-fetch waterfall before the switcher
+ * could render its own label.
+ */
 interface CampusContextValue {
   activeCampus?: Campus;
   activeCampusId: string | null;
   campuses: Campus[];
+  /**
+   * Retained for API compatibility with consumers that render a spinner. Always
+   * false now — the campus list arrives with the first paint.
+   */
   loading: boolean;
   selectCampus: (campusId: string | null) => void;
 }
 
 const CampusContext = createContext<CampusContextValue | undefined>(undefined);
 
-const STORAGE_KEY = "biso-active-campus";
-
-export const CampusProvider = ({ children }: { children: React.ReactNode }) => {
-  const [campuses, setCampuses] = useState<Campus[]>([]);
-  const [activeCampusId, setActiveCampusId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const isHydrated = useHydration();
+export const CampusProvider = ({
+  children,
+  campuses,
+  initialCampusId,
+}: {
+  children: React.ReactNode;
+  campuses: Campus[];
+  /** Resolved server-side. `null` means "all campuses". */
+  initialCampusId: string | null;
+}) => {
   const router = useRouter();
 
-  // Hydrate initial selection from localStorage so the choice persists between visits.
-  useEffect(() => {
-    if (!isHydrated) {
-      return;
-    }
-    const stored = window.localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      // Handle "all" selection
-      if (stored === "all") {
-        setActiveCampusId(null);
-      } else {
-        setActiveCampusId(stored);
-      }
-    }
-  }, [isHydrated]);
-
-  useEffect(() => {
-    let isMounted = true;
-    const loadCampuses = async () => {
-      setLoading(true);
-      try {
-        const response = (await getCampuses()) as Campus[];
-        if (!isMounted) {
-          return;
-        }
-        setCampuses(response);
-        setLoading(false);
-
-        if (response.length > 0) {
-          setActiveCampusId((current) => {
-            if (current && response.some((campus) => campus.$id === current)) {
-              return current;
-            }
-            return response[0]?.$id ?? null;
-          });
-        }
-      } catch (error) {
-        console.error("Failed to load campuses", error);
-        if (isMounted) {
-          setLoading(false);
-        }
-      }
-    };
-
-    loadCampuses();
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!isHydrated) {
-      return;
-    }
-    if (activeCampusId) {
-      window.localStorage.setItem(STORAGE_KEY, activeCampusId);
-    } else {
-      // When no campus is selected (all campuses), store "all"
-      window.localStorage.setItem(STORAGE_KEY, "all");
-    }
-  }, [activeCampusId, isHydrated]);
+  // Optimistic local value, reset whenever the server sends a new one. This is
+  // React's documented "adjust state when a prop changes" pattern: after
+  // `router.refresh()` the server re-renders with the new cookie, and the
+  // switcher must follow the server rather than hold its own stale answer.
+  const [selected, setSelected] = useState(initialCampusId);
+  const [lastFromServer, setLastFromServer] = useState(initialCampusId);
+  if (initialCampusId !== lastFromServer) {
+    setLastFromServer(initialCampusId);
+    setSelected(initialCampusId);
+  }
 
   const selectCampus = useCallback(
     async (campusId: string | null) => {
-      // Handle "all" selection by setting to null
-      const normalizedCampusId = campusId === "all" ? null : campusId;
-      trackEvent("campus_switch", { to: normalizedCampusId ?? "all" });
-      setActiveCampusId(normalizedCampusId);
+      const normalized = campusId === "all" ? null : campusId;
+      trackEvent("campus_switch", { to: normalized ?? "all" });
+      setSelected(normalized);
 
-      // Persist to server (user preferences) - fails silently if not logged in
       try {
-        await setActiveCampus(normalizedCampusId);
-        // Refresh server components to re-fetch data with new campus filter
+        await setActiveCampus(normalized);
+        // Re-render the server tree so every campus-scoped feed follows.
         router.refresh();
       } catch (error) {
-        console.error("Failed to persist campus selection to server:", error);
+        // Put the label back rather than leave it describing content that was
+        // never fetched.
+        setSelected(lastFromServer);
+        console.error("Failed to persist campus selection:", error);
       }
     },
-    [router]
+    [router, lastFromServer]
   );
 
-  const value = useMemo<CampusContextValue>(() => {
-    const activeCampus = campuses.find(
-      (campus) => campus.$id === activeCampusId
-    );
-    return {
+  const value = useMemo<CampusContextValue>(
+    () => ({
       campuses,
-      activeCampusId,
-      activeCampus,
-      loading,
+      activeCampusId: selected,
+      activeCampus: campuses.find((campus) => campus.$id === selected),
+      loading: false,
       selectCampus,
-    };
-  }, [campuses, activeCampusId, loading, selectCampus]);
+    }),
+    [campuses, selected, selectCampus]
+  );
 
   return (
     <CampusContext.Provider value={value}>{children}</CampusContext.Provider>

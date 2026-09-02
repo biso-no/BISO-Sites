@@ -92,7 +92,7 @@ export function CartSummary({ isMember, userId: _userId }: CartSummaryProps) {
           <Separator className="my-4" />
 
           {/* Total — the one bold, yellow-accented moment */}
-          <div className="mb-6 overflow-hidden rounded-2xl bg-brand-dark text-white">
+          <div className="mb-6 overflow-hidden rounded-2xl bg-deep text-white">
             <div className="h-1 w-full bg-brand-accent" />
             <div className="flex items-center justify-between p-4">
               <span className="font-medium">{t("cart.summary.total")}</span>

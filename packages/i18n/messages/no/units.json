@@ -1,0 +1,60 @@
+{
+  "hero": {
+    "title": "Enheter og foreninger",
+    "subtitle": "Alt fra festivaler og finans til politikk og velferd — drevet av studenter, på hver eneste BI-campus."
+  },
+  "list": {
+    "stats": {
+      "units": "Aktive enheter",
+      "campuses": "Campuser"
+    },
+    "searchLabel": "Søk i enheter",
+    "searchPlaceholder": "Søk i enheter…",
+    "searchSubmit": "Søk",
+    "campusLabel": "Filtrer enheter etter campus",
+    "results": "{count, plural, one {# enhet} other {# enheter}}",
+    "emptyTitle": "Ingen enheter passer med det.",
+    "clear": "Tøm filtre"
+  },
+  "detail": {
+    "tabs": {
+      "overview": "Oversikt",
+      "team": "Vårt team",
+      "news": "Nyheter",
+      "products": "Produkter og billetter"
+    },
+    "overview": {
+      "highlights": "Siste høydepunkter",
+      "stats": {
+        "team": "Teammedlemmer",
+        "events": "Arrangementer arrangert",
+        "students": "Studenter nådd"
+      }
+    },
+    "team": {
+      "title": "Møt teamet vårt",
+      "emptyTitle": "Ingen teammedlemmer ennå",
+      "emptyBody": "Informasjon om teamet kommer snart.",
+      "joinTitle": "Vil du bli med i teamet?",
+      "joinCta": "Se ledige verv"
+    },
+    "news": {
+      "title": "Nyheter og oppdateringer",
+      "subtitle": "Hold deg oppdatert på alt som skjer i denne enheten",
+      "emptyTitle": "Ingen nyheter ennå",
+      "emptyBody": "Kom tilbake snart for nyheter og oppdateringer.",
+      "readMore": "Les mer"
+    },
+    "products": {
+      "title": "Produkter og billetter",
+      "subtitle": "Kjøp billetter og effekter fra denne enheten",
+      "emptyTitle": "Ingen produkter tilgjengelig",
+      "emptyBody": "Kom tilbake snart for nye produkter og billetter.",
+      "membersOnly": "Kun for medlemmer",
+      "soldOut": "Utsolgt"
+    },
+    "follow": "Følg oss:",
+    "about": "Om {name}",
+    "back": "Tilbake"
+  }
+}

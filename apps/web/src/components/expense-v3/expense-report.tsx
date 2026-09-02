@@ -16,7 +16,6 @@ import { Switch } from "@repo/ui/components/ui/switch";
 import { Textarea } from "@repo/ui/components/ui/textarea";
 import { cn } from "@repo/ui/lib/utils";
 import { format } from "date-fns";
-import { motion } from "framer-motion";
 import {
   AlertTriangle,
   ArrowRight,
@@ -30,6 +29,7 @@ import {
   Upload,
   User,
 } from "lucide-react";
+import { motion } from "motion/react";
 import { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 

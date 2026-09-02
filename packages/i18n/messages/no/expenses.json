@@ -1,0 +1,46 @@
+{
+  "title": "Refusjoner",
+  "lede": "Send inn og følg utleggsrefusjonene dine.",
+  "submitNew": "Send inn ny refusjon",
+  "emptyTitle": "Ingen refusjoner ennå",
+  "emptyBody": "Send inn din første refusjon for å komme i gang.",
+  "loadFailedTitle": "Kunne ikke laste refusjonene",
+  "unavailableTitle": "Refusjoner er midlertidig utilgjengelig",
+  "unavailableBody": "Funksjonen er satt på pause av en administrator. Prøv igjen senere.",
+  "errorTitle": "Noe gikk galt",
+  "errorBody": "Vi klarte ikke å laste refusjonene dine. Prøv igjen.",
+  "notFoundTitle": "Fant ikke refusjonen",
+  "notFoundBody": "Refusjonen du leter etter finnes ikke, eller den er fjernet.",
+  "back": "Tilbake til refusjoner",
+  "tryAgain": "Prøv igjen",
+  "card": {
+    "untitled": "Utleggsrefusjon",
+    "saved": "Lagret",
+    "submitted": "Sendt inn",
+    "continueDraft": "Fortsett utkast",
+    "viewDetails": "Se detaljer",
+    "attachments": "{count, plural, one {# vedlegg} other {# vedlegg}}"
+  },
+  "detail": {
+    "campus": "Campus",
+    "department": "Enhet",
+    "submitted": "Sendt inn",
+    "bankAccount": "Kontonummer",
+    "event": "Arrangement",
+    "prepayment": "Forskudd",
+    "invoiceId": "Fakturanummer",
+    "attachments": "Vedlegg ({count})",
+    "date": "Dato",
+    "amount": "Beløp",
+    "viewReceipt": "Se kvittering"
+  },
+  "status": {
+    "draft": "Utkast",
+    "pending": "Til behandling",
+    "submitted": "Sendt inn",
+    "approved": "Godkjent",
+    "success": "Refundert",
+    "rejected": "Avslått",
+    "failed": "Bokføring feilet"
+  }
+}

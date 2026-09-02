@@ -155,6 +155,82 @@ export async function getEventBySlug(
   }
 }
 
+/**
+ * The detail read for the redesigned event page (RD-020).
+ *
+ * Two deliberate differences from `getEventBySlug`, which is left untouched so
+ * the current page keeps behaving exactly as it does:
+ *
+ * 1. **All locales are fetched.** `getEventBySlug` filters `translation_refs`
+ *    to the requested locale at the query. Two of the three published events
+ *    have a Norwegian row whose `description` is empty, so that filter leaves a
+ *    Norwegian reader with a headline and a blank page while the English copy
+ *    sits one row away. `pickContent` picks per field and discloses a fallback.
+ * 2. **The columns the page actually shows are selected** — category, capacity,
+ *    the real member price, the per-event contact, tags and the location mode.
+ *    The current page reads all of that out of `metadata`, which is `null` on
+ *    every published row.
+ */
+export async function getEventDetailBySlug(
+  slug: string
+): Promise<Events | null> {
+  try {
+    const { db } = await createSessionClient();
+
+    const response = await db.listRows<Events>("app", "events", [
+      Query.equal("slug", slug),
+      // Same guard as `getEventBySlug`: `events` grants row read to `any`, so
+      // without this a draft or cancelled event is reachable by direct URL.
+      Query.equal("status", "published"),
+      Query.select([
+        "$id",
+        "$createdAt",
+        "$updatedAt",
+        "slug",
+        "status",
+        "campus_id",
+        "start_date",
+        "end_date",
+        "location",
+        "location_mode",
+        "online_url",
+        "price",
+        "member_price",
+        "pricing_mode",
+        "ticket_url",
+        "image",
+        "member_only",
+        "capacity",
+        "registration_deadline",
+        "category",
+        "tags",
+        "contact_name",
+        "contact_role",
+        "contact_email",
+        "collection_id",
+        "is_collection",
+        "collection_pricing",
+        "department_id",
+        "campus.$id",
+        "campus.name",
+        "department.$id",
+        "department.Name",
+        "translation_refs.$id",
+        "translation_refs.locale",
+        "translation_refs.title",
+        "translation_refs.description",
+        "translation_refs.short_description",
+      ]),
+      Query.limit(1),
+    ]);
+
+    return response.rows[0] ?? null;
+  } catch (error) {
+    console.error("Error fetching event detail by slug:", error);
+    return null;
+  }
+}
+
 async function _getEventImageViewUrl(fileId: string) {
   const { storage } = await createSessionClient();
   const url = await storage.getFileView("events", fileId);

@@ -10,6 +10,7 @@ import {
 } from "@repo/ui/components/ui/dropdown-menu";
 import { cn } from "@repo/ui/lib/utils";
 import { Check, ChevronDown } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { useCampus } from "./context/campus";
 
@@ -24,7 +25,7 @@ interface SelectCampusProps {
 
 export const SelectCampus = ({
   campuses: campusesProp,
-  placeholder = "Velg campus",
+  placeholder,
   className,
   variant = "ghost",
   size = "default",
@@ -37,6 +38,7 @@ export const SelectCampus = ({
     loading,
   } = useCampus();
 
+  const t = useTranslations("common.navigation");
   const [isOpen, setIsOpen] = useState(false);
 
   const campuses = campusesFromContext?.length
@@ -49,7 +51,7 @@ export const SelectCampus = ({
       ? null
       : (campuses.find((c) => c.$id === selectedId) ?? null);
 
-  const label = selectedCampus?.name ?? placeholder;
+  const label = selectedCampus?.name ?? placeholder ?? t("selectCampus");
 
   const handleCampusChange = async (value: string) => {
     if (value === selectedId) {
@@ -68,7 +70,7 @@ export const SelectCampus = ({
         <Button
           aria-expanded={isOpen}
           aria-haspopup="menu"
-          aria-label="Velg campus"
+          aria-label={t("selectCampus")}
           className={cn(
             "relative gap-2 transition-all duration-200",
             "hover:scale-[1.02] hover:bg-accent/50",
@@ -100,7 +102,7 @@ export const SelectCampus = ({
 
       <DropdownMenuContent
         align="center"
-        aria-label="Velg campus"
+        aria-label={t("selectCampus")}
         className={cn(
           "min-w-[220px] p-2",
           "fade-in-0 zoom-in-95 animate-in duration-200",
@@ -125,9 +127,12 @@ export const SelectCampus = ({
           role="menuitem"
         >
           <div className="flex flex-1 flex-col gap-0.5">
-            <span className="font-medium text-sm">All Campuses</span>
+            {/* RD-032: was the English "All Campuses" over a hardcoded
+                Norwegian "Vis alt innhold" — one control leaking both
+                languages at once, whichever locale you were in. */}
+            <span className="font-medium text-sm">{t("allCampuses")}</span>
             <span className="text-muted-foreground text-xs">
-              Vis alt innhold
+              {t("allCampusesHint")}
             </span>
           </div>
 

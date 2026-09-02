@@ -4,6 +4,7 @@ import { Button } from "@repo/ui/components/ui/button";
 import { ExternalLink, Receipt } from "lucide-react";
 import { motion } from "motion/react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import type { PropsWithChildren } from "react";
 
 type ActionType = "back" | "cart" | "shop" | "print" | "receipt";
@@ -20,6 +21,7 @@ export function OrderActionsClient({
   className,
   children,
 }: OrderActionsClientProps) {
+  const t = useTranslations("shop.order");
   const router = useRouter();
 
   const getActionProps = (actionType: ActionType) => {
@@ -81,7 +83,7 @@ export function OrderActionsClient({
           content: (
             <>
               <Receipt className="mr-2 h-4 w-4" />
-              View Vipps Receipt
+              {t("vippsReceipt")}
               <ExternalLink className="ml-2 h-3 w-3" />
             </>
           ),

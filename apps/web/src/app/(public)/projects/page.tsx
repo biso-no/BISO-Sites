@@ -1,15 +1,14 @@
 import type { Locale } from "@repo/i18n/config";
-import { Rocket } from "lucide-react";
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { listLargeEvents } from "@/app/actions/large-events";
 import { getLocale } from "@/app/actions/locale";
-import { AboutHero } from "@/components/about/about-hero";
 import {
   type FeaturedVM,
   ProjectsBody,
   type ScheduleVM,
 } from "@/components/projects/projects-body";
+import { PageHeader } from "@/components/ui/page-header";
 import type { ParsedLargeEvent } from "@/lib/types/large-event";
 
 export const metadata: Metadata = {
@@ -38,6 +37,7 @@ export default async function ProjectsPage() {
   const locale = (await getLocale()) as Locale;
   const t = await getTranslations("projects");
   const tNav = await getTranslations("common.navigation");
+  const tCommon = await getTranslations("common");
 
   const events = await listLargeEvents({ activeOnly: false, limit: 100 });
 
@@ -90,18 +90,24 @@ export default async function ProjectsPage() {
       title: event.name,
     }));
 
+  const crumbs = [
+    { label: tCommon("breadcrumbs.home"), href: "/" },
+    { label: tNav("triggers.projects") },
+  ];
+
+  // Chrome only. **`large_event` holds zero rows**, so the four projects
+  // below come from the `projects` message bundle and their gradients from
+  // constants in this file — there is no project data to restyle against,
+  // and `01-design-spec.md` §7.4's per-project palette override has nothing
+  // to override. See PLACEHOLDER-011.
   return (
-    <div className="min-h-screen bg-linear-to-b from-section to-background">
-      <AboutHero
-        breadcrumbs={[
-          { label: "Home", href: "/" },
-          { label: tNav("triggers.projects") },
-        ]}
-        icon={<Rocket className="h-8 w-8 text-white" />}
-        subtitle={t("hero.subtitle")}
+    <>
+      <PageHeader
+        breadcrumbs={crumbs}
+        lede={t("hero.subtitle")}
         title={t("hero.title")}
       />
       <ProjectsBody featured={featured} otherEvents={otherEvents} />
-    </div>
+    </>
   );
 }

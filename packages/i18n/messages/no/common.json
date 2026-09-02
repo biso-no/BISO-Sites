@@ -6,7 +6,9 @@
     "viewDetails": "Se detaljer"
   },
   "labels": {
-    "organisation": "BISO"
+    "organisation": "BISO",
+    "onThisPage": "På denne siden",
+    "scrollToContent": "Bla ned til innholdet"
   },
   "locale": {
     "switcher": {
@@ -20,6 +22,11 @@
     }
   },
   "footer": {
+    "headings": {
+      "about": "Om BISO",
+      "students": "Studenter",
+      "practical": "Praktisk"
+    },
     "about": {
       "description": "BI Student Organisasjon kobler sammen studenter og næringslivet, legger til rette for sosial integrering og arbeider for å forbedre studentvelferden og kvaliteten på studiene.",
       "ourStory": "Vår historie",
@@ -38,6 +45,13 @@
       "helpCenter": "Hjelpesenter",
       "privacyPolicy": "Personvernpolicy",
       "termsOfService": "Tjenester og vilkår"
+    },
+    "tagline": "Bli en del av noe større",
+    "stats": {
+      "societies": "Foreninger og enheter",
+      "events": "Publiserte arrangementer",
+      "positions": "Ledige verv",
+      "campuses": "Campuser"
     }
   },
   "navigation": {
@@ -105,7 +119,10 @@
       "eventLabel": "Neste arrangement",
       "projectLabel": "Utvalgt prosjekt",
       "newsLabel": "Siste nytt"
-    }
+    },
+    "selectCampus": "Velg campus",
+    "allCampuses": "Alle campus",
+    "allCampusesHint": "Vis innhold fra alle campus"
   },
   "notFound": {
     "tagline": "Siden finnes ikke",
@@ -116,5 +133,95 @@
       "goToCampus": "TIlbake til campus-oversikten",
       "needAssistance": "Trenger du hjelp? Kontakt oss på <link>{email}</link> og vi følger deg opp."
     }
+  },
+  "error": {
+    "title": "Noe gikk galt",
+    "body": "Vi klarte ikke å laste denne siden. Prøv igjen, eller gå tilbake.",
+    "tryAgain": "Prøv igjen",
+    "goHome": "Gå til forsiden",
+    "goToProfile": "Gå til profilen min"
+  },
+  "unauthorized": {
+    "tagline": "Tilgang nektet",
+    "title": "Du må være logget inn for å se denne siden",
+    "description": "Dette området krever at du er autentisert. Logg inn med din konto for å få tilgang til innholdet.",
+    "signIn": "Logg inn",
+    "goToFrontPage": "Gå til forsiden",
+    "help": "Har du problemer med å logge inn? <link>Kontakt oss</link> så hjelper vi deg."
+  },
+  "auth": {
+    "welcomeBack": "Velkommen tilbake",
+    "signInSubtitle": "Logg inn på BISO-kontoen din",
+    "emailLabel": "E-postadresse",
+    "emailPlaceholder": "navn@eksempel.no",
+    "sendLink": "Send innloggingslenke",
+    "sending": "Sender …",
+    "orContinueWith": "Eller fortsett med",
+    "continueWith": "Fortsett med {provider}",
+    "magicLinkSent": "Innloggingslenke sendt! Sjekk e-posten din.",
+    "magicLinkFailed": "Kunne ikke sende innloggingslenke. Prøv igjen.",
+    "signInFailed": "Innlogging mislyktes. Prøv igjen eller kontakt support.",
+    "emailRequired": "Skriv inn e-postadressen din.",
+    "restrictedDomain": "Bruk din personlige e-postadresse.",
+    "privacyNoticeBefore": "Ved å logge inn godtar du vår",
+    "privacyPolicy": "Personvernerklæring",
+    "privacyNoticeAfter": "og samtykker til behandling av dine personopplysninger som beskrevet der. Vi overholder GDPR-regelverket og du kan administrere dine datapreferanser og be om sletting av data fra profilinnstillingene dine.",
+    "noAccount": "Har du ikke en konto ennå?",
+    "contactForAccess": "Kontakt oss for tilgang",
+    "copyright": "Alle rettigheter forbeholdt.",
+    "errors": {
+      "invalid_parameters": "Innloggingslenken mangler nødvendig informasjon.",
+      "invitation_failed": "Vi kunne ikke godta invitasjonen. Prøv igjen.",
+      "server_configuration": "Innlogging er midlertidig utilgjengelig. Prøv igjen senere.",
+      "unexpected_error": "Noe gikk galt under innloggingen."
+    }
+  },
+  "breadcrumbs": {
+    "home": "Hjem"
+  },
+  "skipToContent": "Hopp til innhold",
+  "profile": {
+    "accountInfo": "Kontoinformasjon",
+    "accountInfoBody": "Se og administrer kontoopplysningene dine",
+    "addressInfo": "Adresse",
+    "bankingInfo": "Bankopplysninger",
+    "submitting": "Lagrer profilen …",
+    "tabs": {
+      "account": "Konto",
+      "privacy": "Personvern",
+      "identities": "Tilknyttede kontoer"
+    },
+    "identities": {
+      "title": "Tilknyttede kontoer",
+      "body": "Kontoer som er koblet til profilen din",
+      "linkBi": "Koble til BI Student",
+      "linkBiso": "Koble til BISO",
+      "heading": "Tilknyttede kontoer",
+      "empty": "Ingen kontoer er koblet til ennå.",
+      "oauthNote": "Når du kobler til, sendes du videre for å fullføre påloggingen hos leverandøren."
+    },
+    "privacy": {
+      "title": "Dine personvernrettigheter",
+      "requestTitle": "Be om dataene dine",
+      "requestBody": "Få en kopi av alle personopplysningene vi lagrer om deg",
+      "deleteTitle": "Slett dataene dine",
+      "deleteBody": "Be om permanent sletting av kontoen din og dataene dine",
+      "deleteAccount": "Slett konto",
+      "confirmTitle": "Er du helt sikker?",
+      "cancel": "Avbryt",
+      "gdprNote": "Forespørsler behandles innen 30 dager, slik GDPR krever"
+    }
+  },
+  "booking": {
+    "title": "Velg et intervjutidspunkt",
+    "unavailable": "Bookinglenken er ikke gyldig",
+    "expired": "Ta kontakt med din BISO-kontakt for en ny lenke.",
+    "noSlots": "Ingen ledige tider i dette tidsrommet. Ta kontakt med BISO-teamet.",
+    "booked": "Tiden er booket!"
+  },
+  "approval": {
+    "title": "Godkjenning av refusjon",
+    "expired": "Denne godkjenningslenken har utløpt.",
+    "notePlaceholder": "Valgfri kommentar (en begrunnelse hjelper innsenderen ved avslag)"
   }
 }

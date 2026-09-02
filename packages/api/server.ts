@@ -46,7 +46,33 @@ export async function getBaseUrl(): Promise<string> {
 }
 
 /**
- * Wrap a TablesDB instance so that listRows and getRow return plain objects
+ * Methods whose result crosses the RSC boundary and therefore must be a plain
+ * object, not an Appwrite SDK class instance.
+ *
+ * The writes were missing until RD-030, and it was a live bug: only reads
+ * were wrapped, so a server action returning the row it had just written threw
+ * "Only plain objects … can be passed to Client Components" — after the
+ * write had committed. That is what broke `updateProfile` in `apps/web`:
+ * onboarding created the profile row and then told the user it had failed, and
+ * retrying hit the update branch and failed the same way, so a new account
+ * could not get past onboarding at all. `apps/web` patched it at the call site
+ * in RD-028; this is the actual fix, and it covers every other caller.
+ */
+const PLAIN_METHODS = new Set([
+  "listRows",
+  "getRow",
+  "createRow",
+  "updateRow",
+  "upsertRow",
+  "createRows",
+  "updateRows",
+  "upsertRows",
+  "incrementRowColumn",
+  "decrementRowColumn",
+]);
+
+/**
+ * Wrap a TablesDB instance so that row reads and writes return plain objects
  * instead of Appwrite SDK class instances, which Next.js cannot serialize
  * across the RSC → Client Component boundary.
  */
@@ -56,7 +82,8 @@ function plainDb(db: TablesDB): TablesDB {
       const value = Reflect.get(target, prop, receiver);
 
       if (
-        (prop === "listRows" || prop === "getRow") &&
+        typeof prop === "string" &&
+        PLAIN_METHODS.has(prop) &&
         typeof value === "function"
       ) {
         return async (...args: unknown[]) => {
@@ -113,7 +140,21 @@ const APPWRITE_REQUEST_TIMEOUT_MS = readPositiveInteger(
   DEFAULT_APPWRITE_REQUEST_TIMEOUT_MS
 );
 
-type AppwriteRequestOptions = RequestInit & {
+/**
+ * The request options the installed SDK actually uses — derived from its own
+ * `prepareRequest` signature rather than named as `RequestInit`.
+ *
+ * `node-appwrite@28` brought `undici` with it and types this against
+ * **undici's** `RequestInit`, whose `body` is `BodyInit | undefined`. The DOM
+ * lib's `RequestInit` has `body?: BodyInit | null`, and the two `BodyInit`s do
+ * not agree on `ArrayBufferView` either, so writing `RequestInit` here bound us
+ * to whichever of the two the compiler resolved and broke the assignment below
+ * on the upgrade. Deriving it means the shim follows the SDK instead of
+ * guessing which `RequestInit` is in scope.
+ */
+type AppwriteRequestOptions = ReturnType<
+  Client["prepareRequest"]
+>["options"] & {
   agent?: unknown;
   dispatcher?: unknown;
 };

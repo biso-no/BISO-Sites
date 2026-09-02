@@ -1,0 +1,26 @@
+{
+  "stats": {
+    "units": "Enheter her",
+    "events": "Publiserte arrangementer",
+    "jobs": "Ledige verv"
+  },
+  "seeAll": {
+    "events": "Alle arrangementer her",
+    "news": "Alle nyheter her",
+    "jobs": "Alle verv her"
+  },
+  "empty": {
+    "events": "Ingenting i kalenderen her akkurat nå.",
+    "news": "Ingen nyheter fra denne campusen ennå."
+  },
+  "units": {
+    "title": "Enheter på denne campusen",
+    "lede": "{count, plural, one {# aktiv studentenhet} other {# aktive studentenheter}} — foreninger, komiteer og faglige utvalg."
+  },
+  "focusAreas": "Satsingsområder",
+  "index": {
+    "title": "Campuser",
+    "lede": "BISO finnes på alle BI-campuser. Velg din for å se hva som skjer, hvem som driver den og hvordan du får tak i dem.",
+    "units": "{count, plural, one {# enhet} other {# enheter}}"
+  }
+}

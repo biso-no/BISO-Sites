@@ -5,6 +5,7 @@ import type { Users } from "@repo/api/types/appwrite";
 import { sanitizeStudentNumber } from "@repo/shared/utils/bi-student";
 import { getFeatureFlagStates } from "@repo/shared/utils/feature-flags-server";
 import { CAMPUS_INVOICE_NAMES } from "@repo/shared/utils/finago-membership-invoice";
+import { mintSessionJwt } from "@/lib/actions/session-jwt";
 import { getMembershipPlanById } from "@/lib/membership-catalog";
 
 // The bi_* columns are pending an `appwrite push tables`; extend locally until
@@ -109,8 +110,11 @@ export async function startMembershipCheckout(
         // Non-critical: the campus is carried on the order regardless.
       });
 
-    const jwt = await account.createJWT().catch(() => null);
-    if (!jwt?.jwt) {
+    // `account.createJWT()` is gone in node-appwrite@28; `mintSessionJwt`
+    // does the admin-key equivalent while keeping the token bound to this
+    // session and taking its user id from `account.get()`, never from input.
+    const jwt = await mintSessionJwt(account);
+    if (!jwt) {
       return { success: false, error: "A valid session is required." };
     }
 
@@ -125,7 +129,7 @@ export async function startMembershipCheckout(
       {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${jwt.jwt}`,
+          Authorization: `Bearer ${jwt}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({

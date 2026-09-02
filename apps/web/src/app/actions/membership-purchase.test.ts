@@ -1,8 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const account = vi.hoisted(() => ({
-  createJWT: vi.fn(),
   get: vi.fn(),
+  getSession: vi.fn(),
+}));
+
+// `createJWT` moved from `Account` to `Users` in node-appwrite@28, so minting
+// now needs the admin client too — see `lib/actions/session-jwt`.
+const users = vi.hoisted(() => ({
+  createJWT: vi.fn(),
 }));
 
 const sessionDb = vi.hoisted(() => ({
@@ -22,7 +28,7 @@ const featureFlags = vi.hoisted(() => ({
 }));
 
 vi.mock("@repo/api/server", () => ({
-  createAdminClient: vi.fn(async () => ({ db: adminDb })),
+  createAdminClient: vi.fn(async () => ({ db: adminDb, users })),
   createSessionClient: vi.fn(async () => ({ account, db: sessionDb })),
 }));
 
@@ -77,7 +83,8 @@ describe("startMembershipCheckout", () => {
       payments_vipps: true,
     });
     account.get.mockResolvedValue({ $id: "user-1" });
-    account.createJWT.mockResolvedValue({ jwt: "session-jwt" });
+    account.getSession.mockResolvedValue({ $id: "session-id" });
+    users.createJWT.mockResolvedValue({ jwt: "session-jwt" });
     sessionDb.getRow.mockResolvedValue(VALID_PROFILE);
     adminDb.updateRow.mockResolvedValue({});
     catalog.getMembershipPlanById.mockResolvedValue(VALID_PLAN);

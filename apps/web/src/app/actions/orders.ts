@@ -13,6 +13,7 @@ import { getLocale } from "@/app/actions/locale";
 import { getProduct } from "@/app/actions/products";
 import { validatePurchaseLimits } from "@/app/actions/purchase-limits";
 import { getMembershipStatus } from "@/lib/actions/membership";
+import { mintSessionJwt } from "@/lib/actions/session-jwt";
 import { ensureAnonymousSession } from "@/lib/anon-session";
 import type { OrderItem } from "@/lib/types/order";
 import { parseProductMetadata } from "@/lib/types/webshop";
@@ -588,8 +589,11 @@ export async function createCartCheckoutSession(
     if (!user?.$id) {
       throw new Error("A valid checkout session is required.");
     }
-    const jwt = await account.createJWT().catch(() => null);
-    if (!jwt?.jwt) {
+    // `account.createJWT()` is gone in node-appwrite@28; `mintSessionJwt`
+    // does the admin-key equivalent while keeping the token bound to this
+    // session and taking its user id from `account.get()`, never from input.
+    const jwt = await mintSessionJwt(account);
+    if (!jwt) {
       throw new Error("A valid checkout session is required.");
     }
     const userId = user.$id;
@@ -598,7 +602,7 @@ export async function createCartCheckoutSession(
 
     const [firstName, ...lastNameParts] = data.name.trim().split(WHITESPACE_RE);
     const { checkoutUrl, orderId } = await createProviderCheckoutSession({
-      jwt: jwt.jwt,
+      jwt,
       provider: data.provider,
       payload: {
         items: sanitizedItems,

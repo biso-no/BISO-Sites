@@ -107,11 +107,9 @@ export function LockedContentOverlay({
 
             <div className="relative z-10">
               {/* Lock icon with glow */}
-              <motion.div
-                animate={{ scale: [1, 1.05, 1] }}
-                className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-linear-to-br from-brand-gradient-from to-brand-gradient-to shadow-brand/30 shadow-xl"
-                transition={{ duration: 2, repeat: Number.POSITIVE_INFINITY }}
-              >
+              {/* RD-031: was a lock icon pulsing forever, through reduced
+                  motion. Decoration on a static panel; it holds still now. */}
+              <motion.div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-linear-to-br from-brand-gradient-from to-brand-gradient-to shadow-brand/30 shadow-xl">
                 <Lock className="h-10 w-10 text-white" />
               </motion.div>
 

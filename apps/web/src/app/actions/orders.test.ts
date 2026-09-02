@@ -1,8 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const account = vi.hoisted(() => ({
-  createJWT: vi.fn(),
   get: vi.fn(),
+  getSession: vi.fn(),
+}));
+
+// `createJWT` moved from `Account` to `Users` in node-appwrite@28, so minting
+// now needs the admin client too — see `lib/actions/session-jwt`.
+const users = vi.hoisted(() => ({
+  createJWT: vi.fn(),
 }));
 
 const membership = vi.hoisted(() => ({
@@ -14,6 +20,7 @@ const webshop = vi.hoisted(() => ({
 }));
 
 vi.mock("@repo/api/server", () => ({
+  createAdminClient: vi.fn(async () => ({ users })),
   createSessionClient: vi.fn(async () => ({
     account,
     db: { getRow: vi.fn() },
@@ -85,7 +92,8 @@ function checkoutFetchPayload(fetchMock: ReturnType<typeof vi.fn>) {
 
 describe("order checkout actions", () => {
   beforeEach(() => {
-    account.createJWT.mockResolvedValue({ jwt: "session-jwt" });
+    account.getSession.mockResolvedValue({ $id: "session-id" });
+    users.createJWT.mockResolvedValue({ jwt: "session-jwt" });
     account.get.mockResolvedValue({ $id: "session-user" });
     webshop.parseProductMetadata.mockReturnValue({});
     membership.getMembershipStatus.mockResolvedValue({

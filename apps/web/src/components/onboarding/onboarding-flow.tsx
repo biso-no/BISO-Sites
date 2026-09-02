@@ -1,7 +1,6 @@
 "use client";
 
 import { clientAccount, OAuthProvider } from "@repo/api/client";
-import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowRight,
   BadgeCheck,
@@ -12,6 +11,7 @@ import {
   Receipt,
   Users,
 } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";

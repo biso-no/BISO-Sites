@@ -1,123 +1,83 @@
-"use client";
-
-import { Button } from "@repo/ui/components/ui/button";
-import { Home, LogIn, ShieldAlert } from "lucide-react";
+import { Home, ShieldAlert } from "lucide-react";
+import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useTheme } from "next-themes";
-import { useEffect, useState } from "react";
+import { getTranslations } from "next-intl/server";
+import { SignInLink } from "@/components/auth/sign-in-link";
 
-export default function Unauthorized() {
-  const [mounted, setMounted] = useState(false);
-  const { resolvedTheme } = useTheme();
-  const pathname = usePathname();
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("common.unauthorized");
+  return { title: `${t("tagline")} | BISO`, description: t("description") };
+}
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+/**
+ * The 401 surface for `(protected)` — what `unauthorized()` in
+ * `(protected)/layout.tsx` renders. It replaces the whole segment, so it draws
+ * its own `<main>` and there is no site chrome around it.
+ *
+ * **It was hardcoded Norwegian, and the translations already existed.** The
+ * same six strings, in both locales, sat in `adminPortal.unauthorized` serving
+ * `apps/admin`'s own 401 page. They are copied verbatim to
+ * `common.unauthorized` and read from there; admin keeps its own namespace.
+ *
+ * A Server Component now. It was a Client Component to pick a logo from
+ * `useTheme()` behind a `mounted` flag — so every visitor saw a pulsing grey
+ * rectangle first. Two `<Image>`s and `dark:` do that with no flash, and the
+ * one genuinely client-side part, the refused path, is an island.
+ */
+export default async function Unauthorized() {
+  const t = await getTranslations("common.unauthorized");
 
   return (
-    <main className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-background">
-      {/* Background decoration - subtle gradients */}
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute -top-40 -right-40 h-[500px] w-[500px] rounded-full bg-brand-muted blur-3xl dark:bg-brand-muted" />
-        <div className="absolute top-1/3 -left-40 h-[400px] w-[400px] rounded-full bg-brand-accent-muted blur-3xl dark:bg-brand-accent-muted" />
-        <div className="absolute right-1/4 bottom-0 h-[450px] w-[450px] rounded-full bg-brand-muted blur-3xl dark:bg-brand-muted" />
-      </div>
+    <main className="flex min-h-screen flex-col items-center justify-center bg-surface px-4 py-16 text-ink">
+      <div className="flex w-full max-w-(--measure) flex-col items-center gap-8 text-center">
+        <Image
+          alt="BISO"
+          className="h-12 w-auto dark:hidden"
+          height={48}
+          priority
+          src="/images/logo-light.png"
+          width={160}
+        />
+        <Image
+          alt="BISO"
+          className="hidden h-12 w-auto dark:block"
+          height={48}
+          priority
+          src="/images/logo-dark.png"
+          width={160}
+        />
 
-      <div className="relative z-10 flex flex-col items-center gap-8 px-6 text-center">
-        {/* Logo */}
-        <div className="mb-4">
-          {mounted ? (
-            <Image
-              alt="BISO Logo"
-              className="h-12 w-auto"
-              height={48}
-              priority
-              src={
-                resolvedTheme === "dark"
-                  ? "/images/logo-dark.png"
-                  : "/images/logo-light.png"
-              }
-              width={160}
-            />
-          ) : (
-            <div className="h-12 w-40 animate-pulse rounded bg-muted" />
-          )}
+        <div className="flex flex-col items-center gap-5">
+          <ShieldAlert aria-hidden="true" className="size-10 text-danger" />
+          <p className="type-label text-ink-muted">401 · {t("tagline")}</p>
+          <h1 className="type-display-sm break-words text-ink">{t("title")}</h1>
+          <p className="type-body text-ink-muted">{t("description")}</p>
         </div>
 
-        {/* Badge */}
-        <div className="flex items-center gap-3 rounded-full border border-border bg-secondary px-5 py-2.5 text-secondary-foreground text-xs uppercase tracking-[0.2em]">
-          <ShieldAlert className="h-4 w-4 text-red-500" />
-          <span>Tilgang nektet</span>
-        </div>
-
-        {/* Main content */}
-        <div className="space-y-5">
-          <div className="inline-flex rounded-2xl border border-border bg-card p-4 shadow-lg">
-            <ShieldAlert className="h-12 w-12 text-red-500" />
-          </div>
-
-          <div className="space-y-4">
-            <p className="font-medium text-muted-foreground text-sm uppercase tracking-[0.25em]">
-              401
-            </p>
-            <h1 className="max-w-xl font-semibold text-4xl text-foreground leading-tight md:text-5xl">
-              Du må være logget inn for å se denne siden
-            </h1>
-            <p className="max-w-2xl text-base text-muted-foreground md:text-lg">
-              Dette området krever at du er autentisert. Logg inn med din konto
-              for å få tilgang til innholdet.
-            </p>
-          </div>
-        </div>
-
-        {/* Action buttons */}
         <div className="flex flex-wrap items-center justify-center gap-3">
-          <Button
-            asChild
-            className="bg-linear-to-r from-brand-gradient-from to-brand-gradient-to text-white shadow-lg hover:opacity-90"
-            size="lg"
+          <SignInLink label={t("signIn")} />
+          <Link
+            className="type-label inline-flex items-center gap-2 rounded-biso-pill border border-edge px-5 py-3 text-ink transition-colors hover:border-ink-accent hover:text-ink-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+            href="/"
           >
-            <Link
-              href={`/auth/login?redirectTo=${encodeURIComponent(pathname)}`}
-            >
-              <LogIn className="mr-2 h-5 w-5" />
-              Logg inn
-            </Link>
-          </Button>
-          <Button
-            asChild
-            className="border border-border bg-secondary text-secondary-foreground hover:bg-secondary/80"
-            size="lg"
-            variant="outline"
-          >
-            <Link href="/">
-              <Home className="mr-2 h-5 w-5" />
-              Gå til forsiden
-            </Link>
-          </Button>
+            <Home aria-hidden="true" className="size-4 shrink-0" />
+            {t("goToFrontPage")}
+          </Link>
         </div>
 
-        {/* Help section */}
-        <div className="mt-4 rounded-2xl border border-border bg-card px-6 py-4 text-muted-foreground text-sm shadow-lg">
-          <p>
-            Har du problemer med å logge inn?{" "}
-            <a
-              className="font-semibold text-brand underline-offset-4 hover:underline"
-              href="mailto:contact@biso.no"
-            >
-              Kontakt oss
-            </a>{" "}
-            så hjelper vi deg.
-          </p>
-        </div>
-      </div>
-
-      {/* Footer text */}
-      <div className="absolute bottom-4 w-full text-center text-muted-foreground text-xs">
-        &copy; {new Date().getFullYear()} BISO. All rights reserved.
+        <p className="type-body-sm text-ink-muted">
+          {t.rich("help", {
+            link: (chunks) => (
+              <a
+                className="text-ink-accent underline underline-offset-4 hover:no-underline focus-visible:rounded-biso-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+                href="mailto:contact@biso.no"
+              >
+                {chunks}
+              </a>
+            ),
+          })}
+        </p>
       </div>
     </main>
   );

@@ -14,6 +14,7 @@ import {
   MEMBERSHIP_DIMENSION_IDS,
   MEMBERSHIP_DIMENSION_LABELS,
   type MembershipPlan,
+  membershipAccrualStart,
 } from "./membership-plans";
 
 export const CAMPUS_INVOICE_DEPARTMENT_IDS: Record<string, number> = {
@@ -79,6 +80,36 @@ export interface BuildMembershipInvoiceParams {
     MembershipPlan,
     "accrualMonths" | "duration" | "price" | "productId" | "startDate"
   >;
+}
+
+/**
+ * The accrual start to book this invoice into.
+ *
+ * A membership accrues from the half-year boundary containing the **purchase**:
+ * bought in the summer half it accrues from 1 July, in the spring half from
+ * 1 January. Checkout snapshots that value onto the order item, and it is
+ * preferred here — fulfilment can lag payment (a webhook retry, the reconcile
+ * cron), and a purchase made on 30 June must not book into July because it was
+ * fulfilled the next day.
+ *
+ * A snapshot is recognised by being its own accrual start; that is what
+ * `membershipAccrualStart` being idempotent buys, and it means a legacy
+ * snapshot carrying the catalogue row's own date ("01.07.2026", the format the
+ * 24SO sync writes) fails the check and falls back to the invoice date rather
+ * than reaching the API verbatim in a format it documents as an ISO `date`.
+ */
+function accrualDateFor(snapshot: string, invoicedOn: string): string {
+  const fromSnapshot = membershipAccrualStart(snapshot);
+  if (fromSnapshot && fromSnapshot === snapshot) {
+    return fromSnapshot;
+  }
+  const fromInvoice = membershipAccrualStart(invoicedOn);
+  if (!fromInvoice) {
+    throw new Error(
+      `Cannot determine an accrual start from invoicedOn "${invoicedOn}"`
+    );
+  }
+  return fromInvoice;
 }
 
 function buildDimensions(
@@ -149,7 +180,7 @@ export function buildMembershipInvoiceOrder({
         UserDefinedDimensions: { UserDefinedDimension: dimensions },
       },
     },
-    AccrualDate: plan.startDate,
+    AccrualDate: accrualDateFor(plan.startDate, invoicedOn),
     AccrualLength: plan.accrualMonths,
     UserDefinedDimensions: { UserDefinedDimension: dimensions },
   };

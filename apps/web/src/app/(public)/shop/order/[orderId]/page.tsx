@@ -7,7 +7,6 @@ import { Separator } from "@repo/ui/components/ui/separator";
 import { Skeleton } from "@repo/ui/components/ui/skeleton";
 import { format } from "date-fns";
 import {
-  ArrowLeft,
   CheckCircle2,
   Clock,
   MapPin,
@@ -28,7 +27,8 @@ import {
   type ReceiptItem,
 } from "@/components/shop/order-receipt";
 import { PurchaseTracker } from "@/components/shop/purchase-tracker";
-import { ShopHeroShell } from "@/components/shop/shop-hero-shell";
+import { ShopPageShell } from "@/components/shop/v2/shop-page-shell";
+import { Pill } from "@/components/ui/pill";
 import { normalizeCampusKey } from "@/lib/shop/pickup-locations";
 
 interface OrderPageProps {
@@ -420,6 +420,90 @@ async function resolveCampusName(campusId?: string | null) {
   }
 }
 
+/**
+ * The order body, extracted so the two chromes — the current hero-and-container
+ * and `ShopPageShell` — wrap the same markup instead of duplicating it.
+ * Nothing inside it changed.
+ */
+async function OrderBody({
+  isMembershipOnly,
+  isSuccess,
+  order,
+  orderDate,
+  pickupLocation,
+  rawItems,
+  status,
+  statusDesc,
+  statusLabel,
+  visual,
+}: {
+  isMembershipOnly: boolean;
+  isSuccess: boolean;
+  order: Orders;
+  orderDate: string;
+  pickupLocation: string;
+  rawItems: RawOrderItem[];
+  status: string;
+  statusDesc: string;
+  statusLabel: string;
+  visual: (typeof statusVisual)[OrderStatusKey];
+}) {
+  const t = await getTranslations("shop");
+  return (
+    <>
+      <StatusBanner isSuccess={isSuccess} order={order} />
+
+      <div className="grid gap-8 md:grid-cols-3">
+        <div className="space-y-8 md:col-span-2">
+          <Card className="rounded-3xl border border-border/60 p-6 shadow-sm">
+            <h2 className="mb-4 font-bold text-foreground text-xl">
+              {t("order.status.title")}
+            </h2>
+            <div className="mb-4 flex items-center gap-3">
+              <span
+                className={`rounded-full px-4 py-2 font-medium text-base ${visual.bg} ${visual.color}`}
+              >
+                {statusLabel}
+              </span>
+              <span className="text-muted-foreground">{statusDesc}</span>
+            </div>
+            <div className="text-muted-foreground text-sm">
+              <div>
+                <strong>{t("order.status.date")}:</strong> {orderDate}
+              </div>
+              {order.payment_intent_id ? (
+                <div className="mt-2">
+                  <strong>{t("order.status.paymentId")}:</strong>{" "}
+                  {order.payment_intent_id}
+                </div>
+              ) : null}
+            </div>
+          </Card>
+
+          <OrderItemsCard items={rawItems} order={order} />
+        </div>
+
+        <div className="space-y-6">
+          <CustomerInfoCard order={order} />
+          <SecondaryInfoCard
+            isMembershipOnly={isMembershipOnly}
+            isPaid={status === "paid"}
+            pickupLocation={pickupLocation}
+          />
+
+          <div className="space-y-3">
+            <OrderActionsClient type="shop" />
+            <OrderActionsClient type="print">
+              <Receipt className="mr-2 h-4 w-4" />
+              {t("order.actions.print")}
+            </OrderActionsClient>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
 async function OrderDetails({
   orderId,
   isSuccess,
@@ -449,7 +533,6 @@ async function OrderDetails({
 
   const status = order.status as OrderStatusKey;
   const visual = statusVisual[status] ?? statusVisual.pending;
-  const StatusIcon = visual.Icon;
   const statusLabel = t(`order.status.${statusLabelKey[status] ?? "pending"}`);
   const statusDesc = t(
     `order.status.${statusDescKey[status] ?? "pendingDesc"}`
@@ -481,6 +564,10 @@ async function OrderDetails({
   const reservationsCleared =
     isSuccess && (status === "paid" || status === "authorized");
   const heroTitle = t(getHeroTitleKey(showSuccess, isMembershipOnly));
+  const [tCommon, tNav] = await Promise.all([
+    getTranslations("common"),
+    getTranslations("common.navigation"),
+  ]);
 
   return (
     <>
@@ -494,80 +581,33 @@ async function OrderDetails({
         />
       ) : null}
 
-      <div className="min-h-screen bg-linear-to-b from-section to-background print:hidden">
-        <ShopHeroShell
-          eyebrow={
-            <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-4 py-1.5 font-medium text-sm text-white/85">
-              <StatusIcon className="h-4 w-4 text-brand-accent" />
-              {statusLabel}
-            </span>
-          }
-          heightClass="h-[36vh] min-h-[280px]"
-          subtitle={t("order.orderNumber", { id: orderIdShort })}
-          title={heroTitle}
-          topLeft={
-            <Link
-              className="absolute top-8 left-6 z-10 flex items-center gap-2 text-sm text-white/80 transition-colors hover:text-white sm:left-8"
-              href="/shop"
-            >
-              <ArrowLeft className="h-5 w-5" />
-              {t("order.actions.backToShop")}
-            </Link>
-          }
+      {/* `print:hidden` has to stay on the outermost screen element: printing
+          must yield `<OrderReceipt>` alone, not the receipt behind a full copy
+          of the page. `ShopPageShell` forwards the class for exactly this. */}
+      <ShopPageShell
+        breadcrumbs={[
+          { label: tCommon("breadcrumbs.home"), href: "/" },
+          { label: tNav("shop"), href: "/shop" },
+          { label: t("order.orderNumber", { id: orderIdShort }) },
+        ]}
+        className="print:hidden"
+        lede={t("order.orderNumber", { id: orderIdShort })}
+        meta={<Pill tone="neutral">{statusLabel}</Pill>}
+        title={heroTitle}
+      >
+        <OrderBody
+          isMembershipOnly={isMembershipOnly}
+          isSuccess={isSuccess}
+          order={order}
+          orderDate={orderDate}
+          pickupLocation={pickupLocation}
+          rawItems={rawItems}
+          status={status}
+          statusDesc={statusDesc}
+          statusLabel={statusLabel}
+          visual={visual}
         />
-
-        <div className="mx-auto max-w-4xl px-4 py-12">
-          <StatusBanner isSuccess={isSuccess} order={order} />
-
-          <div className="grid gap-8 md:grid-cols-3">
-            <div className="space-y-8 md:col-span-2">
-              <Card className="rounded-3xl border border-border/60 p-6 shadow-sm">
-                <h2 className="mb-4 font-bold text-foreground text-xl">
-                  {t("order.status.title")}
-                </h2>
-                <div className="mb-4 flex items-center gap-3">
-                  <span
-                    className={`rounded-full px-4 py-2 font-medium text-base ${visual.bg} ${visual.color}`}
-                  >
-                    {statusLabel}
-                  </span>
-                  <span className="text-muted-foreground">{statusDesc}</span>
-                </div>
-                <div className="text-muted-foreground text-sm">
-                  <div>
-                    <strong>{t("order.status.date")}:</strong> {orderDate}
-                  </div>
-                  {order.payment_intent_id ? (
-                    <div className="mt-2">
-                      <strong>{t("order.status.paymentId")}:</strong>{" "}
-                      {order.payment_intent_id}
-                    </div>
-                  ) : null}
-                </div>
-              </Card>
-
-              <OrderItemsCard items={rawItems} order={order} />
-            </div>
-
-            <div className="space-y-6">
-              <CustomerInfoCard order={order} />
-              <SecondaryInfoCard
-                isMembershipOnly={isMembershipOnly}
-                isPaid={status === "paid"}
-                pickupLocation={pickupLocation}
-              />
-
-              <div className="space-y-3">
-                <OrderActionsClient type="shop" />
-                <OrderActionsClient type="print">
-                  <Receipt className="mr-2 h-4 w-4" />
-                  {t("order.actions.print")}
-                </OrderActionsClient>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+      </ShopPageShell>
 
       <OrderReceipt
         items={receiptItems}

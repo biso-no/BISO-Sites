@@ -3,6 +3,7 @@ import {
   unitCanonicalPath,
 } from "@repo/shared/utils/unit-urls";
 import type { MetadataRoute } from "next";
+import { CAMPUS_SLUGS } from "@/lib/campus-scope";
 import { cachedSitemapEntries } from "@/lib/data/public-content";
 
 const BASE = process.env.NEXT_PUBLIC_BASE_URL || "https://web.biso.no";
@@ -70,6 +71,29 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "monthly" as const,
       priority: 0.4,
     })),
+    // Campus landing pages, and the campus-scoped variant of the three feeds
+    // listed below. `/projects` has no campus_id to filter on, so it cannot be
+    // scoped at all.
+    //
+    // `/units` and `/shop` DO accept `?campus=` and scope server-side — RD-025
+    // moved `/units` off client-side filtering — so listing them here is
+    // possible and is a deliberate omission, not an oversight. `/units` already
+    // has all 141 of its `/units/<campus>/<slug>` pages in the sitemap below,
+    // which is the campus-specific content a crawler wants; the filtered index
+    // would add five near-duplicate listing pages on top of it. Revisit with
+    // whoever owns SEO rather than flipping it here.
+    ...CAMPUS_SLUGS.flatMap((slug) => [
+      {
+        url: `${BASE}/campus/${slug}`,
+        changeFrequency: "weekly" as const,
+        priority: 0.6,
+      },
+      ...["events", "news", "jobs"].map((feed) => ({
+        url: `${BASE}/${feed}?campus=${slug}`,
+        changeFrequency: "weekly" as const,
+        priority: 0.5,
+      })),
+    ]),
     { url: `${BASE}/privacy`, changeFrequency: "yearly", priority: 0.2 },
     { url: `${BASE}/terms`, changeFrequency: "yearly", priority: 0.2 },
   ];

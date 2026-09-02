@@ -12,6 +12,7 @@ import { Separator } from "@repo/ui/components/ui/separator";
 import { ChevronRight, ShoppingBag, Tag } from "lucide-react";
 import { motion } from "motion/react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 
 interface ProductsTabProps {
   isMember: boolean;
@@ -19,13 +20,14 @@ interface ProductsTabProps {
 }
 
 const StockBadge = ({ stock }: { stock?: number | null }) => {
+  const t = useTranslations("units.detail");
   if (stock === null || stock === undefined) {
     return null;
   }
   if (stock === 0) {
     return (
       <Badge className="absolute right-4 bottom-4 border-0 bg-red-500 text-white">
-        Sold Out
+        {t("products.soldOut")}
       </Badge>
     );
   }
@@ -93,6 +95,7 @@ const ProductCard = ({
   isMember: boolean;
   index: number;
 }) => {
+  const t = useTranslations("units.detail");
   const productRef = product;
   const translation = Array.isArray(product.translation_refs)
     ? product.translation_refs.find(
@@ -120,8 +123,8 @@ const ProductCard = ({
               />
             )}
             {productRef?.member_only && (
-              <Badge className="absolute top-4 left-4 border-0 bg-brand-dark text-white">
-                Members Only
+              <Badge className="absolute top-4 left-4 border-0 bg-deep text-white">
+                {t("products.membersOnly")}
               </Badge>
             )}
             {productRef?.category && (
@@ -164,6 +167,7 @@ const ProductCard = ({
 };
 
 export function ProductsTab({ products, isMember }: ProductsTabProps) {
+  const t = useTranslations("units.detail");
   return (
     <div className="space-y-8">
       <motion.div
@@ -172,10 +176,10 @@ export function ProductsTab({ products, isMember }: ProductsTabProps) {
         initial={{ opacity: 0, y: 20 }}
       >
         <h2 className="mb-4 font-bold text-3xl text-foreground">
-          Products & Event Tickets
+          {t("products.title")}
         </h2>
         <p className="mx-auto max-w-2xl text-muted-foreground">
-          Get your tickets and merchandise from this department
+          {t("products.subtitle")}
         </p>
       </motion.div>
 
@@ -194,11 +198,9 @@ export function ProductsTab({ products, isMember }: ProductsTabProps) {
         <Card className="border-0 p-12 text-center shadow-lg">
           <ShoppingBag className="mx-auto mb-4 h-16 w-16 text-muted-foreground" />
           <h3 className="mb-2 font-semibold text-foreground text-xl">
-            No Products Available
+            {t("products.emptyTitle")}
           </h3>
-          <p className="text-muted-foreground">
-            Check back soon for new products and event tickets!
-          </p>
+          <p className="text-muted-foreground">{t("products.emptyBody")}</p>
         </Card>
       )}
     </div>

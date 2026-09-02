@@ -3,13 +3,15 @@ import { ImageWithFallback } from "@repo/ui/components/image";
 import { Badge } from "@repo/ui/components/ui/badge";
 import { ArrowLeft, Building2, MapPin } from "lucide-react";
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 import { SocialLinks } from "./social-links";
 
 interface DepartmentHeroProps {
   department: ContentTranslations;
 }
 
-export function DepartmentHero({ department }: DepartmentHeroProps) {
+export async function DepartmentHero({ department }: DepartmentHeroProps) {
+  const t = await getTranslations("units.detail");
   const dept = department.department_ref;
 
   // Use custom hero image if available, otherwise use default
@@ -35,7 +37,7 @@ export function DepartmentHero({ department }: DepartmentHeroProps) {
             href="/units"
           >
             <ArrowLeft className="h-5 w-5" />
-            Back
+            {t("back")}
           </Link>
 
           <div className="max-w-3xl">

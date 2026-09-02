@@ -1,236 +1,172 @@
-import { ExpensesStatus } from "@repo/api/types/appwrite";
-import { ImageWithFallback } from "@repo/ui/components/image";
-import { Badge } from "@repo/ui/components/ui/badge";
-import { Card } from "@repo/ui/components/ui/card";
-import { Separator } from "@repo/ui/components/ui/separator";
-import { PLACEHOLDER_IMAGE } from "@repo/ui/lib/placeholder-images";
-import {
-  ArrowLeft,
-  Building2,
-  Calendar,
-  CheckCircle,
-  Clock,
-  Paperclip,
-  XCircle,
-} from "lucide-react";
-import Link from "next/link";
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
+import { getLocale } from "@/app/actions/locale";
 import { ExpenseDetailSkeleton } from "@/components/expense/expense-skeleton";
+import { expenseStatusVisual } from "@/components/expense/v2/expense-status";
+import { PageHeader } from "@/components/ui/page-header";
+import { Pill } from "@/components/ui/pill";
+import { Section } from "@/components/ui/section";
+import { SectionHeading } from "@/components/ui/section-heading";
 import { getExpenseById } from "@/lib/actions/expense";
 
-const statusConfig = {
-  [ExpensesStatus.DRAFT]: {
-    label: "Draft",
-    color: "bg-muted text-muted-foreground border-border",
-    icon: Clock,
-  },
-  [ExpensesStatus.PENDING]: {
-    label: "Pending",
-    color: "bg-yellow-100 text-yellow-700 border-yellow-200",
-    icon: Clock,
-  },
-  [ExpensesStatus.APPROVED]: {
-    label: "Approved",
-    color: "bg-emerald-100 text-emerald-700 border-emerald-200",
-    icon: CheckCircle,
-  },
-  [ExpensesStatus.SUCCESS]: {
-    label: "Reimbursed",
-    color: "bg-green-100 text-green-700 border-green-200",
-    icon: CheckCircle,
-  },
-  [ExpensesStatus.SUBMITTED]: {
-    label: "Submitted",
-    color: "bg-blue-100 text-blue-700 border-blue-200",
-    icon: CheckCircle,
-  },
-  [ExpensesStatus.REJECTED]: {
-    label: "Rejected",
-    color: "bg-red-100 text-red-700 border-red-200",
-    icon: XCircle,
-  },
-  [ExpensesStatus.FAILED]: {
-    label: "Posting failed",
-    color: "bg-red-100 text-red-700 border-red-200",
-    icon: XCircle,
-  },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("expenses");
+  return { title: `${t("title")} | BISO`, description: t("lede") };
+}
 
 interface ExpenseDetailsProps {
-  params: Promise<{
-    id: string;
-  }>;
+  params: Promise<{ id: string }>;
+}
+
+const APPWRITE_ENDPOINT = process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT;
+const APPWRITE_PROJECT = process.env.NEXT_PUBLIC_APPWRITE_PROJECT;
+
+function receiptHref(fileId: string): string {
+  return `${APPWRITE_ENDPOINT}/storage/buckets/expenses/files/${fileId}/view?project=${APPWRITE_PROJECT}`;
+}
+
+/** A label/value pair in the summary grid; omitted entirely when empty. */
+function Fact({
+  label,
+  mono,
+  value,
+}: {
+  label: string;
+  mono?: boolean;
+  value: string | null | undefined;
+}) {
+  if (!value) {
+    return null;
+  }
+  return (
+    <div>
+      <dt className="type-label text-ink-muted">{label}</dt>
+      <dd
+        className={`type-body mt-1 min-w-0 break-words text-ink${mono ? "font-mono" : ""}`}
+      >
+        {value}
+      </dd>
+    </div>
+  );
 }
 
 async function ExpenseDetails({ expenseId }: { expenseId: string }) {
-  const result = await getExpenseById(expenseId);
+  const [result, locale, t] = await Promise.all([
+    getExpenseById(expenseId),
+    getLocale(),
+    getTranslations("expenses"),
+  ]);
 
   if (!(result.success && result.expense)) {
-    return notFound();
+    notFound();
   }
 
   const expense = result.expense;
-  const config = statusConfig[expense.status as ExpensesStatus];
-  const StatusIcon = config.icon;
-
+  const visual = expenseStatusVisual(expense.status);
   const submittedDate = new Date(expense.$createdAt).toLocaleDateString(
-    "no-NO",
-    {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    }
+    locale,
+    { year: "numeric", month: "long", day: "numeric" }
   );
+  const attachments = expense.expenseAttachments ?? [];
 
   return (
     <>
-      {/* Expense Information */}
-      <Card className="border-0 p-8 shadow-lg">
-        <div className="mb-6 flex items-start justify-between">
-          <div>
-            <h2 className="mb-2 font-bold text-3xl text-foreground">
-              {expense.description || "Expense Reimbursement"}
-            </h2>
-            <Badge className={`${config.color}text-sm`}>
-              <StatusIcon className="mr-1 h-4 w-4" />
-              {config.label}
-            </Badge>
-          </div>
-          <div className="text-right">
-            <div className="font-bold text-3xl text-brand">
-              {expense.total.toFixed(2)} NOK
-            </div>
-            <p className="mt-1 text-muted-foreground text-sm">Total Amount</p>
-          </div>
-        </div>
+      <PageHeader
+        breadcrumbs={[
+          { label: t("title"), href: "/fs" },
+          { label: expense.description || t("card.untitled") },
+        ]}
+        meta={
+          <>
+            <Pill tone={visual.tone}>
+              <visual.Icon aria-hidden="true" className="size-3.5 shrink-0" />
+              {t(`status.${visual.key}`)}
+            </Pill>
+            {/* The total was the largest thing on the old page and sat beside
+                a "Total Amount" caption; it is a fact about the claim, so it
+                sits with the other facts the title is qualified by. */}
+            <Pill>{expense.total.toFixed(2)} NOK</Pill>
+          </>
+        }
+        title={expense.description || t("card.untitled")}
+      />
 
-        <Separator className="my-6" />
+      <Section tone="paper">
+        <dl className="grid gap-6 sm:grid-cols-2">
+          <Fact label={t("detail.campus")} value={expense.campus} />
+          <Fact label={t("detail.department")} value={expense.department} />
+          <Fact label={t("detail.submitted")} value={submittedDate} />
+          <Fact
+            label={t("detail.bankAccount")}
+            mono
+            value={expense.bank_account}
+          />
+          <Fact label={t("detail.event")} value={expense.eventName} />
+          <Fact
+            label={t("detail.prepayment")}
+            value={
+              expense.prepayment_amount && expense.prepayment_amount > 0
+                ? `${expense.prepayment_amount.toFixed(2)} NOK`
+                : null
+            }
+          />
+          <Fact
+            label={t("detail.invoiceId")}
+            mono
+            value={
+              expense.invoice_id === null || expense.invoice_id === undefined
+                ? null
+                : String(expense.invoice_id)
+            }
+          />
+        </dl>
+      </Section>
 
-        <div className="grid gap-6 md:grid-cols-2">
-          <div>
-            <h3 className="mb-2 font-semibold text-muted-foreground text-sm">
-              Campus
-            </h3>
-            <div className="flex items-center gap-2">
-              <Building2 className="h-4 w-4 text-brand" />
-              <span className="text-foreground">{expense.campus}</span>
-            </div>
-          </div>
-
-          <div>
-            <h3 className="mb-2 font-semibold text-muted-foreground text-sm">
-              Department
-            </h3>
-            <p className="text-foreground">{expense.department}</p>
-          </div>
-
-          <div>
-            <h3 className="mb-2 font-semibold text-muted-foreground text-sm">
-              Submitted Date
-            </h3>
-            <div className="flex items-center gap-2">
-              <Calendar className="h-4 w-4 text-brand" />
-              <span className="text-foreground">{submittedDate}</span>
-            </div>
-          </div>
-
-          <div>
-            <h3 className="mb-2 font-semibold text-muted-foreground text-sm">
-              Bank Account
-            </h3>
-            <p className="font-mono text-foreground">{expense.bank_account}</p>
-          </div>
-
-          {expense.eventName && (
-            <div className="md:col-span-2">
-              <h3 className="mb-2 font-semibold text-muted-foreground text-sm">
-                Event Name
-              </h3>
-              <p className="text-foreground">{expense.eventName}</p>
-            </div>
-          )}
-
-          {expense.prepayment_amount && expense.prepayment_amount > 0 && (
-            <div>
-              <h3 className="mb-2 font-semibold text-muted-foreground text-sm">
-                Prepayment
-              </h3>
-              <p className="text-foreground">
-                {expense.prepayment_amount.toFixed(2)} NOK
-              </p>
-            </div>
-          )}
-
-          {expense.invoice_id && (
-            <div>
-              <h3 className="mb-2 font-semibold text-muted-foreground text-sm">
-                Invoice ID
-              </h3>
-              <p className="font-mono text-foreground">{expense.invoice_id}</p>
-            </div>
-          )}
-        </div>
-      </Card>
-
-      {/* Attachments */}
-      {expense.expenseAttachments && expense.expenseAttachments.length > 0 && (
-        <Card className="border-0 p-8 shadow-lg">
-          <div className="mb-6 flex items-center gap-2">
-            <Paperclip className="h-5 w-5 text-brand" />
-            <h2 className="font-bold text-2xl text-foreground">
-              Attachments ({expense.expenseAttachments.length})
-            </h2>
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-2">
-            {expense.expenseAttachments.map((attachment) => (
-              <Card className="border-brand-border p-4" key={attachment.$id}>
-                <div className="space-y-2">
-                  <div>
-                    <h4 className="font-semibold text-muted-foreground text-sm">
-                      Description
-                    </h4>
-                    <p className="text-foreground">{attachment.description}</p>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <h4 className="font-semibold text-muted-foreground text-sm">
-                        Date
-                      </h4>
-                      <p className="text-foreground">
-                        {attachment.date
-                          ? new Date(attachment.date).toLocaleDateString(
-                              "no-NO"
-                            )
-                          : "N/A"}
-                      </p>
-                    </div>
-                    <div>
-                      <h4 className="font-semibold text-muted-foreground text-sm">
-                        Amount
-                      </h4>
-                      <p className="font-semibold text-foreground">
-                        {attachment.amount?.toFixed(2) || "0.00"} NOK
-                      </p>
-                    </div>
-                  </div>
-                  {attachment.url && (
-                    <a
-                      className="text-brand text-sm hover:underline"
-                      href={`${process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT}/storage/buckets/expenses/files/${attachment.url}/view?project=${process.env.NEXT_PUBLIC_APPWRITE_PROJECT || process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID}`}
-                      rel="noopener noreferrer"
-                      target="_blank"
-                    >
-                      View Receipt →
-                    </a>
-                  )}
-                </div>
-              </Card>
+      {attachments.length > 0 ? (
+        <Section className="border-edge border-t" tone="paper">
+          <SectionHeading>
+            {t("detail.attachments", { count: attachments.length })}
+          </SectionHeading>
+          <ul className="grid gap-5 sm:grid-cols-2">
+            {attachments.map((attachment) => (
+              <li
+                className="rounded-biso-md border border-edge p-5"
+                key={attachment.$id}
+              >
+                <h3 className="type-heading-card min-w-0 break-words text-ink">
+                  {attachment.description}
+                </h3>
+                <dl className="mt-4 grid grid-cols-2 gap-4">
+                  <Fact
+                    label={t("detail.date")}
+                    value={
+                      attachment.date
+                        ? new Date(attachment.date).toLocaleDateString(locale)
+                        : null
+                    }
+                  />
+                  <Fact
+                    label={t("detail.amount")}
+                    value={`${attachment.amount?.toFixed(2) || "0.00"} NOK`}
+                  />
+                </dl>
+                {attachment.url ? (
+                  <a
+                    className="type-body-sm mt-4 inline-flex items-center gap-2 text-ink-accent underline underline-offset-4 hover:no-underline focus-visible:rounded-biso-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+                    href={receiptHref(attachment.url)}
+                    rel="noopener noreferrer"
+                    target="_blank"
+                  >
+                    {t("detail.viewReceipt")}
+                  </a>
+                ) : null}
+              </li>
             ))}
-          </div>
-        </Card>
-      )}
+          </ul>
+        </Section>
+      ) : null}
     </>
   );
 }
@@ -239,40 +175,8 @@ export default async function ExpenseViewPage({ params }: ExpenseDetailsProps) {
   const { id } = await params;
 
   return (
-    <div className="min-h-screen bg-linear-to-b from-section to-background">
-      {/* Header */}
-      <div className="relative h-[30vh] overflow-hidden">
-        <ImageWithFallback
-          alt="Expense Details"
-          className="object-cover"
-          fill
-          src={PLACEHOLDER_IMAGE}
-        />
-        <div className="absolute inset-0 bg-linear-to-br from-brand-overlay-from via-brand-overlay-via to-brand-overlay-to" />
-
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="mx-auto max-w-4xl px-4 text-center">
-            <Link href="/fs">
-              <button
-                className="absolute top-8 left-8 flex items-center gap-2 text-white transition-colors hover:text-brand"
-                type="button"
-              >
-                <ArrowLeft className="h-5 w-5" />
-                Back to Reimbursements
-              </button>
-            </Link>
-
-            <h1 className="font-bold text-4xl text-white">Expense Details</h1>
-          </div>
-        </div>
-      </div>
-
-      {/* Content */}
-      <div className="mx-auto max-w-4xl space-y-6 px-4 py-12">
-        <Suspense fallback={<ExpenseDetailSkeleton />}>
-          <ExpenseDetails expenseId={id} />
-        </Suspense>
-      </div>
-    </div>
+    <Suspense fallback={<ExpenseDetailSkeleton />}>
+      <ExpenseDetails expenseId={id} />
+    </Suspense>
   );
 }

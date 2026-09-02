@@ -20,6 +20,8 @@ export default function robots(): MetadataRoute.Robots {
           "/shop/checkout",
           "/shop/cart",
           "/recruitment/book/",
+          // Internal design-system reference, not public content.
+          "/design-system",
         ],
       },
     ],

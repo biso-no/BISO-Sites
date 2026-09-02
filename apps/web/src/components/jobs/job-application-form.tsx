@@ -11,6 +11,7 @@ import { Separator } from "@repo/ui/components/ui/separator";
 import { Textarea } from "@repo/ui/components/ui/textarea";
 import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 import { submitJobApplication } from "@/app/actions/jobs";
 
@@ -123,6 +124,7 @@ function QuestionInput({
   onChange: (value: string) => void;
   question: RecruitmentCustomQuestion;
 }) {
+  const t = useTranslations("jobs.application");
   const id = `q-${question.id}`;
 
   if (question.type === "long_text") {
@@ -182,7 +184,7 @@ function QuestionInput({
         required={question.required}
         value={answer}
       >
-        <option value="">Choose…</option>
+        <option value="">{t("choose")}</option>
         {(question.options ?? []).map((opt) => (
           <option key={opt} value={opt}>
             {opt}
@@ -205,7 +207,7 @@ function QuestionInput({
             onChange(checked === true ? "true" : "")
           }
         />
-        Yes
+        {t("yes")}
       </label>
     );
   }
@@ -242,6 +244,7 @@ export function JobApplicationForm({
   isAuthenticated,
   jobId,
 }: JobApplicationFormProps) {
+  const t = useTranslations("jobs.application");
   const hasQuestions = customQuestions.length > 0;
   const steps = hasQuestions
     ? STEPS
@@ -333,12 +336,10 @@ export function JobApplicationForm({
   if (!isAuthenticated) {
     return (
       <Card className="border-border/60 p-6 shadow-sm">
-        <h3 className="font-semibold text-foreground text-xl">Apply</h3>
-        <p className="mt-2 text-muted-foreground text-sm">
-          You need a signed-in BISO account to apply.
-        </p>
+        <h3 className="font-semibold text-foreground text-xl">{t("apply")}</h3>
+        <p className="mt-2 text-muted-foreground text-sm">{t("signInBody")}</p>
         <Button asChild className="mt-4 w-full">
-          <Link href="/auth/login">Sign in to apply</Link>
+          <Link href="/auth/login">{t("signInTitle")}</Link>
         </Button>
       </Card>
     );
@@ -352,14 +353,14 @@ export function JobApplicationForm({
             ✓
           </div>
           <h3 className="font-semibold text-foreground text-lg">
-            Application submitted!
+            {t("submitted")}
           </h3>
           <p className="text-muted-foreground text-sm">
             We'll review your application and be in touch at{" "}
             <strong>{applicantEmail}</strong>.
           </p>
           <Button asChild className="w-full" variant="outline">
-            <Link href="/applications">View my applications</Link>
+            <Link href="/applications">{t("viewApplications")}</Link>
           </Button>
         </div>
       </Card>
@@ -369,7 +370,7 @@ export function JobApplicationForm({
   return (
     <Card className="border-border/60 p-6 shadow-sm">
       <div className="mb-5 space-y-2">
-        <h3 className="font-semibold text-foreground text-xl">Apply</h3>
+        <h3 className="font-semibold text-foreground text-xl">{t("apply")}</h3>
         <StepIndicator current={step} hasQuestions={hasQuestions} />
       </div>
 
@@ -385,7 +386,7 @@ export function JobApplicationForm({
             transition={{ duration: 0.15 }}
           >
             <div className="space-y-2">
-              <Label htmlFor="applicant_name">Full name *</Label>
+              <Label htmlFor="applicant_name">{t("fullName")}</Label>
               <Input
                 id="applicant_name"
                 onChange={(e) => setName(e.target.value)}
@@ -394,22 +395,20 @@ export function JobApplicationForm({
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="applicant_email">Email</Label>
+              <Label htmlFor="applicant_email">{t("email")}</Label>
               <Input
                 disabled
                 id="applicant_email"
                 type="email"
                 value={applicantEmail}
               />
-              <p className="text-muted-foreground text-xs">
-                Verified via your BISO account
-              </p>
+              <p className="text-muted-foreground text-xs">{t("verified")}</p>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="applicant_phone">Phone (optional)</Label>
+              <Label htmlFor="applicant_phone">{t("phoneOptional")}</Label>
               <div className="flex gap-2">
                 <select
-                  aria-label="Country code"
+                  aria-label={t("countryCode")}
                   className="h-9 rounded-md border border-input bg-background px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
                   onChange={(e) => setCountryCode(e.target.value)}
                   value={countryCode}
@@ -425,7 +424,7 @@ export function JobApplicationForm({
                   id="applicant_phone"
                   inputMode="tel"
                   onChange={(e) => setLocalPhone(e.target.value)}
-                  placeholder="123 45 678"
+                  placeholder={t("phonePlaceholder")}
                   type="tel"
                   value={localPhone}
                 />
@@ -433,7 +432,7 @@ export function JobApplicationForm({
             </div>
             <Separator />
             <div className="space-y-2">
-              <Label htmlFor="linkedin_url">LinkedIn (optional)</Label>
+              <Label htmlFor="linkedin_url">{t("linkedin")}</Label>
               <Input
                 id="linkedin_url"
                 onChange={(e) => setLinkedinUrl(e.target.value)}
@@ -443,22 +442,20 @@ export function JobApplicationForm({
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="current_role">Current role (optional)</Label>
+                <Label htmlFor="current_role">{t("currentRole")}</Label>
                 <Input
                   id="current_role"
                   onChange={(e) => setCurrentRole(e.target.value)}
-                  placeholder="Student, intern…"
+                  placeholder={t("currentRolePlaceholder")}
                   value={currentRole}
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="current_employer">
-                  Employer / school (optional)
-                </Label>
+                <Label htmlFor="current_employer">{t("employer")}</Label>
                 <Input
                   id="current_employer"
                   onChange={(e) => setCurrentEmployer(e.target.value)}
-                  placeholder="BI, BISO…"
+                  placeholder={t("employerPlaceholder")}
                   value={currentEmployer}
                 />
               </div>
@@ -469,7 +466,7 @@ export function JobApplicationForm({
               onClick={nextStep}
               type="button"
             >
-              Continue
+              {t("continue")}
             </Button>
           </motion.div>
         )}
@@ -484,9 +481,7 @@ export function JobApplicationForm({
             key="questions"
             transition={{ duration: 0.15 }}
           >
-            <p className="text-muted-foreground text-sm">
-              A few questions from the hiring team.
-            </p>
+            <p className="text-muted-foreground text-sm">{t("intro")}</p>
             {customQuestions.map((q) => (
               <div className="space-y-1.5" key={q.id}>
                 <Label htmlFor={`q-${q.id}`}>
@@ -510,7 +505,7 @@ export function JobApplicationForm({
                 type="button"
                 variant="outline"
               >
-                Back
+                {t("back")}
               </Button>
               <Button
                 className="flex-1"
@@ -520,7 +515,7 @@ export function JobApplicationForm({
                 onClick={nextStep}
                 type="button"
               >
-                Continue
+                {t("continue")}
               </Button>
             </div>
           </motion.div>
@@ -543,7 +538,7 @@ export function JobApplicationForm({
               <Textarea
                 id="cover_letter"
                 onChange={(e) => setCoverLetter(e.target.value)}
-                placeholder="Tell BISO why you're applying and what you'd bring."
+                placeholder={t("coverLetterPlaceholder")}
                 rows={6}
                 value={coverLetter}
               />
@@ -582,23 +577,21 @@ export function JobApplicationForm({
                 <p className="text-destructive text-xs">{fileError}</p>
               ) : (
                 <p className="text-muted-foreground text-xs">
-                  Max 5 MB, PDF only.
+                  {t("attachmentHint")}
                 </p>
               )}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="availability">
-                Interview availability (optional)
-              </Label>
+              <Label htmlFor="availability">{t("availability")}</Label>
               <Textarea
                 id="availability"
                 onChange={(e) => setAvailability(e.target.value)}
-                placeholder="Dates and times that generally work — one per line."
+                placeholder={t("availabilityPlaceholder")}
                 rows={3}
                 value={availability}
               />
               <p className="text-muted-foreground text-xs">
-                Helps HR suggest slots without back-and-forth emails.
+                {t("availabilityHint")}
               </p>
             </div>
             <div className="flex gap-3">
@@ -608,7 +601,7 @@ export function JobApplicationForm({
                 type="button"
                 variant="outline"
               >
-                Back
+                {t("back")}
               </Button>
               <Button
                 className="flex-1"
@@ -616,7 +609,7 @@ export function JobApplicationForm({
                 onClick={nextStep}
                 type="button"
               >
-                Review application
+                {t("review")}
               </Button>
             </div>
           </motion.div>
@@ -634,16 +627,16 @@ export function JobApplicationForm({
           >
             <div className="space-y-2 rounded-lg border border-border/50 bg-muted/30 p-4 text-sm">
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Name</span>
+                <span className="text-muted-foreground">{t("name")}</span>
                 <span className="font-medium">{name}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Email</span>
+                <span className="text-muted-foreground">{t("email")}</span>
                 <span className="font-medium">{applicantEmail}</span>
               </div>
               {localPhone && (
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Phone</span>
+                  <span className="text-muted-foreground">{t("phone")}</span>
                   <span className="font-medium">
                     {countryCode}
                     {localPhone}
@@ -660,8 +653,12 @@ export function JobApplicationForm({
               )}
               {coverLetter && (
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Cover letter</span>
-                  <span className="font-medium text-green-700">Included</span>
+                  <span className="text-muted-foreground">
+                    {t("coverLetter")}
+                  </span>
+                  <span className="font-medium text-green-700">
+                    {t("included")}
+                  </span>
                 </div>
               )}
             </div>
@@ -690,7 +687,7 @@ export function JobApplicationForm({
                 type="button"
                 variant="outline"
               >
-                Back
+                {t("back")}
               </Button>
               <Button
                 className="flex-1"

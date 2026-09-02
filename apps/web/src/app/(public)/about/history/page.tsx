@@ -1,13 +1,12 @@
-"use client";
-
-import { Button } from "@repo/ui/components/ui/button";
-import { History } from "lucide-react";
-import { motion } from "motion/react";
+import { ArrowLeft } from "lucide-react";
+import type { Metadata } from "next";
 import Link from "next/link";
-import { useTranslations } from "next-intl";
-import { AboutHero } from "@/components/about/about-hero";
-import { HistoryTimeline } from "@/components/about/history-timeline";
-import { StatsBar } from "@/components/about/stats-bar";
+import { getTranslations } from "next-intl/server";
+import { PageHeader } from "@/components/ui/page-header";
+import { Prose } from "@/components/ui/prose";
+import { Section } from "@/components/ui/section";
+import { SectionHeading } from "@/components/ui/section-heading";
+import { StatRow } from "@/components/ui/stat-row";
 
 interface TimelineEntry {
   description: string;
@@ -22,91 +21,76 @@ interface StatItem {
   value: string;
 }
 
-export default function HistoryPage() {
-  const t = useTranslations("about.pages.history");
-  const tAbout = useTranslations("about");
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("about.pages.history");
+  return { title: `${t("title")} | BISO`, description: t("intro") };
+}
+
+export default async function HistoryPage() {
+  const [t, tCommon, tAbout] = await Promise.all([
+    getTranslations("about.pages.history"),
+    getTranslations("common"),
+    getTranslations("about"),
+  ]);
 
   const timeline = t.raw("timeline") as TimelineEntry[];
   const stats = t.raw("stats") as StatItem[];
 
   return (
-    <div className="min-h-screen bg-linear-to-b from-section to-background">
-      <AboutHero
+    <>
+      <PageHeader
         breadcrumbs={[
-          { label: "Home", href: "/" },
+          { label: tCommon("breadcrumbs.home"), href: "/" },
           { label: tAbout("hub.title"), href: "/about" },
           { label: t("title") },
         ]}
-        compact
-        icon={<History className="h-8 w-8 text-white" />}
-        subtitle={t("intro")}
+        lede={t("intro")}
         title={t("title")}
       />
 
-      {/* Main content */}
-      <section className="py-16" id="about-content">
-        <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
-          <motion.div
-            className="prose prose-lg max-w-none"
-            initial={{ opacity: 0, y: 20 }}
-            transition={{ duration: 0.6 }}
-            viewport={{ once: true }}
-            whileInView={{ opacity: 1, y: 0 }}
-          >
-            <p className="whitespace-pre-line text-lg text-muted-foreground leading-relaxed">
-              {t("content")}
-            </p>
-          </motion.div>
-        </div>
-      </section>
+      <Section id="about-content" tone="paper" width="prose">
+        <Prose>
+          <p className="whitespace-pre-line">{t("content")}</p>
+        </Prose>
+      </Section>
 
-      {/* Timeline */}
-      <section className="bg-section/50 py-16">
-        <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
-          <motion.h2
-            className="mb-10 font-bold text-2xl text-foreground md:text-3xl"
-            initial={{ opacity: 0, y: 20 }}
-            transition={{ duration: 0.5 }}
-            viewport={{ once: true }}
-            whileInView={{ opacity: 1, y: 0 }}
-          >
-            {t("timelineTitle")}
-          </motion.h2>
-          <HistoryTimeline items={timeline} />
-        </div>
-      </section>
+      <Section className="border-edge border-t" tone="paper" width="prose">
+        <SectionHeading>{t("timelineTitle")}</SectionHeading>
+        {/* `<HistoryTimeline>` was a Client Component whose only job was to
+            fade each entry in on scroll. The timeline is an ordered list of
+            dated events, which is what it is now — and what a screen reader
+            and a crawler get. */}
+        <ol className="border-edge border-s ps-6">
+          {timeline.map((entry) => (
+            <li className="relative pb-8 last:pb-0" key={entry.id}>
+              <span
+                aria-hidden="true"
+                className="absolute -start-[1.9rem] top-1.5 size-2.5 rounded-full bg-action"
+              />
+              <span className="type-data block text-ink-accent">
+                {entry.year}
+              </span>
+              <h3 className="type-heading-card mt-1 text-ink">{entry.title}</h3>
+              <p className="type-body mt-1 text-ink-muted">
+                {entry.description}
+              </p>
+            </li>
+          ))}
+        </ol>
+      </Section>
 
-      {/* Stats */}
-      <section className="py-16">
-        <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
-          <motion.h2
-            className="mb-8 font-bold text-2xl text-foreground md:text-3xl"
-            initial={{ opacity: 0, y: 20 }}
-            transition={{ duration: 0.5 }}
-            viewport={{ once: true }}
-            whileInView={{ opacity: 1, y: 0 }}
-          >
-            {t("statsTitle")}
-          </motion.h2>
-          <StatsBar items={stats} />
-        </div>
-      </section>
+      <Section className="border-edge border-t" tone="paper">
+        <SectionHeading>{t("statsTitle")}</SectionHeading>
+        <StatRow stats={stats} />
 
-      {/* Back to about */}
-      <section className="py-16">
-        <div className="mx-auto max-w-4xl px-4 text-center sm:px-6 lg:px-8">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            transition={{ duration: 0.5 }}
-            viewport={{ once: true }}
-            whileInView={{ opacity: 1, y: 0 }}
-          >
-            <Button asChild size="lg" variant="outline">
-              <Link href="/about">← {tAbout("hub.title")}</Link>
-            </Button>
-          </motion.div>
-        </div>
-      </section>
-    </div>
+        <Link
+          className="mt-12 inline-flex items-center gap-2 text-ink-accent underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+          href="/about"
+        >
+          <ArrowLeft aria-hidden="true" className="h-4 w-4" />
+          <span className="type-label">{tAbout("hub.title")}</span>
+        </Link>
+      </Section>
+    </>
   );
 }

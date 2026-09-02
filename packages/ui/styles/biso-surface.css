@@ -125,3 +125,133 @@
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
 }
+
+/* ---------------------------------------------------------------------------
+ * BISO 2026 redesign surface — additive, mounted only by apps/web.
+ *
+ * Lives here rather than in apps/web because `apps/web/src/app/styles.test.ts`
+ * asserts the public palette is owned by this file, so that apps/admin's page
+ * editor canvas previews the same surface students see. Keeping the new palette
+ * here preserves that guarantee; the editor canvas can adopt it by adding the
+ * class when the redesign lands.
+ *
+ * `.biso-surface-v2` is deliberately a SECOND class, not an edit to
+ * `.biso-surface`. apps/web mounts both, so:
+ *   - unmigrated components keep reading --brand / --primary / --inverted
+ *   - new primitives read the --biso-* tokens below
+ *   - apps/admin, which mounts only `.biso-surface`, is untouched
+ * RD-030 retires the old class and renames this one once nothing reads the old
+ * tokens. Until then every page renders byte-identically.
+ *
+ * Palette measured from docs/redesign/reference/1.png. See
+ * docs/redesign/01-design-spec.md §1 for the derivation and the contrast matrix.
+ * ------------------------------------------------------------------------- */
+
+:where(.biso-surface-v2) {
+  /* --- typefaces -------------------------------------------------------
+   * Overrides the legacy block's `--font-biso-display`, which points at
+   * `--font-museo`. apps/web no longer loads Museo Sans (62 KB preloaded on
+   * every route, rendered zero times, and Light-only so it could never produce
+   * the reference's heavy uppercase display). apps/admin loads its own copy
+   * from apps/admin/public and still resolves the legacy block, so it is
+   * unaffected.
+   *
+   * Swap `--font-archivo` for `--font-museo` here if a Museo Sans 900 web
+   * licence turns out to exist — that plus apps/web/src/app/fonts.ts is the
+   * whole change. */
+  --font-biso-display:
+    var(--font-archivo), var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+
+  /* --- the six named brand values ------------------------------------- */
+  --biso-deep: #001a35;   /* navy: dark surfaces, and the ink colour on light */
+  --biso-blue: #1668ae;   /* action: buttons, links, focus. 5.79:1 both ways  */
+  --biso-sky: #3aa3e1;    /* brand blue: display accent + chevron, ON NAVY    */
+  --biso-sun: #fecd45;    /* marker: collection headings, notices. Never text */
+  --biso-paper: #ffffff;
+  --biso-line: #e8ecf0;
+
+  /* The reference's own button blue (#217EC7) is 4.31:1 under white text and
+     fails AA, and white on --biso-sky is 2.80:1. --biso-blue is the corrected
+     action colour; --biso-sky is therefore restricted to navy surfaces and to
+     non-text use. See 01-design-spec.md §1.2. */
+
+  /* --- state ---------------------------------------------------------- */
+  /* Darkened from the spec's #1b7f4b during RD-011: that value is 5.02:1 on
+     paper but only 4.39:1 on its own 10% tint, which is how a status pill
+     actually uses it. #187244 is 5.95:1 on paper and 5.16:1 on the tint. */
+  --biso-success: #187244;
+  --biso-warning: #8a5a00;
+  --biso-danger: #b3261e;
+
+  /* --- semantic aliases: light surface --------------------------------- */
+  --surface: var(--biso-paper);
+  --surface-raised: var(--biso-paper);
+  /* The recessed surface: a media frame waiting for its image, a skeleton
+     block, an inset note. One step below paper — enough to read as a hole in
+     the page, not enough to compete with a card. `--biso-line` is the hairline
+     at #e8ecf0; this sits just under it so a tinted panel and a rule drawn on
+     paper never resolve to the same colour. */
+  --surface-sunken: #eef1f5;
+  --ink: var(--biso-deep);
+  --ink-muted: #526475;
+  --ink-accent: var(--biso-blue);
+  --edge: var(--biso-line);
+  --action: var(--biso-blue);
+  --action-ink: var(--biso-paper);
+  --focus-ring: var(--biso-blue);
+  --marker: var(--biso-sun);
+}
+
+/* Aliases for content sitting ON the navy band. Opt in with `data-surface="deep"`
+   rather than a media query — a navy band appears inside an otherwise light
+   page, so this is a surface context, not a theme. */
+:where(.biso-surface-v2 [data-surface="deep"]),
+:where(.biso-surface-v2[data-surface="deep"]) {
+  --surface: var(--biso-deep);
+  --surface-raised: #0b2747;
+  /* On navy a recess goes *down*, not up — the raised card is #0b2747, so the
+     sunken surface has to sit below #001a35 to read as the same gesture. */
+  --surface-sunken: #00142a;
+  --ink: var(--biso-paper);
+  --ink-muted: #93a7bb;
+  --ink-accent: var(--biso-sky);
+  --edge: #12314f;
+  --action: var(--biso-sky);
+  --action-ink: var(--biso-deep);
+  --focus-ring: var(--biso-sky);
+}
+
+/* Dark theme: the navy band becomes the page. Same alias names, so every
+   consumer is theme-agnostic. */
+:where(.dark.biso-surface-v2, .dark .biso-surface-v2) {
+  /* State colours need dark variants of their own. RD-005 defined them as
+     single values tuned for a light surface; on navy the light-mode green,
+     amber and red measured 3.03 / 3.04 / 2.76:1 against their own 10% tint —
+     all below AA. Only surfaced in RD-011, when <Pill> became the first thing
+     to actually render them. Lightened here: 5.7 / 6.0 / 5.7:1 on tint. */
+  --biso-success: #26b66d;
+  --biso-warning: #dd9000;
+  --biso-danger: #ff6f61;
+
+  --surface: var(--biso-deep);
+  --surface-raised: #0b2747;
+  /* On navy a recess goes *down*, not up — the raised card is #0b2747, so the
+     sunken surface has to sit below #001a35 to read as the same gesture. */
+  --surface-sunken: #00142a;
+  --ink: var(--biso-paper);
+  --ink-muted: #93a7bb;
+  --ink-accent: var(--biso-sky);
+  --edge: #12314f;
+  --action: var(--biso-sky);
+  --action-ink: var(--biso-deep);
+  --focus-ring: var(--biso-sky);
+}
+
+/* Inside a navy band in dark mode the band and page are the same colour, so a
+   raised card lifts instead of inverting. */
+:where(.dark.biso-surface-v2 [data-surface="deep"]),
+:where(.dark .biso-surface-v2 [data-surface="deep"]) {
+  --surface: var(--biso-deep);
+  --surface-raised: #0b2747;
+  --surface-sunken: #00142a;
+}

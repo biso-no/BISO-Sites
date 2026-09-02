@@ -131,7 +131,7 @@ function PaymentSummary({
   const t = useTranslations("membership.join.pay");
   const tPlan = useTranslations("membership.join.plan");
   return (
-    <div className="mb-6 overflow-hidden rounded-2xl bg-brand-dark text-white">
+    <div className="mb-6 overflow-hidden rounded-2xl bg-deep text-white">
       <div className="h-1 w-full bg-brand-accent" />
       <div className="p-5">
         <div className="flex items-center justify-between gap-4">

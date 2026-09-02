@@ -8,7 +8,9 @@
     "Sports": "Idrett",
     "Culture": "Kultur",
     "clearFilters": "Tøm filtre",
-    "showingResults": "Viser {count} {count, plural, one {arrangement} other {arrangementer}}"
+    "showingResults": "Viser {count} {count, plural, one {arrangement} other {arrangementer}}",
+    "categoryLabel": "Filtrer arrangementer etter kategori",
+    "campusLabel": "Filtrer arrangementer etter campus"
   },
   "emptyState": {
     "title": "Ingen arrangementer funnet",
@@ -28,7 +30,12 @@
     "individualPricing": "Individuell prising: Registrer deg for hvert arrangement separat",
     "viewCollection": "Vis samling",
     "viewDetails": "Vis detaljer",
-    "locationTba": "Sted kommer"
+    "locationTba": "Sted kommer",
+    "free": "Gratis",
+    "priceTba": "Pris kommer",
+    "past": "Avholdt",
+    "registerNow": "Meld deg på",
+    "infoOnly": "Kun informasjon"
   },
   "modal": {
     "memberPrice": "Medlemspris",
@@ -88,5 +95,29 @@
     "refunds": "Refusjon tilgjengelig inntil 48 timer før arrangementet",
     "questions": "Spørsmål?",
     "contactTeam": "Kontakt vårt arrangementsteam på"
+  },
+  "category": {
+    "social": "Sosialt",
+    "career": "Karriere",
+    "workshop": "Workshop",
+    "talk": "Foredrag",
+    "party": "Fest",
+    "sport": "Idrett",
+    "academic": "Faglig",
+    "trip": "Tur"
+  },
+  "detail": {
+    "share": "Del",
+    "copied": "Lenke kopiert",
+    "getTickets": "Kjøp billetter",
+    "noRegistration": "Ingen påmelding på nett for dette arrangementet — ta kontakt med arrangøren hvis du lurer på noe.",
+    "organiser": "Arrangør",
+    "capacity": "Kapasitet",
+    "capacityValue": "{count} plasser",
+    "registrationDeadline": "Påmeldingsfrist",
+    "onlineLink": "Digitalt",
+    "joinOnline": "Delta digitalt",
+    "tags": "Temaer",
+    "translationFallback": "Denne beskrivelsen finnes bare på engelsk."
   }
 }

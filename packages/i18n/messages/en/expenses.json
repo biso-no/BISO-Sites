@@ -1,0 +1,46 @@
+{
+  "title": "Reimbursements",
+  "lede": "Submit and track your expense reimbursements.",
+  "submitNew": "Submit new reimbursement",
+  "emptyTitle": "No reimbursements yet",
+  "emptyBody": "Submit your first reimbursement to get started.",
+  "loadFailedTitle": "Failed to load reimbursements",
+  "unavailableTitle": "Reimbursements are temporarily unavailable",
+  "unavailableBody": "This feature has been paused by an administrator. Please check back later.",
+  "errorTitle": "Something went wrong",
+  "errorBody": "We encountered an error loading your reimbursements. Please try again.",
+  "notFoundTitle": "Reimbursement not found",
+  "notFoundBody": "The reimbursement you're looking for doesn't exist or has been removed.",
+  "back": "Back to reimbursements",
+  "tryAgain": "Try again",
+  "card": {
+    "untitled": "Expense reimbursement",
+    "saved": "Saved",
+    "submitted": "Submitted",
+    "continueDraft": "Continue draft",
+    "viewDetails": "View details",
+    "attachments": "{count, plural, one {# attachment} other {# attachments}}"
+  },
+  "detail": {
+    "campus": "Campus",
+    "department": "Department",
+    "submitted": "Submitted",
+    "bankAccount": "Bank account",
+    "event": "Event",
+    "prepayment": "Prepayment",
+    "invoiceId": "Invoice ID",
+    "attachments": "Attachments ({count})",
+    "date": "Date",
+    "amount": "Amount",
+    "viewReceipt": "View receipt"
+  },
+  "status": {
+    "draft": "Draft",
+    "pending": "Pending",
+    "submitted": "Submitted",
+    "approved": "Approved",
+    "success": "Reimbursed",
+    "rejected": "Rejected",
+    "failed": "Posting failed"
+  }
+}

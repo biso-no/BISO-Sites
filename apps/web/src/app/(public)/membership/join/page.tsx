@@ -3,7 +3,7 @@ import { getFeatureFlagStates } from "@repo/shared/utils/feature-flags-server";
 import { Alert, AlertDescription } from "@repo/ui/components/ui/alert";
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
-import { ShopHeroShell } from "@/components/shop/shop-hero-shell";
+import { ShopPageShell } from "@/components/shop/v2/shop-page-shell";
 import { getMembershipStatus } from "@/lib/actions/membership";
 import { getLoggedInUser } from "@/lib/actions/user";
 import { getPurchasableMembershipPlans } from "@/lib/membership-catalog";
@@ -69,6 +69,11 @@ export default async function MembershipJoinPage({
     getTranslations("membership.join"),
   ]);
 
+  const [tCommon, tNav] = await Promise.all([
+    getTranslations("common"),
+    getTranslations("common.navigation"),
+  ]);
+
   const profile = userData?.profile as BiUser | null | undefined;
 
   const gate = resolveMembershipGate({
@@ -118,17 +123,21 @@ export default async function MembershipJoinPage({
     );
   }
 
+  // Chrome only. `resolveMembershipGate`, the six gate states and the wizard
+  // are the purchase flow — this package does not touch them.
   return (
-    <div className="min-h-screen bg-linear-to-b from-section to-background">
-      <ShopHeroShell
-        heightClass="h-[32vh] min-h-[240px]"
-        subtitle={t("subtitle")}
-        title={t("title")}
-      />
-      <div className="mx-auto max-w-3xl px-4 py-12 sm:px-6">
-        {notice}
-        {body}
-      </div>
-    </div>
+    <ShopPageShell
+      breadcrumbs={[
+        { label: tCommon("breadcrumbs.home"), href: "/" },
+        { label: tNav("becomeMember"), href: "/membership" },
+        { label: t("title") },
+      ]}
+      lede={t("subtitle")}
+      title={t("title")}
+      width="prose"
+    >
+      {notice}
+      {body}
+    </ShopPageShell>
   );
 }

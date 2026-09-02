@@ -51,32 +51,21 @@ export function MemberPortalHeader({
   return (
     <div className="relative overflow-hidden">
       {/* Background gradient with animated elements */}
-      <div className="absolute inset-0 bg-linear-to-br from-brand-gradient-to via-brand-gradient-from to-brand-gradient-to">
-        {/* Animated background shapes */}
-        <motion.div
-          animate={{
-            scale: [1, 1.2, 1],
-            opacity: [0.3, 0.5, 0.3],
-          }}
-          className="absolute -top-20 -left-20 h-96 w-96 rounded-full bg-white/10 blur-3xl"
-          transition={{ duration: 8, repeat: Number.POSITIVE_INFINITY }}
-        />
-        <motion.div
-          animate={{
-            scale: [1.2, 1, 1.2],
-            opacity: [0.2, 0.4, 0.2],
-          }}
-          className="absolute -right-20 -bottom-20 h-80 w-80 rounded-full bg-cyan-300/20 blur-3xl"
-          transition={{ duration: 6, repeat: Number.POSITIVE_INFINITY }}
-        />
-        <motion.div
-          animate={{
-            y: [0, 20, 0],
-            opacity: [0.1, 0.2, 0.1],
-          }}
-          className="absolute top-1/4 left-1/3 h-64 w-64 rounded-full bg-brand-accent/10 blur-2xl"
-          transition={{ duration: 10, repeat: Number.POSITIVE_INFINITY }}
-        />
+      {/* RD-031: these three blur orbs looped forever — 8s, 6s and 10s — and
+          kept looping with `prefers-reduced-motion: reduce` set, because
+          `motion`'s JS-driven animations are not stopped by the CSS media
+          query the way a `@keyframes` animation would be. They are decoration
+          behind a heading, so they are static now: same three shapes, same
+          colours, at the midpoint of the opacity range each used to cycle
+          through. The audit that found them checks `document.getAnimations()`
+          under emulated reduced motion on every route. */}
+      <div
+        aria-hidden="true"
+        className="absolute inset-0 bg-linear-to-br from-brand-gradient-to via-brand-gradient-from to-brand-gradient-to"
+      >
+        <div className="absolute -top-20 -left-20 h-96 w-96 rounded-full bg-white/10 opacity-40 blur-3xl" />
+        <div className="absolute -right-20 -bottom-20 h-80 w-80 rounded-full bg-cyan-300/20 opacity-30 blur-3xl" />
+        <div className="absolute top-1/4 left-1/3 h-64 w-64 rounded-full bg-brand-accent/10 opacity-15 blur-2xl" />
       </div>
 
       {/* Content */}
