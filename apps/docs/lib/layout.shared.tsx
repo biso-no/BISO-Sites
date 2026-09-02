@@ -1,6 +1,5 @@
 import type { BaseLayoutProps } from "fumadocs-ui/layouts/shared";
 import Image from "next/image";
-import Logo from "public/logo.png";
 
 export function baseOptions(): BaseLayoutProps {
   return {
@@ -50,7 +49,7 @@ export const logo = (
       aria-label="BISO logo"
       className="in-[.uwu]:block hidden w-22"
       sizes="100px"
-      src={Logo}
+      src={"/logo.png"}
     />
   </>
 );
