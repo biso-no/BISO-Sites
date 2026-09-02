@@ -113,7 +113,14 @@ const APPWRITE_REQUEST_TIMEOUT_MS = readPositiveInteger(
   DEFAULT_APPWRITE_REQUEST_TIMEOUT_MS
 );
 
-type AppwriteRequestOptions = RequestInit & {
+/**
+ * The SDK types `prepareRequest` against undici's `RequestInit`, which is not
+ * the same type as the global `RequestInit`. Derive from the SDK so this keeps
+ * compiling across node-appwrite releases.
+ */
+type AppwritePreparedRequest = ReturnType<Client["prepareRequest"]>;
+
+type AppwriteRequestOptions = AppwritePreparedRequest["options"] & {
   agent?: unknown;
   dispatcher?: unknown;
 };
@@ -330,4 +337,38 @@ export async function createAdminClient() {
       return new Messaging(client);
     },
   };
+}
+
+/**
+ * Mint a JWT scoped to the caller's own Appwrite session.
+ *
+ * Appwrite 2.0 removed `account.createJWT()`; JWTs are now minted through the
+ * admin-scoped `users.createJWT()`. The security boundary is unchanged: both
+ * the user id and the session id are resolved from the caller's own session
+ * cookie, so this can only ever mint a token for whoever is already signed in,
+ * and the token still dies with that session.
+ *
+ * Returns `null` when there is no usable session. Misconfiguration (a missing
+ * `APPWRITE_API_KEY`) still throws.
+ */
+export async function createSessionJwt(): Promise<string | null> {
+  const { account } = await createSessionClient();
+
+  const [user, session] = await Promise.all([
+    account.get().catch(() => null),
+    account.getSession({ sessionId: "current" }).catch(() => null),
+  ]);
+
+  if (!(user?.$id && session?.$id)) {
+    return null;
+  }
+
+  const { users } = await createAdminClient();
+
+  const { jwt } = await users.createJWT({
+    userId: user.$id,
+    sessionId: session.$id,
+  });
+
+  return jwt;
 }

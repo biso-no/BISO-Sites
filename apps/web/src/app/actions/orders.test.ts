@@ -1,8 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const account = vi.hoisted(() => ({
-  createJWT: vi.fn(),
   get: vi.fn(),
+}));
+
+const appwrite = vi.hoisted(() => ({
+  createSessionJwt: vi.fn(),
 }));
 
 const membership = vi.hoisted(() => ({
@@ -19,6 +22,7 @@ vi.mock("@repo/api/server", () => ({
     db: { getRow: vi.fn() },
     functions: { createExecution: vi.fn() },
   })),
+  createSessionJwt: appwrite.createSessionJwt,
 }));
 
 vi.mock("@repo/shared/utils/feature-flags-server", () => ({
@@ -85,7 +89,7 @@ function checkoutFetchPayload(fetchMock: ReturnType<typeof vi.fn>) {
 
 describe("order checkout actions", () => {
   beforeEach(() => {
-    account.createJWT.mockResolvedValue({ jwt: "session-jwt" });
+    appwrite.createSessionJwt.mockResolvedValue("session-jwt");
     account.get.mockResolvedValue({ $id: "session-user" });
     webshop.parseProductMetadata.mockReturnValue({});
     membership.getMembershipStatus.mockResolvedValue({

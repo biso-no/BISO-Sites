@@ -1,6 +1,10 @@
 "use server";
 import type { Models } from "@repo/api";
-import { createAdminClient, createSessionClient } from "@repo/api/server";
+import {
+  createAdminClient,
+  createSessionClient,
+  createSessionJwt,
+} from "@repo/api/server";
 import type { Users } from "@repo/api/types/appwrite";
 import { sanitizeStudentNumber } from "@repo/shared/utils/bi-student";
 import { membershipCacheTag } from "@repo/shared/utils/membership-status";
@@ -282,9 +286,7 @@ export async function createClientSessionToken(): Promise<{
 
 export async function createJWT(): Promise<string | null> {
   try {
-    const { account } = await createSessionClient();
-    const jwt = await account.createJWT();
-    return jwt.jwt;
+    return await createSessionJwt();
   } catch (error) {
     console.error(error);
     return null;

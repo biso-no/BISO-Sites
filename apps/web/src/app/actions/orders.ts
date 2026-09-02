@@ -1,6 +1,10 @@
 "use server";
 import { Query } from "@repo/api";
-import { createAdminClient, createSessionClient } from "@repo/api/server";
+import {
+  createAdminClient,
+  createSessionClient,
+  createSessionJwt,
+} from "@repo/api/server";
 import type { ContentTranslations, Orders } from "@repo/api/types/appwrite";
 import type { Locale } from "@repo/i18n/config";
 import { getFeatureFlagStates } from "@repo/shared/utils/feature-flags-server";
@@ -588,8 +592,8 @@ export async function createCartCheckoutSession(
     if (!user?.$id) {
       throw new Error("A valid checkout session is required.");
     }
-    const jwt = await account.createJWT().catch(() => null);
-    if (!jwt?.jwt) {
+    const jwt = await createSessionJwt().catch(() => null);
+    if (!jwt) {
       throw new Error("A valid checkout session is required.");
     }
     const userId = user.$id;
@@ -598,7 +602,7 @@ export async function createCartCheckoutSession(
 
     const [firstName, ...lastNameParts] = data.name.trim().split(WHITESPACE_RE);
     const { checkoutUrl, orderId } = await createProviderCheckoutSession({
-      jwt: jwt.jwt,
+      jwt,
       provider: data.provider,
       payload: {
         items: sanitizedItems,

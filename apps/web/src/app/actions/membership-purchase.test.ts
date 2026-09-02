@@ -1,8 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const account = vi.hoisted(() => ({
-  createJWT: vi.fn(),
   get: vi.fn(),
+}));
+
+const appwrite = vi.hoisted(() => ({
+  createSessionJwt: vi.fn(),
 }));
 
 const sessionDb = vi.hoisted(() => ({
@@ -24,6 +27,7 @@ const featureFlags = vi.hoisted(() => ({
 vi.mock("@repo/api/server", () => ({
   createAdminClient: vi.fn(async () => ({ db: adminDb })),
   createSessionClient: vi.fn(async () => ({ account, db: sessionDb })),
+  createSessionJwt: appwrite.createSessionJwt,
 }));
 
 vi.mock("@repo/shared/utils/feature-flags-server", () => ({
@@ -77,7 +81,7 @@ describe("startMembershipCheckout", () => {
       payments_vipps: true,
     });
     account.get.mockResolvedValue({ $id: "user-1" });
-    account.createJWT.mockResolvedValue({ jwt: "session-jwt" });
+    appwrite.createSessionJwt.mockResolvedValue("session-jwt");
     sessionDb.getRow.mockResolvedValue(VALID_PROFILE);
     adminDb.updateRow.mockResolvedValue({});
     catalog.getMembershipPlanById.mockResolvedValue(VALID_PLAN);
