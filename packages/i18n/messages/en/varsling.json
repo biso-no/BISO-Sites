@@ -19,7 +19,12 @@
       "receiver": {
         "label": "Who do you want to contact?",
         "placeholder": "Select contact person",
-        "required": true
+        "required": true,
+        "empty": {
+          "loading": "Loading contacts...",
+          "title": "No whistleblowing contacts are registered for this campus yet.",
+          "description": "You can still report. Contact one of the people below directly — they receive reports on behalf of all of BISO."
+        }
       },
       "email": {
         "label": "Your email address (optional)",
@@ -153,9 +158,10 @@
           "required": true
         },
         "role": {
-          "label": "Role/Title",
-          "placeholder": "e.g. Student Ombudsman, Manager, Representative",
-          "required": true
+          "label": "Role or person",
+          "placeholder": "e.g. Tanweer Akram – HR Manager",
+          "required": true,
+          "description": "This is the text the reporter sees in the dropdown. Feel free to name a specific person alongside the role, e.g. \"Tanweer Akram – HR Manager\" (max 100 characters)."
         },
         "email": {
           "label": "Email address",
@@ -187,7 +193,16 @@
       "validation": "Please fill out all required fields.",
       "deleteConfirm": "Are you sure you want to delete this setting?",
       "deleteError": "Could not delete the setting",
-      "deleteUnexpected": "An error occurred during deletion"
+      "deleteUnexpected": "An error occurred during deletion",
+      "activated": "Contact activated",
+      "deactivated": "Contact deactivated"
+    },
+    "actions": {
+      "edit": "Edit",
+      "delete": "Delete",
+      "activate": "Activate",
+      "deactivate": "Deactivate",
+      "confirmDelete": "Confirm delete"
     }
   }
 }

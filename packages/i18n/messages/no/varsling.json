@@ -19,7 +19,12 @@
       "receiver": {
         "label": "Hvem ønsker du å kontakte?",
         "placeholder": "Velg kontaktperson",
-        "required": true
+        "required": true,
+        "empty": {
+          "loading": "Henter kontaktpersoner...",
+          "title": "Ingen varslingskontakter er registrert for dette campuset ennå.",
+          "description": "Du kan fortsatt melde fra. Ta direkte kontakt med en av personene under – de tar imot varsler for hele BISO."
+        }
       },
       "email": {
         "label": "Din e-postadresse (valgfritt)",
@@ -153,9 +158,10 @@
           "required": true
         },
         "role": {
-          "label": "Rolle/tittel",
-          "placeholder": "f.eks. studentombud, leder, representant",
-          "required": true
+          "label": "Rolle eller person",
+          "placeholder": "f.eks. Tanweer Akram – HR-sjef",
+          "required": true,
+          "description": "Dette er teksten varsleren ser i nedtrekkslisten. Skriv gjerne navnet på en konkret person sammen med rollen, f.eks. «Tanweer Akram – HR-sjef» (maks 100 tegn)."
         },
         "email": {
           "label": "E-postadresse",
@@ -187,7 +193,16 @@
       "validation": "Vennligst fyll ut alle obligatoriske felt.",
       "deleteConfirm": "Er du sikker på at du vil slette denne innstillingen?",
       "deleteError": "Kunne ikke slette innstillingen",
-      "deleteUnexpected": "Det oppsto en feil under sletting"
+      "deleteUnexpected": "Det oppsto en feil under sletting",
+      "activated": "Kontakten er aktivert",
+      "deactivated": "Kontakten er deaktivert"
+    },
+    "actions": {
+      "edit": "Rediger",
+      "delete": "Slett",
+      "activate": "Aktiver",
+      "deactivate": "Deaktiver",
+      "confirmDelete": "Bekreft sletting"
     }
   }
 }
