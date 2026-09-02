@@ -1,12 +1,14 @@
 import { ArrowRight } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
-import { getActiveCampus } from "@/app/actions/campus";
 import { CardGrid } from "@/components/ui/card-grid";
 import { PageHeader } from "@/components/ui/page-header";
 import { Section } from "@/components/ui/section";
 import { SectionHeading } from "@/components/ui/section-heading";
+import { getUserPreferences } from "@/lib/auth-utils";
+import { resolveRequestCampus } from "@/lib/campus-scope";
 import { cachedShellCampuses } from "@/lib/data/public-content";
 
 const linkClass =
@@ -20,9 +22,15 @@ const SHORTCUTS = [
   { key: "safety", href: "/safety" },
 ] as const;
 
+interface StudentsPageProps {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}
+
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("students");
   return {
+    // A campus-scoped view of the same hub, not a second one.
+    alternates: { canonical: "/students" },
     title: `${t("hero.title", { campus: t("hero.globalCampus") })} | BISO`,
     description: t("hero.subtitle"),
   };
@@ -44,13 +52,24 @@ export async function generateMetadata(): Promise<Metadata> {
  * this page. The 18 real member benefits live on `/membership#fordeler`, which
  * is where the first card points — they were never on this page.
  */
-export default async function StudentsPage() {
-  const [t, tCommon, tNav, campusId] = await Promise.all([
+export default async function StudentsPage({
+  searchParams,
+}: StudentsPageProps) {
+  const [sp, t, tCommon, tNav, prefs] = await Promise.all([
+    searchParams,
     getTranslations("students"),
     getTranslations("common"),
     getTranslations("common.navigation"),
-    getActiveCampus(),
+    getUserPreferences(),
   ]);
+  // Every campus-scoped page reads the URL first, then the cookie. This one
+  // read the cookie alone, so the campus named in its headings disagreed with
+  // the switcher whenever the URL carried a `?campus=` — including the URLs
+  // the switcher itself now writes.
+  const campusId = resolveRequestCampus(sp.campus, prefs?.campusId);
+  if (campusId === undefined) {
+    notFound();
+  }
 
   const campuses = campusId ? await cachedShellCampuses() : [];
   const campus =

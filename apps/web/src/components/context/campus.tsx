@@ -44,7 +44,18 @@ interface CampusContextValue {
    * false now — the campus list arrives with the first paint.
    */
   loading: boolean;
-  selectCampus: (campusId: string | null) => void;
+  /**
+   * Persist a campus choice.
+   *
+   * `refresh` re-renders the server tree so the current page follows the new
+   * cookie. The switcher passes `false` when it is also navigating — the
+   * campus is in the URL it is going to, and refreshing the page being left
+   * only pays for a render nobody sees.
+   */
+  selectCampus: (
+    campusId: string | null,
+    options?: { refresh?: boolean }
+  ) => void;
 }
 
 const CampusContext = createContext<CampusContextValue | undefined>(undefined);
@@ -73,7 +84,7 @@ export const CampusProvider = ({
   }
 
   const selectCampus = useCallback(
-    async (campusId: string | null) => {
+    async (campusId: string | null, options?: { refresh?: boolean }) => {
       const normalized = campusId === "all" ? null : campusId;
       trackEvent("campus_switch", { to: normalized ?? "all" });
       setSelected(normalized);
@@ -81,7 +92,9 @@ export const CampusProvider = ({
       try {
         await setActiveCampus(normalized);
         // Re-render the server tree so every campus-scoped feed follows.
-        router.refresh();
+        if (options?.refresh !== false) {
+          router.refresh();
+        }
       } catch (error) {
         // Put the label back rather than leave it describing content that was
         // never fetched.

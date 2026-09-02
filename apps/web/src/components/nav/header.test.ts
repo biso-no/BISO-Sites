@@ -8,7 +8,13 @@ const read = (f: string) =>
 const hook = read("use-mega-panels.ts");
 const v2 = read("mega-nav-v2.tsx");
 const desktopMenu = read("desktop-menu.tsx");
+const drawer = read("mobile-drawer.tsx");
+const campusLink = read("campus-link.tsx");
+const pill = read("../ui/campus-pill.tsx");
 const shell = read("../layout/site-shell.tsx");
+
+/** A `/campus/<slug>` template literal in the source. */
+const CAMPUS_LANDING_TEMPLATE = /`\/campus\/\$\{/;
 
 describe("header (RD-017)", () => {
   it("keeps the panel behaviour in a hook, not in the header", () => {
@@ -91,5 +97,44 @@ describe("header (RD-017)", () => {
     expect(shell).toContain("<NavigationV2");
     expect(shell).not.toContain("<Navigation ");
     expect(shell).not.toContain("isShellV2Enabled");
+  });
+});
+
+describe("the campus control", () => {
+  it("is a split button: a link to the campus page and a filter", () => {
+    // One control, two jobs. Picking a campus filters the page you are on;
+    // the named half is the designated way to that campus's own page.
+    expect(pill).toContain("campusLandingHref(campusId)");
+    expect(pill).toContain("campusSwitchHref(pathname");
+    expect(pill).toContain('aria-label={t("changeCampus")}');
+  });
+
+  it("does not send you to /campus just for choosing a campus", () => {
+    // The regression this replaces: every option was a link to
+    // `/campus/<slug>`, so asking for Bergen's events left the events page.
+    expect(pill).not.toMatch(CAMPUS_LANDING_TEMPLATE);
+  });
+
+  it("falls back to persisting the choice where the URL cannot carry it", () => {
+    // On a page with no campus dimension there is nothing to link to, so the
+    // option is a button that writes the cookie and refreshes.
+    expect(pill).toContain("refresh: hrefFor");
+  });
+
+  it("renders exactly one campus switcher in the mobile drawer", () => {
+    // `<CampusPill>` is pinned at the top of the drawer by the header. A
+    // second, cookie-only `<SelectCampus>` sat three screens below it and
+    // silently lost to `?campus=` on every scoped page.
+    expect(drawer).not.toContain("SelectCampus");
+    expect(existsSync(join(import.meta.dirname, "../select-campus.tsx"))).toBe(
+      false
+    );
+  });
+
+  it("sends each campus in the panel to its own page", () => {
+    // Every entry used to `router.push("/campus")` — the index — so clicking
+    // "Bergen" landed on a list of all five.
+    expect(campusLink).toContain("campusLandingHref(campus.$id)");
+    expect(campusLink).not.toContain("router.push");
   });
 });

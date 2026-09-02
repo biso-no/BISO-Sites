@@ -1,6 +1,7 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { CAMPUS_SCOPED_PATHS } from "@/lib/campus-scope";
 import { codeOnly } from "@/test/source";
 
 const read = (f: string) =>
@@ -15,6 +16,15 @@ const feeds = {
   jobs: read("(public)/jobs/page.tsx"),
   units: read("(public)/units/page.tsx"),
   shop: read("(public)/shop/page.tsx"),
+};
+// The front page, /students and /documents scope too, but none of them 404s
+// through the shared `if (campus === undefined)` shape asserted below in the
+// same place, and only the five above have a matching `canonical: "/<name>"`.
+const scopedPages = {
+  ...feeds,
+  "": read("(public)/page.tsx"),
+  students: read("(public)/students/page.tsx"),
+  documents: read("(public)/documents/page.tsx"),
 };
 const campusPage = read("(public)/campus/[slug]/page.tsx");
 
@@ -95,6 +105,63 @@ describe("campus routing (RD-016)", () => {
       "/terms",
     ]) {
       expect(sitemap).toContain(`${path}\``);
+    }
+  });
+});
+
+/**
+ * Every `(public)` page that reads `?campus=`, as a route path.
+ *
+ * Walked from the filesystem rather than listed, so a new scoped feed shows up
+ * here the moment it is written.
+ */
+function scopedRoutesOnDisk(): string[] {
+  const root = join(import.meta.dirname, "(public)");
+  const found: string[] = [];
+  const walk = (dir: string, route: string) => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const next = join(dir, entry.name);
+      if (entry.isDirectory()) {
+        // Route groups and dynamic segments contribute no literal path.
+        const isGroup = entry.name.startsWith("(");
+        const isDynamic = entry.name.startsWith("[");
+        if (isDynamic) {
+          continue;
+        }
+        walk(next, isGroup ? route : `${route}/${entry.name}`);
+      } else if (entry.name === "page.tsx") {
+        const source = codeOnly(readFileSync(next, "utf8"));
+        if (source.includes("resolveRequestCampus(")) {
+          found.push(route || "/");
+        }
+      }
+    }
+  };
+  walk(root, "");
+  return found.sort();
+}
+
+describe("the campus switcher and the routes agree", () => {
+  it("advertises exactly the routes that read the parameter", () => {
+    // `CAMPUS_SCOPED_PATHS` is what the switcher rewrites in place. A route
+    // missing from it gets no filter; a route in it that ignores `?campus=`
+    // hangs a dead parameter on the URL and lies about what the page shows.
+    expect(scopedRoutesOnDisk()).toEqual([...CAMPUS_SCOPED_PATHS]);
+  });
+
+  it("scopes the front page, the student hub and the document list too", () => {
+    // The three that read the cookie alone before this. A campus filter that
+    // stops at the feeds is not a site-wide filter.
+    for (const name of ["", "students", "documents"] as const) {
+      expect(scopedPages[name], name || "/").toContain(
+        "resolveRequestCampus(sp.campus"
+      );
+    }
+  });
+
+  it("points every scoped view's canonical at its unscoped URL", () => {
+    for (const [name, source] of Object.entries(scopedPages)) {
+      expect(source, name || "/").toContain(`canonical: "/${name}"`);
     }
   });
 });

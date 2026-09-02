@@ -122,7 +122,10 @@
     },
     "selectCampus": "Velg campus",
     "allCampuses": "Alle campus",
-    "allCampusesHint": "Vis innhold fra alle campus"
+    "allCampusesHint": "Vis innhold fra alle campus",
+    "campusPage": "Campusside",
+    "changeCampus": "Bytt campus",
+    "filterByCampus": "Filtrer innhold etter campus"
   },
   "notFound": {
     "tagline": "Siden finnes ikke",

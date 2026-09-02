@@ -1,5 +1,6 @@
 import type { Documents } from "@repo/api/types/appwrite";
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 import { listPublishedDocuments } from "@/app/actions/documents";
@@ -11,14 +12,20 @@ import { ListSkeleton } from "@/components/ui/loading-shell";
 import { PageHeader } from "@/components/ui/page-header";
 import { Section } from "@/components/ui/section";
 import { getUserPreferences } from "@/lib/auth-utils";
+import { resolveRequestCampus } from "@/lib/campus-scope";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("documents");
-  return { title: `${t("title")} | BISO`, description: t("intro") };
+  return {
+    // Campus-scoped view of the same list, not a competing one.
+    alternates: { canonical: "/documents" },
+    title: `${t("title")} | BISO`,
+    description: t("intro"),
+  };
 }
 
 interface DocumentsPageProps {
-  searchParams: Promise<{ category?: string; q?: string }>;
+  searchParams: Promise<{ campus?: string; category?: string; q?: string }>;
 }
 
 function matchesSearch(doc: Documents, query: string): boolean {
@@ -155,6 +162,14 @@ export default async function DocumentsPage({
     getTranslations("common"),
   ]);
 
+  // URL beats cookie beats "all", like every other campus-scoped route. The
+  // list read the cookie alone, so a shared `/documents?campus=bergen` served
+  // whatever campus the reader's own cookie held.
+  const campusId = resolveRequestCampus(sp.campus, prefs?.campusId);
+  if (campusId === undefined) {
+    notFound();
+  }
+
   return (
     <>
       <PageHeader
@@ -168,7 +183,7 @@ export default async function DocumentsPage({
       <Section tone="paper">
         <Suspense fallback={<ListSkeleton />}>
           <DocumentsList
-            campusId={prefs?.campusId ?? null}
+            campusId={campusId}
             category={sp.category ?? "all"}
             query={sp.q ?? ""}
             searchParams={sp}

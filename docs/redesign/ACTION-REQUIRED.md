@@ -12,9 +12,9 @@ you are not surprised by it later.
 |---|---|---|---|
 | §1 | Empty database tables — pages render, with nothing in them | 8 | Content work |
 | §2 | Schema columns that don't exist yet | 4 | Appwrite console + regenerate types |
-| §3 | Content and assets BISO owns | 5 | Writing / brand |
+| §3 | Content and assets BISO owns | 6 | Writing / brand |
 | §4 | Decisions | 5 | Judgement |
-| §5 | Known issues being carried deliberately | 3 | None — read only |
+| §5 | Known issues being carried deliberately | 4 | None — read only |
 | §6 | Cleanup from my testing | 3 | Two minutes |
 
 Every `PLACEHOLDER-###` below is also an inline comment at the exact place in the
@@ -72,6 +72,7 @@ Until then the corresponding UI is deliberately absent, not broken.
 | **PLACEHOLDER-008** | **The alumni site URL** | `/about/alumni`'s CTA reads "Go to Alumni site" — it always meant an *external* site, and no such URL exists anywhere in the repo. The button is withheld rather than pointed at a guess |
 | **PLACEHOLDER-012** | **A Norwegian privacy statement** | `/privacy` is **English only**. The `privacy` message namespace holds a *different*, shorter five-section summary in both locales; substituting it would publish a weaker policy than the one BISO wrote, so I did not. Its "Last updated: December 2024" is kept verbatim — restamping it would assert a review that has not happened |
 | — | **Five Norwegian document-category labels** | `documents.categories.*`. "Lokale vedtekter" and "Næringslivsreglement" are *my* rendering of BISO's own governing-document names, not BISO's. **The keys on this list most worth a human check** — `packages/i18n/messages/no.ts` |
+| — | **Norwegian phrasing for `students.*` when a campus is named** | `students.hero.title`, `hero.badge`, `units.title` and `benefits.subtitle` all interpolate `på {campus}`. That is correct for the default — "på alle campus" — and wrong for a city: `/students?campus=bergen` renders "Alt du trenger for å trives **på Bergen**". Norwegian wants *i Bergen* or *på campus Bergen*, and neither substitutes cleanly into the "alle campus" case, so this is a copy decision rather than a find-and-replace. Pre-existing — the page has always taken the campus from the cookie — but far easier to hit now that the switcher puts the campus in the URL. `packages/i18n/messages/no/students.json` |
 | **PLACEHOLDER-004** | **A member count, or a decision not to publish one** | The reference design shows "1000+ Active Members". `cachedHomeCounts` returns only `eventCount` + `jobCount`. Member numbers are not public data, so the tile is omitted entirely rather than guessed. A `departments` count *is* available if you want a third stat |
 
 ---
@@ -117,6 +118,15 @@ predates the redesign (the baseline does it at 2 × 174,385 B) but is **the larg
 performance item left in `apps/web`**. The fix is to pass the provider only the
 namespaces a page's client components actually read. It needs nothing from this
 redesign.
+
+**The desktop header bar has 15px of gutter left, not 32.** Measured at its
+1340px breakpoint: logo 161 + menu 516 + utilities 584 + two 16px gaps = 1293
+inside 1276 of content box. It fits at every width the bar is shown at (38px at
+1366), and no control is clipped or off-screen — but the row is full. This
+predates the campus work; the 547px figure the source comment used to quote was
+written before the theme switcher joined the row, when the real gutter was 4px.
+**Anything added to that bar has to displace something**, which is why the link
+to a campus's page is half of the campus pill rather than a seventh control.
 
 **`/shop` mobile LCP regressed, 1,476 → 3,088 ms** — the only route that got
 worse. It is gated on delivery of the HTML document (removing the network

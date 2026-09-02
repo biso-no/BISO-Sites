@@ -131,3 +131,78 @@ export function resolveRequestCampus(
       return cookieCampusId && cookieCampusId !== "all" ? cookieCampusId : null;
   }
 }
+
+/**
+ * Pathnames whose **content** responds to `?campus=`.
+ *
+ * The switcher rewrites the URL of the page you are on rather than sending you
+ * somewhere else, so it has to know which routes will act on the parameter.
+ * Anywhere else the choice is written to the cookie only and takes effect on
+ * the next campus-scoped page the visitor opens.
+ *
+ * Exact matches, not prefixes: `/shop` scopes, `/shop/cart` does not, and
+ * `/units/oslo/<slug>` is one unit rather than a filtered list.
+ *
+ * `campus-routing.test.ts` asserts this list against the routes that actually
+ * call `resolveRequestCampus`, so a new scoped feed cannot silently drop out of
+ * the switcher — or be advertised by it before the page reads the parameter.
+ */
+export const CAMPUS_SCOPED_PATHS = [
+  "/",
+  "/documents",
+  "/events",
+  "/jobs",
+  "/news",
+  "/shop",
+  "/students",
+  "/units",
+] as const;
+
+export function isCampusScopedPath(pathname: string): boolean {
+  return (CAMPUS_SCOPED_PATHS as readonly string[]).includes(pathname);
+}
+
+/** `/campus` and `/campus/<slug>` — the campus is the route, not a filter. */
+const CAMPUS_LANDING_PATH = /^\/campus(?:\/[^/]+)?\/?$/;
+
+/**
+ * Where picking a campus in the switcher should take you.
+ *
+ * Three cases, and the third is the point of the function:
+ *
+ * 1. **On a campus landing page** the campus *is* the route, so switching
+ *    navigates between landings — `/campus/oslo` → `/campus/bergen`.
+ * 2. **On a campus-scoped feed** the switcher is a filter: it stays on the page
+ *    and rewrites `?campus=`, preserving every other parameter so switching
+ *    campus out of a filtered, searched view does not throw the rest away.
+ * 3. **Anywhere else** it returns `null`. There is nothing on the page to
+ *    re-scope, so the caller persists the cookie and leaves the URL alone
+ *    rather than hanging a parameter on a page that ignores it.
+ *
+ * "All campuses" is written as an explicit `?campus=all` rather than by
+ * dropping the parameter. The URL is then authoritative on its own: it does not
+ * depend on the cookie write that accompanies the click having landed first,
+ * and it survives being sent to someone whose own cookie holds a campus.
+ */
+export function campusSwitchHref(
+  pathname: string,
+  search: string,
+  campusId: string | null
+): string | null {
+  if (CAMPUS_LANDING_PATH.test(pathname)) {
+    const slug = campusIdToSlug(campusId);
+    return slug ? `/campus/${slug}` : "/campus";
+  }
+  if (!isCampusScopedPath(pathname)) {
+    return null;
+  }
+  const next = new URLSearchParams(search);
+  next.set("campus", campusIdToSlug(campusId) ?? "all");
+  return `${pathname}?${next.toString()}`;
+}
+
+/** The campus landing page for the active campus, or the index for "all". */
+export function campusLandingHref(campusId: string | null): string {
+  const slug = campusIdToSlug(campusId);
+  return slug ? `/campus/${slug}` : "/campus";
+}

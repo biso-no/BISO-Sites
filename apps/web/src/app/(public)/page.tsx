@@ -1,8 +1,10 @@
 import type { Locale } from "@repo/i18n/config";
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
+import { notFound } from "next/navigation";
 import { HomeV2 } from "@/components/home/v2/home-v2";
 import { getUserPreferences } from "@/lib/auth-utils";
+import { resolveRequestCampus } from "@/lib/campus-scope";
 import { SESSION_COOKIE } from "@/lib/cookie-prefs";
 import {
   cachedHomeCounts,
@@ -15,6 +17,9 @@ import { getLocale } from "../actions/locale";
 import { listNews } from "../actions/news";
 
 export const metadata: Metadata = {
+  // `/?campus=bergen` is a filtered view of the front page, not a second front
+  // page — same rule the other scoped feeds follow.
+  alternates: { canonical: "/" },
   title: "BISO – BI Student Organisation",
   description:
     "BI Student Organisation (BISO) is the student association at BI Norwegian Business School — events, volunteer opportunities, student benefits, and campus life across Oslo, Bergen, Trondheim, and Stavanger.",
@@ -61,14 +66,25 @@ function homeNews(
   return cachedPublishedNews(locale, campusKey, limit).catch(() => []);
 }
 
-export default async function HomePage() {
-  const [prefs, locale, cookieStore] = await Promise.all([
+interface HomePageProps {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}
+
+export default async function HomePage({ searchParams }: HomePageProps) {
+  const [sp, prefs, locale, cookieStore] = await Promise.all([
+    searchParams,
     getUserPreferences(),
     getLocale(),
     cookies(),
   ]);
-  const campusId = prefs?.campusId;
-  const campusKey = campusId && campusId !== "all" ? campusId : null;
+  // The front page is a campus-scoped feed like the rest: URL beats cookie
+  // beats "all". It read the cookie alone before, so `/?campus=bergen` — the
+  // URL the switcher now produces, and the one people share — was ignored.
+  // An unrecognised campus 404s rather than silently showing everything.
+  const campusKey = resolveRequestCampus(sp.campus, prefs?.campusId);
+  if (campusKey === undefined) {
+    notFound();
+  }
   const hasSession = Boolean(cookieStore.get(SESSION_COOKIE));
 
   // The hero is campus-scoped like every other feed: the switcher filters the

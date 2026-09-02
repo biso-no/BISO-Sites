@@ -4,6 +4,8 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@repo/ui/components/ui/dropdown-menu";
 import { cn } from "@repo/ui/lib/utils";
@@ -14,8 +16,9 @@ import { useTranslations } from "next-intl";
 import { Suspense } from "react";
 import { useCampus } from "@/components/context/campus";
 import {
-  campusIdToSlug,
+  campusLandingHref,
   campusSlugToId,
+  campusSwitchHref,
   parseCampusParam,
 } from "@/lib/campus-scope";
 
@@ -26,11 +29,19 @@ import {
  * lockup, in this pill, and in the hero — because campus is the site's primary
  * dimension, not a preference. This is the header half of that.
  *
- * Each option is a **link** to `/campus/<slug>`, so switching campus produces a
- * URL someone can share. The old switcher only mutated a cookie: it changed
- * what you saw but not where you were, so a campus view could never be sent to
- * anyone. Selecting still writes the cookie too, via `selectCampus`, so the
- * choice persists across the rest of the site.
+ * **The control does two jobs, so it is a split button.** The named half is a
+ * link to that campus's own page; the chevron half opens the filter. An earlier
+ * version collapsed the two: every option was a link to `/campus/<slug>`, so
+ * choosing Bergen from `/events` answered "show me Bergen" by leaving the
+ * events feed entirely. Campus is meant to be a site-wide filter — pick a
+ * campus and every feed narrows to it — with one deliberate way to reach the
+ * campus page itself. Splitting the control is what makes both reachable
+ * without adding a seventh item to a header bar that has no room for one (the
+ * utilities group already runs to within 4px of the viewport edge at the
+ * 1340px breakpoint).
+ *
+ * Selecting still writes the cookie via `selectCampus`, so the choice carries
+ * to pages the URL cannot describe.
  */
 export function CampusPill({ className }: { className?: string }) {
   const { activeCampusId } = useCampus();
@@ -51,7 +62,7 @@ export function CampusPill({ className }: { className?: string }) {
   );
 }
 
-/** `/campus/<slug>` — the landing page scopes all of its content from this. */
+/** `/campus/<slug>` — the campus landing page scopes all its content here. */
 const CAMPUS_PATH = /^\/campus\/([^/]+)/;
 
 /**
@@ -62,7 +73,8 @@ const CAMPUS_PATH = /^\/campus\/([^/]+)/;
  * the content it sits above.
  *
  * Both the query parameter and the campus landing path are read, because both
- * scope a page independently of the cookie.
+ * scope a page independently of the cookie. The pathname and query are also
+ * what `campusSwitchHref` needs to rewrite the current URL in place.
  */
 function CampusPillWithUrlScope({ className }: { className?: string }) {
   const { activeCampusId } = useCampus();
@@ -90,23 +102,12 @@ function CampusPillWithUrlScope({ className }: { className?: string }) {
     queryIsAuthoritative = scoped !== null;
   }
 
-  // `resolveRequestCampus` gives `?campus=` precedence over the cookie, so
-  // clearing the cookie alone leaves the page exactly as it was — picking "All
-  // campuses" on `/events?campus=bergen` looked like a dead control. The item
-  // becomes a link that drops the parameter whenever one is present.
-  let clearHref: string | undefined;
-  if (fromQuery) {
-    const next = new URLSearchParams(searchParams.toString());
-    next.delete("campus");
-    const query = next.toString();
-    clearHref = query ? `${pathname}?${query}` : pathname;
-  }
-
   return (
     <CampusPillView
       campusId={queryIsAuthoritative ? scoped : (scoped ?? activeCampusId)}
       className={className}
-      clearHref={clearHref}
+      pathname={pathname}
+      search={searchParams.toString()}
     />
   );
 }
@@ -114,81 +115,142 @@ function CampusPillWithUrlScope({ className }: { className?: string }) {
 function CampusPillView({
   campusId,
   className,
-  clearHref,
+  pathname,
+  search,
 }: {
   campusId: string | null;
   className?: string;
-  /** Present only when the current URL carries a `?campus=` to drop. */
-  clearHref?: string;
+  /** Absent in the prerendered fallback, where the URL is not yet readable. */
+  pathname?: string;
+  search?: string;
 }) {
   const { campuses, selectCampus } = useCampus();
   const t = useTranslations("common.navigation");
 
-  const activeCampusId = campusId;
-  const active = campuses.find((campus) => campus.$id === activeCampusId);
+  const active = campuses.find((campus) => campus.$id === campusId);
   const label = active?.name ?? t("allCampuses");
 
+  // Null on the campus landing pages themselves and in the prerendered
+  // fallback, where the option falls back to a cookie write plus a refresh.
+  const hrefFor = (id: string | null) =>
+    pathname === undefined
+      ? null
+      : campusSwitchHref(pathname, search ?? "", id);
+
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        className={cn(
-          "type-body-sm inline-flex items-center gap-2 rounded-biso-pill border border-edge px-3 py-1.5 text-ink transition-colors",
-          "hover:border-ink-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface",
-          className
-        )}
+    <div
+      className={cn(
+        "inline-flex items-center rounded-biso-pill border border-edge text-ink",
+        "focus-within:ring-2 focus-within:ring-focus-ring focus-within:ring-offset-2 focus-within:ring-offset-surface",
+        "hover:border-ink-accent",
+        className
+      )}
+    >
+      {/* The designated way to the campus's own page. A real link, so it
+          prefetches, middle-clicks and opens in a new tab. */}
+      <Link
+        className="type-body-sm inline-flex flex-1 items-center gap-1.5 rounded-biso-pill py-1.5 pr-1.5 pl-2.5 transition-colors hover:text-ink-accent focus-visible:outline-none"
+        href={campusLandingHref(campusId)}
       >
         <MapPin aria-hidden="true" className="size-4 text-ink-accent" />
-        <span className="sr-only">{t("selectCampus")}: </span>
+        <span className="sr-only">{t("campusPage")}: </span>
         {label}
-        <ChevronDown aria-hidden="true" className="size-4 opacity-60" />
-      </DropdownMenuTrigger>
+      </Link>
 
-      <DropdownMenuContent align="end" className="min-w-52">
-        <DropdownMenuItem asChild>
-          {clearHref ? (
-            <Link
-              className="w-full cursor-pointer justify-between"
-              href={clearHref}
-              onClick={() => selectCampus(null)}
-            >
-              {t("allCampuses")}
-              {activeCampusId === null && (
-                <Check aria-hidden="true" className="size-4" />
-              )}
-            </Link>
-          ) : (
-            <button
-              className="w-full cursor-pointer justify-between"
-              onClick={() => selectCampus(null)}
-              type="button"
-            >
-              {t("allCampuses")}
-              {activeCampusId === null && (
-                <Check aria-hidden="true" className="size-4" />
-              )}
-            </button>
-          )}
-        </DropdownMenuItem>
+      <span
+        aria-hidden="true"
+        className="h-4 w-px shrink-0 self-center bg-edge"
+      />
 
-        {campuses.map((campus) => {
-          const slug = campusIdToSlug(campus.$id);
-          return (
-            <DropdownMenuItem asChild key={campus.$id}>
-              {/* A real link: a campus view has a URL now (RD-016). */}
-              <Link
-                className="cursor-pointer justify-between"
-                href={slug ? `/campus/${slug}` : "/campus"}
-                onClick={() => selectCampus(campus.$id)}
-              >
-                {campus.name}
-                {campus.$id === activeCampusId && (
-                  <Check aria-hidden="true" className="size-4" />
-                )}
-              </Link>
-            </DropdownMenuItem>
-          );
-        })}
-      </DropdownMenuContent>
-    </DropdownMenu>
+      <DropdownMenu>
+        {/* `self-stretch` so the target is the full height of the pill rather
+            than the height of a 16px chevron plus padding — 34 x 36 on a phone
+            instead of 34 x 28. */}
+        <DropdownMenuTrigger
+          aria-label={t("changeCampus")}
+          className="inline-flex shrink-0 items-center self-stretch rounded-biso-pill px-2 py-1.5 transition-colors hover:text-ink-accent focus-visible:outline-none"
+        >
+          <ChevronDown aria-hidden="true" className="size-4 opacity-60" />
+        </DropdownMenuTrigger>
+
+        <DropdownMenuContent align="end" className="min-w-56">
+          <DropdownMenuLabel className="type-data text-ink-muted">
+            {t("filterByCampus")}
+          </DropdownMenuLabel>
+          <DropdownMenuSeparator />
+
+          <CampusOption
+            href={hrefFor(null)}
+            isActive={campusId === null}
+            label={t("allCampuses")}
+            onSelect={() =>
+              selectCampus(null, { refresh: hrefFor(null) === null })
+            }
+          />
+
+          {campuses.map((campus) => (
+            <CampusOption
+              href={hrefFor(campus.$id)}
+              isActive={campus.$id === campusId}
+              key={campus.$id}
+              label={campus.name}
+              onSelect={() =>
+                selectCampus(campus.$id, {
+                  refresh: hrefFor(campus.$id) === null,
+                })
+              }
+            />
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  );
+}
+
+/**
+ * One campus in the filter.
+ *
+ * A link whenever the current page can express the choice in its URL, so the
+ * filtered view is shareable and the back button undoes the switch. On a page
+ * with no campus dimension there is nothing to link to: the option persists the
+ * cookie instead, and the choice shows up on the next scoped page.
+ */
+function CampusOption({
+  href,
+  isActive,
+  label,
+  onSelect,
+}: {
+  href: string | null;
+  isActive: boolean;
+  label: string;
+  onSelect: () => void;
+}) {
+  const content = (
+    <>
+      {label}
+      {isActive && <Check aria-hidden="true" className="size-4" />}
+    </>
+  );
+  return (
+    <DropdownMenuItem asChild>
+      {href ? (
+        <Link
+          className="w-full cursor-pointer justify-between"
+          href={href}
+          onClick={onSelect}
+        >
+          {content}
+        </Link>
+      ) : (
+        <button
+          className="w-full cursor-pointer justify-between"
+          onClick={onSelect}
+          type="button"
+        >
+          {content}
+        </button>
+      )}
+    </DropdownMenuItem>
   );
 }

@@ -132,6 +132,25 @@ Deviations from plan: <what changed and why, or "none">
 Next session should start with: <specific first action>
 ```
 
+## 2026-09-02 — Post-redesign: campus becomes a site-wide filter again
+Completed: RD-035 (new — campus filtering restored as a site-wide filter).
+In progress: none
+Blocked: none
+Deviations from plan: **this corrects a design decision RD-016 got wrong**, reported by you.
+
+**The complaint, and it was right.** GATE-3 gave campus a URL, which it needed. But RD-016 then made *every* option in the switcher a link to `/campus/<slug>`, so the control stopped being a filter: choosing Bergen from `/events` answered "show me Bergen" by leaving the events page. Your intent — switch campus, and the page you are on narrows to it, with one designated button to the campus's own page — was the original model, and the redesign replaced it with navigation.
+
+**What changed.** The pill is now a **split button**: the named half is a link to that campus's page, the chevron half opens the filter. Each option rewrites the current URL rather than navigating away — `/events` → `/events?campus=bergen`, other parameters preserved — so the filtered view is still shareable, which is what GATE-3 was for. On `/campus/<slug>` the campus *is* the route, so switching moves between landings. On a page with no campus dimension the option is a button that persists the cookie, because there is nothing to link to. All three cases live in one pure function, `campusSwitchHref`, with the route list beside it.
+
+**Three routes were reading the cookie but ignoring `?campus=`.** The front page, `/students` and `/documents` — so `/?campus=bergen`, the URL the switcher now writes, did nothing, and a shared link served whatever campus the *reader's* cookie held. All three now resolve URL → cookie → all, 404 an unrecognised campus, and canonical back to the unscoped URL like the other five. `campus-routing.test.ts` now walks `(public)/` from disk and asserts the switcher's route list and the routes that read the parameter are **the same set**, so neither can drift.
+
+**Two dead controls found while verifying.** The mobile drawer carried a second, older campus switcher (`SelectCampus`) three screens below the pill: cookie-only, so on any `?campus=` URL it changed nothing the page then showed, and its trigger read "Velg campus" instead of naming the selection. Removed, component deleted. And every campus in the "For studenter" mega-panel called `router.push("/campus")` — the index — so clicking "Bergen" landed on a list of all five; it is a real `<Link>` to `/campus/bergen` now.
+
+**The header bar is over budget, and was before this.** Measured at the 1340px breakpoint: the utilities group had **4px of gutter left, not 32** — the theme switcher joined the row after the 547px figure in the source comment was written. The split control is *narrower* than what it replaced (595 → 584px, after tightening the pill's padding and the row's gap from 8 to 6px), so the gutter is now **15px at 1340 and 38px at 1366**. It fits, and the comment now records the real numbers — but **there is no room for a seventh control in that bar**, which is why the campus-page link is half of the pill rather than a button beside it.
+Verified in a browser at 1440 and 320px, against a second dev server (the running one was serving a stale `/`, which briefly looked like the homepage ignoring the filter): picking Bergen on `/events` gives `/events?campus=bergen`, stays on the page, and filters 3 events → 1; the cookie follows, so `/news` with no parameter then serves 1 of 2 articles and the pill still reads Bergen; `/campus/oslo` switches to `/campus/bergen`; `/about` offers buttons, not links; the drawer has exactly one campus control and no horizontal overflow at 320px; the chevron target is 34 x 36.
+Verification: `check-types` clean (15/15), **`bun run test` 554 web tests pass** (+18), `bun run lint` clean in `apps/web` (the 3 pre-existing failures are unchanged and outside it), `bun run build` exit 0 with no route's render mode changed. New assertions mutation-tested.
+Next session should start with: the PR is still `CONFLICTING` with `main` — that merge is the only thing between this branch and landing.
+
 ## 2026-09-02 — RD-033: performance and route verification — **the redesign is complete**
 Completed: RD-033. **All 34 packages are done.** Full comparison in `03-results.md`.
 In progress: none

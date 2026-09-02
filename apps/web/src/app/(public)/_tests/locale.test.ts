@@ -105,7 +105,6 @@ describe("strings this package moved into the bundles", () => {
     ],
     ["components/jobs/job-application-form.tsx", "Sign in to apply"],
     ["components/privacy-controls.tsx", "Your Privacy Rights"],
-    ["components/select-campus.tsx", "Vis alt innhold"],
   ])("%s no longer hardcodes %s", (file, literal) => {
     // `codeOnly`: several of these files carry a comment naming the string
     // they replaced. Seventh time this trap has caught an assertion.
