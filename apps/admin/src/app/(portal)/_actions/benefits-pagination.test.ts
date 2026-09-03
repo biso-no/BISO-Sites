@@ -71,3 +71,41 @@ describe("listBenefits pagination", () => {
     expect(queries.some((query) => query.includes("contains"))).toBe(false);
   });
 });
+
+const { listPartners } = await import("./benefits");
+
+describe("listPartners pagination", () => {
+  beforeEach(() => {
+    db.listRows.mockReset();
+  });
+
+  test("reports the true total and offsets correctly", async () => {
+    db.listRows.mockResolvedValueOnce({ rows: [{ $id: "p1" }], total: 312 });
+
+    const result = await listPartners({ page: 2, size: 100, q: "" });
+
+    expect(result.total).toBe(312);
+    const queries = db.listRows.mock.calls[0][2] as string[];
+    expect(queries).toContain(Query.limit(100));
+    expect(queries).toContain(Query.offset(100));
+  });
+
+  test("searches the indexed name column", async () => {
+    db.listRows.mockResolvedValueOnce({ rows: [], total: 0 });
+
+    await listPartners({ page: 1, size: 25, q: "sats" });
+
+    const queries = db.listRows.mock.calls[0][2] as string[];
+    expect(queries).toContain(Query.contains("name", "sats"));
+  });
+
+  test("keeps campus scoping for a non-global admin on a deep page", async () => {
+    db.listRows.mockResolvedValueOnce({ rows: [], total: 0 });
+
+    await listPartners({ page: 5, size: 25, q: "" });
+
+    const queries = db.listRows.mock.calls[0][2] as string[];
+    expect(queries).toContain(Query.equal("campus_id", ["campus-oslo"]));
+    expect(queries).toContain(Query.offset(100));
+  });
+});

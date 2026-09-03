@@ -679,15 +679,25 @@ async function _deleteBenefit(id: string) {
   return { data: true };
 }
 
-export async function listPartners(opts?: { campusId?: string }) {
+export async function listPartners(
+  params: ListParams & { campusId?: string }
+): Promise<PaginatedResult<Partners>> {
   const ctx = await requireAuth();
   // Partner administration keeps its existing narrow, campus-scoped access.
   const { db } = await createSessionClient();
 
-  const queries: string[] = [Query.orderAsc("name"), Query.limit(100)];
+  const queries: string[] = [
+    Query.orderAsc("name"),
+    ...paginationQueries(params),
+  ];
 
-  if (opts?.campusId) {
-    queries.push(Query.equal("campus_id", opts.campusId));
+  // `partners` carries a fulltext index on name (idx_name).
+  if (params.q) {
+    queries.push(Query.contains("name", params.q));
+  }
+
+  if (params.campusId) {
+    queries.push(Query.equal("campus_id", params.campusId));
   } else if (ctx.activeCampusId) {
     // Global admin scoped to a campus via the switcher.
     queries.push(Query.equal("campus_id", [ctx.activeCampusId]));
@@ -699,5 +709,11 @@ export async function listPartners(opts?: { campusId?: string }) {
   }
 
   const response = await db.listRows<Partners>("app", "partners", queries);
-  return response.rows;
+
+  return {
+    rows: response.rows,
+    total: response.total,
+    page: params.page,
+    size: params.size,
+  };
 }
