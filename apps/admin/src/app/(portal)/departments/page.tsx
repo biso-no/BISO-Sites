@@ -20,6 +20,7 @@ import { EmptyState } from "../_components/empty-state";
 import { PageHeader } from "../_components/page-header";
 import { PaginationBar } from "../_components/pagination-bar";
 import { STUDIO } from "../_components/studio";
+import { DepartmentsSearch } from "./_components/departments-search";
 import { UnitListCard } from "./_components/unit-list-card";
 import { SyncDepartmentsButton } from "./sync-button";
 
@@ -54,6 +55,7 @@ export default async function DepartmentsPage({
   }
 
   const t = await getTranslations("adminPortal.departments");
+  const tc = await getTranslations("adminPortal.common");
   const resolvedSearchParams = await searchParams;
   const params = parseListParams(resolvedSearchParams);
   const rawFilter = Array.isArray(resolvedSearchParams.type)
@@ -123,6 +125,8 @@ export default async function DepartmentsPage({
         {isGlobalAdmin && <SyncDepartmentsButton />}
       </div>
 
+      <DepartmentsSearch />
+
       <nav
         aria-label={t("filters.label")}
         className="mb-6 flex flex-wrap gap-2"
@@ -148,13 +152,21 @@ export default async function DepartmentsPage({
         })}
       </nav>
 
-      {visible.length === 0 ? (
+      {visible.length === 0 && !params.q ? (
         <EmptyState
           description={t("emptyDescription")}
           icon={<Building2 size={28} />}
           title={t("empty")}
         />
-      ) : (
+      ) : null}
+
+      {/* A search that matched nothing gets the neutral "No results found" —
+          never the sync-explains-the-emptiness copy, which would be wrong. */}
+      {visible.length === 0 && params.q ? (
+        <EmptyState icon={<Building2 size={28} />} title={tc("empty")} />
+      ) : null}
+
+      {visible.length > 0 && (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {visible.map((dept) => {
             const category = parseUnitCategory(dept.type);
