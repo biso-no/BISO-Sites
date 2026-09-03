@@ -9,7 +9,11 @@ import { notFound, redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { requireNavAccess } from "@/lib/authorization";
 import { resolveDepartmentsLanding } from "@/lib/departments";
-import { DEFAULT_PAGE_SIZE, parseListParams } from "@/lib/list-params";
+import {
+  DEFAULT_PAGE_SIZE,
+  firstParam,
+  parseListParams,
+} from "@/lib/list-params";
 import { ROLES } from "@/lib/roles";
 import {
   countDepartmentTriage,
@@ -20,7 +24,7 @@ import { EmptyState } from "../_components/empty-state";
 import { PageHeader } from "../_components/page-header";
 import { PaginationBar } from "../_components/pagination-bar";
 import { STUDIO } from "../_components/studio";
-import { DepartmentsSearch } from "./_components/departments-search";
+import { UrlSearchToolbar } from "../_components/url-search-toolbar";
 import { UnitListCard } from "./_components/unit-list-card";
 import { SyncDepartmentsButton } from "./sync-button";
 
@@ -58,9 +62,7 @@ export default async function DepartmentsPage({
   const tc = await getTranslations("adminPortal.common");
   const resolvedSearchParams = await searchParams;
   const params = parseListParams(resolvedSearchParams);
-  const rawFilter = Array.isArray(resolvedSearchParams.type)
-    ? resolvedSearchParams.type[0]
-    : resolvedSearchParams.type;
+  const rawFilter = firstParam(resolvedSearchParams, "type");
   const filter: DepartmentFilter = isDepartmentFilter(rawFilter)
     ? rawFilter
     : "all";
@@ -131,7 +133,7 @@ export default async function DepartmentsPage({
         {isGlobalAdmin && <SyncDepartmentsButton />}
       </div>
 
-      <DepartmentsSearch />
+      <UrlSearchToolbar />
 
       <nav
         aria-label={t("filters.label")}

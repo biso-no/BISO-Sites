@@ -153,6 +153,8 @@ export async function createApprovalRequest(
 // ---------------------------------------------------------------------------
 
 export async function listPendingApprovals(
+  // `params.q` is intentionally ignored: search is not implemented for this
+  // surface.
   params: ListParams
 ): Promise<{ data: PaginatedResult<ApprovalRequest> } | { error: string }> {
   const ctx = await requireAuth();

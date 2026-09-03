@@ -9,7 +9,7 @@ import { EmptyState } from "../../_components/empty-state";
 import { PageHeader } from "../../_components/page-header";
 import { PaginationBar } from "../../_components/pagination-bar";
 import { SERIF_STACK, STUDIO, StudioIconBox } from "../../_components/studio";
-import { PartnersSearch } from "./_components/partners-search";
+import { UrlSearchToolbar } from "../../_components/url-search-toolbar";
 
 export default async function BenefitPartnersPage({
   searchParams,
@@ -58,7 +58,7 @@ export default async function BenefitPartnersPage({
         </span>
       </PageHeader>
 
-      <PartnersSearch />
+      <UrlSearchToolbar />
 
       {partners.length === 0 && !params.q ? (
         <EmptyState

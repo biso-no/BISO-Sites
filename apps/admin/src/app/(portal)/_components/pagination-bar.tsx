@@ -4,7 +4,11 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useCallback } from "react";
-import { DEFAULT_PAGE_SIZE, PAGE_SIZES } from "@/lib/list-params";
+import {
+  DEFAULT_PAGE_SIZE,
+  lastReachablePage,
+  PAGE_SIZES,
+} from "@/lib/list-params";
 
 interface PaginationBarProps {
   page: number;
@@ -40,7 +44,11 @@ export function PaginationBar({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const t = useTranslations("adminPortal.common.pagination");
-  const totalPages = Math.max(1, Math.ceil(total / size));
+  // Bounded by MAX_OFFSET as well as by the row count (see
+  // `lastReachablePage`): Appwrite rejects an offset past that regardless of
+  // how many rows would otherwise remain, so a page beyond it must never be
+  // offered as a clickable link.
+  const totalPages = lastReachablePage(total, size);
 
   const push = useCallback(
     (mutate: (params: URLSearchParams) => void) => {

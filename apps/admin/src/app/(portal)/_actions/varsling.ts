@@ -55,6 +55,8 @@ function canManageVarsling(ctx: UserAuthContext): boolean {
 }
 
 export async function listVarslingSettings(
+  // `params.q` is intentionally ignored: search is not implemented for this
+  // surface.
   params: ListParams
 ): Promise<PaginatedResult<VarslingSettings>> {
   const ctx = await requireAuth();

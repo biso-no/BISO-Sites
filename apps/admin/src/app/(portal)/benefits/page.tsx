@@ -15,7 +15,7 @@ import {
   StudioLinkButton,
   StudioPageHeader,
 } from "../_components/studio";
-import { BenefitsSearch } from "./_components/benefits-search";
+import { UrlSearchToolbar } from "../_components/url-search-toolbar";
 
 export default async function BenefitsPage({
   searchParams,
@@ -51,7 +51,7 @@ export default async function BenefitsPage({
         </StudioLinkButton>
       </StudioPageHeader>
 
-      <BenefitsSearch />
+      <UrlSearchToolbar />
 
       {benefits.length === 0 && !params.q ? (
         <EmptyState

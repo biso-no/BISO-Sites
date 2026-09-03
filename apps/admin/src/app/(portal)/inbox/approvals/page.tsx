@@ -5,6 +5,7 @@ import { parseListParams } from "@/lib/list-params";
 import { listPendingApprovals } from "../../_actions/approvals";
 import { EmptyState } from "../../_components/empty-state";
 import { PageHeader } from "../../_components/page-header";
+import { PaginationBar } from "../../_components/pagination-bar";
 import { ApprovalsReviewClient } from "./_components/approvals-review-client";
 
 export default async function ApprovalsPage({
@@ -58,12 +59,16 @@ export default async function ApprovalsPage({
             action: t("action"),
             resourceType: t("resourceType"),
           }}
-          page={params.page}
           requests={requests}
-          size={params.size}
-          total={total}
         />
       )}
+
+      <PaginationBar
+        page={params.page}
+        size={params.size}
+        sizeSelectable
+        total={total}
+      />
     </div>
   );
 }

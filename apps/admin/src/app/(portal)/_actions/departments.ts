@@ -148,7 +148,9 @@ export async function listDepartments(
     queries.push(Query.equal("type", params.type));
   }
 
-  // `departments` carries a fulltext index (`search`) covering Name.
+  // `departments` carries a fulltext index (`search`) covering Name, but
+  // `Query.contains` does not use it — this is a substring/wildcard match,
+  // verified correct against the live backend regardless.
   if (params.q) {
     queries.push(Query.contains("Name", params.q));
   }
@@ -173,6 +175,11 @@ export async function listDepartments(
  * row, not a page, and must not be constrained by PageSize — there are ~240
  * departments today, so paging one of these dropdowns would silently hide most
  * of them.
+ *
+ * Escape-hatch convention: this hardcoded-limit shape is for a full-list read
+ * with a single known consumer. Prefer the caller-parameterised
+ * `(limit: number)` shape (see `listRecentActivity` in `activity.ts`) for
+ * anything with more than one.
  */
 export async function listAllDepartments(): Promise<Departments[]> {
   const ctx = await requireAuth();
@@ -251,6 +258,11 @@ export async function countDepartmentTriage(opts: {
   for (const department of response.rows) {
     const key = parseUnitCategory(department.type) ?? "uncategorised";
     counts[key] = (counts[key] ?? 0) + 1;
+    // KNOWN, BOUNDED GAP (same class as the `uncategorised` filter above):
+    // this also counts a whitespace-only logo, which the `missing_logo`
+    // filter's `Query.or([equal("logo", ""), isNull("logo")])` does not match
+    // — not expressible as an Appwrite query. Affects legacy/imported rows
+    // only.
     if (!department.logo?.trim()) {
       counts.missing_logo += 1;
     }

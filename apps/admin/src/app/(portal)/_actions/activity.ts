@@ -12,6 +12,8 @@ import {
 } from "@/lib/list-params";
 
 export async function listActivityLog(
+  // `params.q` is intentionally ignored: search is not implemented for the
+  // activity log. `resourceType` is the only filter this surface supports.
   params: ListParams & { resourceType?: string }
 ): Promise<PaginatedResult<AuditLogs>> {
   const ctx = await requireAuth();
@@ -48,6 +50,11 @@ export async function listActivityLog(
  * Bounded aggregate read for the dashboard chart and recent-activity strip.
  * Deliberately separate from listActivityLog: those surfaces need a fixed
  * window, not a page, and must not be constrained by PageSize.
+ *
+ * Escape-hatch convention: prefer this caller-parameterised `(limit: number)`
+ * shape for a "give me everything" read used by more than one consumer.
+ * Reserve a hardcoded limit (see `listAllDepartments` in `departments.ts`) for
+ * a full-list read with a single known consumer.
  */
 export async function listRecentActivity(limit: number): Promise<AuditLogs[]> {
   const ctx = await requireAuth();

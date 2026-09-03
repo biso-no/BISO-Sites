@@ -3,10 +3,8 @@
 import { CheckCircle2, XCircle } from "lucide-react";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
-import type { PageSize } from "@/lib/list-params";
 import type { ApprovalRequest } from "../../../_actions/approvals";
 import { approveRequest, rejectRequest } from "../../../_actions/approvals";
-import { PaginationBar } from "../../../_components/pagination-bar";
 import { StatusBadge } from "../../../_components/status-badge";
 import { SERIF_STACK, STUDIO } from "../../../_components/studio";
 
@@ -24,10 +22,7 @@ interface ApprovalsReviewClientProps {
     requester: string;
     resourceType: string;
   };
-  page: number;
   requests: ApprovalRequest[];
-  size: PageSize;
-  total: number;
 }
 
 function parsePayload(raw: string): Record<string, unknown> {
@@ -224,10 +219,7 @@ function ApprovalCard({
 
 export function ApprovalsReviewClient({
   labels,
-  page,
   requests: initialRequests,
-  size,
-  total,
 }: ApprovalsReviewClientProps) {
   const [requests, setRequests] = useState(initialRequests);
   const [, startTransition] = useTransition();
@@ -256,23 +248,21 @@ export function ApprovalsReviewClient({
     });
   }
 
-  return (
-    <div>
-      {requests.length === 0 ? null : (
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {requests.map((request) => (
-            <ApprovalCard
-              key={request.$id}
-              labels={labels}
-              onApprove={handleApprove}
-              onReject={handleReject}
-              request={request}
-            />
-          ))}
-        </div>
-      )}
+  if (requests.length === 0) {
+    return null;
+  }
 
-      <PaginationBar page={page} size={size} sizeSelectable total={total} />
+  return (
+    <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+      {requests.map((request) => (
+        <ApprovalCard
+          key={request.$id}
+          labels={labels}
+          onApprove={handleApprove}
+          onReject={handleReject}
+          request={request}
+        />
+      ))}
     </div>
   );
 }
