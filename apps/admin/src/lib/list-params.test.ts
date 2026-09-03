@@ -1,7 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { Query } from "@repo/api";
 import {
-  clampPage,
   DEFAULT_PAGE_SIZE,
   emptyResult,
   firstParam,
@@ -83,35 +82,6 @@ describe("paginationQueries", () => {
       Query.limit(25),
       Query.offset(MAX_OFFSET),
     ]);
-  });
-});
-
-describe("clampPage", () => {
-  test("does not clamp a page that is already valid", () => {
-    expect(clampPage({ page: 5, size: 25, q: "" }, 1000)).toBe(5);
-  });
-
-  test("clamps to the last page that actually exists", () => {
-    // 30 rows at size 25 is 2 pages; page 10 does not exist.
-    expect(clampPage({ page: 10, size: 25, q: "" }, 30)).toBe(2);
-  });
-
-  test("clamps to the offset boundary when the row count would otherwise allow more", () => {
-    // 100,000 rows at size 25 would be 4000 pages, but page 201's offset
-    // (5000) is the last one Appwrite will serve.
-    expect(clampPage({ page: 9999, size: 25, q: "" }, 100_000)).toBe(201);
-  });
-
-  test("accepts the page whose offset lands exactly on MAX_OFFSET", () => {
-    expect(clampPage({ page: 201, size: 25, q: "" }, 100_000)).toBe(201);
-  });
-
-  test("rejects the page one past the offset boundary", () => {
-    expect(clampPage({ page: 202, size: 25, q: "" }, 100_000)).toBe(201);
-  });
-
-  test("falls back to page 1 when there are no rows", () => {
-    expect(clampPage({ page: 3, size: 25, q: "" }, 0)).toBe(1);
   });
 });
 

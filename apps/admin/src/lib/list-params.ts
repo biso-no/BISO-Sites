@@ -72,23 +72,11 @@ export function lastReachablePage(total: number, size: number): number {
   return Math.min(byTotal, byOffset);
 }
 
-/**
- * Clamps a requested page to the last page that actually exists, so a stale
- * bookmark or a hand-typed ?page= degrades to the final page of results
- * instead of rendering an empty list — and never asks Appwrite for an offset
- * it will reject.
- */
-export function clampPage(params: ListParams, total: number): number {
-  return Math.min(params.page, lastReachablePage(total, params.size));
-}
-
 export function paginationQueries(params: ListParams): string[] {
-  // Belt-and-suspenders: this alone guarantees Appwrite is never asked for an
-  // offset it rejects, even from a caller that skips `clampPage` entirely
-  // (e.g. a stale bookmark or a hand-typed `?page=` on a still-unclamped
-  // surface). `clampPage` (used by `PaginationBar` to cap which pages are
-  // offered) keeps the *reported* page number honest; this keeps the request
-  // itself safe regardless.
+  // This clamp is what guarantees Appwrite is never asked for an offset it
+  // rejects, even from a stale bookmark or a hand-typed `?page=`.
+  // `lastReachablePage` (used by `PaginationBar`) is the other half: it stops
+  // an unreachable page from being offered as a link in the first place.
   const offset = Math.min((params.page - 1) * params.size, MAX_OFFSET);
   return [Query.limit(params.size), Query.offset(offset)];
 }
