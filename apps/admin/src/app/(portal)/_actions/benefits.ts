@@ -27,6 +27,11 @@ import {
   scheduleContentTranslation,
   translateContentFields,
 } from "@/lib/content-translation.server";
+import {
+  type ListParams,
+  type PaginatedResult,
+  paginationQueries,
+} from "@/lib/list-params";
 import { loadRecruitmentLookups } from "@/lib/recruitment";
 import {
   buildContentRowPermissions,
@@ -410,11 +415,13 @@ export async function generateBenefitTranslationDraft(
   }
 }
 
-export async function listBenefits(opts?: {
-  campusId?: string;
-  status?: string;
-  kind?: string;
-}) {
+export async function listBenefits(
+  params: ListParams & {
+    campusId?: string;
+    status?: string;
+    kind?: string;
+  }
+): Promise<PaginatedResult<CampusBenefits>> {
   const ctx = await requireAuth();
   // Private admin read: the service client bypasses row security, so the
   // relationship scope filters below are the authorization boundary.
@@ -423,15 +430,26 @@ export async function listBenefits(opts?: {
   const queries: string[] = [
     Query.orderAsc("sort_order"),
     Query.orderDesc("$updatedAt"),
-    Query.limit(100),
+    ...paginationQueries(params),
   ];
 
-  if (opts?.status && opts.status !== "all") {
-    queries.push(Query.equal("status", opts.status));
+  if (params.status && params.status !== "all") {
+    queries.push(Query.equal("status", params.status));
   }
 
-  if (opts?.kind) {
-    queries.push(Query.equal("kind", opts.kind));
+  if (params.kind) {
+    queries.push(Query.equal("kind", params.kind));
+  }
+
+  // Titles are duplicated onto the row, so one query covers both locales —
+  // no content_translations round trip needed here.
+  if (params.q) {
+    queries.push(
+      Query.or([
+        Query.contains("title_nb", params.q),
+        Query.contains("title_en", params.q),
+      ])
+    );
   }
 
   queries.push(...applyContentRelationshipScopeQueries(ctx));
@@ -441,7 +459,13 @@ export async function listBenefits(opts?: {
     "campus_benefits",
     queries
   );
-  return response.rows;
+
+  return {
+    rows: response.rows,
+    total: response.total,
+    page: params.page,
+    size: params.size,
+  };
 }
 
 export async function getBenefit(id: string) {

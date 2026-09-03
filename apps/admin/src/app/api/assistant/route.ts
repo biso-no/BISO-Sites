@@ -467,7 +467,8 @@ function buildDeps(
         case "shop":
           return await listProducts({ status });
         case "benefits":
-          return await listBenefits({ status });
+          return (await listBenefits({ page: 1, size: 100, q: "", status }))
+            .rows;
         case "documents":
           return await listDocuments({ status });
         default:

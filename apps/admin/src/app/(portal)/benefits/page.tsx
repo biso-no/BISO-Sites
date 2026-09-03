@@ -3,9 +3,11 @@ import Image from "next/image";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { requireNavAccess } from "@/lib/authorization";
+import { parseListParams } from "@/lib/list-params";
 import { hasNavAccess } from "@/lib/roles";
 import { listBenefits } from "../_actions/benefits";
 import { EmptyState } from "../_components/empty-state";
+import { PaginationBar } from "../_components/pagination-bar";
 import { StatusBadge } from "../_components/status-badge";
 import {
   SERIF_STACK,
@@ -13,12 +15,19 @@ import {
   StudioLinkButton,
   StudioPageHeader,
 } from "../_components/studio";
+import { BenefitsSearch } from "./_components/benefits-search";
 
-export default async function BenefitsPage() {
+export default async function BenefitsPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const ctx = await requireNavAccess("portal.benefits");
   const t = await getTranslations("adminPortal.benefits");
+  const tc = await getTranslations("adminPortal.common");
 
-  const benefits = await listBenefits();
+  const params = parseListParams(await searchParams);
+  const { rows: benefits, total } = await listBenefits(params);
   // Partner administration keeps its narrower gate — department-only benefit
   // authors never see the partner surface.
   const canViewPartners = hasNavAccess(
@@ -42,7 +51,9 @@ export default async function BenefitsPage() {
         </StudioLinkButton>
       </StudioPageHeader>
 
-      {benefits.length === 0 ? (
+      <BenefitsSearch />
+
+      {benefits.length === 0 && !params.q ? (
         <EmptyState
           description={t("emptyDescription")}
           icon={<Gift size={28} />}
@@ -52,7 +63,13 @@ export default async function BenefitsPage() {
             {t("create")}
           </StudioLinkButton>
         </EmptyState>
-      ) : (
+      ) : null}
+
+      {benefits.length === 0 && params.q ? (
+        <EmptyState icon={<Gift size={28} />} title={tc("empty")} />
+      ) : null}
+
+      {benefits.length > 0 && (
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {benefits.map((benefit) => (
             <Link
@@ -124,6 +141,13 @@ export default async function BenefitsPage() {
           ))}
         </div>
       )}
+
+      <PaginationBar
+        page={params.page}
+        size={params.size}
+        sizeSelectable
+        total={total}
+      />
     </div>
   );
 }
