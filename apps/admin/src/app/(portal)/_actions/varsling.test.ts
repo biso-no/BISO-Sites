@@ -21,7 +21,6 @@ const globalAdminCtx: UserAuthContext = {
 };
 
 let currentCtx: UserAuthContext = globalAdminCtx;
-let navAccess = true;
 
 mock.module("@repo/api/server", () => ({
   createAdminClient: mock(async () => ({ db })),
@@ -31,16 +30,11 @@ mock.module("@/lib/authorization", () => ({
   requireAuth: mock(async () => currentCtx),
 }));
 
-mock.module("@/lib/roles", () => ({
-  hasNavAccess: mock(() => navAccess),
-}));
-
 const { listVarslingSettings } = await import("./varsling");
 
 describe("listVarslingSettings", () => {
   beforeEach(() => {
     currentCtx = globalAdminCtx;
-    navAccess = true;
     db.listRows.mockReset();
   });
 
@@ -56,7 +50,11 @@ describe("listVarslingSettings", () => {
   });
 
   test("returns an empty page for an unauthorized user", async () => {
-    navAccess = false;
+    currentCtx = {
+      ...globalAdminCtx,
+      departmentTeamIds: [],
+      roles: ["campusadmin"],
+    };
 
     const result = await listVarslingSettings({ page: 1, size: 25, q: "" });
 
