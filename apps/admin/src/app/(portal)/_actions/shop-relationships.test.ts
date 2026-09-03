@@ -305,7 +305,7 @@ describe("order operations stay narrow", () => {
   test("listOrders keeps its session-scoped operational authorization", async () => {
     currentCtx = campusAdminCtx;
 
-    await listOrders();
+    await listOrders({ page: 1, size: 25, q: "" });
 
     expect(sessionDb.listRows).toHaveBeenCalledWith(
       "app",

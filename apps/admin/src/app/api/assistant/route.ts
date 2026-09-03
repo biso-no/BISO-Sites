@@ -465,7 +465,9 @@ function buildDeps(
         case "pages":
           return await listPages({ status });
         case "shop":
-          return await listProducts({ status });
+          return (
+            await listProducts({ page: 1, size: 100, q: query ?? "", status })
+          ).rows;
         case "benefits":
           return (await listBenefits({ page: 1, size: 100, q: "", status }))
             .rows;
