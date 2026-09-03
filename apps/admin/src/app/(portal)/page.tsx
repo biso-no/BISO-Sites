@@ -14,7 +14,7 @@ import { getTranslations } from "next-intl/server";
 import { requireAdminAccess } from "@/lib/authorization";
 import { getDefaultNavPath } from "@/lib/nav-tree";
 import { hasNavAccess } from "@/lib/roles";
-import { listActivityLog } from "./_actions/activity";
+import { listRecentActivity } from "./_actions/activity";
 import { getDashboardStats } from "./_actions/pages";
 import { ContentActivityChart } from "./_components/content-chart-lazy";
 import {
@@ -45,8 +45,8 @@ export default async function AdminPortalDashboard() {
 
   const [stats, recentActivity, chartActivity] = await Promise.allSettled([
     getDashboardStats(),
-    listActivityLog({ page: 1, q: "", size: 25 }),
-    listActivityLog({ page: 1, q: "", size: 100 }),
+    listRecentActivity(5),
+    listRecentActivity(200),
   ]);
 
   const statsData =
@@ -54,11 +54,9 @@ export default async function AdminPortalDashboard() {
       ? stats.value
       : { jobs: 0, events: 0, news: 0, drafts: 0 };
   const activity =
-    recentActivity.status === "fulfilled"
-      ? recentActivity.value.rows.slice(0, 5)
-      : [];
+    recentActivity.status === "fulfilled" ? recentActivity.value : [];
   const allActivity =
-    chartActivity.status === "fulfilled" ? chartActivity.value.rows : [];
+    chartActivity.status === "fulfilled" ? chartActivity.value : [];
 
   const statCards = [
     {

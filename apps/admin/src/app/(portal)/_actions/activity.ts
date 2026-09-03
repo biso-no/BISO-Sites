@@ -43,3 +43,26 @@ export async function listActivityLog(
     size: params.size,
   };
 }
+
+/**
+ * Bounded aggregate read for the dashboard chart and recent-activity strip.
+ * Deliberately separate from listActivityLog: those surfaces need a fixed
+ * window, not a page, and must not be constrained by PageSize.
+ */
+export async function listRecentActivity(limit: number): Promise<AuditLogs[]> {
+  const ctx = await requireAuth();
+
+  if (
+    !(ctx.roles.includes("globaladmin") || ctx.roles.includes("campusadmin"))
+  ) {
+    return [];
+  }
+
+  const { db } = await createAdminClient();
+  const response = await db.listRows<AuditLogs>("app", "audit_logs", [
+    Query.orderDesc("$createdAt"),
+    Query.limit(limit),
+  ]);
+
+  return response.rows;
+}

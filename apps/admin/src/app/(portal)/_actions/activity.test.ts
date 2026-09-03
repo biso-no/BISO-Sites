@@ -30,7 +30,7 @@ mock.module("@/lib/authorization", () => ({
   requireAuth: mock(async () => currentCtx),
 }));
 
-const { listActivityLog } = await import("./activity");
+const { listActivityLog, listRecentActivity } = await import("./activity");
 
 describe("listActivityLog", () => {
   beforeEach(() => {
@@ -68,6 +68,43 @@ describe("listActivityLog", () => {
     const result = await listActivityLog({ page: 1, size: 25, q: "" });
 
     expect(result).toEqual({ rows: [], total: 0, page: 1, size: 25 });
+    expect(db.listRows).not.toHaveBeenCalled();
+  });
+});
+
+describe("listRecentActivity", () => {
+  beforeEach(() => {
+    currentCtx = globalAdminCtx;
+    db.listRows.mockReset();
+  });
+
+  test("passes the requested limit through to Appwrite", async () => {
+    db.listRows.mockResolvedValueOnce({ rows: [], total: 0 });
+
+    await listRecentActivity(200);
+
+    const queries = db.listRows.mock.calls[0][2] as string[];
+    expect(queries).toContain(Query.limit(200));
+  });
+
+  test("returns a bare array of rows", async () => {
+    db.listRows.mockResolvedValueOnce({
+      rows: [{ $id: "a" }, { $id: "b" }],
+      total: 2,
+    });
+
+    const result = await listRecentActivity(5);
+
+    expect(result).toHaveLength(2);
+    expect(result.map((row) => row.$id)).toEqual(["a", "b"]);
+  });
+
+  test("denies a non-admin without querying Appwrite", async () => {
+    currentCtx = { ...globalAdminCtx, roles: ["department"] };
+
+    const result = await listRecentActivity(200);
+
+    expect(result).toEqual([]);
     expect(db.listRows).not.toHaveBeenCalled();
   });
 });
