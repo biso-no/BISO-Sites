@@ -502,11 +502,11 @@ function buildDeps(
     },
 
     listPendingApprovals: async () => {
-      const result = await listPendingApprovals();
+      const result = await listPendingApprovals({ page: 1, size: 50, q: "" });
       if ("error" in result) {
         throw new Error(result.error);
       }
-      return result.data;
+      return result.data.rows;
     },
 
     // -------------------------------------------------------------------------

@@ -32,6 +32,12 @@ import { ID, type Models, Permission, Query, Role } from "@repo/api";
 import { createAdminClient, createSessionClient } from "@repo/api/server";
 import { revalidatePath } from "next/cache";
 import { requireAuth } from "@/lib/authorization";
+import {
+  emptyResult,
+  type ListParams,
+  type PaginatedResult,
+  paginationQueries,
+} from "@/lib/list-params";
 import { assertPublishAccess } from "@/lib/utils/authorization";
 import {
   type ApprovalPublishPlan,
@@ -146,9 +152,9 @@ export async function createApprovalRequest(
 // List pending approvals for the current user's approver teams
 // ---------------------------------------------------------------------------
 
-export async function listPendingApprovals(): Promise<
-  { data: ApprovalRequest[] } | { error: string }
-> {
+export async function listPendingApprovals(
+  params: ListParams
+): Promise<{ data: PaginatedResult<ApprovalRequest> } | { error: string }> {
   const ctx = await requireAuth();
 
   try {
@@ -161,7 +167,7 @@ export async function listPendingApprovals(): Promise<
     const queries: string[] = [
       Query.equal("status", "pending"),
       Query.orderDesc("$createdAt"),
-      Query.limit(50),
+      ...paginationQueries(params),
     ];
     if (ctx.activeCampusId) {
       queries.push(Query.equal("campus_id", [ctx.activeCampusId]));
@@ -172,10 +178,17 @@ export async function listPendingApprovals(): Promise<
       queries
     );
 
-    return { data: result.rows };
+    return {
+      data: {
+        rows: result.rows,
+        total: result.total,
+        page: params.page,
+        size: params.size,
+      },
+    };
   } catch (_error) {
     // If the table doesn't exist yet, return empty list gracefully
-    return { data: [] };
+    return { data: emptyResult<ApprovalRequest>(params) };
   }
 }
 
