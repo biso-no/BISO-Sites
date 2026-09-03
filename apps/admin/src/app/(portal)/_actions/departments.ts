@@ -10,8 +10,10 @@ import type {
 } from "@repo/api/types/appwrite";
 import {
   assertStorableUnitCategory,
+  isUnitCategory,
   parseUnitCategory,
   UNIT_CATEGORIES,
+  unitCategoryMatchValues,
 } from "@repo/shared/utils/unit-categories";
 import { unitPageSlug } from "@repo/shared/utils/unit-urls";
 import { revalidatePath } from "next/cache";
@@ -117,15 +119,32 @@ export async function listDepartments(
     ...scope,
   ];
 
-  // The triage filters used to run in JS over a full 500-row load. They are
-  // all expressible as queries, so they now run BEFORE pagination — otherwise
-  // a filtered page would only ever show whichever matches happened to land in
-  // the current slice.
+  // The triage filters used to run in JS over a full 500-row load. They run
+  // BEFORE pagination now — otherwise a filtered page would only ever show
+  // whichever matches happened to land in the current slice.
+  //
+  // Each filter must select exactly the rows countDepartmentTriage counts under
+  // the same chip, or a chip would advertise rows clicking it cannot produce.
   if (params.type === "uncategorised") {
-    queries.push(Query.isNull("type"));
+    // KNOWN, BOUNDED GAP: parseUnitCategory also reports `uncategorised` for a
+    // whitespace-only value and for any unrecognised free text (anything not in
+    // UNIT_CATEGORIES or LEGACY_ALIASES). Neither is expressible as an Appwrite
+    // query — matching them would mean enumerating values we cannot know — so
+    // this filter covers the two forms that are (null and ""), and such a row
+    // can still be counted without being listed. The `type` column is written
+    // only through assertStorableUnitCategory, so this affects legacy/imported
+    // rows only.
+    queries.push(Query.or([Query.isNull("type"), Query.equal("type", "")]));
   } else if (params.type === "missing_logo") {
     queries.push(Query.or([Query.equal("logo", ""), Query.isNull("logo")]));
+  } else if (isUnitCategory(params.type)) {
+    // Query.equal ORs the array, so this matches the canonical value AND every
+    // legacy alias parseUnitCategory folds onto it — the same set the count for
+    // this chip is built from.
+    queries.push(Query.equal("type", unitCategoryMatchValues(params.type)));
   } else if (params.type) {
+    // Not a known category (a raw alias, or junk from the address bar): fall
+    // back to an exact match rather than guessing.
     queries.push(Query.equal("type", params.type));
   }
 
@@ -170,16 +189,20 @@ export async function listAllDepartments(): Promise<Departments[]> {
 }
 
 /**
- * Triage chip counts across the FULL scoped set. The list itself is paginated,
- * so the counts cannot be derived from the visible rows — they would report
- * one page's worth and change as the user paged. This deliberately takes no
- * page/size and issues no offset: it projects only $id/type/logo, which keeps
- * a 500-row read cheap enough to run alongside the page query.
+ * Triage chip counts across the full scoped set (narrowed by `q` when a search
+ * is active, so the chips and the list always describe the same set). The list
+ * itself is paginated, so the counts cannot be derived from the visible rows —
+ * they would report one page's worth and change as the user paged. This
+ * deliberately takes no page/size and issues no offset: it projects only
+ * $id/type/logo, which keeps a 500-row read cheap enough to run alongside the
+ * page query.
  */
 export async function countDepartmentTriage(opts: {
   campusId?: string;
   ids?: string[];
   includeInactive?: boolean;
+  /** The active search, so the chips describe the set the list is showing. */
+  q?: string;
 }): Promise<Record<string, number>> {
   const ctx = await requireAuth();
   const { db } = await createSessionClient();
@@ -198,13 +221,33 @@ export async function countDepartmentTriage(opts: {
     return counts;
   }
 
-  const response = await db.listRows<Departments>("app", "departments", [
+  const queries: string[] = [
     Query.select(["$id", "type", "logo"]),
     Query.limit(500),
     ...scope,
-  ]);
+  ];
 
-  counts.all = response.rows.length;
+  // A chip is a filter control, so its number must predict what clicking it
+  // yields. With a search active the list is narrowed, so the counts narrow by
+  // the same term — otherwise a search matching nothing would render an empty
+  // list beside a chip reading 240. Clearing the search restores the whole-
+  // scope view. Deliberately NOT paginated: still no offset, and a 500-row cap
+  // rather than a PageSize.
+  if (opts.q) {
+    queries.push(Query.contains("Name", opts.q));
+  }
+
+  const response = await db.listRows<Departments>(
+    "app",
+    "departments",
+    queries
+  );
+
+  // Appwrite's own total, not the projected row count: the projection caps at
+  // 500, and a capped `all` would disagree with the `total` feeding
+  // PaginationBar on the same screen. The per-category tallies below still ride
+  // the projection, which is a documented bound (~240 rows today).
+  counts.all = response.total;
   for (const department of response.rows) {
     const key = parseUnitCategory(department.type) ?? "uncategorised";
     counts[key] = (counts[key] ?? 0) + 1;

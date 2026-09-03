@@ -65,9 +65,11 @@ export default async function DepartmentsPage({
     ? rawFilter
     : "all";
 
-  // Two queries on purpose. The listing is a page; the chip counts describe
-  // the WHOLE scoped set, so they stay identical as the user pages. Deriving
-  // them from `departments.rows` would report one page's worth.
+  // Two queries on purpose. The listing is a page; the chip counts describe the
+  // whole set the search leaves in scope, so they stay identical as the user
+  // pages. Deriving them from `departments.rows` would report one page's worth.
+  // `q` goes to both so the chips predict what clicking them yields; `page`
+  // and `size` go only to the list.
   const [departments, counts, campuses] = await Promise.all([
     listDepartments({
       ...params,
@@ -75,7 +77,11 @@ export default async function DepartmentsPage({
       includeInactive: true,
       type: filter === "all" ? undefined : filter,
     }),
-    countDepartmentTriage({ ids: landing.scopeIds, includeInactive: true }),
+    countDepartmentTriage({
+      ids: landing.scopeIds,
+      includeInactive: true,
+      q: params.q,
+    }),
     listCampuses(),
   ]);
 

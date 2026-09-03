@@ -269,6 +269,10 @@ describe("listDepartments pagination", () => {
     expect(queries).toContain(Query.offset(50));
   });
 
+  // parseUnitCategory counts a row as uncategorised for null, "", and
+  // whitespace/free text alike, so the FILTER has to cover at least the two
+  // forms a query can express — Query.isNull alone would list fewer rows than
+  // the `uncategorised` chip advertises.
   test("pushes the uncategorised filter into the query, not into JS", async () => {
     sessionDb.listRows.mockResolvedValueOnce({ rows: [], total: 0 });
 
@@ -281,7 +285,9 @@ describe("listDepartments pagination", () => {
     });
 
     const queries = sessionDb.listRows.mock.calls[0]?.[2] as string[];
-    expect(queries).toContain(Query.isNull("type"));
+    expect(queries).toContain(
+      Query.or([Query.isNull("type"), Query.equal("type", "")])
+    );
   });
 
   test("pushes the missing_logo filter into the query", async () => {
@@ -301,7 +307,20 @@ describe("listDepartments pagination", () => {
     );
   });
 
-  test("pushes a real category through as an equality filter", async () => {
+  const typeEqualityValues = (queries: string[]): string[] => {
+    const typeQuery = queries.find(
+      (query) =>
+        query.includes('"method":"equal"') &&
+        query.includes('"attribute":"type"')
+    );
+    return [...(JSON.parse(typeQuery as string).values as string[])].sort();
+  };
+
+  // The counts fold legacy aliases onto their canonical category via
+  // parseUnitCategory, so an exact-match filter would advertise rows the chip
+  // could never list. The filter has to match every raw value that normalises
+  // onto the chip's category.
+  test("a category filter matches every legacy alias that folds onto it", async () => {
     sessionDb.listRows.mockResolvedValueOnce({ rows: [], total: 0 });
 
     await listDepartments({
@@ -309,11 +328,28 @@ describe("listDepartments pagination", () => {
       page: 1,
       q: "",
       size: 25,
-      type: "society",
+      type: "staff_function",
     });
 
     const queries = sessionDb.listRows.mock.calls[0]?.[2] as string[];
-    expect(queries).toContain(Query.equal("type", "society"));
+    expect(typeEqualityValues(queries)).toEqual(
+      ["committee", "service", "staff", "staff_function"].sort()
+    );
+  });
+
+  test("a category with no aliases still filters on itself", async () => {
+    sessionDb.listRows.mockResolvedValueOnce({ rows: [], total: 0 });
+
+    await listDepartments({
+      includeInactive: true,
+      page: 1,
+      q: "",
+      size: 25,
+      type: "other",
+    });
+
+    const queries = sessionDb.listRows.mock.calls[0]?.[2] as string[];
+    expect(typeEqualityValues(queries)).toEqual(["other"]);
   });
 
   test("searches the indexed Name column", async () => {
@@ -377,6 +413,20 @@ describe("countDepartmentTriage", () => {
     expect(counts.staff_function).toBe(1);
   });
 
+  // `all` must be Appwrite's own total, not the length of the projection: the
+  // projection is capped at 500 rows, and a capped `all` would disagree with
+  // the `total` feeding PaginationBar on the very same screen.
+  test("takes `all` from Appwrite's total, not the projected row count", async () => {
+    sessionDb.listRows.mockResolvedValueOnce({
+      rows: [{ $id: "d1", logo: "", type: null }],
+      total: 239,
+    });
+
+    const counts = await countDepartmentTriage({ includeInactive: true });
+
+    expect(counts.all).toBe(239);
+  });
+
   test("selects only the three columns it needs", async () => {
     sessionDb.listRows.mockResolvedValueOnce({ rows: [], total: 0 });
 
@@ -389,7 +439,8 @@ describe("countDepartmentTriage", () => {
   test("issues no offset and no page-sized limit, so the counts cannot describe one page", async () => {
     sessionDb.listRows.mockResolvedValueOnce({ rows: [], total: 0 });
 
-    await countDepartmentTriage({ includeInactive: true });
+    // Narrowing by `q` must not smuggle pagination in with it.
+    await countDepartmentTriage({ includeInactive: true, q: "biso" });
 
     const queries = sessionDb.listRows.mock.calls[0]?.[2] as string[];
     expect(queries.some((query) => query.includes('"method":"offset"'))).toBe(
@@ -443,6 +494,37 @@ describe("countDepartmentTriage", () => {
     expect(counts.uncategorised).toBe(0);
     expect(counts.missing_logo).toBe(0);
     expect(sessionDb.listRows).not.toHaveBeenCalled();
+  });
+
+  // A chip is a filter control, so its number has to predict what clicking it
+  // yields. With a search active the list is narrowed, so the counts must be
+  // narrowed by the same term or the chips would describe a set the list can
+  // no longer show.
+  test("narrows the counts by the active search, exactly as the list does", async () => {
+    sessionDb.listRows.mockResolvedValueOnce({ rows: [], total: 0 });
+
+    await countDepartmentTriage({ includeInactive: true, q: "biso" });
+
+    const queries = sessionDb.listRows.mock.calls[0]?.[2] as string[];
+    expect(queries).toContain(Query.contains("Name", "biso"));
+  });
+
+  // The campus chain is the authorization boundary for a campus admin. It is
+  // shared with listDepartments through departmentScopeQueries today, so this
+  // guards a future refactor that re-inlines it.
+  test("honours the campus chain, so a campus admin never sees another campus's counts", async () => {
+    currentCtx = makeCtx({
+      activeCampusId: "2", // stale/foreign cookie value — not a campus they manage
+      managedCampusIds: ["1"],
+      roles: ["campusadmin"],
+    });
+    sessionDb.listRows.mockResolvedValueOnce({ rows: [], total: 0 });
+
+    await countDepartmentTriage({ includeInactive: true });
+
+    const queries = sessionDb.listRows.mock.calls[0]?.[2] as string[];
+    expect(queries).toContain(Query.equal("campus_id", ["1"]));
+    expect(queries).not.toContain(Query.equal("campus_id", ["2"]));
   });
 });
 
