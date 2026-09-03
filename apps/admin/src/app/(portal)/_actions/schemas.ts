@@ -61,6 +61,8 @@ export type EventFormValues = EventUpsertInput;
 
 export const jobSchema = recruitmentVacancyUpsertSchema;
 export type JobFormValues = RecruitmentVacancyUpsertInput;
+export const JOBS_PAGE_SIZE = 20;
+export const APPLICATIONS_PAGE_SIZE = 20;
 
 export const newsSchema = z
   .object({

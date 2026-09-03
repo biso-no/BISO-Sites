@@ -100,6 +100,12 @@
     "locale": {
       "no": "Norwegian",
       "en": "English"
+    },
+    "pagination": {
+      "summary": "{total} total · page {page} of {pages}",
+      "previous": "Previous page",
+      "next": "Next page",
+      "perPage": "Per page"
     }
   },
   "it": {

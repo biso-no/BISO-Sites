@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { deleteDocument } from "../../_actions/documents";
+import { DOCUMENTS_PAGE_SIZE } from "../../_actions/schemas";
 import { EmptyState } from "../../_components/empty-state";
 import { PaginationBar } from "../../_components/pagination-bar";
 import { SearchToolbar } from "../../_components/search-toolbar";
@@ -232,7 +233,7 @@ export function DocumentsListClient({
         </div>
       )}
 
-      <PaginationBar page={page} total={total} />
+      <PaginationBar page={page} size={DOCUMENTS_PAGE_SIZE} total={total} />
     </>
   );
 }
