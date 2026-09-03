@@ -108,7 +108,7 @@ export function PaginationBar({
     return null;
   }
 
-  const pages: (number | "…")[] = [];
+  const pages: (number | "gap-start" | "gap-end")[] = [];
   if (totalPages <= 7) {
     for (let i = 1; i <= totalPages; i++) {
       pages.push(i);
@@ -116,7 +116,7 @@ export function PaginationBar({
   } else {
     pages.push(1);
     if (page > 4) {
-      pages.push("…");
+      pages.push("gap-start");
     }
     const start = Math.max(2, page - 1);
     const end = Math.min(totalPages - 1, page + 1);
@@ -124,7 +124,7 @@ export function PaginationBar({
       pages.push(i);
     }
     if (page < totalPages - 3) {
-      pages.push("…");
+      pages.push("gap-end");
     }
     pages.push(totalPages);
   }
@@ -186,11 +186,11 @@ export function PaginationBar({
             <ChevronLeft size={14} />
           </button>
 
-          {pages.map((p, i) =>
-            p === "…" ? (
+          {pages.map((p) =>
+            p === "gap-start" || p === "gap-end" ? (
               <span
                 className="flex h-8 w-8 items-center justify-center text-xs"
-                key={`ellipsis-${i}`}
+                key={p}
                 style={{ color: STUDIO.ink4 }}
               >
                 …
