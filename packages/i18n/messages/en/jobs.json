@@ -18,7 +18,12 @@
     "national": "National",
     "other": "Other",
     "paidOnly": "Paid Positions Only",
-    "showingResults": "Showing {count} {count, plural, one {position} other {positions}}"
+    "showingResults": "Showing {count} {count, plural, one {position} other {positions}}",
+    "employmentTypeLabel": "Filter positions by type",
+    "categoryLabel": "Filter roles by unit category",
+    "campusLabel": "Filter positions by campus",
+    "searchLabel": "Search positions",
+    "searchSubmit": "Search"
   },
   "emptyState": {
     "title": "No positions found",
@@ -33,5 +38,73 @@
     "description": "Our recruitment team is here to help! Reach out if you have any questions about positions or the application process.",
     "contactButton": "Contact Recruitment Team",
     "downloadButton": "Download Information Pack"
+  },
+  "results": {
+    "count": "{count, plural, =0 {No positions} one {# position} other {# positions}}"
+  },
+  "card": {
+    "paid": "Paid",
+    "deadline": "Apply by"
+  },
+  "detail": {
+    "about": "About this vacancy",
+    "commitmentTitle": "Commitment",
+    "hours": "Hours",
+    "term": "Term",
+    "startDate": "Start date",
+    "summaryTitle": "Vacancy details",
+    "employer": "Employer",
+    "department": "Department",
+    "deadline": "Deadline",
+    "location": "Location",
+    "campus": "Campus",
+    "contact": "Contact",
+    "rolling": "Rolling",
+    "gdprTitle": "Your data",
+    "gdprBody": "BISO stores your application data solely for this recruitment process and deletes it after 180 days.",
+    "back": "Back to all vacancies",
+    "copyLink": "Copy link",
+    "copied": "Link copied"
+  },
+  "application": {
+    "signInTitle": "Sign in to apply",
+    "signInBody": "You need a signed-in BISO account to apply.",
+    "signIn": "Sign in",
+    "intro": "A few questions from the hiring team.",
+    "fullName": "Full name *",
+    "email": "Email",
+    "verified": "Verified via your BISO account",
+    "phone": "Phone",
+    "phoneOptional": "Phone (optional)",
+    "phonePlaceholder": "123 45 678",
+    "countryCode": "Country code",
+    "currentRole": "Current role (optional)",
+    "currentRolePlaceholder": "Student, intern…",
+    "employer": "Employer / school (optional)",
+    "employerPlaceholder": "BI, BISO…",
+    "linkedin": "LinkedIn (optional)",
+    "coverLetter": "Cover letter",
+    "coverLetterPlaceholder": "Tell BISO why you're applying and what you'd bring.",
+    "availability": "Interview availability (optional)",
+    "availabilityPlaceholder": "Dates and times that generally work — one per line.",
+    "availabilityHint": "Helps HR suggest slots without back-and-forth emails.",
+    "attachmentHint": "Max 5 MB, PDF only.",
+    "choose": "Choose…",
+    "back": "Back",
+    "continue": "Continue",
+    "review": "Review application",
+    "apply": "Apply",
+    "submitted": "Application submitted!",
+    "viewApplications": "View my applications",
+    "name": "Name",
+    "included": "Included",
+    "yes": "Yes"
+  },
+  "errors": {
+    "title": "Something went wrong",
+    "body": "We couldn't load this vacancy. Try again or browse all open positions.",
+    "browse": "Browse vacancies",
+    "notFoundTitle": "Position not found",
+    "notFoundBody": "This vacancy may have closed or the link may be outdated."
   }
 }

@@ -1,35 +1,25 @@
-"use client";
-
-import { Card, CardContent } from "@repo/ui/components/ui/card";
 import {
   AlertTriangle,
-  CheckCircle,
+  Check,
   Eye,
   HelpCircle,
+  Mail,
   Shield,
-  User,
 } from "lucide-react";
-import { motion } from "motion/react";
+import type { Metadata } from "next";
 import Link from "next/link";
-import { useTranslations } from "next-intl";
-import { AboutHero } from "@/components/about/about-hero";
+import { getTranslations } from "next-intl/server";
 import { VarslingForm } from "@/components/safety/varsling-form";
-import { SectionHeading } from "@/components/shared/section-heading";
-
-const fadeUp = {
-  initial: { opacity: 0, y: 20 },
-  viewport: { once: true },
-  whileInView: { opacity: 1, y: 0 },
-} as const;
+import { CardGrid } from "@/components/ui/card-grid";
+import { PageHeader } from "@/components/ui/page-header";
+import { Prose } from "@/components/ui/prose";
+import { Section } from "@/components/ui/section";
+import { SectionHeading } from "@/components/ui/section-heading";
 
 const INFO_CARDS = [
-  {
-    key: "harassment",
-    icon: AlertTriangle,
-    gradient: "from-amber-500 to-orange-500",
-  },
-  { key: "witness", icon: Eye, gradient: "from-blue-500 to-cyan-500" },
-  { key: "other", icon: HelpCircle, gradient: "from-purple-500 to-pink-500" },
+  { key: "harassment", Icon: AlertTriangle },
+  { key: "witness", Icon: Eye },
+  { key: "other", Icon: HelpCircle },
 ] as const;
 
 const RULE_KEYS = [
@@ -42,241 +32,163 @@ const RULE_KEYS = [
 const CONTACT_KEYS = ["contacts.0", "contacts.1", "contacts.2"] as const;
 const PRIVACY_KEYS = ["points.0", "points.1", "points.2", "points.3"] as const;
 
-export default function SafetyPage() {
-  const t = useTranslations("varsling");
-  const tNav = useTranslations("common.navigation");
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("varsling");
+  return { title: `${t("title")} | BISO`, description: t("subtitle") };
+}
+
+export default async function SafetyPage() {
+  const [t, tCommon, tNav] = await Promise.all([
+    getTranslations("varsling"),
+    getTranslations("common"),
+    getTranslations("common.navigation"),
+  ]);
 
   return (
-    <div className="min-h-screen bg-linear-to-b from-section to-background">
-      <AboutHero
+    <>
+      <PageHeader
         breadcrumbs={[
-          { label: "Home", href: "/" },
+          { label: tCommon("breadcrumbs.home"), href: "/" },
           { label: tNav("links.safety") },
         ]}
-        icon={<Shield className="h-8 w-8 text-white" />}
-        subtitle={t("subtitle")}
+        lede={t("subtitle")}
         title={t("title")}
       />
 
-      {/* Intro + categories */}
-      <section className="relative overflow-hidden py-16" id="about-content">
-        <div className="pointer-events-none absolute inset-0 bg-grid-primary-soft opacity-50" />
-        <div className="relative mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
-          <motion.p
-            className="mx-auto max-w-3xl text-center text-lg text-muted-foreground leading-relaxed"
-            transition={{ duration: 0.6 }}
-            {...fadeUp}
-          >
-            {t("description")}
-          </motion.p>
-          <div className="mt-12 grid gap-6 md:grid-cols-3">
-            {INFO_CARDS.map((card, index) => (
-              <motion.div
-                key={card.key}
-                transition={{ delay: index * 0.1, duration: 0.5 }}
-                {...fadeUp}
+      <Section id="about-content" tone="paper">
+        <Prose className="mb-10">
+          <p>{t("description")}</p>
+        </Prose>
+
+        <CardGrid columns={3}>
+          {INFO_CARDS.map(({ key, Icon }) => (
+            <li key={key}>
+              <div className="flex h-full flex-col rounded-biso-md border border-edge p-6">
+                <Icon aria-hidden="true" className="size-6 text-ink-accent" />
+                <h2 className="type-heading-card mt-4 text-ink">
+                  {t(`infoCards.${key}.title`)}
+                </h2>
+                <p className="type-body-sm mt-2 text-ink-muted">
+                  {t(`infoCards.${key}.description`)}
+                </p>
+              </div>
+            </li>
+          ))}
+        </CardGrid>
+      </Section>
+
+      {/* The form is the one interactive thing here and stays a client island;
+          everything around it renders on the server. */}
+      <Section className="border-edge border-t" tone="paper" width="prose">
+        <SectionHeading>{t("form.title")}</SectionHeading>
+        <p className="type-body mb-8 text-ink-muted">{t("form.description")}</p>
+        <VarslingForm />
+      </Section>
+
+      <Section className="border-edge border-t" tone="paper" width="prose">
+        <SectionHeading>{t("whatIsWhistleblowing.title")}</SectionHeading>
+        <Prose>
+          <p className="whitespace-pre-line">
+            {t("whatIsWhistleblowing.content")}
+          </p>
+        </Prose>
+
+        <SectionHeading as="h3" className="mt-12">
+          {t("codeOfConduct.title")}
+        </SectionHeading>
+        <p className="type-body text-ink-muted">{t("codeOfConduct.purpose")}</p>
+        <ul className="mt-5 space-y-3">
+          {RULE_KEYS.map((key) => (
+            <li className="flex items-start gap-3" key={key}>
+              <Check
+                aria-hidden="true"
+                className="mt-1 size-4 shrink-0 text-ink-accent"
+              />
+              <span className="type-body text-ink-muted">
+                {t(`codeOfConduct.${key}`)}
+              </span>
+            </li>
+          ))}
+        </ul>
+
+        <div className="mt-10 rounded-biso-md bg-surface-sunken p-6">
+          <h3 className="type-heading-card text-ink">
+            {t("anonymousReport.title")}
+          </h3>
+          <p className="type-body-sm mt-2 text-ink-muted">
+            {t("anonymousReport.content")}
+          </p>
+        </div>
+
+        <SectionHeading as="h3" className="mt-12">
+          {t("sendingReport.title")}
+        </SectionHeading>
+        <Prose>
+          <p className="whitespace-pre-line">{t("sendingReport.content")}</p>
+        </Prose>
+      </Section>
+
+      <Section className="border-edge border-t" tone="paper" width="prose">
+        <SectionHeading>{t("contact.title")}</SectionHeading>
+        <p className="type-body mb-8 text-ink-muted">
+          {t("contact.description")}
+        </p>
+        <ul className="space-y-3">
+          {CONTACT_KEYS.map((key) => (
+            <li
+              className="flex flex-wrap items-center justify-between gap-3 rounded-biso-md border border-edge p-5"
+              key={key}
+            >
+              <span className="type-body-sm text-ink">
+                {t(`contact.${key}.role`)}
+              </span>
+              <a
+                className="inline-flex items-center gap-2 text-ink-accent underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+                href={`mailto:${t(`contact.${key}.email`)}`}
               >
-                <Card className="group h-full border-border/50 bg-card/80 p-6 backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg">
-                  <div
-                    className={`mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-linear-to-br ${card.gradient} shadow-md transition-transform duration-300 group-hover:scale-110`}
-                  >
-                    <card.icon className="h-6 w-6 text-white" />
-                  </div>
-                  <h3 className="mb-2 font-semibold text-foreground">
-                    {t(`infoCards.${card.key}.title`)}
-                  </h3>
-                  <p className="text-muted-foreground text-sm leading-relaxed">
-                    {t(`infoCards.${card.key}.description`)}
-                  </p>
-                </Card>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Reporting form */}
-      <section className="bg-section/50 py-16">
-        <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
-          <motion.div
-            className="mb-8"
-            transition={{ duration: 0.6 }}
-            {...fadeUp}
-          >
-            <SectionHeading
-              align="center"
-              gradient
-              subtitle={t("form.description")}
-              title={t("form.title")}
-            />
-          </motion.div>
-          <motion.div transition={{ duration: 0.6 }} {...fadeUp}>
-            <div className="glass-panel p-6 sm:p-8">
-              <VarslingForm />
-            </div>
-          </motion.div>
-        </div>
-      </section>
-
-      {/* What is whistleblowing */}
-      <section className="py-16">
-        <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
-          <motion.div transition={{ duration: 0.6 }} {...fadeUp}>
-            <SectionHeading title={t("whatIsWhistleblowing.title")} />
-            <p className="mt-6 whitespace-pre-line text-muted-foreground leading-relaxed">
-              {t("whatIsWhistleblowing.content")}
-            </p>
-          </motion.div>
-        </div>
-      </section>
-
-      {/* Code of conduct */}
-      <section className="bg-section/50 py-16" id="code-of-conduct">
-        <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
-          <motion.div transition={{ duration: 0.6 }} {...fadeUp}>
-            <SectionHeading title={t("codeOfConduct.title")} />
-            <p className="mt-6 text-muted-foreground leading-relaxed">
-              {t("codeOfConduct.purpose")}
-            </p>
-          </motion.div>
-          <ul className="mt-6 space-y-3">
-            {RULE_KEYS.map((key, index) => (
-              <motion.li
-                className="flex items-start gap-3"
-                key={key}
-                transition={{ delay: index * 0.08, duration: 0.4 }}
-                {...fadeUp}
-              >
-                <CheckCircle className="mt-0.5 h-5 w-5 shrink-0 text-brand" />
-                <span className="text-muted-foreground">
-                  {t(`codeOfConduct.${key}`)}
+                <Mail aria-hidden="true" className="size-4 shrink-0" />
+                <span className="type-body-sm min-w-0 break-words">
+                  {t(`contact.${key}.email`)}
                 </span>
-              </motion.li>
+              </a>
+            </li>
+          ))}
+        </ul>
+
+        <div className="mt-10 rounded-biso-md border border-edge p-6">
+          <h3 className="type-heading-card flex items-center gap-2 text-ink">
+            <Shield aria-hidden="true" className="size-5 text-ink-accent" />
+            {t("privacy.title")}
+          </h3>
+          <ul className="mt-4 space-y-3">
+            {PRIVACY_KEYS.map((key) => (
+              <li className="flex items-start gap-3" key={key}>
+                <Check
+                  aria-hidden="true"
+                  className="mt-1 size-4 shrink-0 text-ink-accent"
+                />
+                <span className="type-body-sm text-ink-muted">
+                  {/* The link is a tag in the message now. It used to be
+                      recovered by splitting the translated sentence on the
+                      literal words "personvernerklæring" or "privacy policy",
+                      so a third locale — or an edit to either sentence — would
+                      have silently dropped the link. */}
+                  {t.rich(`privacy.${key}`, {
+                    link: (chunks) => (
+                      <Link
+                        className="text-ink-accent underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+                        href={t("privacy.privacyLink")}
+                      >
+                        {chunks}
+                      </Link>
+                    ),
+                  })}
+                </span>
+              </li>
             ))}
           </ul>
         </div>
-      </section>
-
-      {/* Anonymous report callout */}
-      <section className="py-16">
-        <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
-          <motion.div transition={{ duration: 0.6 }} {...fadeUp}>
-            <Card className="overflow-hidden border-brand-accent/40 bg-brand-accent-muted">
-              <CardContent className="space-y-3 p-6 sm:p-8">
-                <h3 className="flex items-center gap-2 font-semibold text-foreground text-lg">
-                  <AlertTriangle className="h-5 w-5 text-brand-accent" />
-                  {t("anonymousReport.title")}
-                </h3>
-                <p className="whitespace-pre-line text-muted-foreground leading-relaxed">
-                  {t("anonymousReport.content")}
-                </p>
-              </CardContent>
-            </Card>
-          </motion.div>
-        </div>
-      </section>
-
-      {/* Sending report */}
-      <section className="bg-section/50 py-16">
-        <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
-          <motion.div transition={{ duration: 0.6 }} {...fadeUp}>
-            <SectionHeading title={t("sendingReport.title")} />
-            <p className="mt-6 whitespace-pre-line text-muted-foreground leading-relaxed">
-              {t("sendingReport.content")}
-            </p>
-          </motion.div>
-        </div>
-      </section>
-
-      {/* Contact */}
-      <section className="py-16">
-        <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
-          <motion.div
-            className="mb-8"
-            transition={{ duration: 0.6 }}
-            {...fadeUp}
-          >
-            <SectionHeading
-              subtitle={t("contact.description")}
-              title={t("contact.title")}
-            />
-          </motion.div>
-          <div className="grid gap-4 sm:grid-cols-3">
-            {CONTACT_KEYS.map((key, index) => (
-              <motion.div
-                key={key}
-                transition={{ delay: index * 0.1, duration: 0.4 }}
-                {...fadeUp}
-              >
-                <Card className="group h-full border-border/50 bg-card/80 p-6 text-center backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg">
-                  <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-linear-to-br from-brand-gradient-from to-brand-gradient-to shadow-md transition-transform duration-300 group-hover:scale-110">
-                    <User className="h-6 w-6 text-white" />
-                  </div>
-                  <div className="font-semibold text-foreground">
-                    {t(`contact.${key}.role`)}
-                  </div>
-                  <a
-                    className="mt-1 inline-block text-brand text-sm underline-offset-2 hover:underline"
-                    href={`mailto:${t(`contact.${key}.email`)}`}
-                  >
-                    {t(`contact.${key}.email`)}
-                  </a>
-                </Card>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Privacy notice */}
-      <section className="bg-section/50 py-16">
-        <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
-          <motion.div transition={{ duration: 0.6 }} {...fadeUp}>
-            <Card className="border-border/50 bg-card/80 backdrop-blur-sm">
-              <CardContent className="space-y-4 p-6 sm:p-8">
-                <h3 className="flex items-center gap-2 font-semibold text-foreground text-lg">
-                  <Shield className="h-5 w-5 text-brand" />
-                  {t("privacy.title")}
-                </h3>
-                <div className="space-y-3 text-muted-foreground text-sm">
-                  {PRIVACY_KEYS.map((key, index) => (
-                    <div className="flex items-start gap-3" key={key}>
-                      <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-brand" />
-                      <p>
-                        {index === 3 ? (
-                          <>
-                            {
-                              t(`privacy.${key}`).split(
-                                "personvernerklæring"
-                              )[0]
-                            }
-                            <Link
-                              className="text-brand hover:underline"
-                              href={t("privacy.privacyLink")}
-                            >
-                              {t(`privacy.${key}`).includes(
-                                "personvernerklæring"
-                              )
-                                ? "personvernerklæring"
-                                : "privacy policy"}
-                            </Link>
-                            {t(`privacy.${key}`).split(
-                              "personvernerklæring"
-                            )[1] ||
-                              t(`privacy.${key}`).split("privacy policy")[1]}
-                          </>
-                        ) : (
-                          t(`privacy.${key}`)
-                        )}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-        </div>
-      </section>
-    </div>
+      </Section>
+    </>
   );
 }

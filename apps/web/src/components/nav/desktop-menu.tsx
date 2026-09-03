@@ -43,7 +43,7 @@ export function DesktopMenu({
             aria-controls={`nav-panel-${trigger.id}`}
             aria-expanded={isOpen}
             aria-haspopup="true"
-            className={`flex shrink-0 items-center gap-1 whitespace-nowrap rounded-lg px-2 py-2 text-white transition-colors duration-200 hover:text-brand ${
+            className={`flex shrink-0 items-center gap-1 whitespace-nowrap rounded-lg px-2 py-2 text-white transition-colors duration-200 hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-transparent ${
               isOpen ? "text-brand" : ""
             }`}
             key={trigger.id}
@@ -70,7 +70,7 @@ export function DesktopMenu({
         const isActive = pathname === link.href;
         return (
           <Link
-            className={`flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg px-2 py-2 text-white transition-colors duration-200 hover:text-brand ${
+            className={`flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg px-2 py-2 text-white transition-colors duration-200 hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-transparent ${
               isActive ? "text-brand" : ""
             }`}
             href={link.href}

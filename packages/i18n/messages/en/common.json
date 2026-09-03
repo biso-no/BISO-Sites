@@ -6,7 +6,9 @@
     "viewDetails": "See details"
   },
   "labels": {
-    "organisation": "BISO"
+    "organisation": "BISO",
+    "onThisPage": "On this page",
+    "scrollToContent": "Scroll to content"
   },
   "locale": {
     "switcher": {
@@ -20,6 +22,11 @@
     }
   },
   "footer": {
+    "headings": {
+      "about": "About",
+      "students": "Students",
+      "practical": "Practical"
+    },
     "about": {
       "description": "BI Student Organisation connects students and the business society, facilitates social integration, and works to better the student welfare and quality of studies.",
       "ourStory": "Our Story",
@@ -38,6 +45,13 @@
       "helpCenter": "Help Center",
       "privacyPolicy": "Privacy Policy",
       "termsOfService": "Terms of Service"
+    },
+    "tagline": "Be part of something bigger",
+    "stats": {
+      "societies": "Societies & units",
+      "events": "Published events",
+      "positions": "Open positions",
+      "campuses": "Campuses"
     }
   },
   "navigation": {
@@ -105,7 +119,13 @@
       "eventLabel": "Next event",
       "projectLabel": "Featured project",
       "newsLabel": "Latest news"
-    }
+    },
+    "selectCampus": "Select campus",
+    "allCampuses": "All campuses",
+    "allCampusesHint": "Show content from every campus",
+    "filterByCampus": "Filter content by campus",
+    "goToCampus": "Go to {campus}",
+    "campusOverview": "Campus overview"
   },
   "notFound": {
     "tagline": "Page not found",
@@ -116,5 +136,101 @@
       "goToCampus": "Go to campus overview",
       "needAssistance": "Do you need assistance? Contact us at <link>{email}</link> and we will follow up."
     }
+  },
+  "error": {
+    "title": "Something went wrong",
+    "body": "We couldn't load this page. Please try again, or go back.",
+    "tryAgain": "Try again",
+    "goHome": "Go to home page",
+    "goToProfile": "Go to profile"
+  },
+  "unauthorized": {
+    "tagline": "Access denied",
+    "title": "You must be signed in to view this page",
+    "description": "This area requires you to be authenticated. Sign in with your account to access the content.",
+    "signIn": "Sign in",
+    "goToFrontPage": "Go to front page",
+    "help": "Having trouble signing in? <link>Contact us</link> and we will help you."
+  },
+  "auth": {
+    "welcomeBack": "Welcome Back",
+    "signInSubtitle": "Sign in to your BISO account",
+    "emailLabel": "Email address",
+    "emailPlaceholder": "name@example.com",
+    "sendLink": "Send login link",
+    "sending": "Sending …",
+    "orContinueWith": "Or continue with",
+    "continueWith": "Continue with {provider}",
+    "magicLinkSent": "Login link sent! Please check your email.",
+    "magicLinkFailed": "Failed to send login link. Please try again.",
+    "signInFailed": "Sign-in failed. Please try again or contact support.",
+    "emailRequired": "Please enter your email address.",
+    "restrictedDomain": "Please use your personal email address.",
+    "privacyNoticeBefore": "By signing in, you agree to our",
+    "privacyPolicy": "Privacy Policy",
+    "privacyNoticeAfter": "and consent to the processing of your personal data as described therein. We comply with GDPR regulations and you can manage your data preferences and request data deletion from your profile settings.",
+    "noAccount": "Don't have an account yet?",
+    "contactForAccess": "Contact us for access",
+    "copyright": "All rights reserved.",
+    "errors": {
+      "invalid_parameters": "The login link is missing required information.",
+      "invitation_failed": "We couldn't accept that invitation. Please try again.",
+      "server_configuration": "Login is temporarily unavailable. Please try again later.",
+      "unexpected_error": "Something went wrong while signing you in."
+    }
+  },
+  "breadcrumbs": {
+    "home": "Home"
+  },
+  "skipToContent": "Skip to content",
+  "profile": {
+    "accountInfo": "Account Information",
+    "accountInfoBody": "View and manage your account details",
+    "addressInfo": "Address Information",
+    "bankingInfo": "Banking Information",
+    "submitting": "Submitting profile",
+    "tabs": {
+      "account": "Account",
+      "privacy": "Privacy",
+      "identities": "Linked Accounts"
+    },
+    "identities": {
+      "title": "Connected Identities",
+      "body": "Accounts currently connected to your profile",
+      "linkBi": "Link BI Student",
+      "linkBiso": "Link BISO",
+      "heading": "Linked Accounts",
+      "empty": "No identities linked yet.",
+      "oauthNote": "When linking, you will be redirected to complete the OAuth flow."
+    },
+    "privacy": {
+      "title": "Your Privacy Rights",
+      "requestTitle": "Request Your Data",
+      "requestBody": "Get a copy of all personal data we store about you",
+      "deleteTitle": "Delete Your Data",
+      "deleteBody": "Request permanent deletion of your account and data",
+      "deleteAccount": "Delete Account",
+      "confirmTitle": "Are you absolutely sure?",
+      "cancel": "Cancel",
+      "gdprNote": "Data requests are processed within 30 days as required by GDPR"
+    }
+  },
+  "booking": {
+    "title": "Pick an interview slot",
+    "unavailable": "Booking link unavailable",
+    "expired": "Reach out to your BISO contact for a fresh link.",
+    "noSlots": "No slots available in this window. Please contact the BISO team.",
+    "booked": "You're booked!"
+  },
+  "approval": {
+    "title": "Reimbursement approval",
+    "expired": "This approval link has expired.",
+    "notePlaceholder": "Optional note (required reasoning for a rejection helps the submitter)"
+  },
+  "theme": {
+    "label": "Theme",
+    "light": "Light",
+    "dark": "Dark",
+    "system": "System"
   }
 }

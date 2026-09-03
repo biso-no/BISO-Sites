@@ -16,9 +16,12 @@ interface DepartmentHeroProps {
 }
 
 export async function DepartmentHero({ department }: DepartmentHeroProps) {
-  // Category labels come from the shared `jobs.filters` bundle so every surface
-  // names the same categories identically.
-  const t = await getTranslations("jobs");
+  // Two bundles: the page's own chrome, and the shared `jobs.filters` category
+  // labels — every surface that names a unit's category names it identically.
+  const [t, tCategory] = await Promise.all([
+    getTranslations("units.detail"),
+    getTranslations("jobs"),
+  ]);
   const dept = department.department_ref;
   const category = parseUnitCategory(dept?.type);
   // `departments.logo` is a string(100): the admin editor stores a bare
@@ -48,7 +51,7 @@ export async function DepartmentHero({ department }: DepartmentHeroProps) {
             href="/units"
           >
             <ArrowLeft className="h-5 w-5" />
-            Back
+            {t("back")}
           </Link>
 
           <div className="max-w-3xl">
@@ -69,7 +72,9 @@ export async function DepartmentHero({ department }: DepartmentHeroProps) {
                   {category && (
                     <Badge className="border-white/30 bg-background/20 text-white">
                       <Building2 className="mr-1 h-3 w-3" />
-                      {t(`filters.${UNIT_CATEGORY_MESSAGE_KEYS[category]}`)}
+                      {tCategory(
+                        `filters.${UNIT_CATEGORY_MESSAGE_KEYS[category]}`
+                      )}
                     </Badge>
                   )}
                   {dept.campus?.name && (

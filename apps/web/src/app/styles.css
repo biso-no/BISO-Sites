@@ -133,3 +133,29 @@
     margin: 14mm;
   }
 }
+
+/* ---------------------------------------------------------------------------
+ * Reduced motion — the floor this app has never had.
+ *
+ * Phase 0 found zero `prefers-reduced-motion` handling in apps/web or
+ * packages/ui, against 161 fade-and-slide-ups and 115 scroll reveals.
+ *
+ * This block covers CSS-driven motion: `tw-animate-css`, the accordion
+ * keyframes in packages/ui, and every hover/focus transition. It does NOT
+ * reach `motion/react`, which animates via WAAPI and inline styles — that is
+ * handled by `<MotionConfig reducedMotion="user">` in app/providers.tsx. Both
+ * are required; neither is sufficient alone.
+ *
+ * 1ms rather than 0s so `transitionend` / `animationend` listeners still fire
+ * and no state machine waiting on them stalls.
+ * ------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+    scroll-behavior: auto !important;
+  }
+}

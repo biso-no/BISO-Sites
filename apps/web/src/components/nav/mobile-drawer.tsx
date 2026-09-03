@@ -13,11 +13,11 @@ import { useTranslations } from "next-intl";
 import { useTransition } from "react";
 import { useCampus } from "@/components/context/campus";
 import { LocaleSwitcher } from "@/components/locale-switcher";
-import { SelectCampus } from "@/components/select-campus";
+import { ThemeSwitcher } from "@/components/theme-switcher";
 import { signOut } from "@/lib/server";
 import type { NavAccount } from "@/lib/types/nav";
 import { accountLinksFor } from "./account-menu";
-import { CampusLink } from "./campus-link";
+import { ActiveCampusLink, CampusLink } from "./campus-link";
 import { PanelLink } from "./mega-panel";
 import {
   ABOUT_COLUMNS,
@@ -80,6 +80,10 @@ export function MobileDrawer({
               ))}
               <div>
                 <p className={HEADING_CLASS}>{t(STUDENT_CAMPUS_HEADING_KEY)}</p>
+                {/* Same as the desktop panel: the campus control at the top of
+                    this drawer only filters, so the way to a campus's own page
+                    is here, leading with the one you are on. */}
+                <ActiveCampusLink onNavigate={onNavigate} />
                 {campuses.map((campus) => (
                   <CampusLink
                     campus={campus}
@@ -178,8 +182,14 @@ export function MobileDrawer({
         </div>
       )}
 
-      <SelectCampus campuses={campuses} className="w-full text-white" />
+      {/* No campus control here. The drawer opens with `<CampusPill>` pinned
+          at the top (see `mega-nav-v2`), and this was a second, older switcher
+          three screens below it — cookie-only, so on `/events?campus=bergen`
+          it changed nothing the page then showed, and its trigger read "Velg
+          campus" rather than naming the selected one. Two switchers, one of
+          them silently losing to the URL. */}
       <LocaleSwitcher className="w-full text-white" size="sm" variant="ghost" />
+      <ThemeSwitcher className="w-full text-white" size="sm" variant="ghost" />
 
       <div className="space-y-2">
         <Button

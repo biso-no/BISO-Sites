@@ -1,0 +1,62 @@
+{
+  "hero": {
+    "title": "Units and societies",
+    "subtitle": "Everything from festivals and finance to politics and welfare — run by students, on every BI campus."
+  },
+  "list": {
+    "stats": {
+      "units": "Active units",
+      "campuses": "Campuses"
+    },
+    "searchLabel": "Search units",
+    "searchPlaceholder": "Search units…",
+    "searchSubmit": "Search",
+    "campusLabel": "Filter units by campus",
+    "categoryLabel": "Filter units by category",
+    "categoryAll": "All",
+    "results": "{count, plural, one {# unit} other {# units}}",
+    "emptyTitle": "No units match that.",
+    "clear": "Clear filters"
+  },
+  "detail": {
+    "tabs": {
+      "overview": "Overview",
+      "team": "Our Team",
+      "news": "News",
+      "products": "Products & Tickets"
+    },
+    "overview": {
+      "highlights": "Recent Highlights",
+      "stats": {
+        "team": "Team Members",
+        "events": "Events Organized",
+        "students": "Students Reached"
+      }
+    },
+    "team": {
+      "title": "Meet Our Team",
+      "emptyTitle": "No Team Members Yet",
+      "emptyBody": "Team information will be available soon.",
+      "joinTitle": "Want to Join Our Team?",
+      "joinCta": "View Open Positions"
+    },
+    "news": {
+      "title": "News & Updates",
+      "subtitle": "Stay up to date with everything happening in this department",
+      "emptyTitle": "No News Available",
+      "emptyBody": "Check back soon for news and updates!",
+      "readMore": "Read More"
+    },
+    "products": {
+      "title": "Products & Event Tickets",
+      "subtitle": "Get your tickets and merchandise from this department",
+      "emptyTitle": "No Products Available",
+      "emptyBody": "Check back soon for new products and event tickets!",
+      "membersOnly": "Members Only",
+      "soldOut": "Sold Out"
+    },
+    "follow": "Follow us:",
+    "about": "About {name}",
+    "back": "Back"
+  }
+}

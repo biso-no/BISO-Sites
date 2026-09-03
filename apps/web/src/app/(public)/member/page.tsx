@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { verifyMembershipStatus } from "@/app/actions/member-portal";
 import { MemberPortalSkeleton } from "@/components/member-portal/shared/member-portal-skeleton";
+import { Section } from "@/components/ui/section";
 import { getLoggedInUser, listIdentities } from "@/lib/actions/user";
 import { MemberPortalContent } from "./member-portal-content";
 
@@ -47,14 +48,23 @@ export default async function MemberPortalPage() {
     }
   }
 
-  // Always show portal, pass null if not signed in
+  const portal = (
+    <MemberPortalContent
+      hasBIIdentity={hasBIIdentity}
+      membership={membershipStatus}
+      user={userData}
+    />
+  );
+
+  // Chrome only, and deliberately **without** a `PageHeader`: the portal
+  // renders its own `<h1>` ("Welcome back, …") in `member-portal-header`,
+  // so adding the standard band gave the page two of them. It gets the v2
+  // container and rhythm and keeps its own heading.
   return (
     <Suspense fallback={<MemberPortalSkeleton />}>
-      <MemberPortalContent
-        hasBIIdentity={hasBIIdentity}
-        membership={membershipStatus}
-        user={userData}
-      />
+      <Section clearNav tone="paper">
+        {portal}
+      </Section>
     </Suspense>
   );
 }

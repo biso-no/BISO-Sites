@@ -26,6 +26,13 @@ type PurchasedPlanSnapshot = Pick<
   | "productId"
   | "startDate"
 >;
+// Note on `startDate`: on a `MembershipPlan` it is the catalogue row's own
+// start, but what checkout snapshots onto the order item — and therefore what
+// arrives here — is the **accrual start for that purchase** (1 January or
+// 1 July, whichever half-year the purchase fell into). Orders placed before
+// that change carry the catalogue date instead, which
+// `buildMembershipInvoiceOrder` detects and replaces with one derived from the
+// invoice date.
 
 // Pending an `appwrite push tables`; extend locally until the generated types
 // are regenerated.
@@ -358,7 +365,8 @@ async function prepareFulfilment(
   employeeId: number,
   campusId: string,
   plan: PurchasedPlanSnapshot,
-  db: DbClient
+  db: DbClient,
+  purchasedOn?: string
 ): Promise<ReturnType<typeof buildMembershipInvoiceOrder> | null> {
   const { dbId, ordersId } = tables();
   try {
@@ -366,6 +374,10 @@ async function prepareFulfilment(
       campusId,
       customerId: employeeId,
       plan,
+      // The accrual period follows the purchase, not this run: a webhook retry
+      // or the reconcile cron can fulfil an order days later, across 1 January
+      // or 1 July. `DateInvoiced` is still today — that one *is* about now.
+      purchasedOn,
       invoicedOn: new Date().toISOString().slice(0, 10),
     });
     await db.updateRow(dbId, ordersId, orderId, {
@@ -526,7 +538,8 @@ export async function fulfilMembershipOrder(
     identity.employeeId,
     campusId,
     plan,
-    db
+    db,
+    order.$createdAt
   );
   if (!invoicePayload) {
     return { fulfilled: false, reason: "finago_failed" };

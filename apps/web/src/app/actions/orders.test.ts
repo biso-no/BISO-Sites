@@ -2,6 +2,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const account = vi.hoisted(() => ({
   get: vi.fn(),
+  getSession: vi.fn(),
+}));
+
+// `createJWT` moved from `Account` to `Users` in node-appwrite@28, so minting
+// now needs the admin client too — see `createSessionJwt` in `@repo/api/server`.
+const users = vi.hoisted(() => ({
+  createJWT: vi.fn(),
 }));
 
 const appwrite = vi.hoisted(() => ({
@@ -17,6 +24,7 @@ const webshop = vi.hoisted(() => ({
 }));
 
 vi.mock("@repo/api/server", () => ({
+  createAdminClient: vi.fn(async () => ({ users })),
   createSessionClient: vi.fn(async () => ({
     account,
     db: { getRow: vi.fn() },

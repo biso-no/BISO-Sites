@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useCampus } from "@/components/context/campus";
 import type { NavFeatured } from "@/lib/types/nav";
-import { CampusLink } from "../campus-link";
+import { ActiveCampusLink, CampusLink } from "../campus-link";
 import { FeaturedEventCard } from "../featured-event-card";
 import { PanelColumn } from "../mega-panel";
 import { STUDENT_CAMPUS_HEADING_KEY, STUDENT_COLUMNS } from "../nav-config";
@@ -32,6 +32,9 @@ export function StudentsPanel({ featured, onNavigate }: StudentsPanelProps) {
           <h3 className="mb-2 font-semibold text-white/50 text-xs uppercase tracking-wider">
             {t(STUDENT_CAMPUS_HEADING_KEY)}
           </h3>
+          {/* The header's campus control only filters. This is the way to a
+              campus's own page, and it leads with the one you are on. */}
+          <ActiveCampusLink onNavigate={onNavigate} />
           <ul className="space-y-0.5">
             {campuses.map((campus) => (
               <li key={campus.$id}>

@@ -137,7 +137,8 @@
     "dontMissOut": "Don't miss out on",
     "amazingExperiences": "Amazing experiences",
     "pendingDate": "Date coming soon",
-    "description": "From networking events to unforgettable parties, we've got your semester covered with exciting activities and opportunities."
+    "description": "From networking events to unforgettable parties, we've got your semester covered with exciting activities and opportunities.",
+    "infoOnly": "Info only"
   },
   "news": {
     "cta": "All news",
@@ -241,5 +242,8 @@
       "contact": "Get in touch",
       "press": "Press resources"
     }
+  },
+  "partners": {
+    "title": "Our partners"
   }
 }

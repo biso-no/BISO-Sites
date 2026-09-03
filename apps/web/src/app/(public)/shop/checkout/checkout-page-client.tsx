@@ -184,7 +184,13 @@ export function CheckoutPageClient({
   if (items.length === 0) {
     return (
       <Card className="mx-auto max-w-2xl overflow-hidden border-0 shadow-xl">
-        <div className="bg-brand-dark p-8 text-white">
+        {/* RD-031: was `bg-brand-dark`. In the dark theme `--brand-dark` is
+            set to the same value as `--brand` — a light cyan — so
+            `bg-brand-dark text-white` measured 2.34:1 there, on five surfaces
+            across checkout, the cart, the join wizard and a unit's products
+            tab. `bg-deep` is the redesign's navy and is identical in both
+            themes. */}
+        <div className="bg-deep p-8 text-white">
           <Badge className="border-0 bg-white/15 text-white">
             {t("checkout.eyebrow")}
           </Badge>
@@ -415,7 +421,7 @@ export function CheckoutPageClient({
           </div>
 
           {/* Total — the one bold, yellow-accented moment on the page */}
-          <div className="mt-5 overflow-hidden rounded-2xl bg-brand-dark text-white">
+          <div className="mt-5 overflow-hidden rounded-2xl bg-deep text-white">
             <div className="h-1 w-full bg-brand-accent" />
             <div className="flex items-center justify-between p-5">
               <span className="font-medium">{t("checkout.summary.total")}</span>

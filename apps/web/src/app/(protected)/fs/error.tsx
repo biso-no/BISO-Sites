@@ -1,10 +1,14 @@
 "use client";
 
-import { Button } from "@repo/ui/components/ui/button";
-import { Card } from "@repo/ui/components/ui/card";
 import { AlertCircle } from "lucide-react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { useEffect } from "react";
+import {
+  StatusPanel,
+  statusPanelPrimaryAction,
+  statusPanelSecondaryAction,
+} from "@/components/ui/status-panel";
 
 export default function ExpensesError({
   error,
@@ -13,31 +17,31 @@ export default function ExpensesError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  const t = useTranslations("expenses");
+
   useEffect(() => {
-    console.error("Expense page error:", error);
+    console.error("Reimbursements error:", error);
   }, [error]);
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-linear-to-b from-section to-background p-4">
-      <Card className="max-w-md border-0 p-12 text-center shadow-xl">
-        <AlertCircle className="mx-auto mb-4 h-16 w-16 text-red-500" />
-        <h2 className="mb-2 font-bold text-2xl text-foreground">
-          Something went wrong
-        </h2>
-        <p className="mb-6 text-muted-foreground">
-          We encountered an error loading your expenses. Please try again.
-        </p>
-        <div className="flex justify-center gap-3">
-          <Button onClick={reset} variant="outline">
-            Try Again
-          </Button>
-          <Link href="/fs">
-            <Button className="bg-linear-to-r from-brand-gradient-from to-brand-gradient-to text-white hover:from-brand-gradient-from/90 hover:to-brand-gradient-to/90">
-              Go to Expenses
-            </Button>
+    <StatusPanel
+      actions={
+        <>
+          <button
+            className={statusPanelSecondaryAction}
+            onClick={reset}
+            type="button"
+          >
+            {t("tryAgain")}
+          </button>
+          <Link className={statusPanelPrimaryAction} href="/fs">
+            {t("back")}
           </Link>
-        </div>
-      </Card>
-    </div>
+        </>
+      }
+      body={t("errorBody")}
+      icon={<AlertCircle className="size-8" />}
+      title={t("errorTitle")}
+    />
   );
 }

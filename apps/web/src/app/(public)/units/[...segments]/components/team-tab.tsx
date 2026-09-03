@@ -9,6 +9,7 @@ import { Button } from "@repo/ui/components/ui/button";
 import { Card } from "@repo/ui/components/ui/card";
 import { ChevronRight, Linkedin, Mail, Users } from "lucide-react";
 import { motion } from "motion/react";
+import { useTranslations } from "next-intl";
 import type { DepartmentTranslation } from "@/lib/actions/departments";
 
 interface TeamTabProps {
@@ -16,6 +17,7 @@ interface TeamTabProps {
 }
 
 export function TeamTab({ department }: TeamTabProps) {
+  const t = useTranslations("units.detail");
   const dept = department.department_ref;
   const boardMembers = dept.boardMembers || [];
 
@@ -27,7 +29,7 @@ export function TeamTab({ department }: TeamTabProps) {
         initial={{ opacity: 0, y: 20 }}
       >
         <h2 className="mb-4 font-bold text-3xl text-foreground">
-          Meet Our Team
+          {t("team.title")}
         </h2>
         <p className="mx-auto max-w-2xl text-muted-foreground">
           Passionate students dedicated to creating amazing experiences for the
@@ -85,11 +87,9 @@ export function TeamTab({ department }: TeamTabProps) {
         <Card className="border-0 p-12 text-center shadow-lg">
           <Users className="mx-auto mb-4 h-16 w-16 text-muted-foreground" />
           <h3 className="mb-2 font-semibold text-foreground text-xl">
-            No Team Members Yet
+            {t("team.emptyTitle")}
           </h3>
-          <p className="text-muted-foreground">
-            Team information will be available soon.
-          </p>
+          <p className="text-muted-foreground">{t("team.emptyBody")}</p>
         </Card>
       )}
 
@@ -97,7 +97,7 @@ export function TeamTab({ department }: TeamTabProps) {
       <Card className="border-0 bg-linear-to-br from-brand-muted to-brand-muted p-12 text-center shadow-xl dark:from-brand-muted-strong dark:to-brand-muted-strong">
         <Users className="mx-auto mb-6 h-16 w-16 text-brand" />
         <h3 className="mb-4 font-bold text-2xl text-foreground">
-          Want to Join Our Team?
+          {t("team.joinTitle")}
         </h3>
         <p className="mx-auto mb-8 max-w-xl text-muted-foreground">
           We're always looking for passionate students to join{" "}
@@ -105,7 +105,7 @@ export function TeamTab({ department }: TeamTabProps) {
           something amazing!
         </p>
         <Button className="bg-linear-to-r from-brand-gradient-from to-brand-gradient-to text-white hover:from-brand-gradient-from/90 hover:to-brand-gradient-to/90">
-          View Open Positions
+          {t("team.joinCta")}
           <ChevronRight className="ml-2 h-4 w-4" />
         </Button>
       </Card>

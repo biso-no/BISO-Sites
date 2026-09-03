@@ -1,8 +1,6 @@
 import { resolveStorageFileUrl } from "@repo/api/storage";
-import type {
-  ContentTranslations,
-  WebshopProducts,
-} from "@repo/api/types/appwrite";
+import type { WebshopProducts } from "@repo/api/types/appwrite";
+import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -11,6 +9,7 @@ import {
   getUserReservation,
 } from "@/app/actions/cart-reservations";
 import { validatePurchaseLimits } from "@/app/actions/purchase-limits";
+import { getPrimaryTranslation } from "@/lib/content-translation";
 import { useCart } from "@/lib/contexts/cart-context";
 import { type ProductOption, parseProductMetadata } from "@/lib/types/webshop";
 
@@ -41,11 +40,27 @@ function buildNamedOptions(
   return namedOptions;
 }
 
-function getStockErrorMessage(currentStock: number | null): string {
+/**
+ * RD-032: the five toasts here were the last hardcoded English strings in the
+ * shop. They are built from `shop.toast.*` now, so the message has to be
+ * resolved by the caller — a hook cannot reach `getTranslations`.
+ */
+interface ToastCopy {
+  addedToCart: string;
+  limitExceeded: string;
+  outOfStock: string;
+  reserveFailed: string;
+  stockAvailable: (count: number) => string;
+}
+
+function getStockErrorMessage(
+  currentStock: number | null,
+  copy: ToastCopy
+): string {
   if (currentStock === 0) {
-    return "This item is out of stock";
+    return copy.outOfStock;
   }
-  return `Only ${currentStock} available (others reserved in carts)`;
+  return copy.stockAvailable(currentStock ?? 0);
 }
 
 async function checkStockAvailability(
@@ -90,6 +105,7 @@ async function reserveStock(
 }
 
 interface BuildCartItemParams {
+  locale: string;
   metadata: ReturnType<typeof parseProductMetadata>;
   namedOptions: Record<string, string>;
   product: WebshopProducts;
@@ -101,14 +117,14 @@ function buildCartItem({
   productId,
   namedOptions,
   metadata,
+  locale,
 }: BuildCartItemParams) {
   const productRef = product;
-  const translation = Array.isArray(product.translation_refs)
-    ? product.translation_refs.find(
-        (item): item is ContentTranslations =>
-          typeof item === "object" && item !== null && "title" in item
-      )
-    : null;
+  // The v2 detail reader keeps every translation so the page can render the
+  // active locale; taking the first one here put an English-displayed product
+  // into the cart under its Norwegian name. Resolve the same locale the page
+  // rendered with.
+  const translation = getPrimaryTranslation(product, locale);
   const hasOptions = Object.keys(namedOptions).length > 0;
 
   const maxPerUser =
@@ -141,6 +157,15 @@ export function useProductActions(
   product: WebshopProducts,
   userId: string | null
 ) {
+  const t = useTranslations("shop.toast");
+  const locale = useLocale();
+  const copy: ToastCopy = {
+    addedToCart: t("addedToCart"),
+    limitExceeded: t("limitExceeded"),
+    outOfStock: t("outOfStock"),
+    reserveFailed: t("reserveFailed"),
+    stockAvailable: (count: number) => t("onlyAvailable", { count }),
+  };
   const { addItem } = useCart();
   const [addedToCart, setAddedToCart] = useState(false);
   const [errors, setErrors] = useState<Record<string, boolean>>({});
@@ -185,7 +210,7 @@ export function useProductActions(
       hasStock
     );
     if (!stockCheck.available) {
-      toast.error(getStockErrorMessage(stockCheck.currentStock));
+      toast.error(getStockErrorMessage(stockCheck.currentStock, copy));
       setAvailableStock(stockCheck.currentStock);
       return;
     }
@@ -197,13 +222,13 @@ export function useProductActions(
       metadata
     );
     if (!limitCheck.allowed) {
-      toast.error(limitCheck.reason || "Purchase limit exceeded");
+      toast.error(limitCheck.reason || copy.limitExceeded);
       return;
     }
 
     const reservation = await reserveStock(productId, quantity, hasStock);
     if (!reservation.success) {
-      toast.error("Failed to reserve stock. Please try again.");
+      toast.error(copy.reserveFailed);
       return;
     }
     if (reservation.newAvailable !== null) {
@@ -212,6 +237,7 @@ export function useProductActions(
 
     const namedOptions = buildNamedOptions(productOptions, selectedOptions);
     const cartItem = buildCartItem({
+      locale,
       product,
       productId,
       namedOptions,
@@ -220,7 +246,7 @@ export function useProductActions(
     addItem(cartItem);
 
     setAddedToCart(true);
-    toast.success("Added to cart");
+    toast.success(copy.addedToCart);
     setTimeout(() => setAddedToCart(false), 3000);
   };
 

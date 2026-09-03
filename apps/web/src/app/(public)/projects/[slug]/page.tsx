@@ -91,6 +91,7 @@ export default async function ProjectDetailPage({
   const locale = (await getLocale()) as Locale;
   const t = await getTranslations("projectDetail");
   const tNav = await getTranslations("common.navigation");
+  const tCommon = await getTranslations("common");
 
   const [event, campusMetadata] = await Promise.all([
     getLargeEventBySlug(slug),
@@ -201,7 +202,7 @@ export default async function ProjectDetailPage({
     <div className="min-h-screen bg-linear-to-b from-section to-background">
       <AboutHero
         breadcrumbs={[
-          { label: "Home", href: "/" },
+          { label: tCommon("breadcrumbs.home"), href: "/" },
           { label: tNav("triggers.projects"), href: "/projects" },
           { label: title },
         ]}

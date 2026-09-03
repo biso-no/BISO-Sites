@@ -108,6 +108,14 @@ const EVENT_SELECT = [
   "is_collection",
   "collection_pricing",
   "department_id",
+  // Real columns the feed needs and the current views never read: `category`
+  // is the typed enum the filter chips run on, and `pricing_mode`/`member_price`
+  // are what the card prices from. Adding to a `Query.select` is additive — the
+  // shared readers (home, campus, students, nav) get three more fields and
+  // behave exactly as before.
+  "category",
+  "pricing_mode",
+  "member_price",
   "campus.$id",
   "campus.name",
   "department.$id",

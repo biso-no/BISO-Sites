@@ -1,230 +1,126 @@
-import { Badge } from "@repo/ui/components/ui/badge";
-import { Button } from "@repo/ui/components/ui/button";
-import { Card } from "@repo/ui/components/ui/card";
-import {
-  Building2,
-  Globe,
-  Mail,
-  MapPin,
-  MessageCircle,
-  Send,
-} from "lucide-react";
+import { Mail, MapPin } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { getCampuses } from "@/app/actions/campus";
+import { CardGrid } from "@/components/ui/card-grid";
+import { PageHeader } from "@/components/ui/page-header";
+import { Section } from "@/components/ui/section";
+import { SectionHeading } from "@/components/ui/section-heading";
 
-const CAMPUS_EMAIL_FALLBACK: Record<string, string> = {
-  oslo: "business.oslo@biso.no",
-  bergen: "business.bergen@biso.no",
-  trondheim: "business.trondheim@biso.no",
-  stavanger: "business.stavanger@biso.no",
-};
+const NATIONAL_EMAIL = "contact@biso.no";
 
-export const metadata: Metadata = {
-  title: "Contact | BISO",
-  description: "Contact BISO nationally or at your campus.",
-};
+const linkClass =
+  "inline-flex items-center gap-2 text-ink-accent underline underline-offset-4 hover:no-underline focus-visible:rounded-biso-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("contact");
+  return { title: `${t("title")} | BISO`, description: t("intro") };
+}
 
 export default async function ContactPage() {
-  const [t, campuses] = await Promise.all([
+  const [t, tCommon, campuses] = await Promise.all([
     getTranslations("contact"),
+    getTranslations("common"),
     getCampuses(),
   ]);
 
-  const filteredCampuses = campuses.filter(
+  // "National" is the organisation itself, addressed by the section above; the
+  // grid below is the four physical campuses.
+  const campusRows = campuses.filter(
     (c) => c.name?.toLowerCase() !== "national"
   );
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Hero Section */}
-      <section className="relative overflow-hidden bg-linear-to-br from-brand-overlay-from via-brand-overlay-via to-brand-overlay-to py-20 text-white sm:py-28">
-        <div className="absolute inset-0 bg-linear-to-t from-brand-overlay-from/70 via-transparent to-transparent" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.08),transparent_50%),radial-gradient(circle_at_bottom_right,rgba(61,169,224,0.15),transparent_60%)]" />
-        <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="mx-auto max-w-3xl text-center">
-            <Badge className="mb-6 border-white/30 bg-white/10 text-white backdrop-blur-sm">
-              <MessageCircle className="mr-2 h-3.5 w-3.5" />
-              {t("title")}
-            </Badge>
-            <h1 className="mb-6 font-bold text-4xl leading-tight sm:text-5xl lg:text-6xl">
-              {t("title")}
-            </h1>
-            <p className="mx-auto max-w-2xl text-lg text-white/85 leading-relaxed">
-              {t("intro")}
-            </p>
-          </div>
-        </div>
-      </section>
+    <>
+      <PageHeader
+        breadcrumbs={[
+          { label: tCommon("breadcrumbs.home"), href: "/" },
+          { label: t("title") },
+        ]}
+        lede={t("intro")}
+        title={t("title")}
+      />
 
-      {/* Main Content */}
-      <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
-        {/* National Contact Card */}
-        <section className="mb-16">
-          <Card className="relative overflow-hidden border-0 bg-linear-to-br from-violet-50 via-violet-50/50 to-white p-8 shadow-lg sm:p-10 dark:from-violet-950/30 dark:via-violet-950/10 dark:to-card">
-            <div className="flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between">
-              <div className="flex items-start gap-5">
-                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-linear-to-br from-violet-500 to-violet-700 shadow-lg">
-                  <Globe className="h-7 w-7 text-white" />
-                </div>
-                <div>
-                  <Badge className="mb-2" variant="secondary">
-                    {t("national.title")}
-                  </Badge>
-                  <h2 className="mb-2 font-bold text-foreground text-xl sm:text-2xl">
-                    {t("national.title")}
-                  </h2>
-                  <p className="max-w-xl text-muted-foreground">
-                    {t("national.body")}
-                  </p>
-                </div>
-              </div>
-              <div className="flex flex-col gap-3 sm:flex-row lg:flex-col xl:flex-row">
-                <Button asChild size="lg">
-                  <a href="mailto:contact@biso.no">
-                    <Mail className="mr-2 h-4 w-4" />
-                    contact@biso.no
-                  </a>
-                </Button>
-                <Button asChild size="lg" variant="outline">
-                  <Link href="/about">
-                    <Building2 className="mr-2 h-4 w-4" />
-                    {t("national.aboutCta")}
-                  </Link>
-                </Button>
-              </div>
-            </div>
-          </Card>
-        </section>
+      <Section tone="paper">
+        <SectionHeading>{t("national.title")}</SectionHeading>
+        <p className="type-body max-w-(--measure) text-ink-muted">
+          {t("national.body")}
+        </p>
+        <ul className="mt-6 flex flex-col gap-3">
+          <li>
+            <a
+              className={`type-body ${linkClass}`}
+              href={`mailto:${NATIONAL_EMAIL}`}
+            >
+              <Mail aria-hidden="true" className="size-4 shrink-0" />
+              <span className="min-w-0 break-words">{NATIONAL_EMAIL}</span>
+            </a>
+          </li>
+          <li>
+            <Link className={`type-body ${linkClass}`} href="/about">
+              <span className="min-w-0 break-words">
+                {t("national.aboutCta")}
+              </span>
+            </Link>
+          </li>
+        </ul>
+      </Section>
 
-        {/* Campus Contacts */}
-        <section>
-          <div className="mb-10 text-center">
-            <Badge className="mb-4" variant="secondary">
-              <MapPin className="mr-2 h-3 w-3" />
-              {t("campuses.badge")}
-            </Badge>
-            <h2 className="mb-3 font-bold text-2xl text-foreground sm:text-3xl">
-              {t("campuses.title")}
-            </h2>
-            <p className="mx-auto max-w-2xl text-muted-foreground">
-              {t("campuses.subtitle")}
-            </p>
-          </div>
-
-          {filteredCampuses.length > 0 ? (
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-              {filteredCampuses.map((campus, index) => {
-                const colorSchemes = [
-                  {
-                    gradient:
-                      "from-blue-50 via-blue-50/50 to-white dark:from-blue-950/30 dark:via-blue-950/10 dark:to-card",
-                    iconGradient: "from-blue-500 to-blue-700",
-                  },
-                  {
-                    gradient:
-                      "from-emerald-50 via-emerald-50/50 to-white dark:from-emerald-950/30 dark:via-emerald-950/10 dark:to-card",
-                    iconGradient: "from-emerald-500 to-emerald-700",
-                  },
-                  {
-                    gradient:
-                      "from-orange-50 via-orange-50/50 to-white dark:from-orange-950/30 dark:via-orange-950/10 dark:to-card",
-                    iconGradient: "from-orange-500 to-amber-600",
-                  },
-                  {
-                    gradient:
-                      "from-pink-50 via-pink-50/50 to-white dark:from-pink-950/30 dark:via-pink-950/10 dark:to-card",
-                    iconGradient: "from-pink-500 to-rose-600",
-                  },
-                ];
-                const colors = colorSchemes[index % colorSchemes.length];
-                const email =
-                  campus.email ??
-                  CAMPUS_EMAIL_FALLBACK[campus.name?.toLowerCase() ?? ""];
-
-                return (
-                  <Card
-                    className={`group relative h-full border-0 bg-linear-to-br p-6 shadow-lg transition-all hover:shadow-xl ${colors.gradient}`}
-                    key={campus.$id}
+      <Section className="border-edge border-t" tone="paper">
+        <SectionHeading>{t("campuses.title")}</SectionHeading>
+        <p className="type-body mb-6 max-w-(--measure) text-ink-muted">
+          {t("campuses.subtitle")}
+        </p>
+        {campusRows.length > 0 ? (
+          <CardGrid columns={4}>
+            {campusRows.map((campus) => (
+              <li
+                className="flex h-full flex-col rounded-biso-md border border-edge p-6"
+                key={campus.$id}
+              >
+                <MapPin aria-hidden="true" className="size-5 text-ink-accent" />
+                <h3 className="type-heading-card mt-4 text-ink">
+                  {campus.name}
+                </h3>
+                {/* All five campus rows carry an email today. The previous
+                    design fell back to a hardcoded `business.<city>@biso.no`
+                    map that no longer matches the real addresses
+                    (`president.<city>@biso.no`), so a missing row would have
+                    published a wrong address rather than none. Dropped. */}
+                {campus.email ? (
+                  <a
+                    className={`type-body-sm mt-3 ${linkClass}`}
+                    href={`mailto:${campus.email}`}
                   >
-                    <div
-                      className={`mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-linear-to-br shadow-md ${colors.iconGradient}`}
-                    >
-                      <MapPin className="h-6 w-6 text-white" />
-                    </div>
-                    <h3 className="mb-3 font-semibold text-foreground text-lg">
-                      {campus.name}
-                    </h3>
-                    {email ? (
-                      <>
-                        <a
-                          className="group/link inline-flex items-center gap-2 text-muted-foreground text-sm transition-colors hover:text-primary"
-                          href={`mailto:${email}`}
-                        >
-                          <Mail className="h-4 w-4" />
-                          <span className="underline-offset-2 group-hover/link:underline">
-                            {email}
-                          </span>
-                        </a>
-                        <Button
-                          asChild
-                          className="mt-4 w-full"
-                          size="sm"
-                          variant="secondary"
-                        >
-                          <a href={`mailto:${email}`}>
-                            <Send className="mr-2 h-3.5 w-3.5" />
-                            {t("campuses.sendEmail")}
-                          </a>
-                        </Button>
-                      </>
-                    ) : null}
-                  </Card>
-                );
-              })}
-            </div>
-          ) : (
-            <Card className="border-dashed p-12 text-center">
-              <MapPin className="mx-auto mb-4 h-8 w-8 text-muted-foreground/50" />
-              <p className="text-muted-foreground">{t("campuses.empty")}</p>
-            </Card>
-          )}
-        </section>
+                    <Mail aria-hidden="true" className="size-4 shrink-0" />
+                    <span className="min-w-0 break-words">{campus.email}</span>
+                  </a>
+                ) : null}
+              </li>
+            ))}
+          </CardGrid>
+        ) : (
+          <p className="type-body text-ink-muted">{t("campuses.empty")}</p>
+        )}
+      </Section>
 
-        {/* Additional Help Section */}
-        <section className="mt-16">
-          <Card className="relative overflow-hidden border-0 bg-linear-to-br from-brand-overlay-from via-brand-overlay-via to-brand-overlay-to p-8 text-white shadow-xl sm:p-10">
-            <div className="absolute inset-0 bg-linear-to-t from-brand-overlay-from/50 via-transparent to-transparent" />
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.08),transparent_50%)]" />
-            <div className="relative flex flex-col items-center gap-6 text-center lg:flex-row lg:justify-between lg:text-left">
-              <div>
-                <h2 className="mb-2 font-bold text-white text-xl sm:text-2xl">
-                  {t("help.title")}
-                </h2>
-                <p className="max-w-xl text-white/80">{t("help.body")}</p>
-              </div>
-              <div className="flex flex-col gap-3 sm:flex-row">
-                <Button
-                  asChild
-                  className="bg-white text-primary-100 shadow-lg hover:bg-white/90"
-                  size="lg"
-                >
-                  <Link href="/membership">{t("help.membershipFaq")}</Link>
-                </Button>
-                <Button
-                  asChild
-                  className="border-white/30 text-white hover:bg-white/10"
-                  size="lg"
-                  variant="outline"
-                >
-                  <Link href="/about">{t("help.about")}</Link>
-                </Button>
-              </div>
-            </div>
-          </Card>
-        </section>
-      </div>
-    </div>
+      <Section className="border-edge border-t" tone="paper" width="prose">
+        <SectionHeading>{t("help.title")}</SectionHeading>
+        <p className="type-body text-ink-muted">{t("help.body")}</p>
+        <ul className="mt-6 flex flex-col gap-3">
+          <li>
+            <Link className={`type-body ${linkClass}`} href="/membership">
+              {t("help.membershipFaq")}
+            </Link>
+          </li>
+          <li>
+            <Link className={`type-body ${linkClass}`} href="/about">
+              {t("help.about")}
+            </Link>
+          </li>
+        </ul>
+      </Section>
+    </>
   );
 }

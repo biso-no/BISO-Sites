@@ -1,9 +1,9 @@
-import { Skeleton } from "@repo/ui/components/ui/skeleton";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { getJobBySlug } from "@/app/actions/jobs";
 import { getLocale } from "@/app/actions/locale";
-import { JobDetailsClient } from "@/components/jobs/job-details-client";
+import { JobDetailV2 } from "@/components/jobs/v2/job-detail-v2";
+import { DetailSkeleton } from "@/components/ui/loading-shell";
 import { getLoggedInUser } from "@/lib/actions/user";
 
 interface JobPageProps {
@@ -22,41 +22,20 @@ async function JobDetails({ slug }: { slug: string }) {
   }
 
   return (
-    <JobDetailsClient
+    <JobDetailV2
       applicantEmail={user?.user.email ?? ""}
       applicantName={user?.user.name ?? ""}
       isAuthenticated={Boolean(user)}
       job={job}
+      locale={locale}
     />
-  );
-}
-
-function JobDetailsSkeleton() {
-  return (
-    <div className="min-h-screen bg-linear-to-b from-section to-background">
-      <div className="relative h-[40vh]">
-        <Skeleton className="h-full w-full" />
-      </div>
-      <div className="mx-auto max-w-5xl px-4 py-12">
-        <div className="grid gap-8 lg:grid-cols-3">
-          <div className="space-y-8 lg:col-span-2">
-            <Skeleton className="h-48 w-full" />
-            <Skeleton className="h-64 w-full" />
-          </div>
-          <div className="space-y-6">
-            <Skeleton className="h-32 w-full" />
-            <Skeleton className="h-48 w-full" />
-          </div>
-        </div>
-      </div>
-    </div>
   );
 }
 
 export default async function JobPage({ params }: JobPageProps) {
   const { slug } = await params;
   return (
-    <Suspense fallback={<JobDetailsSkeleton />}>
+    <Suspense fallback={<DetailSkeleton />}>
       <JobDetails slug={slug} />
     </Suspense>
   );

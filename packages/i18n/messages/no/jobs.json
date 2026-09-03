@@ -18,7 +18,12 @@
     "national": "Nasjonalt",
     "other": "Annet",
     "paidOnly": "Kun betalte stillinger",
-    "showingResults": "Viser {count} {count, plural, one {stilling} other {stillinger}}"
+    "showingResults": "Viser {count} {count, plural, one {stilling} other {stillinger}}",
+    "employmentTypeLabel": "Filtrer verv etter type",
+    "categoryLabel": "Filtrer verv etter enhetskategori",
+    "campusLabel": "Filtrer verv etter campus",
+    "searchLabel": "Søk i stillinger",
+    "searchSubmit": "Søk"
   },
   "emptyState": {
     "title": "Ingen stillinger funnet",
@@ -33,5 +38,73 @@
     "description": "Rekrutteringsteamet vårt er her for å hjelpe! Ta kontakt hvis du har spørsmål om stillinger eller søknadsprosessen.",
     "contactButton": "Kontakt rekrutteringsteamet",
     "downloadButton": "Last ned informasjonspakke"
+  },
+  "results": {
+    "count": "{count, plural, =0 {Ingen verv} one {# verv} other {# verv}}"
+  },
+  "card": {
+    "paid": "Betalt",
+    "deadline": "Søknadsfrist"
+  },
+  "detail": {
+    "about": "Om vervet",
+    "commitmentTitle": "Omfang",
+    "hours": "Timer",
+    "term": "Periode",
+    "startDate": "Oppstart",
+    "summaryTitle": "Om stillingen",
+    "employer": "Arbeidsgiver",
+    "department": "Avdeling",
+    "deadline": "Søknadsfrist",
+    "location": "Sted",
+    "campus": "Campus",
+    "contact": "Kontakt",
+    "rolling": "Løpende",
+    "gdprTitle": "Dine data",
+    "gdprBody": "BISO lagrer søknadsdataene dine kun til denne rekrutteringsprosessen og sletter dem etter 180 dager.",
+    "back": "Tilbake til alle verv",
+    "copyLink": "Kopier lenke",
+    "copied": "Lenke kopiert"
+  },
+  "application": {
+    "signInTitle": "Logg inn for å søke",
+    "signInBody": "Du må være logget inn med en BISO-konto for å søke.",
+    "signIn": "Logg inn",
+    "intro": "Noen spørsmål fra teamet som ansetter.",
+    "fullName": "Fullt navn *",
+    "email": "E-post",
+    "verified": "Bekreftet via BISO-kontoen din",
+    "phone": "Telefon",
+    "phoneOptional": "Telefon (valgfritt)",
+    "phonePlaceholder": "123 45 678",
+    "countryCode": "Landkode",
+    "currentRole": "Nåværende rolle (valgfritt)",
+    "currentRolePlaceholder": "Student, praktikant …",
+    "employer": "Arbeidsgiver / studiested (valgfritt)",
+    "employerPlaceholder": "BI, BISO …",
+    "linkedin": "LinkedIn (valgfritt)",
+    "coverLetter": "Søknadstekst",
+    "coverLetterPlaceholder": "Fortell BISO hvorfor du søker og hva du vil bidra med.",
+    "availability": "Tilgjengelighet for intervju (valgfritt)",
+    "availabilityPlaceholder": "Datoer og tidspunkt som passer — ett per linje.",
+    "availabilityHint": "Gjør det lettere for HR å foreslå tider uten e-postrunder.",
+    "attachmentHint": "Maks 5 MB, kun PDF.",
+    "choose": "Velg …",
+    "back": "Tilbake",
+    "continue": "Fortsett",
+    "review": "Se over søknaden",
+    "apply": "Send søknad",
+    "submitted": "Søknad sendt!",
+    "viewApplications": "Se mine søknader",
+    "name": "Navn",
+    "included": "Vedlagt",
+    "yes": "Ja"
+  },
+  "errors": {
+    "title": "Noe gikk galt",
+    "body": "Vi klarte ikke å laste dette vervet. Prøv igjen, eller se alle ledige verv.",
+    "browse": "Se ledige verv",
+    "notFoundTitle": "Fant ikke vervet",
+    "notFoundBody": "Vervet kan være avsluttet, eller lenken kan være utdatert."
   }
 }
