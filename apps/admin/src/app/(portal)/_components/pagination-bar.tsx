@@ -22,6 +22,11 @@ interface PaginationBarProps {
    */
   size?: number;
   /**
+   * Alternate size key, for the same reason as `pageKey`: two tables on one
+   * route must not fight over a single `?size=`.
+   */
+  sizeKey?: string;
+  /**
    * Whether the surface's server action actually reads `?size=` and honours
    * it. This must be explicit, not inferred from `size`'s value — a legacy
    * surface can coincidentally page by a number that's also in `PAGE_SIZES`
@@ -39,6 +44,7 @@ export function PaginationBar({
   page,
   size = DEFAULT_PAGE_SIZE,
   pageKey = "page",
+  sizeKey = "size",
   sizeSelectable = false,
 }: PaginationBarProps) {
   const router = useRouter();
@@ -78,20 +84,27 @@ export function PaginationBar({
     (next: number) => {
       push((params) => {
         if (next === DEFAULT_PAGE_SIZE) {
-          params.delete("size");
+          params.delete(sizeKey);
         } else {
-          params.set("size", String(next));
+          params.set(sizeKey, String(next));
         }
         // A new page size invalidates the current offset.
         params.delete(pageKey);
       });
     },
-    [push, pageKey]
+    [push, pageKey, sizeKey]
   );
 
   // Nothing to show for a genuinely empty list — the surface renders its own
   // EmptyState. A single page still renders: the size picker and total matter.
   if (total === 0) {
+    return null;
+  }
+
+  // A single page with no size picker has nothing to offer — rendering a
+  // "3 total · page 1 of 1" line plus a rule is noise on surfaces that never
+  // asked for pagination UI.
+  if (totalPages <= 1 && !sizeSelectable) {
     return null;
   }
 
