@@ -1,4 +1,5 @@
 import { mkdir, writeFile } from "node:fs/promises";
+import { parseConcurrency } from "../src/concurrency";
 import {
   extractJobs,
   extractOrders,
@@ -7,17 +8,20 @@ import {
 } from "../src/extract/index";
 import { WpClient, type WpProgressEvent } from "../src/wp/client";
 
-const args = new Set(process.argv.slice(2));
+const argv = process.argv.slice(2);
+const args = new Set(argv);
 const sinceArg =
-  process.argv
-    .slice(2)
-    .find((a) => a.startsWith("--since="))
-    ?.split("=")[1] ?? "3m";
+  argv.find((a) => a.startsWith("--since="))?.split("=")[1] ?? "3m";
 const only = (name: string): boolean =>
   args.has(`--${name}`) ||
   !(args.has("--jobs") || args.has("--products") || args.has("--orders"));
 
 const baseUrl = process.env.WP_BASE_URL ?? "https://biso.no";
+/**
+ * Pages after the first are fetched in parallel. 4 is deliberately gentle on
+ * biso.no; raise it with --concurrency=N if the host copes.
+ */
+const concurrency = parseConcurrency(argv, 4);
 
 /**
  * Extraction is a long silent wait otherwise: the orders endpoint alone runs
@@ -39,6 +43,7 @@ const reportProgress = (event: WpProgressEvent): void => {
 
 const client = new WpClient({
   baseUrl,
+  concurrency,
   consumerKey: process.env.WC_CONSUMER_KEY,
   consumerSecret: process.env.WC_CONSUMER_SECRET,
   onProgress: reportProgress,
@@ -48,7 +53,9 @@ const outputDir = new URL("../snapshots/", import.meta.url).pathname;
 await mkdir(outputDir, { recursive: true });
 
 const since = parseSince(sinceArg, new Date());
-console.log(`Extracting from ${baseUrl} (since ${since})`);
+console.log(
+  `Extracting from ${baseUrl} (since ${since}, concurrency ${concurrency})`
+);
 
 const write = async (name: string, data: unknown): Promise<void> => {
   await writeFile(`${outputDir}${name}.json`, JSON.stringify(data, null, 2));
@@ -60,7 +67,21 @@ if (only("jobs")) {
   await write("jobs", await extractJobs(client, since));
 }
 if (only("products")) {
-  await write("products", await extractProducts(client));
+  // Variation prices live behind /wc/v3, so without WooCommerce credentials
+  // the per-product variation fetch would 401 on every request. Skip it and
+  // say so rather than failing the whole products extract.
+  const includeVariations = Boolean(
+    process.env.WC_CONSUMER_KEY && process.env.WC_CONSUMER_SECRET
+  );
+  if (!includeVariations) {
+    console.error(
+      "  products: no WooCommerce credentials — skipping variation prices; variable products will import without variations."
+    );
+  }
+  await write(
+    "products",
+    await extractProducts(client, { concurrency, includeVariations })
+  );
 }
 if (only("orders")) {
   if (process.env.WC_CONSUMER_KEY && process.env.WC_CONSUMER_SECRET) {

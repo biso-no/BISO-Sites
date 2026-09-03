@@ -22,6 +22,30 @@ const baseStore = {
   variations: [],
 };
 
+const MEMBER_OPTION = /member/i;
+
+/**
+ * One `/wc/v3/products/<id>/variations` entry. `attributes[].option` (not
+ * `value`, as in the Store API) is where the attribute's value lives; the
+ * first option is the membership axis in the fixtures that carry one.
+ */
+const wcVariation = (id: number, regularPrice: string, options: string[]) => ({
+  attributes: options.map((option, index) => ({
+    name:
+      index === 0 && MEMBER_OPTION.test(option)
+        ? "Member status"
+        : `Attr${index}`,
+    option,
+  })),
+  id,
+  menu_order: 0,
+  price: regularPrice,
+  regular_price: regularPrice,
+  sku: "",
+  status: "publish",
+  stock_quantity: 649,
+});
+
 const basePost = {
   acf: { campus: "1", department_oslo: "21" },
   content: { rendered: "<p>Beskrivelse</p>" },
@@ -162,36 +186,86 @@ describe("transformProduct", () => {
     expect(reject?.reason).toContain("price");
   });
 
-  test("stores variations as variants_json in the shape the shop studio parses", () => {
-    const store = {
-      ...baseStore,
-      type: "variable",
+  test("collapses the member-status axis into member_price on one row per duration", () => {
+    // The real /wc/v3 payload for wpprod37313 (the Booklocker): WooCommerce
+    // models membership as separate variations, Appwrite as two price columns.
+    const { product } = transformProduct({
+      ...basePost,
+      store: { ...baseStore, type: "variable" },
       variations: [
-        {
-          attributes: [
-            { name: "Member status", value: "BISO member" },
-            { name: "Duration", value: "Semester" },
-          ],
-          id: 63_463,
-        },
+        wcVariation(63_469, "1500", ["Non BISO-member", "A year"]),
+        wcVariation(63_467, "750", ["Non BISO-member", "Semester"]),
+        wcVariation(63_465, "500", ["BISO member", "A year"]),
+        wcVariation(63_463, "250", ["BISO member", "Semester"]),
       ],
-      prices: {
-        currency_minor_unit: 0,
-        price: "250",
-        price_range: { max_amount: "1500", min_amount: "250" },
-      },
-    };
-    const { product } = transformProduct({ ...basePost, store });
-    const variants = JSON.parse(String(product?.row.variants_json));
-
-    expect(variants).toHaveLength(1);
-    expect(variants[0]).toEqual({
-      id: "63463",
-      name: "BISO member / Semester",
-      price: 0,
-      stock: 0,
-      type: "default",
     });
+
+    expect(product?.variations).toEqual([
+      {
+        row: {
+          enabled: true,
+          member_price: 500,
+          name: "A year",
+          regular_price: 1500,
+          sku: null,
+          sort_order: 0,
+          stock: 649,
+        },
+        rowId: "wpvar63469",
+      },
+      {
+        row: {
+          enabled: true,
+          member_price: 250,
+          name: "Semester",
+          regular_price: 750,
+          sku: null,
+          sort_order: 1,
+          stock: 649,
+        },
+        rowId: "wpvar63467",
+      },
+    ]);
+  });
+
+  test("keeps one row per variation and a null member_price when there is no membership axis", () => {
+    const { product } = transformProduct({
+      ...basePost,
+      store: { ...baseStore, type: "variable" },
+      variations: [
+        wcVariation(65_977, "1350", [
+          "3 Years Fall 2026 - Spring 2029",
+          "Stavanger",
+        ]),
+      ],
+    });
+
+    expect(product?.variations).toEqual([
+      {
+        row: {
+          enabled: true,
+          member_price: null,
+          name: "3 Years Fall 2026 - Spring 2029 / Stavanger",
+          regular_price: 1350,
+          sku: null,
+          sort_order: 0,
+          stock: 649,
+        },
+        rowId: "wpvar65977",
+      },
+    ]);
+  });
+
+  test("warns when a variable product has no extracted variations", () => {
+    const { warnings } = transformProduct({
+      ...basePost,
+      store: { ...baseStore, type: "variable" },
+      variations: [],
+    });
+
+    expect(
+      warnings.some((w) => w.includes("no variations were extracted"))
+    ).toBe(true);
   });
 
   test("imports a variable product as draft, even when the WordPress post is published", () => {
@@ -217,21 +291,6 @@ describe("transformProduct", () => {
     expect(warnings.some((w) => w.includes("variable"))).toBe(true);
   });
 
-  test("caps variants_json at 8192 chars by trimming variants from the end", () => {
-    const manyVariations = Array.from({ length: 400 }, (_, index) => ({
-      attributes: [{ name: "Duration", value: `Option ${index}` }],
-      id: index,
-    }));
-    const store = {
-      ...baseStore,
-      type: "variable",
-      variations: manyVariations,
-    };
-    const { product } = transformProduct({ ...basePost, store });
-
-    expect(String(product?.row.variants_json).length).toBeLessThanOrEqual(8192);
-  });
-
   test("maps the WooCommerce default category to null instead of the literal 'Uncategorized'", () => {
     const store = {
       ...baseStore,
@@ -252,20 +311,18 @@ describe("transformProduct", () => {
     expect(product?.row.category).toBe("Merch");
   });
 
-  test("flags member-status variants instead of guessing member_price", () => {
-    const store = {
-      ...baseStore,
-      type: "variable",
+  test("flags a product whose variations carry a member price", () => {
+    const { product } = transformProduct({
+      ...basePost,
+      store: { ...baseStore, type: "variable" },
       variations: [
-        {
-          attributes: [{ name: "Member status", value: "BISO member" }],
-          id: 63_463,
-        },
+        wcVariation(63_469, "1500", ["Non BISO-member", "A year"]),
+        wcVariation(63_465, "500", ["BISO member", "A year"]),
       ],
-    };
-    const { product } = transformProduct({ ...basePost, store });
+    });
 
     expect(product?.memberVariantWarning).toBe(true);
+    // The membership price lives on the variation row, never on the product.
     expect(product?.row.member_price).toBeUndefined();
   });
 
@@ -293,5 +350,78 @@ describe("transformProduct", () => {
 
     expect(product).toBeNull();
     expect(reject?.reason).toContain("price");
+  });
+});
+
+describe("buildVariations pairing", () => {
+  test("reads 'Not a BISO member' as the non-member half, not the member half", () => {
+    // Product 6833's real shape: the attribute is called "Membership" and both
+    // options contain the word "member", so only the negation separates them.
+    const { product } = transformProduct({
+      ...basePost,
+      store: { ...baseStore, type: "variable" },
+      variations: [
+        {
+          ...wcVariation(9492, "500", []),
+          attributes: [{ name: "Membership", option: "Not a BISO member" }],
+          sku: "BOK-1",
+        },
+        {
+          ...wcVariation(9491, "100", []),
+          attributes: [{ name: "Membership", option: "BISO member" }],
+          sku: "BOK-1",
+        },
+      ],
+    });
+
+    expect(product?.variations).toHaveLength(1);
+    expect(product?.variations[0]?.rowId).toBe("wpvar9492");
+    expect(product?.variations[0]?.row.regular_price).toBe(500);
+    expect(product?.variations[0]?.row.member_price).toBe(100);
+  });
+
+  test("never drops a variation it cannot pair, and warns instead", () => {
+    const { product, warnings } = transformProduct({
+      ...basePost,
+      store: { ...baseStore, type: "variable" },
+      // Two non-member variations with the same name: unpairable, but both
+      // are real rows that must survive the import.
+      variations: [
+        {
+          ...wcVariation(1, "100", []),
+          attributes: [{ name: "Member status", option: "Non BISO-member" }],
+        },
+        {
+          ...wcVariation(2, "200", []),
+          attributes: [{ name: "Member status", option: "Non BISO-member" }],
+        },
+      ],
+    });
+
+    expect(product?.variations.map((v) => v.rowId)).toEqual([
+      "wpvar1",
+      "wpvar2",
+    ]);
+    expect(warnings.some((w) => w.includes("could not pair"))).toBe(true);
+  });
+
+  test("emits one row per variation when membership is not an axis at all", () => {
+    const { product, warnings } = transformProduct({
+      ...basePost,
+      store: { ...baseStore, type: "variable" },
+      variations: [
+        wcVariation(7001, "750", ["HR"]),
+        wcVariation(7002, "750", ["Control Committee"]),
+      ],
+    });
+
+    expect(product?.variations).toHaveLength(2);
+    expect(product?.variations[1]?.row).toMatchObject({
+      member_price: null,
+      name: "Control Committee",
+      regular_price: 750,
+      sort_order: 1,
+    });
+    expect(warnings.some((w) => w.includes("could not pair"))).toBe(false);
   });
 });

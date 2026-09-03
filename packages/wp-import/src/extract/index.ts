@@ -1,3 +1,4 @@
+import { mapWithConcurrency } from "../concurrency";
 import type { WpClient } from "../wp/client";
 
 export interface WpJob {
@@ -69,6 +70,24 @@ export interface WcStoreProduct {
   }>;
 }
 
+/**
+ * A variation from `/wc/v3/products/<id>/variations`, which — unlike the
+ * Store API's `variations` (id + attributes only) — carries real prices,
+ * stock and ordering. Note the attribute value lives in `option` here, where
+ * the Store API calls it `value`.
+ */
+export interface WcProductVariation {
+  attributes: Array<{ name: string; option: string }>;
+  id: number;
+  menu_order: number;
+  /** Effective price; falls back for a variation with no explicit regular_price. */
+  price: string;
+  regular_price: string;
+  sku: string;
+  status: string;
+  stock_quantity: number | null;
+}
+
 export interface WcOrder {
   billing: {
     email: string;
@@ -95,6 +114,8 @@ export interface WcOrder {
     product_id: number;
     quantity: number;
     total: string;
+    /** 0 when the line is not a variation of a variable product. */
+    variation_id: number;
   }>;
   payment_method_title: string;
   status: string;
@@ -176,27 +197,67 @@ export async function extractJobs(
   });
 }
 
+export type ExtractedProduct = WpProductPost & {
+  store: WcStoreProduct | null;
+  variations: WcProductVariation[];
+};
+
 /**
- * Products also need two sources: /wp/v2/product carries the ACF
- * campus/department IDs, /wc/store/v1/products carries prices and images.
+ * Products need three sources: /wp/v2/product carries the ACF
+ * campus/department IDs, /wc/store/v1/products carries the base price and
+ * images, and /wc/v3/products/<id>/variations carries per-variation prices.
+ *
+ * That third call is per-product and only meaningful for `type: "variable"`,
+ * so it is fanned out through a bounded pool rather than walked serially. It
+ * needs WooCommerce credentials; without them `includeVariations` must be
+ * false or every request 401s.
  */
 export async function extractProducts(
-  client: WpClient
-): Promise<Array<WpProductPost & { store: WcStoreProduct | null }>> {
+  client: WpClient,
+  options: { concurrency?: number; includeVariations?: boolean } = {}
+): Promise<ExtractedProduct[]> {
   const posts = await client.fetchAllPages<WpProductPost>("/wp/v2/product");
   const store = await client.fetchAllPages<WcStoreProduct>(
     "/wc/store/v1/products"
   );
   const storeById = new Map(store.map((product) => [product.id, product]));
 
-  return posts.map((post) => ({
+  const merged = posts.map((post) => ({
     ...post,
     store: storeById.get(post.id) ?? null,
+  }));
+
+  if (!options.includeVariations) {
+    return merged.map((post) => ({ ...post, variations: [] }));
+  }
+
+  const variable = merged.filter((post) => post.store?.type === "variable");
+  const fetched = await mapWithConcurrency(
+    variable,
+    options.concurrency ?? 4,
+    async (post) =>
+      [
+        post.id,
+        await client.fetchAllPages<WcProductVariation>(
+          `/wc/v3/products/${post.id}/variations`
+        ),
+      ] as const
+  );
+  const variationsById = new Map(fetched);
+
+  return merged.map((post) => ({
+    ...post,
+    variations: variationsById.get(post.id) ?? [],
   }));
 }
 
 export async function extractOrders(client: WpClient): Promise<WcOrder[]> {
   return await client.fetchAllPages<WcOrder>("/wc/v3/orders", {
+    // Offset paging over the default `date desc` sort is unstable: an order
+    // placed mid-extract shifts every later page by one, silently skipping a
+    // record. Sorting by the immutable id pins the window instead.
+    order: "asc",
+    orderby: "id",
     status: "any",
   });
 }

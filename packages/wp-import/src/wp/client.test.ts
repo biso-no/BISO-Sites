@@ -222,3 +222,123 @@ describe("WpClient progress reporting", () => {
     );
   });
 });
+
+/** Reads the `page` query param off whatever shape fetch was handed. */
+function pageOf(input: RequestInfo | URL): number {
+  const url = typeof input === "string" ? input : input.toString();
+  return Number(new URL(url).searchParams.get("page") ?? "1");
+}
+
+/**
+ * Page-aware stub: the concurrent walk no longer requests pages in call order,
+ * so a stub keyed on call count (see stubFetch above) cannot describe it.
+ */
+function stubPagedFetch(
+  totalPages: number,
+  options: { onRequest?: () => Promise<void> } = {}
+) {
+  const requestedPages: number[] = [];
+  const fetchImpl = async (input: RequestInfo | URL): Promise<Response> => {
+    const page = pageOf(input);
+    requestedPages.push(page);
+    await options.onRequest?.();
+    return new Response(JSON.stringify([{ id: page }]), {
+      headers: {
+        "X-WP-Total": String(totalPages),
+        "X-WP-TotalPages": String(totalPages),
+      },
+      status: 200,
+    });
+  };
+  return { fetchImpl, requestedPages };
+}
+
+describe("WpClient.fetchAllPages concurrency", () => {
+  test("returns rows in page order even when later pages resolve first", async () => {
+    // Page 4 resolves immediately, page 2 last — if the client concatenated in
+    // completion order the ids below would come back shuffled.
+    const delays: Record<number, number> = { 2: 30, 3: 20, 4: 0 };
+    const client = new WpClient({
+      baseUrl: "https://example.test",
+      concurrency: 3,
+      fetchImpl: async (input: RequestInfo | URL) => {
+        const page = pageOf(input);
+        await new Promise((resolve) => setTimeout(resolve, delays[page] ?? 0));
+        return new Response(JSON.stringify([{ id: page }]), {
+          headers: { "X-WP-TotalPages": "4" },
+          status: 200,
+        });
+      },
+    });
+
+    const rows = await client.fetchAllPages<{ id: number }>("/wc/v3/orders");
+
+    expect(rows).toEqual([{ id: 1 }, { id: 2 }, { id: 3 }, { id: 4 }]);
+  });
+
+  test("fetches page 1 alone, then overlaps the rest up to the limit", async () => {
+    let inFlight = 0;
+    let peak = 0;
+    const { fetchImpl, requestedPages } = stubPagedFetch(6, {
+      onRequest: async () => {
+        inFlight += 1;
+        peak = Math.max(peak, inFlight);
+        await new Promise((resolve) => setTimeout(resolve, 5));
+        inFlight -= 1;
+      },
+    });
+    const client = new WpClient({
+      baseUrl: "https://example.test",
+      concurrency: 3,
+      fetchImpl,
+    });
+
+    await client.fetchAllPages("/wc/v3/orders");
+
+    expect(peak).toBe(3);
+    expect(requestedPages[0]).toBe(1);
+    expect([...requestedPages].sort((a, b) => a - b)).toEqual([
+      1, 2, 3, 4, 5, 6,
+    ]);
+  });
+
+  test("reports progress with a monotonic received count as pages land", async () => {
+    const events: number[] = [];
+    const { fetchImpl } = stubPagedFetch(5);
+    const client = new WpClient({
+      baseUrl: "https://example.test",
+      concurrency: 2,
+      fetchImpl,
+      onProgress: (event) => {
+        if (event.kind === "page") {
+          events.push(event.received);
+        }
+      },
+    });
+
+    await client.fetchAllPages("/wc/v3/orders");
+
+    expect(events).toEqual([1, 2, 3, 4, 5]);
+  });
+
+  test("surfaces a failing page instead of silently returning a short result", async () => {
+    const client = new WpClient({
+      baseUrl: "https://example.test",
+      concurrency: 3,
+      fetchImpl: (input: RequestInfo | URL) => {
+        const page = pageOf(input);
+        if (page === 3) {
+          return Promise.resolve(new Response("gone", { status: 404 }));
+        }
+        return Promise.resolve(
+          new Response(JSON.stringify([{ id: page }]), {
+            headers: { "X-WP-TotalPages": "5" },
+            status: 200,
+          })
+        );
+      },
+    });
+
+    await expect(client.fetchAllPages("/wc/v3/orders")).rejects.toThrow("404");
+  });
+});

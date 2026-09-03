@@ -24,6 +24,45 @@ export interface LocaleContent {
 }
 
 /**
+ * A `content_translations` row already in Appwrite, as read back by
+ * loadContentTranslations(). Carries the text as well as the `$id` so a
+ * re-run can reuse a translation it already paid for instead of spending
+ * another OpenAI call on it.
+ */
+export interface ExistingTranslation {
+  $id: string;
+  description: string;
+  locale: ContentLocale;
+  short_description: string | null;
+  title: string;
+}
+
+/**
+ * The target-locale translation for `contentId` if a previous run already
+ * wrote one, in the shape buildTranslationRows expects — otherwise null,
+ * meaning the caller must generate it.
+ *
+ * This is what makes `load --apply` cheap to resume: translation dominates
+ * the load, and re-translating a row whose text has not changed buys nothing.
+ */
+export function existingTargetContent(
+  existing: Map<string, ExistingTranslation> | undefined,
+  contentId: string,
+  locale: ContentLocale
+): LocaleContent | null {
+  const row = existing?.get(translationKey(contentId, locale));
+  if (!row) {
+    return null;
+  }
+  return {
+    description: row.description,
+    locale,
+    shortDescription: row.short_description,
+    title: row.title,
+  };
+}
+
+/**
  * Key format shared between the Appwrite query in scripts/load.ts (which
  * builds the map) and buildTranslationRows below (which reads it) — kept in
  * one place so the two can't drift apart.
@@ -42,7 +81,7 @@ export function buildTranslationRows(input: {
    * that index instead of overwriting it — breaking safe resume of a
    * `load --apply` run. Keyed by translationKey(contentId, locale).
    */
-  existingIds?: Map<string, string>;
+  existing?: Map<string, ExistingTranslation>;
   permissions: string[];
   source: LocaleContent;
   target: LocaleContent | null;
@@ -53,9 +92,9 @@ export function buildTranslationRows(input: {
   // both locales here so this protects every caller, not just the ones that
   // remember to do it themselves.
   const toRow = (content: LocaleContent): TranslationPayload => {
-    const existingId = input.existingIds?.get(
+    const existingId = input.existing?.get(
       translationKey(input.contentId, content.locale)
-    );
+    )?.$id;
     return {
       ...(existingId ? { $id: existingId } : {}),
       $permissions: input.permissions,
@@ -90,15 +129,42 @@ export function buildJobUpsert(
   };
 }
 
+/**
+ * Builds the nested `product_variations` children for one product.
+ *
+ * `webshop_products.variations` is a oneToMany relationship with
+ * `onDelete: cascade`, so the children are written inline with the parent —
+ * the same shape as order_items. Each child keeps its deterministic
+ * `wpvar<wc_variation_id>` id so a re-run upserts in place rather than
+ * duplicating, and carries the parent's permissions explicitly rather than
+ * relying on inheritance.
+ */
+export function buildVariationRows(
+  variations: Array<{ row: Record<string, unknown>; rowId: string }>,
+  permissions: string[]
+): Record<string, unknown>[] {
+  return variations.map((variation) => ({
+    ...variation.row,
+    $id: variation.rowId,
+    $permissions: permissions,
+  }));
+}
+
 export function buildProductUpsert(
-  product: { row: Record<string, unknown>; rowId: string },
+  product: {
+    row: Record<string, unknown>;
+    rowId: string;
+    variations?: Array<{ row: Record<string, unknown>; rowId: string }>;
+  },
   translations: TranslationPayload[]
 ): Record<string, unknown> {
   const status = String(product.row.status ?? "draft");
+  const permissions = buildPublicContentPermissions(status);
   return {
     ...product.row,
-    $permissions: buildPublicContentPermissions(status),
+    $permissions: permissions,
     translation_refs: translations,
+    variations: buildVariationRows(product.variations ?? [], permissions),
   };
 }
 
@@ -120,17 +186,17 @@ export function buildProductCampusIndex(
 }
 
 /**
- * Derives an order's campus_id from its first line item whose product_id
- * resolves against `productCampusByRowId`. Returns null (never throws) on a
- * missing/malformed items_json so one bad order can't take down the whole
- * orders branch — the caller counts nulls in its summary instead.
+ * Derives an order's campus_id from its first line item whose product
+ * resolves against `productCampusByRowId`. Returns null (never throws) so one
+ * bad order can't take down the whole orders branch — the caller counts nulls
+ * in its summary instead.
  */
 export function resolveOrderCampusId(
   items: TransformedOrderItem[],
   productCampusByRowId: Map<string, string>
 ): string | null {
   for (const item of items) {
-    const campusId = productCampusByRowId.get(item.product_id);
+    const campusId = productCampusByRowId.get(item.productRowId);
     if (campusId) {
       return campusId;
     }
@@ -142,13 +208,20 @@ export function resolveOrderCampusId(
 /**
  * Builds the nested `order_items` children for one order.
  *
- * The `product` relationship is attached **only** when that product row is
- * actually being imported. Appwrite rejects a write whose relationship names a
- * row that does not exist, and an order can easily reference a product that
- * was rejected at transform time (no ACF campus, unresolvable price) or that
- * predates the current catalogue entirely — 14k orders reach back years. The
- * flat `product_id` string is always written, so an unlinked line still says
- * what was bought.
+ * Columns are listed explicitly rather than spread from the transformed item.
+ * `order_items` has no flat `product_id` or `title` column — only the
+ * `product` and `variation` relationships — and spreading a shape that
+ * carried `product_id` was rejected by Appwrite for every order in the
+ * archive. An explicit list cannot leak a non-column again.
+ *
+ * A relationship is attached **only** when its target row is actually being
+ * imported. Appwrite rejects a write naming a row that does not exist, and
+ * most of the 14k orders reach back years past the current catalogue. The
+ * `variation` case is subtler still: WooCommerce line items name the member
+ * or the non-member variation, but buildVariations collapses that pair into one
+ * row keyed by the non-member id, so roughly half of all variation ids have
+ * no row at all. `name` always survives, so an unlinked line still says what
+ * was bought.
  *
  * Children carry the parent's permissions explicitly rather than relying on
  * inheritance, so a buyer can read their own order lines.
@@ -156,17 +229,21 @@ export function resolveOrderCampusId(
 export function buildOrderItemRows(
   items: TransformedOrderItem[],
   importedProductRowIds: Set<string>,
+  importedVariationRowIds: Set<string>,
   permissions: string[]
 ): Record<string, unknown>[] {
-  return items.map((item) => {
-    const { rowId, ...columns } = item;
-    return {
-      ...columns,
-      $id: rowId,
-      $permissions: permissions,
-      ...(importedProductRowIds.has(item.product_id)
-        ? { product: item.product_id }
-        : {}),
-    };
-  });
+  return items.map((item) => ({
+    $id: item.rowId,
+    $permissions: permissions,
+    line_total: item.line_total,
+    name: item.name,
+    quantity: item.quantity,
+    unit_price: item.unit_price,
+    ...(importedProductRowIds.has(item.productRowId)
+      ? { product: item.productRowId }
+      : {}),
+    ...(item.variationRowId && importedVariationRowIds.has(item.variationRowId)
+      ? { variation: item.variationRowId }
+      : {}),
+  }));
 }

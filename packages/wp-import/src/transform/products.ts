@@ -1,4 +1,8 @@
-import type { WcStoreProduct, WpProductPost } from "../extract/index";
+import type {
+  WcProductVariation,
+  WcStoreProduct,
+  WpProductPost,
+} from "../extract/index";
 import type { RejectRow } from "../types";
 import {
   decodeEntities,
@@ -18,63 +22,137 @@ const DEPARTMENT_FIELD_BY_CAMPUS: Record<string, string> = {
 
 const MEMBER_ATTRIBUTE = /member/i;
 const UNCATEGORIZED = "Uncategorized";
-const MAX_VARIANTS_JSON_LENGTH = 8192;
+/**
+ * Negation tokens that mark the *non-member* half of a membership attribute.
+ * Real data uses both "Non BISO-member" (product 63469) and "Not a BISO
+ * member" (product 9492), and both halves contain the word "member", so the
+ * negation is the only thing that distinguishes them.
+ */
+const NON_MEMBER_OPTION = /\b(non|not|no|ikke|uten)\b|non-/i;
 
 /**
- * Shape actually parsed by ProductVariant in
- * apps/admin/.../shop/[id]/_components/shop-studio-editor.tsx — not the raw
- * WooCommerce Store API variation shape ({ id: number, attributes }).
+ * One `product_variations` row. The table folds BISO membership into two
+ * price columns on a single row rather than modelling it as its own
+ * variation, which is why buildVariations groups rather than maps.
  */
-interface StudioVariant {
-  id: string;
+export interface TransformedVariation {
+  row: Record<string, unknown>;
+  rowId: string;
+}
+
+const priceOf = (variation: WcProductVariation): number | null => {
+  const raw = variation.regular_price || variation.price;
+  const value = Number.parseFloat(raw);
+  return Number.isFinite(value) ? value : null;
+};
+
+/**
+ * Splits a variation's attributes into the membership flag and everything
+ * else. The remaining options, joined by " / ", are the variation's name —
+ * matching the rows already in `product_variations`
+ * (e.g. "3 Years Fall 2026 - Spring 2029 / Stavanger").
+ */
+function describeVariation(variation: WcProductVariation): {
+  isMember: boolean;
   name: string;
-  price: number;
-  stock: number;
-  type: string;
+} {
+  let isMember = false;
+  const rest: string[] = [];
+
+  for (const attribute of variation.attributes) {
+    if (MEMBER_ATTRIBUTE.test(attribute.name)) {
+      isMember = !NON_MEMBER_OPTION.test(attribute.option);
+      continue;
+    }
+    rest.push(attribute.option);
+  }
+
+  return { isMember, name: rest.join(" / ") };
 }
 
-function buildVariantName(
-  attributes: Array<{ name: string; value: string }>
-): string {
-  return attributes.map((attribute) => attribute.value).join(" / ");
+function variationRow(
+  variation: WcProductVariation,
+  name: string,
+  memberPrice: number | null,
+  sortOrder: number
+): TransformedVariation {
+  return {
+    row: {
+      enabled: variation.status === "publish",
+      member_price: memberPrice,
+      name: name || variation.sku || String(variation.id),
+      regular_price: priceOf(variation),
+      sku: variation.sku || null,
+      sort_order: sortOrder,
+      stock: variation.stock_quantity,
+    },
+    rowId: `wpvar${variation.id}`,
+  };
 }
 
 /**
- * The Store API's `variations` carries no prices at all — only id +
- * attributes (confirmed in fixtures/products.sample.json) — so price/stock
- * cannot be recovered from this snapshot. Both are written as 0 rather than
- * left undefined or copied from the base product's regular_price: paired
- * with forcing `status: "draft"` on a variable product (see
- * transformProduct below), a zero price inside a draft reads as obviously
- * unfinished, not subtly wrong.
+ * Turns WooCommerce variations into `product_variations` rows.
+ *
+ * WooCommerce models "BISO member" as a *separate variation* of every
+ * duration, so a product with 2 durations x 2 membership states arrives as 4
+ * variations. Appwrite models it as one row per duration carrying both
+ * `regular_price` and `member_price`, so the membership axis is collapsed
+ * here. The collapsed row keeps the non-member variation's WooCommerce id,
+ * which is the convention the rows already in Appwrite follow.
+ *
+ * Collapsing only happens for the unambiguous case — exactly one member and
+ * one non-member variation sharing a name. Anything else (no membership
+ * attribute at all, or a grouping this cannot read confidently) is emitted
+ * one row per variation, so a variation is never silently dropped; the
+ * caller is told which names were left unpaired.
  */
-function buildVariantsJson(
-  variations: Array<{
-    attributes: Array<{ name: string; value: string }>;
-    id: number;
-  }>
-): string | null {
-  if (variations.length === 0) {
-    return null;
+export function buildVariations(variations: WcProductVariation[]): {
+  rows: TransformedVariation[];
+  unpairedNames: string[];
+} {
+  const groups = new Map<
+    string,
+    { members: WcProductVariation[]; regulars: WcProductVariation[] }
+  >();
+
+  for (const variation of variations) {
+    const { isMember, name } = describeVariation(variation);
+    const group = groups.get(name) ?? { members: [], regulars: [] };
+    (isMember ? group.members : group.regulars).push(variation);
+    groups.set(name, group);
   }
 
-  let list: StudioVariant[] = variations.map((variation) => ({
-    id: String(variation.id),
-    name: buildVariantName(variation.attributes),
-    price: 0,
-    stock: 0,
-    type: "default",
-  }));
+  const rows: TransformedVariation[] = [];
+  const unpairedNames: string[] = [];
+  let sortOrder = 0;
 
-  // Defensive cap so a product with an unusually large number of variations
-  // can never fail the whole load with an Appwrite validation error — trim
-  // from the end until the JSON fits webshop_products.variants_json (8192).
-  let json = JSON.stringify(list);
-  while (json.length > MAX_VARIANTS_JSON_LENGTH && list.length > 0) {
-    list = list.slice(0, -1);
-    json = JSON.stringify(list);
+  for (const [name, group] of groups) {
+    const memberOnly = group.regulars.length === 0 && group.members.length > 0;
+    const pairable =
+      group.regulars.length === 1 &&
+      (group.members.length === 0 || group.members.length === 1);
+
+    if (pairable) {
+      const anchor = group.regulars[0] as WcProductVariation;
+      const member = group.members[0];
+      rows.push(
+        variationRow(anchor, name, member ? priceOf(member) : null, sortOrder)
+      );
+      sortOrder += 1;
+      continue;
+    }
+
+    // Cannot pair with confidence — emit every variation rather than lose one.
+    if (!memberOnly || group.members.length > 1) {
+      unpairedNames.push(name || "(unnamed)");
+    }
+    for (const variation of [...group.regulars, ...group.members]) {
+      rows.push(variationRow(variation, name, null, sortOrder));
+      sortOrder += 1;
+    }
   }
-  return json;
+
+  return { rows, unpairedNames };
 }
 
 export interface TransformedProduct {
@@ -86,6 +164,8 @@ export interface TransformedProduct {
   rowId: string;
   shortDescription: string;
   title: string;
+  /** Written as nested `variations` children of the product row. */
+  variations: TransformedVariation[];
 }
 
 export function resolveAcfCampusAndDepartment(
@@ -124,7 +204,11 @@ export function resolvePrice(store: WcStoreProduct): number | null {
 }
 
 export function transformProduct(
-  input: WpProductPost & { store: WcStoreProduct | null }
+  input: WpProductPost & {
+    store: WcStoreProduct | null;
+    /** Absent on snapshots taken before variations were extracted. */
+    variations?: WcProductVariation[];
+  }
 ): {
   product: TransformedProduct | null;
   reject: RejectRow | null;
@@ -186,28 +270,32 @@ export function transformProduct(
     500
   );
 
-  const variations = input.store?.variations ?? [];
-  const memberVariantWarning = variations.some((variation) =>
-    variation.attributes.some((attribute) =>
-      MEMBER_ATTRIBUTE.test(attribute.name)
-    )
+  const { rows: variations, unpairedNames } = buildVariations(
+    input.variations ?? []
   );
-  if (memberVariantWarning) {
+  const memberVariantWarning = variations.some(
+    (variation) => variation.row.member_price !== null
+  );
+  if (unpairedNames.length > 0) {
     warnings.push(
-      `Product ${input.id} has member-status variants; set member_price manually`
+      `Product ${input.id} has variations this importer could not pair by membership (${unpairedNames.join(", ")}); each was imported separately — check member_price manually`
     );
   }
 
-  // The Store API's `variations` carries id + attributes but no prices (see
-  // buildVariantsJson above), so the real 250–1500 price range for a product
-  // like the Booklocker is unrecoverable from this snapshot. Importing it as
-  // `published` at a single flat price would put a live, purchasable,
-  // six-times-under-priced product on the site. Force `draft` instead so a
-  // human sets real per-variant prices before it goes live.
+  // Variation prices now come from /wc/v3/products/<id>/variations, so they
+  // are real rather than zeroed. A variable product is still forced to
+  // `draft`: the membership axis is collapsed into member_price by
+  // buildVariations, and a human confirming that grouping before the product
+  // is purchasable is cheap next to publishing a mispriced one.
   const isVariable = input.store?.type === "variable";
   if (isVariable) {
     warnings.push(
-      `Product ${input.id} (${label}) is variable; imported as draft with variant prices set to 0 — set prices manually before publishing`
+      `Product ${input.id} (${label}) is variable with ${variations.length} variation(s); imported as draft — check the prices before publishing`
+    );
+  }
+  if (isVariable && variations.length === 0) {
+    warnings.push(
+      `Product ${input.id} (${label}) is variable but no variations were extracted — re-run extract with WooCommerce credentials`
     );
   }
 
@@ -216,7 +304,6 @@ export function transformProduct(
   const rawCategory = input.store?.categories?.[0]?.name ?? null;
   const category = rawCategory === UNCATEGORIZED ? null : rawCategory;
 
-  const variantsJson = buildVariantsJson(variations);
   const publishedStatus = input.status === "publish" ? "published" : "draft";
 
   const row: Record<string, unknown> = {
@@ -232,7 +319,6 @@ export function transformProduct(
     regular_price: price,
     slug: input.slug,
     status: isVariable ? "draft" : publishedStatus,
-    ...(variantsJson ? { variants_json: variantsJson } : {}),
   };
 
   return {
@@ -244,6 +330,7 @@ export function transformProduct(
       rowId: `wpprod${input.id}`,
       shortDescription,
       title,
+      variations,
     },
     reject: null,
     warnings,

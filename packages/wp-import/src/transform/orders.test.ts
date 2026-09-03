@@ -25,6 +25,7 @@ const baseOrder = {
       product_id: 37_313,
       quantity: 1,
       total: "250.00",
+      variation_id: 63_469,
     },
   ],
   payment_method_title: "Vipps",
@@ -78,12 +79,13 @@ describe("transformOrder", () => {
 
     expect(result.items).toHaveLength(1);
     expect(result.items[0]).toEqual({
+      line_total: 250,
       name: "Booklocker",
-      product_id: "wpprod37313",
+      productRowId: "wpprod37313",
       quantity: 1,
       rowId: "wpitem987",
-      title: "Booklocker",
       unit_price: 250,
+      variationRowId: "wpvar63469",
     });
   });
 

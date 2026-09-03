@@ -40,6 +40,12 @@ bun run extract --since=3m --jobs --products
 #   "all". Omit --jobs/--products/--orders to extract everything.
 #   Re-extract right before cutover — HR keeps posting jobs, so an old
 #   snapshot under-counts.
+#   Variable products additionally fetch /wc/v3/products/<id>/variations for
+#   real per-variation prices, which needs WC_CONSUMER_KEY/WC_CONSUMER_SECRET;
+#   without them variable products import with no variations at all.
+#   --concurrency=N sets how many pages are fetched in parallel (default 4).
+#   Page 1 always goes alone — X-WP-TotalPages is the only way to learn how
+#   many pages there are — then the rest run through a bounded pool.
 
 # 2. Transform snapshots into Appwrite-shaped rows + a department mapping file
 #    (transform has no --since of its own — the window was already applied
@@ -57,6 +63,11 @@ bun run load --jobs --products
 
 # 5. Apply — writes rows, uploads images, and calls OpenAI for translations
 bun run load --jobs --products --apply
+#   --concurrency=N sets how many rows are processed in parallel (default 6).
+#   Each branch prints a progress line every ~2s while it runs:
+#     orders 199/400 (49%) — 48 rows/s, ~4s left, 1 failed
+#   In dry-run mode the per-row "would upsert" lines are still printed, so
+#   pipe through `grep -v "would upsert"` to watch progress on its own.
 ```
 
 Orders follow the same `extract` → `transform` → `load` shape, gated on
@@ -131,10 +142,43 @@ stay flat and content simply gets overwritten in place. This also means
 every row imported by this tool is identifiable by its `$id` prefix, which
 is what rollback and verification below rely on.
 
+**Translations are reused, not regenerated.** Before writing anything,
+`load` reads every existing `content_translations` row for the content type.
+If the target-locale row is already there, its text is reused verbatim and no
+OpenAI call is made — only genuinely new content reaches the model. The run
+summary reports the count (`… 45 reused an existing translation (no OpenAI
+call)`), so a resumed `load --apply` costs roughly what is left to do rather
+than starting the bill over. A row whose *source* text changed in WordPress
+will keep its old translation; delete that `content_translations` row to
+force a retranslation.
+
+**Order lines carry no flat product id.** `order_items` has only the
+`product` and `variation` relationships — the `product_id`, `title`, `price`,
+`variation_id` and `variation_name` columns that older schema dumps show were
+removed. `buildOrderItemRows` therefore lists its columns explicitly instead
+of spreading the transformed item, whose `productRowId`/`variationRowId` are
+join keys rather than columns. Both relationships are attached only when the
+target row is actually being imported: ~89% of the 14k-order archive predates
+the current catalogue, and a WooCommerce line naming the member half of a
+collapsed variation pair has no row either. `name` is always written, so an
+unlinked line still records what was bought.
+
+**Product variations are related rows, not JSON.** `webshop_products` has a
+`variations` relationship to `product_variations` (`onDelete: cascade`); the
+older `variants_json` column no longer exists. WooCommerce models BISO
+membership as a *separate variation* of every duration, whereas
+`product_variations` carries `regular_price` and `member_price` on one row, so
+`buildVariations` collapses that axis — keeping the non-member variation's id
+as `wpvar<wc_variation_id>`, the convention the existing rows follow.
+Collapsing only happens for the unambiguous one-member/one-non-member case;
+anything else is written one row per variation and reported in
+`reports/warnings.txt`, so a variation is never silently dropped.
+
 **Rows are idempotent; image storage is not.** The `mediaCache` in
-`scripts/load.ts` is a plain `Map` created fresh for the lifetime of one
+`scripts/load.ts` is a `Map` created fresh for the lifetime of one
 `load --products --apply` run, so it only dedupes source URLs *within* that
-run. Re-running `load --products --apply` re-downloads and re-uploads every
+run (it holds the in-flight upload promise, not the finished file id, so two
+products mirrored concurrently that share an image still upload it once). Re-running `load --products --apply` re-downloads and re-uploads every
 product image, each one gets a **new** Appwrite file id, the product rows
 are rewritten to point at those new ids, and the files from the previous run
 stay in the `media` bucket, now referenced by nothing. Rows always end up

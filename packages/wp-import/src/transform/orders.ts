@@ -36,14 +36,24 @@ export function mapOrderStatus(wooStatus: string): string | null {
  * so a re-run updates the same child rather than appending a duplicate — per
  * Appwrite's nested-write rules, a nested child whose `$id` already exists is
  * updated, and one without an id gets a fresh unique id every time.
+ *
+ * `productRowId` / `variationRowId` are **join keys, not columns**: the
+ * `order_items` table has no flat `product_id`, only the `product` and
+ * `variation` relationships, and buildOrderItemRows decides whether either
+ * can be attached. They are named unlike any column on purpose — the previous
+ * shape carried a `product_id` field that looked writable and was spread
+ * straight into the payload, which Appwrite rejected.
  */
 export interface TransformedOrderItem {
+  line_total: number;
   name: string;
-  product_id: string;
+  /** Join key for the `product` relationship; never written as a column. */
+  productRowId: string;
   quantity: number;
   rowId: string;
-  title: string;
   unit_price: number;
+  /** Join key for the `variation` relationship; null when not a variation. */
+  variationRowId: string | null;
 }
 
 export function transformOrder(
@@ -91,16 +101,21 @@ export function transformOrder(
     };
   }
 
-  const items = order.line_items.map((item) => ({
-    name: item.name,
-    // Flat id retained alongside the `product` relationship the loader
-    // attaches: an order line must survive its product row being deleted.
-    product_id: `wpprod${item.product_id}`,
-    quantity: item.quantity,
-    rowId: `wpitem${item.id}`,
-    title: item.name,
-    unit_price: item.price,
-  }));
+  const items = order.line_items.map((item) => {
+    const lineTotal = Number.parseFloat(item.total || "0");
+    return {
+      line_total: Number.isNaN(lineTotal) ? 0 : lineTotal,
+      // The only human-readable record of what was bought once the `product`
+      // relationship cannot be attached — most of the archive predates the
+      // current catalogue, so this carries the weight there.
+      name: item.name,
+      productRowId: `wpprod${item.product_id}`,
+      quantity: item.quantity,
+      rowId: `wpitem${item.id}`,
+      unit_price: item.price,
+      variationRowId: item.variation_id ? `wpvar${item.variation_id}` : null,
+    };
+  });
 
   const subtotal = order.line_items.reduce(
     (sum, item) => sum + Number.parseFloat(item.total || "0"),

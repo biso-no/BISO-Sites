@@ -9,7 +9,7 @@ const pngResponse = () =>
 
 describe("mirrorImage", () => {
   test("uploads the image and returns the new file id", async () => {
-    const cache = new Map<string, string>();
+    const cache = new Map<string, Promise<string>>();
     const fileId = await mirrorImage(
       {
         cache,
@@ -23,7 +23,7 @@ describe("mirrorImage", () => {
   });
 
   test("does not re-upload a url it has already mirrored", async () => {
-    const cache = new Map<string, string>();
+    const cache = new Map<string, Promise<string>>();
     let uploads = 0;
     const deps = {
       cache,
@@ -51,5 +51,51 @@ describe("mirrorImage", () => {
         "https://biso.no/missing.jpg"
       )
     ).rejects.toThrow("404");
+  });
+});
+
+describe("mirrorImage single-flight", () => {
+  test("uploads once when concurrent products share an image url", async () => {
+    let uploads = 0;
+    const deps = {
+      cache: new Map<string, Promise<string>>(),
+      fetchImpl: async () => {
+        await new Promise((resolve) => setTimeout(resolve, 10));
+        return pngResponse();
+      },
+      upload: () => {
+        uploads += 1;
+        return Promise.resolve({ $id: "file-1" });
+      },
+    };
+
+    // Both start before either finishes — the exact race a resolved-id cache
+    // cannot catch.
+    const ids = await Promise.all([
+      mirrorImage(deps, "https://biso.no/shared.jpg"),
+      mirrorImage(deps, "https://biso.no/shared.jpg"),
+    ]);
+
+    expect(uploads).toBe(1);
+    expect(ids).toEqual(["file-1", "file-1"]);
+  });
+
+  test("evicts a failed download so a later product can retry it", async () => {
+    let attempts = 0;
+    const deps = {
+      cache: new Map<string, Promise<string>>(),
+      fetchImpl: () => {
+        attempts += 1;
+        return Promise.resolve(
+          attempts === 1 ? new Response("", { status: 500 }) : pngResponse()
+        );
+      },
+      upload: async () => ({ $id: "file-2" }),
+    };
+
+    await expect(
+      mirrorImage(deps, "https://biso.no/flaky.jpg")
+    ).rejects.toThrow("500");
+    expect(await mirrorImage(deps, "https://biso.no/flaky.jpg")).toBe("file-2");
   });
 });

@@ -1,7 +1,15 @@
+import { mapWithConcurrency } from "../concurrency";
 import type { FetchLike } from "../types";
 
 const DEFAULT_PER_PAGE = "100";
 const MAX_RETRIES = 3;
+/**
+ * Pages after the first are fetched in parallel. Deliberately modest: biso.no
+ * is production WordPress, and deep WooCommerce pages are expensive queries
+ * (`?page=141` is `OFFSET 14000`), so a wide fan-out buys 429s rather than
+ * speed. Raise it with `--concurrency=N` if the host tolerates more.
+ */
+const DEFAULT_CONCURRENCY = 4;
 /**
  * Per-request ceiling. `fetch` has no default timeout, so without this a
  * WooCommerce request that stalls leaves the whole extract hanging with no
@@ -39,6 +47,8 @@ export type WpProgressEvent =
 
 export interface WpClientOptions {
   baseUrl: string;
+  /** Pages fetched in parallel after page 1. Defaults to DEFAULT_CONCURRENCY. */
+  concurrency?: number;
   /** WooCommerce consumer key — only required for /wc/v3 routes. */
   consumerKey?: string;
   consumerSecret?: string;
@@ -82,6 +92,7 @@ function redactUrl(url: string): string {
 
 export class WpClient {
   private readonly baseUrl: string;
+  private readonly concurrency: number;
   private readonly consumerKey?: string;
   private readonly consumerSecret?: string;
   private readonly fetchImpl: FetchLike;
@@ -90,6 +101,7 @@ export class WpClient {
 
   constructor(options: WpClientOptions) {
     this.baseUrl = options.baseUrl.replace(TRAILING_SLASH_REGEX, "");
+    this.concurrency = options.concurrency ?? DEFAULT_CONCURRENCY;
     this.consumerKey = options.consumerKey;
     this.consumerSecret = options.consumerSecret;
     this.fetchImpl = options.fetchImpl ?? fetch;
@@ -182,39 +194,85 @@ export class WpClient {
     return (await response.json()) as T;
   }
 
+  private async fetchPage<T>(
+    path: string,
+    params: Record<string, string>,
+    page: number
+  ): Promise<{
+    elapsedMs: number;
+    rows: T[];
+    total: number | null;
+    totalPages: number;
+  }> {
+    const url = this.buildUrl(path, {
+      per_page: DEFAULT_PER_PAGE,
+      ...params,
+      page: String(page),
+    });
+    const startedAt = Date.now();
+    const response = await this.request(url, path);
+    const pagesHeader = response.headers.get("X-WP-TotalPages");
+    const totalHeader = response.headers.get("X-WP-Total");
+    const body = (await response.json()) as T[];
+    return {
+      elapsedMs: Date.now() - startedAt,
+      rows: Array.isArray(body) ? body : [],
+      total: totalHeader ? Number.parseInt(totalHeader, 10) || null : null,
+      totalPages: pagesHeader ? Number.parseInt(pagesHeader, 10) || 1 : 1,
+    };
+  }
+
+  /**
+   * Page 1 is fetched alone — `X-WP-TotalPages` is the only way to learn how
+   * many pages exist, so nothing can be fanned out until it lands. Pages
+   * 2..N then run through a bounded pool and are concatenated back in page
+   * order, so the result is identical to the old serial walk.
+   */
   async fetchAllPages<T>(
     path: string,
     params: Record<string, string> = {}
   ): Promise<T[]> {
-    const rows: T[] = [];
-    let page = 1;
-    let totalPages = 1;
+    const first = await this.fetchPage<T>(path, params, 1);
+    // Counts completed records, not the pages requested so far — pages land
+    // out of order now, so this is the only figure that stays monotonic.
+    let received = first.rows.length;
+    this.onProgress?.({
+      elapsedMs: first.elapsedMs,
+      kind: "page",
+      page: 1,
+      path,
+      received,
+      total: first.total,
+      totalPages: first.totalPages,
+    });
 
-    do {
-      const url = this.buildUrl(path, {
-        per_page: DEFAULT_PER_PAGE,
-        ...params,
-        page: String(page),
-      });
-      const startedAt = Date.now();
-      const response = await this.request(url, path);
-      const header = response.headers.get("X-WP-TotalPages");
-      totalPages = header ? Number.parseInt(header, 10) || 1 : 1;
-      const totalHeader = response.headers.get("X-WP-Total");
-      const body = (await response.json()) as T[];
-      rows.push(...(Array.isArray(body) ? body : []));
-      this.onProgress?.({
-        elapsedMs: Date.now() - startedAt,
-        kind: "page",
-        page,
-        path,
-        received: rows.length,
-        total: totalHeader ? Number.parseInt(totalHeader, 10) || null : null,
-        totalPages,
-      });
-      page += 1;
-    } while (page <= totalPages);
+    if (first.totalPages <= 1) {
+      return first.rows;
+    }
 
-    return rows;
+    const remainingPages = Array.from(
+      { length: first.totalPages - 1 },
+      (_, index) => index + 2
+    );
+    const pages = await mapWithConcurrency(
+      remainingPages,
+      this.concurrency,
+      async (page) => {
+        const result = await this.fetchPage<T>(path, params, page);
+        received += result.rows.length;
+        this.onProgress?.({
+          elapsedMs: result.elapsedMs,
+          kind: "page",
+          page,
+          path,
+          received,
+          total: result.total,
+          totalPages: first.totalPages,
+        });
+        return result.rows;
+      }
+    );
+
+    return [...first.rows, ...pages.flat()];
   }
 }

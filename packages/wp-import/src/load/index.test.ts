@@ -3,7 +3,10 @@ import {
   buildJobUpsert,
   buildOrderItemRows,
   buildProductCampusIndex,
+  buildProductUpsert,
   buildTranslationRows,
+  type ExistingTranslation,
+  existingTargetContent,
   resolveOrderCampusId,
   translationKey,
 } from "./index";
@@ -118,7 +121,18 @@ describe("buildTranslationRows", () => {
     const rows = buildTranslationRows({
       contentId: "wpjob1",
       contentType: "job",
-      existingIds: new Map([[translationKey("wpjob2", "no"), "existing-id"]]),
+      existing: new Map([
+        [
+          translationKey("wpjob2", "no"),
+          {
+            $id: "existing-id",
+            description: "<p>a</p>",
+            locale: "no" as const,
+            short_description: null,
+            title: "a",
+          },
+        ],
+      ]),
       permissions: [],
       source: {
         description: "<p>a</p>",
@@ -136,9 +150,27 @@ describe("buildTranslationRows", () => {
     const rows = buildTranslationRows({
       contentId: "wpjob1",
       contentType: "job",
-      existingIds: new Map([
-        [translationKey("wpjob1", "no"), "row-no"],
-        [translationKey("wpjob1", "en"), "row-en"],
+      existing: new Map([
+        [
+          translationKey("wpjob1", "no"),
+          {
+            $id: "row-no",
+            description: "<p>a</p>",
+            locale: "no" as const,
+            short_description: null,
+            title: "a",
+          },
+        ],
+        [
+          translationKey("wpjob1", "en"),
+          {
+            $id: "row-en",
+            description: "<p>b</p>",
+            locale: "en" as const,
+            short_description: null,
+            title: "b",
+          },
+        ],
       ]),
       permissions: [],
       source: {
@@ -178,25 +210,30 @@ describe("buildProductCampusIndex", () => {
   });
 });
 
-const orderItem = (productId: string, rowId = "wpitem1") => ({
+const orderItem = (
+  productRowId: string,
+  rowId = "wpitem1",
+  variationRowId: string | null = null
+) => ({
+  line_total: 250,
   name: "Booklocker",
-  product_id: productId,
+  productRowId,
   quantity: 1,
   rowId,
-  title: "Booklocker",
   unit_price: 250,
+  variationRowId,
 });
 
 describe("resolveOrderCampusId", () => {
   const campusByRowId = new Map([["wpprod37313", "1"]]);
 
-  test("resolves the campus from the first line item whose product_id matches", () => {
+  test("resolves the campus from the first line item whose product matches", () => {
     expect(
       resolveOrderCampusId([orderItem("wpprod37313")], campusByRowId)
     ).toBe("1");
   });
 
-  test("skips a line item whose product_id does not resolve and tries the next", () => {
+  test("skips a line item whose product does not resolve and tries the next", () => {
     expect(
       resolveOrderCampusId(
         [
@@ -221,11 +258,13 @@ describe("resolveOrderCampusId", () => {
 
 describe("buildOrderItemRows", () => {
   const permissions = ['read("user:abc")'];
+  const noVariations = new Set<string>();
 
   test("moves rowId into $id and carries the parent permissions", () => {
     const [row] = buildOrderItemRows(
       [orderItem("wpprod37313", "wpitem987")],
       new Set(["wpprod37313"]),
+      noVariations,
       permissions
     );
 
@@ -234,29 +273,78 @@ describe("buildOrderItemRows", () => {
     expect(row?.rowId).toBeUndefined();
     expect(row?.name).toBe("Booklocker");
     expect(row?.unit_price).toBe(250);
+    expect(row?.line_total).toBe(250);
+  });
+
+  test("writes only real order_items columns, never the join keys", () => {
+    // The whole 14k-order archive failed on "Unknown attribute: product_id"
+    // because the transformed shape was spread wholesale into the payload.
+    const [row] = buildOrderItemRows(
+      [orderItem("wpprod37313", "wpitem987", "wpvar63469")],
+      new Set(["wpprod37313"]),
+      new Set(["wpvar63469"]),
+      permissions
+    );
+
+    expect([...Object.keys(row ?? {})].sort()).toEqual([
+      "$id",
+      "$permissions",
+      "line_total",
+      "name",
+      "product",
+      "quantity",
+      "unit_price",
+      "variation",
+    ]);
   });
 
   test("links the product relationship when that product is being imported", () => {
     const [row] = buildOrderItemRows(
       [orderItem("wpprod37313")],
       new Set(["wpprod37313"]),
+      noVariations,
       permissions
     );
 
     expect(row?.product).toBe("wpprod37313");
-    expect(row?.product_id).toBe("wpprod37313");
   });
 
   test("omits the relationship for a product that is not being imported, since Appwrite rejects a dangling relationship", () => {
     const [row] = buildOrderItemRows(
       [orderItem("wpprod-rejected")],
       new Set(["wpprod37313"]),
+      noVariations,
       permissions
     );
 
     expect("product" in (row ?? {})).toBe(false);
     // The line still records what was bought.
-    expect(row?.product_id).toBe("wpprod-rejected");
+    expect(row?.name).toBe("Booklocker");
+  });
+
+  test("omits the variation relationship when the collapsed pair kept the other half", () => {
+    // WooCommerce names the member variation (63465); buildVariations keeps
+    // only the non-member anchor (63469), so this must stay unlinked.
+    const [row] = buildOrderItemRows(
+      [orderItem("wpprod37313", "wpitem1", "wpvar63465")],
+      new Set(["wpprod37313"]),
+      new Set(["wpvar63469"]),
+      permissions
+    );
+
+    expect("variation" in (row ?? {})).toBe(false);
+    expect(row?.product).toBe("wpprod37313");
+  });
+
+  test("omits the variation relationship for a non-variation line", () => {
+    const [row] = buildOrderItemRows(
+      [orderItem("wpprod37313", "wpitem1", null)],
+      new Set(["wpprod37313"]),
+      new Set(["wpvar63469"]),
+      permissions
+    );
+
+    expect("variation" in (row ?? {})).toBe(false);
   });
 });
 
@@ -313,5 +401,100 @@ describe("buildJobUpsert", () => {
     );
 
     expect(payload.$permissions).not.toContain('read("any")');
+  });
+});
+
+describe("existingTargetContent", () => {
+  const englishRow: ExistingTranslation = {
+    $id: "row-en",
+    description: "<p>already translated</p>",
+    locale: "en",
+    short_description: "summary",
+    title: "Translated title",
+  };
+
+  test("returns the stored text so a resumed run can skip the OpenAI call", () => {
+    const content = existingTargetContent(
+      new Map([[translationKey("wpjob1", "en"), englishRow]]),
+      "wpjob1",
+      "en"
+    );
+
+    expect(content).toEqual({
+      description: "<p>already translated</p>",
+      locale: "en",
+      shortDescription: "summary",
+      title: "Translated title",
+    });
+  });
+
+  test("returns null when only the other locale exists, so the target still gets generated", () => {
+    expect(
+      existingTargetContent(
+        new Map([[translationKey("wpjob1", "no"), englishRow]]),
+        "wpjob1",
+        "en"
+      )
+    ).toBeNull();
+  });
+
+  test("returns null for a different content id", () => {
+    expect(
+      existingTargetContent(
+        new Map([[translationKey("wpjob2", "en"), englishRow]]),
+        "wpjob1",
+        "en"
+      )
+    ).toBeNull();
+  });
+
+  test("returns null when no translations have been loaded at all", () => {
+    expect(existingTargetContent(undefined, "wpjob1", "en")).toBeNull();
+  });
+});
+
+describe("buildProductUpsert variations", () => {
+  const variations = [
+    {
+      row: { member_price: 500, name: "A year", regular_price: 1500 },
+      rowId: "wpvar63469",
+    },
+  ];
+
+  test("nests variations as children keyed by their deterministic row id", () => {
+    const upsert = buildProductUpsert(
+      { row: { status: "published" }, rowId: "wpprod37313", variations },
+      []
+    );
+
+    expect(upsert.variations).toEqual([
+      {
+        $id: "wpvar63469",
+        $permissions: ['read("any")'],
+        member_price: 500,
+        name: "A year",
+        regular_price: 1500,
+      },
+    ]);
+  });
+
+  test("gives children the parent's permissions, so a draft product's variations stay private", () => {
+    const upsert = buildProductUpsert(
+      { row: { status: "draft" }, rowId: "wpprod37313", variations },
+      []
+    );
+
+    expect(
+      (upsert.variations as Record<string, unknown>[])[0]?.$permissions
+    ).toEqual([]);
+  });
+
+  test("writes an empty variations array for a simple product, detaching any stale children", () => {
+    const upsert = buildProductUpsert(
+      { row: { status: "published" }, rowId: "wpprod1" },
+      []
+    );
+
+    expect(upsert.variations).toEqual([]);
   });
 });

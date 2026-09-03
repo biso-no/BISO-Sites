@@ -160,6 +160,11 @@ export async function translateFields({
 
   const { object } = await generateObject({
     model: openai("gpt-5-nano"),
+    // Translation is mechanical: there is nothing to reason about, and the
+    // default effort makes gpt-5-nano deliberate over every row's HTML body
+    // before emitting a single token. Latency here is multiplied by the whole
+    // catalogue, so the default is the single most expensive line in the load.
+    providerOptions: { openai: { reasoningEffort: "low" } },
     prompt: [
       `Translate the following ${contentType} fields from ${LANGUAGE_NAMES[sourceLocale]} to ${LANGUAGE_NAMES[targetLocale]}.`,
       "Preserve the HTML structure exactly: keep every <p>, <h3>, <ul> and <li> tag and their order.",
