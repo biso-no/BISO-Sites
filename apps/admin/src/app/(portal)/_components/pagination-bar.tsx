@@ -13,9 +13,19 @@ interface PaginationBarProps {
   /**
    * Real page size the surface is paging by. `PageSize` (25|50|100) can't
    * express legacy surfaces still paging by 20, so this accepts any number —
-   * the size picker only renders when the value is one of `PAGE_SIZES`.
+   * the size picker only renders when `sizeSelectable` is true.
    */
   size?: number;
+  /**
+   * Whether the surface's server action actually reads `?size=` and honours
+   * it. This must be explicit, not inferred from `size`'s value — a legacy
+   * surface can coincidentally page by a number that's also in `PAGE_SIZES`
+   * (e.g. Documents pages by 25) while its action still ignores the query
+   * param, which would render a picker that changes the URL but not the
+   * results. Defaults to `false`; opt in per surface once its action wires
+   * up `?size=`.
+   */
+  sizeSelectable?: boolean;
   total: number;
 }
 
@@ -24,13 +34,13 @@ export function PaginationBar({
   page,
   size = DEFAULT_PAGE_SIZE,
   pageKey = "page",
+  sizeSelectable = false,
 }: PaginationBarProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const t = useTranslations("adminPortal.common.pagination");
   const totalPages = Math.max(1, Math.ceil(total / size));
-  const canChangeSize = (PAGE_SIZES as readonly number[]).includes(size);
 
   const push = useCallback(
     (mutate: (params: URLSearchParams) => void) => {
@@ -110,7 +120,7 @@ export function PaginationBar({
           {t("summary", { page, pages: totalPages, total })}
         </p>
 
-        {canChangeSize && (
+        {sizeSelectable && (
           <label
             className="flex items-center gap-1.5 text-xs"
             style={{ color: "rgba(255,255,255,0.30)" }}
