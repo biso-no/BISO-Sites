@@ -50,9 +50,8 @@ export const clientSideClient = new Client()
   .setEndpoint(APPWRITE_ENDPOINT)
   .setProject(APPWRITE_PROJECT);
 
-  
+
 export const clientDatabase = new Databases(clientSideClient);
 export const clientStorage = new Storage(clientSideClient);
-
 export const clientAccount = new Account(clientSideClient);
 export const clientFunctions = new Functions(clientSideClient);

@@ -154,7 +154,7 @@ jobs:
             if [[ "$count" == "0" ]]; then
               echo "No deployable applications were affected."
             else
-              echo "$apps" | jq -r '.[] | "- `\(.id)` (`\(.package)`)'
+              echo "$apps" | jq -r '.[] | "- `\(.id)` (`\(.package)`)"'
             fi
           } >> "$GITHUB_STEP_SUMMARY"
 
