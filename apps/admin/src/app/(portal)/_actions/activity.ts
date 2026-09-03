@@ -8,8 +8,8 @@ import {
   emptyResult,
   type ListParams,
   type PaginatedResult,
-  paginationQueries,
 } from "@/lib/list-params";
+import { paginationQueries } from "@/lib/list-queries";
 
 export async function listActivityLog(
   // `params.q` is intentionally ignored: search is not implemented for the

@@ -24,8 +24,8 @@ import {
   emptyResult,
   type ListParams,
   type PaginatedResult,
-  paginationQueries,
 } from "@/lib/list-params";
+import { paginationQueries } from "@/lib/list-queries";
 import { buildContentTranslationPermissions } from "@/lib/utils";
 import { logAuditEvent } from "./audit-log";
 

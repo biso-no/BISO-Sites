@@ -36,8 +36,8 @@ import {
   emptyResult,
   type ListParams,
   type PaginatedResult,
-  paginationQueries,
 } from "@/lib/list-params";
+import { paginationQueries } from "@/lib/list-queries";
 import { assertPublishAccess } from "@/lib/utils/authorization";
 import {
   type ApprovalPublishPlan,

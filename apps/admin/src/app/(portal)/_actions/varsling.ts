@@ -10,8 +10,8 @@ import {
   emptyResult,
   type ListParams,
   type PaginatedResult,
-  paginationQueries,
 } from "@/lib/list-params";
+import { paginationQueries } from "@/lib/list-queries";
 import { hasNavAccess } from "@/lib/roles";
 import { logAuditEvent } from "./audit-log";
 

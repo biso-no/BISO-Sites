@@ -27,11 +27,8 @@ import {
   scheduleContentTranslation,
   translateContentFields,
 } from "@/lib/content-translation.server";
-import {
-  type ListParams,
-  type PaginatedResult,
-  paginationQueries,
-} from "@/lib/list-params";
+import type { ListParams, PaginatedResult } from "@/lib/list-params";
+import { paginationQueries } from "@/lib/list-queries";
 import { loadRecruitmentLookups } from "@/lib/recruitment";
 import {
   buildContentRowPermissions,

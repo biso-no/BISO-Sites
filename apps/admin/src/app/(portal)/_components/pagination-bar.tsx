@@ -9,6 +9,7 @@ import {
   lastReachablePage,
   PAGE_SIZES,
 } from "@/lib/list-params";
+import { STUDIO } from "./studio";
 
 interface PaginationBarProps {
   page: number;
@@ -121,25 +122,26 @@ export function PaginationBar({
   return (
     <div
       className="mt-6 flex flex-wrap items-center justify-between gap-3 pt-4"
-      style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}
+      style={{ borderTop: `1px solid ${STUDIO.rule}` }}
     >
       <div className="flex items-center gap-3">
-        <p className="text-xs" style={{ color: "rgba(255,255,255,0.30)" }}>
+        <p className="text-xs" style={{ color: STUDIO.ink3 }}>
           {t("summary", { page, pages: totalPages, total })}
         </p>
 
         {sizeSelectable && (
           <label
             className="flex items-center gap-1.5 text-xs"
-            style={{ color: "rgba(255,255,255,0.30)" }}
+            style={{ color: STUDIO.ink3 }}
           >
             {t("perPage")}
             <select
               className="rounded-lg px-2 py-1 text-xs outline-none"
               onChange={(e) => changeSize(Number(e.target.value))}
               style={{
-                background: "rgba(255,255,255,0.04)",
-                color: "rgba(255,255,255,0.60)",
+                background: STUDIO.white,
+                border: `0.5px solid ${STUDIO.rule2}`,
+                color: STUDIO.ink2,
               }}
               value={size}
             >
@@ -161,9 +163,9 @@ export function PaginationBar({
             disabled={page <= 1}
             onClick={() => goToPage(page - 1)}
             style={{
-              background: "rgba(255,255,255,0.04)",
-              color:
-                page <= 1 ? "rgba(255,255,255,0.20)" : "rgba(255,255,255,0.60)",
+              background: STUDIO.paper2,
+              border: `0.5px solid ${STUDIO.rule2}`,
+              color: page <= 1 ? STUDIO.ink4 : STUDIO.ink2,
               cursor: page <= 1 ? "not-allowed" : "pointer",
             }}
             type="button"
@@ -176,7 +178,7 @@ export function PaginationBar({
               <span
                 className="flex h-8 w-8 items-center justify-center text-xs"
                 key={`ellipsis-${i}`}
-                style={{ color: "rgba(255,255,255,0.25)" }}
+                style={{ color: STUDIO.ink4 }}
               >
                 …
               </span>
@@ -188,10 +190,11 @@ export function PaginationBar({
                 onClick={() => goToPage(p as number)}
                 style={
                   p === page
-                    ? { background: "#3DA9E0", color: "#001731" }
+                    ? { background: STUDIO.ink, color: STUDIO.white }
                     : {
-                        background: "rgba(255,255,255,0.04)",
-                        color: "rgba(255,255,255,0.60)",
+                        background: STUDIO.paper2,
+                        border: `0.5px solid ${STUDIO.rule2}`,
+                        color: STUDIO.ink2,
                       }
                 }
                 type="button"
@@ -207,11 +210,9 @@ export function PaginationBar({
             disabled={page >= totalPages}
             onClick={() => goToPage(page + 1)}
             style={{
-              background: "rgba(255,255,255,0.04)",
-              color:
-                page >= totalPages
-                  ? "rgba(255,255,255,0.20)"
-                  : "rgba(255,255,255,0.60)",
+              background: STUDIO.paper2,
+              border: `0.5px solid ${STUDIO.rule2}`,
+              color: page >= totalPages ? STUDIO.ink4 : STUDIO.ink2,
               cursor: page >= totalPages ? "not-allowed" : "pointer",
             }}
             type="button"

@@ -5,9 +5,9 @@ import {
   emptyResult,
   firstParam,
   MAX_OFFSET,
-  paginationQueries,
   parseListParams,
 } from "./list-params";
+import { paginationQueries } from "./list-queries";
 
 describe("parseListParams", () => {
   test("defaults when nothing is supplied", () => {

@@ -1,5 +1,11 @@
-import { Query } from "@repo/api";
-
+/**
+ * Pure, dependency-free list params. This module is imported by CLIENT
+ * components (`PaginationBar`, `useListParams`), so it must NEVER import
+ * `@repo/api` or anything that reaches `node-appwrite` — doing so drags the
+ * server SDK (and `undici` -> `node:net`) into the browser bundle and breaks
+ * every page that renders a pagination bar at dev runtime. The Appwrite
+ * query builders live in `./list-queries` instead.
+ */
 export const PAGE_SIZES = [25, 50, 100] as const;
 export type PageSize = (typeof PAGE_SIZES)[number];
 export const DEFAULT_PAGE_SIZE: PageSize = 25;
@@ -70,15 +76,6 @@ export function lastReachablePage(total: number, size: number): number {
   const byTotal = Math.max(1, Math.ceil(total / size));
   const byOffset = Math.floor(MAX_OFFSET / size) + 1;
   return Math.min(byTotal, byOffset);
-}
-
-export function paginationQueries(params: ListParams): string[] {
-  // This clamp is what guarantees Appwrite is never asked for an offset it
-  // rejects, even from a stale bookmark or a hand-typed `?page=`.
-  // `lastReachablePage` (used by `PaginationBar`) is the other half: it stops
-  // an unreachable page from being offered as a link in the first place.
-  const offset = Math.min((params.page - 1) * params.size, MAX_OFFSET);
-  return [Query.limit(params.size), Query.offset(offset)];
 }
 
 /** Short-circuit for actions that can prove the result is empty. */
