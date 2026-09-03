@@ -54,4 +54,5 @@ export const clientSideClient = new Client()
 export const clientDatabase = new Databases(clientSideClient);
 export const clientStorage = new Storage(clientSideClient);
 export const clientAccount = new Account(clientSideClient);
+
 export const clientFunctions = new Functions(clientSideClient);
