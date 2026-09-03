@@ -1,27 +1,57 @@
 name: Deploy affected apps
 
-# Deploy model: source-deploy with build-on-platform.
-# Appwrite builds the uploaded source archive on its infrastructure using the
-# install and build commands configured per site. CI is responsible for:
-#   1. Detecting which apps changed using Turbo's affected-package graph, and
-#   2. Running deploy-blocking lint gates for those apps and type-check gates
-#      for those apps plus their internal workspace dependencies.
-#   3. Uploading the full monorepo source for those apps to Appwrite.
-# Appwrite then runs `bun install` + the app's build command on its side.
-# This model is intentional: we do NOT run `turbo run build` in CI here.
+# Deployment model:
+#
+# Pull request:
+#   1. Detect affected apps with Turbo.
+#   2. Lint/type-check them.
+#   3. Ask Appwrite to build the exact PR commit through its VCS integration.
+#   4. Wait for the Appwrite build.
+#   5. Leave the deployment inactive as a preview.
+#
+# Push to main:
+#   1. Detect affected apps with Turbo.
+#   2. Lint/type-check them.
+#   3. Ask Appwrite to build the exact pushed commit through its VCS integration.
+#   4. Wait for the Appwrite build.
+#   5. Verify that the commit is still the latest main commit.
+#   6. Activate the deployment.
+#
+# Appwrite remains responsible for installing dependencies and building the site.
+# GitHub Actions is the deployment authority and quality gate.
 
 on:
   push:
     branches:
       - main
 
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+
+permissions:
+  contents: read
+
+# Only one production deployment pipeline should be active at a time.
+# Each PR gets its own independent concurrency group.
 concurrency:
-  group: deploy-production
+  group: deploy-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || 'production' }}
   cancel-in-progress: true
+
+env:
+  # Appwrite 2.0 RC-compatible SDK.
+  # Update this when upgrading Appwrite to a newer stable release.
+  APPWRITE_SDK_VERSION: 29.0.0-rc.1
 
 jobs:
   discover:
+    name: Detect affected apps
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+
     outputs:
       apps: ${{ steps.affected.outputs.apps }}
       count: ${{ steps.affected.outputs.count }}
@@ -30,13 +60,23 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
+          # For PRs, explicitly checkout the PR head rather than GitHub's
+          # synthetic merge commit.
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
 
+      - name: Cache Bun packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock', 'bun.lockb') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
+
       - name: Install dependencies
-        # Required so Turbo can resolve the workspace graph for affected detection.
         run: bun install --frozen-lockfile
 
       - name: Find affected apps
@@ -45,74 +85,173 @@ jobs:
         run: |
           set -euo pipefail
 
-          BASE_SHA="${{ github.event.before }}"
-          HEAD_SHA="${{ github.sha }}"
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            BASE_SHA="${{ github.event.pull_request.base.sha }}"
+            HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+          else
+            BASE_SHA="${{ github.event.before }}"
+            HEAD_SHA="${{ github.sha }}"
 
-          # On an initial push or force-push the before SHA is the null SHA.
-          # Fall back to the previous commit so we get a non-empty diff.
-          NULL_SHA="0000000000000000000000000000000000000000"
-          if [ "$BASE_SHA" = "$NULL_SHA" ] || [ -z "$BASE_SHA" ]; then
-            BASE_SHA="$(git rev-parse HEAD~1 2>/dev/null || echo "$HEAD_SHA")"
+            NULL_SHA="0000000000000000000000000000000000000000"
+
+            # Initial pushes / force pushes can have a null before SHA.
+            if [[ "$BASE_SHA" == "$NULL_SHA" || -z "$BASE_SHA" ]]; then
+              BASE_SHA="$(git rev-parse "${HEAD_SHA}~1" 2>/dev/null || echo "$HEAD_SHA")"
+            fi
           fi
 
-          echo "Comparing $BASE_SHA..$HEAD_SHA"
+          echo "Comparing:"
+          echo "  base: $BASE_SHA"
+          echo "  head: $HEAD_SHA"
 
-          result=$(bunx turbo query affected \
-            --base="$BASE_SHA" \
-            --head="$HEAD_SHA" \
-            --packages)
+          result="$(
+            bunx turbo query affected \
+              --base="$BASE_SHA" \
+              --head="$HEAD_SHA" \
+              --packages
+          )"
 
           echo "$result"
 
-          apps=$(echo "$result" | jq -c '
-            [
-              .data.affectedPackages.items[]
-              | select(.path | startswith("apps/"))
-              | .name
-            ]
-          ')
+          # Only these applications are deployable.
+          #
+          # Keep both:
+          #   id      = folder/site identifier
+          #   package = actual Turbo package name
+          #
+          # This means package names can later become namespaced without
+          # breaking the Appwrite site mapping.
+          apps="$(
+            echo "$result" | jq -c '
+              [
+                .data.affectedPackages.items[]
+                | select(
+                    .path == "apps/admin" or
+                    .path == "apps/api" or
+                    .path == "apps/docs" or
+                    .path == "apps/web"
+                  )
+                | {
+                    id: (.path | split("/")[-1]),
+                    package: .name
+                  }
+              ]
+              | unique_by(.id)
+            '
+          )"
 
-          count=$(echo "$apps" | jq 'length')
+          count="$(echo "$apps" | jq 'length')"
+
+          echo "Affected deployable apps:"
+          echo "$apps" | jq
 
           echo "apps=$apps" >> "$GITHUB_OUTPUT"
           echo "count=$count" >> "$GITHUB_OUTPUT"
 
+          {
+            echo "### Affected applications"
+            echo
+            if [[ "$count" == "0" ]]; then
+              echo "No deployable applications were affected."
+            else
+              echo "$apps" | jq -r '.[] | "- `\(.id)` (`\(.package)`)'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
   quality-gate:
+    name: Quality gate
     needs: discover
     if: needs.discover.outputs.count != '0'
+
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        app: ${{ fromJson(needs.discover.outputs.apps) }}
+    timeout-minutes: 20
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
+
+      - name: Cache Bun packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock', 'bun.lockb') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Lint affected app
-        run: bunx turbo run lint --filter="${{ matrix.app }}"
+      - name: Lint affected apps
+        env:
+          AFFECTED_APPS: ${{ needs.discover.outputs.apps }}
+        shell: bash
+        run: |
+          set -euo pipefail
 
-      - name: Type-check affected app and dependencies
-        run: bunx turbo run check-types --filter="${{ matrix.app }}..."
+          mapfile -t packages < <(
+            echo "$AFFECTED_APPS" | jq -r '.[].package'
+          )
+
+          filters=()
+
+          for package in "${packages[@]}"; do
+            filters+=(--filter="$package")
+          done
+
+          bunx turbo run lint "${filters[@]}"
+
+      - name: Type-check affected apps and dependencies
+        env:
+          AFFECTED_APPS: ${{ needs.discover.outputs.apps }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mapfile -t packages < <(
+            echo "$AFFECTED_APPS" | jq -r '.[].package'
+          )
+
+          filters=()
+
+          for package in "${packages[@]}"; do
+            filters+=(--filter="${package}...")
+          done
+
+          bunx turbo run check-types "${filters[@]}"
 
   deploy:
+    name: Deploy ${{ matrix.app.id }}
     needs:
       - discover
       - quality-gate
-    if: needs.discover.outputs.count != '0'
+
+    # Fork PRs are deliberately allowed to run the quality gate but are not
+    # allowed to receive Appwrite credentials or trigger deployments.
+    #
+    # Draft PRs are also validated, but previews are only built once the PR
+    # becomes ready for review.
+    if: >-
+      needs.discover.outputs.count != '0' &&
+      (
+        github.event_name != 'pull_request' ||
+        (
+          github.event.pull_request.head.repo.full_name == github.repository &&
+          github.event.pull_request.draft == false
+        )
+      )
+
     runs-on: ubuntu-latest
+    timeout-minutes: 45
+
     environment:
-      name: Production
-      url: https://${{ matrix.app }}.biso.no
+      name: ${{ github.event_name == 'push' && 'Production' || 'Preview' }}
+
     strategy:
       fail-fast: false
       matrix:
@@ -122,13 +261,14 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
 
-      - name: Resolve Appwrite site ID
-        id: site
+      - name: Resolve deployment metadata
+        id: metadata
         shell: bash
         env:
           ADMIN_SITE_ID: ${{ vars.ADMIN_SITE_ID }}
@@ -138,46 +278,372 @@ jobs:
         run: |
           set -euo pipefail
 
-          case "${{ matrix.app }}" in
-            admin) echo "site_id=${ADMIN_SITE_ID}" >> "$GITHUB_OUTPUT" ;;
-            api)   echo "site_id=${API_SITE_ID}" >> "$GITHUB_OUTPUT" ;;
-            docs)  echo "site_id=${DOCS_SITE_ID}" >> "$GITHUB_OUTPUT" ;;
-            web)   echo "site_id=${WEB_SITE_ID}" >> "$GITHUB_OUTPUT" ;;
+          case "${{ matrix.app.id }}" in
+            admin)
+              SITE_ID="$ADMIN_SITE_ID"
+              ;;
+            api)
+              SITE_ID="$API_SITE_ID"
+              ;;
+            docs)
+              SITE_ID="$DOCS_SITE_ID"
+              ;;
+            web)
+              SITE_ID="$WEB_SITE_ID"
+              ;;
             *)
-              echo "Unknown app: ${{ matrix.app }}"
+              echo "::error::Unknown deployable app: ${{ matrix.app.id }}"
               exit 1
               ;;
           esac
 
-      - name: Create source archive
-        # The full monorepo source is uploaded so Appwrite can resolve workspace
-        # packages during its on-platform bun install + build step.
-        # .git, node_modules, build artifacts, and Turbo caches are excluded.
-        run: |
-          tar \
-            --exclude=.git \
-            --exclude=node_modules \
-            --exclude='**/node_modules' \
-            --exclude=.next \
-            --exclude='**/.next' \
-            --exclude=dist \
-            --exclude='**/dist' \
-            --exclude=.turbo \
-            --exclude='**/.turbo' \
-            --exclude=.vercel \
-            --exclude='**/.vercel' \
-            -czf /tmp/repo.tar.gz .
+          if [[ -z "$SITE_ID" ]]; then
+            echo "::error::Appwrite site ID is empty for ${{ matrix.app.id }}"
+            exit 1
+          fi
 
-      - name: Upload deployment to Appwrite
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            TARGET_SHA="${{ github.event.pull_request.head.sha }}"
+            DEPLOYMENT_TYPE="preview"
+          else
+            TARGET_SHA="${{ github.sha }}"
+            DEPLOYMENT_TYPE="production"
+          fi
+
+          echo "site_id=$SITE_ID" >> "$GITHUB_OUTPUT"
+          echo "target_sha=$TARGET_SHA" >> "$GITHUB_OUTPUT"
+          echo "deployment_type=$DEPLOYMENT_TYPE" >> "$GITHUB_OUTPUT"
+
+          echo "App:             ${{ matrix.app.id }}"
+          echo "Package:         ${{ matrix.app.package }}"
+          echo "Site ID:         $SITE_ID"
+          echo "Commit:          $TARGET_SHA"
+          echo "Deployment type: $DEPLOYMENT_TYPE"
+
+      - name: Prepare Appwrite SDK
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mkdir -p /tmp/appwrite-ci
+          cd /tmp/appwrite-ci
+
+          cat > package.json <<'EOF'
+          {
+            "private": true,
+            "type": "module"
+          }
+          EOF
+
+          bun add --exact "node-appwrite@${APPWRITE_SDK_VERSION}" --silent
+
+      - name: Create Appwrite deployment and wait for build
+        id: appwrite
+        shell: bash
         env:
           APPWRITE_ENDPOINT: ${{ vars.APPWRITE_ENDPOINT }}
           APPWRITE_PROJECT_ID: ${{ vars.APPWRITE_PROJECT_ID }}
           APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
-          SITE_ID: ${{ steps.site.outputs.site_id }}
+
+          SITE_ID: ${{ steps.metadata.outputs.site_id }}
+          TARGET_SHA: ${{ steps.metadata.outputs.target_sha }}
+
+          # This is intentionally longer than the normal Appwrite build
+          # duration. GitHub should fail rather than wait forever.
+          DEPLOYMENT_TIMEOUT_SECONDS: "1800"
         run: |
-          curl --fail-with-body \
-            -X POST "${APPWRITE_ENDPOINT%/}/sites/${SITE_ID}/deployments" \
-            -H "X-Appwrite-Project: ${APPWRITE_PROJECT_ID}" \
-            -H "X-Appwrite-Key: ${APPWRITE_API_KEY}" \
-            -F "code=@/tmp/repo.tar.gz;type=application/gzip" \
-            -F "activate=true"
+          set -euo pipefail
+
+          cd /tmp/appwrite-ci
+
+          cat > deploy.mjs <<'EOF'
+          import {
+            Client,
+            Sites,
+            VCSReferenceType,
+          } from "node-appwrite";
+
+          import {
+            appendFileSync,
+          } from "node:fs";
+
+          function required(name) {
+            const value = process.env[name];
+
+            if (!value) {
+              throw new Error(`Missing required environment variable: ${name}`);
+            }
+
+            return value;
+          }
+
+          const endpoint = required("APPWRITE_ENDPOINT").replace(/\/+$/, "");
+          const projectId = required("APPWRITE_PROJECT_ID");
+          const apiKey = required("APPWRITE_API_KEY");
+          const siteId = required("SITE_ID");
+          const targetSha = required("TARGET_SHA");
+          const githubOutput = required("GITHUB_OUTPUT");
+
+          const timeoutSeconds = Number(
+            process.env.DEPLOYMENT_TIMEOUT_SECONDS ?? "1800"
+          );
+
+          const pollIntervalMs = 5000;
+          const deadline = Date.now() + timeoutSeconds * 1000;
+
+          const client = new Client()
+            .setEndpoint(endpoint)
+            .setProject(projectId)
+            .setKey(apiKey);
+
+          const sites = new Sites(client);
+
+          console.log(`Creating Appwrite deployment for commit ${targetSha}...`);
+
+          // Always create inactive.
+          //
+          // PRs stay inactive permanently.
+          // main is explicitly activated later, after:
+          //   - build success
+          //   - stale-commit protection
+          const created = await sites.createVcsDeployment({
+            siteId,
+            type: VCSReferenceType.Commit,
+            reference: targetSha,
+            activate: false,
+          });
+
+          const deploymentId = created.$id;
+
+          appendFileSync(
+            githubOutput,
+            `deployment_id=${deploymentId}\n`,
+          );
+
+          console.log(`Deployment created: ${deploymentId}`);
+
+          const terminalStatuses = new Set([
+            "ready",
+            "failed",
+            "canceled",
+          ]);
+
+          let deployment = created;
+          let previousStatus = "";
+          let consecutiveErrors = 0;
+
+          while (!terminalStatuses.has(deployment.status)) {
+            if (deployment.status !== previousStatus) {
+              console.log(`Status: ${deployment.status}`);
+              previousStatus = deployment.status;
+            }
+
+            if (Date.now() >= deadline) {
+              throw new Error(
+                `Timed out after ${timeoutSeconds}s waiting for deployment ${deploymentId}`
+              );
+            }
+
+            await new Promise((resolve) =>
+              setTimeout(resolve, pollIntervalMs)
+            );
+
+            try {
+              deployment = await sites.getDeployment({
+                siteId,
+                deploymentId,
+              });
+
+              consecutiveErrors = 0;
+            } catch (error) {
+              consecutiveErrors++;
+
+              console.warn(
+                `Failed to poll deployment (${consecutiveErrors}/5):`,
+                error?.message ?? error
+              );
+
+              if (consecutiveErrors >= 5) {
+                throw error;
+              }
+            }
+          }
+
+          console.log(`Final status: ${deployment.status}`);
+
+          appendFileSync(
+            githubOutput,
+            `status=${deployment.status}\n`,
+          );
+
+          if (deployment.status !== "ready") {
+            if (deployment.buildLogs) {
+              console.error("");
+              console.error("----- Appwrite build logs -----");
+              console.error(deployment.buildLogs);
+              console.error("----- End build logs -----");
+            }
+
+            throw new Error(
+              `Appwrite deployment ${deploymentId} finished with status "${deployment.status}"`
+            );
+          }
+
+          console.log(
+            `Deployment ${deploymentId} is ready after ${deployment.buildDuration ?? "?"}s`
+          );
+          EOF
+
+          bun deploy.mjs
+
+      # Concurrency cancellation stops GitHub Actions, but it does NOT cancel a
+      # build that Appwrite has already accepted.
+      #
+      # Since every deployment is initially inactive, an old build cannot
+      # affect production. This extra check protects against an older workflow
+      # reaching activation after a newer commit has already landed.
+      - name: Confirm production commit is still current
+        if: github.event_name == 'push'
+        id: freshness
+        shell: bash
+        env:
+          TARGET_SHA: ${{ steps.metadata.outputs.target_sha }}
+        run: |
+          set -euo pipefail
+
+          LATEST_MAIN_SHA="$(
+            git ls-remote origin refs/heads/main |
+              awk '{print $1}'
+          )"
+
+          if [[ -z "$LATEST_MAIN_SHA" ]]; then
+            echo "::error::Could not resolve the latest main commit."
+            exit 1
+          fi
+
+          echo "Built commit:  $TARGET_SHA"
+          echo "Current main:  $LATEST_MAIN_SHA"
+
+          if [[ "$TARGET_SHA" == "$LATEST_MAIN_SHA" ]]; then
+            echo "activate=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "activate=false" >> "$GITHUB_OUTPUT"
+
+            echo "::notice::A newer main commit exists. Deployment will remain inactive."
+          fi
+
+      - name: Activate production deployment
+        id: activate
+        if: >-
+          github.event_name == 'push' &&
+          steps.freshness.outputs.activate == 'true'
+        shell: bash
+        env:
+          APPWRITE_ENDPOINT: ${{ vars.APPWRITE_ENDPOINT }}
+          APPWRITE_PROJECT_ID: ${{ vars.APPWRITE_PROJECT_ID }}
+          APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
+
+          SITE_ID: ${{ steps.metadata.outputs.site_id }}
+          DEPLOYMENT_ID: ${{ steps.appwrite.outputs.deployment_id }}
+        run: |
+          set -euo pipefail
+
+          cd /tmp/appwrite-ci
+
+          cat > activate.mjs <<'EOF'
+          import {
+            Client,
+            Sites,
+          } from "node-appwrite";
+
+          function required(name) {
+            const value = process.env[name];
+
+            if (!value) {
+              throw new Error(`Missing required environment variable: ${name}`);
+            }
+
+            return value;
+          }
+
+          const endpoint = required("APPWRITE_ENDPOINT").replace(/\/+$/, "");
+          const projectId = required("APPWRITE_PROJECT_ID");
+          const apiKey = required("APPWRITE_API_KEY");
+          const siteId = required("SITE_ID");
+          const deploymentId = required("DEPLOYMENT_ID");
+
+          const client = new Client()
+            .setEndpoint(endpoint)
+            .setProject(projectId)
+            .setKey(apiKey);
+
+          const sites = new Sites(client);
+
+          // Defensive check: never activate a deployment that isn't ready.
+          const deployment = await sites.getDeployment({
+            siteId,
+            deploymentId,
+          });
+
+          if (deployment.status !== "ready") {
+            throw new Error(
+              `Refusing to activate deployment ${deploymentId}: status is "${deployment.status}"`
+            );
+          }
+
+          console.log(`Activating deployment ${deploymentId}...`);
+
+          const site = await sites.updateSiteDeployment({
+            siteId,
+            deploymentId,
+          });
+
+          if (site.deploymentId !== deploymentId) {
+            throw new Error(
+              `Activation verification failed. Expected ${deploymentId}, got ${site.deploymentId}`
+            );
+          }
+
+          console.log(`Production deployment activated: ${deploymentId}`);
+          EOF
+
+          bun activate.mjs
+
+      - name: Write deployment summary
+        if: always()
+        shell: bash
+        env:
+          DEPLOYMENT_ID: ${{ steps.appwrite.outputs.deployment_id }}
+          DEPLOYMENT_STATUS: ${{ steps.appwrite.outputs.status }}
+          TARGET_SHA: ${{ steps.metadata.outputs.target_sha }}
+          FRESH: ${{ steps.freshness.outputs.activate }}
+        run: |
+          {
+            echo "### ${{ matrix.app.id }}"
+            echo
+            echo "- **Commit:** \`${TARGET_SHA:-unknown}\`"
+            echo "- **Appwrite site:** \`${{ steps.metadata.outputs.site_id }}\`"
+
+            if [[ -n "${DEPLOYMENT_ID:-}" ]]; then
+              echo "- **Deployment:** \`${DEPLOYMENT_ID}\`"
+            fi
+
+            if [[ -n "${DEPLOYMENT_STATUS:-}" ]]; then
+              echo "- **Build:** \`${DEPLOYMENT_STATUS}\`"
+            fi
+
+            if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+              echo "- **Mode:** Preview"
+              echo "- **Activated:** No"
+            elif [[ "$FRESH" == "true" && "${{ steps.activate.outcome }}" == "success" ]]; then
+              echo "- **Mode:** Production"
+              echo "- **Activated:** Yes"
+              echo "- **URL:** https://${{ matrix.app.id }}.biso.no"
+            elif [[ "$FRESH" == "false" ]]; then
+              echo "- **Mode:** Production"
+              echo "- **Activated:** No — superseded by a newer main commit"
+            else
+              echo "- **Mode:** Production"
+              echo "- **Activated:** No"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
