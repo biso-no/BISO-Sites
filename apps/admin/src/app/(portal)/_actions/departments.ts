@@ -10,6 +10,7 @@ import type {
 } from "@repo/api/types/appwrite";
 import {
   assertStorableUnitCategory,
+  parseUnitCategory,
   UNIT_CATEGORIES,
 } from "@repo/shared/utils/unit-categories";
 import { unitPageSlug } from "@repo/shared/utils/unit-urls";
@@ -17,48 +18,61 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireAuth } from "@/lib/authorization";
 import { canManageDepartment } from "@/lib/departments";
+import {
+  emptyResult,
+  type ListParams,
+  type PaginatedResult,
+  paginationQueries,
+} from "@/lib/list-params";
 import { buildContentTranslationPermissions } from "@/lib/utils";
 import { logAuditEvent } from "./audit-log";
 
-export async function listDepartments(opts?: {
+interface DepartmentScope {
   campusId?: string;
   ids?: string[];
   includeInactive?: boolean;
-  search?: string;
-}) {
-  const ctx = await requireAuth();
-  const { db } = await createSessionClient();
+}
 
-  // 280 department rows exist today and the management listing triages all of
-  // them in one view (uncategorised / missing logo counts are only truthful if
-  // nothing is silently cut off), so the cap sits comfortably above the row
-  // count rather than at it.
-  const queries: string[] = [Query.orderAsc("Name"), Query.limit(500)];
+type AuthContext = Awaited<ReturnType<typeof requireAuth>>;
+
+/**
+ * The scope filters `listDepartments` and `countDepartmentTriage` MUST agree
+ * on. The triage chips describe the same set the list pages through, so any
+ * divergence here would make a chip advertise rows the list can never reach.
+ *
+ * Returns `null` when the scope is provably empty, so the caller can answer
+ * without a round trip.
+ */
+function departmentScopeQueries(
+  ctx: AuthContext,
+  scope: DepartmentScope
+): string[] | null {
+  const queries: string[] = [];
 
   // Explicit id scoping for department users. The departments table is
   // read("any"), so this filter IS the authorization boundary — it cannot be
   // left to row security.
-  if (opts?.ids) {
-    if (opts.ids.length === 0) {
-      return [];
+  if (scope.ids) {
+    if (scope.ids.length === 0) {
+      return null;
     }
-    queries.push(Query.equal("$id", opts.ids));
+    queries.push(Query.equal("$id", scope.ids));
   }
 
   // The SOAP sync persists inactive 24SO units (active === false). By default
   // keep them out of generic pickers (e.g. the page editor); the departments
   // management view opts in via includeInactive to show/flag them. Apply the
-  // filter in the QUERY (before the 200-row cap) so inactive rows can't displace
-  // valid active departments off the first page. active is nullable, so legacy
-  // rows with no value (null) are treated as active.
-  if (!opts?.includeInactive) {
+  // filter in the QUERY (before pagination) so inactive rows can't displace
+  // valid active departments off the visible page. active is nullable, so
+  // legacy rows with no value (null) are treated as active.
+  if (!scope.includeInactive) {
     queries.push(
       Query.or([Query.equal("active", true), Query.isNull("active")])
     );
   }
 
-  if (opts?.campusId) {
-    queries.push(Query.equal("campus_id", opts.campusId));
+  if (scope.campusId) {
+    queries.push(Query.equal("campus_id", scope.campusId));
   } else if (ctx.activeCampusId && ctx.roles.includes("globaladmin")) {
     // Global admin scoped to a campus via the switcher. Deliberately gated to
     // globaladmin: the admin_campus_ctx cookie is readable (and, via
@@ -77,8 +91,47 @@ export async function listDepartments(opts?: {
     queries.push(Query.equal("campus_id", ctx.managedCampusIds));
   }
 
-  if (opts?.search) {
-    queries.push(Query.search("Name", opts.search));
+  return queries;
+}
+
+export async function listDepartments(
+  params: ListParams & {
+    campusId?: string;
+    ids?: string[];
+    includeInactive?: boolean;
+    /** A UnitCategory value, or one of the triage pseudo-filters. */
+    type?: string;
+  }
+): Promise<PaginatedResult<Departments>> {
+  const ctx = await requireAuth();
+  const { db } = await createSessionClient();
+
+  const scope = departmentScopeQueries(ctx, params);
+  if (scope === null) {
+    return emptyResult<Departments>(params);
+  }
+
+  const queries: string[] = [
+    Query.orderAsc("Name"),
+    ...paginationQueries(params),
+    ...scope,
+  ];
+
+  // The triage filters used to run in JS over a full 500-row load. They are
+  // all expressible as queries, so they now run BEFORE pagination — otherwise
+  // a filtered page would only ever show whichever matches happened to land in
+  // the current slice.
+  if (params.type === "uncategorised") {
+    queries.push(Query.isNull("type"));
+  } else if (params.type === "missing_logo") {
+    queries.push(Query.or([Query.equal("logo", ""), Query.isNull("logo")]));
+  } else if (params.type) {
+    queries.push(Query.equal("type", params.type));
+  }
+
+  // `departments` carries a fulltext index (`search`) covering Name.
+  if (params.q) {
+    queries.push(Query.contains("Name", params.q));
   }
 
   const response = await db.listRows<Departments>(
@@ -86,7 +139,81 @@ export async function listDepartments(opts?: {
     "departments",
     queries
   );
+
+  return {
+    rows: response.rows,
+    total: response.total,
+    page: params.page,
+    size: params.size,
+  };
+}
+
+/**
+ * Full active-department list for pickers (the page editor's department
+ * dropdown). Deliberately separate from listDepartments: a picker needs every
+ * row, not a page, and must not be constrained by PageSize — there are ~240
+ * departments today, so paging one of these dropdowns would silently hide most
+ * of them.
+ */
+export async function listAllDepartments(): Promise<Departments[]> {
+  const ctx = await requireAuth();
+  const { db } = await createSessionClient();
+
+  const scope = departmentScopeQueries(ctx, {});
+  const response = await db.listRows<Departments>("app", "departments", [
+    Query.orderAsc("Name"),
+    Query.limit(500),
+    ...(scope ?? []),
+  ]);
+
   return response.rows;
+}
+
+/**
+ * Triage chip counts across the FULL scoped set. The list itself is paginated,
+ * so the counts cannot be derived from the visible rows — they would report
+ * one page's worth and change as the user paged. This deliberately takes no
+ * page/size and issues no offset: it projects only $id/type/logo, which keeps
+ * a 500-row read cheap enough to run alongside the page query.
+ */
+export async function countDepartmentTriage(opts: {
+  campusId?: string;
+  ids?: string[];
+  includeInactive?: boolean;
+}): Promise<Record<string, number>> {
+  const ctx = await requireAuth();
+  const { db } = await createSessionClient();
+
+  const counts: Record<string, number> = {
+    all: 0,
+    missing_logo: 0,
+    uncategorised: 0,
+  };
+  for (const category of UNIT_CATEGORIES) {
+    counts[category] = 0;
+  }
+
+  const scope = departmentScopeQueries(ctx, opts);
+  if (scope === null) {
+    return counts;
+  }
+
+  const response = await db.listRows<Departments>("app", "departments", [
+    Query.select(["$id", "type", "logo"]),
+    Query.limit(500),
+    ...scope,
+  ]);
+
+  counts.all = response.rows.length;
+  for (const department of response.rows) {
+    const key = parseUnitCategory(department.type) ?? "uncategorised";
+    counts[key] = (counts[key] ?? 0) + 1;
+    if (!department.logo?.trim()) {
+      counts.missing_logo += 1;
+    }
+  }
+
+  return counts;
 }
 
 async function _getDepartment(id: string) {

@@ -96,7 +96,12 @@ mock.module("./audit-log", () => ({
   logAuditEvent: mock(async () => undefined),
 }));
 
-const { createUnitPage, listDepartments } = await import("./departments");
+const {
+  countDepartmentTriage,
+  createUnitPage,
+  listAllDepartments,
+  listDepartments,
+} = await import("./departments");
 
 function mockAdminRows(rowsByTable: Record<string, unknown[]>): void {
   adminDb.listRows.mockImplementation(
@@ -124,7 +129,7 @@ describe("listDepartments campus scoping", () => {
       roles: ["campusadmin"],
     });
 
-    await listDepartments();
+    await listDepartments({ page: 1, q: "", size: 25 });
 
     expect(sessionDb.listRows).toHaveBeenCalledTimes(1);
     const queries = sessionDb.listRows.mock.calls[0]?.[2] as string[];
@@ -142,7 +147,7 @@ describe("listDepartments campus scoping", () => {
       roles: ["globaladmin"],
     });
 
-    await listDepartments();
+    await listDepartments({ page: 1, q: "", size: 25 });
 
     const queries = sessionDb.listRows.mock.calls[0]?.[2] as string[];
     expect(queries).toEqual(
@@ -223,5 +228,246 @@ describe("createUnitPage inactive-department guard", () => {
 
     expect(result).not.toHaveProperty("error");
     expect(savePageDraftSpy).toHaveBeenCalledTimes(1);
+  });
+});
+
+/**
+ * Pagination coverage (Plan A, task 9). The department listing used to load
+ * 500 rows and triage them in JS; it now pages. The two properties that must
+ * hold together are:
+ *
+ * - the visible slice is a real Appwrite page (`limit`/`offset` in the query,
+ *   `total` from Appwrite rather than the page length), and
+ * - the triage chip counts still describe the WHOLE scoped set, so they are
+ *   identical no matter which page the user is on. That is why
+ *   `countDepartmentTriage` is a second query with no `offset` and a size that
+ *   is not a `PageSize`.
+ */
+describe("listDepartments pagination", () => {
+  beforeEach(() => {
+    sessionDb.listRows.mockReset();
+  });
+
+  test("returns the true total and the requested slice", async () => {
+    sessionDb.listRows.mockResolvedValueOnce({
+      rows: [{ $id: "d1" }],
+      total: 280,
+    });
+
+    const result = await listDepartments({
+      includeInactive: true,
+      page: 3,
+      q: "",
+      size: 25,
+    });
+
+    expect(result.total).toBe(280);
+    expect(result.page).toBe(3);
+    expect(result.size).toBe(25);
+    const queries = sessionDb.listRows.mock.calls[0]?.[2] as string[];
+    expect(queries).toContain(Query.limit(25));
+    expect(queries).toContain(Query.offset(50));
+  });
+
+  test("pushes the uncategorised filter into the query, not into JS", async () => {
+    sessionDb.listRows.mockResolvedValueOnce({ rows: [], total: 0 });
+
+    await listDepartments({
+      includeInactive: true,
+      page: 1,
+      q: "",
+      size: 25,
+      type: "uncategorised",
+    });
+
+    const queries = sessionDb.listRows.mock.calls[0]?.[2] as string[];
+    expect(queries).toContain(Query.isNull("type"));
+  });
+
+  test("pushes the missing_logo filter into the query", async () => {
+    sessionDb.listRows.mockResolvedValueOnce({ rows: [], total: 0 });
+
+    await listDepartments({
+      includeInactive: true,
+      page: 1,
+      q: "",
+      size: 25,
+      type: "missing_logo",
+    });
+
+    const queries = sessionDb.listRows.mock.calls[0]?.[2] as string[];
+    expect(queries).toContain(
+      Query.or([Query.equal("logo", ""), Query.isNull("logo")])
+    );
+  });
+
+  test("pushes a real category through as an equality filter", async () => {
+    sessionDb.listRows.mockResolvedValueOnce({ rows: [], total: 0 });
+
+    await listDepartments({
+      includeInactive: true,
+      page: 1,
+      q: "",
+      size: 25,
+      type: "society",
+    });
+
+    const queries = sessionDb.listRows.mock.calls[0]?.[2] as string[];
+    expect(queries).toContain(Query.equal("type", "society"));
+  });
+
+  test("searches the indexed Name column", async () => {
+    sessionDb.listRows.mockResolvedValueOnce({ rows: [], total: 0 });
+
+    await listDepartments({
+      includeInactive: true,
+      page: 1,
+      q: "biso",
+      size: 25,
+    });
+
+    const queries = sessionDb.listRows.mock.calls[0]?.[2] as string[];
+    expect(queries).toContain(Query.contains("Name", "biso"));
+  });
+
+  test("keeps the id scope, which is the authorization boundary", async () => {
+    sessionDb.listRows.mockResolvedValueOnce({ rows: [], total: 0 });
+
+    await listDepartments({ ids: ["d1", "d2"], page: 1, q: "", size: 25 });
+
+    const queries = sessionDb.listRows.mock.calls[0]?.[2] as string[];
+    expect(queries).toContain(Query.equal("$id", ["d1", "d2"]));
+  });
+
+  test("short-circuits an empty id scope without querying", async () => {
+    const result = await listDepartments({
+      ids: [],
+      page: 1,
+      q: "",
+      size: 25,
+    });
+
+    expect(result).toEqual({ rows: [], page: 1, size: 25, total: 0 });
+    expect(sessionDb.listRows).not.toHaveBeenCalled();
+  });
+});
+
+describe("countDepartmentTriage", () => {
+  beforeEach(() => {
+    sessionDb.listRows.mockReset();
+  });
+
+  test("counts across the full scoped set, not one page", async () => {
+    sessionDb.listRows.mockResolvedValueOnce({
+      rows: [
+        { $id: "d1", logo: "", type: null },
+        { $id: "d2", logo: "https://x/logo.png", type: null },
+        // `committee` is a legacy alias parseUnitCategory folds into
+        // `staff_function`, which is the key the chips actually render.
+        { $id: "d3", logo: "", type: "committee" },
+      ],
+      total: 3,
+    });
+
+    const counts = await countDepartmentTriage({ includeInactive: true });
+
+    expect(counts.all).toBe(3);
+    expect(counts.uncategorised).toBe(2);
+    expect(counts.missing_logo).toBe(2);
+    expect(counts.staff_function).toBe(1);
+  });
+
+  test("selects only the three columns it needs", async () => {
+    sessionDb.listRows.mockResolvedValueOnce({ rows: [], total: 0 });
+
+    await countDepartmentTriage({ includeInactive: true });
+
+    const queries = sessionDb.listRows.mock.calls[0]?.[2] as string[];
+    expect(queries).toContain(Query.select(["$id", "type", "logo"]));
+  });
+
+  test("issues no offset and no page-sized limit, so the counts cannot describe one page", async () => {
+    sessionDb.listRows.mockResolvedValueOnce({ rows: [], total: 0 });
+
+    await countDepartmentTriage({ includeInactive: true });
+
+    const queries = sessionDb.listRows.mock.calls[0]?.[2] as string[];
+    expect(queries.some((query) => query.includes('"method":"offset"'))).toBe(
+      false
+    );
+    for (const pageSize of [25, 50, 100]) {
+      expect(queries).not.toContain(Query.limit(pageSize));
+    }
+    expect(queries).toContain(Query.limit(500));
+  });
+
+  test("returns identical counts whichever page the list is showing", async () => {
+    const fullSet = {
+      rows: [
+        { $id: "d1", logo: "", type: null },
+        { $id: "d2", logo: "https://x/logo.png", type: null },
+        { $id: "d3", logo: "", type: "society" },
+      ],
+      total: 3,
+    };
+
+    sessionDb.listRows.mockResolvedValue(fullSet);
+    const onPageOne = await countDepartmentTriage({ includeInactive: true });
+    const onPageFour = await countDepartmentTriage({ includeInactive: true });
+
+    expect(onPageFour).toEqual(onPageOne);
+    expect(onPageFour.all).toBe(3);
+    // Both calls sent exactly the same query — the counts have no notion of a
+    // page to vary with.
+    expect(sessionDb.listRows.mock.calls[1]?.[2]).toEqual(
+      sessionDb.listRows.mock.calls[0]?.[2] as string[]
+    );
+  });
+
+  test("honours the id scope so a department user never sees global counts", async () => {
+    sessionDb.listRows.mockResolvedValueOnce({ rows: [], total: 0 });
+
+    await countDepartmentTriage({ ids: ["d1"], includeInactive: true });
+
+    const queries = sessionDb.listRows.mock.calls[0]?.[2] as string[];
+    expect(queries).toContain(Query.equal("$id", ["d1"]));
+  });
+
+  test("short-circuits an empty id scope with zeroed counts and no query", async () => {
+    const counts = await countDepartmentTriage({
+      ids: [],
+      includeInactive: true,
+    });
+
+    expect(counts.all).toBe(0);
+    expect(counts.uncategorised).toBe(0);
+    expect(counts.missing_logo).toBe(0);
+    expect(sessionDb.listRows).not.toHaveBeenCalled();
+  });
+});
+
+describe("listAllDepartments", () => {
+  beforeEach(() => {
+    sessionDb.listRows.mockReset();
+  });
+
+  test("returns every active department for a picker, unbounded by PageSize", async () => {
+    sessionDb.listRows.mockResolvedValueOnce({
+      rows: [{ $id: "d1" }, { $id: "d2" }],
+      total: 2,
+    });
+
+    const rows = await listAllDepartments();
+
+    expect(rows).toHaveLength(2);
+    const queries = sessionDb.listRows.mock.calls[0]?.[2] as string[];
+    expect(queries).toContain(Query.limit(500));
+    expect(queries).toContain(Query.orderAsc("Name"));
+    expect(queries).toContain(
+      Query.or([Query.equal("active", true), Query.isNull("active")])
+    );
+    for (const pageSize of [25, 50, 100]) {
+      expect(queries).not.toContain(Query.limit(pageSize));
+    }
   });
 });
