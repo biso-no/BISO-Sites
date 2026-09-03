@@ -256,23 +256,21 @@ export function ApprovalsReviewClient({
     });
   }
 
-  if (requests.length === 0) {
-    return null;
-  }
-
   return (
     <div>
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-        {requests.map((request) => (
-          <ApprovalCard
-            key={request.$id}
-            labels={labels}
-            onApprove={handleApprove}
-            onReject={handleReject}
-            request={request}
-          />
-        ))}
-      </div>
+      {requests.length === 0 ? null : (
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {requests.map((request) => (
+            <ApprovalCard
+              key={request.$id}
+              labels={labels}
+              onApprove={handleApprove}
+              onReject={handleReject}
+              request={request}
+            />
+          ))}
+        </div>
+      )}
 
       <PaginationBar page={page} size={size} sizeSelectable total={total} />
     </div>
