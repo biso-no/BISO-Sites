@@ -5,6 +5,19 @@ import { useCallback, useEffect, useState } from "react";
 
 type ParamValue = string | number | null | undefined;
 
+interface SetParamsOptions {
+  /** Leave the page param untouched — for a change that does not renarrow. */
+  keepPage?: boolean;
+  /**
+   * Page param to reset. Defaults to `page`. A route rendering two independent
+   * tables pages the second one by another key (the shop studio's orders tab
+   * uses `opage`); clearing the hardcoded `page` there would leave the real
+   * page param stale, so a filter change would land the user on page 7 of a
+   * freshly narrowed result set — usually an empty table.
+   */
+  pageKey?: string;
+}
+
 export function useListParams() {
   const router = useRouter();
   const pathname = usePathname();
@@ -18,10 +31,11 @@ export function useListParams() {
   /**
    * Writes params into the address bar. Empty / nullish values are deleted so a
    * clean list stays at `/news` rather than `/news?page=1&q=&size=25`.
-   * Any filter change resets pagination unless `keepPage` is set.
+   * Any filter change resets pagination (`opts.pageKey`, default `page`)
+   * unless `keepPage` is set.
    */
   const setParams = useCallback(
-    (updates: Record<string, ParamValue>, opts?: { keepPage?: boolean }) => {
+    (updates: Record<string, ParamValue>, opts?: SetParamsOptions) => {
       const params = new URLSearchParams(searchParams.toString());
 
       for (const [key, value] of Object.entries(updates)) {
@@ -34,7 +48,7 @@ export function useListParams() {
       }
 
       if (!opts?.keepPage) {
-        params.delete("page");
+        params.delete(opts?.pageKey ?? "page");
       }
 
       const qs = params.toString();
@@ -58,18 +72,26 @@ export function useListParams() {
  * but leaves the text in the box. Re-syncing fights the debounce; the results
  * are the source of truth.
  */
-export function useUrlSearch(key = "q", delay = 300) {
+export function useUrlSearch(
+  key = "q",
+  delay = 300,
+  opts?: { pageKey?: string }
+) {
   const { get, setParams } = useListParams();
   const current = get(key);
   const [value, setValue] = useState(current);
+  const pageKey = opts?.pageKey;
 
   useEffect(() => {
     if (value === current) {
       return;
     }
-    const timer = setTimeout(() => setParams({ [key]: value }), delay);
+    const timer = setTimeout(
+      () => setParams({ [key]: value }, { pageKey }),
+      delay
+    );
     return () => clearTimeout(timer);
-  }, [value, current, key, delay, setParams]);
+  }, [value, current, key, delay, pageKey, setParams]);
 
   return [value, setValue] as const;
 }

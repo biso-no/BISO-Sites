@@ -52,6 +52,28 @@ describe("parseListParams", () => {
     );
     expect(params.page).toBe(7);
   });
+
+  test("supports an alternate size key", () => {
+    const params = parseListParams({ osize: "100" }, { sizeKey: "osize" });
+    expect(params.size).toBe(100);
+  });
+
+  test("supports an alternate query key", () => {
+    const params = parseListParams({ oq: " bokskap " }, { qKey: "oq" });
+    expect(params.q).toBe("bokskap");
+  });
+
+  // The shop route pages two tabs from one URL. If an alternate key fell back
+  // to the default one, the catalog's `?size=100&q=oslo` would silently drive
+  // the orders tab the moment the user switched to it.
+  test("ignores the default size and query keys once alternates are given", () => {
+    const params = parseListParams(
+      { size: "100", q: "oslo" },
+      { qKey: "oq", sizeKey: "osize" }
+    );
+    expect(params.size).toBe(DEFAULT_PAGE_SIZE);
+    expect(params.q).toBe("");
+  });
 });
 
 describe("paginationQueries", () => {

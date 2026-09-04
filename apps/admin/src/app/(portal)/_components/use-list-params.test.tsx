@@ -190,3 +190,93 @@ describe("useListParams", () => {
     expect(url).toContain("foo=bar");
   });
 });
+
+// ---------------------------------------------------------------------------
+// Alternate page keys
+//
+// A route rendering two independent tables pages one of them by a key other
+// than `page` (the shop studio's orders tab uses `opage`). Resetting the
+// hardcoded `page` there would leave the alternate key stale, landing the user
+// on page 7 of a freshly narrowed result set — usually an empty table.
+// ---------------------------------------------------------------------------
+
+describe("alternate page keys", () => {
+  let latestSetParams: ReturnType<typeof useListParams>["setParams"] | null =
+    null;
+
+  function Probe() {
+    const { setParams } = useListParams();
+    latestSetParams = setParams;
+    return null;
+  }
+
+  test("setParams clears the alternate page key it is given", async () => {
+    searchParamsString = "opage=7&ostatus=paid";
+    await mount(createElement(Probe));
+
+    await act(() => {
+      latestSetParams?.({ ostatus: "refunded" }, { pageKey: "opage" });
+    });
+
+    expect(pushCalls).toHaveLength(1);
+    const [url] = pushCalls;
+    expect(url).toContain("ostatus=refunded");
+    expect(url).not.toContain("opage=");
+  });
+
+  test("setParams leaves the default page key alone when given an alternate", async () => {
+    searchParamsString = "page=4&opage=7";
+    await mount(createElement(Probe));
+
+    await act(() => {
+      latestSetParams?.({ ostatus: "paid" }, { pageKey: "opage" });
+    });
+
+    const [url] = pushCalls;
+    expect(url).toContain("page=4");
+    expect(url).not.toContain("opage=");
+  });
+
+  test("keepPage still wins over an alternate page key", async () => {
+    searchParamsString = "opage=7";
+    await mount(createElement(Probe));
+
+    await act(() => {
+      latestSetParams?.(
+        { ostatus: "paid" },
+        { keepPage: true, pageKey: "opage" }
+      );
+    });
+
+    expect(pushCalls[0]).toContain("opage=7");
+  });
+
+  describe("useUrlSearch", () => {
+    const DELAY = 20;
+    let latestSetValue: ((value: string) => void) | null = null;
+
+    function SearchProbe() {
+      const [, setValue] = useUrlSearch("oq", DELAY, { pageKey: "opage" });
+      latestSetValue = setValue;
+      return null;
+    }
+
+    test("a debounced search clears the alternate page key", async () => {
+      searchParamsString = "opage=7&page=2";
+      await mount(createElement(SearchProbe));
+
+      await act(() => {
+        latestSetValue?.("nordmann");
+      });
+      await act(async () => {
+        await sleep(DELAY * 3);
+      });
+
+      expect(pushCalls).toHaveLength(1);
+      const [url] = pushCalls;
+      expect(url).toContain("oq=nordmann");
+      expect(url).not.toContain("opage=");
+      expect(url).toContain("page=2");
+    });
+  });
+});

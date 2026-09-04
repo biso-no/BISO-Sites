@@ -53,16 +53,18 @@ const isPageSize = (value: number): value is PageSize =>
  */
 export function parseListParams(
   searchParams: ListSearchParams,
-  opts?: { pageKey?: string }
+  opts?: { pageKey?: string; qKey?: string; sizeKey?: string }
 ): ListParams {
   const rawPage = Number(firstValue(searchParams[opts?.pageKey ?? "page"]));
   const page =
     Number.isFinite(rawPage) && rawPage >= 1 ? Math.floor(rawPage) : 1;
 
-  const rawSize = Number(firstValue(searchParams.size));
+  const rawSize = Number(firstValue(searchParams[opts?.sizeKey ?? "size"]));
   const size = isPageSize(rawSize) ? rawSize : DEFAULT_PAGE_SIZE;
 
-  return { page, size, q: (firstValue(searchParams.q) ?? "").trim() };
+  const q = (firstValue(searchParams[opts?.qKey ?? "q"]) ?? "").trim();
+
+  return { page, size, q };
 }
 
 /**
