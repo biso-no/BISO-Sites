@@ -4,6 +4,7 @@ import { canViewShopOperations } from "@/lib/roles";
 import {
   countOrderStats,
   countProductStats,
+  getFeaturedDraftProduct,
   listOrderProductOptions,
   listOrders,
   listProducts,
@@ -63,15 +64,20 @@ export default async function ShopPage({
   }
 
   const params = resolveCatalogParams(sp);
-  const [products, stats] = await Promise.all([
+  // The featured draft is its own read: it describes the whole scoped catalog,
+  // so deriving it from this page's rows would hide the hero whenever the
+  // current page or filter happened to exclude every draft.
+  const [products, stats, featuredDraft] = await Promise.all([
     listProducts(params),
     countProductStats({ q: params.q || undefined }),
+    getFeaturedDraftProduct(),
   ]);
 
   return (
     <ShopStudioDashboard
       activeTab="catalog"
       catalog={{
+        featuredDraft,
         params,
         rows: products.rows,
         stats,

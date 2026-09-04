@@ -8,7 +8,6 @@
 import { ChevronRight, TrendingUp } from "lucide-react";
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
-import { useMemo } from "react";
 import {
   BRAND,
   MONO_STACK,
@@ -20,26 +19,13 @@ import {
   type ProductWithTranslations,
 } from "./shop-studio-types";
 
-function pickFeaturedDraft(
-  products: ProductWithTranslations[]
-): ProductWithTranslations | null {
-  const drafts = products.filter((p) => p.status === "draft");
-  if (drafts.length === 0) {
-    return null;
-  }
-  return drafts.reduce((best, p) =>
-    new Date(p.$updatedAt) > new Date(best.$updatedAt) ? p : best
-  );
-}
-
 export function FeaturedDraftCard({
-  products,
+  draft,
 }: {
-  products: ProductWithTranslations[];
+  draft: ProductWithTranslations | null;
 }) {
   const locale = normalizeLocale(useLocale());
   const t = useTranslations("adminPortal.shop.studio");
-  const draft = useMemo(() => pickFeaturedDraft(products), [products]);
   if (!draft) {
     return null;
   }

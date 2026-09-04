@@ -58,6 +58,7 @@ mock.module("./audit-log", () => ({
 const {
   countOrderStats,
   countProductStats,
+  getFeaturedDraftProduct,
   listOrderIdsForProduct,
   listOrderProductOptions,
   listOrders,
@@ -665,5 +666,54 @@ describe("listOrderProductOptions", () => {
     ]);
     const queries = onlyQueriesFor(adminDb, "webshop_products");
     expect(queries).toContain(PRODUCT_SCOPE);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// getFeaturedDraftProduct
+// ---------------------------------------------------------------------------
+
+describe("getFeaturedDraftProduct", () => {
+  test("asks the whole scoped catalog for its newest draft, not a page of it", async () => {
+    adminDb.listRows.mockImplementation((_db: string, table: string) => {
+      if (table === "webshop_products") {
+        return {
+          rows: [{ $id: "p9", slug: "bokskap", status: "draft" }],
+          total: 1,
+        };
+      }
+      return {
+        rows: [
+          {
+            $id: "t1",
+            content_id: "p9",
+            content_type: "product",
+            locale: "no",
+            title: "Bokskap",
+          },
+        ],
+        total: 1,
+      };
+    });
+
+    const draft = await getFeaturedDraftProduct();
+
+    expect(draft?.$id).toBe("p9");
+    // The hero shows a checklist built from the translated title, so the row
+    // has to arrive hydrated the same way the list rows do.
+    expect(draft?.translation_refs).toHaveLength(1);
+
+    const queries = onlyQueriesFor(adminDb, "webshop_products");
+    expect(queries).toContain(Query.equal("status", "draft"));
+    expect(queries).toContain(Query.orderDesc("$updatedAt"));
+    expect(queries).toContain(Query.limit(1));
+    // The scope is the authorization boundary on an admin-client read.
+    expect(queries).toContain(PRODUCT_SCOPE);
+  });
+
+  test("returns null when the scoped catalog holds no drafts", async () => {
+    adminDb.listRows.mockImplementation(() => ({ rows: [], total: 0 }));
+
+    expect(await getFeaturedDraftProduct()).toBeNull();
   });
 });

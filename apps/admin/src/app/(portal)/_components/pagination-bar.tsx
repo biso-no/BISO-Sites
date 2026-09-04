@@ -101,10 +101,16 @@ export function PaginationBar({
     return null;
   }
 
+  // A stale `?page=` can outlive the rows it pointed at — deleting the only
+  // product on page 2 drops `totalPages` to 1 while the URL still says 2. The
+  // table renders empty, so the bar owes the user a way back even when it would
+  // otherwise have nothing to show.
+  const outOfRange = page > totalPages;
+
   // A single page with no size picker has nothing to offer — rendering a
   // "3 total · page 1 of 1" line plus a rule is noise on surfaces that never
   // asked for pagination UI.
-  if (totalPages <= 1 && !sizeSelectable) {
+  if (totalPages <= 1 && !sizeSelectable && !outOfRange) {
     return null;
   }
 
@@ -168,7 +174,7 @@ export function PaginationBar({
         )}
       </div>
 
-      {totalPages > 1 && (
+      {(totalPages > 1 || outOfRange) && (
         <div className="flex items-center gap-1">
           <button
             aria-label={t("previous")}

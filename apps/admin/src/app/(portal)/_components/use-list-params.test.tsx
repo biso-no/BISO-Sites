@@ -109,6 +109,48 @@ describe("useUrlSearch", () => {
     expect(pushCalls[0]).toContain("q=world");
   });
 
+  test("adopts a term restored by browser navigation instead of pushing the stale one back", async () => {
+    const seen = { value: "" };
+    let setValue: ((next: string) => void) | null = null;
+
+    function BackProbe() {
+      const [value, set] = useUrlSearch("q", DELAY);
+      seen.value = value;
+      setValue = set;
+      return null;
+    }
+
+    searchParamsString = "q=hello";
+    await mount(createElement(BackProbe));
+
+    // The user edits the box and the debounced push lands.
+    await act(() => {
+      setValue?.("world");
+    });
+    await act(async () => {
+      await sleep(DELAY * 3);
+    });
+    expect(pushCalls).toHaveLength(1);
+    searchParamsString = "q=world";
+    await act(() => {
+      root?.render(createElement(BackProbe));
+    });
+
+    // Browser Back restores the previous term in the URL.
+    searchParamsString = "q=hello";
+    await act(() => {
+      root?.render(createElement(BackProbe));
+    });
+    await act(async () => {
+      await sleep(DELAY * 3);
+    });
+
+    // The hook must not write its stale draft back over the restored term,
+    // which would silently undo the navigation.
+    expect(pushCalls).toHaveLength(1);
+    expect(seen.value).toBe("hello");
+  });
+
   test("a rapid second change clears the first timer", async () => {
     searchParamsString = "q=hello";
     await mount(createElement(Probe));

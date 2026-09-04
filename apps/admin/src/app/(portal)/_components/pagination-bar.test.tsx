@@ -144,3 +144,37 @@ test("changeSize resets the alternate page key, not the default one", async () =
   // …but the catalog table's page is none of this bar's business.
   expect(params.get("page")).toBe("4");
 });
+
+// A stale `?page=` outlives the rows it pointed at — delete the only product on
+// page 2 and `total` drops to 1 while the URL still says page 2. The bar must
+// not strand the user there with an empty table and no way back.
+test("offers a route back when the URL names a page past the last one", async () => {
+  searchParamsString = "page=2";
+  await mount(
+    createElement(PaginationBar, {
+      page: 2,
+      size: 25,
+      sizeSelectable: true,
+      total: 1,
+    })
+  );
+
+  await act(() => {
+    findButton(container as unknown as TestNode, "1").click();
+  });
+
+  expect(pushCalls).toHaveLength(1);
+  expect(pushedParams().get("page")).toBeNull();
+});
+
+test("offers a route back from an out-of-range page with no size picker", async () => {
+  searchParamsString = "page=2";
+  await mount(createElement(PaginationBar, { page: 2, size: 25, total: 1 }));
+
+  await act(() => {
+    findButton(container as unknown as TestNode, "1").click();
+  });
+
+  expect(pushCalls).toHaveLength(1);
+  expect(pushedParams().get("page")).toBeNull();
+});

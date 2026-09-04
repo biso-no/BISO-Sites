@@ -745,6 +745,41 @@ export async function countProductStats(filters?: {
 }
 
 /**
+ * The most recently touched draft across the whole scoped catalog, for the
+ * studio's featured-draft hero.
+ *
+ * Its own query rather than a pick from the rows on screen: the list is
+ * paginated and filtered, so choosing from those rows made the hero vanish
+ * whenever the current page happened to hold no drafts — and swapped which
+ * draft it showed as the user paged. One projected row is cheap enough to run
+ * alongside the page query.
+ */
+export async function getFeaturedDraftProduct(): Promise<ProductWithTranslations | null> {
+  const ctx = await requireAuth();
+  const { db } = await createAdminClient();
+
+  const response = await db.listRows<WebshopProducts>(
+    "app",
+    "webshop_products",
+    [
+      Query.select(["*", "variations.*"]),
+      Query.equal("status", WebshopProductsStatus.DRAFT),
+      Query.orderDesc("$updatedAt"),
+      Query.limit(1),
+      ...applyContentRelationshipScopeQueries(ctx),
+    ]
+  );
+
+  const product = response.rows[0];
+  if (!product) {
+    return null;
+  }
+
+  const translations = await loadProductTranslations(db, [product.$id]);
+  return { ...product, translation_refs: translations };
+}
+
+/**
  * Catalog products for the orders tab's product filter.
  *
  * Sourced from `webshop_products` rather than by scanning order items: the

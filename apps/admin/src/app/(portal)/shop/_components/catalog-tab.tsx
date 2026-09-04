@@ -73,7 +73,7 @@ export function CatalogTab({
     <>
       <CatalogKpiStrip stats={stats} />
 
-      <FeaturedDraftCard products={rows} />
+      <FeaturedDraftCard draft={data.featuredDraft} />
 
       <ShopFilterRow
         onSearchChange={onSearchChange}

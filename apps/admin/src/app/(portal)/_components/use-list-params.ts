@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 type ParamValue = string | number | null | undefined;
 
@@ -67,10 +67,11 @@ export function useListParams() {
  * `setParams` is rebuilt whenever `useSearchParams()` changes identity, so an
  * unguarded effect would re-run on its own push and loop forever.
  *
- * Known limitation: the input is seeded from the URL on mount and is not
- * re-synced afterwards, so a browser Back that changes `q` updates the results
- * but leaves the text in the box. Re-syncing fights the debounce; the results
- * are the source of truth.
+ * A URL change this hook did not cause — a browser Back/Forward, or a link —
+ * wins over the local draft. Without that, `current` and `value` disagree after
+ * a Back, the debounce reads the disagreement as fresh typing, and 300ms later
+ * it writes the stale term back and silently undoes the navigation. `pushed`
+ * tracks what this hook last wrote so the two cases can be told apart.
  */
 export function useUrlSearch(
   key = "q",
@@ -81,15 +82,26 @@ export function useUrlSearch(
   const current = get(key);
   const [value, setValue] = useState(current);
   const pageKey = opts?.pageKey;
+  // The last term this hook wrote to the URL. Anything else showing up in
+  // `current` arrived from outside and must be adopted, not overwritten.
+  const pushed = useRef(current);
+
+  useEffect(() => {
+    if (current === pushed.current) {
+      return;
+    }
+    pushed.current = current;
+    setValue(current);
+  }, [current]);
 
   useEffect(() => {
     if (value === current) {
       return;
     }
-    const timer = setTimeout(
-      () => setParams({ [key]: value }, { pageKey }),
-      delay
-    );
+    const timer = setTimeout(() => {
+      pushed.current = value;
+      setParams({ [key]: value }, { pageKey });
+    }, delay);
     return () => clearTimeout(timer);
   }, [value, current, key, delay, pageKey, setParams]);
 

@@ -110,6 +110,7 @@ const noop = () => {
 };
 
 const catalogData: CatalogTabData = {
+  featuredDraft: draftProduct,
   params: { page: 1, q: "", size: 25, status: "all" },
   rows: [product, draftProduct],
   stats: productStats,
@@ -319,4 +320,28 @@ test("the orders tab renders its empty state when the server page is empty", () 
 
   expect(html).toContain("adminShop.messages.noOrders");
   expect(html).not.toContain("Ola Nordmann");
+});
+
+// The hero describes the whole catalog, so it must not depend on whether a
+// draft happens to appear in the rows this page returned.
+test("the catalog tab renders the featured draft even when no row on this page is one", () => {
+  const html = renderToStaticMarkup(
+    createElement(CatalogTab, {
+      ...catalogProps,
+      data: { ...catalogData, rows: [product] },
+    })
+  );
+
+  expect(html).toContain("adminPortal.shop.studio.featured.eyebrow");
+});
+
+test("the catalog tab omits the featured draft when the catalog has none", () => {
+  const html = renderToStaticMarkup(
+    createElement(CatalogTab, {
+      ...catalogProps,
+      data: { ...catalogData, featuredDraft: null },
+    })
+  );
+
+  expect(html).not.toContain("adminPortal.shop.studio.featured.eyebrow");
 });

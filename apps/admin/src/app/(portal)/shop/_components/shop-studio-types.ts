@@ -37,6 +37,12 @@ export type OrderFilter =
   | "refunded";
 
 export interface CatalogTabData {
+  /**
+   * The newest draft in the whole scoped catalog, fetched independently of the
+   * page slice — picking it from `rows` tied the hero to whichever products
+   * happened to be on screen.
+   */
+  featuredDraft: ProductWithTranslations | null;
   params: CatalogViewParams;
   rows: ProductWithTranslations[];
   stats: ProductStats;

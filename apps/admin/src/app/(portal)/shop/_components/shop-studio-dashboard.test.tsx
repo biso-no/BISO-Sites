@@ -96,6 +96,7 @@ const orderStats: OrderStats = {
 };
 
 const catalog: CatalogTabData = {
+  featuredDraft: null,
   params: { page: 1, q: "", size: 25, status: "all" },
   rows: [product],
   stats: productStats,
