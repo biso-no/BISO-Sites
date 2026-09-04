@@ -1102,13 +1102,38 @@ function readRelationId(value: unknown): string | null {
   return null;
 }
 
+/** `yyyy-mm-dd`, checked before it is pasted into a timestamp. */
+const ISO_DAY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * Whether `value` is a day that actually exists.
+ *
+ * The shape check alone is not enough: `2026-02-31` matches it, and `Date`
+ * happily rolls it over to March rather than rejecting it, so the round trip
+ * through `toISOString` is what catches an impossible day.
+ */
+function isRealDay(value: string): boolean {
+  if (!ISO_DAY_PATTERN.test(value)) {
+    return false;
+  }
+  const parsed = new Date(`${value}T00:00:00.000Z`);
+  return (
+    !Number.isNaN(parsed.getTime()) && parsed.toISOString().startsWith(value)
+  );
+}
+
 /**
  * A yyyy-mm-dd range as whole-day UTC bounds on `$createdAt`. One-sided ranges
  * become an open comparison rather than a `between` against a fabricated bound.
+ *
+ * A malformed bound is dropped rather than thrown on. These values arrive from
+ * a shareable URL, and every other list param clamps junk instead of erroring —
+ * interpolating `?from=garbage` into a timestamp made Appwrite reject the query
+ * and took the whole orders page down with it.
  */
 function orderDateQueries(from?: string, to?: string): string[] {
-  const start = from ? `${from}T00:00:00.000Z` : null;
-  const end = to ? `${to}T23:59:59.999Z` : null;
+  const start = from && isRealDay(from) ? `${from}T00:00:00.000Z` : null;
+  const end = to && isRealDay(to) ? `${to}T23:59:59.999Z` : null;
   if (start && end) {
     return [Query.between("$createdAt", start, end)];
   }

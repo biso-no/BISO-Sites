@@ -745,13 +745,26 @@
       },
       "csv": {
         "orderId": "Bestillings-ID",
+        "orderDate": "Bestillingsdato",
+        "status": "Status",
         "buyerName": "Kjøpernavn",
         "buyerEmail": "Kjøper-e-post",
         "buyerPhone": "Kjøpertelefon",
+        "campus": "Campus-ID",
+        "productName": "Produkt",
+        "productId": "Produkt-ID",
+        "variation": "Variant",
+        "quantity": "Antall",
+        "unitPrice": "Enhetspris",
+        "lineTotal": "Linjesum",
         "currency": "Valuta",
-        "paymentProvider": "Betalingsleverandør",
+        "orderSubtotal": "Delsum (bestilling)",
+        "orderDiscountTotal": "Rabatt (bestilling)",
+        "orderTotal": "Sum (bestilling)",
         "memberDiscount": "Medlemsrabatt %",
-        "receiptUrl": "Kvitterings-URL"
+        "paymentProvider": "Betalingsleverandør",
+        "receiptUrl": "Kvitterings-URL",
+        "customFields": "Tilleggsvalg"
       },
       "notice": {
         "cappedTotal": "5000+ treff — avgrens på dato eller status for et eksakt tall",
@@ -760,8 +773,8 @@
       },
       "export": {
         "running": "Eksporterer…",
-        "success": "{rows, plural, one {# bestilling} other {# bestillinger}} eksportert.",
-        "truncated": "{rows, plural, one {# bestilling} other {# bestillinger}} eksportert — filen nådde eksporttaket og inneholder ikke alle treff. Avgrens filtrene og eksporter på nytt.",
+        "success": "{orders, plural, one {# bestilling} other {# bestillinger}} eksportert som {rows, plural, one {# varelinje} other {# varelinjer}}.",
+        "truncated": "{orders, plural, one {# bestilling} other {# bestillinger}} eksportert som {rows, plural, one {# varelinje} other {# varelinjer}} — filen nådde eksporttaket og inneholder ikke alle treff. Avgrens filtrene og eksporter på nytt.",
         "empty": "Ingen bestillinger treffer disse filtrene, så det var ingenting å eksportere.",
         "failed": "Eksporten mislyktes. Prøv igjen."
       }

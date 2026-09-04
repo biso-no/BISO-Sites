@@ -19,9 +19,9 @@ export function UrlSearchToolbar({ placeholder }: UrlSearchToolbarProps) {
 
   return (
     <SearchToolbar
-      defaultSearch={value}
       onSearch={setValue}
       placeholder={placeholder ?? tc("search")}
+      value={value}
     />
   );
 }

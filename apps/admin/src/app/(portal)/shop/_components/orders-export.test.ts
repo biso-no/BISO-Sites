@@ -8,8 +8,8 @@ import {
 const messages = {
   empty: "empty",
   failed: "failed",
-  success: (rows: number) => `success:${rows}`,
-  truncated: (rows: number) => `truncated:${rows}`,
+  success: (orders: number, rows: number) => `success:${orders}/${rows}`,
+  truncated: (orders: number, rows: number) => `truncated:${orders}/${rows}`,
 };
 
 const input = { filters: { status: "paid" }, headers: ["Order ID"] };
@@ -37,9 +37,16 @@ function harness(run: () => Promise<OrdersExportResult>): {
 }
 
 describe("runOrdersExport", () => {
-  test("saves the server's CSV and reports the row count", async () => {
+  test("saves the server's CSV and reports orders and rows separately", async () => {
+    // One row per order ITEM: three lines across two orders. Reporting the row
+    // count as "orders" would overstate the sale.
     const { deps, notices, saved } = harness(() =>
-      Promise.resolve({ csv: "a,b\n1,2", rowCount: 2, truncated: false })
+      Promise.resolve({
+        csv: "a,b\n1,2",
+        orderCount: 2,
+        rowCount: 3,
+        truncated: false,
+      })
     );
 
     await runOrdersExport(deps, input, messages, "orders-2026-09-04.csv");
@@ -47,7 +54,7 @@ describe("runOrdersExport", () => {
     expect(saved).toEqual([
       { csv: "a,b\n1,2", fileName: "orders-2026-09-04.csv" },
     ]);
-    expect(notices).toEqual(["success:success:2"]);
+    expect(notices).toEqual(["success:success:2/3"]);
   });
 
   test("still saves a truncated export but warns that the file was cut", async () => {
@@ -55,18 +62,23 @@ describe("runOrdersExport", () => {
     // filter ceiling the list banner talks about — the user must be told the
     // FILE is short, not the screen.
     const { deps, notices, saved } = harness(() =>
-      Promise.resolve({ csv: "a,b\n1,2", rowCount: 20_000, truncated: true })
+      Promise.resolve({
+        csv: "a,b\n1,2",
+        orderCount: 20_000,
+        rowCount: 26_500,
+        truncated: true,
+      })
     );
 
     await runOrdersExport(deps, input, messages, "orders.csv");
 
     expect(saved).toHaveLength(1);
-    expect(notices).toEqual(["warning:truncated:20000"]);
+    expect(notices).toEqual(["warning:truncated:20000/26500"]);
   });
 
   test("does not download an empty file", async () => {
     const { deps, notices, saved } = harness(() =>
-      Promise.resolve({ csv: "", rowCount: 0, truncated: false })
+      Promise.resolve({ csv: "", orderCount: 0, rowCount: 0, truncated: false })
     );
 
     await runOrdersExport(deps, input, messages, "orders.csv");
@@ -93,7 +105,12 @@ describe("runOrdersExport", () => {
       ...deps,
       exportCsv: (arg: unknown) => {
         received = arg;
-        return Promise.resolve({ csv: "", rowCount: 1, truncated: false });
+        return Promise.resolve({
+          csv: "",
+          orderCount: 1,
+          rowCount: 1,
+          truncated: false,
+        });
       },
     };
 

@@ -13,6 +13,9 @@ import type { OrderFilters } from "../../_actions/shop";
 
 export interface OrdersExportResult {
   csv: string;
+  /** Orders in the file. */
+  orderCount: number;
+  /** DATA rows in the file — one per order item, so never below `orderCount`. */
   rowCount: number;
   truncated: boolean;
 }
@@ -25,8 +28,8 @@ export interface OrdersExportInput {
 export interface OrdersExportMessages {
   empty: string;
   failed: string;
-  success: (rowCount: number) => string;
-  truncated: (rowCount: number) => string;
+  success: (orderCount: number, rowCount: number) => string;
+  truncated: (orderCount: number, rowCount: number) => string;
 }
 
 export interface OrdersExportDeps {
@@ -69,10 +72,12 @@ export async function runOrdersExport(
   if (result.truncated) {
     // The export's own ceiling — a different, much larger one than the 500
     // matching orders the product-filtered LIST is capped at.
-    deps.notify.warning(messages.truncated(result.rowCount));
+    deps.notify.warning(messages.truncated(result.orderCount, result.rowCount));
     return;
   }
-  deps.notify.success(messages.success(result.rowCount));
+  // Both numbers: the file has one row per order ITEM, so quoting the row count
+  // alone would read as an inflated order count.
+  deps.notify.success(messages.success(result.orderCount, result.rowCount));
 }
 
 /** Hands the finished CSV to the browser as a download. */

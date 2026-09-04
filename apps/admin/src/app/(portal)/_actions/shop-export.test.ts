@@ -262,6 +262,7 @@ describe("exportOrdersCsv", () => {
 
     expect(result).toEqual({
       csv: HEADERS.join(","),
+      orderCount: 0,
       rowCount: 0,
       truncated: false,
     });
@@ -399,5 +400,73 @@ describe("exportOrdersCsv", () => {
     const pageSize = limitOf(queriesFor("orders")[0] as string[]);
     expect(result.rowCount).toBeGreaterThan(5000);
     expect(result.rowCount % pageSize).toBe(0);
+  });
+});
+
+describe("exportOrdersCsv row shape", () => {
+  /** An order carrying `count` line items, as the export projection returns it. */
+  function makeOrderWithItems(id: string, count: number) {
+    return {
+      $id: id,
+      $createdAt: "2026-02-03T10:11:12.000Z",
+      buyer_name: "Buyer",
+      campus_id: "campus-oslo",
+      currency: "NOK",
+      order_items: Array.from({ length: count }, (_, index) => ({
+        $id: `${id}-i${index}`,
+        custom_fields_json: JSON.stringify([
+          { id: "size", label: "Størrelse", value: "L" },
+        ]),
+        line_total: 100,
+        name: `Product ${index}`,
+        product: { $id: `p${index}` },
+        quantity: 1,
+        unit_price: 100,
+        variation: { $id: "v1", name: "Large" },
+      })),
+      status: "paid",
+      subtotal: 100,
+      total: 100,
+    };
+  }
+
+  test("expands product and variation so the item columns can be written", async () => {
+    sessionDb.listRows.mockImplementation(() => ({ rows: [], total: 0 }));
+
+    await exportOrdersCsv({ filters: {}, headers: HEADERS });
+
+    const queries = queriesFor("orders")[0] as string[];
+    const select = queries
+      .map(parseQuery)
+      .find((query) => query.method === "select");
+    expect(select?.values).toContain("order_items.product.*");
+    expect(select?.values).toContain("order_items.variation.*");
+  });
+
+  test("counts CSV rows per item and orders per order", async () => {
+    sessionDb.listRows.mockImplementation(() => ({
+      rows: [makeOrderWithItems("o1", 3), makeOrderWithItems("o2", 1)],
+      total: 2,
+    }));
+
+    const result = await exportOrdersCsv({ filters: {}, headers: HEADERS });
+
+    expect(result.orderCount).toBe(2);
+    expect(result.rowCount).toBe(4);
+    // header + 4 item rows
+    expect(result.csv.split("\n")).toHaveLength(5);
+  });
+
+  test("still writes one row for an order that has no line items", async () => {
+    sessionDb.listRows.mockImplementation(() => ({
+      rows: [makeOrderWithItems("o1", 0)],
+      total: 1,
+    }));
+
+    const result = await exportOrdersCsv({ filters: {}, headers: HEADERS });
+
+    expect(result.orderCount).toBe(1);
+    expect(result.rowCount).toBe(1);
+    expect(result.csv.split("\n")[1]).toContain("o1");
   });
 });

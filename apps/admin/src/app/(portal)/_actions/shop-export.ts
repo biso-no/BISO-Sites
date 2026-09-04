@@ -4,7 +4,7 @@ import { Query } from "@repo/api";
 import { createSessionClient } from "@repo/api/server";
 import type { Orders } from "@repo/api/types/appwrite";
 import { requireAuth } from "@/lib/authorization";
-import { ordersToCsv } from "@/lib/orders-csv";
+import { orderCsvRowCount, ordersToCsv } from "@/lib/orders-csv";
 import { applyScopeQueries } from "@/lib/utils/authorization";
 import {
   listOrderIdsForProduct,
@@ -42,9 +42,21 @@ const MAX_ID_FILTER_VALUES = 500;
  */
 const MAX_PRODUCT_ORDER_IDS = 10_000;
 
-/** Same projection `listOrders` uses, minus the per-item product/variation
- * expansions the CSV never reads — an export can be 20 000 rows deep. */
-const EXPORT_SELECT = Query.select(["*", "order_items.*"]);
+/**
+ * The same projection `listOrders` uses, product and variation expansions
+ * included. The CSV writes one row per order item and needs `product.$id` for
+ * the `product_id` column and `variation.name` for the `variation` column;
+ * without the nested expansions Appwrite returns those relationships as bare
+ * ids at best, and the two fulfilment columns would silently export empty.
+ * The cost is a heavier payload on a 20 000-order export, which is the right
+ * trade against shipping the wrong garment size.
+ */
+const EXPORT_SELECT = Query.select([
+  "*",
+  "order_items.*",
+  "order_items.product.*",
+  "order_items.variation.*",
+]);
 
 function chunkIds(ids: string[]): string[][] {
   const chunks: string[][] = [];
@@ -169,7 +181,12 @@ function sortNewestFirst(rows: Orders[]): Orders[] {
 export async function exportOrdersCsv(input: {
   filters: OrderFilters;
   headers: string[];
-}): Promise<{ csv: string; rowCount: number; truncated: boolean }> {
+}): Promise<{
+  csv: string;
+  orderCount: number;
+  rowCount: number;
+  truncated: boolean;
+}> {
   const ctx = await requireAuth();
   const { db } = await createSessionClient();
 
@@ -185,6 +202,7 @@ export async function exportOrdersCsv(input: {
     if (resolved.ids.length === 0) {
       return {
         csv: ordersToCsv([], input.headers),
+        orderCount: 0,
         rowCount: 0,
         truncated: false,
       };
@@ -200,7 +218,12 @@ export async function exportOrdersCsv(input: {
   // Unreachable: only a product filter can prove an empty set, and it is
   // resolved above.
   if (filters === null) {
-    return { csv: ordersToCsv([], input.headers), rowCount: 0, truncated };
+    return {
+      csv: ordersToCsv([], input.headers),
+      orderCount: 0,
+      rowCount: 0,
+      truncated,
+    };
   }
 
   const rows: Orders[] = [];
@@ -228,9 +251,14 @@ export async function exportOrdersCsv(input: {
     }
   }
 
+  // `rowCount` counts CSV DATA ROWS — line items, one per order for an order
+  // with none — while `orderCount` counts orders. Under the one-row-per-item
+  // shape the two genuinely differ, and the toast quotes both rather than
+  // calling line items "orders".
   return {
     csv: ordersToCsv(sortNewestFirst(rows), input.headers),
-    rowCount: rows.length,
+    orderCount: rows.length,
+    rowCount: orderCsvRowCount(rows),
     truncated,
   };
 }

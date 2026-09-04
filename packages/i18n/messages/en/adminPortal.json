@@ -745,13 +745,26 @@
       },
       "csv": {
         "orderId": "Order ID",
+        "orderDate": "Order Date",
+        "status": "Status",
         "buyerName": "Buyer Name",
         "buyerEmail": "Buyer Email",
         "buyerPhone": "Buyer Phone",
+        "campus": "Campus ID",
+        "productName": "Product",
+        "productId": "Product ID",
+        "variation": "Variation",
+        "quantity": "Quantity",
+        "unitPrice": "Unit Price",
+        "lineTotal": "Line Total",
         "currency": "Currency",
-        "paymentProvider": "Payment Provider",
+        "orderSubtotal": "Order Subtotal",
+        "orderDiscountTotal": "Order Discount",
+        "orderTotal": "Order Total",
         "memberDiscount": "Member Discount %",
-        "receiptUrl": "Receipt URL"
+        "paymentProvider": "Payment Provider",
+        "receiptUrl": "Receipt URL",
+        "customFields": "Custom Fields"
       },
       "notice": {
         "cappedTotal": "5000+ matching — narrow by date or status for an exact count",
@@ -760,8 +773,8 @@
       },
       "export": {
         "running": "Exporting…",
-        "success": "{rows, plural, one {# order} other {# orders}} exported.",
-        "truncated": "{rows, plural, one {# order} other {# orders}} exported — the file hit the export ceiling and does not contain every matching order. Narrow the filters and export again.",
+        "success": "{orders, plural, one {# order} other {# orders}} exported as {rows, plural, one {# line item row} other {# line item rows}}.",
+        "truncated": "{orders, plural, one {# order} other {# orders}} exported as {rows, plural, one {# line item row} other {# line item rows}} — the file hit the export ceiling and does not contain every matching order. Narrow the filters and export again.",
         "empty": "No orders match these filters, so there was nothing to export.",
         "failed": "The export failed. Please try again."
       }

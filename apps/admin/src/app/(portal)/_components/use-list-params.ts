@@ -22,6 +22,21 @@ export function useListParams() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const committed = searchParams.toString();
+  // The query string this hook last pushed, kept until the navigation it
+  // started actually commits. `useSearchParams` reports the pre-navigation
+  // value for that whole window, so without this a second filter change would
+  // clone the stale snapshot and silently drop the first — easy to hit on the
+  // orders tab, which has several independent controls plus a debounced search
+  // box while its queries are still loading.
+  const pending = useRef<string | null>(null);
+  const lastCommitted = useRef(committed);
+  // Any committed change supersedes the optimistic copy — our own push landing,
+  // or an external navigation such as Back, which must not be merged into.
+  if (lastCommitted.current !== committed) {
+    lastCommitted.current = committed;
+    pending.current = null;
+  }
 
   const get = useCallback(
     (key: string, fallback = "") => searchParams.get(key) ?? fallback,
@@ -36,7 +51,7 @@ export function useListParams() {
    */
   const setParams = useCallback(
     (updates: Record<string, ParamValue>, opts?: SetParamsOptions) => {
-      const params = new URLSearchParams(searchParams.toString());
+      const params = new URLSearchParams(pending.current ?? committed);
 
       for (const [key, value] of Object.entries(updates)) {
         const next = value === null || value === undefined ? "" : String(value);
@@ -52,9 +67,10 @@ export function useListParams() {
       }
 
       const qs = params.toString();
+      pending.current = qs;
       router.push(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
     },
-    [router, pathname, searchParams]
+    [router, pathname, committed]
   );
 
   return { get, setParams };

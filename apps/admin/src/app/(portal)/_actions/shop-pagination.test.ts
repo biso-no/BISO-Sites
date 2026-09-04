@@ -362,6 +362,28 @@ describe("listOrders pagination", () => {
     expect(adminDb.listRows).not.toHaveBeenCalled();
   });
 
+  // `from`/`to` arrive from a shareable URL. Every other list param clamps junk
+  // rather than throwing, and these must too: an unparseable date used to be
+  // interpolated straight into a timestamp, which Appwrite rejects and which
+  // takes the whole orders page down with it.
+  test("ignores an unparseable date rather than sending Appwrite a bad timestamp", async () => {
+    sessionDb.listRows.mockImplementation(() => ({ rows: [], total: 0 }));
+
+    await listOrders({ page: 1, size: 25, q: "", from: "garbage" });
+
+    const queries = onlyQueriesFor(sessionDb, "orders");
+    expect(queries.some((query) => query.includes("garbage"))).toBe(false);
+  });
+
+  test("ignores a well-shaped but impossible date", async () => {
+    sessionDb.listRows.mockImplementation(() => ({ rows: [], total: 0 }));
+
+    await listOrders({ page: 1, size: 25, q: "", to: "2026-02-31" });
+
+    const queries = onlyQueriesFor(sessionDb, "orders");
+    expect(queries.some((query) => query.includes("2026-02-31"))).toBe(false);
+  });
+
   test("filters a two-sided date range with a single between", async () => {
     sessionDb.listRows.mockImplementation(() => ({ rows: [], total: 0 }));
 

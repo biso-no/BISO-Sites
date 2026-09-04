@@ -123,28 +123,42 @@ export function OrdersTab({
             status: status === "all" ? undefined : status,
             to: params.to,
           },
+          // The 21 columns of the export contract, in the order
+          // `ordersToCsv` writes them — one row per ORDER ITEM. Every label
+          // comes from the `csv.*` block so the file's own vocabulary stays
+          // together; borrowing screen labels made "Total" ambiguous between
+          // a line and an order.
           headers: [
             ts("csv.orderId"),
-            tc("date"),
+            ts("csv.orderDate"),
+            ts("csv.status"),
             ts("csv.buyerName"),
             ts("csv.buyerEmail"),
             ts("csv.buyerPhone"),
-            shop("orders.details.items"),
-            shop("orders.details.subtotal"),
-            shop("orders.details.discount"),
-            shop("orders.details.total"),
+            ts("csv.campus"),
+            ts("csv.productName"),
+            ts("csv.productId"),
+            ts("csv.variation"),
+            ts("csv.quantity"),
+            ts("csv.unitPrice"),
+            ts("csv.lineTotal"),
             ts("csv.currency"),
-            shop("orders.details.status"),
-            ts("csv.paymentProvider"),
+            ts("csv.orderSubtotal"),
+            ts("csv.orderDiscountTotal"),
+            ts("csv.orderTotal"),
             ts("csv.memberDiscount"),
+            ts("csv.paymentProvider"),
             ts("csv.receiptUrl"),
+            ts("csv.customFields"),
           ],
         },
         {
           empty: ts("export.empty"),
           failed: ts("export.failed"),
-          success: (rowCount) => ts("export.success", { rows: rowCount }),
-          truncated: (rowCount) => ts("export.truncated", { rows: rowCount }),
+          success: (orderCount, rowCount) =>
+            ts("export.success", { orders: orderCount, rows: rowCount }),
+          truncated: (orderCount, rowCount) =>
+            ts("export.truncated", { orders: orderCount, rows: rowCount }),
         },
         ordersCsvFileName()
       );

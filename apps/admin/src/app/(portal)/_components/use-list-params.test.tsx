@@ -66,6 +66,39 @@ async function mount(element: ReturnType<typeof createElement>) {
   });
 }
 
+// A filter change pushes a new URL, but `useSearchParams` keeps reporting the
+// pre-navigation query string until the RSC navigation commits. The orders tab
+// has several independent controls and a debounced search box, so a second
+// change landing inside that window is ordinary, not exotic.
+test("merges a second write against the first while the navigation is pending", async () => {
+  let setParams:
+    | ((
+        updates: Record<string, string | number | null | undefined>,
+        opts?: { keepPage?: boolean; pageKey?: string }
+      ) => void)
+    | null = null;
+
+  function Probe() {
+    setParams = useListParams().setParams;
+    return null;
+  }
+
+  searchParamsString = "";
+  await mount(createElement(Probe));
+
+  await act(() => {
+    setParams?.({ ostatus: "paid" });
+  });
+  await act(() => {
+    setParams?.({ product: "prod-1" });
+  });
+
+  expect(pushCalls).toHaveLength(2);
+  const second = new URLSearchParams(pushCalls[1]?.split("?")[1] ?? "");
+  expect(second.get("product")).toBe("prod-1");
+  expect(second.get("ostatus")).toBe("paid");
+});
+
 // ---------------------------------------------------------------------------
 // useUrlSearch
 // ---------------------------------------------------------------------------
