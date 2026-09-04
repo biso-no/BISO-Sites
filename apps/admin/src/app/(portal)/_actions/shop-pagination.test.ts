@@ -253,6 +253,91 @@ describe("countProductStats", () => {
     expect(queries).toContain(PRODUCT_SCOPE);
     expect(queries.some((query) => query.includes('"offset"'))).toBe(false);
   });
+
+  test("counts only the category the catalog is filtered to", async () => {
+    adminDb.listRows.mockImplementation(() => ({
+      rows: [
+        { $id: "p1", status: "published", inventory_mode: "tracked", stock: 1 },
+      ],
+      total: 4,
+    }));
+
+    const stats = await countProductStats({ category: "apparel" });
+
+    expect(stats.all).toBe(4);
+    expect(stats.published).toBe(1);
+    const queries = onlyQueriesFor(adminDb, "webshop_products");
+    expect(queries).toContain(Query.equal("category", "apparel"));
+    expect(queries).toContain(PRODUCT_SCOPE);
+  });
+
+  test("counts the same search intersection the list pages", async () => {
+    adminDb.listRows.mockImplementation((_db: string, tableId: string) =>
+      tableId === "content_translations"
+        ? { rows: [{ $id: "t1", content_id: "p9" }], total: 1 }
+        : {
+            rows: [
+              {
+                $id: "p9",
+                status: "published",
+                inventory_mode: "unlimited",
+                stock: null,
+              },
+            ],
+            total: 1,
+          }
+    );
+
+    const stats = await countProductStats({ q: "genser" });
+
+    expect(stats.all).toBe(1);
+    expect(stats.published).toBe(1);
+    const queries = onlyQueriesFor(adminDb, "webshop_products");
+    const orClause = queries.find((query) => query.includes('"or"'));
+    expect(orClause).toBeDefined();
+    expect(orClause).toContain("p9");
+    expect(orClause).toContain("slug");
+    expect(queries).toContain(PRODUCT_SCOPE);
+  });
+
+  test("falls back to a slug-only match when no title matches", async () => {
+    adminDb.listRows.mockImplementation((_db: string, tableId: string) =>
+      tableId === "content_translations"
+        ? { rows: [], total: 0 }
+        : { rows: [], total: 0 }
+    );
+
+    const stats = await countProductStats({ q: "booklocker" });
+
+    expect(stats.all).toBe(0);
+    const queries = onlyQueriesFor(adminDb, "webshop_products");
+    // A single-clause `Query.or` is rejected by Appwrite.
+    expect(queries).toContain(Query.contains("slug", "booklocker"));
+    expect(queries.some((query) => query.includes('"or"'))).toBe(false);
+    expect(queries).toContain(PRODUCT_SCOPE);
+  });
+
+  test("keeps the scope under every filter combination", async () => {
+    adminDb.listRows.mockImplementation((_db: string, tableId: string) =>
+      tableId === "content_translations"
+        ? { rows: [{ $id: "t1", content_id: "p9" }], total: 1 }
+        : { rows: [], total: 0 }
+    );
+
+    await countProductStats({ category: "apparel", q: "genser" });
+
+    const queries = onlyQueriesFor(adminDb, "webshop_products");
+    expect(queries).toContain(PRODUCT_SCOPE);
+    expect(queries).toContain(Query.equal("category", "apparel"));
+    expect(queries.some((query) => query.includes('"or"'))).toBe(true);
+    // A status filter would collapse the per-status chips to one number; the
+    // projection mentions `status`, a filter on it would not be a `select`.
+    const statusFilters = queries.filter(
+      (query) =>
+        query.includes('"status"') && !query.includes('"method":"select"')
+    );
+    expect(statusFilters).toEqual([]);
+  });
 });
 
 // ─── Orders ──────────────────────────────────────────────────────────────────
@@ -472,22 +557,26 @@ describe("countOrderStats", () => {
         { $id: "o4", status: "refunded", total: 75 },
         { $id: "o5", status: "cancelled", total: 10 },
         { $id: "o6", status: "failed", total: 10 },
+        { $id: "o7", status: "authorized", total: 30 },
       ],
-      total: 6,
+      total: 7,
     }));
 
     const stats = await countOrderStats({ status: "all", q: "andreas" });
 
     expect(stats).toEqual({
-      all: 6,
+      all: 7,
+      authorized: 1,
+      cancelled: 1,
+      capped: false,
+      failed: 1,
       paid: 2,
+      paidRevenue: 350,
       pending: 1,
       refunded: 1,
-      cancelled: 1,
-      paidRevenue: 350,
-      pendingCount: 1,
-      capped: false,
     });
+    // `pendingCount` duplicated `pending`; the UI reads `pending`.
+    expect("pendingCount" in stats).toBe(false);
 
     const queries = onlyQueriesFor(sessionDb, "orders");
     expect(queries).toContain(Query.select(["$id", "status", "total"]));
@@ -514,7 +603,36 @@ describe("countOrderStats", () => {
 
     expect(stats.all).toBe(0);
     expect(stats.paidRevenue).toBe(0);
+    expect(stats.authorized).toBe(0);
+    expect(stats.failed).toBe(0);
     expect(queriesFor(sessionDb, "orders")).toHaveLength(0);
+  });
+
+  test("keeps the scope under every filter combination", async () => {
+    sessionDb.listRows.mockImplementation((_db: string, tableId: string) =>
+      tableId === "order_items"
+        ? { rows: [{ $id: "i1", order: { $id: "o1" } }], total: 1 }
+        : { rows: [{ $id: "o1", status: "paid", total: 10 }], total: 1 }
+    );
+
+    await countOrderStats({
+      from: "2026-01-01",
+      productId: "prod-1",
+      q: "andreas",
+      to: "2026-01-31",
+    });
+
+    const queries = onlyQueriesFor(sessionDb, "orders");
+    expect(queries).toContain(ORDER_SCOPE);
+    expect(queries).toContain(Query.equal("$id", ["o1"]));
+    expect(queries).toContain(
+      Query.between(
+        "$createdAt",
+        "2026-01-01T00:00:00.000Z",
+        "2026-01-31T23:59:59.999Z"
+      )
+    );
+    expect(queries.some((query) => query.includes('"or"'))).toBe(true);
   });
 });
 

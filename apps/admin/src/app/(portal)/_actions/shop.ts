@@ -591,6 +591,23 @@ function resolveProductTitle(
   );
 }
 
+/**
+ * The catalog search predicate: "translated title matches OR slug matches".
+ *
+ * Shared by `listProducts` and `countProductStats` so the tiles and chips can
+ * never describe a different set than the rows on screen. `Query.or` rejects a
+ * single-clause list, so with no title hit the predicate collapses to the slug
+ * match rather than short-circuiting — a product whose slug matches but whose
+ * title does not must still be reachable.
+ */
+async function productSearchQuery(db: AdminDb, q: string): Promise<string> {
+  const titleIds = await findProductIdsByTitle(db, q);
+  const slugMatch = Query.contains("slug", q);
+  return titleIds.length > 0
+    ? Query.or([Query.equal("$id", titleIds), slugMatch])
+    : slugMatch;
+}
+
 export async function listProducts(
   params: ListParams & { status?: string; category?: string }
 ): Promise<PaginatedResult<ProductWithTranslations>> {
@@ -617,18 +634,7 @@ export async function listProducts(
   }
 
   if (params.q) {
-    // The list UI has always searched slug as well as name, so the predicate is
-    // "translated title matches OR slug matches". `Query.or` rejects a
-    // single-clause list, so with no title hit the predicate collapses to the
-    // slug match rather than short-circuiting — a product whose slug matches
-    // but whose title does not must still be reachable.
-    const titleIds = await findProductIdsByTitle(db, params.q);
-    const slugMatch = Query.contains("slug", params.q);
-    queries.push(
-      titleIds.length > 0
-        ? Query.or([Query.equal("$id", titleIds), slugMatch])
-        : slugMatch
-    );
+    queries.push(await productSearchQuery(db, params.q));
   }
 
   const response = await db.listRows<WebshopProducts>(
@@ -665,26 +671,45 @@ export interface ProductStats {
 }
 
 /**
- * Catalog KPI tiles and status chips, counted across the FULL scoped set.
+ * Catalog KPI tiles and status chips, counted across the FULL scoped set that
+ * matches the current filters.
  *
  * The list is paginated, so these cannot be derived from the visible rows —
  * they would report one page's worth and change as the user paged. Deliberately
  * takes no page/size and issues no offset: a projected 500-row read covers the
  * whole table (57 products) cheaply enough to run alongside the page query, and
  * `all` comes from Appwrite's own total so it agrees with the pagination bar.
+ *
+ * `category` and `q` are honoured — the tiles describe what the user is looking
+ * at — but `status` deliberately is NOT: the per-status tallies are exactly
+ * what the status chips render, so filtering by one would collapse them all to
+ * a single number. The relationship scope is unconditional either way.
  */
-export async function countProductStats(): Promise<ProductStats> {
+export async function countProductStats(filters?: {
+  category?: string;
+  q?: string;
+}): Promise<ProductStats> {
   const ctx = await requireAuth();
   const { db } = await createAdminClient();
+
+  const queries: string[] = [
+    Query.select(["$id", "status", "inventory_mode", "stock"]),
+    Query.limit(PRODUCT_SCAN_LIMIT),
+    ...applyContentRelationshipScopeQueries(ctx),
+  ];
+
+  if (filters?.category) {
+    queries.push(Query.equal("category", filters.category));
+  }
+
+  if (filters?.q) {
+    queries.push(await productSearchQuery(db, filters.q));
+  }
 
   const response = await db.listRows<WebshopProducts>(
     "app",
     "webshop_products",
-    [
-      Query.select(["$id", "status", "inventory_mode", "stock"]),
-      Query.limit(PRODUCT_SCAN_LIMIT),
-      ...applyContentRelationshipScopeQueries(ctx),
-    ]
+    queries
   );
 
   const stats: ProductStats = {
@@ -1018,7 +1043,7 @@ const ORDER_ITEM_SCAN_PAGE = 500;
  */
 const MAX_ORDER_ITEM_SCAN_PAGES = 20;
 
-interface OrderFilters {
+export interface OrderFilters {
   from?: string;
   productId?: string;
   q?: string;
@@ -1175,7 +1200,7 @@ export async function listOrderIdsForProduct(
  * caller can answer without asking Appwrite for `Query.equal("$id", [])`
  * (which it rejects).
  */
-async function orderFilterQueries(
+export async function orderFilterQueries(
   filters: OrderFilters
 ): Promise<{ queries: string[]; truncated: boolean } | null> {
   const queries: string[] = [];
@@ -1242,26 +1267,48 @@ export async function listOrders(
 
 export interface OrderStats {
   all: number;
+  authorized: number;
   cancelled: number;
   /** True when the numbers describe only the first `APPWRITE_TOTAL_CAP` rows. */
   capped: boolean;
+  failed: number;
   paid: number;
   paidRevenue: number;
   pending: number;
-  /** Same tally as `pending`; named for the KPI tile that reads it. */
-  pendingCount: number;
   refunded: number;
 }
 
 const EMPTY_ORDER_STATS: OrderStats = {
   all: 0,
+  authorized: 0,
   cancelled: 0,
   capped: false,
+  failed: 0,
   paid: 0,
   paidRevenue: 0,
   pending: 0,
-  pendingCount: 0,
   refunded: 0,
+};
+
+type OrderStatusTally =
+  | "authorized"
+  | "cancelled"
+  | "failed"
+  | "paid"
+  | "pending"
+  | "refunded";
+
+/**
+ * Every status the chips offer, tallied in one pass. A lookup keeps the loop
+ * flat as the enum grows; `paid` is the one status that also sums revenue.
+ */
+const ORDER_STATUS_TALLIES: Record<string, OrderStatusTally | undefined> = {
+  [OrdersStatus.AUTHORIZED]: "authorized",
+  [OrdersStatus.CANCELLED]: "cancelled",
+  [OrdersStatus.FAILED]: "failed",
+  [OrdersStatus.PAID]: "paid",
+  [OrdersStatus.PENDING]: "pending",
+  [OrdersStatus.REFUNDED]: "refunded",
 };
 
 /**
@@ -1304,18 +1351,14 @@ export async function countOrderStats(
   };
 
   for (const order of response.rows) {
+    const tally = order.status ? ORDER_STATUS_TALLIES[order.status] : undefined;
+    if (tally) {
+      stats[tally] += 1;
+    }
     if (order.status === OrdersStatus.PAID) {
-      stats.paid += 1;
       stats.paidRevenue += order.total ?? 0;
-    } else if (order.status === OrdersStatus.PENDING) {
-      stats.pending += 1;
-    } else if (order.status === OrdersStatus.REFUNDED) {
-      stats.refunded += 1;
-    } else if (order.status === OrdersStatus.CANCELLED) {
-      stats.cancelled += 1;
     }
   }
-  stats.pendingCount = stats.pending;
 
   return stats;
 }
