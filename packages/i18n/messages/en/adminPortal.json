@@ -703,7 +703,8 @@
       },
       "kpi": {
         "liveProducts": "Live products",
-        "revenue30d": "Revenue (30d)"
+        "revenue": "Paid revenue",
+        "totalOrders": "Orders"
       },
       "stock": {
         "unlimited": "Unlimited"
@@ -751,6 +752,18 @@
         "paymentProvider": "Payment Provider",
         "memberDiscount": "Member Discount %",
         "receiptUrl": "Receipt URL"
+      },
+      "notice": {
+        "cappedTotal": "5000+ matching — narrow by date or status for an exact count",
+        "cappedRevenue": "Newest 5000 matching orders only",
+        "truncatedOrders": "This product matches more orders than the list can show. Only the first 500 matching orders appear here — export the CSV for the full set."
+      },
+      "export": {
+        "running": "Exporting…",
+        "success": "{rows, plural, one {# order} other {# orders}} exported.",
+        "truncated": "{rows, plural, one {# order} other {# orders}} exported — the file hit the export ceiling and does not contain every matching order. Narrow the filters and export again.",
+        "empty": "No orders match these filters, so there was nothing to export.",
+        "failed": "The export failed. Please try again."
       }
     },
     "preview": "Storefront Preview",

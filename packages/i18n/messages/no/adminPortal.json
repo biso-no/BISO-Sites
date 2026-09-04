@@ -703,7 +703,8 @@
       },
       "kpi": {
         "liveProducts": "Publiserte produkter",
-        "revenue30d": "Omsetning (30d)"
+        "revenue": "Betalt omsetning",
+        "totalOrders": "Bestillinger"
       },
       "stock": {
         "unlimited": "Ubegrenset"
@@ -751,6 +752,18 @@
         "paymentProvider": "Betalingsleverandør",
         "memberDiscount": "Medlemsrabatt %",
         "receiptUrl": "Kvitterings-URL"
+      },
+      "notice": {
+        "cappedTotal": "5000+ treff — avgrens på dato eller status for et eksakt tall",
+        "cappedRevenue": "Kun de 5000 nyeste treffene",
+        "truncatedOrders": "Dette produktet finnes i flere bestillinger enn listen kan vise. Kun de 500 første treffene vises her — eksporter CSV-filen for hele settet."
+      },
+      "export": {
+        "running": "Eksporterer…",
+        "success": "{rows, plural, one {# bestilling} other {# bestillinger}} eksportert.",
+        "truncated": "{rows, plural, one {# bestilling} other {# bestillinger}} eksportert — filen nådde eksporttaket og inneholder ikke alle treff. Avgrens filtrene og eksporter på nytt.",
+        "empty": "Ingen bestillinger treffer disse filtrene, så det var ingenting å eksportere.",
+        "failed": "Eksporten mislyktes. Prøv igjen."
       }
     },
     "preview": "Butikkvisning",
