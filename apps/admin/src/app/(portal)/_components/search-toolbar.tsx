@@ -13,11 +13,19 @@ interface ChipFilter {
 interface SearchToolbarProps {
   activeFilter?: string;
   children?: ReactNode;
+  /** Seeds an uncontrolled box once, on mount. */
   defaultSearch?: string;
   filters?: ChipFilter[];
   onFilterChange?: (value: string) => void;
   onSearch?: (value: string) => void;
   placeholder?: string;
+  /**
+   * Controlled term. Supply it when the box is bound to state that can change
+   * without the user typing — URL state, say — so a browser Back updates the
+   * visible term and not just the results underneath it. `defaultSearch` alone
+   * cannot do that: it is copied into local state at mount and never read again.
+   */
+  value?: string;
 }
 
 export function SearchToolbar({
@@ -28,20 +36,22 @@ export function SearchToolbar({
   activeFilter,
   onFilterChange,
   children,
+  value: controlledValue,
 }: SearchToolbarProps) {
-  const [value, setValue] = useState(defaultSearch);
+  const [ownValue, setOwnValue] = useState(defaultSearch);
   const [, startTransition] = useTransition();
+  const value = controlledValue ?? ownValue;
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
     const v = e.target.value;
-    setValue(v);
+    setOwnValue(v);
     startTransition(() => {
       onSearch?.(v);
     });
   }
 
   function handleClear() {
-    setValue("");
+    setOwnValue("");
     onSearch?.("");
   }
 

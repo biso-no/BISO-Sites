@@ -14,7 +14,7 @@ import { getTranslations } from "next-intl/server";
 import { requireAdminAccess } from "@/lib/authorization";
 import { getDefaultNavPath } from "@/lib/nav-tree";
 import { hasNavAccess } from "@/lib/roles";
-import { listActivityLog } from "./_actions/activity";
+import { listRecentActivity } from "./_actions/activity";
 import { getDashboardStats } from "./_actions/pages";
 import { ContentActivityChart } from "./_components/content-chart-lazy";
 import {
@@ -45,8 +45,8 @@ export default async function AdminPortalDashboard() {
 
   const [stats, recentActivity, chartActivity] = await Promise.allSettled([
     getDashboardStats(),
-    listActivityLog({ limit: 5 }),
-    listActivityLog({ limit: 200 }),
+    listRecentActivity(5),
+    listRecentActivity(200),
   ]);
 
   const statsData =

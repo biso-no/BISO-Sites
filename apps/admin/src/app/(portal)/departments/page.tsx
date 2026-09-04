@@ -1,4 +1,3 @@
-import type { Departments } from "@repo/api/types/appwrite";
 import {
   parseUnitCategory,
   UNIT_CATEGORIES,
@@ -10,12 +9,22 @@ import { notFound, redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { requireNavAccess } from "@/lib/authorization";
 import { resolveDepartmentsLanding } from "@/lib/departments";
+import {
+  DEFAULT_PAGE_SIZE,
+  firstParam,
+  parseListParams,
+} from "@/lib/list-params";
 import { ROLES } from "@/lib/roles";
-import { listDepartments } from "../_actions/departments";
+import {
+  countDepartmentTriage,
+  listDepartments,
+} from "../_actions/departments";
 import { listCampuses } from "../_actions/lookups";
 import { EmptyState } from "../_components/empty-state";
 import { PageHeader } from "../_components/page-header";
+import { PaginationBar } from "../_components/pagination-bar";
 import { STUDIO } from "../_components/studio";
+import { UrlSearchToolbar } from "../_components/url-search-toolbar";
 import { UnitListCard } from "./_components/unit-list-card";
 import { SyncDepartmentsButton } from "./sync-button";
 
@@ -34,29 +43,10 @@ const isDepartmentFilter = (value: unknown): value is DepartmentFilter =>
     (UNIT_CATEGORIES.includes(value as UnitCategory) ||
       TRIAGE_FILTERS.includes(value as TriageFilter)));
 
-const hasLogo = (department: Departments) => Boolean(department.logo?.trim());
-
-function matchesFilter(
-  department: Departments,
-  filter: DepartmentFilter
-): boolean {
-  if (filter === "all") {
-    return true;
-  }
-  if (filter === "missing_logo") {
-    return !hasLogo(department);
-  }
-  const category = parseUnitCategory(department.type);
-  if (filter === "uncategorised") {
-    return category === null;
-  }
-  return category === filter;
-}
-
 export default async function DepartmentsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ type?: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const ctx = await requireNavAccess("portal.departments");
   const landing = resolveDepartmentsLanding(ctx);
@@ -69,40 +59,54 @@ export default async function DepartmentsPage({
   }
 
   const t = await getTranslations("adminPortal.departments");
-  const { type: requestedFilter } = await searchParams;
-  const filter: DepartmentFilter = isDepartmentFilter(requestedFilter)
-    ? requestedFilter
+  const tc = await getTranslations("adminPortal.common");
+  const resolvedSearchParams = await searchParams;
+  const params = parseListParams(resolvedSearchParams);
+  const rawFilter = firstParam(resolvedSearchParams, "type");
+  const filter: DepartmentFilter = isDepartmentFilter(rawFilter)
+    ? rawFilter
     : "all";
 
-  const [departments, campuses] = await Promise.all([
-    listDepartments({ includeInactive: true, ids: landing.scopeIds }),
+  // Two queries on purpose. The listing is a page; the chip counts describe the
+  // whole set the search leaves in scope, so they stay identical as the user
+  // pages. Deriving them from `departments.rows` would report one page's worth.
+  // `q` goes to both so the chips predict what clicking them yields; `page`
+  // and `size` go only to the list.
+  const [departments, counts, campuses] = await Promise.all([
+    listDepartments({
+      ...params,
+      ids: landing.scopeIds,
+      includeInactive: true,
+      type: filter === "all" ? undefined : filter,
+    }),
+    countDepartmentTriage({
+      ids: landing.scopeIds,
+      includeInactive: true,
+      q: params.q,
+    }),
     listCampuses(),
   ]);
 
+  const visible = departments.rows;
   const campusMap = new Map(campuses.map((c) => [c.$id, c.name]));
   const isGlobalAdmin = ctx.roles.includes(ROLES.GLOBAL_ADMIN);
 
-  // Counts come from the FULL scoped set, not the filtered view, so the chips
-  // keep reporting how much triage is left while one of them is active.
-  const counts = new Map<DepartmentFilter, number>();
-  counts.set("all", departments.length);
-  for (const category of UNIT_CATEGORIES) {
-    counts.set(category, 0);
-  }
-  counts.set("uncategorised", 0);
-  counts.set("missing_logo", 0);
-  for (const department of departments) {
-    const category = parseUnitCategory(department.type);
-    const key: DepartmentFilter = category ?? "uncategorised";
-    counts.set(key, (counts.get(key) ?? 0) + 1);
-    if (!hasLogo(department)) {
-      counts.set("missing_logo", (counts.get("missing_logo") ?? 0) + 1);
+  // A chip switches the filter; it must keep the active search and page size
+  // but always land on page 1 of the new filter.
+  const chipHref = (key: DepartmentFilter) => {
+    const next = new URLSearchParams();
+    if (key !== "all") {
+      next.set("type", key);
     }
-  }
-
-  const visible = departments.filter((department) =>
-    matchesFilter(department, filter)
-  );
+    if (params.q) {
+      next.set("q", params.q);
+    }
+    if (params.size !== DEFAULT_PAGE_SIZE) {
+      next.set("size", String(params.size));
+    }
+    const qs = next.toString();
+    return qs ? `/departments?${qs}` : "/departments";
+  };
 
   const chips: { key: DepartmentFilter; label: string }[] = [
     { key: "all", label: t("filters.all") },
@@ -121,13 +125,15 @@ export default async function DepartmentsPage({
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm" style={{ color: STUDIO.ink3 }}>
           {t("filters.triageSummary", {
-            missingLogo: counts.get("missing_logo") ?? 0,
-            total: departments.length,
-            uncategorised: counts.get("uncategorised") ?? 0,
+            missingLogo: counts.missing_logo,
+            total: counts.all,
+            uncategorised: counts.uncategorised,
           })}
         </p>
         {isGlobalAdmin && <SyncDepartmentsButton />}
       </div>
+
+      <UrlSearchToolbar />
 
       <nav
         aria-label={t("filters.label")}
@@ -139,11 +145,7 @@ export default async function DepartmentsPage({
             <Link
               aria-current={isActive ? "page" : undefined}
               className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 font-medium text-xs transition"
-              href={
-                chip.key === "all"
-                  ? "/departments"
-                  : `/departments?type=${chip.key}`
-              }
+              href={chipHref(chip.key)}
               key={chip.key}
               style={{
                 background: isActive ? STUDIO.ink : "rgba(255,255,255,0.55)",
@@ -152,19 +154,27 @@ export default async function DepartmentsPage({
               }}
             >
               {chip.label}
-              <span style={{ opacity: 0.7 }}>{counts.get(chip.key) ?? 0}</span>
+              <span style={{ opacity: 0.7 }}>{counts[chip.key] ?? 0}</span>
             </Link>
           );
         })}
       </nav>
 
-      {visible.length === 0 ? (
+      {visible.length === 0 && !params.q ? (
         <EmptyState
           description={t("emptyDescription")}
           icon={<Building2 size={28} />}
           title={t("empty")}
         />
-      ) : (
+      ) : null}
+
+      {/* A search that matched nothing gets the neutral "No results found" —
+          never the sync-explains-the-emptiness copy, which would be wrong. */}
+      {visible.length === 0 && params.q ? (
+        <EmptyState icon={<Building2 size={28} />} title={tc("empty")} />
+      ) : null}
+
+      {visible.length > 0 && (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {visible.map((dept) => {
             const category = parseUnitCategory(dept.type);
@@ -185,6 +195,13 @@ export default async function DepartmentsPage({
           })}
         </div>
       )}
+
+      <PaginationBar
+        page={params.page}
+        size={params.size}
+        sizeSelectable
+        total={departments.total}
+      />
     </div>
   );
 }

@@ -3,16 +3,25 @@ import Image from "next/image";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { requireNavAccess } from "@/lib/authorization";
+import { parseListParams } from "@/lib/list-params";
 import { listPartners } from "../../_actions/benefits";
 import { EmptyState } from "../../_components/empty-state";
 import { PageHeader } from "../../_components/page-header";
+import { PaginationBar } from "../../_components/pagination-bar";
 import { SERIF_STACK, STUDIO, StudioIconBox } from "../../_components/studio";
+import { UrlSearchToolbar } from "../../_components/url-search-toolbar";
 
-export default async function BenefitPartnersPage() {
+export default async function BenefitPartnersPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   await requireNavAccess("portal.benefitsPartners");
   const t = await getTranslations("adminPortal.benefits");
+  const tc = await getTranslations("adminPortal.common");
 
-  const partners = await listPartners();
+  const params = parseListParams(await searchParams);
+  const { rows: partners, total } = await listPartners(params);
 
   return (
     <div className="pb-12">
@@ -49,13 +58,21 @@ export default async function BenefitPartnersPage() {
         </span>
       </PageHeader>
 
-      {partners.length === 0 ? (
+      <UrlSearchToolbar />
+
+      {partners.length === 0 && !params.q ? (
         <EmptyState
           description="Partners are added via invitation."
           icon={<Users size={28} />}
           title={t("partners.empty")}
         />
-      ) : (
+      ) : null}
+
+      {partners.length === 0 && params.q ? (
+        <EmptyState icon={<Users size={28} />} title={tc("empty")} />
+      ) : null}
+
+      {partners.length > 0 && (
         <div className="space-y-3">
           {partners.map((partner) => (
             <div
@@ -123,6 +140,13 @@ export default async function BenefitPartnersPage() {
           ))}
         </div>
       )}
+
+      <PaginationBar
+        page={params.page}
+        size={params.size}
+        sizeSelectable
+        total={total}
+      />
     </div>
   );
 }

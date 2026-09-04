@@ -29,6 +29,7 @@ import {
   updateJobApplicationReview,
   updateJobApplicationStatus,
 } from "../../_actions/jobs";
+import { APPLICATIONS_PAGE_SIZE } from "../../_actions/schemas";
 import { EmptyState } from "../../_components/empty-state";
 import { PaginationBar } from "../../_components/pagination-bar";
 import { SearchToolbar } from "../../_components/search-toolbar";
@@ -1143,7 +1144,7 @@ export function JobApplicationsClient({
         </div>
       )}
 
-      <PaginationBar page={page} total={total} />
+      <PaginationBar page={page} size={APPLICATIONS_PAGE_SIZE} total={total} />
     </div>
   );
 }

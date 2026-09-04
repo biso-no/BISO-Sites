@@ -100,6 +100,12 @@
     "locale": {
       "no": "Norsk",
       "en": "Engelsk"
+    },
+    "pagination": {
+      "summary": "{total} totalt · side {page} av {pages}",
+      "previous": "Forrige side",
+      "next": "Neste side",
+      "perPage": "Per side"
     }
   },
   "it": {
@@ -697,7 +703,8 @@
       },
       "kpi": {
         "liveProducts": "Publiserte produkter",
-        "revenue30d": "Omsetning (30d)"
+        "revenue": "Betalt omsetning",
+        "totalOrders": "Bestillinger"
       },
       "stock": {
         "unlimited": "Ubegrenset"
@@ -738,13 +745,38 @@
       },
       "csv": {
         "orderId": "Bestillings-ID",
+        "orderDate": "Bestillingsdato",
+        "status": "Status",
         "buyerName": "Kjøpernavn",
         "buyerEmail": "Kjøper-e-post",
         "buyerPhone": "Kjøpertelefon",
+        "campus": "Campus-ID",
+        "productName": "Produkt",
+        "productId": "Produkt-ID",
+        "variation": "Variant",
+        "quantity": "Antall",
+        "unitPrice": "Enhetspris",
+        "lineTotal": "Linjesum",
         "currency": "Valuta",
-        "paymentProvider": "Betalingsleverandør",
+        "orderSubtotal": "Delsum (bestilling)",
+        "orderDiscountTotal": "Rabatt (bestilling)",
+        "orderTotal": "Sum (bestilling)",
         "memberDiscount": "Medlemsrabatt %",
-        "receiptUrl": "Kvitterings-URL"
+        "paymentProvider": "Betalingsleverandør",
+        "receiptUrl": "Kvitterings-URL",
+        "customFields": "Tilleggsvalg"
+      },
+      "notice": {
+        "cappedTotal": "5000+ treff — avgrens på dato eller status for et eksakt tall",
+        "cappedRevenue": "Kun de 5000 nyeste treffene",
+        "truncatedOrders": "Dette produktet finnes i flere bestillinger enn listen kan vise. Kun de 500 første treffene vises her — eksporter CSV-filen for hele settet."
+      },
+      "export": {
+        "running": "Eksporterer…",
+        "success": "{orders, plural, one {# bestilling} other {# bestillinger}} eksportert som {rows, plural, one {# varelinje} other {# varelinjer}}.",
+        "truncated": "{orders, plural, one {# bestilling} other {# bestillinger}} eksportert som {rows, plural, one {# varelinje} other {# varelinjer}} — filen nådde eksporttaket og inneholder ikke alle treff. Avgrens filtrene og eksporter på nytt.",
+        "empty": "Ingen bestillinger treffer disse filtrene, så det var ingenting å eksportere.",
+        "failed": "Eksporten mislyktes. Prøv igjen."
       }
     },
     "preview": "Butikkvisning",

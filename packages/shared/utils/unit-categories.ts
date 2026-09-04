@@ -69,6 +69,22 @@ export const parseUnitCategory = (value: unknown): UnitCategory | null => {
   return LEGACY_ALIASES[normalized] ?? null;
 };
 
+/**
+ * Every raw `departments.type` value that normalises onto `category`, for
+ * building an Appwrite filter that matches what `parseUnitCategory` counts.
+ *
+ * Without this, an exact-match `type` filter would list strictly fewer rows
+ * than the matching category count reports: a row stored as `committee` is
+ * counted under `staff_function` but would never be returned by a filter on
+ * `staff_function`.
+ */
+export const unitCategoryMatchValues = (category: UnitCategory): string[] => [
+  category,
+  ...Object.entries(LEGACY_ALIASES)
+    .filter(([, canonical]) => canonical === category)
+    .map(([alias]) => alias),
+];
+
 export const isUnitCategory = (value: unknown): value is UnitCategory =>
   typeof value === "string" && UNIT_CATEGORY_SET.has(value);
 

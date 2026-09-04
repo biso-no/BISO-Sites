@@ -10,6 +10,7 @@ import {
   deleteAnnouncement,
   sendAnnouncement,
 } from "../../_actions/announcements";
+import { ANNOUNCEMENTS_PAGE_SIZE } from "../../_actions/schemas";
 import { EmptyState } from "../../_components/empty-state";
 import { PaginationBar } from "../../_components/pagination-bar";
 import { PortalButton } from "../../_components/portal-button";
@@ -165,7 +166,7 @@ export function AnnouncementListClient({
         })}
       </div>
 
-      <PaginationBar page={page} total={total} />
+      <PaginationBar page={page} size={ANNOUNCEMENTS_PAGE_SIZE} total={total} />
     </div>
   );
 }

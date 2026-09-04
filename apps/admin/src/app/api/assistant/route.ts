@@ -465,9 +465,12 @@ function buildDeps(
         case "pages":
           return await listPages({ status });
         case "shop":
-          return await listProducts({ status });
+          return (
+            await listProducts({ page: 1, size: 100, q: query ?? "", status })
+          ).rows;
         case "benefits":
-          return await listBenefits({ status });
+          return (await listBenefits({ page: 1, size: 100, q: "", status }))
+            .rows;
         case "documents":
           return await listDocuments({ status });
         default:
@@ -502,11 +505,11 @@ function buildDeps(
     },
 
     listPendingApprovals: async () => {
-      const result = await listPendingApprovals();
+      const result = await listPendingApprovals({ page: 1, size: 50, q: "" });
       if ("error" in result) {
         throw new Error(result.error);
       }
-      return result.data;
+      return result.data.rows;
     },
 
     // -------------------------------------------------------------------------

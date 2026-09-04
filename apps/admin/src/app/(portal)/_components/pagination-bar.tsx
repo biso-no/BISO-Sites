@@ -2,40 +2,119 @@
 
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useCallback } from "react";
-
-export const PAGE_SIZE = 20;
+import {
+  DEFAULT_PAGE_SIZE,
+  lastReachablePage,
+  PAGE_SIZES,
+} from "@/lib/list-params";
+import { STUDIO } from "./studio";
 
 interface PaginationBarProps {
   page: number;
+  /** Alternate page key for a route rendering two independent tables. */
+  pageKey?: string;
+  /**
+   * Real page size the surface is paging by. `PageSize` (25|50|100) can't
+   * express legacy surfaces still paging by 20, so this accepts any number —
+   * the size picker only renders when `sizeSelectable` is true.
+   */
+  size?: number;
+  /**
+   * Alternate size key, for the same reason as `pageKey`: two tables on one
+   * route must not fight over a single `?size=`.
+   */
+  sizeKey?: string;
+  /**
+   * Whether the surface's server action actually reads `?size=` and honours
+   * it. This must be explicit, not inferred from `size`'s value — a legacy
+   * surface can coincidentally page by a number that's also in `PAGE_SIZES`
+   * (e.g. Documents pages by 25) while its action still ignores the query
+   * param, which would render a picker that changes the URL but not the
+   * results. Defaults to `false`; opt in per surface once its action wires
+   * up `?size=`.
+   */
+  sizeSelectable?: boolean;
   total: number;
 }
 
-export function PaginationBar({ total, page }: PaginationBarProps) {
+export function PaginationBar({
+  total,
+  page,
+  size = DEFAULT_PAGE_SIZE,
+  pageKey = "page",
+  sizeKey = "size",
+  sizeSelectable = false,
+}: PaginationBarProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const t = useTranslations("adminPortal.common.pagination");
+  // Bounded by MAX_OFFSET as well as by the row count (see
+  // `lastReachablePage`): Appwrite rejects an offset past that regardless of
+  // how many rows would otherwise remain, so a page beyond it must never be
+  // offered as a clickable link.
+  const totalPages = lastReachablePage(total, size);
 
-  const goToPage = useCallback(
-    (p: number) => {
+  const push = useCallback(
+    (mutate: (params: URLSearchParams) => void) => {
       const params = new URLSearchParams(searchParams.toString());
-      if (p <= 1) {
-        params.delete("page");
-      } else {
-        params.set("page", String(p));
-      }
-      router.push(`${pathname}?${params.toString()}`);
+      mutate(params);
+      const qs = params.toString();
+      router.push(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
     },
     [router, pathname, searchParams]
   );
 
-  if (totalPages <= 1) {
+  const goToPage = useCallback(
+    (p: number) => {
+      push((params) => {
+        if (p <= 1) {
+          params.delete(pageKey);
+        } else {
+          params.set(pageKey, String(p));
+        }
+      });
+    },
+    [push, pageKey]
+  );
+
+  const changeSize = useCallback(
+    (next: number) => {
+      push((params) => {
+        if (next === DEFAULT_PAGE_SIZE) {
+          params.delete(sizeKey);
+        } else {
+          params.set(sizeKey, String(next));
+        }
+        // A new page size invalidates the current offset.
+        params.delete(pageKey);
+      });
+    },
+    [push, pageKey, sizeKey]
+  );
+
+  // Nothing to show for a genuinely empty list — the surface renders its own
+  // EmptyState. A single page still renders: the size picker and total matter.
+  if (total === 0) {
     return null;
   }
 
-  // Build page number list with ellipsis
-  const pages: (number | "…")[] = [];
+  // A stale `?page=` can outlive the rows it pointed at — deleting the only
+  // product on page 2 drops `totalPages` to 1 while the URL still says 2. The
+  // table renders empty, so the bar owes the user a way back even when it would
+  // otherwise have nothing to show.
+  const outOfRange = page > totalPages;
+
+  // A single page with no size picker has nothing to offer — rendering a
+  // "3 total · page 1 of 1" line plus a rule is noise on surfaces that never
+  // asked for pagination UI.
+  if (totalPages <= 1 && !sizeSelectable && !outOfRange) {
+    return null;
+  }
+
+  const pages: (number | "gap-start" | "gap-end")[] = [];
   if (totalPages <= 7) {
     for (let i = 1; i <= totalPages; i++) {
       pages.push(i);
@@ -43,7 +122,7 @@ export function PaginationBar({ total, page }: PaginationBarProps) {
   } else {
     pages.push(1);
     if (page > 4) {
-      pages.push("…");
+      pages.push("gap-start");
     }
     const start = Math.max(2, page - 1);
     const end = Math.min(totalPages - 1, page + 1);
@@ -51,7 +130,7 @@ export function PaginationBar({ total, page }: PaginationBarProps) {
       pages.push(i);
     }
     if (page < totalPages - 3) {
-      pages.push("…");
+      pages.push("gap-end");
     }
     pages.push(totalPages);
   }
@@ -61,77 +140,106 @@ export function PaginationBar({ total, page }: PaginationBarProps) {
 
   return (
     <div
-      className="mt-6 flex items-center justify-between pt-4"
-      style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}
+      className="mt-6 flex flex-wrap items-center justify-between gap-3 pt-4"
+      style={{ borderTop: `1px solid ${STUDIO.rule}` }}
     >
-      <p className="text-xs" style={{ color: "rgba(255,255,255,0.30)" }}>
-        {total} total · page {page} of {totalPages}
-      </p>
+      <div className="flex items-center gap-3">
+        <p className="text-xs" style={{ color: STUDIO.ink3 }}>
+          {t("summary", { page, pages: totalPages, total })}
+        </p>
 
-      <div className="flex items-center gap-1">
-        <button
-          aria-label="Previous page"
-          className={btnBase}
-          disabled={page <= 1}
-          onClick={() => goToPage(page - 1)}
-          style={{
-            background: "rgba(255,255,255,0.04)",
-            color:
-              page <= 1 ? "rgba(255,255,255,0.20)" : "rgba(255,255,255,0.60)",
-            cursor: page <= 1 ? "not-allowed" : "pointer",
-          }}
-          type="button"
-        >
-          <ChevronLeft size={14} />
-        </button>
-
-        {pages.map((p, i) =>
-          p === "…" ? (
-            <span
-              className="flex h-8 w-8 items-center justify-center text-xs"
-              key={`ellipsis-${i}`}
-              style={{ color: "rgba(255,255,255,0.25)" }}
+        {sizeSelectable && (
+          <label
+            className="flex items-center gap-1.5 text-xs"
+            style={{ color: STUDIO.ink3 }}
+          >
+            {t("perPage")}
+            <select
+              className="rounded-lg px-2 py-1 text-xs outline-none"
+              onChange={(e) => changeSize(Number(e.target.value))}
+              style={{
+                background: STUDIO.white,
+                border: `0.5px solid ${STUDIO.rule2}`,
+                color: STUDIO.ink2,
+              }}
+              value={size}
             >
-              …
-            </span>
-          ) : (
-            <button
-              className={btnBase}
-              key={p}
-              onClick={() => goToPage(p as number)}
-              style={
-                p === page
-                  ? { background: "#3DA9E0", color: "#001731" }
-                  : {
-                      background: "rgba(255,255,255,0.04)",
-                      color: "rgba(255,255,255,0.60)",
-                    }
-              }
-              type="button"
-            >
-              {p}
-            </button>
-          )
+              {PAGE_SIZES.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
+          </label>
         )}
-
-        <button
-          aria-label="Next page"
-          className={btnBase}
-          disabled={page >= totalPages}
-          onClick={() => goToPage(page + 1)}
-          style={{
-            background: "rgba(255,255,255,0.04)",
-            color:
-              page >= totalPages
-                ? "rgba(255,255,255,0.20)"
-                : "rgba(255,255,255,0.60)",
-            cursor: page >= totalPages ? "not-allowed" : "pointer",
-          }}
-          type="button"
-        >
-          <ChevronRight size={14} />
-        </button>
       </div>
+
+      {(totalPages > 1 || outOfRange) && (
+        <div className="flex items-center gap-1">
+          <button
+            aria-label={t("previous")}
+            className={btnBase}
+            disabled={page <= 1}
+            onClick={() => goToPage(page - 1)}
+            style={{
+              background: STUDIO.paper2,
+              border: `0.5px solid ${STUDIO.rule2}`,
+              color: page <= 1 ? STUDIO.ink4 : STUDIO.ink2,
+              cursor: page <= 1 ? "not-allowed" : "pointer",
+            }}
+            type="button"
+          >
+            <ChevronLeft size={14} />
+          </button>
+
+          {pages.map((p) =>
+            p === "gap-start" || p === "gap-end" ? (
+              <span
+                className="flex h-8 w-8 items-center justify-center text-xs"
+                key={p}
+                style={{ color: STUDIO.ink4 }}
+              >
+                …
+              </span>
+            ) : (
+              <button
+                aria-current={p === page ? "page" : undefined}
+                className={btnBase}
+                key={p}
+                onClick={() => goToPage(p as number)}
+                style={
+                  p === page
+                    ? { background: STUDIO.ink, color: STUDIO.white }
+                    : {
+                        background: STUDIO.paper2,
+                        border: `0.5px solid ${STUDIO.rule2}`,
+                        color: STUDIO.ink2,
+                      }
+                }
+                type="button"
+              >
+                {p}
+              </button>
+            )
+          )}
+
+          <button
+            aria-label={t("next")}
+            className={btnBase}
+            disabled={page >= totalPages}
+            onClick={() => goToPage(page + 1)}
+            style={{
+              background: STUDIO.paper2,
+              border: `0.5px solid ${STUDIO.rule2}`,
+              color: page >= totalPages ? STUDIO.ink4 : STUDIO.ink2,
+              cursor: page >= totalPages ? "not-allowed" : "pointer",
+            }}
+            type="button"
+          >
+            <ChevronRight size={14} />
+          </button>
+        </div>
+      )}
     </div>
   );
 }

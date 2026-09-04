@@ -213,6 +213,16 @@ export class TestElement extends TestNode {
     this.textContent = value;
   }
 
+  /**
+   * `<select>`'s options collection. react-dom reads `node.options` to sync the
+   * selected option and would otherwise throw on `undefined.length`, which made
+   * every component containing a `<select>` unmountable in this harness. A
+   * plain array is indexable and has `length` — all react-dom needs.
+   */
+  get options(): TestElement[] {
+    return findElements(this, (element) => element.tagName === "OPTION");
+  }
+
   blur(): void {
     if (this.ownerDocument.activeElement === this) {
       this.ownerDocument.activeElement = this.ownerDocument.body;
