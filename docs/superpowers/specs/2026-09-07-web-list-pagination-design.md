@@ -65,12 +65,21 @@ job spikes are what pagination is banked for.
 3. Filter dropdown options come from a facet query over the full filtered set,
    not from the current page.
 4. Fix the three bugs above as part of the change, not as follow-ups.
+5. Backfill the department data the unit-category filter depends on, so the
+   filter is honest rather than merely present.
 
 ## Non-goals
 
-- **No Appwrite schema changes.** Decided: filters that are only expressible
-  against the `metadata` JSON string are dropped from the UI rather than
-  promoted to columns (see "Dropped from the UI").
+- **No Appwrite schema changes.** Filters expressible only against the
+  `metadata` JSON string are dropped from the UI rather than promoted to
+  columns (see "Dropped from the UI"). The unit-category filter is the
+  exception that proves the rule — it survives because `departments.type` is
+  already a real column reachable through a relationship, so it needs *data*,
+  not schema.
+- **Not a departments-data cleanup project.** The three backfills exist to make
+  the category filter honest, and stop there. Deduplicating the 139
+  decommissioned units, fixing the `Accounting Departement` typo, or enforcing
+  `department_id` on new jobs are separate calls.
 - The admin app's behaviour. Two modules are promoted to shared packages, but
   admin keeps its current behaviour through re-export shims.
 - Detail pages (`/jobs/[slug]`, `/events/[slug]`, `/shop/[slug]`), cart,
@@ -96,6 +105,14 @@ read-only `listRows` calls. **These are facts, not assumptions.**
 | Phase-2 shape: 150 ids + `equal(status)` + deadline `or` + `orderDesc` + `limit` + `offset` | ✅ correct `total` |
 | `Query.equal("event_ref.status", …)` — filtering translations by parent props | ✅ works (but unusable for jobs, below) |
 | `Query.offset(5000)` | ✅ accepted |
+| **`Query.equal("department.active", true)` on `jobs`** — filter operators through a relationship | ✅ **works — returned 21 rows.** Also `isNotNull`, and the array form `equal("department.type", ["society","project"])` |
+| `Query.select(["department.*"])` / `Query.select(["$id","department.type"])` | ✅ works |
+| Relationship filter composed with status + deadline `or` + `orderDesc` + `offset` | ✅ works |
+| **`Query.orderAsc("department.Name")`** | ❌ **rejected** — *"Cannot order by nested attribute: department"* |
+
+**Filtering traverses relationships; ordering does not.** This is the finding that
+keeps the unit-category filter server-side (via `department.type`) while A–Z
+sort stays impossible.
 
 **`jobs.translations` is `twoWay: false`.** There is no `job_ref` column on
 `content_translations`, so jobs cannot be searched from the translations side
@@ -276,6 +293,10 @@ All three are the same cheap shape: a second query over the *filtered* set with
 
 - **Jobs departments** — `select(["department_id"])`. Probe returned 28 rows,
   so this is cheap. Doubles as the honest `departmentCount` for `JobsHero`.
+- **Jobs unit categories** — `select(["department.type"])` over the filtered
+  set, normalised through `parseUnitCategory` and deduped. Rendering the static
+  `UNIT_CATEGORIES` list instead would show six options where most return
+  nothing, which is the bug `jobs-list-client.tsx` already warns about.
 - **Event categories** — `select(["category"])`.
 - **Shop categories** — `select(["category"])`.
 
@@ -329,18 +350,118 @@ Per the decision to make no schema changes, these come out of `/jobs`:
 |---|---|
 | **Paid** filter | `metadata.paid` — JSON string, unqueryable |
 | **Employment type** filter | `metadata.employment_type` — same |
-| **Unit category** filter | derived from `department.type`, related free text, largely unpopulated |
-| **A–Z** sort | title is on a related table |
+| **A–Z** sort | title is on a related table; `orderAsc("department.Name")` is rejected outright |
 | **`paidPositions`** hero stat | same source as the paid filter |
+
+**The unit-category filter is retained**, not dropped — see "Unit category" below.
+It is the one metadata-shaped filter with a real column behind it.
 
 `JobsHero` keeps `totalPositions` (now the true `total`) and `departmentCount`
 (now from the facet query, replacing the `|| 4` fallback). Removing
 `paidPositions` changes the hero's stat layout — it drops from three stats to
 two.
 
-Unused i18n keys (`jobs.filters.paidOnly`, and the unit-category keys
-`academicAssociations`, `societies`, `staffFunctions`, `projects`, `national`,
-`other`) are removed from `en` and `no`.
+`jobs.filters.paidOnly` becomes unused and is removed from `en` and `no`. The
+unit-category keys (`academicAssociations`, `societies`, `staffFunctions`,
+`projects`, `national`, `other`) **stay** — they are still the label source via
+`UNIT_CATEGORY_MESSAGE_KEYS`.
+
+### 9. Unit category
+
+Retained as a **server-side** filter, replacing today's client-side
+`parseUnitCategory(job.department?.type)` pass:
+
+```ts
+Query.equal("department.type", category)   // verified working
+```
+
+The contract already exists and needs no schema change:
+`packages/shared/utils/unit-categories.ts` defines `UNIT_CATEGORIES`
+(`society`, `academic_association`, `project`, `staff_function`, `national`,
+`other`), `parseUnitCategory` (folds case, separators and legacy aliases), and
+the `string(20)` guard. The admin editor already exposes the picker
+(`unit-profile-card.tsx:128`, validated by `z.enum(UNIT_CATEGORIES)` at
+`_actions/departments.ts:389`).
+
+`parseUnitCategory` normalises legacy spellings that a raw `Query.equal` will
+not match (`committee` → `staff_function`, `forening` → `society`, …). The
+backfill below is what makes an exact-match query safe: it writes canonical
+values, so the query and the parser agree. Until then the filter returns
+nothing — correctly, not erroneously.
+
+**Jobs with no department** are excluded when a category is picked
+(`department.type` cannot match on a null relationship), preserving today's
+documented behaviour: *"Uncategorised units only drop out when a category is
+actively picked."* Backfill 2 is what makes that acceptable.
+
+## Data backfills
+
+The filter is only as good as the data. Two gaps, both measured on 2026-09-07.
+**No backfill writes to production without an approved review file.**
+
+### Backfill 1 — `departments.type` (280 rows, all null)
+
+Every department has `type = null`. Scope: **the 141 active departments**; the
+139 decommissioned ones (`- nedlagt`, `- inaktiv`, `- flyttet til nasjonalt`)
+own no open jobs and never will.
+
+Method — **rules first, AI for the residue, human approval before any write:**
+
+1. **Deterministic rules** for every case stated explicitly. Priority order
+   matters, because the exceptions overlap the general rules:
+   - `Fadderullan` | `Winter Games` | `Charity` | `Karrieredagene` /
+     `Career Days` → `project`
+   - `Næringslivsutvalget`, `Branding Committee`, `Accounting Department` →
+     `staff_function` *(must precede the `utvalg` rule — `Næringslivsutvalget`
+     contains `utvalget` but is not a society)*
+   - Administrative units — `Ledelsen *`, `Board`, `HR`, `Control Committee`,
+     `Investment Committee`, `Operations Unit`, `Drift BISO`,
+     `Academic/Political Forum`, `Organisasjonsstrukturkomiteen`,
+     `Samlinger - CL`, `Student groups outside BISO` → `staff_function`
+   - `utvalg` | `society` → `society`
+   - otherwise → residue for step 2
+2. **AI pass** (`@repo/ai`) over the residue only, given the name, campus, and
+   the rules above as context. It exists to make one judgment regex cannot:
+   `OSL IM - International Management` (academic association) vs.
+   `OSL PEIB - Private Equity Investment Banking Group` (society) share an
+   identical `CODE ABC - Full Name` shape.
+3. **CSV** — every row with its proposed category, the rule or model that
+   proposed it, and a confidence marker. Rows needing a human call are flagged,
+   including **`Alumni`** and **`Drift BISO`**, which were not resolved during
+   design.
+4. **Apply** only the approved CSV, batched.
+
+### Backfill 2 — job → department links (232 of 253 unlinked)
+
+Only 21 published jobs (10 of the 28 open) have a department. `department_id`
+and the relationship are always in sync — admin writes both together
+(`_actions/jobs.ts:633-634`) — so there is no split-brain to repair; the links
+were simply never made. `department_id` is `.optional().nullable()` in the
+admin schema, so nothing enforces it.
+
+`metadata.company` is **null on every unlinked open job**, so it is not the
+signal. The **slug** is: `project-manager-fadderullan-bergen-2027` →
+`BRG Fadderullan`; `branding-committee-leader-honorert-verv-2` →
+`Branding Committee`; `biso-media-pr-content-creator-3` → `OSL Media`. Only 2
+of 28 open jobs have an unusable slug (emoji-only, e.g.
+`%f0%9f%93%b1-communication-manager`); their `content_translations.title`
+should cover those.
+
+Same shape as backfill 1: candidate departments narrowed by the job's
+`campus_id`, matched against slug + translated title, AI-assisted for the
+ambiguous ones, CSV for approval, then batched write setting **both**
+`department_id` and the `department` relationship.
+
+### Backfill 3 — deactivate `Drift Campus *`
+
+`Drift Campus Oslo`, `Drift Campus Bergen`, `Drift Campus Trondheim` and
+`Drift Campus Stavanger` are accounting constructs, not departments, and should
+not surface in either app. Set `active = false` on those four rows.
+
+This is a **visibility change, not a categorisation**, so it ships in the same
+review file but is called out separately for explicit approval. It drops the
+active department count from 141 to 137. `Drift BISO` is deliberately *not*
+included — it is flagged for review instead.
 
 ## URL parameters
 
@@ -350,6 +471,7 @@ Unused i18n keys (`jobs.filters.paidOnly`, and the unit-category keys
 | `q` | all | debounced 300 ms via `useUrlSearch` |
 | `campus` | all | already exists on `/jobs`; added to `/events` and `/shop`, replacing the `useEffect` re-fetch |
 | `department` | jobs | existing |
+| `category` | jobs | unit category → `Query.equal("department.type", …)` |
 | `sort` | jobs, shop | omitted at default |
 | `category` | events, shop | existing on shop; events switches to enum values |
 
@@ -400,11 +522,24 @@ the actions).
 - Load-more appends rather than replaces; remounts (resets to page 1) when the
   filter key changes; button hidden at `items.length >= total`.
 
+**Backfill scripts**
+- Rule classifier is a pure function with a table-driven test per stated rule,
+  including the two ordering traps: `Næringslivsutvalget` resolves to
+  `staff_function` despite containing `utvalget`, and `OSL Charity - nedlagt`
+  resolves to `project` despite the suffix.
+- Every proposed value passes `isUnitCategory` and the `string(20)` guard
+  before reaching the CSV.
+- Apply step is a no-op when handed an unapproved or unchanged file, and is
+  idempotent on re-run.
+
 **Manual verification against the live instance**
 - `/jobs` shows all 28 open positions across pages — including any open
   vacancy outside the newest 100, which bug 2 currently hides.
 - `/events` search returns results (it returns nothing today).
 - Event cards show their real categories, not "Social".
+- After the backfills: the category filter returns non-empty results for every
+  category it offers, and the department dropdown lists more than the single
+  option ("OSL Fadderullan") available today.
 
 ## Risks
 
@@ -414,4 +549,8 @@ the actions).
 | Two-phase search cap silently truncates | 500 cap vs. a 186-hit worst-case probe; explicit "first N results" messaging at the cap |
 | `collection_id` empty-string vs NULL | Query covers both arms; probe confirmed all current rows are NULL |
 | Dropped job filters are missed by students | Reversible by promoting `paid` / `employment_type` to real columns later; the query layer is where that change would land |
+| **A backfill writes a wrong category to production** | Nothing writes without an approved CSV; rules cover the stated cases deterministically and the AI pass only proposes. Reversible — `type` is a single free-text column with no dependants |
+| **Backfill 2 links a job to the wrong department** | Same approval gate. Wrong links are more visible than missing ones, so low-confidence matches are left unlinked rather than guessed |
+| Deactivating `Drift Campus *` hides something that was in use | Four rows, `active` is reversible, and they own no open jobs. Called out separately in the review file rather than bundled with categorisation |
+| Category filter ships before the backfill lands | It returns empty rather than wrong — the facet query renders only categories that exist, so no dead filter buttons appear |
 | Events i18n key churn | `en` and `no` updated together; a missing key surfaces as a visible `next-intl` error, not a silent blank |
