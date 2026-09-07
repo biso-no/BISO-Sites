@@ -121,7 +121,7 @@ function makeOrder(overrides: Record<string, unknown> = {}): Orders {
     order_items: [
       {
         $id: "line-1",
-        custom_fields_json: null,
+        field_answers: null,
         line_total: 200,
         name: "Genser",
         product: { $id: "product-1" },
@@ -176,9 +176,14 @@ describe("ordersToCsv", () => {
           order_items: [
             {
               $id: "line-1",
-              custom_fields_json: JSON.stringify([
-                { id: "size", label: "Størrelse", value: "L" },
-              ]),
+              field_answers: [
+                {
+                  field_key: "size",
+                  label: "Størrelse",
+                  sort_order: 0,
+                  value: "L",
+                },
+              ],
               line_total: 200,
               name: "Genser",
               product: { $id: "product-1" },
@@ -331,17 +336,27 @@ describe("ordersToCsv", () => {
     }
   });
 
-  test("flattens custom_fields_json to label=value pairs", () => {
+  test("flattens the field_answers rows to label=value pairs", () => {
     const csv = ordersToCsv(
       [
         makeOrder({
           order_items: [
             {
               $id: "line-1",
-              custom_fields_json: JSON.stringify([
-                { id: "size", label: "Størrelse", value: "L" },
-                { id: "diet", label: "Allergier", value: "Ingen" },
-              ]),
+              field_answers: [
+                {
+                  field_key: "size",
+                  label: "Størrelse",
+                  sort_order: 0,
+                  value: "L",
+                },
+                {
+                  field_key: "diet",
+                  label: "Allergier",
+                  sort_order: 1,
+                  value: "Ingen",
+                },
+              ],
               name: "Genser",
               quantity: 1,
             },
@@ -363,9 +378,13 @@ describe("ordersToCsv", () => {
           order_items: [
             {
               $id: "line-1",
-              custom_fields_json: JSON.stringify([
-                { id: "gift", value: "yes" },
-              ]),
+              field_answers: [
+                {
+                  field_key: "gift",
+                  sort_order: 0,
+                  value: "yes",
+                },
+              ],
               name: "Genser",
               quantity: 1,
             },
@@ -378,15 +397,22 @@ describe("ordersToCsv", () => {
     expect(parseCsv(csv)[1]?.[COLUMN.customFields]).toBe("gift=yes");
   });
 
-  test("leaves the custom fields cell empty for malformed or empty json", () => {
-    for (const customFieldsJson of ["{not json", "", null, "[]", '"plain"']) {
+  test("leaves the custom fields cell empty for absent or unusable answers", () => {
+    // A row with no `field_key` cannot be attributed to a question, so it is
+    // skipped rather than exported as a nameless value.
+    const degenerate = [
+      null,
+      [],
+      [{ field_key: null, label: "Orphan", sort_order: 0, value: "x" }],
+    ];
+    for (const fieldAnswers of degenerate) {
       const csv = ordersToCsv(
         [
           makeOrder({
             order_items: [
               {
                 $id: "line-1",
-                custom_fields_json: customFieldsJson,
+                field_answers: fieldAnswers,
                 name: "Genser",
                 quantity: 1,
               },
@@ -398,7 +424,7 @@ describe("ordersToCsv", () => {
       const row = parseCsv(csv)[1] as string[];
 
       expect(row[COLUMN.customFields]).toBe("");
-      // The item is still exported — a broken answer blob must not cost the
+      // The item is still exported — an unusable answer must not cost the
       // fulfilment team the line itself.
       expect(row[COLUMN.productName]).toBe("Genser");
     }
@@ -411,9 +437,14 @@ describe("ordersToCsv", () => {
           order_items: [
             {
               $id: "line-1",
-              custom_fields_json: JSON.stringify([
-                { id: "note", label: "Notat", value: 'Ring, "raskt"\nherre' },
-              ]),
+              field_answers: [
+                {
+                  field_key: "note",
+                  label: "Notat",
+                  sort_order: 0,
+                  value: 'Ring, "raskt"\nherre',
+                },
+              ],
               name: 'Genser, sort "L"',
               quantity: 1,
             },
@@ -603,9 +634,14 @@ describe("orderCsvRowCount", () => {
         order_items: [
           {
             $id: "a",
-            custom_fields_json: JSON.stringify([
-              { id: "note", label: "Notat", value: "line one\nline two" },
-            ]),
+            field_answers: [
+              {
+                field_key: "note",
+                label: "Notat",
+                sort_order: 0,
+                value: "line one\\nline two",
+              },
+            ],
             name: "Genser",
             quantity: 1,
           },
@@ -654,7 +690,7 @@ describe("spreadsheet formula neutralisation", () => {
 
   const baseItem = {
     $id: "line-1",
-    custom_fields_json: null,
+    field_answers: null,
     line_total: 100,
     name: "Genser",
     product: { $id: "product-1" },
@@ -671,9 +707,14 @@ describe("spreadsheet formula neutralisation", () => {
   test("neutralises a custom fields cell that opens with a formula", () => {
     const csv = orderWithItem({
       ...baseItem,
-      custom_fields_json: JSON.stringify([
-        { id: "size", label: "=Size", value: "Large" },
-      ]),
+      field_answers: [
+        {
+          field_key: "size",
+          label: "=Size",
+          sort_order: 0,
+          value: "Large",
+        },
+      ],
     });
     expect((parseCsv(csv)[1] ?? [])[COLUMN.customFields]).toBe("'=Size=Large");
   });
@@ -685,9 +726,14 @@ describe("spreadsheet formula neutralisation", () => {
   test("leaves a formula-looking value that sits mid-cell as written", () => {
     const csv = orderWithItem({
       ...baseItem,
-      custom_fields_json: JSON.stringify([
-        { id: "size", label: "Size", value: "=cmd|'/c calc'!A0" },
-      ]),
+      field_answers: [
+        {
+          field_key: "size",
+          label: "Size",
+          sort_order: 0,
+          value: "=cmd|'/c calc'!A0",
+        },
+      ],
     });
     const cell = (parseCsv(csv)[1] ?? [])[COLUMN.customFields] ?? "";
     expect(cell.startsWith("Size=")).toBe(true);

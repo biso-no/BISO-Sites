@@ -7,7 +7,7 @@
  * repeats its order-level columns on each of them, so a spreadsheet pivot over
  * products needs no lookup back to an order sheet. The previous shape collapsed
  * every line into a single `"name xN; name xN"` cell, which threw away product
- * ids, variations, per-line money and the `custom_fields_json` answers that
+ * ids, variations, per-line money and the `field_answers` rows that
  * carry garment sizes and event questions — the data fulfilment actually needs.
  *
  * Like `./list-params`, this module must NEVER import `@repo/api` (or anything
@@ -32,7 +32,7 @@ const FORMULA_LEAD_PATTERN = /^[=+\-@\t\r]/;
 /**
  * Forces a cell that would otherwise be evaluated as a formula to stay text.
  *
- * Product names and `custom_fields_json` answers are supplied by shoppers at
+ * Product names and `field_answers` values are supplied by shoppers at
  * checkout, so a cell can open with `=`, `+`, `-` or `@`. CSV quoting does not
  * prevent evaluation — an administrator opening the export in Excel or Sheets
  * would run it. A leading apostrophe is the standard neutraliser.
@@ -100,12 +100,13 @@ function customFieldPair(entry: unknown): string | null {
 }
 
 /**
- * `custom_fields_json` flattened to `label=value; label=value`, the one cell
+ * The `field_answers` rows flattened to `label=value; label=value`, the one cell
  * the spec gives these answers.
  *
- * Checkout writes a `[{ id, label, value }]` list (see `vipps-order-ops`) and
- * `getOrderItems` has already parsed it — returning `undefined` for malformed
- * JSON, which lands here as an empty cell rather than a lost line. A bare
+ * Checkout writes one `order_item_field_answers` row per answer (see
+ * `vipps-order-ops`) and `getOrderItems` has already flattened them to
+ * `[{ id, label, value }]`, returning `undefined` when there is nothing
+ * usable — which lands here as an empty cell rather than a lost line. A bare
  * `{ key: value }` map is accepted too, because legacy `items_json` orders were
  * never normalised and may still hold one.
  */

@@ -19,6 +19,11 @@ import { validatePurchaseLimits } from "@/app/actions/purchase-limits";
 import { getMembershipStatus } from "@/lib/actions/membership";
 import { ensureAnonymousSession } from "@/lib/anon-session";
 import type { OrderItem } from "@/lib/types/order";
+import {
+  type ProductCustomField,
+  type ProductCustomFieldRow,
+  toProductCustomFields,
+} from "@/lib/types/product";
 import { parseProductMetadata } from "@/lib/types/webshop";
 
 const WHITESPACE_RE = /\s+/;
@@ -106,7 +111,7 @@ interface ProductVariation {
 interface NormalizedProduct extends Record<string, unknown> {
   $id: string;
   campus_id?: string | null;
-  custom_fields?: Record<string, unknown>[];
+  custom_fields?: ProductCustomField[];
   metadata_parsed: Record<string, unknown>;
   price: number;
   slug: string;
@@ -223,9 +228,12 @@ async function loadProduct(
     short_description: translation?.short_description ?? null,
     price: Number(product.regular_price ?? 0),
     metadata_parsed: productMetadata,
-    custom_fields: Array.isArray(productMetadata.custom_fields)
-      ? productMetadata.custom_fields
-      : undefined,
+    // Definitions come from the `product_custom_fields` relationship. The old
+    // source, `metadata.custom_fields`, is not populated on any product, so
+    // required answers were never actually enforced.
+    custom_fields: toProductCustomFields(
+      (product as { custom_fields?: ProductCustomFieldRow[] }).custom_fields
+    ),
     variations: (product.variations ?? [])
       .filter((variation) => variation.enabled)
       .map((variation) => ({
@@ -328,18 +336,26 @@ async function resolvePricing(
   };
 }
 
+/**
+ * Validates the buyer's answers against the product's stored questions and
+ * shapes them for the `order_item_field_answers` rows on the line.
+ *
+ * Driven by the stored definitions, never by the submitted keys: the id and
+ * the label both come from the database, so a crafted request cannot invent a
+ * field or relabel an answer in the order record. Anything submitted that the
+ * product does not ask for is dropped.
+ */
 function buildCustomFieldPayload(
-  product: Record<string, unknown>,
-  responses: Record<string, string>,
-  labels?: Record<string, string>
+  product: NormalizedProduct,
+  responses: Record<string, string>
 ) {
-  if (!product.custom_fields) {
+  const fields = product.custom_fields ?? [];
+  if (fields.length === 0) {
     return { responses: undefined, details: undefined };
   }
 
-  const missingFields = (product.custom_fields as Record<string, unknown>[])
-    .filter((field) => field.required)
-    .filter((field) => !responses[field.id as string])
+  const missingFields = fields
+    .filter((field) => field.required && !responses[field.id]?.trim())
     .map((field) => field.label);
 
   if (missingFields.length > 0) {
@@ -348,14 +364,19 @@ function buildCustomFieldPayload(
     );
   }
 
-  const details = Object.entries(responses).map(([fieldId, value]) => ({
-    id: fieldId,
-    label: labels?.[fieldId] || fieldId,
-    value,
-  }));
+  const details: Array<{ id: string; label: string; value: string }> = [];
+  const accepted: Record<string, string> = {};
+  for (const field of fields) {
+    const value = responses[field.id]?.trim();
+    if (!value) {
+      continue;
+    }
+    details.push({ id: field.id, label: field.label, value });
+    accepted[field.id] = value;
+  }
 
   return {
-    responses: Object.keys(responses).length ? responses : undefined,
+    responses: Object.keys(accepted).length ? accepted : undefined,
     details: details.length ? details : undefined,
   };
 }
@@ -421,11 +442,7 @@ async function buildOrderItems(
       productId
     );
     const customFieldResponses = normalizeCustomFields(input.customFields);
-    const customFields = buildCustomFieldPayload(
-      product,
-      customFieldResponses,
-      input.customFieldLabels
-    );
+    const customFields = buildCustomFieldPayload(product, customFieldResponses);
     const title = input.title?.trim() || product.title || product.slug;
 
     orderItems.push({

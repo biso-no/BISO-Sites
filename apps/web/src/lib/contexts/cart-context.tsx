@@ -23,6 +23,10 @@ type ReservationFailureReason = "out_of_stock" | "error";
 export interface CartItem {
   category: string;
   contentId: string; // product content_id from database
+  /** Field id → label, so the order line records what was asked. */
+  customFieldLabels?: Record<string, string>;
+  /** Field id → the buyer's answer; submitted at checkout. */
+  customFields?: Record<string, string>;
   expiresAt?: string; // reservation expiration time
   id: string; // unique cart item id (contentId + options hash)
   image: string | null;
@@ -139,6 +143,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
         stock: item.stock,
         expiresAt: item.expiresAt,
         metadata: item.metadata,
+        // Restored from the reservation row, so a reload of the cart or the
+        // checkout page keeps what the buyer filled in.
+        customFieldLabels: item.customFieldLabels,
+        customFields: item.customFields,
       }));
 
       setItems(cartItems);
@@ -189,7 +197,13 @@ export function CartProvider({ children }: { children: ReactNode }) {
       // trust it over the optimistic local clamp so the cart can't oversell.
       const result = await createOrUpdateReservation(
         item.productId,
-        newQuantity
+        newQuantity,
+        item.customFields
+          ? {
+              customFieldLabels: item.customFieldLabels ?? {},
+              customFields: item.customFields,
+            }
+          : undefined
       );
       if (!result.success) {
         handleReservationFailure(result.reason);
@@ -220,7 +234,13 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
     const result = await createOrUpdateReservation(
       item.productId,
-      initialQuantity
+      initialQuantity,
+      item.customFields
+        ? {
+            customFieldLabels: item.customFieldLabels ?? {},
+            customFields: item.customFields,
+          }
+        : undefined
     );
     if (!result.success) {
       handleReservationFailure(result.reason);

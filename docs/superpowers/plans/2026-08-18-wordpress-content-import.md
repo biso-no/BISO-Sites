@@ -61,7 +61,7 @@
 
 **Interfaces:**
 - Consumes: nothing (first task).
-- Produces: `WpClient` class with `fetchAllPages<T>(path: string, params?: Record<string, string>): Promise<T[]>` and `fetchJson<T>(path: string, params?: Record<string, string>): Promise<T>`; types `ContentLocale`, `CampusId`, `ImportReport`, `RejectRow`.
+- Produces: `WpClient` class with `fetchAllPages<T>(path: string, params?: Record<string, string>): Promise<T[]>` and `fetchJson<T>(path: string, params?: Record<string, string>): Promise<T>`; types `ContentLocale`, `FetchLike`, `ImportReport`, `RejectRow`; const `CAMPUS_IDS`.
 
 - [ ] **Step 1: Create the package manifest**
 
@@ -138,6 +138,20 @@ export const CAMPUS_IDS: Record<string, string> = {
   Stavanger: "4",
   Trondheim: "3",
 };
+
+/**
+ * Structural type for the `fetch` used by this package's clients.
+ *
+ * Deliberately NOT `typeof fetch`: Bun's global `fetch` type is merged with a
+ * `fetch.preconnect` static, so a plain mock function can never satisfy it and
+ * every test double would need an `as unknown as typeof fetch` double-cast.
+ * A double-cast suppresses exactly the type errors that type-checking test
+ * files exists to surface, so the seam is typed structurally instead.
+ */
+export type FetchLike = (
+  input: string | URL | Request,
+  init?: RequestInit
+) => Promise<Response>;
 
 export interface RejectRow {
   /** WordPress post id. */
@@ -236,7 +250,7 @@ export interface WpClientOptions {
   /** WooCommerce consumer key — only required for /wc/v3 routes. */
   consumerKey?: string;
   consumerSecret?: string;
-  fetchImpl?: typeof fetch;
+  fetchImpl?: FetchLike;
 }
 
 const sleep = (ms: number): Promise<void> =>
@@ -248,7 +262,7 @@ export class WpClient {
   private readonly baseUrl: string;
   private readonly consumerKey?: string;
   private readonly consumerSecret?: string;
-  private readonly fetchImpl: typeof fetch;
+  private readonly fetchImpl: FetchLike;
 
   constructor(options: WpClientOptions) {
     this.baseUrl = options.baseUrl.replace(/\/$/, "");
@@ -466,7 +480,7 @@ describe("plainTextExcerpt", () => {
   test("strips markup and truncates on a word boundary", () => {
     const input = "<p>Karrieredagene rekrutterer en ny manager for 2026</p>";
 
-    expect(plainTextExcerpt(input, 30)).toBe("Karrieredagene rekrutterer en…");
+    expect(plainTextExcerpt(input, 30)).toBe("Karrieredagene rekrutterer…");
   });
 });
 ```
@@ -553,10 +567,13 @@ function blockTag(rawTag: string): "h" | "l" | "p" {
 
 function parseBlocks(rawHtml: string): Block[] {
   const blocks: Block[] = [];
-  BLOCK_PATTERN.lastIndex = 0;
-  let match = BLOCK_PATTERN.exec(rawHtml);
 
-  while (match) {
+  // matchAll() is required here rather than a BLOCK_PATTERN.exec() loop: this
+  // function recurses, and a shared module-level regex with the /g flag would
+  // have its lastIndex reset by the inner call, making the outer loop re-match
+  // the same block forever. matchAll clones the regex internally, so each
+  // recursion level iterates independently and lastIndex is never mutated.
+  for (const match of rawHtml.matchAll(BLOCK_PATTERN)) {
     const [, rawTag, inner] = match;
     // A container may itself hold block children (e.g. <div><p>x</p></div>).
     // Recurse so the inner blocks keep their own semantics.
@@ -569,7 +586,6 @@ function parseBlocks(rawHtml: string): Block[] {
         blocks.push({ tag: blockTag(rawTag ?? "p"), text });
       }
     }
-    match = BLOCK_PATTERN.exec(rawHtml);
   }
 
   return blocks;
@@ -907,7 +923,7 @@ const DEPARTMENTS: DepartmentRecord[] = [
 describe("normalizeDepartmentName", () => {
   test("strips the campus prefix", () => {
     expect(normalizeDepartmentName("OSL Bergensbaneløpet")).toBe(
-      "bergensbanelopet"
+      "bergensbaneloepet"
     );
   });
 
@@ -915,12 +931,16 @@ describe("normalizeDepartmentName", () => {
     expect(normalizeDepartmentName("BRG Dans  - overført til BIA")).toBe(
       "dans"
     );
-    expect(normalizeDepartmentName("STV ØAF - nedlagt")).toBe("oaf");
+    expect(normalizeDepartmentName("STV ØAF - nedlagt")).toBe("oeaf");
   });
 
+  // Folding uses the standard Norwegian ASCII transliteration (æ→ae, ø→oe,
+  // å→aa). The exact convention does not matter for matching — both the
+  // WordPress name and the Appwrite name pass through this same function —
+  // but it must be internally consistent.
   test("folds Norwegian characters", () => {
     expect(normalizeDepartmentName("Økonomiansvarlig")).toBe(
-      "okonomiansvarlig"
+      "oekonomiansvarlig"
     );
     expect(normalizeDepartmentName("Næringslivsutvalget")).toBe(
       "naeringslivsutvalget"
@@ -2020,10 +2040,20 @@ describe("transformProduct", () => {
     expect(product?.imageUrls).toEqual(["https://biso.no/wp-content/a.jpg"]);
   });
 
-  test("falls back to post content when the store record is missing", () => {
-    const { product } = transformProduct({ ...basePost, store: null });
+  test("falls back to post content when the store description is empty", () => {
+    const { product } = transformProduct({
+      ...basePost,
+      store: { ...baseStore, description: "" },
+    });
 
     expect(product?.descriptionHtml).toBe("<p>Beskrivelse</p>");
+  });
+
+  test("rejects when the store record is missing, because price is unresolvable", () => {
+    const { product, reject } = transformProduct({ ...basePost, store: null });
+
+    expect(product).toBeNull();
+    expect(reject?.reason).toContain("price");
   });
 });
 ```
@@ -3164,7 +3194,9 @@ git commit -m "feat(wp-import): add transform CLI with department review loop"
 
 **Interfaces:**
 - Consumes: `node-appwrite` `Storage`, `ID`, `Permission`, `Role`.
-- Produces: `mirrorImage(deps: MirrorDeps, sourceUrl: string): Promise<string>` returning an Appwrite file ID, and `type MirrorDeps = { upload: (file: File) => Promise<{ $id: string }>; fetchImpl?: typeof fetch; cache: Map<string, string> }`.
+- Produces: `mirrorImage(deps: MirrorDeps, sourceUrl: string): Promise<string>` returning an Appwrite file ID, and `type MirrorDeps = { upload: (file: File) => Promise<{ $id: string }>; fetchImpl?: FetchLike; cache: Map<string, string> }`.
+
+**Note:** `fetchImpl` is typed `FetchLike` (from `../types`, added in Task 1), **not** `typeof fetch`. Bun's global `fetch` type is merged with a `fetch.preconnect` static, so a plain mock function cannot satisfy `typeof fetch` and every test double would need an `as unknown as typeof fetch` double-cast — which would suppress the very type errors that type-checking test files exists to surface.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -3238,10 +3270,12 @@ Expected: FAIL — cannot resolve `./media`.
 `packages/wp-import/src/media.ts`:
 
 ```ts
+import type { FetchLike } from "./types";
+
 export interface MirrorDeps {
   /** sourceUrl → Appwrite file id, so a re-run never re-uploads. */
   cache: Map<string, string>;
-  fetchImpl?: typeof fetch;
+  fetchImpl?: FetchLike;
   upload: (file: File) => Promise<{ $id: string }>;
 }
 

@@ -9,9 +9,14 @@ import { Separator } from "@repo/ui/components/ui/separator";
 import { AlertCircle, CheckCircle2, ShoppingCart } from "lucide-react";
 import { motion } from "motion/react";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+
 import { formatPrice } from "@/lib/types/webshop";
 import { PriceDetails } from "./price-details";
+import {
+  buildFieldLabels,
+  findMissingRequired,
+  useProductCustomFields,
+} from "./product-custom-fields-context";
 import { StockStatusCard } from "./stock-status-card";
 import { useProductActions } from "./use-product-actions";
 
@@ -42,9 +47,9 @@ export function AddToCartClient({
   availableStock = null,
 }: AddToCartClientProps) {
   const t = useTranslations("shop");
-  // Option state would ideally be managed by a global state/context or the parent server component's useFormState
-  // For simplicity, we use the bare minimum here.
-  const [selectedOptions] = useState<Record<string, string>>({});
+  // Answers are held by ProductCustomFieldsProvider, which the inputs write
+  // to. Reading them here is what stops the buyer's input being discarded.
+  const customFieldState = useProductCustomFields();
 
   const { handleAddToCart: addToCartAction, addedToCart } = useProductActions(
     product,
@@ -58,8 +63,21 @@ export function AddToCartClient({
     stock !== null && availableStock !== null && availableStock <= 0;
 
   const handleAddToCart = async () => {
-    // Need to get selectedOptions from somewhere (e.g., context/parent state)
-    await addToCartAction(selectedOptions);
+    const fields = customFieldState?.fields ?? [];
+    const answers = customFieldState?.answers ?? {};
+
+    // Blocked here as well as server-side: this is the only place that can
+    // point at the specific empty box rather than failing the whole checkout.
+    const missing = findMissingRequired(fields, answers);
+    if (missing.length > 0) {
+      customFieldState?.setMissing(missing);
+      return;
+    }
+
+    await addToCartAction({
+      customFieldLabels: buildFieldLabels(fields),
+      customFields: answers,
+    });
   };
 
   return (

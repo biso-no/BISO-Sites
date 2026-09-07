@@ -47,12 +47,36 @@ import {
   newBlock,
   type TextDescriptionBlock,
 } from "../../../_components/description-blocks";
+import {
+  type CustomFieldDraft,
+  CustomFieldsBoard,
+  type CustomFieldType,
+} from "./custom-fields-board";
 
 /* -------------------------------------------------------------------------- */
 /*                              Types                                          */
 /* -------------------------------------------------------------------------- */
 
+/**
+ * A saved `product_custom_fields` row. Declared locally because the generated
+ * `WebshopProducts` type only gains `custom_fields` once the table has been
+ * pushed and `appwrite types -l ts ./types` re-run; the generated file is not
+ * hand-edited.
+ */
+interface SavedCustomField {
+  $id: string;
+  enabled?: boolean | null;
+  help_text?: string | null;
+  is_required?: boolean | null;
+  label?: string | null;
+  options?: string[] | null;
+  placeholder?: string | null;
+  sort_order?: number | null;
+  type?: string | null;
+}
+
 type ProductWithTranslations = WebshopProducts & {
+  custom_fields?: SavedCustomField[];
   translation_refs: ContentTranslations[];
   finago_account_number?: number | null;
 };
@@ -100,7 +124,7 @@ const BRAND = {
 const STEPS = [
   "Essentials",
   "Description",
-  "Pricing & Variants",
+  "Pricing & Options",
   "Photos & Visibility",
   "Review",
 ] as const;
@@ -1587,11 +1611,13 @@ function DescriptionStep({
 
 function PricingVariantsStep({
   inventoryMode,
+  localCustomFields,
   localVariants,
   memberOnly,
   memberPrice,
   regularPrice,
   setInventoryMode,
+  setLocalCustomFields,
   setLocalVariants,
   setMemberOnly,
   setMemberPrice,
@@ -1600,11 +1626,13 @@ function PricingVariantsStep({
   stock,
 }: {
   inventoryMode: "tracked" | "unlimited";
+  localCustomFields: CustomFieldDraft[];
   localVariants: ProductVariant[];
   memberOnly: boolean;
   memberPrice: number | null;
   regularPrice: number;
   setInventoryMode: (v: "tracked" | "unlimited") => void;
+  setLocalCustomFields: (f: CustomFieldDraft[]) => void;
   setLocalVariants: (v: ProductVariant[]) => void;
   setMemberOnly: (v: boolean) => void;
   setMemberPrice: (v: number | null) => void;
@@ -2094,6 +2122,12 @@ function PricingVariantsStep({
           />
         </div>
       </div>
+
+      {/* Questions asked at checkout, stored per order line */}
+      <CustomFieldsBoard
+        fields={localCustomFields}
+        setFields={setLocalCustomFields}
+      />
     </div>
   );
 }
@@ -3165,6 +3199,25 @@ export function ShopStudioEditor({
         type: "default",
       }));
   });
+  const [localCustomFields, setLocalCustomFields] = useState<
+    CustomFieldDraft[]
+  >(() =>
+    (product?.custom_fields ?? [])
+      .filter((field) => field.enabled !== false)
+      .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+      .map((field) => ({
+        helpText: field.help_text ?? "",
+        id: field.$id,
+        label: field.label ?? "",
+        options: field.options ?? [],
+        placeholder: field.placeholder ?? "",
+        required: field.is_required ?? false,
+        type: (field.type ?? "text") as CustomFieldType,
+        // A saved field is uniquely identified by its row id; only unsaved
+        // ones need a generated key.
+        uid: field.$id,
+      }))
+  );
   const [regularPrice, setRegularPrice] = useState<number>(
     product?.regular_price ?? 0
   );
@@ -3230,6 +3283,22 @@ export function ShopStudioEditor({
       image: localImages[0] ?? null,
       stock,
       variations: localVariants,
+      // `id` is omitted for a field that has never been saved, which is how
+      // the server tells a new row from an existing one.
+      custom_fields: localCustomFields
+        .filter((field) => field.label.trim())
+        .map((field) => ({
+          ...(field.id ? { id: field.id } : {}),
+          help_text: field.helpText.trim() || null,
+          label: field.label.trim(),
+          options:
+            field.type === "select"
+              ? field.options.map((o) => o.trim()).filter(Boolean)
+              : [],
+          placeholder: field.placeholder.trim() || null,
+          required: field.required,
+          type: field.type,
+        })),
       tags,
       images: localImages,
       cover_pattern: coverPattern as
@@ -3444,11 +3513,13 @@ export function ShopStudioEditor({
             {activeStep === 2 && (
               <PricingVariantsStep
                 inventoryMode={inventoryMode}
+                localCustomFields={localCustomFields}
                 localVariants={localVariants}
                 memberOnly={memberOnly}
                 memberPrice={memberPrice}
                 regularPrice={regularPrice}
                 setInventoryMode={setInventoryMode}
+                setLocalCustomFields={setLocalCustomFields}
                 setLocalVariants={setLocalVariants}
                 setMemberOnly={setMemberOnly}
                 setMemberPrice={setMemberPrice}

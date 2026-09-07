@@ -160,6 +160,38 @@ export const productSchema = z
     // Temporary input compatibility for already-open admin tabs. The value is
     // converted to product_variations rows and is never written to products.
     variants_json: z.string().optional().nullable(),
+    // Per-product questions answered at checkout, stored as
+    // `product_custom_fields` rows. `id` is the Appwrite row id and is absent
+    // for a field the editor has just added; the server assigns it. The row's
+    // `field_key` — the identifier written onto each `order_item_field_answers` row
+    // — is never sent by the client, so a relabel can never orphan the answers
+    // already recorded against it.
+    custom_fields: z
+      .array(
+        z.object({
+          id: z.string().min(1).max(36).optional(),
+          label: z.string().min(1, "Label is required").max(255),
+          type: z.enum(["text", "textarea", "number", "select", "email"]),
+          required: z.boolean().default(false),
+          placeholder: z.string().max(255).optional().nullable(),
+          help_text: z.string().max(500).optional().nullable(),
+          options: z.array(z.string().max(255)).optional(),
+        })
+      )
+      // A `select` with no options renders an empty dropdown the buyer cannot
+      // answer, which would then block checkout if the field is required.
+      .superRefine((fields, ctx) => {
+        for (const [index, field] of fields.entries()) {
+          if (field.type === "select" && !field.options?.length) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              message: `"${field.label}" is a dropdown, so it needs at least one option`,
+              path: [index, "options"],
+            });
+          }
+        }
+      })
+      .optional(),
     tags: z.array(z.string()).optional().nullable(),
     images: z.preprocess(
       (value) =>

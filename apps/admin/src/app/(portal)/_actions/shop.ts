@@ -39,6 +39,10 @@ import { paginationQueries } from "@/lib/list-queries";
 import { zonedDayBound } from "@/lib/order-calendar";
 import { loadRecruitmentLookups } from "@/lib/recruitment";
 import {
+  planCustomFieldSync,
+  type StoredCustomField,
+} from "@/lib/shop/custom-fields";
+import {
   buildContentRowPermissions,
   buildContentTranslationPermissions,
   deriveContentRowTeams,
@@ -468,6 +472,45 @@ async function syncProductVariations(
   }
 }
 
+/**
+ * A product row carrying its `product_custom_fields` children. The generated
+ * `WebshopProducts` type gains `custom_fields` once the table is pushed and
+ * `appwrite types -l ts ./types` re-run; this keeps the relationship readable
+ * without hand-editing the generated file.
+ */
+interface ProductWithCustomFields {
+  custom_fields?: StoredCustomField[];
+}
+
+/**
+ * Writes the product's checkout questions to `product_custom_fields`.
+ *
+ * The same shape as `syncProductVariations`: rows the editor no longer lists
+ * are deleted and the rest upserted. What to write is decided by
+ * `planCustomFieldSync`, which is pure and unit-tested — notably for keeping
+ * an imported field's `field_key` intact so historical answers stay attached.
+ */
+async function syncProductCustomFields(
+  db: AdminDb,
+  productId: string,
+  values: ProductFormValues,
+  existingFields: StoredCustomField[] = []
+): Promise<void> {
+  const { deletes, writes } = planCustomFieldSync({
+    existing: existingFields,
+    newRowId: () => ID.unique(),
+    productId,
+    requested: values.custom_fields ?? [],
+  });
+
+  for (const rowId of deletes) {
+    await db.deleteRow("app", "product_custom_fields", rowId);
+  }
+  for (const write of writes) {
+    await db.upsertRow("app", "product_custom_fields", write.rowId, write.data);
+  }
+}
+
 async function buildProductPermissions(
   db: AdminDb,
   values: ProductFormValues
@@ -826,7 +869,7 @@ export async function getProduct(id: string) {
     "webshop_products",
     [
       Query.equal("$id", id),
-      Query.select(["*", "variations.*"]),
+      Query.select(["*", "variations.*", "custom_fields.*"]),
       Query.limit(1),
     ]
   );
@@ -900,6 +943,7 @@ export async function createProduct(
       rowPermissions
     );
     await syncProductVariations(db, productId, validated.data);
+    await syncProductCustomFields(db, productId, validated.data);
 
     await logAuditEvent(ctx, "product_created", {
       resourceId: product.$id,
@@ -941,7 +985,7 @@ export async function updateProduct(
     "webshop_products",
     [
       Query.equal("$id", id),
-      Query.select(["*", "variations.*"]),
+      Query.select(["*", "variations.*", "custom_fields.*"]),
       Query.limit(1),
     ]
   );
@@ -998,6 +1042,12 @@ export async function updateProduct(
       id,
       validated.data,
       product.variations ?? []
+    );
+    await syncProductCustomFields(
+      db,
+      id,
+      validated.data,
+      (product as ProductWithCustomFields).custom_fields ?? []
     );
 
     await logAuditEvent(ctx, "product_updated", {

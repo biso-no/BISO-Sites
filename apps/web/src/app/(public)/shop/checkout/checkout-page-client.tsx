@@ -157,6 +157,10 @@ export function CheckoutPageClient({
             slug: item.slug,
             quantity: item.quantity,
             title: buildCheckoutLineTitle(item),
+            // Without these the buyer's answers stop at the cart and the order
+            // line is stored with no record of what they filled in.
+            customFields: item.customFields,
+            customFieldLabels: item.customFieldLabels,
           })),
         });
 

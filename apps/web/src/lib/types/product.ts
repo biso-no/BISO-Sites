@@ -3,15 +3,77 @@ import type {
   WebshopProducts,
 } from "@repo/api/types/appwrite";
 
-type ProductCustomFieldType = "text" | "textarea" | "number" | "select";
+type ProductCustomFieldType =
+  | "text"
+  | "textarea"
+  | "number"
+  | "select"
+  | "email";
 
 export interface ProductCustomField {
+  helpText?: string;
   id: string;
   label: string;
   options?: string[];
   placeholder?: string;
   required?: boolean;
   type: ProductCustomFieldType;
+}
+
+/**
+ * A `product_custom_fields` row as the storefront reads it back. Declared here
+ * rather than taken from the generated Appwrite types so the storefront is not
+ * blocked on regenerating them after the table is pushed.
+ */
+export interface ProductCustomFieldRow {
+  $id: string;
+  enabled?: boolean | null;
+  field_key?: string | null;
+  help_text?: string | null;
+  is_required?: boolean | null;
+  label?: string | null;
+  options?: string[] | null;
+  placeholder?: string | null;
+  sort_order?: number | null;
+  type?: string | null;
+}
+
+const CUSTOM_FIELD_TYPES = new Set<ProductCustomFieldType>([
+  "text",
+  "textarea",
+  "number",
+  "select",
+  "email",
+]);
+
+/**
+ * Turns stored rows into the shape the storefront and checkout both use.
+ *
+ * `id` is the row's `field_key`, not its `$id`: that key is what gets written
+ * onto each `order_item_field_answers` row, and imported WordPress fields carry a
+ * key that differs from their row id.
+ */
+export function toProductCustomFields(
+  rows: ProductCustomFieldRow[] | null | undefined
+): ProductCustomField[] {
+  if (!Array.isArray(rows)) {
+    return [];
+  }
+  return rows
+    .filter((row) => row.enabled !== false && row.label)
+    .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+    .map((row) => {
+      const type = (row.type ?? "text") as ProductCustomFieldType;
+      return {
+        helpText: row.help_text ?? undefined,
+        id: row.field_key ?? row.$id,
+        label: row.label as string,
+        options: row.options ?? undefined,
+        placeholder: row.placeholder ?? undefined,
+        required: row.is_required ?? false,
+        type: CUSTOM_FIELD_TYPES.has(type) ? type : "text",
+      };
+    });
 }
 
 export interface ProductVariation {

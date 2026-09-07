@@ -72,7 +72,9 @@
     "yourPrice": "Din pris",
     "price": "Pris",
     "tax": "Mva",
-    "included": "Inkludert"
+    "included": "Inkludert",
+    "optionsTitle": "Tilleggsinformasjon",
+    "optionRequired": "Dette feltet må fylles ut"
   },
   "member": {
     "notMember": "Ikke medlem ennå?",

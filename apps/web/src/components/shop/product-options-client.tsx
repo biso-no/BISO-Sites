@@ -10,42 +10,87 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@repo/ui/components/ui/select";
+import { Textarea } from "@repo/ui/components/ui/textarea";
 import { motion } from "motion/react";
-import { useState } from "react";
-import type { ProductOption } from "@/lib/types/webshop";
+import { useTranslations } from "next-intl";
+import type { ProductCustomField } from "@/lib/types/product";
+import { useProductCustomFields } from "./product-custom-fields-context";
 
-interface ProductOptionsClientProps {
-  productOptions: ProductOption[];
-  productRefId: string; // Used as a key/identifier if needed
-  // Note: We don't need 'useProductActions' here, as option state is local
-  // The selected options are passed to the AddToCartClient (or a shared state/context)
-  // For simplicity, this example component is for rendering/local state only.
+/** `type` for the plain `<Input>` branch; `select`/`textarea` render their own. */
+const INPUT_TYPE: Record<string, string> = {
+  email: "email",
+  number: "number",
+  text: "text",
+};
+
+function FieldControl({
+  field,
+  invalid,
+  onChange,
+  value,
+}: {
+  field: ProductCustomField;
+  invalid: boolean;
+  onChange: (value: string) => void;
+  value: string;
+}) {
+  const invalidClass = invalid ? "border-red-500" : "";
+
+  if (field.type === "select") {
+    return (
+      <Select onValueChange={onChange} value={value}>
+        <SelectTrigger className={`w-full ${invalidClass}`} id={field.id}>
+          <SelectValue placeholder={field.placeholder || field.label} />
+        </SelectTrigger>
+        <SelectContent>
+          {(field.options ?? []).map((option) => (
+            <SelectItem key={option} value={option}>
+              {option}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    );
+  }
+
+  if (field.type === "textarea") {
+    return (
+      <Textarea
+        className={invalidClass}
+        id={field.id}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder={field.placeholder || field.label}
+        value={value}
+      />
+    );
+  }
+
+  return (
+    <Input
+      className={invalidClass}
+      id={field.id}
+      onChange={(event) => onChange(event.target.value)}
+      placeholder={field.placeholder || field.label}
+      type={INPUT_TYPE[field.type] ?? "text"}
+      value={value}
+    />
+  );
 }
 
-export function ProductOptionsClient({
-  productOptions,
-}: ProductOptionsClientProps) {
-  const [selectedOptions, setSelectedOptions] = useState<
-    Record<string, string>
-  >({});
-  const [errors, setErrors] = useState<Record<string, string>>({});
+/**
+ * The questions this product asks before it can be added to the basket.
+ *
+ * State lives in ProductCustomFieldsProvider, not here, so the add-to-cart
+ * button can read the answers — they are two sibling client components inside
+ * a server-rendered page and have no other way to share.
+ */
+export function ProductOptionsClient() {
+  const t = useTranslations("shop");
+  const state = useProductCustomFields();
 
-  const handleOptionChange = (optionIndex: number, value: string) => {
-    setSelectedOptions((prev) => ({
-      ...prev,
-      [`option-${optionIndex}`]: value,
-    }));
-    setErrors((prev) => {
-      const newErrors = { ...prev };
-      delete newErrors[`option-${optionIndex}`];
-      return newErrors;
-    });
-  };
-
-  // In a real app, you would need to export or contextually manage 'selectedOptions'
-  // so the AddToCartClient can access them before calling the server action.
-  // For this refactor, we focus on code splitting. Assume the `AddToCartClient`
-  // or a wrapper will manage this shared state.
+  if (!state || state.fields.length === 0) {
+    return null;
+  }
 
   return (
     <motion.div
@@ -55,55 +100,40 @@ export function ProductOptionsClient({
     >
       <Card className="border-0 p-8 shadow-lg">
         <h2 className="mb-6 font-bold text-2xl text-foreground">
-          Product Options
+          {t("product.optionsTitle")}
         </h2>
         <div className="space-y-6">
-          {productOptions.map((option, index) => (
-            <div key={index}>
-              <Label className="mb-2 block font-semibold">
-                {option.label}
-                {option.required && (
-                  <span className="ml-1 text-red-500">*</span>
-                )}
-              </Label>
+          {state.fields.map((field) => {
+            const invalid = state.missing.includes(field.id);
+            return (
+              <div key={field.id}>
+                <Label className="mb-2 block font-semibold" htmlFor={field.id}>
+                  {field.label}
+                  {field.required && (
+                    <span className="ml-1 text-red-500">*</span>
+                  )}
+                </Label>
 
-              {option.type === "select" && option.options ? (
-                <Select
-                  onValueChange={(value) => handleOptionChange(index, value)}
-                  value={selectedOptions[`option-${index}`] || ""}
-                >
-                  <SelectTrigger
-                    className={`w-full ${errors[`option-${index}`] ? "border-red-500" : ""}`}
-                  >
-                    <SelectValue
-                      placeholder={`Select ${option.label.toLowerCase()}`}
-                    />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {option.options.map((opt) => (
-                      <SelectItem key={opt} value={opt}>
-                        {opt}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              ) : (
-                <Input
-                  className={errors[`option-${index}`] ? "border-red-500" : ""}
-                  onChange={(e) => handleOptionChange(index, e.target.value)}
-                  placeholder={option.placeholder || option.label}
-                  type="text"
-                  value={selectedOptions[`option-${index}`] || ""}
+                <FieldControl
+                  field={field}
+                  invalid={invalid}
+                  onChange={(value) => state.setAnswer(field.id, value)}
+                  value={state.answers[field.id] ?? ""}
                 />
-              )}
 
-              {errors[`option-${index}`] && (
-                <p className="mt-1 text-red-500 text-sm">
-                  This field is required
-                </p>
-              )}
-            </div>
-          ))}
+                {field.helpText && (
+                  <p className="mt-1 text-muted-foreground text-sm">
+                    {field.helpText}
+                  </p>
+                )}
+                {invalid && (
+                  <p className="mt-1 text-red-500 text-sm">
+                    {t("product.optionRequired")}
+                  </p>
+                )}
+              </div>
+            );
+          })}
         </div>
       </Card>
     </motion.div>

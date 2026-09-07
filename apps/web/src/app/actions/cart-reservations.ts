@@ -13,11 +13,80 @@ import {
 } from "@repo/shared/utils/stock-availability";
 import { ensureAnonymousSession } from "@/lib/anon-session";
 
+/** One `cart_field_answers` row, as the relationship returns it. */
+interface CartFieldAnswerRow {
+  $id?: string;
+  field_key?: string | null;
+  label?: string | null;
+  sort_order?: number | null;
+  value?: string | null;
+}
+
 type CartReservationRow = Models.Row & {
   expires_at?: string;
+  /** The buyer's answers to this product's checkout questions. */
+  field_answers?: CartFieldAnswerRow[] | null;
   product_id: string;
   quantity: number;
 };
+
+/**
+ * The buyer's answers as they travel between the product page, the cart and
+ * checkout: id → value, plus id → label so the cart summary can name each
+ * answer and the order line can record what was asked.
+ */
+export interface CartCustomFieldAnswers {
+  customFieldLabels: Record<string, string>;
+  customFields: Record<string, string>;
+}
+
+/**
+ * Answers are persisted as `cart_field_answers` rows rather than held in React
+ * state, because the cart is rehydrated from the database on every mount —
+ * otherwise a reload of the checkout page would lose them and the order would
+ * be stored with no record of what the buyer filled in.
+ *
+ * `field` links the answer to the question that collected it;
+ * `importedFieldIds` is not needed here as the definitions are always live
+ * while a ten-minute reservation exists.
+ */
+function buildAnswerRows(
+  answers: CartCustomFieldAnswers | undefined,
+  permissions: string[]
+): Record<string, unknown>[] {
+  return Object.entries(answers?.customFields ?? {})
+    .filter(([, value]) => value?.trim())
+    .map(([id, value], sortOrder) => ({
+      $permissions: permissions,
+      field: id,
+      field_key: id,
+      label: answers?.customFieldLabels?.[id] ?? id,
+      sort_order: sortOrder,
+      value,
+    }));
+}
+
+function readAnswerRows(
+  rows: CartFieldAnswerRow[] | null | undefined
+): CartCustomFieldAnswers | undefined {
+  if (!Array.isArray(rows) || rows.length === 0) {
+    return undefined;
+  }
+  const customFieldLabels: Record<string, string> = {};
+  const customFields: Record<string, string> = {};
+  for (const row of [...rows].sort(
+    (a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)
+  )) {
+    if (!row.field_key) {
+      continue;
+    }
+    customFieldLabels[row.field_key] = row.label ?? row.field_key;
+    customFields[row.field_key] = row.value ?? "";
+  }
+  return Object.keys(customFields).length > 0
+    ? { customFieldLabels, customFields }
+    : undefined;
+}
 
 function buildUserRowPermissions(userId: string): string[] {
   const user = Role.user(userId);
@@ -94,7 +163,8 @@ export async function getAvailableStock(productId: string): Promise<number> {
  */
 export async function createOrUpdateReservation(
   productId: string,
-  quantity: number
+  quantity: number,
+  answers?: CartCustomFieldAnswers
 ): Promise<{
   success: boolean;
   message?: string;
@@ -150,11 +220,20 @@ export async function createOrUpdateReservation(
     }
 
     const effectiveQuantity = Math.max(1, Math.min(quantity, effectiveMax));
+    // `cart_field_answers` has row security on, so the children need the same
+    // per-user grant the reservation itself carries.
+    const permissions = buildUserRowPermissions(userId);
 
     if (existing) {
       await db.updateRow("app", "cart_reservations", existing.$id, {
         quantity: effectiveQuantity,
         expires_at: expiresAt,
+        // Only rewrite when this add carried answers, so a plain quantity
+        // bump from the cart page does not wipe what was already filled in.
+        // Replacing the child list drops the previous rows (cascade delete).
+        ...(answers
+          ? { field_answers: buildAnswerRows(answers, permissions) }
+          : {}),
       });
     } else {
       // Create new reservation (user_id from session)
@@ -168,8 +247,9 @@ export async function createOrUpdateReservation(
           user_id: userId,
           quantity: effectiveQuantity,
           expires_at: expiresAt,
+          field_answers: buildAnswerRows(answers, permissions),
         },
-        buildUserRowPermissions(userId)
+        permissions
       );
     }
 
@@ -351,7 +431,11 @@ async function getUserCartReservations(): Promise<CartReservationRow[]> {
     const reservations = await db.listRows<CartReservationRow>(
       "app",
       "cart_reservations",
-      [Query.greaterThan("expires_at", now), Query.limit(1000)]
+      [
+        Query.greaterThan("expires_at", now),
+        Query.select(["*", "field_answers.*"]),
+        Query.limit(1000),
+      ]
     );
 
     return reservations.rows;
@@ -367,6 +451,8 @@ async function getUserCartReservations(): Promise<CartReservationRow[]> {
  */
 interface CartItem {
   category: string;
+  customFieldLabels?: Record<string, string>;
+  customFields?: Record<string, string>;
   expiresAt?: string;
   image: string | null;
   memberOnly: boolean;
@@ -411,6 +497,7 @@ function toCartItem({
   locale: "en" | "no";
 }): CartItem {
   const translation = getProductTranslation(product, locale);
+  const answers = readAnswerRows(reservation.field_answers);
   return {
     reservationId: reservation.$id,
     productId: product.$id,
@@ -424,6 +511,8 @@ function toCartItem({
     quantity: reservation.quantity,
     stock: product.stock,
     expiresAt: reservation.expires_at,
+    customFieldLabels: answers?.customFieldLabels,
+    customFields: answers?.customFields,
     metadata: parseProductMetadata(product.metadata),
   };
 }
