@@ -4,7 +4,6 @@ import {
   type UnitCategory,
 } from "@repo/shared/utils/unit-categories";
 import { Building2 } from "lucide-react";
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { requireNavAccess } from "@/lib/authorization";
@@ -21,6 +20,7 @@ import {
 } from "../_actions/departments";
 import { listCampuses } from "../_actions/lookups";
 import { EmptyState } from "../_components/empty-state";
+import { FilterChipLink } from "../_components/filter-chip-link";
 import { PageHeader } from "../_components/page-header";
 import { PaginationBar } from "../_components/pagination-bar";
 import { STUDIO } from "../_components/studio";
@@ -142,11 +142,15 @@ export default async function DepartmentsPage({
         {chips.map((chip) => {
           const isActive = chip.key === filter;
           return (
-            <Link
-              aria-current={isActive ? "page" : undefined}
+            <FilterChipLink
+              active={isActive}
               className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 font-medium text-xs transition"
               href={chipHref(chip.key)}
               key={chip.key}
+              // The href describes the committed URL; these are what the chip
+              // actually writes, so a click merges with a search push that has
+              // not landed yet instead of navigating away from it.
+              params={{ type: chip.key === "all" ? null : chip.key }}
               style={{
                 background: isActive ? STUDIO.ink : "rgba(255,255,255,0.55)",
                 border: `0.5px solid ${isActive ? STUDIO.ink : STUDIO.rule2}`,
@@ -155,7 +159,7 @@ export default async function DepartmentsPage({
             >
               {chip.label}
               <span style={{ opacity: 0.7 }}>{counts[chip.key] ?? 0}</span>
-            </Link>
+            </FilterChipLink>
           );
         })}
       </nav>

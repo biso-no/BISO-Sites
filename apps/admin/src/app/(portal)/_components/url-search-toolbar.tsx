@@ -21,6 +21,7 @@ export function UrlSearchToolbar({ placeholder }: UrlSearchToolbarProps) {
     <SearchToolbar
       onSearch={setValue}
       placeholder={placeholder ?? tc("search")}
+      searchLabel={tc("search")}
       value={value}
     />
   );

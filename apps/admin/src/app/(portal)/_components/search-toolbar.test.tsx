@@ -122,3 +122,23 @@ test("shows the term restored in the URL by browser navigation", async () => {
 
   expect(searchInput().value).toBe("restored");
 });
+
+// A placeholder is not an accessible name — assistive technology may never
+// announce it, and it disappears the moment anything is typed. Every one of
+// these boxes is the primary control on its page.
+test("gives the search input an accessible name", async () => {
+  searchParamsString = "";
+  await mount(createElement(UrlSearchToolbar));
+
+  expect(searchInput().getAttribute("aria-label")).toBe(
+    "adminPortal.common.search"
+  );
+});
+
+test("falls back to the placeholder as a name for an uncontrolled caller", async () => {
+  await mount(
+    createElement(SearchToolbar, { onSearch: noop, placeholder: "Find a unit" })
+  );
+
+  expect(searchInput().getAttribute("aria-label")).toBe("Find a unit");
+});

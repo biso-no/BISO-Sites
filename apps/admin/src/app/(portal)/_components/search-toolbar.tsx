@@ -20,6 +20,12 @@ interface SearchToolbarProps {
   onSearch?: (value: string) => void;
   placeholder?: string;
   /**
+   * Accessible name for the input. Defaults to the placeholder, which is at
+   * least a real name — a placeholder alone is not one: assistive technology
+   * may never announce it, and it vanishes as soon as anything is typed.
+   */
+  searchLabel?: string;
+  /**
    * Controlled term. Supply it when the box is bound to state that can change
    * without the user typing — URL state, say — so a browser Back updates the
    * visible term and not just the results underneath it. `defaultSearch` alone
@@ -36,6 +42,7 @@ export function SearchToolbar({
   activeFilter,
   onFilterChange,
   children,
+  searchLabel,
   value: controlledValue,
 }: SearchToolbarProps) {
   const [ownValue, setOwnValue] = useState(defaultSearch);
@@ -76,6 +83,7 @@ export function SearchToolbar({
           style={{ color: STUDIO.ink4 }}
         />
         <input
+          aria-label={searchLabel ?? placeholder}
           className="w-full rounded-lg py-2.5 pr-9 pl-9 text-sm outline-none transition-all"
           onBlur={(e) => {
             e.currentTarget.style.borderColor = STUDIO.rule2;

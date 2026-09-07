@@ -1,3 +1,4 @@
+import { ORDER_CALENDAR_TIMEZONE } from "@/lib/order-calendar";
 /**
  * Visual constants and value formatters shared by every shop studio module.
  * Pure — no React, no hooks.
@@ -46,5 +47,10 @@ export function fmtDate(iso: string, locale: "en" | "no"): string {
   return new Intl.DateTimeFormat(locale === "no" ? "nb-NO" : "en-GB", {
     day: "numeric",
     month: "short",
+    // The viewer's own zone would disagree with the date filters and the CSV,
+    // both of which speak the organisation's calendar: an administrator abroad
+    // would read one date on screen, get another in the export, and find the
+    // row excluded by a range that looks like it should contain it.
+    timeZone: ORDER_CALENDAR_TIMEZONE,
   }).format(d);
 }

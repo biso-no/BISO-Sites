@@ -55,12 +55,17 @@ export function parseListParams(
   searchParams: ListSearchParams,
   opts?: { pageKey?: string; qKey?: string; sizeKey?: string }
 ): ListParams {
-  const rawPage = Number(firstValue(searchParams[opts?.pageKey ?? "page"]));
-  const page =
-    Number.isFinite(rawPage) && rawPage >= 1 ? Math.floor(rawPage) : 1;
-
   const rawSize = Number(firstValue(searchParams[opts?.sizeKey ?? "size"]));
   const size = isPageSize(rawSize) ? rawSize : DEFAULT_PAGE_SIZE;
+
+  const rawPage = Number(firstValue(searchParams[opts?.pageKey ?? "page"]));
+  const requestedPage =
+    Number.isFinite(rawPage) && rawPage >= 1 ? Math.floor(rawPage) : 1;
+  // A page past the offset ceiling cannot be served, so carrying it forward
+  // would have every surface report a page it never fetched: `?page=999` gave
+  // the same slice as the last reachable page while claiming to be page 999,
+  // which left Previous repeating that slice hundreds of times.
+  const page = Math.min(requestedPage, lastPageByOffset(size));
 
   const q = (firstValue(searchParams[opts?.qKey ?? "q"]) ?? "").trim();
 
@@ -76,8 +81,17 @@ export function parseListParams(
  */
 export function lastReachablePage(total: number, size: number): number {
   const byTotal = Math.max(1, Math.ceil(total / size));
-  const byOffset = Math.floor(MAX_OFFSET / size) + 1;
-  return Math.min(byTotal, byOffset);
+  return Math.min(byTotal, lastPageByOffset(size));
+}
+
+/**
+ * Last page the offset ceiling allows, independent of how many rows exist.
+ *
+ * Knowable without a count, which is what lets `parseListParams` clamp a
+ * hand-typed page before anything is fetched.
+ */
+export function lastPageByOffset(size: number): number {
+  return Math.floor(MAX_OFFSET / size) + 1;
 }
 
 /** Short-circuit for actions that can prove the result is empty. */

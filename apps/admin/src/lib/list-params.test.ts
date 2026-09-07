@@ -45,6 +45,18 @@ describe("parseListParams", () => {
     expect(parseListParams({ page: ["2", "5"] }).page).toBe(2);
   });
 
+  // A page past the offset ceiling cannot be fetched, so reporting it back is a
+  // lie: `?page=999&size=25` served the same offset-5000 slice as page 201
+  // while the bar said 999, leaving hundreds of Previous clicks repeating it.
+  test("clamps a page past the offset ceiling to the last reachable one", () => {
+    expect(parseListParams({ page: "999", size: "25" }).page).toBe(201);
+    expect(parseListParams({ page: "999", size: "100" }).page).toBe(51);
+  });
+
+  test("leaves a reachable page untouched", () => {
+    expect(parseListParams({ page: "200", size: "25" }).page).toBe(200);
+  });
+
   test("supports an alternate page key for a second table on one route", () => {
     const params = parseListParams(
       { page: "2", opage: "7" },
