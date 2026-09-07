@@ -11,7 +11,11 @@
     "academic": "Academic",
     "trip": "Trip",
     "clearFilters": "Clear Filters",
-    "showingResults": "Showing {count} {count, plural, one {event} other {events}}"
+    "showingResults": "Showing {count} {count, plural, one {event} other {events}}",
+    "loadMore": "Load more events",
+    "loading": "Loading...",
+    "loadMoreFailed": "Could not load more events.",
+    "showingFirstResults": "Showing the first {count} matches — refine your search"
   },
   "emptyState": {
     "title": "No events found",

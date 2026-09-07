@@ -1,66 +1,73 @@
 "use client";
 
-import { type Events, EventsCategory } from "@repo/api/types/appwrite";
+import type { Events, EventsCategory } from "@repo/api/types/appwrite";
 import { Button } from "@repo/ui/components/ui/button";
 import { Input } from "@repo/ui/components/ui/input";
+import { useListParams, useUrlSearch } from "@repo/ui/hooks/use-list-params";
 import { Calendar, Filter, Search, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
-import { getPrimaryTranslation } from "@/lib/content-translation";
-import {
-  EVENT_CATEGORY_MESSAGE_KEYS,
-  resolveEventCategory,
-} from "@/lib/types/event";
+import { useCallback, useState } from "react";
+import { listEvents } from "@/app/actions/events";
+import { LoadMoreButton } from "@/components/ui/load-more-button";
+import { EVENT_CATEGORY_MESSAGE_KEYS } from "@/lib/types/event";
+import { useLoadMore } from "@/lib/use-load-more";
 import { EventCard } from "./event-card";
 import { EventDetailModal } from "./event-detail-modal";
 
 interface EventsListClientProps {
-  events: Events[];
+  campus: string;
+  capped: boolean;
+  categories: EventsCategory[];
+  initialEvents: Events[];
+  initialSearch: string;
   isMember?: boolean;
+  locale: "en" | "no";
+  selectedCategory: string | null;
+  total: number;
 }
 
-const categories = ["All", ...Object.values(EventsCategory)] as const;
-
 export function EventsListClient({
-  events,
+  campus,
+  capped,
+  categories,
+  initialEvents,
+  initialSearch,
   isMember = false,
+  locale,
+  selectedCategory,
+  total,
 }: EventsListClientProps) {
   const t = useTranslations("events");
-  const [selectedCategory, setSelectedCategory] =
-    useState<(typeof categories)[number]>("All");
-  const [searchQuery, setSearchQuery] = useState("");
+  const { setParams } = useListParams();
+  const [searchValue, setSearchValue] = useUrlSearch("q");
   const [selectedEvent, setSelectedEvent] = useState<Events | null>(null);
 
-  // Filter events based on search and category
-  // Only show main events (collections or standalone, not collection items)
-  const filteredEvents = events.filter((event) => {
-    const eventData = event;
-    const translation = getPrimaryTranslation(event);
-    const title = translation?.title ?? "";
-    const description = translation?.description ?? "";
-
-    // Filter out member-only events if user is not a member
-    if (eventData?.member_only && !isMember) {
-      return false;
-    }
-
-    // Only show events that are collections OR don't belong to any collection
-    const isMainEvent = eventData?.is_collection || !eventData?.collection_id;
-    if (!isMainEvent) {
-      return false;
-    }
-
-    const category = resolveEventCategory(eventData);
-
-    const matchesCategory =
-      selectedCategory === "All" || category === selectedCategory;
-    const matchesSearch =
-      title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      description.toLowerCase().includes(searchQuery.toLowerCase());
-
-    return matchesCategory && matchesSearch;
+  const { canLoadMore, error, isLoading, items, loadMore } = useLoadMore({
+    initial: initialEvents,
+    total,
+    fetchPage: useCallback(
+      (page: number) =>
+        listEvents({
+          campus,
+          category: selectedCategory,
+          isMember,
+          locale,
+          page,
+          search: initialSearch,
+          status: "published",
+          upcomingOnly: true,
+        }),
+      [campus, selectedCategory, isMember, locale, initialSearch]
+    ),
   });
+
+  function clearAllFilters() {
+    setSearchValue("");
+    setParams({ category: null });
+  }
+
+  const hasActiveFilters = searchValue.length > 0 || selectedCategory !== null;
 
   return (
     <>
@@ -73,15 +80,15 @@ export function EventsListClient({
               <Search className="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
               <Input
                 className="w-full border-brand-border pr-10 pl-10 focus:border-brand"
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => setSearchValue(e.target.value)}
                 placeholder={t("filters.searchPlaceholder")}
                 type="text"
-                value={searchQuery}
+                value={searchValue}
               />
-              {searchQuery && (
+              {searchValue && (
                 <button
                   className="absolute top-1/2 right-3 -translate-y-1/2 text-muted-foreground hover:text-muted-foreground"
-                  onClick={() => setSearchQuery("")}
+                  onClick={() => setSearchValue("")}
                   type="button"
                 >
                   <X className="h-4 w-4" />
@@ -90,31 +97,44 @@ export function EventsListClient({
             </div>
 
             {/* Category Filter */}
-            <div className="flex flex-wrap items-center justify-center gap-2">
-              <Filter className="h-5 w-5 text-brand-dark" />
-              {categories.map((category) => (
+            {categories.length > 0 && (
+              <div className="flex flex-wrap items-center justify-center gap-2">
+                <Filter className="h-5 w-5 text-brand-dark" />
                 <Button
                   className={
-                    selectedCategory === category
+                    selectedCategory === null
                       ? "border-0 bg-linear-to-r from-brand-gradient-from to-brand-gradient-to text-white"
                       : "border-brand-border text-brand-dark hover:bg-brand-muted"
                   }
-                  key={category}
-                  onClick={() => setSelectedCategory(category)}
-                  variant={
-                    selectedCategory === category ? "default" : "outline"
-                  }
+                  onClick={() => setParams({ category: null })}
+                  variant={selectedCategory === null ? "default" : "outline"}
                 >
-                  {category === "All"
-                    ? t("filters.all")
-                    : t(`filters.${EVENT_CATEGORY_MESSAGE_KEYS[category]}`)}
+                  {t("filters.all")}
                 </Button>
-              ))}
-            </div>
+                {categories.map((category) => (
+                  <Button
+                    className={
+                      selectedCategory === category
+                        ? "border-0 bg-linear-to-r from-brand-gradient-from to-brand-gradient-to text-white"
+                        : "border-brand-border text-brand-dark hover:bg-brand-muted"
+                    }
+                    key={category}
+                    onClick={() => setParams({ category })}
+                    variant={
+                      selectedCategory === category ? "default" : "outline"
+                    }
+                  >
+                    {t(`filters.${EVENT_CATEGORY_MESSAGE_KEYS[category]}`)}
+                  </Button>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="mt-4 text-center text-muted-foreground">
-            {t("filters.showingResults", { count: filteredEvents.length })}
+            {capped
+              ? t("filters.showingFirstResults", { count: total })
+              : t("filters.showingResults", { count: total })}
           </div>
         </div>
       </div>
@@ -127,9 +147,9 @@ export function EventsListClient({
             className="grid gap-8 md:grid-cols-2 lg:grid-cols-3"
             exit={{ opacity: 0, y: -20 }}
             initial={{ opacity: 0, y: 20 }}
-            key={selectedCategory + searchQuery}
+            key="events-grid"
           >
-            {filteredEvents.map((event, index) => (
+            {items.map((event, index) => (
               <EventCard
                 event={event}
                 index={index}
@@ -142,7 +162,7 @@ export function EventsListClient({
         </AnimatePresence>
 
         {/* No Results */}
-        {filteredEvents.length === 0 && (
+        {items.length === 0 && (
           <motion.div
             animate={{ opacity: 1 }}
             className="py-20 text-center"
@@ -155,18 +175,27 @@ export function EventsListClient({
             <p className="mb-6 text-muted-foreground">
               {t("emptyState.description")}
             </p>
-            <Button
-              className="border-brand text-brand-dark hover:bg-brand-muted"
-              onClick={() => {
-                setSelectedCategory("All");
-                setSearchQuery("");
-              }}
-              variant="outline"
-            >
-              {t("filters.clearFilters")}
-            </Button>
+            {hasActiveFilters && (
+              <Button
+                className="border-brand text-brand-dark hover:bg-brand-muted"
+                onClick={clearAllFilters}
+                variant="outline"
+              >
+                {t("filters.clearFilters")}
+              </Button>
+            )}
           </motion.div>
         )}
+
+        <LoadMoreButton
+          canLoadMore={canLoadMore}
+          error={error}
+          isLoading={isLoading}
+          label={t("filters.loadMore")}
+          loadingLabel={t("filters.loading")}
+          onLoadMore={loadMore}
+          retryLabel={t("filters.loadMoreFailed")}
+        />
       </div>
 
       {/* Event Detail Modal */}

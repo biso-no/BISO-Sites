@@ -11,7 +11,11 @@
     "academic": "Faglig",
     "trip": "Tur",
     "clearFilters": "Tøm filtre",
-    "showingResults": "Viser {count} {count, plural, one {arrangement} other {arrangementer}}"
+    "showingResults": "Viser {count} {count, plural, one {arrangement} other {arrangementer}}",
+    "loadMore": "Last inn flere arrangementer",
+    "loading": "Laster...",
+    "loadMoreFailed": "Kunne ikke laste inn flere arrangementer.",
+    "showingFirstResults": "Viser de første {count} treffene — forfin søket ditt"
   },
   "emptyState": {
     "title": "Ingen arrangementer funnet",

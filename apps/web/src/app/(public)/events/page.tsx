@@ -1,11 +1,13 @@
+import type { ListSearchParams } from "@repo/shared/utils/list-params";
 import { Skeleton } from "@repo/ui/components/ui/skeleton";
 import { Suspense } from "react";
-import { listEvents } from "@/app/actions/events";
+import { listEventFacets, listEvents } from "@/app/actions/events";
 import { getLocale } from "@/app/actions/locale";
 import { EventsHero } from "@/components/events/events-hero";
 import { EventsListClient } from "@/components/events/events-list-client";
 import { getMembershipStatus } from "@/lib/actions/membership";
 import { getUserPreferences } from "@/lib/auth-utils";
+import { parseWebListParams } from "@/lib/list-params";
 
 // This is a server component
 export const metadata = {
@@ -14,28 +16,64 @@ export const metadata = {
     "Discover amazing events and experiences at BI Norwegian Business School",
 };
 
-async function EventsList({ locale }: { locale: "en" | "no" }) {
-  // Fetch events on the server
-  const [userPrefs, membership] = await Promise.all([
-    getUserPreferences(),
-    getMembershipStatus(),
-  ]);
+interface EventsPageProps {
+  searchParams: Promise<ListSearchParams>;
+}
+
+const first = (value: string | string[] | undefined): string | undefined =>
+  Array.isArray(value) ? value[0] : value;
+
+async function EventsList({
+  campus,
+  category,
+  isMember,
+  locale,
+  page,
+  search,
+}: {
+  campus: string;
+  category: string | null;
+  isMember: boolean;
+  locale: "en" | "no";
+  page: number;
+  search: string;
+}) {
   // `upcomingOnly` is a real server-side filter: `queryEvents` expresses "has
   // not finished yet" as a three-armed `Query.or` over end_date/start_date, so
   // there is no post-fetch pass here to overfetch for. `isMember` is threaded
-  // from the membership status already resolved above — omitting it would
-  // hide member-only events from members, which is exactly the regression
-  // this call was fixed to stop reproducing. This page still gets one page
-  // (`WEB_PAGE_SIZE`) per request; Task 9 adds load-more pagination here.
-  const { rows: events } = await listEvents({
-    locale,
-    status: "published",
-    campus: userPrefs?.campusId ?? "all",
-    upcomingOnly: true,
-    isMember: membership.isMember,
-  });
+  // from the membership status resolved in the page component — omitting it
+  // would hide member-only events from members, which is exactly the
+  // regression this call was fixed to stop reproducing.
+  const [result, facets] = await Promise.all([
+    listEvents({
+      campus,
+      category,
+      isMember,
+      locale,
+      page,
+      search,
+      status: "published",
+      upcomingOnly: true,
+    }),
+    listEventFacets({ campus, isMember }),
+  ]);
 
-  return <EventsListClient events={events} isMember={membership.isMember} />;
+  return (
+    <EventsListClient
+      campus={campus}
+      capped={result.capped}
+      categories={facets.categories}
+      initialEvents={result.rows}
+      initialSearch={search}
+      isMember={isMember}
+      // Remounts on any filter change so the load-more list resets to the
+      // new page 1 instead of appending onto the previous filter's rows.
+      key={`${campus}|${category}|${search}`}
+      locale={locale}
+      selectedCategory={category}
+      total={result.total}
+    />
+  );
 }
 
 function EventsListSkeleton() {
@@ -56,15 +94,32 @@ function EventsListSkeleton() {
   );
 }
 
-export default async function EventsPage() {
-  const locale = await getLocale();
+export default async function EventsPage({ searchParams }: EventsPageProps) {
+  const [sp, locale, prefs, membership] = await Promise.all([
+    searchParams,
+    getLocale(),
+    getUserPreferences(),
+    getMembershipStatus(),
+  ]);
+  const { page, q } = parseWebListParams(sp);
+  const campus = first(sp.campus) ?? prefs?.campusId ?? "all";
+  const category = first(sp.category) ?? null;
 
   return (
     <div className="min-h-screen bg-linear-to-b from-section to-background">
       <EventsHero />
-
-      <Suspense fallback={<EventsListSkeleton />}>
-        <EventsList locale={locale} />
+      <Suspense
+        fallback={<EventsListSkeleton />}
+        key={`${campus}|${q}|${page}`}
+      >
+        <EventsList
+          campus={campus}
+          category={category}
+          isMember={membership.isMember}
+          locale={locale}
+          page={page}
+          search={q}
+        />
       </Suspense>
     </div>
   );
