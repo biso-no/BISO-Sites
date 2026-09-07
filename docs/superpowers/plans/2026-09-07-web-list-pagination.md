@@ -20,6 +20,7 @@
 - `WEB_PAGE_SIZE = 12`. `SEARCH_CANDIDATE_CAP = 500`. `MAX_OFFSET = 5000`.
 - **Format only your own files: `bun x ultracite fix <paths…>`, never bare `bun x ultracite fix`.** The bare form is repo-wide and reformats files this plan must not touch — including the generated, do-not-touch `packages/api/appwrite.config.json`. If you run it bare by accident, `git checkout --` the out-of-scope files before staging. Never `git add -A` or `git add .`: there are unrelated in-flight changes in the working tree that must not be swept into a plan commit.
 - **`"use server"` files may export ONLY `async function`s.** `apps/web/src/app/actions/*.ts` all carry the directive, so every runtime-value export becomes a server action and a `const`, `class`, non-async `function` or `let` fails the build with *"Server Actions must be async functions"*. `export type` / `export interface` are erased and therefore fine — which is why `JobSort` (Task 5) and `ProductSort` (Task 10) are declared as types, not const arrays. Put any shared constant or sync helper in a plain module (e.g. `@/lib/list-params`) and import it.
+- **Assert on serialized query *shape*, never a bare substring.** These action tests stringify the `Query` objects, so `toContain("or")` is satisfied by `"orderDesc"` and `toContain("application_deadline")` is satisfied by the open-vacancy filter — both pass with the query they name deleted. Inspect what the builder actually serializes (e.g. `'"method":"or"'`, `'"method":"orderAsc"'`) and pin that. Then delete the query and confirm the assertion actually fails; an assertion that passes either way is worse than none.
 - **`check-types` does NOT catch that rule.** `tsc --noEmit` accepts a non-async export from a `"use server"` file. After editing any action file, verify with `bun run build --filter=web` as well.
 - **Admin must not change behaviour.** Its only intentional change in this plan is two re-export shims.
 
@@ -2412,6 +2413,11 @@ describe("listProducts pagination", () => {
   it("pages by 12 with a 1-based offset", async () => {
     await listProducts({ page: 2 });
     const serialized = queriesOf(0).join("|");
+    // Assert the serialized limit/offset queries, not the bare digits: "12"
+    // matches a timestamp or an id and would pass with the paging removed.
+    // Check what Query.limit(12) actually serializes to and pin that shape.
+    expect(serialized).toContain('"method":"limit"');
+    expect(serialized).toContain('"method":"offset"');
     expect(serialized).toContain("12");
   });
 
