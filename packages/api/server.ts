@@ -193,6 +193,7 @@ function isAbortError(error: unknown): boolean {
 function configureServerClient(client: Client): Client {
   const prepareRequest = client.prepareRequest.bind(client);
   const call = client.call.bind(client);
+  const redirect = client.redirect.bind(client);
 
   client.prepareRequest = (method, url, requestHeaders, params) => {
     const request = prepareRequest(method, url, requestHeaders, params);
@@ -212,6 +213,26 @@ function configureServerClient(client: Client): Client {
   client.call = async (...args: Parameters<Client["call"]>) => {
     try {
       return await call(...args);
+    } catch (error) {
+      if (isAbortError(error)) {
+        throw new AppwriteException(
+          `Appwrite request timed out after ${APPWRITE_REQUEST_TIMEOUT_MS}ms`,
+          504,
+          APPWRITE_TIMEOUT_ERROR_TYPE
+        );
+      }
+
+      throw error;
+    }
+  };
+
+  // `redirect()` powers the OAuth token endpoints. It takes the timeout signal
+  // from prepareRequest but does NOT route through call(), so without this the
+  // abort surfaces as a raw TimeoutError and blows up the sign-in server action
+  // instead of becoming a handled AppwriteException.
+  client.redirect = async (...args: Parameters<Client["redirect"]>) => {
+    try {
+      return await redirect(...args);
     } catch (error) {
       if (isAbortError(error)) {
         throw new AppwriteException(

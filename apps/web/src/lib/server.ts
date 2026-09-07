@@ -104,24 +104,43 @@ export async function signInWithApple() {
   return redirect(redirectUrl);
 }
 
-export async function signInWithMagicLink(email: string) {
+/**
+ * Staff addresses must never go through the magic-link flow.
+ *
+ * `account.createMagicURLToken` CREATES an Appwrite account when the email is
+ * unknown, and that account has no OAuth identity. Appwrite's OAuth callback
+ * resolves an existing identity by `providerUid` first; with none, it falls
+ * through to matching on email, and that branch hard-fails with a 400 unless
+ * the provider reports the address as verified. Appwrite's Microsoft provider
+ * returns `false` unconditionally ("Microsoft explicitly does not verify
+ * emails in Graph /me"), so one magic-link request against an @biso.no address
+ * permanently locks that person out of the admin app. Staff sign in with
+ * Microsoft on both apps instead.
+ */
+const STAFF_EMAIL_DOMAIN = "@biso.no";
+
+export type MagicLinkResult =
+  | { ok: true }
+  | { ok: false; reason: "staff_domain" };
+
+export async function signInWithMagicLink(
+  email: string
+): Promise<MagicLinkResult> {
+  if (email.trim().toLowerCase().endsWith(STAFF_EMAIL_DOMAIN)) {
+    return { ok: false, reason: "staff_domain" };
+  }
+
   const { account } = await createSessionClient();
 
   const origin = (await headers()).get("origin");
 
-  /*
-    if (email.includes("@biso.no")) {
-        return redirect(`${origin}/auth/login?restrictedDomain=true`);
-    }
-    */
-
-  const redirectUrl = await account.createMagicURLToken(
+  await account.createMagicURLToken(
     ID.unique(),
     email,
     `${origin}/auth/callback`
   );
 
-  return !!redirectUrl;
+  return { ok: true };
 }
 
 export async function signOut() {

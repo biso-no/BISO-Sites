@@ -13,6 +13,7 @@
 ## Global Constraints
 
 - **Package manager is Bun.** Never `npm`/`pnpm`. Tests: `bun run test --filter=web`.
+- **Never `git push`, never open a pull request, never merge.** Commit locally and stop there. This branch is shared; publishing work-in-progress is the repository owner's decision, not an implementer's. A subagent pushed this branch unasked during Task 6 — do not repeat it.
 - **`bun run check-types` is the only signal that matters.** `apps/web/next.config.ts` sets `typescript.ignoreBuildErrors: true`, so `next build` will not catch type errors.
 - **Never import `appwrite` / `node-appwrite` directly.** Go through `@repo/api`.
 - **Do not edit** `packages/api/appwrite.config.json` or `packages/api/types/appwrite.ts` — both generated.

@@ -51,7 +51,14 @@ export function Login() {
 
     setIsLoading(true);
     try {
-      await signInWithMagicLink(email);
+      const result = await signInWithMagicLink(email);
+      if (!result.ok) {
+        setMessage({
+          type: "error",
+          text: "BISO staff accounts sign in at admin.biso.no. Use your personal email address here.",
+        });
+        return;
+      }
       setMessage({
         type: "success",
         text: "Login link sent! Please check your email.",
