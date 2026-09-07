@@ -95,4 +95,30 @@ describe("listEvents pagination", () => {
     expect(result.total).toBe(3);
     expect(result.size).toBe(12);
   });
+
+  it("propagates capped from phase 1 search to the result", async () => {
+    // Fill phase 1 past SEARCH_CANDIDATE_CAP (500) so findContentIdsBySearch
+    // reports capped: true, then confirm queryEvents/listEvents don't
+    // hardcode `capped: false` over it (Task 8 fix round 1, finding 2).
+    sessionDb.listRows
+      .mockResolvedValueOnce({
+        rows: Array.from({ length: 500 }, (_, i) => ({ content_id: `e${i}` })),
+        total: 900,
+      })
+      .mockResolvedValueOnce({ rows: [], total: 0 });
+
+    const result = await listEvents({ search: "gala" });
+
+    expect(result.capped).toBe(true);
+  });
+
+  it("reports capped: false when phase 1 search stays under the cap", async () => {
+    sessionDb.listRows
+      .mockResolvedValueOnce({ rows: [{ content_id: "e1" }], total: 1 })
+      .mockResolvedValueOnce({ rows: [], total: 0 });
+
+    const result = await listEvents({ search: "gala" });
+
+    expect(result.capped).toBe(false);
+  });
 });

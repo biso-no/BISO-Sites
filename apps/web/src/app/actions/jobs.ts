@@ -59,7 +59,6 @@ import {
   emptyWebResult,
   WEB_PAGE_SIZE,
   type WebPaginatedResult,
-  webOffset,
 } from "@/lib/list-params";
 
 // ---------- public reads (session/guest client — enforces row permissions) ----------
@@ -88,6 +87,8 @@ function openVacancyQueries(): string[] {
 // Primitive arguments only: React cache() keys on argument identity
 // (Object.is), so an options object allocated fresh at each call site would
 // never hit the memo. See WEB_APP_APPWRITE_INCIDENT_AUDIT.md (F-6b).
+// `pageSize` is threaded as its own primitive argument for the same reason —
+// bundling it into an options object would silently kill the memo.
 const _listJobs = cache(
   async (
     campus: string | null,
@@ -96,7 +97,8 @@ const _listJobs = cache(
     locale: string,
     page: number,
     search: string,
-    sort: JobSort
+    sort: JobSort,
+    pageSize: number
   ): Promise<WebPaginatedResult<RecruitmentVacancy>> => {
     try {
       const { db } = await createSessionClient();
@@ -106,7 +108,7 @@ const _listJobs = cache(
       if (search.trim()) {
         const found = await findContentIdsBySearch(db, "job", search, locale);
         if (found.ids.length === 0) {
-          return emptyWebResult<RecruitmentVacancy>(page);
+          return emptyWebResult<RecruitmentVacancy>(page, pageSize);
         }
         capped = found.capped;
         idQueries.push(Query.equal("$id", found.ids));
@@ -118,8 +120,8 @@ const _listJobs = cache(
         sort === "deadline"
           ? Query.orderAsc("application_deadline")
           : Query.orderDesc("$createdAt"),
-        Query.limit(WEB_PAGE_SIZE),
-        Query.offset(webOffset(page)),
+        Query.limit(pageSize),
+        Query.offset((page - 1) * pageSize),
       ];
 
       const campusScope = campusScopeIds(campus);
@@ -141,12 +143,12 @@ const _listJobs = cache(
         rows: rows.map((v) => localizeVacancy(v, locale)),
         total,
         page,
-        size: WEB_PAGE_SIZE,
+        size: pageSize,
         capped,
       };
     } catch (error) {
       console.error("listJobs failed:", error);
-      return emptyWebResult<RecruitmentVacancy>(page);
+      return emptyWebResult<RecruitmentVacancy>(page, pageSize);
     }
   }
 );
@@ -158,6 +160,13 @@ export async function listJobs(params: {
   department?: string | null;
   locale?: string;
   page?: number;
+  /**
+   * Rows per page. Defaults to `WEB_PAGE_SIZE` (12) — the paginated `/jobs`
+   * surface should omit this so it keeps the size its load-more UI expects.
+   * First-N consumers (`/students`) that need a bigger pool in one fetch pass
+   * this explicitly.
+   */
+  pageSize?: number;
   search?: string;
   sort?: JobSort;
 }): Promise<WebPaginatedResult<RecruitmentVacancy>> {
@@ -168,7 +177,8 @@ export async function listJobs(params: {
     params.locale ?? "en",
     params.page ?? 1,
     params.search ?? "",
-    params.sort ?? "newest"
+    params.sort ?? "newest",
+    params.pageSize ?? WEB_PAGE_SIZE
   );
 }
 

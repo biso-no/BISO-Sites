@@ -13,16 +13,30 @@ import {
   emptyWebResult,
   WEB_PAGE_SIZE,
   type WebPaginatedResult,
-  webOffset,
 } from "@/lib/list-params";
 
 interface ListEventsParams {
   campus?: string;
   category?: string | null;
+  /**
+   * Whether the visitor may see `member_only` rows. Defaults to `false`
+   * (hide member-only content) — there is no way to infer membership from
+   * inside this action, so every caller must decide and pass it explicitly.
+   * A caller that forgets this is not "using the safe default", it is
+   * silently hiding member-only events from actual members; see the
+   * member-only regression fixed alongside this comment.
+   */
   isMember?: boolean;
-  limit?: number;
   locale?: "en" | "no";
   page?: number;
+  /**
+   * Rows per page. Defaults to `WEB_PAGE_SIZE` (12) — the paginated surfaces
+   * (`/events`, `/jobs`, `/shop`) should omit this so they keep the size the
+   * load-more UI expects. First-N consumers (`/students`) that need more than
+   * one page's worth of rows in a single fetch should set this explicitly
+   * rather than relying on a `limit` field that this action no longer honors.
+   */
+  pageSize?: number;
   search?: string;
   status?: string;
   /** Opt-in: hide events that have already finished, sorted soonest-first. */
@@ -33,19 +47,20 @@ export async function listEvents(
   params: ListEventsParams = {}
 ): Promise<WebPaginatedResult<Events>> {
   const page = params.page ?? 1;
+  const size = params.pageSize ?? WEB_PAGE_SIZE;
   try {
     const { db } = await createSessionClient();
     const { rows, total, capped } = await queryEvents(db, {
       ...params,
-      limit: WEB_PAGE_SIZE,
-      offset: webOffset(page),
+      limit: size,
+      offset: (page - 1) * size,
     });
-    return { rows, total, page, size: WEB_PAGE_SIZE, capped };
+    return { rows, total, page, size, capped };
   } catch (error) {
     // Logged with context: this catch returning [] is exactly how the
     // rejected Query.search stayed invisible in production.
     console.error("Error fetching events:", error);
-    return emptyWebResult<Events>(page);
+    return emptyWebResult<Events>(page, size);
   }
 }
 

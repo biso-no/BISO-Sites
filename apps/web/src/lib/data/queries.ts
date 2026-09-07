@@ -123,6 +123,12 @@ export async function queryEvents(
   const {
     campus,
     category,
+    // Safe-by-default: hide member-only rows unless a caller proves the
+    // visitor is a member. Every caller must decide this explicitly (pass
+    // `isMember` or document why the default is correct here) — a caller
+    // that forgets it silently hides member-only events from members, which
+    // is exactly the regression this default was tightened to prevent from
+    // recurring unnoticed. See call sites for the deliberate-default comments.
     isMember = false,
     limit = WEB_PAGE_SIZE,
     locale,
@@ -134,11 +140,14 @@ export async function queryEvents(
 
   const queries = [Query.select([...EVENT_SELECT])];
 
+  let capped = false;
+
   if (search?.trim()) {
     const found = await findContentIdsBySearch(db, "event", search, locale);
     if (found.ids.length === 0) {
       return { rows: [], total: 0, capped: false };
     }
+    capped = found.capped;
     queries.push(Query.equal("$id", found.ids));
   }
 
@@ -197,7 +206,7 @@ export async function queryEvents(
   return {
     rows: response.rows.map((event) => filterTranslationRefs(event, locale)),
     total: response.total,
-    capped: false,
+    capped,
   };
 }
 

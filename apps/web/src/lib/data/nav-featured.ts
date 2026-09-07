@@ -81,6 +81,13 @@ export async function buildNavFeatured(
   locale: PublicLocale
 ): Promise<NavFeatured> {
   const [events, projects, news] = await Promise.all([
+    // `isMember` deliberately left at its default (`false`): this teaser runs
+    // for both the guest cache path and every signed-in visitor's nav, and
+    // resolving real membership status here would mean a Finago-backed call
+    // on every render just to pick one featured event. Hiding member-only
+    // events from the nav slot (even for members) is the safe/conservative
+    // choice; the full events grid still shows them correctly via
+    // `listEvents({ isMember })`.
     queryEvents(db, {
       limit: FEATURED_EVENT_POOL,
       locale,

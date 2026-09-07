@@ -59,7 +59,17 @@ export function webOffset(page: number): number {
   return (page - 1) * WEB_PAGE_SIZE;
 }
 
-/** Short-circuit for actions that can prove the result is empty. */
-export function emptyWebResult<T>(page: number): WebPaginatedResult<T> {
-  return { rows: [], total: 0, page, size: WEB_PAGE_SIZE, capped: false };
+/**
+ * Short-circuit for actions that can prove the result is empty.
+ *
+ * `size` defaults to `WEB_PAGE_SIZE` but accepts an override so a caller using
+ * a `pageSize` override (first-N consumers like `/students`) reports the size
+ * it actually requested, not the generic default — `WebPaginatedResult.size`
+ * should always describe what was asked for.
+ */
+export function emptyWebResult<T>(
+  page: number,
+  size: number = WEB_PAGE_SIZE
+): WebPaginatedResult<T> {
+  return { rows: [], total: 0, page, size, capped: false };
 }

@@ -39,11 +39,21 @@ const HOME_NEWS_LIMIT = 3;
 const HERO_EVENTS_LIMIT = 3;
 const HERO_NEWS_LIMIT = 2;
 
-// Member-scoped feeds: anonymous visitors (all bot/monitor traffic) share the
-// "use cache" guest result; session holders read per-request so member-only
-// rows (row perms `team:biso-members`) still appear in their feeds.
-// `upcomingOnly` drops finished events after the fetch, so ask for more rows
-// than we render or a couple of past events could empty the section.
+// Split feeds: anonymous visitors (all bot/monitor traffic) share the
+// "use cache" guest result; session holders read per-request so their own
+// campus/locale selection applies without waiting for the cache to catch up.
+// `isMember` is deliberately omitted from the `listEvents` call below
+// (defaults to `false`): resolving real membership status here would mean a
+// Finago-backed call on every homepage render, so member-only events are
+// hidden from everyone in this feed, including members — the safe direction.
+// `/events` is the surface that resolves real membership and shows
+// member-only events correctly.
+// `upcomingOnly` is now a precise server-side query (`queryEvents`'s
+// three-armed `Query.or` over end_date/start_date), not a post-fetch filter —
+// so this multiplier is no longer compensating for rows lost after the fetch.
+// Kept as-is (asking for more than we render, then slicing) rather than
+// removed, since this task is fixing the pagination/search regressions, not
+// re-tuning the home page's fetch sizing.
 const UPCOMING_OVERFETCH = 4;
 
 function homeEvents(
@@ -56,8 +66,8 @@ function homeEvents(
   if (hasSession) {
     return listEvents({
       campus: campusKey ?? "all",
-      limit: fetchLimit,
       locale,
+      pageSize: fetchLimit,
       status: "published",
       upcomingOnly: true,
     }).then((result) => result.rows.slice(0, limit));

@@ -14,23 +14,25 @@ export const metadata = {
     "Discover amazing events and experiences at BI Norwegian Business School",
 };
 
-// `upcomingOnly` drops finished events after they are fetched (the exact
-// "has it ended" rule cannot be expressed as one Appwrite query), so the fetch
-// limit is raised well above what the grid shows to keep the page populated.
-const EVENTS_FETCH_LIMIT = 200;
-
 async function EventsList({ locale }: { locale: "en" | "no" }) {
   // Fetch events on the server
   const [userPrefs, membership] = await Promise.all([
     getUserPreferences(),
     getMembershipStatus(),
   ]);
+  // `upcomingOnly` is a real server-side filter: `queryEvents` expresses "has
+  // not finished yet" as a three-armed `Query.or` over end_date/start_date, so
+  // there is no post-fetch pass here to overfetch for. `isMember` is threaded
+  // from the membership status already resolved above — omitting it would
+  // hide member-only events from members, which is exactly the regression
+  // this call was fixed to stop reproducing. This page still gets one page
+  // (`WEB_PAGE_SIZE`) per request; Task 9 adds load-more pagination here.
   const { rows: events } = await listEvents({
     locale,
     status: "published",
-    limit: EVENTS_FETCH_LIMIT,
     campus: userPrefs?.campusId ?? "all",
     upcomingOnly: true,
+    isMember: membership.isMember,
   });
 
   return <EventsListClient events={events} isMember={membership.isMember} />;
