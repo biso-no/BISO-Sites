@@ -24,6 +24,7 @@
 - **Assert on serialized query *shape*, never a bare substring.** These action tests stringify the `Query` objects, so `toContain("or")` is satisfied by `"orderDesc"` and `toContain("application_deadline")` is satisfied by the open-vacancy filter — both pass with the query they name deleted. Inspect what the builder actually serializes (e.g. `'"method":"or"'`, `'"method":"orderAsc"'`) and pin that. Then delete the query and confirm the assertion actually fails; an assertion that passes either way is worse than none.
 - **`check-types` does NOT catch that rule.** `tsc --noEmit` accepts a non-async export from a `"use server"` file. After editing any action file, verify with `bun run build --filter=web` as well.
 - **Admin must not change behaviour.** Its only intentional change in this plan is two re-export shims.
+- **`ListParamsProvider` is mounted once, in `apps/web/src/app/(public)/layout.tsx`.** Every list client holds two `useListParams` instances — the direct one for filter controls and a second inside `useUrlSearch("q")` — and they only merge an in-flight URL write when they share that provider. Without it, changing a filter and letting the 300 ms search debounce fire drops one of the two writes. Do not wrap individual clients; the layout covers `/jobs`, `/events` and `/shop`.
 
 ## Verified query facts (do not re-derive)
 

@@ -1,3 +1,4 @@
+import { ListParamsProvider } from "@repo/ui/hooks/use-list-params";
 import { SiteShell } from "@/components/layout/site-shell";
 
 // Request-bound gating (session → membership status) lives in the shell, so
@@ -13,5 +14,9 @@ export default function PublicLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return <SiteShell>{children}</SiteShell>;
+  return (
+    <SiteShell>
+      <ListParamsProvider>{children}</ListParamsProvider>
+    </SiteShell>
+  );
 }
