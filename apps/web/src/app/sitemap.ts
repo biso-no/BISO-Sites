@@ -3,6 +3,7 @@ import {
   unitCanonicalPath,
 } from "@repo/shared/utils/unit-urls";
 import type { MetadataRoute } from "next";
+import { CAMPUS_SLUGS } from "@/lib/campus-scope";
 import { cachedSitemapEntries } from "@/lib/data/public-content";
 
 const BASE = process.env.NEXT_PUBLIC_BASE_URL || "https://web.biso.no";
@@ -69,6 +70,28 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       url: `${BASE}/about/${slug}`,
       changeFrequency: "monthly" as const,
       priority: 0.4,
+    })),
+    // Campus landing pages only.
+    //
+    // **No `?campus=` feed variants.** They were listed here at first, which
+    // contradicted the pages themselves: `/events`, `/news` and `/jobs` each
+    // hard-canonical every scoped request back to the unscoped feed, so a
+    // sitemap entry for `/events?campus=bergen` tells a crawler "index this"
+    // and the page it lands on replies "no, index /events instead". Caught in
+    // PR review. The canonical is the half worth keeping — a scoped feed is a
+    // filtered view of the same collection and should not compete with the
+    // listing it filters — so the sitemap entries go.
+    //
+    // The campus *landing* pages stay: they self-canonical, and each is a
+    // distinct page rather than a filtered view. `/units` and `/shop` also
+    // accept `?campus=` and are likewise unlisted; `/units` already has all
+    // 141 of its `/units/<campus>/<slug>` pages below, which is the
+    // campus-specific content a crawler actually wants. `/projects` has no
+    // campus_id and cannot be scoped at all.
+    ...CAMPUS_SLUGS.map((slug) => ({
+      url: `${BASE}/campus/${slug}`,
+      changeFrequency: "weekly" as const,
+      priority: 0.6,
     })),
     { url: `${BASE}/privacy`, changeFrequency: "yearly", priority: 0.2 },
     { url: `${BASE}/terms`, changeFrequency: "yearly", priority: 0.2 },

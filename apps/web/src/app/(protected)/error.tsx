@@ -1,9 +1,14 @@
 "use client";
 
-import { Button } from "@repo/ui/components/ui/button";
 import { AlertTriangle } from "lucide-react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { useEffect } from "react";
+import {
+  StatusPanel,
+  statusPanelPrimaryAction,
+  statusPanelSecondaryAction,
+} from "@/components/ui/status-panel";
 
 // Default error boundary for the authenticated tree. The (protected)
 // layout's `unauthorized()` call short-circuits to the unauthorized
@@ -16,25 +21,31 @@ export default function ProtectedError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  const t = useTranslations("common.error");
+
   useEffect(() => {
     console.error("Protected route error:", error);
   }, [error]);
 
   return (
-    <div className="flex min-h-[60vh] flex-col items-center justify-center px-4 pt-20 text-center">
-      <AlertTriangle className="mb-4 h-10 w-10 text-destructive" />
-      <h2 className="mb-2 font-semibold text-xl">Something went wrong</h2>
-      <p className="mb-6 max-w-sm text-muted-foreground text-sm">
-        We couldn't load this page. Please try again, or return to your profile.
-      </p>
-      <div className="flex gap-3">
-        <Button onClick={reset} variant="outline">
-          Try again
-        </Button>
-        <Button asChild>
-          <Link href="/profile">Go to profile</Link>
-        </Button>
-      </div>
-    </div>
+    <StatusPanel
+      actions={
+        <>
+          <button
+            className={statusPanelSecondaryAction}
+            onClick={reset}
+            type="button"
+          >
+            {t("tryAgain")}
+          </button>
+          <Link className={statusPanelPrimaryAction} href="/profile">
+            {t("goToProfile")}
+          </Link>
+        </>
+      }
+      body={t("body")}
+      icon={<AlertTriangle className="size-8" />}
+      title={t("title")}
+    />
   );
 }

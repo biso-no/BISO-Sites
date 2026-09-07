@@ -1,22 +1,17 @@
-import type { ContentTranslations, Events } from "@repo/api/types/appwrite";
-import { Skeleton } from "@repo/ui/components/ui/skeleton";
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
-import { getCollectionEvents, getEventBySlug } from "@/app/actions/events";
-import { getLocale } from "@/app/actions/locale";
-import { EventActions } from "@/components/events/event-actions";
-import { EventCollectionList } from "@/components/events/event-collection-list";
-import { EventContent } from "@/components/events/event-content";
-import { EventHero } from "@/components/events/event-hero";
 import {
-  EventContactCard,
-  EventDetailsCard,
-  EventImportantInfoCard,
-  EventPriceCard,
-} from "@/components/events/event-info-cards";
-import { getMembershipStatus } from "@/lib/actions/membership";
-import { formatEventPrice, resolveEventRegistration } from "@/lib/types/event";
+  getCollectionEvents,
+  getEventDetailBySlug,
+} from "@/app/actions/events";
+import { getLocale } from "@/app/actions/locale";
+import { EventDetailV2 } from "@/components/events/v2/event-detail-v2";
+import { pickContent } from "@/components/events/v2/event-fields";
+import { DetailSkeleton } from "@/components/ui/loading-shell";
+import { toPlainText } from "@/lib/content-text";
+import { buildSummary } from "@/lib/news-article";
 
 interface EventPageProps {
   params: Promise<{
@@ -24,144 +19,81 @@ interface EventPageProps {
   }>;
 }
 
-async function EventDetails({ slug }: { slug: string }) {
-  const locale = await getLocale();
-
-  const [event, membership] = await Promise.all([
-    getEventBySlug(slug, locale),
-    getMembershipStatus(),
+async function EventDetailsV2({ slug }: { slug: string }) {
+  const [locale, event] = await Promise.all([
+    getLocale(),
+    getEventDetailBySlug(slug),
   ]);
   if (!event) {
     notFound();
   }
 
-  let collectionEvents: Events[] | null = null;
-  const eventData = event;
-  const translation = Array.isArray(event.translation_refs)
-    ? event.translation_refs.find(
-        (item): item is ContentTranslations =>
-          typeof item === "object" && item !== null && "title" in item
-      )
-    : null;
-  const title = translation?.title ?? "Untitled";
-  const description = translation?.description ?? "";
-
-  if (eventData?.is_collection && eventData.collection_id) {
-    collectionEvents = await getCollectionEvents(
-      eventData.collection_id,
-      locale
-    );
-  } else if (eventData?.collection_id) {
-    collectionEvents = await getCollectionEvents(
-      eventData.collection_id,
-      locale
-    );
-  }
-
-  const price = formatEventPrice(eventData?.price, eventData?.ticket_url);
-  const registration = resolveEventRegistration(eventData);
+  // Both a collection parent and one of its children want the sibling list.
+  const collectionEvents = event.collection_id
+    ? await getCollectionEvents(event.collection_id, locale)
+    : [];
 
   return (
-    <div className="min-h-screen bg-linear-to-b from-section to-background">
-      <EventHero event={event} />
-
-      <div className="mx-auto max-w-5xl px-4 py-12">
-        <div className="grid gap-8 lg:grid-cols-3">
-          {/* Main Content */}
-          <div className="space-y-8 lg:col-span-2">
-            <EventContent event={event} />
-
-            {collectionEvents && collectionEvents.length > 0 && (
-              <EventCollectionList
-                collectionEvents={collectionEvents}
-                collectionPricing={eventData?.collection_pricing || null}
-                currentEventId={event.$id}
-                isCollectionParent={!!eventData?.is_collection}
-                priceDisplay={price}
-              />
-            )}
-
-            <EventImportantInfoCard
-              hasRegistration={registration.mode !== "none"}
-              price={price}
-            />
-          </div>
-
-          {/* Sidebar */}
-          <div className="space-y-6">
-            <EventPriceCard
-              collectionCount={collectionEvents?.length || 0}
-              event={event}
-              isMember={membership.isMember}
-            />
-
-            <EventActions
-              description={description}
-              event={event}
-              title={title}
-            />
-
-            <EventDetailsCard event={event} />
-            <EventContactCard />
-          </div>
-        </div>
-      </div>
-    </div>
+    <EventDetailV2
+      collectionEvents={collectionEvents}
+      event={event}
+      locale={locale}
+    />
   );
 }
 
-function EventDetailsSkeleton() {
-  return (
-    <div className="min-h-screen bg-linear-to-b from-section to-background">
-      <div className="relative h-[50vh]">
-        <Skeleton className="h-full w-full" />
-      </div>
-      <div className="mx-auto max-w-5xl px-4 py-12">
-        <div className="grid gap-8 lg:grid-cols-3">
-          <div className="space-y-8 lg:col-span-2">
-            <Skeleton className="h-64 w-full" />
-            <Skeleton className="h-48 w-full" />
-          </div>
-          <div className="space-y-6">
-            <Skeleton className="h-32 w-full" />
-            <Skeleton className="h-48 w-full" />
-            <Skeleton className="h-40 w-full" />
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+/**
+ * Event tabs, shared links and search results need the event's own title, not
+ * the root layout's. The v1 route exported this and the rewrite dropped it, so
+ * every event detail page inherited the generic site title — caught in review
+ * of the redesign PR.
+ *
+ * Uses `pickContent`, the same reader the page body renders with, so the tab
+ * title and the `<h1>` cannot disagree about which translation won.
+ */
+export async function generateMetadata({
+  params,
+}: EventPageProps): Promise<Metadata> {
+  const { slug } = await params;
+  try {
+    const [locale, event] = await Promise.all([
+      getLocale(),
+      getEventDetailBySlug(slug),
+    ]);
+    if (!event) {
+      return { title: "Event | BISO" };
+    }
+
+    const content = pickContent(event.translation_refs, locale);
+    if (!content.title) {
+      return { title: "Event | BISO" };
+    }
+
+    const description = buildSummary(
+      content.shortDescription,
+      toPlainText(content.description)
+    );
+
+    return {
+      title: `${content.title} | BISO Events`,
+      description,
+      openGraph: {
+        type: "website",
+        title: content.title,
+        description,
+        images: event.image ? [event.image] : undefined,
+      },
+    };
+  } catch {
+    return { title: "Event | BISO" };
+  }
 }
 
 export default async function EventPage({ params }: EventPageProps) {
   const { slug } = await params;
   return (
-    <Suspense fallback={<EventDetailsSkeleton />}>
-      <EventDetails slug={slug} />
+    <Suspense fallback={<DetailSkeleton />}>
+      <EventDetailsV2 slug={slug} />
     </Suspense>
   );
-}
-
-export async function generateMetadata({ params }: EventPageProps) {
-  const locale = await getLocale();
-  const { slug } = await params;
-  const event = await getEventBySlug(slug, locale);
-
-  if (!event) {
-    return {
-      title: "Event Not Found | BISO",
-    };
-  }
-
-  const translation = Array.isArray(event.translation_refs)
-    ? event.translation_refs.find(
-        (item): item is ContentTranslations =>
-          typeof item === "object" && item !== null && "title" in item
-      )
-    : null;
-
-  return {
-    title: `${translation?.title ?? "Event"} | BISO Events`,
-    description: translation?.description ?? "",
-  };
 }

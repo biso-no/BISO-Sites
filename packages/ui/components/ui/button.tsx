@@ -6,7 +6,13 @@ import { cva, type VariantProps } from "class-variance-authority";
 import type * as React from "react";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center rounded-md font-medium text-sm ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
+  // RD-031: an outline, not a ring. The ring is composed into `box-shadow`, so
+  // every variant that also sets a shadow (`gradient`, and any caller passing
+  // `shadow-*`) silently swallowed it — measured on /projects, where the
+  // primary CTA had no focus indicator at all while its `outline` sibling did.
+  // An outline cannot be swallowed, and since RD-030 removed the universal
+  // `outline-ring/50` it takes the colour it asks for.
+  "inline-flex items-center justify-center rounded-md font-medium text-sm transition-colors focus-visible:outline-2 focus-visible:outline-focus-ring focus-visible:outline-solid focus-visible:outline-offset-2 disabled:pointer-events-none disabled:opacity-50",
   {
     variants: {
       variant: {
@@ -19,16 +25,21 @@ const buttonVariants = cva(
           "bg-secondary text-secondary-foreground hover:bg-secondary/90",
         ghost: "text-foreground hover:bg-muted/30",
         link: "text-accent underline-offset-4 hover:underline",
-        glass:
-          "glass border border-white/10 text-foreground shadow-md backdrop-blur-sm hover:brightness-110",
-        "glass-dark": "glass-dark text-white shadow-md hover:brightness-110",
+        // RD-030: `glass`, `glass-dark`, `glow`, `golden-gradient` and
+        // `animated` are gone. Each named colours registered nowhere
+        // (`primary-80`, `primary-90`, `gold-default`, `gold-accent`) or
+        // shadows that do not exist (`shadow-glow`, `shadow-card-gold`), so
+        // Tailwind emitted nothing and they rendered as unstyled buttons — and
+        // none had a call site anywhere. `00-current-state.md` §3.4.
+        //
+        // `gradient` stays because three call sites use it, but its gradient
+        // does not: `before:from-blue-accent before:to-secondary-100` names two
+        // more unregistered colours, so the `::before` overlay it fades in on
+        // hover has always been transparent. The dead half is removed and the
+        // half that does render — a primary button that lifts — is kept
+        // verbatim, so those three buttons look exactly as they do today.
         gradient:
-          "hover:-translate-y-0.5 before:-z-10 relative overflow-hidden bg-primary text-white shadow-md transition-all duration-300 before:absolute before:inset-0 before:bg-linear-to-r before:from-blue-accent before:to-secondary-100 before:opacity-0 before:transition-opacity hover:shadow-lg hover:before:opacity-100",
-        glow: "hover:-translate-y-0.5 bg-primary-80 text-white shadow-glow transition-all duration-300 hover:shadow-glow-blue",
-        "golden-gradient":
-          "hover:-translate-y-0.5 relative bg-linear-to-r from-gold-default to-gold-accent text-primary-100 shadow-card-gold transition-all duration-300 hover:shadow-xl",
-        animated:
-          "relative overflow-hidden bg-primary-90 text-white transition-colors duration-300 hover:bg-primary-80",
+          "hover:-translate-y-0.5 relative bg-primary text-white shadow-md transition-all duration-300 hover:shadow-lg",
       },
       size: {
         default: "h-10 px-4 py-2",

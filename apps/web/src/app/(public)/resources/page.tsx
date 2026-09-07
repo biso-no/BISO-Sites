@@ -1,179 +1,121 @@
-"use client";
-
-import { Card } from "@repo/ui/components/ui/card";
 import {
   ArrowRight,
   ExternalLink,
   Gavel,
-  Globe,
   GraduationCap,
   Landmark,
-  LayoutGrid,
   PiggyBank,
   ShieldAlert,
   Users,
 } from "lucide-react";
-import { motion } from "motion/react";
+import type { Metadata } from "next";
 import Link from "next/link";
-import { useTranslations } from "next-intl";
-import { AboutHero } from "@/components/about/about-hero";
+import { getTranslations } from "next-intl/server";
+import { CardGrid } from "@/components/ui/card-grid";
+import { PageHeader } from "@/components/ui/page-header";
+import { Section } from "@/components/ui/section";
+import { SectionHeading } from "@/components/ui/section-heading";
 
-const internalLinks = [
-  {
-    key: "biFond",
-    href: "/bi-fondet",
-    icon: PiggyBank,
-    gradient: "from-green-500 to-emerald-600",
-  },
-  {
-    key: "studyQuality",
-    href: "/about/study-quality",
-    icon: GraduationCap,
-    gradient: "from-rose-500 to-red-500",
-  },
-  {
-    key: "politics",
-    href: "/about/politics",
-    icon: Landmark,
-    gradient: "from-purple-500 to-pink-500",
-  },
-  {
-    key: "safety",
-    href: "/safety",
-    icon: ShieldAlert,
-    gradient: "from-slate-500 to-zinc-500",
-  },
-  {
-    key: "bylaws",
-    href: "/about/bylaws",
-    icon: Gavel,
-    gradient: "from-amber-500 to-orange-500",
-  },
-  {
-    key: "alumni",
-    href: "/about/alumni",
-    icon: Users,
-    gradient: "from-cyan-500 to-blue-500",
-  },
+const INTERNAL_LINKS = [
+  { key: "biFond", href: "/bi-fondet", Icon: PiggyBank },
+  { key: "studyQuality", href: "/about/study-quality", Icon: GraduationCap },
+  { key: "politics", href: "/about/politics", Icon: Landmark },
+  { key: "safety", href: "/safety", Icon: ShieldAlert },
+  { key: "bylaws", href: "/about/bylaws", Icon: Gavel },
+  { key: "alumni", href: "/about/alumni", Icon: Users },
 ] as const;
 
-const externalLinks = [
+// Keys under `external.*`, NOT `links.*` — the two blocks are separate in the
+// bundle and only the internal one lives under `links`. Normalising both to one
+// prefix during RD-026 rendered three raw key paths on this page.
+const EXTERNAL_LINKS = [
   { key: "bi", href: "https://www.bi.no" },
   { key: "velferdstinget", href: "https://velferdstinget.no" },
   { key: "nso", href: "https://www.student.no" },
 ] as const;
 
-export default function ResourcesPage() {
-  const t = useTranslations("resources");
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("resources");
+  return {
+    title: `${t("hero.title")} | BISO`,
+    description: t("hero.subtitle"),
+  };
+}
+
+const cardClass =
+  "group flex h-full flex-col rounded-biso-md border border-edge p-6 transition-colors hover:border-ink-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface";
+
+export default async function ResourcesPage() {
+  const [t, tCommon] = await Promise.all([
+    getTranslations("resources"),
+    getTranslations("common"),
+  ]);
 
   return (
-    <div className="min-h-screen bg-linear-to-b from-section to-background">
-      <AboutHero
-        breadcrumbs={[{ label: "Home", href: "/" }, { label: t("hero.title") }]}
-        compact
-        icon={<LayoutGrid className="h-8 w-8 text-white" />}
-        subtitle={t("hero.subtitle")}
+    <>
+      <PageHeader
+        breadcrumbs={[
+          { label: tCommon("breadcrumbs.home"), href: "/" },
+          { label: t("hero.title") },
+        ]}
+        lede={t("hero.subtitle")}
         title={t("hero.title")}
       />
 
-      {/* Internal resource links */}
-      <section className="py-16" id="about-content">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <motion.h2
-            className="mb-8 font-bold text-2xl text-foreground md:text-3xl"
-            initial={{ opacity: 0, y: 20 }}
-            transition={{ duration: 0.5 }}
-            viewport={{ once: true }}
-            whileInView={{ opacity: 1, y: 0 }}
-          >
-            {t("sections.internal")}
-          </motion.h2>
+      <Section tone="paper">
+        <SectionHeading>{t("sections.internal")}</SectionHeading>
+        <CardGrid>
+          {INTERNAL_LINKS.map(({ key, href, Icon }) => (
+            <li key={key}>
+              <Link className={cardClass} href={href}>
+                <Icon aria-hidden="true" className="size-6 text-ink-accent" />
+                <span className="type-heading-card mt-4 text-ink group-hover:text-ink-accent">
+                  {t(`links.${key}.title`)}
+                </span>
+                <span className="type-body-sm mt-2 text-ink-muted">
+                  {t(`links.${key}.description`)}
+                </span>
+                <ArrowRight
+                  aria-hidden="true"
+                  className="mt-auto size-4 pt-4 text-ink-muted opacity-0 transition-opacity group-hover:opacity-100"
+                />
+              </Link>
+            </li>
+          ))}
+        </CardGrid>
+      </Section>
 
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {internalLinks.map((item, index) => (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                key={item.key}
-                transition={{ delay: index * 0.08, duration: 0.4 }}
-                viewport={{ once: true }}
-                whileInView={{ opacity: 1, y: 0 }}
+      <Section className="border-edge border-t" tone="paper">
+        <SectionHeading>{t("sections.external")}</SectionHeading>
+        <CardGrid columns={3}>
+          {EXTERNAL_LINKS.map(({ key, href }) => (
+            <li key={key}>
+              <a
+                className={cardClass}
+                href={href}
+                rel="noreferrer noopener"
+                target="_blank"
               >
-                <Link className="block h-full" href={item.href}>
-                  <Card className="group h-full cursor-pointer border border-border/50 bg-card/80 p-6 backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:border-primary/20 hover:shadow-lg">
-                    <div className="flex items-start gap-4">
-                      <div
-                        className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-linear-to-br ${item.gradient} shadow-md transition-transform duration-300 group-hover:scale-110`}
-                      >
-                        <item.icon className="h-6 w-6 text-white" />
-                      </div>
-                      <div className="flex-1 space-y-2">
-                        <h3 className="font-semibold text-foreground transition-colors group-hover:text-primary">
-                          {t(`links.${item.key}.title`)}
-                        </h3>
-                        <p className="line-clamp-2 text-muted-foreground text-sm leading-relaxed">
-                          {t(`links.${item.key}.description`)}
-                        </p>
-                      </div>
-                      <ArrowRight className="h-5 w-5 shrink-0 text-muted-foreground transition-all duration-300 group-hover:translate-x-1 group-hover:text-primary" />
-                    </div>
-                  </Card>
-                </Link>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* External links */}
-      <section className="bg-section/50 py-16">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <motion.h2
-            className="mb-8 font-bold text-2xl text-foreground md:text-3xl"
-            initial={{ opacity: 0, y: 20 }}
-            transition={{ duration: 0.5 }}
-            viewport={{ once: true }}
-            whileInView={{ opacity: 1, y: 0 }}
-          >
-            {t("sections.external")}
-          </motion.h2>
-
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {externalLinks.map((item, index) => (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                key={item.key}
-                transition={{ delay: index * 0.08, duration: 0.4 }}
-                viewport={{ once: true }}
-                whileInView={{ opacity: 1, y: 0 }}
-              >
-                <a
-                  className="block h-full"
-                  href={item.href}
-                  rel="noopener noreferrer"
-                  target="_blank"
-                >
-                  <Card className="group h-full cursor-pointer border border-border/50 bg-card/80 p-6 backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:border-primary/20 hover:shadow-lg">
-                    <div className="flex items-start gap-4">
-                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-linear-to-br from-brand-gradient-from to-brand-gradient-to shadow-md transition-transform duration-300 group-hover:scale-110">
-                        <Globe className="h-6 w-6 text-white" />
-                      </div>
-                      <div className="flex-1 space-y-2">
-                        <h3 className="font-semibold text-foreground transition-colors group-hover:text-primary">
-                          {t(`external.${item.key}.title`)}
-                        </h3>
-                        <p className="line-clamp-2 text-muted-foreground text-sm leading-relaxed">
-                          {t(`external.${item.key}.description`)}
-                        </p>
-                      </div>
-                      <ExternalLink className="h-5 w-5 shrink-0 text-muted-foreground transition-colors duration-300 group-hover:text-primary" />
-                    </div>
-                  </Card>
-                </a>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
-    </div>
+                {/* `flex-wrap` and `break-words`: a long Norwegian title with
+                    the icon pinned after it pushed the row 9px past a 320px
+                    viewport. */}
+                <span className="type-heading-card flex flex-wrap items-center gap-2 text-ink group-hover:text-ink-accent">
+                  <span className="min-w-0 break-words">
+                    {t(`external.${key}.title`)}
+                  </span>
+                  <ExternalLink
+                    aria-hidden="true"
+                    className="size-4 shrink-0"
+                  />
+                </span>
+                <span className="type-body-sm mt-2 text-ink-muted">
+                  {t(`external.${key}.description`)}
+                </span>
+              </a>
+            </li>
+          ))}
+        </CardGrid>
+      </Section>
+    </>
   );
 }

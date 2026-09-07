@@ -6,6 +6,14 @@ import { useEffect } from "react";
 // itself (or before it renders). It MUST render its own <html> and
 // <body> because the root layout is the thing that crashed. Sub-route
 // errors are caught by the per-segment error.tsx boundaries instead.
+/**
+ * RD-032 left this English on purpose. `global-error.tsx` replaces the **root
+ * layout** when it renders, which is where `NextIntlClientProvider` lives — so
+ * there is no locale and no message bundle available here by construction.
+ * Every other user-facing string in `apps/web` is translated; this one cannot
+ * be without loading messages by hand in a boundary that exists precisely
+ * because everything else has already failed.
+ */
 export default function GlobalError({
   error,
   reset,

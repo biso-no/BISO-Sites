@@ -39,13 +39,18 @@ export default async function OnboardingPage({
   }
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-brand-dark">
-      {/* Radial brand-blue glow centred behind the card */}
+    // `pt-20` clears the fixed 80px nav. `<main>` adds no offset — every page
+    // provides its own (that is what `<Section clearNav>` does) — and this one
+    // never did, so the flow's first rows sat behind the header. The flow's own
+    // container is already sized `min-h-[calc(100vh-5rem)]`, i.e. it was
+    // written expecting exactly this offset.
+    <div className="relative min-h-screen overflow-hidden bg-deep pt-20">
+      {/* Radial glow centred behind the card */}
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 flex items-center justify-center"
       >
-        <div className="h-[520px] w-[520px] rounded-full bg-brand/10 blur-3xl" />
+        <div className="h-[520px] w-[520px] rounded-full bg-sky/10 blur-3xl" />
       </div>
       <OnboardingFlow
         initialName={userData.user.name ?? ""}

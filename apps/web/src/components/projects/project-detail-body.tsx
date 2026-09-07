@@ -115,7 +115,10 @@ export function ProjectDetailBody({ vm }: { vm: ProjectDetailVM }) {
                   }}
                 />
                 <CardHeader>
-                  <CardTitle className="text-foreground text-xl">
+                  {/* RD-031: `CardTitle` is an `<h3>` by default and this card
+                      sits directly under the page's `<h1>`, which axe reported
+                      as `heading-order`. */}
+                  <CardTitle as="h2" className="text-foreground text-xl">
                     {t("overview.title")}
                   </CardTitle>
                 </CardHeader>
@@ -175,7 +178,9 @@ export function ProjectDetailBody({ vm }: { vm: ProjectDetailVM }) {
                 >
                   <Card className="h-full border-border/50 bg-card/80 backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg">
                     <CardHeader>
-                      <CardTitle className="text-foreground text-xl">
+                      {/* Same reason as the overview card: these are the
+                          page's top-level sections, not sub-sections. */}
+                      <CardTitle as="h2" className="text-foreground text-xl">
                         {section.title}
                       </CardTitle>
                     </CardHeader>

@@ -18,6 +18,7 @@ import { isFeatureEnabled } from "@repo/shared/utils/feature-flags-server";
 import { CAMPUS_INVOICE_NAMES } from "@repo/shared/utils/finago-membership-invoice";
 import {
   type MembershipPlan,
+  membershipAccrualStart,
   toMembershipPlan,
 } from "@repo/shared/utils/membership-plans";
 import { getOrderItems } from "@repo/shared/utils/order-parsing";
@@ -398,11 +399,17 @@ export async function POST(
           category_id: String(plan.categoryId),
           duration: plan.duration,
           accrual_months: plan.accrualMonths,
-          // Snapshotted so fulfilment can book the Finago invoice's
-          // AccrualDate from what was actually selected at checkout instead
-          // of re-reading the (possibly since-changed) catalog row — see
-          // `resolvePurchasedPlan` in membership-fulfilment.ts.
-          start_date: plan.startDate,
+          // The accrual period this purchase falls into — 1 January for a
+          // purchase in the spring half of the year, 1 July for one in the
+          // summer half. Snapshotted here rather than derived at fulfilment
+          // because fulfilment can lag payment (a webhook retry, the reconcile
+          // cron), and a purchase made on 30 June must not book into July.
+          //
+          // It used to snapshot `plan.startDate` — the catalogue row's own
+          // fixed date — so every invoice booked the same accrual regardless
+          // of when it was bought, in the `DD.MM.YYYY` the 24SO sync writes
+          // where the API documents an ISO `date`.
+          start_date: membershipAccrualStart(new Date()) ?? undefined,
         },
       ],
       subtotal: plan.price,

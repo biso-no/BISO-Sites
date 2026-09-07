@@ -54,7 +54,7 @@
     "checking": "Sjekker tilgjengelighet...",
     "membersPay": "Medlemmer betaler kun {price}",
     "viewDetails": "Vis detaljer",
-    "uncategorized": "Uten kategori"
+    "free": "Gratis"
   },
   "product": {
     "backToShop": "Tilbake til butikken",
@@ -72,7 +72,9 @@
     "yourPrice": "Din pris",
     "price": "Pris",
     "tax": "Mva",
-    "included": "Inkludert"
+    "included": "Inkludert",
+    "options": "Produktvalg",
+    "required": "Dette feltet er påkrevd"
   },
   "member": {
     "notMember": "Ikke medlem ennå?",
@@ -279,6 +281,20 @@
       "thanks": "Takk for at du støtter BISO!",
       "proof": "Dette er ditt kjøpsbevis.",
       "org": "BI Studentorganisasjon (BISO)"
-    }
+    },
+    "vippsReceipt": "Se Vipps-kvittering"
+  },
+  "list": {
+    "searchLabel": "Søk i produkter",
+    "searchSubmit": "Søk",
+    "categoryLabel": "Filtrer produkter etter kategori",
+    "campusLabel": "Filtrer produkter etter campus"
+  },
+  "toast": {
+    "outOfStock": "Denne varen er utsolgt",
+    "onlyAvailable": "Kun {count} tilgjengelig (andre er reservert i handlekurver)",
+    "limitExceeded": "Kjøpsgrensen er nådd",
+    "reserveFailed": "Kunne ikke reservere varen. Prøv igjen.",
+    "addedToCart": "Lagt i handlekurven"
   }
 }

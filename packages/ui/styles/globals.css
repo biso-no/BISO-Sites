@@ -130,7 +130,19 @@
 /* Shared base styles - applied once */
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    /* `outline-ring/50` used to be here too, and it was **beating every
+       `outline-<color>` utility in the app** — `outline-focus-ring` and even an
+       arbitrary `outline-[var(--focus-ring)]` both computed to this rule's
+       `color-mix(in oklab, var(--ring) 50%, transparent)`, so every focus
+       outline rendered as the same translucent grey rather than the colour it
+       asked for. That is a WCAG 2.2 problem as well as a design one: a 50%
+       alpha grey on paper does not reach the 3:1 a focus indicator needs.
+       Dropping it restores Tailwind's own default (`currentColor`), which is
+       both a better default and overridable. Nothing sets `--ring` expecting
+       this; `border-border` is the part shadcn's base is actually for.
+       Measured in-browser before and after — see RD-030 in
+       docs/redesign/STATUS.md (FINDING-F). */
+    @apply border-border;
   }
 
   body {
@@ -138,71 +150,59 @@
   }
 }
 
-/* Base typography - shared across apps */
+/* Base typography - shared across apps.
+ *
+ * RD-030 fixed the selector. It read
+ *
+ *   :where(:not(:has([class*=" text-"]), :not(:has([class^="text-"]))))
+ *
+ * which parses as `:not(A, :not(B))` = `(not A) and B` — an *ancestor* that
+ * contains a `class^="text-"` descendant but no `class*=" text-"` one. Almost
+ * nothing satisfies both halves, so these defaults applied essentially at
+ * random rather than "when the element sets no size of its own"
+ * (`00-current-state.md` §3.5).
+ *
+ * The intent, expressed directly and on the element itself rather than on an
+ * ancestor: a heading with no `text-*` class of its own gets a default size.
+ * `@layer base` still loses to every utility and to `@layer components`, where
+ * the `.type-*` roles live, so a styled heading is untouched either way.
+ *
+ * **Scoped to h1-h4 deliberately.** The block also covered `p`, `label`,
+ * `button` and `input`, and applying it to those is a regression rather than a
+ * fix: those elements very often inherit their size from a container that sets
+ * it (`.text-xs` on a wrapper, say), and an explicit `font-size` on the child
+ * overrides the inheritance. Measured against `apps/admin`: with `p` included,
+ * the fine-print privacy notice on its sign-in page went 12px -> 16px on every
+ * route. With h1-h4 only, admin is byte-identical — 100 elements compared
+ * across 10 routes, zero changed. */
 @layer base {
-  /*
-   * Tailwind Preflight resets h1-h6 to `font-size: inherit; font-weight: inherit`,
-   * so a heading carrying no `text-<size>` utility renders at body size. These
-   * rules restore the default hierarchy.
-   *
-   * No `:not()` guard is needed: Tailwind emits its utilities into the later
-   * `utilities` layer, which outranks `base` regardless of specificity, so
-   * `text-4xl` (and responsive variants like `md:text-5xl`) still win here.
-   *
-   * The previous guard — `:where(:not(:has([class*=" text-"]), :not(:has([class^="text-"]))))`
-   * — never matched: `:not(A, B)` requires both to fail, and any ancestor
-   * containing a `text-*` element fails the first clause. These defaults were
-   * therefore dead, and every unsized heading (the public hero `<h1>` included)
-   * collapsed to 16px.
-   */
-  h1 {
+  /* Tailwind Preflight resets h1-h6 to `font-size: inherit; font-weight:
+   * inherit`, so a heading carrying no `text-<size>` utility renders at body
+   * size — 44 of 271 headings, the homepage hero `<h1>` among them. These rules
+   * restore the hierarchy. Line heights are the tightened ones from the
+   * heading-hierarchy fix: heading leading, not body leading. */
+  h1:not([class*="text-"]) {
     font-size: var(--text-2xl);
     font-weight: var(--font-weight-medium);
     line-height: 1.3;
   }
 
-  h2 {
+  h2:not([class*="text-"]) {
     font-size: var(--text-xl);
     font-weight: var(--font-weight-medium);
     line-height: 1.3;
   }
 
-  h3 {
+  h3:not([class*="text-"]) {
     font-size: var(--text-lg);
     font-weight: var(--font-weight-medium);
     line-height: 1.4;
   }
 
-  h4 {
+  h4:not([class*="text-"]) {
     font-size: var(--text-base);
     font-weight: var(--font-weight-medium);
     line-height: 1.4;
-  }
-
-  :where(:not(:has([class*=" text-"]), :not(:has([class^="text-"])))) {
-    p {
-      font-size: var(--text-base);
-      font-weight: var(--font-weight-normal);
-      line-height: 1.5;
-    }
-
-    label {
-      font-size: var(--text-base);
-      font-weight: var(--font-weight-medium);
-      line-height: 1.5;
-    }
-
-    button {
-      font-size: var(--text-base);
-      font-weight: var(--font-weight-medium);
-      line-height: 1.5;
-    }
-
-    input {
-      font-size: var(--text-base);
-      font-weight: var(--font-weight-normal);
-      line-height: 1.5;
-    }
   }
 }
 
@@ -212,4 +212,293 @@ html {
 
 .dark {
   --highlight: oklch(0.852 0.199 91.936);
+}
+
+/* ---------------------------------------------------------------------------
+ * BISO 2026 redesign — Tailwind utility mappings.
+ *
+ * Additive. Every name below is new, so no existing utility changes meaning and
+ * no existing page re-renders. Values resolve against `.biso-surface-v2`
+ * (biso-surface.css), which only apps/web mounts.
+ *
+ * Fallbacks are deliberate: in a host that has not mounted the v2 surface these
+ * utilities degrade to the legacy token rather than emitting an invalid value.
+ * See docs/redesign/01-design-spec.md §1.
+ * ------------------------------------------------------------------------- */
+
+@theme inline {
+  /* --- brand ---------------------------------------------------------- */
+  --color-deep: var(--biso-deep, var(--inverted));
+  --color-blue: var(--biso-blue, var(--brand));
+  --color-sky: var(--biso-sky, var(--brand));
+  --color-sun: var(--biso-sun, var(--brand-accent));
+  --color-paper: var(--biso-paper, var(--background));
+  --color-line: var(--biso-line, var(--border));
+
+  /* --- state ---------------------------------------------------------- */
+  --color-success: var(--biso-success, oklch(0.55 0.14 150));
+  --color-warning: var(--biso-warning, oklch(0.55 0.12 75));
+  --color-danger: var(--biso-danger, var(--destructive));
+
+  /* --- semantic aliases: what components should actually use ----------- */
+  --color-surface: var(--surface, var(--background));
+  --color-surface-raised: var(--surface-raised, var(--card));
+  /* Second one of these. `bg-surface-sunken` was used 8 times across apps/web
+     — every chevron media frame, the job page's GDPR note, and every block in
+     the v2 loading shells — while `--color-surface-sunken` was registered
+     nowhere, so Tailwind emitted no utility and all eight painted nothing.
+     Caught by looking at a news card whose stored image 404s: the frame that
+     should have shown a tint was a white hole. Same failure as
+     `--color-focus-ring` in RD-019, and `styles.test.ts` now checks the whole
+     class of it rather than these two by name. */
+  --color-surface-sunken: var(--surface-sunken, var(--muted));
+  --color-ink: var(--ink, var(--foreground));
+  --color-ink-muted: var(--ink-muted, var(--muted-foreground));
+  --color-ink-accent: var(--ink-accent, var(--brand));
+  --color-edge: var(--edge, var(--border));
+  --color-action: var(--action, var(--brand));
+  --color-action-ink: var(--action-ink, var(--brand-foreground));
+  --color-marker: var(--marker, var(--brand-accent));
+  /* `ring-focus-ring` was used 27 times across apps/web before this line
+     existed, so it compiled to nothing while the `outline-none` beside it
+     applied — every one of those controls had *less* visible keyboard focus
+     than the browser default. Registering the alias is what makes the ring
+     real; `--focus-ring` itself is set per surface in biso-surface.css. */
+  --color-focus-ring: var(--focus-ring, var(--ring));
+
+  /* --- spacing ---------------------------------------------------------
+   * DELIBERATELY NOT DEFINED HERE. Tailwind v4 already bases its numeric
+   * spacing utilities on `--spacing: 0.25rem`, which IS the 4px scale the
+   * design spec asks for. Declaring `--spacing-5` etc. here does not add a
+   * parallel scale — it OVERRIDES Tailwind's, silently changing `p-5`
+   * (1.25rem -> 1.5rem), `mt-8` (2rem -> 4rem) and `px-6` (1.5rem -> 2rem)
+   * on every existing page. Caught during RD-005 verification.
+   *
+   * The spec's named steps map onto the stock utilities directly:
+   *   space-1  4px -> 1     space-6   32px -> 8
+   *   space-2  8px -> 2     space-7   48px -> 12
+   *   space-3 12px -> 3     space-8   64px -> 16
+   *   space-4 16px -> 4     space-9   96px -> 24
+   *   space-5 24px -> 6     space-10 128px -> 32
+   */
+
+  /* --- containers ----------------------------------------------------- */
+  --container-biso: 1200px;
+  --container-biso-wide: 1440px;
+
+  /* --- radii. A sheared surface is always radius 0 — see spec §1.7 ------ */
+  --radius-biso-sm: 4px;
+  --radius-biso-md: 8px;
+  --radius-biso-lg: 12px;
+  --radius-biso-pill: 999px;
+
+  /* --- elevation. Cards are bordered, not shadowed; shadows are navy-tinted,
+         never neutral black. There is no backdrop-blur in this system. ---- */
+  --shadow-elev-1: 0 1px 2px rgb(0 26 53 / 0.06), 0 4px 12px rgb(0 26 53 / 0.06);
+  --shadow-elev-2: 0 8px 32px rgb(0 26 53 / 0.14);
+
+  /* --- motion --------------------------------------------------------- */
+  --ease-biso-out: cubic-bezier(0.2, 0, 0, 1);
+  --ease-biso-in-out: cubic-bezier(0.5, 0, 0, 1);
+}
+
+/* Non-utility scale values, for use in calc() and inline styles. */
+:root {
+  --dur-fast: 120ms;
+  --dur-base: 200ms;
+  --dur-slow: 320ms;
+  --dur-hero: 900ms;
+  --section-y: clamp(3rem, 6vw, 5rem);
+  --section-y-lg: clamp(4rem, 9vw, 8rem);
+  /* Target ~72 rendered characters, comfortably under the brief's 80 floor.
+     NOT 68ch: the `ch` unit is the advance width of "0", which in Inter is far
+     wider than the average character in running prose (dominated by narrow
+     lowercase and spaces). Measured: 68ch renders up to 91 characters per line;
+     54ch renders ~72. Verified in RD-007 by walking a Range and recording where
+     each visual line breaks, at 1440 / 768 / 375px. */
+  --measure: 54ch;
+  /* The chevron: one angle for the whole system. tan(13deg) = 0.2309.
+     A clip-path x-percentage resolves against WIDTH but the angle depends on
+     HEIGHT, so the cut is derived per aspect ratio — see spec §1.10. */
+  --shear: 13deg;
+  --shear-run: 0.2309;
+}
+
+/* ---------------------------------------------------------------------------
+ * BISO 2026 redesign — the nine type roles.
+ *
+ * Class names are new, so no existing markup is affected. Each role bundles
+ * size, weight, leading, tracking and case, because those travel together — a
+ * consumer picks a role, not five properties.
+ *
+ * Measured from docs/redesign/reference/1.png: hero cap-height 56px with 66px
+ * baseline-to-baseline, i.e. line-height 0.85 (negative leading). Section
+ * heading cap-height 11px, a 5.1x ratio to the hero. See spec §1.5.
+ * ------------------------------------------------------------------------- */
+
+@layer components {
+  .type-display-hero,
+  .type-display-lg,
+  .type-display-sm,
+  .type-heading-section,
+  .type-label {
+    font-family: var(--font-display);
+    text-transform: uppercase;
+    text-wrap: balance;
+  }
+
+  .type-display-hero {
+    /* Capped at 5rem, not 6.5rem, and hyphenating.
+     *
+     * Norwegian compounds are single unbreakable tokens — "studentstemme",
+     * "arrangementer", "studentorganisasjon" — and at 6.5rem the longest of
+     * them is wider than any sensible column, so the heading overflowed its
+     * grid cell and ran into the hero collage. English never showed it.
+     * `hyphens: auto` uses the `lang` on <html> to break at legal points
+     * instead of overflowing; the cap keeps the treatment large without
+     * relying on hyphenation to save it. Found in RD-018. */
+    font-size: clamp(2.5rem, 7vw, 5rem);
+    font-weight: 900;
+    line-height: 0.85;
+    letter-spacing: -0.02em;
+    hyphens: auto;
+    overflow-wrap: break-word;
+  }
+
+  .type-display-lg {
+    hyphens: auto;
+    overflow-wrap: break-word;
+    font-size: clamp(2rem, 5vw, 3.5rem);
+    font-weight: 900;
+    line-height: 0.9;
+    letter-spacing: -0.015em;
+  }
+
+  .type-display-sm {
+    font-size: clamp(1.5rem, 3vw, 2.25rem);
+    font-weight: 800;
+    line-height: 0.95;
+    letter-spacing: -0.01em;
+  }
+
+  .type-heading-section {
+    font-size: 1.125rem;
+    font-weight: 800;
+    line-height: 1.2;
+    letter-spacing: 0.04em;
+  }
+
+  .type-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    line-height: 1.4;
+    letter-spacing: 0.06em;
+  }
+
+  /* Body roles keep the UI face and sentence case. */
+  .type-heading-card {
+    font-family: var(--font-sans);
+    font-size: 1.0625rem;
+    font-weight: 700;
+    line-height: 1.3;
+    text-wrap: balance;
+  }
+
+  .type-body {
+    font-family: var(--font-sans);
+    font-size: 1rem;
+    font-weight: 400;
+    line-height: 1.6;
+  }
+
+  .type-body-sm {
+    font-family: var(--font-sans);
+    font-size: 0.875rem;
+    font-weight: 400;
+    line-height: 1.55;
+  }
+
+  /* Dates, deadlines, prices, stat counters. Tabular so columns align. */
+  .type-data {
+    font-family: var(--font-sans);
+    font-size: 0.875rem;
+    font-weight: 600;
+    line-height: 1.2;
+    letter-spacing: 0.01em;
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
+  }
+
+  /* Prose measure. The brief's floor is 80 characters; 68 is the target.
+     Replaces the 51 `max-w-4xl` prose containers (~100ch) found in Phase 0. */
+  .type-measure {
+    max-width: var(--measure, 68ch);
+  }
+}
+
+/* ---------------------------------------------------------------------------
+ * BISO 2026 redesign — the chevron.
+ *
+ * The signature element: a parallelogram media frame whose vertical edges lean
+ * 13°, measured from docs/redesign/reference/1.png (leading edge 13.6°, return
+ * edge 12.7°).
+ *
+ * **The geometry rule.** In `clip-path: polygon()` an x-percentage resolves
+ * against WIDTH, but the edge's angle depends on HEIGHT. A single cut
+ * percentage therefore does not hold 13° across different shapes. The spec
+ * originally solved this with a lookup table of rounded percentages; those
+ * round badly (3/2 landed at 12.68°, a third of a degree out). Deriving the cut
+ * instead makes it exact at every ratio and deletes the table:
+ *
+ *     cut = tan(13°) × (height / width) = 0.2309 × --ar
+ *
+ * where `--ar` is height/width. Because the same `--ar` also drives
+ * `aspect-ratio`, one number per instance keeps the frame and its angle in
+ * lockstep — they cannot drift apart.
+ *
+ * There is deliberately no band/section variant: a 13° edge across a 1440px
+ * section drops 332px, taller than most sections, and a shallower second angle
+ * would break the single rule that makes this read as a system rather than
+ * decoration.
+ * ------------------------------------------------------------------------- */
+
+@layer components {
+  .chevron-frame {
+    /* Default 16:9. Override --ar for other ratios; nothing else changes. */
+    --ar: 0.5625;
+    --cut: calc(var(--shear-run, 0.2309) * var(--ar) * 100%);
+
+    position: relative;
+    aspect-ratio: 1 / var(--ar);
+    overflow: hidden;
+    /* Never rounded — soft rectangles and hard angles do not meet on one
+       element. See spec §1.7. */
+    border-radius: 0;
+    clip-path: polygon(
+      var(--cut) 0,
+      100% 0,
+      calc(100% - var(--cut)) 100%,
+      0 100%
+    );
+  }
+
+  /* The return edge, for alternating panels in a collage. */
+  .chevron-frame[data-lean="right"] {
+    clip-path: polygon(
+      0 0,
+      calc(100% - var(--cut)) 0,
+      100% 100%,
+      var(--cut) 100%
+    );
+  }
+
+  /* The clip removes corners; it does not move content. `cover` fills the box,
+     so no overscan or counter-transform is needed and nothing letterboxes. */
+  .chevron-frame > img,
+  .chevron-frame > video,
+  .chevron-frame > picture > img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
 }

@@ -10,11 +10,15 @@ import adminSettings from "./no/adminSettings.json";
 import adminShop from "./no/adminShop.json";
 import adminUnits from "./no/adminUnits.json";
 import adminUsers from "./no/adminUsers.json";
+import applications from "./no/applications.json";
 import businessHotspot from "./no/businessHotspot.json";
+import campus from "./no/campus.json";
 import common from "./no/common.json";
 import contact from "./no/contact.json";
 import cookies from "./no/cookies.json";
+import documents from "./no/documents.json";
 import events from "./no/events.json";
+import expenses from "./no/expenses.json";
 import fundingProgram from "./no/fundingProgram.json";
 import home from "./no/home.json";
 import jobs from "./no/jobs.json";
@@ -32,16 +36,22 @@ import resources from "./no/resources.json";
 import shop from "./no/shop.json";
 import students from "./no/students.json";
 import terms from "./no/terms.json";
+import units from "./no/units.json";
 import unused from "./no/unused.json";
 import varsling from "./no/varsling.json";
 import volunteer from "./no/volunteer.json";
 
 export default {
+  units,
+  campus,
   academicsContact,
   businessHotspot,
   common,
   cookies,
   contact,
+  applications,
+  documents,
+  expenses,
   events,
   home,
   jobs,

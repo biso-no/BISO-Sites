@@ -1,0 +1,28 @@
+{
+  "title": "Dokumenter",
+  "intro": "Offisielle dokumenter, vedtekter og retningslinjer som styrer BI Student Organisation.",
+  "search": {
+    "label": "Søk i dokumenter",
+    "submit": "Søk"
+  },
+  "filter": {
+    "label": "Filtrer dokumenter etter kategori",
+    "all": "Alle"
+  },
+  "empty": "Ingen dokumenter er publisert ennå.",
+  "emptyFiltered": "Ingen dokumenter samsvarer med søket ditt.",
+  "clearFilters": "Nullstill",
+  "row": {
+    "view": "Åpne",
+    "download": "Last ned",
+    "updated": "Oppdatert",
+    "campus": "Campus"
+  },
+  "categories": {
+    "national-statutes": "Nasjonale vedtekter",
+    "campus-bylaws": "Lokale vedtekter",
+    "code-of-conduct": "Etiske retningslinjer",
+    "business-regulations": "Næringslivsreglement",
+    "communication-guidelines": "Kommunikasjonsretningslinjer"
+  }
+}

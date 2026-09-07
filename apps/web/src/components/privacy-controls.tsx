@@ -20,11 +20,13 @@ import {
   CardTitle,
 } from "@repo/ui/components/ui/card";
 import { AlertCircle, Download, Shield, Trash2 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
 import { deleteUserData } from "@/lib/actions/user";
 
 export function PrivacyControls() {
+  const t = useTranslations("common.profile.privacy");
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [requestingData, setRequestingData] = useState(false);
   const [deletingData, setDeletingData] = useState(false);
@@ -84,7 +86,7 @@ export function PrivacyControls() {
         <CardHeader className="border-border border-b">
           <CardTitle className="flex items-center text-foreground">
             <Shield className="mr-2 h-5 w-5 text-primary" />
-            Your Privacy Rights
+            {t("title")}
           </CardTitle>
           <CardDescription className="text-muted-foreground">
             Under GDPR, you have the right to access, modify, and delete your
@@ -107,10 +109,10 @@ export function PrivacyControls() {
             <div className="flex items-center justify-between rounded-md p-3 transition-colors hover:bg-section">
               <div>
                 <h3 className="font-medium text-foreground text-sm">
-                  Request Your Data
+                  {t("requestTitle")}
                 </h3>
                 <p className="text-muted-foreground text-xs">
-                  Get a copy of all personal data we store about you
+                  {t("requestBody")}
                 </p>
               </div>
               <Button
@@ -133,10 +135,10 @@ export function PrivacyControls() {
               <div>
                 <h3 className="flex items-center font-medium text-red-600 text-sm">
                   <AlertCircle className="mr-1 h-4 w-4" />
-                  Delete Your Data
+                  {t("deleteTitle")}
                 </h3>
                 <p className="text-muted-foreground text-xs">
-                  Request permanent deletion of your account and data
+                  {t("deleteBody")}
                 </p>
               </div>
               <Button
@@ -146,13 +148,13 @@ export function PrivacyControls() {
                 variant="destructive"
               >
                 <Trash2 className="mr-2 h-4 w-4" />
-                Delete Account
+                {t("deleteAccount")}
               </Button>
             </div>
           </div>
         </CardContent>
         <CardFooter className="border-border border-t pt-4 text-muted-foreground text-xs">
-          Data requests are processed within 30 days as required by GDPR
+          {t("gdprNote")}
         </CardFooter>
       </Card>
 
@@ -160,7 +162,7 @@ export function PrivacyControls() {
         <AlertDialogContent className="border border-border bg-background text-foreground">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-foreground">
-              Are you absolutely sure?
+              {t("confirmTitle")}
             </AlertDialogTitle>
             <AlertDialogDescription className="text-muted-foreground">
               This action cannot be undone. This will permanently delete your
@@ -172,7 +174,7 @@ export function PrivacyControls() {
               className="border-border text-muted-foreground hover:bg-muted"
               disabled={deletingData}
             >
-              Cancel
+              {t("cancel")}
             </AlertDialogCancel>
             <AlertDialogAction
               className="bg-red-600 text-white hover:bg-red-700"

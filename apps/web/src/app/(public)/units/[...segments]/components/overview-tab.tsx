@@ -6,6 +6,7 @@ import { Badge } from "@repo/ui/components/ui/badge";
 import { Card } from "@repo/ui/components/ui/card";
 import { Award, Calendar, Heart, Users } from "lucide-react";
 import { motion } from "motion/react";
+import { useTranslations } from "next-intl";
 import type { DepartmentTranslation } from "@/lib/actions/departments";
 
 interface OverviewTabProps {
@@ -13,6 +14,7 @@ interface OverviewTabProps {
 }
 
 export function OverviewTab({ department }: OverviewTabProps) {
+  const t = useTranslations("units.detail");
   const dept = department.department_ref;
   const news = department.news || [];
 
@@ -24,7 +26,7 @@ export function OverviewTab({ department }: OverviewTabProps) {
       >
         <Card className="border-0 bg-linear-to-br from-brand-muted to-card p-8 shadow-xl dark:from-brand-muted">
           <h2 className="mb-6 font-bold text-3xl text-foreground">
-            About {department.title}
+            {t("about", { name: department.title })}
           </h2>
           <p className="mb-6 text-lg text-muted-foreground leading-relaxed">
             {department.description}
@@ -38,7 +40,9 @@ export function OverviewTab({ department }: OverviewTabProps) {
               <h3 className="mb-2 font-bold text-2xl text-foreground">
                 {news.length}+
               </h3>
-              <p className="text-muted-foreground">Events Organized</p>
+              <p className="text-muted-foreground">
+                {t("overview.stats.events")}
+              </p>
             </div>
 
             <div className="rounded-lg border border-brand-border bg-card p-6 text-center">
@@ -48,7 +52,9 @@ export function OverviewTab({ department }: OverviewTabProps) {
               <h3 className="mb-2 font-bold text-2xl text-foreground">
                 {dept.boardMembers?.length || 0}
               </h3>
-              <p className="text-muted-foreground">Team Members</p>
+              <p className="text-muted-foreground">
+                {t("overview.stats.team")}
+              </p>
             </div>
 
             <div className="rounded-lg border border-brand-border bg-card p-6 text-center">
@@ -56,7 +62,9 @@ export function OverviewTab({ department }: OverviewTabProps) {
                 <Heart className="h-8 w-8 text-white" />
               </div>
               <h3 className="mb-2 font-bold text-2xl text-foreground">1000+</h3>
-              <p className="text-muted-foreground">Students Reached</p>
+              <p className="text-muted-foreground">
+                {t("overview.stats.students")}
+              </p>
             </div>
           </div>
         </Card>
@@ -66,7 +74,7 @@ export function OverviewTab({ department }: OverviewTabProps) {
       {news.length > 0 && (
         <section>
           <h2 className="mb-8 font-bold text-3xl text-foreground">
-            Recent Highlights
+            {t("overview.highlights")}
           </h2>
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {news.slice(0, 3).map((newsItem, index) =>

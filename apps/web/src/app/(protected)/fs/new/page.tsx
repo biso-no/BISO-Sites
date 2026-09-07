@@ -2,7 +2,7 @@ import { ExpensesStatus } from "@repo/api/types/appwrite";
 import { getFeatureFlagStates } from "@repo/shared/utils/feature-flags-server";
 import { redirect } from "next/navigation";
 import { getCampuses } from "@/app/actions/campus";
-import { ExpensesUnavailable } from "@/components/expense/expenses-unavailable";
+import { ExpensesUnavailable } from "@/components/expense/v2/expenses-unavailable";
 import { ExpenseSplitView } from "@/components/expense-v3/expense-split-view";
 import { getExpenseById } from "@/lib/actions/expense";
 import { getLoggedInUser } from "@/lib/actions/user";

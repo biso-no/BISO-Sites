@@ -17,6 +17,18 @@
     "linkCopied": "Lenke kopiert",
     "relatedEyebrow": "Les videre",
     "relatedTitle": "Mer fra BISO",
-    "relatedAction": "Se alle nyheter"
+    "relatedAction": "Se alle nyheter",
+    "featured": "Fremhevet"
+  },
+  "list": {
+    "featured": "Fremhevet",
+    "searchLabel": "Søk i nyheter",
+    "searchPlaceholder": "Søk i nyheter…",
+    "searchSubmit": "Søk",
+    "campusLabel": "Filtrer nyheter etter campus",
+    "results": "{count, plural, one {# artikkel} other {# artikler}}",
+    "emptyTitle": "Ingen artikler funnet",
+    "emptyBody": "Prøv et annet søk, eller en annen campus.",
+    "clear": "Tøm filtre"
   }
 }

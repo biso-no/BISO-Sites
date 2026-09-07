@@ -1,0 +1,167 @@
+import { readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+import { describe, expect, it } from "vitest";
+import { CAMPUS_SCOPED_PATHS } from "@/lib/campus-scope";
+import { codeOnly } from "@/test/source";
+
+const read = (f: string) =>
+  codeOnly(readFileSync(join(import.meta.dirname, f), "utf8"));
+const sitemap = read("sitemap.ts");
+// Every feed that scopes by `?campus=` server-side. `/units` and `/shop`
+// joined the first three at RD-025 — verified in RD-033, which also found they
+// had never been given the canonical the other three carry.
+const feeds = {
+  events: read("(public)/events/page.tsx"),
+  news: read("(public)/news/page.tsx"),
+  jobs: read("(public)/jobs/page.tsx"),
+  units: read("(public)/units/page.tsx"),
+  shop: read("(public)/shop/page.tsx"),
+};
+// The front page, /students and /documents scope too, but none of them 404s
+// through the shared `if (campus === undefined)` shape asserted below in the
+// same place, and only the five above have a matching `canonical: "/<name>"`.
+const scopedPages = {
+  ...feeds,
+  "": read("(public)/page.tsx"),
+  students: read("(public)/students/page.tsx"),
+  documents: read("(public)/documents/page.tsx"),
+};
+const campusPage = read("(public)/campus/[slug]/page.tsx");
+
+const CAMPUS_LANDING_URL = /\/campus\/\$\{slug\}/;
+const SCOPED_FEED_URL = /\?campus=\$\{slug\}/;
+
+describe("campus routing (RD-016)", () => {
+  it("scopes every feed that has a campus dimension", () => {
+    // /projects is the one feed that stays out: it has no campus_id, only a
+    // campusConfigs JSON blob, so it cannot be scoped honestly at all.
+    for (const [name, source] of Object.entries(feeds)) {
+      expect(source, name).toContain("resolveRequestCampus(sp.campus");
+    }
+  });
+
+  it("404s an unrecognised campus instead of showing everything", () => {
+    // `?campus=osloo` must not quietly return national content the URL does
+    // not describe.
+    for (const [name, source] of Object.entries(feeds)) {
+      expect(source, name).toContain("if (campus === undefined)");
+      expect(source, name).toContain("notFound()");
+    }
+  });
+
+  it("points a scoped feed's canonical at the unscoped URL", () => {
+    // A scoped feed is a filtered view of the same collection; it should not
+    // compete with the canonical listing in search.
+    for (const [name, source] of Object.entries(feeds)) {
+      expect(source, name).toContain(`canonical: "/${name}"`);
+    }
+  });
+
+  it("does not set dynamicParams, which cacheComponents forbids", () => {
+    // An unknown slug still 404s via notFound() in the page body.
+    expect(campusPage).not.toContain("dynamicParams");
+    expect(campusPage).toContain("generateStaticParams");
+    expect(campusPage).toContain("notFound()");
+  });
+
+  it("builds the campus landing page from real localised metadata", () => {
+    // campus_metadata carries tagline/description/highlights/focusAreas per
+    // locale and was near-unused. Nothing here is invented copy.
+    expect(campusPage).toContain("getCampusMetadata");
+    expect(campusPage).toContain('locale === "no" ? "_nb" : "_en"');
+  });
+
+  it("lists the campus landing pages in the sitemap", () => {
+    expect(sitemap).toContain("CAMPUS_SLUGS.map");
+    // Built as a template literal in the source; match without writing a
+    // placeholder in a plain string, which the linter reads as a mistake.
+    expect(sitemap).toMatch(CAMPUS_LANDING_URL);
+  });
+
+  it("does not advertise scoped feeds it tells crawlers not to index", () => {
+    // Every scoped feed hard-canonicals back to its unscoped listing, so a
+    // sitemap entry for one asks a crawler to index a URL the page then
+    // disclaims. `sitemap` is comment-stripped, so the prose in `sitemap.ts`
+    // explaining this cannot satisfy the assertion.
+    expect(sitemap).not.toMatch(SCOPED_FEED_URL);
+    for (const [name, source] of Object.entries(feeds)) {
+      expect(source, name).toContain(`canonical: "/${name}"`);
+    }
+  });
+
+  it("keeps every pre-existing sitemap URL", () => {
+    // Additive only: a redesign that drops an indexed URL is a failed redesign.
+    for (const path of [
+      "/jobs",
+      "/events",
+      "/news",
+      "/shop",
+      "/about",
+      "/campus",
+      "/membership",
+      "/units",
+      "/projects",
+      "/privacy",
+      "/terms",
+    ]) {
+      expect(sitemap).toContain(`${path}\``);
+    }
+  });
+});
+
+/**
+ * Every `(public)` page that reads `?campus=`, as a route path.
+ *
+ * Walked from the filesystem rather than listed, so a new scoped feed shows up
+ * here the moment it is written.
+ */
+function scopedRoutesOnDisk(): string[] {
+  const root = join(import.meta.dirname, "(public)");
+  const found: string[] = [];
+  const walk = (dir: string, route: string) => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const next = join(dir, entry.name);
+      if (entry.isDirectory()) {
+        // Route groups and dynamic segments contribute no literal path.
+        const isGroup = entry.name.startsWith("(");
+        const isDynamic = entry.name.startsWith("[");
+        if (isDynamic) {
+          continue;
+        }
+        walk(next, isGroup ? route : `${route}/${entry.name}`);
+      } else if (entry.name === "page.tsx") {
+        const source = codeOnly(readFileSync(next, "utf8"));
+        if (source.includes("resolveRequestCampus(")) {
+          found.push(route || "/");
+        }
+      }
+    }
+  };
+  walk(root, "");
+  return found.sort();
+}
+
+describe("the campus switcher and the routes agree", () => {
+  it("advertises exactly the routes that read the parameter", () => {
+    // `CAMPUS_SCOPED_PATHS` is what the switcher rewrites in place. A route
+    // missing from it gets no filter; a route in it that ignores `?campus=`
+    // hangs a dead parameter on the URL and lies about what the page shows.
+    expect(scopedRoutesOnDisk()).toEqual([...CAMPUS_SCOPED_PATHS]);
+  });
+
+  it("scopes the front page, the student hub and the document list too", () => {
+    // The three that read the cookie alone before this. A campus filter that
+    // stops at the feeds is not a site-wide filter.
+    for (const name of ["", "students", "documents"] as const) {
+      expect(scopedPages[name], name || "/").toContain(
+        "resolveRequestCampus(sp.campus"
+      );
+    }
+  });
+
+  it("points every scoped view's canonical at its unscoped URL", () => {
+    for (const [name, source] of Object.entries(scopedPages)) {
+      expect(source, name || "/").toContain(`canonical: "/${name}"`);
+    }
+  });
+});

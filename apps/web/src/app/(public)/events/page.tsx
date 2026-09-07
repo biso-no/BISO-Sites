@@ -1,69 +1,69 @@
-import { Skeleton } from "@repo/ui/components/ui/skeleton";
+import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { listEvents } from "@/app/actions/events";
 import { getLocale } from "@/app/actions/locale";
-import { EventsHero } from "@/components/events/events-hero";
-import { EventsListClient } from "@/components/events/events-list-client";
-import { getMembershipStatus } from "@/lib/actions/membership";
+import { EventsV2 } from "@/components/events/v2/events-v2";
+import { FeedSkeleton } from "@/components/ui/loading-shell";
 import { getUserPreferences } from "@/lib/auth-utils";
+import { resolveRequestCampus } from "@/lib/campus-scope";
 
 // This is a server component
 export const metadata = {
+  // A campus-scoped feed is a filtered view of the same collection, so it
+  // points its canonical at the unscoped URL rather than competing with it.
+  alternates: { canonical: "/events" },
   title: "Events | BISO",
   description:
     "Discover amazing events and experiences at BI Norwegian Business School",
 };
 
-// `upcomingOnly` drops finished events after they are fetched (the exact
-// "has it ended" rule cannot be expressed as one Appwrite query), so the fetch
-// limit is raised well above what the grid shows to keep the page populated.
-const EVENTS_FETCH_LIMIT = 200;
-
-async function EventsList({ locale }: { locale: "en" | "no" }) {
-  // Fetch events on the server
-  const [userPrefs, membership] = await Promise.all([
-    getUserPreferences(),
-    getMembershipStatus(),
-  ]);
+async function EventsListV2({
+  locale,
+  campus,
+  searchParams,
+}: {
+  campus: string | null;
+  locale: "en" | "no";
+  searchParams: Record<string, string | string[] | undefined>;
+}) {
   const events = await listEvents({
     locale,
     status: "published",
-    limit: EVENTS_FETCH_LIMIT,
-    campus: userPrefs?.campusId ?? "all",
-    upcomingOnly: true,
+    limit: 50,
+    campus: campus ?? "all",
   });
 
-  return <EventsListClient events={events} isMember={membership.isMember} />;
-}
-
-function EventsListSkeleton() {
   return (
-    <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
-      <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
-        {[...new Array(6)].map((_, i) => (
-          <div className="space-y-4" key={i}>
-            <Skeleton className="h-56 w-full" />
-            <Skeleton className="h-6 w-3/4" />
-            <Skeleton className="h-4 w-full" />
-            <Skeleton className="h-4 w-full" />
-            <Skeleton className="h-10 w-full" />
-          </div>
-        ))}
-      </div>
-    </div>
+    <EventsV2
+      campusId={campus}
+      events={events}
+      locale={locale}
+      searchParams={searchParams}
+    />
   );
 }
 
-export default async function EventsPage() {
-  const locale = await getLocale();
+export default async function EventsPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const [locale, sp, prefs] = await Promise.all([
+    getLocale(),
+    searchParams,
+    getUserPreferences(),
+  ]);
+
+  // URL beats cookie beats "all". An unrecognised campus is a 404, not a
+  // silent fallback to everything — see `resolveRequestCampus`.
+  const campus = resolveRequestCampus(sp.campus, prefs?.campusId);
+  if (campus === undefined) {
+    notFound();
+  }
 
   return (
-    <div className="min-h-screen bg-linear-to-b from-section to-background">
-      <EventsHero />
-
-      <Suspense fallback={<EventsListSkeleton />}>
-        <EventsList locale={locale} />
-      </Suspense>
-    </div>
+    <Suspense fallback={<FeedSkeleton />}>
+      <EventsListV2 campus={campus} locale={locale} searchParams={sp} />
+    </Suspense>
   );
 }

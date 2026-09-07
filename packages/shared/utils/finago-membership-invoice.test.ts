@@ -53,10 +53,84 @@ describe("buildMembershipInvoiceOrder", () => {
     expect(order.InvoiceRows.InvoiceRow.Quantity).toBe(1);
   });
 
-  it("derives the accrual from the plan rather than hardcoding a date", () => {
+  it("books the accrual from the half-year the purchase falls into", () => {
+    // A membership bought in the summer half accrues from 1 July; one bought
+    // in the spring half accrues from 1 January. It used to be sent as the
+    // catalogue row's own `startDate`, so every invoice booked the same fixed
+    // date whenever it was bought — and in `DD.MM.YYYY`, where the 24SO API
+    // documents an ISO `date`.
     const order = build();
-    expect(order.AccrualDate).toBe("2026-08-01");
+    expect(order.AccrualDate).toBe("2026-07-01");
     expect(order.AccrualLength).toBe(12);
+  });
+
+  it("prefers the accrual start snapshotted at checkout", () => {
+    // Fulfilment can lag payment (a webhook retry, the reconcile cron). A
+    // purchase made on 30 June must not book into July because it was
+    // fulfilled a day later.
+    const order = buildMembershipInvoiceOrder({
+      campusId: "1",
+      customerId: 1,
+      plan: { ...yearPlan, startDate: "2026-01-01" },
+      invoicedOn: "2026-07-02",
+    });
+    expect(order.AccrualDate).toBe("2026-01-01");
+  });
+
+  it("falls back to the invoice date for a legacy catalogue snapshot", () => {
+    // Orders placed before checkout started snapshotting the accrual start
+    // carry the catalogue row's own date, e.g. "01.07.2026". That is not an
+    // accrual start and must never reach 24SO verbatim.
+    const order = buildMembershipInvoiceOrder({
+      campusId: "1",
+      customerId: 1,
+      plan: { ...yearPlan, startDate: "01.07.2026" },
+      invoicedOn: "2027-03-14",
+    });
+    expect(order.AccrualDate).toBe("2027-01-01");
+  });
+
+  it("books from the recorded purchase date, not the fulfilment run", () => {
+    // `invoicedOn` is whenever fulfilment happens to run — a webhook retry or
+    // the reconcile cron can cross 1 January or 1 July. The accrual must follow
+    // the purchase, so a legacy order bought in December and fulfilled in March
+    // still books into the spring half it was bought in.
+    const order = buildMembershipInvoiceOrder({
+      campusId: "1",
+      customerId: 1,
+      plan: { ...yearPlan, startDate: "01.07.2026" },
+      invoicedOn: "2027-03-14",
+      purchasedOn: "2026-12-20T09:15:00.000+00:00",
+    });
+    expect(order.AccrualDate).toBe("2026-07-01");
+  });
+
+  it("does not trust a legacy catalogue date that looks like an accrual start", () => {
+    // A legacy snapshot carrying the catalogue row's own date is
+    // indistinguishable from a real one when that date happens to be a
+    // half-year boundary — "2026-07-01" is its own accrual start. Booking it
+    // verbatim would put a 2028 purchase into the 2026 summer period. The
+    // recorded purchase date settles it without guessing.
+    const order = buildMembershipInvoiceOrder({
+      campusId: "1",
+      customerId: 1,
+      plan: { ...yearPlan, startDate: "2026-07-01" },
+      invoicedOn: "2028-09-02",
+      purchasedOn: "2028-08-30T12:00:00.000+00:00",
+    });
+    expect(order.AccrualDate).toBe("2028-07-01");
+  });
+
+  it("still resolves an accrual when no purchase date is recorded", () => {
+    // Callers without an order row keep the previous behaviour rather than
+    // losing a date entirely.
+    const order = buildMembershipInvoiceOrder({
+      campusId: "1",
+      customerId: 1,
+      plan: { ...yearPlan, startDate: "2026-01-01" },
+      invoicedOn: "2026-07-02",
+    });
+    expect(order.AccrualDate).toBe("2026-01-01");
   });
 
   it("emits both user defined dimensions at order and row level", () => {

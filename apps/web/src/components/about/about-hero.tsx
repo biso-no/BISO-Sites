@@ -12,6 +12,7 @@ import {
 import { ChevronDown } from "lucide-react";
 import { motion } from "motion/react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { Fragment, type ReactNode } from "react";
 
 interface BreadcrumbEntry {
@@ -34,6 +35,8 @@ export function AboutHero({
   icon,
   compact = false,
 }: AboutHeroProps) {
+  const t = useTranslations("common.labels");
+  const scrollLabel = t("scrollToContent");
   const scrollToContent = () => {
     document
       .getElementById("about-content")
@@ -46,7 +49,8 @@ export function AboutHero({
     >
       {/* Background */}
       <ImageWithFallback
-        alt="About hero background"
+        // Decorative: the heading beside it carries the meaning.
+        alt=""
         className="h-full w-full object-cover"
         height={40}
         priority
@@ -138,15 +142,21 @@ export function AboutHero({
         </div>
       </div>
 
-      {/* Scroll indicator */}
+      {/* Scroll indicator. RD-031: it bounced forever, and kept bouncing with
+          `prefers-reduced-motion: reduce` set — `motion`'s JS animations are
+          not stopped by the CSS media query. It is a scroll affordance, so it
+          stays put and stays clickable. */}
       {!compact && (
         <motion.button
-          animate={{ y: [0, 10, 0] }}
-          className="absolute bottom-8 left-1/2 -translate-x-1/2 cursor-pointer"
+          aria-label={scrollLabel}
+          className="absolute bottom-8 left-1/2 -translate-x-1/2 cursor-pointer rounded-biso-md focus-visible:outline-2 focus-visible:outline-focus-ring focus-visible:outline-solid focus-visible:outline-offset-2"
           onClick={scrollToContent}
-          transition={{ duration: 2, repeat: Number.POSITIVE_INFINITY }}
+          type="button"
         >
-          <ChevronDown className="h-8 w-8 text-white/70" />
+          {/* RD-031: the button held only an icon, so axe reported
+              `button-name` (critical) — a screen reader announced an unnamed
+              button. */}
+          <ChevronDown aria-hidden="true" className="h-8 w-8 text-white/70" />
         </motion.button>
       )}
     </div>

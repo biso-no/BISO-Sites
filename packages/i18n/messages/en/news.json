@@ -17,6 +17,18 @@
     "linkCopied": "Link copied",
     "relatedEyebrow": "Keep reading",
     "relatedTitle": "More from BISO",
-    "relatedAction": "Browse all news"
+    "relatedAction": "Browse all news",
+    "featured": "Featured"
+  },
+  "list": {
+    "featured": "Featured",
+    "searchLabel": "Search news",
+    "searchPlaceholder": "Search news…",
+    "searchSubmit": "Search",
+    "campusLabel": "Filter news by campus",
+    "results": "{count, plural, one {# article} other {# articles}}",
+    "emptyTitle": "No articles found",
+    "emptyBody": "Try a different search, or another campus.",
+    "clear": "Clear filters"
   }
 }

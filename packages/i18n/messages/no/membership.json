@@ -241,5 +241,10 @@
       "noCampus": "Velg campusen din.",
       "generic": "Noe gikk feil. Vennligst prøv igjen."
     }
+  },
+  "plans": {
+    "months": "{count, plural, one {# måned} other {# måneder}}",
+    "benefitsLede": "{count, plural, one {# medlemsfordel} other {# medlemsfordeler}}, oppdatert av BISO.",
+    "offer": "Partnertilbud"
   }
 }

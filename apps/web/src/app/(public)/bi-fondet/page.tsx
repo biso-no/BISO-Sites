@@ -1,24 +1,20 @@
 import type { Locale } from "@repo/i18n/config";
-import { Badge } from "@repo/ui/components/ui/badge";
+import { ExternalLink } from "lucide-react";
 import type { Metadata } from "next";
-
-export const metadata: Metadata = {
-  title: "BI-fondet | BISO",
-  description:
-    "BI-fondet — the student fund of BI Norwegian Business School, supporting student initiatives and projects.",
-};
-
-import { Button } from "@repo/ui/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@repo/ui/components/ui/card";
 import Image from "next/image";
 import { getTranslations } from "next-intl/server";
 import { getFundingProgramBySlug } from "@/app/actions/funding";
 import { getLocale } from "@/app/actions/locale";
+import { PageHeader } from "@/components/ui/page-header";
+import { Pill } from "@/components/ui/pill";
+import { Prose } from "@/components/ui/prose";
+import { Section } from "@/components/ui/section";
+import { SectionHeading } from "@/components/ui/section-heading";
+
+const FINANCE_EMAIL = "finance@biso.no";
+
+const linkClass =
+  "inline-flex items-center gap-2 text-ink-accent underline underline-offset-4 hover:no-underline focus-visible:rounded-biso-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface";
 
 const pickByLocale = <T,>(
   nbValue?: T,
@@ -34,7 +30,7 @@ interface ProgramContent {
   contactName?: string | null;
   documents: Array<{ label: string; url: string }>;
   eligibility: string[];
-  faqs: Array<{ question: string; answer: string }>;
+  faqs: Array<{ answer: string; question: string }>;
   grantPoints: string[];
   heroImage?: string | null;
   intro: string;
@@ -52,7 +48,7 @@ const buildProgramContent = (
   const metadata = program?.parsedMetadata;
   const documents =
     metadata?.documents?.map(
-      (doc: { label_nb: string; label_en: string; url: string }) => ({
+      (doc: { label_en: string; label_nb: string; url: string }) => ({
         label: pickByLocale(doc.label_nb, doc.label_en, locale) ?? doc.url,
         url: doc.url,
       })
@@ -77,11 +73,14 @@ const buildProgramContent = (
     contact:
       pickByLocale(metadata?.contact_nb, metadata?.contact_en, locale) ??
       t("fallback.contact", {
-        email: program?.contact_email ?? "au.finance@biso.no",
+        email: program?.contact_email ?? FINANCE_EMAIL,
       }),
     documents,
     faqs: pickByLocale(metadata?.faqs_nb, metadata?.faqs_en, locale) ?? [],
-    applicationUrl: program?.application_url || program?.contact_email,
+    // Was `application_url || contact_email`, which put a bare address in an
+    // `href` — the browser resolves that as a relative path, not a mailto.
+    // A missing application URL now falls through to the contact block below.
+    applicationUrl: program?.application_url ?? null,
     heroImage: program?.hero_image_url,
     status: program?.status ?? null,
     templateUrl: program?.document_url ?? null,
@@ -90,258 +89,217 @@ const buildProgramContent = (
   };
 };
 
+export async function generateMetadata(): Promise<Metadata> {
+  const [locale, t] = await Promise.all([
+    getLocale() as Promise<Locale>,
+    getTranslations("fundingProgram"),
+  ]);
+  const content = buildProgramContent(
+    await getFundingProgramBySlug("bi-fondet"),
+    locale,
+    t
+  );
+  return { title: `${content.title} | BISO`, description: content.intro };
+}
+
+/**
+ * BI-fondet — the student fund.
+ *
+ * **PLACEHOLDER-013: `funding_programs` holds zero rows.** Everything on this
+ * page except the title and intro comes from a `bi-fondet` row's `metadata`
+ * JSON, so today the page publishes two fallback sentences and two "will be
+ * published soon" notices. The page is correct; the data is missing. Nothing
+ * was invented to fill it — who may apply, how to apply, and what the fund
+ * grants are BISO's to state.
+ *
+ * The empty branches below are therefore the *live* rendering, not an edge
+ * case, which is why each says plainly that the information is not published
+ * yet instead of rendering an empty card.
+ */
 export default async function BIFundPage() {
-  const locale = (await getLocale()) as Locale;
-  const t = await getTranslations("fundingProgram");
+  const [locale, t, tCommon] = await Promise.all([
+    getLocale() as Promise<Locale>,
+    getTranslations("fundingProgram"),
+    getTranslations("common"),
+  ]);
 
   const program = await getFundingProgramBySlug("bi-fondet");
   const content = buildProgramContent(program, locale, t);
+  const isOpen = content.status === "active";
 
   return (
-    <div className="space-y-12">
-      <HeroSection content={content} t={t} />
-      <EligibilityAndSteps content={content} t={t} />
-      {content.faqs.length > 0 ? <FaqSection content={content} t={t} /> : null}
-      <ContactSection contact={content.contact} t={t} />
-    </div>
-  );
-}
+    <>
+      <PageHeader
+        breadcrumbs={[
+          { label: tCommon("breadcrumbs.home"), href: "/" },
+          { label: content.title },
+        ]}
+        eyebrow={t("hero.badge")}
+        lede={content.intro}
+        media={
+          content.heroImage ? (
+            <Image
+              alt=""
+              className="h-full w-full object-cover"
+              height={480}
+              src={content.heroImage}
+              width={640}
+            />
+          ) : null
+        }
+        // No `funding_programs` row means no status to report. The pill said
+        // "Ikke publisert" / "Not published" to every visitor, which reads as
+        // a statement about the fund rather than about a missing row.
+        meta={
+          program ? (
+            <Pill tone={isOpen ? "success" : "neutral"}>
+              {isOpen ? t("overview.active") : t("overview.draft")}
+            </Pill>
+          ) : null
+        }
+        title={content.title}
+      />
 
-function HeroSection({
-  content,
-  t,
-}: {
-  content: ProgramContent;
-  t: Awaited<ReturnType<typeof getTranslations>>;
-}) {
-  return (
-    <section className="grid gap-8 rounded-3xl border border-primary/10 bg-background/90 p-8 shadow-lg md:grid-cols-[3fr_2fr]">
-      <div className="space-y-4">
-        <Badge
-          className="border-primary/20 text-primary-70 text-xs uppercase tracking-wide"
-          variant="outline"
-        >
-          {t("hero.badge")}
-        </Badge>
-        <h1 className="font-semibold text-3xl text-primary-100 md:text-4xl">
-          {content.title}
-        </h1>
-        <p className="text-base text-primary-70">{content.intro}</p>
-        <div className="flex flex-wrap gap-3">
-          {content.grantPoints.map((point) => (
-            <span
-              className="rounded-full border border-primary/15 bg-primary/5 px-4 py-2 text-primary-70 text-sm"
-              key={point}
-            >
-              {point}
-            </span>
-          ))}
-        </div>
-        <div className="flex flex-wrap gap-3">
-          {content.applicationUrl && (
-            <Button asChild size="lg">
+      {content.grantPoints.length > 0 ? (
+        <Section rhythm="base" tone="paper">
+          <ul className="flex flex-wrap gap-2">
+            {content.grantPoints.map((point) => (
+              <li key={point}>
+                <Pill tone="accent">{point}</Pill>
+              </li>
+            ))}
+          </ul>
+        </Section>
+      ) : null}
+
+      <Section className="border-edge border-t" tone="paper" width="prose">
+        <SectionHeading>{t("eligibility.title")}</SectionHeading>
+        {content.eligibility.length > 0 ? (
+          <Prose>
+            <ul>
+              {content.eligibility.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          </Prose>
+        ) : (
+          <p className="type-body text-ink-muted">{t("eligibility.empty")}</p>
+        )}
+      </Section>
+
+      <Section className="border-edge border-t" tone="paper" width="prose">
+        <SectionHeading>{t("steps.title")}</SectionHeading>
+        {content.steps.length > 0 ? (
+          <Prose>
+            <ol>
+              {content.steps.map((step) => (
+                <li key={step}>{step}</li>
+              ))}
+            </ol>
+          </Prose>
+        ) : (
+          <p className="type-body text-ink-muted">{t("steps.empty")}</p>
+        )}
+        <ul className="mt-8 flex flex-col gap-3">
+          {content.applicationUrl ? (
+            <li>
               <a
+                className={`type-body ${linkClass}`}
                 href={content.applicationUrl}
-                rel="noreferrer"
+                rel="noreferrer noopener"
                 target={
                   content.applicationUrl.startsWith("http")
                     ? "_blank"
                     : undefined
                 }
               >
-                {t("hero.apply")}
+                <span className="min-w-0 break-words">{t("hero.apply")}</span>
+                {content.applicationUrl.startsWith("http") ? (
+                  <ExternalLink
+                    aria-hidden="true"
+                    className="size-4 shrink-0"
+                  />
+                ) : null}
               </a>
-            </Button>
-          )}
-          <Button asChild size="lg" variant="outline">
-            <a href="mailto:au.finance@biso.no">{t("hero.contact")}</a>
-          </Button>
-        </div>
-      </div>
-      <Card className="border-primary/10 bg-primary-10/40 backdrop-blur">
-        <CardHeader>
-          <CardTitle className="text-primary-100">
-            {t("overview.title")}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3 text-primary-70 text-sm">
-          <div className="flex items-start justify-between gap-3">
-            <span className="font-medium text-primary-90">
-              {t("overview.status")}
-            </span>
-            <span>
-              {content.status === "active"
-                ? t("overview.active")
-                : t("overview.draft")}
-            </span>
-          </div>
+            </li>
+          ) : null}
           {content.templateUrl ? (
-            <div className="flex items-start justify-between gap-3">
-              <span className="font-medium text-primary-90">
-                {t("overview.template")}
-              </span>
+            <li>
               <a
-                className="text-primary-40 underline-offset-2 hover:underline"
+                className={`type-body ${linkClass}`}
                 href={content.templateUrl}
-                rel="noreferrer"
+                rel="noreferrer noopener"
                 target="_blank"
               >
-                {t("overview.download")}
+                <span className="min-w-0 break-words">
+                  {t("overview.template")}
+                </span>
+                <ExternalLink aria-hidden="true" className="size-4 shrink-0" />
               </a>
-            </div>
+            </li>
           ) : null}
-          {content.documents.length > 0 ? (
-            <div className="space-y-2">
-              <span className="font-medium text-primary-90">
-                {t("overview.rows")}
-              </span>
-              <ul className="space-y-1">
-                {content.documents.map((doc) => (
-                  <li key={doc.url}>
-                    <a
-                      className="text-primary-40 underline-offset-2 hover:underline"
-                      href={doc.url}
-                      rel="noreferrer"
-                      target="_blank"
-                    >
-                      {doc.label}
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-          <div className="space-y-1">
-            <span className="font-medium text-primary-90">
-              {t("overview.contact")}
-            </span>
-            <p>{content.contactName ?? t("overview.contactFallback")}</p>
-            {content.contactEmail ? (
-              <a
-                className="text-primary-40 underline-offset-2 hover:underline"
-                href={`mailto:${content.contactEmail}`}
-              >
-                {content.contactEmail}
-              </a>
-            ) : null}
-          </div>
-        </CardContent>
-      </Card>
-      {content.heroImage ? (
-        <div className="md:col-span-2">
-          <Image
-            alt={content.title}
-            className="h-64 w-full rounded-2xl object-cover"
-            src={content.heroImage}
-          />
-        </div>
-      ) : null}
-    </section>
-  );
-}
+        </ul>
+      </Section>
 
-function EligibilityAndSteps({
-  content,
-  t,
-}: {
-  content: ProgramContent;
-  t: Awaited<ReturnType<typeof getTranslations>>;
-}) {
-  return (
-    <section className="grid gap-8 md:grid-cols-2">
-      <Card className="border-primary/10">
-        <CardHeader>
-          <CardTitle className="text-primary-100">
-            {t("eligibility.title")}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ul className="space-y-3 text-primary-70 text-sm">
-            {content.eligibility.length > 0 ? (
-              content.eligibility.map((item) => (
-                <li className="flex gap-2" key={item}>
-                  <span className="mt-1 h-2 w-2 rounded-full bg-primary-40" />
-                  <span>{item}</span>
-                </li>
-              ))
-            ) : (
-              <li className="text-muted-foreground text-sm">
-                {t("eligibility.empty")}
+      {content.documents.length > 0 ? (
+        <Section className="border-edge border-t" tone="paper" width="prose">
+          {/* The previous page asked for `overview.rows`, which is not a key in
+              either bundle — it would have rendered the key path itself. The
+              key is `overview.documents`; unreachable until now only because
+              this list has always been empty. */}
+          <SectionHeading>{t("overview.documents")}</SectionHeading>
+          <ul className="flex flex-col gap-3">
+            {content.documents.map((doc) => (
+              <li key={doc.url}>
+                <a
+                  className={`type-body ${linkClass}`}
+                  href={doc.url}
+                  rel="noreferrer noopener"
+                  target="_blank"
+                >
+                  <span className="min-w-0 break-words">{doc.label}</span>
+                  <ExternalLink
+                    aria-hidden="true"
+                    className="size-4 shrink-0"
+                  />
+                </a>
               </li>
-            )}
+            ))}
           </ul>
-        </CardContent>
-      </Card>
-      <Card className="border-primary/10">
-        <CardHeader>
-          <CardTitle className="text-primary-100">{t("steps.title")}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ol className="space-y-3 text-primary-70 text-sm">
-            {content.steps.length > 0 ? (
-              content.steps.map((step, index) => (
-                <li className="flex gap-3" key={step}>
-                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 font-semibold text-primary-50 text-xs">
-                    {index + 1}
-                  </span>
-                  <span>{step}</span>
-                </li>
-              ))
-            ) : (
-              <li className="text-muted-foreground text-sm">
-                {t("steps.empty")}
-              </li>
-            )}
-          </ol>
-        </CardContent>
-      </Card>
-    </section>
-  );
-}
+        </Section>
+      ) : null}
 
-function FaqSection({
-  content,
-  t,
-}: {
-  content: ProgramContent;
-  t: Awaited<ReturnType<typeof getTranslations>>;
-}) {
-  return (
-    <section className="space-y-6">
-      <h2 className="font-semibold text-2xl text-primary-100">
-        {t("faq.title")}
-      </h2>
-      <div className="grid gap-4 md:grid-cols-2">
-        {content.faqs.map((faq) => (
-          <Card className="border-primary/10" key={faq.question}>
-            <CardHeader>
-              <CardTitle className="text-base text-primary-100">
-                {faq.question}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-primary-70 text-sm">{faq.answer}</p>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-    </section>
-  );
-}
+      {content.faqs.length > 0 ? (
+        <Section className="border-edge border-t" tone="paper" width="prose">
+          <SectionHeading>{t("faq.title")}</SectionHeading>
+          <Prose>
+            {content.faqs.map((faq) => (
+              <section key={faq.question}>
+                <h3>{faq.question}</h3>
+                <p>{faq.answer}</p>
+              </section>
+            ))}
+          </Prose>
+        </Section>
+      ) : null}
 
-function ContactSection({
-  contact,
-  t,
-}: {
-  contact: string;
-  t: Awaited<ReturnType<typeof getTranslations>>;
-}) {
-  return (
-    <section className="rounded-2xl border border-primary/10 bg-primary/5 p-6 text-primary-80">
-      <h2 className="font-semibold text-primary-90 text-xl">
-        {t("contact.title")}
-      </h2>
-      <p className="mt-2 text-sm leading-6">{contact}</p>
-    </section>
+      <Section className="border-edge border-t" tone="paper" width="prose">
+        <SectionHeading>{t("contact.title")}</SectionHeading>
+        <p className="type-body text-ink-muted">{content.contact}</p>
+        <p className="type-body mt-4">
+          <span className="text-ink">
+            {content.contactName ?? t("overview.contactFallback")}
+          </span>
+        </p>
+        <a
+          className={`type-body mt-2 ${linkClass}`}
+          href={`mailto:${content.contactEmail ?? FINANCE_EMAIL}`}
+        >
+          <span className="min-w-0 break-words">
+            {content.contactEmail ?? FINANCE_EMAIL}
+          </span>
+        </a>
+      </Section>
+    </>
   );
 }

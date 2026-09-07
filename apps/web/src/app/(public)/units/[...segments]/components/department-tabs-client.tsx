@@ -7,6 +7,7 @@ import {
   TabsTrigger,
 } from "@repo/ui/components/ui/tabs";
 import { Newspaper, ShoppingBag, Target, Users } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import type { DepartmentTranslation } from "@/lib/actions/departments";
 import { NewsTab } from "./news-tab";
@@ -23,63 +24,69 @@ export function DepartmentTabsClient({
   department,
   isMember,
 }: DepartmentTabsClientProps) {
+  const t = useTranslations("units.detail");
   const [activeTab, setActiveTab] = useState("overview");
 
   const tabs = [
-    { value: "overview", label: "Overview", icon: Target },
-    { value: "team", label: "Our Team", icon: Users },
-    { value: "news", label: "News & Updates", icon: Newspaper },
-    { value: "products", label: "Products & Tickets", icon: ShoppingBag },
+    { value: "overview", label: t("tabs.overview"), icon: Target },
+    { value: "team", label: t("tabs.team"), icon: Users },
+    { value: "news", label: t("tabs.news"), icon: Newspaper },
+    { value: "products", label: t("tabs.products"), icon: ShoppingBag },
   ];
 
   return (
-    <>
-      {/* Sticky Tab Navigation */}
+    // RD-031: one `<Tabs>` root, not two. The sticky list and the panels used
+    // to live in separate roots, so Radix generated their ids independently
+    // and every trigger's `aria-controls` pointed at a panel that does not
+    // exist — axe reported it as a critical `aria-valid-attr-value`. With one
+    // root the association is real, and so is arrow-key navigation between
+    // tabs.
+    <Tabs onValueChange={setActiveTab} value={activeTab}>
+      {/* Sticky tab navigation */}
       <div className="sticky top-0 z-40 border-border border-b bg-background shadow-sm">
         <div className="mx-auto max-w-7xl px-4">
-          <Tabs onValueChange={setActiveTab} value={activeTab}>
-            <TabsList className="grid h-auto w-full grid-cols-4 justify-start rounded-none border-0 bg-transparent p-0">
-              {tabs.map((tab) => {
-                const Icon = tab.icon;
-                return (
-                  <TabsTrigger
-                    className="rounded-none px-6 py-5 font-medium text-base text-muted-foreground transition-colors hover:text-brand data-[state=active]:border-brand data-[state=active]:border-b-2 data-[state=active]:bg-transparent data-[state=active]:text-brand"
-                    key={tab.value}
-                    value={tab.value}
-                  >
-                    <Icon className="mr-2 h-5 w-5" />
-                    {tab.label}
-                  </TabsTrigger>
-                );
-              })}
-            </TabsList>
-          </Tabs>
+          {/* `grid-cols-4` with `whitespace-nowrap` triggers pushed this page
+              23px past a 320px viewport — "News & Updates" is 103px on one
+              line inside a 72px track. Two columns below `sm`, labels wrap;
+              from `sm` up it is the same four-across row. */}
+          <TabsList className="grid h-auto w-full grid-cols-2 justify-start rounded-none border-0 bg-transparent p-0 sm:grid-cols-4">
+            {tabs.map((tab) => {
+              const Icon = tab.icon;
+              return (
+                <TabsTrigger
+                  className="min-w-0 whitespace-normal rounded-none px-3 py-4 text-center font-medium text-base text-muted-foreground transition-colors hover:text-brand data-[state=active]:border-brand data-[state=active]:border-b-2 data-[state=active]:bg-transparent data-[state=active]:text-brand sm:whitespace-nowrap sm:px-6 sm:py-5"
+                  key={tab.value}
+                  value={tab.value}
+                >
+                  <Icon aria-hidden="true" className="mr-2 size-5 shrink-0" />
+                  {tab.label}
+                </TabsTrigger>
+              );
+            })}
+          </TabsList>
         </div>
       </div>
 
-      {/* Tab Content */}
       <div className="mx-auto max-w-7xl px-4">
-        <Tabs onValueChange={setActiveTab} value={activeTab}>
-          <TabsContent className="py-12" value="overview">
-            <OverviewTab department={department} />
-          </TabsContent>
+        <TabsContent className="py-12" value="overview">
+          <OverviewTab department={department} />
+        </TabsContent>
 
-          <TabsContent className="py-12" value="team">
-            <TeamTab department={department} />
-          </TabsContent>
+        <TabsContent className="py-12" value="team">
+          <TeamTab department={department} />
+        </TabsContent>
 
-          <TabsContent className="py-12" value="news">
-            <NewsTab news={department.news || []} />
-          </TabsContent>
+        <TabsContent className="py-12" value="news">
+          <NewsTab news={department.news || []} />
+        </TabsContent>
 
-          <TabsContent className="py-12" value="products">
-            <ProductsTab
-              isMember={isMember}
-              products={department.products || []}
-            />
-          </TabsContent>
-        </Tabs>
+        <TabsContent className="py-12" value="products">
+          <ProductsTab
+            isMember={isMember}
+            products={department.products || []}
+          />
+        </TabsContent>
       </div>
-    </>
+    </Tabs>
   );
 }

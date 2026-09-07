@@ -97,6 +97,70 @@ export async function listProducts(
   }
 }
 
+/**
+ * The product read for the redesigned page (RD-022).
+ *
+ * Identical to `getProductBySlug` except that it does **not** filter
+ * `translation_refs` by locale. That filter is why the English product page was
+ * blank: only 3 of the 55 published products have an English translation, so
+ * for the other 52 the row came back carrying no usable copy and the page
+ * rendered an empty headline. The caller picks the best available translation
+ * with `getPrimaryTranslation`, which prefers the reader's locale.
+ *
+ * `getProductBySlug` is left untouched so the current page behaves exactly as
+ * it does today with the shell flag off.
+ */
+export async function getProductDetailBySlug(
+  slug: string
+): Promise<WebshopProducts | null> {
+  try {
+    const { db } = await createSessionClient();
+
+    const response = await db.listRows<WebshopProducts>(
+      "app",
+      "webshop_products",
+      [
+        Query.equal("slug", slug),
+        // Same guard as `getProductBySlug`: `webshop_products` grants row read
+        // to `any`, so without this a draft or archived product is reachable
+        // by direct URL.
+        Query.equal("status", "published"),
+        Query.select([
+          "$id",
+          "$createdAt",
+          "$updatedAt",
+          "slug",
+          "status",
+          "campus_id",
+          "category",
+          "regular_price",
+          "member_price",
+          "member_only",
+          "image",
+          "stock",
+          "metadata",
+          "departmentId",
+          "campus.$id",
+          "campus.name",
+          "department.$id",
+          "department.Name",
+          "translation_refs.$id",
+          "translation_refs.locale",
+          "translation_refs.title",
+          "translation_refs.description",
+          "translation_refs.short_description",
+        ]),
+        Query.limit(1),
+      ]
+    );
+
+    return response.rows[0] ?? null;
+  } catch (error) {
+    console.error("Error fetching product detail by slug:", error);
+    return null;
+  }
+}
+
 export async function getProductBySlug(
   slug: string,
   locale: "en" | "no"

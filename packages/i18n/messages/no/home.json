@@ -137,7 +137,8 @@
     "viewAllEvents": "Se alle arrangementer",
     "amazingExperiences": "Uforglemmelige opplevelser",
     "pendingDate": "Dato kommer snart",
-    "description": "Fra nettverksarrangementer til uforglemmelige festene, har vi ditt semester dekket med spennende aktiviteter og muligheter."
+    "description": "Fra nettverksarrangementer til uforglemmelige festene, har vi ditt semester dekket med spennende aktiviteter og muligheter.",
+    "infoOnly": "Kun info"
   },
   "news": {
     "cta": "Alle nyheter",
@@ -241,5 +242,8 @@
       "contact": "Ta kontakt",
       "press": "Presseinformasjon"
     }
+  },
+  "partners": {
+    "title": "Våre partnere"
   }
 }

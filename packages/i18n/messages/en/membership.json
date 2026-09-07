@@ -241,5 +241,10 @@
       "noCampus": "Choose your campus.",
       "generic": "Something went wrong. Please try again."
     }
+  },
+  "plans": {
+    "months": "{count, plural, one {# month} other {# months}}",
+    "benefitsLede": "{count, plural, one {# member benefit} other {# member benefits}}, updated by BISO.",
+    "offer": "Partner offer"
   }
 }

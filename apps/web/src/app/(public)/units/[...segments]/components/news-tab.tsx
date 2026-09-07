@@ -8,12 +8,14 @@ import { Card } from "@repo/ui/components/ui/card";
 import { Calendar, ExternalLink, Newspaper } from "lucide-react";
 import { motion } from "motion/react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 
 interface NewsTabProps {
   news: News[];
 }
 
 export function NewsTab({ news }: NewsTabProps) {
+  const t = useTranslations("units.detail");
   return (
     <div className="space-y-8">
       <motion.div
@@ -22,10 +24,10 @@ export function NewsTab({ news }: NewsTabProps) {
         initial={{ opacity: 0, y: 20 }}
       >
         <h2 className="mb-4 font-bold text-3xl text-foreground">
-          News & Updates
+          {t("news.title")}
         </h2>
         <p className="mx-auto max-w-2xl text-muted-foreground">
-          Stay up to date with everything happening in this department
+          {t("news.subtitle")}
         </p>
       </motion.div>
 
@@ -89,7 +91,7 @@ export function NewsTab({ news }: NewsTabProps) {
                             className="border-brand-border text-brand hover:bg-brand-muted"
                             variant="outline"
                           >
-                            Read More
+                            {t("news.readMore")}
                             <ExternalLink className="ml-2 h-4 w-4" />
                           </Button>
                         </div>
@@ -105,11 +107,9 @@ export function NewsTab({ news }: NewsTabProps) {
         <Card className="border-0 p-12 text-center shadow-lg">
           <Newspaper className="mx-auto mb-4 h-16 w-16 text-muted-foreground" />
           <h3 className="mb-2 font-semibold text-foreground text-xl">
-            No News Available
+            {t("news.emptyTitle")}
           </h3>
-          <p className="text-muted-foreground">
-            Check back soon for news and updates!
-          </p>
+          <p className="text-muted-foreground">{t("news.emptyBody")}</p>
         </Card>
       )}
     </div>

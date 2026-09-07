@@ -1,188 +1,221 @@
-import { Badge } from "@repo/ui/components/ui/badge";
-import { Button } from "@repo/ui/components/ui/button";
-import { Card } from "@repo/ui/components/ui/card";
-import {
-  CalendarClock,
-  Inbox,
-  MapPin,
-  Sparkles,
-  UserRound,
-  Video,
-} from "lucide-react";
+import { CalendarClock, Inbox, MapPin, UserRound, Video } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 import { listMyApplications, type MyApplicationView } from "@/app/actions/jobs";
+import { getLocale } from "@/app/actions/locale";
+import { PageHeader } from "@/components/ui/page-header";
+import { Pill, type PillTone } from "@/components/ui/pill";
+import { Section } from "@/components/ui/section";
 
-export const metadata: Metadata = {
-  title: "My Applications | BISO",
-  description: "Track your applications to BISO volunteer positions.",
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("applications");
+  return { title: `${t("title")} | BISO`, description: t("lede") };
+}
+
+/** Visual tone per state; the labels come from the bundle. */
+const STATUS_TONE: Record<MyApplicationView["status"], PillTone> = {
+  accepted: "success",
+  interview: "accent",
+  rejected: "danger",
+  reviewed: "neutral",
+  submitted: "neutral",
 };
 
-const STATUS_LABEL: Record<MyApplicationView["status"], string> = {
-  accepted: "Accepted",
-  interview: "Interview",
-  rejected: "Not selected",
-  reviewed: "Reviewed",
-  submitted: "Submitted",
-};
+const linkClass =
+  "inline-flex items-center gap-2 text-ink-accent underline underline-offset-4 hover:no-underline focus-visible:rounded-biso-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface";
 
-const STATUS_TONE: Record<
-  MyApplicationView["status"],
-  "default" | "secondary" | "outline" | "destructive"
-> = {
-  accepted: "default",
-  interview: "default",
-  rejected: "destructive",
-  reviewed: "secondary",
-  submitted: "outline",
-};
+type T = Awaited<ReturnType<typeof getTranslations<"applications">>>;
 
-function formatDate(value: string | null): string {
+function formatDate(value: string | null, locale: string, fallback: string) {
   if (!value) {
-    return "TBD";
+    return fallback;
   }
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) {
     return value;
   }
-  return date.toLocaleString(undefined, {
+  // The visitor's locale, not the Node process's — `toLocaleString(undefined)`
+  // on a Server Component is the container's.
+  return date.toLocaleString(locale, {
     dateStyle: "medium",
     timeStyle: "short",
   });
 }
 
-function ApplicationCard({ application }: { application: MyApplicationView }) {
+function InterviewDetails({
+  interview,
+  locale,
+  t,
+}: {
+  interview: NonNullable<MyApplicationView["next_interview"]>;
+  locale: string;
+  t: T;
+}) {
   return (
-    <Card className="border-border/60 p-6 shadow-sm">
+    <div className="mt-4 rounded-biso-md border border-edge bg-surface-sunken p-4">
+      <p className="type-label text-ink-accent">
+        {t("interview", { title: interview.title })}
+      </p>
+      <ul className="type-body-sm mt-3 grid gap-2 text-ink-muted sm:grid-cols-2">
+        <li className="flex items-center gap-2">
+          <CalendarClock aria-hidden="true" className="size-4 shrink-0" />
+          {formatDate(interview.starts_at, locale, t("tbd"))}
+        </li>
+        {interview.location ? (
+          <li className="flex items-center gap-2">
+            <MapPin aria-hidden="true" className="size-4 shrink-0" />
+            <span className="min-w-0 break-words">{interview.location}</span>
+          </li>
+        ) : null}
+        {interview.meeting_url ? (
+          <li>
+            <a
+              className={linkClass}
+              href={interview.meeting_url}
+              rel="noopener noreferrer"
+              target="_blank"
+            >
+              <Video aria-hidden="true" className="size-4 shrink-0" />
+              {t("joinMeeting")}
+            </a>
+          </li>
+        ) : null}
+      </ul>
+    </div>
+  );
+}
+
+function ApplicationCard({
+  application,
+  locale,
+  t,
+}: {
+  application: MyApplicationView;
+  locale: string;
+  t: T;
+}) {
+  return (
+    <li className="rounded-biso-md border border-edge p-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <h3 className="truncate font-semibold text-foreground text-lg">
-              {application.job?.title ?? "Vacancy"}
-            </h3>
-            <Badge variant={STATUS_TONE[application.status]}>
-              {STATUS_LABEL[application.status]}
-            </Badge>
+          <div className="flex flex-wrap items-center gap-3">
+            <h2 className="type-heading-card min-w-0 break-words text-ink">
+              {application.job?.title ?? t("vacancy")}
+            </h2>
+            <Pill tone={STATUS_TONE[application.status]}>
+              {t(`status.${application.status}`)}
+            </Pill>
           </div>
-          <p className="mt-1 text-muted-foreground text-sm">
+          <p className="type-body-sm mt-2 text-ink-muted">
             {application.job?.campus_name
               ? `${application.job.campus_name} · `
               : ""}
-            Applied {formatDate(application.$createdAt)}
+            {t("applied", {
+              date: formatDate(application.$createdAt, locale, t("tbd")),
+            })}
           </p>
           {application.hr_assigned_name ? (
-            <p className="mt-1 flex items-center gap-1 text-muted-foreground text-sm">
-              <UserRound className="h-3.5 w-3.5" />
-              Reviewer: {application.hr_assigned_name}
+            <p className="type-body-sm mt-1 flex items-center gap-2 text-ink-muted">
+              <UserRound aria-hidden="true" className="size-4 shrink-0" />
+              {t("reviewer", { name: application.hr_assigned_name })}
             </p>
           ) : null}
         </div>
         {application.job?.slug ? (
-          <Button asChild size="sm" variant="outline">
-            <Link href={`/jobs/${application.job.slug}`}>View vacancy</Link>
-          </Button>
+          <Link
+            className={`type-body-sm shrink-0 ${linkClass}`}
+            href={`/jobs/${application.job.slug}`}
+          >
+            {t("viewVacancy")}
+          </Link>
         ) : null}
       </div>
 
       {application.next_interview ? (
-        <div className="mt-4 rounded-lg border border-brand/30 bg-brand/5 p-4">
-          <div className="flex items-center gap-2 text-brand text-sm">
-            <Sparkles className="h-4 w-4" />
-            <span className="font-medium">
-              Upcoming interview · {application.next_interview.title}
-            </span>
-          </div>
-          <div className="mt-3 grid gap-2 text-muted-foreground text-sm sm:grid-cols-2">
-            <div className="flex items-center gap-2">
-              <CalendarClock className="h-4 w-4" />
-              {formatDate(application.next_interview.starts_at)}
-            </div>
-            {application.next_interview.location ? (
-              <div className="flex items-center gap-2">
-                <MapPin className="h-4 w-4" />
-                {application.next_interview.location}
-              </div>
-            ) : null}
-            {application.next_interview.meeting_url ? (
-              <a
-                className="flex items-center gap-2 text-brand hover:underline"
-                href={application.next_interview.meeting_url}
-                rel="noopener"
-                target="_blank"
-              >
-                <Video className="h-4 w-4" />
-                Join meeting
-              </a>
-            ) : null}
-          </div>
-        </div>
+        <InterviewDetails
+          interview={application.next_interview}
+          locale={locale}
+          t={t}
+        />
       ) : null}
 
       {application.answers.length > 0 ? (
-        <details className="mt-4 text-sm">
-          <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
-            Your answers ({application.answers.length})
+        <details className="mt-4">
+          <summary className="type-body-sm cursor-pointer text-ink-muted hover:text-ink focus-visible:rounded-biso-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface">
+            {t("answers", { count: application.answers.length })}
           </summary>
-          <div className="mt-2 space-y-2 border-border/60 border-l pl-4">
+          <dl className="mt-3 border-edge border-s ps-4">
             {application.answers.map((answer) => (
-              <div key={answer.question_label}>
-                <p className="font-medium text-foreground">
+              <div className="mb-3 last:mb-0" key={answer.question_label}>
+                <dt className="type-body-sm font-medium text-ink">
                   {answer.question_label}
-                </p>
-                <p className="whitespace-pre-line text-muted-foreground">
+                </dt>
+                <dd className="type-body-sm whitespace-pre-line text-ink-muted">
                   {answer.answer ?? "—"}
-                </p>
+                </dd>
               </div>
             ))}
-          </div>
+          </dl>
         </details>
       ) : null}
 
-      <p className="mt-3 text-muted-foreground text-xs">
-        Stored until {formatDate(application.data_retention_until)}
+      <p className="type-body-sm mt-4 text-ink-muted">
+        {t("storedUntil", {
+          date: formatDate(application.data_retention_until, locale, t("tbd")),
+        })}
       </p>
-    </Card>
+    </li>
   );
 }
 
 export default async function MyApplicationsPage() {
-  const applications = await listMyApplications();
+  const [applications, locale, t, tNav] = await Promise.all([
+    listMyApplications(),
+    getLocale(),
+    getTranslations("applications"),
+    getTranslations("common.navigation"),
+  ]);
 
   return (
-    <div className="mx-auto max-w-4xl px-4 pt-28 pb-12">
-      <header className="mb-8">
-        <h1 className="font-semibold text-3xl text-foreground">
-          My applications
-        </h1>
-        <p className="mt-2 text-muted-foreground">
-          See the status of every BISO position you've applied for, plus any
-          upcoming interview details.
-        </p>
-      </header>
+    <>
+      <PageHeader
+        breadcrumbs={[
+          { label: tNav("account.heading"), href: "/profile" },
+          { label: t("title") },
+        ]}
+        lede={t("lede")}
+        title={t("title")}
+      />
 
-      {applications.length === 0 ? (
-        <Card className="flex flex-col items-center gap-3 border-border/60 p-12 text-center shadow-sm">
-          <Inbox className="h-10 w-10 text-muted-foreground" />
-          <h2 className="font-semibold text-foreground text-xl">
-            No applications yet
-          </h2>
-          <p className="max-w-md text-muted-foreground text-sm">
-            When you apply for a BISO vacancy, it'll show up here so you can
-            track its progress and interview times.
-          </p>
-          <Button asChild className="mt-2">
-            <Link href="/jobs">Browse open positions</Link>
-          </Button>
-        </Card>
-      ) : (
-        <ul className="space-y-4">
-          {applications.map((application) => (
-            <li key={application.$id}>
-              <ApplicationCard application={application} />
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
+      <Section tone="paper">
+        {applications.length === 0 ? (
+          <div className="flex flex-col items-start gap-4 rounded-biso-md border border-edge p-10">
+            <Inbox aria-hidden="true" className="size-8 text-ink-muted" />
+            <h2 className="type-heading-card text-ink">{t("emptyTitle")}</h2>
+            <p className="type-body max-w-(--measure) text-ink-muted">
+              {t("emptyBody")}
+            </p>
+            <Link
+              className="type-label mt-2 inline-flex items-center gap-2 rounded-biso-pill bg-action px-5 py-3 text-action-ink transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+              href="/jobs"
+            >
+              {t("browse")}
+            </Link>
+          </div>
+        ) : (
+          <ul className="flex flex-col gap-5">
+            {applications.map((application) => (
+              <ApplicationCard
+                application={application}
+                key={application.$id}
+                locale={locale}
+                t={t}
+              />
+            ))}
+          </ul>
+        )}
+      </Section>
+    </>
   );
 }

@@ -88,7 +88,12 @@ export function LocaleSwitcher({
             "relative gap-2 transition-all duration-200",
             "hover:scale-[1.02] hover:bg-accent/50",
             "data-[state=open]:bg-accent/70",
-            "focus:ring-2 focus:ring-primary focus:ring-offset-2",
+            // Measured: `focus:ring-*` paints nothing here — the computed
+            // box-shadow is all-transparent while `:focus-visible` is true, so
+            // this control had no focus indicator on any page. An outline
+            // works, and since RD-030 removed the universal `outline-ring/50`
+            // it takes the colour it asks for (FINDING-F).
+            "focus-visible:outline-2 focus-visible:outline-focus-ring focus-visible:outline-solid focus-visible:outline-offset-2",
             isPending && "cursor-not-allowed opacity-50",
             className
           )}
@@ -149,7 +154,7 @@ export function LocaleSwitcher({
                 "transition-all duration-150",
                 "hover:bg-accent/50 focus:bg-accent/50",
                 "rounded-md",
-                "focus:outline-none focus:ring-2 focus:ring-primary focus:ring-inset",
+                "focus-visible:outline-2 focus-visible:outline-focus-ring focus-visible:outline-solid focus-visible:-outline-offset-2",
                 isSelected && "bg-accent/30 font-medium text-accent-foreground",
                 isPending && "cursor-not-allowed opacity-50"
               )}

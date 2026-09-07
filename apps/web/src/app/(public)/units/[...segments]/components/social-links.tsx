@@ -3,12 +3,14 @@
 import type { DepartmentSocials } from "@repo/api/types/appwrite";
 import { Facebook, Globe, Instagram, Linkedin, Twitter } from "lucide-react";
 import { motion } from "motion/react";
+import { useTranslations } from "next-intl";
 
 interface SocialLinksProps {
   socials: DepartmentSocials[];
 }
 
 export function SocialLinks({ socials }: SocialLinksProps) {
+  const t = useTranslations("units.detail");
   const getSocialIcon = (platform: string) => {
     const platformLower = platform.toLowerCase();
     if (platformLower.includes("instagram")) {
@@ -28,7 +30,7 @@ export function SocialLinks({ socials }: SocialLinksProps) {
 
   return (
     <div className="flex items-center gap-3">
-      <span className="text-sm text-white/70">Follow us:</span>
+      <span className="text-sm text-white/70">{t("follow")}</span>
       {socials.map((social, index) => {
         const SocialIcon = getSocialIcon(social.platform || "");
         return (

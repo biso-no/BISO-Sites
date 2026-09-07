@@ -3,6 +3,7 @@
 import { Button } from "@repo/ui/components/ui/button";
 import { Textarea } from "@repo/ui/components/ui/textarea";
 import { CheckCircle, ExternalLink, Loader2, XCircle } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
 interface ApprovalReceipt {
@@ -42,6 +43,7 @@ export function ApprovalClient({
   token: string;
   intent?: string;
 }) {
+  const t = useTranslations("common.approval");
   const [context, setContext] = useState<ApprovalContext | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -136,14 +138,14 @@ export function ApprovalClient({
   if (context.expired) {
     return (
       <Centered>
-        <p className="text-destructive">This approval link has expired.</p>
+        <p className="text-destructive">{t("expired")}</p>
       </Centered>
     );
   }
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-10">
-      <h1 className="font-semibold text-2xl">Reimbursement approval</h1>
+      <h1 className="font-semibold text-2xl">{t("title")}</h1>
       <p className="mt-1 text-muted-foreground text-sm">{context.stepLabel}</p>
 
       <div className="mt-6 rounded-xl border bg-card p-5">
@@ -199,7 +201,7 @@ export function ApprovalClient({
       <div className="mt-8 space-y-3">
         <Textarea
           onChange={(event) => setReason(event.target.value)}
-          placeholder="Optional note (required reasoning for a rejection helps the submitter)"
+          placeholder={t("notePlaceholder")}
           rows={2}
           value={reason}
         />

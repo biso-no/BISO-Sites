@@ -1,15 +1,12 @@
-"use client";
-
-import { Button } from "@repo/ui/components/ui/button";
-import { Card } from "@repo/ui/components/ui/card";
-import { CheckCircle2, GraduationCap, MessageSquare } from "lucide-react";
-import { motion } from "motion/react";
+import { ArrowLeft, Check, FileText, Users } from "lucide-react";
+import type { Metadata } from "next";
 import Link from "next/link";
-import { useTranslations } from "next-intl";
-import { AboutHero } from "@/components/about/about-hero";
-import { ForumList } from "@/components/about/forum-list";
-import { PdfCta } from "@/components/about/pdf-cta";
-import { PolicyCards } from "@/components/about/policy-cards";
+import { getTranslations } from "next-intl/server";
+import { CardGrid } from "@/components/ui/card-grid";
+import { PageHeader } from "@/components/ui/page-header";
+import { Prose } from "@/components/ui/prose";
+import { Section } from "@/components/ui/section";
+import { SectionHeading } from "@/components/ui/section-heading";
 
 interface CardItem {
   description: string;
@@ -17,178 +14,142 @@ interface CardItem {
   title: string;
 }
 
-export default function StudyQualityPage() {
-  const t = useTranslations("about.pages.studyQuality");
-  const tAbout = useTranslations("about");
+const ACADEMIC_ITEM_KEYS = ["0", "1", "2", "3", "4"] as const;
 
-  const academicItems = [
-    tAbout("general.academics.items.0"),
-    tAbout("general.academics.items.1"),
-    tAbout("general.academics.items.2"),
-    tAbout("general.academics.items.3"),
-    tAbout("general.academics.items.4"),
-  ];
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("about.pages.studyQuality");
+  return { title: `${t("title")} | BISO`, description: t("intro") };
+}
 
+export default async function StudyQualityPage() {
+  const [t, tCommon, tAbout] = await Promise.all([
+    getTranslations("about.pages.studyQuality"),
+    getTranslations("common"),
+    getTranslations("about"),
+  ]);
+
+  const academicItems = ACADEMIC_ITEM_KEYS.map((key) =>
+    tAbout(`general.academics.items.${key}`)
+  );
   const wins = t.raw("wins") as CardItem[];
   const forums = t.raw("forums") as CardItem[];
 
   return (
-    <div className="min-h-screen bg-linear-to-b from-section to-background">
-      <AboutHero
+    <>
+      <PageHeader
         breadcrumbs={[
-          { label: "Home", href: "/" },
+          { label: tCommon("breadcrumbs.home"), href: "/" },
           { label: tAbout("hub.title"), href: "/about" },
           { label: t("title") },
         ]}
-        compact
-        icon={<GraduationCap className="h-8 w-8 text-white" />}
-        subtitle={t("intro")}
+        lede={t("intro")}
         title={t("title")}
       />
 
-      {/* Main content */}
-      <section className="py-16" id="about-content">
-        <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
-          <motion.div
-            className="prose prose-lg max-w-none"
-            initial={{ opacity: 0, y: 20 }}
-            transition={{ duration: 0.6 }}
-            viewport={{ once: true }}
-            whileInView={{ opacity: 1, y: 0 }}
-          >
-            <p className="whitespace-pre-line text-lg text-muted-foreground leading-relaxed">
-              {t("content")}
-            </p>
-          </motion.div>
-        </div>
-      </section>
+      <Section id="about-content" tone="paper" width="prose">
+        <Prose>
+          <p className="whitespace-pre-line">{t("content")}</p>
+        </Prose>
+      </Section>
 
-      {/* What we focus on */}
-      <section className="bg-section/50 py-16">
-        <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            transition={{ duration: 0.5 }}
-            viewport={{ once: true }}
-            whileInView={{ opacity: 1, y: 0 }}
-          >
-            <Card className="p-8">
-              <h2 className="mb-6 font-semibold text-foreground text-xl">
-                {tAbout("general.academics.subtitle")}
-              </h2>
-              <ul className="space-y-4">
-                {academicItems.map((item, index) => (
-                  <motion.li
-                    className="flex items-start gap-3"
-                    initial={{ opacity: 0, x: -10 }}
-                    key={item}
-                    transition={{ delay: index * 0.1, duration: 0.3 }}
-                    viewport={{ once: true }}
-                    whileInView={{ opacity: 1, x: 0 }}
-                  >
-                    <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-brand" />
-                    <span className="text-muted-foreground">{item}</span>
-                  </motion.li>
-                ))}
-              </ul>
-            </Card>
-          </motion.div>
-        </div>
-      </section>
+      <Section className="border-edge border-t" tone="paper" width="prose">
+        <SectionHeading>{tAbout("general.academics.subtitle")}</SectionHeading>
+        <ul className="space-y-3">
+          {academicItems.map((item) => (
+            <li className="flex items-start gap-3" key={item}>
+              <Check
+                aria-hidden="true"
+                className="mt-1 size-4 shrink-0 text-ink-accent"
+              />
+              <span className="type-body text-ink-muted">{item}</span>
+            </li>
+          ))}
+        </ul>
+      </Section>
 
-      {/* Wins */}
-      <section className="py-16">
-        <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
-          <motion.h2
-            className="mb-8 font-bold text-2xl text-foreground md:text-3xl"
-            initial={{ opacity: 0, y: 20 }}
-            transition={{ duration: 0.5 }}
-            viewport={{ once: true }}
-            whileInView={{ opacity: 1, y: 0 }}
-          >
-            {t("winsTitle")}
-          </motion.h2>
-          <PolicyCards items={wins} />
-        </div>
-      </section>
-
-      {/* Academic forums */}
-      <section className="bg-section/50 py-16">
-        <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
-          <motion.h2
-            className="mb-8 font-bold text-2xl text-foreground md:text-3xl"
-            initial={{ opacity: 0, y: 20 }}
-            transition={{ duration: 0.5 }}
-            viewport={{ once: true }}
-            whileInView={{ opacity: 1, y: 0 }}
-          >
-            {t("forumsTitle")}
-          </motion.h2>
-          <ForumList items={forums} />
-        </div>
-      </section>
-
-      {/* Your case CTA */}
-      <section className="py-16">
-        <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            transition={{ duration: 0.5 }}
-            viewport={{ once: true }}
-            whileInView={{ opacity: 1, y: 0 }}
-          >
-            <Card className="flex flex-col items-start gap-6 p-8 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex items-start gap-4">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-linear-to-br from-brand-gradient-from to-brand-gradient-to shadow-md">
-                  <MessageSquare className="h-6 w-6 text-white" />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-foreground text-lg">
-                    {t("yourCase.title")}
-                  </h3>
-                  <p className="mt-1 text-muted-foreground">
-                    {t("yourCase.description")}
-                  </p>
-                </div>
+      <Section className="border-edge border-t" tone="paper">
+        <SectionHeading>{t("winsTitle")}</SectionHeading>
+        <CardGrid>
+          {wins.map((item) => (
+            <li key={item.id}>
+              <div className="flex h-full flex-col rounded-biso-md border border-edge p-6">
+                <h3 className="type-heading-card text-ink">{item.title}</h3>
+                <p className="type-body-sm mt-2 text-ink-muted">
+                  {item.description}
+                </p>
               </div>
-              <Button
-                asChild
-                className="shrink-0 bg-linear-to-r from-brand-gradient-from to-brand-gradient-to text-white shadow-md hover:opacity-90"
-                size="lg"
-              >
-                <Link href="/contact">{t("yourCase.cta")}</Link>
-              </Button>
-            </Card>
-          </motion.div>
-        </div>
-      </section>
+            </li>
+          ))}
+        </CardGrid>
+      </Section>
 
-      {/* Academic target document */}
-      <section className="bg-section/50 py-16">
-        <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
-          <PdfCta
-            description={t("targetDoc.description")}
-            href={t("targetDoc.href")}
-            title={t("targetDoc.title")}
-          />
-        </div>
-      </section>
+      <Section className="border-edge border-t" tone="paper" width="prose">
+        <SectionHeading>{t("forumsTitle")}</SectionHeading>
+        <dl>
+          {forums.map((item) => (
+            <div
+              className="border-edge border-b py-4 last:border-b-0"
+              key={item.id}
+            >
+              <dt className="type-heading-card text-ink">{item.title}</dt>
+              <dd className="type-body mt-1 text-ink-muted">
+                {item.description}
+              </dd>
+            </div>
+          ))}
+        </dl>
 
-      {/* Back to about */}
-      <section className="py-16">
-        <div className="mx-auto max-w-4xl px-4 text-center sm:px-6 lg:px-8">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            transition={{ duration: 0.5 }}
-            viewport={{ once: true }}
-            whileInView={{ opacity: 1, y: 0 }}
+        <div className="mt-10 flex flex-wrap items-center justify-between gap-4 rounded-biso-md border border-edge p-6">
+          <span className="flex items-start gap-3">
+            <Users
+              aria-hidden="true"
+              className="mt-0.5 size-5 shrink-0 text-ink-accent"
+            />
+            <span>
+              <span className="type-heading-card block text-ink">
+                {t("yourCase.title")}
+              </span>
+              <span className="type-body-sm mt-1 block text-ink-muted">
+                {t("yourCase.description")}
+              </span>
+            </span>
+          </span>
+          <Link
+            className="type-label shrink-0 rounded-biso-pill bg-action px-5 py-2.5 text-action-ink transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+            href="/contact"
           >
-            <Button asChild size="lg" variant="outline">
-              <Link href="/about">← {tAbout("hub.title")}</Link>
-            </Button>
-          </motion.div>
+            {t("yourCase.cta")}
+          </Link>
         </div>
-      </section>
-    </div>
+
+        <a
+          className="mt-6 flex items-start gap-3 rounded-biso-md border border-edge p-6 transition-colors hover:border-ink-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+          href={t("targetDoc.href")}
+          rel="noreferrer noopener"
+          target="_blank"
+        >
+          <FileText
+            aria-hidden="true"
+            className="mt-0.5 size-5 shrink-0 text-ink-accent"
+          />
+          <span>
+            <span className="type-heading-card block text-ink">
+              {t("targetDoc.title")}
+            </span>
+            <span className="type-body-sm mt-1 block text-ink-muted">
+              {t("targetDoc.description")}
+            </span>
+          </span>
+        </a>
+
+        <Link
+          className="mt-12 inline-flex items-center gap-2 text-ink-accent underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+          href="/about"
+        >
+          <ArrowLeft aria-hidden="true" className="h-4 w-4" />
+          <span className="type-label">{tAbout("hub.title")}</span>
+        </Link>
+      </Section>
+    </>
   );
 }

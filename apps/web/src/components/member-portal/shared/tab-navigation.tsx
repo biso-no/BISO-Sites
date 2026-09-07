@@ -86,7 +86,19 @@ export function TabNavigation({
         <TabsList className="inline-flex h-auto w-full min-w-max gap-2 rounded-2xl bg-section p-2 sm:w-auto dark:bg-inverted">
           {tabs.map((tab) => (
             <TabsTrigger
-              className="relative flex items-center gap-2 rounded-xl px-4 py-2.5 font-medium text-muted-foreground transition-all duration-300 hover:text-foreground data-[state=active]:bg-linear-to-r data-[state=active]:from-brand-gradient-from data-[state=active]:to-brand-gradient-to data-[state=active]:text-white data-[state=active]:shadow-lg dark:data-[state=active]:shadow-brand/30"
+              // A keyboard user had no way to see which tab they were on: the
+              // trigger carried no focus styling at all. An **outline**, not a
+              // ring — the active trigger sets `data-[state=active]:shadow-lg`,
+              // and the winning `box-shadow` declaration drops the ring layer,
+              // so `--tw-ring-shadow` computes correctly and paints nothing.
+              // Measured before changing it: ring colour `#3aa3e1`, ring shadow
+              // `0 0 0 4px #3aa3e1`, and a `box-shadow` carrying neither.
+              // `outline-solid` is load-bearing: the shared `TabsTrigger` sets
+              // `focus-visible:outline-none`, and tailwind-merge keeps both —
+              // `outline-none` is a *style*, `outline-2` a *width*, so they do
+              // not collide and the style wins. Without it the outline has a
+              // width and no style, and paints nothing.
+              className="relative flex items-center gap-2 rounded-xl px-4 py-2.5 font-medium text-muted-foreground transition-all duration-300 hover:text-foreground focus-visible:outline-2 focus-visible:outline-focus-ring focus-visible:outline-solid focus-visible:outline-offset-2 data-[state=active]:bg-linear-to-r data-[state=active]:from-brand-gradient-from data-[state=active]:to-brand-gradient-to data-[state=active]:text-white data-[state=active]:shadow-lg dark:data-[state=active]:shadow-brand/30"
               key={tab.id}
               value={tab.id}
             >

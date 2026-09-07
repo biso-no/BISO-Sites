@@ -2,6 +2,7 @@
 
 import { Button } from "@repo/ui/components/ui/button";
 import { Card } from "@repo/ui/components/ui/card";
+import { useTranslations } from "next-intl";
 import { useMemo, useState, useTransition } from "react";
 import { confirmBookingSlot } from "@/app/actions/booking";
 
@@ -43,6 +44,7 @@ export function BookingClient({
   windowFrom,
   windowTo,
 }: BookingClientProps) {
+  const t = useTranslations("common.booking");
   const slots = useMemo(
     () => generateSlots(windowFrom, windowTo, durationMinutes),
     [windowFrom, windowTo, durationMinutes]
@@ -70,9 +72,7 @@ export function BookingClient({
   if (confirmedAt) {
     return (
       <Card className="mt-6 border-border/60 p-6 shadow-sm">
-        <h2 className="font-semibold text-foreground text-lg">
-          You're booked!
-        </h2>
+        <h2 className="font-semibold text-foreground text-lg">{t("booked")}</h2>
         <p className="mt-2 text-muted-foreground text-sm">
           Interview confirmed for {formatSlot(confirmedAt)}. You'll receive a
           calendar invite shortly.
@@ -100,7 +100,7 @@ export function BookingClient({
         ))}
         {slots.length === 0 && (
           <p className="col-span-2 text-muted-foreground text-sm">
-            No slots available in this window. Please contact the BISO team.
+            {t("noSlots")}
           </p>
         )}
       </div>

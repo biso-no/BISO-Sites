@@ -16,7 +16,7 @@ import {
 import { Textarea } from "@repo/ui/components/ui/textarea";
 import { AlertTriangle, CheckCircle, Loader2, Mail } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { getCampuses } from "@/app/actions/campus";
 import {
   getVarslingSettings,
@@ -54,6 +54,9 @@ function EscalationContacts({ contacts }: { contacts: EscalationContact[] }) {
 
 export function VarslingForm() {
   const t = useTranslations("varsling");
+  const submissionTypeId = useId();
+  const campusId = useId();
+  const receiverId = useId();
   const [campuses, setCampuses] = useState<Campus[]>([]);
   const [varslingSettings, setVarslingSettings] = useState<VarslingSettings[]>(
     []
@@ -180,14 +183,19 @@ export function VarslingForm() {
     <form className="space-y-6" onSubmit={handleSubmit}>
       {/* Submission Type */}
       <div className="space-y-2">
-        <Label>{t("form.fields.submissionType.label")} *</Label>
+        {/* RD-031: these three `<Label>`s had no `htmlFor` and the triggers no
+            `id`, so axe reported `button-name` (critical) — a screen reader
+            announced three unlabelled buttons on the reporting form. */}
+        <Label htmlFor={submissionTypeId}>
+          {t("form.fields.submissionType.label")} *
+        </Label>
         <Select
           onValueChange={(value: "harassment" | "witness" | "other") =>
             setSubmissionType(value)
           }
           value={submissionType}
         >
-          <SelectTrigger>
+          <SelectTrigger id={submissionTypeId}>
             <SelectValue
               placeholder={t("form.fields.submissionType.placeholder")}
             />
@@ -208,9 +216,9 @@ export function VarslingForm() {
 
       {/* Campus Selection */}
       <div className="space-y-2">
-        <Label>{t("form.fields.campus.label")} *</Label>
+        <Label htmlFor={campusId}>{t("form.fields.campus.label")} *</Label>
         <Select onValueChange={setSelectedCampus} value={selectedCampus}>
-          <SelectTrigger>
+          <SelectTrigger id={campusId}>
             <SelectValue placeholder={t("form.fields.campus.placeholder")} />
           </SelectTrigger>
           <SelectContent>
@@ -226,7 +234,9 @@ export function VarslingForm() {
       {/* Receiver Selection */}
       {selectedCampus && (
         <div className="space-y-2">
-          <Label>{t("form.fields.receiver.label")} *</Label>
+          <Label htmlFor={receiverId}>
+            {t("form.fields.receiver.label")} *
+          </Label>
           {isLoadingSettings && (
             <p className="flex items-center gap-2 text-muted-foreground text-sm">
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -238,7 +248,7 @@ export function VarslingForm() {
               onValueChange={setSelectedSettingId}
               value={selectedSettingId}
             >
-              <SelectTrigger>
+              <SelectTrigger id={receiverId}>
                 <SelectValue
                   placeholder={t("form.fields.receiver.placeholder")}
                 />

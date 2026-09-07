@@ -1,15 +1,12 @@
-"use client";
-
-import { Button } from "@repo/ui/components/ui/button";
-import { Card } from "@repo/ui/components/ui/card";
-import { Landmark, Users } from "lucide-react";
-import { motion } from "motion/react";
+import { ArrowLeft, FileText, Users } from "lucide-react";
+import type { Metadata } from "next";
 import Link from "next/link";
-import { useTranslations } from "next-intl";
-import { AboutHero } from "@/components/about/about-hero";
-import { ForumList } from "@/components/about/forum-list";
-import { PdfCta } from "@/components/about/pdf-cta";
-import { PolicyCards } from "@/components/about/policy-cards";
+import { getTranslations } from "next-intl/server";
+import { CardGrid } from "@/components/ui/card-grid";
+import { PageHeader } from "@/components/ui/page-header";
+import { Prose } from "@/components/ui/prose";
+import { Section } from "@/components/ui/section";
+import { SectionHeading } from "@/components/ui/section-heading";
 
 interface CardItem {
   description: string;
@@ -17,137 +14,127 @@ interface CardItem {
   title: string;
 }
 
-export default function PoliticsPage() {
-  const t = useTranslations("about.pages.politics");
-  const tAbout = useTranslations("about");
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("about.pages.politics");
+  return { title: `${t("title")} | BISO`, description: t("intro") };
+}
+
+export default async function PoliticsPage() {
+  const [t, tCommon, tAbout] = await Promise.all([
+    getTranslations("about.pages.politics"),
+    getTranslations("common"),
+    getTranslations("about"),
+  ]);
 
   const policyDemands = t.raw("policyDemands") as CardItem[];
   const forums = t.raw("forums") as CardItem[];
 
   return (
-    <div className="min-h-screen bg-linear-to-b from-section to-background">
-      <AboutHero
+    <>
+      <PageHeader
         breadcrumbs={[
-          { label: "Home", href: "/" },
+          { label: tCommon("breadcrumbs.home"), href: "/" },
           { label: tAbout("hub.title"), href: "/about" },
           { label: t("title") },
         ]}
-        compact
-        icon={<Landmark className="h-8 w-8 text-white" />}
-        subtitle={t("intro")}
+        lede={t("intro")}
         title={t("title")}
       />
 
-      {/* Main content */}
-      <section className="py-16" id="about-content">
-        <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
-          <motion.div
-            className="prose prose-lg max-w-none"
-            initial={{ opacity: 0, y: 20 }}
-            transition={{ duration: 0.6 }}
-            viewport={{ once: true }}
-            whileInView={{ opacity: 1, y: 0 }}
-          >
-            <p className="whitespace-pre-line text-lg text-muted-foreground leading-relaxed">
-              {t("content")}
-            </p>
-          </motion.div>
-        </div>
-      </section>
+      <Section id="about-content" tone="paper" width="prose">
+        <Prose>
+          <p className="whitespace-pre-line">{t("content")}</p>
+        </Prose>
+      </Section>
 
-      {/* Policy demands */}
-      <section className="bg-section/50 py-16">
-        <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
-          <motion.h2
-            className="mb-8 font-bold text-2xl text-foreground md:text-3xl"
-            initial={{ opacity: 0, y: 20 }}
-            transition={{ duration: 0.5 }}
-            viewport={{ once: true }}
-            whileInView={{ opacity: 1, y: 0 }}
-          >
-            {t("policyDemandsTitle")}
-          </motion.h2>
-          <PolicyCards items={policyDemands} />
-        </div>
-      </section>
-
-      {/* Forums */}
-      <section className="py-16">
-        <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
-          <motion.h2
-            className="mb-8 font-bold text-2xl text-foreground md:text-3xl"
-            initial={{ opacity: 0, y: 20 }}
-            transition={{ duration: 0.5 }}
-            viewport={{ once: true }}
-            whileInView={{ opacity: 1, y: 0 }}
-          >
-            {t("forumsTitle")}
-          </motion.h2>
-          <ForumList items={forums} />
-        </div>
-      </section>
-
-      {/* SPU CTA */}
-      <section className="bg-section/50 py-16">
-        <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            transition={{ duration: 0.5 }}
-            viewport={{ once: true }}
-            whileInView={{ opacity: 1, y: 0 }}
-          >
-            <Card className="flex flex-col items-start gap-6 p-8 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex items-start gap-4">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-linear-to-br from-brand-gradient-from to-brand-gradient-to shadow-md">
-                  <Users className="h-6 w-6 text-white" />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-foreground text-lg">
-                    {t("spu.title")}
-                  </h3>
-                  <p className="mt-1 text-muted-foreground">
-                    {t("spu.description")}
-                  </p>
-                </div>
+      {/* `<PolicyCards>` and `<ForumList>` were Client Components whose only
+          job was to fade their items in on scroll. Both are lists of a title
+          and a description, which is what they are here. */}
+      <Section className="border-edge border-t" tone="paper">
+        <SectionHeading>{t("policyDemandsTitle")}</SectionHeading>
+        <CardGrid>
+          {policyDemands.map((item) => (
+            <li key={item.id}>
+              <div className="flex h-full flex-col rounded-biso-md border border-edge p-6">
+                <h3 className="type-heading-card text-ink">{item.title}</h3>
+                <p className="type-body-sm mt-2 text-ink-muted">
+                  {item.description}
+                </p>
               </div>
-              <Button
-                asChild
-                className="shrink-0 bg-linear-to-r from-brand-gradient-from to-brand-gradient-to text-white shadow-md hover:opacity-90"
-                size="lg"
-              >
-                <Link href="/contact">{t("spu.cta")}</Link>
-              </Button>
-            </Card>
-          </motion.div>
-        </div>
-      </section>
+            </li>
+          ))}
+        </CardGrid>
+      </Section>
 
-      {/* Policy document */}
-      <section className="py-16">
-        <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
-          <PdfCta
-            description={t("policyPdf.description")}
-            href={t("policyPdf.href")}
-            title={t("policyPdf.title")}
-          />
-        </div>
-      </section>
+      <Section className="border-edge border-t" tone="paper" width="prose">
+        <SectionHeading>{t("forumsTitle")}</SectionHeading>
+        <dl>
+          {forums.map((item) => (
+            <div
+              className="border-edge border-b py-4 last:border-b-0"
+              key={item.id}
+            >
+              <dt className="type-heading-card text-ink">{item.title}</dt>
+              <dd className="type-body mt-1 text-ink-muted">
+                {item.description}
+              </dd>
+            </div>
+          ))}
+        </dl>
 
-      {/* Back to about */}
-      <section className="py-16">
-        <div className="mx-auto max-w-4xl px-4 text-center sm:px-6 lg:px-8">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            transition={{ duration: 0.5 }}
-            viewport={{ once: true }}
-            whileInView={{ opacity: 1, y: 0 }}
+        <div className="mt-10 flex flex-wrap items-center justify-between gap-4 rounded-biso-md border border-edge p-6">
+          <span className="flex items-start gap-3">
+            <Users
+              aria-hidden="true"
+              className="mt-0.5 size-5 shrink-0 text-ink-accent"
+            />
+            <span>
+              <span className="type-heading-card block text-ink">
+                {t("spu.title")}
+              </span>
+              <span className="type-body-sm mt-1 block text-ink-muted">
+                {t("spu.description")}
+              </span>
+            </span>
+          </span>
+          <Link
+            className="type-label shrink-0 rounded-biso-pill bg-action px-5 py-2.5 text-action-ink transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+            href="/contact"
           >
-            <Button asChild size="lg" variant="outline">
-              <Link href="/about">← {tAbout("hub.title")}</Link>
-            </Button>
-          </motion.div>
+            {t("spu.cta")}
+          </Link>
         </div>
-      </section>
-    </div>
+
+        <a
+          className="mt-6 flex flex-wrap items-center justify-between gap-4 rounded-biso-md border border-edge p-6 transition-colors hover:border-ink-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+          href={t("policyPdf.href")}
+          rel="noreferrer noopener"
+          target="_blank"
+        >
+          <span className="flex items-start gap-3">
+            <FileText
+              aria-hidden="true"
+              className="mt-0.5 size-5 shrink-0 text-ink-accent"
+            />
+            <span>
+              <span className="type-heading-card block text-ink">
+                {t("policyPdf.title")}
+              </span>
+              <span className="type-body-sm mt-1 block text-ink-muted">
+                {t("policyPdf.description")}
+              </span>
+            </span>
+          </span>
+        </a>
+
+        <Link
+          className="mt-12 inline-flex items-center gap-2 text-ink-accent underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+          href="/about"
+        >
+          <ArrowLeft aria-hidden="true" className="h-4 w-4" />
+          <span className="type-label">{tAbout("hub.title")}</span>
+        </Link>
+      </Section>
+    </>
   );
 }

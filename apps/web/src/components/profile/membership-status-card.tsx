@@ -1,8 +1,5 @@
 "use client";
 
-import { Badge } from "@repo/ui/components/ui/badge";
-import { Button } from "@repo/ui/components/ui/button";
-import { Card, CardContent } from "@repo/ui/components/ui/card";
 import {
   CheckCircle2,
   CircleAlert,
@@ -13,6 +10,17 @@ import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
+import { Pill, type PillTone } from "@/components/ui/pill";
+
+/** The icon takes the tone's own colour; the pill supplies its own tint. */
+const TONE_ICON: Record<PillTone, string> = {
+  accent: "text-ink-accent",
+  danger: "text-danger",
+  marker: "text-ink",
+  neutral: "text-ink-muted",
+  success: "text-success",
+  warning: "text-warning",
+};
 
 export type MembershipCheckResult =
   | {
@@ -49,13 +57,10 @@ interface MembershipStatusPayload {
 
 interface StatusVisuals {
   actionLabel: string;
-  badgeClassName: string;
   badgeLabel: string;
-  badgeVariant: "secondary" | "destructive";
   IconComponent: LucideIcon;
-  iconBackgroundClassName: string;
-  iconClassName: string;
-  showPulse: boolean;
+  /** Design-system tone; replaces four hand-picked palette classes per state. */
+  tone: PillTone;
 }
 
 const MEMBERSHIP_ROUTE = "/membership";
@@ -92,38 +97,26 @@ const getStatusVisuals = ({
   if (isActive) {
     return {
       actionLabel: "View benefits",
-      badgeClassName: "bg-green-600 text-white hover:bg-green-600",
       badgeLabel: "Verified Member",
-      badgeVariant: "secondary",
-      iconBackgroundClassName: "bg-green-500/15",
-      iconClassName: "text-green-600",
       IconComponent: CheckCircle2,
-      showPulse: true,
+      tone: "success",
     };
   }
 
   if (hasError) {
     return {
       actionLabel: "Become a member",
-      badgeClassName: "bg-red-600 text-white hover:bg-red-600",
       badgeLabel: "Verification Error",
-      badgeVariant: "destructive",
-      iconBackgroundClassName: "bg-red-500/10",
-      iconClassName: "text-red-600",
       IconComponent: CircleAlert,
-      showPulse: false,
+      tone: "danger",
     };
   }
 
   return {
     actionLabel: "Become a member",
-    badgeClassName: "bg-amber-500 text-white hover:bg-amber-500",
     badgeLabel: "Not Verified",
-    badgeVariant: "secondary",
-    iconBackgroundClassName: "bg-amber-500/10",
-    iconClassName: "text-amber-600",
     IconComponent: CircleAlert,
-    showPulse: false,
+    tone: "warning",
   };
 };
 
@@ -216,93 +209,82 @@ function MembershipStatusCard({
     });
   }, [handleVerificationError, handleVerificationSuccess, hasBIIdentity]);
 
-  return (
-    <Card className="relative overflow-hidden border border-primary/10 shadow-card-soft">
-      <h2 className="sr-only">BI Student Membership</h2>
-      {/* Background flair */}
-      <div className="pointer-events-none absolute inset-0 opacity-70">
-        <div className="absolute -top-24 -right-24 h-64 w-64 rounded-full bg-secondary-30 blur-3xl" />
-        <div className="absolute -bottom-28 -left-28 h-64 w-64 rounded-full bg-blue-accent/30 blur-3xl" />
-      </div>
-      <CardContent className="relative z-10 flex flex-col gap-5 p-6 md:flex-row md:items-center md:justify-between">
-        {/* Left: logos + title */}
-        <div className="flex min-w-0 flex-1 items-center gap-4">
-          <div className="relative flex h-12 w-12 items-center justify-center">
-            <span
-              className={`absolute inset-0 rounded-full ${statusVisuals.iconBackgroundClassName}`}
-            />
-            {(() => {
-              const Icon = statusVisuals.IconComponent;
-              return (
-                <Icon
-                  className={`relative h-8 w-8 ${statusVisuals.iconClassName}`}
-                />
-              );
-            })()}
-            {statusVisuals.showPulse && (
-              <span className="absolute h-full w-full animate-ping-slow rounded-full bg-green-400/30" />
-            )}
-          </div>
+  const Icon = statusVisuals.IconComponent;
 
-          <div className="flex min-w-0 flex-col">
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2">
+  return (
+    <section className="rounded-biso-md border border-edge p-6">
+      <h2 className="sr-only">BI Student Membership</h2>
+      {/* Two decorative blur orbs used to sit behind this card painted in
+          `bg-secondary-30` and `bg-blue-accent/30`. Neither colour is
+          registered with Tailwind, so neither utility was ever emitted and
+          both orbs rendered as nothing. The pulse ring beside them used
+          `animate-ping-slow`, a keyframe that is likewise not defined. */}
+      <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+        <div className="flex min-w-0 flex-1 items-start gap-4">
+          <Icon
+            aria-hidden="true"
+            className={`size-8 shrink-0 ${TONE_ICON[statusVisuals.tone]}`}
+          />
+
+          <div className="flex min-w-0 flex-col gap-2">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+              <span className="flex items-center gap-2">
                 <Image
-                  alt="BISO"
-                  className="rounded-sm"
+                  alt=""
+                  className="rounded-biso-sm"
                   height={28}
                   src="/images/logo-light.png"
                   width={28}
                 />
-                <span className="font-semibold text-primary-100">BISO</span>
-              </div>
-              <span className="text-primary-40">•</span>
-              <div className="flex items-center gap-2">
+                <span className="type-heading-card text-ink">BISO</span>
+              </span>
+              <span aria-hidden="true" className="text-ink-muted">
+                ·
+              </span>
+              <span className="flex items-center gap-2">
                 <Image
-                  alt="BI"
-                  className="h-8 w-8"
+                  alt=""
+                  className="size-8"
                   height={32}
                   src="/images/BI_POSITIVE.svg"
                   width={32}
                 />
-                <span className="font-semibold text-primary-100">
-                  BI Student
-                </span>
-              </div>
+                <span className="type-heading-card text-ink">BI Student</span>
+              </span>
             </div>
-            <div className="mt-1 flex items-center gap-2">
-              <Badge
-                className={statusVisuals.badgeClassName}
-                variant={statusVisuals.badgeVariant}
-              >
-                {statusVisuals.badgeLabel}
-              </Badge>
-              <span className="truncate text-primary-70 text-sm">
+            <div className="flex flex-wrap items-center gap-2">
+              <Pill tone={statusVisuals.tone}>{statusVisuals.badgeLabel}</Pill>
+              <span className="type-body-sm min-w-0 break-words text-ink-muted">
                 {subtitle}
               </span>
             </div>
           </div>
         </div>
 
-        {/* Right: actions */}
-        <div className="flex flex-col items-start gap-2 md:items-end">
-          <div className="flex flex-wrap items-center gap-2">
-            <Button
-              className="rounded-lg"
+        <div className="flex flex-col items-start gap-3 md:items-end">
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              className="type-label inline-flex items-center gap-2 rounded-biso-pill bg-action px-5 py-3 text-action-ink transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface disabled:opacity-50"
               disabled={isRefreshing || !hasBIIdentity}
               onClick={onRefresh}
+              type="button"
             >
-              <RefreshCw className="mr-2 h-4 w-4" />{" "}
+              <RefreshCw aria-hidden="true" className="size-4 shrink-0" />
               {isRefreshing ? "Refreshing" : "Refresh status"}
-            </Button>
-            <Button asChild className="rounded-lg" variant="outline">
-              <Link href={MEMBERSHIP_ROUTE}>{statusVisuals.actionLabel}</Link>
-            </Button>
+            </button>
+            <Link
+              className="type-label inline-flex items-center gap-2 rounded-biso-pill border border-edge px-5 py-3 text-ink transition-colors hover:border-ink-accent hover:text-ink-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+              href={MEMBERSHIP_ROUTE}
+            >
+              {statusVisuals.actionLabel}
+            </Link>
           </div>
-          <p className="text-primary-60 text-xs">{infoText}</p>
+          <p className="type-body-sm text-ink-muted md:text-right">
+            {infoText}
+          </p>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </section>
   );
 }
 

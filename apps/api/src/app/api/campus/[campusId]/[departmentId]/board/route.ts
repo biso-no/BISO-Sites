@@ -203,16 +203,40 @@ export async function GET(
         if (!member.email) {
           return;
         }
-        try {
-          const photoStream = await graphClient
-            .api(`/users/${member.email}/photo/$value`)
-            .responseType(ResponseType.ARRAYBUFFER)
-            .get();
+        // Graph serves the original upload from `/photo/$value` — for this
+        // tenant that is 9 full-resolution portraits inlined as base64, and
+        // Oslo's board alone came to **25 MB** of JSON. `/photos/<size>/$value`
+        // returns a pre-rendered thumbnail instead. The consumer renders these
+        // at 64 CSS px, so 120x120 covers a 2x display with room to spare.
+        //
+        // Not every user has every size, so a miss falls back to the original
+        // rather than dropping the face.
+        const photoSizes = ["120x120", "96x96", "64x64"];
+        for (const size of photoSizes) {
+          try {
+            const stream = await graphClient
+              .api(`/users/${member.email}/photos/${size}/$value`)
+              .responseType(ResponseType.ARRAYBUFFER)
+              .get();
+            member.profilePhotoUrl = `data:image/jpeg;base64,${Buffer.from(stream).toString("base64")}`;
+            break;
+          } catch (_e) {
+            // This size is not available for this user; try the next one.
+          }
+        }
 
-          const base64 = Buffer.from(photoStream).toString("base64");
-          member.profilePhotoUrl = `data:image/jpeg;base64,${base64}`;
-        } catch (_e) {
-          // No photo found, skip silently
+        if (!member.profilePhotoUrl) {
+          try {
+            const photoStream = await graphClient
+              .api(`/users/${member.email}/photo/$value`)
+              .responseType(ResponseType.ARRAYBUFFER)
+              .get();
+
+            const base64 = Buffer.from(photoStream).toString("base64");
+            member.profilePhotoUrl = `data:image/jpeg;base64,${base64}`;
+          } catch (_e) {
+            // No photo found, skip silently
+          }
         }
       })
     );

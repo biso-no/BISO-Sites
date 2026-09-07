@@ -7,7 +7,7 @@ import { getTranslations } from "next-intl/server";
 export default async function NotFound() {
   const t = await getTranslations("common");
   return (
-    <main
+    <div
       className={cn(
         "relative flex min-h-screen flex-col items-center justify-center overflow-hidden",
         "bg-linear-to-br from-brand-gradient-to via-brand to-brand-gradient-from text-white"
@@ -73,6 +73,6 @@ export default async function NotFound() {
           </p>
         </div>
       </div>
-    </main>
+    </div>
   );
 }

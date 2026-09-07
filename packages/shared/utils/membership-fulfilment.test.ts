@@ -45,6 +45,11 @@ const MEMBERSHIP_ITEMS = JSON.stringify([
 // Carries the full checkout-time snapshot (category_id/duration/
 // accrual_months/start_date on top of the fields MEMBERSHIP_ITEMS already
 // has) — this is what a membership-checkout-route order actually persists.
+//
+// `start_date` is the **accrual start for that purchase**: 1 July for a
+// purchase in the summer half of the year, 1 January for one in the spring
+// half. It used to be the catalogue row's own fixed date, which meant every
+// invoice booked the same accrual whenever it was bought.
 const SNAPSHOTTED_MEMBERSHIP_ITEMS = JSON.stringify([
   {
     product_id: "71",
@@ -53,7 +58,7 @@ const SNAPSHOTTED_MEMBERSHIP_ITEMS = JSON.stringify([
     category_id: "113178",
     duration: "year",
     accrual_months: 12,
-    start_date: "2026-08-01",
+    start_date: "2026-07-01",
     quantity: 1,
     price: 550,
     unit_price: 550,
@@ -268,7 +273,9 @@ describe("fulfilMembershipOrder", () => {
     expect(postMembershipInvoice).toHaveBeenCalledWith(
       expect.objectContaining({
         PaymentAmount: 550,
-        AccrualDate: "2026-08-01",
+        // Straight from the snapshot: the purchase was made in the summer
+        // half, so it accrues from 1 July regardless of when it fulfils.
+        AccrualDate: "2026-07-01",
         AccrualLength: 12,
         InvoiceRows: {
           InvoiceRow: expect.objectContaining({ Price: 550, ProductId: 71 }),

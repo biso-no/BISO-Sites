@@ -1,4 +1,6 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 import { Login } from "@/components/login";
 import { getAuthStatus } from "@/lib/auth-utils";
 import { safeRedirectPath } from "@/lib/utils";
@@ -8,48 +10,67 @@ import { safeRedirectPath } from "@/lib/utils";
 // ?error=…) is ignored — React already escapes the value, but accepting
 // only known codes prevents attackers from controlling the on-screen
 // copy of the page.
-const LOGIN_ERROR_MESSAGES: Record<string, string> = {
-  invalid_parameters: "The login link is missing required information.",
-  invitation_failed: "We couldn't accept that invitation. Please try again.",
-  server_configuration:
-    "Login is temporarily unavailable. Please try again later.",
-  unexpected_error: "Something went wrong while signing you in.",
-};
+const LOGIN_ERROR_CODES = [
+  "invalid_parameters",
+  "invitation_failed",
+  "server_configuration",
+  "unexpected_error",
+] as const;
+
+type LoginErrorCode = (typeof LOGIN_ERROR_CODES)[number];
+
+function isKnownErrorCode(value: string | undefined): value is LoginErrorCode {
+  return Boolean(value) && LOGIN_ERROR_CODES.includes(value as LoginErrorCode);
+}
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("common.auth");
+  return {
+    title: `${t("welcomeBack")} | BISO`,
+    description: t("signInSubtitle"),
+  };
+}
 
 export default async function Page({
   searchParams,
 }: {
-  searchParams: Promise<{ redirectTo?: string; error?: string }>;
+  searchParams: Promise<{ error?: string; redirectTo?: string }>;
 }) {
-  const authStatus = await getAuthStatus();
-  const { error, redirectTo } = await searchParams;
+  const [authStatus, { error, redirectTo }, t] = await Promise.all([
+    getAuthStatus(),
+    searchParams,
+    getTranslations("common.auth"),
+  ]);
+
   if (authStatus.isAuthenticated) {
     return redirect(safeRedirectPath(redirectTo));
   }
 
-  const errorMessage = error ? LOGIN_ERROR_MESSAGES[error] : undefined;
+  const errorMessage = isKnownErrorCode(error)
+    ? t(`errors.${error}`)
+    : undefined;
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center bg-background px-4 py-12">
-      {/* Background decoration - subtle gradients */}
-      <div className="absolute inset-0 -z-10 overflow-hidden">
-        <div className="absolute -top-40 -right-40 h-[500px] w-[500px] rounded-full bg-brand-muted blur-3xl dark:bg-brand-muted" />
-        <div className="absolute top-1/3 -left-40 h-[400px] w-[400px] rounded-full bg-brand-accent-muted blur-3xl dark:bg-brand-accent-muted" />
-        <div className="absolute right-1/4 bottom-0 h-[450px] w-[450px] rounded-full bg-brand-muted blur-3xl dark:bg-brand-muted" />
-      </div>
-
-      {errorMessage && (
-        <div className="absolute top-8 left-1/2 -translate-x-1/2 transform rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-2 text-red-600 dark:text-red-400">
+    // No `<Section>`: `(auth)` renders outside `SiteShell`, so there is no nav
+    // to clear and no page rhythm to join. The card is the page.
+    <div className="flex min-h-screen flex-col items-center justify-center gap-6 bg-surface px-4 py-12">
+      {/* In flow above the card, not `absolute` over it — at 320px the old
+          fixed-position banner sat on top of the logo. `role="alert"` so it is
+          announced when a failed callback lands here. */}
+      {errorMessage ? (
+        <p
+          className="type-body-sm w-full max-w-md rounded-biso-md border border-danger/40 bg-danger/5 p-4 text-danger"
+          role="alert"
+        >
           {errorMessage}
-        </div>
-      )}
+        </p>
+      ) : null}
 
       <Login />
 
-      {/* Footer text */}
-      <div className="absolute bottom-4 w-full text-center text-muted-foreground text-xs">
-        &copy; {new Date().getFullYear()} BISO. All rights reserved.
-      </div>
+      <p className="type-body-sm text-ink-muted">
+        © {new Date().getFullYear()} BISO. {t("copyright")}
+      </p>
     </div>
   );
 }

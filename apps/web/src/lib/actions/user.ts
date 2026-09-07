@@ -198,6 +198,34 @@ function pickWritableProfileFields(
   return result;
 }
 
+/**
+ * Appwrite row -> plain object.
+ *
+ * **`createRow` and `updateRow` return SDK class instances, and this is a
+ * server action, so its return value is serialized to the client.** The `db`
+ * proxy in `@repo/api/server` plain-ifies only `listRows` and `getRow`, so
+ * returning a written row straight from here threw
+ *
+ *   "Only plain objects, and a few built-ins, can be passed to Client
+ *    Components from Server Components."
+ *
+ * **after the write had already succeeded** — so onboarding, `/profile`'s save
+ * and expense-v3's profile-completion banner all reported "Noe gikk galt. Prøv
+ * igjen." on a row that was in fact saved. Retrying took the update branch and
+ * failed identically, so a new user could not get past onboarding at all.
+ *
+ * Fixed here rather than in `@repo/api`, whose proxy is the real home for it:
+ * that file is shared with `apps/admin` and widening it is a decision to raise,
+ * not an implementation detail. The recommendation is recorded in STATUS.
+ *
+ * A JSON round-trip, not `structuredClone` — for the reason the proxy already
+ * documents: node-appwrite responses carry a lazy serializer function that
+ * `JSON.stringify` drops and `structuredClone` rejects.
+ */
+function toPlainRow<T>(row: T): T {
+  return JSON.parse(JSON.stringify(row)) as T;
+}
+
 export async function updateProfile(profile: Partial<Users>) {
   try {
     const { account, db } = await createSessionClient();
@@ -210,18 +238,22 @@ export async function updateProfile(profile: Partial<Users>) {
       if (typeof writable.name === "string" && writable.name.length > 0) {
         await account.updateName(writable.name);
       }
-      return await db.updateRow<Users>("app", "user", user.$id, writable);
+      return toPlainRow(
+        await db.updateRow<Users>("app", "user", user.$id, writable)
+      );
     } catch {
       // createRow's typed signature wants the full row; we're seeding a
       // partial profile that the user will fill in over time. Omit the
       // generic so the Appwrite SDK accepts the partial payload.
       const { db: adminDb } = await createAdminClient();
-      return await adminDb.createRow(
-        "app",
-        "user",
-        user.$id,
-        writable,
-        buildProfileRowPermissions(user.$id)
+      return toPlainRow(
+        await adminDb.createRow(
+          "app",
+          "user",
+          user.$id,
+          writable,
+          buildProfileRowPermissions(user.$id)
+        )
       );
     }
   } catch (error) {

@@ -11,6 +11,7 @@ import {
   SelectValue,
 } from "@repo/ui/components/ui/select";
 import { motion } from "motion/react";
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import type { ProductOption } from "@/lib/types/webshop";
 
@@ -25,6 +26,7 @@ interface ProductOptionsClientProps {
 export function ProductOptionsClient({
   productOptions,
 }: ProductOptionsClientProps) {
+  const t = useTranslations("shop.product");
   const [selectedOptions, setSelectedOptions] = useState<
     Record<string, string>
   >({});
@@ -55,7 +57,7 @@ export function ProductOptionsClient({
     >
       <Card className="border-0 p-8 shadow-lg">
         <h2 className="mb-6 font-bold text-2xl text-foreground">
-          Product Options
+          {t("options")}
         </h2>
         <div className="space-y-6">
           {productOptions.map((option, index) => (
@@ -98,9 +100,7 @@ export function ProductOptionsClient({
               )}
 
               {errors[`option-${index}`] && (
-                <p className="mt-1 text-red-500 text-sm">
-                  This field is required
-                </p>
+                <p className="mt-1 text-red-500 text-sm">{t("required")}</p>
               )}
             </div>
           ))}

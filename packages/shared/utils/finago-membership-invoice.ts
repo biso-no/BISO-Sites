@@ -14,6 +14,7 @@ import {
   MEMBERSHIP_DIMENSION_IDS,
   MEMBERSHIP_DIMENSION_LABELS,
   type MembershipPlan,
+  membershipAccrualStart,
 } from "./membership-plans";
 
 export const CAMPUS_INVOICE_DEPARTMENT_IDS: Record<string, number> = {
@@ -79,6 +80,79 @@ export interface BuildMembershipInvoiceParams {
     MembershipPlan,
     "accrualMonths" | "duration" | "price" | "productId" | "startDate"
   >;
+  /**
+   * When the order was placed (`orders.$createdAt`). The accrual period is a
+   * function of this, not of when fulfilment happens to run.
+   */
+  purchasedOn?: string;
+}
+
+/**
+ * The accrual start to book this invoice into.
+ *
+ * A membership accrues from the half-year boundary containing the **purchase**:
+ * bought in the summer half it accrues from 1 July, in the spring half from
+ * 1 January.
+ *
+ * `purchasedOn` is the order row's own `$createdAt` — the moment checkout wrote
+ * the order, which is the same instant it snapshotted `start_date`. Deriving
+ * from it is therefore identical to reading the snapshot for every order
+ * written since that change, and correct for every order written before it,
+ * without having to guess which kind an order is.
+ *
+ * **Known residual, and the one thing that would close it.** In both provider
+ * branches `createOrder` runs ahead of the payment session, so `$createdAt`
+ * marks when checkout was opened, not when payment was authorized — as does
+ * the checkout snapshot, for the same reason. A session opened just before midnight
+ * on 30 June and paid just after therefore still books into the spring half.
+ * The window is the few minutes a payment session is in flight across exactly
+ * 1 January or 1 July, so it is far smaller than what it replaced (which was
+ * wrong by the whole fulfilment lag, or by years), but it is not nothing.
+ *
+ * Closing it needs an authorization timestamp persisted on the order at the
+ * PAID/AUTHORIZED transition in `applyOrderStatusTransition`, and preferred
+ * here ahead of `purchasedOn`. `orders` has no datetime column to hold one and
+ * its schema is managed in the Appwrite console, so that column is a deliberate
+ * prerequisite rather than an oversight — tracked in
+ * `docs/redesign/ACTION-REQUIRED.md` §2.
+ *
+ * **Why not infer provenance from the snapshot's value.** An earlier version
+ * accepted the snapshot when it was its own accrual start (`membershipAccrual-
+ * Start` is idempotent) and otherwise fell back to the invoice date. Both
+ * halves were unsound, and PR review caught it:
+ *
+ *   - A *legacy* catalogue date that happens to be a half-year boundary —
+ *     `2026-07-01` — passes the idempotence check and is indistinguishable from
+ *     a real snapshot, so an order bought in 2028 could book into July 2026.
+ *   - The fallback used `invoicedOn`, which fulfilment supplies as *today*. A
+ *     retry or the reconcile cron crossing 1 January or 1 July then booked the
+ *     wrong accounting period for an order bought before it.
+ *
+ * The recorded purchase timestamp removes both: it is what the accrual is
+ * defined in terms of, so nothing has to be inferred. `snapshot` is still read
+ * as a fallback for a caller with no order timestamp, and `invoicedOn` behind
+ * that, so this can never return nothing where it previously returned a date.
+ */
+function accrualDateFor(
+  snapshot: string,
+  invoicedOn: string,
+  purchasedOn?: string
+): string {
+  const fromPurchase = purchasedOn ? membershipAccrualStart(purchasedOn) : null;
+  if (fromPurchase) {
+    return fromPurchase;
+  }
+  const fromSnapshot = membershipAccrualStart(snapshot);
+  if (fromSnapshot && fromSnapshot === snapshot) {
+    return fromSnapshot;
+  }
+  const fromInvoice = membershipAccrualStart(invoicedOn);
+  if (!fromInvoice) {
+    throw new Error(
+      `Cannot determine an accrual start from invoicedOn "${invoicedOn}"`
+    );
+  }
+  return fromInvoice;
 }
 
 function buildDimensions(
@@ -114,6 +188,7 @@ export function buildMembershipInvoiceOrder({
   campusId,
   customerId,
   invoicedOn,
+  purchasedOn,
   plan,
 }: BuildMembershipInvoiceParams): MembershipInvoiceOrder {
   // `Object.hasOwn` guards against prototype-chain lookups (e.g. campusId ===
@@ -149,7 +224,7 @@ export function buildMembershipInvoiceOrder({
         UserDefinedDimensions: { UserDefinedDimension: dimensions },
       },
     },
-    AccrualDate: plan.startDate,
+    AccrualDate: accrualDateFor(plan.startDate, invoicedOn, purchasedOn),
     AccrualLength: plan.accrualMonths,
     UserDefinedDimensions: { UserDefinedDimension: dimensions },
   };

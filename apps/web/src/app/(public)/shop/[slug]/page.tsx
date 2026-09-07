@@ -1,20 +1,25 @@
 import { createSessionClient } from "@repo/api/server";
 import type { ContentTranslations } from "@repo/api/types/appwrite";
-import { Skeleton } from "@repo/ui/components/ui/skeleton";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { getAvailableStock } from "@/app/actions/cart-reservations";
 import { getLocale } from "@/app/actions/locale";
-import { getProductBySlug } from "@/app/actions/webshop";
-import { ProductDetailsServer } from "@/components/shop/product-details-server"; // New Server Component
+import {
+  getProductBySlug,
+  getProductDetailBySlug,
+} from "@/app/actions/webshop";
+import { ProductDetailV2 } from "@/components/shop/v2/product-detail-v2";
+import { DetailSkeleton } from "@/components/ui/loading-shell";
 import { getMembershipStatus } from "@/lib/actions/membership";
 
 // Component that fetches data and renders the main content
 async function ProductDetails({ slug }: { slug: string }) {
   const locale = await getLocale();
 
-  // Fetch the product
-  const product = await getProductBySlug(slug, locale);
+  // The v2 reader keeps every translation; `getProductBySlug` filters them to
+  // the requested locale, which leaves 52 of the 55 products with no copy at
+  // all for an English reader.
+  const product = await getProductDetailBySlug(slug);
 
   if (!product) {
     notFound();
@@ -34,41 +39,16 @@ async function ProductDetails({ slug }: { slug: string }) {
   ]);
 
   return (
-    <ProductDetailsServer
+    <ProductDetailV2
       availableStock={availableStock}
       isMember={isMember}
+      locale={locale}
       product={product}
       userId={sessionResult?.$id ?? null}
     />
   );
 }
 
-// Skeleton loading state
-function ProductDetailsSkeleton() {
-  return (
-    <div className="min-h-screen bg-linear-to-b from-section to-background">
-      <div className="relative h-[60vh]">
-        <Skeleton className="h-full w-full" />
-      </div>
-      <div className="mx-auto max-w-6xl px-4 py-12">
-        <div className="grid gap-8 lg:grid-cols-3">
-          <div className="space-y-8 lg:col-span-2">
-            <Skeleton className="h-48 w-full" />
-            <Skeleton className="h-64 w-full" />
-            <Skeleton className="h-32 w-full" />
-          </div>
-          <div className="space-y-6">
-            <Skeleton className="h-32 w-full" />
-            <Skeleton className="h-64 w-full" />
-            <Skeleton className="h-48 w-full" />
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// Main Page Component
 export default async function ProductPage({
   params,
 }: {
@@ -79,14 +59,12 @@ export default async function ProductPage({
     notFound();
   }
   return (
-    <Suspense fallback={<ProductDetailsSkeleton />}>
-      {/* ProductDetails is the wrapper that fetches data and passes it to ProductDetailsServer */}
+    <Suspense fallback={<DetailSkeleton />}>
       <ProductDetails slug={slug} />
     </Suspense>
   );
 }
 
-// Generate metadata for SEO (remains a server-side function)
 export async function generateMetadata({
   params,
 }: {

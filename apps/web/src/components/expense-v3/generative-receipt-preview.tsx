@@ -14,7 +14,6 @@ import {
   SelectValue,
 } from "@repo/ui/components/ui/select";
 import { Textarea } from "@repo/ui/components/ui/textarea";
-import { motion } from "framer-motion";
 import {
   AlertTriangle,
   Calendar,
@@ -28,6 +27,7 @@ import {
   Tag,
   Upload,
 } from "lucide-react";
+import { motion } from "motion/react";
 import Image from "next/image";
 import { useRef, useState } from "react";
 import { toast } from "sonner";

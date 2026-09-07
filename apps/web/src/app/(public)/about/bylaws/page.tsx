@@ -1,62 +1,48 @@
-"use client";
-
-import { Button } from "@repo/ui/components/ui/button";
-import { Gavel } from "lucide-react";
-import { motion } from "motion/react";
+import { ArrowLeft } from "lucide-react";
+import type { Metadata } from "next";
 import Link from "next/link";
-import { useTranslations } from "next-intl";
-import { AboutHero } from "@/components/about/about-hero";
+import { getTranslations } from "next-intl/server";
+import { PageHeader } from "@/components/ui/page-header";
+import { Prose } from "@/components/ui/prose";
+import { Section } from "@/components/ui/section";
 
-export default function BylawsPage() {
-  const t = useTranslations("about.pages.bylaws");
-  const tAbout = useTranslations("about");
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("about.pages.bylaws");
+  return { title: `${t("title")} | BISO`, description: t("intro") };
+}
+
+export default async function BylawsPage() {
+  const [t, tCommon, tAbout] = await Promise.all([
+    getTranslations("about.pages.bylaws"),
+    getTranslations("common"),
+    getTranslations("about"),
+  ]);
 
   return (
-    <div className="min-h-screen bg-linear-to-b from-section to-background">
-      <AboutHero
+    <>
+      <PageHeader
         breadcrumbs={[
-          { label: "Home", href: "/" },
+          { label: tCommon("breadcrumbs.home"), href: "/" },
           { label: tAbout("hub.title"), href: "/about" },
           { label: t("title") },
         ]}
-        compact
-        icon={<Gavel className="h-8 w-8 text-white" />}
-        subtitle={t("intro")}
+        lede={t("intro")}
         title={t("title")}
       />
 
-      {/* Main content */}
-      <section className="py-16" id="about-content">
-        <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
-          <motion.div
-            className="prose prose-lg max-w-none"
-            initial={{ opacity: 0, y: 20 }}
-            transition={{ duration: 0.6 }}
-            viewport={{ once: true }}
-            whileInView={{ opacity: 1, y: 0 }}
-          >
-            <p className="whitespace-pre-line text-lg text-muted-foreground leading-relaxed">
-              {t("content")}
-            </p>
-          </motion.div>
-        </div>
-      </section>
+      <Section id="about-content" tone="paper" width="prose">
+        <Prose>
+          <p className="whitespace-pre-line">{t("content")}</p>
+        </Prose>
 
-      {/* Back to about */}
-      <section className="py-16">
-        <div className="mx-auto max-w-4xl px-4 text-center sm:px-6 lg:px-8">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            transition={{ duration: 0.5 }}
-            viewport={{ once: true }}
-            whileInView={{ opacity: 1, y: 0 }}
-          >
-            <Button asChild size="lg" variant="outline">
-              <Link href="/about">← {tAbout("hub.title")}</Link>
-            </Button>
-          </motion.div>
-        </div>
-      </section>
-    </div>
+        <Link
+          className="mt-12 inline-flex items-center gap-2 text-ink-accent underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+          href="/about"
+        >
+          <ArrowLeft aria-hidden="true" className="h-4 w-4" />
+          <span className="type-label">{tAbout("hub.title")}</span>
+        </Link>
+      </Section>
+    </>
   );
 }
