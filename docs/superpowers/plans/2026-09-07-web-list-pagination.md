@@ -2170,6 +2170,16 @@ Extend `ListEventsParams` with `category?: string | null`, `isMember?: boolean`,
 - `apps/web/src/app/(public)/campus/page.tsx:40` — `.rows`; drop `limit: 10` and slice if exactly 10 are needed
 - `apps/web/src/app/(public)/students/page.tsx:24` — `.rows`; same for `limit: 24`
 
+**Plus the list surface itself, so this commit type-checks.** `(public)/events/page.tsx`
+and `components/events/events-list-client.tsx` also consume `listEvents`, and the
+return-type change breaks them the moment this task lands. Task 9 rewrites both
+wholesale — here, make only the **minimal** change that restores `check-types`: read
+`.rows`, and take any count from `.total` rather than from array length. Do not add
+load-more UI, URL params or facets; that is Task 9's work.
+
+Leaving them broken is not an option: every commit on this branch must type-check on its
+own, or a later bisect lands on a red commit.
+
 - [ ] **Step 6: Run the test and type-check**
 
 Run: `bun run test --filter=web -- events-pagination && bun run check-types`
@@ -2483,8 +2493,18 @@ Add `listProductFacets` mirroring `listJobFacets` from Task 5, projecting `Query
 
 - [ ] **Step 4: Run the test and type-check**
 
-Run: `bun run test --filter=web -- webshop-pagination && bun run check-types`
-Expected: PASS. Type errors will name `shop/page.tsx` and `shop-list-client.tsx` — those are Task 11.
+Run, from `apps/web`: `bun x vitest run src/app/actions/webshop-pagination.test.ts`
+then, from the repo root: `bun run check-types`
+Expected: both PASS.
+
+`check-types` will initially fail naming `(public)/shop/page.tsx` and
+`components/shop/shop-list-client.tsx` — both consume `listProducts`, and the return-type
+change breaks them. **Fix them minimally here so this commit type-checks**: read `.rows`,
+and take any count from `.total` rather than array length. Task 11 rewrites both
+wholesale; do not add load-more UI, URL params, sort controls or facets now.
+
+Every commit on this branch must type-check on its own — do not commit with known type
+errors and defer them to the next task.
 
 - [ ] **Step 5: Commit**
 
