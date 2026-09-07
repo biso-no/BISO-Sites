@@ -637,189 +637,210 @@ content_translations first, then filter the parent by the ids."
 
 ---
 
-### Task 4: Load-more hook and button
+### Task 4: Load-more state and button
 
 **Files:**
+- Create: `apps/web/src/lib/load-more-state.ts`
+- Create: `apps/web/src/lib/load-more-state.test.ts`
 - Create: `apps/web/src/lib/use-load-more.ts`
-- Create: `apps/web/src/lib/use-load-more.test.tsx`
 - Create: `apps/web/src/components/ui/load-more-button.tsx`
 
 **Interfaces:**
-- Consumes: `WebPaginatedResult` from `@/lib/list-params`.
+- Consumes: `WEB_PAGE_SIZE` from `@/lib/list-params`, `MAX_OFFSET` from `@repo/shared/utils/list-params`.
 - Produces:
+  - `interface LoadMoreState<T> { items: T[]; nextPage: number; status: "error" | "idle" | "loading"; total: number }`
+  - `type LoadMoreAction<T> = { type: "start" } | { rows: T[]; total: number; type: "loaded" } | { type: "failed" }`
+  - `initialLoadMoreState<T>(items: T[], total: number): LoadMoreState<T>`
+  - `loadMoreReducer<T>(state: LoadMoreState<T>, action: LoadMoreAction<T>): LoadMoreState<T>`
+  - `canLoadMore<T>(state: LoadMoreState<T>): boolean`
   - `useLoadMore<T>({ initial, total, fetchPage }: { initial: T[]; total: number; fetchPage: (page: number) => Promise<{ rows: T[]; total: number }> }): { canLoadMore: boolean; error: boolean; isLoading: boolean; items: T[]; loadMore: () => void; total: number }`
   - `<LoadMoreButton canLoadMore isLoading error onLoadMore label loadingLabel retryLabel />`
 
-**Reset semantics:** this hook does **not** watch `initial` for changes. Filter changes reset the list by remounting the client component via a `key` in the page (Tasks 6, 9, 11). A `useEffect` syncing `initial` into state is the classic source of stale-append bugs — appending page 2 of the *old* filter onto page 1 of the new one.
+**Why the state is a separate pure module.** This repo has no `@testing-library/react`, no `jsdom` and no `happy-dom` — `apps/admin` hand-rolled a fake-DOM harness (`apps/admin/src/test/react-dom-harness.ts`) rather than take those dependencies. Do not add them. Every behaviour worth testing here is a state transition, so the transitions live in a plain module tested under vitest's existing `node` environment, and the hook is thin glue over them.
 
-- [ ] **Step 1: Add the test dependencies if absent**
+**Reset semantics:** the hook does **not** watch `initial` for changes. A filter change resets the list by remounting the client component via a `key` in the page (Tasks 6, 9, 11). A `useEffect` syncing `initial` into state is the classic source of stale-append bugs — appending page 2 of the *old* filter onto page 1 of the new one.
 
-Check whether `@testing-library/react` is already available to web:
+- [ ] **Step 1: Write the failing test**
 
-```bash
-grep -n "@testing-library/react" apps/web/package.json package.json
-```
+Create `apps/web/src/lib/load-more-state.test.ts`:
 
-If it is not listed, add it:
-
-```bash
-bun add -D @testing-library/react @testing-library/dom --filter=web
-```
-
-- [ ] **Step 2: Write the failing test**
-
-Create `apps/web/src/lib/use-load-more.test.tsx`:
-
-```tsx
-import { act, renderHook, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
-import { useLoadMore } from "./use-load-more";
+```ts
+import { describe, expect, it } from "vitest";
+import {
+  canLoadMore,
+  initialLoadMoreState,
+  loadMoreReducer,
+} from "./load-more-state";
 
 const item = (id: string) => ({ id });
+const start = <T,>(items: T[], total: number) =>
+  initialLoadMoreState(items, total);
 
-describe("useLoadMore", () => {
-  it("starts with the server-rendered page and knows more remain", () => {
-    const { result } = renderHook(() =>
-      useLoadMore({
-        initial: [item("a")],
-        total: 3,
-        fetchPage: vi.fn(),
-      })
-    );
-
-    expect(result.current.items).toEqual([item("a")]);
-    expect(result.current.canLoadMore).toBe(true);
-    expect(result.current.isLoading).toBe(false);
+describe("loadMoreReducer", () => {
+  it("starts idle on page 2 holding the server-rendered first page", () => {
+    expect(start([item("a")], 3)).toEqual({
+      items: [item("a")],
+      nextPage: 2,
+      status: "idle",
+      total: 3,
+    });
   });
 
-  it("appends the next page rather than replacing the list", async () => {
-    const fetchPage = vi
-      .fn()
-      .mockResolvedValue({ rows: [item("b")], total: 2 });
-    const { result } = renderHook(() =>
-      useLoadMore({ initial: [item("a")], total: 2, fetchPage })
-    );
+  it("appends the next page rather than replacing the list", () => {
+    const loading = loadMoreReducer(start([item("a")], 2), { type: "start" });
+    const next = loadMoreReducer(loading, {
+      type: "loaded",
+      rows: [item("b")],
+      total: 2,
+    });
 
-    act(() => result.current.loadMore());
-
-    await waitFor(() => expect(result.current.isLoading).toBe(false));
-    expect(fetchPage).toHaveBeenCalledWith(2);
-    expect(result.current.items).toEqual([item("a"), item("b")]);
+    expect(next.items).toEqual([item("a"), item("b")]);
+    expect(next.nextPage).toBe(3);
+    expect(next.status).toBe("idle");
   });
 
-  it("hides the control once every row is loaded", async () => {
-    const fetchPage = vi
-      .fn()
-      .mockResolvedValue({ rows: [item("b")], total: 2 });
-    const { result } = renderHook(() =>
-      useLoadMore({ initial: [item("a")], total: 2, fetchPage })
-    );
-
-    act(() => result.current.loadMore());
-
-    await waitFor(() => expect(result.current.canLoadMore).toBe(false));
-  });
-
-  it("hides the control when the list is already complete", () => {
-    const { result } = renderHook(() =>
-      useLoadMore({ initial: [item("a")], total: 1, fetchPage: vi.fn() })
-    );
-
-    expect(result.current.canLoadMore).toBe(false);
-  });
-
-  it("adopts a total that shrank underneath us", async () => {
+  it("adopts a total that shrank underneath us", () => {
     // A row was unpublished between page 1 and page 2.
-    const fetchPage = vi.fn().mockResolvedValue({ rows: [], total: 1 });
-    const { result } = renderHook(() =>
-      useLoadMore({ initial: [item("a")], total: 9, fetchPage })
-    );
+    const loading = loadMoreReducer(start([item("a")], 9), { type: "start" });
+    const next = loadMoreReducer(loading, { type: "loaded", rows: [], total: 1 });
 
-    act(() => result.current.loadMore());
-
-    await waitFor(() => expect(result.current.canLoadMore).toBe(false));
-    expect(result.current.total).toBe(1);
+    expect(next.total).toBe(1);
+    expect(canLoadMore(next)).toBe(false);
   });
 
-  it("keeps loaded items on screen and offers a retry when a page fails", async () => {
-    const consoleError = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => undefined);
-    const fetchPage = vi.fn().mockRejectedValue(new Error("network"));
-    const { result } = renderHook(() =>
-      useLoadMore({ initial: [item("a")], total: 5, fetchPage })
-    );
+  it("keeps loaded items and does not advance the page on failure", () => {
+    const loading = loadMoreReducer(start([item("a")], 5), { type: "start" });
+    const failed = loadMoreReducer(loading, { type: "failed" });
 
-    act(() => result.current.loadMore());
-
-    await waitFor(() => expect(result.current.error).toBe(true));
-    expect(result.current.items).toEqual([item("a")]);
-    expect(result.current.canLoadMore).toBe(true);
-    consoleError.mockRestore();
+    expect(failed.items).toEqual([item("a")]);
+    // Retrying must re-request the SAME page, not the one after it.
+    expect(failed.nextPage).toBe(2);
+    expect(failed.status).toBe("error");
+    expect(canLoadMore(failed)).toBe(true);
   });
 
-  it("retries the same page after a failure, not the one after it", async () => {
-    const consoleError = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => undefined);
-    const fetchPage = vi
-      .fn()
-      .mockRejectedValueOnce(new Error("network"))
-      .mockResolvedValueOnce({ rows: [item("b")], total: 2 });
-    const { result } = renderHook(() =>
-      useLoadMore({ initial: [item("a")], total: 2, fetchPage })
-    );
-
-    act(() => result.current.loadMore());
-    await waitFor(() => expect(result.current.error).toBe(true));
-
-    act(() => result.current.loadMore());
-    await waitFor(() => expect(result.current.items).toHaveLength(2));
-
-    expect(fetchPage).toHaveBeenNthCalledWith(1, 2);
-    expect(fetchPage).toHaveBeenNthCalledWith(2, 2);
-    consoleError.mockRestore();
+  it("ignores a second start while a page is already loading", () => {
+    const loading = loadMoreReducer(start([item("a")], 9), { type: "start" });
+    expect(loadMoreReducer(loading, { type: "start" })).toBe(loading);
   });
 
-  it("ignores a second click while a page is already in flight", async () => {
-    let release: (v: { rows: never[]; total: number }) => void = () => undefined;
-    const fetchPage = vi.fn(
-      () =>
-        new Promise<{ rows: never[]; total: number }>((resolve) => {
-          release = resolve;
-        })
+  it("clears the error when a retry starts", () => {
+    const failed = loadMoreReducer(
+      loadMoreReducer(start([item("a")], 5), { type: "start" }),
+      { type: "failed" }
     );
-    const { result } = renderHook(() =>
-      useLoadMore({ initial: [item("a")], total: 9, fetchPage })
-    );
+    expect(loadMoreReducer(failed, { type: "start" }).status).toBe("loading");
+  });
+});
 
-    act(() => result.current.loadMore());
-    act(() => result.current.loadMore());
+describe("canLoadMore", () => {
+  it("is true while rows remain", () => {
+    expect(canLoadMore(start([item("a")], 3))).toBe(true);
+  });
 
-    expect(fetchPage).toHaveBeenCalledTimes(1);
-    await act(async () => release({ rows: [], total: 9 }));
+  it("is false once every row is loaded", () => {
+    expect(canLoadMore(start([item("a")], 1))).toBe(false);
+  });
+
+  it("is false for an empty result", () => {
+    expect(canLoadMore(start([], 0))).toBe(false);
+  });
+
+  it("is false while a page is in flight", () => {
+    const loading = loadMoreReducer(start([item("a")], 9), { type: "start" });
+    expect(canLoadMore(loading)).toBe(false);
+  });
+
+  it("stops at Appwrite's offset ceiling even when rows remain", () => {
+    // MAX_OFFSET is 5000 and the page size is 12, so page 418 would offset
+    // past what Appwrite will serve. Offering it would 400 the request.
+    const deep = { ...start([item("a")], 100_000), nextPage: 418 };
+    expect(canLoadMore(deep)).toBe(false);
+
+    const reachable = { ...start([item("a")], 100_000), nextPage: 417 };
+    expect(canLoadMore(reachable)).toBe(true);
   });
 });
 ```
 
-- [ ] **Step 3: Run it to verify it fails**
+- [ ] **Step 2: Run it to verify it fails**
 
-Run: `bun run test --filter=web -- use-load-more`
-Expected: FAIL — `Cannot find module './use-load-more'`
+Run, from `apps/web`: `bun x vitest run src/lib/load-more-state.test.ts`
+Expected: FAIL — `Cannot find module './load-more-state'`
 
-- [ ] **Step 4: Add a jsdom environment for the component tests**
+(The repo's turbo pipeline ignores a `-- <name>` filter arg, so `bun run test --filter=web` runs the whole web suite. Use the direct `vitest` invocation above to target one file.)
 
-`apps/web/vitest.config.ts` sets `environment: "node"`, which has no DOM. Add a per-file override as **the very first line** of `use-load-more.test.tsx`, above every import — Vitest only reads the docblock at the top of the file:
+- [ ] **Step 3: Implement the pure state module**
 
-```tsx
-// @vitest-environment jsdom
+Create `apps/web/src/lib/load-more-state.ts`:
+
+```ts
+import { MAX_OFFSET } from "@repo/shared/utils/list-params";
+import { WEB_PAGE_SIZE } from "./list-params";
+
+export interface LoadMoreState<T> {
+  items: T[];
+  /** The page a "Load more" would request next. 1-based. */
+  nextPage: number;
+  status: "error" | "idle" | "loading";
+  /** Appwrite's total for the filtered set, refreshed on every page. */
+  total: number;
+}
+
+export type LoadMoreAction<T> =
+  | { rows: T[]; total: number; type: "loaded" }
+  | { type: "failed" }
+  | { type: "start" };
+
+export function initialLoadMoreState<T>(
+  items: T[],
+  total: number
+): LoadMoreState<T> {
+  return { items, nextPage: 2, status: "idle", total };
+}
+
+export function loadMoreReducer<T>(
+  state: LoadMoreState<T>,
+  action: LoadMoreAction<T>
+): LoadMoreState<T> {
+  switch (action.type) {
+    case "start":
+      // Identity return, not a new object: a second start while a page is in
+      // flight must be a genuine no-op so React bails out of the re-render.
+      return state.status === "loading"
+        ? state
+        : { ...state, status: "loading" };
+    case "loaded":
+      return {
+        items: [...state.items, ...action.rows],
+        nextPage: state.nextPage + 1,
+        status: "idle",
+        // The set can shrink under us — a row unpublished between pages.
+        total: action.total,
+      };
+    case "failed":
+      // `nextPage` deliberately does not advance, so a retry re-requests the
+      // page that failed rather than skipping it.
+      return { ...state, status: "error" };
+    default:
+      return state;
+  }
+}
+
+export function canLoadMore<T>(state: LoadMoreState<T>): boolean {
+  if (state.status === "loading" || state.items.length >= state.total) {
+    return false;
+  }
+  // Appwrite rejects an offset past MAX_OFFSET, so a page beyond it must never
+  // be offered even when rows remain.
+  return (state.nextPage - 1) * WEB_PAGE_SIZE <= MAX_OFFSET;
+}
 ```
 
-Then ensure `jsdom` is available:
+- [ ] **Step 4: Run the test to verify it passes**
 
-```bash
-grep -n '"jsdom"' apps/web/package.json package.json || bun add -D jsdom --filter=web
-```
+Run, from `apps/web`: `bun x vitest run src/lib/load-more-state.test.ts`
+Expected: PASS (11 tests)
 
 - [ ] **Step 5: Implement the hook**
 
@@ -828,9 +849,13 @@ Create `apps/web/src/lib/use-load-more.ts`:
 ```ts
 "use client";
 
-import { useCallback, useRef, useState } from "react";
-import { MAX_OFFSET } from "@repo/shared/utils/list-params";
-import { WEB_PAGE_SIZE } from "./list-params";
+import { useCallback, useReducer, useRef } from "react";
+import {
+  canLoadMore as canLoadMoreState,
+  initialLoadMoreState,
+  loadMoreReducer,
+  type LoadMoreState,
+} from "./load-more-state";
 
 interface UseLoadMoreArgs<T> {
   /** The server-rendered first page. */
@@ -847,16 +872,26 @@ interface UseLoadMoreArgs<T> {
  * with new props, and the surface resets this hook by remounting the client
  * component with a new `key`. Syncing `initial` in an effect instead would
  * append page 2 of the previous filter onto page 1 of the new one.
+ *
+ * All the state transitions live in `./load-more-state` so they can be tested
+ * without a DOM — this repo has no jsdom or testing-library, by choice.
  */
-export function useLoadMore<T>({ initial, total, fetchPage }: UseLoadMoreArgs<T>) {
-  const [items, setItems] = useState<T[]>(initial);
-  const [knownTotal, setKnownTotal] = useState(total);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState(false);
-  // The page to request next. Held in a ref so a failed attempt retries the
-  // same page instead of skipping it, and so a double click cannot advance it
-  // twice before the first request resolves.
-  const nextPage = useRef(2);
+export function useLoadMore<T>({
+  initial,
+  total,
+  fetchPage,
+}: UseLoadMoreArgs<T>) {
+  const [state, dispatch] = useReducer(
+    loadMoreReducer as (
+      s: LoadMoreState<T>,
+      a: Parameters<typeof loadMoreReducer<T>>[1]
+    ) => LoadMoreState<T>,
+    undefined,
+    () => initialLoadMoreState(initial, total)
+  );
+  // The reducer already refuses a second `start` while loading, but two clicks
+  // in ONE tick both read the same pre-dispatch state, so the guard has to be
+  // a ref as well to stop a duplicate request going out.
   const inFlight = useRef(false);
 
   const loadMore = useCallback(() => {
@@ -864,47 +899,33 @@ export function useLoadMore<T>({ initial, total, fetchPage }: UseLoadMoreArgs<T>
       return;
     }
     inFlight.current = true;
-    setIsLoading(true);
-    setError(false);
+    dispatch({ type: "start" });
 
-    fetchPage(nextPage.current)
+    fetchPage(state.nextPage)
       .then((result) => {
-        setItems((current) => [...current, ...result.rows]);
-        // The set can shrink under us — a row unpublished between pages.
-        setKnownTotal(result.total);
-        nextPage.current += 1;
+        dispatch({ type: "loaded", rows: result.rows, total: result.total });
       })
       .catch((cause) => {
         console.error("Failed to load more rows:", cause);
-        setError(true);
+        dispatch({ type: "failed" });
       })
       .finally(() => {
         inFlight.current = false;
-        setIsLoading(false);
       });
-  }, [fetchPage]);
-
-  // Appwrite rejects an offset past MAX_OFFSET, so a page beyond it must never
-  // be offered even when rows remain.
-  const withinOffsetCeiling = nextPage.current * WEB_PAGE_SIZE <= MAX_OFFSET;
+  }, [fetchPage, state.nextPage]);
 
   return {
-    canLoadMore: items.length < knownTotal && withinOffsetCeiling,
-    error,
-    isLoading,
-    items,
+    canLoadMore: canLoadMoreState(state),
+    error: state.status === "error",
+    isLoading: state.status === "loading",
+    items: state.items,
     loadMore,
-    total: knownTotal,
+    total: state.total,
   };
 }
 ```
 
-- [ ] **Step 6: Run the test to verify it passes**
-
-Run: `bun run test --filter=web -- use-load-more`
-Expected: PASS (8 tests)
-
-- [ ] **Step 7: Create the button**
+- [ ] **Step 6: Create the button**
 
 Create `apps/web/src/components/ui/load-more-button.tsx`:
 
@@ -939,7 +960,10 @@ export function LoadMoreButton({
   onLoadMore,
   retryLabel,
 }: LoadMoreButtonProps) {
-  if (!canLoadMore) {
+  // `isLoading` keeps the control mounted mid-request: canLoadMore is false
+  // while a page is in flight, and hiding the button then would make it
+  // flicker out and back on every click.
+  if (!(canLoadMore || isLoading)) {
     return null;
   }
 
@@ -971,17 +995,24 @@ export function LoadMoreButton({
 }
 ```
 
+- [ ] **Step 7: Type-check**
+
+Run: `bun run check-types`
+Expected: no errors.
+
 - [ ] **Step 8: Commit**
 
 ```bash
 bun x ultracite fix <the paths listed in git add below>
-git add apps/web/src/lib/use-load-more.ts apps/web/src/lib/use-load-more.test.tsx \
-        apps/web/src/components/ui/load-more-button.tsx apps/web/package.json
-git commit -m "feat(web): add load-more hook and button
+git add apps/web/src/lib/load-more-state.ts apps/web/src/lib/load-more-state.test.ts \
+        apps/web/src/lib/use-load-more.ts apps/web/src/components/ui/load-more-button.tsx
+git commit -m "feat(web): add load-more state, hook and button
 
 Appends pages onto the server-rendered first page. Resets by remount
 rather than by syncing props in an effect, which would append the old
-filter's page 2 onto the new filter's page 1."
+filter's page 2 onto the new filter's page 1. State transitions live in
+a pure module so they test without a DOM — this repo has no jsdom or
+testing-library and admin hand-rolled a harness rather than add them."
 ```
 
 ---
