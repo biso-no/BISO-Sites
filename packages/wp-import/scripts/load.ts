@@ -318,7 +318,12 @@ if (wants("products")) {
           "webshop_products",
           product.rowId,
           buildProductUpsert(
-            { row, rowId: product.rowId, variations: product.variations },
+            {
+              customFields: product.customFields,
+              row,
+              rowId: product.rowId,
+              variations: product.variations,
+            },
             rows
           )
         );
@@ -352,6 +357,13 @@ if (wants("orders")) {
       (product.variations ?? []).map((variation) => variation.rowId)
     )
   );
+  // Same guard again for the `field` relationship on an answer: only the
+  // definitions that were actually imported may be named.
+  const importedFieldRowIds = new Set(
+    payload.products.flatMap((product) =>
+      (product.customFields ?? []).map((field) => `wpf${field.fieldKey}`)
+    )
+  );
 
   console.log(`Orders: ${payload.orders.length} rows to load`);
   const progress = createProgressReporter({
@@ -378,7 +390,8 @@ if (wants("orders")) {
           order.items,
           importedProductRowIds,
           importedVariationRowIds,
-          permissions
+          permissions,
+          importedFieldRowIds
         );
 
         await upsert("orders", order.rowId, {

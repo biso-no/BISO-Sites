@@ -3572,8 +3572,20 @@
           "array": false,
           "default": null,
           "format": ""
+        },
+        {
+          "key": "field_answers",
+          "type": "relationship",
+          "required": false,
+          "array": false,
+          "relatedTable": "cart_field_answers",
+          "relationType": "oneToMany",
+          "twoWay": true,
+          "twoWayKey": "reservation",
+          "onDelete": "cascade",
+          "side": "parent"
         }
-      ],
+       ],
       "indexes": [
         {
           "key": "product_id_idx",
@@ -3604,6 +3616,76 @@
           "orders": []
         }
       ]
+    },
+    {
+      "$id": "cart_field_answers",
+      "$permissions": [],
+      "databaseId": "app",
+      "name": "Cart Field Answers",
+      "enabled": true,
+      "rowSecurity": true,
+      "columns": [
+        {
+          "key": "reservation",
+          "type": "relationship",
+          "required": false,
+          "array": false,
+          "relatedTable": "cart_reservations",
+          "relationType": "oneToMany",
+          "twoWay": true,
+          "twoWayKey": "field_answers",
+          "onDelete": "cascade",
+          "side": "child"
+        },
+        {
+          "key": "field",
+          "type": "relationship",
+          "required": false,
+          "array": false,
+          "relatedTable": "product_custom_fields",
+          "relationType": "manyToOne",
+          "twoWay": false,
+          "onDelete": "setNull",
+          "side": "parent"
+        },
+        {
+          "key": "field_key",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 64,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "value",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 4096,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "sort_order",
+          "type": "integer",
+          "required": false,
+          "array": false,
+          "default": 0,
+          "min": -9223372036854775808,
+          "max": 9223372036854775807
+        },
+        {
+          "key": "label",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 255,
+          "default": null,
+          "encrypt": false
+        }
+       ],
+      "indexes": []
     },
     {
       "$id": "event_segments",
@@ -9336,6 +9418,18 @@
           "twoWayKey": "product",
           "onDelete": "cascade",
           "side": "parent"
+        },
+        {
+          "key": "custom_fields",
+          "type": "relationship",
+          "required": false,
+          "array": false,
+          "relatedTable": "product_custom_fields",
+          "relationType": "oneToMany",
+          "twoWay": true,
+          "twoWayKey": "product",
+          "onDelete": "cascade",
+          "side": "parent"
         }
       ],
       "indexes": [
@@ -9705,15 +9799,6 @@
           "encrypt": false
         },
         {
-          "key": "custom_fields_json",
-          "type": "string",
-          "required": false,
-          "array": false,
-          "size": 4096,
-          "default": null,
-          "encrypt": false
-        },
-        {
           "key": "membership_id",
           "type": "string",
           "required": false,
@@ -9790,6 +9875,93 @@
           "default": null,
           "min": -1.7976931348623157e308,
           "max": 1.7976931348623157e308
+        },
+        {
+          "key": "field_answers",
+          "type": "relationship",
+          "required": false,
+          "array": false,
+          "relatedTable": "order_item_field_answers",
+          "relationType": "oneToMany",
+          "twoWay": true,
+          "twoWayKey": "order_item",
+          "onDelete": "cascade",
+          "side": "parent"
+        }
+       ],
+      "indexes": []
+    },
+    {
+      "$id": "order_item_field_answers",
+      "$permissions": [
+        "create(\"team:sg-app-dept-operationsunit\")",
+        "read(\"team:sg-app-dept-operationsunit\")",
+        "update(\"team:sg-app-dept-operationsunit\")",
+        "delete(\"team:sg-app-dept-operationsunit\")"
+      ],
+      "databaseId": "app",
+      "name": "Order Item Field Answers",
+      "enabled": true,
+      "rowSecurity": true,
+      "columns": [
+        {
+          "key": "order_item",
+          "type": "relationship",
+          "required": false,
+          "array": false,
+          "relatedTable": "order_items",
+          "relationType": "oneToMany",
+          "twoWay": true,
+          "twoWayKey": "field_answers",
+          "onDelete": "cascade",
+          "side": "child"
+        },
+        {
+          "key": "field",
+          "type": "relationship",
+          "required": false,
+          "array": false,
+          "relatedTable": "product_custom_fields",
+          "relationType": "manyToOne",
+          "twoWay": false,
+          "onDelete": "setNull",
+          "side": "parent"
+        },
+        {
+          "key": "field_key",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 64,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "label",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 255,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "value",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 4096,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "sort_order",
+          "type": "integer",
+          "required": false,
+          "array": false,
+          "default": 0,
+          "min": -9223372036854775808,
+          "max": 9223372036854775807
         }
       ],
       "indexes": []
@@ -9879,6 +10051,119 @@
           "relationType": "oneToMany",
           "twoWay": true,
           "twoWayKey": "variations",
+          "onDelete": "cascade",
+          "side": "child"
+        }
+      ],
+      "indexes": []
+    },
+    {
+      "$id": "product_custom_fields",
+      "$permissions": [
+        "read(\"any\")",
+        "create(\"team:sg-app-dept-operationsunit\")",
+        "create(\"team:sg-app-dept-ledelsenoslo\")",
+        "create(\"team:sg-app-dept-ledelsenbergen\")",
+        "create(\"team:sg-app-dept-ledelsentrondheim\")",
+        "create(\"team:sg-app-dept-hr\")"
+      ],
+      "databaseId": "app",
+      "name": "Product Custom Fields",
+      "enabled": true,
+      "rowSecurity": false,
+      "columns": [
+        {
+          "key": "field_key",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 64,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "label",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 255,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "type",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "default": null,
+          "format": "enum",
+          "elements": [
+            "text",
+            "textarea",
+            "number",
+            "select",
+            "email"
+          ]
+        },
+        {
+          "key": "is_required",
+          "type": "boolean",
+          "required": false,
+          "array": false,
+          "default": false
+        },
+        {
+          "key": "placeholder",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 255,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "help_text",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 500,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "options",
+          "type": "string",
+          "required": false,
+          "array": true,
+          "size": 255,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "sort_order",
+          "type": "integer",
+          "required": false,
+          "array": false,
+          "default": 0,
+          "min": -9223372036854775808,
+          "max": 9223372036854775807
+        },
+        {
+          "key": "enabled",
+          "type": "boolean",
+          "required": false,
+          "array": false,
+          "default": true
+        },
+        {
+          "key": "product",
+          "type": "relationship",
+          "required": false,
+          "array": false,
+          "relatedTable": "webshop_products",
+          "relationType": "oneToMany",
+          "twoWay": true,
+          "twoWayKey": "custom_fields",
           "onDelete": "cascade",
           "side": "child"
         }

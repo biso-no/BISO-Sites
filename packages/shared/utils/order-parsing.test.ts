@@ -7,9 +7,14 @@ describe("parseOrderItems", () => {
       parseOrderItems([
         {
           $id: "line-1",
-          custom_fields_json: JSON.stringify([
-            { id: "engraving", label: "Engraving", value: "Ada" },
-          ]),
+          field_answers: [
+            {
+              field_key: "engraving",
+              label: "Engraving",
+              sort_order: 0,
+              value: "Ada",
+            },
+          ],
           line_total: 998,
           name: "Campus hoodie — Large",
           product: { $id: "product-1" },

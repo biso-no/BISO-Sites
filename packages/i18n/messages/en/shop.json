@@ -72,7 +72,9 @@
     "yourPrice": "Your Price",
     "price": "Price",
     "tax": "Tax",
-    "included": "Included"
+    "included": "Included",
+    "optionsTitle": "Additional information",
+    "optionRequired": "This field is required"
   },
   "member": {
     "notMember": "Not a member yet?",

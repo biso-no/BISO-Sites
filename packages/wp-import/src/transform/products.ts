@@ -10,6 +10,11 @@ import {
   plainTextExcerpt,
 } from "./html";
 import { buildTimestampOverrides } from "./timestamps";
+import {
+  parseWapfFieldGroup,
+  type WapfFieldDefinition,
+  type WpMetaEntry,
+} from "./wapf";
 
 /** ACF department field suffix per Appwrite campus.$id. */
 const DEPARTMENT_FIELD_BY_CAMPUS: Record<string, string> = {
@@ -156,6 +161,12 @@ export function buildVariations(variations: WcProductVariation[]): {
 }
 
 export interface TransformedProduct {
+  /**
+   * Advanced Product Fields definitions, written as `product_custom_fields`
+   * children of the product row. Empty for the ~90% of products that have no
+   * fields, in which case no children are written at all.
+   */
+  customFields: WapfFieldDefinition[];
   /** Normalized, studio-safe HTML — not the raw WordPress source. */
   descriptionHtml: string;
   imageUrls: string[];
@@ -205,6 +216,8 @@ export function resolvePrice(store: WcStoreProduct): number | null {
 
 export function transformProduct(
   input: WpProductPost & {
+    /** Absent on snapshots taken before field groups were extracted. */
+    meta_data?: WpMetaEntry[];
     store: WcStoreProduct | null;
     /** Absent on snapshots taken before variations were extracted. */
     variations?: WcProductVariation[];
@@ -321,8 +334,11 @@ export function transformProduct(
     status: isVariable ? "draft" : publishedStatus,
   };
 
+  const customFields = parseWapfFieldGroup(input.meta_data);
+
   return {
     product: {
+      customFields,
       descriptionHtml: description.html,
       imageUrls,
       memberVariantWarning,

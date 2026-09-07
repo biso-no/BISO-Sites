@@ -1,6 +1,7 @@
 import type { WcOrder } from "../extract/index";
 import type { RejectRow } from "../types";
 import { buildTimestampOverrides } from "./timestamps";
+import { parseWapfAnswers, type WapfAnswer } from "./wapf";
 
 const STATUS_MAP: Record<string, string> = {
   cancelled: "cancelled",
@@ -45,6 +46,12 @@ export function mapOrderStatus(wooStatus: string): string | null {
  * straight into the payload, which Appwrite rejected.
  */
 export interface TransformedOrderItem {
+  /**
+   * The buyer's Advanced Product Fields answers, in the same
+   * `[{ id, label, value }]` shape live checkout writes. Serialized into
+   * `order_item_field_answers` children by buildOrderItemRows.
+   */
+  customFields: WapfAnswer[];
   line_total: number;
   name: string;
   /** Join key for the `product` relationship; never written as a column. */
@@ -104,6 +111,7 @@ export function transformOrder(
   const items = order.line_items.map((item) => {
     const lineTotal = Number.parseFloat(item.total || "0");
     return {
+      customFields: parseWapfAnswers(item.meta_data),
       line_total: Number.isNaN(lineTotal) ? 0 : lineTotal,
       // The only human-readable record of what was bought once the `product`
       // relationship cannot be attached — most of the archive predates the

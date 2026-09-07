@@ -16,7 +16,8 @@ const only = (name: string): boolean =>
   args.has(`--${name}`) ||
   !(args.has("--jobs") || args.has("--products") || args.has("--orders"));
 
-const baseUrl = process.env.WP_BASE_URL ?? "https://biso.no";
+// The WordPress site moved to old.biso.no when the new site took biso.no.
+const baseUrl = process.env.WP_BASE_URL ?? "https://old.biso.no";
 /**
  * Pages after the first are fetched in parallel. 4 is deliberately gentle on
  * biso.no; raise it with --concurrency=N if the host copes.
@@ -75,12 +76,18 @@ if (only("products")) {
   );
   if (!includeVariations) {
     console.error(
-      "  products: no WooCommerce credentials — skipping variation prices; variable products will import without variations."
+      "  products: no WooCommerce credentials — skipping variation prices and custom field definitions; variable products will import without variations."
     );
   }
   await write(
     "products",
-    await extractProducts(client, { concurrency, includeVariations })
+    await extractProducts(client, {
+      concurrency,
+      // The WAPF field-group meta lives on /wc/v3/products, behind the same
+      // credentials as the variation prices.
+      includeFieldGroups: includeVariations,
+      includeVariations,
+    })
   );
 }
 if (only("orders")) {

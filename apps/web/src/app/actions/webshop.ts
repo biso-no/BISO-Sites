@@ -143,6 +143,18 @@ export async function getProductBySlug(
           "translation_refs.description",
           "translation_refs.short_description",
           "translation_refs.additional_fields",
+          // Checkout questions for this product, rendered by the storefront and
+          // validated again server-side in app/actions/orders.ts.
+          "custom_fields.$id",
+          "custom_fields.field_key",
+          "custom_fields.label",
+          "custom_fields.type",
+          "custom_fields.is_required",
+          "custom_fields.placeholder",
+          "custom_fields.help_text",
+          "custom_fields.options",
+          "custom_fields.sort_order",
+          "custom_fields.enabled",
         ]),
         Query.limit(1),
       ]

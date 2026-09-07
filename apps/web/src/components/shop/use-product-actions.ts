@@ -12,30 +12,26 @@ import {
 } from "@/app/actions/cart-reservations";
 import { validatePurchaseLimits } from "@/app/actions/purchase-limits";
 import { useCart } from "@/lib/contexts/cart-context";
-import { type ProductOption, parseProductMetadata } from "@/lib/types/webshop";
+import { parseProductMetadata } from "@/lib/types/webshop";
 
-function validateRequiredOptions(
-  productOptions: ProductOption[],
-  selectedOptions: Record<string, string>
-): Record<string, boolean> {
-  const errors: Record<string, boolean> = {};
-  for (const [index, option] of productOptions.entries()) {
-    if (option.required && !selectedOptions[`option-${index}`]) {
-      errors[`option-${index}`] = true;
-    }
-  }
-  return errors;
+/**
+ * The buyer's answers to this product's checkout questions, keyed by field id
+ * — the same key stored on each `order_item_field_answers` row.
+ */
+export interface CustomFieldAnswers {
+  customFieldLabels: Record<string, string>;
+  customFields: Record<string, string>;
 }
 
-function buildNamedOptions(
-  productOptions: ProductOption[],
-  selectedOptions: Record<string, string>
-): Record<string, string> {
+/** label → value, for the cart and checkout summaries, which show text. */
+function buildNamedOptions({
+  customFieldLabels,
+  customFields,
+}: CustomFieldAnswers): Record<string, string> {
   const namedOptions: Record<string, string> = {};
-  for (const [index, option] of productOptions.entries()) {
-    const value = selectedOptions[`option-${index}`];
-    if (value) {
-      namedOptions[option.label] = value;
+  for (const [id, value] of Object.entries(customFields)) {
+    if (value?.trim()) {
+      namedOptions[customFieldLabels[id] ?? id] = value;
     }
   }
   return namedOptions;
@@ -78,6 +74,8 @@ async function reserveStock(
   if (!hasStock) {
     return { success: true, newAvailable: null };
   }
+  // Answers are not written here: addItem in cart-context is the single writer
+  // of the reservation row, and it runs immediately after this.
   const reservationResult = await createOrUpdateReservation(
     productId,
     quantity
@@ -90,6 +88,7 @@ async function reserveStock(
 }
 
 interface BuildCartItemParams {
+  answers: CustomFieldAnswers;
   metadata: ReturnType<typeof parseProductMetadata>;
   namedOptions: Record<string, string>;
   product: WebshopProducts;
@@ -97,6 +96,7 @@ interface BuildCartItemParams {
 }
 
 function buildCartItem({
+  answers,
   product,
   productId,
   namedOptions,
@@ -133,6 +133,10 @@ function buildCartItem({
     memberOnly: productRef.member_only ?? false,
     stock: productRef.stock,
     selectedOptions: hasOptions ? namedOptions : undefined,
+    // `selectedOptions` is label-keyed for display; these are id-keyed and are
+    // what checkout submits, since the server validates by field id.
+    customFieldLabels: hasOptions ? answers.customFieldLabels : undefined,
+    customFields: hasOptions ? answers.customFields : undefined,
     metadata: { max_per_user: maxPerUser, max_per_order: maxPerOrder, sku },
   };
 }
@@ -149,7 +153,6 @@ export function useProductActions(
 
   const productRef = product;
   const metadata = parseProductMetadata(productRef?.metadata);
-  const productOptions = (metadata.product_options as ProductOption[]) || [];
 
   useEffect(() => {
     async function loadAvailableStock() {
@@ -167,13 +170,7 @@ export function useProductActions(
     loadAvailableStock();
   }, [productRef?.$id, productRef?.stock]);
 
-  const handleAddToCart = async (selectedOptions: Record<string, string>) => {
-    const newErrors = validateRequiredOptions(productOptions, selectedOptions);
-    if (Object.keys(newErrors).length > 0) {
-      setErrors(newErrors);
-      return;
-    }
-
+  const handleAddToCart = async (answers: CustomFieldAnswers) => {
     const quantity = 1;
     const productId = productRef?.$id ?? "";
     const hasStock =
@@ -210,8 +207,9 @@ export function useProductActions(
       setAvailableStock(reservation.newAvailable);
     }
 
-    const namedOptions = buildNamedOptions(productOptions, selectedOptions);
+    const namedOptions = buildNamedOptions(answers);
     const cartItem = buildCartItem({
+      answers,
       product,
       productId,
       namedOptions,

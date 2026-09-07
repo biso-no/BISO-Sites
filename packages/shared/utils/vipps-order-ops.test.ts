@@ -116,11 +116,23 @@ describe("createOrder", () => {
     expect(storedItem).toMatchObject({
       product: "product-1",
       variation: "v-large",
-      custom_fields_json: JSON.stringify([
+      field_answers: [
         // label falls back to the field id when no label is supplied.
-        { id: "engraving", label: "Engraving text", value: "Ada" },
-        { id: "gift", label: "gift", value: "yes" },
-      ]),
+        {
+          $permissions: ['read("user:user-1")'],
+          field_key: "engraving",
+          label: "Engraving text",
+          sort_order: 0,
+          value: "Ada",
+        },
+        {
+          $permissions: ['read("user:user-1")'],
+          field_key: "gift",
+          label: "gift",
+          sort_order: 1,
+          value: "yes",
+        },
+      ],
     });
     // The camelCase input keys must not leak into the persisted item.
     for (const key of [

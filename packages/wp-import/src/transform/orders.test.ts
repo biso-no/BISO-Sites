@@ -79,6 +79,7 @@ describe("transformOrder", () => {
 
     expect(result.items).toHaveLength(1);
     expect(result.items[0]).toEqual({
+      customFields: [],
       line_total: 250,
       name: "Booklocker",
       productRowId: "wpprod37313",

@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
+  buildCustomFieldRows,
   buildJobUpsert,
   buildOrderItemRows,
   buildProductCampusIndex,
@@ -213,8 +214,10 @@ describe("buildProductCampusIndex", () => {
 const orderItem = (
   productRowId: string,
   rowId = "wpitem1",
-  variationRowId: string | null = null
+  variationRowId: string | null = null,
+  customFields: Array<{ id: string; label: string; value: string }> = []
 ) => ({
+  customFields,
   line_total: 250,
   name: "Booklocker",
   productRowId,
@@ -289,6 +292,7 @@ describe("buildOrderItemRows", () => {
     expect([...Object.keys(row ?? {})].sort()).toEqual([
       "$id",
       "$permissions",
+      "field_answers",
       "line_total",
       "name",
       "product",
@@ -496,5 +500,177 @@ describe("buildProductUpsert variations", () => {
     );
 
     expect(upsert.variations).toEqual([]);
+  });
+});
+
+describe("buildCustomFieldRows", () => {
+  const permissions = ['read("any")'];
+  const field = {
+    fieldKey: "66abb59b52d75",
+    helpText: "Finn et tilgjengelig bokskap",
+    label: "Skapnummer",
+    options: [],
+    placeholder: null,
+    required: true,
+    sortOrder: 0,
+    type: "text" as const,
+  };
+
+  test("derives a deterministic row id so a re-run upserts in place", () => {
+    const [row] = buildCustomFieldRows([field], permissions);
+
+    expect(row?.$id).toBe("wpf66abb59b52d75");
+    expect(row?.$permissions).toEqual(permissions);
+  });
+
+  test("keeps field_key as the raw WAPF id, not the row id", () => {
+    // Historical answers on `order_item_field_answers` are keyed by the
+    // bare WAPF id; prefixing it here would break that correspondence.
+    const [row] = buildCustomFieldRows([field], permissions);
+
+    expect(row?.field_key).toBe("66abb59b52d75");
+  });
+
+  test("writes only real product_custom_fields columns", () => {
+    const [row] = buildCustomFieldRows([field], permissions);
+
+    expect([...Object.keys(row ?? {})].sort()).toEqual([
+      "$id",
+      "$permissions",
+      "enabled",
+      "field_key",
+      "help_text",
+      "is_required",
+      "label",
+      "options",
+      "placeholder",
+      "sort_order",
+      "type",
+    ]);
+  });
+
+  test("maps required onto is_required, since `required` is not the column", () => {
+    const [required] = buildCustomFieldRows([field], permissions);
+    const [optional] = buildCustomFieldRows(
+      [{ ...field, required: false }],
+      permissions
+    );
+
+    expect(required?.is_required).toBe(true);
+    expect(optional?.is_required).toBe(false);
+    expect(required?.required).toBeUndefined();
+  });
+
+  test("carries select options through as an array", () => {
+    const [row] = buildCustomFieldRows(
+      [{ ...field, options: ["Meat", "Vegetarian"], type: "select" as const }],
+      permissions
+    );
+
+    expect(row?.options).toEqual(["Meat", "Vegetarian"]);
+  });
+
+  test("returns nothing for a product with no fields", () => {
+    expect(buildCustomFieldRows([], permissions)).toEqual([]);
+  });
+});
+
+describe("buildOrderItemRows custom fields", () => {
+  const permissions = ['read("user:abc")'];
+  const answers = [{ id: "66abb59b52d75", label: "Skapnummer", value: "058" }];
+
+  const rowsFor = (fieldIds: string[] = []) =>
+    buildOrderItemRows(
+      [orderItem("wpprod1", "wpitem1", null, answers)],
+      new Set(["wpprod1"]),
+      new Set(),
+      permissions,
+      new Set(fieldIds)
+    );
+
+  test("writes answers as nested order_item_field_answers children", () => {
+    const [row] = rowsFor();
+    const children = row?.field_answers as Record<string, unknown>[];
+
+    expect(children).toHaveLength(1);
+    expect(children[0]).toMatchObject({
+      field_key: "66abb59b52d75",
+      label: "Skapnummer",
+      sort_order: 0,
+      value: "058",
+    });
+    expect(children[0]?.$permissions).toEqual(permissions);
+  });
+
+  test("derives a deterministic child id so a re-run upserts in place", () => {
+    const [row] = rowsFor();
+    const children = row?.field_answers as Record<string, unknown>[];
+
+    expect(children[0]?.$id).toBe("wpitem1a0");
+  });
+
+  test("links the field relationship only when that definition was imported", () => {
+    const linked = rowsFor(["wpf66abb59b52d75"])[0]?.field_answers as Record<
+      string,
+      unknown
+    >[];
+    const unlinked = rowsFor()[0]?.field_answers as Record<string, unknown>[];
+
+    expect(linked[0]?.field).toBe("wpf66abb59b52d75");
+    // 12 archived answers have no surviving definition; naming a row that does
+    // not exist would make Appwrite reject the whole order.
+    expect(unlinked[0]?.field).toBeUndefined();
+    // The answer still reads correctly without the link.
+    expect(unlinked[0]?.label).toBe("Skapnummer");
+  });
+
+  test("writes an empty child list when the line has no answers", () => {
+    const [row] = buildOrderItemRows(
+      [orderItem("wpprod1")],
+      new Set(["wpprod1"]),
+      new Set(),
+      permissions
+    );
+
+    expect(row?.field_answers).toEqual([]);
+  });
+});
+
+describe("buildProductUpsert custom fields", () => {
+  test("writes field definitions as nested custom_fields children", () => {
+    const upsert = buildProductUpsert(
+      {
+        customFields: [
+          {
+            fieldKey: "abc",
+            helpText: null,
+            label: "Locker number",
+            options: [],
+            placeholder: null,
+            required: true,
+            sortOrder: 0,
+            type: "text",
+          },
+        ],
+        row: { slug: "booklocker", status: "published" },
+        rowId: "wpprod1",
+      },
+      []
+    );
+
+    const children = upsert.custom_fields as Record<string, unknown>[];
+    expect(children).toHaveLength(1);
+    expect(children[0]?.label).toBe("Locker number");
+    // Children inherit the parent's permissions explicitly.
+    expect(children[0]?.$permissions).toEqual(upsert.$permissions);
+  });
+
+  test("writes an empty child list for a product with no fields", () => {
+    const upsert = buildProductUpsert(
+      { row: { slug: "mug", status: "published" }, rowId: "wpprod2" },
+      []
+    );
+
+    expect(upsert.custom_fields).toEqual([]);
   });
 });

@@ -1,4 +1,5 @@
 import { mapWithConcurrency } from "../concurrency";
+import type { WpMetaEntry } from "../transform/wapf";
 import type { WpClient } from "../wp/client";
 
 export interface WpJob {
@@ -109,6 +110,12 @@ export interface WcOrder {
   line_items: Array<{
     /** WooCommerce line-item id — the stable half of the order_items row id. */
     id: number;
+    /**
+     * Line-item meta. Carries the Advanced Product Fields (WAPF) answers the
+     * buyer typed at checkout under `_wapf_meta`; see `parseWapfAnswers`.
+     * Already part of the /wc/v3/orders response, so reading it costs nothing.
+     */
+    meta_data?: WpMetaEntry[];
     name: string;
     price: number;
     product_id: number;
@@ -197,7 +204,23 @@ export async function extractJobs(
   });
 }
 
+/**
+ * A product as /wc/v3/products returns it. Only `meta_data` is wanted — it is
+ * the sole source of the WAPF field-group definitions (`_wapf_fieldgroup`),
+ * which neither /wp/v2/product nor the Store API exposes.
+ */
+export interface WcAdminProduct {
+  id: number;
+  meta_data: WpMetaEntry[];
+}
+
 export type ExtractedProduct = WpProductPost & {
+  /**
+   * Raw WooCommerce product meta, carrying the WAPF field definitions.
+   * Absent on snapshots taken before field groups were extracted, so every
+   * reader must tolerate `undefined`.
+   */
+  meta_data?: WpMetaEntry[];
   store: WcStoreProduct | null;
   variations: WcProductVariation[];
 };
@@ -214,7 +237,15 @@ export type ExtractedProduct = WpProductPost & {
  */
 export async function extractProducts(
   client: WpClient,
-  options: { concurrency?: number; includeVariations?: boolean } = {}
+  options: {
+    concurrency?: number;
+    /**
+     * Fetch /wc/v3/products for the WAPF field-group meta. Needs WooCommerce
+     * credentials, like `includeVariations`.
+     */
+    includeFieldGroups?: boolean;
+    includeVariations?: boolean;
+  } = {}
 ): Promise<ExtractedProduct[]> {
   const posts = await client.fetchAllPages<WpProductPost>("/wp/v2/product");
   const store = await client.fetchAllPages<WcStoreProduct>(
@@ -222,8 +253,23 @@ export async function extractProducts(
   );
   const storeById = new Map(store.map((product) => [product.id, product]));
 
+  // One paged walk (four pages for the current catalogue) rather than a fetch
+  // per product: /wc/v3/products returns meta_data on the list response, so
+  // the field groups for every product arrive in a handful of requests.
+  const adminById = new Map<number, WcAdminProduct>();
+  if (options.includeFieldGroups) {
+    const admin = await client.fetchAllPages<WcAdminProduct>(
+      "/wc/v3/products",
+      { status: "any" }
+    );
+    for (const product of admin) {
+      adminById.set(product.id, product);
+    }
+  }
+
   const merged = posts.map((post) => ({
     ...post,
+    meta_data: adminById.get(post.id)?.meta_data,
     store: storeById.get(post.id) ?? null,
   }));
 

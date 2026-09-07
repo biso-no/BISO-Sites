@@ -415,9 +415,14 @@ describe("exportOrdersCsv row shape", () => {
       currency: "NOK",
       order_items: Array.from({ length: count }, (_, index) => ({
         $id: `${id}-i${index}`,
-        custom_fields_json: JSON.stringify([
-          { id: "size", label: "Størrelse", value: "L" },
-        ]),
+        field_answers: [
+          {
+            field_key: "size",
+            label: "Størrelse",
+            sort_order: 0,
+            value: "L",
+          },
+        ],
         line_total: 100,
         name: `Product ${index}`,
         product: { $id: `p${index}` },

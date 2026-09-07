@@ -3,6 +3,7 @@ import {
   buildPublicContentPermissions,
 } from "../permissions";
 import type { TransformedOrderItem } from "../transform/orders";
+import type { WapfFieldDefinition } from "../transform/wapf";
 import type { ContentLocale } from "../types";
 
 export interface TranslationPayload {
@@ -150,8 +151,40 @@ export function buildVariationRows(
   }));
 }
 
+/**
+ * Builds the nested `product_custom_fields` children for one product.
+ *
+ * Same nested-write contract as `product_variations`: a oneToMany
+ * relationship with `onDelete: cascade`, children written inline with the
+ * parent, each carrying a deterministic `wpf<wapf_field_id>` id so a re-run
+ * upserts in place instead of duplicating the field.
+ *
+ * `field_key` keeps the raw WAPF id rather than the row id, because that is
+ * what the historical answers in `order_item_field_answers` are keyed
+ * by — the two must agree for an old answer to line up with its definition.
+ */
+export function buildCustomFieldRows(
+  fields: WapfFieldDefinition[],
+  permissions: string[]
+): Record<string, unknown>[] {
+  return fields.map((field) => ({
+    $id: `wpf${field.fieldKey}`,
+    $permissions: permissions,
+    enabled: true,
+    field_key: field.fieldKey,
+    help_text: field.helpText,
+    is_required: field.required,
+    label: field.label,
+    options: field.options,
+    placeholder: field.placeholder,
+    sort_order: field.sortOrder,
+    type: field.type,
+  }));
+}
+
 export function buildProductUpsert(
   product: {
+    customFields?: WapfFieldDefinition[];
     row: Record<string, unknown>;
     rowId: string;
     variations?: Array<{ row: Record<string, unknown>; rowId: string }>;
@@ -163,6 +196,10 @@ export function buildProductUpsert(
   return {
     ...product.row,
     $permissions: permissions,
+    custom_fields: buildCustomFieldRows(
+      product.customFields ?? [],
+      permissions
+    ),
     translation_refs: translations,
     variations: buildVariationRows(product.variations ?? [], permissions),
   };
@@ -206,6 +243,39 @@ export function resolveOrderCampusId(
 }
 
 /**
+ * Builds the nested `order_item_field_answers` children for one line item.
+ *
+ * `field_key`, `label` and `value` are stored on the row itself rather than
+ * read through the `field` relationship, because an order is a historical
+ * record: 212 imported lines already name products that no longer exist, 12
+ * answer keys have no surviving definition at all, and relabelling a question
+ * later must not rewrite what a past buyer was asked.
+ *
+ * The `field` relationship is attached only when that definition was actually
+ * imported — Appwrite rejects a write naming a row that does not exist.
+ */
+export function buildFieldAnswerRows(
+  item: TransformedOrderItem,
+  importedFieldRowIds: Set<string>,
+  permissions: string[]
+): Record<string, unknown>[] {
+  return item.customFields.map((answer, index) => {
+    const fieldRowId = `wpf${answer.id}`;
+    return {
+      // Deterministic, so a re-run updates the same answer rather than
+      // appending a duplicate alongside it.
+      $id: `${item.rowId}a${index}`,
+      $permissions: permissions,
+      field_key: answer.id,
+      label: answer.label,
+      sort_order: index,
+      value: answer.value,
+      ...(importedFieldRowIds.has(fieldRowId) ? { field: fieldRowId } : {}),
+    };
+  });
+}
+
+/**
  * Builds the nested `order_items` children for one order.
  *
  * Columns are listed explicitly rather than spread from the transformed item.
@@ -230,11 +300,13 @@ export function buildOrderItemRows(
   items: TransformedOrderItem[],
   importedProductRowIds: Set<string>,
   importedVariationRowIds: Set<string>,
-  permissions: string[]
+  permissions: string[],
+  importedFieldRowIds: Set<string> = new Set()
 ): Record<string, unknown>[] {
   return items.map((item) => ({
     $id: item.rowId,
     $permissions: permissions,
+    field_answers: buildFieldAnswerRows(item, importedFieldRowIds, permissions),
     line_total: item.line_total,
     name: item.name,
     quantity: item.quantity,
