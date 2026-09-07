@@ -321,7 +321,20 @@ describe("listDepartments pagination", () => {
   // could never list. The filter has to match every raw value that normalises
   // onto the chip's category.
   test("a category filter matches every legacy alias that folds onto it", async () => {
-    sessionDb.listRows.mockResolvedValueOnce({ rows: [], total: 0 });
+    // The filter is derived from what is stored, so the scan supplies the
+    // spellings; a value folding onto another category must not leak in.
+    sessionDb.listRows
+      .mockResolvedValueOnce({
+        rows: [
+          { $id: "d1", type: "committee" },
+          { $id: "d2", type: "service" },
+          { $id: "d3", type: "staff" },
+          { $id: "d4", type: "staff_function" },
+          { $id: "d5", type: "society" },
+        ],
+        total: 5,
+      })
+      .mockResolvedValueOnce({ rows: [], total: 0 });
 
     await listDepartments({
       includeInactive: true,
@@ -331,14 +344,71 @@ describe("listDepartments pagination", () => {
       type: "staff_function",
     });
 
-    const queries = sessionDb.listRows.mock.calls[0]?.[2] as string[];
+    const queries = sessionDb.listRows.mock.calls.at(-1)?.[2] as string[];
     expect(typeEqualityValues(queries)).toEqual(
       ["committee", "service", "staff", "staff_function"].sort()
     );
   });
 
+  // Nothing stored folds onto the category, so the chip can only be empty —
+  // and Appwrite rejects an empty IN-list, so it must not be asked at all.
+  test("returns an empty page rather than querying an empty value list", async () => {
+    sessionDb.listRows.mockResolvedValueOnce({
+      rows: [{ $id: "d1", type: "society" }],
+      total: 1,
+    });
+
+    const result = await listDepartments({
+      includeInactive: true,
+      page: 1,
+      q: "",
+      size: 25,
+      type: "national",
+    });
+
+    expect(result.rows).toEqual([]);
+    expect(result.total).toBe(0);
+    expect(sessionDb.listRows.mock.calls).toHaveLength(1);
+  });
+
+  // `parseUnitCategory` folds case and separator spellings, so the counts
+  // include a row stored as `Academic Association`. A filter built from
+  // canonical values plus a fixed alias list never returns that row, so the
+  // chip advertised rows clicking it could not produce. The filter is derived
+  // from the values actually stored instead.
+  test("filters on the raw spellings actually stored, not a guessed alias list", async () => {
+    sessionDb.listRows
+      .mockResolvedValueOnce({
+        rows: [
+          { $id: "d1", type: "Academic Association" },
+          { $id: "d2", type: "academic_association" },
+          { $id: "d3", type: "society" },
+        ],
+        total: 3,
+      })
+      .mockResolvedValueOnce({ rows: [], total: 0 });
+
+    await listDepartments({
+      includeInactive: true,
+      page: 1,
+      q: "",
+      size: 25,
+      type: "academic_association",
+    });
+
+    const listQueries = sessionDb.listRows.mock.calls.at(-1)?.[2] as string[];
+    expect(typeEqualityValues(listQueries)).toEqual(
+      ["Academic Association", "academic_association"].sort()
+    );
+  });
+
   test("a category with no aliases still filters on itself", async () => {
-    sessionDb.listRows.mockResolvedValueOnce({ rows: [], total: 0 });
+    sessionDb.listRows
+      .mockResolvedValueOnce({
+        rows: [{ $id: "d1", type: "other" }],
+        total: 1,
+      })
+      .mockResolvedValueOnce({ rows: [], total: 0 });
 
     await listDepartments({
       includeInactive: true,
@@ -348,7 +418,7 @@ describe("listDepartments pagination", () => {
       type: "other",
     });
 
-    const queries = sessionDb.listRows.mock.calls[0]?.[2] as string[];
+    const queries = sessionDb.listRows.mock.calls.at(-1)?.[2] as string[];
     expect(typeEqualityValues(queries)).toEqual(["other"]);
   });
 

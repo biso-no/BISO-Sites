@@ -13,7 +13,7 @@ import {
   isUnitCategory,
   parseUnitCategory,
   UNIT_CATEGORIES,
-  unitCategoryMatchValues,
+  type UnitCategory,
 } from "@repo/shared/utils/unit-categories";
 import { unitPageSlug } from "@repo/shared/utils/unit-urls";
 import { revalidatePath } from "next/cache";
@@ -96,6 +96,54 @@ function departmentScopeQueries(
   return queries;
 }
 
+/**
+ * Row cap for the triage projection.
+ *
+ * The category counts and the category filter must read the same bounded
+ * window, or they could disagree at its edge — which is the whole defect this
+ * pair exists to avoid. ~240 rows today.
+ */
+const TRIAGE_SCAN_LIMIT = 500;
+
+/**
+ * The raw `departments.type` spellings in scope that normalise onto `category`.
+ *
+ * Mirrors `countDepartmentTriage`'s read — same scope, same search, same 500
+ * cap — so the filter selects exactly the rows the chip counted. The column is
+ * small (~240 rows today) and this only runs when a category chip is active.
+ */
+async function resolveStoredTypeValues(
+  db: Awaited<ReturnType<typeof createSessionClient>>["db"],
+  category: UnitCategory,
+  scope: string[],
+  q?: string
+): Promise<string[]> {
+  const queries = [
+    Query.select(["$id", "type"]),
+    Query.limit(TRIAGE_SCAN_LIMIT),
+    ...scope,
+  ];
+  if (q) {
+    queries.push(Query.contains("Name", q));
+  }
+
+  const response = await db.listRows<Departments>(
+    "app",
+    "departments",
+    queries
+  );
+  const values = new Set<string>();
+  for (const row of response.rows) {
+    if (
+      typeof row.type === "string" &&
+      parseUnitCategory(row.type) === category
+    ) {
+      values.add(row.type);
+    }
+  }
+  return [...values];
+}
+
 export async function listDepartments(
   params: ListParams & {
     campusId?: string;
@@ -138,10 +186,23 @@ export async function listDepartments(
   } else if (params.type === "missing_logo") {
     queries.push(Query.or([Query.equal("logo", ""), Query.isNull("logo")]));
   } else if (isUnitCategory(params.type)) {
-    // Query.equal ORs the array, so this matches the canonical value AND every
-    // legacy alias parseUnitCategory folds onto it — the same set the count for
-    // this chip is built from.
-    queries.push(Query.equal("type", unitCategoryMatchValues(params.type)));
+    // Derived from the values actually stored, not from a fixed alias list.
+    // `parseUnitCategory` also folds case and separator spellings, so a row
+    // written as `Academic Association` or `staff-function` is counted under
+    // its category while an exact-match filter built from canonical values plus
+    // known aliases would never return it — the chip would advertise rows that
+    // clicking it could not produce. Reading the column is what makes the two
+    // agree by construction rather than by keeping two lists in step.
+    const values = await resolveStoredTypeValues(
+      db,
+      params.type,
+      scope,
+      params.q
+    );
+    if (values.length === 0) {
+      return emptyResult<Departments>(params);
+    }
+    queries.push(Query.equal("type", values));
   } else if (params.type) {
     // Not a known category (a raw alias, or junk from the address bar): fall
     // back to an exact match rather than guessing.
@@ -230,7 +291,7 @@ export async function countDepartmentTriage(opts: {
 
   const queries: string[] = [
     Query.select(["$id", "type", "logo"]),
-    Query.limit(500),
+    Query.limit(TRIAGE_SCAN_LIMIT),
     ...scope,
   ];
 
