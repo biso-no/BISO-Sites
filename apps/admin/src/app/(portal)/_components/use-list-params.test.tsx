@@ -17,9 +17,13 @@ import { installReactDom, type TestElement } from "@/test/react-dom-harness";
 // mock a shared lib module" rule, which this does not fall under.
 const pushCalls: string[] = [];
 let searchParamsString = "";
+// Per-test pathname: the pending-write store is shared across hook instances
+// (that is the point of it), so tests isolate themselves by route rather than
+// by reaching into module state.
+let pathname = "/departments";
 
 mock.module("next/navigation", () => ({
-  usePathname: () => "/departments",
+  usePathname: () => pathname,
   useRouter: () => ({
     push: (url: string) => {
       pushCalls.push(url);
@@ -28,7 +32,9 @@ mock.module("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(searchParamsString),
 }));
 
-const { useListParams, useUrlSearch } = await import("./use-list-params");
+const { ListParamsProvider, useListParams, useUrlSearch } = await import(
+  "./use-list-params"
+);
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -43,6 +49,7 @@ beforeAll(async () => {
 beforeEach(() => {
   pushCalls.length = 0;
   searchParamsString = "";
+  pathname = "/departments";
 });
 
 afterEach(async () => {
@@ -96,6 +103,48 @@ test("merges a second write against the first while the navigation is pending", 
   expect(pushCalls).toHaveLength(2);
   const second = new URLSearchParams(pushCalls[1]?.split("?")[1] ?? "");
   expect(second.get("product")).toBe("prod-1");
+  expect(second.get("ostatus")).toBe("paid");
+});
+
+// One screen holds several instances of this hook — the shop studio has one for
+// its filter controls and one per search box. Writes have to merge across all
+// of them, not just within a single instance, or a filter chip followed by the
+// debounced search still loses the chip.
+test("merges writes made through two separate hook instances", async () => {
+  type SetParams = ReturnType<typeof useListParams>["setParams"];
+  let fromFilters: SetParams | null = null;
+  let fromSearch: SetParams | null = null;
+
+  function Filters() {
+    fromFilters = useListParams().setParams;
+    return null;
+  }
+  function Search() {
+    fromSearch = useListParams().setParams;
+    return null;
+  }
+
+  pathname = "/shop-two-instances";
+  searchParamsString = "";
+  await mount(
+    createElement(
+      ListParamsProvider,
+      null,
+      createElement(Filters),
+      createElement(Search)
+    )
+  );
+
+  await act(() => {
+    fromFilters?.({ ostatus: "paid" }, { pageKey: "opage" });
+  });
+  await act(() => {
+    fromSearch?.({ oq: "nordmann" }, { pageKey: "opage" });
+  });
+
+  expect(pushCalls).toHaveLength(2);
+  const second = new URLSearchParams(pushCalls[1]?.split("?")[1] ?? "");
+  expect(second.get("oq")).toBe("nordmann");
   expect(second.get("ostatus")).toBe("paid");
 });
 

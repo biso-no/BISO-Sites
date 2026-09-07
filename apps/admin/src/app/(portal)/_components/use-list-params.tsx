@@ -1,7 +1,15 @@
 "use client";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import type { ReactNode } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 
 type ParamValue = string | number | null | undefined;
 
@@ -18,6 +26,33 @@ interface SetParamsOptions {
   pageKey?: string;
 }
 
+/** A query string pushed but not yet committed, plus the route it belongs to. */
+type PendingWrite = { path: string; query: string } | null;
+
+const PendingWriteContext = createContext<{
+  current: PendingWrite;
+} | null>(null);
+
+/**
+ * Shares the not-yet-committed query string between every `useListParams()`
+ * instance beneath it.
+ *
+ * One screen holds several: the shop studio has one for its filter controls
+ * and one per search box. A per-instance ref merged a hook's writes only with
+ * its own, so changing a filter and then letting the debounced search fire
+ * dropped the filter. A module-level global would share it too, but it would
+ * also outlive the tree — the App Router keeps a layout mounted across route
+ * changes — so the store is scoped to a provider instead.
+ */
+export function ListParamsProvider({ children }: { children: ReactNode }) {
+  const pending = useRef<PendingWrite>(null);
+  return (
+    <PendingWriteContext.Provider value={pending}>
+      {children}
+    </PendingWriteContext.Provider>
+  );
+}
+
 export function useListParams() {
   const router = useRouter();
   const pathname = usePathname();
@@ -29,10 +64,14 @@ export function useListParams() {
   // clone the stale snapshot and silently drop the first — easy to hit on the
   // orders tab, which has several independent controls plus a debounced search
   // box while its queries are still loading.
-  const pending = useRef<string | null>(null);
   const lastCommitted = useRef(committed);
+  // Without a provider the hook still works, just without cross-instance
+  // merging — a lone list surface has nothing to merge with.
+  const ownPending = useRef<PendingWrite>(null);
+  const pending = useContext(PendingWriteContext) ?? ownPending;
   // Any committed change supersedes the optimistic copy — our own push landing,
   // or an external navigation such as Back, which must not be merged into.
+  // Whichever instance renders first clears it; the rest are no-ops.
   if (lastCommitted.current !== committed) {
     lastCommitted.current = committed;
     pending.current = null;
@@ -51,7 +90,9 @@ export function useListParams() {
    */
   const setParams = useCallback(
     (updates: Record<string, ParamValue>, opts?: SetParamsOptions) => {
-      const params = new URLSearchParams(pending.current ?? committed);
+      const base =
+        pending.current?.path === pathname ? pending.current.query : committed;
+      const params = new URLSearchParams(base);
 
       for (const [key, value] of Object.entries(updates)) {
         const next = value === null || value === undefined ? "" : String(value);
@@ -67,10 +108,10 @@ export function useListParams() {
       }
 
       const qs = params.toString();
-      pending.current = qs;
+      pending.current = { path: pathname, query: qs };
       router.push(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
     },
-    [router, pathname, committed]
+    [router, pathname, committed, pending]
   );
 
   return { get, setParams };

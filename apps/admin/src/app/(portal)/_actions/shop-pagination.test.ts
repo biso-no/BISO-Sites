@@ -366,6 +366,31 @@ describe("listOrders pagination", () => {
   // rather than throwing, and these must too: an unparseable date used to be
   // interpolated straight into a timestamp, which Appwrite rejects and which
   // takes the whole orders page down with it.
+  // The picker and the order rows both speak the organisation's local calendar
+  // day. Bounding on the UTC day pulled in orders from the next locally
+  // displayed day — an order at 2026-01-31T23:30Z renders as 1 February in
+  // Oslo, yet a `to=2026-01-31` filter used to include it.
+  test("bounds the range on the organisation's calendar day, not the UTC one", async () => {
+    sessionDb.listRows.mockImplementation(() => ({ rows: [], total: 0 }));
+
+    await listOrders({ page: 1, size: 25, q: "", to: "2026-01-31" });
+
+    expect(onlyQueriesFor(sessionDb, "orders")).toContain(
+      Query.lessThanEqual("$createdAt", "2026-01-31T22:59:59.999Z")
+    );
+  });
+
+  // Summer is UTC+2, so the offset cannot be a constant.
+  test("follows the daylight saving offset in force on the chosen day", async () => {
+    sessionDb.listRows.mockImplementation(() => ({ rows: [], total: 0 }));
+
+    await listOrders({ page: 1, size: 25, q: "", from: "2026-07-01" });
+
+    expect(onlyQueriesFor(sessionDb, "orders")).toContain(
+      Query.greaterThanEqual("$createdAt", "2026-06-30T22:00:00.000Z")
+    );
+  });
+
   test("ignores an unparseable date rather than sending Appwrite a bad timestamp", async () => {
     sessionDb.listRows.mockImplementation(() => ({ rows: [], total: 0 }));
 
@@ -399,8 +424,8 @@ describe("listOrders pagination", () => {
     expect(queries).toContain(
       Query.between(
         "$createdAt",
-        "2026-01-01T00:00:00.000Z",
-        "2026-12-31T23:59:59.999Z"
+        "2025-12-31T23:00:00.000Z",
+        "2026-12-31T22:59:59.999Z"
       )
     );
   });
@@ -410,14 +435,14 @@ describe("listOrders pagination", () => {
 
     await listOrders({ page: 1, size: 25, q: "", from: "2026-01-01" });
     expect(onlyQueriesFor(sessionDb, "orders")).toContain(
-      Query.greaterThanEqual("$createdAt", "2026-01-01T00:00:00.000Z")
+      Query.greaterThanEqual("$createdAt", "2025-12-31T23:00:00.000Z")
     );
 
     sessionDb.listRows.mockReset();
     sessionDb.listRows.mockImplementation(() => ({ rows: [], total: 0 }));
     await listOrders({ page: 1, size: 25, q: "", to: "2026-12-31" });
     expect(onlyQueriesFor(sessionDb, "orders")).toContain(
-      Query.lessThanEqual("$createdAt", "2026-12-31T23:59:59.999Z")
+      Query.lessThanEqual("$createdAt", "2026-12-31T22:59:59.999Z")
     );
   });
 
@@ -651,8 +676,8 @@ describe("countOrderStats", () => {
     expect(queries).toContain(
       Query.between(
         "$createdAt",
-        "2026-01-01T00:00:00.000Z",
-        "2026-01-31T23:59:59.999Z"
+        "2025-12-31T23:00:00.000Z",
+        "2026-01-31T22:59:59.999Z"
       )
     );
     expect(queries.some((query) => query.includes('"or"'))).toBe(true);

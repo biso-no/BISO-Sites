@@ -199,8 +199,9 @@ describe("exportOrdersCsv", () => {
     expect(queries).toContain(
       Query.between(
         "$createdAt",
-        "2026-01-01T00:00:00.000Z",
-        "2026-01-31T23:59:59.999Z"
+        // Whole local days in the organisation's calendar, not UTC ones.
+        "2025-12-31T23:00:00.000Z",
+        "2026-01-31T22:59:59.999Z"
       )
     );
     expect(queries.some((query) => query.includes('"or"'))).toBe(true);

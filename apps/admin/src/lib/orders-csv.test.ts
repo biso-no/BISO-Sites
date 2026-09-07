@@ -620,3 +620,77 @@ describe("orderCsvRowCount", () => {
     );
   });
 });
+
+// Excel and Sheets evaluate a cell that opens with `=`, `+`, `-` or `@`, and
+// CSV quoting does not stop it. Product names and custom-field answers are
+// shopper-supplied, so an export opened by an administrator is a live code
+// path unless those cells are forced to text.
+describe("spreadsheet formula neutralisation", () => {
+  test("prefixes a formula-leading string so the cell stays text", () => {
+    expect(escapeCsvValue("=1+1")).toBe("'=1+1");
+    expect(escapeCsvValue("@SUM(A1)")).toBe("'@SUM(A1)");
+    expect(escapeCsvValue("-1+cmd|'/c calc'!A0")).toContain("'-1+cmd");
+  });
+
+  test("leaves genuinely numeric values alone so money still adds up", () => {
+    // A negative discount and a Norwegian phone number both lead with a
+    // character on the dangerous list while being ordinary data.
+    expect(escapeCsvValue("-50")).toBe("-50");
+    expect(escapeCsvValue(-50)).toBe("-50");
+    expect(escapeCsvValue("+4712345678")).toBe("+4712345678");
+  });
+
+  test("still quotes a neutralised cell that also breaks the row", () => {
+    const cell = escapeCsvValue('=HYPERLINK("http://x","a,b")');
+    expect(cell.startsWith("\"'=")).toBe(true);
+    expect(parseCsv(`${cell}\n`)[0]?.[0]).toBe(
+      '\'=HYPERLINK("http://x","a,b")'
+    );
+  });
+
+  function orderWithItem(item: Record<string, unknown>): string {
+    return ordersToCsv([makeOrder({ order_items: [item] })], HEADERS);
+  }
+
+  const baseItem = {
+    $id: "line-1",
+    custom_fields_json: null,
+    line_total: 100,
+    name: "Genser",
+    product: { $id: "product-1" },
+    quantity: 1,
+    unit_price: 100,
+    variation: null,
+  };
+
+  test("neutralises a shopper-supplied product name", () => {
+    const csv = orderWithItem({ ...baseItem, name: "=1+1" });
+    expect((parseCsv(csv)[1] ?? [])[COLUMN.productName]).toBe("'=1+1");
+  });
+
+  test("neutralises a custom fields cell that opens with a formula", () => {
+    const csv = orderWithItem({
+      ...baseItem,
+      custom_fields_json: JSON.stringify([
+        { id: "size", label: "=Size", value: "Large" },
+      ]),
+    });
+    expect((parseCsv(csv)[1] ?? [])[COLUMN.customFields]).toBe("'=Size=Large");
+  });
+
+  // A spreadsheet only evaluates a cell that BEGINS with a trigger character.
+  // The cell is `label=value`, so a shopper-supplied value always sits after a
+  // label and is inert; asserting otherwise would pin behaviour that is not
+  // required and would corrupt ordinary answers.
+  test("leaves a formula-looking value that sits mid-cell as written", () => {
+    const csv = orderWithItem({
+      ...baseItem,
+      custom_fields_json: JSON.stringify([
+        { id: "size", label: "Size", value: "=cmd|'/c calc'!A0" },
+      ]),
+    });
+    const cell = (parseCsv(csv)[1] ?? [])[COLUMN.customFields] ?? "";
+    expect(cell.startsWith("Size=")).toBe(true);
+    expect(cell.startsWith("=")).toBe(false);
+  });
+});

@@ -25,10 +25,38 @@ import {
 
 const QUOTE_PATTERN = /"/g;
 
+/** Leading characters Excel and Sheets treat as the start of a formula. */
+const FORMULA_LEAD_PATTERN = /^[=+\-@\t\r]/;
+
+/**
+ * Forces a cell that would otherwise be evaluated as a formula to stay text.
+ *
+ * Product names and `custom_fields_json` answers are supplied by shoppers at
+ * checkout, so a cell can open with `=`, `+`, `-` or `@`. CSV quoting does not
+ * prevent evaluation — an administrator opening the export in Excel or Sheets
+ * would run it. A leading apostrophe is the standard neutraliser.
+ *
+ * Genuinely numeric values are left alone so the money columns still add up:
+ * a `-50` discount and a `+47…` phone number both lead with a listed character
+ * while being ordinary data, and neither can be a formula.
+ */
+function neutralizeFormula(text: string): string {
+  if (!FORMULA_LEAD_PATTERN.test(text)) {
+    return text;
+  }
+  if (text.trim() !== "" && Number.isFinite(Number(text))) {
+    return text;
+  }
+  return `'${text}`;
+}
+
 /**
  * One CSV cell. Quotes only when the value would otherwise break the row —
  * a comma, an embedded quote, or a newline — and doubles embedded quotes,
  * which is what RFC 4180 (and Excel) expects.
+ *
+ * A `number` is rendered as-is: it cannot carry a formula, and neutralising it
+ * would break arithmetic in the sheet.
  */
 export function escapeCsvValue(
   value: string | number | null | undefined
@@ -36,7 +64,10 @@ export function escapeCsvValue(
   if (value == null) {
     return "";
   }
-  const text = String(value);
+  const text =
+    typeof value === "number"
+      ? String(value)
+      : neutralizeFormula(String(value));
   return text.includes(",") || text.includes('"') || text.includes("\n")
     ? `"${text.replace(QUOTE_PATTERN, '""')}"`
     : text;
