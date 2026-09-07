@@ -1261,7 +1261,7 @@ function collectOrderIds(
  */
 export async function listOrderIdsForProduct(
   productId: string,
-  opts?: { limit?: number }
+  opts?: { from?: string; limit?: number; to?: string }
 ): Promise<{ ids: string[]; truncated: boolean }> {
   await requireAuth();
   // Session client: order_items carries the same operational row security as
@@ -1282,6 +1282,13 @@ export async function listOrderIdsForProduct(
       // arbitrary order surfaced an arbitrary 500, so a product with more
       // orders than the cap hid its newest ones behind older matches.
       Query.orderDesc("$createdAt"),
+      // The same date range the orders query will apply, pushed down here so
+      // the id cap is spent on candidates that can actually match. Without it
+      // an older range resolved the product's NEWEST 500 orders and then
+      // filtered those to nothing, hiding matches that genuinely exist. The
+      // line item's own `$createdAt` stands in for its order's — checkout
+      // writes them together.
+      ...orderDateQueries(opts?.from, opts?.to),
       Query.select(["$id", "order.$id"]),
       Query.limit(ORDER_ITEM_SCAN_PAGE),
     ];
@@ -1332,7 +1339,10 @@ export async function orderFilterQueries(
   let truncated = false;
 
   if (filters.productId) {
-    const resolved = await listOrderIdsForProduct(filters.productId);
+    const resolved = await listOrderIdsForProduct(filters.productId, {
+      from: filters.from,
+      to: filters.to,
+    });
     if (resolved.ids.length === 0) {
       return null;
     }

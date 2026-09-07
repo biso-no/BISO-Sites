@@ -730,6 +730,7 @@
         "noCategory": "Ingen kategori"
       },
       "filters": {
+        "product": "Filtrer på produkt",
         "allProducts": "Alle produkter",
         "fromDate": "Fra dato",
         "toDate": "Til dato",

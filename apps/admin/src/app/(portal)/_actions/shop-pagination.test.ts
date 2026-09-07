@@ -777,3 +777,29 @@ test("resolves a product's newest parent orders before hitting the cap", async (
   const scan = queriesFor(sessionDb, "order_items")[0] ?? [];
   expect(scan).toContain(Query.orderDesc("$createdAt"));
 });
+
+// The resolver caps at 500 parent ids and the other predicates are applied to
+// the orders query afterwards, so a date range narrower than the product's
+// history used to resolve the newest 500 and then filter those down — often to
+// nothing, while matching older orders existed. Pushing the range into the scan
+// means the cap is spent on candidates that can actually match.
+test("narrows the product scan by the date range before the cap applies", async () => {
+  sessionDb.listRows.mockImplementation(() => ({ rows: [], total: 0 }));
+
+  await listOrders({
+    from: "2026-01-01",
+    page: 1,
+    productId: "product-1",
+    q: "",
+    size: 25,
+    to: "2026-01-31",
+  });
+
+  expect(queriesFor(sessionDb, "order_items")[0] ?? []).toContain(
+    Query.between(
+      "$createdAt",
+      "2025-12-31T23:00:00.000Z",
+      "2026-01-31T22:59:59.999Z"
+    )
+  );
+});

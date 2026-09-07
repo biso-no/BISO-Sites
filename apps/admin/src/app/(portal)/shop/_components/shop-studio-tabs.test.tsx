@@ -356,3 +356,33 @@ test("renders the full order id, not just its last eight characters", () => {
 
   expect(html).toContain("order-000000001");
 });
+
+// Every filter control needs an accessible name. `title` alone is an
+// unreliable one, and the product select had nothing at all — its options are
+// product names, which say nothing about what the control does.
+test("gives each orders filter control an accessible name", () => {
+  const html = renderToStaticMarkup(createElement(OrdersTab, ordersProps));
+
+  expect(html).toContain(
+    'aria-label="adminPortal.shop.studio.filters.product"'
+  );
+  expect(html).toContain(
+    'aria-label="adminPortal.shop.studio.filters.fromDate"'
+  );
+  expect(html).toContain('aria-label="adminPortal.shop.studio.filters.toDate"');
+});
+
+// A product filter resolves at most 500 parent orders, so a status or buyer
+// search can still narrow that subset to nothing while matching orders exist
+// outside it. The list must say so rather than presenting an ordinary empty
+// result — the warning has to render above the empty state, not instead of it.
+test("warns about a capped product filter even when the page is empty", () => {
+  const html = renderToStaticMarkup(
+    createElement(OrdersTab, {
+      ...ordersProps,
+      data: { ...ordersData, rows: [], total: 0, truncated: true },
+    })
+  );
+
+  expect(html).toContain("adminPortal.shop.studio.notice.truncatedOrders");
+});

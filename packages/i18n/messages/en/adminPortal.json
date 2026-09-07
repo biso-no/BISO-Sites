@@ -730,6 +730,7 @@
         "noCategory": "No category"
       },
       "filters": {
+        "product": "Filter by product",
         "allProducts": "All products",
         "fromDate": "From date",
         "toDate": "To date",

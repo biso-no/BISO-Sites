@@ -200,6 +200,7 @@ export function OrdersTab({
             `listOrders` resolves order ids from. A line-item name would not
             survive a product rename and could not be queried exactly. */}
         <select
+          aria-label={ts("filters.product")}
           onChange={(e) => onProductFilterChange(e.target.value)}
           style={{
             ...FILTER_CONTROL_STYLE,
@@ -219,6 +220,7 @@ export function OrdersTab({
 
         {/* Date from */}
         <input
+          aria-label={ts("filters.fromDate")}
           onChange={(e) => onDateFromChange(e.target.value)}
           style={{
             ...FILTER_CONTROL_STYLE,
@@ -234,6 +236,7 @@ export function OrdersTab({
 
         {/* Date to */}
         <input
+          aria-label={ts("filters.toDate")}
           onChange={(e) => onDateToChange(e.target.value)}
           style={{
             ...FILTER_CONTROL_STYLE,

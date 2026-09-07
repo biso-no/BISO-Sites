@@ -197,7 +197,11 @@ export async function exportOrdersCsv(input: {
   let truncated = false;
   if (input.filters.productId) {
     const resolved = await listOrderIdsForProduct(input.filters.productId, {
+      // Same date range the export itself applies, so the id ceiling is spent
+      // on candidates that can match rather than on the newest orders overall.
+      from: input.filters.from,
       limit: MAX_PRODUCT_ORDER_IDS,
+      to: input.filters.to,
     });
     if (resolved.ids.length === 0) {
       return {
