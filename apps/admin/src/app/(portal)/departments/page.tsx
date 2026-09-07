@@ -1,112 +1,211 @@
+import {
+  parseUnitCategory,
+  UNIT_CATEGORIES,
+  type UnitCategory,
+} from "@repo/shared/utils/unit-categories";
 import { Building2 } from "lucide-react";
-import Image from "next/image";
+import { notFound, redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { requireNavAccess } from "@/lib/authorization";
-import { listDepartments } from "../_actions/departments";
+import { resolveDepartmentsLanding } from "@/lib/departments";
+import {
+  DEFAULT_PAGE_SIZE,
+  firstParam,
+  parseListParams,
+} from "@/lib/list-params";
+import { ROLES } from "@/lib/roles";
+import {
+  countDepartmentTriage,
+  listDepartments,
+} from "../_actions/departments";
 import { listCampuses } from "../_actions/lookups";
 import { EmptyState } from "../_components/empty-state";
+import { FilterChipLink } from "../_components/filter-chip-link";
 import { PageHeader } from "../_components/page-header";
-import { SERIF_STACK, STUDIO, StudioIconBox } from "../_components/studio";
+import { PaginationBar } from "../_components/pagination-bar";
+import { STUDIO } from "../_components/studio";
+import { UrlSearchToolbar } from "../_components/url-search-toolbar";
+import { UnitListCard } from "./_components/unit-list-card";
 import { SyncDepartmentsButton } from "./sync-button";
 
-export default async function DepartmentsPage() {
-  await requireNavAccess("portal.departments");
-  const t = await getTranslations("adminPortal.departments");
+/**
+ * Filter values that are not a unit category. Every one of the 280 synced rows
+ * currently has `type = null` and `logo = ""`, so triaging *what is missing* is
+ * the primary job of this listing, not browsing an already-tidy taxonomy.
+ */
+const TRIAGE_FILTERS = ["uncategorised", "missing_logo"] as const;
+type TriageFilter = (typeof TRIAGE_FILTERS)[number];
+type DepartmentFilter = UnitCategory | TriageFilter | "all";
 
-  const [departments, campuses] = await Promise.all([
-    listDepartments({ includeInactive: true }),
+const isDepartmentFilter = (value: unknown): value is DepartmentFilter =>
+  value === "all" ||
+  (typeof value === "string" &&
+    (UNIT_CATEGORIES.includes(value as UnitCategory) ||
+      TRIAGE_FILTERS.includes(value as TriageFilter)));
+
+export default async function DepartmentsPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const ctx = await requireNavAccess("portal.departments");
+  const landing = resolveDepartmentsLanding(ctx);
+
+  if (landing.kind === "forbidden") {
+    notFound();
+  }
+  if (landing.kind === "redirect") {
+    redirect(`/departments/${landing.departmentId}`);
+  }
+
+  const t = await getTranslations("adminPortal.departments");
+  const tc = await getTranslations("adminPortal.common");
+  const resolvedSearchParams = await searchParams;
+  const params = parseListParams(resolvedSearchParams);
+  const rawFilter = firstParam(resolvedSearchParams, "type");
+  const filter: DepartmentFilter = isDepartmentFilter(rawFilter)
+    ? rawFilter
+    : "all";
+
+  // Two queries on purpose. The listing is a page; the chip counts describe the
+  // whole set the search leaves in scope, so they stay identical as the user
+  // pages. Deriving them from `departments.rows` would report one page's worth.
+  // `q` goes to both so the chips predict what clicking them yields; `page`
+  // and `size` go only to the list.
+  const [departments, counts, campuses] = await Promise.all([
+    listDepartments({
+      ...params,
+      ids: landing.scopeIds,
+      includeInactive: true,
+      type: filter === "all" ? undefined : filter,
+    }),
+    countDepartmentTriage({
+      ids: landing.scopeIds,
+      includeInactive: true,
+      q: params.q,
+    }),
     listCampuses(),
   ]);
 
+  const visible = departments.rows;
   const campusMap = new Map(campuses.map((c) => [c.$id, c.name]));
+  const isGlobalAdmin = ctx.roles.includes(ROLES.GLOBAL_ADMIN);
+
+  // A chip switches the filter; it must keep the active search and page size
+  // but always land on page 1 of the new filter.
+  const chipHref = (key: DepartmentFilter) => {
+    const next = new URLSearchParams();
+    if (key !== "all") {
+      next.set("type", key);
+    }
+    if (params.q) {
+      next.set("q", params.q);
+    }
+    if (params.size !== DEFAULT_PAGE_SIZE) {
+      next.set("size", String(params.size));
+    }
+    const qs = next.toString();
+    return qs ? `/departments?${qs}` : "/departments";
+  };
+
+  const chips: { key: DepartmentFilter; label: string }[] = [
+    { key: "all", label: t("filters.all") },
+    ...UNIT_CATEGORIES.map((category) => ({
+      key: category as DepartmentFilter,
+      label: t(`categories.${category}`),
+    })),
+    { key: "uncategorised", label: t("filters.uncategorised") },
+    { key: "missing_logo", label: t("filters.missingLogo") },
+  ];
 
   return (
     <div className="pb-12">
       <PageHeader description={t("description")} title={t("title")} />
-      <div className="mb-6 flex items-center justify-end">
-        <SyncDepartmentsButton />
+
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm" style={{ color: STUDIO.ink3 }}>
+          {t("filters.triageSummary", {
+            missingLogo: counts.missing_logo,
+            total: counts.all,
+            uncategorised: counts.uncategorised,
+          })}
+        </p>
+        {isGlobalAdmin && <SyncDepartmentsButton />}
       </div>
 
-      {departments.length === 0 ? (
+      <UrlSearchToolbar />
+
+      <nav
+        aria-label={t("filters.label")}
+        className="mb-6 flex flex-wrap gap-2"
+      >
+        {chips.map((chip) => {
+          const isActive = chip.key === filter;
+          return (
+            <FilterChipLink
+              active={isActive}
+              className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 font-medium text-xs transition"
+              href={chipHref(chip.key)}
+              key={chip.key}
+              // The href describes the committed URL; these are what the chip
+              // actually writes, so a click merges with a search push that has
+              // not landed yet instead of navigating away from it.
+              params={{ type: chip.key === "all" ? null : chip.key }}
+              style={{
+                background: isActive ? STUDIO.ink : "rgba(255,255,255,0.55)",
+                border: `0.5px solid ${isActive ? STUDIO.ink : STUDIO.rule2}`,
+                color: isActive ? STUDIO.paper : STUDIO.ink2,
+              }}
+            >
+              {chip.label}
+              <span style={{ opacity: 0.7 }}>{counts[chip.key] ?? 0}</span>
+            </FilterChipLink>
+          );
+        })}
+      </nav>
+
+      {visible.length === 0 && !params.q ? (
         <EmptyState
           description={t("emptyDescription")}
           icon={<Building2 size={28} />}
           title={t("empty")}
         />
-      ) : (
+      ) : null}
+
+      {/* A search that matched nothing gets the neutral "No results found" —
+          never the sync-explains-the-emptiness copy, which would be wrong. */}
+      {visible.length === 0 && params.q ? (
+        <EmptyState icon={<Building2 size={28} />} title={tc("empty")} />
+      ) : null}
+
+      {visible.length > 0 && (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {departments.map((dept) => (
-            <div
-              className="group overflow-hidden rounded-2xl border transition hover:bg-white/70"
-              key={dept.$id}
-              style={{
-                background: "rgba(255,255,255,0.46)",
-                borderColor: STUDIO.rule,
-              }}
-            >
-              <div
-                className="relative h-24 overflow-hidden"
-                style={{ background: STUDIO.paper2 }}
-              >
-                {dept.hero ? (
-                  <Image
-                    alt={dept.Name}
-                    className="object-cover opacity-60"
-                    fill
-                    src={dept.hero}
-                  />
-                ) : (
-                  <div className="flex h-full w-full items-center justify-center">
-                    <StudioIconBox color={STUDIO.claret}>
-                      <Building2 size={18} />
-                    </StudioIconBox>
-                  </div>
-                )}
-                {dept.type && (
-                  <div
-                    className="absolute top-2 left-2 rounded-full px-2 py-0.5 font-medium text-[10px] uppercase"
-                    style={{
-                      background: "rgba(250,247,242,0.9)",
-                      color: STUDIO.ink3,
-                    }}
-                  >
-                    {dept.type}
-                  </div>
-                )}
-                {dept.active === false && (
-                  <div
-                    className="absolute top-2 right-2 rounded-full px-2 py-0.5 text-[10px]"
-                    style={{
-                      background: "rgba(107,30,30,0.10)",
-                      color: STUDIO.claret,
-                    }}
-                  >
-                    Inactive
-                  </div>
-                )}
-              </div>
-
-              <div className="p-4">
-                <p
-                  className="text-2xl leading-7"
-                  style={{ color: STUDIO.ink, fontFamily: SERIF_STACK }}
-                >
-                  {dept.Name}
-                </p>
-                <p className="mt-1 text-xs" style={{ color: STUDIO.ink3 }}>
-                  {campusMap.get(dept.campus_id) ?? dept.campus_id}
-                </p>
-
-                <div className="mt-4 flex items-center justify-between">
-                  <span className="text-xs" style={{ color: STUDIO.ink4 }}>
-                    {t("fields.members")}: {dept.users?.length ?? 0}
-                  </span>
-                </div>
-              </div>
-            </div>
-          ))}
+          {visible.map((dept) => {
+            const category = parseUnitCategory(dept.type);
+            return (
+              <UnitListCard
+                campusName={campusMap.get(dept.campus_id) ?? dept.campus_id}
+                department={dept}
+                key={dept.$id}
+                labels={{
+                  category: category ? t(`categories.${category}`) : null,
+                  inactive: t("badges.inactive"),
+                  members: t("fields.members"),
+                  noCategory: t("badges.noCategory"),
+                  noLogo: t("badges.noLogo"),
+                }}
+              />
+            );
+          })}
         </div>
       )}
+
+      <PaginationBar
+        page={params.page}
+        size={params.size}
+        sizeSelectable
+        total={departments.total}
+      />
     </div>
   );
 }

@@ -1,6 +1,10 @@
 "use client";
 
 import type { ContentTranslations } from "@repo/api/types/appwrite";
+import {
+  parseUnitCategory,
+  type UnitCategory,
+} from "@repo/shared/utils/unit-categories";
 import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useMemo, useState } from "react";
 import {
@@ -10,7 +14,7 @@ import {
 import { DepartmentsGrid } from "./departments-grid";
 
 interface DepartmentsListClientProps {
-  availableTypes: string[];
+  availableCategories: UnitCategory[];
   departments: ContentTranslations[];
 }
 
@@ -29,10 +33,11 @@ const matchesCampus = (
   campusId: FilterState["campusId"]
 ) => !campusId || deptRef?.campus_id === campusId;
 
-const matchesType = (
+// Uncategorised units only drop out when a category is actively picked.
+const matchesCategory = (
   deptRef: ContentTranslations["department_ref"] | undefined,
-  type: FilterState["type"]
-) => !type || deptRef?.type === type;
+  category: FilterState["category"]
+) => !category || parseUnitCategory(deptRef?.type) === category;
 
 const matchesSearch = (dept: ContentTranslations, search: string) => {
   if (!search) {
@@ -62,19 +67,19 @@ const departmentMatchesFilters = (
 
   return (
     matchesCampus(deptRef, filters.campusId) &&
-    matchesType(deptRef, filters.type) &&
+    matchesCategory(deptRef, filters.category) &&
     matchesSearch(dept, filters.search)
   );
 };
 
 export function DepartmentsListClient({
   departments,
-  availableTypes,
+  availableCategories,
 }: DepartmentsListClientProps) {
   const [filters, setFilters] = useState<FilterState>({
     search: "",
     campusId: null,
-    type: null,
+    category: null,
   });
 
   const handleFilterChange = useCallback((newFilters: FilterState) => {
@@ -106,7 +111,7 @@ export function DepartmentsListClient({
     <>
       {/* Filters */}
       <DepartmentsFiltersClient
-        availableTypes={availableTypes}
+        availableCategories={availableCategories}
         onFilterChange={handleFilterChange}
       />
 
@@ -129,7 +134,7 @@ export function DepartmentsListClient({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           initial={{ opacity: 0 }}
-          key={`${filters.search}-${filters.campusId}-${filters.type}`}
+          key={`${filters.search}-${filters.campusId}-${filters.category}`}
           transition={{ duration: 0.3 }}
         >
           <DepartmentsGrid departments={sortedDepartments} />

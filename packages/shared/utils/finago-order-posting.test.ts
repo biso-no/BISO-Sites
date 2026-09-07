@@ -105,6 +105,41 @@ describe("postFinagoTransactionForOrder", () => {
     });
   });
 
+  it("builds Finago lines from relational order items", async () => {
+    db.getRow.mockImplementation((_dbId: string, collId: string) =>
+      collId === "orders"
+        ? Promise.resolve(
+            paidOrder({
+              order_items: [
+                {
+                  product: { $id: "product-1" },
+                  quantity: 2,
+                  unit_price: 499,
+                },
+              ],
+            })
+          )
+        : Promise.resolve({
+            $id: "product-1",
+            finago_account_number: 3000,
+          })
+    );
+
+    await postFinagoTransactionForOrder("order-1", db);
+
+    expect(postShopTransaction).toHaveBeenCalledWith(
+      expect.objectContaining({
+        items: [
+          {
+            finago_account_number: 3000,
+            quantity: 2,
+            unit_price: 499,
+          },
+        ],
+      })
+    );
+  });
+
   it("skips without posting and undoes its increment when another caller holds the claim", async () => {
     db.incrementRowColumn.mockResolvedValue({ finago_posting_lock: 2 });
 

@@ -1,5 +1,9 @@
 "use client";
 
+import {
+  UNIT_CATEGORY_MESSAGE_KEYS,
+  type UnitCategory,
+} from "@repo/shared/utils/unit-categories";
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Button } from "@repo/ui/components/ui/button";
 import { Card } from "@repo/ui/components/ui/card";
@@ -12,28 +16,32 @@ import {
   SelectValue,
 } from "@repo/ui/components/ui/select";
 import { Filter, MapPin, Search } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { useCampus } from "@/components/context/campus";
 
 interface DepartmentsFiltersClientProps {
-  availableTypes: string[];
+  availableCategories: UnitCategory[];
   onFilterChange: (filters: FilterState) => void;
 }
 
 export interface FilterState {
   campusId: string | null;
+  category: UnitCategory | null;
   search: string;
-  type: string | null;
 }
 
 export function DepartmentsFiltersClient({
-  availableTypes,
+  availableCategories,
   onFilterChange,
 }: DepartmentsFiltersClientProps) {
+  // Category labels live in the shared `jobs.filters` bundle so the units page
+  // and the jobs page name the same categories identically.
+  const t = useTranslations("jobs");
   const { campuses, activeCampusId, selectCampus } = useCampus();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCampus, setSelectedCampus] = useState<string>("all");
-  const [selectedType, setSelectedType] = useState<string>("all");
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
 
   // Initialize campus filter from context
   useEffect(() => {
@@ -47,9 +55,10 @@ export function DepartmentsFiltersClient({
     onFilterChange({
       search: searchQuery,
       campusId: selectedCampus === "all" ? null : selectedCampus,
-      type: selectedType === "all" ? null : selectedType,
+      category:
+        selectedCategory === "all" ? null : (selectedCategory as UnitCategory),
     });
-  }, [searchQuery, selectedCampus, selectedType, onFilterChange]);
+  }, [searchQuery, selectedCampus, selectedCategory, onFilterChange]);
 
   const handleCampusChange = (value: string) => {
     setSelectedCampus(value);
@@ -61,15 +70,21 @@ export function DepartmentsFiltersClient({
   const clearAllFilters = () => {
     setSearchQuery("");
     setSelectedCampus("all");
-    setSelectedType("all");
+    setSelectedCategory("all");
   };
 
   const hasActiveFilters =
-    searchQuery || selectedCampus !== "all" || selectedType !== "all";
+    searchQuery || selectedCampus !== "all" || selectedCategory !== "all";
 
   return (
     <Card className="relative z-10 border-0 bg-card p-6 shadow-xl">
-      <div className="grid gap-4 md:grid-cols-3">
+      <div
+        className={
+          availableCategories.length > 0
+            ? "grid gap-4 md:grid-cols-3"
+            : "grid gap-4 md:grid-cols-2"
+        }
+      >
         {/* Search */}
         <div className="relative">
           <Search className="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 transform text-muted-foreground" />
@@ -104,28 +119,30 @@ export function DepartmentsFiltersClient({
           </SelectContent>
         </Select>
 
-        {/* Type Filter */}
-        <Select onValueChange={setSelectedType} value={selectedType}>
-          <SelectTrigger>
-            <SelectValue placeholder="Velg type" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">
-              <div className="flex items-center gap-2">
-                <Filter className="h-4 w-4 text-primary" />
-                Alle typer
-              </div>
-            </SelectItem>
-            {availableTypes.map((type) => (
-              <SelectItem key={type} value={type}>
+        {/* Category filter — hidden while no unit has a usable category */}
+        {availableCategories.length > 0 && (
+          <Select onValueChange={setSelectedCategory} value={selectedCategory}>
+            <SelectTrigger>
+              <SelectValue placeholder={t("filters.all")} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">
                 <div className="flex items-center gap-2">
                   <Filter className="h-4 w-4 text-primary" />
-                  {type.charAt(0).toUpperCase() + type.slice(1)}
+                  {t("filters.all")}
                 </div>
               </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+              {availableCategories.map((value) => (
+                <SelectItem key={value} value={value}>
+                  <div className="flex items-center gap-2">
+                    <Filter className="h-4 w-4 text-primary" />
+                    {t(`filters.${UNIT_CATEGORY_MESSAGE_KEYS[value]}`)}
+                  </div>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
       </div>
 
       {/* Active Filters Display */}
@@ -142,9 +159,11 @@ export function DepartmentsFiltersClient({
               {campuses.find((c) => c.$id === selectedCampus)?.name}
             </Badge>
           )}
-          {selectedType !== "all" && (
+          {selectedCategory !== "all" && (
             <Badge className="border-primary/20 text-primary" variant="outline">
-              {selectedType.charAt(0).toUpperCase() + selectedType.slice(1)}
+              {t(
+                `filters.${UNIT_CATEGORY_MESSAGE_KEYS[selectedCategory as UnitCategory]}`
+              )}
             </Badge>
           )}
           <Button

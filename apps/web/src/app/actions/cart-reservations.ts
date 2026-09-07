@@ -2,6 +2,7 @@
 
 import { type Models, Permission, Query, Role } from "@repo/api";
 import { createAdminClient, createSessionClient } from "@repo/api/server";
+import { resolveStorageFileUrl } from "@repo/api/storage";
 import type {
   ContentTranslations,
   WebshopProducts,
@@ -415,7 +416,7 @@ function toCartItem({
     productId: product.$id,
     slug: product.slug,
     name: translation?.title || product.slug,
-    image: product.image,
+    image: resolveStorageFileUrl(product.image),
     category: product.category ?? "Merch",
     regularPrice: product.regular_price,
     memberPrice: product.member_price,

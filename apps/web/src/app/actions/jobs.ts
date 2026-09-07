@@ -48,6 +48,7 @@ import {
 import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 import { cache } from "react";
+import { campusScopeIds } from "@/lib/campus-scope";
 
 // ---------- public reads (session/guest client — enforces row permissions) ----------
 
@@ -71,8 +72,9 @@ const _listJobs = cache(
         Query.limit(Math.min(limit, 200)),
       ];
 
-      if (campus && campus !== "all") {
-        queries.push(Query.equal("campus_id", campus));
+      const campusScope = campusScopeIds(campus);
+      if (campusScope) {
+        queries.push(Query.equal("campus_id", campusScope));
       }
 
       if (department) {

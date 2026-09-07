@@ -53,6 +53,15 @@
     "about": "About",
     "openMenu": "Open menu",
     "closeMenu": "Close menu",
+    "account": {
+      "menuLabel": "My account",
+      "heading": "My account",
+      "signIn": "Log in",
+      "signOut": "Log out",
+      "myProfile": "My profile",
+      "myApplications": "My applications",
+      "financialServices": "Financial Services"
+    },
     "triggers": {
       "students": "For Students",
       "projects": "Projects",
@@ -68,6 +77,7 @@
       "contact": "Contact"
     },
     "links": {
+      "studentsOverview": "For students",
       "membershipOverview": "About membership",
       "membershipBenefits": "Member benefits",
       "buyMembership": "Buy membership",
@@ -86,7 +96,10 @@
       "safety": "Whistleblowing",
       "contact": "Contact",
       "business": "For businesses",
-      "businessHotspot": "Business Hotspot"
+      "businessHotspot": "Business Hotspot",
+      "documents": "Documents",
+      "drugsPolicy": "Drugs policy",
+      "press": "Press & media"
     },
     "featured": {
       "eventLabel": "Next event",

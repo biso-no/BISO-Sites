@@ -1,5 +1,6 @@
 import type { ContentTranslations } from "@repo/api/types/appwrite";
 import type { Locale } from "@repo/i18n/config";
+import { unitCanonicalPath } from "@repo/shared/utils/unit-urls";
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Button } from "@repo/ui/components/ui/button";
 import { Card } from "@repo/ui/components/ui/card";
@@ -55,7 +56,12 @@ export function DepartmentsGrid({
             transition={{ delay: index * 0.1 }}
           >
             <Link
-              href={`/units/${dept.department_ref?.$id || dept.content_id}`}
+              href={
+                unitCanonicalPath({
+                  campusId: dept.department_ref?.campus_id,
+                  slug: dept.department_ref?.slug,
+                }) ?? `/units/${dept.department_ref?.$id || dept.content_id}`
+              }
             >
               <Card className="group cursor-pointer border-0 p-6 text-center shadow-lg transition-all hover:shadow-xl">
                 <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-linear-to-br from-brand-gradient-from to-brand-gradient-to transition-transform group-hover:scale-110">

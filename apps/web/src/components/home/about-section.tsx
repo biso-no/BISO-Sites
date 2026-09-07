@@ -98,7 +98,7 @@ export function AboutSection({
             <div className="mb-6 inline-block rounded-full bg-brand-muted px-4 py-2 text-brand-dark">
               About BISO
             </div>
-            <h2 className="mb-6 text-foreground">
+            <h2 className="mb-6 font-bold text-3xl text-foreground md:text-4xl">
               {t("about.mainContent.premier")}
               <br />
               <span className="bg-linear-to-r from-brand-gradient-from to-brand-gradient-to bg-clip-text text-transparent">

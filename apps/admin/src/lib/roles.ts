@@ -65,7 +65,11 @@ export const NAV_ACCESS = {
   // scopes them to their own campus + department via ownership relationships.
   "portal.dashboard": [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
   "portal.pages": [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN, DEPARTMENT_ROLE],
-  "portal.departments": [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
+  "portal.departments": [
+    ROLES.GLOBAL_ADMIN,
+    ROLES.CAMPUS_ADMIN,
+    DEPARTMENT_ROLE,
+  ],
   // Recruitment stays HR-only with global break-glass — the broad department
   // pseudo-role must never open jobs or applicant data.
   "portal.jobs": [ROLES.GLOBAL_ADMIN, ROLES.HR],

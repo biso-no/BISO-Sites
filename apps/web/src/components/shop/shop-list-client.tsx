@@ -15,6 +15,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { listProducts } from "@/app/actions/webshop";
 import { useCampus } from "@/components/context/campus";
+import { toPlainText } from "@/lib/content-text";
 import {
   getInitialShopCategory,
   SHOP_CATEGORIES,
@@ -80,8 +81,10 @@ export function ShopListClient({
         )
       : null;
     const title = translation?.title ?? "";
-    const description = translation?.description ?? "";
-    const shortDescription = translation?.short_description ?? "";
+    // Descriptions are stored as HTML — match against the flattened text so a
+    // query like "p" does not hit every product's markup.
+    const description = toPlainText(translation?.description);
+    const shortDescription = toPlainText(translation?.short_description);
 
     // Filter out member-only products if user is not a member
     if (productData?.member_only && !isMember) {

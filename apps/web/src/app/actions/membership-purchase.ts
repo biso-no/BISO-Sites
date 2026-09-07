@@ -1,6 +1,10 @@
 "use server";
 
-import { createAdminClient, createSessionClient } from "@repo/api/server";
+import {
+  createAdminClient,
+  createSessionClient,
+  createSessionJwt,
+} from "@repo/api/server";
 import type { Users } from "@repo/api/types/appwrite";
 import { sanitizeStudentNumber } from "@repo/shared/utils/bi-student";
 import { getFeatureFlagStates } from "@repo/shared/utils/feature-flags-server";
@@ -109,8 +113,8 @@ export async function startMembershipCheckout(
         // Non-critical: the campus is carried on the order regardless.
       });
 
-    const jwt = await account.createJWT().catch(() => null);
-    if (!jwt?.jwt) {
+    const jwt = await createSessionJwt().catch(() => null);
+    if (!jwt) {
       return { success: false, error: "A valid session is required." };
     }
 
@@ -125,7 +129,7 @@ export async function startMembershipCheckout(
       {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${jwt.jwt}`,
+          Authorization: `Bearer ${jwt}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({

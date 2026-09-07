@@ -3,15 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "sideEffects": [
-    "./src/blocks/index.ts",
-    "./src/blocks/**/index.tsx",
-    "**/*.css"
-  ],
+  "sideEffects": true,
   "exports": {
     ".": "./src/index.ts",
     "./render": "./src/render/index.ts",
     "./blocks": "./src/blocks/index.ts",
+    "./page-feeds": "./src/editor/page-feeds.ts",
     "./theme": "./src/theme/index.ts",
     "./theme/styles.css": "./src/theme/styles.css",
     "./ai": "./src/ai/index.ts",
@@ -20,6 +17,7 @@
   "scripts": {
     "check-types": "tsc --noEmit",
     "lint": "biome lint .",
+    "test": "bun test ./src",
     "clean": "git clean -xdf .cache .turbo dist node_modules"
   },
   "dependencies": {
@@ -27,13 +25,18 @@
     "@dnd-kit/core": "catalog:",
     "@dnd-kit/sortable": "catalog:",
     "@dnd-kit/utilities": "catalog:",
+    "@repo/ui": "workspace:*",
     "ai": "catalog:",
     "immer": "catalog:",
+    "motion": "catalog:",
     "zod": "catalog:",
     "zustand": "catalog:"
   },
   "devDependencies": {
+    "@ai-sdk/provider": "catalog:",
     "@repo/typescript-config": "workspace:*",
+    "@types/bun": "catalog:",
+    "@types/node": "catalog:",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
     "typescript": "catalog:"

@@ -24,6 +24,19 @@ export interface TourDragCoach {
 
 export type TourCoach = TourDragCoach;
 
+/**
+ * An optional video shown inside a step card (e.g. a recorded walkthrough on the
+ * closing step). `src` is played inline with native controls; `poster` is the
+ * still frame shown before playback starts.
+ */
+export interface TourStepVideo {
+  poster?: string;
+  src: string;
+  type: "video";
+}
+
+export type TourStepMedia = TourStepVideo;
+
 export interface TourStep {
   /** Body copy, or an i18n key resolved by the provider's `translate`. */
   body: string;
@@ -31,6 +44,8 @@ export interface TourStep {
   coach?: TourCoach;
   /** Stable id, unique within the tour. Used for analytics + keys. */
   id: string;
+  /** Optional video embedded in the step card, under the body copy. */
+  media?: TourStepMedia;
   /** Preferred side of the target. `auto`/omitted lets the popover flip freely. */
   placement?: TourPlacement;
   /**

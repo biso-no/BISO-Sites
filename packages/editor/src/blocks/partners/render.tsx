@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import type { PatchFn } from "@/blocks/types";
+import { pageFeedKey } from "@/editor/page-feeds";
 import type { PartnerItem, PartnersBlock } from "@/editor/types";
+import { useAutoFeed } from "@/editor/use-auto-feed";
 
 interface Props {
   block: PartnersBlock;
@@ -11,33 +12,26 @@ interface Props {
 }
 
 export function PartnersRender({ block }: Props) {
-  const [liveItems, setLiveItems] = useState<PartnerItem[] | null>(null);
+  const isAuto = block.source === "auto";
 
-  useEffect(() => {
-    if (block.source !== "auto") {
-      setLiveItems(null);
-      return;
-    }
-    let cancelled = false;
-    fetch("/api/pages/partners")
-      .then((r) => r.json())
-      .then((data: PartnerItem[]) => {
-        if (!cancelled) {
-          setLiveItems(data);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setLiveItems(null);
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [block.source]);
+  // An auto feed that legitimately returns no partners is *done*, not still
+  // loading. `useAutoFeed` distinguishes "resolved to zero rows" from
+  // "unresolved", so an empty partners table no longer renders
+  // "Loading partners…" forever on a published page.
+  const { items: liveItems, loading } = useAutoFeed<PartnerItem>({
+    enabled: isAuto,
+    key: pageFeedKey("partners"),
+    url: "/api/pages/partners",
+  });
 
-  const items =
-    (block.source === "auto" ? liveItems : null) ?? block.items ?? [];
+  const items = isAuto ? (liveItems ?? []) : (block.items ?? []);
+
+  let emptyMessage = "No partners added yet.";
+  if (loading) {
+    emptyMessage = "Loading partners…";
+  } else if (isAuto) {
+    emptyMessage = "No partners to show yet.";
+  }
 
   return (
     <div className="pg-partners pg-block">
@@ -57,9 +51,7 @@ export function PartnersRender({ block }: Props) {
           <p
             style={{ fontSize: 13, color: "var(--ink-3)", gridColumn: "1/-1" }}
           >
-            {block.source === "auto"
-              ? "Loading partners…"
-              : "No partners added yet."}
+            {emptyMessage}
           </p>
         )}
       </div>

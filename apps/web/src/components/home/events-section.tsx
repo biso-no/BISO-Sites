@@ -9,6 +9,7 @@ import { ArrowRight, Calendar, Clock, MapPin, Users } from "lucide-react";
 import { motion } from "motion/react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import { getEventHref } from "@/lib/types/event";
 
 const CATEGORY_COLORS: Record<string, string> = {
   Social: "bg-brand-muted text-brand-dark border-brand-border",
@@ -85,6 +86,16 @@ function EventCard({ event, index, registerLabel }: EventCardProps) {
   const category = getCategory(eventRef?.metadata);
   const attendees = getAttendees(eventRef?.metadata);
   const imageUrl = eventRef?.image || PLACEHOLDER_IMAGE;
+  const detailHref = getEventHref(eventRef);
+  const cta = (
+    <Button
+      className="group w-full border-0 bg-linear-to-r from-brand-gradient-from to-brand-gradient-to text-white hover:from-brand-gradient-from/90 hover:to-brand-gradient-to/90"
+      disabled={!detailHref}
+    >
+      {registerLabel}
+      <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
+    </Button>
+  );
 
   return (
     <motion.div
@@ -143,12 +154,7 @@ function EventCard({ event, index, registerLabel }: EventCardProps) {
               </div>
             </div>
 
-            <Link href={`/events/${event.$id}`}>
-              <Button className="group w-full border-0 bg-linear-to-r from-brand-gradient-from to-brand-gradient-to text-white hover:from-brand-gradient-from/90 hover:to-brand-gradient-to/90">
-                {registerLabel}
-                <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
-              </Button>
-            </Link>
+            {detailHref ? <Link href={detailHref}>{cta}</Link> : cta}
           </div>
         </div>
       </Card>
@@ -168,7 +174,9 @@ export function EventsSection({ events }: EventsSectionProps) {
       <section className="py-24" id="events">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="text-center">
-            <h2 className="mb-6 text-foreground">{t("empty")}</h2>
+            <h2 className="mb-6 font-bold text-3xl text-foreground md:text-4xl">
+              {t("empty")}
+            </h2>
             <p className="text-muted-foreground">{t("emptyDescription")}</p>
           </div>
         </div>
@@ -189,7 +197,7 @@ export function EventsSection({ events }: EventsSectionProps) {
           <div className="mb-6 inline-block rounded-full bg-brand-muted px-4 py-2 text-brand-dark">
             {t("upcomingEvents")}
           </div>
-          <h2 className="mb-6 text-foreground">
+          <h2 className="mb-6 font-bold text-3xl text-foreground md:text-4xl">
             {t("dontMissOut")}
             <br />
             <span className="bg-linear-to-r from-brand-gradient-from to-brand-gradient-to bg-clip-text text-transparent">

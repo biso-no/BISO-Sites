@@ -32,7 +32,7 @@ export function JobPostings({ jobs, locale }: JobPostingsProps) {
   return (
     <section>
       <div className="mb-6 flex items-center justify-between">
-        <h2 className="text-foreground">
+        <h2 className="font-bold text-2xl text-foreground md:text-3xl">
           {locale === "en" ? "Open Positions" : "Ledige verv"}
         </h2>
         <Button className="text-brand" size="sm" variant="ghost">

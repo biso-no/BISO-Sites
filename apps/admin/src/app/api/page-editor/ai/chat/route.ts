@@ -1,13 +1,16 @@
-import { createAnthropic } from "@ai-sdk/anthropic";
+import { balancedModel } from "@repo/ai/models";
 import { buildSystemPrompt, pageEditorTools } from "@repo/editor/ai";
-import { convertToModelMessages, stepCountIs, streamText } from "ai";
+import {
+  convertToModelMessages,
+  createUIMessageStreamResponse,
+  isStepCount,
+  streamText,
+  toUIMessageStream,
+  type UIMessage,
+} from "ai";
 import { requireApiAuth } from "@/lib/api-auth";
 
 export const maxDuration = 60;
-
-const anthropic = createAnthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-});
 
 export async function POST(request: Request) {
   const auth = await requireApiAuth();
@@ -17,7 +20,7 @@ export async function POST(request: Request) {
 
   const body = await request.json();
   const { messages, pageContext } = body as {
-    messages: unknown[];
+    messages: UIMessage[];
     pageContext?: string;
   };
 
@@ -25,15 +28,24 @@ export async function POST(request: Request) {
     return new Response("Bad request: missing messages", { status: 400 });
   }
 
-  const modelMessages = await convertToModelMessages(messages as never[]);
-
   const result = streamText({
-    model: anthropic("claude-opus-4-7"),
-    system: buildSystemPrompt(pageContext ?? "(no page context provided)"),
-    messages: modelMessages,
-    tools: pageEditorTools as never,
-    stopWhen: stepCountIs(5) as never,
+    model: balancedModel,
+    instructions: buildSystemPrompt(
+      pageContext ?? "(no page context provided)"
+    ),
+    messages: await convertToModelMessages(messages),
+    tools: pageEditorTools,
+    // Headroom for: preamble + edits -> a state check -> more edits -> the
+    // closing summary. The loop ends naturally on the first step with no tool
+    // calls, so this is only a runaway guard. At 5 a multi-block build hit the
+    // cap on a tool step and the user never got the summary.
+    stopWhen: isStepCount(12),
   });
 
-  return result.toUIMessageStreamResponse();
+  return createUIMessageStreamResponse({
+    stream: toUIMessageStream({
+      stream: result.stream,
+      tools: pageEditorTools,
+    }),
+  });
 }

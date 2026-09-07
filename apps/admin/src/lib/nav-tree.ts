@@ -18,6 +18,7 @@ import {
   Megaphone,
   Newspaper,
   Settings,
+  ShieldAlert,
   ShoppingCart,
   Users,
 } from "lucide-react";
@@ -93,6 +94,7 @@ export const NAV_TREE: NavNode[] = [
     children: [
       leaf("it", "portal.it", "/it", HardDrive),
       leaf("activity", "portal.activity", "/activity", Activity),
+      leaf("varsling", "varsling", "/varsling", ShieldAlert),
       leaf("operations", "portal.settings", "/settings/operations", Gauge),
       leaf("featureFlags", "portal.settings", "/settings/feature-flags", Flag),
       leaf("payments", "portal.settings", "/settings/payments", CreditCard),

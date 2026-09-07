@@ -1,5 +1,6 @@
 "use client";
 
+import { resolveStorageFileUrl } from "@repo/api/storage";
 import type {
   ContentTranslations,
   WebshopProducts,
@@ -11,6 +12,7 @@ import { Card } from "@repo/ui/components/ui/card";
 import { Tag, Users } from "lucide-react";
 import { motion } from "motion/react";
 import { useTranslations } from "next-intl";
+import { buildTeaser } from "@/lib/content-text";
 import {
   calculateSavings,
   formatPrice,
@@ -23,6 +25,8 @@ interface ProductCardProps {
   onViewDetails: (product: WebshopProducts) => void;
   product: WebshopProducts;
 }
+
+const CARD_TEASER_MAX_LENGTH = 100;
 
 const categoryColors: Record<string, string> = {
   Merch: "bg-purple-100 text-purple-700 border-purple-200",
@@ -63,13 +67,16 @@ export function ProductCard({
     productData.member_price
   );
 
-  const shortDescription =
-    shortDescriptionText ||
-    (description.length > 100
-      ? `${description.slice(0, 100)}...`
-      : description);
+  // Descriptions are stored as HTML, so the body can only stand in for a
+  // missing teaser once its tags are flattened away.
+  const shortDescription = buildTeaser(
+    shortDescriptionText,
+    description,
+    CARD_TEASER_MAX_LENGTH
+  );
 
-  const imageUrl = productData.image || "/images/logo-home.png";
+  const imageUrl =
+    resolveStorageFileUrl(productData.image) ?? "/images/logo-home.png";
 
   return (
     <motion.div

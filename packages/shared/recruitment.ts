@@ -7,6 +7,7 @@ import {
   parseRecruitmentInterviewTemplate,
   parseRecruitmentScreeningRubric,
   parseRecruitmentVacancyMetadata,
+  RECRUITMENT_SHORT_DESCRIPTION_MAX_LENGTH,
   type RecruitmentTranslation,
   type RecruitmentVacancy,
 } from "./types/recruitment";
@@ -143,6 +144,7 @@ export const JOB_SELECT = [
   "department.$id",
   "department.Name",
   "department.campus_id",
+  "department.type",
   "translations.*",
 ] as const;
 
@@ -169,15 +171,29 @@ function toRecruitmentTranslation(
   };
 }
 
+function normalizeRecruitmentTranslation(
+  translation: RecruitmentTranslation
+): RecruitmentTranslation {
+  return {
+    ...translation,
+    short_description:
+      translation.short_description?.slice(
+        0,
+        RECRUITMENT_SHORT_DESCRIPTION_MAX_LENGTH
+      ) ?? null,
+  };
+}
+
 export function buildRecruitmentVacancy(
   job: Jobs,
   translations?: RecruitmentTranslation[]
 ): RecruitmentVacancy {
-  const resolvedTranslations: RecruitmentTranslation[] =
+  const resolvedTranslations: RecruitmentTranslation[] = (
     translations ??
     ((job.translations as ContentTranslations[] | undefined) ?? []).map(
       toRecruitmentTranslation
-    );
+    )
+  ).map(normalizeRecruitmentTranslation);
   const parsedMetadata = parseRecruitmentVacancyMetadata(job.metadata);
   const translationFallback = resolvedTranslations.find(
     (tr) => tr.locale === "no"
@@ -209,6 +225,7 @@ export function buildRecruitmentVacancy(
           $id: job.department.$id,
           Name: job.department.Name,
           campus_id: job.department.campus_id,
+          type: job.department.type ?? null,
         }
       : null,
     department_id: job.department_id,

@@ -42,21 +42,29 @@ const HERO_NEWS_LIMIT = 2;
 // Member-scoped feeds: anonymous visitors (all bot/monitor traffic) share the
 // "use cache" guest result; session holders read per-request so member-only
 // rows (row perms `team:biso-members`) still appear in their feeds.
+// `upcomingOnly` drops finished events after the fetch, so ask for more rows
+// than we render or a couple of past events could empty the section.
+const UPCOMING_OVERFETCH = 4;
+
 function homeEvents(
   hasSession: boolean,
   locale: Locale,
   campusKey: string | null,
   limit: number
 ) {
+  const fetchLimit = limit * UPCOMING_OVERFETCH;
   if (hasSession) {
     return listEvents({
       campus: campusKey ?? "all",
-      limit,
+      limit: fetchLimit,
       locale,
       status: "published",
-    });
+      upcomingOnly: true,
+    }).then((events) => events.slice(0, limit));
   }
-  return cachedPublishedEvents(locale, campusKey, limit).catch(() => []);
+  return cachedPublishedEvents(locale, campusKey, fetchLimit)
+    .then((events) => events.slice(0, limit))
+    .catch(() => []);
 }
 
 function homeNews(
@@ -86,13 +94,16 @@ export default async function HomePage() {
   const campusKey = campusId && campusId !== "all" ? campusId : null;
   const hasSession = Boolean(cookieStore.get(SESSION_COOKIE));
 
+  // The hero is campus-scoped like every other feed: the switcher filters the
+  // whole site, so a visitor on Bergen must not be shown Oslo content. National
+  // rows ride along with any selected campus (see `campusScopeIds`).
   // Campuses/partners/counts are not member-scoped and stay cached for
   // everyone. Failures fall back per-slice so a transient Appwrite error
   // renders an emptier homepage instead of a 500 — and is never cached.
   const [heroEvents, heroNews, events, news, campuses, counts, partners] =
     await Promise.all([
-      homeEvents(hasSession, locale, null, HERO_EVENTS_LIMIT),
-      homeNews(hasSession, locale, null, HERO_NEWS_LIMIT),
+      homeEvents(hasSession, locale, campusKey, HERO_EVENTS_LIMIT),
+      homeNews(hasSession, locale, campusKey, HERO_NEWS_LIMIT),
       homeEvents(hasSession, locale, campusKey, HOME_EVENTS_LIMIT),
       homeNews(hasSession, locale, campusKey, HOME_NEWS_LIMIT),
       cachedCampuses(campusKey, false, true).catch(() => []),

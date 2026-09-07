@@ -2,12 +2,14 @@
 
 import type { PatchFn } from "@/blocks/types";
 import type { TeamBlock, TeamMember } from "@/editor/types";
+import { HUE_COLORS } from "@/theme/presets";
 
 const HUE_BG: Record<TeamMember["hue"], string> = {
-  claret: "linear-gradient(135deg,#6b1e1e,#a03030)",
-  gold: "linear-gradient(135deg,#b08a3e,#d4ad5b)",
-  leaf: "linear-gradient(135deg,#2f5d3a,#4a8a5c)",
-  sky: "linear-gradient(135deg,#2a4a7a,#3d6baa)",
+  blue: `linear-gradient(135deg,${HUE_COLORS.blue},${HUE_COLORS.navy})`,
+  navy: `linear-gradient(135deg,${HUE_COLORS.navy},${HUE_COLORS.slate})`,
+  sky: `linear-gradient(135deg,${HUE_COLORS.sky},${HUE_COLORS.blue})`,
+  gold: `linear-gradient(135deg,${HUE_COLORS.gold},${HUE_COLORS.blue})`,
+  slate: `linear-gradient(135deg,${HUE_COLORS.slate},${HUE_COLORS.navy})`,
 };
 
 interface Props {

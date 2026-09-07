@@ -1,5 +1,6 @@
 "use client";
 
+import { resolveStorageFileUrls } from "@repo/api/storage";
 import type {
   Campus,
   ContentTranslations,
@@ -3153,14 +3154,16 @@ export function ShopStudioEditor({
     htmlToDescriptionBlocks(enTranslation?.description ?? "")
   );
   const [localVariants, setLocalVariants] = useState<ProductVariant[]>(() => {
-    if (!product?.variants_json) {
-      return [];
-    }
-    try {
-      return JSON.parse(product.variants_json) as ProductVariant[];
-    } catch {
-      return [];
-    }
+    return (product?.variations ?? [])
+      .filter((variation) => variation.enabled)
+      .sort((a, b) => a.sort_order - b.sort_order)
+      .map((variation) => ({
+        id: variation.$id,
+        name: variation.name,
+        price: Number(variation.regular_price ?? product?.regular_price ?? 0),
+        stock: Number(variation.stock ?? 0),
+        type: "default",
+      }));
   });
   const [regularPrice, setRegularPrice] = useState<number>(
     product?.regular_price ?? 0
@@ -3175,8 +3178,11 @@ export function ShopStudioEditor({
     (product?.inventory_mode as "tracked" | "unlimited") ?? "unlimited"
   );
   const [stock, setStock] = useState<number | null>(product?.stock ?? null);
+  // Products imported from the old site stored bare Appwrite file IDs rather
+  // than full URLs. Resolve on load so the gallery renders and `buildPayload`
+  // writes the row back in the canonical URL form.
   const [localImages, setLocalImages] = useState<string[]>(
-    product?.images ?? []
+    resolveStorageFileUrls(product?.images ?? [product?.image])
   );
   const [coverPattern, setCoverPattern] = useState<string>(
     product?.cover_pattern ?? "dotted"
@@ -3223,8 +3229,7 @@ export function ShopStudioEditor({
       member_only: memberOnly,
       image: localImages[0] ?? null,
       stock,
-      variants_json:
-        localVariants.length > 0 ? JSON.stringify(localVariants) : null,
+      variations: localVariants,
       tags,
       images: localImages,
       cover_pattern: coverPattern as

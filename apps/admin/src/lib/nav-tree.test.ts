@@ -17,10 +17,11 @@ function labels(nodes: ReturnType<typeof filterNavTree>) {
 }
 
 describe("filterNavTree", () => {
-  test("global admin sees all 8 top-level entries", () => {
+  test("global admin sees all 9 top-level entries", () => {
     expect(labels(filterNavTree(globalAdmin))).toEqual([
       "overview",
       "inbox",
+      "members",
       "content",
       "shop",
       "organization",
@@ -40,7 +41,10 @@ describe("filterNavTree", () => {
 
   test("department user sees general publishing surfaces but never jobs", () => {
     const nodes = filterNavTree(departmentUser);
-    expect(labels(nodes)).toEqual(["content", "shop", "documents"]);
+    // "organization" now carries two visible children (departments +
+    // documents) instead of flattening to a bare "documents" leaf, since
+    // department members can manage their own department.
+    expect(labels(nodes)).toEqual(["content", "shop", "organization"]);
     const content = nodes[0];
     if (content?.kind !== "group") {
       throw new Error("expected content group");

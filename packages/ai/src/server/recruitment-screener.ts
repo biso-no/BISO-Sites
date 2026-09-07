@@ -1,14 +1,14 @@
 import "server-only";
 
-import { openai } from "@ai-sdk/openai";
 import {
   parseRecruitmentAiScreening,
   type RecruitmentAiScreening,
   type RecruitmentScreeningRubric,
   type RecruitmentVacancy,
-  recruitmentAiScreeningSchema,
+  recruitmentAiScreeningOutputSchema,
 } from "@repo/shared/types/recruitment";
 import { generateObject } from "ai";
+import { MODEL_IDS, resolveModel } from "../models";
 
 export interface ScreenApplicationInput {
   /** Optional answers to per-vacancy custom questions. */
@@ -25,7 +25,7 @@ export interface ScreenApplicationInput {
     current_employer?: string | null;
     linkedin_url?: string | null;
   };
-  /** Optional model override; defaults to gpt-5-nano to match existing jobs.ts. */
+  /** Optional model override; defaults to the balanced tier (gpt-5.6-terra). */
   model?: string;
   /** Plaintext resume content — extract before calling. */
   resumeText?: string | null;
@@ -108,15 +108,22 @@ of: reviewed (good fit), interview (excellent fit), rejected (clear no).`;
 export async function screenApplication(
   input: ScreenApplicationInput
 ): Promise<RecruitmentAiScreening> {
-  const modelName = input.model ?? "gpt-5-nano";
+  const modelName = input.model ?? MODEL_IDS.balanced;
   const result = await generateObject({
-    model: openai(modelName),
+    model: resolveModel(modelName),
     prompt: buildPrompt(input),
-    schema: recruitmentAiScreeningSchema,
-    system: SYSTEM_PROMPT,
+    schema: recruitmentAiScreeningOutputSchema,
+    instructions: SYSTEM_PROMPT,
   });
 
-  return result.object;
+  // Metadata is stamped here rather than asked of the model — it cannot know
+  // the wall clock or which model id the caller resolved.
+  return {
+    ...result.object,
+    generated_at: new Date().toISOString(),
+    model: modelName,
+    version: 1,
+  };
 }
 
 export function normalizeScreeningScore(

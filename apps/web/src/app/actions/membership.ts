@@ -3,9 +3,9 @@
 import { createSessionClient } from "@repo/api/server";
 import type { CampusData } from "@repo/api/types/appwrite";
 import type { MembershipPlan } from "@repo/shared/utils/membership-plans";
+import { NATIONAL_CAMPUS_ID } from "@/lib/campus-scope";
 import { getPurchasableMembershipPlans } from "@/lib/membership-catalog";
 
-const NATIONAL_CAMPUS_ID = "5";
 const NATIONAL_CAMPUS_NAME = "national";
 
 function normaliseName(value?: string | null) {

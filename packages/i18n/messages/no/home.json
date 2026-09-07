@@ -14,7 +14,9 @@
       "partners": "Utforsk partneroppgaver",
       "viewEvents": "Se arrangementer",
       "viewJobs": "Se ledige stillinger",
-      "viewNews": "Se nyheter"
+      "viewNews": "Se nyheter",
+      "viewAllEvents": "Se alle arrangementer",
+      "viewAllNews": "Se alle nyheter"
     },
     "stats": {
       "campuses": "Campuser",
@@ -28,15 +30,13 @@
     "mission": "Vi hjelper studenter å knytte kontakter, utvikle seg og påvirke på alle BI-campuser.",
     "contactCta": "Snakk med teamet",
     "learnMore": "Les mer",
-    "viewAll": "Se alle {contentType}",
     "highlights": {
       "events": "Arrangementer",
       "jobs": "Muligheter",
       "news": "Nyheter"
     },
-    "featuredContent": "Utvalgt {contentType}",
-    "featuredEvent": "Arrangement",
-    "featuredNews": "Nyhet"
+    "featuredEvent": "Utvalgt arrangement",
+    "featuredNews": "Utvalgt nyhet"
   },
   "about": {
     "upcomingEvents": "Kommende arrangementer",

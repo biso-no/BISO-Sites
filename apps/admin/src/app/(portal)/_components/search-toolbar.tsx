@@ -13,11 +13,25 @@ interface ChipFilter {
 interface SearchToolbarProps {
   activeFilter?: string;
   children?: ReactNode;
+  /** Seeds an uncontrolled box once, on mount. */
   defaultSearch?: string;
   filters?: ChipFilter[];
   onFilterChange?: (value: string) => void;
   onSearch?: (value: string) => void;
   placeholder?: string;
+  /**
+   * Accessible name for the input. Defaults to the placeholder, which is at
+   * least a real name — a placeholder alone is not one: assistive technology
+   * may never announce it, and it vanishes as soon as anything is typed.
+   */
+  searchLabel?: string;
+  /**
+   * Controlled term. Supply it when the box is bound to state that can change
+   * without the user typing — URL state, say — so a browser Back updates the
+   * visible term and not just the results underneath it. `defaultSearch` alone
+   * cannot do that: it is copied into local state at mount and never read again.
+   */
+  value?: string;
 }
 
 export function SearchToolbar({
@@ -28,20 +42,34 @@ export function SearchToolbar({
   activeFilter,
   onFilterChange,
   children,
+  searchLabel,
+  value: controlledValue,
 }: SearchToolbarProps) {
-  const [value, setValue] = useState(defaultSearch);
+  const [ownValue, setOwnValue] = useState(defaultSearch);
   const [, startTransition] = useTransition();
+  const isControlled = controlledValue !== undefined;
+  const value = controlledValue ?? ownValue;
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
     const v = e.target.value;
-    setValue(v);
+    setOwnValue(v);
+    if (isControlled) {
+      // When controlled, the parent's state IS what the input renders, so it
+      // has to land at urgent priority. Deferring it lets React keep showing
+      // the previous controlled value until the transition commits, which
+      // reads as lag or dropped characters while typing quickly. The
+      // uncontrolled path keeps the transition: there `ownValue` already
+      // updates urgently and `onSearch` only drives downstream filtering.
+      onSearch?.(v);
+      return;
+    }
     startTransition(() => {
       onSearch?.(v);
     });
   }
 
   function handleClear() {
-    setValue("");
+    setOwnValue("");
     onSearch?.("");
   }
 
@@ -55,6 +83,7 @@ export function SearchToolbar({
           style={{ color: STUDIO.ink4 }}
         />
         <input
+          aria-label={searchLabel ?? placeholder}
           className="w-full rounded-lg py-2.5 pr-9 pl-9 text-sm outline-none transition-all"
           onBlur={(e) => {
             e.currentTarget.style.borderColor = STUDIO.rule2;

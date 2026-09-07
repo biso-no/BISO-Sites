@@ -1,6 +1,7 @@
 export type { Models } from "node-appwrite";
 export {
   Account,
+  AppwriteException,
   Client,
   Functions,
   ID,
@@ -19,4 +20,7 @@ export {
   getStorageFileDownloadUrl,
   getStorageFileThumbnailUrl,
   getStorageFileUrl,
+  MEDIA_BUCKET_ID,
+  resolveStorageFileUrl,
+  resolveStorageFileUrls,
 } from "./storage";

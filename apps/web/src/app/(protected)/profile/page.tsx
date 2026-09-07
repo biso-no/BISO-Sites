@@ -49,7 +49,7 @@ export default async function PublicProfilePage() {
   }
 
   return (
-    <div className="container mx-auto max-w-5xl px-4 py-6">
+    <div className="container mx-auto max-w-5xl px-4 pt-28 pb-6">
       <ProfileHead />
       {/* Summary header */}
       {(() => {
@@ -109,7 +109,16 @@ export default async function PublicProfilePage() {
       {userData ? (
         <ProfileTabs
           identities={identitiesResp?.identities}
-          userData={userData}
+          // `account.get()` returns a class instance, not a plain object like
+          // the proxied `db` reads — spreading the whole result across the RSC
+          // boundary throws. Narrow to the fields ProfileTabs actually declares.
+          userData={{
+            profile: userData.profile,
+            user: {
+              $id: userData.user.$id,
+              email: userData.user.email,
+            },
+          }}
         />
       ) : null}
     </div>

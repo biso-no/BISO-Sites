@@ -54,9 +54,7 @@ export function emptyBlock(type: BlockType): Block {
         id,
         type,
         heading: "The team",
-        members: [
-          { name: "Name", role: "Role", initials: "NN", hue: "claret" },
-        ],
+        members: [{ name: "Name", role: "Role", initials: "NN", hue: "blue" }],
       };
     case "events":
       return {
@@ -206,8 +204,8 @@ export function emptyBlock(type: BlockType): Block {
         id,
         type,
         heading: "Departments",
-        layout: "grid",
         showFilters: true,
+        variant: "grid",
       };
     case "documents":
       return { id, type, heading: "Documents", items: [] };
@@ -220,13 +218,13 @@ export function emptyBlock(type: BlockType): Block {
           {
             title: "Project one",
             body: "Short description.",
-            stripeAccent: "var(--claret)",
+            stripeAccent: "#3DA9E0",
             eyebrow: "Featured",
           },
           {
             title: "Project two",
             body: "Short description.",
-            stripeAccent: "var(--leaf)",
+            stripeAccent: "#33566F",
           },
         ],
       };

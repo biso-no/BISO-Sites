@@ -46,7 +46,7 @@ export function TourStepCardBody({
       aria-describedby={bodyId}
       aria-labelledby={titleId}
       aria-modal="false"
-      className="flex w-80 max-w-[calc(100vw-2rem)] flex-col gap-3 rounded-lg border bg-popover p-4 text-popover-foreground shadow-md"
+      className={`flex ${step.media ? "w-[30rem]" : "w-80"} max-w-[calc(100vw-2rem)] flex-col gap-3 rounded-lg border bg-popover p-4 text-popover-foreground shadow-md`}
       role="dialog"
     >
       <div className="flex items-start justify-between gap-3">
@@ -74,6 +74,18 @@ export function TourStepCardBody({
           {resolve(step.body)}
         </p>
       </div>
+
+      {step.media ? (
+        // biome-ignore lint/a11y/useMediaCaption: hosts supply media without a caption track.
+        <video
+          className="aspect-video w-full rounded-md border bg-black"
+          controls
+          playsInline
+          poster={step.media.poster}
+          preload="metadata"
+          src={step.media.src}
+        />
+      ) : null}
 
       <span aria-live="polite" className="sr-only">
         {`${labels.progress(current, total)}: ${resolve(step.title)}`}

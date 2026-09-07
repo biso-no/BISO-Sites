@@ -1,4 +1,3 @@
-import type { DepartmentBoard } from "@repo/api/types/appwrite";
 import {
   Avatar,
   AvatarFallback,
@@ -6,11 +5,29 @@ import {
 } from "@repo/ui/components/ui/avatar";
 import { Button } from "@repo/ui/components/ui/button";
 import { Card } from "@repo/ui/components/ui/card";
-import { Linkedin, Mail } from "lucide-react";
+import { Mail, Phone } from "lucide-react";
+
+/**
+ * A person shown on the campus leadership grid.
+ *
+ * Deliberately narrower than the Microsoft Graph payload the board API
+ * returns: only the fields this card actually renders are carried this far, so
+ * no unrendered directory data reaches the DOM.
+ */
+export interface TeamMember {
+  email?: string;
+  imageUrl?: string | null;
+  name: string;
+  phone?: string;
+  role?: string;
+}
 
 interface TeamMemberCardProps {
-  member: DepartmentBoard;
+  member: TeamMember;
 }
+
+// Top-level so it is not recompiled per render.
+const NON_DIALLABLE = /[^\d+]/g;
 
 function getInitials(name: string): string {
   return name
@@ -22,8 +39,12 @@ function getInitials(name: string): string {
 }
 
 export function TeamMemberCard({ member }: TeamMemberCardProps) {
+  const telHref = member.phone
+    ? `tel:${member.phone.replace(NON_DIALLABLE, "")}`
+    : null;
+
   return (
-    <Card className="group border-0 p-6 text-center shadow-lg transition-all hover:shadow-xl">
+    <Card className="group flex h-full flex-col border-0 p-6 text-center shadow-lg transition-all hover:shadow-xl">
       <Avatar className="mx-auto mb-4 h-32 w-32 ring-4 ring-brand-border transition-all group-hover:ring-brand">
         <AvatarImage
           alt={member.name || ""}
@@ -34,23 +55,42 @@ export function TeamMemberCard({ member }: TeamMemberCardProps) {
         </AvatarFallback>
       </Avatar>
       <h3 className="mb-1 text-foreground">{member.name}</h3>
-      <p className="mb-4 text-brand">{member.role}</p>
-      <div className="flex justify-center gap-3">
-        <Button
-          className="border-brand-border text-brand hover:bg-brand-muted"
-          size="sm"
-          variant="outline"
-        >
-          <Mail className="h-4 w-4" />
-        </Button>
-        <Button
-          className="border-brand-border text-brand hover:bg-brand-muted"
-          size="sm"
-          variant="outline"
-        >
-          <Linkedin className="h-4 w-4" />
-        </Button>
-      </div>
+      {member.role ? <p className="mb-4 text-brand">{member.role}</p> : null}
+
+      {/* Contact affordances are the point of this card — students need to see
+          who to reach and be able to reach them in one click. Each link is
+          rendered only when the directory actually has the value, so there are
+          no dead buttons. */}
+      {member.email || telHref ? (
+        <div className="mt-auto flex flex-col items-stretch gap-2 pt-2">
+          {member.email ? (
+            <Button
+              asChild
+              className="h-auto whitespace-normal border-brand-border py-2 text-brand hover:bg-brand-muted"
+              size="sm"
+              variant="outline"
+            >
+              <a href={`mailto:${member.email}`}>
+                <Mail className="h-4 w-4 shrink-0" />
+                <span className="break-all">{member.email}</span>
+              </a>
+            </Button>
+          ) : null}
+          {telHref ? (
+            <Button
+              asChild
+              className="h-auto whitespace-normal border-brand-border py-2 text-brand hover:bg-brand-muted"
+              size="sm"
+              variant="outline"
+            >
+              <a href={telHref}>
+                <Phone className="h-4 w-4 shrink-0" />
+                <span>{member.phone}</span>
+              </a>
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
     </Card>
   );
 }

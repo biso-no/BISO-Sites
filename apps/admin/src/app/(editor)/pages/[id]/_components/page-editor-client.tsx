@@ -10,7 +10,7 @@ import type {
   EditorLocaleOption,
   PageDoc,
 } from "@repo/editor";
-import { EditorShell } from "@repo/editor";
+import { EditorShell, normalizePageDoc } from "@repo/editor";
 import "@repo/editor/theme/styles.css";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
@@ -29,6 +29,7 @@ interface PageEditorClientProps {
   departments: EditorDepartment[];
   initialLocale: EditorLocale;
   initialPage: PageEditorLoadResult | null;
+  lockedMeta?: { department?: boolean; slug?: boolean };
   pageId: string | null;
 }
 
@@ -62,7 +63,7 @@ function emptyDoc({
       title,
       slug: slug || sanitizeSlug(title) || "untitled",
       department: department ?? "",
-      accentColor: source?.meta.accentColor ?? "#6b1e1e",
+      accentColor: source?.meta.accentColor ?? "#3DA9E0",
       description: "",
       status: status ?? "draft",
     },
@@ -73,9 +74,10 @@ function emptyDoc({
 function getTranslationDoc(
   entry: PageTranslationEditorEntry | undefined
 ): PageDoc | null {
-  return (entry?.draftDocument ??
+  const doc = (entry?.draftDocument ??
     entry?.publishedDocument ??
     null) as PageDoc | null;
+  return doc ? normalizePageDoc(doc) : null;
 }
 
 function buildInitialDocuments(
@@ -143,6 +145,7 @@ export function PageEditorClient({
   availableLocales,
   pageId,
   departments,
+  lockedMeta,
 }: PageEditorClientProps) {
   const router = useRouter();
   const [currentPageId, setCurrentPageId] = useState<string | null>(pageId);
@@ -363,6 +366,7 @@ export function PageEditorClient({
         departments={departments}
         initial={activeDoc}
         locales={localeOptions}
+        lockedMeta={lockedMeta}
         onDocChange={handleDocChange}
         onExit={handleExit}
         onLocaleChange={handleLocaleChange}

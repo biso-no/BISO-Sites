@@ -1,4 +1,5 @@
 import type { Block, BlockType, PageDoc } from "@/editor/types";
+import type { ResolvedBackground } from "./_primitives/layout-types";
 
 export interface BlockVariant {
   id: string;
@@ -25,7 +26,12 @@ export interface BlockDefinition<B extends Block = Block> {
   Inspector: React.ComponentType<{ block: B; doc: PageDoc; onPatch: PatchFn }>;
   label: string;
   PaletteThumb: React.ComponentType;
-  Render: React.ComponentType<{ block: B; edit: boolean; onPatch: PatchFn }>;
+  Render: React.ComponentType<{
+    background: ResolvedBackground;
+    block: B;
+    edit: boolean;
+    onPatch: PatchFn;
+  }>;
   /** Inspector prop schema — rendered as form rows. */
   schema?: PropSchema[];
   type: BlockType;

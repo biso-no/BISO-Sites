@@ -18,6 +18,7 @@
     "./client": "./client.ts",
     "./file": "./file.ts",
     "./page-builder": "./page-builder.ts",
+    "./storage": "./storage.ts",
     "./write": "./write.ts",
     "./types/*": "./types/*.ts"
   },

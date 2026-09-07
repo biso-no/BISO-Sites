@@ -9,7 +9,8 @@ import { sanitizeStudentNumber } from "./bi-student";
 import { buildMembershipInvoiceOrder } from "./finago-membership-invoice";
 import { type MembershipPlan, toMembershipPlan } from "./membership-plans";
 import type { ParsedOrderItem } from "./order-parsing";
-import { parseOrderItems } from "./order-parsing";
+import { getOrderItems } from "./order-parsing";
+import { ORDER_ITEMS_SELECT } from "./order-queries";
 import type { DbClient } from "./vipps-order-ops";
 
 // Everything the invoice builder + category assignment actually need from a
@@ -80,10 +81,10 @@ function tables() {
   };
 }
 
-export function isMembershipOrder(order: {
-  items_json?: string | null;
-}): boolean {
-  return parseOrderItems(order.items_json ?? null).some(
+export function isMembershipOrder(
+  order: Parameters<typeof getOrderItems>[0]
+): boolean {
+  return getOrderItems(order).some(
     (item) => (item as { product_type?: string }).product_type === "membership"
   );
 }
@@ -321,7 +322,7 @@ async function resolvePurchasedPlan(
   db: DbClient
 ): Promise<{ campusId: string; plan: PurchasedPlanSnapshot } | null> {
   const { dbId } = tables();
-  const item = parseOrderItems(order.items_json ?? null).find(
+  const item = getOrderItems(order).find(
     (candidate) =>
       (candidate as { product_type?: string }).product_type === "membership"
   );
@@ -478,7 +479,7 @@ export async function fulfilMembershipOrder(
   const { dbId, ordersId } = tables();
 
   const order = (await db
-    .getRow(dbId, ordersId, orderId)
+    .getRow(dbId, ordersId, orderId, [ORDER_ITEMS_SELECT])
     .catch(() => null)) as MembershipOrder | null;
   if (!order) {
     return { fulfilled: false, reason: "not_found" };

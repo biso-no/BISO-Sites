@@ -4,6 +4,7 @@ import { listEvents } from "@/app/actions/events";
 import { getLocale } from "@/app/actions/locale";
 import { EventsHero } from "@/components/events/events-hero";
 import { EventsListClient } from "@/components/events/events-list-client";
+import { getMembershipStatus } from "@/lib/actions/membership";
 import { getUserPreferences } from "@/lib/auth-utils";
 
 // This is a server component
@@ -13,17 +14,26 @@ export const metadata = {
     "Discover amazing events and experiences at BI Norwegian Business School",
 };
 
+// `upcomingOnly` drops finished events after they are fetched (the exact
+// "has it ended" rule cannot be expressed as one Appwrite query), so the fetch
+// limit is raised well above what the grid shows to keep the page populated.
+const EVENTS_FETCH_LIMIT = 200;
+
 async function EventsList({ locale }: { locale: "en" | "no" }) {
   // Fetch events on the server
-  const userPrefs = await getUserPreferences();
+  const [userPrefs, membership] = await Promise.all([
+    getUserPreferences(),
+    getMembershipStatus(),
+  ]);
   const events = await listEvents({
     locale,
     status: "published",
-    limit: 50,
+    limit: EVENTS_FETCH_LIMIT,
     campus: userPrefs?.campusId ?? "all",
+    upcomingOnly: true,
   });
 
-  return <EventsListClient events={events} />;
+  return <EventsListClient events={events} isMember={membership.isMember} />;
 }
 
 function EventsListSkeleton() {

@@ -8,6 +8,7 @@ import { PLACEHOLDER_IMAGE } from "@repo/ui/lib/placeholder-images";
 import { Calendar, ChevronRight } from "lucide-react";
 import { motion } from "motion/react";
 import Link from "next/link";
+import { getEventHref } from "@/lib/types/event";
 
 interface UpcomingEventsProps {
   events: Events[];
@@ -36,7 +37,7 @@ export function UpcomingEvents({ events, locale }: UpcomingEventsProps) {
     <section>
       <div className="mb-8 flex items-center justify-between">
         <div>
-          <h2 className="mb-2 text-foreground">
+          <h2 className="mb-2 font-bold text-2xl text-foreground md:text-3xl">
             {locale === "en" ? "Upcoming Events" : "Kommende arrangementer"}
           </h2>
           <p className="text-muted-foreground">
@@ -65,6 +66,9 @@ export function UpcomingEvents({ events, locale }: UpcomingEventsProps) {
                   typeof item === "object" && item !== null && "title" in item
               )
             : null;
+          // `/events/[slug]` resolves by the `slug` column, so linking to
+          // `$id` 404s; rows without a slug get no link at all.
+          const href = getEventHref(event);
 
           return (
             <motion.div
@@ -73,13 +77,16 @@ export function UpcomingEvents({ events, locale }: UpcomingEventsProps) {
               key={event.$id}
               transition={{ delay: index * 0.1 }}
             >
-              <Link href={`/events/${event.$id}`}>
-                <Card className="group cursor-pointer overflow-hidden border-0 shadow-lg transition-all hover:shadow-xl">
+              <EventCardLink href={href}>
+                <Card
+                  className={`group overflow-hidden border-0 shadow-lg transition-all ${href ? "cursor-pointer hover:shadow-xl" : ""}`}
+                >
                   <div className="relative h-48 overflow-hidden">
                     <ImageWithFallback
                       alt={translation?.title ?? "Event"}
                       className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
                       fill
+                      sizes="(min-width: 1024px) 400px, (min-width: 768px) 33vw, 100vw"
                       src={event.image || PLACEHOLDER_IMAGE}
                     />
                     {event.member_only && (
@@ -105,11 +112,25 @@ export function UpcomingEvents({ events, locale }: UpcomingEventsProps) {
                     )}
                   </div>
                 </Card>
-              </Link>
+              </EventCardLink>
             </motion.div>
           );
         })}
       </div>
     </section>
   );
+}
+
+/** Wraps the card in a link only when the event is actually reachable. */
+function EventCardLink({
+  children,
+  href,
+}: {
+  children: React.ReactNode;
+  href: string | null;
+}) {
+  if (!href) {
+    return children;
+  }
+  return <Link href={href}>{children}</Link>;
 }

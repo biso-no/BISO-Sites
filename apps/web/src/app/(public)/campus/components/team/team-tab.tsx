@@ -7,7 +7,8 @@ import { Loader2 } from "lucide-react";
 import { motion } from "motion/react";
 import type { JSX } from "react";
 import { useEffect, useState } from "react";
-import { TeamMemberCard } from "./team-member-card";
+import { NATIONAL_CAMPUS_ID } from "@/lib/campus-scope";
+import { type TeamMember, TeamMemberCard } from "./team-member-card";
 
 interface TeamTabProps {
   campusId: string | null;
@@ -16,8 +17,6 @@ interface TeamTabProps {
   fallbackTeam: DepartmentBoard[];
   locale: Locale;
 }
-
-const NATIONAL_CAMPUS_ID = "5";
 
 // Maps campusId to the management department ID
 const MANAGEMENT_DEPARTMENT_IDS: Record<string, string> = {
@@ -72,7 +71,7 @@ interface CampusLeader {
 
 interface TeamSection {
   key: string;
-  members: DepartmentBoard[];
+  members: TeamMember[];
   title: string | null;
 }
 
@@ -96,12 +95,29 @@ function mapToLeader(entry: Record<string, unknown>): CampusLeader {
   };
 }
 
-function mapToDepartmentBoard(leader: CampusLeader): DepartmentBoard {
+/**
+ * Narrow a directory entry to the fields the card renders. `email` and `phone`
+ * are carried through on purpose: the board API already returns them and
+ * students need them to know who to contact. Everything else the Graph query
+ * selects (e.g. `officeLocation`) is dropped here so it never reaches the DOM.
+ */
+function mapToTeamMember(leader: CampusLeader): TeamMember {
   return {
     name: leader.name,
     role: leader.role || "",
     imageUrl: leader.profilePhotoUrl || null,
-  } as DepartmentBoard;
+    email: leader.email,
+    phone: leader.phone,
+  };
+}
+
+/** Appwrite-sourced fallback board rows carry no contact details. */
+function departmentBoardToTeamMember(member: DepartmentBoard): TeamMember {
+  return {
+    name: member.name ?? "",
+    role: member.role ?? "",
+    imageUrl: member.imageUrl,
+  };
 }
 
 function getLeadershipUnavailableMessage(locale: Locale): string {
@@ -151,7 +167,7 @@ function extractMembersFromPayload(payload: unknown): unknown[] {
 async function fetchGroupMembers(
   campusId: string,
   segment: string
-): Promise<DepartmentBoard[]> {
+): Promise<TeamMember[]> {
   const response = await fetch(
     `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/campus/${campusId}/${encodeURIComponent(segment)}/board`,
     {
@@ -170,7 +186,7 @@ async function fetchGroupMembers(
     )
     .map(mapToLeader)
     .filter((member) => member.name)
-    .map(mapToDepartmentBoard);
+    .map(mapToTeamMember);
 }
 
 async function fetchNationalSections(locale: Locale): Promise<TeamSection[]> {
@@ -178,7 +194,7 @@ async function fetchNationalSections(locale: Locale): Promise<TeamSection[]> {
     NATIONAL_GROUPS.map(async (group) => ({
       group,
       members: await fetchGroupMembers(NATIONAL_CAMPUS_ID, group.segment).catch(
-        () => [] as DepartmentBoard[]
+        () => [] as TeamMember[]
       ),
     }))
   );
@@ -193,7 +209,13 @@ async function fetchNationalSections(locale: Locale): Promise<TeamSection[]> {
 }
 
 function fallbackSection(members: DepartmentBoard[]): TeamSection[] {
-  return [{ key: "fallback", title: null, members }];
+  return [
+    {
+      key: "fallback",
+      title: null,
+      members: members.map(departmentBoardToTeamMember),
+    },
+  ];
 }
 
 export function TeamTab({
@@ -345,7 +367,7 @@ export function TeamTab({
         className="mb-12 text-center"
         initial={{ opacity: 0, y: 20 }}
       >
-        <h2 className="mb-4 text-foreground">
+        <h2 className="mb-4 font-bold text-2xl text-foreground md:text-3xl">
           {locale === "en" ? "Meet Our Team" : "Møt vårt team"}
         </h2>
         <p className="mx-auto max-w-2xl text-muted-foreground">

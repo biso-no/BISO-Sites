@@ -46,6 +46,7 @@ export async function getProduct(
           "translation_refs.description",
           "translation_refs.short_description",
           "translation_refs.additional_fields",
+          "variations.*",
         ]),
         Query.limit(1),
       ]

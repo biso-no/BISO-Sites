@@ -1,6 +1,7 @@
 import { ID, Permission, Role } from "@repo/api";
 import { createAdminClient } from "@repo/api/server";
 import { NextResponse } from "next/server";
+import { clampString, escapeHtml } from "@/lib/html-escape";
 
 interface SubmitPayload {
   accessTeamId?: string;
@@ -17,25 +18,6 @@ const MAX_FIELD_LENGTH = 5000;
 const MAX_FIELDS = 100;
 const MAX_TOPIC_LENGTH = 200;
 const OPERATIONS_UNIT_TEAM_ID = "sg-app-dept-operationsunit";
-const HTML_ESCAPES: Record<string, string> = {
-  "&": "&amp;",
-  "<": "&lt;",
-  ">": "&gt;",
-  '"': "&quot;",
-  "'": "&#39;",
-};
-
-function escapeHtml(value: string): string {
-  return value.replace(/[&<>"']/g, (ch) => HTML_ESCAPES[ch] ?? ch);
-}
-
-function clampString(value: unknown, max: number): string {
-  if (value === null || value === undefined) {
-    return "";
-  }
-  const str = typeof value === "string" ? value : JSON.stringify(value);
-  return str.length > max ? `${str.slice(0, max)}…` : str;
-}
 
 function validatePayload(
   input: unknown

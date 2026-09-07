@@ -1,6 +1,6 @@
 "use server";
 
-import { openai } from "@ai-sdk/openai";
+import { balancedModel, fastModel } from "@repo/ai/models";
 import { createSessionClient } from "@repo/api/server";
 import { getRecruitmentJobById } from "@repo/shared/recruitment";
 import { generateObject } from "ai";
@@ -152,7 +152,7 @@ export async function generateComparisonSynthesis(
 
   try {
     const { object } = await generateObject({
-      model: openai("gpt-5-nano"),
+      model: balancedModel,
       prompt: `You are a hiring copilot comparing candidates for "${jobTitle}".
 Write a 2-3 sentence verdict on who fits best and the key trade-off.
 Reference candidates by first name. Pick a single winner.
@@ -200,7 +200,8 @@ export async function askRecruitmentAssistant(input: {
 
   try {
     const { object } = await generateObject({
-      model: openai("gpt-5-nano"),
+      model: fastModel,
+      reasoning: "low",
       prompt: `You are the recruitment pipeline copilot for the vacancy "${input.jobTitle}".
 Answer the recruiter's question using ONLY the candidate data below.
 Be concise (max 4 sentences). Reference candidates by first name.
@@ -216,18 +217,25 @@ Candidate data:
 ${describeCandidates(input.candidates)}
 
 Recruiter question: ${input.message}`,
+      // Every field is required: OpenAI's strict structured outputs reject a
+      // schema whose `properties` are not all listed in `required`, which is
+      // what `.optional()` / `.default()` produce. Empty arrays are allowed.
       schema: z.object({
         reply: z.string(),
-        citedNames: z.array(z.string()).default([]),
+        citedNames: z
+          .array(z.string())
+          .describe("First names cited in the reply; [] if none"),
         actions: z
           .array(
             z.object({
               kind: z.enum(["compare", "email", "schedule", "none"]),
               label: z.string(),
-              candidateNames: z.array(z.string()).default([]),
+              candidateNames: z
+                .array(z.string())
+                .describe("Relevant first names; [] if none"),
             })
           )
-          .default([]),
+          .describe("At most 2 follow-up actions; [] if none"),
       }),
     });
 

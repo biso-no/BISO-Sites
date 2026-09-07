@@ -22,6 +22,7 @@ import { getPage } from "@repo/api/page-builder";
 import { createPublicClient } from "@repo/api/server";
 import type {
   Campus,
+  Departments,
   Events,
   Jobs,
   LargeEvent,
@@ -34,8 +35,23 @@ import {
   PagesVisibility,
 } from "@repo/api/types/appwrite";
 import { isRecruitmentVacancyOpen } from "@repo/shared/types/recruitment";
+import type {
+  PageDepartmentsFeed,
+  PageEventItem,
+  PageJobItem,
+  PageNewsItem,
+  PagePartnerItem,
+} from "@repo/shared/utils/page-feeds";
+import {
+  readPageDepartmentsFeed,
+  readPageEventsFeed,
+  readPageJobsFeed,
+  readPageNewsFeed,
+  readPagePartnersFeed,
+} from "@repo/shared/utils/page-feeds";
 import { cacheLife } from "next/cache";
 import type { Partner } from "@/app/actions/about";
+import { campusScopeIds } from "@/lib/campus-scope";
 import type { NavFeatured } from "@/lib/types/nav";
 import { buildNavFeatured } from "./nav-featured";
 import { type PublicLocale, queryEvents, queryNews } from "./queries";
@@ -85,8 +101,9 @@ export async function cachedHomeCounts(
   const { db } = await createPublicClient();
 
   const eventQueries = [Query.equal("status", "published"), Query.limit(1)];
-  if (campusId) {
-    eventQueries.push(Query.equal("campus_id", campusId));
+  const campusScope = campusScopeIds(campusId);
+  if (campusScope) {
+    eventQueries.push(Query.equal("campus_id", campusScope));
   }
 
   const [eventsRes, jobsRes] = await Promise.all([
@@ -176,6 +193,158 @@ export async function cachedPublishedPage(slug: string, locale: PublicLocale) {
   return await getPage(slug, locale, db);
 }
 
+const DEPARTMENT_SELECT = [
+  "$id",
+  "Name",
+  "campus_id",
+  "slug",
+  "active",
+  "type",
+] as const;
+
+/**
+ * Every active department sharing one slug — one row per campus.
+ *
+ * Served by the leftmost prefix of the (slug, campus_id) unique index, which is
+ * why that index is ordered slug-first. Drives the campus chooser and the
+ * one-segment /units/<slug> route.
+ */
+export async function cachedDepartmentsBySlug(
+  slug: string
+): Promise<Departments[]> {
+  "use cache";
+  cacheLife("minutes");
+  const { db } = await createPublicClient();
+  const res = await db.listRows<Departments>("app", "departments", [
+    Query.equal("slug", slug),
+    Query.equal("active", true),
+    Query.select([...DEPARTMENT_SELECT]),
+    Query.limit(10),
+  ]);
+  return res.rows;
+}
+
+/** The single active department at one campus. Full (slug, campus_id) hit. */
+export async function cachedDepartmentBySlugAndCampus(
+  slug: string,
+  campusId: string
+): Promise<Departments | null> {
+  "use cache";
+  cacheLife("minutes");
+  const { db } = await createPublicClient();
+  const res = await db.listRows<Departments>("app", "departments", [
+    Query.equal("slug", slug),
+    Query.equal("campus_id", campusId),
+    Query.equal("active", true),
+    Query.select([...DEPARTMENT_SELECT]),
+    Query.limit(1),
+  ]);
+  return res.rows[0] ?? null;
+}
+
+/** Legacy 24SO-id lookup, used only to redirect old /units/<number> links. */
+export async function cachedDepartmentById(
+  id: string
+): Promise<Departments | null> {
+  "use cache";
+  cacheLife("minutes");
+  const { db } = await createPublicClient();
+  const res = await db.listRows<Departments>("app", "departments", [
+    Query.equal("$id", id),
+    Query.select([...DEPARTMENT_SELECT]),
+    Query.limit(1),
+  ]);
+  return res.rows[0] ?? null;
+}
+
+/* ------------------------------------------------------------------------ *
+ * Page-builder auto-source feeds
+ *
+ * The events/news/jobs/partners/departmentGrid blocks in `@repo/editor` render
+ * these. The public page resolves them on the SERVER before rendering (see
+ * `./page-feeds`), so the first HTML a crawler receives carries real rows;
+ * `/api/pages/*` serves the same readers to the editor canvas and to any
+ * client-side refetch.
+ *
+ * The queries themselves live in `@repo/shared/utils/page-feeds` because
+ * `apps/admin` runs them too, against its own client. What belongs HERE is the
+ * caching: each wrapper is `"use cache"` on the guest client, so a page
+ * carrying an auto-source block cannot fan one Appwrite round-trip out per
+ * visitor. Keep that split — a query that reaches Appwrite directly from this
+ * app without a `"use cache"` wrapper reintroduces the incident this module
+ * was written for.
+ * ------------------------------------------------------------------------ */
+
+// Re-exported so call sites keep importing feed item types from this module.
+// `export ... from` rather than re-exporting the local import above: the two
+// forms are equivalent to TypeScript, and Biome's `noExportedImports` wants
+// the intent spelled out.
+export type {
+  PageDepartmentItem,
+  PageDepartmentsFeed,
+  PageEventItem,
+  PageJobItem,
+  PageNewsItem,
+  PagePartnerItem,
+} from "@repo/shared/utils/page-feeds";
+
+export async function cachedPageEventsFeed(
+  departmentId: string,
+  locale: PublicLocale
+): Promise<PageEventItem[]> {
+  "use cache";
+  cacheLife("minutes");
+  const { db } = await createPublicClient();
+  return await readPageEventsFeed(db, departmentId, locale);
+}
+
+export async function cachedPageNewsFeed(
+  departmentId: string,
+  locale: PublicLocale
+): Promise<PageNewsItem[]> {
+  "use cache";
+  cacheLife("minutes");
+  const { db } = await createPublicClient();
+  return await readPageNewsFeed(db, departmentId, locale);
+}
+
+export async function cachedPageJobsFeed(
+  departmentId: string,
+  locale: PublicLocale
+): Promise<PageJobItem[]> {
+  "use cache";
+  cacheLife("minutes");
+  const { db } = await createPublicClient();
+  return await readPageJobsFeed(db, departmentId, locale);
+}
+
+export async function cachedPagePartnersFeed(): Promise<PagePartnerItem[]> {
+  "use cache";
+  cacheLife("hours");
+  const { db } = await createPublicClient();
+  return await readPagePartnersFeed(db);
+}
+
+/**
+ * This feed predates the others and read through `createAdminClient()`, which
+ * put a service-key round-trip on every render of any page carrying the block
+ * — exactly the per-visitor fan-out the rest of this module exists to prevent.
+ * It does not need the service key: `app.departments` grants `read("any")` at
+ * the table level, so the guest client sees the same rows.
+ *
+ * `campusId`/`type` are part of the cache key rather than applied afterwards,
+ * so the unfiltered call the block actually makes stays one hot entry.
+ */
+export async function cachedPageDepartmentsFeed(
+  campusId: string | null = null,
+  type: string | null = null
+): Promise<PageDepartmentsFeed> {
+  "use cache";
+  cacheLife("hours");
+  const { db } = await createPublicClient();
+  return await readPageDepartmentsFeed(db, campusId, type);
+}
+
 interface SitemapRow {
   $updatedAt: string;
   slug: string | null;
@@ -193,6 +362,12 @@ function sitemapRows(
   }));
 }
 
+export interface UnitSitemapRow {
+  $updatedAt: string;
+  campus_id: string;
+  slug: string | null;
+}
+
 export interface SitemapEntries {
   events: SitemapRow[];
   jobs: SitemapRow[];
@@ -200,6 +375,7 @@ export interface SitemapEntries {
   pages: SitemapRow[];
   products: SitemapRow[];
   projects: SitemapRow[];
+  units: UnitSitemapRow[];
 }
 
 /**
@@ -240,28 +416,43 @@ export async function cachedSitemapEntries(): Promise<SitemapEntries> {
     )
     .catch(() => [] as SitemapRow[]);
 
-  const [jobs, events, news, products, projects, pages] = await Promise.all([
-    openJobs,
-    published("events"),
-    published("news"),
-    published("webshop_products"),
-    db
-      .listRows<LargeEvent>("app", "large_event", [
-        Query.select([...SITEMAP_SELECT]),
-        Query.limit(SITEMAP_LIMIT),
-      ])
-      .then((res) => sitemapRows(res.rows))
-      .catch(() => [] as SitemapRow[]),
-    db
-      .listRows<Pages>("app", "pages", [
-        Query.select([...SITEMAP_SELECT]),
-        Query.equal("status", PagesStatus.PUBLISHED),
-        Query.equal("visibility", PagesVisibility.PUBLIC),
-        Query.limit(SITEMAP_LIMIT),
-      ])
-      .then((res) => sitemapRows(res.rows))
-      .catch(() => [] as SitemapRow[]),
-  ]);
+  const [jobs, events, news, products, projects, pages, units] =
+    await Promise.all([
+      openJobs,
+      published("events"),
+      published("news"),
+      published("webshop_products"),
+      db
+        .listRows<LargeEvent>("app", "large_event", [
+          Query.select([...SITEMAP_SELECT]),
+          Query.limit(SITEMAP_LIMIT),
+        ])
+        .then((res) => sitemapRows(res.rows))
+        .catch(() => [] as SitemapRow[]),
+      db
+        .listRows<Pages>("app", "pages", [
+          Query.select([...SITEMAP_SELECT]),
+          Query.equal("status", PagesStatus.PUBLISHED),
+          Query.equal("visibility", PagesVisibility.PUBLIC),
+          Query.limit(SITEMAP_LIMIT),
+        ])
+        .then((res) => sitemapRows(res.rows))
+        .catch(() => [] as SitemapRow[]),
+      db
+        .listRows<Departments>("app", "departments", [
+          Query.select(["$id", "$updatedAt", "campus_id", "slug"]),
+          Query.equal("active", true),
+          Query.limit(SITEMAP_LIMIT),
+        ])
+        .then((res) =>
+          res.rows.map((row) => ({
+            $updatedAt: row.$updatedAt,
+            campus_id: row.campus_id,
+            slug: row.slug ?? null,
+          }))
+        )
+        .catch(() => [] as UnitSitemapRow[]),
+    ]);
 
-  return { events, jobs, news, pages, products, projects };
+  return { events, jobs, news, pages, products, projects, units };
 }

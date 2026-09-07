@@ -20,7 +20,9 @@ export function NewsSection({ news }: NewsClientProps) {
       <section className="py-24" id="news">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="text-center">
-            <h2 className="mb-6 text-foreground">{t("empty")}</h2>
+            <h2 className="mb-6 font-bold text-3xl text-foreground md:text-4xl">
+              {t("empty")}
+            </h2>
             <p className="text-muted-foreground">{t("emptyDescription")}</p>
           </div>
         </div>
@@ -77,7 +79,7 @@ export function NewsSection({ news }: NewsClientProps) {
           <div className="mb-6 inline-block rounded-full bg-brand-muted px-4 py-2 text-brand-dark">
             {t("cta")}
           </div>
-          <h2 className="mb-6 text-foreground">
+          <h2 className="mb-6 font-bold text-3xl text-foreground md:text-4xl">
             {t("stayUpdated")}
             <br />
             <span className="bg-linear-to-r from-brand-gradient-from to-brand-gradient-to bg-clip-text text-transparent">

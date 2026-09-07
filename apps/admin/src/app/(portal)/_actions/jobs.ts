@@ -1,6 +1,6 @@
 "use server";
 
-import { openai } from "@ai-sdk/openai";
+import { fastModel } from "@repo/ai/models";
 import { ID, Query } from "@repo/api";
 import { createAdminClient, createSessionClient } from "@repo/api/server";
 import type {
@@ -66,12 +66,10 @@ import {
 } from "@/lib/recruitment";
 
 import { logAuditEvent } from "./audit-log";
+import { APPLICATIONS_PAGE_SIZE, JOBS_PAGE_SIZE } from "./schemas";
 
 // Shorthand type for the db accessor — both admin and session clients return the same shape.
 type Db = Awaited<ReturnType<typeof createSessionClient>>["db"];
-
-const JOBS_PAGE_SIZE = 20;
-const APPLICATIONS_PAGE_SIZE = 20;
 
 // Fields to select when fetching job_applications with nested job data.
 const APPLICATION_SELECT = [
@@ -891,7 +889,8 @@ export async function suggestJobDescriptionSection(values: {
 
   try {
     const { object } = await generateObject({
-      model: openai("gpt-5-nano"),
+      model: fastModel,
+      reasoning: "low",
       schema: jobSuggestionResultSchema,
       prompt: `Suggest one useful description section for a student organization vacancy.
 Write in ${language}.

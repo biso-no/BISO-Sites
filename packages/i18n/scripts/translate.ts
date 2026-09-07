@@ -3,8 +3,10 @@
 /**
  * JSON Translation Script
  *
- * Translates all JSON files from messages/en to messages/no using OpenAI.
+ * Translates all JSON files from messages/en to messages/no.
  * Preserves the structure of nested JSON objects and handles complex translations.
+ * Runs through the shared AI stack (`@repo/ai/models` + the Vercel AI SDK) so the
+ * model choice stays in one place — see packages/ai/src/models.ts.
  *
  * Usage:
  *   OPENAI_API_KEY=your_key bun run translate
@@ -16,7 +18,8 @@
 
 import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { OpenAI } from "openai";
+import { fastModel } from "@repo/ai/models";
+import { generateObject } from "ai";
 
 // Configuration
 const SOURCE_LANG = "en";
@@ -24,9 +27,8 @@ const TARGET_LANG = "no";
 const SOURCE_DIR = join(import.meta.dirname, "../messages", SOURCE_LANG);
 const TARGET_DIR = join(import.meta.dirname, "../messages", TARGET_LANG);
 
-// Check for required API key
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
-if (!OPENAI_API_KEY) {
+// Fail fast with a useful message; the AI SDK reads OPENAI_API_KEY itself.
+if (!process.env.OPENAI_API_KEY) {
   console.error("❌ Error: OPENAI_API_KEY environment variable is required");
   console.error("Usage: OPENAI_API_KEY=your_key bun run translate");
   process.exit(1);
@@ -37,11 +39,6 @@ const args = process.argv.slice(2);
 const isDryRun = args.includes("--dry-run");
 const fileArg = args.find((arg) => arg.startsWith("--file="));
 const specificFile = fileArg ? fileArg.split("=")[1] : null;
-
-// Initialize OpenAI client
-const openai = new OpenAI({
-  apiKey: OPENAI_API_KEY,
-});
 
 interface TranslationStats {
   errors: number;
@@ -58,7 +55,11 @@ const stats: TranslationStats = {
 };
 
 /**
- * Translates a JSON object using OpenAI GPT-4
+ * Translates a JSON object with the fast model tier.
+ *
+ * Uses `output: "no-schema"` because the shape is whatever the source file
+ * happens to be — the structure is verified against the source afterwards by
+ * `assertSameShape` rather than by a JSON schema.
  */
 async function translateWithOpenAI(
   content: Record<string, unknown>,
@@ -85,31 +86,29 @@ ${JSON.stringify(content, null, 2)}
 Norwegian (Bokmål) translation:`;
 
   try {
-    console.log("  🤖 Sending to OpenAI for translation...");
+    console.log("  🤖 Sending for translation...");
 
-    const response = await openai.chat.completions.create({
-      model: "gpt-5.1",
-      messages: [
-        {
-          role: "system",
-          content:
-            "You are a professional translator that outputs only valid JSON. You translate from English to Norwegian (Bokmål) while preserving the exact structure and keys of the input JSON.",
-        },
-        {
-          role: "user",
-          content: prompt,
-        },
-      ],
-      temperature: 0.3, // Lower temperature for more consistent translations
-      response_format: { type: "json_object" },
+    const { object } = await generateObject({
+      model: fastModel,
+      output: "no-schema",
+      // Reasoning models reject a custom `temperature`; low effort is the
+      // equivalent lever for consistent, cheap, mechanical output.
+      reasoning: "low",
+      instructions:
+        "You are a professional translator that outputs only valid JSON. You translate from English to Norwegian (Bokmål) while preserving the exact structure and keys of the input JSON.",
+      prompt,
     });
 
-    const translatedContent = response.choices[0]?.message?.content;
-    if (!translatedContent) {
-      throw new Error("No content in OpenAI response");
+    if (
+      object === null ||
+      typeof object !== "object" ||
+      Array.isArray(object)
+    ) {
+      throw new Error("Model did not return a JSON object");
     }
 
-    const parsed = JSON.parse(translatedContent) as Record<string, unknown>;
+    const parsed = object as Record<string, unknown>;
+    assertSameShape(content, parsed, fileName);
 
     // Count translated keys
     stats.keysTranslated += countKeys(parsed);
@@ -121,6 +120,58 @@ Norwegian (Bokmål) translation:`;
     stats.errors += 1;
     throw error;
   }
+}
+
+/**
+ * Collect every leaf key path in a nested object, e.g. "nav.settings.title".
+ */
+function collectKeyPaths(obj: Record<string, unknown>, prefix = ""): string[] {
+  const paths: string[] = [];
+  for (const [key, value] of Object.entries(obj)) {
+    const path = prefix ? `${prefix}.${key}` : key;
+    if (typeof value === "object" && value !== null && !Array.isArray(value)) {
+      paths.push(...collectKeyPaths(value as Record<string, unknown>, path));
+    } else {
+      paths.push(path);
+    }
+  }
+  return paths;
+}
+
+/**
+ * Guard against the failure mode of asking a model to echo a whole document:
+ * dropped, renamed, or invented keys. These files ship to users, so a shape
+ * mismatch must abort the file rather than silently overwrite good messages.
+ */
+function assertSameShape(
+  source: Record<string, unknown>,
+  translated: Record<string, unknown>,
+  fileName: string
+): void {
+  const sourcePaths = new Set(collectKeyPaths(source));
+  const translatedPaths = new Set(collectKeyPaths(translated));
+
+  const missing = [...sourcePaths].filter((p) => !translatedPaths.has(p));
+  const added = [...translatedPaths].filter((p) => !sourcePaths.has(p));
+
+  if (missing.length === 0 && added.length === 0) {
+    return;
+  }
+
+  const details = [
+    missing.length > 0
+      ? `missing ${missing.length}: ${missing.slice(0, 5).join(", ")}`
+      : null,
+    added.length > 0
+      ? `unexpected ${added.length}: ${added.slice(0, 5).join(", ")}`
+      : null,
+  ]
+    .filter(Boolean)
+    .join(" | ");
+
+  throw new Error(
+    `Translated ${fileName} does not match the source shape — ${details}`
+  );
 }
 
 /**

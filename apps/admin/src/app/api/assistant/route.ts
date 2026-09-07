@@ -15,8 +15,16 @@ import {
   mergeFlagStates,
 } from "@repo/shared/utils/feature-flags";
 import { isFeatureEnabled } from "@repo/shared/utils/feature-flags-server";
+import { getOrderItems } from "@repo/shared/utils/order-parsing";
+import { ORDER_ITEMS_SELECT } from "@repo/shared/utils/order-queries";
 import type { UIMessage } from "ai";
-import { convertToModelMessages, stepCountIs, streamText } from "ai";
+import {
+  convertToModelMessages,
+  createUIMessageStreamResponse,
+  isStepCount,
+  streamText,
+  toUIMessageStream,
+} from "ai";
 import { type NextRequest, NextResponse } from "next/server";
 import {
   approveRequest,
@@ -175,7 +183,7 @@ export async function POST(request: NextRequest) {
   const tools = buildAssistantTools(capabilities, deps);
 
   // 8. Build system prompt with full context
-  const system = buildAssistantSystemPrompt({
+  const instructions = buildAssistantSystemPrompt({
     locale,
     user: { name: ctx.name, email: ctx.email },
     roleSummary,
@@ -189,13 +197,15 @@ export async function POST(request: NextRequest) {
   // 9. Stream
   const result = streamText({
     model: chatModel,
-    system,
+    instructions,
     messages: await convertToModelMessages(messages),
     tools,
-    stopWhen: stepCountIs(12),
+    stopWhen: isStepCount(12),
   });
 
-  return result.toUIMessageStreamResponse();
+  return createUIMessageStreamResponse({
+    stream: toUIMessageStream({ stream: result.stream, tools }),
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -431,17 +441,6 @@ function toOrderSummary(order: Orders) {
   };
 }
 
-function parseOrderItems(itemsJson: string | null | undefined): unknown {
-  if (!itemsJson) {
-    return [];
-  }
-  try {
-    return JSON.parse(itemsJson);
-  } catch {
-    return [];
-  }
-}
-
 function buildDeps(
   _activeFormSchemaId: string | undefined,
   ctx: UserAuthContext
@@ -466,9 +465,12 @@ function buildDeps(
         case "pages":
           return await listPages({ status });
         case "shop":
-          return await listProducts({ status });
+          return (
+            await listProducts({ page: 1, size: 100, q: query ?? "", status })
+          ).rows;
         case "benefits":
-          return await listBenefits({ status });
+          return (await listBenefits({ page: 1, size: 100, q: "", status }))
+            .rows;
         case "documents":
           return await listDocuments({ status });
         default:
@@ -503,11 +505,11 @@ function buildDeps(
     },
 
     listPendingApprovals: async () => {
-      const result = await listPendingApprovals();
+      const result = await listPendingApprovals({ page: 1, size: 50, q: "" });
       if ("error" in result) {
         throw new Error(result.error);
       }
-      return result.data;
+      return result.data.rows;
     },
 
     // -------------------------------------------------------------------------
@@ -709,10 +711,12 @@ function buildDeps(
       }
       // Session client — row security limits access to permitted orders.
       const { db } = await createSessionClient();
-      const order = await db.getRow<Orders>("app", "orders", orderId);
+      const order = await db.getRow<Orders>("app", "orders", orderId, [
+        ORDER_ITEMS_SELECT,
+      ]);
       return {
         ...toOrderSummary(order),
-        items: parseOrderItems(order.items_json),
+        items: getOrderItems(order),
       };
     },
 

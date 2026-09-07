@@ -1,6 +1,9 @@
 // Core domain types for the BISO page editor.
 // All mutations go through operations.ts; this file is pure types only.
 
+import type { BlockLayout } from "@/blocks/_primitives/layout-types";
+import type { AccentHue } from "@/theme/presets";
+
 export type BlockType =
   | "hero"
   | "marquee"
@@ -92,7 +95,7 @@ export interface TwoColBlock {
 }
 
 export interface TeamMember {
-  hue: "claret" | "gold" | "leaf" | "sky";
+  hue: AccentHue;
   initials: string;
   name: string;
   role: string;
@@ -293,9 +296,9 @@ export interface TabsBlock {
 export interface DepartmentGridBlock {
   heading?: string;
   id: string;
-  layout: "grid" | "list";
   showFilters: boolean;
   type: "departmentGrid";
+  variant?: "grid" | "list";
 }
 
 export interface DocumentItem {
@@ -418,7 +421,7 @@ export interface MultiStepFormBlock {
   type: "multiStepForm";
 }
 
-export type Block =
+export type Block = (
   | HeroBlock
   | MarqueeBlock
   | TextBlock
@@ -451,7 +454,8 @@ export type Block =
   | ProductGridBlock
   | FilterBarBlock
   | ProfileHeaderBlock
-  | MultiStepFormBlock;
+  | MultiStepFormBlock
+) & { layout?: BlockLayout };
 
 // ── Page document ────────────────────────────────────────────────────────────
 

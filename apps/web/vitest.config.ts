@@ -2,6 +2,11 @@ import path from "node:path";
 import { defineConfig } from "vitest/config";
 
 export default defineConfig({
+  oxc: {
+    jsx: {
+      runtime: "automatic",
+    },
+  },
   resolve: {
     // Only alias the app-local "@/*" specifier. Do NOT alias "@repo" to the
     // packages directory: several packages (e.g. @repo/connectors) resolve

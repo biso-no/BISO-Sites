@@ -21,6 +21,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { deleteEvent } from "../../_actions/events";
+import { EVENTS_PAGE_SIZE } from "../../_actions/schemas";
 import { PaginationBar } from "../../_components/pagination-bar";
 
 interface EventStudioDashboardProps {
@@ -1673,7 +1674,7 @@ export function EventStudioDashboard({
         )}
       </section>
 
-      <PaginationBar page={page} total={total} />
+      <PaginationBar page={page} size={EVENTS_PAGE_SIZE} total={total} />
     </div>
   );
 }

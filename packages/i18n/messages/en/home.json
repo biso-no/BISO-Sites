@@ -10,7 +10,9 @@
       "partners": "Partner opportunities",
       "viewEvents": "View events",
       "viewJobs": "View jobs",
-      "viewNews": "View news"
+      "viewNews": "View news",
+      "viewAllEvents": "View all events",
+      "viewAllNews": "View all news"
     },
     "promo": {
       "headline": "Create experiences, influence policy and build networks for the future.",
@@ -28,15 +30,13 @@
     "mission": "We help students connect, grow and influence across every BI campus.",
     "contactCta": "Talk to the team",
     "learnMore": "Learn more",
-    "viewAll": "View all {contentType}",
     "highlights": {
       "events": "Events",
       "jobs": "Opportunities",
       "news": "News"
     },
-    "featuredContent": "Featured {contentType}",
-    "featuredEvent": "Event",
-    "featuredNews": "News"
+    "featuredEvent": "Featured event",
+    "featuredNews": "Featured news"
   },
   "about": {
     "upcomingEvents": "Upcoming events",

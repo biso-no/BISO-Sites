@@ -21,7 +21,7 @@ export default function ProtectedError({
   }, [error]);
 
   return (
-    <div className="flex min-h-[60vh] flex-col items-center justify-center px-4 text-center">
+    <div className="flex min-h-[60vh] flex-col items-center justify-center px-4 pt-20 text-center">
       <AlertTriangle className="mb-4 h-10 w-10 text-destructive" />
       <h2 className="mb-2 font-semibold text-xl">Something went wrong</h2>
       <p className="mb-6 max-w-sm text-muted-foreground text-sm">

@@ -32,10 +32,15 @@ import {
   parseAutoTranslationOptions,
   scheduleContentTranslation,
 } from "@/lib/content-translation.server";
+import { resolvePageSaveCampusId } from "@/lib/page-campus";
 import {
   getPageTranslationSource,
   translatePageDocument,
 } from "@/lib/page-document-translation";
+import {
+  assertUnitPageBindingUnchanged,
+  assertUnitPageNamespace,
+} from "@/lib/unit-page-guard";
 import {
   applyScopeQueries,
   assertPublishAccess,
@@ -230,27 +235,85 @@ export async function savePageEditorDoc({
   const ctx = await requireAuth();
   try {
     const scopedDoc = ensureDepartmentForScoping(doc, ctx);
+    // Normalize the incoming slug ONCE, before any guard inspects it, and
+    // reuse that exact value everywhere — the guards and the persisted row.
+    // resolveUniquePageSlug (packages/api/page-builder.ts) trims the slug
+    // before writing it, but assertUnitPageNamespace/isUnitPageSlug used to
+    // see the raw, untrimmed value. A padded slug like
+    // " units/oslo/fadderullan" therefore slipped past the reserved-namespace
+    // guard here and then landed at the exact canonical unit slug once
+    // persisted — passing the guard but stealing the department's address.
+    // Trimming here, once, keeps the checked value and the stored value
+    // byte-identical.
+    const normalizedDoc: PageDoc = {
+      ...scopedDoc,
+      meta: { ...scopedDoc.meta, slug: scopedDoc.meta.slug.trim() },
+    };
     // savePageDraft persists through the admin client, so authorization must
     // happen here: the persisted scope for updates, and the requested scope
     // (author-derived campus + submitted department) for every save. Pages
     // already support national scope, so a global admin may keep a null
     // campus.
     const { db } = await createAdminClient();
-    if (id) {
-      const existing = await db.getRow<Pages>("app", "pages", id);
-      const persisted = getContentOwnership(existing, { legacyFallback: true });
-      assertWriteAccess(ctx, persisted.campus, persisted.department);
+    const existing = id ? await db.getRow<Pages>("app", "pages", id) : null;
+    const persisted = existing
+      ? getContentOwnership(existing, { legacyFallback: true })
+      : null;
+    if (existing) {
+      // Authorization FIRST: the slug guards' messages reveal that a page id
+      // exists and is (or is not) a unit page, so running them before the
+      // access check would turn this action into an existence oracle for any
+      // authenticated portal user posting a crafted id.
+      assertWriteAccess(
+        ctx,
+        persisted?.campus ?? null,
+        persisted?.department ?? null
+      );
     }
+    // Every save, create or update: a create-only check is stepped around by
+    // saving an ordinary slug first and renaming into `units/` afterwards.
+    const namespaceError = assertUnitPageNamespace(
+      existing?.slug ?? null,
+      normalizedDoc.meta.slug
+    );
+    if (namespaceError) {
+      return { error: namespaceError };
+    }
+    if (existing) {
+      // Complementary to the namespace rule above, which cannot see a unit
+      // page being renamed OUT of the namespace or re-pointed at another
+      // department.
+      const bindingError = assertUnitPageBindingUnchanged(existing, {
+        department: normalizedDoc.meta.department || "",
+        slug: normalizedDoc.meta.slug,
+      });
+      if (bindingError) {
+        return { error: bindingError };
+      }
+    }
+    // An existing page's campus is its own, not the current editor's — see
+    // resolvePageSaveCampusId. Re-deriving it from the author on every save
+    // (the old behavior) is what made a global admin's autosave of a
+    // department page throw here (their campus context is null when no
+    // campus is picked in the switcher) and, latently, what let ANY save
+    // silently move or null out an existing page's already-correct campus.
+    // Compute the value ONCE so authorization and persistence can't disagree.
+    const campusId = resolvePageSaveCampusId({
+      authorCampusId: resolvePageCampusId(ctx),
+      isUpdate: Boolean(existing),
+      persistedCampusId: persisted?.campus ?? null,
+    });
     await assertContentOwnership(db, ctx, {
       allowGlobalCampus: true,
-      campusId: resolvePageCampusId(ctx),
-      departmentId: scopedDoc.meta.department || null,
+      campusId,
+      departmentId: normalizedDoc.meta.department || null,
     });
     const { pageId, slug } = await savePageDraft({
       id,
-      doc: scopedDoc,
+      doc: normalizedDoc,
       locale,
       ctx,
+      campusId,
     });
     await logAuditEvent(ctx, "page_saved", {
       resourceId: pageId,

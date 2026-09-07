@@ -53,7 +53,8 @@
     "reserved": "{count} reservert i handlekurver",
     "checking": "Sjekker tilgjengelighet...",
     "membersPay": "Medlemmer betaler kun {price}",
-    "viewDetails": "Vis detaljer"
+    "viewDetails": "Vis detaljer",
+    "uncategorized": "Uten kategori"
   },
   "product": {
     "backToShop": "Tilbake til butikken",

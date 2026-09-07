@@ -1,4 +1,8 @@
 import {
+  resolveStorageFileUrl,
+  resolveStorageFileUrls,
+} from "@repo/api/storage";
+import {
   type EventUpsertInput,
   eventUpsertSchema,
 } from "@repo/shared/types/events";
@@ -57,6 +61,8 @@ export type EventFormValues = EventUpsertInput;
 
 export const jobSchema = recruitmentVacancyUpsertSchema;
 export type JobFormValues = RecruitmentVacancyUpsertInput;
+export const JOBS_PAGE_SIZE = 20;
+export const APPLICATIONS_PAGE_SIZE = 20;
 
 export const newsSchema = z
   .object({
@@ -132,11 +138,36 @@ export const productSchema = z
     regular_price: z.coerce.number().nonnegative("Price must be 0 or more"),
     member_price: z.coerce.number().nonnegative().optional().nullable(),
     member_only: z.boolean().default(false),
-    image: z.string().url().optional().nullable().or(z.literal("")),
+    // Imported products carry a bare Appwrite file ID here; normalize it to a
+    // full URL so the row is stored in the canonical form the CMS writes.
+    image: z.preprocess(
+      (value) =>
+        typeof value === "string" ? resolveStorageFileUrl(value) : value,
+      z.string().url().optional().nullable()
+    ),
     stock: z.coerce.number().int().nonnegative().optional().nullable(),
+    variations: z
+      .array(
+        z.object({
+          id: z.string().min(1).max(36),
+          name: z.string().min(1),
+          price: z.coerce.number().nonnegative(),
+          stock: z.coerce.number().int().nonnegative(),
+          type: z.string().optional(),
+        })
+      )
+      .optional(),
+    // Temporary input compatibility for already-open admin tabs. The value is
+    // converted to product_variations rows and is never written to products.
     variants_json: z.string().optional().nullable(),
     tags: z.array(z.string()).optional().nullable(),
-    images: z.array(z.string()).optional().nullable(),
+    images: z.preprocess(
+      (value) =>
+        Array.isArray(value)
+          ? resolveStorageFileUrls(value as (string | null)[])
+          : value,
+      z.array(z.string()).optional().nullable()
+    ),
     cover_pattern: z
       .enum(["dotted", "linear", "concentric", "wave", "grid"])
       .optional()
@@ -229,7 +260,7 @@ export const messageSegmentSchema = z.object({
 
 export type MessageSegmentValues = z.infer<typeof messageSegmentSchema>;
 
-export const MEDIA_BUCKET_ID = "media";
+export { MEDIA_BUCKET_ID } from "@repo/api/storage";
 
 export const DOCUMENTS_PAGE_SIZE = 25;
 

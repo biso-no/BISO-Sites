@@ -37,6 +37,7 @@ interface Props {
   departments: EditorDepartment[];
   initial: PageDoc | null;
   locales: EditorLocaleOption[];
+  lockedMeta?: { department?: boolean; slug?: boolean };
   onDocChange?: (doc: PageDoc, locale: EditorLocale) => void;
   onExit?: () => void;
   onLocaleChange: (locale: EditorLocale) => void;
@@ -59,6 +60,7 @@ export function EditorShell({
   savePage,
   uploadFile,
   departments,
+  lockedMeta,
   onExit,
   onPublish,
   onUnpublish,
@@ -130,6 +132,14 @@ export function EditorShell({
     setActivePaletteType(null);
     setOverId(null);
   }
+
+  // Keep the store's locale aligned with the editor's, so the canvas preview
+  // requests auto-source feeds (events/jobs/news) in the language being edited
+  // rather than the store default.
+  const setLocale = useEditorStore((s) => s.setLocale);
+  useEffect(() => {
+    setLocale(activeLocale);
+  }, [activeLocale, setLocale]);
 
   const hydratedLocaleRef = useRef<EditorLocale | null>(null);
 
@@ -216,6 +226,7 @@ export function EditorShell({
         savePage,
         uploadFile,
         departments,
+        lockedMeta,
         onExit,
         onPublish,
         onUnpublish,

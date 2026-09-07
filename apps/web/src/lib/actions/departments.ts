@@ -3,6 +3,7 @@ import { createSessionClient } from "@repo/api/server";
 import {
   type ContentTranslations,
   ContentTranslationsContentType,
+  type Departments,
   type News,
   NewsStatus,
   type WebshopProducts,
@@ -39,6 +40,7 @@ export async function getDepartments({
       "department_ref.$id",
       "department_ref.Id",
       "department_ref.Name",
+      "department_ref.slug",
       "department_ref.campus_id",
       "department_ref.logo",
       "department_ref.active",
@@ -92,17 +94,16 @@ export async function getDepartmentById(
           "description",
           "short_description",
           "department_ref.*",
+          "department_ref.campus.$id",
+          "department_ref.campus.name",
           "department_ref.socials.*",
           "department_ref.boardMembers.*",
         ]),
       ]
     );
 
-    if (!result.rows[0]) {
-      return null;
-    }
-
-    const deptTranslation = result.rows[0];
+    const deptTranslation =
+      result.rows[0] ?? (await synthesizeDepartmentTranslation(db, id, locale));
 
     const newsResults = await db.listRows<News>("app", "news", [
       Query.equal("department_id", id),
@@ -181,4 +182,37 @@ export async function getDepartmentById(
     console.error("Error fetching department:", error);
     return null;
   }
+}
+
+/**
+ * Fallback for a department with no `content_translations` row (the sync job
+ * never creates one). The department record alone is enough to render the
+ * default tabbed view, so synthesize the same shape `getDepartmentById`
+ * normally reads off the translation row. Throws (letting the caller's
+ * try/catch turn it into `null`) only when the department itself is gone.
+ */
+async function synthesizeDepartmentTranslation(
+  db: Awaited<ReturnType<typeof createSessionClient>>["db"],
+  id: string,
+  locale: Locale
+): Promise<ContentTranslations> {
+  const department = await db.getRow<Departments>("app", "departments", id, [
+    Query.select([
+      "*",
+      "campus.$id",
+      "campus.name",
+      "socials.*",
+      "boardMembers.*",
+    ]),
+  ]);
+
+  return {
+    content_id: id,
+    content_type: ContentTranslationsContentType.DEPARTMENT,
+    locale,
+    title: department.Name,
+    description: "",
+    short_description: null,
+    department_ref: department,
+  } as ContentTranslations;
 }

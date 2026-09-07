@@ -79,7 +79,7 @@ interface ToolPartRecord {
   type: string;
 }
 
-type AddToolResult = (params: {
+type AddToolOutput = (params: {
   output: unknown;
   tool: string;
   toolCallId: string;
@@ -113,7 +113,7 @@ function renderConfirmPart(
   resolved: boolean,
   toolCallId: string,
   key: number,
-  addResult: AddToolResult
+  addResult: AddToolOutput
 ) {
   const result = resolved ? (outputData as { confirmed: boolean }) : undefined;
   return (
@@ -147,7 +147,7 @@ function renderDraftPreviewPart(
   resolved: boolean,
   toolCallId: string,
   key: number,
-  addResult: AddToolResult
+  addResult: AddToolOutput
 ) {
   const result = resolved ? (outputData as { approved: boolean }) : undefined;
   return (
@@ -184,7 +184,7 @@ function renderApprovalPart(
   resolved: boolean,
   toolCallId: string,
   key: number,
-  addResult: AddToolResult,
+  addResult: AddToolOutput,
   approvalResults: Record<string, { error?: string; submitted: boolean }>,
   setApprovalResults: SetApprovalResults
 ) {
@@ -331,7 +331,7 @@ function renderPendingIndicator(toolName: string, key: number) {
 function renderToolPart(
   tp: ToolPartRecord,
   key: number,
-  addResult: AddToolResult,
+  addResult: AddToolOutput,
   approvalResults: Record<string, { error?: string; submitted: boolean }>,
   setApprovalResults: SetApprovalResults
 ) {
@@ -414,7 +414,7 @@ export function AssistantWidget({ roles, user: _user }: AssistantWidgetProps) {
     return () => window.removeEventListener(OPEN_ASSISTANT_EVENT, onOpen);
   }, []);
 
-  const { messages, sendMessage, status, addToolResult } = useChat({
+  const { messages, sendMessage, status, addToolOutput } = useChat({
     transport: new DefaultChatTransport({ api: "/api/assistant" }),
     onToolCall: ({ toolCall }) => {
       const toolName = toolCall.toolName as string;
@@ -425,7 +425,7 @@ export function AssistantWidget({ roles, user: _user }: AssistantWidgetProps) {
         if (path) {
           router.push(path);
         }
-        addToolResult({
+        addToolOutput({
           tool: "navigate",
           toolCallId: toolCall.toolCallId,
           output: { navigated: true, path },
@@ -437,7 +437,7 @@ export function AssistantWidget({ roles, user: _user }: AssistantWidgetProps) {
         const schemaId = toolInput.schemaId as string;
         const activeId = getActiveFormSchemaId();
         if (!activeId || activeId !== schemaId) {
-          addToolResult({
+          addToolOutput({
             tool: "fillForm",
             toolCallId: toolCall.toolCallId,
             output: { filled: false, reason: "No matching form registered" },
@@ -449,14 +449,14 @@ export function AssistantWidget({ roles, user: _user }: AssistantWidgetProps) {
         // Async fill — resolve the tool result when done
         fillFormFieldsWithDelay(schemaId, fields, 80)
           .then((count) => {
-            addToolResult({
+            addToolOutput({
               tool: "fillForm",
               toolCallId: toolCall.toolCallId,
               output: { filled: true, count },
             });
           })
           .catch(() => {
-            addToolResult({
+            addToolOutput({
               tool: "fillForm",
               toolCallId: toolCall.toolCallId,
               output: { filled: false },
@@ -702,7 +702,7 @@ export function AssistantWidget({ roles, user: _user }: AssistantWidgetProps) {
                           return renderToolPart(
                             part as ToolPartRecord,
                             i,
-                            addToolResult,
+                            addToolOutput,
                             approvalResults,
                             setApprovalResults
                           );

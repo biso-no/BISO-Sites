@@ -18,6 +18,7 @@
     "operations": "Operations health",
     "payments": "Payments",
     "activity": "Activity",
+    "varsling": "Whistleblowing",
     "drafts": "Review Drafts",
     "approvals": "Approvals",
     "inbox": "Inbox",
@@ -99,6 +100,12 @@
     "locale": {
       "no": "Norwegian",
       "en": "English"
+    },
+    "pagination": {
+      "summary": "{total} total · page {page} of {pages}",
+      "previous": "Previous page",
+      "next": "Next page",
+      "perPage": "Per page"
     }
   },
   "it": {
@@ -696,7 +703,8 @@
       },
       "kpi": {
         "liveProducts": "Live products",
-        "revenue30d": "Revenue (30d)"
+        "revenue": "Paid revenue",
+        "totalOrders": "Orders"
       },
       "stock": {
         "unlimited": "Unlimited"
@@ -722,6 +730,7 @@
         "noCategory": "No category"
       },
       "filters": {
+        "product": "Filter by product",
         "allProducts": "All products",
         "fromDate": "From date",
         "toDate": "To date",
@@ -737,13 +746,38 @@
       },
       "csv": {
         "orderId": "Order ID",
+        "orderDate": "Order Date",
+        "status": "Status",
         "buyerName": "Buyer Name",
         "buyerEmail": "Buyer Email",
         "buyerPhone": "Buyer Phone",
+        "campus": "Campus ID",
+        "productName": "Product",
+        "productId": "Product ID",
+        "variation": "Variation",
+        "quantity": "Quantity",
+        "unitPrice": "Unit Price",
+        "lineTotal": "Line Total",
         "currency": "Currency",
-        "paymentProvider": "Payment Provider",
+        "orderSubtotal": "Order Subtotal",
+        "orderDiscountTotal": "Order Discount",
+        "orderTotal": "Order Total",
         "memberDiscount": "Member Discount %",
-        "receiptUrl": "Receipt URL"
+        "paymentProvider": "Payment Provider",
+        "receiptUrl": "Receipt URL",
+        "customFields": "Custom Fields"
+      },
+      "notice": {
+        "cappedTotal": "5000+ matching — narrow by date or status for an exact count",
+        "cappedRevenue": "Newest 5000 matching orders only",
+        "truncatedOrders": "This product matches more orders than the list can show. Only the first 500 matching orders appear here — export the CSV for the full set."
+      },
+      "export": {
+        "running": "Exporting…",
+        "success": "{orders, plural, one {# order} other {# orders}} exported as {rows, plural, one {# line item row} other {# line item rows}}.",
+        "truncated": "{orders, plural, one {# order} other {# orders}} exported as {rows, plural, one {# line item row} other {# line item rows}} — the file hit the export ceiling and does not contain every matching order. Narrow the filters and export again.",
+        "empty": "No orders match these filters, so there was nothing to export.",
+        "failed": "The export failed. Please try again."
       }
     },
     "preview": "Storefront Preview",
@@ -836,7 +870,66 @@
     "actions": {
       "editPage": "Edit Page",
       "admins": "Admins",
-      "initialize": "Initialize Page"
+      "initialize": "Initialize Page",
+      "viewLive": "View live",
+      "createPage": "Create page",
+      "createPageDisabledInactive": "This department is inactive, so a page cannot be created for it.",
+      "noSlug": "This department has no slug yet. Run the department sync to assign one.",
+      "pageHeading": "Public page",
+      "noPage": "No page yet. Create one to give this department its own page on biso.no.",
+      "slugConflict": "This address is already used by another page. Contact BISO IT to resolve it before a page can be created here.",
+      "draft": "Draft",
+      "published": "Published",
+      "notPublished": "Not published",
+      "localeNo": "Norwegian",
+      "localeEn": "English",
+      "inactiveLiveNotice": "This department is inactive, so its published page is not publicly reachable."
+    },
+    "categories": {
+      "society": "Society",
+      "academic_association": "Academic association",
+      "project": "Project",
+      "staff_function": "Staff function",
+      "national": "National",
+      "other": "Other"
+    },
+    "filters": {
+      "label": "Filter departments",
+      "all": "All",
+      "uncategorised": "Uncategorised",
+      "missingLogo": "Missing logo",
+      "triageSummary": "{total} units · {uncategorised} uncategorised · {missingLogo} without a logo"
+    },
+    "badges": {
+      "noCategory": "No category",
+      "noLogo": "No logo",
+      "inactive": "Inactive"
+    },
+    "profile": {
+      "heading": "Profile",
+      "description": "The category, imagery and copy shown for this unit on biso.no.",
+      "typeLabel": "Category",
+      "typeNone": "No category",
+      "typeHint": "Drives the type filter on /units and the jobs category filter.",
+      "logoLabel": "Logo",
+      "logoHint": "Square logo. Stored as an Appwrite file id because the column only holds 100 characters.",
+      "heroLabel": "Hero image",
+      "heroHint": "Wide background image at the top of the unit's page.",
+      "contentHeading": "Copy",
+      "titleLabel": "Display name",
+      "titleHint": "Optional. Falls back to the directory name when left empty.",
+      "shortDescriptionLabel": "Short description",
+      "shortDescriptionHint": "Shown on cards and in listings. Max 500 characters.",
+      "descriptionLabel": "Description",
+      "descriptionHint": "The main copy on the unit's page. Required for the locale to be saved.",
+      "save": "Save profile",
+      "saving": "Saving …",
+      "saved": "Profile saved",
+      "imageBrowse": "Drop image or browse",
+      "imageConstraints": "JPG, PNG, GIF, WEBP, SVG · max 10 MB",
+      "imageRemove": "Remove",
+      "imageReplace": "Replace",
+      "imageUploading": "Uploading …"
     }
   },
   "pages": {
@@ -1218,6 +1311,11 @@
       "close": "Close tour",
       "progress": "{current} of {total}"
     },
+    "guideVideo": {
+      "trigger": "Watch the guide",
+      "title": "Recruitment portal guide",
+      "description": "A recorded walkthrough of the recruitment portal — posting a role, reviewing applicants, and everything in between."
+    },
     "recruitmentHr": {
       "welcome": {
         "title": "Welcome to recruitment",
@@ -1265,7 +1363,7 @@
       },
       "finish": {
         "title": "You're all set",
-        "body": "That's the tour. You can replay it anytime from the help menu. Good luck with hiring!"
+        "body": "That's the tour. Watch the full walkthrough below — it's always available from the “Watch the guide” button on the overview. Good luck with hiring!"
       }
     }
   }

@@ -20,9 +20,9 @@ export function DepartmentGridInspector({ block, onPatch }: Props) {
         <div className="pe-variant-grid">
           {(["grid", "list"] as const).map((v) => (
             <button
-              className={`pe-variant${(block.layout ?? "grid") === v ? "on" : ""}`}
+              className={`pe-variant${(block.variant ?? "grid") === v ? "on" : ""}`}
               key={v}
-              onClick={() => onPatch("layout", v)}
+              onClick={() => onPatch("variant", v)}
               type="button"
             >
               <span className="v-name">{v}</span>

@@ -5,6 +5,7 @@ import {
   Building2,
   Calendar,
   CreditCard,
+  FileText,
   Flame,
   Gavel,
   Gift,
@@ -14,10 +15,13 @@ import {
   Landmark,
   type LucideIcon,
   Mail,
+  Megaphone,
   Newspaper,
+  Receipt,
   ShieldAlert,
   ShoppingBag,
   Sparkles,
+  UserRound,
   Users,
 } from "lucide-react";
 
@@ -58,6 +62,12 @@ export const STUDENT_COLUMNS: NavColumnConfig[] = [
     id: "membership",
     headingKey: "columns.membership",
     links: [
+      {
+        id: "students-overview",
+        labelKey: "links.studentsOverview",
+        href: "/students",
+        icon: GraduationCap,
+      },
       {
         id: "membership-overview",
         labelKey: "links.membershipOverview",
@@ -176,6 +186,18 @@ export const ABOUT_COLUMNS: NavColumnConfig[] = [
         icon: Gavel,
       },
       {
+        id: "documents",
+        labelKey: "links.documents",
+        href: "/documents",
+        icon: FileText,
+      },
+      {
+        id: "drugs-policy",
+        labelKey: "links.drugsPolicy",
+        href: "/policies/drugs-policy",
+        icon: ShieldAlert,
+      },
+      {
         id: "safety",
         labelKey: "links.safety",
         href: "/safety",
@@ -205,6 +227,53 @@ export const ABOUT_COLUMNS: NavColumnConfig[] = [
         href: "/business-hotspot",
         icon: Flame,
       },
+      {
+        id: "press",
+        labelKey: "links.press",
+        href: "/press",
+        icon: Megaphone,
+      },
     ],
   },
 ];
+
+/**
+ * Personal links shown in the signed-in account menu (desktop dropdown and the
+ * "Min konto" section of the mobile drawer), in display order.
+ *
+ * These routes live under `(protected)/` and have no other entry point in the
+ * site — the account menu is how users find them.
+ */
+export const ACCOUNT_LINKS: NavLinkConfig[] = [
+  {
+    id: "account-profile",
+    labelKey: "account.myProfile",
+    href: "/profile",
+    icon: UserRound,
+  },
+  {
+    id: "account-applications",
+    labelKey: "account.myApplications",
+    href: "/applications",
+    icon: FileText,
+  },
+  {
+    id: "account-financial-services",
+    labelKey: "account.financialServices",
+    href: "/fs",
+    icon: Receipt,
+  },
+  {
+    id: "account-member-portal",
+    labelKey: "memberPortal",
+    href: "/member",
+    icon: Sparkles,
+  },
+];
+
+/**
+ * Id of the entry gated on the `expenses_module` feature flag — filtered out of
+ * {@link ACCOUNT_LINKS} when `NavAccount.showFinancialServices` is false, so we
+ * never advertise a route that renders `<ExpensesUnavailable />`.
+ */
+export const FINANCIAL_SERVICES_LINK_ID = "account-financial-services";

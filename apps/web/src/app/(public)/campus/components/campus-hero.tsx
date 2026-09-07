@@ -175,6 +175,8 @@ export function CampusHero({
         alt={activeCampus?.name ? `${activeCampus.name} Campus` : "BISO Campus"}
         className="h-full w-full object-cover"
         fill
+        priority
+        sizes="100vw"
         src={heroImage}
       />
       <div className="absolute inset-0 bg-linear-to-br from-brand-overlay-from via-brand-overlay-via to-brand-overlay-to" />

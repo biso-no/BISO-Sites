@@ -65,27 +65,30 @@ describe("createOrder", () => {
     db.listRows.mockResolvedValue({ rows: [] });
   });
 
-  it("stores checkout items with product_id for downstream stock and purchase-limit processing", async () => {
+  it("stores checkout items as relational order-item rows", async () => {
     await createOrder(checkoutParams, db);
 
     const storedOrder = db.createRow.mock.calls[0]?.[3] as Record<
       string,
       unknown
     >;
-    const storedItems = JSON.parse(String(storedOrder.items_json)) as Record<
+    const storedItem = db.createRow.mock.calls[1]?.[3] as Record<
       string,
       unknown
-    >[];
+    >;
 
     expect(storedOrder.status).toBe(OrdersStatus.PENDING);
-    expect(storedItems).toEqual([
+    expect(storedOrder).not.toHaveProperty("items_json");
+    expect(db.createRow.mock.calls[1]?.[1]).toBe("order_items");
+    expect(storedItem).toEqual(
       expect.objectContaining({
-        product_id: "product-1",
+        order: expect.any(String),
+        product: "product-1",
         quantity: 2,
         unit_price: 499,
-      }),
-    ]);
-    expect(storedItems[0]).not.toHaveProperty("productId");
+      })
+    );
+    expect(storedItem).not.toHaveProperty("productId");
   });
 
   it("persists variant and custom-field metadata in the reader's snake_case shape", async () => {
@@ -105,24 +108,19 @@ describe("createOrder", () => {
       db
     );
 
-    const storedOrder = db.createRow.mock.calls[0]?.[3] as Record<
+    const storedItem = db.createRow.mock.calls[1]?.[3] as Record<
       string,
       unknown
     >;
-    const storedItems = JSON.parse(String(storedOrder.items_json)) as Record<
-      string,
-      unknown
-    >[];
 
-    expect(storedItems[0]).toMatchObject({
-      product_id: "product-1",
-      variation_id: "v-large",
-      variation_name: "Large",
-      custom_fields: [
+    expect(storedItem).toMatchObject({
+      product: "product-1",
+      variation: "v-large",
+      custom_fields_json: JSON.stringify([
         // label falls back to the field id when no label is supplied.
         { id: "engraving", label: "Engraving text", value: "Ada" },
         { id: "gift", label: "gift", value: "yes" },
-      ],
+      ]),
     });
     // The camelCase input keys must not leak into the persisted item.
     for (const key of [
@@ -131,7 +129,7 @@ describe("createOrder", () => {
       "customFields",
       "customFieldLabels",
     ]) {
-      expect(storedItems[0]).not.toHaveProperty(key);
+      expect(storedItem).not.toHaveProperty(key);
     }
   });
 

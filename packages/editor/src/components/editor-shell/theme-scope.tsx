@@ -16,8 +16,8 @@ export function ThemeScope({ children, accent }: Props) {
   useEffect(() => {
     if (ref.current) {
       ref.current.style.setProperty(
-        "--accent",
-        accentColor || accent || "#6b1e1e"
+        "--page-accent",
+        accentColor || accent || "#3DA9E0"
       );
     }
   }, [accentColor, accent]);

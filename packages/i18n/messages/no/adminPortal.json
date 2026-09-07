@@ -18,6 +18,7 @@
     "operations": "Driftshelse",
     "payments": "Betaling",
     "activity": "Aktivitet",
+    "varsling": "Varsling",
     "drafts": "Gjennomgå utkast",
     "approvals": "Godkjenninger",
     "inbox": "Innboks",
@@ -99,6 +100,12 @@
     "locale": {
       "no": "Norsk",
       "en": "Engelsk"
+    },
+    "pagination": {
+      "summary": "{total} totalt · side {page} av {pages}",
+      "previous": "Forrige side",
+      "next": "Neste side",
+      "perPage": "Per side"
     }
   },
   "it": {
@@ -696,7 +703,8 @@
       },
       "kpi": {
         "liveProducts": "Publiserte produkter",
-        "revenue30d": "Omsetning (30d)"
+        "revenue": "Betalt omsetning",
+        "totalOrders": "Bestillinger"
       },
       "stock": {
         "unlimited": "Ubegrenset"
@@ -722,6 +730,7 @@
         "noCategory": "Ingen kategori"
       },
       "filters": {
+        "product": "Filtrer på produkt",
         "allProducts": "Alle produkter",
         "fromDate": "Fra dato",
         "toDate": "Til dato",
@@ -737,13 +746,38 @@
       },
       "csv": {
         "orderId": "Bestillings-ID",
+        "orderDate": "Bestillingsdato",
+        "status": "Status",
         "buyerName": "Kjøpernavn",
         "buyerEmail": "Kjøper-e-post",
         "buyerPhone": "Kjøpertelefon",
+        "campus": "Campus-ID",
+        "productName": "Produkt",
+        "productId": "Produkt-ID",
+        "variation": "Variant",
+        "quantity": "Antall",
+        "unitPrice": "Enhetspris",
+        "lineTotal": "Linjesum",
         "currency": "Valuta",
-        "paymentProvider": "Betalingsleverandør",
+        "orderSubtotal": "Delsum (bestilling)",
+        "orderDiscountTotal": "Rabatt (bestilling)",
+        "orderTotal": "Sum (bestilling)",
         "memberDiscount": "Medlemsrabatt %",
-        "receiptUrl": "Kvitterings-URL"
+        "paymentProvider": "Betalingsleverandør",
+        "receiptUrl": "Kvitterings-URL",
+        "customFields": "Tilleggsvalg"
+      },
+      "notice": {
+        "cappedTotal": "5000+ treff — avgrens på dato eller status for et eksakt tall",
+        "cappedRevenue": "Kun de 5000 nyeste treffene",
+        "truncatedOrders": "Dette produktet finnes i flere bestillinger enn listen kan vise. Kun de 500 første treffene vises her — eksporter CSV-filen for hele settet."
+      },
+      "export": {
+        "running": "Eksporterer…",
+        "success": "{orders, plural, one {# bestilling} other {# bestillinger}} eksportert som {rows, plural, one {# varelinje} other {# varelinjer}}.",
+        "truncated": "{orders, plural, one {# bestilling} other {# bestillinger}} eksportert som {rows, plural, one {# varelinje} other {# varelinjer}} — filen nådde eksporttaket og inneholder ikke alle treff. Avgrens filtrene og eksporter på nytt.",
+        "empty": "Ingen bestillinger treffer disse filtrene, så det var ingenting å eksportere.",
+        "failed": "Eksporten mislyktes. Prøv igjen."
       }
     },
     "preview": "Butikkvisning",
@@ -836,7 +870,66 @@
     "actions": {
       "editPage": "Rediger side",
       "admins": "Administratorer",
-      "initialize": "Initialiser side"
+      "initialize": "Initialiser side",
+      "viewLive": "Se publisert side",
+      "createPage": "Opprett side",
+      "createPageDisabledInactive": "Denne avdelingen er inaktiv, så det kan ikke opprettes en side for den.",
+      "noSlug": "Denne avdelingen har ingen slug ennå. Kjør avdelingssynkroniseringen for å tildele en.",
+      "pageHeading": "Offentlig side",
+      "noPage": "Ingen side ennå. Opprett én for å gi avdelingen sin egen side på biso.no.",
+      "slugConflict": "Denne adressen er allerede i bruk av en annen side. Ta kontakt med BISO IT for å løse dette før en side kan opprettes her.",
+      "draft": "Utkast",
+      "published": "Publisert",
+      "notPublished": "Ikke publisert",
+      "localeNo": "Norsk",
+      "localeEn": "Engelsk",
+      "inactiveLiveNotice": "Denne avdelingen er inaktiv, så den publiserte siden er ikke offentlig tilgjengelig."
+    },
+    "categories": {
+      "society": "Forening",
+      "academic_association": "Fagforening",
+      "project": "Prosjekt",
+      "staff_function": "Stabsfunksjon",
+      "national": "Nasjonal",
+      "other": "Annet"
+    },
+    "filters": {
+      "label": "Filtrer avdelinger",
+      "all": "Alle",
+      "uncategorised": "Uten kategori",
+      "missingLogo": "Mangler logo",
+      "triageSummary": "{total} enheter · {uncategorised} uten kategori · {missingLogo} uten logo"
+    },
+    "badges": {
+      "noCategory": "Ingen kategori",
+      "noLogo": "Ingen logo",
+      "inactive": "Inaktiv"
+    },
+    "profile": {
+      "heading": "Profil",
+      "description": "Kategori, bilder og tekst som vises for enheten på biso.no.",
+      "typeLabel": "Kategori",
+      "typeNone": "Ingen kategori",
+      "typeHint": "Styrer typefilteret på /units og jobbfilteret.",
+      "logoLabel": "Logo",
+      "logoHint": "Kvadratisk logo. Lagres som Appwrite-fil-ID fordi kolonnen bare rommer 100 tegn.",
+      "heroLabel": "Toppbilde",
+      "heroHint": "Bredt bakgrunnsbilde øverst på enhetens side.",
+      "contentHeading": "Tekst",
+      "titleLabel": "Visningsnavn",
+      "titleHint": "Valgfritt. Brukes navnet fra katalogen hvis feltet er tomt.",
+      "shortDescriptionLabel": "Kort beskrivelse",
+      "shortDescriptionHint": "Vises på kort og i lister. Maks 500 tegn.",
+      "descriptionLabel": "Beskrivelse",
+      "descriptionHint": "Hovedteksten på enhetens side. Kreves for at språket skal lagres.",
+      "save": "Lagre profil",
+      "saving": "Lagrer …",
+      "saved": "Profilen er lagret",
+      "imageBrowse": "Slipp bilde eller bla gjennom",
+      "imageConstraints": "JPG, PNG, GIF, WEBP, SVG · maks 10 MB",
+      "imageRemove": "Fjern",
+      "imageReplace": "Bytt",
+      "imageUploading": "Laster opp …"
     }
   },
   "pages": {
@@ -1218,6 +1311,11 @@
       "close": "Lukk omvisning",
       "progress": "{current} av {total}"
     },
+    "guideVideo": {
+      "trigger": "Se videoguiden",
+      "title": "Guide til rekrutteringsportalen",
+      "description": "En innspilt gjennomgang av rekrutteringsportalen — fra utlysning til vurdering av søkere, og alt imellom."
+    },
     "recruitmentHr": {
       "welcome": {
         "title": "Velkommen til rekruttering",
@@ -1265,7 +1363,7 @@
       },
       "finish": {
         "title": "Du er klar",
-        "body": "Det var omvisningen. Du kan se den igjen når som helst fra hjelpemenyen. Lykke til med ansettelsene!"
+        "body": "Det var omvisningen. Se hele gjennomgangen under — den ligger alltid tilgjengelig bak «Se videoguiden» på oversikten. Lykke til med ansettelsene!"
       }
     }
   }

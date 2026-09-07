@@ -2,6 +2,63 @@ import type { Block, PageDoc } from "./types";
 
 const MAX_TEXT_LEN = 120;
 
+const LEGACY_TEAM_HUES: Record<string, string> = {
+  claret: "blue",
+  leaf: "slate",
+};
+
+const normalizeBlock = (block: Block): Block => {
+  const record = block as unknown as Record<string, unknown>;
+
+  if (
+    block.type === "departmentGrid" &&
+    (record.layout === "grid" || record.layout === "list")
+  ) {
+    const { layout, ...rest } = record;
+    return {
+      ...rest,
+      variant: record.variant ?? layout,
+    } as unknown as Block;
+  }
+
+  if (block.type === "team" && Array.isArray(record.members)) {
+    let changed = false;
+    const members = record.members.map((member) => {
+      if (!member || typeof member !== "object") {
+        return member;
+      }
+      const memberRecord = member as Record<string, unknown>;
+      const migratedHue =
+        typeof memberRecord.hue === "string"
+          ? LEGACY_TEAM_HUES[memberRecord.hue]
+          : undefined;
+      if (!migratedHue) {
+        return member;
+      }
+      changed = true;
+      return { ...memberRecord, hue: migratedHue };
+    });
+
+    if (changed) {
+      return { ...record, members } as unknown as Block;
+    }
+  }
+
+  return block;
+};
+
+/** Upgrade persisted page documents at every editor/render host boundary. */
+export const normalizePageDoc = (doc: PageDoc): PageDoc => {
+  let changed = false;
+  const blocks = doc.blocks.map((block) => {
+    const normalized = normalizeBlock(block);
+    changed ||= normalized !== block;
+    return normalized;
+  });
+
+  return changed ? { ...doc, blocks } : doc;
+};
+
 function truncate(s: string | undefined): string {
   if (!s) {
     return "";
@@ -89,5 +146,5 @@ export function serializePageForAI(
 
 /** Deserialize a PageDoc from a JSON string. */
 export function fromJSON(json: string): PageDoc {
-  return JSON.parse(json) as PageDoc;
+  return normalizePageDoc(JSON.parse(json) as PageDoc);
 }

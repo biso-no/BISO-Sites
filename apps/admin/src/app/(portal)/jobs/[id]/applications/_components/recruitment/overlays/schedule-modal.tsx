@@ -3,6 +3,7 @@
 import { JobApplicationsStatus } from "@repo/api/types/appwrite";
 import { CalendarPlus, Check } from "lucide-react";
 import { useMemo, useState, useTransition } from "react";
+import { toast } from "sonner";
 import {
   createInterview,
   proposeInterviewSlots,
@@ -147,7 +148,7 @@ export function ScheduleModal({
         });
       }
       if (result.data?.warning) {
-        window.alert(result.data.warning);
+        toast.warning(result.data.warning);
       }
       onClose();
     });

@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import type { PatchFn } from "@/blocks/types";
-import { useEditorStore } from "@/editor/store";
+import { usePageFeedSource } from "@/editor/page-feed-context";
+import { pageFeedKey, resolveFeedDepartment } from "@/editor/page-feeds";
 import type { EventItem, EventsBlock } from "@/editor/types";
+import { useAutoFeed } from "@/editor/use-auto-feed";
 
 interface Props {
   block: EventsBlock;
@@ -12,45 +13,22 @@ interface Props {
 }
 
 export function EventsRender({ block, edit, onPatch }: Props) {
-  const department = useEditorStore((s) => s.doc.meta.department);
-  const [liveItems, setLiveItems] = useState<EventItem[] | null>(null);
-  const [loading, setLoading] = useState(false);
-
+  const { department, locale } = usePageFeedSource();
   // "auto" → use page department; any other value → use as explicit table/dept ID
-  const source = block.source || "auto";
-  const dept = source === "auto" ? department : source;
+  const dept = resolveFeedDepartment(block.source, department);
   const isLive = !!dept;
 
-  useEffect(() => {
-    if (!dept) {
-      setLiveItems(null);
-      return;
-    }
-    let cancelled = false;
-    setLoading(true);
-    fetch(`/api/pages/events?dept=${encodeURIComponent(dept)}`)
-      .then((r) => r.json())
-      .then((data: EventItem[]) => {
-        if (!cancelled) {
-          setLiveItems(data);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setLiveItems(null);
-        }
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [dept]);
+  const { items: liveItems, loading } = useAutoFeed<EventItem>({
+    enabled: isLive,
+    key: pageFeedKey("events", dept, locale),
+    url: `/api/pages/events?dept=${encodeURIComponent(dept)}&locale=${locale}`,
+  });
 
-  const items = (isLive ? liveItems : null) ?? block.items;
+  // A live block shows the feed or nothing — never `block.items`. Those are
+  // the inspector's "Placeholder events", documented as "shown when no
+  // department is set", so emitting them while a real feed loads is what put
+  // demo content in front of visitors and crawlers.
+  const items = isLive ? (liveItems ?? []) : block.items;
   let emptyMessage = "Set a department to load live events.";
   if (loading) {
     emptyMessage = "Loading…";
@@ -94,9 +72,11 @@ export function EventsRender({ block, edit, onPatch }: Props) {
               <div className="pg-event-card__title">{ev.title}</div>
               <div className="pg-event-card__where">{ev.where}</div>
             </div>
-            <div className="pg-event-card__foot">
-              <b>{ev.going}</b> going
-            </div>
+            {ev.going > 0 && (
+              <div className="pg-event-card__foot">
+                <b>{ev.going}</b> going
+              </div>
+            )}
           </div>
         ))}
         {items.length === 0 && (

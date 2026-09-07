@@ -66,7 +66,7 @@ export function StudioTourCard({
       aria-modal="false"
       role="dialog"
       style={{
-        width: 344,
+        width: step.media ? 560 : 344,
         maxWidth: "calc(100vw - 2rem)",
         padding: 18,
         background: STUDIO.paper,
@@ -143,6 +143,26 @@ export function StudioTourCard({
       >
         {resolve(step.body)}
       </p>
+
+      {step.media ? (
+        // biome-ignore lint/a11y/useMediaCaption: the recorded walkthrough has no caption track yet.
+        <video
+          controls
+          playsInline
+          poster={step.media.poster}
+          preload="metadata"
+          src={step.media.src}
+          style={{
+            display: "block",
+            width: "100%",
+            marginTop: 14,
+            aspectRatio: "16 / 9",
+            background: STUDIO.ink,
+            border: `0.5px solid ${STUDIO.rule2}`,
+            borderRadius: 10,
+          }}
+        />
+      ) : null}
 
       <span aria-live="polite" className="sr-only">
         {`${progress}: ${resolve(step.title)}`}
