@@ -345,3 +345,14 @@ test("the catalog tab omits the featured draft when the catalog has none", () =>
 
   expect(html).not.toContain("adminPortal.shop.studio.featured.eyebrow");
 });
+
+// The row's order reference is the only identifier an administrator can see,
+// and the search box matches `$id` exactly. Showing a truncated suffix meant
+// copying what you could see returned nothing, so the full id has to be in the
+// markup — CSS truncates it for the narrow column, but the text stays whole so
+// selecting or copying it yields a value the search can actually match.
+test("renders the full order id, not just its last eight characters", () => {
+  const html = renderToStaticMarkup(createElement(OrdersTab, ordersProps));
+
+  expect(html).toContain("order-000000001");
+});

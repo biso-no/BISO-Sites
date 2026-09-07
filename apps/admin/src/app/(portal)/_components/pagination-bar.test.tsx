@@ -43,6 +43,9 @@ mock.module("next-intl", () => ({
 }));
 
 const { PaginationBar } = await import("./pagination-bar");
+const { ListParamsProvider, useListParams } = await import(
+  "./use-list-params"
+);
 
 const installedDom = installReactDom();
 let createRoot: typeof import("react-dom/client")["createRoot"];
@@ -177,4 +180,44 @@ test("offers a route back from an out-of-range page with no size picker", async 
 
   expect(pushCalls).toHaveLength(1);
   expect(pushedParams().get("page")).toBeNull();
+});
+
+// The bar shares a screen with filter and search controls that write the same
+// URL. If it clones only the committed snapshot, paging while one of those
+// navigations is still in flight silently discards it.
+test("merges a page change with a filter write that has not committed yet", async () => {
+  type SetParams = ReturnType<typeof useListParams>["setParams"];
+  let fromFilters: SetParams | null = null;
+
+  function Filters() {
+    fromFilters = useListParams().setParams;
+    return null;
+  }
+
+  searchParamsString = "";
+  await mount(
+    createElement(
+      ListParamsProvider,
+      null,
+      createElement(Filters),
+      createElement(PaginationBar, {
+        page: 1,
+        size: 25,
+        sizeSelectable: true,
+        total: 300,
+      })
+    )
+  );
+
+  await act(() => {
+    fromFilters?.({ q: "oslo" });
+  });
+  await act(() => {
+    findButton(container as unknown as TestNode, "2").click();
+  });
+
+  expect(pushCalls).toHaveLength(2);
+  const second = pushedParams(1);
+  expect(second.get("page")).toBe("2");
+  expect(second.get("q")).toBe("oslo");
 });

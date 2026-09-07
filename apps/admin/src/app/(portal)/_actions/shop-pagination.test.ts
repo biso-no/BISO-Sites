@@ -764,3 +764,16 @@ describe("getFeaturedDraftProduct", () => {
     expect(await getFeaturedDraftProduct()).toBeNull();
   });
 });
+
+// The resolver caps at 500 parent ids, and the orders query then sorts only
+// that preselected subset. Scanning in arbitrary order therefore surfaced an
+// arbitrary 500 — a product with more orders than that showed older ones and
+// hid newer ones, which is the opposite of what the newest-first list promises.
+test("resolves a product's newest parent orders before hitting the cap", async () => {
+  sessionDb.listRows.mockImplementation(() => ({ rows: [], total: 0 }));
+
+  await listOrderIdsForProduct("product-1");
+
+  const scan = queriesFor(sessionDb, "order_items")[0] ?? [];
+  expect(scan).toContain(Query.orderDesc("$createdAt"));
+});

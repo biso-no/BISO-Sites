@@ -41,14 +41,22 @@ export function OrderRow({ order }: { order: Orders }) {
     >
       {/* Col 1: id + date */}
       <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+        {/* The whole id, not a suffix: this is the only reference on screen and
+            the search box matches it exactly, so a truncated one could be read
+            but never searched. CSS trims the display for this narrow column
+            while the text stays whole for selecting, copying and the tooltip. */}
         <span
           style={{
             color: BRAND.ink3,
             fontFamily: MONO_STACK,
             fontSize: 11.5,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
           }}
+          title={order.$id}
         >
-          #{order.$id.slice(-8)}
+          #{order.$id}
         </span>
         <span style={{ color: BRAND.ink4, fontSize: 11 }}>
           {fmtDate(order.$createdAt, locale)}

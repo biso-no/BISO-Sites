@@ -52,7 +52,7 @@ function neutralizeFormula(text: string): string {
 
 /**
  * One CSV cell. Quotes only when the value would otherwise break the row —
- * a comma, an embedded quote, or a newline — and doubles embedded quotes,
+ * a comma, an embedded quote, or either newline character — and doubles quotes,
  * which is what RFC 4180 (and Excel) expects.
  *
  * A `number` is rendered as-is: it cannot carry a formula, and neutralising it
@@ -68,7 +68,12 @@ export function escapeCsvValue(
     typeof value === "number"
       ? String(value)
       : neutralizeFormula(String(value));
-  return text.includes(",") || text.includes('"') || text.includes("\n")
+  return text.includes(",") ||
+    text.includes('"') ||
+    text.includes("\n") ||
+    // A bare CR is a record separator to some readers, so leaving it unquoted
+    // splits one line item across rows and shifts every column after it.
+    text.includes("\r")
     ? `"${text.replace(QUOTE_PATTERN, '""')}"`
     : text;
 }

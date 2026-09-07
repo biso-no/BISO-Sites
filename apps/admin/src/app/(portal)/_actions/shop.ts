@@ -1277,6 +1277,11 @@ export async function listOrderIdsForProduct(
   for (let page = 0; page < MAX_ORDER_ITEM_SCAN_PAGES; page += 1) {
     const queries = [
       Query.equal("product.$id", productId),
+      // Newest first, because the scan stops at `limit` parent ids and the
+      // orders query then sorts only that preselected subset. Scanning in
+      // arbitrary order surfaced an arbitrary 500, so a product with more
+      // orders than the cap hid its newest ones behind older matches.
+      Query.orderDesc("$createdAt"),
       Query.select(["$id", "order.$id"]),
       Query.limit(ORDER_ITEM_SCAN_PAGE),
     ];

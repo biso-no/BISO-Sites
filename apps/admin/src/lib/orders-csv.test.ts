@@ -694,3 +694,11 @@ describe("spreadsheet formula neutralisation", () => {
     expect(cell.startsWith("=")).toBe(false);
   });
 });
+
+// A bare carriage return is a record separator to some CSV readers, so an
+// unquoted one splits a line item across two rows and shifts every remaining
+// column. Product names and custom-field answers are buyer-supplied.
+test("quotes a cell containing a bare carriage return", () => {
+  expect(escapeCsvValue("Genser\rsort")).toBe('"Genser\rsort"');
+  expect(escapeCsvValue("Genser\r\nsort")).toBe('"Genser\r\nsort"');
+});

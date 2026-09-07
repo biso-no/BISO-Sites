@@ -1,7 +1,6 @@
 "use client";
 
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useCallback } from "react";
 import {
@@ -10,6 +9,7 @@ import {
   PAGE_SIZES,
 } from "@/lib/list-params";
 import { STUDIO } from "./studio";
+import { useListParams } from "./use-list-params";
 
 interface PaginationBarProps {
   page: number;
@@ -47,9 +47,11 @@ export function PaginationBar({
   sizeKey = "size",
   sizeSelectable = false,
 }: PaginationBarProps) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
+  // Writes go through `useListParams` rather than `router.push` directly: the
+  // bar shares a screen with filter and search controls writing the same URL,
+  // and only that hook merges against a push that has not committed yet. Going
+  // straight to the router dropped whichever change was still in flight.
+  const { setParams } = useListParams();
   const t = useTranslations("adminPortal.common.pagination");
   // Bounded by MAX_OFFSET as well as by the row count (see
   // `lastReachablePage`): Appwrite rejects an offset past that regardless of
@@ -57,42 +59,25 @@ export function PaginationBar({
   // offered as a clickable link.
   const totalPages = lastReachablePage(total, size);
 
-  const push = useCallback(
-    (mutate: (params: URLSearchParams) => void) => {
-      const params = new URLSearchParams(searchParams.toString());
-      mutate(params);
-      const qs = params.toString();
-      router.push(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
-    },
-    [router, pathname, searchParams]
-  );
-
   const goToPage = useCallback(
     (p: number) => {
-      push((params) => {
-        if (p <= 1) {
-          params.delete(pageKey);
-        } else {
-          params.set(pageKey, String(p));
-        }
-      });
+      // `keepPage` because the page key is what this write is setting — the
+      // hook's default reset would delete it again straight afterwards.
+      setParams({ [pageKey]: p <= 1 ? null : p }, { keepPage: true });
     },
-    [push, pageKey]
+    [setParams, pageKey]
   );
 
   const changeSize = useCallback(
     (next: number) => {
-      push((params) => {
-        if (next === DEFAULT_PAGE_SIZE) {
-          params.delete(sizeKey);
-        } else {
-          params.set(sizeKey, String(next));
-        }
-        // A new page size invalidates the current offset.
-        params.delete(pageKey);
-      });
+      // A new page size invalidates the current offset, so the page key is
+      // reset — which is the hook's default behaviour for this key.
+      setParams(
+        { [sizeKey]: next === DEFAULT_PAGE_SIZE ? null : next },
+        { pageKey }
+      );
     },
-    [push, pageKey, sizeKey]
+    [setParams, pageKey, sizeKey]
   );
 
   // Nothing to show for a genuinely empty list — the surface renders its own

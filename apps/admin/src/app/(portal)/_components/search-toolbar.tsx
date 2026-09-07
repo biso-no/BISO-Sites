@@ -40,11 +40,22 @@ export function SearchToolbar({
 }: SearchToolbarProps) {
   const [ownValue, setOwnValue] = useState(defaultSearch);
   const [, startTransition] = useTransition();
+  const isControlled = controlledValue !== undefined;
   const value = controlledValue ?? ownValue;
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
     const v = e.target.value;
     setOwnValue(v);
+    if (isControlled) {
+      // When controlled, the parent's state IS what the input renders, so it
+      // has to land at urgent priority. Deferring it lets React keep showing
+      // the previous controlled value until the transition commits, which
+      // reads as lag or dropped characters while typing quickly. The
+      // uncontrolled path keeps the transition: there `ownValue` already
+      // updates urgently and `onSearch` only drives downstream filtering.
+      onSearch?.(v);
+      return;
+    }
     startTransition(() => {
       onSearch?.(v);
     });
