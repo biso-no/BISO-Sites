@@ -14,6 +14,18 @@ export interface ContentSearchResult {
 const EMPTY: ContentSearchResult = { ids: [], capped: false };
 
 /**
+ * Appwrite rejects a serialized query longer than 4096 characters, and phase 2
+ * passes every id into a single `Query.equal("$id", ids)`. Budget below that
+ * with headroom for the other query params on the same request.
+ *
+ * A count-based cap alone is not enough: 260 of this database's 10-character
+ * ids fit, but only 176 of Appwrite's default 20-character ones do, and ~105
+ * at the 36-character maximum. Exceeding it throws, the caller's catch returns
+ * an empty result, and the user sees "no results" for a search that matched.
+ */
+const MAX_ID_QUERY_CHARS = 3500;
+
+/**
  * Phase 1 of the two-phase search: resolve a query to parent row ids.
  *
  * Appwrite fulltext cannot traverse a relationship — `Query.search` on
@@ -56,17 +68,30 @@ export async function findContentIdsBySearch(
 
     const ids: string[] = [];
     const seen = new Set<string>();
+    let remaining = MAX_ID_QUERY_CHARS;
+    let budgetExhausted = false;
+
     for (const row of response.rows) {
       const id = row.content_id;
       // One content row has a translation per locale, so the same parent id
       // arrives twice whenever the search is not locale-scoped.
-      if (id && !seen.has(id)) {
-        seen.add(id);
-        ids.push(id);
+      if (!id || seen.has(id)) {
+        continue;
       }
+      // +3 for the quotes and comma the serializer adds per element.
+      remaining -= id.length + 3;
+      if (remaining <= 0) {
+        budgetExhausted = true;
+        break;
+      }
+      seen.add(id);
+      ids.push(id);
     }
 
-    return { ids, capped: response.rows.length >= SEARCH_CANDIDATE_CAP };
+    return {
+      ids,
+      capped: budgetExhausted || response.rows.length >= SEARCH_CANDIDATE_CAP,
+    };
   } catch (error) {
     // Logged, never swallowed: `queryEvents` returning [] on a rejected
     // Query.search is exactly how the events search stayed broken in prod.

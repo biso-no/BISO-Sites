@@ -222,7 +222,13 @@ export async function listJobFacets(params: {
       // Ordered by the canonical list so the chips never reshuffle between
       // renders; only categories actually present are offered.
       categories: UNIT_CATEGORIES.filter((c) => categories.has(c)),
-      departments: [...departments.entries()],
+      // Appwrite's row order is not stable across renders; sort in JS so the
+      // department dropdown doesn't reshuffle for no visible reason. (The
+      // "cannot order by nested attribute" restriction is on Appwrite's
+      // orderAsc, not on sorting already-fetched values.)
+      departments: [...departments.entries()].sort(([, a], [, b]) =>
+        a.localeCompare(b)
+      ),
     };
   } catch (error) {
     console.error("listJobFacets failed:", error);

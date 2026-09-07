@@ -70,6 +70,35 @@ describe("findContentIdsBySearch", () => {
     expect(result.capped).toBe(true);
   });
 
+  it("stops collecting ids before the serialized query would be rejected", async () => {
+    // Appwrite's cap is 4096 chars for the whole serialized query; 400 ids of
+    // 36 chars (its maximum id length) would be ~15k and would throw.
+    db.listRows.mockResolvedValue({
+      rows: Array.from({ length: 400 }, (_, i) => ({
+        content_id: String(i).padStart(36, "a"),
+      })),
+      total: 400,
+    });
+
+    const result = await findContentIdsBySearch(asDb(), "job", "a");
+
+    const serialized = result.ids.join('","').length + result.ids.length * 3;
+    expect(serialized).toBeLessThan(4096);
+    expect(result.capped).toBe(true);
+  });
+
+  it("keeps every id when they fit comfortably inside the budget", async () => {
+    db.listRows.mockResolvedValue({
+      rows: Array.from({ length: 50 }, (_, i) => ({ content_id: `wpjob${i}` })),
+      total: 50,
+    });
+
+    const result = await findContentIdsBySearch(asDb(), "job", "a");
+
+    expect(result.ids).toHaveLength(50);
+    expect(result.capped).toBe(false);
+  });
+
   it("returns empty rather than throwing when Appwrite rejects the search", async () => {
     const consoleError = vi
       .spyOn(console, "error")

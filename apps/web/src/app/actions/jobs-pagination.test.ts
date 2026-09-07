@@ -40,8 +40,10 @@ describe("listJobs pagination", () => {
     expect(serialized).toContain("published");
     expect(serialized).toContain("application_deadline");
     // A post-fetch filter would make Appwrite's total overcount and leave
-    // holes in every page slice.
-    expect(serialized).toContain("or");
+    // holes in every page slice. Match the serialized `"method":"or"` rather
+    // than the bare substring "or", which is also present inside
+    // "orderDesc" and would pass even if Query.or were deleted.
+    expect(serialized).toContain('"method":"or"');
   });
 
   it("pages by 12 and offsets from the 1-based page", async () => {
@@ -70,17 +72,24 @@ describe("listJobs pagination", () => {
     await listJobs({ category: "society" });
 
     // Verified working against the live instance: filter operators traverse
-    // relationships even though ordering does not.
-    expect(queriesOf(0).join("|")).toContain("department.type");
+    // relationships even though ordering does not. Match the `"attribute":`
+    // form rather than the bare substring "department.type", which is also
+    // present in JOB_SELECT's `Query.select` values and would pass even if
+    // the category filter were removed.
+    expect(queriesOf(0).join("|")).toContain('"attribute":"department.type"');
   });
 
   it("orders by deadline ascending when asked, newest first by default", async () => {
     await listJobs({ sort: "deadline" });
-    expect(queriesOf(0).join("|")).toContain("application_deadline");
+    // "application_deadline" alone is already present via openVacancyQueries
+    // regardless of sort, so match the order method itself.
+    expect(queriesOf(0).join("|")).toContain('"method":"orderAsc"');
 
     sessionDb.listRows.mockClear();
     await listJobs({});
-    expect(queriesOf(0).join("|")).toContain("$createdAt");
+    // "$createdAt" alone is already present via JOB_SELECT's Query.select,
+    // so match the order method itself rather than the bare attribute name.
+    expect(queriesOf(0).join("|")).toContain('"method":"orderDesc"');
   });
 
   it("resolves a search to ids first, then filters jobs by them", async () => {
@@ -93,6 +102,37 @@ describe("listJobs pagination", () => {
     expect(sessionDb.listRows.mock.calls[0][1]).toBe("content_translations");
     expect(sessionDb.listRows.mock.calls[1][1]).toBe("jobs");
     expect(queriesOf(1).join("|")).toContain("j7");
+  });
+
+  it("propagates capped from phase 1 search to the result", async () => {
+    sessionDb.listRows
+      .mockResolvedValueOnce({
+        rows: Array.from({ length: 500 }, (_, i) => ({ content_id: `j${i}` })),
+        total: 900,
+      })
+      .mockResolvedValueOnce({ rows: [], total: 0 });
+
+    const result = await listJobs({ search: "analyst" });
+
+    expect(result.capped).toBe(true);
+  });
+
+  it("carries campus, department and category filters into the search path", async () => {
+    sessionDb.listRows
+      .mockResolvedValueOnce({ rows: [{ content_id: "j7" }], total: 1 })
+      .mockResolvedValueOnce({ rows: [], total: 0 });
+
+    await listJobs({
+      campus: "1",
+      category: "society",
+      department: "d1",
+      search: "x",
+    });
+
+    const serialized = queriesOf(1).join("|");
+    expect(serialized).toContain('"attribute":"campus_id"');
+    expect(serialized).toContain('"attribute":"department_id"');
+    expect(serialized).toContain('"attribute":"department.type"');
   });
 
   it("short-circuits without a second query when the search matches nothing", async () => {
