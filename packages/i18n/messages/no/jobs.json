@@ -5,11 +5,10 @@
     "subtitle": "Form studentlivet",
     "description": "Bli med i BISO og vær med på å skape eksepsjonelle opplevelser for tusenvis av studenter. Finn din perfekte rolle og gjør en forskjell.",
     "openPositions": "Ledige stillinger",
-    "paidRoles": "Betalte roller",
     "departments": "Avdelinger"
   },
   "filters": {
-    "searchPlaceholder": "Søk etter stillinger etter tittel, avdeling eller beskrivelse...",
+    "searchPlaceholder": "Søk etter stillinger på tittel eller beskrivelse...",
     "all": "Alle",
     "academicAssociations": "Fagforeninger",
     "societies": "Foreninger",
@@ -17,8 +16,11 @@
     "projects": "Prosjekter",
     "national": "Nasjonalt",
     "other": "Annet",
-    "paidOnly": "Kun betalte stillinger",
-    "showingResults": "Viser {count} {count, plural, one {stilling} other {stillinger}}"
+    "showingResults": "Viser {count} {count, plural, one {stilling} other {stillinger}}",
+    "showingFirstResults": "Viser de første {count} treffene — presiser søket ditt",
+    "loadMore": "Last inn flere stillinger",
+    "loading": "Laster...",
+    "loadMoreFailed": "Kunne ikke laste inn flere stillinger."
   },
   "emptyState": {
     "title": "Ingen stillinger funnet",

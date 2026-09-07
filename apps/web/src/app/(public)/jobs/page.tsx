@@ -1,9 +1,11 @@
+import type { ListSearchParams } from "@repo/shared/utils/list-params";
 import { Skeleton } from "@repo/ui/components/ui/skeleton";
 import { Suspense } from "react";
-import { listJobs } from "@/app/actions/jobs";
+import { type JobSort, listJobFacets, listJobs } from "@/app/actions/jobs";
 import { JobsHero } from "@/components/jobs/jobs-hero";
 import { JobsListClient } from "@/components/jobs/jobs-list-client";
 import { getUserPreferences } from "@/lib/auth-utils";
+import { parseWebListParams } from "@/lib/list-params";
 
 export const metadata = {
   title: "Join Our Team | BISO",
@@ -11,53 +13,57 @@ export const metadata = {
 };
 
 interface JobsPageProps {
-  searchParams: Promise<{
-    campus?: string;
-    /** Organisational category of the owning unit (`departments.type`). */
-    category?: string;
-    department?: string;
-    /** Employment type (part-time, volunteer, …) — not the unit category. */
-    type?: string;
-    q?: string;
-    paid?: string;
-    sort?: string;
-  }>;
+  searchParams: Promise<ListSearchParams>;
 }
+
+const asSort = (value: string | undefined): JobSort =>
+  value === "deadline" ? "deadline" : "newest";
+
+const first = (value: string | string[] | undefined): string | undefined =>
+  Array.isArray(value) ? value[0] : value;
 
 async function JobsList({
   campus,
+  category,
   department,
   locale,
+  page,
   search,
+  sort,
 }: {
   campus: string | null;
-  department?: string | null;
+  category: string | null;
+  department: string | null;
   locale: string;
-  search?: string;
+  page: number;
+  search: string;
+  sort: JobSort;
 }) {
-  const result = await listJobs({
-    campus,
-    department,
-    locale,
-    search,
-  });
-  const jobs = result.rows;
-
-  const paidPositions = jobs.filter((j) => j.metadata.paid === true).length;
-  const departmentCount =
-    new Set(jobs.map((j) => j.department_id).filter(Boolean)).size || 4;
+  const [result, facets] = await Promise.all([
+    listJobs({ campus, category, department, locale, page, search, sort }),
+    listJobFacets({ campus }),
+  ]);
 
   return (
     <>
       <JobsHero
-        departmentCount={departmentCount}
-        paidPositions={paidPositions}
+        departmentCount={facets.departments.length}
         totalPositions={result.total}
       />
       <JobsListClient
-        initialDepartment={department ?? null}
-        initialSearch={search ?? ""}
-        jobs={jobs}
+        capped={result.capped}
+        categories={facets.categories}
+        departments={facets.departments}
+        initialJobs={result.rows}
+        initialSearch={search}
+        // Remounts on any filter change so the load-more list resets to the
+        // new page 1 instead of appending onto the previous filter's rows.
+        key={`${campus}|${category}|${department}|${search}|${sort}`}
+        locale={locale}
+        selectedCategory={category}
+        selectedDepartment={department}
+        sort={sort}
+        total={result.total}
       />
     </>
   );
@@ -88,19 +94,23 @@ function JobsListSkeleton() {
 
 export default async function JobsPage({ searchParams }: JobsPageProps) {
   const [sp, prefs] = await Promise.all([searchParams, getUserPreferences()]);
+  const { page, q } = parseWebListParams(sp);
 
   // URL param wins, then user prefs, then "all"
-  const campus = sp.campus ?? prefs?.campusId ?? null;
+  const campus = first(sp.campus) ?? prefs?.campusId ?? null;
   const locale = prefs?.locale ?? "en";
 
   return (
     <div className="min-h-screen bg-linear-to-b from-section to-background">
-      <Suspense fallback={<JobsListSkeleton />}>
+      <Suspense fallback={<JobsListSkeleton />} key={`${campus}|${q}|${page}`}>
         <JobsList
           campus={campus}
-          department={sp.department ?? null}
+          category={first(sp.category) ?? null}
+          department={first(sp.department) ?? null}
           locale={locale}
-          search={sp.q}
+          page={page}
+          search={q}
+          sort={asSort(first(sp.sort))}
         />
       </Suspense>
     </div>

@@ -7,15 +7,10 @@ import { useTranslations } from "next-intl";
 
 interface JobsHeroProps {
   departmentCount: number;
-  paidPositions: number;
   totalPositions: number;
 }
 
-export function JobsHero({
-  totalPositions,
-  paidPositions,
-  departmentCount,
-}: JobsHeroProps) {
+export function JobsHero({ totalPositions, departmentCount }: JobsHeroProps) {
   const t = useTranslations("jobs");
 
   return (
@@ -53,22 +48,13 @@ export function JobsHero({
               {t("hero.description")}
             </p>
 
-            <div className="mt-8 flex items-center justify-center gap-8">
+            <div className="mt-8 flex items-center justify-center gap-12">
               <div className="text-center">
                 <div className="mb-1 font-bold text-3xl text-white">
                   {totalPositions}
                 </div>
                 <div className="text-sm text-white/80">
                   {t("hero.openPositions")}
-                </div>
-              </div>
-              <div className="h-12 w-px bg-background/20" />
-              <div className="text-center">
-                <div className="mb-1 font-bold text-3xl text-white">
-                  {paidPositions}
-                </div>
-                <div className="text-sm text-white/80">
-                  {t("hero.paidRoles")}
                 </div>
               </div>
               <div className="h-12 w-px bg-background/20" />

@@ -5,11 +5,10 @@
     "subtitle": "Shape Student Life",
     "description": "Join BISO and be part of creating exceptional experiences for thousands of students. Find your perfect role and make an impact.",
     "openPositions": "Open Positions",
-    "paidRoles": "Paid Roles",
     "departments": "Departments"
   },
   "filters": {
-    "searchPlaceholder": "Search positions by title, department, or description...",
+    "searchPlaceholder": "Search positions by title or description...",
     "all": "All",
     "academicAssociations": "Academic Associations",
     "societies": "Societies",
@@ -17,8 +16,11 @@
     "projects": "Projects",
     "national": "National",
     "other": "Other",
-    "paidOnly": "Paid Positions Only",
-    "showingResults": "Showing {count} {count, plural, one {position} other {positions}}"
+    "showingResults": "Showing {count} {count, plural, one {position} other {positions}}",
+    "showingFirstResults": "Showing the first {count} matches — refine your search",
+    "loadMore": "Load more positions",
+    "loading": "Loading...",
+    "loadMoreFailed": "Could not load more positions."
   },
   "emptyState": {
     "title": "No positions found",
