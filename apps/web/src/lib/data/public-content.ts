@@ -64,12 +64,13 @@ export async function cachedPublishedEvents(
   "use cache";
   cacheLife("minutes");
   const { db } = await createPublicClient();
-  return await queryEvents(db, {
+  const { rows } = await queryEvents(db, {
     campus: campusId ?? undefined,
     limit,
     locale,
     status: "published",
   });
+  return rows;
 }
 
 export async function cachedPublishedNews(

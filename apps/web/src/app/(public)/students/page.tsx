@@ -19,14 +19,15 @@ import { StudentsPageClient } from "./students-page-client";
 export default async function StudentsPage() {
   const locale = (await getLocale()) as Locale;
 
-  const [events, jobs, departments, campusData, globalBenefits] =
+  const [eventsResult, jobs, departments, campusData, globalBenefits] =
     await Promise.all([
-      listEvents({ status: "published", limit: 24, locale }),
+      listEvents({ status: "published", locale }),
       listJobs({ locale }),
       getDepartments({ campusId: "all", locale }),
       getCampusData(),
       getGlobalMembershipBenefits(),
     ]);
+  const events = eventsResult.rows;
 
   return (
     <StudentsPageClient

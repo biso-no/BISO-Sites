@@ -85,7 +85,9 @@ export async function buildNavFeatured(
       limit: FEATURED_EVENT_POOL,
       locale,
       status: "published",
-    }).catch(() => [] as Events[]),
+    })
+      .then((res) => res.rows)
+      .catch(() => [] as Events[]),
     db
       .listRows<LargeEvent>("app", "large_event", [
         Query.equal("isActive", true),

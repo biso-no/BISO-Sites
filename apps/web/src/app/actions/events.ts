@@ -9,11 +9,20 @@ import type {
   Events,
 } from "@repo/api/types/appwrite";
 import { filterTranslationRefs, queryEvents } from "@/lib/data/queries";
+import {
+  emptyWebResult,
+  WEB_PAGE_SIZE,
+  type WebPaginatedResult,
+  webOffset,
+} from "@/lib/list-params";
 
 interface ListEventsParams {
   campus?: string;
+  category?: string | null;
+  isMember?: boolean;
   limit?: number;
   locale?: "en" | "no";
+  page?: number;
   search?: string;
   status?: string;
   /** Opt-in: hide events that have already finished, sorted soonest-first. */
@@ -22,13 +31,21 @@ interface ListEventsParams {
 
 export async function listEvents(
   params: ListEventsParams = {}
-): Promise<Events[]> {
+): Promise<WebPaginatedResult<Events>> {
+  const page = params.page ?? 1;
   try {
     const { db } = await createSessionClient();
-    return await queryEvents(db, params);
+    const { rows, total, capped } = await queryEvents(db, {
+      ...params,
+      limit: WEB_PAGE_SIZE,
+      offset: webOffset(page),
+    });
+    return { rows, total, page, size: WEB_PAGE_SIZE, capped };
   } catch (error) {
+    // Logged with context: this catch returning [] is exactly how the
+    // rejected Query.search stayed invisible in production.
     console.error("Error fetching events:", error);
-    return [];
+    return emptyWebResult<Events>(page);
   }
 }
 

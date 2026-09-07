@@ -60,7 +60,7 @@ function homeEvents(
       locale,
       status: "published",
       upcomingOnly: true,
-    }).then((events) => events.slice(0, limit));
+    }).then((result) => result.rows.slice(0, limit));
   }
   return cachedPublishedEvents(locale, campusKey, fetchLimit)
     .then((events) => events.slice(0, limit))

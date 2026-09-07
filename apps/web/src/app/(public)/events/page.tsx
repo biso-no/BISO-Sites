@@ -25,7 +25,7 @@ async function EventsList({ locale }: { locale: "en" | "no" }) {
     getUserPreferences(),
     getMembershipStatus(),
   ]);
-  const events = await listEvents({
+  const { rows: events } = await listEvents({
     locale,
     status: "published",
     limit: EVENTS_FETCH_LIMIT,

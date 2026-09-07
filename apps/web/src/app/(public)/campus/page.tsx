@@ -35,15 +35,16 @@ export default async function CampusPage({ searchParams }: CampusPageProps) {
   // Scoping happens server-side: the list actions run `campusScopeIds`
   // internally, so the selected campus plus National content is fetched (and
   // the limits apply *after* scoping instead of truncating before it).
-  const [events, jobs, news, departments, campusData, campusMetadata] =
+  const [eventsResult, jobs, news, departments, campusData, campusMetadata] =
     await Promise.all([
-      listEvents({ campus, status: "published", limit: 10, locale }),
+      listEvents({ campus, status: "published", locale }),
       listJobs({ campus, locale }),
       listNews({ campus, status: "published", limit: 6, locale }),
       getDepartments({ isActive: true, locale }),
       getCampusData(),
       getCampusMetadata(),
     ]);
+  const events = eventsResult.rows.slice(0, 10);
 
   return (
     <CampusPageClient
