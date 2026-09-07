@@ -272,6 +272,27 @@ export async function fetchRecruitmentListRows(
   return response.rows.map((job) => buildRecruitmentVacancy(job));
 }
 
+/**
+ * Like `fetchRecruitmentListRows`, but keeps Appwrite's total.
+ *
+ * The public jobs list pages against this, so the count must be the one
+ * Appwrite computed for the filtered set — never `rows.length`, which is only
+ * ever the size of the current page.
+ */
+export async function fetchRecruitmentListPage(
+  db: DbClient,
+  queries: string[]
+): Promise<{ rows: RecruitmentVacancy[]; total: number }> {
+  const response = await db.listRows<Jobs>("app", "jobs", [
+    Query.select([...JOB_SELECT]),
+    ...queries,
+  ]);
+  return {
+    rows: response.rows.map((job) => buildRecruitmentVacancy(job)),
+    total: response.total,
+  };
+}
+
 export async function fetchRecruitmentJobsByIds(
   db: DbClient,
   ids: string[]

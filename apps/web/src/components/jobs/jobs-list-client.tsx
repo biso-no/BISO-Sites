@@ -2,8 +2,6 @@
 
 import type { RecruitmentVacancy } from "@repo/shared/types/recruitment";
 import {
-  parseUnitCategory,
-  UNIT_CATEGORIES,
   UNIT_CATEGORY_MESSAGE_KEYS,
   type UnitCategory,
 } from "@repo/shared/utils/unit-categories";
@@ -16,231 +14,102 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@repo/ui/components/ui/select";
-import { DollarSign, Search, SlidersHorizontal, X } from "lucide-react";
+import { useListParams, useUrlSearch } from "@repo/ui/hooks/use-list-params";
+import { Search, SlidersHorizontal, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { type JobSort, listJobs } from "@/app/actions/jobs";
 import { useCampus } from "@/components/context/campus";
+import { LoadMoreButton } from "@/components/ui/load-more-button";
+import { useLoadMore } from "@/lib/use-load-more";
 import { JobCard } from "./job-card";
 
 interface JobsListClientProps {
-  initialDepartment?: string | null;
-  initialSearch?: string;
-  jobs: RecruitmentVacancy[];
+  capped: boolean;
+  categories: UnitCategory[];
+  departments: [string, string][];
+  initialJobs: RecruitmentVacancy[];
+  initialSearch: string;
+  locale: string;
+  selectedCategory: string | null;
+  selectedDepartment: string | null;
+  sort: JobSort;
+  total: number;
 }
 
 const SORT_OPTIONS = [
   { label: "Newest first", value: "newest" },
   { label: "Deadline (soonest)", value: "deadline" },
-  { label: "A–Z", value: "alpha" },
 ] as const;
 
-type SortOption = (typeof SORT_OPTIONS)[number]["value"];
-
-/**
- * Organisational category of the unit that owns the vacancy. `departments.type`
- * is free text and still unpopulated for most units, so this returns `null`
- * whenever the owning unit has no usable category.
- */
-function vacancyCategory(job: RecruitmentVacancy): UnitCategory | null {
-  return parseUnitCategory(job.department?.type);
-}
-
-function sortJobs(
-  jobs: RecruitmentVacancy[],
-  sort: SortOption
-): RecruitmentVacancy[] {
-  return [...jobs].sort((a, b) => {
-    if (sort === "deadline") {
-      const da = a.application_deadline
-        ? new Date(a.application_deadline).getTime()
-        : Number.POSITIVE_INFINITY;
-      const db = b.application_deadline
-        ? new Date(b.application_deadline).getTime()
-        : Number.POSITIVE_INFINITY;
-      return da - db;
-    }
-    if (sort === "alpha") {
-      const ta = a.translations[0]?.title ?? "";
-      const tb = b.translations[0]?.title ?? "";
-      return ta.localeCompare(tb);
-    }
-    // newest first (default — already ordered by createdAt from server)
-    return new Date(b.$createdAt).getTime() - new Date(a.$createdAt).getTime();
-  });
-}
-
 export function JobsListClient({
-  initialDepartment,
-  initialSearch = "",
-  jobs,
+  capped,
+  categories,
+  departments,
+  initialJobs,
+  initialSearch,
+  locale,
+  selectedCategory,
+  selectedDepartment,
+  sort,
+  total,
 }: JobsListClientProps) {
   const t = useTranslations("jobs");
   const router = useRouter();
-  const searchParams = useSearchParams();
   const { activeCampusId } = useCampus();
-
-  const [searchQuery, setSearchQuery] = useState(initialSearch);
-  const [showPaidOnly, setShowPaidOnly] = useState(
-    searchParams.get("paid") === "true"
-  );
-  const [employmentType, setEmploymentType] = useState(
-    searchParams.get("type") ?? "all"
-  );
-  const [category, setCategory] = useState(
-    () => parseUnitCategory(searchParams.get("category")) ?? "all"
-  );
-  const [sort, setSort] = useState<SortOption>(
-    (searchParams.get("sort") as SortOption | null) ?? "newest"
-  );
   const [showFilters, setShowFilters] = useState(false);
 
-  // Derive unique employment types from jobs
-  const employmentTypes = useMemo(() => {
-    const types = new Set(
-      jobs.map((j) => j.metadata.employment_type).filter(Boolean)
-    );
-    return Array.from(types);
-  }, [jobs]);
+  const { setParams } = useListParams();
+  const [searchValue, setSearchValue] = useUrlSearch("q");
 
-  // Derive unit categories actually present in the loaded jobs. `departments.type`
-  // is largely unpopulated, so a static list of every category would render six
-  // options that all return nothing.
-  const categories = useMemo(() => {
-    const present = new Set<UnitCategory>();
-    for (const job of jobs) {
-      const parsed = vacancyCategory(job);
-      if (parsed) {
-        present.add(parsed);
-      }
-    }
-    return UNIT_CATEGORIES.filter((value) => present.has(value));
-  }, [jobs]);
-
-  // Derive unique departments
-  const departments = useMemo(() => {
-    const seen = new Map<string, string>();
-    for (const j of jobs) {
-      if (j.department_id && j.department?.Name) {
-        seen.set(j.department_id, j.department.Name);
-      }
-    }
-    return Array.from(seen.entries());
-  }, [jobs]);
-
-  const [department, setDepartment] = useState(initialDepartment ?? "all");
+  const { canLoadMore, error, isLoading, items, loadMore } = useLoadMore({
+    initial: initialJobs,
+    total,
+    fetchPage: useCallback(
+      (page: number) =>
+        listJobs({
+          campus: activeCampusId ?? null,
+          category: selectedCategory,
+          department: selectedDepartment,
+          locale,
+          page,
+          search: initialSearch,
+          sort,
+        }),
+      [
+        activeCampusId,
+        selectedCategory,
+        selectedDepartment,
+        locale,
+        initialSearch,
+        sort,
+      ]
+    ),
+  });
 
   // When campus switcher changes, re-fetch via URL update (triggers server rerender)
   useEffect(() => {
     if (activeCampusId === undefined) {
       return; // still loading
     }
-    const params = new URLSearchParams(window.location.search);
-    const currentCampus = params.get("campus");
-    const newCampus = activeCampusId ?? "all";
-    if (
-      currentCampus !== newCampus &&
-      !(currentCampus === null && newCampus === "all")
-    ) {
-      if (newCampus === "all") {
-        params.delete("campus");
-      } else {
-        params.set("campus", newCampus);
-      }
-      router.replace(`/jobs?${params.toString()}`);
+    const current = new URLSearchParams(window.location.search).get("campus");
+    const next = activeCampusId ?? "all";
+    if (current !== next && !(current === null && next === "all")) {
+      setParams({ campus: next === "all" ? null : next });
     }
-  }, [activeCampusId, router]);
-
-  // Push filter changes into URL so pages are shareable
-  function updateUrl(overrides: Record<string, string | null>) {
-    const params = new URLSearchParams(window.location.search);
-    for (const [key, val] of Object.entries(overrides)) {
-      if (val === null || val === "" || val === "all" || val === "false") {
-        params.delete(key);
-      } else {
-        params.set(key, val);
-      }
-    }
-    router.replace(`/jobs?${params.toString()}`, { scroll: false });
-  }
-
-  const filteredJobs = useMemo(() => {
-    const lowerSearch = searchQuery.toLowerCase();
-    return sortJobs(
-      jobs.filter((job) => {
-        const t0 = job.translations[0];
-        const title = (t0?.title ?? "").toLowerCase();
-        const desc = (t0?.description ?? "").toLowerCase();
-        const short = (
-          t0?.short_description ??
-          job.metadata.short_description ??
-          ""
-        ).toLowerCase();
-        const dept = (job.department?.Name ?? "").toLowerCase();
-        const company = (job.metadata.company ?? "").toLowerCase();
-
-        const matchesSearch =
-          !lowerSearch ||
-          title.includes(lowerSearch) ||
-          desc.includes(lowerSearch) ||
-          short.includes(lowerSearch) ||
-          dept.includes(lowerSearch) ||
-          company.includes(lowerSearch);
-
-        const matchesPaid = !showPaidOnly || job.metadata.paid === true;
-        const matchesType =
-          employmentType === "all" ||
-          job.metadata.employment_type === employmentType;
-        const matchesDept =
-          department === "all" || job.department_id === department;
-        // Uncategorised units only drop out when a category is actively picked.
-        const matchesCategory =
-          category === "all" || vacancyCategory(job) === category;
-
-        return (
-          matchesSearch &&
-          matchesPaid &&
-          matchesType &&
-          matchesDept &&
-          matchesCategory
-        );
-      }),
-      sort
-    );
-  }, [
-    jobs,
-    searchQuery,
-    showPaidOnly,
-    employmentType,
-    department,
-    category,
-    sort,
-  ]);
+  }, [activeCampusId, setParams]);
 
   function clearAllFilters() {
-    setSearchQuery("");
-    setShowPaidOnly(false);
-    setEmploymentType("all");
-    setDepartment("all");
-    setCategory("all");
-    setSort("newest");
-    updateUrl({
-      q: null,
-      paid: null,
-      type: null,
-      category: null,
-      department: null,
-      sort: null,
-    });
+    setSearchValue("");
+    setParams({ q: null, category: null, department: null, sort: null });
   }
 
   const hasActiveFilters =
-    searchQuery.length > 0 ||
-    showPaidOnly ||
-    employmentType !== "all" ||
-    department !== "all" ||
-    category !== "all" ||
+    searchValue.length > 0 ||
+    selectedDepartment !== null ||
+    selectedCategory !== null ||
     sort !== "newest";
 
   function handleViewDetails(job: RecruitmentVacancy) {
@@ -259,21 +128,15 @@ export function JobsListClient({
                 <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   className="w-full border-brand-border pr-10 pl-10 focus:border-brand"
-                  onChange={(e) => {
-                    setSearchQuery(e.target.value);
-                    updateUrl({ q: e.target.value || null });
-                  }}
+                  onChange={(e) => setSearchValue(e.target.value)}
                   placeholder={t("filters.searchPlaceholder")}
                   type="text"
-                  value={searchQuery}
+                  value={searchValue}
                 />
-                {searchQuery && (
+                {searchValue && (
                   <button
                     className="absolute top-1/2 right-3 -translate-y-1/2 text-muted-foreground"
-                    onClick={() => {
-                      setSearchQuery("");
-                      updateUrl({ q: null });
-                    }}
+                    onClick={() => setSearchValue("")}
                     type="button"
                   >
                     <X className="h-4 w-4" />
@@ -308,11 +171,10 @@ export function JobsListClient({
                   <div className="flex flex-wrap items-center gap-3 pb-2">
                     {departments.length > 1 && (
                       <Select
-                        onValueChange={(v) => {
-                          setDepartment(v);
-                          updateUrl({ department: v });
-                        }}
-                        value={department}
+                        onValueChange={(v) =>
+                          setParams({ department: v === "all" ? null : v })
+                        }
+                        value={selectedDepartment ?? "all"}
                       >
                         <SelectTrigger className="h-9 w-48">
                           <SelectValue placeholder="Department" />
@@ -330,11 +192,10 @@ export function JobsListClient({
 
                     {categories.length > 0 && (
                       <Select
-                        onValueChange={(v) => {
-                          setCategory(v);
-                          updateUrl({ category: v });
-                        }}
-                        value={category}
+                        onValueChange={(v) =>
+                          setParams({ category: v === "all" ? null : v })
+                        }
+                        value={selectedCategory ?? "all"}
                       >
                         <SelectTrigger className="h-9 w-48">
                           <SelectValue placeholder={t("filters.all")} />
@@ -354,33 +215,10 @@ export function JobsListClient({
                       </Select>
                     )}
 
-                    {employmentTypes.length > 1 && (
-                      <Select
-                        onValueChange={(v) => {
-                          setEmploymentType(v);
-                          updateUrl({ type: v });
-                        }}
-                        value={employmentType}
-                      >
-                        <SelectTrigger className="h-9 w-40">
-                          <SelectValue placeholder="Type" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">All types</SelectItem>
-                          {employmentTypes.map((type) => (
-                            <SelectItem key={type} value={type ?? ""}>
-                              {type}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    )}
-
                     <Select
-                      onValueChange={(v) => {
-                        setSort(v as SortOption);
-                        updateUrl({ sort: v });
-                      }}
+                      onValueChange={(v) =>
+                        setParams({ sort: v === "newest" ? null : v })
+                      }
                       value={sort}
                     >
                       <SelectTrigger className="h-9 w-44">
@@ -394,24 +232,6 @@ export function JobsListClient({
                         ))}
                       </SelectContent>
                     </Select>
-
-                    <Button
-                      className={
-                        showPaidOnly
-                          ? "h-9 border-0 bg-linear-to-r from-green-500 to-emerald-600 text-white"
-                          : "h-9 border-green-500/20 text-green-700 hover:bg-green-50 dark:hover:bg-green-950"
-                      }
-                      onClick={() => {
-                        const next = !showPaidOnly;
-                        setShowPaidOnly(next);
-                        updateUrl({ paid: next ? "true" : null });
-                      }}
-                      size="sm"
-                      variant={showPaidOnly ? "default" : "outline"}
-                    >
-                      <DollarSign className="mr-1.5 h-4 w-4" />
-                      {t("filters.paidOnly")}
-                    </Button>
 
                     {hasActiveFilters && (
                       <Button
@@ -430,7 +250,9 @@ export function JobsListClient({
             </AnimatePresence>
 
             <p className="text-center text-muted-foreground text-sm">
-              {t("filters.showingResults", { count: filteredJobs.length })}
+              {capped
+                ? t("filters.showingFirstResults", { count: total })
+                : t("filters.showingResults", { count: total })}
             </p>
           </div>
         </div>
@@ -439,15 +261,15 @@ export function JobsListClient({
       {/* Job grid */}
       <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
         <AnimatePresence mode="wait">
-          {filteredJobs.length > 0 ? (
+          {items.length > 0 ? (
             <motion.div
               animate={{ opacity: 1, y: 0 }}
               className="grid gap-8 md:grid-cols-2"
               exit={{ opacity: 0, y: -20 }}
               initial={{ opacity: 0, y: 20 }}
-              key={`jobs-${filteredJobs.length}-${searchQuery}-${showPaidOnly}-${sort}`}
+              key="jobs-grid"
             >
-              {filteredJobs.map((job, index) => (
+              {items.map((job, index) => (
                 <JobCard
                   index={index}
                   job={job}
@@ -488,6 +310,16 @@ export function JobsListClient({
             </motion.div>
           )}
         </AnimatePresence>
+
+        <LoadMoreButton
+          canLoadMore={canLoadMore}
+          error={error}
+          isLoading={isLoading}
+          label={t("filters.loadMore")}
+          loadingLabel={t("filters.loading")}
+          onLoadMore={loadMore}
+          retryLabel={t("filters.loadMoreFailed")}
+        />
       </div>
     </>
   );

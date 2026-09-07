@@ -6,12 +6,22 @@
  * every page that renders a pagination bar at dev runtime. The Appwrite
  * query builders live in `./list-queries` instead.
  */
+export {
+  firstParam,
+  type ListSearchParams,
+  lastPageByOffset,
+  lastReachablePage,
+  MAX_OFFSET,
+} from "@repo/shared/utils/list-params";
+
+import {
+  type ListSearchParams,
+  lastPageByOffset,
+} from "@repo/shared/utils/list-params";
+
 export const PAGE_SIZES = [25, 50, 100] as const;
 export type PageSize = (typeof PAGE_SIZES)[number];
 export const DEFAULT_PAGE_SIZE: PageSize = 25;
-
-/** Shape Next.js gives us from `await searchParams`. */
-export type ListSearchParams = Record<string, string | string[] | undefined>;
 
 export interface ListParams {
   /** 1-based, always >= 1. */
@@ -29,20 +39,9 @@ export interface PaginatedResult<T> {
   total: number;
 }
 
-/** Appwrite rejects an offset past this, so deeper pages cannot be served. */
-export const MAX_OFFSET = 5000;
-
 const firstValue = (
   value: string | string[] | undefined
 ): string | undefined => (Array.isArray(value) ? value[0] : value);
-
-/** Reads a single non-pagination search param, taking the first of an array. */
-export function firstParam(
-  searchParams: ListSearchParams,
-  key: string
-): string | undefined {
-  return firstValue(searchParams[key]);
-}
 
 const isPageSize = (value: number): value is PageSize =>
   (PAGE_SIZES as readonly number[]).includes(value);
@@ -70,28 +69,6 @@ export function parseListParams(
   const q = (firstValue(searchParams[opts?.qKey ?? "q"]) ?? "").trim();
 
   return { page, size, q };
-}
-
-/**
- * Last page reachable at all, given `total` rows and a page `size` — bounded
- * both by the actual result count and by `MAX_OFFSET`, since Appwrite rejects
- * an offset past that regardless of how many rows would otherwise remain.
- * `size` takes `number` (not `PageSize`) so `PaginationBar` can share this
- * with a legacy surface paging by a size outside `PAGE_SIZES` (e.g. 20).
- */
-export function lastReachablePage(total: number, size: number): number {
-  const byTotal = Math.max(1, Math.ceil(total / size));
-  return Math.min(byTotal, lastPageByOffset(size));
-}
-
-/**
- * Last page the offset ceiling allows, independent of how many rows exist.
- *
- * Knowable without a count, which is what lets `parseListParams` clamp a
- * hand-typed page before anything is fetched.
- */
-export function lastPageByOffset(size: number): number {
-  return Math.floor(MAX_OFFSET / size) + 1;
 }
 
 /** Short-circuit for actions that can prove the result is empty. */

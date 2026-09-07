@@ -86,16 +86,10 @@ export function IdentityManagement({
         await ensureClientAppwriteSession();
 
         const base = window.location.origin;
-        // Only the OIDC (BI Student) provider needs the BI sync: its success
-        // URL routes through /api/auth/bi-link, which runs the sync + cache
-        // invalidation outside the render path and only then redirects back
-        // here — see that route's doc comment for why. Other providers
-        // (Microsoft/BISO) don't touch BI identity fields, so they go
-        // straight back to /profile.
-        const successUrl =
-          provider === OAuthProvider.Oidc
-            ? `${base}/api/auth/bi-link?returnTo=/profile`
-            : `${base}/profile?linked=1`;
+        // The BI (OIDC) link routes its success URL through /api/auth/bi-link,
+        // which runs the profile sync + cache invalidation outside the render
+        // path and only then redirects back here — see that route's doc comment.
+        const successUrl = `${base}/api/auth/bi-link?returnTo=/profile`;
         await clientAccount.createOAuth2Session(
           provider,
           successUrl,
@@ -143,9 +137,8 @@ export function IdentityManagement({
         <CardHeader>
           <CardTitle>Linked Accounts</CardTitle>
           <CardDescription>
-            Link your BISO account and your BI Student account. Linking your BI
-            Student account lets us verify your paid semester membership for
-            benefits and discounts.
+            Linking your BI Student account lets us verify your paid semester
+            membership for benefits and discounts.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -153,15 +146,7 @@ export function IdentityManagement({
             <Button
               className="rounded-lg"
               disabled={isLinking}
-              onClick={() => linkProvider(OAuthProvider.Microsoft)}
-            >
-              <Link2 className="mr-2 h-4 w-4" /> Link BISO
-            </Button>
-            <Button
-              className="rounded-lg"
-              disabled={isLinking}
               onClick={() => linkProvider(OAuthProvider.Oidc)}
-              variant="outline"
             >
               <Link2 className="mr-2 h-4 w-4" /> Link BI Student
             </Button>

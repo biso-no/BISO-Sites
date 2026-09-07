@@ -35,7 +35,8 @@ export async function GET(request: NextRequest) {
     path: "/",
     httpOnly: true,
     sameSite: isProd ? "none" : "lax",
-    secure: true,
+    // Safari drops Secure cookies on http://localhost. See admin oauth route.
+    secure: isProd,
     ...(isProd && { domain: ".biso.no" }),
   });
   // Retire the pre-rename cookie — it collides with Appwrite's own

@@ -24,7 +24,7 @@ import type { CandidateProfileWriteInput } from "@repo/api/types/inputs";
 import { createTypedRow, updateTypedRow } from "@repo/api/write";
 import {
   buildRecruitmentStaffRowPermissions,
-  fetchRecruitmentListRows,
+  fetchRecruitmentListPage,
   getRecruitmentJobById,
   getRecruitmentJobBySlug,
   isAuthenticatedAppwriteUser,
@@ -45,12 +45,45 @@ import {
   serializeRecruitmentApplicationReviewMetadata,
   validateRecruitmentResumeFile,
 } from "@repo/shared/types/recruitment";
+import {
+  parseUnitCategory,
+  UNIT_CATEGORIES,
+  type UnitCategory,
+} from "@repo/shared/utils/unit-categories";
 import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 import { cache } from "react";
 import { campusScopeIds } from "@/lib/campus-scope";
+import { findContentIdsBySearch } from "@/lib/data/search-content";
+import {
+  emptyWebResult,
+  WEB_PAGE_SIZE,
+  type WebPaginatedResult,
+  webOffset,
+} from "@/lib/list-params";
 
 // ---------- public reads (session/guest client — enforces row permissions) ----------
+
+export type JobSort = "deadline" | "newest";
+
+/**
+ * Open vacancies, as an Appwrite query rather than a post-fetch filter.
+ *
+ * `isRecruitmentVacancyOpen` used to run over an already-fetched window, which
+ * meant any open vacancy outside the newest 100 rows never reached the page —
+ * only 28 of 253 published jobs are open. It also made `total` overcount, which
+ * pagination cannot tolerate. The helper's "unparseable date -> keep" branch is
+ * unreachable for a datetime column, so this is equivalent.
+ */
+function openVacancyQueries(): string[] {
+  return [
+    Query.equal("status", JobsStatus.PUBLISHED),
+    Query.or([
+      Query.isNull("application_deadline"),
+      Query.greaterThanEqual("application_deadline", new Date().toISOString()),
+    ]),
+  ];
+}
 
 // Primitive arguments only: React cache() keys on argument identity
 // (Object.is), so an options object allocated fresh at each call site would
@@ -59,52 +92,61 @@ const _listJobs = cache(
   async (
     campus: string | null,
     department: string | null,
+    category: string | null,
     locale: string,
-    limit: number,
-    search: string
-  ): Promise<RecruitmentVacancy[]> => {
+    page: number,
+    search: string,
+    sort: JobSort
+  ): Promise<WebPaginatedResult<RecruitmentVacancy>> => {
     try {
       const { db } = await createSessionClient();
 
+      let capped = false;
+      const idQueries: string[] = [];
+      if (search.trim()) {
+        const found = await findContentIdsBySearch(db, "job", search, locale);
+        if (found.ids.length === 0) {
+          return emptyWebResult<RecruitmentVacancy>(page);
+        }
+        capped = found.capped;
+        idQueries.push(Query.equal("$id", found.ids));
+      }
+
       const queries: string[] = [
-        Query.equal("status", JobsStatus.PUBLISHED),
-        Query.orderDesc("$createdAt"),
-        Query.limit(Math.min(limit, 200)),
+        ...openVacancyQueries(),
+        ...idQueries,
+        sort === "deadline"
+          ? Query.orderAsc("application_deadline")
+          : Query.orderDesc("$createdAt"),
+        Query.limit(WEB_PAGE_SIZE),
+        Query.offset(webOffset(page)),
       ];
 
       const campusScope = campusScopeIds(campus);
       if (campusScope) {
         queries.push(Query.equal("campus_id", campusScope));
       }
-
       if (department) {
         queries.push(Query.equal("department_id", department));
       }
+      if (category) {
+        // Filter operators traverse relationships (verified); ordering does
+        // not, which is why there is no A-Z sort.
+        queries.push(Query.equal("department.type", category));
+      }
 
-      const vacancies = await fetchRecruitmentListRows(db, queries);
+      const { rows, total } = await fetchRecruitmentListPage(db, queries);
 
-      const lowerSearch = search?.trim().toLowerCase() ?? "";
-
-      return vacancies
-        .filter((v) =>
-          isRecruitmentVacancyOpen(v.status, v.application_deadline)
-        )
-        .map((v) => localizeVacancy(v, locale))
-        .filter((v) => {
-          if (!lowerSearch) {
-            return true;
-          }
-          const t = v.translations[0];
-          return (
-            (t?.title ?? "").toLowerCase().includes(lowerSearch) ||
-            (t?.description ?? "").toLowerCase().includes(lowerSearch) ||
-            (v.department?.Name ?? "").toLowerCase().includes(lowerSearch) ||
-            (v.metadata.company ?? "").toLowerCase().includes(lowerSearch)
-          );
-        });
+      return {
+        rows: rows.map((v) => localizeVacancy(v, locale)),
+        total,
+        page,
+        size: WEB_PAGE_SIZE,
+        capped,
+      };
     } catch (error) {
       console.error("listJobs failed:", error);
-      return [];
+      return emptyWebResult<RecruitmentVacancy>(page);
     }
   }
 );
@@ -112,19 +154,86 @@ const _listJobs = cache(
 // biome-ignore lint/suspicious/useAwait: async required by "use server" — returns cached promise
 export async function listJobs(params: {
   campus?: string | null;
+  category?: string | null;
   department?: string | null;
   locale?: string;
-  limit?: number;
+  page?: number;
   search?: string;
-  status?: string;
-}): Promise<RecruitmentVacancy[]> {
+  sort?: JobSort;
+}): Promise<WebPaginatedResult<RecruitmentVacancy>> {
   return _listJobs(
     params.campus ?? null,
     params.department ?? null,
+    params.category ?? null,
     params.locale ?? "en",
-    params.limit ?? 100,
-    params.search ?? ""
+    params.page ?? 1,
+    params.search ?? "",
+    params.sort ?? "newest"
   );
+}
+
+/**
+ * Filter options drawn from the whole filtered set, not the current page.
+ *
+ * Building the dropdowns from page 1 would offer twelve rows' worth of
+ * options. Two cheap projections over the open set (28 rows today) give the
+ * true lists, and the department count doubles as the hero's stat.
+ */
+export async function listJobFacets(params: {
+  campus?: string | null;
+}): Promise<{ categories: UnitCategory[]; departments: [string, string][] }> {
+  try {
+    const { db } = await createSessionClient();
+    const queries = [
+      ...openVacancyQueries(),
+      Query.select([
+        "$id",
+        "department_id",
+        "department.$id",
+        "department.Name",
+        "department.type",
+      ]),
+      Query.limit(300),
+    ];
+    const campusScope = campusScopeIds(params.campus ?? null);
+    if (campusScope) {
+      queries.push(Query.equal("campus_id", campusScope));
+    }
+
+    const response = await db.listRows<Jobs>("app", "jobs", queries);
+
+    const departments = new Map<string, string>();
+    const categories = new Set<UnitCategory>();
+    for (const job of response.rows) {
+      const dept = job.department as
+        | { $id?: string; Name?: string; type?: string | null }
+        | null
+        | undefined;
+      if (job.department_id && dept?.Name) {
+        departments.set(job.department_id, dept.Name);
+      }
+      const parsed = parseUnitCategory(dept?.type);
+      if (parsed) {
+        categories.add(parsed);
+      }
+    }
+
+    return {
+      // Ordered by the canonical list so the chips never reshuffle between
+      // renders; only categories actually present are offered.
+      categories: UNIT_CATEGORIES.filter((c) => categories.has(c)),
+      // Appwrite's row order is not stable across renders; sort in JS so the
+      // department dropdown doesn't reshuffle for no visible reason. (The
+      // "cannot order by nested attribute" restriction is on Appwrite's
+      // orderAsc, not on sorting already-fetched values.)
+      departments: [...departments.entries()].sort(([, a], [, b]) =>
+        a.localeCompare(b)
+      ),
+    };
+  } catch (error) {
+    console.error("listJobFacets failed:", error);
+    return { categories: [], departments: [] };
+  }
 }
 
 const _getJobBySlug = cache(
