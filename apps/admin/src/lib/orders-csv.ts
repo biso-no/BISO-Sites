@@ -22,6 +22,7 @@ import {
   getOrderItems,
   type ParsedOrderItem,
 } from "@repo/shared/utils/order-parsing";
+import { formatCalendarDay } from "./order-calendar";
 
 const QUOTE_PATTERN = /"/g;
 
@@ -170,7 +171,7 @@ function orderItemRow(order: Orders, item: ParsedOrderItem | null): string {
 
   return [
     escapeCsvValue(order.$id),
-    escapeCsvValue(new Date(order.$createdAt).toISOString().slice(0, 10)),
+    escapeCsvValue(formatCalendarDay(order.$createdAt)),
     escapeCsvValue(order.status),
     escapeCsvValue(order.buyer_name),
     escapeCsvValue(order.buyer_email),

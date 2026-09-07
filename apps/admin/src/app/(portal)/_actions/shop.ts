@@ -36,6 +36,7 @@ import {
   type PaginatedResult,
 } from "@/lib/list-params";
 import { paginationQueries } from "@/lib/list-queries";
+import { zonedDayBound } from "@/lib/order-calendar";
 import { loadRecruitmentLookups } from "@/lib/recruitment";
 import {
   buildContentRowPermissions,
@@ -1120,65 +1121,6 @@ function isRealDay(value: string): boolean {
   return (
     !Number.isNaN(parsed.getTime()) && parsed.toISOString().startsWith(value)
   );
-}
-
-/**
- * The calendar the date picker and the order rows both speak.
- *
- * Fixed rather than read from the viewer's admin timezone preference: `?from=`
- * and `?to=` travel in a shareable URL, and a range whose meaning shifted with
- * whoever opened the link would be worse than one that is merely not the
- * reader's own clock. Every BISO campus is in this zone.
- */
-const ORDER_CALENDAR_TIMEZONE = "Europe/Oslo";
-
-/** How far `timeZone` runs ahead of UTC at a given instant, in milliseconds. */
-function zoneOffsetMs(instant: Date, timeZone: string): number {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    day: "2-digit",
-    hour: "2-digit",
-    hour12: false,
-    minute: "2-digit",
-    month: "2-digit",
-    second: "2-digit",
-    timeZone,
-    year: "numeric",
-  }).formatToParts(instant);
-  const part = (type: string) =>
-    Number(parts.find((entry) => entry.type === type)?.value);
-  const asUtc = Date.UTC(
-    part("year"),
-    part("month") - 1,
-    part("day"),
-    // Some engines render midnight as hour 24 under `hour12: false`.
-    part("hour") % 24,
-    part("minute"),
-    part("second")
-  );
-  // `formatToParts` has no milliseconds, so `asUtc` lands on a whole second.
-  // Comparing it against the raw instant would fold that fraction into the
-  // offset and push an end-of-day bound a second past midnight.
-  return asUtc - (instant.getTime() - instant.getUTCMilliseconds());
-}
-
-/**
- * The instant at which a local wall-clock time on `day` occurs, as an ISO
- * timestamp.
- *
- * The offset is resolved twice: the first pass uses the offset at the UTC
- * reading of that wall time, the second re-reads it at the instant that
- * produced, which is what makes the bound correct across a DST transition
- * rather than an hour out for half the year.
- */
-function zonedDayBound(day: string, endOfDay: boolean): string {
-  const wall = Date.parse(
-    `${day}T${endOfDay ? "23:59:59.999" : "00:00:00.000"}Z`
-  );
-  const firstPass =
-    wall - zoneOffsetMs(new Date(wall), ORDER_CALENDAR_TIMEZONE);
-  const settled =
-    wall - zoneOffsetMs(new Date(firstPass), ORDER_CALENDAR_TIMEZONE);
-  return new Date(settled).toISOString();
 }
 
 /**

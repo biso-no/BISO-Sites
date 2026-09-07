@@ -702,3 +702,24 @@ test("quotes a cell containing a bare carriage return", () => {
   expect(escapeCsvValue("Genser\rsort")).toBe('"Genser\rsort"');
   expect(escapeCsvValue("Genser\r\nsort")).toBe('"Genser\r\nsort"');
 });
+
+// The date filters bound on the organisation's calendar day, and the rows on
+// screen render in it too. Slicing the UTC ISO string made the export disagree
+// with both: an order excluded by `to=2026-01-31` because it is a 1 February
+// order in Oslo would nonetheless be labelled 31 January in the file.
+describe("order_date calendar", () => {
+  function dateCellFor(createdAt: string): string {
+    const csv = ordersToCsv([makeOrder({ $createdAt: createdAt })], HEADERS);
+    return (parseCsv(csv)[1] ?? [])[COLUMN.orderDate] ?? "";
+  }
+
+  test("labels a late-evening UTC order with its local calendar day", () => {
+    expect(dateCellFor("2026-01-31T23:30:00.000Z")).toBe("2026-02-01");
+  });
+
+  test("follows the daylight saving offset in force that day", () => {
+    // Summer is UTC+2, so 22:30Z is already the next local day.
+    expect(dateCellFor("2026-07-31T22:30:00.000Z")).toBe("2026-08-01");
+    expect(dateCellFor("2026-07-31T21:30:00.000Z")).toBe("2026-07-31");
+  });
+});
