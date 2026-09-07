@@ -18,7 +18,7 @@
 - **Do not edit** `packages/api/appwrite.config.json` or `packages/api/types/appwrite.ts` — both generated.
 - **No Appwrite schema changes in this plan.** Every query here was verified against the live instance on 2026-09-07.
 - `WEB_PAGE_SIZE = 12`. `SEARCH_CANDIDATE_CAP = 500`. `MAX_OFFSET = 5000`.
-- Run `bun x ultracite fix` before each commit; `lefthook` enforces it.
+- **Format only your own files: `bun x ultracite fix <paths…>`, never bare `bun x ultracite fix`.** The bare form is repo-wide and reformats files this plan must not touch — including the generated, do-not-touch `packages/api/appwrite.config.json`. If you run it bare by accident, `git checkout --` the out-of-scope files before staging. Never `git add -A` or `git add .`: there are unrelated in-flight changes in the working tree that must not be swept into a plan commit.
 - **`"use server"` files may export ONLY `async function`s.** `apps/web/src/app/actions/*.ts` all carry the directive, so every runtime-value export becomes a server action and a `const`, `class`, non-async `function` or `let` fails the build with *"Server Actions must be async functions"*. `export type` / `export interface` are erased and therefore fine — which is why `JobSort` (Task 5) and `ProductSort` (Task 10) are declared as types, not const arrays. Put any shared constant or sync helper in a plain module (e.g. `@/lib/list-params`) and import it.
 - **`check-types` does NOT catch that rule.** `tsc --noEmit` accepts a non-async export from a `"use server"` file. After editing any action file, verify with `bun run build --filter=web` as well.
 - **Admin must not change behaviour.** Its only intentional change in this plan is two re-export shims.
@@ -332,7 +332,7 @@ Expected: no errors. This is the gate that catches the admin shim dropping a sym
 - [ ] **Step 12: Commit**
 
 ```bash
-bun x ultracite fix
+bun x ultracite fix <the paths listed in git add below>
 git add packages/shared/utils/list-params.ts packages/shared/utils/list-params.test.ts \
         apps/admin/src/lib/list-params.ts \
         apps/web/src/lib/list-params.ts apps/web/src/lib/list-params.test.ts
@@ -405,7 +405,7 @@ Expected: PASS, no type errors.
 - [ ] **Step 6: Commit**
 
 ```bash
-bun x ultracite fix
+bun x ultracite fix <the paths listed in git add below>
 git add packages/ui/hooks/use-list-params.tsx packages/ui/package.json \
         "apps/admin/src/app/(portal)/_components/use-list-params.tsx"
 git commit -m "refactor(ui): promote useListParams to @repo/ui
@@ -626,7 +626,7 @@ Expected: PASS (6 tests)
 - [ ] **Step 5: Commit**
 
 ```bash
-bun x ultracite fix
+bun x ultracite fix <the paths listed in git add below>
 git add apps/web/src/lib/data/search-content.ts apps/web/src/lib/data/search-content.test.ts
 git commit -m "feat(web): add two-phase content search helper
 
@@ -974,7 +974,7 @@ export function LoadMoreButton({
 - [ ] **Step 8: Commit**
 
 ```bash
-bun x ultracite fix
+bun x ultracite fix <the paths listed in git add below>
 git add apps/web/src/lib/use-load-more.ts apps/web/src/lib/use-load-more.test.tsx \
         apps/web/src/components/ui/load-more-button.tsx apps/web/package.json
 git commit -m "feat(web): add load-more hook and button
@@ -1373,7 +1373,7 @@ Expected: no errors.
 - [ ] **Step 9: Commit**
 
 ```bash
-bun x ultracite fix
+bun x ultracite fix <the paths listed in git add below>
 git add packages/shared/recruitment.ts apps/web/src/app/actions/jobs.ts \
         apps/web/src/app/actions/jobs-pagination.test.ts \
         "apps/web/src/app/(public)/campus/page.tsx" \
@@ -1706,7 +1706,7 @@ Check at `http://localhost:3000/jobs`:
 - [ ] **Step 7: Commit**
 
 ```bash
-bun x ultracite fix
+bun x ultracite fix <the paths listed in git add below>
 git add "apps/web/src/app/(public)/jobs/page.tsx" \
         apps/web/src/components/jobs/jobs-list-client.tsx \
         apps/web/src/components/jobs/jobs-hero.tsx \
@@ -1862,7 +1862,7 @@ Expected: PASS, no type errors. Any error naming `getEventCategory` is a call si
 - [ ] **Step 7: Commit**
 
 ```bash
-bun x ultracite fix
+bun x ultracite fix <the paths listed in git add below>
 git add apps/web/src/lib/types/event.ts apps/web/src/lib/types/event-category.test.ts \
         apps/web/src/components/events/ apps/web/src/components/home/events-section.tsx \
         packages/i18n/messages/en/events.json packages/i18n/messages/no/events.json
@@ -2147,7 +2147,7 @@ Expected: PASS, no type errors.
 - [ ] **Step 7: Commit**
 
 ```bash
-bun x ultracite fix
+bun x ultracite fix <the paths listed in git add below>
 git add apps/web/src/lib/data/queries.ts apps/web/src/app/actions/events.ts \
         apps/web/src/app/actions/events-pagination.test.ts \
         apps/web/src/lib/data/nav-featured.ts apps/web/src/lib/data/public-content.ts \
@@ -2316,7 +2316,7 @@ At `http://localhost:3000/events`:
 - [ ] **Step 5: Commit**
 
 ```bash
-bun x ultracite fix
+bun x ultracite fix <the paths listed in git add below>
 git add "apps/web/src/app/(public)/events/page.tsx" \
         apps/web/src/components/events/events-list-client.tsx \
         packages/i18n/messages/en/events.json packages/i18n/messages/no/events.json
@@ -2458,7 +2458,7 @@ Expected: PASS. Type errors will name `shop/page.tsx` and `shop-list-client.tsx`
 - [ ] **Step 5: Commit**
 
 ```bash
-bun x ultracite fix
+bun x ultracite fix <the paths listed in git add below>
 git add apps/web/src/app/actions/webshop.ts apps/web/src/app/actions/webshop-pagination.test.ts
 git commit -m "feat(web): paginate listProducts with server-side search and sort"
 ```
@@ -2581,7 +2581,7 @@ Expected: all green, including every admin test — the Task 1 and 2 shims are w
 - [ ] **Step 6: Commit**
 
 ```bash
-bun x ultracite fix
+bun x ultracite fix <the paths listed in git add below>
 git add "apps/web/src/app/(public)/shop/page.tsx" \
         apps/web/src/components/shop/shop-list-client.tsx \
         packages/i18n/messages/en/shop.json packages/i18n/messages/no/shop.json
