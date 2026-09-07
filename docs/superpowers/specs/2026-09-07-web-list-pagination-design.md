@@ -81,7 +81,9 @@ job spikes are what pagination is banked for.
   decommissioned units, fixing the `Accounting Departement` typo, or enforcing
   `department_id` on new jobs are separate calls.
 - The admin app's behaviour. Two modules are promoted to shared packages, but
-  admin keeps its current behaviour through re-export shims.
+  admin keeps its current behaviour through re-export shims. The **one
+  deliberate admin change** is the accounting-row exclusion in
+  `/api/units/sync` (backfill 3), which cannot live anywhere else.
 - Detail pages (`/jobs/[slug]`, `/events/[slug]`, `/shop/[slug]`), cart,
   checkout, membership.
 - Rewriting card markup. `JobCard`, `EventCard`, `ProductCard` are untouched
@@ -418,8 +420,13 @@ Method — **rules first, AI for the residue, human approval before any write:**
      `Investment Committee`, `Operations Unit`, `Drift BISO`,
      `Academic/Political Forum`, `Organisasjonsstrukturkomiteen`,
      `Samlinger - CL`, `Student groups outside BISO` → `staff_function`
-   - `utvalg` | `society` → `society`
+   - `utvalg` | `society` → `society`. Confirmed to include
+     `Studentpolitisk utvalg`, `Fagutvalget` and `Korkutvalget` — these read as
+     staff functions from outside BISO, and are not.
    - otherwise → residue for step 2
+
+   Note `Ledelsen *` lands in `staff_function` via the administrative-unit rule
+   while `Drift *` is excluded from categorisation entirely (backfill 3).
 2. **AI pass** (`@repo/ai`) over the residue only, given the name, campus, and
    the rules above as context. It exists to make one judgment regex cannot:
    `OSL IM - International Management` (academic association) vs.
@@ -427,8 +434,9 @@ Method — **rules first, AI for the residue, human approval before any write:**
    identical `CODE ABC - Full Name` shape.
 3. **CSV** — every row with its proposed category, the rule or model that
    proposed it, and a confidence marker. Rows needing a human call are flagged,
-   including **`Alumni`** and **`Drift BISO`**, which were not resolved during
-   design.
+   including **`Alumni`**, the one administrative unit explicitly excluded from
+   the `staff_function` rule without a replacement being named. `Drift BISO` is
+   resolved — it is accounting-only, see backfill 3.
 4. **Apply** only the approved CSV, batched.
 
 ### Backfill 2 — job → department links (232 of 253 unlinked)
@@ -452,16 +460,63 @@ Same shape as backfill 1: candidate departments narrowed by the job's
 ambiguous ones, CSV for approval, then batched write setting **both**
 `department_id` and the `department` relationship.
 
-### Backfill 3 — deactivate `Drift Campus *`
+### Backfill 3 — deactivate the `Drift *` accounting rows
 
-`Drift Campus Oslo`, `Drift Campus Bergen`, `Drift Campus Trondheim` and
-`Drift Campus Stavanger` are accounting constructs, not departments, and should
-not surface in either app. Set `active = false` on those four rows.
+**The whole `departments` table is imported and synced from Finago** (24SevenOffice)
+via `POST /api/units/sync` (`apps/admin/src/app/api/units/sync/route.ts`). That
+changes how this must be done.
 
-This is a **visibility change, not a categorisation**, so it ships in the same
-review file but is called out separately for explicit approval. It drops the
-active department count from 141 to 137. `Drift BISO` is deliberately *not*
-included — it is flagged for review instead.
+The sync upserts a fixed column set — `$id`, `Id`, `Name`, `active`,
+`campus_id`, `campus`, and conditionally `slug`:
+
+```ts
+active: activeIds.has(department.id),   // route.ts:82
+```
+
+Two consequences, both load-bearing:
+
+- ✅ **`type` is not in that write set**, so backfill 1 survives every sync.
+  `upsertRow` patches only named columns (the route's own comment spells this
+  out for `slug`).
+- ❌ **`active` IS in the write set.** A one-off `active = false` write would be
+  **reverted by the next sync run**, because Finago reports these departments
+  as active. Writing the row directly does not work.
+
+**The fix belongs in the sync route**, keyed on Finago's department number
+rather than the name — `$id === Id === `the Finago number for all 280 rows, and
+a rename in Finago must not silently un-hide a row:
+
+```ts
+/**
+ * Finago department numbers that are accounting constructs, not BISO units.
+ * Finago is the source of truth for this table, so without this the sync
+ * reactivates them on every run.
+ */
+const ACCOUNTING_ONLY_DEPARTMENT_IDS = new Set(["1", "300", "600", "800", "1000"]);
+
+active:
+  activeIds.has(department.id) &&
+  !ACCOUNTING_ONLY_DEPARTMENT_IDS.has(department.id),
+```
+
+Those five ids are `Drift Campus Oslo` (1), `Drift Campus Bergen` (300),
+`Drift Campus Trondheim` (600), `Drift Campus Stavanger` (800) and `Drift BISO`
+(1000) — the first id of each campus range under the route's own `getCampusId`
+banding. A one-off write applies it immediately; the route change is what makes
+it stick.
+
+**`Ledelsen *` (ids 2, 301, 601, 801) is NOT deactivated** — those are real
+leadership units and get `staff_function`.
+
+What deactivation actually does, verified: `departments.active` gates the
+`/units` listing and 404s the unit page (`units/[...segments]/page.tsx:162`,
+`resolve.ts:115`). It does **not** cascade to the department's content — the
+2 events and 9 webshop products owned by Drift rows keep rendering, since those
+pages filter by status and campus, not by department activity. That is the
+intended outcome: the accounting placeholder stops being a browsable unit
+without taking published content down with it.
+
+Active department count drops 141 → 136.
 
 ## URL parameters
 
@@ -531,6 +586,11 @@ the actions).
   before reaching the CSV.
 - Apply step is a no-op when handed an unapproved or unchanged file, and is
   idempotent on re-run.
+- Sync route: a test asserting the five `ACCOUNTING_ONLY_DEPARTMENT_IDS` come
+  out `active: false` even when Finago's REST result reports them active —
+  the exact condition that would otherwise silently undo backfill 3.
+- Sync route: a test asserting the upsert payload still omits `type`, so a
+  future column addition cannot quietly start clobbering the categories.
 
 **Manual verification against the live instance**
 - `/jobs` shows all 28 open positions across pages — including any open
@@ -551,6 +611,8 @@ the actions).
 | Dropped job filters are missed by students | Reversible by promoting `paid` / `employment_type` to real columns later; the query layer is where that change would land |
 | **A backfill writes a wrong category to production** | Nothing writes without an approved CSV; rules cover the stated cases deterministically and the AI pass only proposes. Reversible — `type` is a single free-text column with no dependants |
 | **Backfill 2 links a job to the wrong department** | Same approval gate. Wrong links are more visible than missing ones, so low-confidence matches are left unlinked rather than guessed |
-| Deactivating `Drift Campus *` hides something that was in use | Four rows, `active` is reversible, and they own no open jobs. Called out separately in the review file rather than bundled with categorisation |
+| **A Finago sync reverts the backfill** | Measured: the sync writes `active` but not `type`, so backfill 1 is safe and backfill 3 is not — which is why 3 is implemented in the sync route, not as a row write. Any future column added to that route's upsert set must be re-checked against this |
+| Deactivating the `Drift *` rows hides something in use | Five rows; `active` is reversible; they own no jobs, and their 2 events / 9 products are unaffected because `active` does not gate content. Called out separately in the review file rather than bundled with categorisation |
+| An id-based exclusion drifts if Finago renumbers | Ids are Finago's own department numbers and are already load-bearing in the route (`getCampusId` bands on them), so renumbering would break more than this. Keyed on id precisely so a *rename* cannot un-hide a row |
 | Category filter ships before the backfill lands | It returns empty rather than wrong — the facet query renders only categories that exist, so no dead filter buttons appear |
 | Events i18n key churn | `en` and `no` updated together; a missing key surfaces as a visible `next-intl` error, not a silent blank |
