@@ -4,6 +4,13 @@
  * and the cached readers in `public-content.ts` (public/guest client inside
  * `"use cache"`). Plain module: no directives, no cookies, no caching — the
  * caller decides both the client and the cache policy.
+ *
+ * `member_only` is deliberately NOT a filter here. Member-only events are
+ * advertising for the membership, so every visitor sees them listed; the UI
+ * labels them ("Members only") and says membership is required to take part
+ * (see `EventMemberOnlyNotice`). Filtering them out server-side hid them from
+ * anonymous visitors *and* from members on every surface that cannot afford
+ * the Finago-backed membership lookup, which is the bug this removal fixes.
  */
 
 import { Query } from "@repo/api";
@@ -43,7 +50,6 @@ export function filterTranslationRefs<T extends { translation_refs?: unknown }>(
 export interface ListEventsQuery {
   campus?: string;
   category?: string | null;
-  isMember?: boolean;
   limit?: number;
   locale?: PublicLocale;
   offset?: number;
@@ -123,13 +129,6 @@ export async function queryEvents(
   const {
     campus,
     category,
-    // Safe-by-default: hide member-only rows unless a caller proves the
-    // visitor is a member. Every caller must decide this explicitly (pass
-    // `isMember` or document why the default is correct here) — a caller
-    // that forgets it silently hides member-only events from members, which
-    // is exactly the regression this default was tightened to prevent from
-    // recurring unnoticed. See call sites for the deliberate-default comments.
-    isMember = false,
     limit = WEB_PAGE_SIZE,
     locale,
     offset = 0,
@@ -178,14 +177,6 @@ export async function queryEvents(
 
   if (category) {
     queries.push(Query.equal("category", category));
-  }
-
-  if (!isMember) {
-    // Was a client-side filter, which pagination cannot tolerate: dropping
-    // rows after the fetch makes `total` overcount and leaves page holes.
-    queries.push(
-      Query.or([Query.equal("member_only", false), Query.isNull("member_only")])
-    );
   }
 
   // Collections and standalone events only — never an item inside a

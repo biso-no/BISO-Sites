@@ -63,26 +63,26 @@ function EventBadges({
         {isCollection && (
           <Badge className="flex items-center gap-1 border-0 bg-brand text-white">
             <Layers className="h-3 w-3" />
-            Collection
+            {t("card.collection")}
           </Badge>
         )}
       </div>
       {memberOnly && (
         <Badge className="flex w-fit items-center gap-1 border-0 bg-orange-500 text-white">
           <Users className="h-3 w-3" />
-          Members Only
+          {t("card.membersOnly")}
         </Badge>
       )}
       {!memberOnly && hasMemberDiscount && (
         <Badge className="flex w-fit items-center gap-1 border-0 bg-green-500 text-white">
           <Tag className="h-3 w-3" />
-          Member Discount
+          {t("card.memberDiscount")}
         </Badge>
       )}
       {hasTicketUrl && (
         <Badge className="flex w-fit items-center gap-1 border-0 bg-purple-500 text-white">
           <ExternalLink className="h-3 w-3" />
-          Tickster
+          {t("card.tickster")}
         </Badge>
       )}
     </div>
@@ -254,6 +254,12 @@ export function EventCard({
                 memberPrice={memberPrice}
                 price={price}
               />
+              {eventData?.member_only && !isMember && (
+                <p className="mt-2 flex items-center gap-1.5 font-medium text-orange-600 text-xs">
+                  <Users aria-hidden className="h-3.5 w-3.5 shrink-0" />
+                  {t("card.memberOnlyNote")}
+                </p>
+              )}
             </div>
           </div>
 

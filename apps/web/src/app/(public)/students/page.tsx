@@ -28,11 +28,9 @@ export default async function StudentsPage() {
 
   const [eventsResult, jobs, departments, campusData, globalBenefits] =
     await Promise.all([
-      // `isMember` deliberately omitted (defaults to `false`): this page
-      // doesn't resolve the visitor's membership status, and hiding
-      // member-only events here is the safe direction — pre-Task-8 this page
-      // never filtered by membership at all, so this is a tightening, not a
-      // fix owed to a prior client-side check.
+      // Member-only events are included: `queryEvents` no longer scopes the
+      // fetch by membership, and the membership pitch on this page is exactly
+      // where they belong.
       listEvents({
         pageSize: STUDENTS_PAGE_SIZE,
         status: "published",

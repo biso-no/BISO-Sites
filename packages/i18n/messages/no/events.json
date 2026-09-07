@@ -35,7 +35,14 @@
     "individualPricing": "Individuell prising: Registrer deg for hvert arrangement separat",
     "viewCollection": "Vis samling",
     "viewDetails": "Vis detaljer",
-    "locationTba": "Sted kommer"
+    "locationTba": "Sted kommer",
+    "memberOnlyNote": "Krever medlemskap for å delta"
+  },
+  "memberOnly": {
+    "title": "Kun for medlemmer",
+    "description": "Dette arrangementet er åpent for BISO-medlemmer. Bli medlem for å melde deg på og delta.",
+    "memberDescription": "BISO-medlemskapet ditt dekker dette arrangementet — du kan melde deg på.",
+    "cta": "Bli medlem"
   },
   "modal": {
     "memberPrice": "Medlemspris",

@@ -27,6 +27,7 @@ import {
   resolveEventCategory,
   resolveEventRegistration,
 } from "@/lib/types/event";
+import { EventMemberOnlyNotice } from "./member-only-notice";
 
 interface EventDetailModalProps {
   event: Events;
@@ -234,7 +235,13 @@ export function EventDetailModal({
                   {t(`filters.${EVENT_CATEGORY_MESSAGE_KEYS[category]}`)}
                 </Badge>
               )}
-              {memberPrice && !isMember && (
+              {eventData?.member_only && (
+                <Badge className="flex items-center gap-1 border-0 bg-orange-500 text-white">
+                  <Users className="h-3 w-3" />
+                  {t("card.membersOnly")}
+                </Badge>
+              )}
+              {!eventData?.member_only && memberPrice && !isMember && (
                 <Badge className="flex items-center gap-1 border-0 bg-green-500 text-white">
                   <Tag className="h-3 w-3" />
                   {t("card.memberDiscount")}
@@ -315,6 +322,13 @@ export function EventDetailModal({
                 )}
               </div>
             </div>
+
+            {/* Members-only: say what the badge implies before the CTA. */}
+            {eventData?.member_only && (
+              <div className="mb-6">
+                <EventMemberOnlyNotice isMember={isMember} />
+              </div>
+            )}
 
             {/* Member Price Info */}
             {memberPrice && !isMember && (

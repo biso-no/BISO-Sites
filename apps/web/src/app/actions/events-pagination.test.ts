@@ -32,21 +32,21 @@ describe("listEvents pagination", () => {
     expect(serialized).toContain('"method":"isNull","attribute":"end_date"');
   });
 
-  it("hides member-only events from non-members in the query", async () => {
-    await listEvents({ isMember: false });
+  it("lists member-only events for everyone, members or not", async () => {
+    await listEvents({});
 
+    // Member-only events are advertising for the membership: they are listed
+    // to every visitor and labelled in the UI ("Members only" + the
+    // participation notice) instead of being filtered out. The column stays in
+    // the Query.select projection, so "member_only" alone would match either
+    // way — pin the *filter* shape, which is what must not come back.
     const serialized = queriesOf(0).join("|");
-    // "member_only" alone also matches the Query.select projection, which is
-    // present on every call regardless of this filter — pin the attribute key.
-    expect(serialized).toContain('"attribute":"member_only"');
-  });
-
-  it("does not filter member_only for a member", async () => {
-    await listEvents({ isMember: true });
-
-    // Same reasoning in reverse: a bare `.not.toContain("member_only")` would
-    // always fail because the column is still in the select projection.
-    expect(queriesOf(0).join("|")).not.toContain('"attribute":"member_only"');
+    expect(serialized).not.toContain(
+      '"method":"equal","attribute":"member_only"'
+    );
+    expect(serialized).not.toContain(
+      '"method":"isNull","attribute":"member_only"'
+    );
   });
 
   it("shows only collections and standalone events", async () => {

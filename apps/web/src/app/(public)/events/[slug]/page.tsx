@@ -15,6 +15,7 @@ import {
   EventImportantInfoCard,
   EventPriceCard,
 } from "@/components/events/event-info-cards";
+import { EventMemberOnlyNotice } from "@/components/events/member-only-notice";
 import { getMembershipStatus } from "@/lib/actions/membership";
 import { formatEventPrice, resolveEventRegistration } from "@/lib/types/event";
 
@@ -89,6 +90,12 @@ async function EventDetails({ slug }: { slug: string }) {
 
           {/* Sidebar */}
           <div className="space-y-6">
+            {/* Above the price and the CTA: a non-member must learn that
+                membership is the condition before they follow a ticket link. */}
+            {eventData?.member_only && (
+              <EventMemberOnlyNotice isMember={membership.isMember} />
+            )}
+
             <EventPriceCard
               collectionCount={collectionEvents?.length || 0}
               event={event}

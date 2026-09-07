@@ -35,7 +35,14 @@
     "individualPricing": "Individual pricing: Register for each event separately",
     "viewCollection": "View Collection",
     "viewDetails": "View Details",
-    "locationTba": "Location TBA"
+    "locationTba": "Location TBA",
+    "memberOnlyNote": "Membership required to take part"
+  },
+  "memberOnly": {
+    "title": "Members-only event",
+    "description": "This event is open to BISO members. Join BISO to sign up and take part.",
+    "memberDescription": "Your BISO membership covers this event — you are good to sign up.",
+    "cta": "Become a member"
   },
   "modal": {
     "memberPrice": "Member Price",

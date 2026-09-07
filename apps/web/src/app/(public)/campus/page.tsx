@@ -37,12 +37,9 @@ export default async function CampusPage({ searchParams }: CampusPageProps) {
   // the limits apply *after* scoping instead of truncating before it).
   const [eventsResult, jobs, news, departments, campusData, campusMetadata] =
     await Promise.all([
-      // `isMember` deliberately omitted (defaults to `false`): this page
-      // doesn't resolve the visitor's membership status, and hiding
-      // member-only events here is the safe direction — pre-Task-8 this page
-      // never filtered by membership at all (it showed member-only events to
-      // everyone), so this is a tightening, not a fix owed to a prior
-      // client-side check like `/events` had.
+      // Member-only events are listed here too — the campus card already
+      // carries a "Members only" badge for them (see `UpcomingEvents`), and
+      // `queryEvents` no longer scopes the fetch by membership.
       listEvents({ campus, status: "published", locale }),
       listJobs({ campus, locale }),
       listNews({ campus, status: "published", limit: 6, locale }),
