@@ -6,12 +6,17 @@ import type { VarslingSettings } from "@repo/api/types/appwrite";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireAuth, type UserAuthContext } from "@/lib/authorization";
+import {
+  emptyResult,
+  type ListParams,
+  type PaginatedResult,
+} from "@/lib/list-params";
+import { paginationQueries } from "@/lib/list-queries";
 import { hasNavAccess } from "@/lib/roles";
 import { logAuditEvent } from "./audit-log";
 
 const ROLE_NAME_MAX_LENGTH = 100;
 const CAMPUS_ID_MAX_LENGTH = 10;
-const VARSLING_PAGE_LIMIT = 200;
 
 const varslingSettingSchema = z.object({
   campus_id: z
@@ -49,10 +54,14 @@ function canManageVarsling(ctx: UserAuthContext): boolean {
   return hasNavAccess("varsling", ctx.roles, ctx.departmentTeamIds.length > 0);
 }
 
-export async function listVarslingSettings(): Promise<VarslingSettings[]> {
+export async function listVarslingSettings(
+  // `params.q` is intentionally ignored: search is not implemented for this
+  // surface.
+  params: ListParams
+): Promise<PaginatedResult<VarslingSettings>> {
   const ctx = await requireAuth();
   if (!canManageVarsling(ctx)) {
-    return [];
+    return emptyResult<VarslingSettings>(params);
   }
 
   const { db } = await createAdminClient();
@@ -63,10 +72,16 @@ export async function listVarslingSettings(): Promise<VarslingSettings[]> {
       Query.orderAsc("campus_id"),
       Query.orderAsc("sort_order"),
       Query.orderAsc("role_name"),
-      Query.limit(VARSLING_PAGE_LIMIT),
+      ...paginationQueries(params),
     ]
   );
-  return response.rows;
+
+  return {
+    rows: response.rows,
+    total: response.total,
+    page: params.page,
+    size: params.size,
+  };
 }
 
 export async function createVarslingSetting(

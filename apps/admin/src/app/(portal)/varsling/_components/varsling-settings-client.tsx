@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
+import type { PageSize } from "@/lib/list-params";
 import {
   createVarslingSetting,
   deleteVarslingSetting,
@@ -14,6 +15,7 @@ import {
   type VarslingSettingFormValues,
 } from "../../_actions/varsling";
 import { EmptyState } from "../../_components/empty-state";
+import { PaginationBar } from "../../_components/pagination-bar";
 import { PortalButton } from "../../_components/portal-button";
 import {
   PortalField,
@@ -35,7 +37,10 @@ interface CampusOption {
 
 interface VarslingSettingsClientProps {
   campuses: CampusOption[];
+  page: number;
   settings: VarslingSettings[];
+  size: PageSize;
+  total: number;
 }
 
 const EMPTY_FORM: VarslingSettingFormValues = {
@@ -58,7 +63,10 @@ function toFormValues(setting: VarslingSettings): VarslingSettingFormValues {
 
 export function VarslingSettingsClient({
   campuses,
+  page,
   settings,
+  size,
+  total,
 }: VarslingSettingsClientProps) {
   const t = useTranslations("varsling.admin");
   const router = useRouter();
@@ -391,6 +399,8 @@ export function VarslingSettingsClient({
           </div>
         </StudioPanel>
       )}
+
+      <PaginationBar page={page} size={size} sizeSelectable total={total} />
     </>
   );
 }

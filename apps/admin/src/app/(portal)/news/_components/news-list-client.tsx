@@ -8,6 +8,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { deleteNews } from "../../_actions/news";
+import { NEWS_PAGE_SIZE } from "../../_actions/schemas";
 import { EmptyState } from "../../_components/empty-state";
 import { PaginationBar } from "../../_components/pagination-bar";
 import { SearchToolbar } from "../../_components/search-toolbar";
@@ -208,7 +209,7 @@ export function NewsListClient({
         </div>
       )}
 
-      <PaginationBar page={page} total={total} />
+      <PaginationBar page={page} size={NEWS_PAGE_SIZE} total={total} />
     </>
   );
 }

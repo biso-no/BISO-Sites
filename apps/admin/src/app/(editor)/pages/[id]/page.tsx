@@ -1,6 +1,6 @@
 import { isUnitPageSlug } from "@repo/shared/utils/unit-urls";
 import { notFound } from "next/navigation";
-import { listDepartments } from "@/app/(portal)/_actions/departments";
+import { listAllDepartments } from "@/app/(portal)/_actions/departments";
 import {
   getPageEditorById,
   getPageEditorLocales,
@@ -20,7 +20,7 @@ export default async function PageEditorPage({ params }: Props) {
   const [pageResult, departments, initialLocale, availableLocales] =
     await Promise.all([
       isNew ? null : getPageEditorById(id),
-      listDepartments(),
+      listAllDepartments(),
       getLocale(),
       getPageEditorLocales(),
     ]);

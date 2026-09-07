@@ -23,6 +23,7 @@ import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { GuideVideoDialog } from "@/components/tours/guide-video-dialog";
 import { deleteJob } from "../../_actions/jobs";
+import { JOBS_PAGE_SIZE } from "../../_actions/schemas";
 import { PaginationBar } from "../../_components/pagination-bar";
 
 interface JobStudioDashboardProps {
@@ -787,7 +788,7 @@ export function JobStudioDashboard({
         )}
       </section>
 
-      <PaginationBar page={page} total={total} />
+      <PaginationBar page={page} size={JOBS_PAGE_SIZE} total={total} />
     </div>
   );
 }

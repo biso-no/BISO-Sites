@@ -222,6 +222,17 @@ export function ApprovalsReviewClient({
   requests: initialRequests,
 }: ApprovalsReviewClientProps) {
   const [requests, setRequests] = useState(initialRequests);
+  // The rows are held in state so an approve/reject can drop one optimistically
+  // before the server revalidates. That copy must still yield to a genuinely new
+  // server page: the list is paginated, React keeps this component mounted
+  // across a same-route query change, and without this the user would click
+  // page 2 and keep looking at page 1. A new prop identity only arrives from a
+  // server render, so this cannot clobber the optimistic removal.
+  const [serverRequests, setServerRequests] = useState(initialRequests);
+  if (serverRequests !== initialRequests) {
+    setServerRequests(initialRequests);
+    setRequests(initialRequests);
+  }
   const [, startTransition] = useTransition();
 
   function handleApprove(id: string) {
