@@ -22,7 +22,7 @@ export default async function StudentsPage() {
   const [events, jobs, departments, campusData, globalBenefits] =
     await Promise.all([
       listEvents({ status: "published", limit: 24, locale }),
-      listJobs({ status: "published", limit: 24, locale }),
+      listJobs({ locale }),
       getDepartments({ campusId: "all", locale }),
       getCampusData(),
       getGlobalMembershipBenefits(),
@@ -34,7 +34,7 @@ export default async function StudentsPage() {
       departments={departments}
       events={events}
       globalBenefits={globalBenefits}
-      jobs={jobs as RecruitmentVacancy[]}
+      jobs={jobs.rows as RecruitmentVacancy[]}
       locale={locale}
     />
   );

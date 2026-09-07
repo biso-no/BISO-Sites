@@ -38,7 +38,7 @@ export default async function CampusPage({ searchParams }: CampusPageProps) {
   const [events, jobs, news, departments, campusData, campusMetadata] =
     await Promise.all([
       listEvents({ campus, status: "published", limit: 10, locale }),
-      listJobs({ campus, status: "published", limit: 10, locale }),
+      listJobs({ campus, locale }),
       listNews({ campus, status: "published", limit: 6, locale }),
       getDepartments({ isActive: true, locale }),
       getCampusData(),
@@ -51,7 +51,7 @@ export default async function CampusPage({ searchParams }: CampusPageProps) {
       campusMetadata={campusMetadata}
       departments={departments}
       events={events}
-      jobs={jobs}
+      jobs={jobs.rows}
       locale={locale}
       news={news}
       serverCampusId={activeCampusId}

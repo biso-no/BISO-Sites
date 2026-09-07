@@ -35,13 +35,13 @@ async function JobsList({
   locale: string;
   search?: string;
 }) {
-  const jobs = await listJobs({
+  const result = await listJobs({
     campus,
     department,
     locale,
-    limit: 100,
     search,
   });
+  const jobs = result.rows;
 
   const paidPositions = jobs.filter((j) => j.metadata.paid === true).length;
   const departmentCount =
@@ -52,7 +52,7 @@ async function JobsList({
       <JobsHero
         departmentCount={departmentCount}
         paidPositions={paidPositions}
-        totalPositions={jobs.length}
+        totalPositions={result.total}
       />
       <JobsListClient
         initialDepartment={department ?? null}
