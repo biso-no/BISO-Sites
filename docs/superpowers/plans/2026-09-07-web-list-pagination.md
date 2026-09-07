@@ -19,6 +19,8 @@
 - **No Appwrite schema changes in this plan.** Every query here was verified against the live instance on 2026-09-07.
 - `WEB_PAGE_SIZE = 12`. `SEARCH_CANDIDATE_CAP = 500`. `MAX_OFFSET = 5000`.
 - Run `bun x ultracite fix` before each commit; `lefthook` enforces it.
+- **`"use server"` files may export ONLY `async function`s.** `apps/web/src/app/actions/*.ts` all carry the directive, so every runtime-value export becomes a server action and a `const`, `class`, non-async `function` or `let` fails the build with *"Server Actions must be async functions"*. `export type` / `export interface` are erased and therefore fine — which is why `JobSort` (Task 5) and `ProductSort` (Task 10) are declared as types, not const arrays. Put any shared constant or sync helper in a plain module (e.g. `@/lib/list-params`) and import it.
+- **`check-types` does NOT catch that rule.** `tsc --noEmit` accepts a non-async export from a `"use server"` file. After editing any action file, verify with `bun run build --filter=web` as well.
 - **Admin must not change behaviour.** Its only intentional change in this plan is two re-export shims.
 
 ## Verified query facts (do not re-derive)
