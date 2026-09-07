@@ -19,11 +19,12 @@ import {
 import { AnimatePresence, motion } from "motion/react";
 import { useTranslations } from "next-intl";
 import {
-  type EventCategory,
+  EVENT_CATEGORY_COLORS,
+  EVENT_CATEGORY_MESSAGE_KEYS,
   type EventRegistrationInfo,
   formatEventPrice,
-  getEventCategory,
   parseEventMetadata,
+  resolveEventCategory,
   resolveEventRegistration,
 } from "@/lib/types/event";
 
@@ -32,14 +33,6 @@ interface EventDetailModalProps {
   isMember?: boolean;
   onClose: () => void;
 }
-
-const categoryColors: Record<EventCategory, string> = {
-  Social: "bg-purple-100 text-purple-700 border-purple-200",
-  Career: "bg-blue-100 text-blue-700 border-blue-200",
-  Academic: "bg-green-100 text-green-700 border-green-200",
-  Sports: "bg-orange-100 text-orange-700 border-orange-200",
-  Culture: "bg-pink-100 text-pink-700 border-pink-200",
-};
 
 function PriceDisplay({
   price,
@@ -161,7 +154,7 @@ export function EventDetailModal({
 
   // Parse metadata if available
   const metadata = parseEventMetadata(eventData?.metadata);
-  const category = getEventCategory(metadata);
+  const category = resolveEventCategory(eventData);
 
   // Format dates
   const startDate = eventData?.start_date
@@ -236,11 +229,11 @@ export function EventDetailModal({
 
             {/* Category Badge */}
             <div className="absolute top-4 left-4 flex gap-2">
-              <Badge
-                className={`${categoryColors[category] || categoryColors.Social}`}
-              >
-                {t(`filters.${category}`)}
-              </Badge>
+              {category && (
+                <Badge className={EVENT_CATEGORY_COLORS[category]}>
+                  {t(`filters.${EVENT_CATEGORY_MESSAGE_KEYS[category]}`)}
+                </Badge>
+              )}
               {memberPrice && !isMember && (
                 <Badge className="flex items-center gap-1 border-0 bg-green-500 text-white">
                   <Tag className="h-3 w-3" />

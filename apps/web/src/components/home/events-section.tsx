@@ -9,13 +9,12 @@ import { ArrowRight, Calendar, Clock, MapPin, Users } from "lucide-react";
 import { motion } from "motion/react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { getEventHref } from "@/lib/types/event";
-
-const CATEGORY_COLORS: Record<string, string> = {
-  Social: "bg-brand-muted text-brand-dark border-brand-border",
-  Career: "bg-brand-muted text-brand-dark border-brand-border",
-  Academic: "bg-cyan-100 text-brand-dark border-cyan-200",
-};
+import {
+  EVENT_CATEGORY_COLORS,
+  EVENT_CATEGORY_MESSAGE_KEYS,
+  getEventHref,
+  resolveEventCategory,
+} from "@/lib/types/event";
 
 function formatDateString(date: Date | null): string {
   if (!date) {
@@ -49,13 +48,6 @@ function formatTimeString(
   return `${startTime} - ${endTime}`;
 }
 
-function getCategory(metadata: unknown): string | null {
-  if (metadata && typeof metadata === "object" && "category" in metadata) {
-    return metadata.category as string;
-  }
-  return null;
-}
-
 function getAttendees(metadata: unknown): string | null {
   if (metadata && typeof metadata === "object" && "attendees" in metadata) {
     return String(metadata.attendees);
@@ -70,6 +62,7 @@ interface EventCardProps {
 }
 
 function EventCard({ event, index, registerLabel }: EventCardProps) {
+  const t = useTranslations("events");
   const isFeatured = index === 0;
   const eventRef = event;
   const translation = Array.isArray(event.translation_refs)
@@ -83,7 +76,7 @@ function EventCard({ event, index, registerLabel }: EventCardProps) {
   const endDate = eventRef?.end_date ? new Date(eventRef.end_date) : null;
   const dateString = formatDateString(startDate);
   const timeString = formatTimeString(startDate, endDate);
-  const category = getCategory(eventRef?.metadata);
+  const category = resolveEventCategory(eventRef);
   const attendees = getAttendees(eventRef?.metadata);
   const imageUrl = eventRef?.image || PLACEHOLDER_IMAGE;
   const detailHref = getEventHref(eventRef);
@@ -120,9 +113,9 @@ function EventCard({ event, index, registerLabel }: EventCardProps) {
             <div className="absolute inset-0 bg-linear-to-t from-black/60 via-transparent to-transparent" />
             {category && (
               <Badge
-                className={`absolute top-4 left-4 ${CATEGORY_COLORS[category] || "bg-muted text-foreground"}`}
+                className={`absolute top-4 left-4 ${EVENT_CATEGORY_COLORS[category]}`}
               >
-                {category}
+                {t(`filters.${EVENT_CATEGORY_MESSAGE_KEYS[category]}`)}
               </Badge>
             )}
           </div>

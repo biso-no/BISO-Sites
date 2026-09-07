@@ -1,6 +1,6 @@
 "use client";
 
-import type { Events } from "@repo/api/types/appwrite";
+import { type Events, EventsCategory } from "@repo/api/types/appwrite";
 import { Button } from "@repo/ui/components/ui/button";
 import { Input } from "@repo/ui/components/ui/input";
 import { Calendar, Filter, Search, X } from "lucide-react";
@@ -9,9 +9,8 @@ import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { getPrimaryTranslation } from "@/lib/content-translation";
 import {
-  eventCategories,
-  getEventCategory,
-  parseEventMetadata,
+  EVENT_CATEGORY_MESSAGE_KEYS,
+  resolveEventCategory,
 } from "@/lib/types/event";
 import { EventCard } from "./event-card";
 import { EventDetailModal } from "./event-detail-modal";
@@ -21,14 +20,15 @@ interface EventsListClientProps {
   isMember?: boolean;
 }
 
-const categories = ["All", ...eventCategories] as const;
+const categories = ["All", ...Object.values(EventsCategory)] as const;
 
 export function EventsListClient({
   events,
   isMember = false,
 }: EventsListClientProps) {
   const t = useTranslations("events");
-  const [selectedCategory, setSelectedCategory] = useState<string>("All");
+  const [selectedCategory, setSelectedCategory] =
+    useState<(typeof categories)[number]>("All");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedEvent, setSelectedEvent] = useState<Events | null>(null);
 
@@ -51,8 +51,7 @@ export function EventsListClient({
       return false;
     }
 
-    const metadata = parseEventMetadata(eventData?.metadata);
-    const category = getEventCategory(metadata);
+    const category = resolveEventCategory(eventData);
 
     const matchesCategory =
       selectedCategory === "All" || category === selectedCategory;
@@ -108,7 +107,7 @@ export function EventsListClient({
                 >
                   {category === "All"
                     ? t("filters.all")
-                    : t(`filters.${category}`)}
+                    : t(`filters.${EVENT_CATEGORY_MESSAGE_KEYS[category]}`)}
                 </Button>
               ))}
             </div>

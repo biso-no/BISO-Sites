@@ -1,6 +1,6 @@
 "use client";
 
-import type { Events } from "@repo/api/types/appwrite";
+import type { Events, EventsCategory } from "@repo/api/types/appwrite";
 import { ImageWithFallback } from "@repo/ui/components/image";
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Button } from "@repo/ui/components/ui/button";
@@ -21,10 +21,11 @@ import { motion } from "motion/react";
 import { useTranslations } from "next-intl";
 import { getPrimaryTranslation } from "@/lib/content-translation";
 import {
-  type EventCategory,
+  EVENT_CATEGORY_COLORS,
+  EVENT_CATEGORY_MESSAGE_KEYS,
   formatEventPrice,
-  getEventCategory,
   parseEventMetadata,
+  resolveEventCategory,
 } from "@/lib/types/event";
 
 interface EventCardProps {
@@ -34,16 +35,8 @@ interface EventCardProps {
   onViewDetails: (event: Events) => void;
 }
 
-const categoryColors: Record<EventCategory, string> = {
-  Social: "bg-purple-100 text-purple-700 border-purple-200",
-  Career: "bg-blue-100 text-blue-700 border-blue-200",
-  Academic: "bg-green-100 text-green-700 border-green-200",
-  Sports: "bg-orange-100 text-orange-700 border-orange-200",
-  Culture: "bg-pink-100 text-pink-700 border-pink-200",
-};
-
 interface EventBadgesProps {
-  category: EventCategory;
+  category: EventsCategory | null;
   hasMemberDiscount: boolean;
   hasTicketUrl: boolean;
   isCollection?: boolean;
@@ -57,14 +50,16 @@ function EventBadges({
   hasMemberDiscount,
   hasTicketUrl,
 }: EventBadgesProps) {
+  const t = useTranslations("events");
+
   return (
     <div className="absolute top-4 left-4 flex flex-col gap-2">
       <div className="flex gap-2">
-        <Badge
-          className={`${categoryColors[category] || categoryColors.Social}`}
-        >
-          {category}
-        </Badge>
+        {category && (
+          <Badge className={EVENT_CATEGORY_COLORS[category]}>
+            {t(`filters.${EVENT_CATEGORY_MESSAGE_KEYS[category]}`)}
+          </Badge>
+        )}
         {isCollection && (
           <Badge className="flex items-center gap-1 border-0 bg-brand text-white">
             <Layers className="h-3 w-3" />
@@ -145,7 +140,7 @@ export function EventCard({
 
   // Parse metadata if available
   const metadata = parseEventMetadata(eventData?.metadata);
-  const category = getEventCategory(metadata);
+  const category = resolveEventCategory(eventData);
 
   // Format dates
   const startDate = eventData?.start_date

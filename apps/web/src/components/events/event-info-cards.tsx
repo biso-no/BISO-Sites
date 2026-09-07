@@ -5,9 +5,10 @@ import { format } from "date-fns";
 import { DollarSign, Info, Mail } from "lucide-react";
 import { useTranslations } from "next-intl";
 import {
+  EVENT_CATEGORY_MESSAGE_KEYS,
   formatEventPrice,
-  getEventCategory,
   parseEventMetadata,
+  resolveEventCategory,
 } from "@/lib/types/event";
 
 interface EventPriceCardProps {
@@ -120,7 +121,7 @@ export function EventDetailsCard({ event }: EventDetailsCardProps) {
   const t = useTranslations("events");
   const eventData = event;
   const metadata = parseEventMetadata(eventData?.metadata);
-  const category = getEventCategory(metadata);
+  const category = resolveEventCategory(eventData);
   const attendees = metadata.attendees || 0;
 
   // Format dates
@@ -169,13 +170,19 @@ export function EventDetailsCard({ event }: EventDetailsCardProps) {
             {eventData?.location || t("card.locationTba")}
           </div>
         </div>
-        <Separator />
-        <div>
-          <div className="mb-1 text-muted-foreground text-sm">
-            {t("infoCards.category")}
-          </div>
-          <div className="text-foreground">{t(`filters.${category}`)}</div>
-        </div>
+        {category && (
+          <>
+            <Separator />
+            <div>
+              <div className="mb-1 text-muted-foreground text-sm">
+                {t("infoCards.category")}
+              </div>
+              <div className="text-foreground">
+                {t(`filters.${EVENT_CATEGORY_MESSAGE_KEYS[category]}`)}
+              </div>
+            </div>
+          </>
+        )}
         {attendees > 0 && (
           <>
             <Separator />

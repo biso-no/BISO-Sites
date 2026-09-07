@@ -1,9 +1,11 @@
-import type { ContentTranslations } from "@repo/api/types/appwrite";
+import {
+  type ContentTranslations,
+  EventsCategory,
+} from "@repo/api/types/appwrite";
 
 interface EventMetadata {
   agenda?: { time: string; activity: string }[];
   attendees?: number;
-  category?: string;
   department_id?: string;
   end_date?: string;
   end_time?: string;
@@ -22,15 +24,6 @@ interface EventMetadata {
 export interface EventWithTranslation extends ContentTranslations {
   event_ref: NonNullable<ContentTranslations["event_ref"]>;
 }
-
-export const eventCategories = [
-  "Social",
-  "Career",
-  "Academic",
-  "Sports",
-  "Culture",
-] as const;
-export type EventCategory = (typeof eventCategories)[number];
 
 type CollectionPricing = "bundle" | "individual";
 
@@ -137,10 +130,47 @@ export function formatEventPrice(
   return `${price} NOK`;
 }
 
-export function getEventCategory(metadata: EventMetadata): EventCategory {
-  const category = metadata.category as EventCategory;
-  return eventCategories.includes(category) ? category : "Social";
+/**
+ * The event's category, from the real `events.category` column.
+ *
+ * The admin editor writes this column; the web used to read
+ * `metadata.category` and fall back to "Social" when absent — which it always
+ * was, so every event rendered as Social. Returns null rather than defaulting,
+ * so an uncategorised event shows no badge instead of a wrong one.
+ */
+export function resolveEventCategory(event: {
+  category?: EventsCategory | null;
+}): EventsCategory | null {
+  return event.category ?? null;
 }
+
+/** i18n key under the `events.filters` namespace, per enum value. */
+export const EVENT_CATEGORY_MESSAGE_KEYS: Record<EventsCategory, string> = {
+  [EventsCategory.SOCIAL]: "social",
+  [EventsCategory.CAREER]: "career",
+  [EventsCategory.WORKSHOP]: "workshop",
+  [EventsCategory.TALK]: "talk",
+  [EventsCategory.PARTY]: "party",
+  [EventsCategory.SPORT]: "sport",
+  [EventsCategory.ACADEMIC]: "academic",
+  [EventsCategory.TRIP]: "trip",
+};
+
+/**
+ * Badge colours per category. Lives here rather than in each component: the
+ * same map was previously triplicated verbatim across event-card, event-hero
+ * and event-detail-modal.
+ */
+export const EVENT_CATEGORY_COLORS: Record<EventsCategory, string> = {
+  [EventsCategory.SOCIAL]: "bg-purple-100 text-purple-700 border-purple-200",
+  [EventsCategory.CAREER]: "bg-blue-100 text-blue-700 border-blue-200",
+  [EventsCategory.ACADEMIC]: "bg-green-100 text-green-700 border-green-200",
+  [EventsCategory.SPORT]: "bg-orange-100 text-orange-700 border-orange-200",
+  [EventsCategory.PARTY]: "bg-pink-100 text-pink-700 border-pink-200",
+  [EventsCategory.WORKSHOP]: "bg-amber-100 text-amber-700 border-amber-200",
+  [EventsCategory.TALK]: "bg-indigo-100 text-indigo-700 border-indigo-200",
+  [EventsCategory.TRIP]: "bg-teal-100 text-teal-700 border-teal-200",
+};
 
 function _isCollectionEvent(event: ContentTranslations): boolean {
   return event.event_ref?.is_collection ?? false;

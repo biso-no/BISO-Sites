@@ -7,22 +7,15 @@ import { ArrowLeft, Calendar, Clock, MapPin, Users } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import {
-  type EventCategory,
-  getEventCategory,
+  EVENT_CATEGORY_COLORS,
+  EVENT_CATEGORY_MESSAGE_KEYS,
   parseEventMetadata,
+  resolveEventCategory,
 } from "@/lib/types/event";
 
 interface EventHeroProps {
   event: Events;
 }
-
-const categoryColors: Record<EventCategory, string> = {
-  Social: "bg-purple-100 text-purple-700 border-purple-200",
-  Career: "bg-blue-100 text-blue-700 border-blue-200",
-  Academic: "bg-green-100 text-green-700 border-green-200",
-  Sports: "bg-orange-100 text-orange-700 border-orange-200",
-  Culture: "bg-pink-100 text-pink-700 border-pink-200",
-};
 
 export function EventHero({ event }: EventHeroProps) {
   const t = useTranslations("events");
@@ -35,7 +28,7 @@ export function EventHero({ event }: EventHeroProps) {
     : null;
   const title = translation?.title ?? "Untitled";
   const metadata = parseEventMetadata(eventData?.metadata);
-  const category = getEventCategory(metadata);
+  const category = resolveEventCategory(eventData);
 
   // Format dates
   const startDate = eventData?.start_date
@@ -80,9 +73,11 @@ export function EventHero({ event }: EventHeroProps) {
           </Link>
 
           <div className="fade-in slide-in-from-bottom-4 mt-12 animate-in duration-700">
-            <Badge className={`mb-4 ${categoryColors[category]}`}>
-              {t(`filters.${category}`)}
-            </Badge>
+            {category && (
+              <Badge className={`mb-4 ${EVENT_CATEGORY_COLORS[category]}`}>
+                {t(`filters.${EVENT_CATEGORY_MESSAGE_KEYS[category]}`)}
+              </Badge>
+            )}
             <h1 className="mb-4 font-bold text-4xl text-white md:text-5xl">
               {title}
             </h1>
