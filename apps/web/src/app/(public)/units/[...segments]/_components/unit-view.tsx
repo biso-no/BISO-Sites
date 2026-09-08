@@ -5,7 +5,12 @@ import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { cachedUnitBoard } from "@/lib/data/unit-board";
-import { cachedPublicUnits, type UnitDetail } from "@/lib/data/units";
+import {
+  cachedPublicUnits,
+  cachedUnitNews,
+  cachedUnitProducts,
+  type UnitDetail,
+} from "@/lib/data/units";
 import { UnitBoardSection } from "./unit-board-section";
 import { UnitNews, UnitShop } from "./unit-feeds";
 import { UnitHero } from "./unit-hero";
@@ -36,12 +41,16 @@ export async function UnitView({
 }) {
   const t = await getTranslations("units");
 
-  const [board, siblings] = await Promise.all([
-    // `cachedUnitBoard` throws rather than resolving `[]` on failure, so a
-    // Graph or API outage is never written into the cache. The page still
-    // renders — the board section has a real empty state.
+  // Every reader below throws rather than resolving empty on failure, so an
+  // outage is never written into a cache entry as a genuine absence. The
+  // fallbacks belong HERE, at the call site, where an empty result lives only
+  // for this render: the page still comes up, and each section has a real
+  // empty state. See the readers' own doc comments.
+  const [board, siblings, news, products] = await Promise.all([
     cachedUnitBoard(unit.campusId, unit.id).catch(() => []),
     cachedPublicUnits(locale).catch(() => []),
+    cachedUnitNews(unit.id, locale).catch(() => []),
+    cachedUnitProducts(unit.id, locale).catch(() => []),
   ]);
 
   const campusUnitCount = siblings.filter(
@@ -61,9 +70,9 @@ export async function UnitView({
 
         <UnitBoardSection members={board} unitName={unit.name} />
 
-        <UnitNews news={unit.news} unitName={unit.name} />
+        <UnitNews news={news} unitName={unit.name} />
 
-        <UnitShop products={unit.products} />
+        <UnitShop products={products} />
 
         <Card className="border-border/50 bg-linear-to-br from-brand-muted to-card p-8 sm:p-10">
           <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">

@@ -127,9 +127,18 @@ Graph `department` join key. Show `unitDisplayName(Name)`
 The default unit page (`(public)/units/[...segments]/_components/unit-view.tsx`)
 renders only when the unit has no published block-editor page. Its board comes
 from Microsoft 365 via `cachedUnitBoard`, a cached server-side wrapper around
-`apps/api`'s `/api/campus/{campusId}/{departmentId}/board`. That function
-THROWS on failure by design — `"use cache"` would otherwise pin an empty board
-onto every unit page for hours — so callers supply their own `.catch()`.
+`apps/api`'s `/api/campus/{campusId}/{departmentId}/board`.
+
+**Every cached unit reader THROWS on a transient failure and never reports a
+false absence.** `"use cache"` does not cache a rejected promise, but it very
+much caches a resolved `null`/`[]` — so a `.catch(() => [])` *inside* one of
+these functions turns one Appwrite blip into a lie that outlives it: an empty
+board on every unit page, a unit's news gone until revalidation, or (worst) a
+`notFound()` that takes a real unit off the site for the whole cache window.
+The graceful fallback belongs at the CALL SITE, where it lives only for that
+render. `cachedUnitDetail` returns `null` only for a genuinely absent or
+non-public unit — `isRowNotFound` matches `404 / row_not_found` exactly, not
+the neighbouring `table_not_found` (a schema error) and not a `504` timeout.
 
 ## Third-party integrations
 

@@ -139,9 +139,12 @@ export default async function UnitPage({ params }: Props) {
   // Resolved (and any notFound()) before the boundary below: the auto-source
   // feed streaming above is safe to defer because it never decides the
   // response status, but "does this department's page exist at all" must.
-  // `cachedUnitDetail` returns null for an inactive row AND for one the public
-  // visibility rule excludes (an operating ledger, a national governance body),
-  // so a 24SO account that is not a student unit has no public page at all.
+  // `cachedUnitDetail` returns null for a missing row, an inactive one, AND
+  // one the public visibility rule excludes (an operating ledger, a national
+  // governance body) — so a 24SO account that is not a student unit has no
+  // public page at all. It THROWS on a transient read failure rather than
+  // reporting a false absence, precisely so this notFound() is never reached
+  // (and cached) because Appwrite happened to time out.
   const unit = await cachedUnitDetail(department.$id, locale);
   if (!unit) {
     notFound();
@@ -185,9 +188,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   // could describe content the body doesn't render.
   const pageResult = publishedUnitPage(rawPageResult, department.$id);
 
-  // `cachedUnitDetail` fans out to three reads; only pay for it when the
-  // published page didn't already supply both fields. It is the same cache
-  // entry the body reads, so this is at worst one extra hit.
+  // `cachedUnitDetail` costs two reads; only pay for it when the published
+  // page didn't already supply both fields. It is the same cache entry the
+  // body reads, so this is at worst one extra hit.
   const needsFallback = !(
     pageResult?.translation?.title && pageResult?.translation?.description
   );
