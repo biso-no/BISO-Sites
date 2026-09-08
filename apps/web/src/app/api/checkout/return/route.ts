@@ -1,6 +1,10 @@
 import { createAdminClient } from "@repo/api/server";
 import { reconcileOrderPayment } from "@repo/payment/reconcile";
 import {
+  appOrderDeepLink,
+  CHECKOUT_CLIENT_PARAM,
+} from "@repo/shared/utils/checkout-return";
+import {
   type FinagoOrder,
   postFinagoTransactionForOrder,
 } from "@repo/shared/utils/finago-order-posting";
@@ -52,6 +56,20 @@ async function syncOrderStatusFromProvider(
       err
     );
   }
+}
+
+/**
+ * A checkout that started in the native app comes back through this same route
+ * — the reconciliation and ledger settlement below only exist here — but must
+ * end up in the app rather than on the website. The status rides along so the
+ * app can render the outcome straight away; it verifies independently as well,
+ * because a browser is free to drop a custom-scheme redirect.
+ */
+function redirectToApp(
+  status: string | null | undefined,
+  orderId: string
+): NextResponse {
+  return NextResponse.redirect(appOrderDeepLink(orderId, status));
 }
 
 /**
@@ -118,6 +136,7 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const orderId = searchParams.get("orderId");
+    const isAppCheckout = searchParams.get(CHECKOUT_CLIENT_PARAM) === "app";
 
     if (!orderId) {
       console.error("[Checkout Return] No orderId provided");
@@ -155,7 +174,9 @@ export async function GET(request: Request) {
       }
     }
 
-    return redirectForStatus(status, orderId, isMembership);
+    return isAppCheckout
+      ? redirectToApp(status, orderId)
+      : redirectForStatus(status, orderId, isMembership);
   } catch (error) {
     console.error("[Checkout Return] Error:", error);
     return NextResponse.redirect(siteUrl("/shop?error=unknown"));

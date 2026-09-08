@@ -64,10 +64,12 @@ const productRow = {
 
 function checkoutRequest({
   authorization,
+  client,
   total = 199,
   userId = "attacker-user",
 }: {
   authorization?: string;
+  client?: string;
   total?: number;
   userId?: string;
 } = {}): NextRequest {
@@ -78,6 +80,7 @@ function checkoutRequest({
 
   return new Request("https://api.biso.no/api/payment/vipps/checkout", {
     body: JSON.stringify({
+      client,
       currency: "NOK",
       customerInfo: {
         email: "buyer@example.com",
@@ -582,6 +585,84 @@ describe("payment checkout authorization", () => {
           total: 199,
         }),
         expect.anything()
+      );
+    });
+  });
+
+  describe("post-payment return target", () => {
+    async function postStripe(request: NextRequest) {
+      return await POST(request, {
+        params: Promise.resolve({ provider: "stripe" }),
+      });
+    }
+
+    it("returns web buyers to the website receipt flow", async () => {
+      await postVipps(checkoutRequest({ authorization: "Bearer valid" }));
+
+      expect(mockedCreateVippsPayment).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.anything(),
+        { returnUrl: "https://biso.no/api/checkout/return?orderId=order-1" }
+      );
+    });
+
+    it("marks an app checkout so the return route deep-links back", async () => {
+      await postVipps(
+        checkoutRequest({ authorization: "Bearer valid", client: "app" })
+      );
+
+      expect(mockedCreateVippsPayment).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.anything(),
+        {
+          returnUrl:
+            "https://biso.no/api/checkout/return?orderId=order-1&client=app",
+        }
+      );
+    });
+
+    it("ignores an unknown client rather than trusting it", async () => {
+      await postVipps(
+        checkoutRequest({
+          authorization: "Bearer valid",
+          client: "https://evil.example",
+        })
+      );
+
+      expect(mockedCreateVippsPayment).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.anything(),
+        { returnUrl: "https://biso.no/api/checkout/return?orderId=order-1" }
+      );
+    });
+
+    it("sends a cancelled app checkout through the return route too", async () => {
+      await postStripe(
+        checkoutRequest({ authorization: "Bearer valid", client: "app" })
+      );
+
+      expect(mockedCreateStripeCheckoutSession).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.anything(),
+        {
+          cancelUrl:
+            "https://biso.no/api/checkout/return?orderId=order-1&client=app",
+          successUrl:
+            "https://biso.no/api/checkout/return?orderId=order-1&client=app",
+        }
+      );
+    });
+
+    it("keeps sending a cancelled web checkout back to the cart", async () => {
+      await postStripe(checkoutRequest({ authorization: "Bearer valid" }));
+
+      expect(mockedCreateStripeCheckoutSession).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.anything(),
+        {
+          cancelUrl: "https://biso.no/shop/cart?cancelled=true",
+          successUrl: "https://biso.no/api/checkout/return?orderId=order-1",
+        }
       );
     });
   });
