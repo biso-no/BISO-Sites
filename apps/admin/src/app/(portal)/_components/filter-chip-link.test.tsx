@@ -105,6 +105,7 @@ test("merges its filter with a search write that has not committed yet", async (
       null,
       createElement(Search),
       createElement(FilterChipLink, {
+        // biome-ignore lint/correctness/noChildrenProp: FilterChipLinkProps declares `children` as required, so passing it as a createElement argument instead does not type-check (TS2769).
         children: "Societies",
         href: "/departments?type=society",
         params: { type: "society" },
@@ -128,6 +129,7 @@ test("merges its filter with a search write that has not committed yet", async (
 test("keeps an href so the chip is still a real link", async () => {
   await mount(
     createElement(FilterChipLink, {
+      // biome-ignore lint/correctness/noChildrenProp: FilterChipLinkProps declares `children` as required, so passing it as a createElement argument instead does not type-check (TS2769).
       children: "Societies",
       href: "/departments?type=society",
       params: { type: "society" },
