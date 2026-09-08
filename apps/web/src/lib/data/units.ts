@@ -27,7 +27,7 @@
  * cached. See that module's header for the incident this protects against.
  */
 
-import { Query } from "@repo/api";
+import { AppwriteException, Query } from "@repo/api";
 import { createPublicClient } from "@repo/api/server";
 import { resolveStorageFileUrl } from "@repo/api/storage";
 import type {
@@ -85,9 +85,29 @@ export interface PublicUnit {
 }
 
 export interface UnitDetail extends PublicUnit {
-  news: News[];
-  products: WebshopProducts[];
   socials: { platform: string | null; url: string | null }[];
+}
+
+/**
+ * A row that genuinely does not exist — as opposed to a read that failed.
+ *
+ * Appwrite answers a missing row with `404 / row_not_found`. The neighbouring
+ * 404, `table_not_found`, is deliberately NOT matched: that means the schema
+ * is wrong, and treating it as "this unit is absent" would cache a 404 across
+ * every unit page for a deployment mistake. A timeout arrives as
+ * `504 / appwrite_timeout` (see the wrapper in `@repo/api/server`) and is not
+ * a 404 at all.
+ *
+ * Exported for `units.test.ts`: this predicate is the whole difference between
+ * "no such unit" and "the backend blinked", and getting it wrong is invisible
+ * until a real unit disappears behind a cached 404.
+ */
+export function isRowNotFound(error: unknown): boolean {
+  return (
+    error instanceof AppwriteException &&
+    error.code === 404 &&
+    error.type === "row_not_found"
+  );
 }
 
 /** Card copy budget. Long enough for two lines at the card's width. */
@@ -184,7 +204,22 @@ export async function cachedPublicUnits(locale: Locale): Promise<PublicUnit[]> {
 }
 
 /**
- * One unit plus the feeds its page renders.
+ * One unit.
+ *
+ * Returns `null` ONLY for a unit that genuinely has no public page — the row
+ * does not exist, is inactive, or the public-visibility rule excludes it.
+ * Every other failure (a timeout, an Appwrite outage, a schema error) rejects,
+ * because the caller turns `null` into `notFound()` and `"use cache"` would
+ * then store that 404 for the whole `minutes` window: a transient backend blip
+ * would take a real unit off the site long after the backend recovered. The
+ * `(public)` error boundary renders a retryable error instead, and nothing is
+ * written to the cache.
+ *
+ * The news and product feeds deliberately live in their OWN cache entries
+ * (`cachedUnitNews`, `cachedUnitProducts`) rather than here, for the same
+ * reason in reverse: they are the parts a page can legitimately render
+ * without, so their fallback belongs at the call site, where an empty result
+ * is never mistaken for the truth and cached.
  *
  * Keyed on `$id` rather than slug: the caller has already resolved the URL to a
  * department row (see `(public)/units/[...segments]/resolve.ts`), and a unit
@@ -198,76 +233,108 @@ export async function cachedUnitDetail(
   cacheLife("minutes");
   const { db } = await createPublicClient();
 
-  const department = await db
-    .getRow<Departments>("app", "departments", id, [
+  let department: Departments;
+  try {
+    department = await db.getRow<Departments>("app", "departments", id, [
       Query.select([...UNIT_SELECT, "socials.platform", "socials.url"]),
-    ])
-    .catch(() => null);
+    ]);
+  } catch (error) {
+    if (isRowNotFound(error)) {
+      return null;
+    }
+    throw error;
+  }
 
-  if (!(department && isPublicUnit(department))) {
+  if (!isPublicUnit(department)) {
     return null;
   }
 
-  const [translations, news, products] = await Promise.all([
-    db.listRows<ContentTranslations>("app", "content_translations", [
+  const translations = await db.listRows<ContentTranslations>(
+    "app",
+    "content_translations",
+    [
       Query.select(["$id", "content_id", "description", "short_description"]),
       Query.equal("content_type", ContentTranslationsContentType.DEPARTMENT),
       Query.equal("content_id", id),
       Query.equal("locale", locale),
       Query.limit(1),
-    ]),
-    db
-      .listRows<News>("app", "news", [
-        Query.select([
-          "$id",
-          "$createdAt",
-          "slug",
-          "image",
-          "url",
-          "translation_refs.locale",
-          "translation_refs.title",
-          "translation_refs.short_description",
-        ]),
-        Query.equal("department_id", id),
-        Query.equal("status", NewsStatus.PUBLISHED),
-        Query.equal("translation_refs.locale", locale),
-        Query.orderDesc("$createdAt"),
-        Query.limit(UNIT_FEED_LIMIT),
-      ])
-      .then((res) => res.rows)
-      .catch(() => [] as News[]),
-    db
-      .listRows<WebshopProducts>("app", "webshop_products", [
-        Query.select([
-          "$id",
-          "$createdAt",
-          "slug",
-          "image",
-          "regular_price",
-          "member_price",
-          "member_only",
-          "stock",
-          "translation_refs.locale",
-          "translation_refs.title",
-          "translation_refs.short_description",
-        ]),
-        Query.equal("departmentId", id),
-        Query.equal("status", WebshopProductsStatus.PUBLISHED),
-        Query.equal("translation_refs.locale", locale),
-        Query.orderDesc("$createdAt"),
-        Query.limit(UNIT_FEED_LIMIT),
-      ])
-      .then((res) => res.rows)
-      .catch(() => [] as WebshopProducts[]),
-  ]);
+    ]
+  );
 
   return {
     ...toPublicUnit(department, translations.rows[0]),
-    news,
-    products,
     socials: (department.socials ?? []).map((social) => ({
       platform: social.platform ?? null,
       url: social.url ?? null,
     })),
   };
+}
+
+/**
+ * A unit's published news.
+ *
+ * Throws on failure — callers supply their own `.catch(() => [])` OUTSIDE this
+ * function. Resolving `[]` here instead would let one failed query be cached
+ * as "this unit has published nothing", hiding real news until the entry
+ * revalidates. Only a genuinely empty feed resolves empty, and caching that is
+ * correct.
+ */
+export async function cachedUnitNews(
+  id: string,
+  locale: Locale
+): Promise<News[]> {
+  "use cache";
+  cacheLife("minutes");
+  const { db } = await createPublicClient();
+
+  const res = await db.listRows<News>("app", "news", [
+    Query.select([
+      "$id",
+      "$createdAt",
+      "slug",
+      "image",
+      "url",
+      "translation_refs.locale",
+      "translation_refs.title",
+      "translation_refs.short_description",
+    ]),
+    Query.equal("department_id", id),
+    Query.equal("status", NewsStatus.PUBLISHED),
+    Query.equal("translation_refs.locale", locale),
+    Query.orderDesc("$createdAt"),
+    Query.limit(UNIT_FEED_LIMIT),
+  ]);
+  return res.rows;
+}
+
+/** A unit's published shop items. Throws on failure — see `cachedUnitNews`. */
+export async function cachedUnitProducts(
+  id: string,
+  locale: Locale
+): Promise<WebshopProducts[]> {
+  "use cache";
+  cacheLife("minutes");
+  const { db } = await createPublicClient();
+
+  const res = await db.listRows<WebshopProducts>("app", "webshop_products", [
+    Query.select([
+      "$id",
+      "$createdAt",
+      "slug",
+      "image",
+      "regular_price",
+      "member_price",
+      "member_only",
+      "stock",
+      "translation_refs.locale",
+      "translation_refs.title",
+      "translation_refs.short_description",
+    ]),
+    Query.equal("departmentId", id),
+    Query.equal("status", WebshopProductsStatus.PUBLISHED),
+    Query.equal("translation_refs.locale", locale),
+    Query.orderDesc("$createdAt"),
+    Query.limit(UNIT_FEED_LIMIT),
+  ]);
+  return res.rows;
 }
