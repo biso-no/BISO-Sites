@@ -30,20 +30,24 @@ import {
 import type { DbClient } from "./vipps-order-ops";
 
 /**
- * `refunded_total` / `refunded_at` / `refund_lock` and the `refunds`
- * relationship live on the Appwrite `orders` table but postdate the current
- * generated types. Extend locally until `packages/api/types/appwrite.ts` is
- * regenerated after the schema push — the same convention `FinagoOrder` in
- * `finago-order-posting.ts` already uses.
+ * The generated `Orders` row, with `refunds` re-typed to the tolerant shape
+ * this module actually reads.
+ *
+ * The generated type declares `refunds: OrderRefunds[]` with every
+ * relationship fully expanded, but what Appwrite returns depends on the
+ * projection: a relationship comes back as an id string unless it was
+ * selected. `OrderRefundRow` models both, so the mappers below cannot be
+ * broken by a caller that reads the order with a narrower select.
  */
-export type RefundableOrder = BaseOrders & {
-  refund_lock?: number | null;
-  refunded_at?: string | null;
-  refunded_total?: number | null;
+export type RefundableOrder = Omit<BaseOrders, "refunds"> & {
   refunds?: OrderRefundRow[] | null;
 };
 
-/** One `order_refunds` row. Hand-written for the same reason as above. */
+/**
+ * One `order_refunds` row as this module reads it — deliberately looser than
+ * the generated `OrderRefunds`: `order_item` may arrive as an id string rather
+ * than an expanded row, and `status` may be absent on a partially-selected read.
+ */
 export interface OrderRefundRow {
   $createdAt?: string;
   $id: string;
@@ -75,12 +79,15 @@ const REFUNDS_TABLE = "order_refunds";
 const REFUND_LINES_TABLE = "order_refund_lines";
 
 /**
- * Loads the order with its lines AND its refund history in one read. Must be a
- * `Query.select(...)` string, not a bare column list: `getRow`'s fourth
- * argument is a query array, so a raw list of column names is not a projection
- * — the `refunds` relationship would come back empty, `computeRefundable`
- * would see no prior refunds, and every refund would be allowed to spend the
- * order's full total again.
+ * Loads the order with its line items. Must be a `Query.select(...)` string,
+ * not a bare column list: `getRow`'s fourth argument is a query array.
+ *
+ * Refunds are deliberately NOT selected here. The `orders → order_refunds`
+ * relationship exists only on the child (`order_refunds.order`); there is no
+ * `orders.refunds` back-reference, so selecting `refunds.*` asks Appwrite for
+ * an attribute that does not exist and fails the whole read. `loadOrderRefunds`
+ * queries the child table instead, which works regardless of which side of the
+ * relationship is materialized.
  */
 export const ORDER_WITH_REFUNDS_SELECT = Query.select([
   "*",
@@ -88,9 +95,34 @@ export const ORDER_WITH_REFUNDS_SELECT = Query.select([
   "order_items.product.*",
   "order_items.variation.*",
   "order_items.field_answers.*",
-  "refunds.*",
-  "refunds.lines.*",
 ]);
+
+const MAX_REFUNDS_PER_ORDER = 200;
+
+/**
+ * The refunds recorded against one order, newest first, with their lines.
+ *
+ * Queried from the child table by parent id (the `<relationship>.$id` idiom
+ * used elsewhere in the repo) rather than read off a back-reference on the
+ * order.
+ *
+ * Never swallows a failure: an empty list and "the query broke" are the same
+ * value to `computeRefundable`, and treating the second as the first would let
+ * a refund spend the order's full total again.
+ */
+export async function loadOrderRefunds(
+  orderId: string,
+  db: DbClient
+): Promise<OrderRefundRow[]> {
+  const { dbId } = tableIds();
+  const response = await db.listRows(dbId, REFUNDS_TABLE, [
+    Query.equal("order.$id", orderId),
+    Query.select(["*", "lines.*"]),
+    Query.orderDesc("$createdAt"),
+    Query.limit(MAX_REFUNDS_PER_ORDER),
+  ]);
+  return response.rows as unknown as OrderRefundRow[];
+}
 
 function tableIds() {
   return {
@@ -225,6 +257,11 @@ export async function refundOrder(
   if (!order) {
     return { ok: false, reason: "not_found" };
   }
+
+  // Deliberately unguarded: if this read fails, the refund history is unknown,
+  // and proceeding as though the order had never been refunded would let this
+  // refund spend its full total a second time.
+  order.refunds = await loadOrderRefunds(orderId, db);
 
   const items = toRefundableItems(order);
   const summary = computeRefundable(

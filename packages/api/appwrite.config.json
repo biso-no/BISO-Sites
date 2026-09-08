@@ -8845,6 +8845,18 @@
           "twoWayKey": "order",
           "onDelete": "cascade",
           "side": "parent"
+        },
+        {
+          "key": "refunds",
+          "type": "relationship",
+          "required": false,
+          "array": false,
+          "relatedTable": "order_refunds",
+          "relationType": "oneToMany",
+          "twoWay": true,
+          "twoWayKey": "order",
+          "onDelete": "cascade",
+          "side": "parent"
         }
       ],
       "indexes": [

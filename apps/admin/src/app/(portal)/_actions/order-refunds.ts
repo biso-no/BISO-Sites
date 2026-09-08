@@ -11,6 +11,7 @@ import { isMembershipOrder } from "@repo/shared/utils/membership-fulfilment";
 import { getOrderItems } from "@repo/shared/utils/order-parsing";
 import {
   type LedgerReverser,
+  loadOrderRefunds,
   ORDER_WITH_REFUNDS_SELECT,
   type RefundableOrder,
   type RefundExecutor,
@@ -30,6 +31,19 @@ import {
 import { logAuditEvent } from "./audit-log";
 
 type AdminDb = Awaited<ReturnType<typeof createAdminClient>>["db"];
+
+/**
+ * Whether an Appwrite failure means "this row does not exist", as opposed to a
+ * malformed query, a permission problem, or the service being down. Only the
+ * first may be reported to the caller as a 404 — the rest must surface.
+ */
+function isRowNotFound(error: unknown): boolean {
+  const code = (error as { code?: number } | null)?.code;
+  const type = (error as { type?: string } | null)?.type;
+  return (
+    code === 404 || type === "row_not_found" || type === "document_not_found"
+  );
+}
 
 export interface RefundOrderInput {
   amount?: number;
@@ -92,15 +106,32 @@ export async function getOrderDetail(
   const { campusIds } = await requireOrderAccess();
   const { db } = await createSessionClient();
 
+  // Only a genuine "no such row" may become a 404. Anything else is rethrown:
+  // swallowing it renders the not-found page for what is really a broken
+  // query, which is exactly how a bad projection stayed invisible.
   const order = await db
     .getRow<RefundableOrder>("app", "orders", orderId, [
       ORDER_WITH_REFUNDS_SELECT,
     ])
-    .catch(() => null);
+    .catch((error: unknown) => {
+      if (isRowNotFound(error)) {
+        return null;
+      }
+      console.error(`[order-detail] Failed to read order ${orderId}:`, error);
+      throw error;
+    });
 
-  if (!(order && isWithinScope(order, campusIds))) {
+  if (!order) {
     return null;
   }
+  if (!isWithinScope(order, campusIds)) {
+    console.warn(
+      `[order-detail] ${orderId} is outside the caller's campus scope (order campus: ${order.campus_id ?? "none"}).`
+    );
+    return null;
+  }
+
+  order.refunds = await loadOrderRefunds(orderId, db);
 
   const items = toRefundableItems(order);
   const summary = computeRefundable(
@@ -222,7 +253,12 @@ export async function refundOrderAction(
       .getRow<RefundableOrder>("app", "orders", input.orderId, [
         ORDER_WITH_REFUNDS_SELECT,
       ])
-      .catch(() => null);
+      .catch((error: unknown) => {
+        if (isRowNotFound(error)) {
+          return null;
+        }
+        throw error;
+      });
     if (!order) {
       return { success: false, error: REFUND_ERRORS.not_found };
     }

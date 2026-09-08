@@ -427,6 +427,29 @@ export enum ContentTranslationsContentType {
   PAGE = "page",
 }
 
+export enum OrderRefundsCurrency {
+  NOK = "NOK",
+}
+
+export enum OrderRefundsStatus {
+  PENDING = "pending",
+  SUCCEEDED = "succeeded",
+  FAILED = "failed",
+}
+
+export enum OrderRefundsProvider {
+  VIPPS = "vipps",
+  STRIPE = "stripe",
+}
+
+export enum ProductCustomFieldsType {
+  TEXT = "text",
+  TEXTAREA = "textarea",
+  NUMBER = "number",
+  SELECT = "select",
+  EMAIL = "email",
+}
+
 export type News = Models.Row & {
   slug: string | null;
   status: NewsStatus;
@@ -814,6 +837,16 @@ export type CartReservations = Models.Row & {
   user_id: string;
   quantity: number;
   expires_at: string;
+  field_answers: CartFieldAnswers[];
+};
+
+export type CartFieldAnswers = Models.Row & {
+  reservation: CartReservations;
+  field: ProductCustomFields;
+  field_key: string;
+  value: string;
+  sort_order: number;
+  label: string;
 };
 
 export type EventSegments = Models.Row & {
@@ -1392,7 +1425,11 @@ export type Orders = Models.Row & {
   finago_posting_lock: number;
   membership_invoice_id: string | null;
   membership_fulfilment_lock: number;
+  refunded_total: number | null;
+  refunded_at: string | null;
+  refund_lock: number;
   order_items: OrderItems[];
+  refunds: OrderRefunds[];
 };
 
 export type LargeEventItem = Models.Row & {
@@ -1456,6 +1493,7 @@ export type WebshopProducts = Models.Row & {
   inventory_mode: WebshopProductsInventoryMode;
   finago_account_number: number | null;
   variations: ProductVariations[];
+  custom_fields: ProductCustomFields[];
 };
 
 export type Memberships = Models.Row & {
@@ -1492,7 +1530,6 @@ export type OrderItems = Models.Row & {
   unit_price: number | null;
   quantity: number | null;
   product_type: string | null;
-  custom_fields_json: string | null;
   membership_id: string | null;
   category_id: string | null;
   duration: string | null;
@@ -1501,6 +1538,41 @@ export type OrderItems = Models.Row & {
   product: WebshopProducts;
   variation: ProductVariations;
   line_total: number | null;
+  field_answers: OrderItemFieldAnswers[];
+};
+
+export type OrderItemFieldAnswers = Models.Row & {
+  order_item: OrderItems;
+  field: ProductCustomFields;
+  field_key: string;
+  label: string;
+  value: string;
+  sort_order: number;
+};
+
+export type OrderRefunds = Models.Row & {
+  order: Orders;
+  amount: number;
+  currency: OrderRefundsCurrency;
+  status: OrderRefundsStatus;
+  provider: OrderRefundsProvider | null;
+  provider_refund_id: string | null;
+  idempotency_key: string | null;
+  reason: string | null;
+  restock: boolean;
+  finago_transaction_id: string | null;
+  error: string | null;
+  created_by: string | null;
+  created_by_name: string | null;
+  lines: OrderRefundLines[];
+};
+
+export type OrderRefundLines = Models.Row & {
+  refund: OrderRefunds;
+  order_item: OrderItems;
+  quantity: number | null;
+  amount: number | null;
+  name: string | null;
 };
 
 export type ProductVariations = Models.Row & {
@@ -1513,6 +1585,20 @@ export type ProductVariations = Models.Row & {
   enabled: boolean;
   product: WebshopProducts;
 };
+
+export type ProductCustomFields = Models.Row & {
+  field_key: string;
+  label: string;
+  type: ProductCustomFieldsType;
+  is_required: boolean;
+  placeholder: string | null;
+  help_text: string | null;
+  options: string[] | null;
+  sort_order: number;
+  enabled: boolean;
+  product: WebshopProducts;
+};
+
 export type AuthTokens = Models.Row & {
   token: string;
 };

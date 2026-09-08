@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   type LedgerReverser,
+  loadOrderRefunds,
   ORDER_WITH_REFUNDS_SELECT,
   type RefundExecutor,
   refundOrder,
@@ -86,6 +87,7 @@ beforeEach(() => {
     fn.mockReset();
   }
   db.createRow.mockResolvedValue({});
+  db.listRows.mockResolvedValue({ rows: [] });
   db.updateRow.mockResolvedValue({});
   db.decrementRowColumn.mockResolvedValue({});
   db.incrementRowColumn.mockResolvedValue({ refund_lock: 1 });
@@ -132,14 +134,20 @@ describe("toRecordedRefunds", () => {
 });
 
 describe("ORDER_WITH_REFUNDS_SELECT", () => {
-  it("is a Query.select projection that pulls in the refund history", () => {
-    // Regression guard: passing a bare column list here silently returns an
-    // order with no `refunds`, so `computeRefundable` sees nothing refunded
-    // and every refund can spend the order's full total again.
+  it("is a Query.select projection over the order and its lines", () => {
+    // Must be a Query string, not a bare column list: `getRow`'s fourth
+    // argument is a query array, so a raw list is not a projection at all.
     expect(typeof ORDER_WITH_REFUNDS_SELECT).toBe("string");
     expect(ORDER_WITH_REFUNDS_SELECT).toContain("select");
-    expect(ORDER_WITH_REFUNDS_SELECT).toContain("refunds.*");
-    expect(ORDER_WITH_REFUNDS_SELECT).toContain("refunds.lines.*");
+    expect(ORDER_WITH_REFUNDS_SELECT).toContain("order_items.*");
+  });
+
+  it("does NOT select a refunds back-reference off the order", () => {
+    // Regression guard for a real bug: there is no `orders.refunds` attribute,
+    // so selecting it made Appwrite reject the whole read. The admin order page
+    // swallowed that as a 404, which is why it looked like a missing order
+    // rather than a broken query. Refunds come from `loadOrderRefunds`.
+    expect(ORDER_WITH_REFUNDS_SELECT).not.toContain("refunds");
   });
 
   it("is the projection refundOrder actually reads the order with", async () => {
@@ -152,6 +160,37 @@ describe("ORDER_WITH_REFUNDS_SELECT", () => {
 
     const read = db.getRow.mock.calls.find((call) => call[1] === "orders");
     expect(read?.[3]).toEqual([ORDER_WITH_REFUNDS_SELECT]);
+  });
+});
+
+describe("loadOrderRefunds", () => {
+  it("queries the refund table by parent order id", async () => {
+    await loadOrderRefunds(ORDER_ID, db);
+
+    const [, table, queries] = db.listRows.mock.calls[0] ?? [];
+    expect(table).toBe("order_refunds");
+    expect(queries.some((q: string) => q.includes(ORDER_ID))).toBe(true);
+    expect(queries.some((q: string) => q.includes("lines.*"))).toBe(true);
+  });
+
+  it("propagates a read failure instead of reporting no refunds", async () => {
+    // An empty list and "the query broke" are the same value to
+    // `computeRefundable`; treating the second as the first would let a refund
+    // spend the order's full total a second time.
+    db.listRows.mockRejectedValueOnce(new Error("appwrite down"));
+    await expect(loadOrderRefunds(ORDER_ID, db)).rejects.toThrow(
+      "appwrite down"
+    );
+  });
+
+  it("aborts a refund when the refund history cannot be read", async () => {
+    db.listRows.mockRejectedValueOnce(new Error("appwrite down"));
+    const executor = executorReturning(49_900);
+
+    await expect(
+      refundOrder({ db, executor, orderId: ORDER_ID, amount: 499 })
+    ).rejects.toThrow("appwrite down");
+    expect(executor.refund).not.toHaveBeenCalled();
   });
 });
 
@@ -247,15 +286,10 @@ describe("refundOrder", () => {
   });
 
   it("rejects an amount beyond the remaining balance", async () => {
-    db.getRow.mockImplementation(
-      orderRowFor(
-        buildOrder({
-          refunds: [
-            { $id: "r1", amount: 1000, status: "succeeded", lines: [] },
-          ],
-        })
-      )
-    );
+    // Prior refunds are read from the refund table, not off the order row.
+    db.listRows.mockResolvedValue({
+      rows: [{ $id: "r1", amount: 1000, status: "succeeded", lines: [] }],
+    });
 
     const result = await refundOrder({
       db,

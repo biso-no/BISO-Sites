@@ -89,8 +89,12 @@ export interface ProductVariation {
 export type Product = WebshopProducts;
 
 // Helper interface for working with product data including translations
+// `custom_fields` is omitted alongside `variations` for the same reason: this
+// view carries its own lighter shape (`ProductCustomField`), not the generated
+// relationship row. The generated type gained this relationship when product
+// custom fields moved off `custom_fields_json`.
 export interface ProductWithTranslations
-  extends Omit<Partial<WebshopProducts>, "variations"> {
+  extends Omit<Partial<WebshopProducts>, "custom_fields" | "variations"> {
   category?: string;
   custom_fields?: ProductCustomField[];
   description?: string;
