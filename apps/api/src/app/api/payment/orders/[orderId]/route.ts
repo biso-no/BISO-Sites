@@ -60,6 +60,32 @@ function hasBearerToken(req: NextRequest): boolean {
   return req.headers.get("authorization")?.startsWith("Bearer ") ?? false;
 }
 
+/**
+ * Whether a failed read means "not this buyer's order", as opposed to Appwrite
+ * being slow, rate-limiting, or down.
+ *
+ * The distinction matters more here than usual: the app polls this endpoint to
+ * find out whether a payment went through, and a 404 tells it the order does
+ * not exist. Reporting a timeout that way would let a real, paid order be
+ * written off as imaginary, so anything that is not a genuine absence must
+ * surface as a retryable 500 instead.
+ *
+ * Row security hides another buyer's order behind the same not-found response,
+ * and an expired or rejected session reads as unauthorised; both are correctly
+ * "no such order for you".
+ */
+function isNotThisBuyersOrder(error: unknown): boolean {
+  const code = (error as { code?: number } | null)?.code;
+  const type = (error as { type?: string } | null)?.type;
+  return (
+    code === 404 ||
+    code === 401 ||
+    code === 403 ||
+    type === "row_not_found" ||
+    type === "document_not_found"
+  );
+}
+
 async function authenticate(req: NextRequest) {
   if (!hasBearerToken(req)) {
     return null;
@@ -136,7 +162,14 @@ export async function GET(
     type StoredOrder = Orders & { $id: string; $createdAt: string };
     const own = await auth.client.db
       .getRow<StoredOrder>("app", "orders", orderId, [ORDER_ITEMS_SELECT])
-      .catch(() => null);
+      .catch((error: unknown) => {
+        // Only a genuine absence is a 404; everything else belongs to the
+        // outer handler, which answers 500 and invites a retry.
+        if (isNotThisBuyersOrder(error)) {
+          return null;
+        }
+        throw error;
+      });
     if (!own) {
       return json({ message: "Order not found" }, 404);
     }
@@ -168,6 +201,9 @@ export async function GET(
     });
     await settleOrderIfPaid(orderId, db);
 
+    // This one may fail harmlessly: the order was already read successfully
+    // above, so falling back to that copy returns a real order rather than
+    // denying one exists.
     const refreshed = await auth.client.db
       .getRow<StoredOrder>("app", "orders", orderId, [ORDER_ITEMS_SELECT])
       .catch(() => null);

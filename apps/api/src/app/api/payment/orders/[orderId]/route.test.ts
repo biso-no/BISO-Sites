@@ -36,10 +36,19 @@ function orderRow(overrides: Record<string, unknown> = {}) {
   };
 }
 
-function mockBuyer(row: Record<string, unknown> | null, userId = "buyer-1") {
+/** An Appwrite failure, shaped the way the SDK actually raises one. */
+function appwriteError(code: number, type: string) {
+  return Object.assign(new Error(type), { code, type });
+}
+
+function mockBuyer(
+  row: Record<string, unknown> | null,
+  userId = "buyer-1",
+  failure = appwriteError(404, "row_not_found")
+) {
   const getRow = row
     ? vi.fn().mockResolvedValue(row)
-    : vi.fn().mockRejectedValue(new Error("row_not_found"));
+    : vi.fn().mockRejectedValue(failure);
   mockedCreateAuthenticatedClient.mockResolvedValue({
     account: { get: vi.fn().mockResolvedValue({ $id: userId }) },
     db: { getRow },
@@ -133,6 +142,34 @@ describe("buyer order verification", () => {
     const response = await GET(request(), params);
 
     expect(response.status).toBe(404);
+  });
+
+  it("treats another buyer's hidden order as not found", async () => {
+    // Row security answers a read the caller has no grant for as unauthorised
+    // rather than absent; for this endpoint both mean "no such order for you".
+    mockBuyer(null, "buyer-1", appwriteError(401, "user_unauthorized"));
+
+    const response = await GET(request(), params);
+
+    expect(response.status).toBe(404);
+  });
+
+  it("does not report a backend failure as a missing order", async () => {
+    // The app polls this to learn whether a payment went through. A 404 here
+    // would let it write off a real, paid order as imaginary, so a timeout has
+    // to surface as retryable instead.
+    mockBuyer(
+      null,
+      "buyer-1",
+      appwriteError(503, "general_service_unavailable")
+    );
+
+    const response = await GET(request(), params);
+
+    expect(response.status).toBe(500);
+    await expect(response.json()).resolves.toMatchObject({
+      message: "Failed to load order",
+    });
   });
 
   it("projects the order for the app's confirmation screen", async () => {

@@ -105,13 +105,13 @@ function buildAnswerRows(
 /** All active reservations for a product, across every buyer. */
 async function readActiveReservations(db: CartDb, productId: string) {
   const now = new Date().toISOString();
-  const result = await db.listRows<CartReservations>(
+  const result = await db.listRows<CartReservations & { $id: string }>(
     "app",
     "cart_reservations",
     [
       Query.equal("product_id", productId),
       Query.greaterThan("expires_at", now),
-      Query.select(["quantity", "user_id"]),
+      Query.select(["$id", "quantity", "user_id"]),
       Query.limit(MAX_RESERVATION_ROWS),
     ]
   );
@@ -171,27 +171,38 @@ async function claimOwnReservation(
 
 /**
  * How many units the caller may hold right now: what is left after everyone
- * else's active holds, plus their own active hold added back so editing their
- * own quantity is not blocked by it. `null` stock means untracked (no cap).
+ * else's active holds, plus the hold this write is about to replace added back
+ * so editing their own quantity is not blocked by it. `null` stock means
+ * untracked (no cap).
  *
- * An *expired* own hold is deliberately not credited back: availability
- * ignores expired rows, so counting one would inflate the ceiling and allow an
- * oversell until the cleanup cron catches up.
+ * Only [creditedRowId] is credited — the single row this buyer is allowed to
+ * have for this product — never "every row the buyer owns". A duplicate that
+ * `claimOwnReservation` could not delete still counts against availability like
+ * anyone else's hold, but crediting it back would hand the buyer a ceiling
+ * above what is really free, which is exactly the oversell the deterministic
+ * row id exists to prevent. Under-offering after a failed cleanup is the safe
+ * direction, and the next write retries the cleanup.
+ *
+ * An *expired* own hold is likewise not credited back: availability ignores
+ * expired rows, so counting one would inflate the ceiling until the cleanup
+ * cron catches up. It simply is not among the active rows read here.
  */
 async function computeCallerCeiling(
   db: CartDb,
   productId: string,
-  userId: string,
-  stock: number | null
+  stock: number | null,
+  creditedRowId: string | null
 ): Promise<number> {
   if (stock === null) {
     return Number.POSITIVE_INFINITY;
   }
   const reservations = await readActiveReservations(db, productId);
   const totalReserved = sumReservedQuantity(reservations);
-  const ownActiveHold = sumReservedQuantity(
-    reservations.filter((row) => row.user_id === userId)
-  );
+  const ownActiveHold = creditedRowId
+    ? sumReservedQuantity(
+        reservations.filter((row) => row.$id === creditedRowId)
+      )
+    : 0;
   return computeAvailableStock(stock, totalReserved) + ownActiveHold;
 }
 
@@ -247,7 +258,12 @@ export async function PUT(req: NextRequest) {
     const rowId = cartReservationRowId(userId, productId);
     const existing = await claimOwnReservation(db, productId, userId, rowId);
 
-    const ceiling = await computeCallerCeiling(db, productId, userId, stock);
+    const ceiling = await computeCallerCeiling(
+      db,
+      productId,
+      stock,
+      existing?.$id ?? null
+    );
     if (ceiling <= 0) {
       return json({ message: "Out of stock", quantity: 0 }, 409);
     }

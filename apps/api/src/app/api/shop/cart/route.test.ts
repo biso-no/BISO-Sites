@@ -299,6 +299,45 @@ describe("cart reservations", () => {
     await expect(response.json()).resolves.toMatchObject({ quantity: 5 });
   });
 
+  it("holds the line when a duplicate could not be deleted", async () => {
+    const db = mockDb({
+      product: { status: "published", stock: 10 },
+      reservations: [
+        { $id: "r-other", quantity: 5, user_id: "buyer-2" },
+        { $id: "r-mine", quantity: 3, user_id: "buyer-1" },
+        { $id: "r-mine-dupe", quantity: 3, user_id: "buyer-1" },
+      ],
+    });
+    // Cleanup is best effort, so the phantom row survives this request. It must
+    // still not be credited back as stock this buyer is holding.
+    db.deleteRow.mockRejectedValue(new Error("appwrite is down"));
+
+    const response = await PUT(
+      putRequest({ productId: "product-1", quantity: 6 })
+    );
+
+    // The phantom 3 still counts against availability like anyone else's hold
+    // (10 - 5 - 3 - 3 = 0 free), and only the surviving row's 3 is credited
+    // back — so the buyer is offered 3 rather than the 5 they could really
+    // have. Under-offering is the safe direction; the next write retries the
+    // cleanup.
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({ quantity: 3 });
+  });
+
+  it("credits nothing back on a buyer's first hold", async () => {
+    mockDb({
+      product: { status: "published", stock: 10 },
+      reservations: [{ $id: "r-other", quantity: 5, user_id: "buyer-2" }],
+    });
+
+    const response = await PUT(
+      putRequest({ productId: "product-1", quantity: 8 })
+    );
+
+    await expect(response.json()).resolves.toMatchObject({ quantity: 5 });
+  });
+
   it("reports an out-of-stock product as a conflict", async () => {
     mockDb({
       product: { status: "published", stock: 2 },
