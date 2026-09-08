@@ -104,11 +104,12 @@ test("merges its filter with a search write that has not committed yet", async (
       ListParamsProvider,
       null,
       createElement(Search),
-      createElement(FilterChipLink, {
-        children: "Societies",
-        href: "/departments?type=society",
-        params: { type: "society" },
-      })
+      <FilterChipLink
+        href="/departments?type=society"
+        params={{ type: "society" }}
+      >
+        Societies
+      </FilterChipLink>
     )
   );
 
@@ -127,11 +128,12 @@ test("merges its filter with a search write that has not committed yet", async (
 
 test("keeps an href so the chip is still a real link", async () => {
   await mount(
-    createElement(FilterChipLink, {
-      children: "Societies",
-      href: "/departments?type=society",
-      params: { type: "society" },
-    })
+    <FilterChipLink
+      href="/departments?type=society"
+      params={{ type: "society" }}
+    >
+      Societies
+    </FilterChipLink>
   );
 
   expect(chip().getAttribute("href")).toBe("/departments?type=society");
