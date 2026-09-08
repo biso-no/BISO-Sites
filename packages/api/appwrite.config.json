@@ -10141,6 +10141,15 @@
           "encrypt": false
         },
         {
+          "key": "ledger_allocation",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 2000,
+          "default": null,
+          "encrypt": false
+        },
+        {
           "key": "created_by",
           "type": "string",
           "required": false,

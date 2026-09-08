@@ -1,16 +1,15 @@
 "use server";
 
 import { createAdminClient } from "@repo/api/server";
-import { postShopRefundTransaction } from "@repo/connectors/24sevenoffice";
 import {
   resolveStripeCredentials,
   resolveVippsCredentials,
 } from "@repo/payment/credentials";
 import { type RefundCredentials, refundPayment } from "@repo/payment/refunds";
+import { finagoRefundReverser } from "@repo/shared/utils/finago-refund-reverser";
 import { isMembershipOrder } from "@repo/shared/utils/membership-fulfilment";
 import { getOrderItems } from "@repo/shared/utils/order-parsing";
 import {
-  type LedgerReverser,
   loadOrderRefunds,
   ORDER_WITH_REFUNDS_SELECT,
   type RefundableOrder,
@@ -210,23 +209,6 @@ async function buildExecutor(
   return { error: "This order has no supported payment provider" };
 }
 
-function buildLedgerReverser(order: RefundableOrder): LedgerReverser {
-  return {
-    reverse: async ({ allocation, amount, orderId }) => {
-      if (allocation.length === 0) {
-        return null;
-      }
-      return await postShopRefundTransaction({
-        allocation,
-        amount,
-        campusId: order.campus_id ?? null,
-        date: new Date().toISOString().slice(0, 10),
-        orderId,
-      });
-    },
-  };
-}
-
 const REFUND_ERRORS: Record<string, string> = {
   amount_exceeds_refundable:
     "That is more than the amount still refundable on this order.",
@@ -287,7 +269,7 @@ export async function refundOrderAction(
       amount: input.amount,
       db,
       executor: built.executor,
-      ledger: buildLedgerReverser(order),
+      ledger: finagoRefundReverser,
       lines: input.lines,
       orderId: input.orderId,
       reason: input.reason,

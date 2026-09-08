@@ -12,6 +12,7 @@
  * stock never decremented, revenue never posted, membership never fulfilled.
  */
 
+import { finagoRefundReverser } from "@repo/shared/utils/finago-refund-reverser";
 import {
   type LedgerReverser,
   listPendingRefunds,
@@ -29,6 +30,7 @@ import { resolveStripeCredentials } from "./credentials";
 import type { PaymentSettingsReader } from "./credentials/types";
 import {
   getStripeReceiptUrl,
+  getStripeRefundedTotal,
   getStripeRefundState,
   getStripeSession,
   hasStripePaymentFailed,
@@ -160,7 +162,10 @@ export async function reconcileOrderPayment(
 export async function sweepPendingRefunds(
   db: ReconcileDb,
   olderThanIso: string,
-  ledger?: LedgerReverser
+  // Defaulted, not optional-and-forgotten: finalizing without a reverser marks
+  // the refund succeeded and restocks it while the original Finago posting is
+  // never reversed, and nothing revisits succeeded refunds to repair that.
+  ledger: LedgerReverser = finagoRefundReverser
 ): Promise<{ failed: number; settled: number; unresolved: number }> {
   const tally = { failed: 0, settled: 0, unresolved: 0 };
   const pending = await listPendingRefunds(db, olderThanIso);
@@ -188,7 +193,20 @@ export async function sweepPendingRefunds(
       tally.unresolved += 1;
       continue;
     }
-    order.refunds = await loadOrderRefunds(orderId, db).catch(() => []);
+    // Deliberately unguarded. An empty history makes the ledger allocation
+    // weight against every original line instead of only the unreversed ones,
+    // and settlement would still advance — baking a wrong revenue-account
+    // reversal in permanently. Leaving the attempt pending is recoverable.
+    try {
+      order.refunds = await loadOrderRefunds(orderId, db);
+    } catch (error) {
+      console.error(
+        `[Refund] Could not load refund history for ${orderId}; leaving refund ${refund.$id} pending:`,
+        error
+      );
+      tally.unresolved += 1;
+      continue;
+    }
 
     const outcome = await settlePendingRefund({
       db,
@@ -196,7 +214,7 @@ export async function sweepPendingRefunds(
       order,
       refund,
       resolver: {
-        state: async ({ providerRefundId }) => {
+        state: async ({ paymentIntentId, providerRefundId }) => {
           if (!(creds && providerRefundId)) {
             // No provider handle to ask — a Vipps attempt, or one that never
             // got far enough to record an id. Throwing keeps it pending rather
@@ -204,7 +222,15 @@ export async function sweepPendingRefunds(
             throw new Error("No resolvable provider refund id");
           }
           const state = await getStripeRefundState(providerRefundId, creds);
-          return { ...state, refundedTotalMinor: 0 };
+          // Carry Stripe's own aggregate through: it is the only figure that
+          // includes refunds issued straight from the dashboard, and reporting
+          // zero here would overstate the remaining refundable balance.
+          const refundedTotalMinor = paymentIntentId
+            ? await getStripeRefundedTotal(paymentIntentId, creds).catch(
+                () => 0
+              )
+            : 0;
+          return { ...state, refundedTotalMinor };
         },
       },
     });

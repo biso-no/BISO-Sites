@@ -678,3 +678,82 @@ describe("settlePendingRefund", () => {
     ).toBe(false);
   });
 });
+
+describe("settlePendingRefund — concurrency and bookkeeping", () => {
+  const pending = {
+    $id: "refund-1",
+    amount: 499,
+    lines: [{ name: "Campus hoodie", order_item: "line-a", quantity: 1 }],
+    provider_refund_id: "re_123",
+    restock: true,
+    status: "pending" as const,
+  };
+  const settledResolver = {
+    state: vi.fn().mockResolvedValue({
+      failed: false,
+      refundedTotalMinor: 49_900,
+      settled: true,
+    }),
+  };
+
+  it("does not run the effects when it loses the order's refund lock", async () => {
+    // Two overlapping sweeps must not both restock and both post a reversal.
+    db.incrementRowColumn.mockResolvedValue({ refund_lock: 2 });
+    const ledger: LedgerReverser = { reverse: vi.fn() };
+
+    const outcome = await settlePendingRefund({
+      db,
+      ledger,
+      order: buildOrder() as never,
+      refund: pending,
+      resolver: settledResolver,
+    });
+
+    expect(outcome).toBe("still_pending");
+    expect(ledger.reverse).not.toHaveBeenCalled();
+  });
+
+  it("leaves the row pending when the succeeded write fails, so effects do not half-run", async () => {
+    // The status flip is the claim on the effects; swallowing its failure
+    // would run them and let the next sweep run them again.
+    db.updateRow.mockImplementation((_d: string, table: string, _id, data) => {
+      if (table === "order_refunds" && data?.status === "succeeded") {
+        return Promise.reject(new Error("appwrite write failed"));
+      }
+      return Promise.resolve({});
+    });
+    const ledger: LedgerReverser = { reverse: vi.fn() };
+
+    await expect(
+      settlePendingRefund({
+        db,
+        ledger,
+        order: buildOrder() as never,
+        refund: pending,
+        resolver: settledResolver,
+      })
+    ).rejects.toThrow("appwrite write failed");
+
+    expect(ledger.reverse).not.toHaveBeenCalled();
+  });
+
+  it("releases the order lock even when finalization throws", async () => {
+    db.updateRow.mockImplementation((_d: string, table: string, _id, data) => {
+      if (table === "order_refunds" && data?.status === "succeeded") {
+        return Promise.reject(new Error("boom"));
+      }
+      return Promise.resolve({});
+    });
+
+    await settlePendingRefund({
+      db,
+      order: buildOrder() as never,
+      refund: pending,
+      resolver: settledResolver,
+    }).catch(() => undefined);
+
+    expect(db.decrementRowColumn).toHaveBeenCalledWith(
+      expect.objectContaining({ column: "refund_lock" })
+    );
+  });
+});

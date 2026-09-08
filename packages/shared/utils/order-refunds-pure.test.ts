@@ -345,7 +345,7 @@ describe("allocateAmountAcrossAccounts — remaining balance", () => {
 
     const allocation = allocateAmountAcrossAccounts({
       accountByItemId,
-      alreadyRefundedByItem: { "line-a": 1 },
+      alreadyReversedByAccount: { 3000: 5000 },
       amountMinor: 5000,
       items: twoLines,
       lines: [],
@@ -364,5 +364,68 @@ describe("allocateAmountAcrossAccounts — remaining balance", () => {
     expect(allocation.reduce((sum, line) => sum + line.amountMinor, 0)).toBe(
       10_000
     );
+  });
+});
+
+describe("allocateAmountAcrossAccounts — order independence", () => {
+  // A 100 kr order split evenly across two accounts.
+  const evenItems: RefundableOrderItem[] = [
+    { id: "line-a", name: "A", quantity: 1, unitPrice: 50 },
+    { id: "line-b", name: "B", quantity: 1, unitPrice: 50 },
+  ];
+  const accounts = { "line-a": 3000, "line-b": 3010 };
+
+  it("free refund first, then a line refund, never over-reverses an account", () => {
+    // The free 50 spreads 25/25. A later 50 line refund on A must take only
+    // the 25 A has left, not a second full 50.
+    const free = allocateAmountAcrossAccounts({
+      accountByItemId: accounts,
+      amountMinor: 5000,
+      items: evenItems,
+      lines: [],
+    });
+    expect(free).toEqual([
+      { accountNumber: 3000, amountMinor: 2500 },
+      { accountNumber: 3010, amountMinor: 2500 },
+    ]);
+
+    const then = allocateAmountAcrossAccounts({
+      accountByItemId: accounts,
+      alreadyReversedByAccount: { 3000: 2500, 3010: 2500 },
+      amountMinor: 5000,
+      items: evenItems,
+      lines: buildRefundLines(
+        [{ orderItemId: "line-a", quantity: 1 }],
+        evenItems
+      ),
+    });
+
+    const forA = then.find((l) => l.accountNumber === 3000)?.amountMinor ?? 0;
+    expect(forA).toBe(2500);
+    // Cumulative reversal per account never exceeds its original credit.
+    expect(2500 + forA).toBeLessThanOrEqual(5000);
+    expect(then.reduce((sum, l) => sum + l.amountMinor, 0)).toBe(5000);
+  });
+
+  it("line refund first, then a free refund, lands on the untouched account", () => {
+    const then = allocateAmountAcrossAccounts({
+      accountByItemId: accounts,
+      alreadyReversedByAccount: { 3000: 5000 },
+      amountMinor: 5000,
+      items: evenItems,
+      lines: [],
+    });
+    expect(then).toEqual([{ accountNumber: 3010, amountMinor: 5000 }]);
+  });
+
+  it("never reverses more than an account was credited", () => {
+    const over = allocateAmountAcrossAccounts({
+      accountByItemId: accounts,
+      alreadyReversedByAccount: { 3000: 5000, 3010: 5000 },
+      amountMinor: 5000,
+      items: evenItems,
+      lines: [],
+    });
+    expect(over).toEqual([]);
   });
 });

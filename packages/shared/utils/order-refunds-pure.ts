@@ -224,12 +224,37 @@ export function validateRefundRequest(
 export interface RevenueAllocationInput {
   /** Ledger account per order line, keyed by `order_items.$id`. */
   accountByItemId: Record<string, number | null | undefined>;
-  /** Quantity already refunded per line, so weights use what is left. */
-  alreadyRefundedByItem?: Record<string, number>;
+  /**
+   * Minor units already reversed per ledger account, from earlier refunds on
+   * this order. Tracking it per ACCOUNT rather than per line is what makes the
+   * arithmetic order-independent: a free-amount refund reverses accounts
+   * without naming any line, so line quantities alone cannot describe what has
+   * already been given back.
+   */
+  alreadyReversedByAccount?: Record<number, number>;
   amountMinor: number;
   items: RefundableOrderItem[];
   /** Empty for a free-amount refund. */
   lines: BuiltRefundLine[];
+}
+
+/** Each account's original credit on this order, in minor units. */
+function originalCreditByAccount(
+  items: RefundableOrderItem[],
+  accountByItemId: Record<string, number | null | undefined>
+): Map<number, number> {
+  const credits = new Map<number, number>();
+  for (const item of items) {
+    const account = accountByItemId[item.id];
+    if (!account) {
+      continue;
+    }
+    const credit = toMinor(item.unitPrice) * item.quantity;
+    if (credit > 0) {
+      credits.set(account, (credits.get(account) ?? 0) + credit);
+    }
+  }
+  return credits;
 }
 
 /**
@@ -245,66 +270,70 @@ export interface RevenueAllocationInput {
 export function allocateAmountAcrossAccounts(
   input: RevenueAllocationInput
 ): Array<{ accountNumber: number; amountMinor: number }> {
-  const byAccount = new Map<number, number>();
+  const originalCredits = originalCreditByAccount(
+    input.items,
+    input.accountByItemId
+  );
 
-  const add = (account: number | null | undefined, minor: number) => {
-    if (!account || minor <= 0) {
-      return;
-    }
-    byAccount.set(account, (byAccount.get(account) ?? 0) + minor);
-  };
-
-  if (input.lines.length > 0) {
-    for (const line of input.lines) {
-      add(input.accountByItemId[line.orderItemId], toMinor(line.amount));
-    }
-    return toSortedEntries(byAccount);
+  // What each account can still give back. Every allocation is capped by this,
+  // so no sequence of line and free-amount refunds can reverse more from an
+  // account than the sale ever credited to it.
+  const remaining = new Map<number, number>();
+  for (const [account, credit] of originalCredits) {
+    const already = input.alreadyReversedByAccount?.[account] ?? 0;
+    remaining.set(account, Math.max(0, credit - already));
   }
 
-  // Free-amount refund: weight by each account's share of the value still
-  // UNREVERSED, not of the original order.
-  //
-  // Weighting by the original line values double-counts revenue already given
-  // back: refund a 50 kr line on account A in a two-line 100 kr order, then
-  // refund the remaining 50 freely, and A and B are each debited 25 — a
-  // cumulative reversal of A=75/B=25 against an original posting of A=50/B=50.
-  // Using the remaining quantity sends that second 50 entirely to B.
-  const weights = new Map<number, number>();
-  let totalWeight = 0;
-  for (const item of input.items) {
-    const account = input.accountByItemId[item.id];
+  const byAccount = new Map<number, number>();
+  const take = (account: number, wanted: number): number => {
+    const left = remaining.get(account) ?? 0;
+    const taken = Math.min(wanted, left);
+    if (taken <= 0) {
+      return 0;
+    }
+    remaining.set(account, left - taken);
+    byAccount.set(account, (byAccount.get(account) ?? 0) + taken);
+    return taken;
+  };
+
+  let unallocated = input.amountMinor;
+
+  // A line refund names its accounts, so charge those first.
+  for (const line of input.lines) {
+    const account = input.accountByItemId[line.orderItemId];
     if (!account) {
       continue;
     }
-    const remainingQuantity = Math.max(
-      0,
-      item.quantity - (input.alreadyRefundedByItem?.[item.id] ?? 0)
+    unallocated -= take(account, toMinor(line.amount));
+  }
+
+  // Whatever is left — the whole amount for a free refund, or a line refund's
+  // spillover once an account is exhausted — is spread across the accounts
+  // that still have room, in proportion to that room.
+  if (unallocated > 0) {
+    const openAccounts = [...remaining.entries()].filter(
+      ([, left]) => left > 0
     );
-    const weight = toMinor(item.unitPrice) * remainingQuantity;
-    if (weight <= 0) {
-      continue;
-    }
-    weights.set(account, (weights.get(account) ?? 0) + weight);
-    totalWeight += weight;
-  }
+    const totalRoom = openAccounts.reduce((sum, [, left]) => sum + left, 0);
 
-  if (totalWeight <= 0) {
-    return [];
-  }
-
-  let allocated = 0;
-  for (const [account, weight] of weights) {
-    const share = Math.floor((input.amountMinor * weight) / totalWeight);
-    byAccount.set(account, share);
-    allocated += share;
-  }
-
-  // Rounding remainder onto the largest share, so the lines sum exactly.
-  const remainder = input.amountMinor - allocated;
-  if (remainder > 0) {
-    const largest = [...byAccount.entries()].sort((a, b) => b[1] - a[1])[0];
-    if (largest) {
-      byAccount.set(largest[0], largest[1] + remainder);
+    if (totalRoom > 0) {
+      const share = Math.min(unallocated, totalRoom);
+      let placed = 0;
+      for (const [account, left] of openAccounts) {
+        const wanted = Math.floor((share * left) / totalRoom);
+        placed += take(account, wanted);
+      }
+      // Rounding remainder onto whichever account still has the most room, so
+      // the parts sum exactly and the reversal balances.
+      const shortfall = share - placed;
+      if (shortfall > 0) {
+        const largest = [...remaining.entries()]
+          .filter(([, left]) => left > 0)
+          .sort((a, b) => b[1] - a[1])[0];
+        if (largest) {
+          take(largest[0], shortfall);
+        }
+      }
     }
   }
 

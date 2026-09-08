@@ -58,6 +58,8 @@ export interface OrderRefundRow {
   error?: string | null;
   finago_transaction_id?: string | null;
   idempotency_key?: string | null;
+  /** JSON `[{accountNumber, amountMinor}]` actually reversed by this refund. */
+  ledger_allocation?: string | null;
   lines?: OrderRefundLineRow[] | null;
   /** Parent order: an id string, or the expanded row when selected. */
   order?: string | { $id?: string } | null;
@@ -166,25 +168,37 @@ export function toRefundableItems(
 }
 
 /**
- * Quantity already refunded per line, used to weight a free-amount refund's
- * ledger allocation against what is still unreversed.
+ * Minor units already reversed per ledger account across this order's earlier
+ * refunds, read back from each refund's stored allocation.
+ *
+ * Recorded per ACCOUNT rather than derived from line quantities because a
+ * free-amount refund reverses accounts without naming a line: line quantities
+ * alone cannot describe what a previous free refund already gave back, so the
+ * next allocation would reverse it a second time.
  */
-export function refundedQuantityByItem(
+export function reversedByAccount(
   order: RefundableOrder
-): Record<string, number> {
-  const byItem: Record<string, number> = {};
-  for (const refund of toRecordedRefunds(order)) {
-    if (refund.status === "failed") {
+): Record<number, number> {
+  const byAccount: Record<number, number> = {};
+  for (const refund of order.refunds ?? []) {
+    if (refund.status === "failed" || !refund.ledger_allocation) {
       continue;
     }
-    for (const line of refund.lines ?? []) {
-      if (line.orderItemId) {
-        byItem[line.orderItemId] =
-          (byItem[line.orderItemId] ?? 0) + line.quantity;
+    try {
+      const parsed = JSON.parse(refund.ledger_allocation) as Array<{
+        accountNumber: number;
+        amountMinor: number;
+      }>;
+      for (const entry of parsed) {
+        byAccount[entry.accountNumber] =
+          (byAccount[entry.accountNumber] ?? 0) + entry.amountMinor;
       }
+    } catch {
+      // A malformed record must not break the next refund; it only means this
+      // reversal is not subtracted, and the per-account cap still applies.
     }
   }
-  return byItem;
+  return byAccount;
 }
 
 /** The order's existing refunds in the shape the pure helpers work with. */
@@ -229,6 +243,8 @@ export interface LedgerReverser {
   reverse: (input: {
     allocation: Array<{ accountNumber: number; amountMinor: number }>;
     amount: number;
+    /** Campus dimension for the reversal, taken from the order. */
+    campusId?: string | null;
     orderId: string;
   }) => Promise<string | null>;
 }
@@ -619,7 +635,12 @@ export async function finalizeSettledRefund(
   const { dbId, ordersId } = tableIds();
   const status = statusAfterRefund(input.totalMinor, refundedTotalMinor);
 
-  await markRefund(refundId, db, {
+  // Flipping the row out of `pending` is the claim on the effects below, so it
+  // must succeed before any of them run — and must NOT be swallowed. If it
+  // fails the row stays pending, which is exactly the state the reconciliation
+  // sweep retries; swallowing it would run the effects and leave the row
+  // pending for the next sweep to run them a second time.
+  await db.updateRow(dbId, REFUNDS_TABLE, refundId, {
     status: "succeeded",
     provider_refund_id: input.providerRefundId ?? null,
   });
@@ -820,7 +841,7 @@ async function reverseLedger({
     );
     const allocation = allocateAmountAcrossAccounts({
       accountByItemId,
-      alreadyRefundedByItem: refundedQuantityByItem(order),
+      alreadyReversedByAccount: reversedByAccount(order),
       amountMinor: toMinor(amount),
       items,
       lines,
@@ -828,11 +849,15 @@ async function reverseLedger({
     const transactionId = await ledger.reverse({
       allocation,
       amount,
+      campusId: order.campus_id ?? null,
       orderId,
     });
     if (transactionId) {
       await db.updateRow(dbId, REFUNDS_TABLE, refundId, {
         finago_transaction_id: transactionId,
+        // Stored so the NEXT refund on this order knows what each account has
+        // already given back, whichever order line and free refunds arrive in.
+        ledger_allocation: JSON.stringify(allocation),
       });
     }
   } catch (error) {
@@ -891,6 +916,8 @@ async function resolveRevenueAccounts(
 export interface RefundStateResolver {
   state: (input: {
     orderId: string;
+    /** Provider payment handle, for reading the order's refunded aggregate. */
+    paymentIntentId?: string | null;
     providerRefundId?: string | null;
   }) => Promise<{
     /** The provider says this refund will not happen. */
@@ -934,6 +961,7 @@ export async function settlePendingRefund({
   try {
     state = await resolver.state({
       orderId: order.$id,
+      paymentIntentId: order.payment_intent_id,
       providerRefundId: refund.provider_refund_id,
     });
   } catch (error) {
@@ -958,6 +986,35 @@ export async function settlePendingRefund({
     return "still_pending";
   }
 
+  // Serialize against a concurrent sweep (and against a live admin refund) on
+  // the same order. Two sweeps could otherwise both read this row as pending,
+  // both finalize it, and both restock and post a Finago reversal. The order's
+  // existing `refund_lock` is the right granularity: the effects touch the
+  // order and its products.
+  if (!(await claimRefundLock(order.$id, db))) {
+    return "still_pending";
+  }
+
+  try {
+    return await finalizePendingRefund({ db, ledger, order, refund, state });
+  } finally {
+    await releaseRefundLock(order.$id, db);
+  }
+}
+
+async function finalizePendingRefund({
+  db,
+  ledger,
+  order,
+  refund,
+  state,
+}: {
+  db: DbClient;
+  ledger?: LedgerReverser;
+  order: RefundableOrder;
+  refund: OrderRefundRow;
+  state: { refundedTotalMinor: number };
+}): Promise<PendingRefundOutcome> {
   const items = toRefundableItems(order);
   const lines = (refund.lines ?? [])
     .map((line): BuiltRefundLine | null => {
