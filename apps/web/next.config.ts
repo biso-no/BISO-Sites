@@ -75,7 +75,25 @@ const baseConfig: NextConfig = {
       bodySizeLimit: "10mb",
     },
   },
-  // No framework-level redirects at this time (user preference)
+  // Renaming `/bi-fondet` → `/okonomisk-stotte` is the only reason this block
+  // exists; the rest of the WordPress → app mappings in
+  // `docs/public-site-parity.md` are still handled outside the framework.
+  // `redirects()` emits 308 Permanent, which is SEO-equivalent to a 301.
+  redirects() {
+    return Promise.resolve([
+      {
+        source: "/bi-fondet",
+        destination: "/okonomisk-stotte",
+        permanent: true,
+      },
+      {
+        // The legacy WordPress URL, which still receives inbound links.
+        source: "/sok-okonomisk-stotte",
+        destination: "/okonomisk-stotte",
+        permanent: true,
+      },
+    ]);
+  },
 };
 
 export default withNextIntl(baseConfig);

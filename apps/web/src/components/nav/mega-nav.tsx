@@ -278,7 +278,17 @@ export function Navigation({
             >
               {t("partner")}
             </Link>
-            {!account && (
+            {/*
+              Signed-in only. `account` is non-null exactly when
+              `getLoggedInUser()` resolved an *authenticated* account —
+              `isAuthenticatedAccount()` requires an email, or a real (non
+              `guest_`) name plus a verified email — so anonymous Appwrite
+              sessions never satisfy it and never see this button.
+
+              This condition was previously `!account`, which rendered the
+              button precisely for signed-out visitors.
+            */}
+            {account && (
               <Button
                 className="shrink-0 border-brand bg-transparent text-white hover:bg-brand hover:text-white"
                 onClick={() => router.push("/member")}

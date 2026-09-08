@@ -1,39 +1,188 @@
 {
-  "hero": {
-    "badge": "Support scheme",
-    "apply": "Submit application",
-    "contact": "Get in touch"
+  "meta": {
+    "title": "Financial Support | BISO",
+    "description": "Apply to the BI Fund for support for student activities, projects and events at BI Norwegian Business School."
   },
-  "overview": {
-    "title": "Programme overview",
-    "status": "Status",
-    "active": "Open for applications",
-    "draft": "Not published",
-    "template": "Application template",
-    "download": "Download",
-    "documents": "Helpful documents",
-    "contact": "Contact",
-    "contactFallback": "BISO Executive Board",
-    "external": "More information"
+  "hero": {
+    "eyebrow": "The BI Fund",
+    "title": "Financial support",
+    "subtitle": "Apply for support for a student activity",
+    "breadcrumbHome": "Home",
+    "breadcrumbStudents": "For students"
+  },
+  "intro": {
+    "label": "About the fund",
+    "title": "Apply to the BI Fund and get support for your activity",
+    "lead": "The BI Fund was given to BI Student Organisation by BI Norwegian Business School to increase social integration for all students at BI. The fund exists to promote measures and activities that raise the quality of student life and the overall experience of studying at BI Norwegian Business School.",
+    "body": "The fund contributes to social and academic integration and a good learning environment for all students at BI Norwegian Business School. It can be hard to know what you can apply for, but our encouragement is to apply whatever your idea! The BISO Finance Committee looks forward to reading your application, giving you feedback and helping out where needed."
+  },
+  "cta": {
+    "apply": "Apply for support",
+    "contact": "Contact the Finance Committee",
+    "applyAria": "Open the BI Fund application form in a new window"
+  },
+  "status": {
+    "open": "Open for applications all year round",
+    "closed": "The application form is temporarily closed"
   },
   "eligibility": {
+    "label": "Financial support",
     "title": "Who can apply?",
-    "empty": "Guidelines will be published soon."
+    "lead": "All students and student groups at BI Norwegian Business School can apply for support from the BI Fund. All BISO units, sister and subsidiary companies of BISO, BI alumni students and other organisations connected to BI students may also apply.",
+    "groups": {
+      "biso": {
+        "title": "BISO and affiliated companies",
+        "items": [
+          "All students at BI Norwegian Business School",
+          "Student groups at BI Norwegian Business School",
+          "All BISO units",
+          "BI Athletics",
+          "StudConsult AS",
+          "BISO Kroa AS"
+        ]
+      },
+      "others": {
+        "title": "Others who can apply",
+        "items": [
+          "BI alumni students or groups",
+          "Organisations connected to BI students"
+        ]
+      }
+    }
   },
-  "steps": {
-    "title": "How to apply",
-    "empty": "The process will be shared soon."
+  "uses": {
+    "label": "Opportunities",
+    "title": "What the fund is used for",
+    "lead": "The BI Fund is meant for academic and social events, or other initiatives that increase integration among students at BI Norwegian Business School.",
+    "items": [
+      "Unbudgeted activities intended to include as many students as possible",
+      "Academic events in collaboration with BI Norwegian Business School",
+      "Inclusion and integration of international students",
+      "Alternative forms of learning and learning arenas outside the lecture hall",
+      "Inclusion and integration of students with special needs",
+      "Activities that promote social inclusion at BI Norwegian Business School",
+      "Activities that promote academic integration at BI Norwegian Business School",
+      "Initiatives that raise the quality of student life and the overall experience of studying at BI Norwegian Business School"
+    ],
+    "specificallyTitle": "More specifically, the fund supports",
+    "specifically": [
+      "Projects",
+      "Academic and social events",
+      "Academic and social activities"
+    ]
+  },
+  "process": {
+    "label": "How it works",
+    "title": "Who reviews the application?",
+    "lead": "The BISO Finance Committee reviews every application to the BI Fund. The committee consists of a chair and several members from all of BI's campuses.",
+    "steps": [
+      {
+        "title": "You submit the application",
+        "body": "Fill in the application form and attach a detailed activity budget. The form is open all year round."
+      },
+      {
+        "title": "The Finance Committee reviews it",
+        "body": "The committee reads the application, goes through the budget and gives you feedback. If anything is missing, you get questions and tips so you can complete it."
+      },
+      {
+        "title": "Recommendation to the board",
+        "body": "The Finance Committee recommends the application for approval or rejection and passes the recommendation on to the BISO board."
+      },
+      {
+        "title": "The board decides",
+        "body": "The board considers the application, the recommendation, the amount and the financial situation. You receive feedback as soon as the application has been processed."
+      }
+    ],
+    "note": "Apply well before the board meetings for the fastest possible processing. The board approves applications on a rolling basis throughout the year — contact the Finance Committee to find out when the next board meeting is."
+  },
+  "tips": {
+    "label": "Tips & tricks",
+    "title": "How do you write a good application?",
+    "lead": "The best tip we can give is to apply for what you actually want to make happen. No application is rejected outright, and every application receives feedback.",
+    "items": [
+      "Keep the application short and precise about what you want to achieve",
+      "Check that you qualify to apply before you submit",
+      "Submit through the application form and follow the steps in it",
+      "Set up a clear budget with the income and costs tied to the activity",
+      "Don't write a long application full of continuous text — quality over quantity"
+    ]
+  },
+  "documents": {
+    "label": "Get started",
+    "title": "Download the templates before you apply",
+    "lead": "We have attached the terms of the fund, the budget template and the guidelines so you can get started on your application right away.",
+    "open": "Open document",
+    "terms": {
+      "title": "Terms of the fund",
+      "description": "Read BI's terms for the fund before you apply.",
+      "action": "Download PDF"
+    },
+    "budget": {
+      "title": "Activity budget",
+      "description": "Use this budget template for your budget.",
+      "action": "Download Excel"
+    },
+    "guidelines": {
+      "title": "Guidelines",
+      "description": "Read the guidelines for the fund before you apply.",
+      "action": "Download PDF"
+    }
   },
   "faq": {
-    "title": "Frequently asked questions"
+    "label": "Frequently asked questions",
+    "title": "We have the answers to what you're wondering about",
+    "items": [
+      {
+        "question": "Who can apply for support?",
+        "answer": "The fund is for all units in BISO, which means projects, student associations, committees, staff functions, campus management, executive boards, HR and the control committee.\n\nCompanies and sister organisations: BISO Kroa AS, StudConsult AS and BI Athletics.\n\nOthers who can apply: students or student groups at BI Norwegian Business School, BI alumni students or groups, and organisations connected to BI students."
+      },
+      {
+        "question": "What information must the application contain?",
+        "answer": "Every applicant must include the following:\n\n• A short introduction to the unit or group applying (form entry)\n• The purpose of the project or activity being applied for (form entry)\n• A detailed description of the project or activity (form entry)\n• The target group for the project or activity (form entry)\n• The number of participants in the project or activity (form entry)\n• A detailed activity budget (budget attachment)\n• An overview of any other support, funds or grants given to the activity (budget attachment)"
+      },
+      {
+        "question": "When can I apply for support?",
+        "answer": "The application form is open all year round, and the board approves applications on a rolling basis.\n\nFor faster processing it is important to apply well before the BISO board meetings. Contact the Finance Committee at manager.finance@biso.no to find out when the next board meeting is."
+      },
+      {
+        "question": "What happens after I submit the application?",
+        "answer": "The application is processed by the BISO Finance Committee, who will give you feedback along with tips and tricks for your application.\n\nIf the application has gaps, the committee will advise you by asking questions and giving tips in line with the current guidelines.\n\nThe Finance Committee recommends the application for approval or rejection and sends the recommendation to the BISO board, which makes the final decision. You will be contacted with the outcome."
+      },
+      {
+        "question": "Who can I contact for more information about the process?",
+        "answer": "You can email manager.finance@biso.no, or contact the president at board@biso.no."
+      },
+      {
+        "question": "What are the reasons an application is rejected?",
+        "answer": "Reasons for rejecting an application may include:\n\n• The application is missing required attachments\n• The applicant has not used previously granted funds for the purpose they were granted for\n• The purpose of the application conflicts with the purpose of the fund\n• The activity is part of BISO's ordinary activity, already financed by BISO or BI\n• Errors in the budget\n• The applicant is applying for a unit's annual budget rather than a single activity (annual budgets are financed by BISO and approved at the campus general assembly)\n• Applications for exclusive, closed group activities (board members only, or members of that BISO unit only)\n• Applications to purchase alcohol"
+      },
+      {
+        "question": "How specific do the attachments need to be?",
+        "answer": "Budget: The budget should include the amount applied for from the BI Fund, to show which funds the activity needs. It must specify all expected income (ticket sales, sponsorship and partnership income and other subsidies) and all costs (for example technical costs, rent, marketing and food). Income and costs should be as concrete as possible and presented clearly — use the budget template on this page.\n\nFor BISO units: A budget for the activity with the same level of detail as above, plus the annual budget with the current status of the accounts."
+      },
+      {
+        "question": "Which attachments do I need for the application?",
+        "answer": "In addition to filling in the application form, BISO units, student groups and others must submit:\n\n• The application text as a PDF (if the form is too short for it)\n• An action plan or communication plan (for applications above NOK 1 million)\n• An activity budget\n• A report on the use of the fund (if the applicant has been granted funds previously)"
+      },
+      {
+        "question": "Can I update the information in my application?",
+        "answer": "Yes, you can. If you need to update or complete the application after it has been submitted, the new documents can be sent to manager.finance@biso.no."
+      },
+      {
+        "question": "Can organisations with BI alumni or non-BI students apply?",
+        "answer": "Yes, as long as the activity involves and reaches current BI students. Funds may be granted to organisations, alumni networks, ordinary students or student groups who want to create and promote something social, academic or related to student life.\n\nThe number of BI students the activity reaches may affect the amount granted."
+      },
+      {
+        "question": "Can the funds be paid to a private account?",
+        "answer": "No. Funds are transferred to the BISO unit by adjusting the income for that unit's department in our accounting system.\n\nUnregistered groups (outside BISO) must provide a detailed description of the payment so they can document that the funds were used as intended. For such groups we assess whether BISO should handle the income and costs tied to the activity, or whether it is reasonable for a private individual to take responsibility and receive the funds."
+      }
+    ]
   },
   "contact": {
-    "title": "Questions and guidance"
-  },
-  "fallback": {
-    "title": "Apply through the BI Fund",
-    "intro": "The BI Fund awards grants to student projects, events and initiatives that strengthen the learning environment at BI.",
-    "cta": "Learn more",
-    "contact": "Questions? Reach us at {email}."
+    "label": "Contact",
+    "title": "The Finance Committee is here to help",
+    "lead": "Apply today for what you dream of making happen for your fellow students. If you have questions before submitting, we're happy to talk.",
+    "financeLabel": "Finance Committee",
+    "boardLabel": "President"
   }
 }

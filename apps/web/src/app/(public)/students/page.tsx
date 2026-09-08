@@ -1,6 +1,7 @@
 import type { Locale } from "@repo/i18n/config";
 import type { RecruitmentVacancy } from "@repo/shared/types/recruitment";
 import type { Metadata } from "next";
+import { connection } from "next/server";
 import { getCampusData } from "@/app/actions/campus";
 
 export const metadata: Metadata = {
@@ -23,7 +24,18 @@ import { StudentsPageClient } from "./students-page-client";
 // paginated `/events` and `/jobs` surfaces keep the `WEB_PAGE_SIZE` default.
 const STUDENTS_PAGE_SIZE = 24;
 
+// This page fetches all five surfaces up front with no Suspense boundary, so it
+// is request-time by nature. `instant = false` lets it block; `connection()`
+// below additionally exempts it from unstable-value validation, which
+// `openVacancyQueries` trips via `new Date()`. Both are needed — the first
+// permits blocking, the second permits the unstable read.
+export const instant = false;
+
 export default async function StudentsPage() {
+  // Must precede the fetches: the prerender rejects `new Date()` inside
+  // `listJobs` → `openVacancyQueries` (`blocking-prerender-current-time`).
+  await connection();
+
   const locale = (await getLocale()) as Locale;
 
   const [eventsResult, jobs, departments, campusData, globalBenefits] =

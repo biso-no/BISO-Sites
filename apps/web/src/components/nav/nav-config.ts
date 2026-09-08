@@ -17,6 +17,7 @@ import {
   Mail,
   Megaphone,
   Newspaper,
+  PiggyBank,
   Receipt,
   ShieldAlert,
   ShoppingBag,
@@ -95,10 +96,10 @@ export const STUDENT_COLUMNS: NavColumnConfig[] = [
       { id: "units", labelKey: "links.units", href: "/units", icon: Users },
       { id: "jobs", labelKey: "links.jobs", href: "/jobs", icon: Briefcase },
       {
-        id: "bi-fondet",
-        labelKey: "links.biFondet",
-        href: "/bi-fondet",
-        icon: Landmark,
+        id: "funding-support",
+        labelKey: "links.fundingSupport",
+        href: "/okonomisk-stotte",
+        icon: PiggyBank,
       },
       {
         id: "study-quality",

@@ -6,7 +6,9 @@
     "subtitle": "Discover member benefits, positions and support resources in one place so you can focus on getting involved.",
     "ctaPrimary": "Become a member",
     "ctaSecondary": "Explore units",
-    "ctaTertiary": "See open positions"
+    "ctaTertiary": "See open positions",
+    "breadcrumbHome": "Home",
+    "breadcrumbCurrent": "For students"
   },
   "benefits": {
     "title": "Member benefits",
@@ -25,7 +27,8 @@
       "socialNetwork": "Student life and community",
       "safety": "Safety and support",
       "businessBenefits": "For partners"
-    }
+    },
+    "empty": "Member benefits for {campus} will be published soon."
   },
   "units": {
     "title": "Units and societies at {campus}",

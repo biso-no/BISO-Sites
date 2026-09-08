@@ -21,7 +21,7 @@ import { AboutHero } from "@/components/about/about-hero";
 const internalLinks = [
   {
     key: "biFond",
-    href: "/bi-fondet",
+    href: "/okonomisk-stotte",
     icon: PiggyBank,
     gradient: "from-green-500 to-emerald-600",
   },
