@@ -54,6 +54,7 @@ export { getMembershipProducts, getProducts } from "./products";
 export {
   type BuildExpenseTransactionParams,
   buildExpenseTransactionInput,
+  buildShopRefundTransactionInput,
   DEPARTMENT_DIMENSION_TYPE,
   type DimensionElement,
   type ExpenseReceiptLine,
@@ -63,7 +64,9 @@ export {
   listTaxes,
   type PostExpenseTransactionParams,
   postExpenseTransaction,
+  postShopRefundTransaction,
   postShopTransaction,
+  type ShopRefundTransactionParams,
   type ShopTransactionParams,
   type TaxCode,
   type UploadDocumentResult,

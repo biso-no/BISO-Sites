@@ -3585,7 +3585,7 @@
           "onDelete": "cascade",
           "side": "parent"
         }
-       ],
+      ],
       "indexes": [
         {
           "key": "product_id_idx",
@@ -3684,7 +3684,7 @@
           "default": null,
           "encrypt": false
         }
-       ],
+      ],
       "indexes": []
     },
     {
@@ -8809,11 +8809,49 @@
           "max": 1000000
         },
         {
+          "key": "refunded_total",
+          "type": "double",
+          "required": false,
+          "array": false,
+          "default": null,
+          "min": -1.7976931348623157e308,
+          "max": 1.7976931348623157e308
+        },
+        {
+          "key": "refunded_at",
+          "type": "datetime",
+          "required": false,
+          "array": false,
+          "default": null,
+          "format": ""
+        },
+        {
+          "key": "refund_lock",
+          "type": "integer",
+          "required": false,
+          "array": false,
+          "default": 0,
+          "min": 0,
+          "max": 1000000
+        },
+        {
           "key": "order_items",
           "type": "relationship",
           "required": false,
           "array": false,
           "relatedTable": "order_items",
+          "relationType": "oneToMany",
+          "twoWay": true,
+          "twoWayKey": "order",
+          "onDelete": "cascade",
+          "side": "parent"
+        },
+        {
+          "key": "refunds",
+          "type": "relationship",
+          "required": false,
+          "array": false,
+          "relatedTable": "order_refunds",
           "relationType": "oneToMany",
           "twoWay": true,
           "twoWayKey": "order",
@@ -8842,6 +8880,20 @@
           "status": "available",
           "columns": ["membership_invoice_id"],
           "orders": ["ASC"]
+        },
+        {
+          "key": "idx_orders_refunded_total",
+          "type": "key",
+          "status": "available",
+          "columns": ["refunded_total"],
+          "orders": ["ASC"]
+        },
+        {
+          "key": "idx_orders_checkout_reuse",
+          "type": "key",
+          "status": "available",
+          "columns": ["userId", "status", "payment_provider"],
+          "orders": ["ASC", "ASC", "ASC"]
         }
       ]
     },
@@ -9868,6 +9920,15 @@
           "side": "parent"
         },
         {
+          "key": "finago_account_number",
+          "type": "integer",
+          "required": false,
+          "array": false,
+          "default": null,
+          "min": 0,
+          "max": 1000000
+        },
+        {
           "key": "line_total",
           "type": "double",
           "required": false,
@@ -9888,7 +9949,7 @@
           "onDelete": "cascade",
           "side": "parent"
         }
-       ],
+      ],
       "indexes": []
     },
     {
@@ -9962,6 +10023,242 @@
           "default": 0,
           "min": -9223372036854775808,
           "max": 9223372036854775807
+        }
+      ],
+      "indexes": []
+    },
+    {
+      "$id": "order_refunds",
+      "$permissions": [
+        "create(\"team:sg-app-dept-operationsunit\")",
+        "read(\"team:sg-app-dept-operationsunit\")",
+        "update(\"team:sg-app-dept-operationsunit\")",
+        "delete(\"team:sg-app-dept-operationsunit\")"
+      ],
+      "databaseId": "app",
+      "name": "Order Refunds",
+      "enabled": true,
+      "rowSecurity": true,
+      "columns": [
+        {
+          "key": "order",
+          "type": "relationship",
+          "required": false,
+          "array": false,
+          "relatedTable": "orders",
+          "relationType": "oneToMany",
+          "twoWay": true,
+          "twoWayKey": "refunds",
+          "onDelete": "cascade",
+          "side": "child"
+        },
+        {
+          "key": "amount",
+          "type": "double",
+          "required": true,
+          "array": false,
+          "default": null,
+          "min": -1.7976931348623157e308,
+          "max": 1.7976931348623157e308
+        },
+        {
+          "key": "currency",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "default": "NOK",
+          "format": "enum",
+          "elements": ["NOK"]
+        },
+        {
+          "key": "status",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "default": "pending",
+          "format": "enum",
+          "elements": ["pending", "succeeded", "failed"]
+        },
+        {
+          "key": "provider",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "default": null,
+          "format": "enum",
+          "elements": ["vipps", "stripe"]
+        },
+        {
+          "key": "provider_refund_id",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 255,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "idempotency_key",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 255,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "reason",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 500,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "restock",
+          "type": "boolean",
+          "required": false,
+          "array": false,
+          "default": false
+        },
+        {
+          "key": "finago_transaction_id",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 64,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "error",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 1000,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "ledger_allocation",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 2000,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "created_by",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 64,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "created_by_name",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 255,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "lines",
+          "type": "relationship",
+          "required": false,
+          "array": false,
+          "relatedTable": "order_refund_lines",
+          "relationType": "oneToMany",
+          "twoWay": true,
+          "twoWayKey": "refund",
+          "onDelete": "cascade",
+          "side": "parent"
+        }
+      ],
+      "indexes": [
+        {
+          "key": "idx_order_refunds_status",
+          "type": "key",
+          "status": "available",
+          "columns": ["status"],
+          "orders": ["ASC"]
+        },
+        {
+          "key": "idx_order_refunds_idempotency",
+          "type": "key",
+          "status": "available",
+          "columns": ["idempotency_key"],
+          "orders": ["ASC"]
+        }
+      ]
+    },
+    {
+      "$id": "order_refund_lines",
+      "$permissions": [
+        "create(\"team:sg-app-dept-operationsunit\")",
+        "read(\"team:sg-app-dept-operationsunit\")",
+        "update(\"team:sg-app-dept-operationsunit\")",
+        "delete(\"team:sg-app-dept-operationsunit\")"
+      ],
+      "databaseId": "app",
+      "name": "Order Refund Lines",
+      "enabled": true,
+      "rowSecurity": true,
+      "columns": [
+        {
+          "key": "refund",
+          "type": "relationship",
+          "required": false,
+          "array": false,
+          "relatedTable": "order_refunds",
+          "relationType": "oneToMany",
+          "twoWay": true,
+          "twoWayKey": "lines",
+          "onDelete": "cascade",
+          "side": "child"
+        },
+        {
+          "key": "order_item",
+          "type": "relationship",
+          "required": false,
+          "array": false,
+          "relatedTable": "order_items",
+          "relationType": "manyToOne",
+          "twoWay": false,
+          "onDelete": "setNull",
+          "side": "parent"
+        },
+        {
+          "key": "quantity",
+          "type": "integer",
+          "required": false,
+          "array": false,
+          "default": null,
+          "min": 0,
+          "max": 1000000
+        },
+        {
+          "key": "amount",
+          "type": "double",
+          "required": false,
+          "array": false,
+          "default": null,
+          "min": -1.7976931348623157e308,
+          "max": 1.7976931348623157e308
+        },
+        {
+          "key": "name",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 255,
+          "default": null,
+          "encrypt": false
         }
       ],
       "indexes": []
@@ -10097,13 +10394,7 @@
           "array": false,
           "default": null,
           "format": "enum",
-          "elements": [
-            "text",
-            "textarea",
-            "number",
-            "select",
-            "email"
-          ]
+          "elements": ["text", "textarea", "number", "select", "email"]
         },
         {
           "key": "is_required",

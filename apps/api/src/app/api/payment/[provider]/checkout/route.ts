@@ -17,6 +17,7 @@ import { type CheckoutSessionParams, Currency } from "@repo/shared/types/vipps";
 import { sanitizeStudentNumber } from "@repo/shared/utils/bi-student";
 import { isFeatureEnabled } from "@repo/shared/utils/feature-flags-server";
 import { computeMembershipStatus } from "@repo/shared/utils/membership-status";
+import { getOrderItems } from "@repo/shared/utils/order-parsing";
 import { ORDER_ITEMS_SELECT } from "@repo/shared/utils/order-queries";
 import {
   checkMaxPerOrder,
@@ -37,6 +38,11 @@ import { applyCorsHeaders, corsPreflightResponse } from "@/lib/cors";
 
 type Provider = "vipps" | "stripe";
 const DEFAULT_VIPPS_CHECKOUT_TIMEOUT_MS = 10_000;
+// A buyer who double-submits (or retries after a flaky network) must not end up
+// with two orders and two payment sessions for the same cart. Mirrors the
+// membership checkout route, which already does this.
+const IDEMPOTENCY_WINDOW_MS = 15 * 60 * 1000;
+const RECENT_ORDERS_LIMIT = 10;
 
 interface CheckoutBody {
   currency: "NOK";
@@ -535,6 +541,9 @@ async function buildTrustedCheckoutParams({
     const productName = product.title || product.slug || product.$id;
 
     trustedItems.push({
+      // Snapshotted so a later refund reverses the account this sale actually
+      // credited, even if the product's account is edited in between.
+      finago_account_number: product.finago_account_number ?? null,
       name: productName,
       price: pricing.discountedUnit,
       productId: product.$id,
@@ -582,6 +591,98 @@ async function buildTrustedCheckoutParams({
     campusId: campusIds.size === 1 ? Array.from(campusIds)[0] : undefined,
     customerInfo: body.customerInfo,
   };
+}
+
+/**
+ * A signature of what is being bought, used to tell "the same cart submitted
+ * twice" apart from "a second, genuinely different order". Quantities are
+ * summed per product and the pairs sorted, so line ordering and how the cart
+ * splits a product across variation lines do not change the signature.
+ */
+function cartSignature(items: CheckoutSessionParams["items"]): string {
+  // Keyed on everything that changes what gets FULFILLED, not just what gets
+  // charged. A buyer who goes back and swaps a size, or edits a checkout
+  // answer, keeps the same product, quantity and total — so a product+quantity
+  // signature would call that the same cart and hand them the old order's
+  // payment link, fulfilling the selections they just replaced.
+  const byLine = new Map<string, number>();
+  for (const item of items) {
+    const answers = Object.entries(item.customFields ?? {})
+      .filter(([, value]) => value?.trim())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([key, value]) => `${key}=${value.trim()}`)
+      .join(",");
+    const key = [item.productId, item.variationId ?? "", answers].join("#");
+    byLine.set(key, (byLine.get(key) ?? 0) + item.quantity);
+  }
+  return [...byLine.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([key, quantity]) => `${key}:${quantity}`)
+    .join("|");
+}
+
+/**
+ * Returns a still-payable order the same buyer created for the same cart and
+ * provider moments ago, so a double-submit reuses its checkout link instead of
+ * creating a second order (and a second payment session) for one purchase.
+ *
+ * Only PENDING orders qualify: once an order is authorized or paid, a repeat
+ * submission is a genuine second purchase.
+ */
+async function findIdempotentOrder(
+  db: CheckoutDb,
+  userId: string,
+  provider: Provider,
+  params: CheckoutSessionParams
+): Promise<{ checkoutUrl: string; orderId: string } | null> {
+  if (!userId || userId === "guest") {
+    return null;
+  }
+
+  const windowStart = new Date(
+    Date.now() - IDEMPOTENCY_WINDOW_MS
+  ).toISOString();
+  const recent = await db.listRows<Orders>("app", "orders", [
+    Query.equal("userId", userId),
+    Query.equal("status", "pending"),
+    Query.equal("payment_provider", provider),
+    Query.greaterThan("$createdAt", windowStart),
+    Query.orderDesc("$createdAt"),
+    ORDER_ITEMS_SELECT,
+    Query.limit(RECENT_ORDERS_LIMIT),
+  ]);
+
+  const signature = cartSignature(params.items);
+  const totalMinor = Math.round(params.total * 100);
+
+  for (const order of recent.rows) {
+    // Re-check in code rather than trusting the query alone: reusing the wrong
+    // order would hand the buyer a checkout link for a different amount.
+    if (!order.payment_link || order.payment_provider !== provider) {
+      continue;
+    }
+    if (Math.round((order.total ?? 0) * 100) !== totalMinor) {
+      continue;
+    }
+    const orderSignature = cartSignature(
+      getOrderItems(order).map((item) => ({
+        customFields: Object.fromEntries(
+          (item.custom_fields ?? []).map((field) => [field.id, field.value])
+        ),
+        name: item.name ?? "",
+        price: Number(item.unit_price ?? item.price ?? 0),
+        productId: item.product_id ?? "",
+        quantity: typeof item.quantity === "number" ? item.quantity : 0,
+        variationId:
+          typeof item.variation_id === "string" ? item.variation_id : undefined,
+      }))
+    );
+    if (orderSignature === signature) {
+      return { checkoutUrl: order.payment_link, orderId: order.$id };
+    }
+  }
+
+  return null;
 }
 
 function totalsMatch(clientTotal: number, serverTotal: number): boolean {
@@ -696,6 +797,22 @@ export async function POST(
     });
     if (!totalsMatch(body.total, params.total)) {
       return json({ message: "Checkout total mismatch" }, 400);
+    }
+
+    // Reuse a payment session the same buyer started for this exact cart
+    // moments ago, so a double-submit does not create a second order. Best
+    // effort — a lookup failure must not block a legitimate checkout.
+    const existing = await findIdempotentOrder(
+      db,
+      auth.userId,
+      provider,
+      params
+    ).catch(() => null);
+    if (existing) {
+      return json({
+        checkoutUrl: existing.checkoutUrl,
+        orderId: existing.orderId,
+      });
     }
 
     const outcome =

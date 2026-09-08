@@ -635,3 +635,36 @@ describe("applyOrderStatusTransition with atomic column ops", () => {
     );
   });
 });
+
+describe("refund terminality", () => {
+  beforeEach(() => {
+    process.env.APPWRITE_DATABASE_ID = "app";
+    process.env.APPWRITE_ORDERS_COLLECTION_ID = "orders";
+    db.createRow.mockReset();
+    db.deleteRow.mockReset();
+    db.getRow.mockReset();
+    db.listRows.mockReset();
+    db.updateRow.mockReset();
+    db.listRows.mockResolvedValue({ rows: [] });
+  });
+
+  it("ignores a stale paid event on a refunded order", async () => {
+    // Stripe never rewrites the Checkout Session after a refund, so a retried
+    // webhook maps it back to PAID and would erase the refund.
+    db.getRow.mockResolvedValue({
+      $id: "order-1",
+      status: OrdersStatus.REFUNDED,
+      order_items: [],
+    });
+
+    const result = await applyOrderStatusTransition(
+      "order-1",
+      OrdersStatus.PAID,
+      {},
+      db
+    );
+
+    expect(result.newStatus).toBe(OrdersStatus.REFUNDED);
+    expect(db.updateRow).not.toHaveBeenCalled();
+  });
+});

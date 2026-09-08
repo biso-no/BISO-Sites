@@ -1,7 +1,5 @@
 import { createAdminClient } from "@repo/api/server";
-import { resolveStripeCredentials } from "@repo/payment/credentials";
-import { getStripeSession } from "@repo/payment/stripe";
-import { reconcileVippsPayment } from "@repo/payment/vipps";
+import { reconcileOrderPayment } from "@repo/payment/reconcile";
 import {
   type FinagoOrder,
   postFinagoTransactionForOrder,
@@ -11,8 +9,6 @@ import {
   isMembershipOrder,
 } from "@repo/shared/utils/membership-fulfilment";
 import { ORDER_ITEMS_SELECT } from "@repo/shared/utils/order-queries";
-import { determineStatusFromStripeSession } from "@repo/shared/utils/stripe-pure";
-import { applyOrderStatusTransition } from "@repo/shared/utils/vipps-order-ops";
 import { NextResponse } from "next/server";
 
 type Orders = FinagoOrder;
@@ -32,7 +28,12 @@ function siteUrl(path: string): URL {
 
 /**
  * Re-syncs the order status with the payment provider so the result page is
- * up to date even if the webhook/callback hasn't landed yet. Provider-agnostic.
+ * up to date even if the webhook/callback hasn't landed yet. The provider
+ * branch lives in `@repo/payment/reconcile`, shared with the reconciliation
+ * cron and the buyer-facing verify action.
+ *
+ * Never throws: the buyer has already been charged by the time they land here,
+ * so a provider hiccup must still produce a redirect.
  */
 async function syncOrderStatusFromProvider(
   order: Orders,
@@ -44,22 +45,7 @@ async function syncOrderStatusFromProvider(
   }
 
   try {
-    if (order.payment_provider === "vipps") {
-      // Verify server-side: fetch the payment, capture if authorized, and apply
-      // the transition idempotently (safe alongside the webhook).
-      await reconcileVippsPayment(orderId, db);
-    } else if (order.payment_provider === "stripe") {
-      const creds = await resolveStripeCredentials(db);
-      if (creds) {
-        const { session } = await getStripeSession(
-          order.payment_session_id,
-          creds
-        );
-        const { status, updateData } =
-          determineStatusFromStripeSession(session);
-        await applyOrderStatusTransition(orderId, status, updateData, db);
-      }
-    }
+    await reconcileOrderPayment(orderId, db);
   } catch (err) {
     console.error(
       "[Checkout Return] Provider session verification failed:",

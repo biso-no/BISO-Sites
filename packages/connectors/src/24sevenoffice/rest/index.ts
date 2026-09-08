@@ -16,9 +16,12 @@ export {
 export {
   type BuildExpenseTransactionParams,
   buildExpenseTransactionInput,
+  buildShopRefundTransactionInput,
   type ExpenseReceiptLine,
   type PostExpenseTransactionParams,
   postExpenseTransaction,
+  postShopRefundTransaction,
   postShopTransaction,
+  type ShopRefundTransactionParams,
   type ShopTransactionParams,
 } from "./transactions";

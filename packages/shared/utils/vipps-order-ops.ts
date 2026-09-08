@@ -88,6 +88,11 @@ function buildStoredOrderItems(
       accrual_months: rest.accrual_months ?? null,
       category_id: rest.category_id ?? null,
       duration: rest.duration ?? null,
+      // Snapshotted at sale time. A product's `finago_account_number` is
+      // editable, so resolving it from the product row at refund time could
+      // debit an account the original sale never credited — leaving revenue
+      // stranded on one account while reducing an unrelated one.
+      finago_account_number: rest.finago_account_number ?? null,
       field_answers: fieldAnswers,
       line_total: unitPrice * rest.quantity,
       membership_id: rest.membership_id ?? null,
@@ -262,6 +267,15 @@ function isStaleBackwardTransition(
   if (settledOrTerminal && PRE_SETTLEMENT_STATUSES.includes(newStatus)) {
     return true;
   }
+  // REFUNDED is terminal. The provider's own session/payment stays "paid"
+  // after a refund — Stripe's Checkout Session is never rewritten — so a
+  // retried webhook or a second visit to the return URL maps the order back to
+  // PAID and silently erases the refund, putting the money back on the books
+  // and back into purchase-limit counting.
+  if (oldStatus === OrdersStatus.REFUNDED && newStatus === OrdersStatus.PAID) {
+    return true;
+  }
+
   // A real cancellation moves to CANCELLED, never back to PENDING — so an
   // authorized order regressing to pending is always a stale event.
   return (

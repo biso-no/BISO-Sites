@@ -1,5 +1,6 @@
 import { OrdersStatus } from "@repo/api/types/appwrite";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { toRefundFailure } from "./index";
 
 const { info, capture, applyTransition, resolveCreds } = vi.hoisted(() => ({
   info: vi.fn(),
@@ -162,5 +163,40 @@ describe("reconcileVippsPayment", () => {
 
     expect(info).not.toHaveBeenCalled();
     expect(applyTransition).not.toHaveBeenCalled();
+  });
+});
+
+describe("Vipps refund failure classification", () => {
+  it("treats a 5xx (retry:true) as an unknown outcome, not a rejection", () => {
+    // The SDK does not throw for server errors; it returns ok:false with
+    // retry:true. Calling that a definitive rejection releases the refundable
+    // balance, and a retry mints a fresh idempotency key — refunding twice.
+    const failure = toRefundFailure({
+      error: new Error("503 - Service Unavailable"),
+      retry: true,
+    });
+    expect(failure.name).not.toBe("PaymentRefundRejectedError");
+    expect(failure.message).toContain("outcome unknown");
+  });
+
+  it("treats an exhausted retry budget as an unknown outcome", () => {
+    const failure = toRefundFailure({
+      error: new Error("Retry limit reached. Could not get a response"),
+    });
+    expect(failure.name).not.toBe("PaymentRefundRejectedError");
+  });
+
+  it("treats a connection failure as an unknown outcome", () => {
+    const failure = toRefundFailure({
+      error: new Error("Could not connect to Vipps MobilePay API"),
+    });
+    expect(failure.name).not.toBe("PaymentRefundRejectedError");
+  });
+
+  it("treats a 4xx problem response as a definitive rejection", () => {
+    const failure = toRefundFailure({
+      error: new Error("Refund amount exceeds captured amount"),
+    });
+    expect(failure.name).toBe("PaymentRefundRejectedError");
   });
 });

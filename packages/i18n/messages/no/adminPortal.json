@@ -778,7 +778,8 @@
         "truncated": "{orders, plural, one {# bestilling} other {# bestillinger}} eksportert som {rows, plural, one {# varelinje} other {# varelinjer}} — filen nådde eksporttaket og inneholder ikke alle treff. Avgrens filtrene og eksporter på nytt.",
         "empty": "Ingen bestillinger treffer disse filtrene, så det var ingenting å eksportere.",
         "failed": "Eksporten mislyktes. Prøv igjen."
-      }
+      },
+      "viewOrder": "Vis ordre"
     },
     "preview": "Butikkvisning",
     "saveSuccess": "Produkt lagret",

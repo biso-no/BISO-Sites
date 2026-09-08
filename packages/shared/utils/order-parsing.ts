@@ -2,6 +2,12 @@ export interface ParsedOrderItem {
   category?: string | null;
   custom_fields?: Array<{ id: string; label: string; value: string }>;
   name?: string | null;
+  /**
+   * The `order_items` row id. Carried through so a refund line can point at
+   * the exact line it returns; absent for legacy `items_json` orders, which
+   * have no line rows to reference.
+   */
+  order_item_id?: string | null;
   price?: number | null;
   product_id?: string | null;
   product_name?: string | null;
@@ -89,6 +95,7 @@ function normalizeRelationalOrderItem(
     line_total: item.line_total,
     membership_id: item.membership_id,
     name: item.name,
+    order_item_id: item.$id,
     product_id: relationshipId(item.product),
     product_type: item.product_type,
     quantity: item.quantity,

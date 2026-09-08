@@ -7,8 +7,10 @@
 
 import type { Orders } from "@repo/api/types/appwrite";
 import { getOrderItems } from "@repo/shared/utils/order-parsing";
-import { ExternalLink } from "lucide-react";
+import { ChevronRight, ExternalLink } from "lucide-react";
+import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
+import { displayOrderStatus } from "@/lib/shop/order-detail";
 import { OrderStatusPill } from "./shop-studio-pills";
 import {
   BRAND,
@@ -17,6 +19,18 @@ import {
   MONO_STACK,
   normalizeLocale,
 } from "./shop-studio-theme";
+
+const iconButtonStyle = {
+  alignItems: "center",
+  background: "rgba(255,255,255,.5)",
+  border: `0.5px solid ${BRAND.rule2}`,
+  borderRadius: 7,
+  color: BRAND.ink3,
+  display: "grid",
+  height: 26,
+  justifyItems: "center",
+  width: 26,
+} as const;
 
 export function OrderRow({ order }: { order: Orders }) {
   const locale = normalizeLocale(useLocale());
@@ -170,31 +184,28 @@ export function OrderRow({ order }: { order: Orders }) {
       </div>
 
       {/* Col 5: status */}
-      <OrderStatusPill status={order.status} />
+      <OrderStatusPill status={displayOrderStatus(order)} />
 
-      {/* Col 6: receipt link */}
-      <div style={{ display: "flex", justifyContent: "flex-end" }}>
+      {/* Col 6: receipt link + drill-in */}
+      <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
         {order.payment_receipt_url ? (
           <a
             aria-label={orderDetails("openReceipt")}
             href={order.payment_receipt_url}
             rel="noopener noreferrer"
-            style={{
-              alignItems: "center",
-              background: "rgba(255,255,255,.5)",
-              border: `0.5px solid ${BRAND.rule2}`,
-              borderRadius: 7,
-              color: BRAND.ink3,
-              display: "grid",
-              height: 26,
-              justifyItems: "center",
-              width: 26,
-            }}
+            style={iconButtonStyle}
             target="_blank"
           >
             <ExternalLink size={12} />
           </a>
         ) : null}
+        <Link
+          aria-label={t("viewOrder")}
+          href={`/shop/orders/${order.$id}`}
+          style={iconButtonStyle}
+        >
+          <ChevronRight size={13} />
+        </Link>
       </div>
     </div>
   );
