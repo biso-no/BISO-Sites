@@ -1,4 +1,5 @@
 import { createAdminClient } from "@repo/api/server";
+import { cartReservationRowId } from "@repo/shared/utils/cart-reservation-id";
 import type { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createAuthenticatedClient } from "@/lib/auth";
@@ -25,12 +26,30 @@ function mockUser(userId = "buyer-1") {
 }
 
 function mockDb({
+  createConflict = false,
   product = { status: "published", stock: null as number | null },
   reservations = [] as ReservationRow[],
 } = {}) {
+  // Deletes really remove the row, because the route collapses a buyer's
+  // duplicate holds *before* computing their ceiling — a delete that did not
+  // stick would leave the phantom hold visible to the availability read and
+  // hide the very thing these tests check.
+  const stored = [...reservations];
   const db = {
-    createRow: vi.fn().mockResolvedValue({}),
-    deleteRow: vi.fn().mockResolvedValue({}),
+    createRow: createConflict
+      ? vi
+          .fn()
+          .mockRejectedValue(
+            Object.assign(new Error("row already exists"), { code: 409 })
+          )
+      : vi.fn().mockResolvedValue({}),
+    deleteRow: vi.fn((_db: string, _table: string, rowId: string) => {
+      const index = stored.findIndex((row) => row.$id === rowId);
+      if (index >= 0) {
+        stored.splice(index, 1);
+      }
+      return Promise.resolve({});
+    }),
     getRow: vi.fn().mockResolvedValue(product),
     listRows: vi.fn((_db: string, _table: string, queries: string[]) => {
       // The own-row lookup filters ON user_id; the availability read only
@@ -39,8 +58,8 @@ function mockDb({
         query.includes('"attribute":"user_id"')
       );
       const rows = isOwnLookup
-        ? reservations.filter((row) => row.user_id === "buyer-1")
-        : reservations;
+        ? stored.filter((row) => row.user_id === "buyer-1")
+        : [...stored];
       return Promise.resolve({ rows, total: rows.length });
     }),
     updateRow: vi.fn().mockResolvedValue({}),
@@ -189,6 +208,95 @@ describe("cart reservations", () => {
       "r-mine",
       expect.not.objectContaining({ field_answers: expect.anything() })
     );
+  });
+
+  // `user_product_idx` is not unique, so nothing in the schema stops two first
+  // writes — the app and the website, or one request retried — from each
+  // minting a row. The row id is derived from (buyer, product) so the primary
+  // key settles the race instead.
+  it("derives the row id from the buyer and product, not at random", async () => {
+    const db = mockDb({ product: { status: "published", stock: null } });
+
+    await PUT(putRequest({ productId: "product-1", quantity: 1 }));
+
+    const [, , firstId] = db.createRow.mock.calls[0];
+    expect(firstId).toBe(cartReservationRowId("buyer-1", "product-1"));
+    expect(firstId).not.toBe(cartReservationRowId("buyer-2", "product-1"));
+    expect(firstId).not.toBe(cartReservationRowId("buyer-1", "product-2"));
+  });
+
+  it("updates the winner's row when it loses the create race", async () => {
+    const db = mockDb({
+      createConflict: true,
+      product: { status: "published", stock: null },
+    });
+
+    const response = await PUT(
+      putRequest({ productId: "product-1", quantity: 3 })
+    );
+
+    expect(response.status).toBe(200);
+    expect(db.updateRow).toHaveBeenCalledWith(
+      "app",
+      "cart_reservations",
+      cartReservationRowId("buyer-1", "product-1"),
+      expect.objectContaining({ quantity: 3 })
+    );
+  });
+
+  it("surfaces a create failure that is not the race being lost", async () => {
+    const db = mockDb({ product: { status: "published", stock: null } });
+    db.createRow.mockRejectedValue(new Error("appwrite is down"));
+
+    const response = await PUT(
+      putRequest({ productId: "product-1", quantity: 1 })
+    );
+
+    expect(response.status).toBe(500);
+    expect(db.updateRow).not.toHaveBeenCalled();
+  });
+
+  it("drops a duplicate hold left by an earlier race", async () => {
+    const db = mockDb({
+      product: { status: "published", stock: 10 },
+      reservations: [
+        { $id: "r-legacy", quantity: 4, user_id: "buyer-1" },
+        { $id: "r-dupe", quantity: 4, user_id: "buyer-1" },
+      ],
+    });
+
+    await PUT(putRequest({ productId: "product-1", quantity: 1 }));
+
+    expect(db.deleteRow).toHaveBeenCalledWith(
+      "app",
+      "cart_reservations",
+      "r-dupe"
+    );
+    expect(db.deleteRow).not.toHaveBeenCalledWith(
+      "app",
+      "cart_reservations",
+      "r-legacy"
+    );
+  });
+
+  it("does not let a duplicate hold inflate the buyer's own ceiling", async () => {
+    // Stock 10, another buyer holding 5, and this buyer holding 3 twice over
+    // because of an earlier race. Crediting both rows back would offer them 6
+    // of the 5 that are really theirs to take.
+    mockDb({
+      product: { status: "published", stock: 10 },
+      reservations: [
+        { $id: "r-other", quantity: 5, user_id: "buyer-2" },
+        { $id: "r-mine", quantity: 3, user_id: "buyer-1" },
+        { $id: "r-mine-dupe", quantity: 3, user_id: "buyer-1" },
+      ],
+    });
+
+    const response = await PUT(
+      putRequest({ productId: "product-1", quantity: 6 })
+    );
+
+    await expect(response.json()).resolves.toMatchObject({ quantity: 5 });
   });
 
   it("reports an out-of-stock product as a conflict", async () => {

@@ -71,6 +71,16 @@ Cart stock holds go through `PUT` / `DELETE /api/shop/cart`, which writes the
 same `cart_reservations` rows the website writes — so a cart started in the app
 shows up on biso.no and vice versa.
 
+Because there are now two writers, the row id for a hold is derived from
+`(user, product)` rather than being random (`cartReservationRowId` in
+`@repo/shared`). `user_product_idx` is not a unique index, so without this both
+writers could look first, find nothing, and each create a row — leaving the
+buyer holding twice what they asked for and inflating the "own hold" that gets
+credited back when their ceiling is computed. With a derived id the table's
+primary key settles the race: the loser is told the row exists and updates it.
+The `PUT` handler also collapses any duplicate rows a pre-existing race left
+behind, before it computes the ceiling.
+
 Checkout itself is the same `POST /api/payment/{provider}/checkout` call the
 website makes, with one extra field: `client: "app"`. That marks the provider's
 return URL with `&client=app`, and `/api/checkout/return` — after it has

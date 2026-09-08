@@ -1,6 +1,10 @@
-import { ID, type Models, Permission, Query, Role } from "@repo/api";
+import { type Models, Permission, Query, Role } from "@repo/api";
 import { createAdminClient } from "@repo/api/server";
 import type { CartReservations } from "@repo/api/types/appwrite";
+import {
+  cartReservationRowId,
+  isRowAlreadyExists,
+} from "@repo/shared/utils/cart-reservation-id";
 import {
   computeAvailableStock,
   sumReservedQuantity,
@@ -38,6 +42,8 @@ import { applyCorsHeaders, corsPreflightResponse } from "@/lib/cors";
 
 const RESERVATION_TTL_MS = 10 * 60 * 1000;
 const MAX_RESERVATION_ROWS = 1000;
+/** How many of one buyer's rows for one product to collapse in a single pass. */
+const MAX_DUPLICATE_ROWS = 25;
 
 interface ReservationBody {
   customFieldLabels?: Record<string, string>;
@@ -112,11 +118,28 @@ async function readActiveReservations(db: CartDb, productId: string) {
   return result.rows;
 }
 
-/** The caller's own reservation row for a product, expired ones included. */
-async function readOwnReservation(
+/**
+ * The caller's single reservation row for a product, expired ones included —
+ * collapsing any duplicates first.
+ *
+ * A buyer should only ever have one row per product, but nothing in the schema
+ * enforces it, and rows minted before ids became deterministic (or by a create
+ * race that predates it) can leave more than one behind. Every one of them is
+ * credited back as this buyer's own hold when their ceiling is computed, so a
+ * leftover duplicate would inflate the ceiling above real availability. They
+ * are phantom holds on a product this buyer is already holding, so the extras
+ * are deleted rather than merged; the surviving row is then set to the
+ * requested quantity as usual.
+ *
+ * The deterministic row is preferred as the survivor so a legacy row is the one
+ * retired, which converges each buyer onto the id the create race is decided
+ * by. Deletion is best effort: failing to tidy up must not fail the reservation.
+ */
+async function claimOwnReservation(
   db: CartDb,
   productId: string,
-  userId: string
+  userId: string,
+  rowId: string
 ) {
   const result = await db.listRows<CartReservations & { $id: string }>(
     "app",
@@ -124,10 +147,26 @@ async function readOwnReservation(
     [
       Query.equal("product_id", productId),
       Query.equal("user_id", userId),
-      Query.limit(1),
+      Query.limit(MAX_DUPLICATE_ROWS),
     ]
   );
-  return result.rows[0] ?? null;
+  const rows = result.rows;
+  if (rows.length === 0) {
+    return null;
+  }
+
+  const survivor = rows.find((row) => row.$id === rowId) ?? rows[0];
+  for (const row of rows) {
+    if (row.$id === survivor.$id) {
+      continue;
+    }
+    try {
+      await db.deleteRow("app", "cart_reservations", row.$id);
+    } catch (error) {
+      console.error("[shop/cart] could not drop a duplicate hold:", error);
+    }
+  }
+  return survivor;
 }
 
 /**
@@ -203,6 +242,11 @@ export async function PUT(req: NextRequest) {
       return json({ message: "Product is not available" }, 404);
     }
 
+    // Before the ceiling is computed, so a duplicate row left by an earlier
+    // race is not counted as stock this buyer is holding.
+    const rowId = cartReservationRowId(userId, productId);
+    const existing = await claimOwnReservation(db, productId, userId, rowId);
+
     const ceiling = await computeCallerCeiling(db, productId, userId, stock);
     if (ceiling <= 0) {
       return json({ message: "Out of stock", quantity: 0 }, 409);
@@ -218,7 +262,6 @@ export async function PUT(req: NextRequest) {
       ? { field_answers: buildAnswerRows(body, permissions) }
       : {};
 
-    const existing = await readOwnReservation(db, productId, userId);
     if (existing) {
       await db.updateRow("app", "cart_reservations", existing.$id, {
         quantity,
@@ -226,19 +269,34 @@ export async function PUT(req: NextRequest) {
         ...answers,
       });
     } else {
-      await db.createRow(
-        "app",
-        "cart_reservations",
-        ID.unique(),
-        {
-          product_id: productId,
-          user_id: userId,
+      // The row id is derived from (buyer, product), so the table's primary key
+      // is what settles a race between two first writes — the website and the
+      // app, or one request retried. The loser is told the row already exists
+      // and updates it, instead of minting a second hold for the same buyer.
+      try {
+        await db.createRow(
+          "app",
+          "cart_reservations",
+          rowId,
+          {
+            product_id: productId,
+            user_id: userId,
+            quantity,
+            expires_at: expiresAt,
+            field_answers: buildAnswerRows(body ?? {}, permissions),
+          },
+          permissions
+        );
+      } catch (error) {
+        if (!isRowAlreadyExists(error)) {
+          throw error;
+        }
+        await db.updateRow("app", "cart_reservations", rowId, {
           quantity,
           expires_at: expiresAt,
-          field_answers: buildAnswerRows(body ?? {}, permissions),
-        },
-        permissions
-      );
+          ...answers,
+        });
+      }
     }
 
     // The effective quantity may be below what was asked for; the client
