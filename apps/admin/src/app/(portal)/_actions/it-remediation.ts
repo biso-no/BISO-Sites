@@ -333,6 +333,7 @@ export async function runDepartmentAnalysis(): Promise<
   ActionResult<RemediationSnapshot>
 > {
   try {
+    await requireItPermission("it.tenant.audit");
     const ctx = await requireItPermission("it.users.editProfile");
     console.info(
       `${LOG} starting; fetching licensed M365 users + canonical data…`
@@ -453,7 +454,7 @@ export async function getLatestRemediationSnapshot(): Promise<
   ActionResult<RemediationSnapshot | null>
 > {
   try {
-    await requireItPermission("it.users.view");
+    await requireItPermission("it.tenant.audit");
     const { db } = await createAdminClient();
     const rows = await db.listRows<
       Models.Row & {
@@ -487,6 +488,7 @@ export async function deactivateM365Account(
   userId: string
 ): Promise<ActionResult<{ ok: true }>> {
   try {
+    await requireItPermission("it.tenant.audit");
     const ctx = await requireItPermission("it.users.disable");
     const graph = getGraphService();
     await deactivateOneAccount(graph, userId);
@@ -513,6 +515,7 @@ export async function deactivateM365Accounts(
   userIds: string[]
 ): Promise<ActionResult<{ failed: number; succeeded: number }>> {
   try {
+    await requireItPermission("it.tenant.audit");
     const ctx = await requireItPermission("it.users.disable");
     const graph = getGraphService();
 
@@ -559,6 +562,7 @@ export async function applyDepartmentFixes(
   decisions: DepartmentFixDecision[]
 ): Promise<ActionResult<DepartmentFixSummary>> {
   try {
+    await requireItPermission("it.tenant.audit");
     const ctx = await requireItPermission("it.users.editProfile");
     const data = await loadCanonicalData();
 
@@ -681,7 +685,7 @@ export async function listAssignableDepartments(): Promise<
   ActionResult<Array<{ campusName: string; name: string }>>
 > {
   try {
-    await requireItPermission("it.users.view");
+    await requireItPermission("it.tenant.audit");
     const data = await loadCanonicalData();
     const departments = data.canonical
       .filter((dept) => dept.active !== false && !isClosedName(dept.name))
@@ -700,7 +704,7 @@ export async function getDepartmentDataHealth(): Promise<
   ActionResult<DepartmentDataHealthEntry[]>
 > {
   try {
-    await requireItPermission("it.users.view");
+    await requireItPermission("it.tenant.audit");
     const data = await loadCanonicalData();
     const nameCounts = new Map<string, number>();
     for (const department of data.departments) {

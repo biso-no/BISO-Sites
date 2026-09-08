@@ -138,6 +138,7 @@ export default async function M365UserDetailPage({
           confirmRemoveLicenseDesc: t("confirmRemoveLicenseDesc"),
           resetMfa: t("resetMfa"),
           mfaReset: t("mfaReset"),
+          mfaResetPartial: t("mfaResetPartial"),
           noMfaMethods: t("noMfaMethods"),
           confirmResetMfaTitle: t("confirmResetMfaTitle"),
           confirmResetMfaDesc: t("confirmResetMfaDesc"),

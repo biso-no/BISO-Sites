@@ -13,8 +13,10 @@ import {
 } from "../../../_components/studio";
 
 interface UsersListClientProps {
+  canCreate: boolean;
   initialQuery: string;
   labels: {
+    campusScope: string;
     create: string;
     empty: string;
     emptyDescription: string;
@@ -23,6 +25,8 @@ interface UsersListClientProps {
     statusEnabled: string;
     statusUnknown: string;
   };
+  /** Campuses the list is filtered to. Empty for an unrestricted view. */
+  scopedCampuses: string[];
   users: M365UserListItem[];
 }
 
@@ -65,9 +69,11 @@ function getStatus(
 }
 
 export function UsersListClient({
+  canCreate,
   users,
   initialQuery,
   labels,
+  scopedCampuses,
 }: UsersListClientProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -88,11 +94,19 @@ export function UsersListClient({
         onSearch={handleSearch}
         placeholder={labels.searchPlaceholder}
       >
-        <StudioLinkButton href="/it/users/new" variant="primary">
-          <Plus size={15} />
-          {labels.create}
-        </StudioLinkButton>
+        {canCreate ? (
+          <StudioLinkButton href="/it/users/new" variant="primary">
+            <Plus size={15} />
+            {labels.create}
+          </StudioLinkButton>
+        ) : null}
       </SearchToolbar>
+
+      {scopedCampuses.length > 0 && (
+        <p className="mb-3 text-xs" style={{ color: STUDIO.ink4 }}>
+          {labels.campusScope}: {scopedCampuses.join(", ")}
+        </p>
+      )}
 
       {users.length === 0 ? (
         <EmptyState

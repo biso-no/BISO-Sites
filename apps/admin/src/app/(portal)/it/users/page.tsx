@@ -1,5 +1,8 @@
 import { getTranslations } from "next-intl/server";
-import { requireItPagePermission } from "@/lib/it-permissions";
+import {
+  getCurrentItPermissions,
+  requireItPagePermission,
+} from "@/lib/it-permissions";
 import { searchM365Users } from "../../_actions/it-users";
 import { PageHeader } from "../../_components/page-header";
 import { ItUsersTabs } from "./_components/it-users-tabs";
@@ -10,11 +13,20 @@ interface ItUsersPageProps {
 }
 
 export default async function ItUsersPage({ searchParams }: ItUsersPageProps) {
-  await requireItPagePermission("it.users.view");
+  const ctx = await requireItPagePermission("it.users.view");
   const t = await getTranslations("adminPortal.it.users");
   const { q } = await searchParams;
   const query = q?.trim() ?? "";
-  const result = await searchM365Users({ query, limit: query ? 25 : 20 });
+  const [result, permissions] = await Promise.all([
+    searchM365Users({ query, limit: query ? 25 : 20 }),
+    getCurrentItPermissions(),
+  ]);
+
+  // Campus admins see only their own campuses; name them so the shorter list
+  // reads as a deliberate filter rather than missing data.
+  const scopedCampuses = permissions["it.tenant.audit"]
+    ? []
+    : ctx.managedCampuses;
 
   return (
     <div className="pb-12">
@@ -26,6 +38,7 @@ export default async function ItUsersPage({ searchParams }: ItUsersPageProps) {
           expenseApprovals: t("tabs.expenseApprovals"),
           users: t("tabs.users"),
         }}
+        showTenantTools={permissions["it.tenant.audit"]}
       />
 
       {result.error ? (
@@ -41,8 +54,10 @@ export default async function ItUsersPage({ searchParams }: ItUsersPageProps) {
         </div>
       ) : (
         <UsersListClient
+          canCreate={permissions["it.users.create"]}
           initialQuery={query}
           labels={{
+            campusScope: t("campusScope"),
             create: t("create"),
             empty: t("empty"),
             emptyDescription: t("emptyDescription"),
@@ -51,6 +66,7 @@ export default async function ItUsersPage({ searchParams }: ItUsersPageProps) {
             statusEnabled: t("status.enabled"),
             statusUnknown: t("status.unknown"),
           }}
+          scopedCampuses={scopedCampuses}
           users={result.data ?? []}
         />
       )}

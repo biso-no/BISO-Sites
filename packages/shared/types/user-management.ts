@@ -305,7 +305,11 @@ export type M365Permission =
   | "it.users.revokeSessions"
   | "it.users.viewSecurity"
   | "it.users.resetPassword"
-  | "it.users.turnover";
+  | "it.users.turnover"
+  // Tenant-wide IT tooling (department audit, data health, expense-approval
+  // issues). These screens read and act across every campus, so they stay
+  // separate from the per-user permissions a campus admin can hold.
+  | "it.tenant.audit";
 
 export type M365AliasOwnerType =
   | "user"
@@ -393,8 +397,23 @@ export interface M365AuthenticationMethodsSummary {
     displayName?: string | null;
     id: string;
     odataType: string;
+    // Whether an MFA reset can actually delete this method. The password method
+    // and any type Graph gives us no DELETE route for are surfaced read-only.
+    removable: boolean;
     type: string;
   }>;
+}
+
+/**
+ * Outcome of an MFA reset. A reset is best-effort per method: `failures`
+ * carries the human-readable reason for each method that could not be removed
+ * so the operator learns what is still registered instead of seeing a single
+ * error for a partially completed wipe.
+ */
+export interface M365MfaResetResult {
+  failures: string[];
+  removedCount: number;
+  removedTypes: string[];
 }
 
 // ============================================================================

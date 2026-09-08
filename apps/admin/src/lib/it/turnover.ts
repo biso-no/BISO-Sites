@@ -15,7 +15,6 @@ import type {
 export const RETENTION_RUN_DAYS = 7;
 
 const WHITESPACE_REGEX = /\s+/g;
-const PASSWORD_METHOD = "#microsoft.graph.passwordAuthenticationMethod";
 const DEFAULT_WEBHOOK_TIMEOUT_MS = 20_000;
 
 export type TurnoverRetentionAction = "start" | "stop";
@@ -70,23 +69,67 @@ export function computeRetentionStopAt(
   return new Date(fromMs + days * 24 * 60 * 60 * 1000).toISOString();
 }
 
+export interface MfaMethodFailure {
+  error: string;
+  type: string;
+}
+
+export interface MfaResetOutcome {
+  /** Methods Graph refused to delete, with the reason for each. */
+  failures: MfaMethodFailure[];
+  removedCount: number;
+  removedTypes: string[];
+  /** Methods left in place because Graph exposes no DELETE route for them. */
+  skippedTypes: string[];
+}
+
 /**
- * Remove every non-password authentication method (Authenticator, FIDO, phone,
- * etc.) so the departing holder's MFA no longer works and the incoming holder
- * re-registers from scratch. Returns the removed method types for the audit log.
+ * Remove every removable authentication method (Authenticator, phone, the
+ * private email recovery address, FIDO, …) so the holder's MFA no longer works
+ * and the next holder re-registers from scratch. The password method is never
+ * removable — Graph requires the account to keep one credential.
+ *
+ * Each method is deleted independently: one failure is recorded and the sweep
+ * continues, so a single stubborn method cannot leave the rest registered. The
+ * caller decides what a partial result means.
  */
 export async function resetUserMfaMethods(
   graph: GraphUserService,
   userId: string
-): Promise<{ removedCount: number; removedTypes: string[] }> {
+): Promise<MfaResetOutcome> {
+  // `removable` is decided by the connector, which owns the Graph route table —
+  // this module stays a type-only consumer of it.
   const methods = await graph.listAuthenticationMethods(userId);
-  const toRemove = methods.filter((m) => m.odataType !== PASSWORD_METHOD);
+  const toRemove = methods.filter((method) => method.removable);
+  const skippedTypes = methods
+    .filter((method) => !method.removable)
+    .map((method) => method.type);
+
   const removedTypes: string[] = [];
+  const failures: MfaMethodFailure[] = [];
+
   for (const method of toRemove) {
-    await graph.deleteAuthenticationMethod(userId, method.id, method.odataType);
-    removedTypes.push(method.type);
+    try {
+      await graph.deleteAuthenticationMethod(
+        userId,
+        method.id,
+        method.odataType
+      );
+      removedTypes.push(method.type);
+    } catch (error) {
+      failures.push({
+        type: method.type,
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
   }
-  return { removedCount: toRemove.length, removedTypes };
+
+  return {
+    failures,
+    removedCount: removedTypes.length,
+    removedTypes,
+    skippedTypes,
+  };
 }
 
 /**
