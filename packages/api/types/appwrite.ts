@@ -1537,6 +1537,7 @@ export type OrderItems = Models.Row & {
   start_date: string | null;
   product: WebshopProducts;
   variation: ProductVariations;
+  finago_account_number: number | null;
   line_total: number | null;
   field_answers: OrderItemFieldAnswers[];
 };
@@ -1562,6 +1563,7 @@ export type OrderRefunds = Models.Row & {
   restock: boolean;
   finago_transaction_id: string | null;
   error: string | null;
+  ledger_allocation: string | null;
   created_by: string | null;
   created_by_name: string | null;
   lines: OrderRefundLines[];
