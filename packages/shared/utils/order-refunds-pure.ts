@@ -14,6 +14,8 @@ const MINOR_UNITS_PER_MAJOR = 100;
 
 /** An order line as the refund surface needs it. */
 export interface RefundableOrderItem {
+  /** Ledger revenue account snapshotted at sale time, when the line has one. */
+  finagoAccountNumber?: number | null;
   /** `order_items.$id`. */
   id: string;
   name: string;
@@ -222,6 +224,8 @@ export function validateRefundRequest(
 export interface RevenueAllocationInput {
   /** Ledger account per order line, keyed by `order_items.$id`. */
   accountByItemId: Record<string, number | null | undefined>;
+  /** Quantity already refunded per line, so weights use what is left. */
+  alreadyRefundedByItem?: Record<string, number>;
   amountMinor: number;
   items: RefundableOrderItem[];
   /** Empty for a free-amount refund. */
@@ -257,7 +261,14 @@ export function allocateAmountAcrossAccounts(
     return toSortedEntries(byAccount);
   }
 
-  // Free-amount refund: weight by each account's share of the order value.
+  // Free-amount refund: weight by each account's share of the value still
+  // UNREVERSED, not of the original order.
+  //
+  // Weighting by the original line values double-counts revenue already given
+  // back: refund a 50 kr line on account A in a two-line 100 kr order, then
+  // refund the remaining 50 freely, and A and B are each debited 25 — a
+  // cumulative reversal of A=75/B=25 against an original posting of A=50/B=50.
+  // Using the remaining quantity sends that second 50 entirely to B.
   const weights = new Map<number, number>();
   let totalWeight = 0;
   for (const item of input.items) {
@@ -265,7 +276,11 @@ export function allocateAmountAcrossAccounts(
     if (!account) {
       continue;
     }
-    const weight = toMinor(item.unitPrice) * item.quantity;
+    const remainingQuantity = Math.max(
+      0,
+      item.quantity - (input.alreadyRefundedByItem?.[item.id] ?? 0)
+    );
+    const weight = toMinor(item.unitPrice) * remainingQuantity;
     if (weight <= 0) {
       continue;
     }

@@ -8887,6 +8887,13 @@
           "status": "available",
           "columns": ["refunded_total"],
           "orders": ["ASC"]
+        },
+        {
+          "key": "idx_orders_checkout_reuse",
+          "type": "key",
+          "status": "available",
+          "columns": ["userId", "status", "payment_provider"],
+          "orders": ["ASC", "ASC", "ASC"]
         }
       ]
     },
@@ -9911,6 +9918,15 @@
           "twoWayKey": "order_items",
           "onDelete": "setNull",
           "side": "parent"
+        },
+        {
+          "key": "finago_account_number",
+          "type": "integer",
+          "required": false,
+          "array": false,
+          "default": null,
+          "min": 0,
+          "max": 1000000
         },
         {
           "key": "line_total",

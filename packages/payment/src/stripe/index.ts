@@ -192,3 +192,41 @@ export async function getStripeReceiptUrl(
   }
   return null;
 }
+
+/**
+ * Current state of a refund we already submitted, used to resolve an attempt
+ * left pending. Read back from Stripe rather than inferred locally, so a
+ * refund that later failed is recognised as failed.
+ */
+export async function getStripeRefundState(
+  refundId: string,
+  creds: StripeCredentials
+): Promise<{ failed: boolean; settled: boolean }> {
+  const stripe = buildStripeClient(creds.secretKey);
+  const refund = await stripe.refunds.retrieve(refundId);
+  const status = refund.status ?? "unknown";
+  return {
+    failed: REJECTED_REFUND_STATUSES.has(status),
+    settled: status === "succeeded",
+  };
+}
+
+/**
+ * Whether a Checkout Session's PaymentIntent has definitively failed.
+ *
+ * A delayed-notification payment that fails leaves the session `complete` /
+ * `unpaid` — shape-identical to one still settling — so the session alone
+ * cannot tell them apart. Only the `async_payment_failed` webhook carries that
+ * signal, and if it is missed the order would stay PENDING forever. The
+ * PaymentIntent is the authoritative fallback.
+ */
+export async function hasStripePaymentFailed(
+  paymentIntentId: string,
+  creds: StripeCredentials
+): Promise<boolean> {
+  const stripe = buildStripeClient(creds.secretKey);
+  const intent = await stripe.paymentIntents.retrieve(paymentIntentId);
+  return (
+    intent.status === "canceled" || intent.status === "requires_payment_method"
+  );
+}

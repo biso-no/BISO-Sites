@@ -1,6 +1,9 @@
 import { Query } from "@repo/api";
 import { createAdminClient } from "@repo/api/server";
-import { reconcileOrderPayment } from "@repo/payment/reconcile";
+import {
+  reconcileOrderPayment,
+  sweepPendingRefunds,
+} from "@repo/payment/reconcile";
 import {
   type FinagoOrder,
   postFinagoTransactionForOrder,
@@ -39,7 +42,11 @@ import { isProd } from "@/lib/utils";
  *    claims are released first). The atomic claim inside
  *    postFinagoTransactionForOrder keeps this safe alongside the webhook and
  *    return-route triggers.
- * 3. Membership recovery — paid/authorized membership orders with no
+ * 3. Refund resolution — refunds still `pending` past the grace window are
+ *    resolved against the provider: settled ones run their deferred inventory
+ *    and ledger effects, failed ones release the refundable balance they were
+ *    holding. Without this pass a pending refund is permanent.
+ * 4. Membership recovery — paid/authorized membership orders with no
  *    `membership_invoice_id` get fulfilment retried (stale fulfilment claims
  *    are released first), the same way as pass 2. Recovers mobile buyers who
  *    never return to the browser return route.
@@ -235,6 +242,7 @@ async function handle(request: Request) {
     const { db } = await createAdminClient();
     const reconcile = await sweepUnsettledOrders(db);
     const finago = await sweepMissingFinagoPostings(db);
+    const refunds = await sweepPendingRefunds(db, cutoffIso());
     const membership = await recoverMembershipFulfilment(db);
 
     return NextResponse.json(
@@ -245,6 +253,9 @@ async function handle(request: Request) {
         staleClaimsReleased: finago.released,
         membershipFulfilled: membership.fulfilled,
         membershipClaimsReleased: membership.released,
+        refundsSettled: refunds.settled,
+        refundsFailed: refunds.failed,
+        refundsUnresolved: refunds.unresolved,
         errors: reconcile.errors + finago.errors + membership.errors,
         timestamp: new Date().toISOString(),
       },

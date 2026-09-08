@@ -541,6 +541,9 @@ async function buildTrustedCheckoutParams({
     const productName = product.title || product.slug || product.$id;
 
     trustedItems.push({
+      // Snapshotted so a later refund reverses the account this sale actually
+      // credited, even if the product's account is edited in between.
+      finago_account_number: product.finago_account_number ?? null,
       name: productName,
       price: pricing.discountedUnit,
       productId: product.$id,

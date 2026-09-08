@@ -59,6 +59,8 @@ export interface OrderRefundRow {
   finago_transaction_id?: string | null;
   idempotency_key?: string | null;
   lines?: OrderRefundLineRow[] | null;
+  /** Parent order: an id string, or the expanded row when selected. */
+  order?: string | { $id?: string } | null;
   provider?: string | null;
   provider_refund_id?: string | null;
   reason?: string | null;
@@ -150,6 +152,10 @@ export function toRefundableItems(
       // Legacy `items_json` orders have no line rows; index-key them so the UI
       // can still address them, and so a refund against one records a name and
       // an amount even though it cannot link to a row.
+      finagoAccountNumber:
+        typeof item.finago_account_number === "number"
+          ? item.finago_account_number
+          : null,
       id: item.order_item_id ?? `${LEGACY_ITEM_PREFIX}${index}`,
       name: item.name ?? item.title ?? item.product_name ?? "—",
       productId: item.product_id ?? null,
@@ -157,6 +163,28 @@ export function toRefundableItems(
       unitPrice: Number(item.unit_price ?? item.price ?? 0),
     }))
     .filter((item) => item.quantity > 0);
+}
+
+/**
+ * Quantity already refunded per line, used to weight a free-amount refund's
+ * ledger allocation against what is still unreversed.
+ */
+export function refundedQuantityByItem(
+  order: RefundableOrder
+): Record<string, number> {
+  const byItem: Record<string, number> = {};
+  for (const refund of toRecordedRefunds(order)) {
+    if (refund.status === "failed") {
+      continue;
+    }
+    for (const line of refund.lines ?? []) {
+      if (line.orderItemId) {
+        byItem[line.orderItemId] =
+          (byItem[line.orderItemId] ?? 0) + line.quantity;
+      }
+    }
+  }
+  return byItem;
 }
 
 /** The order's existing refunds in the shape the pure helpers work with. */
@@ -310,6 +338,12 @@ export async function refundOrder(
     return { ok: false, reason: validation.error };
   }
 
+  // A lock stranded by a crashed process would otherwise block this order's
+  // refunds forever — every later attempt increments to 2, loses, and
+  // decrements back to 1. Release an aged claim first, exactly as the Finago
+  // and membership claims do.
+  await releaseStaleRefundLock(order, db);
+
   const claimed = await claimRefundLock(orderId, db);
   if (!claimed) {
     return { ok: false, reason: "claimed_elsewhere" };
@@ -332,6 +366,43 @@ export async function refundOrder(
   } finally {
     await releaseRefundLock(orderId, db);
   }
+}
+
+const STALE_REFUND_LOCK_MS = 15 * 60 * 1000;
+
+/**
+ * Clears a refund lock left behind by a process that died mid-refund.
+ *
+ * A held lock plus an untouched row for longer than any refund could take
+ * means nobody is working on it. The window is generous because the row's
+ * `$updatedAt` is refreshed by every write a live refund makes, so an
+ * in-flight refund can never look stale.
+ *
+ * @returns true when a stale claim was released.
+ */
+export async function releaseStaleRefundLock(
+  order: RefundableOrder,
+  db: DbClient,
+  now: number = Date.now()
+): Promise<boolean> {
+  const lockValue = order.refund_lock ?? 0;
+  if (lockValue <= 0) {
+    return false;
+  }
+
+  const updatedAt = Date.parse(order.$updatedAt);
+  if (Number.isNaN(updatedAt) || now - updatedAt < STALE_REFUND_LOCK_MS) {
+    return false;
+  }
+
+  const { dbId, ordersId } = tableIds();
+  console.warn(
+    `[Refund] Releasing stale refund lock on order ${order.$id} (lock: ${lockValue})`
+  );
+  await db
+    .updateRow(dbId, ordersId, order.$id, { refund_lock: 0 })
+    .catch(() => undefined);
+  return true;
 }
 
 /**
@@ -491,24 +562,18 @@ async function executeRefund(
     };
   }
 
-  const status = statusAfterRefund(args.summary.totalMinor, refundedTotalMinor);
-
-  await markRefund(refundId, db, {
-    status: "succeeded",
-    provider_refund_id: outcome.providerRefundId ?? null,
+  const status = await finalizeSettledRefund({
+    amount,
+    db,
+    ledger: input.ledger,
+    ledgerContext: { items: args.items, lines, order },
+    orderId,
+    providerRefundId: outcome.providerRefundId,
+    refundId,
+    refundedTotalMinor,
+    restock: Boolean(input.restock),
+    totalMinor: args.summary.totalMinor,
   });
-
-  await db.updateRow(dbId, tableIds().ordersId, orderId, {
-    refunded_total: toMajor(refundedTotalMinor),
-    refunded_at: new Date().toISOString(),
-    status,
-  });
-
-  if (input.restock) {
-    await restockRefundedLines(lines, db);
-  }
-
-  await reverseLedger({ args, amount, refundId });
 
   return {
     ok: true,
@@ -518,6 +583,79 @@ async function executeRefund(
     settled: true,
     status,
   };
+}
+
+export interface FinalizeSettledRefundInput {
+  amount: number;
+  db: DbClient;
+  ledger?: LedgerReverser;
+  ledgerContext: {
+    items: RefundableOrderItem[];
+    lines: BuiltRefundLine[];
+    order: RefundableOrder;
+  };
+  orderId: string;
+  providerRefundId?: string;
+  refundedTotalMinor: number;
+  refundId: string;
+  restock: boolean;
+  totalMinor: number;
+}
+
+/**
+ * Everything that must happen once — and only once — after money has actually
+ * been returned: mark the attempt succeeded, move the order's totals and
+ * status, restore stock, and reverse the ledger.
+ *
+ * Shared by the immediate path and by `settlePendingRefund`, so a refund that
+ * settles later goes through exactly the same effects as one that settled at
+ * once. Every step is guarded independently: the funds are already gone, so a
+ * transient failure in any of them must not skip the rest.
+ */
+export async function finalizeSettledRefund(
+  input: FinalizeSettledRefundInput
+): Promise<"paid" | "refunded"> {
+  const { db, orderId, refundId, refundedTotalMinor } = input;
+  const { dbId, ordersId } = tableIds();
+  const status = statusAfterRefund(input.totalMinor, refundedTotalMinor);
+
+  await markRefund(refundId, db, {
+    status: "succeeded",
+    provider_refund_id: input.providerRefundId ?? null,
+  });
+
+  await db
+    .updateRow(dbId, ordersId, orderId, {
+      refunded_total: toMajor(refundedTotalMinor),
+      refunded_at: new Date().toISOString(),
+      status,
+    })
+    .catch(async (error) => {
+      console.error(
+        `[Refund] Refund ${refundId} succeeded but the order totals could not be updated:`,
+        error
+      );
+      await markRefund(refundId, db, {
+        error: `Order totals not updated: ${String(error)}`.slice(0, 1000),
+      });
+    });
+
+  if (input.restock) {
+    await restockRefundedLines(input.ledgerContext.lines, db);
+  }
+
+  await reverseLedger({
+    amount: input.amount,
+    db,
+    items: input.ledgerContext.items,
+    ledger: input.ledger,
+    lines: input.ledgerContext.lines,
+    order: input.ledgerContext.order,
+    orderId,
+    refundId,
+  });
+
+  return status;
 }
 
 /** Best-effort write onto the refund row; never throws over a bookkeeping edit. */
@@ -639,17 +777,26 @@ async function restockRefundedLines(
 }
 
 async function reverseLedger({
-  args,
   amount,
+  db,
+  items,
+  ledger,
+  lines,
+  order,
+  orderId,
   refundId,
 }: {
-  args: ExecuteRefundArgs;
   amount: number;
+  db: DbClient;
+  items: RefundableOrderItem[];
+  ledger?: LedgerReverser;
+  lines: BuiltRefundLine[];
+  order: RefundableOrder;
+  orderId: string;
   refundId: string;
 }): Promise<void> {
-  const { input, items, lines, order } = args;
   const { dbId, productsId } = tableIds();
-  if (!input.ledger) {
+  if (!ledger) {
     return;
   }
 
@@ -667,23 +814,24 @@ async function reverseLedger({
   try {
     const accountByItemId = await resolveRevenueAccounts(
       items,
-      input.db,
+      db,
       dbId,
       productsId
     );
     const allocation = allocateAmountAcrossAccounts({
       accountByItemId,
+      alreadyRefundedByItem: refundedQuantityByItem(order),
       amountMinor: toMinor(amount),
       items,
       lines,
     });
-    const transactionId = await input.ledger.reverse({
+    const transactionId = await ledger.reverse({
       allocation,
       amount,
-      orderId: input.orderId,
+      orderId,
     });
     if (transactionId) {
-      await input.db.updateRow(dbId, REFUNDS_TABLE, refundId, {
+      await db.updateRow(dbId, REFUNDS_TABLE, refundId, {
         finago_transaction_id: transactionId,
       });
     }
@@ -693,7 +841,7 @@ async function reverseLedger({
       `[Refund] Ledger reversal failed for refund ${refundId}:`,
       error
     );
-    await input.db
+    await db
       .updateRow(dbId, REFUNDS_TABLE, refundId, {
         error: `Ledger reversal failed: ${message}`.slice(0, 1000),
       })
@@ -701,6 +849,14 @@ async function reverseLedger({
   }
 }
 
+/**
+ * The ledger account to reverse per line.
+ *
+ * Prefers the account snapshotted on the order line at sale time: a product's
+ * `finago_account_number` is editable, so reading the current product row can
+ * debit an account the original sale never credited. Orders placed before that
+ * snapshot existed fall back to the product.
+ */
 async function resolveRevenueAccounts(
   items: RefundableOrderItem[],
   db: DbClient,
@@ -711,6 +867,10 @@ async function resolveRevenueAccounts(
   const cache = new Map<string, number | null>();
 
   for (const item of items) {
+    if (typeof item.finagoAccountNumber === "number") {
+      accountByItemId[item.id] = item.finagoAccountNumber;
+      continue;
+    }
     if (!item.productId) {
       accountByItemId[item.id] = null;
       continue;
@@ -725,4 +885,133 @@ async function resolveRevenueAccounts(
   }
 
   return accountByItemId;
+}
+
+/** Current provider-side state of a refund we already submitted. */
+export interface RefundStateResolver {
+  state: (input: {
+    orderId: string;
+    providerRefundId?: string | null;
+  }) => Promise<{
+    /** The provider says this refund will not happen. */
+    failed: boolean;
+    refundedTotalMinor: number;
+    /** The money has actually been returned. */
+    settled: boolean;
+  }>;
+}
+
+export type PendingRefundOutcome =
+  | "failed"
+  | "settled"
+  | "still_pending"
+  | "unresolved";
+
+/**
+ * Resolves one refund left in `pending` — either because the provider accepted
+ * it without settling (Stripe's `pending`), or because our request's outcome
+ * was never confirmed.
+ *
+ * Without this, a pending row is a trap: it holds its share of the refundable
+ * balance forever, and a refund that later succeeds never runs its inventory
+ * or ledger effects. Settlement goes through `finalizeSettledRefund`, the same
+ * path the immediate case uses, so the effects happen exactly once either way.
+ */
+export async function settlePendingRefund({
+  db,
+  ledger,
+  order,
+  refund,
+  resolver,
+}: {
+  db: DbClient;
+  ledger?: LedgerReverser;
+  order: RefundableOrder;
+  refund: OrderRefundRow;
+  resolver: RefundStateResolver;
+}): Promise<PendingRefundOutcome> {
+  let state: Awaited<ReturnType<RefundStateResolver["state"]>>;
+  try {
+    state = await resolver.state({
+      orderId: order.$id,
+      providerRefundId: refund.provider_refund_id,
+    });
+  } catch (error) {
+    // Still unknown. Leave it pending — releasing the balance on a failed
+    // lookup is how the same money gets refunded twice.
+    console.error(
+      `[Refund] Could not resolve pending refund ${refund.$id}:`,
+      error
+    );
+    return "unresolved";
+  }
+
+  if (state.failed) {
+    await markRefund(refund.$id, db, {
+      status: "failed",
+      error: "Provider reported the refund did not complete.",
+    });
+    return "failed";
+  }
+
+  if (!state.settled) {
+    return "still_pending";
+  }
+
+  const items = toRefundableItems(order);
+  const lines = (refund.lines ?? [])
+    .map((line): BuiltRefundLine | null => {
+      const orderItemId =
+        typeof line.order_item === "string"
+          ? line.order_item
+          : (line.order_item?.$id ?? null);
+      if (!orderItemId) {
+        return null;
+      }
+      return {
+        amount: Number(line.amount ?? 0),
+        name: line.name ?? "—",
+        orderItemId,
+        productId:
+          items.find((item) => item.id === orderItemId)?.productId ?? null,
+        quantity: Number(line.quantity ?? 0),
+      };
+    })
+    .filter((line): line is BuiltRefundLine => line !== null);
+
+  await finalizeSettledRefund({
+    amount: Number(refund.amount ?? 0),
+    db,
+    ledger,
+    ledgerContext: { items, lines, order },
+    orderId: order.$id,
+    providerRefundId: refund.provider_refund_id ?? undefined,
+    refundId: refund.$id,
+    refundedTotalMinor: Math.max(
+      state.refundedTotalMinor,
+      toMinor(Number(order.refunded_total ?? 0)) +
+        toMinor(Number(refund.amount ?? 0))
+    ),
+    restock: Boolean(refund.restock),
+    totalMinor: toMinor(Number(order.total ?? 0)),
+  });
+
+  return "settled";
+}
+
+/** Refunds still awaiting resolution, oldest first. */
+export async function listPendingRefunds(
+  db: DbClient,
+  olderThanIso: string,
+  limit = 50
+): Promise<OrderRefundRow[]> {
+  const { dbId } = tableIds();
+  const response = await db.listRows(dbId, REFUNDS_TABLE, [
+    Query.equal("status", "pending"),
+    Query.lessThan("$createdAt", olderThanIso),
+    Query.select(["*", "lines.*", "order.$id"]),
+    Query.orderAsc("$createdAt"),
+    Query.limit(limit),
+  ]);
+  return response.rows as unknown as OrderRefundRow[];
 }

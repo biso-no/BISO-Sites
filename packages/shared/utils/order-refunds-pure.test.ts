@@ -330,3 +330,39 @@ describe("computeRefundable — provider aggregate", () => {
     expect(summary.refundable).toBe(698);
   });
 });
+
+describe("allocateAmountAcrossAccounts — remaining balance", () => {
+  const accountByItemId = { "line-a": 3000, "line-b": 3010 };
+
+  it("sends a free-amount refund to the accounts not yet reversed", () => {
+    // Codex's case: a 2-line order where one line was already refunded. The
+    // remaining free amount must land entirely on the untouched account, or
+    // the cumulative reversal exceeds what that account was credited.
+    const twoLines: RefundableOrderItem[] = [
+      { id: "line-a", name: "A", quantity: 1, unitPrice: 50 },
+      { id: "line-b", name: "B", quantity: 1, unitPrice: 50 },
+    ];
+
+    const allocation = allocateAmountAcrossAccounts({
+      accountByItemId,
+      alreadyRefundedByItem: { "line-a": 1 },
+      amountMinor: 5000,
+      items: twoLines,
+      lines: [],
+    });
+
+    expect(allocation).toEqual([{ accountNumber: 3010, amountMinor: 5000 }]);
+  });
+
+  it("weights by the full order when nothing has been refunded", () => {
+    const allocation = allocateAmountAcrossAccounts({
+      accountByItemId,
+      amountMinor: 10_000,
+      items,
+      lines: [],
+    });
+    expect(allocation.reduce((sum, line) => sum + line.amountMinor, 0)).toBe(
+      10_000
+    );
+  });
+});

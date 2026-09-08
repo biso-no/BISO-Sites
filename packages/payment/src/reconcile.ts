@@ -12,6 +12,14 @@
  * stock never decremented, revenue never posted, membership never fulfilled.
  */
 
+import {
+  type LedgerReverser,
+  listPendingRefunds,
+  loadOrderRefunds,
+  ORDER_WITH_REFUNDS_SELECT,
+  type RefundableOrder,
+  settlePendingRefund,
+} from "@repo/shared/utils/order-refunds";
 import { determineStatusFromStripeSession } from "@repo/shared/utils/stripe-pure";
 import {
   applyOrderStatusTransition,
@@ -19,7 +27,12 @@ import {
 } from "@repo/shared/utils/vipps-order-ops";
 import { resolveStripeCredentials } from "./credentials";
 import type { PaymentSettingsReader } from "./credentials/types";
-import { getStripeReceiptUrl, getStripeSession } from "./stripe";
+import {
+  getStripeReceiptUrl,
+  getStripeRefundState,
+  getStripeSession,
+  hasStripePaymentFailed,
+} from "./stripe";
 import { reconcileVippsPayment } from "./vipps";
 
 type ReconcileDb = DbClient & PaymentSettingsReader;
@@ -60,17 +73,41 @@ async function reconcileStripePayment(
   }
 
   const { session } = await getStripeSession(sessionId, creds);
-  const { status, updateData } = determineStatusFromStripeSession(session);
+
+  // A delayed-notification payment that FAILED leaves the session
+  // `complete`/`unpaid`, which is indistinguishable from one still settling.
+  // Only the `async_payment_failed` event carries that signal, so if it was
+  // missed this sweep would keep the order PENDING forever. Ask the
+  // PaymentIntent, which is authoritative, and feed the mapper the event type
+  // it would have received.
+  const intentId =
+    typeof session.payment_intent === "string"
+      ? session.payment_intent
+      : (session.payment_intent?.id ?? null);
+  let eventType: string | undefined;
+  if (
+    intentId &&
+    session.status === "complete" &&
+    session.payment_status === "unpaid" &&
+    (await hasStripePaymentFailed(intentId, creds).catch(() => false))
+  ) {
+    eventType = "checkout.session.async_payment_failed";
+  }
+
+  const { status, updateData } = determineStatusFromStripeSession(
+    session,
+    eventType
+  );
 
   // Fetch the receipt once, while we already know the intent id, and only when
   // the order does not have one yet — a settled payment's receipt never
   // changes, so re-fetching it on every sweep is wasted API calls.
-  const intentId =
+  const receiptIntentId =
     (typeof updateData.payment_intent_id === "string"
       ? updateData.payment_intent_id
       : null) ?? order.payment_intent_id;
-  if (intentId && !order.payment_receipt_url) {
-    const receiptUrl = await getStripeReceiptUrl(intentId, creds).catch(
+  if (receiptIntentId && !order.payment_receipt_url) {
+    const receiptUrl = await getStripeReceiptUrl(receiptIntentId, creds).catch(
       () => null
     );
     if (receiptUrl) {
@@ -108,4 +145,78 @@ export async function reconcileOrderPayment(
   if (order.payment_provider === "stripe") {
     await reconcileStripePayment(orderId, order, db);
   }
+}
+
+/**
+ * Resolves refunds left in `pending` — accepted-but-unsettled Stripe refunds,
+ * and attempts whose outcome was never confirmed.
+ *
+ * This is the completion path a pending row depends on. Without it, such a row
+ * holds its share of the refundable balance forever and a refund that later
+ * succeeds never restores stock or reverses the ledger. Vipps refunds settle
+ * synchronously, so only Stripe attempts carry a resolvable provider id;
+ * anything else is left for a human, which is the safe direction.
+ */
+export async function sweepPendingRefunds(
+  db: ReconcileDb,
+  olderThanIso: string,
+  ledger?: LedgerReverser
+): Promise<{ failed: number; settled: number; unresolved: number }> {
+  const tally = { failed: 0, settled: 0, unresolved: 0 };
+  const pending = await listPendingRefunds(db, olderThanIso);
+  if (pending.length === 0) {
+    return tally;
+  }
+
+  const creds = await resolveStripeCredentials(db);
+  const { collId: ordersId, dbId } = ordersTable();
+
+  for (const refund of pending) {
+    const orderId =
+      typeof refund.order === "string" ? refund.order : refund.order?.$id;
+    if (!orderId) {
+      tally.unresolved += 1;
+      continue;
+    }
+
+    const order = (await db
+      .getRow<RefundableOrder>(dbId, ordersId, orderId, [
+        ORDER_WITH_REFUNDS_SELECT,
+      ])
+      .catch(() => null)) as RefundableOrder | null;
+    if (!order) {
+      tally.unresolved += 1;
+      continue;
+    }
+    order.refunds = await loadOrderRefunds(orderId, db).catch(() => []);
+
+    const outcome = await settlePendingRefund({
+      db,
+      ledger,
+      order,
+      refund,
+      resolver: {
+        state: async ({ providerRefundId }) => {
+          if (!(creds && providerRefundId)) {
+            // No provider handle to ask — a Vipps attempt, or one that never
+            // got far enough to record an id. Throwing keeps it pending rather
+            // than guessing that it failed.
+            throw new Error("No resolvable provider refund id");
+          }
+          const state = await getStripeRefundState(providerRefundId, creds);
+          return { ...state, refundedTotalMinor: 0 };
+        },
+      },
+    });
+
+    if (outcome === "settled") {
+      tally.settled += 1;
+    } else if (outcome === "failed") {
+      tally.failed += 1;
+    } else if (outcome === "unresolved") {
+      tally.unresolved += 1;
+    }
+  }
+
+  return tally;
 }

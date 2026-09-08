@@ -1,6 +1,6 @@
 "use server";
 
-import { createAdminClient, createSessionClient } from "@repo/api/server";
+import { createAdminClient } from "@repo/api/server";
 import { postShopRefundTransaction } from "@repo/connectors/24sevenoffice";
 import {
   resolveStripeCredentials,
@@ -96,15 +96,20 @@ function isWithinScope(
 /**
  * Loads one order with its lines, buyer answers and refund history.
  *
- * Reads through the SESSION client so Appwrite's row security is the backstop,
- * then re-checks campus scope in code — the same belt-and-braces the rest of
- * the portal applies to commerce data.
+ * Campus scope is enforced in code (see the client note below), so an order
+ * belonging to another campus reads as not-found.
  */
 export async function getOrderDetail(
   orderId: string
 ): Promise<OrderDetail | null> {
   const { campusIds } = await requireOrderAccess();
-  const { db } = await createSessionClient();
+  // Admin client, deliberately. The `orders` table grants reads only to the
+  // Operations Unit team and each row additionally to its buyer, while campus
+  // admins are derived from the campus-leadership teams — so a session read
+  // 404s for exactly the role this surface authorizes. Authorization is
+  // `requireOrderAccess` above plus the campus check below, both enforced in
+  // code before any data is returned.
+  const { db } = await createAdminClient();
 
   // Only a genuine "no such row" may become a 404. Anything else is rethrown:
   // swallowing it renders the not-found page for what is really a broken

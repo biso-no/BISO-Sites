@@ -5,6 +5,8 @@ import {
   ORDER_WITH_REFUNDS_SELECT,
   type RefundExecutor,
   refundOrder,
+  releaseStaleRefundLock,
+  settlePendingRefund,
   toRecordedRefunds,
   toRefundableItems,
 } from "./order-refunds";
@@ -553,5 +555,126 @@ describe("refundOrder — uncertain and unsettled provider outcomes", () => {
 
     expect(result).toEqual({ ok: false, reason: "claimed_elsewhere" });
     expect(executor.refund).not.toHaveBeenCalled();
+  });
+});
+
+describe("releaseStaleRefundLock", () => {
+  const HELD = { $id: ORDER_ID, $updatedAt: "", refund_lock: 1 };
+
+  it("clears a lock on a row untouched for longer than the window", async () => {
+    // Without this, a lock stranded by a crashed process blocks the order's
+    // refunds forever: every later attempt bumps to 2, loses, drops back to 1.
+    const released = await releaseStaleRefundLock(
+      { ...HELD, $updatedAt: new Date(1000).toISOString() } as never,
+      db,
+      1000 + 16 * 60 * 1000
+    );
+    expect(released).toBe(true);
+    expect(db.updateRow).toHaveBeenCalledWith(
+      "app",
+      "orders",
+      ORDER_ID,
+      expect.objectContaining({ refund_lock: 0 })
+    );
+  });
+
+  it("leaves a freshly-touched lock alone", async () => {
+    const released = await releaseStaleRefundLock(
+      { ...HELD, $updatedAt: new Date(1000).toISOString() } as never,
+      db,
+      1000 + 60 * 1000
+    );
+    expect(released).toBe(false);
+    expect(db.updateRow).not.toHaveBeenCalled();
+  });
+
+  it("does nothing when no lock is held", async () => {
+    const released = await releaseStaleRefundLock(
+      { ...HELD, refund_lock: 0 } as never,
+      db,
+      Date.now()
+    );
+    expect(released).toBe(false);
+  });
+});
+
+describe("settlePendingRefund", () => {
+  const pendingRefund = {
+    $id: "refund-1",
+    amount: 499,
+    lines: [{ name: "Campus hoodie", order_item: "line-a", quantity: 1 }],
+    provider_refund_id: "re_123",
+    restock: true,
+    status: "pending" as const,
+  };
+
+  it("runs the deferred effects once the provider settles it", async () => {
+    const ledger: LedgerReverser = {
+      reverse: vi.fn().mockResolvedValue("rev-1"),
+    };
+
+    const outcome = await settlePendingRefund({
+      db,
+      ledger,
+      order: buildOrder() as never,
+      refund: pendingRefund,
+      resolver: {
+        state: vi.fn().mockResolvedValue({
+          failed: false,
+          refundedTotalMinor: 49_900,
+          settled: true,
+        }),
+      },
+    });
+
+    expect(outcome).toBe("settled");
+    const succeeded = db.updateRow.mock.calls.find(
+      (call) => call[1] === "order_refunds" && call[3]?.status === "succeeded"
+    );
+    expect(succeeded).toBeDefined();
+    // The effects the pending branch deferred must now actually happen.
+    expect(ledger.reverse).toHaveBeenCalled();
+    expect(db.incrementRowColumn).toHaveBeenCalledWith(
+      expect.objectContaining({ column: "stock" })
+    );
+  });
+
+  it("releases the balance when the provider reports failure", async () => {
+    const outcome = await settlePendingRefund({
+      db,
+      order: buildOrder() as never,
+      refund: pendingRefund,
+      resolver: {
+        state: vi.fn().mockResolvedValue({
+          failed: true,
+          refundedTotalMinor: 0,
+          settled: false,
+        }),
+      },
+    });
+
+    expect(outcome).toBe("failed");
+    const failed = db.updateRow.mock.calls.find(
+      (call) => call[1] === "order_refunds" && call[3]?.status === "failed"
+    );
+    expect(failed).toBeDefined();
+  });
+
+  it("keeps it pending when the provider cannot be reached", async () => {
+    // Guessing "failed" here would release the balance for a refund that may
+    // yet land, letting the same money be refunded twice.
+    const outcome = await settlePendingRefund({
+      db,
+      order: buildOrder() as never,
+      refund: pendingRefund,
+      resolver: {
+        state: vi.fn().mockRejectedValue(new Error("stripe unreachable")),
+      },
+    });
+
+    expect(outcome).toBe("unresolved");
+    expect(
+      db.updateRow.mock.calls.some((call) => call[3]?.status === "failed")
+    ).toBe(false);
   });
 });
