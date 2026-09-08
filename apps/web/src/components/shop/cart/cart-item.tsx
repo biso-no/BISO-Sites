@@ -135,6 +135,7 @@ export function CartItem({
   onRemove,
 }: CartItemProps) {
   const t = useTranslations("shop");
+  const tCommon = useTranslations("common");
   return (
     <Card className="border-0 p-6 shadow-lg">
       <div className="flex gap-6">
@@ -163,7 +164,7 @@ export function CartItem({
               {item.memberOnly && (
                 <Badge className="mb-2 border-0 bg-orange-500 text-white">
                   <Users className="mr-1 h-3 w-3" />
-                  {t("cart.item.membersOnly")}
+                  {tCommon("memberOnly.badge")}
                 </Badge>
               )}
             </div>

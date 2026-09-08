@@ -300,6 +300,30 @@ async function ensurePurchaseLimit(
   );
 }
 
+/**
+ * Member-only products are listed to everyone and gated at the point of
+ * purchase. `createOrUpdateReservation` refuses them for non-members, but
+ * checkout takes its line items from the client, so the requirement is
+ * re-checked here alongside stock and purchase limits — the same reason those
+ * are re-validated rather than trusted from the cart.
+ */
+async function ensureMemberEligibility(
+  product: Record<string, unknown>,
+  productId: string,
+  slug?: string
+) {
+  if (!product.member_only) {
+    return;
+  }
+  const status = await getMembershipStatus();
+  if (status.isMember) {
+    return;
+  }
+  throw new Error(
+    `${product.title || slug || productId} is available to BISO members only.`
+  );
+}
+
 function findVariation(product: Record<string, unknown>, variationId?: string) {
   if (!variationId) {
     return;
@@ -418,6 +442,8 @@ async function buildOrderItems(
         `Product ${product.title || product.slug} is missing a price.`
       );
     }
+
+    await ensureMemberEligibility(product, productId, input.slug);
 
     const requestedQuantity = quantityByProduct.get(productId) || 0;
     await ensureStockAvailability(

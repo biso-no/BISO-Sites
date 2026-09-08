@@ -43,7 +43,6 @@
     "memberBadge": "Medlemspriser aktivert!"
   },
   "card": {
-    "membersOnly": "Kun for medlemmer",
     "save": "Spar {amount} NOK",
     "onlyLeft": "Bare {count} igjen!",
     "onlyAvailable": "Bare {count} tilgjengelig!",
@@ -54,7 +53,12 @@
     "checking": "Sjekker tilgjengelighet...",
     "membersPay": "Medlemmer betaler kun {price}",
     "viewDetails": "Vis detaljer",
-    "uncategorized": "Uten kategori"
+    "uncategorized": "Uten kategori",
+    "memberOnlyNote": "Krever medlemskap for å kjøpe"
+  },
+  "memberOnly": {
+    "description": "Dette produktet kan kun bestilles av BISO-medlemmer. Bli medlem for å kjøpe det.",
+    "cta": "Bli medlem"
   },
   "product": {
     "backToShop": "Tilbake til butikken",
@@ -128,7 +132,6 @@
       "cancelled": "Betalingen ble avbrutt. Varene ligger fortsatt i handlekurven når du er klar til å betale."
     },
     "item": {
-      "membersOnly": "Kun for medlemmer",
       "each": "per stk",
       "remove": "Fjern",
       "decrease": "Reduser antall",
@@ -137,7 +140,8 @@
       "maxPerOrder": "Maks {count} per ordre",
       "selectedOptions": "Valgte alternativer:",
       "membersPrice": "Medlemmer: {price}"
-    }
+    },
+    "membersOnly": "Dette produktet er kun tilgjengelig for BISO-medlemmer."
   },
   "checkout": {
     "title": "Betaling",

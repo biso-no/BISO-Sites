@@ -5,6 +5,9 @@
     "readMore": "Read more",
     "viewDetails": "See details"
   },
+  "memberOnly": {
+    "badge": "Members only"
+  },
   "labels": {
     "organisation": "BISO"
   },

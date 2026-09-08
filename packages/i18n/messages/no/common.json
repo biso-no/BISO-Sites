@@ -5,6 +5,9 @@
     "readMore": "Les mer",
     "viewDetails": "Se detaljer"
   },
+  "memberOnly": {
+    "badge": "Kun for medlemmer"
+  },
   "labels": {
     "organisation": "BISO"
   },

@@ -13,6 +13,7 @@ import { Separator } from "@repo/ui/components/ui/separator";
 import { ChevronRight, ShoppingBag, Tag } from "lucide-react";
 import { motion } from "motion/react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { buildTeaser } from "@/lib/content-text";
 
 const PRODUCT_TEASER_MAX_LENGTH = 120;
@@ -97,6 +98,7 @@ const ProductCard = ({
   isMember: boolean;
   index: number;
 }) => {
+  const tCommon = useTranslations("common");
   const productRef = product;
   const translation = Array.isArray(product.translation_refs)
     ? product.translation_refs.find(
@@ -125,8 +127,8 @@ const ProductCard = ({
               />
             )}
             {productRef?.member_only && (
-              <Badge className="absolute top-4 left-4 border-0 bg-brand-dark text-white">
-                Members Only
+              <Badge className="absolute top-4 left-4 border-0 bg-orange-500 text-white">
+                {tCommon("memberOnly.badge")}
               </Badge>
             )}
             {productRef?.category && (

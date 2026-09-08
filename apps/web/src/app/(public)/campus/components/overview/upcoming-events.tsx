@@ -8,6 +8,7 @@ import { PLACEHOLDER_IMAGE } from "@repo/ui/lib/placeholder-images";
 import { Calendar, ChevronRight } from "lucide-react";
 import { motion } from "motion/react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { getEventHref } from "@/lib/types/event";
 
 interface UpcomingEventsProps {
@@ -16,6 +17,11 @@ interface UpcomingEventsProps {
 }
 
 export function UpcomingEvents({ events, locale }: UpcomingEventsProps) {
+  // `locale` still drives date formatting below, but user-facing strings go
+  // through next-intl — one translated source per string, shared with every
+  // other surface that shows this badge.
+  const tCommon = useTranslations("common");
+
   if (!events || events.length === 0) {
     return null;
   }
@@ -90,8 +96,8 @@ export function UpcomingEvents({ events, locale }: UpcomingEventsProps) {
                       src={event.image || PLACEHOLDER_IMAGE}
                     />
                     {event.member_only && (
-                      <Badge className="absolute top-4 right-4 border-0 bg-brand text-white">
-                        {locale === "en" ? "Members Only" : "Kun medlemmer"}
+                      <Badge className="absolute top-4 right-4 border-0 bg-orange-500 text-white">
+                        {tCommon("memberOnly.badge")}
                       </Badge>
                     )}
                   </div>

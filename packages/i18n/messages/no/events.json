@@ -23,7 +23,6 @@
   },
   "card": {
     "collection": "Samling",
-    "membersOnly": "Kun for medlemmer",
     "memberDiscount": "Medlemsrabatt",
     "tickster": "Tickster",
     "membersPrice": "Medlemmer: {price}",

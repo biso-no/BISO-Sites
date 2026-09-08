@@ -23,7 +23,6 @@
   },
   "card": {
     "collection": "Collection",
-    "membersOnly": "Members Only",
     "memberDiscount": "Member Discount",
     "tickster": "Tickster",
     "membersPrice": "Members: {price}",

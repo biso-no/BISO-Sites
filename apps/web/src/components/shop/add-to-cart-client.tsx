@@ -6,8 +6,9 @@ import { Badge } from "@repo/ui/components/ui/badge";
 import { Button } from "@repo/ui/components/ui/button";
 import { Card } from "@repo/ui/components/ui/card";
 import { Separator } from "@repo/ui/components/ui/separator";
-import { AlertCircle, CheckCircle2, ShoppingCart } from "lucide-react";
+import { AlertCircle, CheckCircle2, ShoppingCart, Users } from "lucide-react";
 import { motion } from "motion/react";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 
 import { formatPrice } from "@/lib/types/webshop";
@@ -55,6 +56,11 @@ export function AddToCartClient({
     product,
     userId
   );
+
+  // Member-only products are listed to everyone, so the CTA is where the
+  // requirement is stated. `createOrUpdateReservation` refuses the same case
+  // server-side — this is the courteous half, not the enforcement.
+  const needsMembership = Boolean(product.member_only) && !isMember;
 
   // Only tracked products (stock !== null) gate availability; for those, the
   // live availableStock (total stock minus everyone's active reservations) is
@@ -129,14 +135,31 @@ export function AddToCartClient({
             </Alert>
           )}
 
-          <Button
-            className="mb-3 w-full bg-background text-brand-dark hover:bg-background/90 disabled:cursor-not-allowed disabled:opacity-50"
-            disabled={isOutOfStock}
-            onClick={handleAddToCart}
-          >
-            <ShoppingCart className="mr-2 h-4 w-4" />
-            {isOutOfStock ? t("card.outOfStock") : t("product.addToCart")}
-          </Button>
+          {needsMembership ? (
+            <>
+              <Alert className="mb-4 border-white/20 bg-background/10">
+                <Users className="h-4 w-4 text-white" />
+                <AlertDescription className="text-sm text-white">
+                  {t("memberOnly.description")}
+                </AlertDescription>
+              </Alert>
+              <Button
+                asChild
+                className="mb-3 w-full bg-background text-brand-dark hover:bg-background/90"
+              >
+                <Link href="/membership">{t("memberOnly.cta")}</Link>
+              </Button>
+            </>
+          ) : (
+            <Button
+              className="mb-3 w-full bg-background text-brand-dark hover:bg-background/90 disabled:cursor-not-allowed disabled:opacity-50"
+              disabled={isOutOfStock}
+              onClick={handleAddToCart}
+            >
+              <ShoppingCart className="mr-2 h-4 w-4" />
+              {isOutOfStock ? t("card.outOfStock") : t("product.addToCart")}
+            </Button>
+          )}
 
           {addedToCart && (
             <motion.div

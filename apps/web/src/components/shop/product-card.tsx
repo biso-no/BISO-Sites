@@ -42,6 +42,7 @@ export function ProductCard({
   onViewDetails,
 }: ProductCardProps) {
   const t = useTranslations("shop");
+  const tCommon = useTranslations("common");
   const productData = product;
   const translation = Array.isArray(product.translation_refs)
     ? product.translation_refs.find(
@@ -108,7 +109,7 @@ export function ProductCard({
             {productData.member_only && (
               <Badge className="flex items-center gap-1 border-0 bg-orange-500 text-white">
                 <Users className="h-3 w-3" />
-                {t("card.membersOnly")}
+                {tCommon("memberOnly.badge")}
               </Badge>
             )}
             {hasDiscount && savings > 0 && (
@@ -173,6 +174,13 @@ export function ProductCard({
                   })}
                 </p>
               )}
+
+            {productData.member_only && !isMember && (
+              <p className="mt-2 flex items-center gap-1.5 font-medium text-orange-600 text-xs">
+                <Users aria-hidden className="h-3.5 w-3.5 shrink-0" />
+                {t("card.memberOnlyNote")}
+              </p>
+            )}
           </div>
 
           <Button

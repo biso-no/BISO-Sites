@@ -48,6 +48,7 @@ export async function ProductDetailsServer({
   availableStock = null,
 }: ProductDetailsServerProps) {
   const t = await getTranslations("shop");
+  const tCommon = await getTranslations("common");
   const productRef = product;
   const translation = Array.isArray(product.translation_refs)
     ? product.translation_refs.find(
@@ -109,7 +110,7 @@ export async function ProductDetailsServer({
                   {productRef.member_only && (
                     <Badge className="border-0 bg-orange-500 text-white">
                       <Users className="mr-1 h-3 w-3" />
-                      {t("card.membersOnly")}
+                      {tCommon("memberOnly.badge")}
                     </Badge>
                   )}
                   {hasDiscount && savings > 0 && (
@@ -219,10 +220,12 @@ export async function ProductDetailsServer({
                 userId={userId}
               />
 
-              {/* Member Benefits (Client Component) */}
-              {!isMember && productRef.category !== "Membership" && (
-                <MemberCalloutClient />
-              )}
+              {/* Member Benefits (Client Component). Suppressed for member-only
+                  products: `AddToCartClient` already carries a sharper "you
+                  need a membership to buy this" pitch, and two competing
+                  join CTAs in one sidebar help nobody. */}
+              {!(isMember || productRef.member_only) &&
+                productRef.category !== "Membership" && <MemberCalloutClient />}
             </div>
           </div>
         </div>

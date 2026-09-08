@@ -43,7 +43,6 @@
     "memberBadge": "Member prices activated!"
   },
   "card": {
-    "membersOnly": "Members Only",
     "save": "Save {amount} NOK",
     "onlyLeft": "Only {count} left!",
     "onlyAvailable": "Only {count} available!",
@@ -54,7 +53,12 @@
     "checking": "Checking availability...",
     "membersPay": "Members pay only {price}",
     "viewDetails": "View Details",
-    "uncategorized": "Uncategorized"
+    "uncategorized": "Uncategorized",
+    "memberOnlyNote": "Membership required to buy"
+  },
+  "memberOnly": {
+    "description": "This product can only be ordered by BISO members. Join BISO to buy it.",
+    "cta": "Become a member"
   },
   "product": {
     "backToShop": "Back to Shop",
@@ -128,7 +132,6 @@
       "cancelled": "Payment was cancelled. Your cart items are still here when you're ready to check out."
     },
     "item": {
-      "membersOnly": "Members Only",
       "each": "each",
       "remove": "Remove",
       "decrease": "Decrease quantity",
@@ -137,7 +140,8 @@
       "maxPerOrder": "Max {count} per order",
       "selectedOptions": "Selected options:",
       "membersPrice": "Members: {price}"
-    }
+    },
+    "membersOnly": "This product is available to BISO members only."
   },
   "checkout": {
     "title": "Checkout",

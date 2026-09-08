@@ -26,6 +26,10 @@ vi.mock("@/lib/anon-session", () => ({
   ensureAnonymousSession: vi.fn(async () => undefined),
 }));
 
+const getMembershipStatus = vi.hoisted(() => vi.fn());
+
+vi.mock("@/lib/actions/membership", () => ({ getMembershipStatus }));
+
 import { createOrUpdateReservation } from "./cart-reservations";
 
 describe("cart reservations", () => {
@@ -37,6 +41,9 @@ describe("cart reservations", () => {
     sessionDb.getRow.mockReset();
     sessionDb.listRows.mockReset();
     sessionDb.updateRow.mockReset();
+
+    getMembershipStatus.mockReset();
+    getMembershipStatus.mockResolvedValue({ isMember: false });
 
     account.get.mockResolvedValue({ $id: "session-user-1" });
     sessionDb.getRow.mockResolvedValue({ $id: "product-1", stock: 5 });
@@ -65,5 +72,43 @@ describe("cart reservations", () => {
         'delete("user:session-user-1")',
       ]
     );
+  });
+
+  it("does not resolve membership for a product that is not member-only", async () => {
+    await createOrUpdateReservation("product-1", 1);
+
+    // getMembershipStatus is a Finago-backed lookup; running it on every
+    // add-to-cart would put a network round-trip on the hot path.
+    expect(getMembershipStatus).not.toHaveBeenCalled();
+  });
+
+  it("refuses a member-only product for a non-member", async () => {
+    sessionDb.getRow.mockResolvedValue({
+      $id: "product-1",
+      member_only: true,
+      stock: 5,
+    });
+
+    const result = await createOrUpdateReservation("product-1", 1);
+
+    // Member-only products are visible to everyone now, so this server-side
+    // refusal — not the listing filter — is what makes them members-only.
+    expect(result).toMatchObject({ reason: "members_only", success: false });
+    expect(adminDb.createRow).not.toHaveBeenCalled();
+    expect(sessionDb.updateRow).not.toHaveBeenCalled();
+  });
+
+  it("reserves a member-only product for a member", async () => {
+    sessionDb.getRow.mockResolvedValue({
+      $id: "product-1",
+      member_only: true,
+      stock: 5,
+    });
+    getMembershipStatus.mockResolvedValue({ isMember: true });
+
+    const result = await createOrUpdateReservation("product-1", 1);
+
+    expect(result).toMatchObject({ quantity: 1, success: true });
+    expect(adminDb.createRow).toHaveBeenCalled();
   });
 });

@@ -143,6 +143,7 @@ export function EventDetailModal({
   onClose,
 }: EventDetailModalProps) {
   const t = useTranslations("events");
+  const tCommon = useTranslations("common");
   const eventData = event;
   const translation = Array.isArray(event.translation_refs)
     ? event.translation_refs.find(
@@ -238,7 +239,7 @@ export function EventDetailModal({
               {eventData?.member_only && (
                 <Badge className="flex items-center gap-1 border-0 bg-orange-500 text-white">
                   <Users className="h-3 w-3" />
-                  {t("card.membersOnly")}
+                  {tCommon("memberOnly.badge")}
                 </Badge>
               )}
               {!eventData?.member_only && memberPrice && !isMember && (

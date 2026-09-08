@@ -18,7 +18,20 @@ import {
   getCartItemsWithDetails,
 } from "@/app/actions/cart-reservations";
 
-type ReservationFailureReason = "out_of_stock" | "error";
+type ReservationFailureReason = "error" | "members_only" | "out_of_stock";
+
+function reservationFailureMessage(
+  reason: ReservationFailureReason | undefined,
+  t: (key: string) => string
+): string {
+  if (reason === "out_of_stock") {
+    return t("cart.outOfStock");
+  }
+  if (reason === "members_only") {
+    return t("cart.membersOnly");
+  }
+  return t("cart.updateFailed");
+}
 
 export interface CartItem {
   category: string;
@@ -162,17 +175,13 @@ export function CartProvider({ children }: { children: ReactNode }) {
     refreshCart();
   }, [refreshCart]);
 
-  // A reservation write failed (out of stock, or a server error). Never apply
-  // the returned quantity (it may be 0, which would strand an uncheckoutable
-  // line) — tell the shopper and re-sync the cart from the authoritative server
-  // state instead.
+  // A reservation write failed (out of stock, members-only, or a server
+  // error). Never apply the returned quantity (it may be 0, which would strand
+  // an uncheckoutable line) — tell the shopper and re-sync the cart from the
+  // authoritative server state instead.
   const handleReservationFailure = useCallback(
     (reason?: ReservationFailureReason) => {
-      toast.error(
-        reason === "out_of_stock"
-          ? t("cart.outOfStock")
-          : t("cart.updateFailed")
-      );
+      toast.error(reservationFailureMessage(reason, t));
       refreshCart();
     },
     [refreshCart, t]

@@ -11,6 +11,7 @@ import {
   computeAvailableStock,
   sumReservedQuantity,
 } from "@repo/shared/utils/stock-availability";
+import { getMembershipStatus } from "@/lib/actions/membership";
 import { ensureAnonymousSession } from "@/lib/anon-session";
 
 /** One `cart_field_answers` row, as the relationship returns it. */
@@ -142,6 +143,37 @@ export async function getAvailableStock(productId: string): Promise<number> {
 }
 
 /**
+ * Whether this product may not be reserved by the current visitor.
+ *
+ * Member-only products are listed to everyone — hiding them from the shop was
+ * how the requirement used to be "enforced", which meant the products were
+ * invisible to the very students they are meant to advertise. Visibility moved
+ * to the UI (badge + notice), so this is now the gate that actually holds: the
+ * client-side notice in `AddToCartClient` is a courtesy, and a non-member who
+ * calls this action directly must still be refused.
+ */
+async function isBlockedByMembership(
+  db: Awaited<ReturnType<typeof createSessionClient>>["db"],
+  productId: string
+): Promise<boolean> {
+  const product = await db.getRow<WebshopProducts>(
+    "app",
+    "webshop_products",
+    productId,
+    [Query.select(["member_only"])]
+  );
+
+  if (!product.member_only) {
+    return false;
+  }
+
+  // Resolved only for member-only products: `getMembershipStatus` is a
+  // Finago-backed lookup, far too heavy to run on every add-to-cart.
+  const { isMember } = await getMembershipStatus();
+  return !isMember;
+}
+
+/**
  * Create or update a cart reservation for a product.
  *
  * Reservation lifecycle (the webshop's source of truth for "soft" inventory):
@@ -169,7 +201,7 @@ export async function createOrUpdateReservation(
   success: boolean;
   message?: string;
   quantity?: number;
-  reason?: "out_of_stock" | "error";
+  reason?: "error" | "members_only" | "out_of_stock";
 }> {
   try {
     // Reserving stock is the first action that genuinely needs a per-user
@@ -178,6 +210,15 @@ export async function createOrUpdateReservation(
     await ensureAnonymousSession();
 
     const { db, account } = await createSessionClient();
+
+    if (await isBlockedByMembership(db, productId)) {
+      return {
+        success: false,
+        reason: "members_only",
+        message: "This product is available to BISO members only",
+        quantity: 0,
+      };
+    }
 
     // Get session user ID (works for both authenticated and anonymous sessions)
     const session = await account.get();

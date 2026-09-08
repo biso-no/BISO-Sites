@@ -51,6 +51,10 @@ function EventBadges({
   hasTicketUrl,
 }: EventBadgesProps) {
   const t = useTranslations("events");
+  // The "Members only" label is the same wherever it appears (events, shop,
+  // units, campus), so it lives in `common` rather than being re-translated
+  // — and re-hardcoded — per feature.
+  const tCommon = useTranslations("common");
 
   return (
     <div className="absolute top-4 left-4 flex flex-col gap-2">
@@ -70,7 +74,7 @@ function EventBadges({
       {memberOnly && (
         <Badge className="flex w-fit items-center gap-1 border-0 bg-orange-500 text-white">
           <Users className="h-3 w-3" />
-          {t("card.membersOnly")}
+          {tCommon("memberOnly.badge")}
         </Badge>
       )}
       {!memberOnly && hasMemberDiscount && (

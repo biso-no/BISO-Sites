@@ -86,11 +86,10 @@ export function ShopListClient({
     const description = toPlainText(translation?.description);
     const shortDescription = toPlainText(translation?.short_description);
 
-    // Filter out member-only products if user is not a member
-    if (productData?.member_only && !isMember) {
-      return false;
-    }
-
+    // Member-only products are NOT filtered out here: they are listed to
+    // everyone, badged "Members only", and gated at the point of purchase
+    // (`createOrUpdateReservation`). Hiding them made the products invisible
+    // to exactly the students they are meant to advertise.
     const matchesCategory =
       selectedCategory === "All" || productData?.category === selectedCategory;
     const matchesSearch =

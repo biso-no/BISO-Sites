@@ -70,7 +70,11 @@ async function reserveStock(
   productId: string,
   quantity: number,
   hasStock: boolean
-): Promise<{ success: boolean; newAvailable: number | null }> {
+): Promise<{
+  newAvailable: number | null;
+  reason?: string;
+  success: boolean;
+}> {
   if (!hasStock) {
     return { success: true, newAvailable: null };
   }
@@ -81,7 +85,13 @@ async function reserveStock(
     quantity
   );
   if (!reservationResult.success) {
-    return { success: false, newAvailable: null };
+    // The reason is carried out so the caller can name the real cause — a
+    // member-only product refused server-side is not "failed to reserve".
+    return {
+      success: false,
+      newAvailable: null,
+      reason: reservationResult.reason,
+    };
   }
   const newAvailable = await getAvailableStock(productId);
   return { success: true, newAvailable };
@@ -200,7 +210,11 @@ export function useProductActions(
 
     const reservation = await reserveStock(productId, quantity, hasStock);
     if (!reservation.success) {
-      toast.error("Failed to reserve stock. Please try again.");
+      toast.error(
+        reservation.reason === "members_only"
+          ? "This product is available to BISO members only"
+          : "Failed to reserve stock. Please try again."
+      );
       return;
     }
     if (reservation.newAvailable !== null) {
