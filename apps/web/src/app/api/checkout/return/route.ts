@@ -73,12 +73,21 @@ function redirectToApp(
   orderId: string,
   cancelled: boolean
 ): NextResponse {
+  const settled = status === "paid" || status === "authorized";
+
+  // Two different cancellations arrive here.
+  //
   // A cancelled Stripe session stays open and unpaid, so it reconciles to
-  // `pending` — the marker on the cancel URL is the only thing that tells the
-  // two apart. It is honoured only while the order has not actually settled,
-  // so a crafted URL can never show a paid order as cancelled. The order is
-  // deliberately left pending either way, exactly as the website leaves it.
-  if (cancelled && status !== "paid" && status !== "authorized") {
+  // `pending`; the marker on the cancel URL is the only thing that tells it
+  // apart from a success. It is honoured only while the order has not actually
+  // settled, so a crafted URL can never show a paid order as cancelled, and
+  // the order is left pending either way, exactly as the website leaves it.
+  //
+  // A Vipps payment the buyer abandons reaches ABORTED or EXPIRED, which
+  // reconciles to `cancelled` outright — no marker, because only Stripe's
+  // cancel URL carries one. Trusting the reconciled status covers it, and
+  // needs no marker to be trusted at all.
+  if ((cancelled && !settled) || status === "cancelled") {
     return NextResponse.redirect(appCartDeepLink(true));
   }
   return NextResponse.redirect(appOrderDeepLink(orderId, status));

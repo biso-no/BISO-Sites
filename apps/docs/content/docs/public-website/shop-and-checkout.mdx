@@ -81,6 +81,15 @@ primary key settles the race: the loser is told the row exists and updates it.
 The `PUT` handler also collapses any duplicate rows a pre-existing race left
 behind, before it computes the ceiling.
 
+Because the app posts to that pipeline directly rather than going through the
+website's `createCartCheckoutSession`, the buyer's answers to a product's
+checkout questions are reconciled against the product's own `custom_fields`
+definitions inside the pipeline (`resolveCustomFieldAnswers` in `@repo/shared`,
+used by both surfaces). A required question left blank is a `400`; a key the
+product does not declare is dropped, and every stored label comes from the
+definition rather than the request — so a stale or crafted client cannot
+complete a payment with fulfilment data missing, invented, or relabelled.
+
 Checkout itself is the same `POST /api/payment/{provider}/checkout` call the
 website makes, with one extra field: `client: "app"`. That marks the provider's
 return URL with `&client=app`, and `/api/checkout/return` — after it has

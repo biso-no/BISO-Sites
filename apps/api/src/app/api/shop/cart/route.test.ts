@@ -108,6 +108,37 @@ describe("cart reservations", () => {
     expect(mockedCreateAdminClient).not.toHaveBeenCalled();
   });
 
+  it("does not report a backend failure as a missing product", async () => {
+    // The app drops a line from the buyer's cart on 404, so a timeout answered
+    // that way would quietly delete a perfectly good item.
+    const db = mockDb();
+    db.getRow.mockRejectedValue(
+      Object.assign(new Error("service unavailable"), { code: 503 })
+    );
+
+    const response = await PUT(
+      putRequest({ productId: "product-1", quantity: 1 })
+    );
+
+    expect(response.status).toBe(500);
+  });
+
+  it("still reports a genuinely absent product as not available", async () => {
+    const db = mockDb();
+    db.getRow.mockRejectedValue(
+      Object.assign(new Error("row not found"), {
+        code: 404,
+        type: "row_not_found",
+      })
+    );
+
+    const response = await PUT(
+      putRequest({ productId: "product-1", quantity: 1 })
+    );
+
+    expect(response.status).toBe(404);
+  });
+
   it("refuses to hold stock for an unpublished product", async () => {
     mockDb({ product: { status: "draft", stock: 5 } });
 

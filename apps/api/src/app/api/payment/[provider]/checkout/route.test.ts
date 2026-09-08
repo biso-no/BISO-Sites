@@ -346,11 +346,24 @@ describe("payment checkout authorization", () => {
     );
   });
 
-  it("preserves variant and custom-field data on the trusted order items", async () => {
+  /** A product that asks one question — optional unless overridden. */
+  function mockProductAskingQuestions(
+    fields: Record<string, unknown>[] = [
+      {
+        $id: "f-engraving",
+        enabled: true,
+        field_key: "engraving",
+        is_required: false,
+        label: "Engraving text",
+        type: "text",
+      },
+    ]
+  ) {
     mockedCreateAdminClient.mockResolvedValue({
       db: {
         getRow: vi.fn().mockResolvedValue({
           ...productRow,
+          custom_fields: fields,
           variations: [
             {
               $id: "v-large",
@@ -362,6 +375,89 @@ describe("payment checkout authorization", () => {
         }),
       },
     } as unknown as Awaited<ReturnType<typeof createAdminClient>>);
+  }
+
+  function engravingRequest(
+    customFields: Record<string, string>,
+    customFieldLabels?: Record<string, string>
+  ): NextRequest {
+    return new Request("https://api.biso.no/api/payment/vipps/checkout", {
+      body: JSON.stringify({
+        currency: "NOK",
+        customerInfo: { email: "buyer@example.com" },
+        items: [
+          {
+            customFieldLabels,
+            customFields,
+            productId: "product-1",
+            quantity: 1,
+            slug: "trusted-product",
+            variationId: "v-large",
+          },
+        ],
+        reference: "checkout-ref",
+        subtotal: 249,
+        total: 249,
+        userId: "attacker-user",
+      }),
+      headers: new Headers({
+        authorization: "Bearer valid",
+        "content-type": "application/json",
+      }),
+      method: "POST",
+    }) as unknown as NextRequest;
+  }
+
+  it("drops an answer to a question the product never asked", async () => {
+    mockProductAskingQuestions();
+
+    const response = await postVipps(
+      engravingRequest(
+        { engraving: "Ada", smuggled: "not a real field" },
+        { engraving: "Relabelled by the client", smuggled: "Invented" }
+      )
+    );
+
+    expect(response.status).toBe(200);
+    expect(mockedCreateOrder).toHaveBeenCalledWith(
+      expect.objectContaining({
+        items: [
+          expect.objectContaining({
+            // Only the declared field survives, and its label comes from the
+            // product rather than from the request.
+            customFieldLabels: { engraving: "Engraving text" },
+            customFields: { engraving: "Ada" },
+          }),
+        ],
+      }),
+      expect.anything()
+    );
+  });
+
+  it("refuses a checkout that skips a required question", async () => {
+    mockProductAskingQuestions([
+      {
+        $id: "f-size",
+        enabled: true,
+        field_key: "size",
+        is_required: true,
+        label: "Shirt size",
+        type: "select",
+      },
+    ]);
+
+    const response = await postVipps(engravingRequest({}));
+
+    // Nothing is contended — the request is simply incomplete.
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({
+      message: expect.stringContaining("Shirt size"),
+    });
+    expect(mockedCreateOrder).not.toHaveBeenCalled();
+  });
+
+  it("preserves variant and custom-field data on the trusted order items", async () => {
+    mockProductAskingQuestions();
 
     const request = new Request(
       "https://api.biso.no/api/payment/vipps/checkout",

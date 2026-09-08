@@ -12,6 +12,12 @@ import { sanitizeStudentNumber } from "@repo/shared/utils/bi-student";
 import { computeMembershipStatus } from "@repo/shared/utils/membership-status";
 import { ORDER_ITEMS_SELECT } from "@repo/shared/utils/order-queries";
 import {
+  type ProductCustomField,
+  type ProductCustomFieldRow,
+  resolveCustomFieldAnswers,
+  toProductCustomFields,
+} from "@repo/shared/utils/product-custom-fields";
+import {
   checkMaxPerOrder,
   evaluatePerUserLimit,
   summarizePurchases,
@@ -56,7 +62,9 @@ interface ProductVariation {
   price_modifier?: number;
 }
 
-export interface NormalizedProduct extends Omit<WebshopProducts, "variations"> {
+export interface NormalizedProduct
+  extends Omit<WebshopProducts, "custom_fields" | "variations"> {
+  custom_fields: ProductCustomField[];
   metadata_parsed: Record<string, unknown>;
   title: string;
   variations: ProductVariation[];
@@ -272,11 +280,16 @@ export async function loadProduct(
     getRequiredEnv("APPWRITE_DATABASE_ID"),
     getRequiredEnv("APPWRITE_WEBSHOP_PRODUCTS_COLLECTION_ID"),
     productId,
-    [Query.select(["*", "variations.*"])]
+    // The checkout questions are needed here, not just on the product page:
+    // this is where the buyer's answers are validated against them.
+    [Query.select(["*", "variations.*", "custom_fields.*"])]
   );
   const metadataParsed = parseProductMetadata(product.metadata);
   const normalizedProduct: NormalizedProduct = {
     ...product,
+    custom_fields: toProductCustomFields(
+      (product as { custom_fields?: ProductCustomFieldRow[] }).custom_fields
+    ),
     metadata_parsed: metadataParsed,
     title: productTitle(product),
     variations: (product.variations ?? [])
@@ -291,6 +304,27 @@ export async function loadProduct(
   };
   cache.set(productId, normalizedProduct);
   return normalizedProduct;
+}
+
+/**
+ * The buyer's answers, reconciled against the questions the product actually
+ * asks — see `resolveCustomFieldAnswers` for why none of it is taken on trust.
+ */
+function validatedAnswers(
+  product: NormalizedProduct,
+  responses: Record<string, string> | undefined,
+  productName: string
+) {
+  const answers = resolveCustomFieldAnswers(product.custom_fields, responses);
+  if (answers.missing.length > 0) {
+    // 400 rather than 409: nothing is contended, the request is simply
+    // incomplete, and the buyer has to supply the answer rather than retry.
+    throw new CheckoutValidationError(
+      `Missing required information for ${productName}: ${answers.missing.join(", ")}`,
+      400
+    );
+  }
+  return answers;
 }
 
 function findVariation(product: NormalizedProduct, variationId?: string) {
@@ -442,6 +476,8 @@ export async function buildTrustedCheckoutParams({
 
     const productName = product.title || product.slug || product.$id;
 
+    const answers = validatedAnswers(product, input.customFields, productName);
+
     trustedItems.push({
       // Snapshotted so a later refund reverses the account this sale actually
       // credited, even if the product's account is edited in between.
@@ -459,10 +495,15 @@ export async function buildTrustedCheckoutParams({
       // Preserve the buyer's selections for the receipt/fulfillment. These are
       // non-price data — the price above is still recomputed server-side — so
       // carrying them through does not weaken the trusted-amount guarantee.
+      // They are reconciled against the product's own questions first, though:
+      // an order missing a required answer, or carrying an invented field or a
+      // relabelled one, is an order fulfilment cannot pack.
       variationId: input.variationId,
       variationName: variation?.name,
-      customFields: input.customFields,
-      customFieldLabels: input.customFieldLabels,
+      customFields: answers.accepted,
+      customFieldLabels: Object.fromEntries(
+        answers.details.map((answer) => [answer.id, answer.label])
+      ),
     });
 
     subtotal += pricing.discountedUnit * input.quantity;

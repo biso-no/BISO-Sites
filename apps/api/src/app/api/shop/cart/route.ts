@@ -206,6 +206,23 @@ async function computeCallerCeiling(
   return computeAvailableStock(stock, totalReserved) + ownActiveHold;
 }
 
+/**
+ * Whether a failed product read means the product is genuinely gone, as
+ * opposed to Appwrite being slow, rate-limiting, or down.
+ *
+ * Only the former may become `404 Product is not available`: the app treats
+ * that as "this was deleted or unpublished" and drops the line from the
+ * buyer's cart, so reporting a timeout that way would quietly delete a
+ * perfectly good item instead of leaving it to be retried.
+ */
+function isProductNotFound(error: unknown): boolean {
+  const code = (error as { code?: number } | null)?.code;
+  const type = (error as { type?: string } | null)?.type;
+  return (
+    code === 404 || type === "row_not_found" || type === "document_not_found"
+  );
+}
+
 async function readProductStock(
   db: CartDb,
   productId: string
@@ -223,8 +240,13 @@ async function readProductStock(
       found: true,
       stock: typeof product.stock === "number" ? product.stock : null,
     };
-  } catch {
-    return { found: false, stock: null };
+  } catch (error) {
+    if (isProductNotFound(error)) {
+      return { found: false, stock: null };
+    }
+    // Anything else belongs to the outer handler, which answers 500 and
+    // invites a retry.
+    throw error;
   }
 }
 
