@@ -79,3 +79,81 @@ export function verifyStripeWebhook(
     creds.webhookSecret
   );
 }
+
+/**
+ * Refunds (part of) a settled payment. `amountMinor` is in the smallest
+ * currency unit (øre); omit it to refund the full remaining amount.
+ *
+ * Stripe honours a caller-supplied idempotency key, so a retried or
+ * double-submitted refund with the same key returns the original refund
+ * instead of moving money twice.
+ */
+export async function refundStripePayment(
+  paymentIntentId: string,
+  amountMinor: number | undefined,
+  creds: StripeCredentials,
+  opts: { idempotencyKey: string; reason?: string }
+): Promise<{ amountMinor: number; id: string; status: string }> {
+  const stripe = buildStripeClient(creds.secretKey);
+
+  const refund = await stripe.refunds.create(
+    {
+      payment_intent: paymentIntentId,
+      ...(amountMinor === undefined ? {} : { amount: amountMinor }),
+      // `reason` is a closed Stripe enum; free-text belongs in metadata.
+      ...(opts.reason
+        ? { metadata: { reason: opts.reason.slice(0, 500) } }
+        : {}),
+    },
+    { idempotencyKey: opts.idempotencyKey }
+  );
+
+  return {
+    amountMinor: refund.amount,
+    id: refund.id,
+    status: refund.status ?? "unknown",
+  };
+}
+
+/**
+ * Total already refunded against a PaymentIntent, in minor units. Read back
+ * from Stripe rather than summed locally so a refund issued directly in the
+ * Stripe dashboard is still reflected.
+ */
+export async function getStripeRefundedTotal(
+  paymentIntentId: string,
+  creds: StripeCredentials
+): Promise<number> {
+  const stripe = buildStripeClient(creds.secretKey);
+  const intent = await stripe.paymentIntents.retrieve(paymentIntentId, {
+    expand: ["latest_charge"],
+  });
+
+  const charge = intent.latest_charge;
+  if (charge && typeof charge !== "string") {
+    return charge.amount_refunded ?? 0;
+  }
+  return 0;
+}
+
+/**
+ * The hosted Stripe receipt for a settled payment, used to populate
+ * `orders.payment_receipt_url`. Returns `null` when the payment has no charge
+ * yet (or Stripe omits the receipt), so callers can store nothing rather than
+ * a broken link.
+ */
+export async function getStripeReceiptUrl(
+  paymentIntentId: string,
+  creds: StripeCredentials
+): Promise<string | null> {
+  const stripe = buildStripeClient(creds.secretKey);
+  const intent = await stripe.paymentIntents.retrieve(paymentIntentId, {
+    expand: ["latest_charge"],
+  });
+
+  const charge = intent.latest_charge;
+  if (charge && typeof charge !== "string") {
+    return charge.receipt_url ?? null;
+  }
+  return null;
+}

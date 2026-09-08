@@ -198,6 +198,14 @@ export function OrderStatusPill({ status }: { status: string | null }) {
       bg = "rgba(107,30,30,0.12)";
       label = t("refunded");
       break;
+    // Derived, never stored: a partially refunded order stays `paid` in the
+    // database so it keeps counting towards per-user purchase limits. See
+    // `displayOrderStatus`.
+    case "partially_refunded":
+      color = BRAND.gold;
+      bg = "rgba(176,138,62,0.18)";
+      label = t("partiallyRefunded");
+      break;
     default:
       color = BRAND.ink3;
       bg = BRAND.paper2;

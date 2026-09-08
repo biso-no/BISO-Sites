@@ -778,7 +778,8 @@
         "truncated": "{orders, plural, one {# order} other {# orders}} exported as {rows, plural, one {# line item row} other {# line item rows}} — the file hit the export ceiling and does not contain every matching order. Narrow the filters and export again.",
         "empty": "No orders match these filters, so there was nothing to export.",
         "failed": "The export failed. Please try again."
-      }
+      },
+      "viewOrder": "View order"
     },
     "preview": "Storefront Preview",
     "saveSuccess": "Product saved",

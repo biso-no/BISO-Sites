@@ -12,6 +12,9 @@ import type { components } from "./schema";
 
 const BASE_URL = "https://rest.api.24sevenoffice.com/v1";
 
+const COMMENT_MAX_LENGTH = 75;
+const CENTS = 100;
+
 /**
  * Campus to 24SevenOffice DepartmentId mapping for webshop general-ledger
  * transactions. This is a distinct legacy department scheme from the one
@@ -157,12 +160,111 @@ export async function postShopTransaction(
   return result.transactionId;
 }
 
+export interface ShopRefundTransactionParams {
+  /** Minor units (øre) per revenue account, as allocated by the refund. */
+  allocation: Array<{ accountNumber: number; amountMinor: number }>;
+  /** Total refunded, in NOK. */
+  amount: number;
+  campusId?: string | null;
+  comment?: string;
+  date: string;
+  orderId: string;
+}
+
+/**
+ * Posts the compensating transaction for a refunded shop order: the exact
+ * mirror of `postShopTransaction`, with every sign flipped.
+ *
+ * The original booking debits the receivable account and credits each product's
+ * revenue account. A refund gives the money back, so the receivable is credited
+ * and the revenue accounts are debited. The allocation is computed upstream (by
+ * `allocateAmountAcrossAccounts`) and already sums to the refunded amount, so
+ * the lines here balance to zero without further rounding.
+ */
+/**
+ * Pure builder for the refund reversal, split out so the line construction and
+ * its balance invariant are testable without a network call.
+ */
+export function buildShopRefundTransactionInput(
+  params: ShopRefundTransactionParams & {
+    receivableAccountNumber: number;
+    transactionTypeNumber: number;
+  }
+): PostTransactionRequest {
+  if (params.allocation.length === 0) {
+    throw new Error(
+      `[Finago] No revenue accounts resolved for refund on order ${params.orderId}`
+    );
+  }
+
+  const departmentId = params.campusId
+    ? SHOP_CAMPUS_DEPARTMENT_IDS[params.campusId]
+    : undefined;
+  const departmentDimension: TransactionLine["dimensions"] = departmentId
+    ? [{ type: DEPARTMENT_DIMENSION_TYPE, value: String(departmentId) }]
+    : undefined;
+
+  // Debit each revenue account back by its refunded share (positive).
+  const debitLines: TransactionLine[] = params.allocation.map((entry) => ({
+    accountNumber: entry.accountNumber,
+    amount: entry.amountMinor / CENTS,
+    tax: { number: 0 },
+    dimensions: departmentDimension,
+  }));
+
+  // Credit the receivable account by the same total (negative). Summing the
+  // debit lines rather than trusting `params.amount` is what guarantees the
+  // transaction balances to zero: the allocation is the rounded truth.
+  const total = debitLines.reduce((sum, line) => sum + line.amount, 0);
+  const creditLine: TransactionLine = {
+    accountNumber: params.receivableAccountNumber,
+    amount: -total,
+    tax: { number: 0 },
+    comment: `Refund ${params.orderId}`.slice(0, COMMENT_MAX_LENGTH),
+    dimensions: departmentDimension,
+  };
+
+  return {
+    transactionTypeNumber: params.transactionTypeNumber,
+    date: params.date,
+    comment: (params.comment ?? `Refund order ${params.orderId}`).slice(
+      0,
+      COMMENT_MAX_LENGTH
+    ),
+    lines: [...debitLines, creditLine],
+  };
+}
+
+export async function postShopRefundTransaction(
+  params: ShopRefundTransactionParams
+): Promise<string> {
+  const transactionTypeNumber = Number(
+    process.env.TFSO_SHOP_TRANSACTION_TYPE_NUMBER
+  );
+  const vippsReceivableAccount = Number(
+    process.env.TFSO_VIPPS_RECEIVABLE_ACCOUNT
+  );
+
+  if (!(transactionTypeNumber && vippsReceivableAccount)) {
+    throw new Error(
+      "[Finago] TFSO_SHOP_TRANSACTION_TYPE_NUMBER and TFSO_VIPPS_RECEIVABLE_ACCOUNT must be set"
+    );
+  }
+
+  const result = await postTransaction(
+    buildShopRefundTransactionInput({
+      ...params,
+      receivableAccountNumber: vippsReceivableAccount,
+      transactionTypeNumber,
+    })
+  );
+
+  return result.transactionId;
+}
+
 // ---------------------------------------------------------------------------
 // Expense / reimbursement transactions
 // ---------------------------------------------------------------------------
-
-const COMMENT_MAX_LENGTH = 75;
-const CENTS = 100;
 
 type TransactionInputT = components["schemas"]["TransactionInput"];
 type TransactionLineT = components["schemas"]["TransactionLine"];

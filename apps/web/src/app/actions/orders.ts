@@ -668,31 +668,10 @@ export async function verifyOrder(orderId: string) {
     // writable and the buyer's (possibly anonymous) session cannot update them.
     const { db: adminDb } = await createAdminClient();
 
-    if (order.payment_provider === "vipps") {
-      const { reconcileVippsPayment } = await import("@repo/payment/vipps");
-      await reconcileVippsPayment(orderId, adminDb);
-    } else if (order.payment_provider === "stripe") {
-      const { resolveStripeCredentials } = await import(
-        "@repo/payment/credentials"
-      );
-      const { getStripeSession } = await import("@repo/payment/stripe");
-      const { determineStatusFromStripeSession } = await import(
-        "@repo/shared/utils/stripe-pure"
-      );
-      const { applyOrderStatusTransition } = await import(
-        "@repo/shared/utils/vipps-order-ops"
-      );
-      const creds = await resolveStripeCredentials(adminDb);
-      if (creds) {
-        const { session } = await getStripeSession(
-          order.payment_session_id,
-          creds
-        );
-        const { status, updateData } =
-          determineStatusFromStripeSession(session);
-        await applyOrderStatusTransition(orderId, status, updateData, adminDb);
-      }
-    }
+    // Provider branching lives in `@repo/payment/reconcile`, shared with the
+    // return route and the reconciliation cron, so all three stay in step.
+    const { reconcileOrderPayment } = await import("@repo/payment/reconcile");
+    await reconcileOrderPayment(orderId, adminDb);
 
     return await db.getRow<Orders>("app", "orders", orderId, [
       ORDER_ITEMS_SELECT,

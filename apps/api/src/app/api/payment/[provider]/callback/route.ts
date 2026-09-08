@@ -3,7 +3,7 @@ import {
   resolveStripeCredentials,
   resolveVippsCredentials,
 } from "@repo/payment/credentials";
-import { verifyStripeWebhook } from "@repo/payment/stripe";
+import { getStripeReceiptUrl, verifyStripeWebhook } from "@repo/payment/stripe";
 import {
   parseVippsWebhookEvent,
   reconcileVippsPayment,
@@ -148,6 +148,18 @@ async function handleStripeCallback(req: NextRequest, origin: string | null) {
         session,
         event.type
       );
+      // Store the hosted receipt alongside the status. `payment_receipt_url` is
+      // what the admin order view and the buyer's confirmation page link to;
+      // nothing else ever writes it, so without this the link is always dead.
+      if (typeof updateData.payment_intent_id === "string") {
+        const receiptUrl = await getStripeReceiptUrl(
+          updateData.payment_intent_id,
+          creds
+        ).catch(() => null);
+        if (receiptUrl) {
+          updateData.payment_receipt_url = receiptUrl;
+        }
+      }
       await applyOrderStatusTransition(orderId, status, updateData, db);
       await settleFinagoIfPaid(orderId, db);
     }
