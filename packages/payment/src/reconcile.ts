@@ -208,32 +208,45 @@ export async function sweepPendingRefunds(
       continue;
     }
 
-    const outcome = await settlePendingRefund({
-      db,
-      ledger,
-      order,
-      refund,
-      resolver: {
-        state: async ({ paymentIntentId, providerRefundId }) => {
-          if (!(creds && providerRefundId)) {
-            // No provider handle to ask — a Vipps attempt, or one that never
-            // got far enough to record an id. Throwing keeps it pending rather
-            // than guessing that it failed.
-            throw new Error("No resolvable provider refund id");
-          }
-          const state = await getStripeRefundState(providerRefundId, creds);
-          // Carry Stripe's own aggregate through: it is the only figure that
-          // includes refunds issued straight from the dashboard, and reporting
-          // zero here would overstate the remaining refundable balance.
-          const refundedTotalMinor = paymentIntentId
-            ? await getStripeRefundedTotal(paymentIntentId, creds).catch(
-                () => 0
-              )
-            : 0;
-          return { ...state, refundedTotalMinor };
+    // Per-refund guard. `finalizeSettledRefund` deliberately throws when the
+    // status flip fails, and settling also posts to Finago — without this one
+    // bad row aborts the whole sweep AND the cron steps that run after it.
+    let outcome: Awaited<ReturnType<typeof settlePendingRefund>>;
+    try {
+      outcome = await settlePendingRefund({
+        db,
+        ledger,
+        order,
+        refund,
+        resolver: {
+          state: async ({ paymentIntentId, providerRefundId }) => {
+            if (!(creds && providerRefundId)) {
+              // No provider handle to ask — a Vipps attempt, or one that never
+              // got far enough to record an id. Throwing keeps it pending
+              // rather than guessing that it failed.
+              throw new Error("No resolvable provider refund id");
+            }
+            const state = await getStripeRefundState(providerRefundId, creds);
+            // Carry Stripe's own aggregate through: it is the only figure that
+            // includes refunds issued straight from the dashboard, and
+            // reporting zero here would overstate the refundable balance.
+            const refundedTotalMinor = paymentIntentId
+              ? await getStripeRefundedTotal(paymentIntentId, creds).catch(
+                  () => 0
+                )
+              : 0;
+            return { ...state, refundedTotalMinor };
+          },
         },
-      },
-    });
+      });
+    } catch (error) {
+      console.error(
+        `[Refund] Sweep could not settle refund ${refund.$id}:`,
+        error
+      );
+      tally.unresolved += 1;
+      continue;
+    }
 
     if (outcome === "settled") {
       tally.settled += 1;

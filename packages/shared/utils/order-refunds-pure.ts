@@ -302,6 +302,13 @@ export function allocateAmountAcrossAccounts(
   for (const line of input.lines) {
     const account = input.accountByItemId[line.orderItemId];
     if (!account) {
+      // The line resolves to no revenue account, so nothing can be reversed
+      // for it. Drop its share instead of leaving it in `unallocated`: the
+      // spill below would otherwise debit an unrelated product's account for a
+      // line that never credited it. Under-allocating is the intended,
+      // *visible* failure — the ledger connector refuses to post a partial
+      // reversal and the refund is flagged for manual posting.
+      unallocated -= toMinor(line.amount);
       continue;
     }
     unallocated -= take(account, toMinor(line.amount));
@@ -323,16 +330,20 @@ export function allocateAmountAcrossAccounts(
         const wanted = Math.floor((share * left) / totalRoom);
         placed += take(account, wanted);
       }
-      // Rounding remainder onto whichever account still has the most room, so
-      // the parts sum exactly and the reversal balances.
-      const shortfall = share - placed;
-      if (shortfall > 0) {
-        const largest = [...remaining.entries()]
-          .filter(([, left]) => left > 0)
-          .sort((a, b) => b[1] - a[1])[0];
-        if (largest) {
-          take(largest[0], shortfall);
+      // Rounding remainder onto the accounts with the most room left, so the
+      // parts sum exactly and the reversal balances. Walked in order rather
+      // than dumped on the single largest: with the room fragmented across
+      // several accounts, one of them may not have the whole remainder, and a
+      // short allocation makes the ledger refuse the posting.
+      let shortfall = share - placed;
+      const byRoomDesc = [...remaining.entries()]
+        .filter(([, left]) => left > 0)
+        .sort((a, b) => b[1] - a[1]);
+      for (const [account] of byRoomDesc) {
+        if (shortfall <= 0) {
+          break;
         }
+        shortfall -= take(account, shortfall);
       }
     }
   }

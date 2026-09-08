@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  hasUnrecordedReversal,
   type LedgerReverser,
   loadOrderRefunds,
   ORDER_WITH_REFUNDS_SELECT,
@@ -755,5 +756,76 @@ describe("settlePendingRefund — concurrency and bookkeeping", () => {
     expect(db.decrementRowColumn).toHaveBeenCalledWith(
       expect.objectContaining({ column: "refund_lock" })
     );
+  });
+});
+
+describe("hasUnrecordedReversal", () => {
+  it("is true when a prior reversal posted without recording its allocation", () => {
+    // The dangerous combination: money returned to accounts we can no longer
+    // identify, so remaining balances are unknowable.
+    expect(
+      hasUnrecordedReversal({
+        refunds: [
+          {
+            $id: "r1",
+            amount: 100,
+            finago_transaction_id: "tx-1",
+            status: "succeeded",
+          },
+        ],
+      } as never)
+    ).toBe(true);
+  });
+
+  it("is false once the allocation is recorded", () => {
+    expect(
+      hasUnrecordedReversal({
+        refunds: [
+          {
+            $id: "r1",
+            amount: 100,
+            finago_transaction_id: "tx-1",
+            ledger_allocation: "[]",
+            status: "succeeded",
+          },
+        ],
+      } as never)
+    ).toBe(false);
+  });
+
+  it("is false for a refund that never posted a reversal", () => {
+    expect(
+      hasUnrecordedReversal({
+        refunds: [{ $id: "r1", amount: 100, status: "succeeded" }],
+      } as never)
+    ).toBe(false);
+  });
+
+  it("skips the ledger reversal rather than over-reversing", async () => {
+    db.getRow.mockImplementation(
+      orderRowFor(buildOrder({ finago_transaction_id: "tx-order" }))
+    );
+    db.listRows.mockResolvedValue({
+      rows: [
+        {
+          $id: "r0",
+          amount: 100,
+          finago_transaction_id: "tx-1",
+          status: "succeeded",
+        },
+      ],
+    });
+    const ledger: LedgerReverser = { reverse: vi.fn() };
+
+    const result = await refundOrder({
+      db,
+      executor: executorReturning(49_900),
+      ledger,
+      orderId: ORDER_ID,
+      amount: 499,
+    });
+
+    expect(result).toMatchObject({ ok: true });
+    expect(ledger.reverse).not.toHaveBeenCalled();
   });
 });

@@ -176,6 +176,28 @@ export function toRefundableItems(
  * alone cannot describe what a previous free refund already gave back, so the
  * next allocation would reverse it a second time.
  */
+/**
+ * Whether a previous refund on this order posted a ledger reversal whose
+ * allocation was never recorded.
+ *
+ * That combination — a reversal transaction id with no `ledger_allocation` —
+ * means money was given back to accounts we can no longer identify, so the
+ * per-account remaining balances are unknowable and the next reversal would
+ * over-reverse. It happens if the bookkeeping write failed, and for the whole
+ * window before the `ledger_allocation` attribute is deployed.
+ *
+ * Refunds predating the column entirely have no transaction id either (they
+ * could not have posted a reversal), so they do not trip this.
+ */
+export function hasUnrecordedReversal(order: RefundableOrder): boolean {
+  return (order.refunds ?? []).some(
+    (refund) =>
+      refund.status !== "failed" &&
+      Boolean(refund.finago_transaction_id) &&
+      !refund.ledger_allocation
+  );
+}
+
 export function reversedByAccount(
   order: RefundableOrder
 ): Record<number, number> {
@@ -560,14 +582,20 @@ async function executeRefund(
     args.summary.refundedMinor + amountMinor
   );
 
+  // Record the provider's handle as soon as we have it, on its own write.
+  // `finalizeSettledRefund` also persists it, but that write now throws on
+  // failure — and the reconciliation sweep can only resolve a pending row that
+  // carries a provider refund id. Writing it here keeps the row recoverable
+  // even when the finalize write is the thing that failed.
+  await markRefund(refundId, db, {
+    provider_refund_id: outcome.providerRefundId ?? null,
+  });
+
   // Accepted but not yet settled (Stripe's `pending`). The attempt stays
   // `pending`, which keeps holding its share of the balance, and none of the
   // downstream side effects fire: restocking inventory and reversing the
   // ledger for money still in flight would be wrong if it never lands.
   if (!outcome.settled) {
-    await markRefund(refundId, db, {
-      provider_refund_id: outcome.providerRefundId ?? null,
-    });
     return {
       ok: true,
       amount,
@@ -832,6 +860,22 @@ async function reverseLedger({
     return;
   }
 
+  // Fail closed rather than post a reversal we know to be wrong. Without the
+  // earlier allocation there is no way to tell how much of each account has
+  // already been given back, so the arithmetic below would reverse it twice.
+  // A human posting one transaction beats the ledger quietly drifting.
+  if (hasUnrecordedReversal(order)) {
+    const message =
+      "An earlier refund on this order posted a reversal without recording its allocation, so this one cannot be allocated safely. Post it manually in 24SO.";
+    console.error(`[Refund] ${message} (refund ${refundId})`);
+    await db
+      .updateRow(dbId, REFUNDS_TABLE, refundId, {
+        error: message.slice(0, 1000),
+      })
+      .catch(() => undefined);
+    return;
+  }
+
   try {
     const accountByItemId = await resolveRevenueAccounts(
       items,
@@ -853,12 +897,25 @@ async function reverseLedger({
       orderId,
     });
     if (transactionId) {
-      await db.updateRow(dbId, REFUNDS_TABLE, refundId, {
-        finago_transaction_id: transactionId,
-        // Stored so the NEXT refund on this order knows what each account has
-        // already given back, whichever order line and free refunds arrive in.
-        ledger_allocation: JSON.stringify(allocation),
-      });
+      // Outside the try/catch below on purpose: the reversal has ALREADY been
+      // posted at this point, so a failure here is a bookkeeping failure, not
+      // a ledger failure, and must not be logged as "reversal failed". It is
+      // still recorded loudly — a lost allocation means the next refund on
+      // this order sees the account as unreversed and over-reverses it.
+      await db
+        .updateRow(dbId, REFUNDS_TABLE, refundId, {
+          finago_transaction_id: transactionId,
+          // Stored so the NEXT refund on this order knows what each account
+          // has already given back, whichever order line and free refunds
+          // arrive in.
+          ledger_allocation: JSON.stringify(allocation),
+        })
+        .catch((error) => {
+          console.error(
+            `[Refund] Ledger reversal ${transactionId} posted for refund ${refundId} but could not be recorded on the row; a later refund on this order may over-reverse:`,
+            error
+          );
+        });
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -991,14 +1048,55 @@ export async function settlePendingRefund({
   // both finalize it, and both restock and post a Finago reversal. The order's
   // existing `refund_lock` is the right granularity: the effects touch the
   // order and its products.
+  //
+  // Clear a lock stranded by a crashed process first, exactly as `refundOrder`
+  // does. This sweep IS the recovery path: without this, a lock left behind by
+  // the very crash that stranded the refund would block its settlement forever
+  // and only an admin-initiated refund on the same order could clear it.
+  await releaseStaleRefundLock(order, db);
+
   if (!(await claimRefundLock(order.$id, db))) {
     return "still_pending";
   }
 
   try {
+    // The lock only orders concurrent workers; it does not deduplicate. A
+    // second sweep that listed this row while the first held the lock would
+    // otherwise finalize it again — restocking and posting a second Finago
+    // reversal. Re-read under the lock and bail if someone already settled it.
+    if (await isRefundAlreadyResolved(refund.$id, db)) {
+      return "still_pending";
+    }
     return await finalizePendingRefund({ db, ledger, order, refund, state });
   } finally {
     await releaseRefundLock(order.$id, db);
+  }
+}
+
+/**
+ * Whether the refund row has already left `pending` — i.e. another worker
+ * finalized it while we waited for the lock.
+ *
+ * A failed read counts as resolved: without a confirmed `pending` we cannot
+ * rule out that the effects already ran, and running them twice double-restocks
+ * and double-reverses. The row stays pending, so the next sweep retries.
+ */
+async function isRefundAlreadyResolved(
+  refundId: string,
+  db: DbClient
+): Promise<boolean> {
+  const { dbId } = tableIds();
+  try {
+    const row = (await db.getRow(dbId, REFUNDS_TABLE, refundId)) as {
+      status?: unknown;
+    } | null;
+    return typeof row?.status === "string" && row.status !== "pending";
+  } catch (error) {
+    console.error(
+      `[Refund] Could not re-read refund ${refundId} under the lock; leaving it pending:`,
+      error
+    );
+    return true;
   }
 }
 

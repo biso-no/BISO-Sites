@@ -429,3 +429,28 @@ describe("allocateAmountAcrossAccounts — order independence", () => {
     expect(over).toEqual([]);
   });
 });
+
+describe("allocateAmountAcrossAccounts — unmapped lines", () => {
+  const mixedItems: RefundableOrderItem[] = [
+    { id: "line-a", name: "A", quantity: 1, unitPrice: 50 },
+    { id: "line-b", name: "B", quantity: 1, unitPrice: 50 },
+  ];
+
+  it("never charges another product's account for a line with no account", () => {
+    // Line B resolves to no revenue account. Its amount must simply drop out —
+    // spilling it onto A's account would debit revenue that line never
+    // credited. The short allocation is intentional: the ledger connector
+    // refuses to post a partial reversal, which surfaces it for manual fixing.
+    const allocation = allocateAmountAcrossAccounts({
+      accountByItemId: { "line-a": 3000, "line-b": null },
+      amountMinor: 5000,
+      items: mixedItems,
+      lines: buildRefundLines(
+        [{ orderItemId: "line-b", quantity: 1 }],
+        mixedItems
+      ),
+    });
+
+    expect(allocation).toEqual([]);
+  });
+});
