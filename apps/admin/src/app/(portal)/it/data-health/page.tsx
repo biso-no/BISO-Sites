@@ -6,7 +6,7 @@ import { ItUsersTabs } from "../users/_components/it-users-tabs";
 import { DataHealthClient } from "./_components/data-health-client";
 
 export default async function DataHealthPage() {
-  await requireItPagePermission("it.users.view");
+  await requireItPagePermission("it.tenant.audit");
   const t = await getTranslations("adminPortal.it");
   const result = await getDepartmentDataHealth();
 
@@ -23,6 +23,7 @@ export default async function DataHealthPage() {
           expenseApprovals: t("users.tabs.expenseApprovals"),
           users: t("users.tabs.users"),
         }}
+        showTenantTools
       />
 
       {result.data ? (

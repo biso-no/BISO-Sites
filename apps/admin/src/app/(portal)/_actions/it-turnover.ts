@@ -94,7 +94,13 @@ export async function triggerM365Turnover(
     // 2. Lock out the departing holder. Each step is best-effort so one Graph
     //    failure doesn't skip the others.
     try {
-      await resetUserMfaMethods(graph, user.id);
+      const mfaReset = await resetUserMfaMethods(graph, user.id);
+      // Per-method failures no longer abort the sweep, so surface each one:
+      // the operator needs to know exactly what the departing holder can still
+      // authenticate with.
+      for (const failure of mfaReset.failures) {
+        warnings.push(`MFA reset failed for ${failure.type}: ${failure.error}`);
+      }
     } catch (error) {
       warnings.push(`MFA reset failed: ${getErrorMessage(error)}`);
     }

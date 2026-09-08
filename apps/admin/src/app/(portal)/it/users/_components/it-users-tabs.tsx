@@ -11,24 +11,38 @@ interface ItUsersTabsProps {
     expenseApprovals: string;
     users: string;
   };
+  /**
+   * Audit, data health and expense approvals read across every campus, so they
+   * are hidden from campus admins — who otherwise only see their own campus.
+   */
+  showTenantTools: boolean;
 }
 
 const TABS = [
-  { href: "/it/users", key: "users" as const },
-  { href: "/it/users/audit", key: "audit" as const },
-  { href: "/it/data-health", key: "dataHealth" as const },
-  { href: "/it/expense-approvals", key: "expenseApprovals" as const },
+  { href: "/it/users", key: "users" as const, tenantWide: false },
+  { href: "/it/users/audit", key: "audit" as const, tenantWide: true },
+  { href: "/it/data-health", key: "dataHealth" as const, tenantWide: true },
+  {
+    href: "/it/expense-approvals",
+    key: "expenseApprovals" as const,
+    tenantWide: true,
+  },
 ];
 
-export function ItUsersTabs({ labels }: ItUsersTabsProps) {
+export function ItUsersTabs({ labels, showTenantTools }: ItUsersTabsProps) {
   const pathname = usePathname();
+  const visibleTabs = TABS.filter((tab) => showTenantTools || !tab.tenantWide);
+
+  if (visibleTabs.length < 2) {
+    return null;
+  }
 
   return (
     <nav
       className="mb-6 flex items-center gap-1 border-b pb-px"
       style={{ borderColor: STUDIO.rule }}
     >
-      {TABS.map((tab) => {
+      {visibleTabs.map((tab) => {
         const isActive =
           tab.href === "/it/users"
             ? pathname === "/it/users"
