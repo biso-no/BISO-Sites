@@ -356,7 +356,7 @@ export const StudentsPageClient = ({
           <CardContent className="space-y-4 text-muted-foreground text-sm">
             <p>{t("funding.body")}</p>
             <Button asChild className="w-full" size="sm">
-              <Link href="/bi-fondet">{t("funding.cta")}</Link>
+              <Link href="/okonomisk-stotte">{t("funding.cta")}</Link>
             </Button>
           </CardContent>
         </Card>

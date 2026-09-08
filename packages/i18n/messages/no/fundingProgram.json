@@ -1,39 +1,188 @@
 {
-  "hero": {
-    "badge": "Støtteordning",
-    "apply": "Send søknad",
-    "contact": "Ta kontakt"
+  "meta": {
+    "title": "Økonomisk støtte | BISO",
+    "description": "Søk støtte fra BI-fondet til studentaktiviteter, prosjekter og arrangementer ved Handelshøyskolen BI."
   },
-  "overview": {
-    "title": "Programoversikt",
-    "status": "Status",
-    "active": "Åpen for søknader",
-    "draft": "Ikke publisert",
-    "template": "Søknadsmal",
-    "download": "Last ned",
-    "documents": "Nyttige dokumenter",
-    "contact": "Kontakt",
-    "contactFallback": "BISO Hovedstyret",
-    "external": "Mer informasjon"
+  "hero": {
+    "eyebrow": "BI-fondet",
+    "title": "Økonomisk støtte",
+    "subtitle": "Søk støtte til en studentaktivitet",
+    "breadcrumbHome": "Hjem",
+    "breadcrumbStudents": "For studenter"
+  },
+  "intro": {
+    "label": "Om fondet",
+    "title": "Søk støtte fra BI-fondet og få bistand til din aktivitet",
+    "lead": "BI-fondet er gitt til BI Studentorganisasjon av Handelshøyskolen BI for å øke sosial integrering for alle studenter ved BI. Fondet skal fremme tiltak og aktiviteter som hever kvaliteten på studentlivet for helhetsopplevelsen av å være student ved Handelshøyskolen BI.",
+    "body": "Fondet skal bidra til å fremme sosial og faglig integrering og et godt læringsmiljø for alle studenter ved Handelshøyskolen BI. Det kan være vanskelig å vite hva man kan søke støtte til, men vår oppfordring er å søke uansett idé! Finanskomiteen i BISO ser fram til å lese søknaden din, gi deg tilbakemelding og bistå hvis det trengs."
+  },
+  "cta": {
+    "apply": "Søk støtte",
+    "contact": "Kontakt Finanskomiteen",
+    "applyAria": "Åpne søknadsskjemaet for BI-fondet i nytt vindu"
+  },
+  "status": {
+    "open": "Åpent for søknader hele året",
+    "closed": "Søknadsskjemaet er midlertidig stengt"
   },
   "eligibility": {
+    "label": "Økonomisk støtte",
     "title": "Hvem kan søke?",
-    "empty": "Retningslinjer vil bli publisert snart."
+    "lead": "Alle studenter og studentgrupper ved Handelshøyskolen BI kan søke om støtte fra BI-fondet. Alle BISO-enheter, søster- og datterselskaper av BISO, BI alumni-studenter og andre organisasjoner tilknyttet BI-studenter har også mulighet til å søke.",
+    "groups": {
+      "biso": {
+        "title": "BISO og tilknyttede selskaper",
+        "items": [
+          "Alle studenter ved Handelshøyskolen BI",
+          "Studentgrupper ved Handelshøyskolen BI",
+          "Alle BISO-enheter",
+          "BI Athletics",
+          "StudConsult AS",
+          "BISO Kroa AS"
+        ]
+      },
+      "others": {
+        "title": "Andre som kan søke",
+        "items": [
+          "BI alumni-studenter eller grupper",
+          "Organisasjoner tilknyttet BI-studenter"
+        ]
+      }
+    }
   },
-  "steps": {
-    "title": "Slik søker du",
-    "empty": "Prosessen vil bli delt snart."
+  "uses": {
+    "label": "Muligheter",
+    "title": "Hva fondet brukes til",
+    "lead": "BI-fondet skal brukes til akademiske og sosiale arrangementer eller andre initiativer som vil øke integreringen av studenter ved Handelshøyskolen BI.",
+    "items": [
+      "Ubudsjetterte aktiviteter med intensjon om å inkludere så mange studenter som mulig",
+      "Akademiske arrangementer i samarbeid med Handelshøyskolen BI",
+      "Inkludering og integrering av internasjonale studenter",
+      "Alternative læringsformer og læringsarenaer utenfor forelesningssalen",
+      "Inkludering og integrering av studenter med spesielle behov",
+      "Aktiviteter som fremmer sosial inkludering på Handelshøyskolen BI",
+      "Aktiviteter som fremmer akademisk integrering på Handelshøyskolen BI",
+      "Initiativ som øker kvaliteten på studentlivet og den samlede opplevelsen av å være student ved Handelshøyskolen BI"
+    ],
+    "specificallyTitle": "Mer spesifikt vil fondet støtte",
+    "specifically": [
+      "Prosjekter",
+      "Arrangementer av faglig og sosial karakter",
+      "Aktiviteter av faglig og sosial karakter"
+    ]
+  },
+  "process": {
+    "label": "Saksgang",
+    "title": "Hvem behandler søknaden?",
+    "lead": "Finanskomiteen i BISO behandler alle søknader til BI-fondet. Komiteen består av en leder og flere medlemmer fra alle BIs campuser.",
+    "steps": [
+      {
+        "title": "Du sender inn søknaden",
+        "body": "Fyll ut søknadsskjemaet og legg ved et detaljert aktivitetsbudsjett. Skjemaet er åpent hele året."
+      },
+      {
+        "title": "Finanskomiteen behandler søknaden",
+        "body": "Komiteen leser søknaden, går gjennom budsjettet og gir deg tilbakemelding. Har søknaden mangler, får du spørsmål og tips slik at du kan komplettere den."
+      },
+      {
+        "title": "Innstilling til styret",
+        "body": "Finanskomiteen anbefaler søknaden godkjent eller ikke godkjent, og sender innstillingen videre til styret i BISO."
+      },
+      {
+        "title": "Styret fatter vedtak",
+        "body": "Styret vurderer søknaden, innstillingen, beløpet og den økonomiske situasjonen. Du får tilbakemelding så snart søknaden er behandlet."
+      }
+    ],
+    "note": "Søk i god tid før styremøtene for raskest mulig behandling. Styret godkjenner søknader løpende gjennom året — ta kontakt med Finanskomiteen for å høre når neste styremøte er."
+  },
+  "tips": {
+    "label": "Tips & triks",
+    "title": "Hvordan skrive en god søknad?",
+    "lead": "Det beste tipset vi kan gi er å søke på det du har lyst til å få gjennomført. Ingen søknader får blankt avslag, og alle søknader får en tilbakemelding.",
+    "items": [
+      "Hold søknaden kort og presis på det du ønsker å få gjennomført",
+      "Sjekk om du kvalifiserer til å søke før du sender inn",
+      "Send inn søknaden via skjemaet og følg stegene der",
+      "Sett opp et oversiktlig budsjett med inntekter og kostnader knyttet til aktiviteten",
+      "Ikke skriv en lang søknad med mye sammenhengende tekst — tenk kvalitet over kvantitet"
+    ]
+  },
+  "documents": {
+    "label": "Kom i gang",
+    "title": "Last ned malene før du søker",
+    "lead": "Vi har lagt ved vilkårene for fondet, budsjettmalen og retningslinjene så du raskt kan komme i gang med å skrive søknaden din.",
+    "open": "Åpne dokument",
+    "terms": {
+      "title": "Vilkår for fondet",
+      "description": "Les vilkårene til fondet fra BI før du søker.",
+      "action": "Last ned PDF"
+    },
+    "budget": {
+      "title": "Aktivitetsbudsjett",
+      "description": "Bruk denne budsjettmalen for ditt budsjett.",
+      "action": "Last ned Excel"
+    },
+    "guidelines": {
+      "title": "Retningslinjer",
+      "description": "Les retningslinjene til fondet før du søker.",
+      "action": "Last ned PDF"
+    }
   },
   "faq": {
-    "title": "Ofte stilte spørsmål"
+    "label": "Ofte stilte spørsmål",
+    "title": "Vi har svarene på det du lurer på",
+    "items": [
+      {
+        "question": "Hvem kan søke om støtte?",
+        "answer": "Fondet er for alle enheter i BISO, som betyr prosjekter, linjeforeninger, utvalg, stabsfunksjoner, campusledelser, arbeidsutvalg, HR og kontrollkomiteen.\n\nSelskaper og søsterorganisasjoner: BISO Kroa AS, StudConsult AS og BI Athletics.\n\nAndre som kan søke: studenter eller studentgrupper ved Handelshøyskolen BI, BI alumni-studenter eller grupper, og organisasjoner knyttet til BI-studenter."
+      },
+      {
+        "question": "Hvilken informasjon må være med i søknaden?",
+        "answer": "Alle søkere må inkludere følgende i søknaden sin:\n\n• Kort introduksjon om enheten eller gruppen som søker (skjemaoppføring)\n• Formål med prosjektet eller aktiviteten det søkes på (skjemaoppføring)\n• Utfyllende beskrivelse av prosjektet eller aktiviteten (skjemaoppføring)\n• Målgruppe for prosjektet eller aktiviteten (skjemaoppføring)\n• Antall deltakere i prosjektet eller aktiviteten (skjemaoppføring)\n• Detaljert aktivitetsbudsjett (budsjettvedlegg til søknad)\n• Oversikt over annen støtte, midler eller tilskudd gitt til aktiviteten (budsjettvedlegg til søknad)"
+      },
+      {
+        "question": "Når kan jeg søke om støtte?",
+        "answer": "Søknadsskjemaet er åpent hele året, og styret godkjenner søknader løpende.\n\nFor raskere saksbehandling er det viktig å søke i god tid før styremøtene i BISO. Ta kontakt med Finanskomiteen på manager.finance@biso.no for å høre når neste styremøte er."
+      },
+      {
+        "question": "Hva skjer etter at jeg har sendt søknaden?",
+        "answer": "Søknaden behandles av Finanskomiteen i BISO, som gir deg tilbakemelding samt tips og triks til søknaden.\n\nDersom søknaden har mangler, gir komiteen deg råd ved å stille spørsmål og gi tips i henhold til gjeldende retningslinjer.\n\nFinanskomiteen anbefaler søknaden godkjent eller ikke godkjent, og sender innstillingen til styret i BISO, som fatter det endelige vedtaket. Du blir kontaktet med utfallet."
+      },
+      {
+        "question": "Hvem kan jeg kontakte for mer informasjon om prosessen?",
+        "answer": "Du kan sende e-post til manager.finance@biso.no, eller kontakte styreleder på board@biso.no."
+      },
+      {
+        "question": "Hva er grunner til avslag på søknad?",
+        "answer": "Årsaker til avslag på en søknad kan for eksempel være:\n\n• Søknaden mangler nødvendige vedlegg\n• Søker har ikke brukt tidligere innvilgede midler til formålet de ble innvilget til\n• Søknadsformålet strider mot fondets formål\n• Aktiviteten er en del av BISOs ordinære aktivitet som allerede er finansiert av BISO eller BI\n• Feil i budsjettet\n• Søker søker om årsbudsjett for en enhet og ikke til en enkelt aktivitet (årsbudsjetter finansieres av BISO og godkjennes på campus' generalforsamling)\n• Søknad om eksklusiv, lukket gruppeaktivitet (kun styremedlemmer eller kun medlemmer av den aktuelle BISO-enheten)\n• Søknad om kjøp av alkohol"
+      },
+      {
+        "question": "Hvor spesifikke må vedleggene til søknaden være?",
+        "answer": "Budsjett: Budsjettet bør inkludere søknadsbeløpet fra BI-fondet for å vise hvilke midler som trengs til aktiviteten. Budsjettet må spesifisere alle antatte inntekter (billettsalg, sponsor- og partnerskapsinntekter og andre tilskudd) og alle kostnader (for eksempel tekniske kostnader, leie, markedsføring og mat). Inntektene og kostnadene bør være så konkrete som mulig og presenteres på en oversiktlig måte — bruk budsjettmalen på denne siden.\n\nFor BISO-enheter: Budsjett for aktiviteten med samme detaljnivå som over, samt årsbudsjett med gjeldende status på regnskapet."
+      },
+      {
+        "question": "Hvilke vedlegg trenger jeg til søknaden?",
+        "answer": "I tillegg til å fylle ut søknadsskjemaet må BISO-enheter, studentgrupper og andre sende inn:\n\n• Søknadstekst i PDF (hvis skjemaet er for kort for søknadsteksten)\n• Handlingsplan eller kommunikasjonsplan (for søknader over 1 million kroner)\n• Aktivitetsbudsjett\n• Rapport om bruk av fondet (hvis søker har fått innvilget midler tidligere)"
+      },
+      {
+        "question": "Kan jeg oppdatere informasjonen i søknaden?",
+        "answer": "Ja, det kan du. Dersom det er behov for å oppdatere eller komplettere søknaden etter at den er levert, kan de nye dokumentene sendes til manager.finance@biso.no."
+      },
+      {
+        "question": "Kan organisasjoner med BI-alumni eller ikke-BI-studenter søke?",
+        "answer": "Ja, så lenge aktiviteten har noe med nåværende studenter å gjøre og når BI-studenter. Midler kan gis til organisasjoner, alumninettverk, vanlige studenter eller studentgrupper som ønsker å skape og fremme det sosiale, faglige eller studielivsrelaterte.\n\nAntall BI-studenter aktiviteten påvirker vil kunne ha betydning for innvilget beløp."
+      },
+      {
+        "question": "Kan midlene bli utbetalt til en privat konto?",
+        "answer": "Nei. Midler overføres til BISO-enheten ved å justere inntektene for den enhetens avdeling i regnskapssystemet vårt.\n\nIkke-registrerte grupper (utenfor BISO) må gi en detaljert beskrivelse av betalingen slik at de kan dokumentere at midlene er brukt som forutsatt. For slike grupper vurderer vi om BISO skal stå for inntekter og kostnader knyttet til aktiviteten, eller om det er forsvarlig at en privatperson har ansvaret og får midlene utbetalt."
+      }
+    ]
   },
   "contact": {
-    "title": "Spørsmål og veiledning"
-  },
-  "fallback": {
-    "title": "Søk gjennom BI-fondet",
-    "intro": "BI-fondet tildeler midler til studentprosjekter, arrangementer og initiativer som styrker læringsmiljøet ved BI.",
-    "cta": "Les mer",
-    "contact": "Spørsmål? Kontakt oss på {email}."
+    "label": "Kontakt",
+    "title": "Finanskomiteen er her for å hjelpe deg",
+    "lead": "Søk i dag på det du drømmer om å få til for dine medstudenter. Har du spørsmål før du sender inn, tar vi gjerne en prat.",
+    "financeLabel": "Finanskomiteen",
+    "boardLabel": "Styreleder"
   }
 }
