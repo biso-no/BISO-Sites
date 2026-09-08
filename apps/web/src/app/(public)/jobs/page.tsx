@@ -1,5 +1,6 @@
 import type { ListSearchParams } from "@repo/shared/utils/list-params";
 import { Skeleton } from "@repo/ui/components/ui/skeleton";
+import { connection } from "next/server";
 import { Suspense } from "react";
 import { type JobSort, listJobFacets, listJobs } from "@/app/actions/jobs";
 import { JobsHero } from "@/components/jobs/jobs-hero";
@@ -39,6 +40,13 @@ async function JobsList({
   search: string;
   sort: JobSort;
 }) {
+  // `openVacancyQueries` builds its deadline filter from `new Date()`, which the
+  // Cache Components prerender rejects as an unstable value
+  // (`blocking-prerender-current-time`). Marking this subtree request-time is
+  // enough — it sits inside the page's <Suspense>, so the skeleton still
+  // streams and the route itself stays non-blocking.
+  await connection();
+
   const [result, facets] = await Promise.all([
     listJobs({ campus, category, department, locale, page, search, sort }),
     listJobFacets({ campus }),
