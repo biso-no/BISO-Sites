@@ -3,7 +3,7 @@ import {
   unitCanonicalPath,
 } from "@repo/shared/utils/unit-urls";
 import type { MetadataRoute } from "next";
-import { cachedSitemapEntries } from "@/lib/data/public-content";
+import { sitemapEntries } from "@/lib/data/public-content";
 
 const BASE = process.env.NEXT_PUBLIC_BASE_URL || "https://web.biso.no";
 
@@ -78,18 +78,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${BASE}/terms`, changeFrequency: "yearly", priority: 0.2 },
   ];
 
-  // One cached, minimal-select (slug + timestamp) read serves every crawler;
-  // inside the cached reader each listing is still best-effort so a failing
-  // table produces a partial sitemap rather than a 500.
-  const entries = await cachedSitemapEntries().catch(() => ({
-    events: [],
-    jobs: [],
-    news: [],
-    pages: [],
-    products: [],
-    projects: [],
-    units: [],
-  }));
+  // Minimal-select (slug + timestamp) cached reads serve every crawler, one
+  // cache entry per table. Each listing is independently best-effort — a
+  // failing table produces a partial sitemap rather than a 500 — and that
+  // tolerance lives in `sitemapEntries`, outside the cache, so a degraded
+  // result is never the thing the next crawler is served. It catches every
+  // branch itself and cannot reject, so there is nothing to catch here.
+  const entries = await sitemapEntries();
 
   return [
     ...staticRoutes,

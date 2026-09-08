@@ -129,8 +129,8 @@ renders only when the unit has no published block-editor page. Its board comes
 from Microsoft 365 via `cachedUnitBoard`, a cached server-side wrapper around
 `apps/api`'s `/api/campus/{campusId}/{departmentId}/board`.
 
-**Every cached unit reader THROWS on a transient failure and never reports a
-false absence.** `"use cache"` does not cache a rejected promise, but it very
+**Every cached reader in `src/lib/data/` THROWS on a transient failure and
+never reports a false absence.** `"use cache"` does not cache a rejected promise, but it very
 much caches a resolved `null`/`[]` — so a `.catch(() => [])` *inside* one of
 these functions turns one Appwrite blip into a lie that outlives it: an empty
 board on every unit page, a unit's news gone until revalidation, or (worst) a
@@ -139,6 +139,12 @@ The graceful fallback belongs at the CALL SITE, where it lives only for that
 render. `cachedUnitDetail` returns `null` only for a genuinely absent or
 non-public unit — `isRowNotFound` matches `404 / row_not_found` exactly, not
 the neighbouring `table_not_found` (a schema error) and not a `504` timeout.
+
+The sitemap follows the same split: one cache entry per table, each throwing,
+composed by `sitemapEntries` (deliberately NOT a `"use cache"` entry), which
+owns the per-table `.catch(() => [])`. A failing table still yields a partial
+sitemap rather than a 500 — but the partial result is discarded at the end of
+the request instead of being served to every crawler for an hour.
 
 ## Third-party integrations
 
