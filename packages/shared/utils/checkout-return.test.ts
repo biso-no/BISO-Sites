@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  appCartDeepLink,
   appOrderDeepLink,
+  appShopDeepLink,
   checkoutReturnUrl,
   isCheckoutClient,
 } from "./checkout-return";
@@ -69,5 +71,45 @@ describe("appOrderDeepLink", () => {
     const url = new URL(appOrderDeepLink("order 1", "paid"));
     expect(url.protocol).toBe("biso:");
     expect(url.searchParams.get("orderId")).toBe("order 1");
+  });
+});
+
+describe("cancel marking", () => {
+  it("marks an app cancel URL apart from its success URL", () => {
+    const success = checkoutReturnUrl("https://biso.no", "order-1", "app");
+    const cancel = checkoutReturnUrl("https://biso.no", "order-1", "app", {
+      cancelled: true,
+    });
+
+    // Stripe only accepts http(s) here, so both must be the return route —
+    // the marker is the only thing that tells a cancelled session (which
+    // reconciles to `pending`) apart from a successful one.
+    expect(cancel).not.toBe(success);
+    expect(cancel).toBe(`${success}&cancelled=1`);
+  });
+
+  it("never marks the web URL, which has its own cancel destination", () => {
+    expect(
+      checkoutReturnUrl("https://biso.no", "order-1", "web", {
+        cancelled: true,
+      })
+    ).not.toContain("cancelled");
+  });
+});
+
+describe("app fallbacks", () => {
+  it("sends a cancelled buyer to the cart, as the website does", () => {
+    expect(appCartDeepLink(true)).toBe("biso://shop/cart?cancelled=1");
+    expect(appCartDeepLink()).toBe("biso://shop/cart");
+  });
+
+  it("falls back to the shop when there is no order to show", () => {
+    expect(appShopDeepLink()).toBe("biso://shop");
+  });
+
+  it("produces parseable absolute URLs, as the redirect helper requires", () => {
+    for (const link of [appCartDeepLink(true), appShopDeepLink()]) {
+      expect(new URL(link).protocol).toBe("biso:");
+    }
   });
 });

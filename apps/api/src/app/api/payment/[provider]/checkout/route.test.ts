@@ -636,17 +636,20 @@ describe("payment checkout authorization", () => {
       );
     });
 
-    it("sends a cancelled app checkout through the return route too", async () => {
+    it("marks a cancelled app checkout apart from a successful one", async () => {
       await postStripe(
         checkoutRequest({ authorization: "Bearer valid", client: "app" })
       );
 
+      // A cancelled Stripe session stays open and unpaid, so it reconciles to
+      // `pending`. Without the marker the app would be told to keep waiting
+      // for a payment the buyer just abandoned.
       expect(mockedCreateStripeCheckoutSession).toHaveBeenCalledWith(
         expect.anything(),
         expect.anything(),
         {
           cancelUrl:
-            "https://biso.no/api/checkout/return?orderId=order-1&client=app",
+            "https://biso.no/api/checkout/return?orderId=order-1&client=app&cancelled=1",
           successUrl:
             "https://biso.no/api/checkout/return?orderId=order-1&client=app",
         }

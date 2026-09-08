@@ -1,7 +1,10 @@
 import { createAdminClient } from "@repo/api/server";
 import { reconcileOrderPayment } from "@repo/payment/reconcile";
 import {
+  appCartDeepLink,
   appOrderDeepLink,
+  appShopDeepLink,
+  CHECKOUT_CANCELLED_PARAM,
   CHECKOUT_CLIENT_PARAM,
 } from "@repo/shared/utils/checkout-return";
 import {
@@ -67,8 +70,17 @@ async function syncOrderStatusFromProvider(
  */
 function redirectToApp(
   status: string | null | undefined,
-  orderId: string
+  orderId: string,
+  cancelled: boolean
 ): NextResponse {
+  // A cancelled Stripe session stays open and unpaid, so it reconciles to
+  // `pending` — the marker on the cancel URL is the only thing that tells the
+  // two apart. It is honoured only while the order has not actually settled,
+  // so a crafted URL can never show a paid order as cancelled. The order is
+  // deliberately left pending either way, exactly as the website leaves it.
+  if (cancelled && status !== "paid" && status !== "authorized") {
+    return NextResponse.redirect(appCartDeepLink(true));
+  }
   return NextResponse.redirect(appOrderDeepLink(orderId, status));
 }
 
@@ -133,14 +145,30 @@ function redirectForStatus(
  * triggers actually settles a given order.
  */
 export async function GET(request: Request) {
-  try {
-    const { searchParams } = new URL(request.url);
-    const orderId = searchParams.get("orderId");
-    const isAppCheckout = searchParams.get(CHECKOUT_CLIENT_PARAM) === "app";
+  // Read outside the try: every exit below, including the catch, has to know
+  // whether it is answering the app. Stranding a native buyer on a web error
+  // page is worst precisely when something has gone wrong, since that is when
+  // the app's own verification is what will resolve their order.
+  const { searchParams } = new URL(request.url);
+  const orderId = searchParams.get("orderId");
+  const isAppCheckout = searchParams.get(CHECKOUT_CLIENT_PARAM) === "app";
+  const isCancelled = searchParams.get(CHECKOUT_CANCELLED_PARAM) === "1";
 
+  const failureRedirect = (webPath: string) => {
+    if (!isAppCheckout) {
+      return NextResponse.redirect(siteUrl(webPath));
+    }
+    // With an order id the app can still verify for itself and show a real
+    // state; without one there is nothing to show but the shop.
+    return NextResponse.redirect(
+      orderId ? appOrderDeepLink(orderId, null) : appShopDeepLink()
+    );
+  };
+
+  try {
     if (!orderId) {
       console.error("[Checkout Return] No orderId provided");
-      return NextResponse.redirect(siteUrl("/shop"));
+      return failureRedirect("/shop");
     }
 
     console.info(`[Checkout Return] Verifying order status for: ${orderId}`);
@@ -152,7 +180,7 @@ export async function GET(request: Request) {
 
     if (!order) {
       console.error(`[Checkout Return] Order not found: ${orderId}`);
-      return NextResponse.redirect(siteUrl("/shop?error=order_not_found"));
+      return failureRedirect("/shop?error=order_not_found");
     }
 
     await syncOrderStatusFromProvider(order, orderId, db);
@@ -175,10 +203,10 @@ export async function GET(request: Request) {
     }
 
     return isAppCheckout
-      ? redirectToApp(status, orderId)
+      ? redirectToApp(status, orderId, isCancelled)
       : redirectForStatus(status, orderId, isMembership);
   } catch (error) {
     console.error("[Checkout Return] Error:", error);
-    return NextResponse.redirect(siteUrl("/shop?error=unknown"));
+    return failureRedirect("/shop?error=unknown");
   }
 }

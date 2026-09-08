@@ -17,6 +17,13 @@ export type CheckoutClient = (typeof CHECKOUT_CLIENTS)[number];
 /** Query parameter carrying the surface through the payment provider. */
 export const CHECKOUT_CLIENT_PARAM = "client";
 
+/**
+ * Marks the provider's cancel URL, which is otherwise indistinguishable from
+ * its success URL for an app checkout (both must be the return route, and
+ * Stripe only accepts http(s) here so a `biso://` cancel URL is not an option).
+ */
+export const CHECKOUT_CANCELLED_PARAM = "cancelled";
+
 /** Custom scheme registered by the BISO app on iOS and Android. */
 const APP_SCHEME = "biso";
 
@@ -38,13 +45,16 @@ export function isCheckoutClient(value: unknown): value is CheckoutClient {
 export function checkoutReturnUrl(
   webBaseUrl: string,
   orderId: string,
-  client: CheckoutClient = "web"
+  client: CheckoutClient = "web",
+  options: { cancelled?: boolean } = {}
 ): string {
   const base = webBaseUrl.replace(TRAILING_SLASHES_RE, "");
   const url = `${base}/api/checkout/return?orderId=${encodeURIComponent(orderId)}`;
-  return client === "web"
-    ? url
-    : `${url}&${CHECKOUT_CLIENT_PARAM}=${encodeURIComponent(client)}`;
+  if (client === "web") {
+    return url;
+  }
+  const marked = `${url}&${CHECKOUT_CLIENT_PARAM}=${encodeURIComponent(client)}`;
+  return options.cancelled ? `${marked}&${CHECKOUT_CANCELLED_PARAM}=1` : marked;
 }
 
 /**
@@ -62,4 +72,20 @@ export function appOrderDeepLink(
     params.set("status", status);
   }
   return `${APP_SCHEME}://shop/order?${params.toString()}`;
+}
+
+/**
+ * Where an app buyer is sent when there is no order to show them — a cancelled
+ * checkout, or a return whose order could not be read. Mirrors the website,
+ * which sends a cancelled buyer back to the cart rather than to a receipt.
+ */
+export function appCartDeepLink(cancelled = false): string {
+  return cancelled
+    ? `${APP_SCHEME}://shop/cart?${CHECKOUT_CANCELLED_PARAM}=1`
+    : `${APP_SCHEME}://shop/cart`;
+}
+
+/** The app's shop, for a return that carries no usable order at all. */
+export function appShopDeepLink(): string {
+  return `${APP_SCHEME}://shop`;
 }

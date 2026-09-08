@@ -147,12 +147,22 @@ export async function GET(
       return json({ message: "Order not found" }, 404);
     }
 
-    // A settled order needs no provider round-trip.
-    if (own.status === "paid" || own.status === "refunded") {
+    // A refunded order is finished: nothing to reconcile, nothing to settle.
+    if (own.status === "refunded") {
       return json(toOrderView(own));
     }
 
     const { db } = await createAdminClient();
+
+    // An order the webhook already marked paid needs no provider round-trip,
+    // but may still be owed its ledger posting — the settlement helpers
+    // swallow transient failures, so a posting can have been dropped while the
+    // status write succeeded. Retrying is free when it already settled: the
+    // atomic claim inside each helper makes it a no-op.
+    if (own.status === "paid") {
+      await settleOrderIfPaid(orderId, db);
+      return json(toOrderView(own));
+    }
     await reconcileOrderPayment(orderId, db).catch((error) => {
       console.error(`[payment/orders/${orderId}] reconcile failed:`, error);
     });

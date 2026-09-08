@@ -295,12 +295,14 @@ async function startStripeCheckout(
 
   const { orderId } = await createOrder(params, db);
   const successUrl = checkoutReturnUrl(webBase, orderId, client);
-  // App buyers go back through the return route on cancel too, so the app is
-  // handed the same deep link it gets for every other outcome. (Stripe only
-  // accepts http(s) here, so a `biso://` cancel URL is not an option anyway.)
+  // App buyers come back through the return route on cancel too — Stripe only
+  // accepts http(s) here, so a `biso://` cancel URL is not an option. The
+  // marker is what keeps the two apart: a cancelled Stripe session is left
+  // open and unpaid, which reconciles to `pending`, so without it the app
+  // would be told to keep waiting for a payment the buyer just abandoned.
   const cancelUrl =
     client === "app"
-      ? checkoutReturnUrl(webBase, orderId, client)
+      ? checkoutReturnUrl(webBase, orderId, client, { cancelled: true })
       : `${webBase}/shop/cart?cancelled=true`;
   // Same deadline discipline as the Vipps branch — a stalled Stripe call must
   // surface as a 504 instead of hanging the checkout request.
