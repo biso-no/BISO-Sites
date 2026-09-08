@@ -597,16 +597,24 @@ async function buildTrustedCheckoutParams({
  * splits a product across variation lines do not change the signature.
  */
 function cartSignature(items: CheckoutSessionParams["items"]): string {
-  const byProduct = new Map<string, number>();
+  // Keyed on everything that changes what gets FULFILLED, not just what gets
+  // charged. A buyer who goes back and swaps a size, or edits a checkout
+  // answer, keeps the same product, quantity and total — so a product+quantity
+  // signature would call that the same cart and hand them the old order's
+  // payment link, fulfilling the selections they just replaced.
+  const byLine = new Map<string, number>();
   for (const item of items) {
-    byProduct.set(
-      item.productId,
-      (byProduct.get(item.productId) ?? 0) + item.quantity
-    );
+    const answers = Object.entries(item.customFields ?? {})
+      .filter(([, value]) => value?.trim())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([key, value]) => `${key}=${value.trim()}`)
+      .join(",");
+    const key = [item.productId, item.variationId ?? "", answers].join("#");
+    byLine.set(key, (byLine.get(key) ?? 0) + item.quantity);
   }
-  return [...byProduct.entries()]
+  return [...byLine.entries()]
     .sort(([a], [b]) => a.localeCompare(b))
-    .map(([productId, quantity]) => `${productId}:${quantity}`)
+    .map(([key, quantity]) => `${key}:${quantity}`)
     .join("|");
 }
 
@@ -655,10 +663,15 @@ async function findIdempotentOrder(
     }
     const orderSignature = cartSignature(
       getOrderItems(order).map((item) => ({
+        customFields: Object.fromEntries(
+          (item.custom_fields ?? []).map((field) => [field.id, field.value])
+        ),
         name: item.name ?? "",
         price: Number(item.unit_price ?? item.price ?? 0),
         productId: item.product_id ?? "",
         quantity: typeof item.quantity === "number" ? item.quantity : 0,
+        variationId:
+          typeof item.variation_id === "string" ? item.variation_id : undefined,
       }))
     );
     if (orderSignature === signature) {

@@ -56,6 +56,7 @@ function executorReturning(refundedTotalMinor: number): RefundExecutor {
     refund: vi.fn().mockResolvedValue({
       providerRefundId: "re_123",
       refundedTotalMinor,
+      settled: true,
     }),
   };
 }
@@ -243,7 +244,7 @@ describe("refundOrder", () => {
     const executor: RefundExecutor = {
       refund: vi.fn().mockImplementation(() => {
         calls.push("provider");
-        return Promise.resolve({ refundedTotalMinor: 49_900 });
+        return Promise.resolve({ refundedTotalMinor: 49_900, settled: true });
       }),
     };
 
@@ -258,9 +259,11 @@ describe("refundOrder", () => {
     expect(calls.indexOf("provider")).toBeGreaterThan(0);
   });
 
-  it("marks the refund failed and returns provider_failed when the provider throws", async () => {
+  it("marks the refund failed when the provider definitively rejects it", async () => {
+    const rejection = new Error("card_declined");
+    rejection.name = "PaymentRefundRejectedError";
     const executor: RefundExecutor = {
-      refund: vi.fn().mockRejectedValue(new Error("card_declined")),
+      refund: vi.fn().mockRejectedValue(rejection),
     };
 
     const result = await refundOrder({
@@ -461,5 +464,94 @@ describe("refundOrder", () => {
     });
 
     expect(result).toEqual({ ok: false, reason: "not_found" });
+  });
+});
+
+describe("refundOrder — uncertain and unsettled provider outcomes", () => {
+  it("leaves the attempt pending when the provider outcome is unknown", async () => {
+    // A timeout may have been accepted before the response was lost. Marking
+    // it failed would release the balance, and a retry mints a fresh
+    // idempotency key — refunding the same money twice.
+    const executor: RefundExecutor = {
+      refund: vi.fn().mockRejectedValue(new Error("socket hang up")),
+    };
+
+    const result = await refundOrder({
+      db,
+      executor,
+      orderId: ORDER_ID,
+      amount: 499,
+    });
+
+    expect(result).toMatchObject({ ok: false, reason: "provider_uncertain" });
+    const statusWrites = db.updateRow.mock.calls.filter(
+      (call) => call[1] === "order_refunds" && call[3]?.status
+    );
+    expect(statusWrites).toHaveLength(0);
+    expect(db.updateRow.mock.calls.some((call) => call[1] === "orders")).toBe(
+      false
+    );
+  });
+
+  it("does not restock or reverse the ledger for an unsettled refund", async () => {
+    const ledger: LedgerReverser = { reverse: vi.fn() };
+    const executor: RefundExecutor = {
+      refund: vi
+        .fn()
+        .mockResolvedValue({ refundedTotalMinor: 49_900, settled: false }),
+    };
+
+    const result = await refundOrder({
+      db,
+      executor,
+      ledger,
+      lines: [{ orderItemId: "line-a", quantity: 1 }],
+      orderId: ORDER_ID,
+      restock: true,
+    });
+
+    expect(result).toMatchObject({ ok: true, settled: false });
+    expect(ledger.reverse).not.toHaveBeenCalled();
+    const stockCalls = db.incrementRowColumn.mock.calls.filter(
+      (call) => call[0]?.column === "stock"
+    );
+    expect(stockCalls).toHaveLength(0);
+  });
+
+  it("aborts before calling the provider when a line row cannot be written", async () => {
+    db.createRow.mockImplementation((_d: string, table: string) => {
+      if (table === "order_refund_lines") {
+        return Promise.reject(new Error("appwrite write failed"));
+      }
+      return Promise.resolve({});
+    });
+    const executor = executorReturning(49_900);
+
+    const result = await refundOrder({
+      db,
+      executor,
+      lines: [{ orderItemId: "line-a", quantity: 1 }],
+      orderId: ORDER_ID,
+    });
+
+    expect(result).toMatchObject({ ok: false, reason: "lines_not_recorded" });
+    // Nothing may reach the provider: the quantity tracking those rows feed
+    // would otherwise be lost after the money moved.
+    expect(executor.refund).not.toHaveBeenCalled();
+  });
+
+  it("refuses to refund when the lock cannot be acquired", async () => {
+    db.incrementRowColumn.mockRejectedValueOnce(new Error("appwrite down"));
+    const executor = executorReturning(49_900);
+
+    const result = await refundOrder({
+      db,
+      executor,
+      orderId: ORDER_ID,
+      amount: 499,
+    });
+
+    expect(result).toEqual({ ok: false, reason: "claimed_elsewhere" });
+    expect(executor.refund).not.toHaveBeenCalled();
   });
 });

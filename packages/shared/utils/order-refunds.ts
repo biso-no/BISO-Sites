@@ -75,6 +75,9 @@ export interface OrderRefundLineRow {
   quantity?: number | null;
 }
 
+/** Key prefix for a line from a pre-relationship order — see `toRefundableItems`. */
+export const LEGACY_ITEM_PREFIX = "legacy-";
+
 const REFUNDS_TABLE = "order_refunds";
 const REFUND_LINES_TABLE = "order_refund_lines";
 
@@ -147,7 +150,7 @@ export function toRefundableItems(
       // Legacy `items_json` orders have no line rows; index-key them so the UI
       // can still address them, and so a refund against one records a name and
       // an amount even though it cannot link to a row.
-      id: item.order_item_id ?? `legacy-${index}`,
+      id: item.order_item_id ?? `${LEGACY_ITEM_PREFIX}${index}`,
       name: item.name ?? item.title ?? item.product_name ?? "—",
       productId: item.product_id ?? null,
       quantity: typeof item.quantity === "number" ? item.quantity : 0,
@@ -182,7 +185,12 @@ export interface RefundExecutor {
     currency: string;
     idempotencyKey: string;
     reason?: string;
-  }) => Promise<{ providerRefundId?: string; refundedTotalMinor: number }>;
+  }) => Promise<{
+    providerRefundId?: string;
+    refundedTotalMinor: number;
+    /** False when the provider accepted but has not moved the money yet. */
+    settled: boolean;
+  }>;
 }
 
 export interface LedgerReverser {
@@ -214,8 +222,12 @@ export interface RefundOrderInput {
 export type RefundFailureReason =
   | RefundValidationError
   | "claimed_elsewhere"
+  | "lines_not_recorded"
+  | "legacy_line_not_refundable"
   | "not_found"
-  | "provider_failed";
+  | "provider_failed"
+  /** The provider may or may not have refunded; the attempt is left pending. */
+  | "provider_uncertain";
 
 export type RefundOrderResult =
   | {
@@ -223,6 +235,8 @@ export type RefundOrderResult =
       amount: number;
       refundId: string;
       refundedTotal: number;
+      /** False when the provider accepted the refund but has not settled it. */
+      settled: boolean;
       status: "paid" | "refunded";
     }
   | { ok: false; reason: RefundFailureReason; message?: string };
@@ -265,12 +279,22 @@ export async function refundOrder(
 
   const items = toRefundableItems(order);
   const summary = computeRefundable(
-    { total: Number(order.total ?? 0) },
+    {
+      refundedTotal: Number(order.refunded_total ?? 0),
+      total: Number(order.total ?? 0),
+    },
     items,
     toRecordedRefunds(order)
   );
 
   const lines = buildRefundLines(input.lines ?? [], items);
+  // A pre-relationship order (lines only in the removed `items_json` column)
+  // has no `order_items` rows to point a refund line at, so a per-line refund
+  // could not be read back and would offer the same quantity again. Refund
+  // those by amount instead.
+  if (lines.some((line) => line.orderItemId.startsWith(LEGACY_ITEM_PREFIX))) {
+    return { ok: false, reason: "legacy_line_not_refundable" };
+  }
   const amountMinor =
     lines.length > 0
       ? lines.reduce((sum, line) => sum + toMinor(line.amount), 0)
@@ -322,7 +346,12 @@ async function claimRefundLock(
 ): Promise<boolean> {
   const { dbId, ordersId } = tableIds();
   if (!db.incrementRowColumn) {
-    return true;
+    // Same reasoning as the catch below: without the atomic claim there is no
+    // concurrency guard at all, so refuse rather than refund unguarded.
+    console.error(
+      "[Refund] Client has no atomic column ops; refusing to refund unguarded."
+    );
+    return false;
   }
 
   try {
@@ -343,11 +372,15 @@ async function claimRefundLock(
     }
     return true;
   } catch (error) {
-    console.warn(
-      `[Refund] Atomic claim failed on order ${orderId}; proceeding unguarded:`,
+    // Fail closed. The lock is the ONLY thing preventing two concurrent
+    // requests from both calling the provider: the pending-row prewrite does
+    // not deduplicate, and Vipps mints a fresh idempotency key per request. An
+    // unrefunded order an operator can retry beats a double refund.
+    console.error(
+      `[Refund] Could not acquire the refund lock on order ${orderId}; refusing to proceed:`,
       error
     );
-    return true;
+    return false;
   }
 }
 
@@ -404,7 +437,24 @@ async function executeRefund(
     status: "pending",
   });
 
-  let outcome: { providerRefundId?: string; refundedTotalMinor: number };
+  // Line rows are written BEFORE the provider call, not after. They are not
+  // just audit detail: `computeRefundable` derives `refundableQuantityByItem`
+  // from them, so a line row lost after the money moved would offer the same
+  // quantity again and restock the product a second time. Written first, a
+  // failure here costs nothing — no funds have moved yet.
+  try {
+    await writeRefundLines(refundId, lines, db);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    await markRefund(refundId, db, {
+      status: "failed",
+      error: `Could not record refund lines: ${message}`.slice(0, 1000),
+    });
+    console.error(`[Refund] Failed to record lines for ${orderId}:`, error);
+    return { ok: false, reason: "lines_not_recorded", message };
+  }
+
+  let outcome: Awaited<ReturnType<RefundExecutor["refund"]>>;
   try {
     outcome = await input.executor.refund({
       amountMinor,
@@ -413,18 +463,8 @@ async function executeRefund(
       reason: input.reason,
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    await db
-      .updateRow(dbId, REFUNDS_TABLE, refundId, {
-        status: "failed",
-        error: message.slice(0, 1000),
-      })
-      .catch(() => undefined);
-    console.error(`[Refund] Provider refund failed for ${orderId}:`, error);
-    return { ok: false, reason: "provider_failed", message };
+    return await handleProviderFailure({ db, error, orderId, refundId });
   }
-
-  await writeRefundLines(refundId, lines, db);
 
   // The provider's running total is authoritative — it also accounts for a
   // refund issued outside this system (e.g. from the Stripe dashboard).
@@ -432,9 +472,28 @@ async function executeRefund(
     outcome.refundedTotalMinor,
     args.summary.refundedMinor + amountMinor
   );
+
+  // Accepted but not yet settled (Stripe's `pending`). The attempt stays
+  // `pending`, which keeps holding its share of the balance, and none of the
+  // downstream side effects fire: restocking inventory and reversing the
+  // ledger for money still in flight would be wrong if it never lands.
+  if (!outcome.settled) {
+    await markRefund(refundId, db, {
+      provider_refund_id: outcome.providerRefundId ?? null,
+    });
+    return {
+      ok: true,
+      amount,
+      refundId,
+      refundedTotal: toMajor(refundedTotalMinor),
+      settled: false,
+      status: order.status === "refunded" ? "refunded" : "paid",
+    };
+  }
+
   const status = statusAfterRefund(args.summary.totalMinor, refundedTotalMinor);
 
-  await db.updateRow(dbId, REFUNDS_TABLE, refundId, {
+  await markRefund(refundId, db, {
     status: "succeeded",
     provider_refund_id: outcome.providerRefundId ?? null,
   });
@@ -456,8 +515,68 @@ async function executeRefund(
     amount,
     refundId,
     refundedTotal: toMajor(refundedTotalMinor),
+    settled: true,
     status,
   };
+}
+
+/** Best-effort write onto the refund row; never throws over a bookkeeping edit. */
+async function markRefund(
+  refundId: string,
+  db: DbClient,
+  data: Record<string, unknown>
+): Promise<void> {
+  const { dbId } = tableIds();
+  await db.updateRow(dbId, REFUNDS_TABLE, refundId, data).catch((error) => {
+    console.error(`[Refund] Failed to update refund row ${refundId}:`, error);
+  });
+}
+
+/**
+ * Classifies a thrown provider error.
+ *
+ * A definitive rejection (the provider answered and refused) marks the attempt
+ * `failed`, releasing its hold on the balance so an operator can retry.
+ *
+ * Anything else — a timeout, a dropped connection, an unrecognised error — is
+ * ambiguous: the provider may have accepted the refund before the response was
+ * lost. Those stay `pending`, which keeps holding the balance, because a retry
+ * would mint a fresh idempotency key (Vipps generates one per request) and
+ * refund the same money twice. Resolving a pending attempt is a deliberate
+ * human step against the provider's own records.
+ */
+async function handleProviderFailure({
+  db,
+  error,
+  orderId,
+  refundId,
+}: {
+  db: DbClient;
+  error: unknown;
+  orderId: string;
+  refundId: string;
+}): Promise<RefundOrderResult> {
+  const message = error instanceof Error ? error.message : String(error);
+  const rejected =
+    error instanceof Error && error.name === "PaymentRefundRejectedError";
+
+  if (rejected) {
+    await markRefund(refundId, db, {
+      status: "failed",
+      error: message.slice(0, 1000),
+    });
+    console.error(`[Refund] Provider rejected refund for ${orderId}:`, error);
+    return { ok: false, reason: "provider_failed", message };
+  }
+
+  await markRefund(refundId, db, {
+    error: `Outcome unknown: ${message}`.slice(0, 1000),
+  });
+  console.error(
+    `[Refund] Refund outcome UNKNOWN for ${orderId} (refund ${refundId} left pending; reconcile against the provider before retrying):`,
+    error
+  );
+  return { ok: false, reason: "provider_uncertain", message };
 }
 
 async function writeRefundLines(
@@ -467,25 +586,13 @@ async function writeRefundLines(
 ): Promise<void> {
   const { dbId } = tableIds();
   for (const line of lines) {
-    try {
-      await db.createRow(dbId, REFUND_LINES_TABLE, ID.unique(), {
-        amount: line.amount,
-        name: line.name,
-        // Legacy `items_json` orders have no line row to point at.
-        order_item: line.orderItemId.startsWith("legacy-")
-          ? null
-          : line.orderItemId,
-        quantity: line.quantity,
-        refund: refundId,
-      });
-    } catch (error) {
-      // The money is already returned; a missing line row degrades the audit
-      // detail but must not fail the refund.
-      console.error(
-        `[Refund] Failed to record refund line for ${refundId}:`,
-        error
-      );
-    }
+    await db.createRow(dbId, REFUND_LINES_TABLE, ID.unique(), {
+      amount: line.amount,
+      name: line.name,
+      order_item: line.orderItemId,
+      quantity: line.quantity,
+      refund: refundId,
+    });
   }
 }
 

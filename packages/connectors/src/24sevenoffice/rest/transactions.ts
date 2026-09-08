@@ -197,6 +197,23 @@ export function buildShopRefundTransactionInput(
     );
   }
 
+  // The allocation must account for every krone refunded. A refunded product
+  // with no `finago_account_number` drops out of the allocation, and crediting
+  // receivables by the (smaller) allocation sum would post a transaction that
+  // balances perfectly while understating the cash actually returned — a
+  // silently wrong ledger. Fail instead: the refund itself still stands, and
+  // the caller records the ledger failure for manual posting.
+  const allocatedMinor = params.allocation.reduce(
+    (sum, entry) => sum + entry.amountMinor,
+    0
+  );
+  const refundedMinor = Math.round(params.amount * CENTS);
+  if (allocatedMinor !== refundedMinor) {
+    throw new Error(
+      `[Finago] Refund allocation for order ${params.orderId} covers ${allocatedMinor} of ${refundedMinor} øre — refusing to post a partial reversal. Check that every refunded product has a finago_account_number.`
+    );
+  }
+
   const departmentId = params.campusId
     ? SHOP_CAMPUS_DEPARTMENT_IDS[params.campusId]
     : undefined;

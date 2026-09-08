@@ -1,5 +1,6 @@
 import type Stripe from "stripe";
 import type { StripeCredentials } from "../credentials/types";
+import { PaymentRefundRejectedError } from "../errors";
 import type { CheckoutSessionParams } from "../vipps/types";
 import { buildStripeClient } from "./client";
 import type { StripeCheckoutUrls } from "./types";
@@ -88,30 +89,64 @@ export function verifyStripeWebhook(
  * double-submitted refund with the same key returns the original refund
  * instead of moving money twice.
  */
+// Stripe error types that mean the request was understood and refused, so no
+// funds moved. Everything else (connection, rate limit, generic API error) may
+// have been accepted before the response was lost and must stay ambiguous.
+const DEFINITIVE_STRIPE_ERRORS = new Set([
+  "StripeCardError",
+  "StripeInvalidRequestError",
+  "StripeIdempotencyError",
+]);
+
+/** Refund states in which Stripe has definitively not moved the money. */
+const REJECTED_REFUND_STATUSES = new Set(["failed", "canceled"]);
+
 export async function refundStripePayment(
   paymentIntentId: string,
   amountMinor: number | undefined,
   creds: StripeCredentials,
   opts: { idempotencyKey: string; reason?: string }
-): Promise<{ amountMinor: number; id: string; status: string }> {
+): Promise<{ amountMinor: number; id: string; settled: boolean }> {
   const stripe = buildStripeClient(creds.secretKey);
 
-  const refund = await stripe.refunds.create(
-    {
-      payment_intent: paymentIntentId,
-      ...(amountMinor === undefined ? {} : { amount: amountMinor }),
-      // `reason` is a closed Stripe enum; free-text belongs in metadata.
-      ...(opts.reason
-        ? { metadata: { reason: opts.reason.slice(0, 500) } }
-        : {}),
-    },
-    { idempotencyKey: opts.idempotencyKey }
-  );
+  let refund: Stripe.Refund;
+  try {
+    refund = await stripe.refunds.create(
+      {
+        payment_intent: paymentIntentId,
+        ...(amountMinor === undefined ? {} : { amount: amountMinor }),
+        // `reason` is a closed Stripe enum; free-text belongs in metadata.
+        ...(opts.reason
+          ? { metadata: { reason: opts.reason.slice(0, 500) } }
+          : {}),
+      },
+      { idempotencyKey: opts.idempotencyKey }
+    );
+  } catch (error) {
+    const type = (error as { type?: string } | null)?.type;
+    if (type && DEFINITIVE_STRIPE_ERRORS.has(type)) {
+      throw new PaymentRefundRejectedError(
+        `Stripe refused the refund: ${(error as Error).message}`
+      );
+    }
+    throw error;
+  }
 
+  const status = refund.status ?? "unknown";
+  if (REJECTED_REFUND_STATUSES.has(status)) {
+    throw new PaymentRefundRejectedError(
+      `Stripe refund ${refund.id} came back ${status}`
+    );
+  }
+
+  // `pending` is a real Stripe state for slower payment methods: the refund is
+  // accepted but the money has not moved yet. Reporting it as settled would
+  // restock inventory and reverse the ledger for funds still in flight, so the
+  // caller is told to leave the attempt open instead.
   return {
     amountMinor: refund.amount,
     id: refund.id,
-    status: refund.status ?? "unknown",
+    settled: status === "succeeded",
   };
 }
 

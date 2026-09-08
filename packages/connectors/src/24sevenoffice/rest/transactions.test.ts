@@ -6,6 +6,7 @@ import {
 
 const NO_RECEIPTS_ERROR = /at least one receipt/i;
 const NO_REVENUE_ACCOUNTS_ERROR = /No revenue accounts resolved/i;
+const PARTIAL_REVERSAL_ERROR = /refusing to post a partial reversal/i;
 
 describe("buildExpenseTransactionInput", () => {
   const base = {
@@ -96,12 +97,12 @@ describe("buildShopRefundTransactionInput", () => {
     expect(credit[0].amount).toBe(-698);
   });
 
-  test("credits the summed allocation, not the requested amount", () => {
-    // A caller-supplied `amount` that disagrees with the allocation must not
-    // unbalance the transaction — the allocation is the rounded truth.
-    const input = buildShopRefundTransactionInput({ ...base, amount: 999 });
-    const credit = input.lines.find((l) => l.amount < 0);
-    expect(credit?.amount).toBe(-698);
+  test("refuses an allocation that disagrees with the refunded amount", () => {
+    // Silently crediting the smaller allocation sum would balance the books
+    // while understating the cash returned, so a mismatch must fail loudly.
+    expect(() =>
+      buildShopRefundTransactionInput({ ...base, amount: 999 })
+    ).toThrow(PARTIAL_REVERSAL_ERROR);
   });
 
   test("applies the campus department dimension to every line", () => {
@@ -115,5 +116,31 @@ describe("buildShopRefundTransactionInput", () => {
     expect(() =>
       buildShopRefundTransactionInput({ ...base, allocation: [] })
     ).toThrow(NO_REVENUE_ACCOUNTS_ERROR);
+  });
+});
+
+describe("buildShopRefundTransactionInput allocation coverage", () => {
+  const base = {
+    allocation: [{ accountNumber: 3000, amountMinor: 49_900 }],
+    amount: 698,
+    date: "2026-09-08",
+    orderId: "order-1",
+    receivableAccountNumber: 1500,
+    transactionTypeNumber: 7,
+  };
+
+  test("refuses to post when the allocation does not cover the refund", () => {
+    // A refunded product with no finago_account_number drops out of the
+    // allocation; posting the remainder would balance but understate the cash
+    // actually returned.
+    expect(() => buildShopRefundTransactionInput(base)).toThrow(
+      PARTIAL_REVERSAL_ERROR
+    );
+  });
+
+  test("posts when the allocation covers the refund exactly", () => {
+    const input = buildShopRefundTransactionInput({ ...base, amount: 499 });
+    const sum = input.lines.reduce((acc, line) => acc + line.amount, 0);
+    expect(Math.round(sum * 100) / 100).toBe(0);
   });
 });

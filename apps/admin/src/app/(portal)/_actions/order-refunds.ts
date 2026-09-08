@@ -135,7 +135,10 @@ export async function getOrderDetail(
 
   const items = toRefundableItems(order);
   const summary = computeRefundable(
-    { total: Number(order.total ?? 0) },
+    {
+      refundedTotal: Number(order.refunded_total ?? 0),
+      total: Number(order.total ?? 0),
+    },
     items,
     toRecordedRefunds(order)
   );

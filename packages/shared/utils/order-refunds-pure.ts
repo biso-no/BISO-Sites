@@ -71,14 +71,24 @@ function countsAgainstBalance(refund: RecordedRefund): boolean {
  * without naming any line.
  */
 export function computeRefundable(
-  order: { total: number },
+  order: { refundedTotal?: number | null; total: number },
   items: RefundableOrderItem[],
   refunds: RecordedRefund[]
 ): RefundableSummary {
   const totalMinor = toMinor(order.total);
-  const refundedMinor = refunds
+  const localRefundedMinor = refunds
     .filter(countsAgainstBalance)
     .reduce((sum, refund) => sum + toMinor(refund.amount), 0);
+
+  // `orders.refunded_total` holds the provider's own aggregate, which is the
+  // larger figure whenever a refund was issued outside this system (straight
+  // from the Stripe dashboard, say). Taking the max keeps the balance from
+  // overstating what is left — computing it from local rows alone would offer
+  // to refund money the provider has already returned.
+  const refundedMinor = Math.max(
+    localRefundedMinor,
+    toMinor(order.refundedTotal ?? 0)
+  );
 
   const refundableMinor = Math.max(0, totalMinor - refundedMinor);
 
@@ -131,22 +141,37 @@ export function buildRefundLines(
 ): BuiltRefundLine[] {
   const byId = new Map(items.map((item) => [item.id, item]));
 
-  return requested
-    .map((line): BuiltRefundLine | null => {
-      const item = byId.get(line.orderItemId);
-      const quantity = Math.floor(Number(line.quantity) || 0);
-      if (!item || quantity <= 0) {
-        return null;
-      }
-      return {
-        amount: toMajor(toMinor(item.unitPrice) * quantity),
-        name: item.name,
-        orderItemId: item.id,
-        productId: item.productId,
-        quantity,
-      };
-    })
-    .filter((line): line is BuiltRefundLine => line !== null);
+  // Quantities are summed per item BEFORE anything validates them. The server
+  // action accepts an arbitrary array, so two entries naming the same line
+  // would otherwise each be checked against the same remaining quantity, both
+  // pass, and together refund (and restock) more than the line holds.
+  const quantityByItem = new Map<string, number>();
+  for (const line of requested) {
+    const quantity = Math.floor(Number(line.quantity) || 0);
+    if (quantity <= 0) {
+      continue;
+    }
+    quantityByItem.set(
+      line.orderItemId,
+      (quantityByItem.get(line.orderItemId) ?? 0) + quantity
+    );
+  }
+
+  const built: BuiltRefundLine[] = [];
+  for (const [orderItemId, quantity] of quantityByItem) {
+    const item = byId.get(orderItemId);
+    if (!item) {
+      continue;
+    }
+    built.push({
+      amount: toMajor(toMinor(item.unitPrice) * quantity),
+      name: item.name,
+      orderItemId: item.id,
+      productId: item.productId,
+      quantity,
+    });
+  }
+  return built;
 }
 
 export type RefundValidationError =

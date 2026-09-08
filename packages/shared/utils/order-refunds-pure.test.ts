@@ -266,3 +266,67 @@ describe("isPartiallyRefunded", () => {
     );
   });
 });
+
+describe("buildRefundLines — duplicate entries", () => {
+  it("sums duplicate entries for one item into a single line", () => {
+    // Two entries each within the remaining quantity would otherwise both pass
+    // validation independently and together over-refund (and double-restock).
+    const lines = buildRefundLines(
+      [
+        { orderItemId: "line-a", quantity: 1 },
+        { orderItemId: "line-a", quantity: 1 },
+      ],
+      items
+    );
+    expect(lines).toHaveLength(1);
+    expect(lines[0]?.quantity).toBe(2);
+    expect(lines[0]?.amount).toBe(998);
+  });
+
+  it("lets validation reject the aggregate when it exceeds what is left", () => {
+    const summary = computeRefundable(order, items, [
+      {
+        amount: 499,
+        status: "succeeded",
+        lines: [{ orderItemId: "line-a", quantity: 1 }],
+      },
+    ]);
+    const lines = buildRefundLines(
+      [
+        { orderItemId: "line-a", quantity: 1 },
+        { orderItemId: "line-a", quantity: 1 },
+      ],
+      items
+    );
+    expect(
+      validateRefundRequest({
+        amountMinor: 99_800,
+        lines,
+        status: "paid",
+        summary,
+      })
+    ).toEqual({ ok: false, error: "amount_exceeds_refundable" });
+  });
+});
+
+describe("computeRefundable — provider aggregate", () => {
+  it("caps the balance with the stored provider total", () => {
+    // A refund issued straight from the Stripe dashboard has no local row, so
+    // summing local rows alone would offer money already returned.
+    const summary = computeRefundable(
+      { refundedTotal: 1000, total: 1197 },
+      items,
+      []
+    );
+    expect(summary.refundable).toBe(197);
+  });
+
+  it("keeps the larger local sum when it exceeds the stored total", () => {
+    const summary = computeRefundable(
+      { refundedTotal: 100, total: 1197 },
+      items,
+      [{ amount: 499, status: "succeeded" }]
+    );
+    expect(summary.refundable).toBe(698);
+  });
+});

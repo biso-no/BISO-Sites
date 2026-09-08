@@ -306,7 +306,16 @@ async function LinesCard({ order }: { order: OrderDetail }) {
           paddingTop: 12,
         }}
       >
-        <Row label={t("detail.subtotal")} mono value={fmtNOK(order.subtotal)} />
+        {/* Checkout stores ALREADY-discounted unit prices, so `subtotal` equals
+            `total` and `discount_total` is only a record of what was saved.
+            Showing the stored subtotal above a subtraction would read as
+            broken arithmetic (80 − 20 = 80), so the pre-discount figure is
+            reconstructed and the discount subtracts from that. */}
+        <Row
+          label={t("detail.subtotal")}
+          mono
+          value={fmtNOK(order.subtotal + (order.discountTotal ?? 0))}
+        />
         {order.discountTotal ? (
           <Row
             label={t("detail.discount")}

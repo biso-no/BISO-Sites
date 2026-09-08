@@ -101,6 +101,9 @@ export type DisplayOrderStatus =
   | "refunded";
 
 export function displayOrderStatus(order: {
+  /** Mapped detail shape. */
+  refundedTotal?: number | null;
+  /** Raw Appwrite row shape. */
   refunded_total?: number | null;
   status?: string | null;
   total?: number | null;
@@ -109,7 +112,13 @@ export function displayOrderStatus(order: {
   if (status !== "paid") {
     return status;
   }
-  const refunded = Math.round((order.refunded_total ?? 0) * 100);
+  // Accepts both shapes on purpose: the orders table passes the raw row
+  // (`refunded_total`) and the detail page passes the mapped `OrderDetail`
+  // (`refundedTotal`). Reading only one silently reported zero for the other,
+  // so a partially refunded order showed as "Paid" on its own detail page.
+  const refunded = Math.round(
+    (order.refundedTotal ?? order.refunded_total ?? 0) * 100
+  );
   const total = Math.round((order.total ?? 0) * 100);
   if (refunded > 0 && refunded < total) {
     return "partially_refunded";

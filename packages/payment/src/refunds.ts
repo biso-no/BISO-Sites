@@ -14,6 +14,9 @@
  */
 
 import type { StripeCredentials, VippsCredentials } from "./credentials/types";
+
+export { isRefundRejection, PaymentRefundRejectedError } from "./errors";
+
 import { getStripeRefundedTotal, refundStripePayment } from "./stripe";
 import { cancelVippsPayment, refundVippsPayment } from "./vipps";
 
@@ -43,6 +46,13 @@ export interface RefundOutcome {
    * issued outside this system (e.g. straight from the Stripe dashboard).
    */
   refundedTotalMinor: number;
+  /**
+   * Whether the provider has actually moved the money. False means the refund
+   * was accepted but is still in flight (Stripe's `pending` state), so the
+   * caller must leave the attempt open rather than restocking inventory and
+   * reversing the ledger against funds that have not been returned yet.
+   */
+  settled: boolean;
 }
 
 export type RefundCredentials =
@@ -70,9 +80,12 @@ export async function refundPayment(
       { currency: request.currency, value: request.amountMinor },
       creds.vipps
     );
+    // Vipps ePayment refunds are synchronous: a non-error response means the
+    // aggregate already reflects the returned funds.
     return {
       refundedTotalMinor: amountValue(snapshot.aggregate?.refundedAmount),
       providerRefundId: snapshot.pspReference,
+      settled: true,
     };
   }
 
@@ -92,7 +105,11 @@ export async function refundPayment(
     creds.stripe
   ).catch(() => refund.amountMinor);
 
-  return { refundedTotalMinor, providerRefundId: refund.id };
+  return {
+    refundedTotalMinor,
+    providerRefundId: refund.id,
+    settled: refund.settled,
+  };
 }
 
 /**

@@ -12,6 +12,7 @@ import type {
   PaymentSettingsReader,
   VippsCredentials,
 } from "../credentials/types";
+import { PaymentRefundRejectedError } from "../errors";
 import { buildVippsClient, getVippsAccessToken } from "./client";
 import type { CheckoutSessionParams } from "./types";
 import { VIPPS_WEBHOOK_EVENTS } from "./webhook";
@@ -175,7 +176,12 @@ export async function refundVippsPayment(
   });
 
   if (!result.ok) {
-    throw new Error(`Vipps refund failed: ${JSON.stringify(result)}`);
+    // The API answered and refused, so no funds moved — a definitive rejection
+    // the caller may safely release the balance for. A transport failure
+    // throws out of `client.payment.refund` instead and stays ambiguous.
+    throw new PaymentRefundRejectedError(
+      `Vipps refund failed: ${JSON.stringify(result)}`
+    );
   }
   return toSnapshot(result.data);
 }
