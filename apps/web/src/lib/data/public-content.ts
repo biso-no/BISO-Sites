@@ -49,6 +49,7 @@ import {
   readPageNewsFeed,
   readPagePartnersFeed,
 } from "@repo/shared/utils/page-feeds";
+import { isPublicUnit } from "@repo/shared/utils/unit-visibility";
 import { cacheLife } from "next/cache";
 import type { Partner } from "@/app/actions/about";
 import { campusScopeIds } from "@/lib/campus-scope";
@@ -209,6 +210,19 @@ const DEPARTMENT_SELECT = [
   "type",
 ] as const;
 
+/*
+ * The three readers below all apply `isPublicUnit` on top of `active`.
+ *
+ * They are the ROUTING layer for /units/…, so the exclusion has to bite here,
+ * not only at render time: an operating ledger ("Drift Campus Oslo") is an
+ * active row with a slug, and letting it resolve would give it a live URL
+ * whose `generateMetadata` puts the accounting name in the page <title> before
+ * the body 404s. Excluding it here makes it indistinguishable from a slug that
+ * was never a unit — which is what it is, publicly.
+ *
+ * `Name` and `active` are in DEPARTMENT_SELECT for exactly this check.
+ */
+
 /**
  * Every active department sharing one slug — one row per campus.
  *
@@ -228,7 +242,7 @@ export async function cachedDepartmentsBySlug(
     Query.select([...DEPARTMENT_SELECT]),
     Query.limit(10),
   ]);
-  return res.rows;
+  return res.rows.filter(isPublicUnit);
 }
 
 /** The single active department at one campus. Full (slug, campus_id) hit. */
@@ -246,7 +260,8 @@ export async function cachedDepartmentBySlugAndCampus(
     Query.select([...DEPARTMENT_SELECT]),
     Query.limit(1),
   ]);
-  return res.rows[0] ?? null;
+  const row = res.rows[0];
+  return row && isPublicUnit(row) ? row : null;
 }
 
 /** Legacy 24SO-id lookup, used only to redirect old /units/<number> links. */
@@ -261,7 +276,8 @@ export async function cachedDepartmentById(
     Query.select([...DEPARTMENT_SELECT]),
     Query.limit(1),
   ]);
-  return res.rows[0] ?? null;
+  const row = res.rows[0];
+  return row && isPublicUnit(row) ? row : null;
 }
 
 /* ------------------------------------------------------------------------ *
@@ -447,12 +463,23 @@ export async function cachedSitemapEntries(): Promise<SitemapEntries> {
         .catch(() => [] as SitemapRow[]),
       db
         .listRows<Departments>("app", "departments", [
-          Query.select(["$id", "$updatedAt", "campus_id", "slug"]),
+          // `Name` is selected only to run the public-visibility rule: an
+          // operating ledger ("Drift BISO") and the national governance rows
+          // are `active: true` but have no public page, so advertising their
+          // URLs here would hand a crawler ~16 guaranteed 404s.
+          Query.select([
+            "$id",
+            "$updatedAt",
+            "Name",
+            "active",
+            "campus_id",
+            "slug",
+          ]),
           Query.equal("active", true),
           Query.limit(SITEMAP_LIMIT),
         ])
         .then((res) =>
-          res.rows.map((row) => ({
+          res.rows.filter(isPublicUnit).map((row) => ({
             $updatedAt: row.$updatedAt,
             campus_id: row.campus_id,
             slug: row.slug ?? null,

@@ -1,5 +1,25 @@
-const CAMPUS_PREFIXES = ["OSL", "BRG", "TRD", "STV"] as const;
-export type CampusPrefix = (typeof CAMPUS_PREFIXES)[number];
+/**
+ * The campus prefix and closure suffix themselves live in
+ * `@repo/shared/utils/unit-names` — the public site strips the same two things
+ * to label a unit, and a second definition here would let the sync's matching
+ * and the student-facing name drift apart. What stays local is the *comparison*
+ * normaliser below, which additionally lowercases and folds diacritics; that is
+ * a matching concern the display projection must not share.
+ */
+import {
+  type CampusPrefix,
+  extractCampusPrefix,
+  stripCampusPrefix,
+} from "@repo/shared/utils/unit-names";
+
+// Re-exported so the sync's callers keep importing their whole matching
+// vocabulary from one module.
+export {
+  type CampusPrefix,
+  extractCampusPrefix,
+  isClosedName,
+  stripClosedSuffix,
+} from "@repo/shared/utils/unit-names";
 
 const DIACRITIC_MAP: Record<string, string> = {
   ø: "o",
@@ -8,17 +28,9 @@ const DIACRITIC_MAP: Record<string, string> = {
 };
 const DIACRITIC_REGEX = /[øæå]/g;
 const WHITESPACE_REGEX = /\s+/g;
-const LEADING_PREFIX_REGEX = /^(OSL|BRG|TRD|STV)\s+/;
-
-export function extractCampusPrefix(name: string): CampusPrefix | null {
-  const match = name.trim().match(LEADING_PREFIX_REGEX);
-  return match ? (match[1] as CampusPrefix) : null;
-}
 
 export function normalizeForCompare(name: string): string {
-  return name
-    .trim()
-    .replace(LEADING_PREFIX_REGEX, "")
+  return stripCampusPrefix(name)
     .toLowerCase()
     .replace(DIACRITIC_REGEX, (char) => DIACRITIC_MAP[char] ?? char)
     .replace(WHITESPACE_REGEX, " ")
@@ -38,20 +50,10 @@ export function normalizeWithCampus(name: string): string {
     .trim();
 }
 
-const CLOSED_REGEX = /\s*-\s*nedlagt\s*$/i;
-
 export interface CanonicalDepartment {
   active?: boolean; // false = inactive/closed in 24SO (undefined = active)
   campusId: string;
   name: string; // exact stored canonical name (the write target)
-}
-
-export function isClosedName(name: string): boolean {
-  return CLOSED_REGEX.test(name);
-}
-
-export function stripClosedSuffix(name: string): string {
-  return name.replace(CLOSED_REGEX, "").trim();
 }
 
 export function buildCampusPrefixToId(

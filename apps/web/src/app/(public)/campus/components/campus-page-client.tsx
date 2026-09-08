@@ -3,7 +3,6 @@
 import type {
   CampusData,
   CampusMetadata,
-  ContentTranslations,
   DepartmentBoard,
   Events,
   Jobs,
@@ -15,12 +14,13 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo } from "react";
 import { useCampus } from "@/components/context/campus";
 import { campusScopeIds } from "@/lib/campus-scope";
+import type { PublicUnit } from "@/lib/data/units";
 import { CampusHero } from "./campus-hero";
 import { CampusTabs } from "./campus-tabs";
-import { DepartmentsGrid } from "./overview/departments-grid";
 import { FocusAreas } from "./overview/focus-areas";
 import { JobPostings } from "./overview/job-postings";
 import { LatestNews } from "./overview/latest-news";
+import { UnitsGrid } from "./overview/units-grid";
 import { UpcomingEvents } from "./overview/upcoming-events";
 import { PartnersTab } from "./partners/partners-tab";
 import { StudentsTab } from "./students/students-tab";
@@ -29,7 +29,6 @@ import { TeamTab } from "./team/team-tab";
 interface CampusPageClientProps {
   campusData: CampusData[];
   campusMetadata: Record<string, CampusMetadata>;
-  departments: ContentTranslations[];
   events: Events[];
   jobs: Array<Jobs | RecruitmentVacancy>;
   locale: Locale;
@@ -40,13 +39,14 @@ interface CampusPageClientProps {
    * `?campus=` param to re-render the server component when they diverge.
    */
   serverCampusId: string | null;
+  units: PublicUnit[];
 }
 
 export function CampusPageClient({
   events,
   jobs,
   news,
-  departments,
+  units,
   campusData,
   campusMetadata,
   locale,
@@ -145,24 +145,22 @@ export function CampusPageClient({
     );
   }, [news, campusScope]);
 
-  const campusSpecificDepartments = useMemo(() => {
+  const campusSpecificUnits = useMemo(() => {
     if (!activeCampusId) {
-      return departments;
+      return units;
     }
-    return departments.filter(
-      (dept) => dept.department_ref?.campus_id === activeCampusId
-    );
-  }, [departments, activeCampusId]);
+    return units.filter((unit) => unit.campusId === activeCampusId);
+  }, [units, activeCampusId]);
 
   // Calculate stats
   const stats = useMemo(
     () => ({
-      departments: campusSpecificDepartments.length,
+      departments: campusSpecificUnits.length,
       events: campusSpecificEvents.length,
       jobs: campusSpecificJobs.length,
     }),
     [
-      campusSpecificDepartments.length,
+      campusSpecificUnits.length,
       campusSpecificEvents.length,
       campusSpecificJobs.length,
     ]
@@ -203,10 +201,10 @@ export function CampusPageClient({
                   <LatestNews locale={locale} news={campusSpecificNews} />
                   <JobPostings jobs={campusSpecificJobs} locale={locale} />
                 </div>
-                <DepartmentsGrid
+                <UnitsGrid
                   activeCampusId={activeCampusId}
-                  departments={campusSpecificDepartments}
                   locale={locale}
+                  units={campusSpecificUnits}
                 />
               </div>
             ),

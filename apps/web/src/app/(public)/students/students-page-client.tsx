@@ -30,6 +30,7 @@ import { useTranslations } from "next-intl";
 import { useMemo } from "react";
 import { AboutHero } from "@/components/about/about-hero";
 import { useCampus } from "@/components/context/campus";
+import type { PublicUnit } from "@/lib/data/units";
 import type { CampusData } from "@/lib/types/campus-data";
 import { getEventHref } from "@/lib/types/event";
 
@@ -42,11 +43,11 @@ type BenefitKey =
 
 interface StudentsPageClientProps {
   campusData: CampusData[];
-  departments: ContentTranslations[];
   events: Events[];
   globalBenefits: CampusData | null;
   jobs: Array<Jobs | RecruitmentVacancy>;
   locale: Locale;
+  units: PublicUnit[];
 }
 
 const getTranslation = (
@@ -321,11 +322,11 @@ function BenefitsSection({
 
 function UnitsAndFundingSection({
   campusLabel,
-  departments,
+  units,
   unitsQuery,
 }: {
   campusLabel: string;
-  departments: ContentTranslations[];
+  units: PublicUnit[];
   unitsQuery: string;
 }) {
   const t = useTranslations("students");
@@ -355,32 +356,24 @@ function UnitsAndFundingSection({
               </div>
 
               <div className="mt-6 grid gap-4 sm:grid-cols-2">
-                {departments.map((dept) => (
-                  <div
+                {units.map((unit) => (
+                  <Link
                     className="rounded-xl border border-border/60 bg-section/60 p-4 transition-colors hover:border-brand-border"
-                    key={dept.$id}
+                    href={unit.href}
+                    key={unit.id}
                   >
                     <h3 className="font-semibold text-base text-foreground">
-                      {dept.title}
+                      {unit.name}
                     </h3>
                     <p className="mt-2 line-clamp-3 text-muted-foreground text-sm leading-relaxed">
-                      {dept.description}
+                      {unit.summary ?? ""}
                     </p>
                     <div className="mt-3 flex items-center justify-between text-muted-foreground text-xs">
-                      <span>
-                        {dept.department_ref?.type || t("units.unknownType")}
-                      </span>
-                      {dept.department_ref?.users?.length ? (
-                        <span>
-                          {t("units.members", {
-                            count: dept.department_ref.users.length,
-                          })}
-                        </span>
-                      ) : null}
+                      <span>{unit.campusLabel ?? t("units.unknownType")}</span>
                     </div>
-                  </div>
+                  </Link>
                 ))}
-                {departments.length ? null : (
+                {units.length ? null : (
                   <p className="text-muted-foreground text-sm">
                     {t("units.empty")}
                   </p>
@@ -628,7 +621,7 @@ function QuickLinksSection({ campusQuery }: { campusQuery: string }) {
 export const StudentsPageClient = ({
   events,
   jobs,
-  departments,
+  units,
   campusData,
   globalBenefits,
   locale,
@@ -657,14 +650,12 @@ export const StudentsPageClient = ({
     return jobs.filter((job) => job.campus_id === activeCampusId).slice(0, 6);
   }, [jobs, activeCampusId]);
 
-  const featuredDepartments = useMemo(() => {
+  const featuredUnits = useMemo(() => {
     if (!activeCampusId) {
-      return departments.slice(0, 6);
+      return units.slice(0, 6);
     }
-    return departments
-      .filter((dept) => dept.department_ref?.campus_id === activeCampusId)
-      .slice(0, 6);
-  }, [departments, activeCampusId]);
+    return units.filter((unit) => unit.campusId === activeCampusId).slice(0, 6);
+  }, [units, activeCampusId]);
 
   const campusLabel = activeCampus?.name ?? t("hero.globalCampus");
   const campusQuery = activeCampusId ? `?campus=${activeCampusId}` : "";
@@ -694,7 +685,7 @@ export const StudentsPageClient = ({
       />
       <UnitsAndFundingSection
         campusLabel={campusLabel}
-        departments={featuredDepartments}
+        units={featuredUnits}
         unitsQuery={unitsQuery}
       />
       <EventsSection

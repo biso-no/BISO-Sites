@@ -28,6 +28,8 @@ import type {
 } from "@repo/api/types/appwrite";
 import { JobsStatus, NewsStatus } from "@repo/api/types/appwrite";
 import { isRecruitmentVacancyOpen } from "../types/recruitment";
+import { unitDisplayName } from "./unit-names";
+import { isPublicUnit } from "./unit-visibility";
 
 /** Erased at runtime — this module never constructs a client. */
 type FeedDb = Awaited<ReturnType<typeof createPublicClient>>["db"];
@@ -325,7 +327,7 @@ export async function readPageDepartmentsFeed(
   type: string | null = null
 ): Promise<PageDepartmentsFeed> {
   const queries: string[] = [
-    Query.select(["$id", "Id", "Name", "campus_id", "type", "logo"]),
+    Query.select(["$id", "Id", "Name", "active", "campus_id", "type", "logo"]),
     Query.equal("active", true),
     Query.orderAsc("Name"),
     Query.limit(DEPARTMENT_LIMIT),
@@ -343,13 +345,22 @@ export async function readPageDepartmentsFeed(
     queries
   );
 
+  // `active` is not a publication flag — the table mirrors the 24SO chart of
+  // accounts, so operating ledgers ("Drift BISO") and the national governance
+  // rows are live accounts with no public page. They must never reach a
+  // rendered block. `total` deliberately keeps reporting Appwrite's count for
+  // the reason documented on the type; it is a query cardinality, not the size
+  // of what was rendered.
+  const visible = departments.rows.filter(isPublicUnit);
+
   return {
-    departments: departments.rows.map((department) => ({
+    departments: visible.map((department) => ({
       campusId: department.campus_id,
       id: department.$id,
       internalId: department.Id,
       logo: department.logo,
-      name: department.Name,
+      // The student-facing label, not the campus-prefixed accounting name.
+      name: unitDisplayName(department.Name),
       type: department.type,
     })),
     total: departments.total,
