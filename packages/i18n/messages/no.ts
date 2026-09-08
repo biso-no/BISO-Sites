@@ -32,6 +32,7 @@ import resources from "./no/resources.json";
 import shop from "./no/shop.json";
 import students from "./no/students.json";
 import terms from "./no/terms.json";
+import units from "./no/units.json";
 import unused from "./no/unused.json";
 import varsling from "./no/varsling.json";
 import volunteer from "./no/volunteer.json";
@@ -58,6 +59,7 @@ export default {
   shop,
   students,
   terms,
+  units,
   projects,
   memberPortal,
   fundingProgram,

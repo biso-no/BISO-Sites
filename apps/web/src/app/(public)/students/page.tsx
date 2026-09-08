@@ -14,7 +14,7 @@ import { listEvents } from "@/app/actions/events";
 import { listJobs } from "@/app/actions/jobs";
 import { getLocale } from "@/app/actions/locale";
 import { getGlobalMembershipBenefits } from "@/app/actions/membership";
-import { getDepartments } from "@/lib/actions/departments";
+import { cachedPublicUnits } from "@/lib/data/units";
 import { StudentsPageClient } from "./students-page-client";
 
 // `students-page-client.tsx` filters this pool by `activeCampusId` and slices
@@ -38,7 +38,7 @@ export default async function StudentsPage() {
 
   const locale = (await getLocale()) as Locale;
 
-  const [eventsResult, jobs, departments, campusData, globalBenefits] =
+  const [eventsResult, jobs, units, campusData, globalBenefits] =
     await Promise.all([
       // `isMember` deliberately omitted (defaults to `false`): this page
       // doesn't resolve the visitor's membership status, and hiding
@@ -51,7 +51,9 @@ export default async function StudentsPage() {
         locale,
       }),
       listJobs({ locale, pageSize: STUDENTS_PAGE_SIZE }),
-      getDepartments({ campusId: "all", locale }),
+      // Same cached unit directory /units and /campus read. Campus slicing
+      // happens in the client below, so this deliberately fetches all campuses.
+      cachedPublicUnits(locale).catch(() => []),
       getCampusData(),
       getGlobalMembershipBenefits(),
     ]);
@@ -60,11 +62,11 @@ export default async function StudentsPage() {
   return (
     <StudentsPageClient
       campusData={campusData}
-      departments={departments}
       events={events}
       globalBenefits={globalBenefits}
       jobs={jobs.rows as RecruitmentVacancy[]}
       locale={locale}
+      units={units}
     />
   );
 }

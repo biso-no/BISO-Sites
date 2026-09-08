@@ -4,15 +4,12 @@ import type { Metadata } from "next";
 import { notFound, permanentRedirect } from "next/navigation";
 import { Suspense } from "react";
 import { getLocale } from "@/app/actions/locale";
-import type { DepartmentTranslation } from "@/lib/actions/departments";
-import { getDepartmentById } from "@/lib/actions/departments";
-import { getLoggedInUser } from "@/lib/actions/user";
 import { resolvePageFeeds } from "@/lib/data/page-feeds";
 import { cachedPublishedPage } from "@/lib/data/public-content";
+import { cachedUnitDetail } from "@/lib/data/units";
 import { RenderedPage } from "../../[...slug]/_components/rendered-page";
 import { CampusChooser } from "./_components/campus-chooser";
-import { DepartmentHero } from "./components/department-hero";
-import { DepartmentTabsClient } from "./components/department-tabs-client";
+import { UnitView } from "./_components/unit-view";
 import DepartmentLoading from "./loading";
 import { resolveUnit } from "./resolve";
 
@@ -93,22 +90,6 @@ async function PublishedUnit({
   return <RenderedPage doc={doc} feeds={feeds} locale={locale} />;
 }
 
-async function DefaultUnitView({
-  department,
-}: {
-  department: DepartmentTranslation;
-}) {
-  const user = await getLoggedInUser();
-  const isMember = user?.profile?.studentId?.isMember ?? false;
-
-  return (
-    <>
-      <DepartmentHero department={department} />
-      <DepartmentTabsClient department={department} isMember={isMember} />
-    </>
-  );
-}
-
 export default async function UnitPage({ params }: Props) {
   const { segments } = await params;
   const resolution = await resolveUnit(segments);
@@ -158,15 +139,18 @@ export default async function UnitPage({ params }: Props) {
   // Resolved (and any notFound()) before the boundary below: the auto-source
   // feed streaming above is safe to defer because it never decides the
   // response status, but "does this department's page exist at all" must.
-  const translated = await getDepartmentById(department.$id, locale);
-  if (!translated?.department_ref?.active) {
+  // `cachedUnitDetail` returns null for an inactive row AND for one the public
+  // visibility rule excludes (an operating ledger, a national governance body),
+  // so a 24SO account that is not a student unit has no public page at all.
+  const unit = await cachedUnitDetail(department.$id, locale);
+  if (!unit) {
     notFound();
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-linear-to-b from-section to-background">
       <Suspense fallback={<DepartmentLoading />}>
-        <DefaultUnitView department={translated} />
+        <UnitView locale={locale} unit={unit} />
       </Suspense>
     </div>
   );
@@ -201,22 +185,21 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   // could describe content the body doesn't render.
   const pageResult = publishedUnitPage(rawPageResult, department.$id);
 
-  // getDepartmentById issues three uncached listRows calls; only pay for it
-  // when the published page didn't already supply both fields.
+  // `cachedUnitDetail` fans out to three reads; only pay for it when the
+  // published page didn't already supply both fields. It is the same cache
+  // entry the body reads, so this is at worst one extra hit.
   const needsFallback = !(
     pageResult?.translation?.title && pageResult?.translation?.description
   );
-  const translated = needsFallback
-    ? await getDepartmentById(department.$id, locale)
+  const unit = needsFallback
+    ? await cachedUnitDetail(department.$id, locale)
     : null;
 
-  const title =
-    pageResult?.translation?.title ?? translated?.title ?? department.Name;
+  // `unit.name` — the display projection — not `department.Name`: a tab title
+  // and a search result should read "Fadderullan", not "OSL Fadderullan".
+  const title = pageResult?.translation?.title ?? unit?.name ?? department.Name;
   const description =
-    pageResult?.translation?.description ||
-    translated?.short_description ||
-    translated?.description ||
-    undefined;
+    pageResult?.translation?.description || unit?.summary || undefined;
 
   return {
     title: `${title} | BISO`,

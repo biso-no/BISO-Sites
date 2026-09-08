@@ -1,0 +1,89 @@
+{
+  "hero": {
+    "badge": "Studentenheter",
+    "title": "Finn menneskene du skal ta graden sammen med",
+    "subtitle": "Alle BISO-enheter drives av studenter, for studenter — fagutvalg, foreninger, festivaler og komiteer på alle fire campus.",
+    "ctaPrimary": "Se ledige verv",
+    "ctaSecondary": "Bli medlem"
+  },
+  "stats": {
+    "units": "{count, plural, one {# enhet} other {# enheter}}",
+    "campuses": "{count, plural, one {# campus} other {# campus}}",
+    "students": "{count, plural, one {# student} other {# studenter}} i et styre"
+  },
+  "filters": {
+    "label": "Filtrer enheter",
+    "searchLabel": "Søk",
+    "searchPlaceholder": "Søk etter navn …",
+    "campusLabel": "Campus",
+    "allCampuses": "Alle campus",
+    "categoryLabel": "Type",
+    "allCategories": "Alle typer",
+    "clear": "Nullstill filtre"
+  },
+  "list": {
+    "heading": "{count, plural, one {# enhet} other {# enheter}}",
+    "headingFiltered": "{count, plural, one {# enhet} other {# enheter}} av {total}",
+    "subtitle": "Åpne en enhet for å møte styret og se hva de jobber med.",
+    "emptyTitle": "Ingen enheter passer med filtrene",
+    "emptyBody": "Prøv å nullstille søket eller velge et annet campus.",
+    "unavailableTitle": "Enhetene er utilgjengelige akkurat nå",
+    "unavailableBody": "Vi fikk ikke lastet enhetsoversikten. Prøv igjen om et øyeblikk."
+  },
+  "card": {
+    "board": "{count, plural, one {# i styret} other {# i styret}}",
+    "noSummary": "Denne enheten har ikke skrevet introduksjonen sin ennå — åpne siden for å møte styret.",
+    "open": "Les mer"
+  },
+  "cta": {
+    "title": "Finner du ikke din greie?",
+    "body": "Enheter startes av studenter. Passer ingenting her, ta ideen med til campusstyret — det er slik de fleste av disse begynte.",
+    "primary": "Kontakt ditt campus",
+    "secondary": "Se ledige verv"
+  },
+  "detail": {
+    "back": "Alle enheter",
+    "campusBadge": "Campus {campus}",
+    "tabs": {
+      "overview": "Oversikt",
+      "team": "Styret",
+      "news": "Nyheter",
+      "shop": "Butikk"
+    },
+    "about": "Om {name}",
+    "aboutFallbackTitle": "Om denne enheten",
+    "aboutFallback": "{name} er en av {count, plural, one {# studentdrevet enhet} other {# studentdrevne enheter}} ved BISO {campus}. Styret under driver enheten — ta kontakt med dem for å høre hva de jobber med og hvordan du blir med.",
+    "facts": {
+      "campus": "Campus",
+      "category": "Type",
+      "board": "Styremedlemmer",
+      "uncategorised": "Studentenhet"
+    },
+    "board": {
+      "title": "Møt styret",
+      "subtitle": "Valgte studenter som driver {name} i år.",
+      "emptyTitle": "Styreinformasjonen kommer",
+      "emptyBody": "Styret til denne enheten er ikke publisert i BISO-katalogen ennå. Campusstyret kan peke deg videre i mellomtiden.",
+      "emailAction": "Send e-post til {name}",
+      "source": "Direkte fra BISOs Microsoft 365-katalog"
+    },
+    "news": {
+      "title": "Nyheter fra {name}",
+      "empty": "Ingen nyheter publisert ennå."
+    },
+    "shop": {
+      "title": "Billetter og effekter",
+      "empty": "Ingenting til salgs akkurat nå.",
+      "memberOnly": "Kun for medlemmer",
+      "soldOut": "Utsolgt",
+      "memberPrice": "{price} for medlemmer",
+      "view": "Se i butikken"
+    },
+    "join": {
+      "title": "Vil du bli med i {name}?",
+      "body": "Styrene velges hvert år, og de fleste enheter rekrutterer gjennom BISOs vervutlysninger.",
+      "primary": "Se ledige verv",
+      "secondary": "Utforsk andre enheter"
+    }
+  }
+}

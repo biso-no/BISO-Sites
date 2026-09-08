@@ -28,6 +28,7 @@ export const messageNamespaces = [
   "students",
   "shop",
   "terms",
+  "units",
   "projects",
   "memberPortal",
   "fundingProgram",

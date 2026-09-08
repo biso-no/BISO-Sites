@@ -5,8 +5,8 @@ import { listEvents } from "@/app/actions/events";
 import { listJobs } from "@/app/actions/jobs";
 import { getLocale } from "@/app/actions/locale";
 import { listNews } from "@/app/actions/news";
-import { getDepartments } from "@/lib/actions/departments";
 import { getUserPreferences } from "@/lib/auth-utils";
+import { cachedPublicUnits } from "@/lib/data/units";
 import { CampusPageClient } from "./components/campus-page-client";
 
 export const metadata: Metadata = {
@@ -35,7 +35,7 @@ export default async function CampusPage({ searchParams }: CampusPageProps) {
   // Scoping happens server-side: the list actions run `campusScopeIds`
   // internally, so the selected campus plus National content is fetched (and
   // the limits apply *after* scoping instead of truncating before it).
-  const [eventsResult, jobs, news, departments, campusData, campusMetadata] =
+  const [eventsResult, jobs, news, units, campusData, campusMetadata] =
     await Promise.all([
       // `isMember` deliberately omitted (defaults to `false`): this page
       // doesn't resolve the visitor's membership status, and hiding
@@ -46,7 +46,11 @@ export default async function CampusPage({ searchParams }: CampusPageProps) {
       listEvents({ campus, status: "published", locale }),
       listJobs({ campus, locale }),
       listNews({ campus, status: "published", limit: 6, locale }),
-      getDepartments({ isActive: true, locale }),
+      // The unit directory is the same cached read /units and /students use —
+      // `departments` filtered by the public visibility rule, never
+      // `content_translations`. An outage here must not take the campus page
+      // down with it; the grid hides itself on an empty list.
+      cachedPublicUnits(locale).catch(() => []),
       getCampusData(),
       getCampusMetadata(),
     ]);
@@ -56,12 +60,12 @@ export default async function CampusPage({ searchParams }: CampusPageProps) {
     <CampusPageClient
       campusData={campusData}
       campusMetadata={campusMetadata}
-      departments={departments}
       events={events}
       jobs={jobs.rows}
       locale={locale}
       news={news}
       serverCampusId={activeCampusId}
+      units={units}
     />
   );
 }

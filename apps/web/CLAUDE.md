@@ -95,11 +95,41 @@ Server actions live in two places:
 
 - `src/app/actions/*.ts` — feature-level actions (orders, events, jobs, news,
   campus, membership, etc.).
-- `src/lib/actions/*.ts` — cross-cutting (user, membership, expense, departments).
+- `src/lib/actions/*.ts` — cross-cutting (user, membership, expense).
 
 The JWT-based REST client at `src/lib/api-client.ts` (`apiClient.fetch` /
 `fetchFormData`) targets `NEXT_PUBLIC_API_BASE_URL` (the standalone `apps/api`
 service); JWT is minted by the `createJWT` server action and cached for 14 min.
+
+## Units (departments)
+
+`/units`, `/campus` and `/students` all read units through
+`src/lib/data/units.ts` (`cachedPublicUnits`, `cachedUnitDetail`). Two rules
+that are easy to get wrong and were the cause of all three surfaces rendering
+zero units:
+
+- **`departments` is the source of truth, never `content_translations`.** A
+  `content_translations` row with `content_type = "department"` is an OPTIONAL
+  copy overlay a unit may write from the admin app. None exists today, so any
+  reader that starts from that table returns nothing.
+- **`active` is not a publication flag.** The table mirrors the 24SevenOffice
+  chart of accounts, so operating ledgers (`Drift …`) and national governance
+  bodies are `active: true` with no public page. `isPublicUnit`
+  (`@repo/shared/utils/unit-visibility`) is the second half of the filter, and
+  it is applied in the cached readers in `src/lib/data/` — including the
+  routing lookups in `public-content.ts` and the sitemap — so an excluded row
+  has no live URL at all. `apps/admin` deliberately does NOT apply it.
+
+`departments.Name` is the campus-prefixed accounting name AND the Microsoft
+Graph `department` join key. Show `unitDisplayName(Name)`
+(`@repo/shared/utils/unit-names`); send the raw `Name`/row id to Graph.
+
+The default unit page (`(public)/units/[...segments]/_components/unit-view.tsx`)
+renders only when the unit has no published block-editor page. Its board comes
+from Microsoft 365 via `cachedUnitBoard`, a cached server-side wrapper around
+`apps/api`'s `/api/campus/{campusId}/{departmentId}/board`. That function
+THROWS on failure by design — `"use cache"` would otherwise pin an empty board
+onto every unit page for hours — so callers supply their own `.catch()`.
 
 ## Third-party integrations
 
