@@ -1,3 +1,4 @@
+import { cartReservationRowId } from "@repo/shared/utils/cart-reservation-id";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const sessionDb = vi.hoisted(() => ({
@@ -53,7 +54,10 @@ describe("cart reservations", () => {
     expect(adminDb.createRow).toHaveBeenCalledWith(
       "app",
       "cart_reservations",
-      "unique()",
+      // Derived from (buyer, product), so the table's primary key is what
+      // settles a race with the app's `PUT /api/shop/cart` writing the same
+      // hold: the loser updates this row instead of minting a second one.
+      cartReservationRowId("session-user-1", "product-1"),
       expect.objectContaining({
         product_id: "product-1",
         quantity: 2,
@@ -65,5 +69,30 @@ describe("cart reservations", () => {
         'delete("user:session-user-1")',
       ]
     );
+  });
+
+  it("updates the existing row when it loses the create race", async () => {
+    adminDb.createRow.mockRejectedValueOnce(
+      Object.assign(new Error("row already exists"), { code: 409 })
+    );
+
+    const result = await createOrUpdateReservation("product-1", 2);
+
+    expect(result).toMatchObject({ quantity: 2, success: true });
+    expect(sessionDb.updateRow).toHaveBeenCalledWith(
+      "app",
+      "cart_reservations",
+      cartReservationRowId("session-user-1", "product-1"),
+      expect.objectContaining({ quantity: 2 })
+    );
+  });
+
+  it("still reports a create failure that is not the race being lost", async () => {
+    adminDb.createRow.mockRejectedValueOnce(new Error("appwrite is down"));
+
+    const result = await createOrUpdateReservation("product-1", 2);
+
+    expect(result).toMatchObject({ reason: "error", success: false });
+    expect(sessionDb.updateRow).not.toHaveBeenCalled();
   });
 });

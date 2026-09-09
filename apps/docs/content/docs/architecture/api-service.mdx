@@ -136,7 +136,7 @@ broader auth picture.
 
 ## Endpoint catalogue
 
-Sixteen endpoints, grouped by auth requirement.
+Grouped by auth requirement.
 
 ### Public (no auth)
 
@@ -146,6 +146,14 @@ Sixteen endpoints, grouped by auth requirement.
 | `GET /config` | Non-sensitive runtime config (locales, feature flags). |
 | `POST /events` | Event proxy (typically a public list query, POST is used for body-based filters). |
 | `GET /wc-products` | WooCommerce merch product list. |
+| `GET /payment/providers` | Which payment providers a client may offer right now. |
+
+`GET /payment/providers` answers with both switches that gate a provider:
+the `payments_vipps` / `payments_stripe` feature flag (the admin app's kill
+switch) and whether that provider's credentials are configured for the active
+mode. A provider is `available` only when both say yes. The website reads the
+flags directly in a server component; the native app cannot read
+`payment_settings` at all, which is what this endpoint is for.
 
 ### JWT-authenticated (user-scope)
 
@@ -158,6 +166,23 @@ Sixteen endpoints, grouped by auth requirement.
 | `GET /expenses/summary` | Summary view for the user's expenses. |
 | `POST /expenses/ocr` | OCR a receipt image into structured fields. |
 | `GET /campus/[campusId]/[departmentId]/board` | Department board listing. |
+| `POST /payment/[provider]/checkout` | Trusted cart checkout — creates the order and the payment session. |
+| `POST /payment/[provider]/membership-checkout` | The same, for a membership plan. |
+| `POST /payment/checkout/quote` | Prices a cart without creating anything. |
+| `GET /payment/orders/[orderId]` | The buyer's own order, re-synced with the provider first. |
+| `PUT /shop/cart` | Hold stock for one cart line (upsert a `cart_reservations` row). |
+| `DELETE /shop/cart` | Release one product's hold (`?productId=`) or the whole cart. |
+
+Checkout rebuilds every amount from stored rows and rejects a request whose
+`total` disagrees, which leaves a client with no server of its own unable to
+show a trustworthy price. `POST /payment/checkout/quote` runs that identical
+pipeline and returns what it produced — same prices, same member discount, same
+stock and purchase-limit checks (409) — so the app displays by construction the
+amount it will be charged. `GET /payment/orders/[orderId]` exists for the same
+reason: an app buyer often returns by switching apps rather than following the
+provider's redirect, so the app asks for the order instead of waiting for
+`/api/checkout/return` in `apps/web` to have run. Both reconcile and settle
+idempotently.
 
 ### Admin (JWT + tier check)
 

@@ -55,6 +55,56 @@ This handler:
 
 The `/api/checkout/webhook` route is **deprecated** and returns `410 Gone`. The return URL is the only post-payment hook the site uses today.
 
+## Checkout from the native app
+
+The BISO app sells the same products through the same pipeline. What differs is
+that the app has no server of its own, so three things it cannot work out
+locally are asked of `apps/api` instead:
+
+| Question | Endpoint |
+|---|---|
+| Which payment providers may I offer? | `GET /api/payment/providers` |
+| What will this cart actually cost? | `POST /api/payment/checkout/quote` |
+| Did that payment go through? | `GET /api/payment/orders/{orderId}` |
+
+Cart stock holds go through `PUT` / `DELETE /api/shop/cart`, which writes the
+same `cart_reservations` rows the website writes — so a cart started in the app
+shows up on biso.no and vice versa.
+
+Because there are now two writers, the row id for a hold is derived from
+`(user, product)` rather than being random (`cartReservationRowId` in
+`@repo/shared`). `user_product_idx` is not a unique index, so without this both
+writers could look first, find nothing, and each create a row — leaving the
+buyer holding twice what they asked for and inflating the "own hold" that gets
+credited back when their ceiling is computed. With a derived id the table's
+primary key settles the race: the loser is told the row exists and updates it.
+The `PUT` handler also collapses any duplicate rows a pre-existing race left
+behind, before it computes the ceiling.
+
+Because the app posts to that pipeline directly rather than going through the
+website's `createCartCheckoutSession`, the buyer's answers to a product's
+checkout questions are reconciled against the product's own `custom_fields`
+definitions inside the pipeline (`resolveCustomFieldAnswers` in `@repo/shared`,
+used by both surfaces). A required question left blank is a `400`; a key the
+product does not declare is dropped, and every stored label comes from the
+definition rather than the request — so a stale or crafted client cannot
+complete a payment with fulfilment data missing, invented, or relabelled.
+
+Checkout itself is the same `POST /api/payment/{provider}/checkout` call the
+website makes, with one extra field: `client: "app"`. That marks the provider's
+return URL with `&client=app`, and `/api/checkout/return` — after it has
+reconciled the payment and posted the invoice, exactly as it does for the
+website — redirects to `biso://shop/order?orderId=…&status=…` instead of the
+web receipt page. The surface travels as an enum, never as a URL supplied by
+the caller, so this cannot become an open redirect.
+
+The deep link is the fast path, not the guarantee. A buyer may come back by
+switching apps rather than following the redirect, and a browser may decline to
+hand a custom scheme back to the app at all, so the app also verifies the order
+itself when it next comes to the foreground. Revenue settlement never depends on
+the app: the provider webhook and the reconciliation cron already cover a buyer
+who never returns.
+
 ## Cart reservations
 
 When a user adds an item to their cart, the site inserts a `cart_reservations` row holding that stock. The reservation has a short TTL — **approximately 15 minutes** — so abandoned carts don't permanently lock inventory.

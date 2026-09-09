@@ -9,6 +9,7 @@ import type { ContentTranslations, Orders } from "@repo/api/types/appwrite";
 import type { Locale } from "@repo/i18n/config";
 import { getFeatureFlagStates } from "@repo/shared/utils/feature-flags-server";
 import { ORDER_ITEMS_SELECT } from "@repo/shared/utils/order-queries";
+import { resolveCustomFieldAnswers } from "@repo/shared/utils/product-custom-fields";
 import {
   getAvailableStock,
   getUserReservation,
@@ -354,25 +355,17 @@ function buildCustomFieldPayload(
     return { responses: undefined, details: undefined };
   }
 
-  const missingFields = fields
-    .filter((field) => field.required && !responses[field.id]?.trim())
-    .map((field) => field.label);
+  // Shared with `apps/api`'s checkout, which the native app posts to, so both
+  // surfaces enforce one rulebook rather than two that can drift.
+  const { accepted, details, missing } = resolveCustomFieldAnswers(
+    fields,
+    responses
+  );
 
-  if (missingFields.length > 0) {
+  if (missing.length > 0) {
     throw new Error(
-      `Missing required information for ${product.title || product.slug}: ${missingFields.join(", ")}`
+      `Missing required information for ${product.title || product.slug}: ${missing.join(", ")}`
     );
-  }
-
-  const details: Array<{ id: string; label: string; value: string }> = [];
-  const accepted: Record<string, string> = {};
-  for (const field of fields) {
-    const value = responses[field.id]?.trim();
-    if (!value) {
-      continue;
-    }
-    details.push({ id: field.id, label: field.label, value });
-    accepted[field.id] = value;
   }
 
   return {

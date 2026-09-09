@@ -9,12 +9,7 @@ import {
   reconcileVippsPayment,
   verifyVippsWebhookSignature,
 } from "@repo/payment/vipps";
-import { postFinagoTransactionForOrder } from "@repo/shared/utils/finago-order-posting";
-import {
-  fulfilMembershipOrder,
-  isMembershipOrder,
-} from "@repo/shared/utils/membership-fulfilment";
-import { ORDER_ITEMS_SELECT } from "@repo/shared/utils/order-queries";
+import { settleOrderIfPaid } from "@repo/shared/utils/order-settlement";
 import {
   determineStatusFromStripeSession,
   type StripeSessionLike,
@@ -33,43 +28,6 @@ const STRIPE_SESSION_EVENTS = new Set([
 type StripeWebhookSession = StripeSessionLike & {
   metadata?: Record<string, string> | null;
 };
-
-type CallbackDb = Awaited<ReturnType<typeof createAdminClient>>["db"];
-
-/**
- * Best-effort settlement after a paid/authorized transition. Membership
- * orders are fulfilled as a 24SO invoice (fulfilMembershipOrder); every other
- * order is posted as a shop ledger transaction (postFinagoTransactionForOrder)
- * — never both, or the same revenue would be booked twice. Never fails the
- * webhook response — a missed settlement is recovered by the reconciliation
- * cron, and the atomic claim inside each helper prevents duplicates.
- */
-async function settleFinagoIfPaid(orderId: string, db: CallbackDb) {
-  try {
-    const order = (await db.getRow("app", "orders", orderId, [
-      ORDER_ITEMS_SELECT,
-    ])) as {
-      items_json?: string | null;
-      order_items?: Record<string, unknown>[];
-      status?: string;
-    } | null;
-    if (
-      !(order && (order.status === "paid" || order.status === "authorized"))
-    ) {
-      return;
-    }
-    if (isMembershipOrder(order)) {
-      await fulfilMembershipOrder(orderId, db);
-      return;
-    }
-    await postFinagoTransactionForOrder(orderId, db);
-  } catch (error) {
-    console.error(
-      `[payment/callback] Finago settlement failed for ${orderId}:`,
-      error
-    );
-  }
-}
 
 async function handleVippsCallback(req: NextRequest, origin: string | null) {
   const json = (data: unknown, status = 200) =>
@@ -111,10 +69,10 @@ async function handleVippsCallback(req: NextRequest, origin: string | null) {
   await reconcileVippsPayment(event.reference, db);
 
   // Settle revenue from the webhook too, so mobile buyers who never hit the
-  // browser return route still get a ledger entry or membership invoice. The
-  // atomic claim inside each helper makes this safe alongside the return
-  // route and reconciliation cron.
-  await settleFinagoIfPaid(event.reference, db);
+  // browser return route still get a ledger entry or membership invoice.
+  // `settleOrderIfPaid` is idempotent, so this is safe alongside the return
+  // route, the app's verify call and the reconciliation cron.
+  await settleOrderIfPaid(event.reference, db);
 
   return json({ received: true });
 }
@@ -161,7 +119,7 @@ async function handleStripeCallback(req: NextRequest, origin: string | null) {
         }
       }
       await applyOrderStatusTransition(orderId, status, updateData, db);
-      await settleFinagoIfPaid(orderId, db);
+      await settleOrderIfPaid(orderId, db);
     }
   }
 

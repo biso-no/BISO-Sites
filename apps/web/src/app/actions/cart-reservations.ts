@@ -8,6 +8,10 @@ import type {
   WebshopProducts,
 } from "@repo/api/types/appwrite";
 import {
+  cartReservationRowId,
+  isRowAlreadyExists,
+} from "@repo/shared/utils/cart-reservation-id";
+import {
   computeAvailableStock,
   sumReservedQuantity,
 } from "@repo/shared/utils/stock-availability";
@@ -236,21 +240,42 @@ export async function createOrUpdateReservation(
           : {}),
       });
     } else {
-      // Create new reservation (user_id from session)
+      // Create new reservation (user_id from session). The row id is derived
+      // from (buyer, product) rather than random, so the table's primary key
+      // settles a race between two first writes — this action and the app's
+      // `PUT /api/shop/cart`, or one request retried. Without it both would
+      // look first, find nothing, and mint a row each, leaving the buyer
+      // holding twice what they asked for and inflating the own-hold credit
+      // that `effectiveMax` above adds back.
+      const rowId = cartReservationRowId(userId, productId);
       const { db: adminDb } = await createAdminClient();
-      await adminDb.createRow(
-        "app",
-        "cart_reservations",
-        "unique()",
-        {
-          product_id: productId,
-          user_id: userId,
+      try {
+        await adminDb.createRow(
+          "app",
+          "cart_reservations",
+          rowId,
+          {
+            product_id: productId,
+            user_id: userId,
+            quantity: effectiveQuantity,
+            expires_at: expiresAt,
+            field_answers: buildAnswerRows(answers, permissions),
+          },
+          permissions
+        );
+      } catch (error) {
+        if (!isRowAlreadyExists(error)) {
+          throw error;
+        }
+        // The other writer won; update its row rather than adding a second.
+        await db.updateRow("app", "cart_reservations", rowId, {
           quantity: effectiveQuantity,
           expires_at: expiresAt,
-          field_answers: buildAnswerRows(answers, permissions),
-        },
-        permissions
-      );
+          ...(answers
+            ? { field_answers: buildAnswerRows(answers, permissions) }
+            : {}),
+        });
+      }
     }
 
     return { success: true, quantity: effectiveQuantity };

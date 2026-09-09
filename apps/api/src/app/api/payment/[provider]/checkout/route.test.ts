@@ -64,10 +64,12 @@ const productRow = {
 
 function checkoutRequest({
   authorization,
+  client,
   total = 199,
   userId = "attacker-user",
 }: {
   authorization?: string;
+  client?: string;
   total?: number;
   userId?: string;
 } = {}): NextRequest {
@@ -78,6 +80,7 @@ function checkoutRequest({
 
   return new Request("https://api.biso.no/api/payment/vipps/checkout", {
     body: JSON.stringify({
+      client,
       currency: "NOK",
       customerInfo: {
         email: "buyer@example.com",
@@ -343,11 +346,24 @@ describe("payment checkout authorization", () => {
     );
   });
 
-  it("preserves variant and custom-field data on the trusted order items", async () => {
+  /** A product that asks one question — optional unless overridden. */
+  function mockProductAskingQuestions(
+    fields: Record<string, unknown>[] = [
+      {
+        $id: "f-engraving",
+        enabled: true,
+        field_key: "engraving",
+        is_required: false,
+        label: "Engraving text",
+        type: "text",
+      },
+    ]
+  ) {
     mockedCreateAdminClient.mockResolvedValue({
       db: {
         getRow: vi.fn().mockResolvedValue({
           ...productRow,
+          custom_fields: fields,
           variations: [
             {
               $id: "v-large",
@@ -359,6 +375,89 @@ describe("payment checkout authorization", () => {
         }),
       },
     } as unknown as Awaited<ReturnType<typeof createAdminClient>>);
+  }
+
+  function engravingRequest(
+    customFields: Record<string, string>,
+    customFieldLabels?: Record<string, string>
+  ): NextRequest {
+    return new Request("https://api.biso.no/api/payment/vipps/checkout", {
+      body: JSON.stringify({
+        currency: "NOK",
+        customerInfo: { email: "buyer@example.com" },
+        items: [
+          {
+            customFieldLabels,
+            customFields,
+            productId: "product-1",
+            quantity: 1,
+            slug: "trusted-product",
+            variationId: "v-large",
+          },
+        ],
+        reference: "checkout-ref",
+        subtotal: 249,
+        total: 249,
+        userId: "attacker-user",
+      }),
+      headers: new Headers({
+        authorization: "Bearer valid",
+        "content-type": "application/json",
+      }),
+      method: "POST",
+    }) as unknown as NextRequest;
+  }
+
+  it("drops an answer to a question the product never asked", async () => {
+    mockProductAskingQuestions();
+
+    const response = await postVipps(
+      engravingRequest(
+        { engraving: "Ada", smuggled: "not a real field" },
+        { engraving: "Relabelled by the client", smuggled: "Invented" }
+      )
+    );
+
+    expect(response.status).toBe(200);
+    expect(mockedCreateOrder).toHaveBeenCalledWith(
+      expect.objectContaining({
+        items: [
+          expect.objectContaining({
+            // Only the declared field survives, and its label comes from the
+            // product rather than from the request.
+            customFieldLabels: { engraving: "Engraving text" },
+            customFields: { engraving: "Ada" },
+          }),
+        ],
+      }),
+      expect.anything()
+    );
+  });
+
+  it("refuses a checkout that skips a required question", async () => {
+    mockProductAskingQuestions([
+      {
+        $id: "f-size",
+        enabled: true,
+        field_key: "size",
+        is_required: true,
+        label: "Shirt size",
+        type: "select",
+      },
+    ]);
+
+    const response = await postVipps(engravingRequest({}));
+
+    // Nothing is contended — the request is simply incomplete.
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({
+      message: expect.stringContaining("Shirt size"),
+    });
+    expect(mockedCreateOrder).not.toHaveBeenCalled();
+  });
+
+  it("preserves variant and custom-field data on the trusted order items", async () => {
+    mockProductAskingQuestions();
 
     const request = new Request(
       "https://api.biso.no/api/payment/vipps/checkout",
@@ -582,6 +681,87 @@ describe("payment checkout authorization", () => {
           total: 199,
         }),
         expect.anything()
+      );
+    });
+  });
+
+  describe("post-payment return target", () => {
+    async function postStripe(request: NextRequest) {
+      return await POST(request, {
+        params: Promise.resolve({ provider: "stripe" }),
+      });
+    }
+
+    it("returns web buyers to the website receipt flow", async () => {
+      await postVipps(checkoutRequest({ authorization: "Bearer valid" }));
+
+      expect(mockedCreateVippsPayment).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.anything(),
+        { returnUrl: "https://biso.no/api/checkout/return?orderId=order-1" }
+      );
+    });
+
+    it("marks an app checkout so the return route deep-links back", async () => {
+      await postVipps(
+        checkoutRequest({ authorization: "Bearer valid", client: "app" })
+      );
+
+      expect(mockedCreateVippsPayment).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.anything(),
+        {
+          returnUrl:
+            "https://biso.no/api/checkout/return?orderId=order-1&client=app",
+        }
+      );
+    });
+
+    it("ignores an unknown client rather than trusting it", async () => {
+      await postVipps(
+        checkoutRequest({
+          authorization: "Bearer valid",
+          client: "https://evil.example",
+        })
+      );
+
+      expect(mockedCreateVippsPayment).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.anything(),
+        { returnUrl: "https://biso.no/api/checkout/return?orderId=order-1" }
+      );
+    });
+
+    it("marks a cancelled app checkout apart from a successful one", async () => {
+      await postStripe(
+        checkoutRequest({ authorization: "Bearer valid", client: "app" })
+      );
+
+      // A cancelled Stripe session stays open and unpaid, so it reconciles to
+      // `pending`. Without the marker the app would be told to keep waiting
+      // for a payment the buyer just abandoned.
+      expect(mockedCreateStripeCheckoutSession).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.anything(),
+        {
+          cancelUrl:
+            "https://biso.no/api/checkout/return?orderId=order-1&client=app&cancelled=1",
+          successUrl:
+            "https://biso.no/api/checkout/return?orderId=order-1&client=app",
+        }
+      );
+    });
+
+    it("keeps sending a cancelled web checkout back to the cart", async () => {
+      await postStripe(checkoutRequest({ authorization: "Bearer valid" }));
+
+      expect(mockedCreateStripeCheckoutSession).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.anything(),
+        {
+          cancelUrl: "https://biso.no/shop/cart?cancelled=true",
+          successUrl: "https://biso.no/api/checkout/return?orderId=order-1",
+        }
       );
     });
   });
