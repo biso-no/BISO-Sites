@@ -30,11 +30,18 @@ describe("filterNavTree", () => {
     ]);
   });
 
-  test("campus admin: system group flattens to its single visible child (activity)", () => {
+  test("campus admin: system group keeps IT alongside activity", () => {
     const nodes = filterNavTree(campusAdmin);
     const last = nodes.at(-1);
-    expect(last?.kind).toBe("leaf");
-    expect(last?.labelKey).toBe("activity");
+    // IT user administration is open to campus admins (read-only, scoped to
+    // their own campus), so the system group no longer flattens to a lone
+    // "activity" leaf.
+    expect(last?.kind).toBe("group");
+    expect(last?.labelKey).toBe("system");
+    if (last?.kind !== "group") {
+      throw new Error("expected system group");
+    }
+    expect(last.children.map((c) => c.labelKey)).toEqual(["it", "activity"]);
     // analytics is globaladmin-only and must be gone
     expect(labels(nodes)).not.toContain("analytics");
   });

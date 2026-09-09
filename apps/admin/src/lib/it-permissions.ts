@@ -1,60 +1,26 @@
 import type { M365Permission } from "@repo/shared/types/user-management";
 import { notFound, redirect } from "next/navigation";
 import { getUserAuthContext, type UserAuthContext } from "@/lib/authorization";
+import {
+  getItCampusScope,
+  getItPermissions,
+  type ItCampusScope,
+  noItPermissions,
+} from "@/lib/it-permission-rules";
 
-export type ItPermissionMap = Record<M365Permission, boolean>;
+// The rules themselves live in lib/it-permission-rules.ts; this module binds
+// them to the request's auth context.
+export {
+  getItCampusScope,
+  getItPermissions,
+  IT_PERMISSIONS,
+  type ItCampusScope,
+  type ItPermissionMap,
+} from "@/lib/it-permission-rules";
 
-export const IT_PERMISSIONS: M365Permission[] = [
-  "it.users.view",
-  "it.users.create",
-  "it.users.editProfile",
-  "it.users.disable",
-  "it.users.manageAliases",
-  "it.users.transferAlias",
-  "it.users.manageManagers",
-  "it.users.manageGroups",
-  "it.users.manageLicenses",
-  "it.users.resetMfa",
-  "it.users.revokeSessions",
-  "it.users.viewSecurity",
-  "it.users.resetPassword",
-  "it.users.turnover",
-];
-
-function isGlobalAdmin(ctx: UserAuthContext): boolean {
-  return ctx.roles.includes("globaladmin");
-}
-
-export function getItPermissions(ctx: UserAuthContext): ItPermissionMap {
-  const canUseIt = isGlobalAdmin(ctx);
-
-  return {
-    "it.users.view": canUseIt,
-    "it.users.create": canUseIt,
-    "it.users.editProfile": canUseIt,
-    "it.users.disable": canUseIt,
-    "it.users.manageAliases": canUseIt,
-    "it.users.transferAlias": canUseIt,
-    "it.users.manageManagers": canUseIt,
-    "it.users.manageGroups": canUseIt,
-    "it.users.manageLicenses": canUseIt,
-    "it.users.resetMfa": canUseIt,
-    "it.users.revokeSessions": canUseIt,
-    "it.users.viewSecurity": canUseIt,
-    "it.users.resetPassword": canUseIt,
-    "it.users.turnover": canUseIt,
-  };
-}
-
-export async function getCurrentItPermissions(): Promise<ItPermissionMap> {
+export async function getCurrentItPermissions() {
   const ctx = await getUserAuthContext();
-  if (!ctx) {
-    return Object.fromEntries(
-      IT_PERMISSIONS.map((permission) => [permission, false])
-    ) as ItPermissionMap;
-  }
-
-  return getItPermissions(ctx);
+  return ctx ? getItPermissions(ctx) : noItPermissions();
 }
 
 export async function requireItPermission(
@@ -71,6 +37,18 @@ export async function requireItPermission(
   }
 
   return ctx;
+}
+
+/**
+ * Server-action guard for anything that touches a specific M365 user: returns
+ * the campus scope alongside the context so callers can pass it into
+ * `getAllowedTenantUser` and refuse users outside the caller's campuses.
+ */
+export async function requireItScopedPermission(
+  permission: M365Permission
+): Promise<{ campusScope: ItCampusScope; ctx: UserAuthContext }> {
+  const ctx = await requireItPermission(permission);
+  return { campusScope: getItCampusScope(ctx), ctx };
 }
 
 export async function requireItPagePermission(

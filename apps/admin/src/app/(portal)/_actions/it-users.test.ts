@@ -47,6 +47,7 @@ mock.module("@/lib/it/graph", () => ({
 
 mock.module("@/lib/it-permissions", () => ({
   requireItPermission: mock(async () => ctx),
+  requireItScopedPermission: mock(async () => ({ campusScope: null, ctx })),
 }));
 
 mock.module("@/lib/it/tenant-guard", () => ({

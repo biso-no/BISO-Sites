@@ -6,7 +6,7 @@ import { ItUsersTabs } from "../users/_components/it-users-tabs";
 import { ExpenseApprovalIssuesClient } from "./_components/expense-approval-issues-client";
 
 export default async function ExpenseApprovalIssuesPage() {
-  await requireItPagePermission("it.users.view");
+  await requireItPagePermission("it.tenant.audit");
   const t = await getTranslations("adminPortal.it");
   const result = await listExpenseApprovalIssues();
 
@@ -23,6 +23,7 @@ export default async function ExpenseApprovalIssuesPage() {
           expenseApprovals: t("users.tabs.expenseApprovals"),
           users: t("users.tabs.users"),
         }}
+        showTenantTools
       />
 
       {result.data ? (
