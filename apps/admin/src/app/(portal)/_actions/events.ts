@@ -10,10 +10,8 @@ import {
   EventsCollectionPricing,
   type EventsStatus,
 } from "@repo/api/types/appwrite";
-
-const EVENTS_PUSH_TOPIC_ID = "events";
-
 import type { Announcements } from "@repo/api/types/appwrite";
+import { topicIdFor } from "@repo/shared/utils/notification-topics";
 import { generateObject } from "ai";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -125,7 +123,10 @@ async function sendEventAnnouncement(input: {
         status: "sent",
         category: "event",
         audience_type: "topic",
-        audience_value: EVENTS_PUSH_TOPIC_ID,
+        // Campus-scoped: a published event notifies students at its own campus,
+        // and `topicIdFor` resolves a null campus to the national topic, which
+        // every subscriber holds.
+        audience_value: topicIdFor("events", input.campusId),
         title_en: input.titleEn,
         title_no: input.titleNo,
         body_en: input.bodyEn,

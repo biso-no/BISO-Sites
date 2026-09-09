@@ -9,6 +9,7 @@ import {
   type SegmentMembers,
   type UserNotifications,
 } from "@repo/api/types/appwrite";
+import { GENERAL_TOPIC_ID } from "@repo/shared/utils/notification-topics";
 
 /** Appwrite list pagination ceiling for a single `Query.limit` call. */
 const SEGMENT_MEMBER_PAGE_SIZE = 200;
@@ -26,8 +27,14 @@ export interface DispatchClients {
   users: AdminClients["users"];
 }
 
-/** Default app-wide topic used for broadcasts with no explicit topic. */
-const DEFAULT_BROADCAST_TOPIC = "events";
+/**
+ * The topic a broadcast targets.
+ *
+ * Every device subscribes to `general` unconditionally, so this genuinely means
+ * everyone. It used to be "events", which quietly limited every broadcast to
+ * students who had opted into event notifications.
+ */
+const DEFAULT_BROADCAST_TOPIC = GENERAL_TOPIC_ID;
 
 /**
  * The string→string push `data` map contract shared with the Flutter app.
