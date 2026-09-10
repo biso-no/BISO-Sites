@@ -25,10 +25,25 @@ export interface RateLimitDecision {
 }
 
 export interface RateLimiter {
-  /** Whether `key` may act now, without recording an attempt. */
+  /**
+   * A non-binding peek, for rejecting an already-exhausted key cheaply. It
+   * reserves nothing, so it must NOT be the only gate before a limited
+   * operation — see `reserve`.
+   */
   check(key: string): RateLimitDecision;
-  /** Records one attempt against `key`. */
-  consume(key: string): void;
+  /**
+   * The enforcement point: tests the limit and claims a slot in one
+   * synchronous step.
+   *
+   * Being synchronous is what makes it safe. JavaScript will not interleave
+   * another request into this function, so concurrent callers are serialised
+   * and exactly `limit` of them can win. A split check-then-increment with an
+   * `await` in the middle has the opposite property: every request in a
+   * parallel batch passes the check before any of them increments, which lets
+   * a caller past the cap simply by firing at once. Call this immediately
+   * before the operation being limited, with nothing awaited in between.
+   */
+  reserve(key: string): RateLimitDecision;
 }
 
 interface CountingWindow {
@@ -77,13 +92,21 @@ export function createRateLimiter(options: {
       };
     },
 
-    consume(key) {
+    reserve(key) {
       const now = Date.now();
       const window = liveWindow(key, now);
 
       if (window) {
+        if (window.count >= options.limit) {
+          return {
+            allowed: false,
+            retryAfterSeconds: Math.ceil(
+              (window.resetAt - now) / MS_PER_SECOND
+            ),
+          };
+        }
         window.count += 1;
-        return;
+        return { allowed: true, retryAfterSeconds: 0 };
       }
 
       if (windows.size >= MAX_TRACKED_KEYS) {
@@ -92,10 +115,11 @@ export function createRateLimiter(options: {
       if (windows.size >= MAX_TRACKED_KEYS) {
         // Still full of live windows: stop tracking new keys rather than
         // growing without bound. Fails open, per the note above.
-        return;
+        return { allowed: true, retryAfterSeconds: 0 };
       }
 
       windows.set(key, { count: 1, resetAt: now + options.windowMs });
+      return { allowed: true, retryAfterSeconds: 0 };
     },
   };
 }

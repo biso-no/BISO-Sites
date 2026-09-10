@@ -15,14 +15,14 @@ describe("createRateLimiter", () => {
     const limiter = createRateLimiter({ limit: 3, windowMs: 60_000 });
 
     for (let i = 0; i < 3; i++) {
-      expect(limiter.check("a").allowed).toBe(true);
-      limiter.consume("a");
+      expect(limiter.reserve("a").allowed).toBe(true);
     }
 
+    expect(limiter.reserve("a").allowed).toBe(false);
     expect(limiter.check("a").allowed).toBe(false);
   });
 
-  it("does not consume an attempt when only checking", () => {
+  it("does not claim a slot when only checking", () => {
     const limiter = createRateLimiter({ limit: 1, windowMs: 60_000 });
 
     // A caller that checks and then bails (a validation error) must not have
@@ -30,14 +30,38 @@ describe("createRateLimiter", () => {
     expect(limiter.check("a").allowed).toBe(true);
     expect(limiter.check("a").allowed).toBe(true);
 
-    limiter.consume("a");
+    limiter.reserve("a");
     expect(limiter.check("a").allowed).toBe(false);
+  });
+
+  it("hands a slot to only one of a batch of simultaneous reservations", () => {
+    const limiter = createRateLimiter({ limit: 1, windowMs: 60_000 });
+
+    // `reserve` tests and claims in one synchronous step. A split
+    // check-then-increment would let every caller here through, which is how a
+    // parallel batch walks past the cap.
+    const granted = [
+      limiter.reserve("a"),
+      limiter.reserve("a"),
+      limiter.reserve("a"),
+    ].filter((decision) => decision.allowed);
+
+    expect(granted).toHaveLength(1);
+  });
+
+  it("reports the wait on a refused reservation, not just on check", () => {
+    const limiter = createRateLimiter({ limit: 1, windowMs: 60_000 });
+    limiter.reserve("a");
+
+    vi.advanceTimersByTime(15_000);
+
+    expect(limiter.reserve("a").retryAfterSeconds).toBe(45);
   });
 
   it("keeps separate counters per key", () => {
     const limiter = createRateLimiter({ limit: 1, windowMs: 60_000 });
 
-    limiter.consume("a");
+    limiter.reserve("a");
 
     expect(limiter.check("a").allowed).toBe(false);
     expect(limiter.check("b").allowed).toBe(true);
@@ -45,7 +69,7 @@ describe("createRateLimiter", () => {
 
   it("reopens once the window has elapsed", () => {
     const limiter = createRateLimiter({ limit: 1, windowMs: 60_000 });
-    limiter.consume("a");
+    limiter.reserve("a");
     expect(limiter.check("a").allowed).toBe(false);
 
     vi.advanceTimersByTime(59_999);
@@ -57,7 +81,7 @@ describe("createRateLimiter", () => {
 
   it("reports how long the caller must wait", () => {
     const limiter = createRateLimiter({ limit: 1, windowMs: 60_000 });
-    limiter.consume("a");
+    limiter.reserve("a");
 
     vi.advanceTimersByTime(20_000);
 
@@ -66,13 +90,13 @@ describe("createRateLimiter", () => {
 
   it("starts a fresh window rather than extending the old one", () => {
     const limiter = createRateLimiter({ limit: 2, windowMs: 60_000 });
-    limiter.consume("a");
+    limiter.reserve("a");
 
     vi.advanceTimersByTime(60_000);
 
     // The expired window is replaced, so the earlier attempt does not count
     // against the new one.
-    limiter.consume("a");
+    limiter.reserve("a");
     expect(limiter.check("a").allowed).toBe(true);
   });
 });

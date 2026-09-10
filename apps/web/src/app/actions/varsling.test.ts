@@ -226,4 +226,26 @@ describe("submitVarslingCase", () => {
 
     expect(accepted.success).toBe(true);
   });
+
+  it("holds the cap against a batch fired all at once", async () => {
+    mockSettingLookup(ACTIVE_SETTING);
+
+    // The bypass this guards: every request clears the early check while the
+    // others are still awaiting Appwrite, so a split check-then-increment lets
+    // the whole batch send. Only an atomic reservation holds the line.
+    const results = await Promise.all(
+      Array.from({ length: 20 }, (_, i) =>
+        submitVarslingCase({
+          case_description: `Samtidig sak ${i}`,
+          setting_id: "setting-1",
+          submission_type: "other",
+        })
+      )
+    );
+
+    const delivered = results.filter((result) => result.success);
+
+    expect(delivered).toHaveLength(SUBMISSIONS_PER_WINDOW);
+    expect(sendEmail).toHaveBeenCalledTimes(SUBMISSIONS_PER_WINDOW);
+  });
 });

@@ -38,6 +38,9 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const SUBMISSIONS_PER_WINDOW = 5;
 const SUBMISSION_WINDOW_MS = 10 * 60 * 1000;
 
+const RATE_LIMITED_ERROR =
+  "Too many reports have been submitted from this network. Please wait a few minutes and try again, or contact one of the people listed on this page directly.";
+
 const submissionLimiter = createRateLimiter({
   limit: SUBMISSIONS_PER_WINDOW,
   windowMs: SUBMISSION_WINDOW_MS,
@@ -187,16 +190,12 @@ export async function submitVarslingCase(
     return { success: false, error: "Invalid contact email address." };
   }
 
-  // Checked before any Appwrite work so a flood costs almost nothing, but only
-  // consumed once a send is actually attempted — a reporter who trips a
-  // validation error must not burn their own allowance retrying.
+  // A cheap early rejection so a sustained flood from an exhausted key never
+  // reaches Appwrite. It reserves nothing — the binding gate is the `reserve`
+  // immediately before the send.
   const clientKey = await resolveClientKey();
   if (clientKey && !submissionLimiter.check(clientKey).allowed) {
-    return {
-      success: false,
-      error:
-        "Too many reports have been submitted from this network. Please wait a few minutes and try again, or contact one of the people listed on this page directly.",
-    };
+    return { success: false, error: RATE_LIMITED_ERROR };
   }
 
   try {
@@ -228,8 +227,13 @@ export async function submitVarslingCase(
       submitterEmail,
     };
 
-    if (clientKey) {
-      submissionLimiter.consume(clientKey);
+    // The binding gate, deliberately here: `reserve` is synchronous and there
+    // is nothing awaited between it and the send, so a batch of concurrent
+    // requests from one source is serialised through it and only `limit` of
+    // them get through. Checking earlier and incrementing here instead would
+    // let every request in that batch pass the check before any incremented.
+    if (clientKey && !submissionLimiter.reserve(clientKey).allowed) {
+      return { success: false, error: RATE_LIMITED_ERROR };
     }
 
     // SMTP, not Appwrite Messaging: `messaging.createEmail()` addresses
