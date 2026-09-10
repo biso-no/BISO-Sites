@@ -3,7 +3,7 @@
 import { Query } from "@repo/api";
 import { createAdminClient, createSessionClient } from "@repo/api/server";
 import type { Campus, VarslingSettings } from "@repo/api/types/appwrite";
-import { sendEmail } from "@repo/connectors/email";
+import { isSmtpConfigured, sendEmail } from "@repo/connectors/email";
 import { headers } from "next/headers";
 import {
   clampString,
@@ -37,6 +37,12 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 // burst of genuine reports while still capping a bot at 30/hour per address.
 const SUBMISSIONS_PER_WINDOW = 5;
 const SUBMISSION_WINDOW_MS = 10 * 60 * 1000;
+
+// Never "please try again": a reporter who reads that may believe the case is
+// filed, or burn their nerve retrying something that cannot work. Say plainly
+// that it did not arrive, and give them the route that does.
+const DELIVERY_FAILED_ERROR =
+  "Your report could NOT be delivered. Please contact one of the people listed on this page directly, so your case reaches someone.";
 
 const RATE_LIMITED_ERROR =
   "Too many reports have been submitted from this network. Please wait a few minutes and try again, or contact one of the people listed on this page directly.";
@@ -190,6 +196,17 @@ export async function submitVarslingCase(
     return { success: false, error: "Invalid contact email address." };
   }
 
+  // Checked before anything else: with no relay configured every submission is
+  // going to fail, and a reporter should learn that immediately rather than
+  // after a lookup — and without spending a rate-limit slot on it. Logged at
+  // error level because a deployment in this state silently accepts nothing.
+  if (!isSmtpConfigured()) {
+    console.error(
+      "[varsling] SMTP is not configured — set SMTP_HOST and SMTP_FROM. No report can be delivered until then."
+    );
+    return { success: false, error: DELIVERY_FAILED_ERROR };
+  }
+
   // A cheap early rejection so a sustained flood from an exhausted key never
   // reaches Appwrite. It reserves nothing — the binding gate is the `reserve`
   // immediately before the send.
@@ -252,10 +269,10 @@ export async function submitVarslingCase(
 
     return { success: true };
   } catch (error) {
-    console.error("Failed to submit varsling case:", error);
-    return {
-      success: false,
-      error: "Failed to submit varsling case. Please try again.",
-    };
+    // The message carries the reason — a relay refusal, a TLS failure, an
+    // Appwrite timeout — and is the only record of a report that did not make
+    // it. Keep it whole.
+    console.error("[varsling] Failed to deliver a report:", error);
+    return { success: false, error: DELIVERY_FAILED_ERROR };
   }
 }

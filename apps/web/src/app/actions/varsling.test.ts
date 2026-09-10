@@ -11,7 +11,9 @@ vi.mock("@repo/api/server", () => ({
   createSessionClient: vi.fn(async () => ({ db: { listRows: vi.fn() } })),
 }));
 
-vi.mock("@repo/connectors/email", () => ({ sendEmail }));
+const isSmtpConfigured = vi.hoisted(() => vi.fn(() => true));
+
+vi.mock("@repo/connectors/email", () => ({ isSmtpConfigured, sendEmail }));
 
 const clientIp = vi.hoisted(() => ({ value: "203.0.113.1" }));
 
@@ -28,6 +30,10 @@ vi.mock("next/headers", () => ({
 import { submitVarslingCase } from "./varsling";
 
 const SUBMISSIONS_PER_WINDOW = 5;
+
+const TRY_AGAIN = /try again/i;
+const NOT_DELIVERED = /could NOT be delivered/;
+const CONTACT_DIRECTLY = /directly/;
 
 /**
  * The rate limiter is module-level state shared by every test in this file, so
@@ -59,6 +65,7 @@ function mockSettingLookup(setting: Record<string, unknown>) {
 describe("submitVarslingCase", () => {
   beforeEach(() => {
     useFreshClient();
+    isSmtpConfigured.mockReturnValue(true);
     adminDb.getRow.mockReset();
     sendEmail.mockReset();
     sendEmail.mockResolvedValue({
@@ -251,5 +258,51 @@ describe("submitVarslingCase", () => {
 
     expect(delivered).toHaveLength(SUBMISSIONS_PER_WINDOW);
     expect(sendEmail).toHaveBeenCalledTimes(SUBMISSIONS_PER_WINDOW);
+  });
+
+  it("tells the reporter their report did not arrive when SMTP is unset", async () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    isSmtpConfigured.mockReturnValue(false);
+    mockSettingLookup(ACTIVE_SETTING);
+
+    const result = await submitVarslingCase({
+      case_description: "Sak",
+      setting_id: "setting-1",
+      submission_type: "other",
+    });
+
+    expect(result.success).toBe(false);
+    // Never "try again" — that reads as "it might have worked".
+    expect(result.error).not.toMatch(TRY_AGAIN);
+    expect(result.error).toMatch(NOT_DELIVERED);
+    expect(result.error).toMatch(CONTACT_DIRECTLY);
+    // No Appwrite work and no rate-limit slot spent on a doomed submission.
+    expect(adminDb.getRow).not.toHaveBeenCalled();
+    expect(sendEmail).not.toHaveBeenCalled();
+    consoleError.mockRestore();
+  });
+
+  it("points a reporter at a human when the relay refuses the message", async () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    mockSettingLookup(ACTIVE_SETTING);
+    sendEmail.mockRejectedValue(new Error("ETLS: STARTTLS not available"));
+
+    const result = await submitVarslingCase({
+      case_description: "Sak",
+      setting_id: "setting-1",
+      submission_type: "other",
+    });
+
+    expect(result.error).toMatch(NOT_DELIVERED);
+    // The reason survives into the logs — it is the only record of the report.
+    expect(consoleError).toHaveBeenCalledWith(
+      "[varsling] Failed to deliver a report:",
+      expect.any(Error)
+    );
+    consoleError.mockRestore();
   });
 });
