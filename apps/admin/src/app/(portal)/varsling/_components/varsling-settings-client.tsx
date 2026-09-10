@@ -1,7 +1,15 @@
 "use client";
 
 import type { VarslingSettings } from "@repo/api/types/appwrite";
-import { Eye, EyeOff, Pencil, Plus, ShieldAlert, Trash2 } from "lucide-react";
+import {
+  Eye,
+  EyeOff,
+  Pencil,
+  Plus,
+  Send,
+  ShieldAlert,
+  Trash2,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
@@ -10,6 +18,7 @@ import type { PageSize } from "@/lib/list-params";
 import {
   createVarslingSetting,
   deleteVarslingSetting,
+  sendVarslingTestEmail,
   setVarslingSettingActive,
   updateVarslingSetting,
   type VarslingSettingFormValues,
@@ -75,6 +84,10 @@ export function VarslingSettingsClient({
   const [isCreating, setIsCreating] = useState(false);
   const [form, setForm] = useState<VarslingSettingFormValues>(EMPTY_FORM);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  // Which row is mid-send. `isPending` is shared by every row action, so it
+  // cannot say *which* button to spin — and a test button left live through
+  // the transition mails the recipient again on each extra click.
+  const [testingId, setTestingId] = useState<string | null>(null);
 
   const campusName = (id: string) =>
     campuses.find((campus) => campus.id === id)?.name ?? id;
@@ -128,6 +141,26 @@ export function VarslingSettingsClient({
         nextActive ? t("messages.activated") : t("messages.deactivated")
       );
       router.refresh();
+    });
+  }
+
+  function handleSendTest(setting: VarslingSettings) {
+    if (testingId) {
+      return;
+    }
+    setTestingId(setting.$id);
+    startTransition(async () => {
+      try {
+        const result = await sendVarslingTestEmail(setting.$id);
+        if ("error" in result) {
+          toast.error(result.error || t("messages.testEmailError"));
+          return;
+        }
+        toast.success(t("messages.testEmailSent", { email: result.data }));
+      } finally {
+        // Always clears, so a failed send leaves the button usable for a retry.
+        setTestingId(null);
+      }
     });
   }
 
@@ -371,6 +404,17 @@ export function VarslingSettingsClient({
                           {setting.is_active
                             ? t("actions.deactivate")
                             : t("actions.activate")}
+                        </PortalButton>
+                        <PortalButton
+                          disabled={testingId !== null}
+                          loading={testingId === setting.$id}
+                          onClick={() => handleSendTest(setting)}
+                          size="sm"
+                          title={t("actions.sendTestHint")}
+                          variant="ghost"
+                        >
+                          <Send size={14} />
+                          {t("actions.sendTest")}
                         </PortalButton>
                         <PortalButton
                           onClick={() => openEdit(setting)}

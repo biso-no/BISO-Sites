@@ -195,14 +195,18 @@
       "deleteError": "Kunne ikke slette innstillingen",
       "deleteUnexpected": "Det oppsto en feil under sletting",
       "activated": "Kontakten er aktivert",
-      "deactivated": "Kontakten er deaktivert"
+      "deactivated": "Kontakten er deaktivert",
+      "testEmailSent": "Testmelding sendt til {email}",
+      "testEmailError": "Kunne ikke sende testmelding"
     },
     "actions": {
       "edit": "Rediger",
       "delete": "Slett",
       "activate": "Aktiver",
       "deactivate": "Deaktiver",
-      "confirmDelete": "Bekreft sletting"
+      "confirmDelete": "Bekreft sletting",
+      "sendTest": "Send test",
+      "sendTestHint": "Send en testmelding til denne adressen for å bekrefte at varsler kommer frem"
     }
   }
 }
