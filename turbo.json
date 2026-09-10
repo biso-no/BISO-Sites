@@ -48,6 +48,7 @@
         "SHAREPOINT_CLIENT_SECRET",
         "SHAREPOINT_SITES",
         "SHAREPOINT_TENANT_ID",
+        "SMTP_ALLOW_INSECURE",
         "SMTP_FROM",
         "SMTP_HOST",
         "SMTP_PASSWORD",

@@ -15,6 +15,8 @@
  *   SMTP_USER      (optional)   omit for relays that authenticate by IP
  *   SMTP_PASSWORD  (optional)
  *   SMTP_FROM      (required)   e.g. "BISO <noreply@biso.no>"
+ *   SMTP_ALLOW_INSECURE (optional) set "true" ONLY for a trusted relay that
+ *                  cannot do STARTTLS — see `requireTls` below.
  */
 
 import "server-only";
@@ -33,6 +35,8 @@ export interface SmtpConfig {
   host: string;
   password?: string;
   port: number;
+  /** Whether STARTTLS is mandatory. Only meaningful when `secure` is false. */
+  requireTls: boolean;
   secure: boolean;
   user?: string;
 }
@@ -82,6 +86,12 @@ export function readSmtpConfig(): SmtpConfig | null {
     host,
     password: process.env.SMTP_PASSWORD || undefined,
     port,
+    // On 587/25 nodemailer only upgrades when the server advertises STARTTLS,
+    // and otherwise sends in the clear. For whistleblowing reports — and the
+    // relay password — silently falling back to plaintext is not acceptable,
+    // so demand the upgrade and fail the send when it is unavailable. The
+    // escape hatch exists for a trusted relay that genuinely cannot do TLS.
+    requireTls: process.env.SMTP_ALLOW_INSECURE !== "true",
     secure: parseSecure(process.env.SMTP_SECURE, port),
     user: process.env.SMTP_USER || undefined,
   };
@@ -106,7 +116,7 @@ let cachedTransporter: Transporter | null = null;
 let cachedKey: string | null = null;
 
 function transporterKey(config: SmtpConfig): string {
-  return `${config.host}:${config.port}:${config.secure}:${config.user ?? ""}`;
+  return `${config.host}:${config.port}:${config.secure}:${config.requireTls}:${config.user ?? ""}`;
 }
 
 /**
@@ -134,6 +144,10 @@ function getTransporter(): Transporter {
     maxMessages: POOL_MAX_MESSAGES,
     pool: true,
     port: config.port,
+    // No-op when `secure` is true (the connection is already TLS from the
+    // first byte); decisive on 587/25, where it turns a silent plaintext
+    // fallback into a hard failure.
+    requireTLS: config.requireTls,
     secure: config.secure,
     socketTimeout: SOCKET_TIMEOUT_MS,
   });

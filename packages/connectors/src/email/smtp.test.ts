@@ -7,6 +7,7 @@ mock.module("server-only", () => ({}));
 const { isSmtpConfigured, readSmtpConfig } = await import("./smtp");
 
 const SMTP_KEYS = [
+  "SMTP_ALLOW_INSECURE",
   "SMTP_FROM",
   "SMTP_HOST",
   "SMTP_PASSWORD",
@@ -83,6 +84,32 @@ describe("readSmtpConfig", () => {
     process.env.SMTP_PORT = "not-a-number";
 
     expect(readSmtpConfig()?.port).toBe(587);
+  });
+
+  test("demands STARTTLS by default on a non-implicit-TLS port", () => {
+    process.env.SMTP_HOST = "smtp.office365.com";
+    process.env.SMTP_FROM = "noreply@biso.no";
+
+    const config = readSmtpConfig();
+
+    // Without this, nodemailer sends in the clear when a relay does not
+    // advertise STARTTLS — leaking the report and the relay password.
+    expect(config?.secure).toBe(false);
+    expect(config?.requireTls).toBe(true);
+  });
+
+  test("only drops the TLS requirement on an explicit opt-out", () => {
+    process.env.SMTP_HOST = "smtp.internal";
+    process.env.SMTP_FROM = "noreply@biso.no";
+
+    process.env.SMTP_ALLOW_INSECURE = "false";
+    expect(readSmtpConfig()?.requireTls).toBe(true);
+
+    process.env.SMTP_ALLOW_INSECURE = "yes";
+    expect(readSmtpConfig()?.requireTls).toBe(true);
+
+    process.env.SMTP_ALLOW_INSECURE = "true";
+    expect(readSmtpConfig()?.requireTls).toBe(false);
   });
 
   test("leaves credentials undefined for an IP-authenticated relay", () => {
