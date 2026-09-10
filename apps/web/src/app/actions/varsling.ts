@@ -229,6 +229,13 @@ export async function submitVarslingCase(
     return { success: false, error: RATE_LIMITED_ERROR };
   }
 
+  // Everything above the send — building the Appwrite client, resolving the
+  // recipient — can throw, and none of it puts a byte on the wire. Without
+  // this the catch cannot tell "the relay went quiet mid-send" from "we never
+  // got as far as the relay", and would soften a certain failure into an
+  // unconfirmed one.
+  let sendAttempted = false;
+
   try {
     const { db } = await createAdminClient();
 
@@ -271,6 +278,7 @@ export async function submitVarslingCase(
     // *targets*, which only exist for Appwrite users. Varsling recipients are
     // staff mailboxes that may never sign in to the project, so the message
     // has to leave over a plain relay.
+    sendAttempted = true;
     await sendEmail({
       html: buildVarslingEmail(emailInput),
       // Only set when the reporter chose to be reachable; an anonymous report
@@ -288,14 +296,17 @@ export async function submitVarslingCase(
     // it. Keep it whole.
     console.error("[varsling] Failed to deliver a report:", error);
 
-    // Only an explicit refusal, or a session that never transmitted, proves
-    // nothing arrived. Anything else — a reset, a timeout — may have been
-    // queued on the far side already, so do not tell the reporter otherwise.
+    // Delivery is in doubt only if a send was actually under way. A failure
+    // before that — no Appwrite client, no recipient row — never reached the
+    // relay, so say so plainly rather than asking the reporter to warn someone
+    // about a duplicate that cannot exist. Past the send, only an explicit
+    // refusal proves anything: a reset or a timeout may have been queued on
+    // the far side already.
+    const certain = !sendAttempted || isCertainNonDelivery(error);
+
     return {
       success: false,
-      error: isCertainNonDelivery(error)
-        ? NOT_DELIVERED_ERROR
-        : DELIVERY_UNCONFIRMED_ERROR,
+      error: certain ? NOT_DELIVERED_ERROR : DELIVERY_UNCONFIRMED_ERROR,
     };
   }
 }

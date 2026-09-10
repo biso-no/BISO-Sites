@@ -6,8 +6,12 @@ const adminDb = vi.hoisted(() => ({
 
 const sendEmail = vi.hoisted(() => vi.fn());
 
+const createAdminClient = vi.hoisted(() =>
+  vi.fn(async () => ({ db: adminDb }))
+);
+
 vi.mock("@repo/api/server", () => ({
-  createAdminClient: vi.fn(async () => ({ db: adminDb })),
+  createAdminClient,
   createSessionClient: vi.fn(async () => ({ db: { listRows: vi.fn() } })),
 }));
 
@@ -79,6 +83,7 @@ function mockSettingLookup(setting: Record<string, unknown>) {
 describe("submitVarslingCase", () => {
   beforeEach(() => {
     useFreshClient();
+    createAdminClient.mockImplementation(async () => ({ db: adminDb }));
     isSmtpConfigured.mockReturnValue(true);
     adminDb.getRow.mockReset();
     sendEmail.mockReset();
@@ -352,6 +357,30 @@ describe("submitVarslingCase", () => {
     expect(result.error).not.toMatch(NOT_DELIVERED);
     // Still routed to a person — an unconfirmed report must not read as fine.
     expect(result.error).toMatch(CONTACT_DIRECTLY);
+    consoleError.mockRestore();
+  });
+
+  it("is certain about non-delivery when it never reached the relay", async () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    // A misconfigured deployment: no APPWRITE_API_KEY, so the client throws
+    // long before SMTP is involved.
+    createAdminClient.mockImplementation(() => {
+      throw new Error("APPWRITE_API_KEY is not configured");
+    });
+
+    const result = await submitVarslingCase({
+      case_description: "Sak",
+      setting_id: "setting-1",
+      submission_type: "other",
+    });
+
+    expect(result.success).toBe(false);
+    expect(sendEmail).not.toHaveBeenCalled();
+    // Nothing was sent, so there is no possible duplicate to warn anyone about.
+    expect(result.error).toMatch(NOT_DELIVERED);
+    expect(result.error).not.toMatch(UNCONFIRMED);
     consoleError.mockRestore();
   });
 });
