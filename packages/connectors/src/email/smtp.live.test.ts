@@ -3,13 +3,14 @@ import { createServer, type Server, type Socket } from "node:net";
 
 mock.module("server-only", () => ({}));
 
-const { sendEmail } = await import("./smtp");
+const { isCertainNonDelivery, sendEmail } = await import("./smtp");
 
 const STARTTLS_ERROR = /STARTTLS/i;
 
 /** Minimal plaintext SMTP server that records the DATA payload it receives. */
 function startFakeSmtp(options: {
   offerStartTls: boolean;
+  refuseRecipients?: boolean;
 }): Promise<{ server: Server; port: number; received: string[] }> {
   const received: string[] = [];
   const server = createServer((socket: Socket) => {
@@ -42,8 +43,14 @@ function startFakeSmtp(options: {
           // complete, and the send would hang to its socket timeout rather
           // than failing — an artefact of the fake, not of the transport.
           socket.write("502 5.5.1 Command not implemented\r\n");
-        } else if (verb === "MAIL" || verb === "RCPT") {
+        } else if (verb === "MAIL") {
           socket.write("250 2.1.0 Ok\r\n");
+        } else if (verb === "RCPT") {
+          socket.write(
+            options.refuseRecipients
+              ? "550 5.1.1 No such user here\r\n"
+              : "250 2.1.0 Ok\r\n"
+          );
         } else if (verb === "DATA") {
           inData = true;
           socket.write("354 End data with <CR><LF>.<CR><LF>\r\n");
@@ -120,5 +127,30 @@ describe("sendEmail against a real SMTP conversation", () => {
     expect(wire).toContain("Reply-To: reporter@example.com");
     // Both parts present — the text alternative is what keeps it out of junk.
     expect(wire).toContain("multipart/alternative");
+  });
+
+  test("marks a relay that refused every recipient as certain non-delivery", async () => {
+    process.env.SMTP_ALLOW_INSECURE = "true";
+    const refusing = await startFakeSmtp({
+      offerStartTls: false,
+      refuseRecipients: true,
+    });
+    process.env.SMTP_PORT = String(refusing.port);
+
+    // The caller tells a reporter "certainly not delivered" on the strength of
+    // this flag, so it has to survive a real 550 rather than only a hand-built
+    // error object.
+    const failure = await sendEmail({
+      html: "<p>hei</p>",
+      subject: "BISO Varsling: Trakassering",
+      to: "hr@biso.no",
+    }).catch((error: unknown) => error);
+
+    expect(isCertainNonDelivery(failure)).toBe(true);
+    // nodemailer raises EENVELOPE here, before sendEmail's own
+    // accepted-nobody check can run — which is why classification cannot rest
+    // on that check alone.
+    expect((failure as { code?: string }).code).toBe("EENVELOPE");
+    refusing.server.close();
   });
 });

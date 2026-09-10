@@ -12,8 +12,21 @@ vi.mock("@repo/api/server", () => ({
 }));
 
 const isSmtpConfigured = vi.hoisted(() => vi.fn(() => true));
+// The real predicate, not a stub: the action's branch is only meaningful
+// if it agrees with how the transport actually marks a refusal.
+const isCertainNonDelivery = vi.hoisted(
+  () => (error: unknown) =>
+    error instanceof Error &&
+    ((error as { smtpRecipientsRefused?: true }).smtpRecipientsRefused ===
+      true ||
+      (error as { code?: string }).code === "EENVELOPE")
+);
 
-vi.mock("@repo/connectors/email", () => ({ isSmtpConfigured, sendEmail }));
+vi.mock("@repo/connectors/email", () => ({
+  isCertainNonDelivery,
+  isSmtpConfigured,
+  sendEmail,
+}));
 
 const clientIp = vi.hoisted(() => ({ value: "203.0.113.1" }));
 
@@ -33,6 +46,7 @@ const SUBMISSIONS_PER_WINDOW = 5;
 
 const TRY_AGAIN = /try again/i;
 const NOT_DELIVERED = /could NOT be delivered/;
+const UNCONFIRMED = /could not confirm/i;
 const CONTACT_DIRECTLY = /directly/;
 
 /**
@@ -284,12 +298,19 @@ describe("submitVarslingCase", () => {
     consoleError.mockRestore();
   });
 
-  it("points a reporter at a human when the relay refuses the message", async () => {
+  it("claims certain non-delivery only when the relay refused everyone", async () => {
     const consoleError = vi
       .spyOn(console, "error")
       .mockImplementation(() => undefined);
     mockSettingLookup(ACTIVE_SETTING);
-    sendEmail.mockRejectedValue(new Error("ETLS: STARTTLS not available"));
+
+    // What a real relay produces for "no such user": nodemailer raises
+    // EENVELOPE before sendEmail's accepted-nobody check is reached.
+    const refused = Object.assign(
+      new Error("Can't send mail - all recipients were rejected: 550"),
+      { code: "EENVELOPE" }
+    );
+    sendEmail.mockRejectedValue(refused);
 
     const result = await submitVarslingCase({
       case_description: "Sak",
@@ -303,6 +324,34 @@ describe("submitVarslingCase", () => {
       "[varsling] Failed to deliver a report:",
       expect.any(Error)
     );
+    consoleError.mockRestore();
+  });
+
+  it("does not claim non-delivery when the connection dropped mid-send", async () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    mockSettingLookup(ACTIVE_SETTING);
+
+    // SMTP's in-doubt window: DATA was sent and the relay's final 250 never
+    // came back. The report may already be queued on the far side, so telling
+    // the reporter it definitely failed could have them re-file a sensitive
+    // disclosure that already arrived.
+    sendEmail.mockRejectedValue(
+      Object.assign(new Error("Timeout"), { code: "ETIMEDOUT" })
+    );
+
+    const result = await submitVarslingCase({
+      case_description: "Sak",
+      setting_id: "setting-1",
+      submission_type: "other",
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.error).toMatch(UNCONFIRMED);
+    expect(result.error).not.toMatch(NOT_DELIVERED);
+    // Still routed to a person — an unconfirmed report must not read as fine.
+    expect(result.error).toMatch(CONTACT_DIRECTLY);
     consoleError.mockRestore();
   });
 });

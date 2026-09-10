@@ -3,7 +3,11 @@
 import { Query } from "@repo/api";
 import { createAdminClient, createSessionClient } from "@repo/api/server";
 import type { Campus, VarslingSettings } from "@repo/api/types/appwrite";
-import { isSmtpConfigured, sendEmail } from "@repo/connectors/email";
+import {
+  isCertainNonDelivery,
+  isSmtpConfigured,
+  sendEmail,
+} from "@repo/connectors/email";
 import { headers } from "next/headers";
 import {
   clampString,
@@ -39,10 +43,19 @@ const SUBMISSIONS_PER_WINDOW = 5;
 const SUBMISSION_WINDOW_MS = 10 * 60 * 1000;
 
 // Never "please try again": a reporter who reads that may believe the case is
-// filed, or burn their nerve retrying something that cannot work. Say plainly
-// that it did not arrive, and give them the route that does.
-const DELIVERY_FAILED_ERROR =
+// filed, or burn their nerve retrying something that cannot work. Say what is
+// known, and give them the route that works.
+//
+// Two messages, because two different things are known. Claiming certain
+// non-delivery where the truth is "we lost the connection mid-send" could have
+// someone re-file a sensitive disclosure that already arrived; softening it
+// everywhere would let a report that certainly failed read as "probably fine"
+// and go unfollowed. Both messages send them to a person either way.
+const NOT_DELIVERED_ERROR =
   "Your report could NOT be delivered. Please contact one of the people listed on this page directly, so your case reaches someone.";
+
+const DELIVERY_UNCONFIRMED_ERROR =
+  "We could not confirm your report was delivered — it may not have arrived. Please contact one of the people listed on this page directly to be sure your case is received, and mention that you also used this form.";
 
 const RATE_LIMITED_ERROR =
   "Too many reports have been submitted from this network. Please wait a few minutes and try again, or contact one of the people listed on this page directly.";
@@ -204,7 +217,8 @@ export async function submitVarslingCase(
     console.error(
       "[varsling] SMTP is not configured — set SMTP_HOST and SMTP_FROM. No report can be delivered until then."
     );
-    return { success: false, error: DELIVERY_FAILED_ERROR };
+    // Nothing was attempted, so certain non-delivery is the honest claim.
+    return { success: false, error: NOT_DELIVERED_ERROR };
   }
 
   // A cheap early rejection so a sustained flood from an exhausted key never
@@ -273,6 +287,15 @@ export async function submitVarslingCase(
     // Appwrite timeout — and is the only record of a report that did not make
     // it. Keep it whole.
     console.error("[varsling] Failed to deliver a report:", error);
-    return { success: false, error: DELIVERY_FAILED_ERROR };
+
+    // Only an explicit refusal, or a session that never transmitted, proves
+    // nothing arrived. Anything else — a reset, a timeout — may have been
+    // queued on the far side already, so do not tell the reporter otherwise.
+    return {
+      success: false,
+      error: isCertainNonDelivery(error)
+        ? NOT_DELIVERED_ERROR
+        : DELIVERY_UNCONFIRMED_ERROR,
+    };
   }
 }
