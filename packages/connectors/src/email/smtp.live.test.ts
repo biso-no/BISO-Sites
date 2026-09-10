@@ -11,6 +11,8 @@ const STARTTLS_ERROR = /STARTTLS/i;
 function startFakeSmtp(options: {
   offerStartTls: boolean;
   refuseRecipients?: boolean;
+  /** Drop the socket after the terminating dot, without answering. */
+  vanishAfterData?: boolean;
 }): Promise<{ server: Server; port: number; received: string[] }> {
   const received: string[] = [];
   const server = createServer((socket: Socket) => {
@@ -23,6 +25,10 @@ function startFakeSmtp(options: {
         buffer += text;
         if (buffer.includes("\r\n.\r\n")) {
           received.push(buffer);
+          if (options.vanishAfterData) {
+            socket.destroy();
+            return;
+          }
           inData = false;
           buffer = "";
           socket.write("250 2.0.0 Ok: queued\r\n");
@@ -152,5 +158,28 @@ describe("sendEmail against a real SMTP conversation", () => {
     // on that check alone.
     expect((failure as { code?: string }).code).toBe("EENVELOPE");
     refusing.server.close();
+  });
+
+  test("does not call a drop after the DATA dot a certain non-delivery", async () => {
+    process.env.SMTP_ALLOW_INSECURE = "true";
+    const vanishing = await startFakeSmtp({
+      offerStartTls: false,
+      vanishAfterData: true,
+    });
+    process.env.SMTP_PORT = String(vanishing.port);
+
+    // The in-doubt window, exactly: the relay took the whole message and then
+    // died before answering, so it may well be queued. nodemailer reports this
+    // as ECONNECTION — the same code as a failure to connect at all — which is
+    // why that code cannot be read as proof of non-delivery.
+    const failure = await sendEmail({
+      html: "<p>hei</p>",
+      subject: "BISO Varsling: Trakassering",
+      to: "hr@biso.no",
+    }).catch((error: unknown) => error);
+
+    expect((failure as { code?: string }).code).toBe("ECONNECTION");
+    expect(isCertainNonDelivery(failure)).toBe(false);
+    vanishing.server.close();
   });
 });

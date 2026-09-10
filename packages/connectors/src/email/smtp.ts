@@ -186,16 +186,19 @@ export interface SmtpFailure extends Error {
  * never got as far as transmitting the message. In every one of these the
  * message provably did not arrive.
  *
- * Note what is absent: ETIMEDOUT, ESOCKET and friends. Those can strike after
- * DATA, inside the in-doubt window described on `SmtpFailure`, and a caller
- * must not claim non-delivery on them.
+ * Note what is absent. ETIMEDOUT and ESOCKET can strike after DATA, inside the
+ * in-doubt window described on `SmtpFailure`. So can ECONNECTION, which reads
+ * like a failure to connect but is also what nodemailer reports for a socket
+ * that drops mid-session — "Connection closed unexpectedly" arrives under that
+ * same code when the relay vanishes after the terminating dot, by which point
+ * it may already have queued the message. None of them support a claim of
+ * non-delivery.
  */
 const CERTAIN_NON_DELIVERY_CODES = new Set([
-  "ECONNECTION", // never connected
   "EDNS", // host never resolved
   "EAUTH", // authentication refused
   "EENVELOPE", // MAIL FROM / RCPT TO refused — how a real relay says "no such user"
-  "EMESSAGE", // relay rejected the message outright
+  "EMESSAGE", // relay answered DATA with a rejection
   "ETLS", // could not negotiate the required TLS
 ]);
 
