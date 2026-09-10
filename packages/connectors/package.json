@@ -6,6 +6,7 @@
     "build": "tsc --noEmit",
     "clean": "git clean -xdf .cache .turbo dist node_modules",
     "lint": "biome lint .",
+    "test": "bun test ./src",
     "check-types": "tsc --noEmit",
     "generate:finago": "openapi-typescript https://rest-api.developer.24sevenoffice.com/doc/v1.json -o src/24sevenoffice/rest/schema.d.ts"
   },
@@ -17,7 +18,8 @@
     "./24sevenoffice": "./src/24sevenoffice/index.ts",
     "./sharepoint": "./src/sharepoint/index.ts",
     "./teams-bot": "./src/teams-bot/index.ts",
-    "./tickster": "./src/tickster/index.ts"
+    "./tickster": "./src/tickster/index.ts",
+    "./email": "./src/email/index.ts"
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",
@@ -35,6 +37,7 @@
     "openapi-fetch": "catalog:",
     "server-only": "catalog:",
     "soap": "catalog:",
-    "zod": "catalog:"
+    "zod": "catalog:",
+    "nodemailer": "catalog:"
   }
 }

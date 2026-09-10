@@ -1,7 +1,15 @@
 "use client";
 
 import type { VarslingSettings } from "@repo/api/types/appwrite";
-import { Eye, EyeOff, Pencil, Plus, ShieldAlert, Trash2 } from "lucide-react";
+import {
+  Eye,
+  EyeOff,
+  Pencil,
+  Plus,
+  Send,
+  ShieldAlert,
+  Trash2,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
@@ -10,6 +18,7 @@ import type { PageSize } from "@/lib/list-params";
 import {
   createVarslingSetting,
   deleteVarslingSetting,
+  sendVarslingTestEmail,
   setVarslingSettingActive,
   updateVarslingSetting,
   type VarslingSettingFormValues,
@@ -128,6 +137,17 @@ export function VarslingSettingsClient({
         nextActive ? t("messages.activated") : t("messages.deactivated")
       );
       router.refresh();
+    });
+  }
+
+  function handleSendTest(setting: VarslingSettings) {
+    startTransition(async () => {
+      const result = await sendVarslingTestEmail(setting.$id);
+      if ("error" in result) {
+        toast.error(result.error || t("messages.testEmailError"));
+        return;
+      }
+      toast.success(t("messages.testEmailSent", { email: result.data }));
     });
   }
 
@@ -371,6 +391,15 @@ export function VarslingSettingsClient({
                           {setting.is_active
                             ? t("actions.deactivate")
                             : t("actions.activate")}
+                        </PortalButton>
+                        <PortalButton
+                          onClick={() => handleSendTest(setting)}
+                          size="sm"
+                          title={t("actions.sendTestHint")}
+                          variant="ghost"
+                        >
+                          <Send size={14} />
+                          {t("actions.sendTest")}
                         </PortalButton>
                         <PortalButton
                           onClick={() => openEdit(setting)}

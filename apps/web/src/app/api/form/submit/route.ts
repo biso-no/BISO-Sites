@@ -1,5 +1,6 @@
 import { ID, Permission, Role } from "@repo/api";
 import { createAdminClient } from "@repo/api/server";
+import { sendEmail } from "@repo/connectors/email";
 import { NextResponse } from "next/server";
 import { clampString, escapeHtml } from "@/lib/html-escape";
 
@@ -104,7 +105,7 @@ export async function POST(request: Request) {
   } = validated.value;
 
   try {
-    const { db, messaging } = await createAdminClient();
+    const { db } = await createAdminClient();
 
     if (mode === "email") {
       if (!recipientEmail) {
@@ -137,20 +138,14 @@ export async function POST(request: Request) {
           <p style="margin:20px 0 0;font-size:11px;color:#aaa;">Sent via BISO page form · Topic: ${safeTopic}</p>
         </div>`;
 
-      await messaging.createEmail(
-        ID.unique(),
-        `New submission: ${clampString(formHeading ?? topic, MAX_TOPIC_LENGTH)}`,
+      // SMTP, not Appwrite Messaging: `messaging.createEmail()` addresses
+      // *targets*, which only exist for Appwrite users. A form's recipient is
+      // an arbitrary mailbox, so the message has to leave over a plain relay.
+      await sendEmail({
         html,
-        [],
-        [],
-        [recipientEmail],
-        [],
-        [],
-        [],
-        false,
-        true,
-        new Date(Date.now() + 30_000).toISOString()
-      );
+        subject: `New submission: ${clampString(formHeading ?? topic, MAX_TOPIC_LENGTH)}`,
+        to: recipientEmail,
+      });
 
       return NextResponse.json({ success: true });
     }

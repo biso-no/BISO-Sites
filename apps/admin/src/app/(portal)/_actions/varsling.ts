@@ -3,6 +3,7 @@
 import { ID, Query } from "@repo/api";
 import { createAdminClient } from "@repo/api/server";
 import type { VarslingSettings } from "@repo/api/types/appwrite";
+import { isSmtpConfigured, sendEmail } from "@repo/connectors/email";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireAuth, type UserAuthContext } from "@/lib/authorization";
@@ -13,6 +14,7 @@ import {
 } from "@/lib/list-params";
 import { paginationQueries } from "@/lib/list-queries";
 import { hasNavAccess } from "@/lib/roles";
+import { escapeHtml } from "../_components/description-blocks";
 import { logAuditEvent } from "./audit-log";
 
 const ROLE_NAME_MAX_LENGTH = 100;
@@ -43,6 +45,29 @@ export interface VarslingSettingFormValues {
   is_active: boolean;
   role_name: string;
   sort_order: number;
+}
+
+function buildTestEmailHtml(roleName: string, triggeredBy: string): string {
+  return `
+    <div style="font-family:system-ui,sans-serif;max-width:600px;margin:0 auto;padding:24px;">
+      <h2 style="margin:0 0 16px;font-size:20px;">BISO Varsling – testmelding</h2>
+      <p>Denne e-posten bekrefter at varslingssystemet når frem til deg som mottaker for <strong>${escapeHtml(roleName)}</strong>.</p>
+      <p>Ingen sak er meldt inn. Du trenger ikke gjøre noe.</p>
+      <hr style="margin:24px 0;border:none;border-top:1px solid #e5e5e5;" />
+      <p style="font-size:11px;color:#aaa;">Utløst fra BISO admin av ${escapeHtml(triggeredBy)}.</p>
+    </div>`;
+}
+
+function buildTestEmailText(roleName: string, triggeredBy: string): string {
+  return [
+    "BISO Varsling – testmelding",
+    "",
+    `Denne e-posten bekrefter at varslingssystemet når frem til deg som mottaker for ${roleName}.`,
+    "Ingen sak er meldt inn. Du trenger ikke gjøre noe.",
+    "",
+    "--",
+    `Utløst fra BISO admin av ${triggeredBy}.`,
+  ].join("\n");
 }
 
 /**
@@ -183,6 +208,60 @@ export async function setVarslingSettingActive(
     return {
       error:
         error instanceof Error ? error.message : "Failed to update contact",
+    };
+  }
+}
+
+/**
+ * Sends a sample report to one contact's address so staff can prove the SMTP
+ * relay reaches them before a real reporter depends on it. Deliberately mailed
+ * to the stored address, never to a caller-supplied one.
+ */
+export async function sendVarslingTestEmail(
+  id: string
+): Promise<{ data: string } | { error: string }> {
+  const ctx = await requireAuth();
+  if (!canManageVarsling(ctx)) {
+    return { error: "Not authorized to manage varsling contacts" };
+  }
+
+  if (!isSmtpConfigured()) {
+    return {
+      error:
+        "SMTP is not configured on this deployment — set SMTP_HOST and SMTP_FROM.",
+    };
+  }
+
+  try {
+    const { db } = await createAdminClient();
+    const setting = await db.getRow<VarslingSettings>(
+      "app",
+      "varsling_settings",
+      id
+    );
+
+    // `email` and `name` are both nullable on the auth context; the user id is
+    // the only field guaranteed to identify who triggered the test.
+    const triggeredBy = ctx.email ?? ctx.name ?? ctx.userId;
+
+    await sendEmail({
+      html: buildTestEmailHtml(setting.role_name, triggeredBy),
+      subject: "BISO Varsling – testmelding",
+      text: buildTestEmailText(setting.role_name, triggeredBy),
+      to: setting.email,
+    });
+
+    await logAuditEvent(ctx, "varsling_setting.test_email", {
+      resourceId: id,
+      resourceType: "varsling_setting",
+      payload: { role_name: setting.role_name },
+    });
+
+    return { data: setting.email };
+  } catch (error) {
+    return {
+      error:
+        error instanceof Error ? error.message : "Failed to send test email",
     };
   }
 }
