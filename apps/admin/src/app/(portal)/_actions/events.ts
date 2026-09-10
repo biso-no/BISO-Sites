@@ -101,8 +101,9 @@ interface EventTranslationSnapshot {
 /**
  * Send a published-event push through the unified announcement delivery path.
  * Creates a transient `announcement` row (category "event", topic audience on
- * the "events" topic) and dispatches it. Resilient by design: any failure is
- * logged and never blocks publishing.
+ * the campus-scoped "events" topic, e.g. "events_oslo" or "events_national")
+ * and dispatches it. Resilient by design: any failure is logged and never
+ * blocks publishing.
  */
 async function sendEventAnnouncement(input: {
   eventId: string;
