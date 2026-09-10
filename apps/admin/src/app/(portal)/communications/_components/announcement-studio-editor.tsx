@@ -271,12 +271,17 @@ function buildInitialValues(
       // leave as-is
     }
   } else if (announcement?.audience_type === "topic" && audienceValue) {
-    // Dispatch persists the resolved campus-scoped id onto a sent row (e.g.
+    // A sent row holds the campus-scoped id dispatch resolved (e.g.
     // "events_oslo" — see `resolveAnnouncementTopicId`), but the <select> in
-    // AudienceDetail only ever offers the four logical topics. Recover the
-    // logical topic so reopening a sent announcement shows the right option
-    // instead of none, and re-saving without touching the dropdown doesn't
-    // quietly narrow it back to an unscoped topic.
+    // AudienceDetail only offers the four logical topics. Editing the logical
+    // topic does two things: it keeps that select on a real option, and it
+    // makes a re-send target the campus chosen now. The resolver passes an
+    // already-scoped id through unchanged, so an "events_oslo" row moved to
+    // Bergen would otherwise still push to Oslo.
+    //
+    // It is not what keeps a sent row scoped — saving writes the logical topic
+    // back. `updateAnnouncement` does that on the server, resolving a sent
+    // row's topic against the campus being saved.
     audienceValue = logicalTopicFor(audienceValue);
   }
 
