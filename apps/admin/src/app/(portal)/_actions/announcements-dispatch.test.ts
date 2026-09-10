@@ -1,4 +1,7 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
+import type { Announcements } from "@repo/api/types/appwrite";
+import type { DispatchAnnouncementResult } from "@/lib/announcements/send";
+import { resolveAnnouncementTopicId } from "@/lib/announcements/topic-id";
 import type { UserAuthContext } from "@/lib/authorization";
 
 // `announcements.ts` transitively imports `@/lib/announcements/send`, which
@@ -30,15 +33,33 @@ const globalAdminCtx: UserAuthContext = {
 };
 
 /**
- * The shape `dispatchAnnouncement` now returns — see
- * `DispatchAnnouncementResult` in `@/lib/announcements/send`. `topic` is only
- * ever set by the real implementation for a TOPIC audience; tests below set
- * it explicitly per case to control what `dispatchPersistedAnnouncement`
- * receives.
+ * What the real `dispatchAnnouncement` reports for a row, without delivering
+ * anything: the topic the real `resolveAnnouncementTopicId` resolves from the
+ * row's own `audience_value` and `campus_id`, and only for a TOPIC audience
+ * (see `DispatchAnnouncementResult`). The ids these tests expect are produced
+ * by that resolution rather than dictated by the stub, so a broken resolver —
+ * or a row that reaches dispatch with the wrong audience or campus — fails
+ * them. The resolver lives outside the mocked `send` module for this reason.
  */
-const dispatchAnnouncement = mock(async () => ({
-  recipients: 0,
-}) as { recipients: number; topic?: string });
+function resolveLikeDispatch(
+  announcement: Announcements
+): DispatchAnnouncementResult {
+  if (announcement.audience_type !== "topic") {
+    return { recipients: 0 };
+  }
+  return {
+    recipients: 0,
+    topic: resolveAnnouncementTopicId(
+      announcement.audience_value,
+      announcement.campus_id
+    ),
+  };
+}
+
+const dispatchAnnouncement = mock(
+  async (announcement: Announcements): Promise<DispatchAnnouncementResult> =>
+    resolveLikeDispatch(announcement)
+);
 
 mock.module("@repo/api/server", () => ({
   createAdminClient: mock(async () => ({ db, messaging: {}, users: {} })),
@@ -94,6 +115,9 @@ beforeEach(() => {
   db.listRows.mockReset();
   db.updateRow.mockReset();
   dispatchAnnouncement.mockReset();
+  dispatchAnnouncement.mockImplementation(async (announcement) =>
+    resolveLikeDispatch(announcement)
+  );
   db.updateRow.mockImplementation(
     async (
       _databaseId: string,
@@ -106,11 +130,11 @@ beforeEach(() => {
 
 describe("dispatchPersistedAnnouncement persists the resolved topic", () => {
   test("persists the campus-scoped topic id for a topic announcement", async () => {
-    dispatchAnnouncement.mockResolvedValueOnce({
-      recipients: 0,
-      topic: "events_oslo",
+    mockAnnouncementRow({
+      ...baseRow,
+      audience_value: "events",
+      campus_id: "1",
     });
-    mockAnnouncementRow({ ...baseRow, campus_id: "1" });
 
     const result = await sendAnnouncement("announcement-1");
 
@@ -121,11 +145,11 @@ describe("dispatchPersistedAnnouncement persists the resolved topic", () => {
   });
 
   test("persists the national scope when campus_id is null", async () => {
-    dispatchAnnouncement.mockResolvedValueOnce({
-      recipients: 0,
-      topic: "events_national",
+    mockAnnouncementRow({
+      ...baseRow,
+      audience_value: "events",
+      campus_id: null,
     });
-    mockAnnouncementRow({ ...baseRow, campus_id: null });
 
     await sendAnnouncement("announcement-1");
 
@@ -134,8 +158,14 @@ describe("dispatchPersistedAnnouncement persists the resolved topic", () => {
     );
   });
 
-  test("does not add or change audience_value for a broadcast announcement", async () => {
-    dispatchAnnouncement.mockResolvedValueOnce({ recipients: 0 });
+  test("does not write audience_value for a broadcast announcement, even when dispatch reports a topic", async () => {
+    // The real dispatch never reports a topic for a broadcast. This one does,
+    // so the only thing keeping it off the row is the `audience_type ===
+    // "topic"` check where the sent row is written.
+    dispatchAnnouncement.mockResolvedValueOnce({
+      recipients: 0,
+      topic: "general",
+    });
     mockAnnouncementRow({
       ...baseRow,
       audience_type: "broadcast",
@@ -150,10 +180,6 @@ describe("dispatchPersistedAnnouncement persists the resolved topic", () => {
   });
 
   test("keeps an already campus-scoped audience_value unchanged on re-dispatch", async () => {
-    dispatchAnnouncement.mockResolvedValueOnce({
-      recipients: 0,
-      topic: "events_oslo",
-    });
     mockAnnouncementRow({
       ...baseRow,
       audience_value: "events_oslo",
