@@ -4,11 +4,13 @@ import { Query } from "@repo/api";
 import { createAdminClient, createSessionClient } from "@repo/api/server";
 import type { Campus, VarslingSettings } from "@repo/api/types/appwrite";
 import { sendEmail } from "@repo/connectors/email";
+import { headers } from "next/headers";
 import {
   clampString,
   escapeHtml,
   escapeHtmlMultiline,
 } from "@/lib/html-escape";
+import { clientKeyFromHeaders, createRateLimiter } from "@/lib/rate-limit";
 
 export interface VarslingSubmission {
   case_description: string;
@@ -22,6 +24,38 @@ export interface VarslingSubmission {
 const MAX_DESCRIPTION_LENGTH = 10_000;
 const MAX_SHORT_FIELD_LENGTH = 200;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+// This action is public and unauthenticated by design — a reporter must be
+// able to file without an account — so nothing but this stands between a
+// script and an unbounded run of real emails to the varsling contacts.
+// Flooding those inboxes would bury genuine reports, which is the failure that
+// matters here far more than the wasted relay quota.
+//
+// The window is deliberately loose. Whole campuses share a handful of NAT
+// addresses, and turning a real reporter away is a worse outcome than
+// accepting a few extra messages, so the limit sits well above any plausible
+// burst of genuine reports while still capping a bot at 30/hour per address.
+const SUBMISSIONS_PER_WINDOW = 5;
+const SUBMISSION_WINDOW_MS = 10 * 60 * 1000;
+
+const submissionLimiter = createRateLimiter({
+  limit: SUBMISSIONS_PER_WINDOW,
+  windowMs: SUBMISSION_WINDOW_MS,
+});
+
+/**
+ * The caller's rate-limit key, or `null` when they cannot be identified or the
+ * lookup itself fails — in which case the submission proceeds unlimited. A
+ * report lost to trouble in the limiter would be the worst possible bug in
+ * this file.
+ */
+async function resolveClientKey(): Promise<string | null> {
+  try {
+    return clientKeyFromHeaders(await headers());
+  } catch {
+    return null;
+  }
+}
 
 const SUBMISSION_LABELS: Record<VarslingSubmission["submission_type"], string> =
   {
@@ -153,6 +187,18 @@ export async function submitVarslingCase(
     return { success: false, error: "Invalid contact email address." };
   }
 
+  // Checked before any Appwrite work so a flood costs almost nothing, but only
+  // consumed once a send is actually attempted — a reporter who trips a
+  // validation error must not burn their own allowance retrying.
+  const clientKey = await resolveClientKey();
+  if (clientKey && !submissionLimiter.check(clientKey).allowed) {
+    return {
+      success: false,
+      error:
+        "Too many reports have been submitted from this network. Please wait a few minutes and try again, or contact one of the people listed on this page directly.",
+    };
+  }
+
   try {
     const { db } = await createAdminClient();
 
@@ -181,6 +227,10 @@ export async function submitVarslingCase(
       submissionLabel,
       submitterEmail,
     };
+
+    if (clientKey) {
+      submissionLimiter.consume(clientKey);
+    }
 
     // SMTP, not Appwrite Messaging: `messaging.createEmail()` addresses
     // *targets*, which only exist for Appwrite users. Varsling recipients are
