@@ -11,12 +11,34 @@
  * having one:
  * - State lives in the process. Each instance keeps its own counters and a
  *   restart clears them. This raises the cost of a flood; it is not a quota.
- * - The key comes from `x-forwarded-for`, which a client can send. Anything
- *   upstream that appends to that header rather than replacing it can be
- *   walked around by rotating the value. This stops a naive flood, not a
- *   determined attacker.
  * - Every uncertain path fails OPEN. Silently dropping a whistleblowing report
  *   is far worse than accepting one more than the limit allows.
+ *
+ * On the key, which is the subtle part. A caller can put anything in
+ * `x-forwarded-for`, so the leftmost entry is attacker-chosen. Keying on it
+ * would not merely let someone evade their own limit — it would let them spend
+ * a *chosen* address's window and have real reports from that network refused.
+ * On a whistleblowing form that turns an abuse control into a way to silence a
+ * specific campus for the price of five requests, which is far worse than the
+ * flood it defends against.
+ *
+ * So trust is configuration, never inference — nothing in the header itself
+ * says whether an ingress wrote it. Limiting is OFF until one of these is set:
+ *
+ *   RATE_LIMIT_CLIENT_IP_HEADER   a header the ingress sets authoritatively
+ *                                 and a client cannot forge through it
+ *                                 (e.g. `cf-connecting-ip`, or `x-real-ip`
+ *                                 where the proxy overwrites it).
+ *   RATE_LIMIT_TRUSTED_PROXY_HOPS how many proxies in front append to
+ *                                 `x-forwarded-for`. With N set, the entry N
+ *                                 from the right is the one the innermost
+ *                                 trusted proxy wrote, which a client cannot
+ *                                 reach. One ingress that appends => 1.
+ *
+ * Unset means every caller is unidentified, so nothing is limited. That is the
+ * deliberate default: an unmetered flood fills an inbox and is visible and
+ * recoverable, while a forged key quietly turns away the report the channel
+ * exists to carry.
  */
 
 export interface RateLimitDecision {
@@ -124,20 +146,46 @@ export function createRateLimiter(options: {
   };
 }
 
+function parseTrustedHops(raw: string | undefined): number | null {
+  if (!raw) {
+    return null;
+  }
+  const parsed = Number.parseInt(raw, 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+
 /**
- * Identifies the caller for rate-limiting purposes, or `null` when no proxy
- * header names them.
+ * Identifies the caller for rate-limiting purposes, or `null` when the
+ * deployment has not declared where a trustworthy address comes from.
  *
- * Returning `null` — rather than bucketing every unidentified caller together
- * under one shared key — is deliberate: a shared bucket would let ordinary
- * traffic exhaust a single window and start rejecting genuine reports.
+ * `null` is never a shared bucket. Bucketing unidentified callers together
+ * would let ordinary traffic exhaust one window and start refusing genuine
+ * reports — the same harm as a forged key, reached a different way.
  */
 export function clientKeyFromHeaders(requestHeaders: Headers): string | null {
-  const forwardedFor = requestHeaders.get("x-forwarded-for");
-  const firstHop = forwardedFor?.split(",")[0]?.trim();
-  if (firstHop) {
-    return firstHop;
+  const providerHeader = process.env.RATE_LIMIT_CLIENT_IP_HEADER?.trim();
+  if (providerHeader) {
+    return requestHeaders.get(providerHeader)?.trim() || null;
   }
 
-  return requestHeaders.get("x-real-ip")?.trim() || null;
+  const trustedHops = parseTrustedHops(
+    process.env.RATE_LIMIT_TRUSTED_PROXY_HOPS
+  );
+  if (trustedHops === null) {
+    return null;
+  }
+
+  const chain =
+    requestHeaders
+      .get("x-forwarded-for")
+      ?.split(",")
+      .map((hop) => hop.trim())
+      .filter(Boolean) ?? [];
+
+  // Count from the right: those entries were appended by our own proxies, so a
+  // client cannot place a value there. A chain shorter than the configured hop
+  // count means the request did not arrive the way the config describes, so
+  // there is no entry we can trust — fail open rather than key on a guess.
+  const index = chain.length - trustedHops;
+  return index >= 0 ? (chain[index] ?? null) : null;
 }

@@ -15,6 +15,10 @@ vi.mock("@repo/connectors/email", () => ({ sendEmail }));
 
 const clientIp = vi.hoisted(() => ({ value: "203.0.113.1" }));
 
+// The limiter identifies nobody unless the deployment declares where a
+// trustworthy address comes from; one appending ingress is the shape here.
+process.env.RATE_LIMIT_TRUSTED_PROXY_HOPS = "1";
+
 vi.mock("next/headers", () => ({
   headers: vi.fn(() =>
     Promise.resolve(new Headers({ "x-forwarded-for": clientIp.value }))

@@ -102,26 +102,87 @@ describe("createRateLimiter", () => {
 });
 
 describe("clientKeyFromHeaders", () => {
-  it("takes the first hop from x-forwarded-for", () => {
+  const TRUST_KEYS = [
+    "RATE_LIMIT_CLIENT_IP_HEADER",
+    "RATE_LIMIT_TRUSTED_PROXY_HOPS",
+  ] as const;
+  const saved = new Map<string, string | undefined>();
+
+  beforeEach(() => {
+    for (const key of TRUST_KEYS) {
+      saved.set(key, process.env[key]);
+      delete process.env[key];
+    }
+  });
+
+  afterEach(() => {
+    for (const key of TRUST_KEYS) {
+      const value = saved.get(key);
+      if (value === undefined) {
+        delete process.env[key];
+      } else {
+        process.env[key] = value;
+      }
+    }
+  });
+
+  it("identifies nobody until the deployment declares a trusted source", () => {
+    // Nothing in the header says whether an ingress wrote it, so with no
+    // configuration there is no address worth keying on.
+    const headers = new Headers({ "x-forwarded-for": "203.0.113.7" });
+
+    expect(clientKeyFromHeaders(headers)).toBeNull();
+  });
+
+  it("ignores a forged leading hop and takes the one our proxy appended", () => {
+    process.env.RATE_LIMIT_TRUSTED_PROXY_HOPS = "1";
+
+    // The attack: a caller names a campus NAT address hoping to spend its
+    // window and have that campus's real reports refused. Only the rightmost
+    // entry was written by our own ingress.
     const headers = new Headers({
-      "x-forwarded-for": "203.0.113.7, 198.51.100.1",
+      "x-forwarded-for": "10.9.9.9, 198.51.100.1",
+    });
+
+    expect(clientKeyFromHeaders(headers)).toBe("198.51.100.1");
+  });
+
+  it("counts hops from the right for a two-proxy chain", () => {
+    process.env.RATE_LIMIT_TRUSTED_PROXY_HOPS = "2";
+
+    const headers = new Headers({
+      "x-forwarded-for": "10.9.9.9, 203.0.113.7, 198.51.100.1",
     });
 
     expect(clientKeyFromHeaders(headers)).toBe("203.0.113.7");
   });
 
-  it("falls back to x-real-ip", () => {
-    expect(
-      clientKeyFromHeaders(new Headers({ "x-real-ip": "203.0.113.9" }))
-    ).toBe("203.0.113.9");
+  it("fails open when the chain is shorter than the configured hops", () => {
+    process.env.RATE_LIMIT_TRUSTED_PROXY_HOPS = "2";
+
+    // The request did not arrive the way the config describes, so no entry is
+    // trustworthy — better unlimited than keyed on a guess.
+    const headers = new Headers({ "x-forwarded-for": "203.0.113.7" });
+
+    expect(clientKeyFromHeaders(headers)).toBeNull();
   });
 
-  it("returns null when no header identifies the caller", () => {
-    // Never a shared bucket: one would let ordinary traffic exhaust a single
-    // window and start turning genuine reports away.
-    expect(clientKeyFromHeaders(new Headers())).toBeNull();
+  it("uses a provider header verbatim when one is named", () => {
+    process.env.RATE_LIMIT_CLIENT_IP_HEADER = "cf-connecting-ip";
+
+    const headers = new Headers({
+      "cf-connecting-ip": "203.0.113.9",
+      "x-forwarded-for": "10.9.9.9",
+    });
+
+    expect(clientKeyFromHeaders(headers)).toBe("203.0.113.9");
+  });
+
+  it("returns null when the named provider header is absent", () => {
+    process.env.RATE_LIMIT_CLIENT_IP_HEADER = "cf-connecting-ip";
+
     expect(
-      clientKeyFromHeaders(new Headers({ "x-forwarded-for": "  " }))
+      clientKeyFromHeaders(new Headers({ "x-forwarded-for": "10.9.9.9" }))
     ).toBeNull();
   });
 });
