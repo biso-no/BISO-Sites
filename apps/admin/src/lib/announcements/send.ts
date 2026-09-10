@@ -270,6 +270,25 @@ async function applyAnnouncementReadPermissions(
 }
 
 /**
+ * Result of dispatching a single announcement.
+ *
+ * `topic` is set only for a TOPIC audience, to the actual Appwrite topic id
+ * the push was resolved to and sent on (see `resolveAnnouncementTopicId`).
+ * Callers persist it back onto the row's `audience_value` so the stored value
+ * matches what was really pushed to — that's what lets the Flutter inbox's
+ * campus/opt-out filtering (which only recognises campus-scoped ids) apply to
+ * manually sent and scheduled topic announcements, not just event pushes.
+ * BROADCAST, SEGMENT, and USERS audiences never carry a topic: a broadcast's
+ * `general` topic is an implementation detail of push delivery, not something
+ * to persist onto the row, and segment/users sends don't push to a topic at
+ * all.
+ */
+export interface DispatchAnnouncementResult {
+  recipients: number;
+  topic?: string;
+}
+
+/**
  * Send the push for an announcement and (for user-targeted sends) fan out
  * in-app `user_notifications` rows. Resolves recipients by `audience_type`.
  *
@@ -279,7 +298,7 @@ async function applyAnnouncementReadPermissions(
 export async function dispatchAnnouncement(
   announcement: Announcements,
   clients: DispatchClients
-): Promise<{ recipients: number }> {
+): Promise<DispatchAnnouncementResult> {
   const { db, messaging } = clients;
   const { title, body } = localizedContent(announcement);
   const data = buildPushData(announcement);
@@ -289,13 +308,14 @@ export async function dispatchAnnouncement(
     announcement.audience_type === AnnouncementsAudienceType.TOPIC ||
     announcement.audience_type === AnnouncementsAudienceType.BROADCAST
   ) {
-    const topic =
-      announcement.audience_type === AnnouncementsAudienceType.TOPIC
-        ? resolveAnnouncementTopicId(
-            announcement.audience_value,
-            announcement.campus_id
-          )
-        : DEFAULT_BROADCAST_TOPIC;
+    const isTopicAudience =
+      announcement.audience_type === AnnouncementsAudienceType.TOPIC;
+    const topic = isTopicAudience
+      ? resolveAnnouncementTopicId(
+          announcement.audience_value,
+          announcement.campus_id
+        )
+      : DEFAULT_BROADCAST_TOPIC;
 
     if (announcement.push) {
       try {
@@ -319,7 +339,7 @@ export async function dispatchAnnouncement(
     ]);
     // Topic/broadcast pushes are surfaced in-app by querying announcements,
     // so we do not fan out user_notifications rows here.
-    return { recipients: 0 };
+    return { recipients: 0, ...(isTopicAudience ? { topic } : {}) };
   }
 
   // `segment` resolves audience_value as a segment_id → its assigned members.
@@ -393,12 +413,20 @@ export async function dispatchDueAnnouncements(
       deep_link: announcement.deep_link ?? buildDeepLink(announcement),
     };
     try {
-      await dispatchAnnouncement(enriched, clients);
+      const dispatchResult = await dispatchAnnouncement(enriched, clients);
       await db.updateRow("app", "announcements", announcement.$id, {
         status: AnnouncementsStatus.SENT,
         sent_at: now.toISOString(),
         data: enriched.data,
         deep_link: enriched.deep_link,
+        // Persist the resolved topic id onto a TOPIC row so it records what
+        // it was actually pushed to (see `DispatchAnnouncementResult`).
+        // Idempotent: an already campus-scoped `audience_value` resolves to
+        // itself, so re-dispatching a row doesn't change it further.
+        ...(announcement.audience_type === AnnouncementsAudienceType.TOPIC &&
+        dispatchResult.topic
+          ? { audience_value: dispatchResult.topic }
+          : {}),
       });
       result.sent += 1;
     } catch (error) {

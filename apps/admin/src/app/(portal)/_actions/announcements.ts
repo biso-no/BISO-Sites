@@ -688,6 +688,7 @@ const dispatchPersistedAnnouncement = async ({
   };
 
   let recipients = 0;
+  let resolvedTopic: string | undefined;
   try {
     const result = await dispatchAnnouncement(enriched, {
       db: client.db,
@@ -695,6 +696,7 @@ const dispatchPersistedAnnouncement = async ({
       users: client.users,
     });
     recipients = result.recipients;
+    resolvedTopic = result.topic;
   } catch (error) {
     console.error("Failed to dispatch announcement:", error);
     await client.db.updateRow("app", "announcements", announcement.$id, {
@@ -709,6 +711,17 @@ const dispatchPersistedAnnouncement = async ({
     sent_at: new Date().toISOString(),
     data: dataPayload,
     deep_link: enriched.deep_link,
+    // Persist the topic id dispatch actually resolved and pushed to, so the
+    // row records reality instead of the logical topic the composer wrote.
+    // Without this, the Flutter inbox's campus/opt-out filtering (which only
+    // recognises campus-scoped ids like "events_oslo") never applies to this
+    // row and it falls back to always-visible. Only a `topic` audience has a
+    // topic to persist — broadcast/segment/users are untouched, and an
+    // already campus-scoped value passes through `resolveAnnouncementTopicId`
+    // unchanged, so re-dispatch is idempotent.
+    ...(announcement.audience_type === "topic" && resolvedTopic
+      ? { audience_value: resolvedTopic }
+      : {}),
   });
 
   await logAuditEvent(ctx, "announcement.send", {

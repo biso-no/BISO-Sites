@@ -3,6 +3,7 @@ import {
   campusSlugFor,
   GENERAL_TOPIC_ID,
   isNotificationTopic,
+  logicalTopicFor,
   NOTIFICATION_TOPICS,
   topicIdFor,
 } from "./notification-topics";
@@ -61,6 +62,25 @@ describe("isNotificationTopic", () => {
 
   it("rejects the empty string", () => {
     expect(isNotificationTopic("")).toBe(false);
+  });
+});
+
+describe("logicalTopicFor", () => {
+  it("strips a campus suffix from a known topic prefix", () => {
+    expect(logicalTopicFor("events_oslo")).toBe("events");
+    expect(logicalTopicFor("shop_national")).toBe("shop");
+  });
+
+  it("leaves a bare logical topic unchanged", () => {
+    expect(logicalTopicFor("events")).toBe("events");
+  });
+
+  it("leaves 'general' unchanged - it has no topic prefix to strip", () => {
+    expect(logicalTopicFor("general")).toBe("general");
+  });
+
+  it("leaves an unrelated string unchanged", () => {
+    expect(logicalTopicFor("segment-123")).toBe("segment-123");
   });
 });
 

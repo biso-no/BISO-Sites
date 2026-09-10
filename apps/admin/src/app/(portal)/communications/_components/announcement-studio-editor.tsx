@@ -1,6 +1,7 @@
 "use client";
 
 import type { Announcements } from "@repo/api/types/appwrite";
+import { logicalTopicFor } from "@repo/shared/utils/notification-topics";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -269,6 +270,14 @@ function buildInitialValues(
     } catch {
       // leave as-is
     }
+  } else if (announcement?.audience_type === "topic" && audienceValue) {
+    // Dispatch persists the resolved campus-scoped id onto a sent row (e.g.
+    // "events_oslo" — see `resolveAnnouncementTopicId`), but the <select> in
+    // AudienceDetail only ever offers the four logical topics. Recover the
+    // logical topic so reopening a sent announcement shows the right option
+    // instead of none, and re-saving without touching the dropdown doesn't
+    // quietly narrow it back to an unscoped topic.
+    audienceValue = logicalTopicFor(audienceValue);
   }
 
   return {

@@ -54,3 +54,24 @@ export function topicIdFor(
 ): string {
   return `${topic}_${campusSlugFor(campusId)}`;
 }
+
+/**
+ * The inverse of `topicIdFor`: recovers the logical topic from a possibly
+ * campus-scoped Appwrite topic id, by stripping a trailing `_<campusSlug>`
+ * from a known topic prefix.
+ *
+ * Used when a `topic` announcement is reopened in an editor: dispatch
+ * persists the resolved id onto `audience_value` (see
+ * `resolveAnnouncementTopicId` in the admin app), so a previously sent row
+ * holds `events_oslo` rather than the logical `events` a topic picker
+ * offers. `general` and anything not matching a known topic prefix pass
+ * through unchanged.
+ */
+export function logicalTopicFor(value: string): string {
+  for (const topic of NOTIFICATION_TOPICS) {
+    if (value === topic || value.startsWith(`${topic}_`)) {
+      return topic;
+    }
+  }
+  return value;
+}
