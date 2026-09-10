@@ -156,7 +156,7 @@ const LOCATION_MODES = [
   },
 ] as const;
 
-const PUSH_FOLLOWERS = 4217;
+const MEMBER_POPULATION = 4217;
 const STUDENT_POPULATION = 6840;
 
 type LocaleCode = "en" | "no";
@@ -177,6 +177,8 @@ interface EventStudioEditorProps {
     saveError: string;
     saveSuccess: string;
   };
+  /** Push subscribers per campus id. `null` means the count is unavailable. */
+  pushSubscribers: Record<string, number | null>;
 }
 
 export type { EventStudioEditorProps };
@@ -277,6 +279,24 @@ function formatNOK(value: number | null | undefined) {
     return "Free";
   }
   return `NOK ${Math.round(value).toLocaleString("en-GB")}`;
+}
+
+/**
+ * What the push toggle promises.
+ *
+ * An unavailable count says so rather than guessing. The number this replaced
+ * was a hardcoded literal, and a wrong count is worse than an absent one when
+ * the whole point is telling an admin how many people they are about to reach.
+ */
+function describePushAudience(count: number | null): string {
+  if (count === null) {
+    return "Notify students subscribed to events at this campus. Subscriber count unavailable. Sends once when published.";
+  }
+  if (count === 0) {
+    return "No students are subscribed to event notifications at this campus yet. Sends once when published.";
+  }
+  const students = count === 1 ? "student" : "students";
+  return `Notify ${count.toLocaleString("en-GB")} ${students} subscribed to events at this campus. Sends once when published.`;
 }
 
 function fallback<T>(value: T | null | undefined, fallbackValue: T): T {
@@ -2434,9 +2454,11 @@ function capStepperBtn(left: boolean): React.CSSProperties {
 /* -------------------------------------------------------------------------- */
 
 function TicketsStep({
+  pushSubscribers,
   set,
   values,
 }: {
+  pushSubscribers: Record<string, number | null>;
   set: <K extends keyof EventUpsertInput>(
     key: K,
     value: EventUpsertInput[K]
@@ -2643,7 +2665,9 @@ function TicketsStep({
         />
         <ToggleCard
           active={values.notify_push ?? false}
-          description={`Notify ${PUSH_FOLLOWERS.toLocaleString("en-GB")} students who follow this tag. Sends once when published.`}
+          description={describePushAudience(
+            pushSubscribers[values.campus_id ?? ""] ?? null
+          )}
           icon={<Bell size={14} />}
           onClick={() => set("notify_push", !values.notify_push)}
           title="Push notification"
@@ -2831,7 +2855,7 @@ function ReviewStep({
       {
         label: "Audience",
         value: values.member_only
-          ? `Members only · ${PUSH_FOLLOWERS.toLocaleString("en-GB")} students`
+          ? `Members only · ${MEMBER_POPULATION.toLocaleString("en-GB")} students`
           : `All BI students · ${STUDENT_POPULATION.toLocaleString("en-GB")} students`,
         step: 3,
       },
@@ -3192,7 +3216,7 @@ function EventPreviewPane({
   const price =
     draft.pricing_mode === EventsPricingMode.FREE ? 0 : (draft.price ?? 0);
   const year = draft.start_date ? new Date(draft.start_date).getFullYear() : "";
-  const audience = draft.member_only ? PUSH_FOLLOWERS : STUDENT_POPULATION;
+  const audience = draft.member_only ? MEMBER_POPULATION : STUDENT_POPULATION;
   const audienceLabel = draft.member_only
     ? "with active BISO membership"
     : `on the ${campus?.name ?? "campus"}`;
@@ -4014,6 +4038,7 @@ export function EventStudioEditor({
   initialDepartments,
   isNew,
   labels,
+  pushSubscribers,
 }: EventStudioEditorProps) {
   const router = useRouter();
   const [step, setStep] = useState<StepIndex>(0);
@@ -4433,7 +4458,13 @@ export function EventStudioEditor({
                 values={values}
               />
             )}
-            {step === 3 && <TicketsStep set={set} values={values} />}
+            {step === 3 && (
+              <TicketsStep
+                pushSubscribers={pushSubscribers}
+                set={set}
+                values={values}
+              />
+            )}
             {step === 4 && (
               <ReviewStep
                 blocksEn={blocksEn}
