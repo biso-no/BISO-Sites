@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   campusSlugFor,
   GENERAL_TOPIC_ID,
+  isNotificationTopic,
   NOTIFICATION_TOPICS,
   topicIdFor,
 } from "./notification-topics";
@@ -35,6 +36,31 @@ describe("topicIdFor", () => {
   it("builds the national id when the campus is national or absent", () => {
     expect(topicIdFor("jobs", "5")).toBe("jobs_national");
     expect(topicIdFor("shop", null)).toBe("shop_national");
+  });
+});
+
+describe("isNotificationTopic", () => {
+  it("accepts each of the four logical topics", () => {
+    expect(isNotificationTopic("news")).toBe(true);
+    expect(isNotificationTopic("events")).toBe(true);
+    expect(isNotificationTopic("jobs")).toBe(true);
+    expect(isNotificationTopic("shop")).toBe(true);
+  });
+
+  it("rejects the retired 'products' alias", () => {
+    expect(isNotificationTopic("products")).toBe(false);
+  });
+
+  it("rejects 'general' - every device subscribes to it, but it isn't a topic a student opts into", () => {
+    expect(isNotificationTopic("general")).toBe(false);
+  });
+
+  it("rejects an already campus-scoped topic id", () => {
+    expect(isNotificationTopic("events_oslo")).toBe(false);
+  });
+
+  it("rejects the empty string", () => {
+    expect(isNotificationTopic("")).toBe(false);
   });
 });
 

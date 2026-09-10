@@ -12,6 +12,11 @@ export const NOTIFICATION_TOPICS = ["news", "events", "jobs", "shop"] as const;
 
 export type NotificationTopic = (typeof NOTIFICATION_TOPICS)[number];
 
+/** Whether a string is one of the logical topics a student can opt into. */
+export function isNotificationTopic(value: string): value is NotificationTopic {
+  return (NOTIFICATION_TOPICS as readonly string[]).includes(value);
+}
+
 /**
  * The topic every device is subscribed to, whether or not the student chose
  * anything. Used for broadcasts, so that "everyone" means everyone rather than

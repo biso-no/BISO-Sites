@@ -143,9 +143,10 @@ const AUDIENCE_TYPES: Array<{
 ];
 
 const TOPIC_OPTIONS = [
+  { value: "news", label: "News" },
   { value: "events", label: "Events" },
-  { value: "products", label: "Products" },
   { value: "jobs", label: "Jobs" },
+  { value: "shop", label: "Shop" },
 ] as const;
 
 const PUSH_PREVIEW_CHARS = 140;
