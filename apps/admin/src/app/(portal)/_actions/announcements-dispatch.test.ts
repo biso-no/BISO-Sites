@@ -3,6 +3,7 @@ import type { Announcements } from "@repo/api/types/appwrite";
 import type { DispatchAnnouncementResult } from "@/lib/announcements/send";
 import { resolveAnnouncementTopicId } from "@/lib/announcements/topic-id";
 import type { UserAuthContext } from "@/lib/authorization";
+import type { AnnouncementFormValues } from "./schemas";
 
 // `announcements.ts` transitively imports `@/lib/announcements/send`, which
 // starts with `import "server-only"`. Neutralized here the same way
@@ -78,7 +79,9 @@ mock.module("./audit-log", () => ({
   logAuditEvent: mock(async () => undefined),
 }));
 
-const { sendAnnouncement } = await import("./announcements");
+const { sendAnnouncement, updateAnnouncement } = await import(
+  "./announcements"
+);
 
 const baseRow = {
   $id: "announcement-1",
@@ -96,8 +99,15 @@ const baseRow = {
   title_en: "Title",
 };
 
+/**
+ * The one announcement row the mocked table holds. `listRows` returns a copy
+ * and `updateRow` merges into it, as Appwrite does, so a send that follows a
+ * save reads back what the save wrote.
+ */
+let storedRow: Record<string, unknown> = {};
+
 function mockAnnouncementRow(row: Record<string, unknown>): void {
-  db.listRows.mockResolvedValue({ rows: [row], total: 1 });
+  storedRow = { ...row };
 }
 
 /** The `db.updateRow` call that actually flips status to "sent" — a separate
@@ -118,13 +128,24 @@ beforeEach(() => {
   dispatchAnnouncement.mockImplementation(async (announcement) =>
     resolveLikeDispatch(announcement)
   );
+  db.listRows.mockImplementation(
+    async (_databaseId: string, tableId: string) =>
+      tableId === "announcements"
+        ? { rows: [{ ...storedRow }], total: 1 }
+        : { rows: [], total: 0 }
+  );
   db.updateRow.mockImplementation(
-    async (
+    (
       _databaseId: string,
       _tableId: string,
       rowId: string,
       data: Record<string, unknown> | undefined
-    ) => ({ $id: rowId, ...data })
+    ) => {
+      if (data) {
+        storedRow = { ...storedRow, ...data };
+      }
+      return Promise.resolve({ $id: rowId, ...storedRow });
+    }
   );
 });
 
@@ -191,5 +212,155 @@ describe("dispatchPersistedAnnouncement persists the resolved topic", () => {
     expect(findSentUpdate()).toEqual(
       expect.objectContaining({ audience_value: "events_oslo" })
     );
+  });
+});
+
+/** A topic announcement as dispatch leaves it: sent, its topic resolved. */
+const sentTopicRow = {
+  ...baseRow,
+  audience_value: "events_oslo",
+  sent_at: "2026-09-01T00:00:00.000Z",
+  status: "sent",
+};
+
+/**
+ * What the composer submits when it saves one of these rows. It edits a
+ * stored "events_oslo" as the logical "events" (`buildInitialValues` applies
+ * `logicalTopicFor`), and a save sends the form as it stands.
+ */
+function composerValues(
+  overrides: Partial<AnnouncementFormValues> = {}
+): AnnouncementFormValues {
+  return {
+    audience_type: "topic",
+    audience_value: "events",
+    body_en: null,
+    body_no: null,
+    campus_id: "1",
+    category: "general",
+    department_id: null,
+    event_id: null,
+    push: true,
+    scheduled_at: null,
+    title_en: "Title",
+    title_no: null,
+    ...overrides,
+  };
+}
+
+// The in-app inbox reads sent rows with no campus filter of its own. It scopes
+// a topic row by campus, and honours students' opt-outs, only when
+// `audience_value` is campus-scoped; a bare "events" is shown to every campus.
+describe("updateAnnouncement keeps a sent topic announcement campus-scoped", () => {
+  test("a save with nothing changed keeps the campus-scoped topic id", async () => {
+    mockAnnouncementRow(sentTopicRow);
+
+    const result = await updateAnnouncement("announcement-1", composerValues());
+
+    expect(result).toEqual({ data: "announcement-1" });
+    expect(storedRow).toMatchObject({
+      audience_type: "topic",
+      audience_value: "events_oslo",
+      campus_id: "1",
+      status: "sent",
+    });
+  });
+
+  test("a save that moves it to another campus scopes the topic to that campus", async () => {
+    mockAnnouncementRow(sentTopicRow);
+
+    await updateAnnouncement(
+      "announcement-1",
+      composerValues({ campus_id: "2" })
+    );
+
+    expect(storedRow).toMatchObject({
+      audience_value: "events_bergen",
+      campus_id: "2",
+      status: "sent",
+    });
+  });
+
+  test("switching a sent broadcast to a topic stores a campus-scoped id", async () => {
+    mockAnnouncementRow({
+      ...sentTopicRow,
+      audience_type: "broadcast",
+      audience_value: null,
+    });
+
+    await updateAnnouncement(
+      "announcement-1",
+      composerValues({ audience_value: "jobs" })
+    );
+
+    expect(storedRow).toMatchObject({
+      audience_type: "topic",
+      audience_value: "jobs_oslo",
+      status: "sent",
+    });
+  });
+
+  test("goes by the stored row's status, not one the caller supplies", async () => {
+    mockAnnouncementRow(sentTopicRow);
+
+    await updateAnnouncement("announcement-1", {
+      ...composerValues({ campus_id: "2" }),
+      status: "draft",
+    } as AnnouncementFormValues);
+
+    expect(storedRow).toMatchObject({
+      audience_value: "events_bergen",
+      status: "sent",
+    });
+  });
+
+  test("Send's save scopes the row before dispatch reads it, and the send keeps it scoped", async () => {
+    mockAnnouncementRow(sentTopicRow);
+
+    // The composer's Send saves, then sends. With auto-translate on, the send
+    // is queued behind a translation that can be dropped as stale, in which
+    // case dispatch never runs — so the save alone must leave the row scoped.
+    await updateAnnouncement(
+      "announcement-1",
+      composerValues({ campus_id: "2" })
+    );
+    expect(storedRow).toMatchObject({ audience_value: "events_bergen" });
+
+    const result = await sendAnnouncement("announcement-1");
+
+    expect(result).toEqual({ data: { recipients: 0, status: "sent" } });
+    expect(dispatchAnnouncement).toHaveBeenCalledWith(
+      expect.objectContaining({
+        audience_value: "events_bergen",
+        campus_id: "2",
+      }),
+      expect.anything()
+    );
+    expect(storedRow).toMatchObject({
+      audience_value: "events_bergen",
+      status: "sent",
+    });
+  });
+});
+
+describe("updateAnnouncement leaves an unsent topic announcement logical", () => {
+  // The inbox never reads these, and dispatch resolves the topic against the
+  // campus the row has when it goes out, then writes the scoped id back.
+  test.each([
+    "draft",
+    "scheduled",
+  ])("a %s announcement keeps the logical topic", async (status) => {
+    mockAnnouncementRow({ ...baseRow, audience_value: "events", status });
+
+    await updateAnnouncement(
+      "announcement-1",
+      composerValues({ campus_id: "2" })
+    );
+
+    expect(storedRow).toMatchObject({
+      audience_value: "events",
+      campus_id: "2",
+      status,
+    });
   });
 });

@@ -5,6 +5,7 @@ import { createAdminClient } from "@repo/api/server";
 import type { Announcements } from "@repo/api/types/appwrite";
 import { revalidatePath } from "next/cache";
 import { buildDeepLink, dispatchAnnouncement } from "@/lib/announcements/send";
+import { resolveAnnouncementTopicId } from "@/lib/announcements/topic-id";
 import { requireAuth } from "@/lib/authorization";
 import {
   applyContentRelationshipScopeQueries,
@@ -586,10 +587,26 @@ export async function updateAnnouncement(
       departmentId: validated.data.department_id ?? null,
     });
 
-    const audienceValue = await normalizeAudienceValue(
-      validated.data.audience_type,
-      validated.data.audience_value
-    );
+    // A sent row is already in students' inboxes. The inbox scopes a topic row
+    // to its campus, and honours opt-outs, only when `audience_value` is a
+    // campus-scoped id such as "events_oslo" — a bare "events" is shown to
+    // every campus. The composer edits the logical topic, so resolve a sent
+    // row's topic here, against the campus being saved, as dispatch would: the
+    // row is then scoped even if a re-send is deferred or never runs. Drafts
+    // and scheduled rows keep the logical topic; dispatch resolves it and
+    // writes the id back when they go out. The status is the stored row's,
+    // never the caller's.
+    const audienceValue =
+      announcement.status === "sent" &&
+      validated.data.audience_type === "topic"
+        ? resolveAnnouncementTopicId(
+            validated.data.audience_value,
+            validated.data.campus_id || null
+          )
+        : await normalizeAudienceValue(
+            validated.data.audience_type,
+            validated.data.audience_value
+          );
 
     await db.updateRow("app", "announcements", id, {
       ...buildAnnouncementColumns(validated.data, audienceValue),
