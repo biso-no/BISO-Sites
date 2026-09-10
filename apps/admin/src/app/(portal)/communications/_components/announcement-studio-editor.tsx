@@ -1,6 +1,7 @@
 "use client";
 
 import type { Announcements } from "@repo/api/types/appwrite";
+import { logicalTopicFor } from "@repo/shared/utils/notification-topics";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -143,9 +144,10 @@ const AUDIENCE_TYPES: Array<{
 ];
 
 const TOPIC_OPTIONS = [
+  { value: "news", label: "News" },
   { value: "events", label: "Events" },
-  { value: "products", label: "Products" },
   { value: "jobs", label: "Jobs" },
+  { value: "shop", label: "Shop" },
 ] as const;
 
 const PUSH_PREVIEW_CHARS = 140;
@@ -253,6 +255,23 @@ function categoryAccent(id: CategoryId): string {
   }
 }
 
+/**
+ * The topic a topic announcement holds when it has none. The form stores it
+ * rather than only displaying it: dispatch sends an empty topic to `general`,
+ * which is every student, so a Topic select showing Events over an empty value
+ * would message everyone.
+ */
+const DEFAULT_TOPIC: (typeof TOPIC_OPTIONS)[number]["value"] = "events";
+
+/** Gives a topic announcement with no topic the default one. */
+function withTopicDefault(
+  values: AnnouncementFormValues
+): AnnouncementFormValues {
+  return values.audience_type === "topic" && !values.audience_value?.trim()
+    ? { ...values, audience_value: DEFAULT_TOPIC }
+    : values;
+}
+
 function buildInitialValues(
   announcement: Announcements | null,
   defaultCampusId: string,
@@ -268,9 +287,22 @@ function buildInitialValues(
     } catch {
       // leave as-is
     }
+  } else if (announcement?.audience_type === "topic" && audienceValue) {
+    // A sent row holds the campus-scoped id dispatch resolved (e.g.
+    // "events_oslo" — see `resolveAnnouncementTopicId`), but the <select> in
+    // AudienceDetail only offers the four logical topics. Editing the logical
+    // topic does two things: it keeps that select on a real option, and it
+    // makes a re-send target the campus chosen now. The resolver passes an
+    // already-scoped id through unchanged, so an "events_oslo" row moved to
+    // Bergen would otherwise still push to Oslo.
+    //
+    // It is not what keeps a sent row scoped — saving writes the logical topic
+    // back. `updateAnnouncement` does that on the server, resolving a sent
+    // row's topic against the campus being saved.
+    audienceValue = logicalTopicFor(audienceValue);
   }
 
-  return {
+  return withTopicDefault({
     title_en: announcement?.title_en ?? "",
     title_no: announcement?.title_no ?? null,
     body_en: announcement?.body_en ?? null,
@@ -283,7 +315,7 @@ function buildInitialValues(
     department_id: announcementDepartmentId(announcement) ?? pinnedDepartmentId,
     push: announcement?.push ?? true,
     scheduled_at: announcement?.scheduled_at ?? null,
-  };
+  });
 }
 
 function announcementDepartmentId(
@@ -867,7 +899,7 @@ function AudienceDetail({
         <select
           onChange={(event) => set("audience_value", event.target.value)}
           style={fieldInputStyle()}
-          value={values.audience_value || "events"}
+          value={values.audience_value ?? ""}
         >
           {TOPIC_OPTIONS.map((topic) => (
             <option key={topic.value} value={topic.value}>
@@ -1060,7 +1092,7 @@ function buildReviewRows(
     "—";
   let audienceDetail = "";
   if (values.audience_type === "topic") {
-    audienceDetail = ` · ${values.audience_value || "events"}`;
+    audienceDetail = ` · ${values.audience_value ?? ""}`;
   } else if (values.audience_type === "users") {
     const count = (values.audience_value ?? "")
       .split(",")
@@ -1878,7 +1910,9 @@ export function AnnouncementStudioEditor({
     key: K,
     value: AnnouncementFormValues[K]
   ) {
-    setValues((prev) => ({ ...prev, [key]: value }));
+    // Switching the audience to Topic with no topic set picks the default, so
+    // the Topic select shows what will be stored and sent.
+    setValues((prev) => withTopicDefault({ ...prev, [key]: value }));
     setDirty(true);
   }
 

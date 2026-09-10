@@ -69,6 +69,7 @@ import {
   stripHtml,
   type TextDescriptionBlock,
 } from "../../../_components/description-blocks";
+import { describePushAudience } from "./event-studio-push";
 
 /* -------------------------------------------------------------------------- */
 /*                              Brand + constants                             */
@@ -156,7 +157,7 @@ const LOCATION_MODES = [
   },
 ] as const;
 
-const PUSH_FOLLOWERS = 4217;
+const MEMBER_POPULATION = 4217;
 const STUDENT_POPULATION = 6840;
 
 type LocaleCode = "en" | "no";
@@ -177,6 +178,8 @@ interface EventStudioEditorProps {
     saveError: string;
     saveSuccess: string;
   };
+  /** Push subscribers per campus id. `null` means the count is unavailable. */
+  pushSubscribers: Record<string, number | null>;
 }
 
 export type { EventStudioEditorProps };
@@ -2434,9 +2437,11 @@ function capStepperBtn(left: boolean): React.CSSProperties {
 /* -------------------------------------------------------------------------- */
 
 function TicketsStep({
+  pushSubscribers,
   set,
   values,
 }: {
+  pushSubscribers: Record<string, number | null>;
   set: <K extends keyof EventUpsertInput>(
     key: K,
     value: EventUpsertInput[K]
@@ -2643,7 +2648,9 @@ function TicketsStep({
         />
         <ToggleCard
           active={values.notify_push ?? false}
-          description={`Notify ${PUSH_FOLLOWERS.toLocaleString("en-GB")} students who follow this tag. Sends once when published.`}
+          description={describePushAudience(
+            pushSubscribers[values.campus_id ?? ""] ?? null
+          )}
           icon={<Bell size={14} />}
           onClick={() => set("notify_push", !values.notify_push)}
           title="Push notification"
@@ -2831,7 +2838,7 @@ function ReviewStep({
       {
         label: "Audience",
         value: values.member_only
-          ? `Members only · ${PUSH_FOLLOWERS.toLocaleString("en-GB")} students`
+          ? `Members only · ${MEMBER_POPULATION.toLocaleString("en-GB")} students`
           : `All BI students · ${STUDENT_POPULATION.toLocaleString("en-GB")} students`,
         step: 3,
       },
@@ -3192,7 +3199,7 @@ function EventPreviewPane({
   const price =
     draft.pricing_mode === EventsPricingMode.FREE ? 0 : (draft.price ?? 0);
   const year = draft.start_date ? new Date(draft.start_date).getFullYear() : "";
-  const audience = draft.member_only ? PUSH_FOLLOWERS : STUDENT_POPULATION;
+  const audience = draft.member_only ? MEMBER_POPULATION : STUDENT_POPULATION;
   const audienceLabel = draft.member_only
     ? "with active BISO membership"
     : `on the ${campus?.name ?? "campus"}`;
@@ -4014,6 +4021,7 @@ export function EventStudioEditor({
   initialDepartments,
   isNew,
   labels,
+  pushSubscribers,
 }: EventStudioEditorProps) {
   const router = useRouter();
   const [step, setStep] = useState<StepIndex>(0);
@@ -4433,7 +4441,13 @@ export function EventStudioEditor({
                 values={values}
               />
             )}
-            {step === 3 && <TicketsStep set={set} values={values} />}
+            {step === 3 && (
+              <TicketsStep
+                pushSubscribers={pushSubscribers}
+                set={set}
+                values={values}
+              />
+            )}
             {step === 4 && (
               <ReviewStep
                 blocksEn={blocksEn}

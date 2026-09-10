@@ -171,6 +171,9 @@ class TestComment extends TestText {
   }
 }
 
+/** A bare tag-name selector — the only kind `TestElement.closest` supports. */
+const TAG_NAME_SELECTOR = /^[a-z][a-z0-9-]*$/i;
+
 export class TestElement extends TestNode {
   readonly attributes = new Map<string, string>();
   readonly namespaceURI: string;
@@ -234,6 +237,28 @@ export class TestElement extends TestNode {
       return;
     }
     this.dispatchEvent(new Event("click", { bubbles: true, cancelable: true }));
+  }
+
+  /**
+   * The nearest inclusive ancestor with the given tag name. Radix's Switch
+   * calls `button.closest("form")` while rendering, which made every component
+   * containing a Switch unmountable in this harness. Only a bare tag-name
+   * selector is supported; anything else throws rather than quietly matching
+   * nothing.
+   */
+  closest(selector: string): TestElement | null {
+    if (!TAG_NAME_SELECTOR.test(selector)) {
+      throw new Error(`Unsupported selector in test harness: ${selector}`);
+    }
+    const tagName = selector.toUpperCase();
+    let node: TestNode | null = this;
+    while (node) {
+      if (node instanceof TestElement && node.tagName === tagName) {
+        return node;
+      }
+      node = node.parentNode;
+    }
+    return null;
   }
 
   override dispatchEvent(event: Event): boolean {
@@ -328,6 +353,17 @@ export function installReactDom(): InstalledDom {
   const originalGlobals = new Map<string, PropertyDescriptor | undefined>();
   const document = new TestDocument();
   class TestHtmlIFrameElement extends TestElement {}
+  class TestHtmlInputElement extends TestElement {}
+  // Radix's Switch renders a hidden checkbox until it knows whether it sits in
+  // a form, and syncs it through the native `checked` setter it looks up on
+  // `HTMLInputElement.prototype` — with no such setter it throws. Harness
+  // elements keep `checked` as a plain field, which this setter writes.
+  Object.defineProperty(TestHtmlInputElement.prototype, "checked", {
+    configurable: true,
+    set(this: TestElement, checked: boolean) {
+      this.checked = checked;
+    },
+  });
   const window = {
     document,
     Element: TestElement,
@@ -335,6 +371,7 @@ export function installReactDom(): InstalledDom {
     File,
     HTMLElement: TestElement,
     HTMLIFrameElement: TestHtmlIFrameElement,
+    HTMLInputElement: TestHtmlInputElement,
     Node: TestNode,
     getComputedStyle: () => ({ display: "block" }),
     getSelection: () => null,
@@ -345,6 +382,7 @@ export function installReactDom(): InstalledDom {
     Element: TestElement,
     HTMLElement: TestElement,
     HTMLIFrameElement: TestHtmlIFrameElement,
+    HTMLInputElement: TestHtmlInputElement,
     IS_REACT_ACT_ENVIRONMENT: true,
     Node: TestNode,
     navigator: { userAgent: "bun-test" },

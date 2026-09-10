@@ -2,6 +2,7 @@ import type { EventRecord } from "@repo/shared/types/events";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { requireNavAccess } from "@/lib/authorization";
+import { getEventTopicSubscriberCounts } from "@/lib/notifications/topic-subscribers";
 import { getEvent } from "../../_actions/events";
 import { listCampuses, listDepartmentsForCampus } from "../../_actions/lookups";
 import { EventStudioEditor } from "./_components/event-studio-editor";
@@ -54,6 +55,10 @@ export default async function EventEditorPage({
         return allowed.includes(c.$id);
       });
 
+  const pushSubscribers = await getEventTopicSubscriberCounts(
+    filteredCampuses.map((c) => c.$id)
+  );
+
   const campusIdForDepts = event?.campus_id ?? effectiveCampusId;
   const departments = campusIdForDepts
     ? await listDepartmentsForCampus(campusIdForDepts)
@@ -88,6 +93,7 @@ export default async function EventEditorPage({
         saveError: t("saveError"),
         saveSuccess: t("saveSuccess"),
       }}
+      pushSubscribers={pushSubscribers}
     />
   );
 }

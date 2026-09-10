@@ -10,10 +10,8 @@ import {
   EventsCollectionPricing,
   type EventsStatus,
 } from "@repo/api/types/appwrite";
-
-const EVENTS_PUSH_TOPIC_ID = "events";
-
 import type { Announcements } from "@repo/api/types/appwrite";
+import { topicIdFor } from "@repo/shared/utils/notification-topics";
 import { generateObject } from "ai";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -103,8 +101,9 @@ interface EventTranslationSnapshot {
 /**
  * Send a published-event push through the unified announcement delivery path.
  * Creates a transient `announcement` row (category "event", topic audience on
- * the "events" topic) and dispatches it. Resilient by design: any failure is
- * logged and never blocks publishing.
+ * the campus-scoped "events" topic, e.g. "events_oslo" or "events_national")
+ * and dispatches it. Resilient by design: any failure is logged and never
+ * blocks publishing.
  */
 async function sendEventAnnouncement(input: {
   eventId: string;
@@ -125,7 +124,10 @@ async function sendEventAnnouncement(input: {
         status: "sent",
         category: "event",
         audience_type: "topic",
-        audience_value: EVENTS_PUSH_TOPIC_ID,
+        // Campus-scoped: a published event notifies students at its own campus,
+        // and `topicIdFor` resolves a null campus to the national topic, which
+        // every subscriber holds.
+        audience_value: topicIdFor("events", input.campusId),
         title_en: input.titleEn,
         title_no: input.titleNo,
         body_en: input.bodyEn,
