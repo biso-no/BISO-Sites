@@ -255,6 +255,23 @@ function categoryAccent(id: CategoryId): string {
   }
 }
 
+/**
+ * The topic a topic announcement holds when it has none. The form stores it
+ * rather than only displaying it: dispatch sends an empty topic to `general`,
+ * which is every student, so a Topic select showing Events over an empty value
+ * would message everyone.
+ */
+const DEFAULT_TOPIC: (typeof TOPIC_OPTIONS)[number]["value"] = "events";
+
+/** Gives a topic announcement with no topic the default one. */
+function withTopicDefault(
+  values: AnnouncementFormValues
+): AnnouncementFormValues {
+  return values.audience_type === "topic" && !values.audience_value?.trim()
+    ? { ...values, audience_value: DEFAULT_TOPIC }
+    : values;
+}
+
 function buildInitialValues(
   announcement: Announcements | null,
   defaultCampusId: string,
@@ -285,7 +302,7 @@ function buildInitialValues(
     audienceValue = logicalTopicFor(audienceValue);
   }
 
-  return {
+  return withTopicDefault({
     title_en: announcement?.title_en ?? "",
     title_no: announcement?.title_no ?? null,
     body_en: announcement?.body_en ?? null,
@@ -298,7 +315,7 @@ function buildInitialValues(
     department_id: announcementDepartmentId(announcement) ?? pinnedDepartmentId,
     push: announcement?.push ?? true,
     scheduled_at: announcement?.scheduled_at ?? null,
-  };
+  });
 }
 
 function announcementDepartmentId(
@@ -882,7 +899,7 @@ function AudienceDetail({
         <select
           onChange={(event) => set("audience_value", event.target.value)}
           style={fieldInputStyle()}
-          value={values.audience_value || "events"}
+          value={values.audience_value ?? ""}
         >
           {TOPIC_OPTIONS.map((topic) => (
             <option key={topic.value} value={topic.value}>
@@ -1075,7 +1092,7 @@ function buildReviewRows(
     "—";
   let audienceDetail = "";
   if (values.audience_type === "topic") {
-    audienceDetail = ` · ${values.audience_value || "events"}`;
+    audienceDetail = ` · ${values.audience_value ?? ""}`;
   } else if (values.audience_type === "users") {
     const count = (values.audience_value ?? "")
       .split(",")
@@ -1893,7 +1910,9 @@ export function AnnouncementStudioEditor({
     key: K,
     value: AnnouncementFormValues[K]
   ) {
-    setValues((prev) => ({ ...prev, [key]: value }));
+    // Switching the audience to Topic with no topic set picks the default, so
+    // the Topic select shows what will be stored and sent.
+    setValues((prev) => withTopicDefault({ ...prev, [key]: value }));
     setDirty(true);
   }
 
