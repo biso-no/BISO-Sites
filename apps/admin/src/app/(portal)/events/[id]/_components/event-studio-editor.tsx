@@ -69,6 +69,7 @@ import {
   stripHtml,
   type TextDescriptionBlock,
 } from "../../../_components/description-blocks";
+import { describePushAudience } from "./event-studio-push";
 
 /* -------------------------------------------------------------------------- */
 /*                              Brand + constants                             */
@@ -279,24 +280,6 @@ function formatNOK(value: number | null | undefined) {
     return "Free";
   }
   return `NOK ${Math.round(value).toLocaleString("en-GB")}`;
-}
-
-/**
- * What the push toggle promises.
- *
- * An unavailable count says so rather than guessing. The number this replaced
- * was a hardcoded literal, and a wrong count is worse than an absent one when
- * the whole point is telling an admin how many people they are about to reach.
- */
-function describePushAudience(count: number | null): string {
-  if (count === null) {
-    return "Notify students subscribed to events at this campus. Subscriber count unavailable. Sends once when published.";
-  }
-  if (count === 0) {
-    return "No students are subscribed to event notifications at this campus yet. Sends once when published.";
-  }
-  const students = count === 1 ? "student" : "students";
-  return `Notify ${count.toLocaleString("en-GB")} ${students} subscribed to events at this campus. Sends once when published.`;
 }
 
 function fallback<T>(value: T | null | undefined, fallbackValue: T): T {
