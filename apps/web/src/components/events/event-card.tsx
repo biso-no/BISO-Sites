@@ -27,6 +27,7 @@ import {
   parseEventMetadata,
   resolveEventCategory,
 } from "@/lib/types/event";
+import { MembersOnlyBadge } from "./members-only";
 
 interface EventCardProps {
   event: Events;
@@ -67,12 +68,7 @@ function EventBadges({
           </Badge>
         )}
       </div>
-      {memberOnly && (
-        <Badge className="flex w-fit items-center gap-1 border-0 bg-orange-500 text-white">
-          <Users className="h-3 w-3" />
-          Members Only
-        </Badge>
-      )}
+      {memberOnly && <MembersOnlyBadge />}
       {!memberOnly && hasMemberDiscount && (
         <Badge className="flex w-fit items-center gap-1 border-0 bg-green-500 text-white">
           <Tag className="h-3 w-3" />

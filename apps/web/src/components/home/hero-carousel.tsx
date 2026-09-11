@@ -21,6 +21,7 @@ import Image, { type ImageProps } from "next/image";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
+import { MembersOnlyBadge } from "@/components/events/members-only";
 import { buildTeaser } from "@/lib/content-text";
 
 /**
@@ -147,9 +148,14 @@ function HeroCarouselSlide({ index, item, t }: HeroCarouselSlideProps) {
           initial={{ opacity: 0, y: 30 }}
           transition={{ duration: 0.8, delay: 0.2 }}
         >
-          <div className="mb-8 inline-flex items-center gap-2 rounded-full border border-white/20 bg-background/10 px-6 py-3 backdrop-blur-md">
-            <Sparkles className="h-5 w-5 text-brand" />
-            <span className="text-white/90">{badgeLabel}</span>
+          <div className="mb-8 flex flex-wrap items-center justify-center gap-3">
+            <div className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-background/10 px-6 py-3 backdrop-blur-md">
+              <Sparkles className="h-5 w-5 text-brand" />
+              <span className="text-white/90">{badgeLabel}</span>
+            </div>
+            {isEvent && item.member_only && (
+              <MembersOnlyBadge className="rounded-full px-4 py-2 text-sm" />
+            )}
           </div>
 
           <div className="cursor-text select-text" data-carousel-no-drag>

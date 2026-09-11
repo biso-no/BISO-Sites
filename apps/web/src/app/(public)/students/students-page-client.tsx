@@ -30,6 +30,7 @@ import { useTranslations } from "next-intl";
 import { useMemo } from "react";
 import { AboutHero } from "@/components/about/about-hero";
 import { useCampus } from "@/components/context/campus";
+import { MembersOnlyBadge } from "@/components/events/members-only";
 import type { PublicUnit } from "@/lib/data/units";
 import type { CampusData } from "@/lib/types/campus-data";
 import { getEventHref } from "@/lib/types/event";
@@ -450,9 +451,12 @@ function EventsSection({
                   whileInView={{ opacity: 1, y: 0 }}
                 >
                   <Card className="flex h-full flex-col border-border/50 bg-card/80 p-6 backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:border-brand-border hover:shadow-lg">
-                    <div className="flex items-center gap-2 font-medium text-brand text-xs uppercase tracking-wide">
-                      <Calendar className="h-4 w-4" />
-                      {formatDateReadable(new Date(event.start_date || ""))}
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 font-medium text-brand text-xs uppercase tracking-wide">
+                        <Calendar className="h-4 w-4" />
+                        {formatDateReadable(new Date(event.start_date || ""))}
+                      </div>
+                      {event.member_only && <MembersOnlyBadge />}
                     </div>
                     <h3 className="mt-3 font-semibold text-foreground text-lg">
                       {translation?.title ?? "Untitled"}

@@ -30,7 +30,13 @@ function PriceHelperText({
   const textClass = "text-muted-foreground text-sm";
 
   if (price === "Free") {
-    return <p className={textClass}>{t("infoCards.freeEvent")}</p>;
+    return (
+      <p className={textClass}>
+        {eventData?.member_only
+          ? t("infoCards.freeForMembers")
+          : t("infoCards.freeEvent")}
+      </p>
+    );
   }
 
   if (eventData?.is_collection && eventData.collection_pricing === "bundle") {

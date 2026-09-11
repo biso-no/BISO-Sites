@@ -98,6 +98,8 @@ async function EventDetails({ slug }: { slug: string }) {
             <EventActions
               description={description}
               event={event}
+              isMember={membership.isMember}
+              showSignIn={membership.reason === "not_authenticated"}
               title={title}
             />
 

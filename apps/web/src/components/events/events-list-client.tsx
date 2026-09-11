@@ -51,14 +51,13 @@ export function EventsListClient({
         listEvents({
           campus,
           category: selectedCategory,
-          isMember,
           locale,
           page,
           search: initialSearch,
           status: "published",
           upcomingOnly: true,
         }),
-      [campus, selectedCategory, isMember, locale, initialSearch]
+      [campus, selectedCategory, locale, initialSearch]
     ),
   });
 

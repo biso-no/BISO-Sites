@@ -40,22 +40,20 @@ async function EventsList({
 }) {
   // `upcomingOnly` is a real server-side filter: `queryEvents` expresses "has
   // not finished yet" as a three-armed `Query.or` over end_date/start_date, so
-  // there is no post-fetch pass here to overfetch for. `isMember` is threaded
-  // from the membership status resolved in the page component — omitting it
-  // would hide member-only events from members, which is exactly the
-  // regression this call was fixed to stop reproducing.
+  // there is no post-fetch pass here to overfetch for. `isMember` never
+  // narrows the list (members-only events are shown to everyone); it only
+  // drives member pricing and the members-only notice in the client.
   const [result, facets] = await Promise.all([
     listEvents({
       campus,
       category,
-      isMember,
       locale,
       page,
       search,
       status: "published",
       upcomingOnly: true,
     }),
-    listEventFacets({ campus, isMember }),
+    listEventFacets({ campus }),
   ]);
 
   return (

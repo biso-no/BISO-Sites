@@ -12,16 +12,22 @@ import {
   type EventRegistrationInfo,
   resolveEventRegistration,
 } from "@/lib/types/event";
+import { MembersOnlyNotice } from "./members-only";
 
 interface EventActionsProps {
   description: string;
   event: Events;
+  isMember?: boolean;
+  /** Offer "already a member? sign in" — only for signed-out visitors. */
+  showSignIn?: boolean;
   title: string;
 }
 
 function RegistrationHeading({
+  memberOnly,
   registration,
 }: {
+  memberOnly: boolean;
   registration: EventRegistrationInfo;
 }) {
   const t = useTranslations("events");
@@ -59,7 +65,9 @@ function RegistrationHeading({
         {t("actions.noRegistrationTitle")}
       </h3>
       <p className="mb-6 text-sm text-white/90">
-        {t("actions.noRegistrationDescription")}
+        {memberOnly
+          ? t("actions.noRegistrationMembersDescription")
+          : t("actions.noRegistrationDescription")}
       </p>
     </>
   );
@@ -98,7 +106,13 @@ function RegistrationFacts({
   );
 }
 
-export function EventActions({ event, title, description }: EventActionsProps) {
+export function EventActions({
+  event,
+  isMember = false,
+  showSignIn = false,
+  title,
+  description,
+}: EventActionsProps) {
   const t = useTranslations("events");
   const pathname = usePathname();
   // The event detail route is /events/[slug]; the trailing segment is the slug.
@@ -125,7 +139,18 @@ export function EventActions({ event, title, description }: EventActionsProps) {
 
   return (
     <Card className="border-0 bg-linear-to-br from-brand-gradient-to to-brand-gradient-from p-6 shadow-lg">
-      <RegistrationHeading registration={registration} />
+      <RegistrationHeading
+        memberOnly={Boolean(event.member_only)}
+        registration={registration}
+      />
+
+      {event.member_only && (
+        <MembersOnlyNotice
+          isMember={isMember}
+          showSignIn={showSignIn}
+          tone="onBrand"
+        />
+      )}
 
       {/* Only `ticket` has somewhere to send the student — the other modes get
           information, never a button that does nothing when clicked. */}

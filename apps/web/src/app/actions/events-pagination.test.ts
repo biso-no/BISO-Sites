@@ -6,7 +6,7 @@ vi.mock("@repo/api/server", () => ({
   createSessionClient: vi.fn(async () => ({ db: sessionDb })),
 }));
 
-import { listEvents } from "./events";
+import { listEventFacets, listEvents } from "./events";
 
 const queriesOf = (call: number): string[] =>
   sessionDb.listRows.mock.calls[call][2].map(String);
@@ -32,20 +32,20 @@ describe("listEvents pagination", () => {
     expect(serialized).toContain('"method":"isNull","attribute":"end_date"');
   });
 
-  it("hides member-only events from non-members in the query", async () => {
-    await listEvents({ isMember: false });
+  it("never hides member-only events — members-only limits who can join, not who can see", async () => {
+    await listEvents({});
 
     const serialized = queriesOf(0).join("|");
-    // "member_only" alone also matches the Query.select projection, which is
-    // present on every call regardless of this filter — pin the attribute key.
-    expect(serialized).toContain('"attribute":"member_only"');
+    // "member_only" is still in the Query.select projection (cards need it to
+    // render the badge), so pin the filter's attribute key, not the bare name.
+    expect(serialized).not.toContain('"attribute":"member_only"');
+    // The column must stay projected, or no surface can mark the event.
+    expect(serialized).toContain("member_only");
   });
 
-  it("does not filter member_only for a member", async () => {
-    await listEvents({ isMember: true });
+  it("never filters member-only events out of the category facets", async () => {
+    await listEventFacets({});
 
-    // Same reasoning in reverse: a bare `.not.toContain("member_only")` would
-    // always fail because the column is still in the select projection.
     expect(queriesOf(0).join("|")).not.toContain('"attribute":"member_only"');
   });
 

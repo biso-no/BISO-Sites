@@ -12,6 +12,7 @@ import {
   parseEventMetadata,
   resolveEventCategory,
 } from "@/lib/types/event";
+import { MembersOnlyBadge } from "./members-only";
 
 interface EventHeroProps {
   event: Events;
@@ -73,10 +74,15 @@ export function EventHero({ event }: EventHeroProps) {
           </Link>
 
           <div className="fade-in slide-in-from-bottom-4 mt-12 animate-in duration-700">
-            {category && (
-              <Badge className={`mb-4 ${EVENT_CATEGORY_COLORS[category]}`}>
-                {t(`filters.${EVENT_CATEGORY_MESSAGE_KEYS[category]}`)}
-              </Badge>
+            {(category || eventData?.member_only) && (
+              <div className="mb-4 flex flex-wrap gap-2">
+                {category && (
+                  <Badge className={EVENT_CATEGORY_COLORS[category]}>
+                    {t(`filters.${EVENT_CATEGORY_MESSAGE_KEYS[category]}`)}
+                  </Badge>
+                )}
+                {eventData?.member_only && <MembersOnlyBadge />}
+              </div>
             )}
             <h1 className="mb-4 font-bold text-4xl text-white md:text-5xl">
               {title}

@@ -65,12 +65,6 @@ export async function cachedPublishedEvents(
   "use cache";
   cacheLife("minutes");
   const { db } = await createPublicClient();
-  // `isMember` deliberately left at its default (`false`): this is the guest
-  // client behind `createPublicClient()`, one cached result shared by every
-  // anonymous visitor — an anonymous visitor cannot be a member, so hiding
-  // member-only rows here is correct, not a gap. Signed-in visitors take the
-  // `listEvents({ isMember })` path in the caller instead (see homeEvents in
-  // (public)/page.tsx), which is never served from this cache.
   const { rows } = await queryEvents(db, {
     campus: campusId ?? undefined,
     limit,

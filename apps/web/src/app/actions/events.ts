@@ -20,15 +20,6 @@ import {
 interface ListEventsParams {
   campus?: string;
   category?: string | null;
-  /**
-   * Whether the visitor may see `member_only` rows. Defaults to `false`
-   * (hide member-only content) — there is no way to infer membership from
-   * inside this action, so every caller must decide and pass it explicitly.
-   * A caller that forgets this is not "using the safe default", it is
-   * silently hiding member-only events from actual members; see the
-   * member-only regression fixed alongside this comment.
-   */
-  isMember?: boolean;
   locale?: "en" | "no";
   page?: number;
   /**
@@ -74,7 +65,6 @@ export async function listEvents(
  */
 export async function listEventFacets(params: {
   campus?: string;
-  isMember?: boolean;
 }): Promise<{ categories: EventsCategory[] }> {
   try {
     const { db } = await createSessionClient();
@@ -86,14 +76,6 @@ export async function listEventFacets(params: {
     const campusScope = campusScopeIds(params.campus ?? null);
     if (campusScope) {
       queries.push(Query.equal("campus_id", campusScope));
-    }
-    if (!params.isMember) {
-      queries.push(
-        Query.or([
-          Query.equal("member_only", false),
-          Query.isNull("member_only"),
-        ])
-      );
     }
 
     const response = await db.listRows<Events>("app", "events", queries);

@@ -9,6 +9,7 @@ import { ArrowRight, Calendar, Clock, MapPin, Users } from "lucide-react";
 import { motion } from "motion/react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import { MembersOnlyBadge } from "@/components/events/members-only";
 import {
   EVENT_CATEGORY_COLORS,
   EVENT_CATEGORY_MESSAGE_KEYS,
@@ -111,13 +112,14 @@ function EventCard({ event, index, registerLabel }: EventCardProps) {
               src={imageUrl}
             />
             <div className="absolute inset-0 bg-linear-to-t from-black/60 via-transparent to-transparent" />
-            {category && (
-              <Badge
-                className={`absolute top-4 left-4 ${EVENT_CATEGORY_COLORS[category]}`}
-              >
-                {t(`filters.${EVENT_CATEGORY_MESSAGE_KEYS[category]}`)}
-              </Badge>
-            )}
+            <div className="absolute top-4 left-4 flex flex-wrap gap-2">
+              {category && (
+                <Badge className={EVENT_CATEGORY_COLORS[category]}>
+                  {t(`filters.${EVENT_CATEGORY_MESSAGE_KEYS[category]}`)}
+                </Badge>
+              )}
+              {eventRef?.member_only && <MembersOnlyBadge />}
+            </div>
           </div>
 
           {/* Content */}

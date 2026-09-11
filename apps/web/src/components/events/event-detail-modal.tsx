@@ -27,6 +27,7 @@ import {
   resolveEventCategory,
   resolveEventRegistration,
 } from "@/lib/types/event";
+import { MembersOnlyBadge, MembersOnlyNotice } from "./members-only";
 
 interface EventDetailModalProps {
   event: Events;
@@ -102,9 +103,13 @@ function RegistrationNotice({
 }
 
 function ActionButtons({
+  isMember,
+  memberOnly,
   registration,
   onClose,
 }: {
+  isMember: boolean;
+  memberOnly: boolean;
   registration: EventRegistrationInfo;
   onClose: () => void;
 }) {
@@ -113,6 +118,7 @@ function ActionButtons({
 
   return (
     <div>
+      {memberOnly && <MembersOnlyNotice isMember={isMember} />}
       <RegistrationNotice registration={registration} />
       <div className="flex gap-4">
         {ticketUrl && (
@@ -234,6 +240,7 @@ export function EventDetailModal({
                   {t(`filters.${EVENT_CATEGORY_MESSAGE_KEYS[category]}`)}
                 </Badge>
               )}
+              {eventData?.member_only && <MembersOnlyBadge />}
               {memberPrice && !isMember && (
                 <Badge className="flex items-center gap-1 border-0 bg-green-500 text-white">
                   <Tag className="h-3 w-3" />
@@ -386,7 +393,12 @@ export function EventDetailModal({
             )}
 
             {/* Action Buttons */}
-            <ActionButtons onClose={onClose} registration={registration} />
+            <ActionButtons
+              isMember={isMember}
+              memberOnly={Boolean(eventData?.member_only)}
+              onClose={onClose}
+              registration={registration}
+            />
           </div>
         </motion.div>
       </motion.div>

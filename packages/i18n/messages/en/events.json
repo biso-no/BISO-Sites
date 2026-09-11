@@ -65,7 +65,15 @@
     "registrationDeadline": "Registration closes {date}",
     "capacityLimited": "Limited to {count} spots",
     "noRegistrationTitle": "No Registration Needed",
-    "noRegistrationDescription": "Just show up — this event is open to everyone, no sign-up required."
+    "noRegistrationDescription": "Just show up — this event is open to everyone, no sign-up required.",
+    "noRegistrationMembersDescription": "Just show up — no sign-up required, but this event is for BISO members only."
+  },
+  "membersOnly": {
+    "title": "Members-only event",
+    "description": "Everyone can view this event, but only BISO members can join.",
+    "memberConfirmed": "You're a BISO member, so you can join this event.",
+    "becomeMember": "Become a member",
+    "signIn": "Already a member? Sign in"
   },
   "collection": {
     "title": "Events in This Collection",
@@ -89,6 +97,7 @@
     "pricing": "Pricing",
     "price": "Price",
     "freeEvent": "This event is free for all students!",
+    "freeForMembers": "This event is free for BISO members!",
     "bundleAccess": "One payment gives you access to all {count} events in this collection!",
     "individualRegister": "Register for individual events separately based on your interests.",
     "partOfCollection": "This event is part of a collection. Check collection details for bundle pricing.",
