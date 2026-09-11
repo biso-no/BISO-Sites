@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 
+const TRAILING_SLASHES_RE = /\/+$/;
+
 /**
  * Legacy post-payment return target.
  *
@@ -9,13 +11,23 @@ import { NextResponse } from "next/server";
  * Delete it one week after the API return route is live.
  */
 export function GET(request: Request): NextResponse {
-  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL;
-  if (!apiBase) {
-    return NextResponse.redirect(
+  const shopFallback = () =>
+    NextResponse.redirect(
       new URL("/shop", process.env.NEXT_PUBLIC_BASE_URL || "https://biso.no")
     );
+
+  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL;
+  if (!apiBase) {
+    return shopFallback();
   }
-  const target = new URL("/api/payment/return", apiBase);
-  target.search = new URL(request.url).search;
-  return NextResponse.redirect(target);
+
+  try {
+    const search = new URL(request.url).search;
+    const target = `${apiBase.replace(TRAILING_SLASHES_RE, "")}/api/payment/return${search}`;
+    return NextResponse.redirect(target);
+  } catch {
+    // A malformed NEXT_PUBLIC_API_BASE_URL must not 500 a buyer who already
+    // paid — fall back to the shop instead of throwing.
+    return shopFallback();
+  }
 }

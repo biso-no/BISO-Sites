@@ -25,6 +25,20 @@ function siteUrl(path: string): URL {
 }
 
 /**
+ * Whether a failed order read means the order is genuinely absent, as opposed
+ * to Appwrite being slow, rate-limiting, or down — the latter must fall
+ * through to the outer catch's generic error redirect, not be reported as a
+ * missing order.
+ */
+function isOrderNotFound(error: unknown): boolean {
+  const code = (error as { code?: number } | null)?.code;
+  const type = (error as { type?: string } | null)?.type;
+  return (
+    code === 404 || type === "row_not_found" || type === "document_not_found"
+  );
+}
+
+/**
  * A checkout that started in the native app comes back through this same
  * route but must end up in the app. The status rides along so the app can
  * render the outcome straight away; it verifies independently as well,
@@ -113,9 +127,14 @@ export async function GET(request: Request) {
     }
 
     const { db } = await createAdminClient();
-    const order = await db.getRow<Orders>("app", "orders", orderId, [
-      ORDER_ITEMS_SELECT,
-    ]);
+    const order = await db
+      .getRow<Orders>("app", "orders", orderId, [ORDER_ITEMS_SELECT])
+      .catch((error: unknown) => {
+        if (isOrderNotFound(error)) {
+          return null;
+        }
+        throw error;
+      });
     if (!order) {
       return failureRedirect("/shop?error=order_not_found");
     }

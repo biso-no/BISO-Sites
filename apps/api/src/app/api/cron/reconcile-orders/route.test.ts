@@ -6,18 +6,20 @@ const mocks = vi.hoisted(() => ({
   fulfilMembershipOrder: vi.fn(),
   isMembershipOrder: vi.fn(),
   postFinagoTransactionForOrder: vi.fn(),
-  reconcileVippsPayment: vi.fn(),
+  reconcileOrderPayment: vi.fn(),
   releaseStaleFinagoClaim: vi.fn(),
   releaseStaleMembershipClaim: vi.fn(),
   stampNonMembershipOrder: vi.fn(),
+  sweepPendingRefunds: vi.fn(),
 }));
 
 vi.mock("server-only", () => ({}));
 vi.mock("@repo/api/server", () => ({
   createAdminClient: vi.fn(),
 }));
-vi.mock("@repo/payment/vipps", () => ({
-  reconcileVippsPayment: mocks.reconcileVippsPayment,
+vi.mock("@repo/payment/reconcile", () => ({
+  reconcileOrderPayment: mocks.reconcileOrderPayment,
+  sweepPendingRefunds: mocks.sweepPendingRefunds,
 }));
 vi.mock("@repo/shared/utils/finago-order-posting", () => ({
   postFinagoTransactionForOrder: mocks.postFinagoTransactionForOrder,
@@ -113,7 +115,12 @@ function resetMocks() {
   mocks.fulfilMembershipOrder.mockResolvedValue({ fulfilled: false });
   mocks.releaseStaleFinagoClaim.mockResolvedValue(false);
   mocks.postFinagoTransactionForOrder.mockResolvedValue({ posted: false });
-  mocks.reconcileVippsPayment.mockResolvedValue(undefined);
+  mocks.reconcileOrderPayment.mockResolvedValue(undefined);
+  mocks.sweepPendingRefunds.mockResolvedValue({
+    failed: 0,
+    settled: 0,
+    unresolved: 0,
+  });
   db.updateRow.mockResolvedValue({});
 }
 
@@ -225,6 +232,9 @@ describe("reconcile-orders cron: membership recovery under crowding", () => {
 
     expect(firstBody.membershipFulfilled).toBe(0);
     expect(mocks.stampNonMembershipOrder).toHaveBeenCalledTimes(50);
+    for (const order of shopOrders) {
+      expect(mocks.stampNonMembershipOrder).toHaveBeenCalledWith(order.$id, db);
+    }
 
     mocks.stampNonMembershipOrder.mockClear();
     wireListRows([membershipOrder()]);
@@ -236,5 +246,114 @@ describe("reconcile-orders cron: membership recovery under crowding", () => {
 
     expect(mocks.fulfilMembershipOrder).toHaveBeenCalledWith("order-1", db);
     expect(secondBody.membershipFulfilled).toBe(1);
+  });
+
+  it("stamps the sentinel for a mixed-status crowd without ever touching a real membership order's claim", async () => {
+    const shopOrders = Array.from({ length: 5 }, (_, i) =>
+      shopOrder(`shop-${i}`)
+    );
+    wireListRows(shopOrders);
+
+    await GET(cronRequest());
+
+    expect(mocks.releaseStaleMembershipClaim).not.toHaveBeenCalled();
+    expect(mocks.fulfilMembershipOrder).not.toHaveBeenCalled();
+    expect(mocks.stampNonMembershipOrder).toHaveBeenCalledTimes(5);
+  });
+});
+
+// Routes db.listRows for the payment-reconcile, Finago and membership passes
+// independently by inspecting each call's query strings, so a single test can
+// target one pass without the others' empty-row default interfering.
+function wireListRowsForPasses(rows: {
+  authorized?: unknown[];
+  finago?: unknown[];
+  membership?: unknown[];
+  pending?: unknown[];
+}) {
+  db.listRows.mockImplementation(
+    (_dbId: string, _tableId: string, queries: string[]) => {
+      const joined = queries.join(" ");
+      if (joined.includes("finago_transaction_id")) {
+        return Promise.resolve({ rows: rows.finago ?? [] });
+      }
+      if (joined.includes("membership_invoice_id")) {
+        return Promise.resolve({ rows: rows.membership ?? [] });
+      }
+      if (joined.includes('"values":["pending"]')) {
+        return Promise.resolve({ rows: rows.pending ?? [] });
+      }
+      if (joined.includes('"values":["authorized"]')) {
+        return Promise.resolve({ rows: rows.authorized ?? [] });
+      }
+      return Promise.resolve({ rows: [] });
+    }
+  );
+}
+
+describe("reconcile-orders cron: passes", () => {
+  beforeEach(resetMocks);
+
+  it("passes pending/authorized orders with a payment_session_id to reconcileOrderPayment, and skips ones without", async () => {
+    const withSession = {
+      ...shopOrder("order-with-session"),
+      payment_session_id: "sess_1",
+    };
+    const withoutSession = shopOrder("order-without-session");
+    wireListRowsForPasses({ pending: [withSession, withoutSession] });
+
+    const response = await GET(cronRequest());
+    const body = (await response.json()) as { reconciled: number };
+
+    expect(mocks.reconcileOrderPayment).toHaveBeenCalledTimes(1);
+    expect(mocks.reconcileOrderPayment).toHaveBeenCalledWith(
+      "order-with-session",
+      db
+    );
+    expect(body.reconciled).toBe(1);
+  });
+
+  it("passes a paid shop order with no finago_transaction_id to postFinagoTransactionForOrder and counts it in finagoPosted", async () => {
+    const order = shopOrder("order-finago");
+    wireListRowsForPasses({ finago: [order] });
+    mocks.postFinagoTransactionForOrder.mockResolvedValue({ posted: true });
+
+    const response = await GET(cronRequest());
+    const body = (await response.json()) as { finagoPosted: number };
+
+    expect(mocks.postFinagoTransactionForOrder).toHaveBeenCalledWith(
+      "order-finago",
+      db
+    );
+    expect(body.finagoPosted).toBe(1);
+  });
+
+  it("calls sweepPendingRefunds with db and an ISO cutoff, and reports its counts", async () => {
+    wireListRowsForPasses({});
+    mocks.sweepPendingRefunds.mockResolvedValue({
+      failed: 1,
+      settled: 2,
+      unresolved: 3,
+    });
+
+    const response = await GET(cronRequest());
+    const body = (await response.json()) as {
+      refundsFailed: number;
+      refundsSettled: number;
+      refundsUnresolved: number;
+    };
+
+    expect(mocks.sweepPendingRefunds).toHaveBeenCalledWith(
+      db,
+      expect.any(String)
+    );
+    const [, cutoff] = mocks.sweepPendingRefunds.mock.calls.at(0) as [
+      unknown,
+      string,
+    ];
+    expect(new Date(cutoff).toISOString()).toBe(cutoff);
+    expect(body.refundsSettled).toBe(2);
+    expect(body.refundsFailed).toBe(1);
+    expect(body.refundsUnresolved).toBe(3);
   });
 });

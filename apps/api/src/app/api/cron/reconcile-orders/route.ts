@@ -29,7 +29,8 @@ import { NextResponse } from "next/server";
  * 1. Payment reconcile — pending/authorized orders older than the grace window
  *    are re-fetched from their provider and put through the idempotent status
  *    transition. The only recovery path that depends on neither the buyer nor
- *    webhook delivery.
+ *    webhook delivery, so it must cover both providers — when it was
+ *    Vipps-only, a Stripe order with a missed webhook stayed pending forever.
  * 2. Finago recovery — paid/authorized shop orders with no
  *    `finago_transaction_id` get their ledger posting retried (stale posting
  *    claims are released first).
@@ -180,6 +181,9 @@ async function recoverMembershipFulfilment(db: AdminDb): Promise<{
         continue;
       }
       if ((order.membership_fulfilment_lock ?? 0) > 0) {
+        // A live claim is held by an active fulfiller. Probing it would
+        // refresh $updatedAt every sweep, so a crashed claim could never age
+        // out.
         continue;
       }
       const result = await fulfilMembershipOrder(order.$id, db);

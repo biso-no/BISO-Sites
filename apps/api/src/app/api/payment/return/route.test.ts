@@ -139,4 +139,47 @@ describe("payment return", () => {
       "https://biso.no/shop?error=unknown"
     );
   });
+
+  it("never shows a paid order as cancelled to the app, even with a crafted cancel marker", async () => {
+    db.getRow.mockResolvedValue(order({ status: "paid" }));
+
+    const response = await GET(
+      returnRequest("orderId=order-1&client=app&cancelled=1")
+    );
+
+    expect(response.headers.get("location")).toBe(
+      "biso://shop/order?orderId=order-1&status=paid"
+    );
+  });
+
+  it("sends an app request with no orderId to the app shop", async () => {
+    const response = await GET(returnRequest("client=app"));
+
+    expect(response.headers.get("location")).toBe("biso://shop");
+  });
+
+  it("sends an app request whose order read fails to the app order deep link", async () => {
+    db.getRow.mockRejectedValue(new Error("appwrite down"));
+
+    const response = await GET(returnRequest("orderId=order-1&client=app"));
+
+    expect(response.headers.get("location")).toBe(
+      "biso://shop/order?orderId=order-1"
+    );
+  });
+
+  it("sends a not-found order to the shop with order_not_found, not the generic error", async () => {
+    db.getRow.mockRejectedValue(
+      Object.assign(new Error("row_not_found"), {
+        code: 404,
+        type: "row_not_found",
+      })
+    );
+
+    const response = await GET(returnRequest("orderId=order-1"));
+
+    expect(response.headers.get("location")).toBe(
+      "https://biso.no/shop?error=order_not_found"
+    );
+  });
 });
