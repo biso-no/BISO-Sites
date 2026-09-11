@@ -1,6 +1,10 @@
 export interface ParsedOrderItem {
   category?: string | null;
   custom_fields?: Array<{ id: string; label: string; value: string }>;
+  /** Ledger copy made at checkout; see `snapshotTarget`. */
+  finago_account_number?: number | null;
+  finago_department?: string | null;
+  finago_vat_code?: number | null;
   name?: string | null;
   /**
    * The `order_items` row id. Carried through so a refund line can point at
@@ -32,6 +36,9 @@ interface RelationalOrderItem {
   category_id?: string | null;
   duration?: string | null;
   field_answers?: RelationalFieldAnswer[] | null;
+  finago_account_number?: number | null;
+  finago_department?: string | null;
+  finago_vat_code?: number | null;
   line_total?: number | null;
   membership_id?: string | null;
   name?: string | null;
@@ -92,6 +99,9 @@ function normalizeRelationalOrderItem(
     category_id: item.category_id,
     custom_fields: parseCustomFields(item.field_answers),
     duration: item.duration,
+    finago_account_number: item.finago_account_number,
+    finago_department: item.finago_department,
+    finago_vat_code: item.finago_vat_code,
     line_total: item.line_total,
     membership_id: item.membership_id,
     name: item.name,
