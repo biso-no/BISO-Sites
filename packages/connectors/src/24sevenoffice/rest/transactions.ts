@@ -7,7 +7,10 @@
 
 import { getAccessToken } from "./auth";
 import { finago } from "./client";
-import { DEPARTMENT_DIMENSION_TYPE } from "./departments";
+import {
+  CAMPUS_DIMENSION_TYPE,
+  DEPARTMENT_DIMENSION_TYPE,
+} from "./departments";
 import type { components } from "./schema";
 
 const BASE_URL = "https://rest.api.24sevenoffice.com/v1";
@@ -456,5 +459,138 @@ export async function postExpenseTransaction(
     );
   }
 
+  return data.transactionId;
+}
+
+// ---------------------------------------------------------------------------
+// Webshop vouchers (Inntektsrapport)
+// ---------------------------------------------------------------------------
+
+export type ShopTransactionInput = TransactionInputT;
+
+/** One revenue line of a webshop voucher. */
+export interface ShopLedgerLine {
+  accountNumber: number;
+  /** Positive NOK, VAT-inclusive. */
+  amount: number;
+  comment?: string;
+  /** The Finago department dimension value (`departments.Id`). */
+  departmentId: string;
+  /** Finago posting tax number, e.g. 3 (output VAT 25 %) or 5 (exempt). */
+  vatCode: number;
+}
+
+export interface BuildShopTransactionParams {
+  campusId?: string | null;
+  /** The payment provider's clearing account, e.g. 1530 (Vipps). */
+  clearingAccount: number;
+  comment: string;
+  date: string;
+  lines: ShopLedgerLine[];
+  /** Positive NOK the revenue lines must add up to exactly. */
+  total: number;
+  transactionTypeNumber: number;
+}
+
+function shopDimensions(
+  departmentId: string | null,
+  campusId: string | null | undefined
+): DimensionT[] | undefined {
+  const dimensions: DimensionT[] = [];
+  if (departmentId) {
+    dimensions.push({
+      dimensionType: DEPARTMENT_DIMENSION_TYPE,
+      value: departmentId,
+    });
+  }
+  if (campusId) {
+    dimensions.push({
+      dimensionType: CAMPUS_DIMENSION_TYPE,
+      value: String(campusId),
+    });
+  }
+  return dimensions.length > 0 ? dimensions : undefined;
+}
+
+function assertShopLinesCoverTotal(params: BuildShopTransactionParams): void {
+  if (params.lines.length === 0) {
+    throw new Error("[Finago] A shop voucher needs at least one revenue line");
+  }
+  const linesMinor = params.lines.reduce(
+    (sum, line) => sum + Math.round(line.amount * CENTS),
+    0
+  );
+  const totalMinor = Math.round(params.total * CENTS);
+  if (linesMinor !== totalMinor) {
+    throw new Error(
+      `[Finago] Shop lines cover ${linesMinor} of ${totalMinor} øre — refusing to post an unbalanced voucher`
+    );
+  }
+}
+
+function shopLines(
+  params: BuildShopTransactionParams,
+  sign: 1 | -1
+): TransactionLineT[] {
+  assertShopLinesCoverTotal(params);
+  const clearingLine: TransactionLineT = {
+    accountNumber: params.clearingAccount,
+    amount: sign * round2(params.total),
+    comment: params.comment.slice(0, COMMENT_MAX_LENGTH),
+    dimensions: shopDimensions(null, params.campusId),
+    tax: { number: 0 },
+  };
+  const revenueLines: TransactionLineT[] = params.lines.map((line) => ({
+    accountNumber: line.accountNumber,
+    amount: -sign * round2(line.amount),
+    comment: line.comment?.slice(0, COMMENT_MAX_LENGTH),
+    dimensions: shopDimensions(line.departmentId, params.campusId),
+    tax: { number: line.vatCode },
+  }));
+  return [clearingLine, ...revenueLines];
+}
+
+/**
+ * A webshop sale: debit the provider's clearing account by the gross total,
+ * credit each revenue line with its own VAT code. Finago books the VAT part of
+ * a VAT-coded line to 2700. The payout voucher later credits the clearing
+ * account by the gross amount and books the fee, so no fee line belongs here.
+ */
+export function buildShopTransactionInput(
+  params: BuildShopTransactionParams
+): ShopTransactionInput {
+  return {
+    comment: params.comment.slice(0, COMMENT_MAX_LENGTH),
+    date: params.date,
+    lines: shopLines(params, 1),
+    transactionTypeNumber: params.transactionTypeNumber,
+  };
+}
+
+/** A webshop refund: the exact mirror of `buildShopTransactionInput`. */
+export function buildShopReversalTransactionInput(
+  params: BuildShopTransactionParams
+): ShopTransactionInput {
+  return {
+    comment: params.comment.slice(0, COMMENT_MAX_LENGTH),
+    date: params.date,
+    lines: shopLines(params, -1),
+    transactionTypeNumber: params.transactionTypeNumber,
+  };
+}
+
+/** Posts a prebuilt voucher to the general ledger and returns its id. */
+export async function postLedgerTransaction(
+  input: ShopTransactionInput
+): Promise<string> {
+  const { data, error } = await finago.POST("/transactions", {
+    body: input,
+    params: { header: { Authorization: "" } },
+  });
+  if (error || !data) {
+    throw new Error(
+      `[Finago] POST /transactions failed: ${JSON.stringify(error)}`
+    );
+  }
   return data.transactionId;
 }
