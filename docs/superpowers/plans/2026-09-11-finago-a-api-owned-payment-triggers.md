@@ -1769,10 +1769,18 @@ EOF
 
 ### Task 6: Rollout (owner)
 
-No code. These change production configuration; do them in order and only with the owner.
+No code. CI (`.github/workflows/deploy-production.yml`) deploys api, web and admin in parallel on merge, so order the work around the merge, not around deploys.
 
-- [ ] **Step 1:** In the Appwrite console, on the **api** site, set `NEXT_PUBLIC_API_BASE_URL=https://api.biso.no` and `NEXT_PUBLIC_WEB_BASE_URL=https://biso.no`. Deploy api.
-- [ ] **Step 2:** Verify: `curl -sI "https://api.biso.no/api/payment/return?orderId=does-not-exist" | grep -i location` → `location: https://biso.no/shop?error=unknown` or `…order_not_found`.
-- [ ] **Step 3:** In `scheduled-dispatch`, change `ORDERS_RECONCILE_URL` to `https://api.biso.no/api/cron/reconcile-orders`. Check the next execution log shows a 200 from the API.
-- [ ] **Step 4:** Deploy web. Place a small Vipps test order and confirm the browser returns through `api.biso.no/api/payment/return` to `/shop/order/<id>?success=true`.
+**Before merging**
+- [ ] **Step 1:** On the **api** site in the Appwrite console, set `NEXT_PUBLIC_API_BASE_URL=https://api.biso.no` and `NEXT_PUBLIC_WEB_BASE_URL=https://biso.no` (both are inlined at build time; without them every checkout returns 500). Confirm the api site has `TFSO_APP_ID`, `TFSO_USERNAME`, `TFSO_PASSWORD` (membership invoices) and `TFSO_REST_CLIENT_ID`, `TFSO_REST_CLIENT_SECRET`, `TFSO_REST_ORG_ID` (ledger posting, refund reversal) — these flows now run only there.
+- [ ] **Step 2:** In `scheduled-dispatch`, set `ORDERS_RECONCILE_URL_TIMEOUT_MS=300000` (or deploy the function with the new default from this branch).
+
+**Merge and deploy**
+- [ ] **Step 3:** Merge. If the Appwrite console lets you activate deployments manually, activate **api** before **web**. Sessions created before the deploy that return while web is live and api is not can briefly see an error page; the provider webhook and the reconcile cron still settle those orders.
+- [ ] **Step 4:** Verify: `curl -sI "https://api.biso.no/api/payment/return?orderId=does-not-exist" | grep -i location` → `location: https://biso.no/shop?error=order_not_found`.
+
+**After deploy**
+- [ ] **Step 5:** In `scheduled-dispatch`, change `ORDERS_RECONCILE_URL` to `https://api.biso.no/api/cron/reconcile-orders`. Check the next execution log shows a 200 from the API.
+- [ ] **Step 6:** Place a small Vipps test order and confirm the browser returns through `api.biso.no/api/payment/return` to `/shop/order/<id>?success=true`.
+- [ ] **Step 7:** One week later, in a follow-up PR, delete `apps/web/src/app/api/checkout/return/` and `apps/web/src/app/api/cron/reconcile-orders/`.
 - [ ] **Step 5:** One week later, delete `apps/web/src/app/api/checkout/return/` in a follow-up commit.

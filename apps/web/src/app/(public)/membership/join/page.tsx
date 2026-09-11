@@ -53,9 +53,10 @@ export default async function MembershipJoinPage({
 }: MembershipJoinPageProps) {
   const params = await searchParams;
   const linkFailed = params.oidc_failed === "1";
-  // /api/checkout/return sends a membership buyer back here on a cancelled or
-  // failed payment (see redirectForStatus there) instead of the shop cart,
-  // since a membership order never touched the cart. Neither param changes
+  // apps/api's /api/payment/return sends a membership buyer back here on a
+  // cancelled or failed payment (see redirectForStatus there) instead of the
+  // shop cart, since a membership order never touched the cart — the web
+  // /api/checkout/return only forwards there. Neither param changes
   // which gate state renders — payment outcome is orthogonal to purchase
   // eligibility — they only add an acknowledgement banner above it.
   const cancelled = params.cancelled === "true";

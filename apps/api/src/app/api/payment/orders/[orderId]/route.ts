@@ -12,9 +12,10 @@ import { applyCorsHeaders, corsPreflightResponse } from "@/lib/cors";
  * The buyer's view of one of their own orders, re-synced with the payment
  * provider first.
  *
- * On the website the browser lands on `/api/checkout/return` after paying, and
- * that route reconciles the payment and settles the revenue before rendering a
- * receipt. A native app cannot rely on that hop: the buyer often comes back by
+ * On the website the browser lands on this app's `/api/payment/return` after
+ * paying (the web `/api/checkout/return` only forwards there), and that route
+ * reconciles the payment and settles the revenue before rendering a receipt.
+ * A native app cannot rely on that hop: the buyer often comes back by
  * switching apps rather than following the redirect, and a browser may refuse
  * to hand a custom-scheme deep link back to the app at all. Without a way to
  * ask, the app would show "pending" for an order that is paid.

@@ -106,8 +106,10 @@ dimension values exactly.
 - The web `/api/checkout/return` route becomes a redirect-only shim to the API
   route (no third-party calls) for provider sessions created before the
   deploy; delete it one week after rollout.
-- The web reconcile cron route is deleted once `ORDERS_RECONCILE_URL` in
-  `functions/scheduled-dispatch` points at `https://api.biso.no/api/cron/reconcile-orders`.
+- The web reconcile cron route is kept (deprecated) until `ORDERS_RECONCILE_URL`
+  in `functions/scheduled-dispatch` points at
+  `https://api.biso.no/api/cron/reconcile-orders`, and deleted in the follow-up
+  that also deletes the web return shim.
   Running both briefly is safe: the claim locks make settlement exactly-once.
 
 ### Accounting configuration (admin)
@@ -277,11 +279,19 @@ builder takes the same inputs with signs flipped.
    `order_items.finago_vat_code`, `order_items.finago_department`,
    `ledger_accounts.vat_code`; push with the Appwrite CLI and regenerate
    `packages/api/types/appwrite.ts`.
-4. Deploy api. Point `ORDERS_RECONCILE_URL` at the API route.
-5. Deploy web and admin. Remove `TFSO_SHOP_TRANSACTION_TYPE_NUMBER` and
+4. Before merging, on the **api** site in the Appwrite console, set
+   `NEXT_PUBLIC_API_BASE_URL=https://api.biso.no` and
+   `NEXT_PUBLIC_WEB_BASE_URL=https://biso.no`, and confirm `TFSO_APP_ID`,
+   `TFSO_USERNAME`, `TFSO_PASSWORD` (membership invoices) and
+   `TFSO_REST_CLIENT_ID`, `TFSO_REST_CLIENT_SECRET`, `TFSO_REST_ORG_ID`
+   (ledger posting, refund reversal) are set — these flows now run only
+   there. Then merge: CI (`.github/workflows/deploy-production.yml`) deploys
+   api, web and admin in parallel, so there is no separate "deploy api, then
+   web" step. Remove `TFSO_SHOP_TRANSACTION_TYPE_NUMBER` and
    `TFSO_VIPPS_RECEIVABLE_ACCOUNT` from web and api env. Keep the SOAP
    credentials on web for now: `src/lib/actions/membership.ts` still uses them
    (listed under follow-ups).
+5. After deploy, point `ORDERS_RECONCILE_URL` at the API route.
 6. In admin: sync ledger accounts, review seeded sales types, save shop
    posting settings (flag still off).
 7. Assign sales types to products with a one-off script (dry run → review →
@@ -291,7 +301,9 @@ builder takes the same inputs with signs flipped.
    it, verify the voucher in Finago.
 9. Watch the first live orders; confirm 1530 returns to ≈0 after the next Vipps
    payout voucher. Verify the first Stripe order and payout against 1540.
-10. Delete the web return shim one week after step 5.
+10. One week after deploy, in a follow-up PR, delete the web return shim
+    (`apps/web/src/app/api/checkout/return/`) and the web reconcile cron
+    (`apps/web/src/app/api/cron/reconcile-orders/`).
 
 ### Proposed product mapping
 

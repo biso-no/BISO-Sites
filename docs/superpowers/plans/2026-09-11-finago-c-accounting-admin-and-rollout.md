@@ -2776,8 +2776,8 @@ EOF
 No code. Production changes in order; each step needs the owner's go-ahead. Plans A and B must be deployed first (Plan A Task 6 done; Plan B Task 1 schema live).
 
 - [ ] **Step 1: Accountant confirmations.** Get written answers to: VAT on sweaters/vests/camera (Varesalg bucket); fees booked only on payout vouchers from now on; fines on 3150 or 3900. If anything differs, edit `packages/api/scripts/product-sales-type-map.ts` (and the seeded sales type in admin) and commit before Step 5.
-- [ ] **Step 2: Env.** On the **api** site: remove `TFSO_SHOP_TRANSACTION_TYPE_NUMBER` and `TFSO_VIPPS_RECEIVABLE_ACCOUNT`; confirm `TFSO_REST_CLIENT_ID`, `TFSO_REST_CLIENT_SECRET`, `TFSO_REST_ORG_ID` are set. On the **web** site: remove `TFSO_REST_*`, `TFSO_SHOP_TRANSACTION_TYPE_NUMBER`, `TFSO_VIPPS_RECEIVABLE_ACCOUNT` (keep `TFSO_APP_ID`/`TFSO_USERNAME`/`TFSO_PASSWORD` for membership sync). On **admin**: confirm `TFSO_*` SOAP and REST credentials are set (needed for the sync).
-- [ ] **Step 3: Deploy** api, web and admin from the merged branch.
+- [ ] **Step 2: Pre-merge env.** Before merging — on the **api** site: remove `TFSO_SHOP_TRANSACTION_TYPE_NUMBER` and `TFSO_VIPPS_RECEIVABLE_ACCOUNT`; confirm `TFSO_REST_CLIENT_ID`, `TFSO_REST_CLIENT_SECRET`, `TFSO_REST_ORG_ID` are set. On the **web** site: remove `TFSO_REST_*`, `TFSO_SHOP_TRANSACTION_TYPE_NUMBER`, `TFSO_VIPPS_RECEIVABLE_ACCOUNT` (keep `TFSO_APP_ID`/`TFSO_USERNAME`/`TFSO_PASSWORD` for membership sync). On **admin**: confirm `TFSO_*` SOAP and REST credentials are set (needed for the sync).
+- [ ] **Step 3: Merge.** CI (`.github/workflows/deploy-production.yml`) deploys api, web and admin in parallel from the merged branch — there is no separate deploy ordering to enforce.
 - [ ] **Step 4: Admin setup** (as a global or campus admin, `/shop/accounting`):
   1. "Synk kontoer fra Finago" → toast "Kontoplan synket". Accounts 3000 shows "25 % mva (kode 3)" and 3100 "Avgiftsfritt (kode 5)" in the sales type rows.
   2. "Opprett standard salgstyper" → four rows appear.
