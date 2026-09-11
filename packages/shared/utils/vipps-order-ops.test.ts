@@ -160,6 +160,59 @@ describe("createOrder", () => {
       ['read("user:user-1")']
     );
   });
+
+  it("stores the ledger copy on each order line", async () => {
+    await createOrder(
+      {
+        ...checkoutParams,
+        items: [
+          {
+            finago_account_number: 3000,
+            finago_department: "44",
+            finago_vat_code: 3,
+            name: "Gensere til børsgruppen",
+            price: 490,
+            productId: "product-1",
+            product_type: "webshop_product",
+            quantity: 1,
+            title: "Gensere til børsgruppen",
+            unit_price: 490,
+          },
+        ],
+        subtotal: 490,
+        total: 490,
+      },
+      db
+    );
+
+    const storedItem = db.createRow.mock.calls[1]?.[3] as Record<
+      string,
+      unknown
+    >;
+    expect(storedItem).toEqual(
+      expect.objectContaining({
+        finago_account_number: 3000,
+        finago_department: "44",
+        finago_vat_code: 3,
+      })
+    );
+  });
+
+  it("stores an empty ledger copy when checkout could not resolve one", async () => {
+    await createOrder(checkoutParams, db);
+
+    const storedItem = db.createRow.mock.calls[1]?.[3] as Record<
+      string,
+      unknown
+    >;
+    expect(storedItem).toEqual(
+      expect.objectContaining({
+        finago_account_number: null,
+        finago_department: null,
+        finago_vat_code: null,
+      })
+    );
+  });
 });
 
 describe("updateOrderWithSession", () => {

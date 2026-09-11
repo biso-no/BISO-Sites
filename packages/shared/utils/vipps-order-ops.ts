@@ -93,6 +93,8 @@ function buildStoredOrderItems(
       // debit an account the original sale never credited — leaving revenue
       // stranded on one account while reducing an unrelated one.
       finago_account_number: rest.finago_account_number ?? null,
+      finago_department: rest.finago_department ?? null,
+      finago_vat_code: rest.finago_vat_code ?? null,
       field_answers: fieldAnswers,
       line_total: unitPrice * rest.quantity,
       membership_id: rest.membership_id ?? null,
