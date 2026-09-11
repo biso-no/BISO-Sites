@@ -4,6 +4,7 @@ import {
   reconcileOrderPayment,
   sweepPendingRefunds,
 } from "@repo/payment/reconcile";
+import { isFeatureEnabled } from "@repo/shared/utils/feature-flags-server";
 import {
   type FinagoOrder,
   postFinagoTransactionForOrder,
@@ -104,18 +105,22 @@ async function sweepUnsettledOrders(db: AdminDb): Promise<{
 }
 
 async function sweepMissingFinagoPostings(db: AdminDb): Promise<{
+  errors: number;
+  notConfigured: number;
   posted: number;
   released: number;
-  errors: number;
 }> {
   let posted = 0;
   let released = 0;
+  let notConfigured = 0;
   let errors = 0;
 
   const orders = await db.listRows<FinagoOrder>("app", "orders", [
     Query.equal("status", ["paid", "authorized"]),
     Query.isNull("finago_transaction_id"),
     Query.lessThan("$createdAt", cutoffIso()),
+    // Oldest first, so a backlog drains in order once a gap is fixed.
+    Query.orderAsc("$createdAt"),
     ORDER_ITEMS_SELECT,
     Query.limit(SWEEP_LIMIT),
   ]);
@@ -136,6 +141,8 @@ async function sweepMissingFinagoPostings(db: AdminDb): Promise<{
       const result = await postFinagoTransactionForOrder(order.$id, db);
       if (result.posted) {
         posted += 1;
+      } else if (result.reason === "not_configured") {
+        notConfigured += 1;
       } else if (result.reason === "post_failed") {
         errors += 1;
       }
@@ -148,7 +155,7 @@ async function sweepMissingFinagoPostings(db: AdminDb): Promise<{
     }
   }
 
-  return { posted, released, errors };
+  return { errors, notConfigured, posted, released };
 }
 
 async function recoverMembershipFulfilment(db: AdminDb): Promise<{
@@ -219,7 +226,11 @@ async function handle(request: Request) {
   try {
     const { db } = await createAdminClient();
     const reconcile = await sweepUnsettledOrders(db);
-    const finago = await sweepMissingFinagoPostings(db);
+    // While posting is switched off, paid orders simply wait; reading them
+    // every run would only spend the sweep's row budget.
+    const finago = (await isFeatureEnabled("shop_ledger_posting"))
+      ? await sweepMissingFinagoPostings(db)
+      : null;
     const refunds = await sweepPendingRefunds(db, cutoffIso());
     const membership = await recoverMembershipFulfilment(db);
 
@@ -227,14 +238,16 @@ async function handle(request: Request) {
       {
         success: true,
         reconciled: reconcile.reconciled,
-        finagoPosted: finago.posted,
-        staleClaimsReleased: finago.released,
+        finagoPosted: finago?.posted ?? 0,
+        finagoNotConfigured: finago?.notConfigured ?? 0,
+        finagoSkipped: finago === null,
+        staleClaimsReleased: finago?.released ?? 0,
         membershipFulfilled: membership.fulfilled,
         membershipClaimsReleased: membership.released,
         refundsSettled: refunds.settled,
         refundsFailed: refunds.failed,
         refundsUnresolved: refunds.unresolved,
-        errors: reconcile.errors + finago.errors + membership.errors,
+        errors: reconcile.errors + (finago?.errors ?? 0) + membership.errors,
         timestamp: new Date().toISOString(),
       },
       { headers: { "Cache-Control": "no-store" } }

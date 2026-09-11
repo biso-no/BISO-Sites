@@ -4,6 +4,7 @@ import { GET } from "./route";
 
 const mocks = vi.hoisted(() => ({
   fulfilMembershipOrder: vi.fn(),
+  isFeatureEnabled: vi.fn(),
   isMembershipOrder: vi.fn(),
   postFinagoTransactionForOrder: vi.fn(),
   reconcileOrderPayment: vi.fn(),
@@ -16,6 +17,9 @@ const mocks = vi.hoisted(() => ({
 vi.mock("server-only", () => ({}));
 vi.mock("@repo/api/server", () => ({
   createAdminClient: vi.fn(),
+}));
+vi.mock("@repo/shared/utils/feature-flags-server", () => ({
+  isFeatureEnabled: mocks.isFeatureEnabled,
 }));
 vi.mock("@repo/payment/reconcile", () => ({
   reconcileOrderPayment: mocks.reconcileOrderPayment,
@@ -107,6 +111,7 @@ function resetMocks() {
   vi.spyOn(console, "warn").mockImplementation(() => undefined);
 
   mockedCreateAdminClient.mockResolvedValue({ db } as never);
+  mocks.isFeatureEnabled.mockResolvedValue(true);
   mocks.isMembershipOrder.mockImplementation(
     (order: { items_json?: string | null }) =>
       (order.items_json ?? "").includes('"product_type":"membership"')
@@ -355,5 +360,65 @@ describe("reconcile-orders cron: passes", () => {
     expect(body.refundsSettled).toBe(2);
     expect(body.refundsFailed).toBe(1);
     expect(body.refundsUnresolved).toBe(3);
+  });
+});
+
+describe("reconcile-orders cron: Finago pass", () => {
+  beforeEach(resetMocks);
+
+  function wireFinagoRows(rows: unknown[]) {
+    db.listRows.mockImplementation(
+      (_dbId: string, _tableId: string, queries: string[]) => {
+        const isFinagoSweep = queries.some((q) =>
+          q.includes("finago_transaction_id")
+        );
+        return Promise.resolve({ rows: isFinagoSweep ? rows : [] });
+      }
+    );
+  }
+
+  it("skips the pass entirely while shop ledger posting is off", async () => {
+    mocks.isFeatureEnabled.mockResolvedValue(false);
+    wireFinagoRows([shopOrder("shop-1")]);
+
+    const response = await GET(cronRequest());
+    const body = await response.json();
+
+    expect(mocks.isFeatureEnabled).toHaveBeenCalledWith("shop_ledger_posting");
+    expect(mocks.postFinagoTransactionForOrder).not.toHaveBeenCalled();
+    expect(body.finagoSkipped).toBe(true);
+    expect(body.finagoPosted).toBe(0);
+  });
+
+  it("reads the oldest unposted orders first", async () => {
+    wireFinagoRows([]);
+
+    await GET(cronRequest());
+
+    const finagoQueries = db.listRows.mock.calls
+      .map((call) => call[2] as string[])
+      .find((queries) =>
+        queries.some((q) => q.includes("finago_transaction_id"))
+      );
+    expect(finagoQueries?.some((q) => q.includes('"orderAsc"'))).toBe(true);
+  });
+
+  it("counts orders that cannot be posted yet without calling them errors", async () => {
+    wireFinagoRows([shopOrder("shop-1"), shopOrder("shop-2")]);
+    mocks.postFinagoTransactionForOrder
+      .mockResolvedValueOnce({ posted: true, transactionId: "tx-1" })
+      .mockResolvedValueOnce({
+        detail: '"Hoodie" has no sales type',
+        posted: false,
+        reason: "not_configured",
+      });
+
+    const response = await GET(cronRequest());
+    const body = await response.json();
+
+    expect(body.finagoSkipped).toBe(false);
+    expect(body.finagoPosted).toBe(1);
+    expect(body.finagoNotConfigured).toBe(1);
+    expect(body.errors).toBe(0);
   });
 });
