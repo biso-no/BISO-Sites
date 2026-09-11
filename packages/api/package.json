@@ -7,6 +7,7 @@
     "clean": "git clean -xdf .cache .turbo dist node_modules",
     "lint": "biome lint .",
     "check-types": "tsc --noEmit",
+    "types:generate": "appwrite types -l ts ./types && mv types/appwrite.d.ts types/appwrite.ts && perl -pi -e 's/\\b24SevenOfficeAuthTokens\\b/TwentyFourSevenOfficeAuthTokens/g' types/appwrite.ts && perl -0pi -e 's/export type Departments = Models\\.Row & \\{\\n(\\s+)Id: string;/export type TwentyFourSevenOfficeDepartments = Models.Row & {\\n$1Id: string;/' types/appwrite.ts",
     "get-product": "ts-node scripts/get-products.ts",
     "cutover:content-permissions": "bun --env-file=../../apps/admin/.env.local scripts/cutover-content-permissions.ts",
     "repair:content-relationships": "bun --env-file=../../apps/admin/.env.local scripts/repair-content-relationships.ts",
