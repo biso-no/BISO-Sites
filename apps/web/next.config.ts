@@ -94,7 +94,7 @@ const baseConfig: NextConfig = {
       },
     ]);
   },
-  // biome-ignore lint/suspicious/useAwait: <explanation>
+  // biome-ignore lint/suspicious/useAwait: Needs this for proper BISO App redirect on authentication
   async headers() {
     return [
       {
