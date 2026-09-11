@@ -159,6 +159,7 @@ describe("payment checkout authorization", () => {
     vi.stubEnv("APPWRITE_DATABASE_ID", "app");
     vi.stubEnv("APPWRITE_WEBSHOP_PRODUCTS_COLLECTION_ID", "webshop_products");
     vi.stubEnv("NEXT_PUBLIC_BASE_URL", "https://biso.no");
+    vi.stubEnv("NEXT_PUBLIC_API_BASE_URL", "https://api.biso.no");
 
     mockAdminClient();
     mockAuthenticatedUser();
@@ -692,13 +693,13 @@ describe("payment checkout authorization", () => {
       });
     }
 
-    it("returns web buyers to the website receipt flow", async () => {
+    it("returns web buyers through the API return route", async () => {
       await postVipps(checkoutRequest({ authorization: "Bearer valid" }));
 
       expect(mockedCreateVippsPayment).toHaveBeenCalledWith(
         expect.anything(),
         expect.anything(),
-        { returnUrl: "https://biso.no/api/checkout/return?orderId=order-1" }
+        { returnUrl: "https://api.biso.no/api/payment/return?orderId=order-1" }
       );
     });
 
@@ -712,7 +713,7 @@ describe("payment checkout authorization", () => {
         expect.anything(),
         {
           returnUrl:
-            "https://biso.no/api/checkout/return?orderId=order-1&client=app",
+            "https://api.biso.no/api/payment/return?orderId=order-1&client=app",
         }
       );
     });
@@ -728,7 +729,7 @@ describe("payment checkout authorization", () => {
       expect(mockedCreateVippsPayment).toHaveBeenCalledWith(
         expect.anything(),
         expect.anything(),
-        { returnUrl: "https://biso.no/api/checkout/return?orderId=order-1" }
+        { returnUrl: "https://api.biso.no/api/payment/return?orderId=order-1" }
       );
     });
 
@@ -737,22 +738,19 @@ describe("payment checkout authorization", () => {
         checkoutRequest({ authorization: "Bearer valid", client: "app" })
       );
 
-      // A cancelled Stripe session stays open and unpaid, so it reconciles to
-      // `pending`. Without the marker the app would be told to keep waiting
-      // for a payment the buyer just abandoned.
       expect(mockedCreateStripeCheckoutSession).toHaveBeenCalledWith(
         expect.anything(),
         expect.anything(),
         {
           cancelUrl:
-            "https://biso.no/api/checkout/return?orderId=order-1&client=app&cancelled=1",
+            "https://api.biso.no/api/payment/return?orderId=order-1&client=app&cancelled=1",
           successUrl:
-            "https://biso.no/api/checkout/return?orderId=order-1&client=app",
+            "https://api.biso.no/api/payment/return?orderId=order-1&client=app",
         }
       );
     });
 
-    it("keeps sending a cancelled web checkout back to the cart", async () => {
+    it("keeps sending a cancelled web checkout back to the web cart", async () => {
       await postStripe(checkoutRequest({ authorization: "Bearer valid" }));
 
       expect(mockedCreateStripeCheckoutSession).toHaveBeenCalledWith(
@@ -760,9 +758,20 @@ describe("payment checkout authorization", () => {
         expect.anything(),
         {
           cancelUrl: "https://biso.no/shop/cart?cancelled=true",
-          successUrl: "https://biso.no/api/checkout/return?orderId=order-1",
+          successUrl: "https://api.biso.no/api/payment/return?orderId=order-1",
         }
       );
+    });
+
+    it("refuses to start a checkout when the API origin is not configured", async () => {
+      vi.stubEnv("NEXT_PUBLIC_API_BASE_URL", "");
+
+      const response = await postVipps(
+        checkoutRequest({ authorization: "Bearer valid" })
+      );
+
+      expect(response.status).toBe(500);
+      expect(mockedCreateVippsPayment).not.toHaveBeenCalled();
     });
   });
 });

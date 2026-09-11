@@ -14,6 +14,7 @@ import { createStripeCheckoutSession } from "@repo/payment/stripe";
 import { createVippsPayment } from "@repo/payment/vipps";
 import { type CheckoutSessionParams, Currency } from "@repo/shared/types/vipps";
 import { sanitizeStudentNumber } from "@repo/shared/utils/bi-student";
+import { checkoutReturnUrl } from "@repo/shared/utils/checkout-return";
 import { isFeatureEnabled } from "@repo/shared/utils/feature-flags-server";
 import { CAMPUS_INVOICE_NAMES } from "@repo/shared/utils/finago-membership-invoice";
 import {
@@ -29,6 +30,7 @@ import {
 import { type NextRequest, NextResponse } from "next/server";
 import { createAuthenticatedClient } from "@/lib/auth";
 import { applyCorsHeaders, corsPreflightResponse } from "@/lib/cors";
+import { apiBaseUrl, type PublicUrls, webBaseUrl } from "@/lib/public-urls";
 
 type Provider = "vipps" | "stripe";
 
@@ -107,15 +109,6 @@ type SessionOutcome =
 
 function isProvider(value: string): value is Provider {
   return value === "vipps" || value === "stripe";
-}
-
-function webBaseUrl(): string | undefined {
-  // Return/success/cancel URLs must point at the WEB app's /api/checkout/return
-  // route. In split-host deployments the api app has its own NEXT_PUBLIC_BASE_URL,
-  // so prefer the web-specific var and only fall back to the shared one.
-  return (
-    process.env.NEXT_PUBLIC_WEB_BASE_URL || process.env.NEXT_PUBLIC_BASE_URL
-  );
 }
 
 interface MembershipCheckoutBody {
@@ -249,7 +242,7 @@ async function resolveMembershipPurchase(
 async function startVippsMembershipCheckout(
   params: CheckoutSessionParams,
   db: CheckoutDb,
-  webBase: string
+  urls: PublicUrls
 ): Promise<SessionOutcome> {
   const creds = await resolveVippsCredentials(db);
   if (!creds) {
@@ -260,7 +253,7 @@ async function startVippsMembershipCheckout(
   // The ePayment `reference` is the order id; the amount is taken from the
   // persisted order total rather than the pre-persist `params.total`, same
   // discipline as the product checkout route.
-  const returnUrl = `${webBase}/api/checkout/return?orderId=${orderId}`;
+  const returnUrl = checkoutReturnUrl(urls.apiBase, orderId);
   const payment = await withDeadline(
     createVippsPayment(
       { ...params, total: order.total ?? params.total, orderId },
@@ -284,7 +277,7 @@ async function startVippsMembershipCheckout(
 async function startStripeMembershipCheckout(
   params: CheckoutSessionParams,
   db: CheckoutDb,
-  webBase: string
+  urls: PublicUrls
 ): Promise<SessionOutcome> {
   const creds = await resolveStripeCredentials(db);
   if (!creds) {
@@ -292,8 +285,8 @@ async function startStripeMembershipCheckout(
   }
 
   const { orderId } = await createOrder(params, db);
-  const successUrl = `${webBase}/api/checkout/return?orderId=${orderId}`;
-  const cancelUrl = `${webBase}/membership/join?cancelled=true`;
+  const successUrl = checkoutReturnUrl(urls.apiBase, orderId);
+  const cancelUrl = `${urls.webBase}/membership/join?cancelled=true`;
   const session = await withDeadline(
     createStripeCheckoutSession({ ...params, orderId }, creds, {
       successUrl,
@@ -339,9 +332,11 @@ export async function POST(
     }
 
     const webBase = webBaseUrl();
-    if (!webBase) {
+    const apiBase = apiBaseUrl();
+    if (!(webBase && apiBase)) {
       return json({ message: "Payment service is misconfigured" }, 500);
     }
+    const urls: PublicUrls = { apiBase, webBase };
 
     const body = (await req
       .json()
@@ -419,8 +414,8 @@ export async function POST(
 
     const outcome =
       provider === "vipps"
-        ? await startVippsMembershipCheckout(params, db, webBase)
-        : await startStripeMembershipCheckout(params, db, webBase);
+        ? await startVippsMembershipCheckout(params, db, urls)
+        : await startStripeMembershipCheckout(params, db, urls);
 
     if (!outcome.ok) {
       return json({ message: outcome.message }, outcome.status);

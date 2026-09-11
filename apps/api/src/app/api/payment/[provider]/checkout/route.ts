@@ -28,6 +28,7 @@ import {
   CheckoutValidationError,
 } from "@/lib/checkout-pricing";
 import { applyCorsHeaders, corsPreflightResponse } from "@/lib/cors";
+import { apiBaseUrl, type PublicUrls, webBaseUrl } from "@/lib/public-urls";
 
 type Provider = "vipps" | "stripe";
 const DEFAULT_VIPPS_CHECKOUT_TIMEOUT_MS = 10_000;
@@ -60,15 +61,6 @@ interface CheckoutBody {
 
 function isProvider(value: string): value is Provider {
   return value === "vipps" || value === "stripe";
-}
-
-function webBaseUrl(): string | undefined {
-  // Return/success/cancel URLs must point at the WEB app's /api/checkout/return
-  // route. In split-host deployments the api app has its own NEXT_PUBLIC_BASE_URL,
-  // so prefer the web-specific var and only fall back to the shared one.
-  return (
-    process.env.NEXT_PUBLIC_WEB_BASE_URL || process.env.NEXT_PUBLIC_BASE_URL
-  );
 }
 
 function isValidBody(body: CheckoutBody | null): body is CheckoutBody {
@@ -253,7 +245,7 @@ function totalsMatch(clientTotal: number, serverTotal: number): boolean {
 async function startVippsCheckout(
   params: CheckoutSessionParams,
   db: CheckoutDb,
-  webBase: string,
+  urls: PublicUrls,
   client: "app" | "web"
 ): Promise<SessionOutcome> {
   const creds = await resolveVippsCredentials(db);
@@ -262,9 +254,9 @@ async function startVippsCheckout(
   }
 
   const { orderId, order } = await createOrder(params, db);
-  // The ePayment `reference` is the order id; the redirect target is the web
+  // The ePayment `reference` is the order id; the redirect target is the API
   // return route. The amount is taken from the persisted order total.
-  const returnUrl = checkoutReturnUrl(webBase, orderId, client);
+  const returnUrl = checkoutReturnUrl(urls.apiBase, orderId, client);
   const payment = await withDeadline(
     createVippsPayment(
       { ...params, total: order.total ?? params.total, orderId },
@@ -285,7 +277,7 @@ async function startVippsCheckout(
 async function startStripeCheckout(
   params: CheckoutSessionParams,
   db: CheckoutDb,
-  webBase: string,
+  urls: PublicUrls,
   client: "app" | "web"
 ): Promise<SessionOutcome> {
   const creds = await resolveStripeCredentials(db);
@@ -294,7 +286,7 @@ async function startStripeCheckout(
   }
 
   const { orderId } = await createOrder(params, db);
-  const successUrl = checkoutReturnUrl(webBase, orderId, client);
+  const successUrl = checkoutReturnUrl(urls.apiBase, orderId, client);
   // App buyers come back through the return route on cancel too — Stripe only
   // accepts http(s) here, so a `biso://` cancel URL is not an option. The
   // marker is what keeps the two apart: a cancelled Stripe session is left
@@ -302,8 +294,8 @@ async function startStripeCheckout(
   // would be told to keep waiting for a payment the buyer just abandoned.
   const cancelUrl =
     client === "app"
-      ? checkoutReturnUrl(webBase, orderId, client, { cancelled: true })
-      : `${webBase}/shop/cart?cancelled=true`;
+      ? checkoutReturnUrl(urls.apiBase, orderId, client, { cancelled: true })
+      : `${urls.webBase}/shop/cart?cancelled=true`;
   // Same deadline discipline as the Vipps branch — a stalled Stripe call must
   // surface as a 504 instead of hanging the checkout request.
   const session = await withDeadline(
@@ -348,9 +340,11 @@ export async function POST(
     }
 
     const webBase = webBaseUrl();
-    if (!webBase) {
+    const apiBase = apiBaseUrl();
+    if (!(webBase && apiBase)) {
       return json({ message: "Payment service is misconfigured" }, 500);
     }
+    const urls: PublicUrls = { apiBase, webBase };
 
     const body = (await req.json().catch(() => null)) as CheckoutBody | null;
     if (!isValidBody(body)) {
@@ -389,8 +383,8 @@ export async function POST(
 
     const outcome =
       provider === "vipps"
-        ? await startVippsCheckout(params, db, webBase, client)
-        : await startStripeCheckout(params, db, webBase, client);
+        ? await startVippsCheckout(params, db, urls, client)
+        : await startStripeCheckout(params, db, urls, client);
 
     if (!outcome.ok) {
       return json({ message: outcome.message }, outcome.status);

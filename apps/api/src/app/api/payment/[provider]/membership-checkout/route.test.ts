@@ -153,6 +153,7 @@ describe("membership checkout authorization", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.stubEnv("NEXT_PUBLIC_BASE_URL", "https://biso.no");
+    vi.stubEnv("NEXT_PUBLIC_API_BASE_URL", "https://api.biso.no");
 
     mockAdminClient();
     mockAuthenticatedUser();

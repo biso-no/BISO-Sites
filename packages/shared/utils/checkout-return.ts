@@ -2,7 +2,7 @@
  * Where a buyer is sent back to after paying, per surface.
  *
  * The website and the native app share one post-payment handler
- * (`/api/checkout/return` in `apps/web`), because that handler is what
+ * (`/api/payment/return` in `apps/api`), because that handler is what
  * reconciles the payment with the provider and settles the revenue. Only the
  * final hop differs: the website renders its receipt page, the app is handed a
  * `biso://` deep link that reopens it on the order.
@@ -38,18 +38,18 @@ export function isCheckoutClient(value: unknown): value is CheckoutClient {
 
 /**
  * The URL a payment provider redirects the buyer to once payment completes,
- * is cancelled, or fails. Always the web return route — it holds the
+ * is cancelled, or fails. Always the API return route — it holds the
  * reconciliation and ledger-settlement logic — with the originating surface
  * appended so that route knows where to send the buyer next.
  */
 export function checkoutReturnUrl(
-  webBaseUrl: string,
+  apiBaseUrl: string,
   orderId: string,
   client: CheckoutClient = "web",
   options: { cancelled?: boolean } = {}
 ): string {
-  const base = webBaseUrl.replace(TRAILING_SLASHES_RE, "");
-  const url = `${base}/api/checkout/return?orderId=${encodeURIComponent(orderId)}`;
+  const base = apiBaseUrl.replace(TRAILING_SLASHES_RE, "");
+  const url = `${base}/api/payment/return?orderId=${encodeURIComponent(orderId)}`;
   if (client === "web") {
     return url;
   }
