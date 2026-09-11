@@ -12,9 +12,15 @@
 
 import { ID, Query } from "@repo/api";
 import type { Orders as BaseOrders } from "@repo/api/types/appwrite";
+import {
+  type RevenueTarget,
+  revenueTargetKey,
+  snapshotTarget,
+} from "./finago-shop-accounting";
+import { resolveRevenueTargetForProduct } from "./finago-shop-accounting-server";
 import { getOrderItems } from "./order-parsing";
 import {
-  allocateAmountAcrossAccounts,
+  allocateAmountAcrossTargets,
   type BuiltRefundLine,
   buildRefundLines,
   computeRefundable,
@@ -22,6 +28,7 @@ import {
   type RefundableOrderItem,
   type RefundLineRequest,
   type RefundValidationError,
+  type RevenueAllocationEntry,
   statusAfterRefund,
   toMajor,
   toMinor,
@@ -58,7 +65,7 @@ export interface OrderRefundRow {
   error?: string | null;
   finago_transaction_id?: string | null;
   idempotency_key?: string | null;
-  /** JSON `[{accountNumber, amountMinor}]` actually reversed by this refund. */
+  /** JSON `[{accountNumber, departmentId, vatCode, amountMinor}]` reversed by this refund. */
   ledger_allocation?: string | null;
   lines?: OrderRefundLineRow[] | null;
   /** Parent order: an id string, or the expanded row when selected. */
@@ -84,6 +91,19 @@ export const LEGACY_ITEM_PREFIX = "legacy-";
 
 const REFUNDS_TABLE = "order_refunds";
 const REFUND_LINES_TABLE = "order_refund_lines";
+
+/**
+ * `finago_transaction_id` values that are not a voucher this system posted:
+ * memberships (booked as invoices), an in-flight marker, free orders, and
+ * orders imported from WordPress (booked by hand in the old monthly report).
+ * A refund against one of these has no automatic reversal.
+ */
+const NOT_POSTED_BY_AUTOMATION = new Set([
+  "membership",
+  "posting",
+  "wordpress-import",
+  "zero-total",
+]);
 
 /**
  * Loads the order with its line items. Must be a `Query.select(...)` string,
@@ -158,6 +178,12 @@ export function toRefundableItems(
         typeof item.finago_account_number === "number"
           ? item.finago_account_number
           : null,
+      finagoDepartment:
+        typeof item.finago_department === "string"
+          ? item.finago_department
+          : null,
+      finagoVatCode:
+        typeof item.finago_vat_code === "number" ? item.finago_vat_code : null,
       id: item.order_item_id ?? `${LEGACY_ITEM_PREFIX}${index}`,
       name: item.name ?? item.title ?? item.product_name ?? "—",
       productId: item.product_id ?? null,
@@ -198,29 +224,41 @@ export function hasUnrecordedReversal(order: RefundableOrder): boolean {
   );
 }
 
-export function reversedByAccount(
+export function reversedByTarget(
   order: RefundableOrder
-): Record<number, number> {
-  const byAccount: Record<number, number> = {};
+): Record<string, number> {
+  const byTarget: Record<string, number> = {};
   for (const refund of order.refunds ?? []) {
     if (refund.status === "failed" || !refund.ledger_allocation) {
       continue;
     }
     try {
-      const parsed = JSON.parse(refund.ledger_allocation) as Array<{
-        accountNumber: number;
-        amountMinor: number;
-      }>;
+      const parsed = JSON.parse(
+        refund.ledger_allocation
+      ) as Partial<RevenueAllocationEntry>[];
       for (const entry of parsed) {
-        byAccount[entry.accountNumber] =
-          (byAccount[entry.accountNumber] ?? 0) + entry.amountMinor;
+        // Entries recorded before reversals carried a VAT code and department
+        // cannot be matched to a target; skip them (the cap still applies).
+        if (
+          typeof entry.accountNumber !== "number" ||
+          typeof entry.amountMinor !== "number" ||
+          typeof entry.vatCode !== "number" ||
+          !entry.departmentId
+        ) {
+          continue;
+        }
+        const key = revenueTargetKey({
+          accountNumber: entry.accountNumber,
+          departmentId: entry.departmentId,
+          vatCode: entry.vatCode,
+        });
+        byTarget[key] = (byTarget[key] ?? 0) + entry.amountMinor;
       }
     } catch {
-      // A malformed record must not break the next refund; it only means this
-      // reversal is not subtracted, and the per-account cap still applies.
+      // A malformed record must not break the next refund.
     }
   }
-  return byAccount;
+  return byTarget;
 }
 
 /** The order's existing refunds in the shape the pure helpers work with. */
@@ -260,14 +298,17 @@ export interface RefundExecutor {
 export interface LedgerReverser {
   /**
    * Posts the compensating ledger transaction. Returns the transaction id, or
-   * `null` when there is nothing to reverse (no revenue accounts resolved).
+   * `null` when there is nothing to reverse (no revenue targets resolved).
    */
   reverse: (input: {
-    allocation: Array<{ accountNumber: number; amountMinor: number }>;
+    allocation: RevenueAllocationEntry[];
     amount: number;
     /** Campus dimension for the reversal, taken from the order. */
     campusId?: string | null;
+    db: DbClient;
     orderId: string;
+    /** Payment provider of the original sale; picks the clearing account. */
+    provider?: string | null;
   }) => Promise<string | null>;
 }
 
@@ -844,7 +885,7 @@ async function reverseLedger({
   orderId: string;
   refundId: string;
 }): Promise<void> {
-  const { dbId, productsId } = tableIds();
+  const { dbId } = tableIds();
   if (!ledger) {
     return;
   }
@@ -854,8 +895,7 @@ async function reverseLedger({
   // which is handled manually. Anything never posted has nothing to reverse.
   if (
     !order.finago_transaction_id ||
-    order.finago_transaction_id === "membership" ||
-    order.finago_transaction_id === "posting"
+    NOT_POSTED_BY_AUTOMATION.has(order.finago_transaction_id)
   ) {
     return;
   }
@@ -877,24 +917,21 @@ async function reverseLedger({
   }
 
   try {
-    const accountByItemId = await resolveRevenueAccounts(
-      items,
-      db,
-      dbId,
-      productsId
-    );
-    const allocation = allocateAmountAcrossAccounts({
-      accountByItemId,
-      alreadyReversedByAccount: reversedByAccount(order),
+    const targetByItemId = await resolveRevenueTargets(items, db);
+    const allocation = allocateAmountAcrossTargets({
+      alreadyReversedByTarget: reversedByTarget(order),
       amountMinor: toMinor(amount),
       items,
       lines,
+      targetByItemId,
     });
     const transactionId = await ledger.reverse({
       allocation,
       amount,
       campusId: order.campus_id ?? null,
+      db,
       orderId,
+      provider: order.payment_provider ?? null,
     });
     if (transactionId) {
       // Outside the try/catch below on purpose: the reversal has ALREADY been
@@ -932,41 +969,41 @@ async function reverseLedger({
 }
 
 /**
- * The ledger account to reverse per line.
- *
- * Prefers the account snapshotted on the order line at sale time: a product's
- * `finago_account_number` is editable, so reading the current product row can
- * debit an account the original sale never credited. Orders placed before that
- * snapshot existed fall back to the product.
+ * The revenue target to reverse per line: the copy made at checkout when the
+ * line has one, else the product's current sales type (orders placed before
+ * the copy existed). Each product is read at most once.
  */
-async function resolveRevenueAccounts(
+async function resolveRevenueTargets(
   items: RefundableOrderItem[],
-  db: DbClient,
-  dbId: string,
-  productsId: string
-): Promise<Record<string, number | null>> {
-  const accountByItemId: Record<string, number | null> = {};
-  const cache = new Map<string, number | null>();
+  db: DbClient
+): Promise<Record<string, RevenueTarget | null>> {
+  const targetByItemId: Record<string, RevenueTarget | null> = {};
+  const byProduct = new Map<string, RevenueTarget | null>();
 
   for (const item of items) {
-    if (typeof item.finagoAccountNumber === "number") {
-      accountByItemId[item.id] = item.finagoAccountNumber;
+    const snapshot = snapshotTarget({
+      finago_account_number: item.finagoAccountNumber,
+      finago_department: item.finagoDepartment,
+      finago_vat_code: item.finagoVatCode,
+    });
+    if (snapshot) {
+      targetByItemId[item.id] = snapshot;
       continue;
     }
     if (!item.productId) {
-      accountByItemId[item.id] = null;
+      targetByItemId[item.id] = null;
       continue;
     }
-    if (!cache.has(item.productId)) {
-      const product = (await db
-        .getRow(dbId, productsId, item.productId)
-        .catch(() => null)) as { finago_account_number?: number | null } | null;
-      cache.set(item.productId, product?.finago_account_number ?? null);
+    if (!byProduct.has(item.productId)) {
+      byProduct.set(
+        item.productId,
+        await resolveRevenueTargetForProduct(db, item.productId)
+      );
     }
-    accountByItemId[item.id] = cache.get(item.productId) ?? null;
+    targetByItemId[item.id] = byProduct.get(item.productId) ?? null;
   }
 
-  return accountByItemId;
+  return targetByItemId;
 }
 
 /** Current provider-side state of a refund we already submitted. */

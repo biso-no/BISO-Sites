@@ -74,9 +74,20 @@ function orderRowFor(order: Record<string, unknown>) {
     if (tableId === "webshop_products") {
       return Promise.resolve({
         $id: rowId,
-        finago_account_number: 3000,
+        departmentId: "44",
+        sales_type: "varesalg",
         stock: 5,
       });
+    }
+    if (tableId === "sales_types") {
+      return Promise.resolve({
+        $id: rowId,
+        account_number: 3000,
+        active: true,
+      });
+    }
+    if (tableId === "ledger_accounts") {
+      return Promise.resolve({ $id: rowId, vat_code: 3 });
     }
     return Promise.resolve(null);
   };
@@ -413,8 +424,17 @@ describe("refundOrder", () => {
 
     expect(ledger.reverse).toHaveBeenCalledWith(
       expect.objectContaining({
-        allocation: [{ accountNumber: 3000, amountMinor: 49_900 }],
+        allocation: [
+          {
+            accountNumber: 3000,
+            amountMinor: 49_900,
+            departmentId: "44",
+            vatCode: 3,
+          },
+        ],
         amount: 499,
+        db,
+        provider: "stripe",
       })
     );
   });
@@ -422,6 +442,23 @@ describe("refundOrder", () => {
   it("skips the ledger reversal for a membership order", async () => {
     db.getRow.mockImplementation(
       orderRowFor(buildOrder({ finago_transaction_id: "membership" }))
+    );
+    const ledger: LedgerReverser = { reverse: vi.fn() };
+
+    await refundOrder({
+      db,
+      executor: executorReturning(49_900),
+      ledger,
+      orderId: ORDER_ID,
+      amount: 499,
+    });
+
+    expect(ledger.reverse).not.toHaveBeenCalled();
+  });
+
+  it("skips the ledger reversal for an order imported from WordPress", async () => {
+    db.getRow.mockImplementation(
+      orderRowFor(buildOrder({ finago_transaction_id: "wordpress-import" }))
     );
     const ledger: LedgerReverser = { reverse: vi.fn() };
 

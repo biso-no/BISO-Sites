@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { type RevenueTarget, revenueTargetKey } from "./finago-shop-accounting";
 import {
-  allocateAmountAcrossAccounts,
+  allocateAmountAcrossTargets,
   buildRefundLines,
   computeRefundable,
   isPartiallyRefunded,
@@ -194,50 +195,6 @@ describe("validateRefundRequest", () => {
   });
 });
 
-describe("allocateAmountAcrossAccounts", () => {
-  const accountByItemId = { "line-a": 3000, "line-b": 3010 };
-
-  it("maps line refunds straight onto their product accounts", () => {
-    const allocation = allocateAmountAcrossAccounts({
-      accountByItemId,
-      amountMinor: 49_900,
-      items,
-      lines: buildRefundLines([{ orderItemId: "line-a", quantity: 1 }], items),
-    });
-    expect(allocation).toEqual([{ accountNumber: 3000, amountMinor: 49_900 }]);
-  });
-
-  it("splits a free-amount refund proportionally and sums back exactly", () => {
-    const allocation = allocateAmountAcrossAccounts({
-      accountByItemId,
-      amountMinor: 10_000,
-      items,
-      lines: [],
-    });
-    const sum = allocation.reduce((acc, line) => acc + line.amountMinor, 0);
-    expect(sum).toBe(10_000);
-    // line-a is 998/1197 of the order, line-b 199/1197. Both shares floor to
-    // .5, so the 1 øre rounding remainder lands on the larger share.
-    expect(allocation.find((l) => l.accountNumber === 3000)?.amountMinor).toBe(
-      8338
-    );
-    expect(allocation.find((l) => l.accountNumber === 3010)?.amountMinor).toBe(
-      1662
-    );
-  });
-
-  it("returns nothing when no line has a ledger account", () => {
-    expect(
-      allocateAmountAcrossAccounts({
-        accountByItemId: {},
-        amountMinor: 10_000,
-        items,
-        lines: [],
-      })
-    ).toEqual([]);
-  });
-});
-
 describe("statusAfterRefund", () => {
   it("stays paid while a balance remains", () => {
     expect(statusAfterRefund(119_700, 49_900)).toBe("paid");
@@ -331,126 +288,150 @@ describe("computeRefundable — provider aggregate", () => {
   });
 });
 
-describe("allocateAmountAcrossAccounts — remaining balance", () => {
-  const accountByItemId = { "line-a": 3000, "line-b": 3010 };
+const HOODIE: RevenueTarget = {
+  accountNumber: 3000,
+  departmentId: "44",
+  vatCode: 3,
+};
+const CAP: RevenueTarget = {
+  accountNumber: 3010,
+  departmentId: "44",
+  vatCode: 3,
+};
 
-  it("sends a free-amount refund to the accounts not yet reversed", () => {
-    // Codex's case: a 2-line order where one line was already refunded. The
-    // remaining free amount must land entirely on the untouched account, or
-    // the cumulative reversal exceeds what that account was credited.
-    const twoLines: RefundableOrderItem[] = [
-      { id: "line-a", name: "A", quantity: 1, unitPrice: 50 },
-      { id: "line-b", name: "B", quantity: 1, unitPrice: 50 },
-    ];
+describe("allocateAmountAcrossTargets", () => {
+  const targetByItemId = { "line-a": HOODIE, "line-b": CAP };
 
-    const allocation = allocateAmountAcrossAccounts({
-      accountByItemId,
-      alreadyReversedByAccount: { 3000: 5000 },
-      amountMinor: 5000,
-      items: twoLines,
-      lines: [],
+  it("maps line refunds straight onto their targets", () => {
+    const allocation = allocateAmountAcrossTargets({
+      amountMinor: 49_900,
+      items,
+      lines: buildRefundLines([{ orderItemId: "line-a", quantity: 1 }], items),
+      targetByItemId,
     });
-
-    expect(allocation).toEqual([{ accountNumber: 3010, amountMinor: 5000 }]);
+    expect(allocation).toEqual([{ ...HOODIE, amountMinor: 49_900 }]);
   });
 
-  it("weights by the full order when nothing has been refunded", () => {
-    const allocation = allocateAmountAcrossAccounts({
-      accountByItemId,
+  it("splits a free-amount refund proportionally and sums back exactly", () => {
+    const allocation = allocateAmountAcrossTargets({
       amountMinor: 10_000,
       items,
       lines: [],
+      targetByItemId,
     });
-    expect(allocation.reduce((sum, line) => sum + line.amountMinor, 0)).toBe(
-      10_000
-    );
+    expect(allocation).toEqual([
+      { ...HOODIE, amountMinor: 8338 },
+      { ...CAP, amountMinor: 1662 },
+    ]);
+  });
+
+  it("keeps the same account apart per department", () => {
+    const twoDepartments: RefundableOrderItem[] = [
+      { id: "line-a", name: "A", quantity: 1, unitPrice: 50 },
+      { id: "line-b", name: "B", quantity: 1, unitPrice: 50 },
+    ];
+    const allocation = allocateAmountAcrossTargets({
+      amountMinor: 10_000,
+      items: twoDepartments,
+      lines: [],
+      targetByItemId: {
+        "line-a": HOODIE,
+        "line-b": { ...HOODIE, departmentId: "16" },
+      },
+    });
+    expect(allocation).toEqual([
+      { ...HOODIE, departmentId: "16", amountMinor: 5000 },
+      { ...HOODIE, amountMinor: 5000 },
+    ]);
+  });
+
+  it("returns nothing when no line has a target", () => {
+    expect(
+      allocateAmountAcrossTargets({
+        amountMinor: 10_000,
+        items,
+        lines: [],
+        targetByItemId: {},
+      })
+    ).toEqual([]);
   });
 });
 
-describe("allocateAmountAcrossAccounts — order independence", () => {
-  // A 100 kr order split evenly across two accounts.
+describe("allocateAmountAcrossTargets — remaining balance", () => {
   const evenItems: RefundableOrderItem[] = [
     { id: "line-a", name: "A", quantity: 1, unitPrice: 50 },
     { id: "line-b", name: "B", quantity: 1, unitPrice: 50 },
   ];
-  const accounts = { "line-a": 3000, "line-b": 3010 };
+  const targetByItemId = { "line-a": HOODIE, "line-b": CAP };
 
-  it("free refund first, then a line refund, never over-reverses an account", () => {
-    // The free 50 spreads 25/25. A later 50 line refund on A must take only
-    // the 25 A has left, not a second full 50.
-    const free = allocateAmountAcrossAccounts({
-      accountByItemId: accounts,
+  it("sends a free-amount refund to the targets not yet reversed", () => {
+    const allocation = allocateAmountAcrossTargets({
+      alreadyReversedByTarget: { [revenueTargetKey(HOODIE)]: 5000 },
       amountMinor: 5000,
       items: evenItems,
       lines: [],
+      targetByItemId,
+    });
+    expect(allocation).toEqual([{ ...CAP, amountMinor: 5000 }]);
+  });
+
+  it("free refund first, then a line refund, never over-reverses a target", () => {
+    const free = allocateAmountAcrossTargets({
+      amountMinor: 5000,
+      items: evenItems,
+      lines: [],
+      targetByItemId,
     });
     expect(free).toEqual([
-      { accountNumber: 3000, amountMinor: 2500 },
-      { accountNumber: 3010, amountMinor: 2500 },
+      { ...HOODIE, amountMinor: 2500 },
+      { ...CAP, amountMinor: 2500 },
     ]);
 
-    const then = allocateAmountAcrossAccounts({
-      accountByItemId: accounts,
-      alreadyReversedByAccount: { 3000: 2500, 3010: 2500 },
+    const then = allocateAmountAcrossTargets({
+      alreadyReversedByTarget: {
+        [revenueTargetKey(HOODIE)]: 2500,
+        [revenueTargetKey(CAP)]: 2500,
+      },
       amountMinor: 5000,
       items: evenItems,
       lines: buildRefundLines(
         [{ orderItemId: "line-a", quantity: 1 }],
         evenItems
       ),
+      targetByItemId,
     });
-
-    const forA = then.find((l) => l.accountNumber === 3000)?.amountMinor ?? 0;
-    expect(forA).toBe(2500);
-    // Cumulative reversal per account never exceeds its original credit.
-    expect(2500 + forA).toBeLessThanOrEqual(5000);
-    expect(then.reduce((sum, l) => sum + l.amountMinor, 0)).toBe(5000);
+    const forHoodie =
+      then.find((entry) => entry.accountNumber === 3000)?.amountMinor ?? 0;
+    expect(forHoodie).toBe(2500);
+    expect(then.reduce((sum, entry) => sum + entry.amountMinor, 0)).toBe(5000);
   });
 
-  it("line refund first, then a free refund, lands on the untouched account", () => {
-    const then = allocateAmountAcrossAccounts({
-      accountByItemId: accounts,
-      alreadyReversedByAccount: { 3000: 5000 },
-      amountMinor: 5000,
-      items: evenItems,
-      lines: [],
-    });
-    expect(then).toEqual([{ accountNumber: 3010, amountMinor: 5000 }]);
+  it("never reverses more than a target was credited", () => {
+    expect(
+      allocateAmountAcrossTargets({
+        alreadyReversedByTarget: {
+          [revenueTargetKey(HOODIE)]: 5000,
+          [revenueTargetKey(CAP)]: 5000,
+        },
+        amountMinor: 5000,
+        items: evenItems,
+        lines: [],
+        targetByItemId,
+      })
+    ).toEqual([]);
   });
 
-  it("never reverses more than an account was credited", () => {
-    const over = allocateAmountAcrossAccounts({
-      accountByItemId: accounts,
-      alreadyReversedByAccount: { 3000: 5000, 3010: 5000 },
-      amountMinor: 5000,
-      items: evenItems,
-      lines: [],
-    });
-    expect(over).toEqual([]);
-  });
-});
-
-describe("allocateAmountAcrossAccounts — unmapped lines", () => {
-  const mixedItems: RefundableOrderItem[] = [
-    { id: "line-a", name: "A", quantity: 1, unitPrice: 50 },
-    { id: "line-b", name: "B", quantity: 1, unitPrice: 50 },
-  ];
-
-  it("never charges another product's account for a line with no account", () => {
-    // Line B resolves to no revenue account. Its amount must simply drop out —
-    // spilling it onto A's account would debit revenue that line never
-    // credited. The short allocation is intentional: the ledger connector
-    // refuses to post a partial reversal, which surfaces it for manual fixing.
-    const allocation = allocateAmountAcrossAccounts({
-      accountByItemId: { "line-a": 3000, "line-b": null },
-      amountMinor: 5000,
-      items: mixedItems,
-      lines: buildRefundLines(
-        [{ orderItemId: "line-b", quantity: 1 }],
-        mixedItems
-      ),
-    });
-
-    expect(allocation).toEqual([]);
+  it("never charges another line's target for a line with none", () => {
+    expect(
+      allocateAmountAcrossTargets({
+        amountMinor: 5000,
+        items: evenItems,
+        lines: buildRefundLines(
+          [{ orderItemId: "line-b", quantity: 1 }],
+          evenItems
+        ),
+        targetByItemId: { "line-a": HOODIE, "line-b": null },
+      })
+    ).toEqual([]);
   });
 });
