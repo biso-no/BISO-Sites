@@ -15,7 +15,7 @@ It currently drives:
 | `TICKSTER_EVENTS_SYNC_URL` (optional) | mirrors published Tickster events into the `events` table | `apps/api` → `POST /api/tickster/events/sync` |
 | `DEPARTURES_SYNC_URL` (optional) | refreshes Entur departures | `apps/api` → `POST /api/departures/sync` |
 | `RESERVATIONS_CLEANUP_URL` (optional) | deletes expired webshop cart reservations so held stock is released | `apps/web` → `POST /api/cron/cleanup-reservations` |
-| `ORDERS_RECONCILE_URL` (optional) | re-verifies stale pending/authorized Vipps orders against the provider and retries missed Finago ledger postings | `apps/web` → `POST /api/cron/reconcile-orders` |
+| `ORDERS_RECONCILE_URL` (optional) | re-verifies stale pending/authorized orders against their provider, retries missed Finago ledger postings and membership fulfilment, and resolves pending refunds | `apps/api` → `POST /api/cron/reconcile-orders` |
 | `TURNOVER_RETENTION_STOP_URL` (optional) | stops Azure Automation retention runs whose 7-day hold has elapsed after an M365 role-account turnover | `apps/admin` → `POST /api/it/turnover/stop-retention` |
 | `EXPENSES_POST_PENDING_URL` (optional) | posts approved reimbursements to the 24SevenOffice ledger (inert unless `expenses_ledger_posting` is on) | `apps/api` → `POST /api/expenses/post-pending` |
 
