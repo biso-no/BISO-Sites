@@ -1,0 +1,10 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appID": "4JQ6VWVRGY.com.biso.no",
+        "paths": [ "/auth/verify*", "/auth/*" ]
+      }
+    ]
+  }
+}
