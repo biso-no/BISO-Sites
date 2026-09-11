@@ -108,6 +108,16 @@ const baseConfig: NextConfig = {
       },
     ];
   },
+
+  // biome-ignore lint/suspicious/useAwait: Rewrite to the Apple App Site Association API route, which returns the JSON file for iOS Universal Links.
+  async rewrites() {
+    return [
+      {
+        source: "/.well-known/apple-app-site-association",
+        destination: "/api/aasa",
+      },
+    ];
+  },
 };
 
 export default withNextIntl(baseConfig);
