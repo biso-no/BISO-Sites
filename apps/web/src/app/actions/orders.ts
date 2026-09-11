@@ -1,10 +1,6 @@
 "use server";
 import { Query } from "@repo/api";
-import {
-  createAdminClient,
-  createSessionClient,
-  createSessionJwt,
-} from "@repo/api/server";
+import { createSessionClient, createSessionJwt } from "@repo/api/server";
 import type { ContentTranslations, Orders } from "@repo/api/types/appwrite";
 import type { Locale } from "@repo/i18n/config";
 import { getFeatureFlagStates } from "@repo/shared/utils/feature-flags-server";
@@ -647,6 +643,15 @@ export async function getOrder(id: string) {
   return await _getOrder(id);
 }
 
+/**
+ * The buyer's order, re-synced with the payment provider first.
+ *
+ * Verification and settlement live in the API app
+ * (`GET /api/payment/orders/[orderId]`), which the native app calls too; the
+ * website never talks to Vipps, Stripe or Finago itself. Any failure falls
+ * back to the stored order, because the buyer has already paid and must still
+ * see a receipt.
+ */
 export async function verifyOrder(orderId: string) {
   const { db } = await createSessionClient();
   const order = await db.getRow<Orders>("app", "orders", orderId, [
@@ -656,16 +661,27 @@ export async function verifyOrder(orderId: string) {
     return order;
   }
 
+  const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
+  const jwt = await createSessionJwt().catch(() => null);
+  if (!(apiBaseUrl && jwt)) {
+    return order;
+  }
+
   try {
-    // Status writes go through the admin client: orders are Operations-Unit
-    // writable and the buyer's (possibly anonymous) session cannot update them.
-    const { db: adminDb } = await createAdminClient();
-
-    // Provider branching lives in `@repo/payment/reconcile`, shared with the
-    // return route and the reconciliation cron, so all three stay in step.
-    const { reconcileOrderPayment } = await import("@repo/payment/reconcile");
-    await reconcileOrderPayment(orderId, adminDb);
-
+    const response = await fetch(
+      `${apiBaseUrl}/api/payment/orders/${encodeURIComponent(orderId)}`,
+      {
+        cache: "no-store",
+        headers: { Authorization: `Bearer ${jwt}` },
+        signal: AbortSignal.timeout(checkoutFetchTimeoutMs()),
+      }
+    );
+    if (!response.ok) {
+      console.error(
+        `[verifyOrder] API verification failed with ${response.status}`
+      );
+      return order;
+    }
     return await db.getRow<Orders>("app", "orders", orderId, [
       ORDER_ITEMS_SELECT,
     ]);

@@ -1,90 +1,34 @@
-import { createAdminClient } from "@repo/api/server";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { GET } from "./route";
 
-const mocks = vi.hoisted(() => ({
-  fulfilMembershipOrder: vi.fn(),
-  isMembershipOrder: vi.fn(),
-  postFinagoTransactionForOrder: vi.fn(),
-}));
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
 
-vi.mock("@repo/api/server", () => ({
-  createAdminClient: vi.fn(),
-}));
-vi.mock("@repo/shared/utils/finago-order-posting", () => ({
-  postFinagoTransactionForOrder: mocks.postFinagoTransactionForOrder,
-}));
-vi.mock("@repo/shared/utils/membership-fulfilment", () => ({
-  fulfilMembershipOrder: mocks.fulfilMembershipOrder,
-  isMembershipOrder: mocks.isMembershipOrder,
-}));
+describe("legacy checkout return", () => {
+  it("forwards the buyer to the API return route with the same query", () => {
+    vi.stubEnv("NEXT_PUBLIC_API_BASE_URL", "https://api.biso.no");
 
-const mockedCreateAdminClient = vi.mocked(createAdminClient);
-
-const db = {
-  getRow: vi.fn(),
-};
-
-function returnRequest(orderId = "order-1"): Request {
-  return new Request(
-    `https://web.biso.no/api/checkout/return?orderId=${orderId}`
-  );
-}
-
-function order(overrides: Record<string, unknown> = {}) {
-  return {
-    $id: "order-1",
-    items_json: "[]",
-    // No payment_session_id: syncOrderStatusFromProvider short-circuits
-    // before touching Vipps/Stripe, so this test is isolated to the one
-    // thing Task 18 changed — whether a paid order is routed to
-    // fulfilMembershipOrder or postFinagoTransactionForOrder.
-    payment_session_id: null,
-    status: "paid",
-    ...overrides,
-  };
-}
-
-describe("checkout return: settlement routing", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    vi.spyOn(console, "info").mockImplementation(() => undefined);
-    vi.spyOn(console, "error").mockImplementation(() => undefined);
-
-    mockedCreateAdminClient.mockResolvedValue({ db } as never);
-    mocks.fulfilMembershipOrder.mockResolvedValue({ fulfilled: false });
-    mocks.postFinagoTransactionForOrder.mockResolvedValue({ posted: false });
-  });
-
-  it("fulfils a paid membership order instead of posting a shop transaction", async () => {
-    db.getRow.mockResolvedValue(order());
-    mocks.isMembershipOrder.mockReturnValue(true);
-
-    await GET(returnRequest());
-
-    expect(mocks.fulfilMembershipOrder).toHaveBeenCalledWith("order-1", db);
-    expect(mocks.postFinagoTransactionForOrder).not.toHaveBeenCalled();
-  });
-
-  it("posts a paid shop order instead of fulfilling a membership", async () => {
-    db.getRow.mockResolvedValue(order());
-    mocks.isMembershipOrder.mockReturnValue(false);
-
-    await GET(returnRequest());
-
-    expect(mocks.postFinagoTransactionForOrder).toHaveBeenCalledWith(
-      "order-1",
-      db
+    const response = GET(
+      new Request(
+        "https://biso.no/api/checkout/return?orderId=order-1&client=app"
+      )
     );
-    expect(mocks.fulfilMembershipOrder).not.toHaveBeenCalled();
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toBe(
+      "https://api.biso.no/api/payment/return?orderId=order-1&client=app"
+    );
   });
 
-  it("settles neither path for an order that is not paid or authorized", async () => {
-    db.getRow.mockResolvedValue(order({ status: "pending" }));
+  it("falls back to the shop when the API origin is not configured", () => {
+    vi.stubEnv("NEXT_PUBLIC_API_BASE_URL", "");
+    vi.stubEnv("NEXT_PUBLIC_BASE_URL", "https://biso.no");
 
-    await GET(returnRequest());
+    const response = GET(
+      new Request("https://biso.no/api/checkout/return?orderId=order-1")
+    );
 
-    expect(mocks.fulfilMembershipOrder).not.toHaveBeenCalled();
-    expect(mocks.postFinagoTransactionForOrder).not.toHaveBeenCalled();
+    expect(response.headers.get("location")).toBe("https://biso.no/shop");
   });
 });

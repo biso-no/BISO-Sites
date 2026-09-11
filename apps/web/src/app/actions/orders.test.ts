@@ -8,6 +8,10 @@ const appwrite = vi.hoisted(() => ({
   createSessionJwt: vi.fn(),
 }));
 
+const sessionDb = vi.hoisted(() => ({
+  getRow: vi.fn(),
+}));
+
 const membership = vi.hoisted(() => ({
   getMembershipStatus: vi.fn(),
 }));
@@ -19,7 +23,7 @@ const webshop = vi.hoisted(() => ({
 vi.mock("@repo/api/server", () => ({
   createSessionClient: vi.fn(async () => ({
     account,
-    db: { getRow: vi.fn() },
+    db: sessionDb,
     functions: { createExecution: vi.fn() },
   })),
   createSessionJwt: appwrite.createSessionJwt,
@@ -69,7 +73,7 @@ vi.mock("@/lib/types/webshop", () => ({
   parseProductMetadata: webshop.parseProductMetadata,
 }));
 
-import { createCartCheckoutSession } from "./orders";
+import { createCartCheckoutSession, verifyOrder } from "./orders";
 
 function stubCheckoutFetch() {
   const fetchMock = vi.fn(async () =>
@@ -265,5 +269,74 @@ describe("order checkout actions", () => {
       expect(payload.subtotal).toBe(199);
       expect(payload.total).toBe(199);
     });
+  });
+});
+
+describe("verifyOrder", () => {
+  const pendingOrder = {
+    $id: "order-1",
+    payment_provider: "vipps",
+    payment_session_id: "session-1",
+    status: "pending",
+  };
+
+  beforeEach(() => {
+    vi.stubEnv("NEXT_PUBLIC_API_BASE_URL", "https://api.biso.no");
+    appwrite.createSessionJwt.mockResolvedValue("jwt-1");
+    sessionDb.getRow.mockReset();
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+  });
+
+  it("asks the API app to verify and settle, then re-reads the order", async () => {
+    sessionDb.getRow
+      .mockResolvedValueOnce(pendingOrder)
+      .mockResolvedValueOnce({ ...pendingOrder, status: "paid" });
+    const fetchMock = vi.fn(async () =>
+      Response.json({ id: "order-1", status: "paid" })
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await verifyOrder("order-1");
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://api.biso.no/api/payment/orders/order-1",
+      expect.objectContaining({
+        cache: "no-store",
+        headers: { Authorization: "Bearer jwt-1" },
+      })
+    );
+    expect(result?.status).toBe("paid");
+  });
+
+  it("returns the stored order without calling the API when there is no payment session", async () => {
+    sessionDb.getRow.mockResolvedValueOnce({
+      ...pendingOrder,
+      payment_session_id: null,
+    });
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await verifyOrder("order-1");
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(result?.status).toBe("pending");
+  });
+
+  it("returns the stored order when the API app answers with an error", async () => {
+    sessionDb.getRow.mockResolvedValueOnce(pendingOrder);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response("down", { status: 500 }))
+    );
+
+    const result = await verifyOrder("order-1");
+
+    expect(result?.status).toBe("pending");
+    expect(sessionDb.getRow).toHaveBeenCalledTimes(1);
   });
 });
