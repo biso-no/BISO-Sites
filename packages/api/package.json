@@ -11,6 +11,8 @@
     "get-product": "ts-node scripts/get-products.ts",
     "cutover:content-permissions": "bun --env-file=../../apps/admin/.env.local scripts/cutover-content-permissions.ts",
     "repair:content-relationships": "bun --env-file=../../apps/admin/.env.local scripts/repair-content-relationships.ts",
+    "finago:assign-sales-types": "bun --env-file=../../apps/admin/.env.local scripts/assign-product-sales-types.ts",
+    "finago:reset-stranded-posting": "bun --env-file=../../apps/admin/.env.local scripts/reset-stranded-finago-posting.ts",
     "test": "vitest run"
   },
   "exports": {
