@@ -1548,11 +1548,12 @@ function EssentialsStep({
               {salesTypes.map((type) => (
                 <option key={type.id} value={type.id}>
                   {type.labelNo} ({type.accountNumber})
+                  {type.active ? "" : " (inactive)"}
                 </option>
               ))}
               {salesType &&
                 !salesTypes.some((type) => type.id === salesType) && (
-                  <option value={salesType}>{salesType} (inactive)</option>
+                  <option value={salesType}>{salesType} (deleted)</option>
                 )}
             </select>
             <div

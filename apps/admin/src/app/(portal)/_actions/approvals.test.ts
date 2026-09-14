@@ -9,6 +9,16 @@ const db = {
   updateRow: mock(),
 };
 
+// The approver's own session. Kept distinct from the admin client so a test
+// can prove which reads go through which: `sales_types` is readable only by
+// the operations unit, so a campus admin's session read of it is refused.
+const sessionDb = {
+  createRow: mock(),
+  getRow: mock(),
+  listRows: mock(),
+  updateRow: mock(),
+};
+
 const baseCtx: UserAuthContext = {
   activeCampusId: undefined,
   campusNames: ["Oslo"],
@@ -36,7 +46,7 @@ mock.module("server-only", () => ({}));
 
 mock.module("@repo/api/server", () => ({
   createAdminClient: mock(async () => ({ db })),
-  createSessionClient: mock(async () => ({ db })),
+  createSessionClient: mock(async () => ({ db: sessionDb })),
 }));
 
 mock.module("@/lib/authorization", () => ({
@@ -52,11 +62,14 @@ const { approveRequest, listPendingApprovals } = await import("./approvals");
 describe("listPendingApprovals", () => {
   beforeEach(() => {
     currentCtx = baseCtx;
-    db.listRows.mockReset();
+    sessionDb.listRows.mockReset();
   });
 
   test("reports the true total and paginates", async () => {
-    db.listRows.mockResolvedValueOnce({ rows: [{ $id: "r1" }], total: 133 });
+    sessionDb.listRows.mockResolvedValueOnce({
+      rows: [{ $id: "r1" }],
+      total: 133,
+    });
 
     const result = await listPendingApprovals({ page: 2, size: 25, q: "" });
 
@@ -65,22 +78,22 @@ describe("listPendingApprovals", () => {
       throw new Error("expected data");
     }
     expect(result.data.total).toBe(133);
-    const queries = db.listRows.mock.calls[0][2] as string[];
+    const queries = sessionDb.listRows.mock.calls[0][2] as string[];
     expect(queries).toContain(Query.offset(25));
   });
 
   test("keeps the campus switcher filter on every page", async () => {
     currentCtx = { ...baseCtx, activeCampusId: "campus-bergen" };
-    db.listRows.mockResolvedValueOnce({ rows: [], total: 0 });
+    sessionDb.listRows.mockResolvedValueOnce({ rows: [], total: 0 });
 
     await listPendingApprovals({ page: 3, size: 25, q: "" });
 
-    const queries = db.listRows.mock.calls[0][2] as string[];
+    const queries = sessionDb.listRows.mock.calls[0][2] as string[];
     expect(queries).toContain(Query.equal("campus_id", ["campus-bergen"]));
   });
 
   test("degrades to an empty page when the table is missing", async () => {
-    db.listRows.mockRejectedValueOnce(new Error("table not found"));
+    sessionDb.listRows.mockRejectedValueOnce(new Error("table not found"));
 
     const result = await listPendingApprovals({ page: 1, size: 25, q: "" });
 
@@ -90,7 +103,7 @@ describe("listPendingApprovals", () => {
   });
 });
 
-describe("approveRequest: shop products require an active sales type", () => {
+describe("approveRequest: shop products must be bookable", () => {
   const approvalRequest = {
     $id: "req-1",
     action: "shop.publish",
@@ -99,35 +112,70 @@ describe("approveRequest: shop products require an active sales type", () => {
     status: "pending" as const,
   };
 
+  const bookableProduct = {
+    $id: "product-1",
+    campus_id: "campus-oslo",
+    departmentId: "1",
+    sales_type: "sales-type-1",
+    status: "pending_approval",
+  };
+
+  function sessionReadRefused(table: string): Error {
+    return Object.assign(
+      new Error(`The current user is not authorized to read ${table}`),
+      { code: 401, type: "user_unauthorized" }
+    );
+  }
+
+  function rowNotFound(): Error {
+    return Object.assign(new Error("Row with the requested ID not found."), {
+      code: 404,
+      type: "row_not_found",
+    });
+  }
+
   function mockRows({
+    product = bookableProduct,
     salesType,
   }: {
+    product?: Record<string, unknown>;
     salesType: { $id: string; active: boolean } | null;
   }) {
+    // The approver's session can read the request and the product, but not
+    // the sales types (no row security; table read is operations-unit only).
+    sessionDb.getRow.mockImplementation(
+      (_databaseId: string, table: string) => {
+        if (table === "approval_requests") {
+          return Promise.resolve(approvalRequest);
+        }
+        if (table === "webshop_products") {
+          return Promise.resolve(product);
+        }
+        return Promise.reject(sessionReadRefused(table));
+      }
+    );
     db.getRow.mockImplementation((_databaseId: string, table: string) => {
-      if (table === "approval_requests") {
-        return Promise.resolve(approvalRequest);
-      }
-      if (table === "webshop_products") {
-        return Promise.resolve({
-          $id: "product-1",
-          campus_id: "campus-oslo",
-          sales_type: "sales-type-1",
-          status: "pending_approval",
-        });
-      }
       if (table === "sales_types") {
-        return Promise.resolve(salesType);
+        return salesType
+          ? Promise.resolve(salesType)
+          : Promise.reject(rowNotFound());
       }
-      return Promise.reject(new Error(`unexpected getRow(${table})`));
+      return Promise.reject(new Error(`unexpected admin getRow(${table})`));
     });
+  }
+
+  function expectNothingWritten() {
+    expect(sessionDb.updateRow).not.toHaveBeenCalled();
+    expect(db.updateRow).not.toHaveBeenCalled();
   }
 
   beforeEach(() => {
     currentCtx = baseCtx;
-    db.getRow.mockReset();
-    db.updateRow.mockReset();
-    db.createRow.mockReset();
+    for (const client of [db, sessionDb]) {
+      client.getRow.mockReset();
+      client.updateRow.mockReset();
+      client.createRow.mockReset();
+    }
   });
 
   test("refuses to publish when the sales type is inactive", async () => {
@@ -139,7 +187,7 @@ describe("approveRequest: shop products require an active sales type", () => {
       error: "Choose an active sales type before publishing",
     });
     // Neither the product nor the approval request should have been touched.
-    expect(db.updateRow).not.toHaveBeenCalled();
+    expectNothingWritten();
   });
 
   test("refuses to publish when the sales type no longer exists", async () => {
@@ -150,7 +198,37 @@ describe("approveRequest: shop products require an active sales type", () => {
     expect(result).toEqual({
       error: "Choose an active sales type before publishing",
     });
-    expect(db.updateRow).not.toHaveBeenCalled();
+    expectNothingWritten();
+  });
+
+  test("refuses to publish a product without a department", async () => {
+    mockRows({
+      product: { ...bookableProduct, departmentId: null },
+      salesType: { $id: "sales-type-1", active: true },
+    });
+
+    const result = await approveRequest("req-1");
+
+    expect(result).toEqual({ error: "Choose a department before publishing" });
+    expectNothingWritten();
+  });
+
+  test("reads the sales type with the admin client, which a campus admin's session cannot", async () => {
+    mockRows({ salesType: { $id: "sales-type-1", active: true } });
+
+    const result = await approveRequest("req-1");
+
+    expect(result).toEqual({ data: "req-1" });
+    expect(db.getRow).toHaveBeenCalledWith(
+      "app",
+      "sales_types",
+      "sales-type-1"
+    );
+    expect(sessionDb.getRow).not.toHaveBeenCalledWith(
+      "app",
+      "sales_types",
+      expect.anything()
+    );
   });
 
   test("publishes when the sales type is active", async () => {
@@ -159,7 +237,7 @@ describe("approveRequest: shop products require an active sales type", () => {
     const result = await approveRequest("req-1");
 
     expect(result).toEqual({ data: "req-1" });
-    expect(db.updateRow).toHaveBeenCalledWith(
+    expect(sessionDb.updateRow).toHaveBeenCalledWith(
       "app",
       "webshop_products",
       "product-1",

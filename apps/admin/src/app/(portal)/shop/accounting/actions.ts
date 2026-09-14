@@ -25,7 +25,11 @@ import { syncLedgerAccounts } from "@/lib/finago/ledger-accounts-sync";
 import { canManageAccounting } from "@/lib/roles";
 import { logAuditEvent } from "../../_actions/audit-log";
 import {
+  deactivationBlockedMessage,
   type LedgerAccountOption,
+  ledgerAccountProblem,
+  REVENUE_ACCOUNT_MAX,
+  REVENUE_ACCOUNT_MIN,
   revenueAccountOptions,
   SALES_TYPE_ID_RE,
   type SalesTypeInput,
@@ -38,6 +42,8 @@ const PAGE_PATH = "/shop/accounting";
 const FEATURE_FLAGS_TABLE = "feature_flags";
 const LEDGER_ACCOUNTS_TABLE = "ledger_accounts";
 const POSTING_FLAG_KEY = "shop_ledger_posting";
+const PRODUCTS_TABLE = "webshop_products";
+const LIVE_PRODUCT_STATUSES = ["published", "pending_approval"];
 
 export type ActionResult<T> = { data: T } | { error: string };
 
@@ -108,6 +114,30 @@ async function readSettingsRow(db: AdminDb): Promise<ShopSettings | null> {
     .catch(() => null);
 }
 
+/**
+ * Refusal for deactivating a currently active sales type that live products
+ * still book to; posting skips an inactive sales type, so they would stop
+ * being booked. Re-saving an already inactive type is left alone.
+ */
+async function deactivationBlocked(
+  db: AdminDb,
+  salesTypeId: string
+): Promise<string | null> {
+  const current = await db
+    .getRow<SalesTypes>("app", SALES_TYPES_TABLE, salesTypeId)
+    .catch(() => null);
+  if (current?.active === false) {
+    return null;
+  }
+  const live = await db.listRows("app", PRODUCTS_TABLE, [
+    Query.equal("sales_type", salesTypeId),
+    Query.equal("status", LIVE_PRODUCT_STATUSES),
+    Query.select(["$id"]),
+    Query.limit(1),
+  ]);
+  return deactivationBlockedMessage(live.total);
+}
+
 export async function getAccountingView(): Promise<AccountingView> {
   await requireAccountingAccess();
   const { db } = await createAdminClient();
@@ -119,6 +149,11 @@ export async function getAccountingView(): Promise<AccountingView> {
         Query.limit(100),
       ]),
       db.listRows<LedgerAccounts>("app", LEDGER_ACCOUNTS_TABLE, [
+        Query.between(
+          "account_number",
+          REVENUE_ACCOUNT_MIN,
+          REVENUE_ACCOUNT_MAX
+        ),
         Query.orderAsc("account_number"),
         Query.limit(500),
       ]),
@@ -165,10 +200,12 @@ export async function saveSalesType(
         String(parsed.data.account_number)
       )
       .catch(() => null);
-    if (!account) {
-      return {
-        error: `Account ${parsed.data.account_number} is not in the synced chart of accounts. Sync from Finago first.`,
-      };
+    const accountProblem = ledgerAccountProblem(
+      parsed.data.account_number,
+      account
+    );
+    if (accountProblem) {
+      return { error: accountProblem };
     }
 
     const rowId = id ?? salesTypeIdFromLabel(parsed.data.label_no);
@@ -183,6 +220,13 @@ export async function saveSalesType(
         return {
           error: "A sales type with this Norwegian label already exists",
         };
+      }
+    }
+
+    if (id && !parsed.data.active) {
+      const blocked = await deactivationBlocked(db, id);
+      if (blocked) {
+        return { error: blocked };
       }
     }
 

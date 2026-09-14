@@ -17,10 +17,15 @@ export default async function ShopEditorPage({ params }: Props) {
   const { id } = await params;
   const isNew = id === "new";
 
+  const productPromise = isNew ? Promise.resolve(null) : getProduct(id);
   const [product, campuses, salesTypes] = await Promise.all([
-    isNew ? null : getProduct(id),
+    productPromise,
     listCampuses(),
-    listSalesTypeOptions(),
+    // Includes the product's saved sales type even if it has since been
+    // deactivated, so the editor can show its label.
+    productPromise.then((saved) =>
+      listSalesTypeOptions(saved?.sales_type ?? null)
+    ),
   ]);
 
   if (!(isNew || product)) {

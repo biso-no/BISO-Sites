@@ -376,25 +376,31 @@ export function AccountingClient({
 
   const nextSort = (view.salesTypes.at(-1)?.sortOrder ?? 0) + 10;
 
-  const handleSaveSalesType = async (
+  // Runs inside the transition so `pending` disables every save button until
+  // the save and reload finish; a double click cannot create the row twice.
+  const handleSaveSalesType = (
     id: string | null,
     draft: SalesTypeDraft
-  ): Promise<boolean> => {
-    const result = await saveSalesType(id, {
-      account_number: Number(draft.accountNumber),
-      active: draft.active,
-      label_en: draft.labelEn,
-      label_no: draft.labelNo,
-      sort_order: Number(draft.sortOrder),
+  ): Promise<boolean> =>
+    new Promise((resolve) => {
+      startTransition(async () => {
+        const result = await saveSalesType(id, {
+          account_number: Number(draft.accountNumber),
+          active: draft.active,
+          label_en: draft.labelEn,
+          label_no: draft.labelNo,
+          sort_order: Number(draft.sortOrder),
+        });
+        if ("error" in result) {
+          toast.error(result.error);
+          resolve(false);
+          return;
+        }
+        toast.success(labels.saved);
+        await reload();
+        resolve(true);
+      });
     });
-    if ("error" in result) {
-      toast.error(result.error);
-      return false;
-    }
-    toast.success(labels.saved);
-    await reload();
-    return true;
-  };
 
   return (
     <div className="mt-6">

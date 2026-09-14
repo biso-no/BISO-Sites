@@ -9,11 +9,15 @@ const base = {
   status: "draft" as const,
 };
 
-function salesTypeIssue(values: Record<string, unknown>) {
+function fieldIssue(field: string, values: Record<string, unknown>) {
   const parsed = productSchema.safeParse(values);
   return parsed.success
     ? undefined
-    : parsed.error.issues.find((issue) => issue.path[0] === "sales_type");
+    : parsed.error.issues.find((issue) => issue.path[0] === field);
+}
+
+function salesTypeIssue(values: Record<string, unknown>) {
+  return fieldIssue("sales_type", values);
 }
 
 describe("product sales type", () => {
@@ -33,10 +37,38 @@ describe("product sales type", () => {
     ).toBeDefined();
   });
 
-  test("a product with a sales type can be published", () => {
+  test("publishing requires a department", () => {
+    expect(
+      fieldIssue("department_id", {
+        ...base,
+        sales_type: "varesalg",
+        status: "published",
+      })?.message
+    ).toBe("Choose a department before publishing");
+  });
+
+  test("sending for approval requires a department", () => {
+    expect(
+      fieldIssue("department_id", {
+        ...base,
+        department_id: "",
+        sales_type: "varesalg",
+        status: "pending_approval",
+      })
+    ).toBeDefined();
+  });
+
+  test("a draft can be saved without a department", () => {
+    expect(
+      fieldIssue("department_id", { ...base, sales_type: "varesalg" })
+    ).toBeUndefined();
+  });
+
+  test("a product with a sales type and a department can be published", () => {
     expect(
       productSchema.safeParse({
         ...base,
+        department_id: "1",
         sales_type: "varesalg",
         status: "published",
       }).success

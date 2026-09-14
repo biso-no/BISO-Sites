@@ -228,6 +228,15 @@ export const productSchema = z
         path: ["sales_type"],
       });
     }
+    // Ledger posting books revenue on the product's department; a live
+    // product without one would never be booked.
+    if (goesLive && !values.department_id) {
+      context.addIssue({
+        code: "custom",
+        message: "Choose a department before publishing",
+        path: ["department_id"],
+      });
+    }
   });
 const _PRODUCTS_PAGE_SIZE = 20;
 export type ProductFormValues = z.infer<typeof productSchema>;

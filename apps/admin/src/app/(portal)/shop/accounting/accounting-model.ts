@@ -14,8 +14,8 @@ import {
 } from "@repo/shared/utils/finago-shop-accounting";
 import { z } from "zod";
 
-const REVENUE_ACCOUNT_MIN = 3000;
-const REVENUE_ACCOUNT_MAX = 3999;
+export const REVENUE_ACCOUNT_MIN = 3000;
+export const REVENUE_ACCOUNT_MAX = 3999;
 const LABEL_MAX_LENGTH = 80;
 const SORT_ORDER_MAX = 1000;
 const ID_MAX_LENGTH = 36;
@@ -104,6 +104,44 @@ export function revenueAccountOptions(
       name: row.name ?? "",
       vatCode: typeof row.vat_code === "number" ? row.vat_code : null,
     }));
+}
+
+/**
+ * Why a synced ledger account cannot back a sales type, or null when it can.
+ * Posting resolves no revenue target for an account without a synced VAT
+ * code, so saving one would silently stop every sale under it from booking.
+ */
+export function ledgerAccountProblem(
+  accountNumber: number,
+  row: { active?: boolean | null; vat_code?: number | null } | null
+): string | null {
+  if (!row) {
+    return `Account ${accountNumber} is not in the synced chart of accounts. Sync from Finago first.`;
+  }
+  if (row.active === false) {
+    return `Account ${accountNumber} is inactive in Finago. Choose an active account.`;
+  }
+  if (typeof row.vat_code !== "number") {
+    return `Account ${accountNumber} has no VAT code yet — sync accounts from Finago first.`;
+  }
+  return null;
+}
+
+/**
+ * Refusal for deactivating a sales type that live (published or pending
+ * approval) products still book to, or null when none do. Posting skips an
+ * inactive sales type, so those products would stop being booked.
+ */
+export function deactivationBlockedMessage(
+  liveProducts: number
+): string | null {
+  if (liveProducts <= 0) {
+    return null;
+  }
+  if (liveProducts === 1) {
+    return "1 live product uses this sales type — move it to another sales type before deactivating it.";
+  }
+  return `${liveProducts} live products use this sales type — move them to another sales type before deactivating it.`;
 }
 
 export type VatKind = "exempt" | "none" | "other" | "standard" | "unknown";

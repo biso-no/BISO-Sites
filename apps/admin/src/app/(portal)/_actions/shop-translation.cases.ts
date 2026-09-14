@@ -251,8 +251,20 @@ describe("shop translation", () => {
   });
 
   test("honors publish status when creating a product", async () => {
+    // Publishing requires a department on the product's campus.
+    adminDb.getRow.mockImplementation(
+      async (_databaseId: string, tableId: string, rowId: string) =>
+        tableId === "departments"
+          ? { $id: rowId, campus: { $id: "campus-oslo" } }
+          : { $id: rowId, active: true }
+    );
     await createProduct(
-      { ...norwegianValues, sales_type: "sales-type-1", status: "published" },
+      {
+        ...norwegianValues,
+        department_id: "dept-1",
+        sales_type: "sales-type-1",
+        status: "published",
+      },
       { enabled: false, sourceLocale: "no" }
     );
 

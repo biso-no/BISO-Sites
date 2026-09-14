@@ -39,22 +39,34 @@ export async function listDepartmentsForCampus(
 
 export interface SalesTypeOption {
   accountNumber: number;
+  active: boolean;
   id: string;
   labelEn: string;
   labelNo: string;
 }
 
-/** Active sales types for the product editor, in the order finance set. */
-export async function listSalesTypeOptions(): Promise<SalesTypeOption[]> {
+/**
+ * Active sales types for the product editor, in the order finance set. Pass
+ * the product's saved sales type to include it even when it has since been
+ * deactivated, so the editor can still show its label; other inactive types
+ * are never offered.
+ */
+export async function listSalesTypeOptions(
+  currentSalesTypeId?: string | null
+): Promise<SalesTypeOption[]> {
   await requireAuth();
   const { db } = await createAdminClient();
+  const activeOnly = Query.equal("active", true);
   const response = await db.listRows<SalesTypes>("app", "sales_types", [
-    Query.equal("active", true),
+    currentSalesTypeId
+      ? Query.or([activeOnly, Query.equal("$id", currentSalesTypeId)])
+      : activeOnly,
     Query.orderAsc("sort_order"),
     Query.limit(100),
   ]);
   return response.rows.map((row) => ({
     accountNumber: row.account_number,
+    active: row.active !== false,
     id: row.$id,
     labelEn: row.label_en,
     labelNo: row.label_no,

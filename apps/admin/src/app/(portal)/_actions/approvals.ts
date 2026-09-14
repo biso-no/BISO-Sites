@@ -38,7 +38,7 @@ import {
   type PaginatedResult,
 } from "@/lib/list-params";
 import { paginationQueries } from "@/lib/list-queries";
-import { assertSalesTypeUsable } from "@/lib/shop/sales-type";
+import { assertProductBookable } from "@/lib/shop/sales-type";
 import { assertPublishAccess } from "@/lib/utils/authorization";
 import {
   type ApprovalPublishPlan,
@@ -284,15 +284,17 @@ async function executeApprovalPublish(
   assertPublishAccess(ctx, campusId);
 
   if (plan.domain === "shop") {
-    const salesTypeId =
-      typeof row.sales_type === "string" && row.sales_type.length > 0
-        ? row.sales_type
-        : null;
     // Approving a request flips the product straight to "published"; refuse
     // it here too so an approval can never bypass the same gate the editor
     // enforces (a sales type may have been deactivated or deleted between
-    // the request being filed and it being approved).
-    await assertSalesTypeUsable(sessionDb, "published", salesTypeId);
+    // the request being filed and it being approved). Sales types are read
+    // with the admin client: the table is readable only by the operations
+    // unit, and the approver is already authorised by `assertPublishAccess`.
+    const { db: adminDb } = await createAdminClient();
+    await assertProductBookable(adminDb, "published", {
+      departmentId: nonEmptyString(row.departmentId),
+      salesTypeId: nonEmptyString(row.sales_type),
+    });
   }
 
   await sessionDb.updateRow(DATABASE_ID, plan.table, plan.resourceId, {
@@ -300,6 +302,10 @@ async function executeApprovalPublish(
   });
 
   revalidateApprovalPublishPaths(plan);
+}
+
+function nonEmptyString(value: unknown): string | null {
+  return typeof value === "string" && value.length > 0 ? value : null;
 }
 
 function revalidateApprovalPublishPaths(plan: ApprovalPublishPlan) {

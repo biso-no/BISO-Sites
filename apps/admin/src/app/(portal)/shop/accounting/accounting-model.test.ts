@@ -1,5 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
+  deactivationBlockedMessage,
+  ledgerAccountProblem,
   revenueAccountOptions,
   SALES_TYPE_ID_RE,
   salesTypeIdFromLabel,
@@ -105,5 +107,58 @@ describe("vatKind", () => {
     expect(vatKind(0)).toBe("none");
     expect(vatKind(31)).toBe("other");
     expect(vatKind(null)).toBe("unknown");
+  });
+});
+
+describe("ledgerAccountProblem", () => {
+  test("accepts an active synced account with a VAT code", () => {
+    expect(
+      ledgerAccountProblem(3100, { active: true, vat_code: 5 })
+    ).toBeNull();
+  });
+
+  test("accepts VAT code 0 (no VAT) as a known code", () => {
+    expect(
+      ledgerAccountProblem(3100, { active: true, vat_code: 0 })
+    ).toBeNull();
+  });
+
+  test("refuses an account that is not in the synced chart", () => {
+    expect(ledgerAccountProblem(3100, null)).toBe(
+      "Account 3100 is not in the synced chart of accounts. Sync from Finago first."
+    );
+  });
+
+  test("refuses an account without a synced VAT code", () => {
+    expect(ledgerAccountProblem(3100, { active: true, vat_code: null })).toBe(
+      "Account 3100 has no VAT code yet — sync accounts from Finago first."
+    );
+    expect(ledgerAccountProblem(3100, { active: true })).toBe(
+      "Account 3100 has no VAT code yet — sync accounts from Finago first."
+    );
+  });
+
+  test("refuses an account Finago reports as inactive", () => {
+    expect(ledgerAccountProblem(3100, { active: false, vat_code: 3 })).toBe(
+      "Account 3100 is inactive in Finago. Choose an active account."
+    );
+  });
+});
+
+describe("deactivationBlockedMessage", () => {
+  test("allows deactivating a sales type no live product uses", () => {
+    expect(deactivationBlockedMessage(0)).toBeNull();
+  });
+
+  test("refuses while live products still use it", () => {
+    expect(deactivationBlockedMessage(3)).toBe(
+      "3 live products use this sales type — move them to another sales type before deactivating it."
+    );
+  });
+
+  test("uses the singular for one product", () => {
+    expect(deactivationBlockedMessage(1)).toBe(
+      "1 live product uses this sales type — move it to another sales type before deactivating it."
+    );
   });
 });

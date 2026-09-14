@@ -42,7 +42,7 @@ import {
   planCustomFieldSync,
   type StoredCustomField,
 } from "@/lib/shop/custom-fields";
-import { assertSalesTypeUsable } from "@/lib/shop/sales-type";
+import { assertProductBookable } from "@/lib/shop/sales-type";
 import {
   buildContentRowPermissions,
   buildContentTranslationPermissions,
@@ -915,11 +915,10 @@ export async function createProduct(
       campusId: validated.data.campus_id,
       departmentId: validated.data.department_id ?? null,
     });
-    await assertSalesTypeUsable(
-      db,
-      validated.data.status,
-      validated.data.sales_type ?? null
-    );
+    await assertProductBookable(db, validated.data.status, {
+      departmentId: validated.data.department_id ?? null,
+      salesTypeId: validated.data.sales_type ?? null,
+    });
     if (validated.data.status === "published") {
       assertPublishAccess(
         ctx,
@@ -1011,11 +1010,10 @@ export async function updateProduct(
       campusId: validated.data.campus_id,
       departmentId: validated.data.department_id ?? null,
     });
-    await assertSalesTypeUsable(
-      db,
-      validated.data.status,
-      validated.data.sales_type ?? null
-    );
+    await assertProductBookable(db, validated.data.status, {
+      departmentId: validated.data.department_id ?? null,
+      salesTypeId: validated.data.sales_type ?? null,
+    });
     if (
       product.status === "published" ||
       validated.data.status === "published"
