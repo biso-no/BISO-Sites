@@ -5,8 +5,8 @@ import { ImageIcon, Loader2, Upload, X } from "lucide-react";
 import Image from "next/image";
 import { useId, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
-import { uploadMediaFile } from "@/app/(portal)/_actions/upload";
 import { STUDIO } from "@/app/(portal)/_components/studio";
+import { uploadMediaFile } from "@/lib/upload-client";
 
 /**
  * What gets persisted after an upload.
@@ -59,10 +59,8 @@ export function UnitImageField({
   const previewUrl = resolveStorageFileUrl(value);
 
   const handleFile = (file: File) => {
-    const formData = new FormData();
-    formData.append("file", file);
     startTransition(async () => {
-      const result = await uploadMediaFile(formData);
+      const result = await uploadMediaFile(file);
       if (result.error) {
         toast.error(result.error);
         return;

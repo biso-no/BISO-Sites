@@ -32,13 +32,13 @@ import {
   TranslationReviewCard,
 } from "@/app/_components/content-translation-controls";
 import { getTargetLocale } from "@/lib/content-translation";
+import { uploadMediaFile } from "@/lib/upload-client";
 import type { SalesTypeOption } from "../../../_actions/lookups";
 import {
   createProduct,
   generateProductTranslationDraft,
   updateProduct,
 } from "../../../_actions/shop";
-import { uploadMediaFile } from "../../../_actions/upload";
 import {
   type DescriptionBlock,
   type DescriptionBlockType,
@@ -1063,10 +1063,8 @@ function ImageSlot({
     if (!file) {
       return;
     }
-    const formData = new FormData();
-    formData.append("file", file);
     setUploading(true);
-    const result = await uploadMediaFile(formData);
+    const result = await uploadMediaFile(file);
     setUploading(false);
     if (result.error) {
       toast.error(result.error);

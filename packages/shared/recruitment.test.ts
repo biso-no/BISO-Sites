@@ -1,8 +1,9 @@
 import type { Jobs } from "@repo/api/types/appwrite";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   buildRecruitmentStaffRowPermissions,
   buildRecruitmentVacancy,
+  getRecruitmentJobById,
 } from "./recruitment";
 
 describe("buildRecruitmentStaffRowPermissions", () => {
@@ -60,5 +61,32 @@ describe("buildRecruitmentVacancy", () => {
 
     expect(vacancy.metadata.short_description).toBe("x".repeat(280));
     expect(vacancy.translations[0]?.short_description).toBe("x".repeat(280));
+  });
+});
+
+describe("getRecruitmentJobById", () => {
+  it("returns null only when the row does not exist", async () => {
+    const db = {
+      getRow: vi
+        .fn()
+        .mockRejectedValue(
+          Object.assign(new Error("Row not found"), { code: 404 })
+        ),
+    };
+    await expect(
+      getRecruitmentJobById(db as never, "missing")
+    ).resolves.toBeNull();
+  });
+
+  it("rethrows timeouts instead of reporting the vacancy as missing", async () => {
+    const timeout = Object.assign(new Error("timed out"), {
+      type: "appwrite_timeout",
+    });
+    const db = {
+      getRow: vi.fn().mockRejectedValue(timeout),
+    };
+    await expect(getRecruitmentJobById(db as never, "job-1")).rejects.toBe(
+      timeout
+    );
   });
 });

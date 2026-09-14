@@ -334,8 +334,13 @@ export async function getRecruitmentJobById(
       Query.select([...JOB_SELECT]),
     ]);
     return buildRecruitmentVacancy(job);
-  } catch {
-    return null;
+  } catch (error) {
+    // Only a missing (or unreadable) row means "not found". Timeouts and 5xx
+    // must surface as errors, not as a 404 / "Vacancy not found".
+    if ((error as { code?: unknown } | null)?.code === 404) {
+      return null;
+    }
+    throw error;
   }
 }
 

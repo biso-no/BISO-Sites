@@ -4,7 +4,7 @@ import { ImageIcon, Loader2, Upload, X } from "lucide-react";
 import Image from "next/image";
 import { useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
-import { uploadMediaFile } from "../_actions/upload";
+import { uploadMediaFile } from "@/lib/upload-client";
 import { STUDIO } from "./studio";
 
 interface ImageUploadFieldProps {
@@ -25,10 +25,8 @@ export function ImageUploadField({
   const [isPending, startTransition] = useTransition();
 
   function handleFile(file: File) {
-    const formData = new FormData();
-    formData.append("file", file);
     startTransition(async () => {
-      const result = await uploadMediaFile(formData);
+      const result = await uploadMediaFile(file);
       if (result.error) {
         toast.error(result.error);
       } else {

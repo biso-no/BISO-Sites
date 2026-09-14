@@ -3,6 +3,7 @@ import { expect, mock } from "bun:test";
 export const sessionDb = {
   createRow: mock(),
   deleteRow: mock(),
+  getRow: mock(),
   listRows: mock(),
   updateRow: mock(),
   upsertRow: mock(),
@@ -103,6 +104,16 @@ mock.module("@/lib/announcements/send", () => ({
   dispatchAnnouncement: mock(async () => undefined),
 }));
 
+// `after()` needs a request scope; run deferred work inline in tests.
+export const afterSpy = mock((task: () => unknown) => {
+  const result = typeof task === "function" ? task() : task;
+  return result;
+});
+
+mock.module("next/server", () => ({
+  after: afterSpy,
+}));
+
 mock.module("next/cache", () => ({
   revalidatePath: mock(() => undefined),
 }));
@@ -122,6 +133,8 @@ export const resetTranslationHarness = (): void => {
     db.upsertRow.mockReset();
   }
   adminDb.getRow.mockReset();
+  sessionDb.getRow.mockReset();
+  afterSpy.mockClear();
   sessionDb.listRows.mockImplementation(async () => ({ rows: [], total: 0 }));
   adminDb.upsertRow.mockImplementation(
     (_databaseId: string, tableId: string) => {

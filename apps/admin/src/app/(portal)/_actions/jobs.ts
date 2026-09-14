@@ -23,6 +23,7 @@ import {
   type RecruitmentVacancy,
   type RecruitmentVacancyMetadata,
   type RecruitmentVacancyUpsertInput,
+  type RecruitmentVacancyWriteInput,
   recruitmentApplicationReviewUpdateSchema,
   recruitmentApplicationStatusUpdateSchema,
   recruitmentVacancyUpsertSchema,
@@ -31,6 +32,8 @@ import {
 } from "@repo/shared/types/recruitment";
 import { generateObject } from "ai";
 import { revalidatePath } from "next/cache";
+import { unstable_rethrow } from "next/navigation";
+import { after } from "next/server";
 import { z } from "zod";
 import { requireAuth } from "@/lib/authorization";
 import { CAMPUS_ID_TO_NAME } from "@/lib/campus-constants";
@@ -54,6 +57,7 @@ import {
   planDescriptionMerge,
   serializeJobTranslationMemory,
 } from "@/lib/job-translation-memory";
+import { normalizeApplicationDeadline } from "@/lib/oslo-date";
 import {
   assertRecruitmentApplicationReviewAccess,
   assertRecruitmentVacancyWriteAccess,
@@ -67,6 +71,75 @@ import {
 
 import { logAuditEvent } from "./audit-log";
 import { APPLICATIONS_PAGE_SIZE, JOBS_PAGE_SIZE } from "./schemas";
+
+function formatVacancyValidationError(error: z.ZodError): string {
+  const [issue] = error.issues;
+  if (!issue) {
+    return "Invalid vacancy payload";
+  }
+  const field = issue.path.length > 0 ? `${issue.path.join(".")}: ` : "";
+  return `${field}${issue.message}`;
+}
+
+function isAppwriteUnavailable(error: unknown): boolean {
+  const err = error as {
+    cause?: { code?: unknown };
+    code?: unknown;
+    message?: unknown;
+    name?: unknown;
+    type?: unknown;
+  } | null;
+  return (
+    (typeof err?.code === "number" && err.code >= 500) ||
+    err?.type === "appwrite_timeout" ||
+    err?.name === "TimeoutError" ||
+    err?.code === "ECONNREFUSED" ||
+    err?.cause?.code === "ECONNREFUSED" ||
+    (typeof err?.message === "string" &&
+      (err.message.includes("fetch failed") ||
+        err.message.includes("timed out")))
+  );
+}
+
+/**
+ * Logs a failed vacancy write with a short reference the user can quote to
+ * support, and returns a message that says whether the write may have landed.
+ */
+function reportVacancyWriteFailure(
+  operation: "createJob" | "updateJob",
+  error: unknown,
+  context: {
+    durationMs: number;
+    jobId?: string;
+    stage: string;
+    userId: string | null;
+  }
+): string {
+  const reference = crypto.randomUUID().slice(0, 8);
+  const err = error as { code?: unknown; type?: unknown } | null;
+  console.error(`[${operation}] failed`, {
+    ...context,
+    appwriteCode: err?.code,
+    appwriteType: err?.type,
+    error,
+    reference,
+  });
+
+  if (isAppwriteUnavailable(error)) {
+    const outcomes: Record<string, string> = {
+      "after-write":
+        "Your changes were saved, but finishing up failed — reload to check.",
+      write:
+        "The save may not have completed — check the jobs list before trying again.",
+    };
+    const outcome =
+      outcomes[context.stage] ?? "Nothing was saved. Try again in a moment.";
+    return `The server didn't respond in time. ${outcome} (ref ${reference})`;
+  }
+  const message =
+    error instanceof Error ? error.message : "Failed to save vacancy";
+  return `${message} (ref ${reference})`;
+}
 
 // Shorthand type for the db accessor — both admin and session clients return the same shape.
 type Db = Awaited<ReturnType<typeof createSessionClient>>["db"];
@@ -596,7 +669,7 @@ export async function getJob(id: string) {
 async function buildJobUpsertPayload(
   db: Db,
   jobId: string,
-  data: RecruitmentVacancyUpsertInput,
+  data: RecruitmentVacancyWriteInput,
   translationPerms: string[],
   existingMetadata?: RecruitmentVacancyMetadata
 ): Promise<Record<string, unknown>> {
@@ -621,9 +694,9 @@ async function buildJobUpsertPayload(
   );
 
   return {
-    application_deadline: data.application_deadline
-      ? new Date(data.application_deadline).toISOString()
-      : null,
+    application_deadline: normalizeApplicationDeadline(
+      data.application_deadline
+    ),
     auto_screen: data.auto_screen,
     campus: data.campus_id,
     campus_id: data.campus_id,
@@ -646,16 +719,21 @@ async function buildJobUpsertPayload(
 }
 
 export async function createJob(
-  values: RecruitmentVacancyUpsertInput,
+  values: RecruitmentVacancyWriteInput,
   autoTranslation?: AutoTranslationOptions
 ) {
-  const ctx = await requireAuth();
   const validated = recruitmentVacancyUpsertSchema.safeParse(values);
   if (!validated.success) {
-    return { error: "Invalid vacancy payload" };
+    return { error: formatVacancyValidationError(validated.error) };
   }
 
+  const startedAt = Date.now();
+  let stage = "auth";
+  let userId: string | null = null;
   try {
+    const ctx = await requireAuth();
+    userId = ctx.userId;
+    stage = "lookups";
     const translationOptions = parseAutoTranslationOptions(autoTranslation);
     const { db: sessionDb } = await createSessionClient();
     const { db: adminDb } = await createAdminClient();
@@ -679,6 +757,7 @@ export async function createJob(
       validated.data,
       translationPerms
     );
+    stage = "write";
     const job = await adminDb.upsertRow(
       "app",
       "jobs",
@@ -686,6 +765,7 @@ export async function createJob(
       payload,
       jobPerms
     );
+    stage = "after-write";
 
     const translationQueued = scheduleJobTranslation({
       audience,
@@ -705,15 +785,19 @@ export async function createJob(
       status: validated.data.status,
     });
 
-    await logAuditEvent(ctx, "recruitment.vacancy.create", {
-      payload: {
-        campus_id: validated.data.campus_id,
-        department_id: validated.data.department_id ?? null,
-        status: validated.data.status,
-      },
-      resourceId: job.$id,
-      resourceType: "job",
-    });
+    // Audit writes swallow their own errors; run them after the response so
+    // a slow audit insert can't hold the editor on "Publishing...".
+    after(() =>
+      logAuditEvent(ctx, "recruitment.vacancy.create", {
+        payload: {
+          campus_id: validated.data.campus_id,
+          department_id: validated.data.department_id ?? null,
+          status: validated.data.status,
+        },
+        resourceId: job.$id,
+        resourceType: "job",
+      })
+    );
 
     revalidatePath("/jobs");
     revalidatePath("/");
@@ -722,24 +806,34 @@ export async function createJob(
       ...(translationQueued ? { translationQueued: true as const } : {}),
     };
   } catch (error) {
+    unstable_rethrow(error);
     return {
-      error: error instanceof Error ? error.message : "Failed to create job",
+      error: reportVacancyWriteFailure("createJob", error, {
+        durationMs: Date.now() - startedAt,
+        stage,
+        userId,
+      }),
     };
   }
 }
 
 export async function updateJob(
   id: string,
-  values: RecruitmentVacancyUpsertInput,
+  values: RecruitmentVacancyWriteInput,
   autoTranslation?: AutoTranslationOptions
 ) {
-  const ctx = await requireAuth();
   const validated = recruitmentVacancyUpsertSchema.safeParse(values);
   if (!validated.success) {
-    return { error: "Invalid vacancy payload" };
+    return { error: formatVacancyValidationError(validated.error) };
   }
 
+  const startedAt = Date.now();
+  let stage = "auth";
+  let userId: string | null = null;
   try {
+    const ctx = await requireAuth();
+    userId = ctx.userId;
+    stage = "lookups";
     const translationOptions = parseAutoTranslationOptions(autoTranslation);
     const { db: sessionDb } = await createSessionClient();
     const { db: adminDb } = await createAdminClient();
@@ -763,14 +857,30 @@ export async function updateJob(
       audience,
       validated.data.status
     );
+    // Application questions and interview rounds are edited in the
+    // applications workspace. Callers that don't send them (the job studio)
+    // must not wipe them with the schema defaults.
+    const data: RecruitmentVacancyWriteInput = {
+      ...validated.data,
+      custom_questions:
+        "custom_questions" in values
+          ? validated.data.custom_questions
+          : vacancy.custom_questions,
+      interview_template:
+        "interview_template" in values
+          ? validated.data.interview_template
+          : (vacancy.interview_template ?? undefined),
+    };
     const payload = await buildJobUpsertPayload(
       sessionDb,
       id,
-      validated.data,
+      data,
       translationPerms,
       vacancy.metadata
     );
+    stage = "write";
     await adminDb.upsertRow("app", "jobs", id, payload, jobPerms);
+    stage = "after-write";
 
     const translationQueued = scheduleJobTranslation({
       audience,
@@ -790,15 +900,17 @@ export async function updateJob(
       status: validated.data.status,
     });
 
-    await logAuditEvent(ctx, "recruitment.vacancy.update", {
-      payload: {
-        campus_id: validated.data.campus_id,
-        department_id: validated.data.department_id ?? null,
-        status: validated.data.status,
-      },
-      resourceId: id,
-      resourceType: "job",
-    });
+    after(() =>
+      logAuditEvent(ctx, "recruitment.vacancy.update", {
+        payload: {
+          campus_id: validated.data.campus_id,
+          department_id: validated.data.department_id ?? null,
+          status: validated.data.status,
+        },
+        resourceId: id,
+        resourceType: "job",
+      })
+    );
 
     revalidatePath("/jobs");
     revalidatePath(`/jobs/${id}`);
@@ -807,9 +919,14 @@ export async function updateJob(
       ...(translationQueued ? { translationQueued: true as const } : {}),
     };
   } catch (error) {
-    console.error("[updateJob] error", error);
+    unstable_rethrow(error);
     return {
-      error: error instanceof Error ? error.message : "Failed to update job",
+      error: reportVacancyWriteFailure("updateJob", error, {
+        durationMs: Date.now() - startedAt,
+        jobId: id,
+        stage,
+        userId,
+      }),
     };
   }
 }

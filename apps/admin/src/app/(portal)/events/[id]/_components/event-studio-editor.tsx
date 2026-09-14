@@ -47,13 +47,13 @@ import {
   AutoTranslateControl,
   TranslationReviewCard,
 } from "@/app/_components/content-translation-controls";
+import { uploadMediaFile } from "@/lib/upload-client";
 import {
   createEvent,
   generateEventTranslationDraft,
   suggestEventDescriptionSection,
   updateEvent,
 } from "../../../_actions/events";
-import { uploadMediaFile } from "../../../_actions/upload";
 import {
   EVENT_STUDIO_SCHEMA_ID,
   registerAssistantFormTarget,
@@ -4106,10 +4106,8 @@ export function EventStudioEditor({
   }, []);
 
   async function handleUploadCover(file: File) {
-    const formData = new FormData();
-    formData.append("file", file);
     setUploading(true);
-    const result = await uploadMediaFile(formData);
+    const result = await uploadMediaFile(file);
     setUploading(false);
 
     if (result.error) {

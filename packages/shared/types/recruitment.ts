@@ -273,6 +273,22 @@ export type RecruitmentVacancyUpsertInput = z.infer<
   typeof recruitmentVacancyUpsertSchema
 >;
 
+/**
+ * What vacancy write actions accept. `custom_questions` and
+ * `interview_template` are owned by the applications workspace; omitting them
+ * on update keeps the stored values.
+ */
+export type RecruitmentVacancyWriteInput = Omit<
+  RecruitmentVacancyUpsertInput,
+  "custom_questions" | "interview_template"
+> &
+  Partial<
+    Pick<
+      RecruitmentVacancyUpsertInput,
+      "custom_questions" | "interview_template"
+    >
+  >;
+
 export function parseRecruitmentCustomQuestions(
   value: unknown
 ): RecruitmentCustomQuestion[] {

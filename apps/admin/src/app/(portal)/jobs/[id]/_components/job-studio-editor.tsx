@@ -32,6 +32,7 @@ import {
   AutoTranslateControl,
   TranslationReviewCard,
 } from "@/app/_components/content-translation-controls";
+import { uploadMediaFile } from "@/lib/upload-client";
 import {
   createJob,
   generateJobTranslationDraft,
@@ -40,7 +41,6 @@ import {
 } from "../../../_actions/jobs";
 import { listDepartmentsForCampus } from "../../../_actions/lookups";
 import { type JobFormValues, jobSchema } from "../../../_actions/schemas";
-import { uploadMediaFile } from "../../../_actions/upload";
 import {
   JOB_STUDIO_SCHEMA_ID,
   registerAssistantFormTarget,
@@ -53,6 +53,7 @@ import {
   newBlock,
   stripHtml,
 } from "../../../_components/description-blocks";
+import { describeJobFormIssues, type JobFormIssue } from "./job-form-issues";
 
 interface JobStudioEditorProps {
   allowedDepartmentIds?: string[];
@@ -129,6 +130,14 @@ function generateSlug(title: string) {
     .trim()
     .replace(/\s+/g, "-")
     .replace(/-+/g, "-");
+}
+
+const TEASER_MAX_LENGTH = 280;
+
+function formatTeaserRemaining(remaining: number) {
+  return remaining >= 0
+    ? `${remaining} characters left`
+    : `${-remaining} characters over the limit`;
 }
 
 function toDateInput(value: string | null | undefined) {
@@ -208,8 +217,10 @@ function buildDefaultValues(
     title_en: fallback(en?.title, ""),
     title_no: fallback(no?.title, ""),
     auto_screen: job?.auto_screen ?? true,
-    custom_questions: [],
-    interview_template: { rounds: [] },
+    // Managed in the applications workspace, not this editor. They are
+    // stripped before save so updateJob keeps the stored values.
+    custom_questions: job?.custom_questions ?? [],
+    interview_template: job?.interview_template ?? { rounds: [] },
     screening_rubric: job?.screening_rubric ?? {
       must_have: [],
       nice_to_have: [],
@@ -657,6 +668,8 @@ export function JobStudioEditor({
   const [isSuggesting, setIsSuggesting] = useState(false);
   const [isTranslating, setIsTranslating] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [formIssues, setFormIssues] = useState<JobFormIssue[]>([]);
+  const isBusy = isSaving || isPublishing;
   const [autoTranslate, setAutoTranslate] = useState(() =>
     Boolean(job?.metadata.auto_translate)
   );
@@ -692,6 +705,24 @@ export function JobStudioEditor({
       setValueRef.current(path as keyof JobFormValues, value as never)
     );
   }, []);
+
+  useEffect(() => {
+    if (!dirty) {
+      return;
+    }
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [dirty]);
+
+  function goToIssue(issue: JobFormIssue) {
+    setStep(issue.step);
+    if (issue.locale) {
+      setLocale(issue.locale);
+    }
+  }
 
   async function handleCampusChange(campusId: string) {
     setValue("campus_id", campusId);
@@ -853,10 +884,8 @@ export function JobStudioEditor({
       return;
     }
 
-    const formData = new FormData();
-    formData.append("file", file);
     setIsUploading(true);
-    const result = await uploadMediaFile(formData);
+    const result = await uploadMediaFile(file);
     setIsUploading(false);
 
     if (result.error) {
@@ -873,13 +902,42 @@ export function JobStudioEditor({
     toast.success("Cover image uploaded");
   }
 
-  async function submit(status: JobsStatus) {
-    const payload = { ...form, status };
-    const validated = jobSchema.safeParse(payload);
-    if (!validated.success) {
+  function showValidationIssues(issues: JobFormIssue[]) {
+    setFormIssues(issues);
+    const [first] = issues;
+    if (!first) {
       toast.error(labels.saveError);
       return;
     }
+    goToIssue(first);
+    toast.error(`${first.label}: ${first.message}`, {
+      description:
+        issues.length > 1
+          ? `${issues.length - 1} more field(s) need attention.`
+          : undefined,
+    });
+  }
+
+  async function submit(status: JobsStatus) {
+    if (isSaving || isPublishing) {
+      return;
+    }
+
+    const payload = { ...form, status };
+    const validated = jobSchema.safeParse(payload);
+    if (!validated.success) {
+      showValidationIssues(describeJobFormIssues(validated.error.issues));
+      return;
+    }
+    setFormIssues([]);
+
+    // custom_questions / interview_template are edited in the applications
+    // workspace; omitting them makes updateJob keep the stored values.
+    const {
+      custom_questions: _customQuestions,
+      interview_template: _interviewTemplate,
+      ...vacancy
+    } = validated.data;
 
     if (status === JobsStatus.PUBLISHED) {
       setIsPublishing(true);
@@ -887,41 +945,49 @@ export function JobStudioEditor({
       setIsSaving(true);
     }
 
-    const result = isNew
-      ? await createJob(validated.data, {
-          enabled: autoTranslate,
-          sourceLocale: locale,
-        })
-      : await updateJob(job!.$id, validated.data, {
-          enabled: autoTranslate,
-          sourceLocale: locale,
+    try {
+      const translation = { enabled: autoTranslate, sourceLocale: locale };
+      const result =
+        isNew || !job
+          ? await createJob(vacancy, translation)
+          : await updateJob(job.$id, vacancy, translation);
+
+      if (result.error) {
+        toast.error(result.error, {
+          description: "Your changes are still here. Try again in a moment.",
+          duration: 15_000,
         });
+        return;
+      }
 
-    setIsPublishing(false);
-    setIsSaving(false);
+      setDirty(false);
+      const successMessage =
+        status === JobsStatus.PUBLISHED
+          ? labels.publishSuccess
+          : labels.saveSuccess;
+      toast.success(
+        "translationQueued" in result && result.translationQueued
+          ? `${successMessage} Translation queued.`
+          : successMessage
+      );
 
-    if (result.error) {
-      toast.error(result.error);
-      return;
+      if (isNew && "data" in result && result.data) {
+        router.push(`/jobs/${result.data}`);
+        return;
+      }
+
+      router.refresh();
+    } catch (error) {
+      console.error("[JobStudio] save failed", error);
+      toast.error(labels.saveError, {
+        description:
+          "We couldn't reach the server. Your changes are still here — don't refresh, try again in a moment.",
+        duration: 15_000,
+      });
+    } finally {
+      setIsPublishing(false);
+      setIsSaving(false);
     }
-
-    setDirty(false);
-    const successMessage =
-      status === JobsStatus.PUBLISHED
-        ? labels.publishSuccess
-        : labels.saveSuccess;
-    toast.success(
-      "translationQueued" in result && result.translationQueued
-        ? `${successMessage} Translation queued.`
-        : successMessage
-    );
-
-    if (isNew && "data" in result && result.data) {
-      router.push(`/jobs/${result.data}`);
-      return;
-    }
-
-    router.refresh();
   }
 
   return (
@@ -949,7 +1015,7 @@ export function JobStudioEditor({
             <AutoTranslateControl
               checked={autoTranslate}
               className="max-w-[280px]"
-              disabled={isSaving || isPublishing}
+              disabled={isBusy}
               onCheckedChange={handleAutoTranslateChange}
               operation="save or publish"
               sourceLocale={locale}
@@ -963,7 +1029,7 @@ export function JobStudioEditor({
             </button>
             <button
               className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 font-medium text-[#001731] text-sm transition hover:border-[#3DA9E0]/50"
-              disabled={isSaving}
+              disabled={isBusy}
               onClick={() => submit(JobsStatus.DRAFT)}
               type="button"
             >
@@ -972,7 +1038,7 @@ export function JobStudioEditor({
             </button>
             <button
               className="inline-flex items-center gap-2 rounded-lg bg-[#001731] px-4 py-2 font-medium text-sm text-white shadow-lg shadow-slate-950/10 transition hover:-translate-y-0.5"
-              disabled={isPublishing}
+              disabled={isBusy}
               onClick={() => submit(JobsStatus.PUBLISHED)}
               type="button"
             >
@@ -1002,6 +1068,31 @@ export function JobStudioEditor({
                   Step {step + 1} of {STEPS.length} · {STEPS[step]}
                 </span>
               </div>
+
+              {formIssues.length > 0 && (
+                <div
+                  className="mb-6 rounded-xl border border-red-200 bg-red-50/80 p-4 text-sm"
+                  role="alert"
+                >
+                  <p className="font-medium text-red-800">
+                    Fix these before saving:
+                  </p>
+                  <ul className="mt-2 space-y-1">
+                    {formIssues.map((issue) => (
+                      <li key={issue.field}>
+                        <button
+                          className="text-left text-red-700 underline-offset-2 hover:underline"
+                          onClick={() => goToIssue(issue)}
+                          type="button"
+                        >
+                          {issue.label} — {issue.message} (step {issue.step + 1}
+                          )
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
 
               {step === 0 && (
                 <div className="space-y-7">
@@ -1079,12 +1170,13 @@ export function JobStudioEditor({
                   </div>
 
                   <Field
-                    help={`${Math.max(0, 280 - ((locale === "no" ? form.short_description_no : form.short_description_en)?.length ?? 0))} characters left · ${locale.toUpperCase()}`}
+                    help={`${formatTeaserRemaining(TEASER_MAX_LENGTH - ((locale === "no" ? form.short_description_no : form.short_description_en)?.length ?? 0))} · ${locale.toUpperCase()}`}
                     label="One-line teaser"
                     required
                   >
                     <textarea
                       className={inputClass("min-h-24 resize-none text-base")}
+                      maxLength={TEASER_MAX_LENGTH}
                       onChange={(event) =>
                         setValue(
                           locale === "no"
@@ -2017,14 +2109,14 @@ export function JobStudioEditor({
             <AutoTranslateControl
               checked={autoTranslate}
               className="max-w-[280px] md:hidden"
-              disabled={isSaving || isPublishing}
+              disabled={isBusy}
               onCheckedChange={handleAutoTranslateChange}
               operation="save or publish"
               sourceLocale={locale}
             />
             <button
-              className="hidden items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 font-medium text-[#001731] text-sm sm:inline-flex"
-              disabled={isSaving}
+              className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 font-medium text-[#001731] text-sm disabled:opacity-60"
+              disabled={isBusy}
               onClick={() => submit(JobsStatus.DRAFT)}
               type="button"
             >
@@ -2052,7 +2144,7 @@ export function JobStudioEditor({
             ) : (
               <button
                 className="inline-flex items-center gap-2 rounded-lg bg-[#001731] px-4 py-2 font-medium text-sm text-white"
-                disabled={isPublishing}
+                disabled={isBusy}
                 onClick={() => submit(JobsStatus.PUBLISHED)}
                 type="button"
               >

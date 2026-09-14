@@ -21,7 +21,7 @@ import {
   savePageEditorDoc,
   unpublishPageAction,
 } from "@/app/(portal)/_actions/pages";
-import { uploadMediaFile } from "@/app/(portal)/_actions/upload";
+import { uploadMediaFile } from "@/lib/upload-client";
 import { sanitizeSlug } from "@/lib/utils";
 
 interface PageEditorClientProps {
@@ -296,8 +296,12 @@ export function PageEditorClient({
   async function handleUpload(
     fd: FormData
   ): Promise<{ fileId: string; url: string }> {
-    const result = await uploadMediaFile(fd);
-    if ("error" in result) {
+    const file = fd.get("file");
+    if (!(file instanceof File)) {
+      throw new Error("No file provided");
+    }
+    const result = await uploadMediaFile(file);
+    if (result.error !== undefined) {
       throw new Error(result.error);
     }
     return { fileId: result.fileId, url: result.url };
