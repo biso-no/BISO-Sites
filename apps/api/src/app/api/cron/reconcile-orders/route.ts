@@ -119,8 +119,11 @@ async function sweepMissingFinagoPostings(db: AdminDb): Promise<{
     Query.equal("status", ["paid", "authorized"]),
     Query.isNull("finago_transaction_id"),
     Query.lessThan("$createdAt", cutoffIso()),
-    // Oldest first, so a backlog drains in order once a gap is fixed.
-    Query.orderAsc("$createdAt"),
+    // Least recently touched first. Every attempt claims and releases
+    // `finago_posting_lock`, which refreshes $updatedAt, so an order blocked on
+    // a config gap rotates to the back instead of holding the head of the list
+    // and starving newer postable orders.
+    Query.orderAsc("$updatedAt"),
     ORDER_ITEMS_SELECT,
     Query.limit(SWEEP_LIMIT),
   ]);

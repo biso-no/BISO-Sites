@@ -226,7 +226,7 @@ export interface BuildShopTransactionParams {
 }
 
 function shopDimensions(
-  departmentId: string | null,
+  departmentId: string,
   campusId: string | null | undefined
 ): DimensionT[] | undefined {
   const dimensions: DimensionT[] = [];
@@ -266,11 +266,11 @@ function shopLines(
   sign: 1 | -1
 ): TransactionLineT[] {
   assertShopLinesCoverTotal(params);
+  // Dimensions belong on revenue lines only; the clearing line carries none.
   const clearingLine: TransactionLineT = {
     accountNumber: params.clearingAccount,
     amount: sign * round2(params.total),
     comment: params.comment.slice(0, COMMENT_MAX_LENGTH),
-    dimensions: shopDimensions(null, params.campusId),
     tax: { number: 0 },
   };
   const revenueLines: TransactionLineT[] = params.lines.map((line) => ({

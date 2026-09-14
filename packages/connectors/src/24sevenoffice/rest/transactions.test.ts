@@ -87,15 +87,14 @@ describe("buildShopTransactionInput", () => {
     transactionTypeNumber: 8,
   };
 
-  test("debits the clearing account by the gross total", () => {
+  test("debits the clearing account by the gross total, with no dimensions", () => {
     const input = buildShopTransactionInput(base);
     expect(input.transactionTypeNumber).toBe(8);
     expect(input.date).toBe("2026-09-11");
-    expect(input.lines[0]).toEqual({
+    expect(input.lines[0]).toStrictEqual({
       accountNumber: 1530,
       amount: 740,
       comment: "Nettbutikk order-1",
-      dimensions: [{ dimensionType: 101, value: "1" }],
       tax: { number: 0 },
     });
   });
@@ -163,8 +162,14 @@ describe("buildShopReversalTransactionInput", () => {
     );
   });
 
-  test("keeps VAT codes and dimensions", () => {
+  test("keeps VAT codes and dimensions on revenue lines only", () => {
     const reversal = buildShopReversalTransactionInput(base);
+    expect(reversal.lines[0]).toStrictEqual({
+      accountNumber: 1540,
+      amount: -299,
+      comment: "Refusjon nettbutikk order-1",
+      tax: { number: 0 },
+    });
     expect(reversal.lines[1]).toEqual(
       expect.objectContaining({
         accountNumber: 3000,

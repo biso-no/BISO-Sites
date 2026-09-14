@@ -238,7 +238,9 @@ export function reversedByTarget(
       ) as Partial<RevenueAllocationEntry>[];
       for (const entry of parsed) {
         // Entries recorded before reversals carried a VAT code and department
-        // cannot be matched to a target; skip them (the cap still applies).
+        // cannot be matched to a target, so they are skipped and do not count
+        // as already reversed — the next allocation treats that amount as still
+        // reversible. Production has no such entries; they predate the column.
         if (
           typeof entry.accountNumber !== "number" ||
           typeof entry.amountMinor !== "number" ||

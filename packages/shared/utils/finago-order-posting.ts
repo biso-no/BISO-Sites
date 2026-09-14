@@ -5,14 +5,19 @@ import {
   type ShopTransactionInput,
 } from "@repo/connectors/24sevenoffice";
 import { isFeatureEnabled } from "./feature-flags-server";
-import { ledgerDate, resolveShopPosting } from "./finago-shop-accounting";
+import {
+  ledgerDate,
+  type RevenueTarget,
+  resolveShopPosting,
+  snapshotTarget,
+} from "./finago-shop-accounting";
 import {
   hasFinagoRestCredentials,
   loadShopAccountingSettings,
   resolveItemTargets,
 } from "./finago-shop-accounting-server";
 import { isMembershipOrder } from "./membership-fulfilment";
-import { getOrderItems } from "./order-parsing";
+import { getOrderItems, type ParsedOrderItem } from "./order-parsing";
 import { ORDER_ITEMS_SELECT } from "./order-queries";
 import type { DbClient } from "./vipps-order-ops";
 
@@ -96,8 +101,49 @@ async function stampExclusion(
     });
 }
 
+/**
+ * Best-effort: copies the target a line was posted with onto its
+ * `order_items` row when checkout made no copy, so a later refund reverses
+ * against the same account, VAT code and department even if the product's
+ * sales type changes. Legacy `items_json` lines have no row and are skipped.
+ * A failure is logged and never changes the posting result.
+ */
+async function writeBackFallbackTargets(
+  orderId: string,
+  items: ParsedOrderItem[],
+  targets: Array<RevenueTarget | null>,
+  db: DbClient
+): Promise<void> {
+  const dbId = process.env.APPWRITE_DATABASE_ID ?? "app";
+  const itemsId =
+    process.env.APPWRITE_ORDER_ITEMS_COLLECTION_ID ?? "order_items";
+  for (const [index, item] of items.entries()) {
+    const target = targets[index];
+    if (!(target && item.order_item_id) || snapshotTarget(item)) {
+      continue;
+    }
+    try {
+      await db.updateRow(dbId, itemsId, item.order_item_id, {
+        finago_account_number: target.accountNumber,
+        finago_department: target.departmentId,
+        finago_vat_code: target.vatCode,
+      });
+    } catch (error) {
+      console.error(
+        `[Finago] Order ${orderId} posted, but the ledger copy for line ${item.order_item_id} could not be saved:`,
+        error
+      );
+    }
+  }
+}
+
 type PreparedTransaction =
-  | { input: ShopTransactionInput; ok: true }
+  | {
+      input: ShopTransactionInput;
+      items: ParsedOrderItem[];
+      ok: true;
+      targets: Array<RevenueTarget | null>;
+    }
   | { ok: false; reason: string };
 
 /**
@@ -148,7 +194,9 @@ async function prepareTransaction(
         total: posting.total,
         transactionTypeNumber: posting.transactionTypeNumber,
       }),
+      items,
       ok: true,
+      targets,
     };
   } catch (error) {
     return {
@@ -224,9 +272,9 @@ export async function postFinagoTransactionForOrder(
     }
   }
 
-  let input: ShopTransactionInput;
+  let prepared: PreparedTransaction;
   try {
-    const prepared = await prepareTransaction(order, db);
+    prepared = await prepareTransaction(order, db);
     if (!prepared.ok) {
       await releaseClaim(orderId, db);
       console.warn(
@@ -238,7 +286,6 @@ export async function postFinagoTransactionForOrder(
         reason: "not_configured",
       };
     }
-    input = prepared.input;
     await db.updateRow(dbId, collId, orderId, {
       finago_transaction_id: FINAGO_POSTING_MARKER,
     });
@@ -251,15 +298,15 @@ export async function postFinagoTransactionForOrder(
     return { posted: false, reason: "post_failed" };
   }
 
+  let transactionId: string;
   try {
-    const transactionId = await postLedgerTransaction(input);
+    transactionId = await postLedgerTransaction(prepared.input);
     await db.updateRow(dbId, collId, orderId, {
       finago_transaction_id: transactionId,
     });
     console.log(
       `[Finago] Posted order ${orderId} as transaction ${transactionId}`
     );
-    return { posted: true, transactionId };
   } catch (error) {
     // The Finago post has been attempted and may have landed. Keep the marker
     // and the claim so no automatic path posts a second voucher.
@@ -269,6 +316,9 @@ export async function postFinagoTransactionForOrder(
     );
     return { posted: false, reason: "post_failed" };
   }
+
+  await writeBackFallbackTargets(orderId, prepared.items, prepared.targets, db);
+  return { posted: true, transactionId };
 }
 
 const STALE_CLAIM_MS = 30 * 60 * 1000;

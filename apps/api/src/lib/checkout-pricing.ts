@@ -371,6 +371,25 @@ async function getMemberDiscountIfAny(
   }
 }
 
+const MINOR_UNITS_PER_MAJOR = 100;
+const PERCENT = 100;
+
+/**
+ * A member-discounted unit price, rounded to whole øre. Unrounded, a
+ * non-integer discount gives sub-øre prices whose per-line øre sums can miss
+ * the rounded order total, which ledger posting refuses as unbalanced.
+ */
+export function discountedUnitPrice(
+  originalUnit: number,
+  discountPercent: number
+): number {
+  const discounted = Math.max(
+    0,
+    originalUnit * (1 - discountPercent / PERCENT)
+  );
+  return Math.round(discounted * MINOR_UNITS_PER_MAJOR) / MINOR_UNITS_PER_MAJOR;
+}
+
 async function resolvePricing(
   product: NormalizedProduct,
   variation: ProductVariation | undefined,
@@ -387,7 +406,7 @@ async function resolvePricing(
   discountCache.set(product.$id, discount);
 
   const discountedUnit = discount.applied
-    ? Math.max(0, originalUnit * (1 - discount.percent / 100))
+    ? discountedUnitPrice(originalUnit, discount.percent)
     : originalUnit;
 
   return {

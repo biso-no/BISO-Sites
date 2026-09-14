@@ -1783,4 +1783,3 @@ No code. CI (`.github/workflows/deploy-production.yml`) deploys api, web and adm
 - [ ] **Step 5:** In `scheduled-dispatch`, change `ORDERS_RECONCILE_URL` to `https://api.biso.no/api/cron/reconcile-orders`. Check the next execution log shows a 200 from the API.
 - [ ] **Step 6:** Place a small Vipps test order and confirm the browser returns through `api.biso.no/api/payment/return` to `/shop/order/<id>?success=true`.
 - [ ] **Step 7:** One week later, in a follow-up PR, delete `apps/web/src/app/api/checkout/return/` and `apps/web/src/app/api/cron/reconcile-orders/`.
-- [ ] **Step 5:** One week later, delete `apps/web/src/app/api/checkout/return/` in a follow-up commit.

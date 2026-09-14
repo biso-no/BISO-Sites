@@ -390,7 +390,7 @@ describe("reconcile-orders cron: Finago pass", () => {
     expect(body.finagoPosted).toBe(0);
   });
 
-  it("reads the oldest unposted orders first", async () => {
+  it("reads the least recently attempted unposted orders first", async () => {
     wireFinagoRows([]);
 
     await GET(cronRequest());
@@ -400,7 +400,63 @@ describe("reconcile-orders cron: Finago pass", () => {
       .find((queries) =>
         queries.some((q) => q.includes("finago_transaction_id"))
       );
-    expect(finagoQueries?.some((q) => q.includes('"orderAsc"'))).toBe(true);
+    expect(
+      finagoQueries?.some(
+        (q) => q.includes('"orderAsc"') && q.includes('"$updatedAt"')
+      )
+    ).toBe(true);
+  });
+
+  it("reaches a postable order queued behind 50 blocked ones within two runs", async () => {
+    // A tiny stand-in for the orders table: the Finago query sorts by
+    // $updatedAt and caps at the sweep limit, and every posting attempt
+    // refreshes $updatedAt the way the claim/release writes do in Appwrite.
+    let clock = Date.now() - 60 * 60 * 1000;
+    const tick = () => {
+      clock += 1000;
+      return new Date(clock).toISOString();
+    };
+    const table = [
+      ...Array.from({ length: 50 }, (_, i) => ({
+        ...shopOrder(`blocked-${i}`),
+        $updatedAt: tick(),
+      })),
+      { ...shopOrder("postable"), $updatedAt: tick() },
+    ];
+    db.listRows.mockImplementation(
+      (_dbId: string, _tableId: string, queries: string[]) => {
+        if (!queries.some((q) => q.includes("finago_transaction_id"))) {
+          return Promise.resolve({ rows: [] });
+        }
+        const byUpdatedAt = queries.some(
+          (q) => q.includes('"orderAsc"') && q.includes('"$updatedAt"')
+        );
+        const rows = byUpdatedAt
+          ? [...table].sort((a, b) => a.$updatedAt.localeCompare(b.$updatedAt))
+          : [...table];
+        return Promise.resolve({ rows: rows.slice(0, 50) });
+      }
+    );
+    mocks.postFinagoTransactionForOrder.mockImplementation((id: string) => {
+      const row = table.find((order) => order.$id === id);
+      if (row) {
+        row.$updatedAt = tick();
+      }
+      return Promise.resolve(
+        id === "postable"
+          ? { posted: true, transactionId: "tx-1" }
+          : { detail: "no sales type", posted: false, reason: "not_configured" }
+      );
+    });
+
+    const first = await (await GET(cronRequest())).json();
+    const second = await (await GET(cronRequest())).json();
+
+    expect(mocks.postFinagoTransactionForOrder).toHaveBeenCalledWith(
+      "postable",
+      db
+    );
+    expect(first.finagoPosted + second.finagoPosted).toBe(1);
   });
 
   it("counts orders that cannot be posted yet without calling them errors", async () => {

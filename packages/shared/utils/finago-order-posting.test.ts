@@ -188,6 +188,88 @@ describe("postFinagoTransactionForOrder", () => {
     );
   });
 
+  it("writes the fallback target back onto a line without a copy after posting", async () => {
+    wireRows(paidOrder({ order_items: [lineWithoutCopy] }));
+
+    const result = await postFinagoTransactionForOrder("order-1", db);
+
+    expect(result).toEqual({ posted: true, transactionId: "finago-tx-1" });
+    expect(db.updateRow).toHaveBeenCalledWith("app", "order_items", "line-1", {
+      finago_account_number: 3000,
+      finago_department: "44",
+      finago_vat_code: 3,
+    });
+  });
+
+  it("does not rewrite lines that already carry a checkout copy", async () => {
+    wireRows(
+      paidOrder({
+        order_items: [
+          snapshotLine,
+          { ...lineWithoutCopy, $id: "line-2", quantity: 1, unit_price: 100 },
+        ],
+        total: 1098,
+      })
+    );
+
+    await postFinagoTransactionForOrder("order-1", db);
+
+    const itemWrites = db.updateRow.mock.calls.filter(
+      ([, table]) => table === "order_items"
+    );
+    expect(itemWrites).toEqual([
+      [
+        "app",
+        "order_items",
+        "line-2",
+        {
+          finago_account_number: 3000,
+          finago_department: "44",
+          finago_vat_code: 3,
+        },
+      ],
+    ]);
+  });
+
+  it("does not write back lines of a legacy items_json order", async () => {
+    wireRows(
+      paidOrder({
+        items_json: JSON.stringify([
+          {
+            name: "Gensere til børsgruppen",
+            product_id: "product-1",
+            quantity: 2,
+            unit_price: 499,
+          },
+        ]),
+        order_items: undefined,
+      })
+    );
+
+    const result = await postFinagoTransactionForOrder("order-1", db);
+
+    expect(result.posted).toBe(true);
+    expect(
+      db.updateRow.mock.calls.filter(([, table]) => table === "order_items")
+    ).toEqual([]);
+  });
+
+  it("still reports the posting when the write-back fails", async () => {
+    wireRows(paidOrder({ order_items: [lineWithoutCopy] }));
+    db.updateRow.mockImplementation((_db: string, table: string) =>
+      table === "order_items"
+        ? Promise.reject(new Error("appwrite timeout"))
+        : Promise.resolve({})
+    );
+
+    const result = await postFinagoTransactionForOrder("order-1", db);
+
+    expect(result).toEqual({ posted: true, transactionId: "finago-tx-1" });
+    expect(db.updateRow).toHaveBeenCalledWith("app", "orders", "order-1", {
+      finago_transaction_id: "finago-tx-1",
+    });
+  });
+
   it("uses the Stripe clearing account for a Stripe order", async () => {
     wireRows(paidOrder({ payment_provider: "stripe" }));
 
@@ -248,6 +330,7 @@ describe("postFinagoTransactionForOrder", () => {
       posted: false,
       reason: "not_configured",
     });
+    expect(db.decrementRowColumn).toHaveBeenCalledWith(CLAIM_RELEASE);
     expect(db.updateRow).not.toHaveBeenCalled();
   });
 
