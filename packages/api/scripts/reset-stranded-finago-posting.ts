@@ -9,10 +9,18 @@
  *   bun run finago:reset-stranded-posting -- 6aa19747003c79019977 --apply
  */
 import { Client, TablesDB } from "node-appwrite";
+import {
+  collectAllTransactionLines,
+  parseNextLinkUrl,
+} from "./finago-transaction-lines-paging";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const LOOKBACK_DAYS = 1;
 const LOOKAHEAD_DAYS = 5;
+// The endpoint's `limit` caps lines per page; pagination (below) follows the
+// `Link` response header for anything beyond this, so the value only trades
+// off request count against page size.
+const TRANSACTION_LINES_PAGE_SIZE = 200;
 
 const endpoint =
   process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT ?? process.env.APPWRITE_ENDPOINT;
@@ -84,20 +92,47 @@ const created = Date.parse(order.$createdAt);
 const dateFrom = new Date(created - LOOKBACK_DAYS * DAY_MS)
   .toISOString()
   .slice(0, 10);
-const dateTo = new Date(created + LOOKAHEAD_DAYS * DAY_MS)
+// `dateTo` is EXCLUSIVE on this endpoint (lines are returned up to 23:59 on
+// the day before dateTo), so add one extra day to actually cover
+// LOOKAHEAD_DAYS full days after the order was created.
+const dateTo = new Date(created + (LOOKAHEAD_DAYS + 1) * DAY_MS)
   .toISOString()
   .slice(0, 10);
-const linesResponse = await fetch(
-  `https://rest.api.24sevenoffice.com/v1/transactionlines?dateFrom=${dateFrom}&dateTo=${dateTo}`,
-  { headers: { Authorization: `Bearer ${token}` } }
+
+const firstLinesUrl = new URL(
+  "https://rest.api.24sevenoffice.com/v1/transactionlines"
 );
-if (!linesResponse.ok) {
+firstLinesUrl.searchParams.set("dateFrom", dateFrom);
+firstLinesUrl.searchParams.set("dateTo", dateTo);
+firstLinesUrl.searchParams.set("limit", String(TRANSACTION_LINES_PAGE_SIZE));
+
+const paged = await collectAllTransactionLines(
+  firstLinesUrl.toString(),
+  async (url) => {
+    const response = await fetch(url, {
+      headers: { Authorization: `Bearer ${token}` },
+    }).catch(() => null);
+    if (!response?.ok) {
+      return { lines: [], nextUrl: null, ok: false };
+    }
+    const body: unknown = await response.json().catch(() => null);
+    if (!Array.isArray(body)) {
+      return { lines: [], nextUrl: null, ok: false };
+    }
+    return {
+      lines: body,
+      nextUrl: parseNextLinkUrl(response.headers.get("link")),
+      ok: true,
+    };
+  }
+);
+if (!paged.ok) {
   console.error(
-    `Refusing: could not read Finago transaction lines (${linesResponse.status}).`
+    `Refusing: could not read Finago transaction lines (${paged.reason ?? "unknown error"}).`
   );
   process.exit(1);
 }
-const lines = (await linesResponse.json()) as unknown[];
+const lines = paged.lines;
 const mentions = lines.filter((line) => JSON.stringify(line).includes(orderId));
 
 console.log(
