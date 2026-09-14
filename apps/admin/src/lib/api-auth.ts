@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { canManageAccounting } from "@/lib/roles";
 import { getUserAuthContext, type UserAuthContext } from "./authorization";
 
 export interface ApiAuthSuccess {
@@ -27,6 +28,19 @@ export async function requireApiGlobalAdmin(): Promise<ApiAuthResult> {
     return auth;
   }
   if (!auth.ctx.roles.includes("globaladmin")) {
+    return {
+      response: NextResponse.json({ error: "Forbidden" }, { status: 403 }),
+    };
+  }
+  return auth;
+}
+
+export async function requireApiAccountingAdmin(): Promise<ApiAuthResult> {
+  const auth = await requireApiAuth();
+  if (auth.response) {
+    return auth;
+  }
+  if (!canManageAccounting(auth.ctx.roles)) {
     return {
       response: NextResponse.json({ error: "Forbidden" }, { status: 403 }),
     };

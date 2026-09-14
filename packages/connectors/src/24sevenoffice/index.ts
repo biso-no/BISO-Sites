@@ -76,6 +76,14 @@ export {
 } from "./rest";
 // Customer sync function
 export { hasMembershipProduct } from "./sync";
+// Tax codes (SOAP — tax id → posting tax number)
+export {
+  type GetTaxCodeListResult,
+  getTaxCodes,
+  parseTaxCodeList,
+  type TaxCodeListEntry,
+  taxNumberByTaxId,
+} from "./tax-codes";
 // Types
 export type {
   CategoryDefinition,
