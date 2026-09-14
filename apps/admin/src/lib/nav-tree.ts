@@ -2,6 +2,7 @@ import {
   Activity,
   Briefcase,
   Building2,
+  Calculator,
   Calendar,
   CreditCard,
   FileStack,
@@ -79,6 +80,12 @@ export const NAV_TREE: NavNode[] = [
     labelKey: "content",
   },
   leaf("shop", "portal.shop", "/shop", ShoppingCart),
+  leaf(
+    "shopAccounting",
+    "portal.shopAccounting",
+    "/shop/accounting",
+    Calculator
+  ),
   {
     children: [
       leaf("departments", "portal.departments", "/departments", Building2),

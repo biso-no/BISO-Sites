@@ -24,6 +24,7 @@ describe("filterNavTree", () => {
       "members",
       "content",
       "shop",
+      "shopAccounting",
       "organization",
       "analytics",
       "system",
@@ -135,5 +136,24 @@ describe("getDefaultNavPath", () => {
 
   test("returns null when no navigation entries are available", () => {
     expect(getDefaultNavPath(noAccess)).toBeNull();
+  });
+});
+
+describe("shop accounting navigation", () => {
+  test("highlights the accounting page rather than the shop", () => {
+    expect(findActivePath("/shop/accounting")).toBe("/shop/accounting");
+    expect(findActivePath("/shop/abc123")).toBe("/shop");
+  });
+
+  test("shows the page to campus admins and hides it from department members", () => {
+    const campusPaths = flattenNavTree(
+      filterNavTree({ hasDepartmentMembership: false, roles: ["campusadmin"] })
+    ).map((leaf) => leaf.path);
+    const departmentPaths = flattenNavTree(
+      filterNavTree({ hasDepartmentMembership: true, roles: [] })
+    ).map((leaf) => leaf.path);
+
+    expect(campusPaths).toContain("/shop/accounting");
+    expect(departmentPaths).not.toContain("/shop/accounting");
   });
 });
