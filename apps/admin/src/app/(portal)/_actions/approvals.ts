@@ -38,6 +38,7 @@ import {
   type PaginatedResult,
 } from "@/lib/list-params";
 import { paginationQueries } from "@/lib/list-queries";
+import { assertSalesTypeUsable } from "@/lib/shop/sales-type";
 import { assertPublishAccess } from "@/lib/utils/authorization";
 import {
   type ApprovalPublishPlan,
@@ -281,6 +282,19 @@ async function executeApprovalPublish(
       : null;
 
   assertPublishAccess(ctx, campusId);
+
+  if (plan.domain === "shop") {
+    const salesTypeId =
+      typeof row.sales_type === "string" && row.sales_type.length > 0
+        ? row.sales_type
+        : null;
+    // Approving a request flips the product straight to "published"; refuse
+    // it here too so an approval can never bypass the same gate the editor
+    // enforces (a sales type may have been deactivated or deleted between
+    // the request being filed and it being approved).
+    await assertSalesTypeUsable(sessionDb, "published", salesTypeId);
+  }
+
   await sessionDb.updateRow(DATABASE_ID, plan.table, plan.resourceId, {
     status: "published",
   });

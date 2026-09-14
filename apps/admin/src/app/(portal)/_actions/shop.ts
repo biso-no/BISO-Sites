@@ -8,7 +8,6 @@ import {
   type Orders,
   OrdersStatus,
   type ProductVariations,
-  type SalesTypes,
   type WebshopProducts,
   WebshopProductsInventoryMode,
   WebshopProductsStatus,
@@ -43,6 +42,7 @@ import {
   planCustomFieldSync,
   type StoredCustomField,
 } from "@/lib/shop/custom-fields";
+import { assertSalesTypeUsable } from "@/lib/shop/sales-type";
 import {
   buildContentRowPermissions,
   buildContentTranslationPermissions,
@@ -417,28 +417,6 @@ function buildProductFields(data: ProductFormValues) {
     inventory_mode: data.inventory_mode ?? "unlimited",
     sales_type: data.sales_type ?? null,
   };
-}
-
-/**
- * The schema already requires a sales type to publish; this also refuses one
- * that has since been deactivated or deleted, so a live product always books
- * to a sales type finance still stands behind.
- */
-async function assertSalesTypeUsable(
-  db: AdminDb,
-  data: ProductFormValues
-): Promise<void> {
-  if (!(data.status === "published" || data.status === "pending_approval")) {
-    return;
-  }
-  const salesType = data.sales_type
-    ? await db
-        .getRow<SalesTypes>("app", "sales_types", data.sales_type)
-        .catch(() => null)
-    : null;
-  if (!salesType || salesType.active === false) {
-    throw new Error("Choose an active sales type before publishing");
-  }
 }
 
 type ProductVariationInput = NonNullable<
@@ -937,7 +915,11 @@ export async function createProduct(
       campusId: validated.data.campus_id,
       departmentId: validated.data.department_id ?? null,
     });
-    await assertSalesTypeUsable(db, validated.data);
+    await assertSalesTypeUsable(
+      db,
+      validated.data.status,
+      validated.data.sales_type ?? null
+    );
     if (validated.data.status === "published") {
       assertPublishAccess(
         ctx,
@@ -1029,7 +1011,11 @@ export async function updateProduct(
       campusId: validated.data.campus_id,
       departmentId: validated.data.department_id ?? null,
     });
-    await assertSalesTypeUsable(db, validated.data);
+    await assertSalesTypeUsable(
+      db,
+      validated.data.status,
+      validated.data.sales_type ?? null
+    );
     if (
       product.status === "published" ||
       validated.data.status === "published"

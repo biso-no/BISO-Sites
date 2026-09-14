@@ -2,7 +2,12 @@ import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { Query } from "@repo/api";
 import type { UserAuthContext } from "@/lib/authorization";
 
-const db = { listRows: mock() };
+const db = {
+  createRow: mock(),
+  getRow: mock(),
+  listRows: mock(),
+  updateRow: mock(),
+};
 
 const baseCtx: UserAuthContext = {
   activeCampusId: undefined,
@@ -38,7 +43,11 @@ mock.module("@/lib/authorization", () => ({
   requireAuth: mock(async () => currentCtx),
 }));
 
-const { listPendingApprovals } = await import("./approvals");
+mock.module("next/cache", () => ({
+  revalidatePath: mock(() => undefined),
+}));
+
+const { approveRequest, listPendingApprovals } = await import("./approvals");
 
 describe("listPendingApprovals", () => {
   beforeEach(() => {
@@ -78,5 +87,89 @@ describe("listPendingApprovals", () => {
     expect(result).toEqual({
       data: { rows: [], total: 0, page: 1, size: 25 },
     });
+  });
+});
+
+describe("approveRequest: shop products require an active sales type", () => {
+  const approvalRequest = {
+    $id: "req-1",
+    action: "shop.publish",
+    payload: "{}",
+    resource_id: "product-1",
+    status: "pending" as const,
+  };
+
+  function mockRows({
+    salesType,
+  }: {
+    salesType: { $id: string; active: boolean } | null;
+  }) {
+    db.getRow.mockImplementation((_databaseId: string, table: string) => {
+      if (table === "approval_requests") {
+        return Promise.resolve(approvalRequest);
+      }
+      if (table === "webshop_products") {
+        return Promise.resolve({
+          $id: "product-1",
+          campus_id: "campus-oslo",
+          sales_type: "sales-type-1",
+          status: "pending_approval",
+        });
+      }
+      if (table === "sales_types") {
+        return Promise.resolve(salesType);
+      }
+      return Promise.reject(new Error(`unexpected getRow(${table})`));
+    });
+  }
+
+  beforeEach(() => {
+    currentCtx = baseCtx;
+    db.getRow.mockReset();
+    db.updateRow.mockReset();
+    db.createRow.mockReset();
+  });
+
+  test("refuses to publish when the sales type is inactive", async () => {
+    mockRows({ salesType: { $id: "sales-type-1", active: false } });
+
+    const result = await approveRequest("req-1");
+
+    expect(result).toEqual({
+      error: "Choose an active sales type before publishing",
+    });
+    // Neither the product nor the approval request should have been touched.
+    expect(db.updateRow).not.toHaveBeenCalled();
+  });
+
+  test("refuses to publish when the sales type no longer exists", async () => {
+    mockRows({ salesType: null });
+
+    const result = await approveRequest("req-1");
+
+    expect(result).toEqual({
+      error: "Choose an active sales type before publishing",
+    });
+    expect(db.updateRow).not.toHaveBeenCalled();
+  });
+
+  test("publishes when the sales type is active", async () => {
+    mockRows({ salesType: { $id: "sales-type-1", active: true } });
+
+    const result = await approveRequest("req-1");
+
+    expect(result).toEqual({ data: "req-1" });
+    expect(db.updateRow).toHaveBeenCalledWith(
+      "app",
+      "webshop_products",
+      "product-1",
+      { status: "published" }
+    );
+    expect(db.updateRow).toHaveBeenCalledWith(
+      "app",
+      "approval_requests",
+      "req-1",
+      expect.objectContaining({ status: "approved" })
+    );
   });
 });
