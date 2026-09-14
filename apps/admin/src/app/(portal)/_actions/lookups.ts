@@ -2,7 +2,7 @@
 
 import { Query } from "@repo/api";
 import { createAdminClient } from "@repo/api/server";
-import type { Campus, Departments } from "@repo/api/types/appwrite";
+import type { Campus, Departments, SalesTypes } from "@repo/api/types/appwrite";
 import { requireAuth } from "@/lib/authorization";
 
 export async function listCampuses(): Promise<Campus[]> {
@@ -35,4 +35,28 @@ export async function listDepartmentsForCampus(
   return response.rows.filter((row) =>
     ctx.resolvedDepartmentIds.includes(row.$id)
   );
+}
+
+export interface SalesTypeOption {
+  accountNumber: number;
+  id: string;
+  labelEn: string;
+  labelNo: string;
+}
+
+/** Active sales types for the product editor, in the order finance set. */
+export async function listSalesTypeOptions(): Promise<SalesTypeOption[]> {
+  await requireAuth();
+  const { db } = await createAdminClient();
+  const response = await db.listRows<SalesTypes>("app", "sales_types", [
+    Query.equal("active", true),
+    Query.orderAsc("sort_order"),
+    Query.limit(100),
+  ]);
+  return response.rows.map((row) => ({
+    accountNumber: row.account_number,
+    id: row.$id,
+    labelEn: row.label_en,
+    labelNo: row.label_no,
+  }));
 }

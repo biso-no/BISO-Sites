@@ -58,7 +58,7 @@ const norwegianValues: ProductFormValues = {
   department_id: null,
   description: "<p>Norske detaljer</p>",
   description_en: "",
-  finago_account_number: null,
+  sales_type: null,
   image: "",
   images: [],
   inventory_mode: "unlimited",
@@ -252,7 +252,7 @@ describe("shop translation", () => {
 
   test("honors publish status when creating a product", async () => {
     await createProduct(
-      { ...norwegianValues, status: "published" },
+      { ...norwegianValues, sales_type: "sales-type-1", status: "published" },
       { enabled: false, sourceLocale: "no" }
     );
 

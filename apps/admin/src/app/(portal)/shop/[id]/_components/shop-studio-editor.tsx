@@ -32,6 +32,7 @@ import {
   TranslationReviewCard,
 } from "@/app/_components/content-translation-controls";
 import { getTargetLocale } from "@/lib/content-translation";
+import type { SalesTypeOption } from "../../../_actions/lookups";
 import {
   createProduct,
   generateProductTranslationDraft,
@@ -78,7 +79,6 @@ interface SavedCustomField {
 type ProductWithTranslations = WebshopProducts & {
   custom_fields?: SavedCustomField[];
   translation_refs: ContentTranslations[];
-  finago_account_number?: number | null;
 };
 
 interface ProductVariant {
@@ -97,6 +97,7 @@ interface ShopStudioEditorProps {
   departments: Departments[];
   isNew: boolean;
   product: ProductWithTranslations | null;
+  salesTypes: SalesTypeOption[];
 }
 
 type LocaleCode = "en" | "no";
@@ -174,6 +175,20 @@ function generateSlug(title: string): string {
     .trim()
     .replace(/\s+/g, "-")
     .replace(/-+/g, "-");
+}
+
+/**
+ * `createProduct`/`updateProduct` return either a flat message (e.g. the
+ * sales-type publish guard) or zod's per-field `fieldErrors`. Surface
+ * whichever the caller sent, falling back to a generic message.
+ */
+function describeSaveError(
+  error: string | Record<string, string[] | undefined> | undefined
+): string {
+  if (typeof error === "string") {
+    return error;
+  }
+  return Object.values(error ?? {}).flat()[0] ?? "Failed to save product";
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1208,13 +1223,14 @@ function EssentialsStep({
   category,
   departmentId,
   departments,
-  finagoAccountNumber,
   lang,
   onLangChange,
+  salesType,
+  salesTypes,
   setCampusId,
   setCategory,
   setDepartmentId,
-  setFinagoAccountNumber,
+  setSalesType,
   setShortDescription,
   setSlug,
   setSlugEditing,
@@ -1235,13 +1251,14 @@ function EssentialsStep({
   category: string | null;
   departmentId: string | null;
   departments: Departments[];
-  finagoAccountNumber: number | null;
   lang: LocaleCode;
   onLangChange: (l: LocaleCode) => void;
+  salesType: string | null;
+  salesTypes: SalesTypeOption[];
   setCampusId: (v: string) => void;
   setCategory: (v: string | null) => void;
   setDepartmentId: (v: string | null) => void;
-  setFinagoAccountNumber: (v: number | null) => void;
+  setSalesType: (v: string | null) => void;
   setShortDescription: (v: string) => void;
   setSlug: (v: string) => void;
   setSlugEditing: (v: boolean) => void;
@@ -1519,21 +1536,25 @@ function EssentialsStep({
             </div>
           </div>
 
-          {/* Finago account number */}
+          {/* Sales type — decides the Finago revenue account and VAT */}
           <div>
-            <FieldLabel>Finago account number</FieldLabel>
-            <input
-              min={0}
-              onChange={(e) => {
-                const val = e.target.value;
-                setFinagoAccountNumber(val === "" ? null : Number(val));
-              }}
-              placeholder="e.g. 3000"
-              step={1}
+            <FieldLabel>Sales type</FieldLabel>
+            <select
+              onChange={(e) => setSalesType(e.target.value || null)}
               style={fieldInputStyle()}
-              type="number"
-              value={finagoAccountNumber ?? ""}
-            />
+              value={salesType ?? ""}
+            >
+              <option value="">Choose a sales type</option>
+              {salesTypes.map((type) => (
+                <option key={type.id} value={type.id}>
+                  {type.labelNo} ({type.accountNumber})
+                </option>
+              ))}
+              {salesType &&
+                !salesTypes.some((type) => type.id === salesType) && (
+                  <option value={salesType}>{salesType} (inactive)</option>
+                )}
+            </select>
             <div
               style={{
                 color: BRAND.ink,
@@ -1542,7 +1563,7 @@ function EssentialsStep({
                 opacity: 0.5,
               }}
             >
-              GL revenue account for 24SevenOffice ledger posting
+              Required to publish. Decides the Finago revenue account and VAT.
             </div>
           </div>
         </div>
@@ -3149,6 +3170,7 @@ export function ShopStudioEditor({
   departments,
   isNew,
   product,
+  salesTypes,
 }: ShopStudioEditorProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -3243,8 +3265,8 @@ export function ShopStudioEditor({
   const [linkedEventId, setLinkedEventId] = useState<string | null>(
     product?.linked_event_id ?? null
   );
-  const [finagoAccountNumber, setFinagoAccountNumber] = useState<number | null>(
-    product?.finago_account_number ?? null
+  const [salesType, setSalesType] = useState<string | null>(
+    product?.sales_type ?? null
   );
   const [status, setStatus] = useState<
     "draft" | "pending_approval" | "published" | "archived"
@@ -3309,7 +3331,7 @@ export function ShopStudioEditor({
         | "grid",
       linked_event_id: linkedEventId,
       inventory_mode: inventoryMode as "tracked" | "unlimited",
-      finago_account_number: finagoAccountNumber,
+      sales_type: salesType,
     };
   }
 
@@ -3327,7 +3349,7 @@ export function ShopStudioEditor({
           });
 
       if ("error" in result) {
-        toast.error("Failed to save product");
+        toast.error(describeSaveError(result.error));
       } else {
         const msg =
           targetStatus === "published" ? "Product published!" : "Draft saved";
@@ -3479,13 +3501,14 @@ export function ShopStudioEditor({
                 category={category}
                 departmentId={departmentId}
                 departments={departments}
-                finagoAccountNumber={finagoAccountNumber}
                 lang={localeLang}
                 onLangChange={setLocaleLang}
+                salesType={salesType}
+                salesTypes={salesTypes}
                 setCampusId={setCampusId}
                 setCategory={setCategory}
                 setDepartmentId={setDepartmentId}
-                setFinagoAccountNumber={setFinagoAccountNumber}
+                setSalesType={setSalesType}
                 setShortDescription={setShortDescription}
                 setSlug={setSlug}
                 setSlugEditing={setSlugEditing}

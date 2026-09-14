@@ -1,6 +1,10 @@
 import { notFound } from "next/navigation";
 import { requireNavAccess } from "@/lib/authorization";
-import { listCampuses, listDepartmentsForCampus } from "../../_actions/lookups";
+import {
+  listCampuses,
+  listDepartmentsForCampus,
+  listSalesTypeOptions,
+} from "../../_actions/lookups";
 import { getProduct } from "../../_actions/shop";
 import { ShopStudioEditor } from "./_components/shop-studio-editor";
 
@@ -13,9 +17,10 @@ export default async function ShopEditorPage({ params }: Props) {
   const { id } = await params;
   const isNew = id === "new";
 
-  const [product, campuses] = await Promise.all([
+  const [product, campuses, salesTypes] = await Promise.all([
     isNew ? null : getProduct(id),
     listCampuses(),
+    listSalesTypeOptions(),
   ]);
 
   if (!(isNew || product)) {
@@ -71,6 +76,7 @@ export default async function ShopEditorPage({ params }: Props) {
       departments={filteredDepartments}
       isNew={isNew}
       product={product}
+      salesTypes={salesTypes}
     />
   );
 }

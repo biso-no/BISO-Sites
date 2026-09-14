@@ -8,6 +8,7 @@ import {
   type Orders,
   OrdersStatus,
   type ProductVariations,
+  type SalesTypes,
   type WebshopProducts,
   WebshopProductsInventoryMode,
   WebshopProductsStatus,
@@ -414,8 +415,30 @@ function buildProductFields(data: ProductFormValues) {
     cover_pattern: data.cover_pattern ?? "dotted",
     linked_event_id: data.linked_event_id ?? null,
     inventory_mode: data.inventory_mode ?? "unlimited",
-    finago_account_number: data.finago_account_number ?? null,
+    sales_type: data.sales_type ?? null,
   };
+}
+
+/**
+ * The schema already requires a sales type to publish; this also refuses one
+ * that has since been deactivated or deleted, so a live product always books
+ * to a sales type finance still stands behind.
+ */
+async function assertSalesTypeUsable(
+  db: AdminDb,
+  data: ProductFormValues
+): Promise<void> {
+  if (!(data.status === "published" || data.status === "pending_approval")) {
+    return;
+  }
+  const salesType = data.sales_type
+    ? await db
+        .getRow<SalesTypes>("app", "sales_types", data.sales_type)
+        .catch(() => null)
+    : null;
+  if (!salesType || salesType.active === false) {
+    throw new Error("Choose an active sales type before publishing");
+  }
 }
 
 type ProductVariationInput = NonNullable<
@@ -914,6 +937,7 @@ export async function createProduct(
       campusId: validated.data.campus_id,
       departmentId: validated.data.department_id ?? null,
     });
+    await assertSalesTypeUsable(db, validated.data);
     if (validated.data.status === "published") {
       assertPublishAccess(
         ctx,
@@ -1005,6 +1029,7 @@ export async function updateProduct(
       campusId: validated.data.campus_id,
       departmentId: validated.data.department_id ?? null,
     });
+    await assertSalesTypeUsable(db, validated.data);
     if (
       product.status === "published" ||
       validated.data.status === "published"

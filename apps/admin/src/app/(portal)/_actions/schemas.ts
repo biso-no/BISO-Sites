@@ -207,22 +207,27 @@ export const productSchema = z
     linked_event_id: z.string().optional().nullable(),
     inventory_mode: z.enum(["tracked", "unlimited"]).default("unlimited"),
     short_description: z.string().optional().nullable(),
-    finago_account_number: z.coerce
-      .number()
-      .int()
-      .positive()
-      .optional()
-      .nullable(),
+    // `sales_types` row id. Decides the Finago revenue account and VAT code a
+    // sale of this product is booked under.
+    sales_type: z.string().max(36).optional().nullable(),
   })
   .superRefine((values, context) => {
-    if (values.name.trim() || values.name_en?.trim()) {
-      return;
+    if (!(values.name.trim() || values.name_en?.trim())) {
+      context.addIssue({
+        code: "custom",
+        message: "A Norwegian or English name is required",
+        path: ["name"],
+      });
     }
-    context.addIssue({
-      code: "custom",
-      message: "A Norwegian or English name is required",
-      path: ["name"],
-    });
+    const goesLive =
+      values.status === "published" || values.status === "pending_approval";
+    if (goesLive && !values.sales_type) {
+      context.addIssue({
+        code: "custom",
+        message: "Choose a sales type before publishing",
+        path: ["sales_type"],
+      });
+    }
   });
 const _PRODUCTS_PAGE_SIZE = 20;
 export type ProductFormValues = z.infer<typeof productSchema>;
