@@ -135,6 +135,7 @@ export const JOB_SELECT = [
   "department_id",
   "metadata",
   "application_deadline",
+  "scheduled_publish_at",
   "custom_questions",
   "interview_template",
   "screening_rubric",
@@ -247,6 +248,7 @@ export function buildRecruitmentVacancy(
       },
       parsedMetadata
     ),
+    scheduled_publish_at: job.scheduled_publish_at ?? null,
     slug: job.slug,
     status: job.status,
     translations: resolvedTranslations,

@@ -3,10 +3,11 @@
 import { fastModel } from "@repo/ai/models";
 import { ID, Query } from "@repo/api";
 import { createAdminClient, createSessionClient } from "@repo/api/server";
-import type {
-  ContentTranslations,
-  JobApplications,
-  Jobs,
+import {
+  type ContentTranslations,
+  type JobApplications,
+  type Jobs,
+  JobsStatus,
 } from "@repo/api/types/appwrite";
 import {
   fetchRecruitmentListRows,
@@ -49,6 +50,7 @@ import {
   scheduleContentTranslation,
   translateContentFields,
 } from "@/lib/content-translation.server";
+import { resolveJobPublication } from "@/lib/job-publication";
 import {
   applyDescriptionMerge,
   computeJobTranslationMemory,
@@ -457,6 +459,20 @@ async function persistDeferredJobTranslation(
   });
 }
 
+/**
+ * The status a deferred translation expects to find. The scheduled-publish
+ * dispatcher may publish the vacancy while the task is queued; that is the
+ * planned outcome, not a scope change.
+ */
+function expectedTranslationStatus(
+  input: { scheduledPublishAt: string | null; status: JobsStatus },
+  currentStatus: JobsStatus
+): JobsStatus {
+  return input.scheduledPublishAt && currentStatus === JobsStatus.PUBLISHED
+    ? JobsStatus.PUBLISHED
+    : input.status;
+}
+
 function scheduleJobTranslation(input: {
   audience: "members" | "public";
   campusId: string;
@@ -467,6 +483,8 @@ function scheduleJobTranslation(input: {
   jobId: string;
   source: JobTranslationSnapshot;
   sourceLocale: ContentLocale;
+  /** Set when this save armed a scheduled publish. */
+  scheduledPublishAt: string | null;
   status: RecruitmentVacancyUpsertInput["status"];
 }): boolean {
   const hasSource = Boolean(
@@ -489,7 +507,7 @@ function scheduleJobTranslation(input: {
             audience: input.audience,
             campusId: input.campusId,
             departmentId: input.departmentId,
-            status: input.status,
+            status: expectedTranslationStatus(input, currentJob.status),
           },
           {
             audience: currentMetadata.audience ?? "public",
@@ -552,9 +570,14 @@ function scheduleJobTranslation(input: {
         currentTargetSnapshot,
         cache
       );
+      // Re-read status after the (slow) model call so a vacancy published in
+      // the meantime gets consumer-readable translation permissions.
+      const latestJob = await db.getRow<Jobs>("app", "jobs", input.jobId, [
+        Query.select(["status"]),
+      ]);
       const permissions = buildJobTranslationPermissions(
         input.audience,
-        input.status
+        latestJob.status
       );
       await persistDeferredJobTranslation(
         db,
@@ -726,6 +749,16 @@ export async function createJob(
   if (!validated.success) {
     return { error: formatVacancyValidationError(validated.error) };
   }
+  const publication = resolveJobPublication({
+    currentStatus: null,
+    publicationMode: validated.data.publication_mode,
+    requestedStatus: validated.data.status,
+    scheduledPublishAt: validated.data.scheduled_publish_at,
+  });
+  if (publication.error !== undefined) {
+    return { error: publication.error };
+  }
+  const vacancyData = { ...validated.data, status: publication.status };
 
   const startedAt = Date.now();
   let stage = "auth";
@@ -746,17 +779,18 @@ export async function createJob(
     });
     const jobId = ID.unique();
     const audience = validated.data.audience ?? "public";
-    const jobPerms = buildJobRowPermissions(audience, validated.data.status);
+    const jobPerms = buildJobRowPermissions(audience, publication.status);
     const translationPerms = buildJobTranslationPermissions(
       audience,
-      validated.data.status
+      publication.status
     );
     const payload = await buildJobUpsertPayload(
       sessionDb,
       jobId,
-      validated.data,
+      vacancyData,
       translationPerms
     );
+    payload.scheduled_publish_at = publication.scheduledPublishAt;
     stage = "write";
     const job = await adminDb.upsertRow(
       "app",
@@ -777,12 +811,13 @@ export async function createJob(
       ),
       enabled: translationOptions?.enabled ?? false,
       jobId: job.$id,
+      scheduledPublishAt: publication.scheduledPublishAt,
       source: getJobTranslationSnapshot(
         validated.data,
         translationOptions?.sourceLocale ?? "en"
       ),
       sourceLocale: translationOptions?.sourceLocale ?? "en",
-      status: validated.data.status,
+      status: publication.status,
     });
 
     // Audit writes swallow their own errors; run them after the response so
@@ -792,7 +827,8 @@ export async function createJob(
         payload: {
           campus_id: validated.data.campus_id,
           department_id: validated.data.department_id ?? null,
-          status: validated.data.status,
+          scheduled_publish_at: publication.scheduledPublishAt,
+          status: publication.status,
         },
         resourceId: job.$id,
         resourceType: "job",
@@ -803,6 +839,7 @@ export async function createJob(
     revalidatePath("/");
     return {
       data: job.$id,
+      scheduledPublishAt: publication.scheduledPublishAt,
       ...(translationQueued ? { translationQueued: true as const } : {}),
     };
   } catch (error) {
@@ -850,18 +887,28 @@ export async function updateJob(
       campus_id: validated.data.campus_id,
       department_id: validated.data.department_id ?? null,
     });
+    const publication = resolveJobPublication({
+      currentStatus: vacancy.status,
+      publicationMode: validated.data.publication_mode,
+      requestedStatus: validated.data.status,
+      scheduledPublishAt: validated.data.scheduled_publish_at,
+    });
+    if (publication.error !== undefined) {
+      return { error: publication.error };
+    }
     const audience =
       validated.data.audience ?? vacancy.metadata.audience ?? "public";
-    const jobPerms = buildJobRowPermissions(audience, validated.data.status);
+    const jobPerms = buildJobRowPermissions(audience, publication.status);
     const translationPerms = buildJobTranslationPermissions(
       audience,
-      validated.data.status
+      publication.status
     );
     // Application questions and interview rounds are edited in the
     // applications workspace. Callers that don't send them (the job studio)
     // must not wipe them with the schema defaults.
     const data: RecruitmentVacancyWriteInput = {
       ...validated.data,
+      status: publication.status,
       custom_questions:
         "custom_questions" in values
           ? validated.data.custom_questions
@@ -878,6 +925,7 @@ export async function updateJob(
       translationPerms,
       vacancy.metadata
     );
+    payload.scheduled_publish_at = publication.scheduledPublishAt;
     stage = "write";
     await adminDb.upsertRow("app", "jobs", id, payload, jobPerms);
     stage = "after-write";
@@ -892,12 +940,13 @@ export async function updateJob(
       ),
       enabled: translationOptions?.enabled ?? false,
       jobId: id,
+      scheduledPublishAt: publication.scheduledPublishAt,
       source: getJobTranslationSnapshot(
         validated.data,
         translationOptions?.sourceLocale ?? "en"
       ),
       sourceLocale: translationOptions?.sourceLocale ?? "en",
-      status: validated.data.status,
+      status: publication.status,
     });
 
     after(() =>
@@ -905,7 +954,8 @@ export async function updateJob(
         payload: {
           campus_id: validated.data.campus_id,
           department_id: validated.data.department_id ?? null,
-          status: validated.data.status,
+          scheduled_publish_at: publication.scheduledPublishAt,
+          status: publication.status,
         },
         resourceId: id,
         resourceType: "job",
@@ -916,6 +966,7 @@ export async function updateJob(
     revalidatePath(`/jobs/${id}`);
     return {
       data: id,
+      scheduledPublishAt: publication.scheduledPublishAt,
       ...(translationQueued ? { translationQueued: true as const } : {}),
     };
   } catch (error) {

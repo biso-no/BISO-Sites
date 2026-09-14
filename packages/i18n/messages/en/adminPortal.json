@@ -79,7 +79,8 @@
       "closed": "Closed",
       "cancelled": "Cancelled",
       "pending": "Pending",
-      "pending_approval": "Pending Approval"
+      "pending_approval": "Pending Approval",
+      "scheduled": "Scheduled"
     },
     "actions": "Actions",
     "new": "New",

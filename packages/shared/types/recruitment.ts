@@ -469,6 +469,12 @@ export interface RecruitmentVacancy {
   department_id: string | null;
   interview_template: RecruitmentInterviewTemplate | null;
   metadata: RecruitmentVacancyMetadata;
+  /**
+   * When set on a draft, the scheduled-publish dispatcher publishes the
+   * vacancy at this time. `metadata.scheduled_publish_at` is only the
+   * editor's saved preference; this column is what is actually armed.
+   */
+  scheduled_publish_at: string | null;
   screening_rubric: RecruitmentScreeningRubric | null;
   slug: string;
   status: JobsStatus;

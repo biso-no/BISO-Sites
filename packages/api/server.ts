@@ -106,12 +106,71 @@ const SESSION_COOKIE_FALLBACK_NAME =
   process.env.APPWRITE_SESSION_COOKIE_FALLBACK;
 
 const DEFAULT_APPWRITE_REQUEST_TIMEOUT_MS = 8000;
+const V1_PREFIX_REGEX = /^\/v1\//;
 const APPWRITE_TIMEOUT_ERROR_TYPE = "appwrite_timeout";
 
 const APPWRITE_REQUEST_TIMEOUT_MS = readPositiveInteger(
   process.env.APPWRITE_REQUEST_TIMEOUT_MS,
   DEFAULT_APPWRITE_REQUEST_TIMEOUT_MS
 );
+
+const DEFAULT_APPWRITE_SLOW_REQUEST_MS = 2000;
+
+/** Calls slower than this are logged, so stalls can be traced to an endpoint. */
+const APPWRITE_SLOW_REQUEST_MS = readPositiveInteger(
+  process.env.APPWRITE_SLOW_REQUEST_MS,
+  DEFAULT_APPWRITE_SLOW_REQUEST_MS
+);
+
+type AppwriteClientKind = "admin" | "public" | "session";
+
+/**
+ * `METHOD /path` for logs and error messages. The query string is dropped —
+ * it carries row filters and can be long — and the `/v1` prefix is implied.
+ */
+function describeAppwriteRequest(method: string, url: URL | string): string {
+  try {
+    const { pathname } = typeof url === "string" ? new URL(url) : url;
+    return `${method.toUpperCase()} ${pathname.replace(V1_PREFIX_REGEX, "/")}`;
+  } catch {
+    return method.toUpperCase();
+  }
+}
+
+function createAppwriteTimeoutError(
+  kind: AppwriteClientKind,
+  request: string
+): AppwriteException {
+  return new AppwriteException(
+    `Appwrite request timed out after ${APPWRITE_REQUEST_TIMEOUT_MS}ms (${kind} ${request})`,
+    504,
+    APPWRITE_TIMEOUT_ERROR_TYPE
+  );
+}
+
+function logAppwriteTiming(
+  kind: AppwriteClientKind,
+  request: string,
+  durationMs: number,
+  outcome: "ok" | "error" | "timeout"
+) {
+  if (outcome === "timeout") {
+    console.error("[appwrite] request timed out", {
+      client: kind,
+      durationMs,
+      request,
+    });
+    return;
+  }
+  if (durationMs >= APPWRITE_SLOW_REQUEST_MS) {
+    console.warn("[appwrite] slow request", {
+      client: kind,
+      durationMs,
+      outcome,
+      request,
+    });
+  }
+}
 
 /**
  * The SDK types `prepareRequest` against undici's `RequestInit`, which is not
@@ -190,7 +249,10 @@ function isAbortError(error: unknown): boolean {
   );
 }
 
-function configureServerClient(client: Client): Client {
+function configureServerClient(
+  client: Client,
+  kind: AppwriteClientKind
+): Client {
   const prepareRequest = client.prepareRequest.bind(client);
   const call = client.call.bind(client);
   const redirect = client.redirect.bind(client);
@@ -211,17 +273,19 @@ function configureServerClient(client: Client): Client {
   };
 
   client.call = async (...args: Parameters<Client["call"]>) => {
+    const request = describeAppwriteRequest(args[0], args[1]);
+    const startedAt = Date.now();
     try {
-      return await call(...args);
+      const result = await call(...args);
+      logAppwriteTiming(kind, request, Date.now() - startedAt, "ok");
+      return result;
     } catch (error) {
       if (isAbortError(error)) {
-        throw new AppwriteException(
-          `Appwrite request timed out after ${APPWRITE_REQUEST_TIMEOUT_MS}ms`,
-          504,
-          APPWRITE_TIMEOUT_ERROR_TYPE
-        );
+        logAppwriteTiming(kind, request, Date.now() - startedAt, "timeout");
+        throw createAppwriteTimeoutError(kind, request);
       }
 
+      logAppwriteTiming(kind, request, Date.now() - startedAt, "error");
       throw error;
     }
   };
@@ -231,17 +295,19 @@ function configureServerClient(client: Client): Client {
   // abort surfaces as a raw TimeoutError and blows up the sign-in server action
   // instead of becoming a handled AppwriteException.
   client.redirect = async (...args: Parameters<Client["redirect"]>) => {
+    const request = describeAppwriteRequest(args[0], args[1]);
+    const startedAt = Date.now();
     try {
-      return await redirect(...args);
+      const result = await redirect(...args);
+      logAppwriteTiming(kind, request, Date.now() - startedAt, "ok");
+      return result;
     } catch (error) {
       if (isAbortError(error)) {
-        throw new AppwriteException(
-          `Appwrite request timed out after ${APPWRITE_REQUEST_TIMEOUT_MS}ms`,
-          504,
-          APPWRITE_TIMEOUT_ERROR_TYPE
-        );
+        logAppwriteTiming(kind, request, Date.now() - startedAt, "timeout");
+        throw createAppwriteTimeoutError(kind, request);
       }
 
+      logAppwriteTiming(kind, request, Date.now() - startedAt, "error");
       throw error;
     }
   };
@@ -273,7 +339,8 @@ export async function createSessionClient(jwt?: string) {
   const client = configureServerClient(
     new Client()
       .setEndpoint(NEXT_PUBLIC_APPWRITE_ENDPOINT)
-      .setProject(APPWRITE_PROJECT)
+      .setProject(APPWRITE_PROJECT),
+    "session"
   );
 
   if (jwt) {
@@ -321,7 +388,8 @@ export async function createPublicClient() {
   const client = configureServerClient(
     new Client()
       .setEndpoint(NEXT_PUBLIC_APPWRITE_ENDPOINT)
-      .setProject(APPWRITE_PROJECT)
+      .setProject(APPWRITE_PROJECT),
+    "public"
   );
 
   return {
@@ -346,7 +414,8 @@ export async function createAdminClient() {
     new Client()
       .setEndpoint(NEXT_PUBLIC_APPWRITE_ENDPOINT)
       .setProject(APPWRITE_PROJECT)
-      .setKey(APPWRITE_API_KEY)
+      .setKey(APPWRITE_API_KEY),
+    "admin"
   );
 
   return {

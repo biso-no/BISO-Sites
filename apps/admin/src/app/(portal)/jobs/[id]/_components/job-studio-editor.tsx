@@ -5,7 +5,10 @@ import {
   type Departments,
   JobsStatus,
 } from "@repo/api/types/appwrite";
-import type { RecruitmentVacancy } from "@repo/shared/types/recruitment";
+import type {
+  RecruitmentVacancy,
+  RecruitmentVacancyWriteInput,
+} from "@repo/shared/types/recruitment";
 import {
   ArrowLeft,
   ArrowRight,
@@ -144,8 +147,39 @@ function toDateInput(value: string | null | undefined) {
   return value ? value.slice(0, 10) : "";
 }
 
-function toDateTimeInput(value: string | null | undefined) {
-  return value ? value.slice(0, 16) : "";
+function padTwo(value: number) {
+  return String(value).padStart(2, "0");
+}
+
+/** ISO instant → `datetime-local` value in the browser's own timezone. */
+function toLocalDateTimeInput(value: string | null | undefined) {
+  if (!value) {
+    return "";
+  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+  return `${date.getFullYear()}-${padTwo(date.getMonth() + 1)}-${padTwo(date.getDate())}T${padTwo(date.getHours())}:${padTwo(date.getMinutes())}`;
+}
+
+/** `datetime-local` value (browser timezone) → ISO instant for the server. */
+function localDateTimeToIso(value: string) {
+  if (!value) {
+    return null;
+  }
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date.toISOString();
+}
+
+const scheduleFormatter = new Intl.DateTimeFormat("en-GB", {
+  dateStyle: "medium",
+  timeStyle: "short",
+  timeZone: "Europe/Oslo",
+});
+
+function formatScheduledTime(value: string) {
+  return `${scheduleFormatter.format(new Date(value))} (Oslo time)`;
 }
 
 function formatDate(value: string | null | undefined) {
@@ -200,7 +234,12 @@ function buildDefaultValues(
     paid: Boolean(metadata?.paid),
     publication_mode: fallback(metadata?.publication_mode, "now"),
     push_to_inboxes: Boolean(metadata?.push_to_inboxes),
-    scheduled_publish_at: fallback(metadata?.scheduled_publish_at, null),
+    // Older saves stored a bare "YYYY-MM-DDTHH:mm" (no timezone). Normalise
+    // in the browser's timezone so re-scheduling doesn't shift by the UTC
+    // offset on the server.
+    scheduled_publish_at: metadata?.scheduled_publish_at
+      ? localDateTimeToIso(metadata.scheduled_publish_at)
+      : null,
     short_description_en: fallback(
       en?.short_description ?? metadata?.short_description,
       null
@@ -670,6 +709,12 @@ export function JobStudioEditor({
   const [isUploading, setIsUploading] = useState(false);
   const [formIssues, setFormIssues] = useState<JobFormIssue[]>([]);
   const isBusy = isSaving || isPublishing;
+  const isLive = job?.status === JobsStatus.PUBLISHED;
+  const willSchedule = form.publication_mode === "scheduled" && !isLive;
+  const publishLabel = willSchedule ? "Schedule" : labels.publish;
+  const publishingLabel = willSchedule ? "Scheduling..." : "Publishing...";
+  const armedSchedule =
+    job?.status === JobsStatus.DRAFT ? job.scheduled_publish_at : null;
   const [autoTranslate, setAutoTranslate] = useState(() =>
     Boolean(job?.metadata.auto_translate)
   );
@@ -918,6 +963,42 @@ export function JobStudioEditor({
     });
   }
 
+  /** Flags a scheduled publish with no time chosen. */
+  function isMissingScheduleTime() {
+    if (!willSchedule || form.scheduled_publish_at) {
+      return false;
+    }
+    showValidationIssues([
+      {
+        field: "scheduled_publish_at",
+        label: "Scheduled publish time",
+        locale: null,
+        message: "Choose a publish time, or switch to Publish now",
+        step: 4,
+      },
+    ]);
+    return true;
+  }
+
+  function getSuccessMessage(
+    status: JobsStatus,
+    scheduledPublishAt: string | null | undefined
+  ) {
+    if (scheduledPublishAt) {
+      return `Scheduled to publish ${formatScheduledTime(scheduledPublishAt)}.`;
+    }
+    return status === JobsStatus.PUBLISHED
+      ? labels.publishSuccess
+      : labels.saveSuccess;
+  }
+
+  function persistVacancy(vacancy: RecruitmentVacancyWriteInput) {
+    const translation = { enabled: autoTranslate, sourceLocale: locale };
+    return isNew || !job
+      ? createJob(vacancy, translation)
+      : updateJob(job.$id, vacancy, translation);
+  }
+
   async function submit(status: JobsStatus) {
     if (isSaving || isPublishing) {
       return;
@@ -927,6 +1008,9 @@ export function JobStudioEditor({
     const validated = jobSchema.safeParse(payload);
     if (!validated.success) {
       showValidationIssues(describeJobFormIssues(validated.error.issues));
+      return;
+    }
+    if (status === JobsStatus.PUBLISHED && isMissingScheduleTime()) {
       return;
     }
     setFormIssues([]);
@@ -946,11 +1030,7 @@ export function JobStudioEditor({
     }
 
     try {
-      const translation = { enabled: autoTranslate, sourceLocale: locale };
-      const result =
-        isNew || !job
-          ? await createJob(vacancy, translation)
-          : await updateJob(job.$id, vacancy, translation);
+      const result = await persistVacancy(vacancy);
 
       if (result.error) {
         toast.error(result.error, {
@@ -961,10 +1041,10 @@ export function JobStudioEditor({
       }
 
       setDirty(false);
-      const successMessage =
-        status === JobsStatus.PUBLISHED
-          ? labels.publishSuccess
-          : labels.saveSuccess;
+      const successMessage = getSuccessMessage(
+        status,
+        "scheduledPublishAt" in result ? result.scheduledPublishAt : null
+      );
       toast.success(
         "translationQueued" in result && result.translationQueued
           ? `${successMessage} Translation queued.`
@@ -1043,7 +1123,7 @@ export function JobStudioEditor({
               type="button"
             >
               <Send size={15} />
-              {isPublishing ? "Publishing..." : labels.publish}
+              {isPublishing ? publishingLabel : publishLabel}
             </button>
           </div>
         </header>
@@ -1068,6 +1148,19 @@ export function JobStudioEditor({
                   Step {step + 1} of {STEPS.length} · {STEPS[step]}
                 </span>
               </div>
+
+              {armedSchedule && (
+                <div className="mb-6 flex items-start gap-3 rounded-xl border border-[#3DA9E0]/40 bg-[#3DA9E0]/10 p-4 text-sm">
+                  <CalendarDays
+                    className="mt-0.5 shrink-0 text-[#3DA9E0]"
+                    size={18}
+                  />
+                  <p className="text-[#001731]">
+                    Scheduled to publish {formatScheduledTime(armedSchedule)}.
+                    Saving as a draft cancels the schedule.
+                  </p>
+                </div>
+              )}
 
               {formIssues.length > 0 && (
                 <div
@@ -1902,8 +1995,9 @@ export function JobStudioEditor({
                           Publication timing
                         </p>
                         <p className="mt-1 text-slate-500 text-sm">
-                          Publish immediately from the final step, or store a
-                          scheduled time for the rollout queue.
+                          {isLive
+                            ? "This vacancy is already live. Scheduling only applies to vacancies that are not yet published."
+                            : "Publish now makes the vacancy visible immediately. Schedule keeps it hidden and publishes it automatically at the chosen time (checked every 5 minutes). Saving as a draft cancels a schedule."}
                         </p>
                       </div>
                     </div>
@@ -1951,11 +2045,13 @@ export function JobStudioEditor({
                             onChange={(event) =>
                               setValue(
                                 "scheduled_publish_at",
-                                event.target.value || null
+                                localDateTimeToIso(event.target.value)
                               )
                             }
                             type="datetime-local"
-                            value={toDateTimeInput(form.scheduled_publish_at)}
+                            value={toLocalDateTimeInput(
+                              form.scheduled_publish_at
+                            )}
                           />
                         </Field>
                       </div>
@@ -2149,7 +2245,7 @@ export function JobStudioEditor({
                 type="button"
               >
                 <Send size={15} />
-                {isPublishing ? "Publishing..." : labels.publish}
+                {isPublishing ? publishingLabel : publishLabel}
               </button>
             )}
           </div>

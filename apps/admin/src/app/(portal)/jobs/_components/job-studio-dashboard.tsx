@@ -124,6 +124,9 @@ function crestFor(job: RecruitmentVacancy, locale: "en" | "no") {
 }
 
 function statusColor(status: string) {
+  if (status === "scheduled") {
+    return BRAND.accent;
+  }
   if (status === "published") {
     return BRAND.green;
   }
@@ -133,7 +136,7 @@ function statusColor(status: string) {
   return BRAND.gold;
 }
 
-function StatusPill({ status }: { status: JobsStatus }) {
+function StatusPill({ status }: { status: JobsStatus | "scheduled" }) {
   const t = useTranslations("adminPortal.common.status");
   const color = statusColor(status);
   return (
@@ -393,7 +396,13 @@ function JobRow({
           {job.campus?.name ?? common("campus")}
         </p>
       </div>
-      <StatusPill status={job.status} />
+      <StatusPill
+        status={
+          job.status === "draft" && job.scheduled_publish_at
+            ? "scheduled"
+            : job.status
+        }
+      />
       <div className="text-xs" style={{ color: BRAND.ink4 }}>
         <p className="font-mono" style={{ color: BRAND.ink3 }}>
           {formatDate(job.application_deadline, locale, {

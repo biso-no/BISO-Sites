@@ -125,7 +125,7 @@ describe("job auto-translation scheduling", () => {
       sourceLocale: "en",
     });
 
-    expect(result).toEqual({ data: "job-1" });
+    expect(result).toEqual({ data: "job-1", scheduledPublishAt: null });
     expect(deferredTask).toBeUndefined();
   });
 
@@ -140,7 +140,7 @@ describe("job auto-translation scheduling", () => {
       { enabled: true, sourceLocale: "en" }
     );
 
-    expect(result).toEqual({ data: "job-1" });
+    expect(result).toEqual({ data: "job-1", scheduledPublishAt: null });
     expect(deferredTask).toBeUndefined();
   });
 
@@ -154,7 +154,7 @@ describe("job auto-translation scheduling", () => {
       { enabled: true, sourceLocale: "en" }
     );
 
-    expect(result).toEqual({ data: "job-1" });
+    expect(result).toEqual({ data: "job-1", scheduledPublishAt: null });
     expect(deferredTask).toBeUndefined();
   });
 
@@ -184,7 +184,11 @@ describe("job auto-translation scheduling", () => {
         sourceLocale: "en",
       }
     );
-    expect(result).toEqual({ data: "job-1", translationQueued: true });
+    expect(result).toEqual({
+      data: "job-1",
+      scheduledPublishAt: null,
+      translationQueued: true,
+    });
     expect(deferredTask).toBeDefined();
     await deferredTask?.();
 
@@ -384,7 +388,7 @@ describe("job writes", () => {
       { enabled: false, sourceLocale: "en" }
     );
 
-    expect(result).toEqual({ data: "job-1" });
+    expect(result).toEqual({ data: "job-1", scheduledPublishAt: null });
     const payload = adminDb.upsertRow.mock.calls.at(-1)?.[3] as Record<
       string,
       unknown
@@ -452,6 +456,66 @@ describe("job writes", () => {
 
     expect(result.error).toMatch(NOTHING_SAVED_WITH_REF);
     expect(adminDb.upsertRow).not.toHaveBeenCalled();
+  });
+
+  test("scheduling a new vacancy stores a draft armed for the publish time", async () => {
+    const result = await createJob(
+      {
+        ...jobValues,
+        publication_mode: "scheduled",
+        scheduled_publish_at: "2099-01-01T09:00:00.000Z",
+        status: JobsStatus.PUBLISHED,
+      },
+      { enabled: false, sourceLocale: "en" }
+    );
+
+    expect(result).toEqual({
+      data: "job-1",
+      scheduledPublishAt: "2099-01-01T09:00:00.000Z",
+    });
+    const payload = adminDb.upsertRow.mock.calls.at(-1)?.[3] as Record<
+      string,
+      unknown
+    >;
+    expect(payload.status).toBe(JobsStatus.DRAFT);
+    expect(payload.scheduled_publish_at).toBe("2099-01-01T09:00:00.000Z");
+  });
+
+  test("scheduled publish without a time is rejected before any write", async () => {
+    const result = await createJob(
+      {
+        ...jobValues,
+        publication_mode: "scheduled",
+        scheduled_publish_at: null,
+        status: JobsStatus.PUBLISHED,
+      },
+      { enabled: false, sourceLocale: "en" }
+    );
+
+    expect(result.error).toContain("Choose a publish time");
+    expect(adminDb.upsertRow).not.toHaveBeenCalled();
+  });
+
+  test("saving a draft disarms an existing schedule", async () => {
+    stubStoredVacancy();
+
+    await updateJob(
+      "job-1",
+      {
+        ...editorValues(),
+        publication_mode: "scheduled",
+        scheduled_publish_at: "2099-01-01T09:00:00.000Z",
+        status: JobsStatus.DRAFT,
+      },
+      { enabled: false, sourceLocale: "en" }
+    );
+
+    const payload = adminDb.upsertRow.mock.calls.at(-1)?.[3] as Record<
+      string,
+      unknown
+    >;
+    expect(payload.status).toBe(JobsStatus.DRAFT);
+    expect(payload.scheduled_publish_at).toBeNull();
   });
 
   test("records the audit event after the response", async () => {

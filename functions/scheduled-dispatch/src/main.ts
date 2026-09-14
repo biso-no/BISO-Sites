@@ -33,6 +33,7 @@
  *   RESERVATIONS_CLEANUP_URL    e.g. https://biso.no/api/cron/cleanup-reservations
  *   ORDERS_RECONCILE_URL        e.g. https://api.biso.no/api/cron/reconcile-orders
  *   TURNOVER_RETENTION_STOP_URL e.g. https://admin.biso.no/api/it/turnover/stop-retention
+ *   JOBS_PUBLISH_SCHEDULED_URL  e.g. https://admin.biso.no/api/recruitment/publish-scheduled
  *   EXPENSES_POST_PENDING_URL   e.g. https://api.biso.no/api/expenses/post-pending
  *                               (defaults to a 300s timeout — the route's cap)
  *   CRON_TIMEOUT_MS             default per-request timeout (default 30000)
@@ -61,6 +62,7 @@ const TARGET_ENV_VARS = [
   "ORDERS_RECONCILE_URL",
   "TURNOVER_RETENTION_STOP_URL",
   "EXPENSES_POST_PENDING_URL",
+  "JOBS_PUBLISH_SCHEDULED_URL",
 ] as const;
 
 type TargetName = (typeof TARGET_ENV_VARS)[number];

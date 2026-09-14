@@ -4575,6 +4575,14 @@
                     "twoWayKey": "jobs",
                     "onDelete": "setNull",
                     "side": "parent"
+                },
+                {
+                    "key": "scheduled_publish_at",
+                    "type": "datetime",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "format": ""
                 }
             ],
             "indexes": [
@@ -4606,6 +4614,19 @@
                     ],
                     "orders": [
                         "ASC"
+                    ]
+                },
+                {
+                    "key": "idx_status_scheduled_publish",
+                    "type": "key",
+                    "status": "available",
+                    "columns": [
+                        "status",
+                        "scheduled_publish_at"
+                    ],
+                    "orders": [
+                        "asc",
+                        "asc"
                     ]
                 }
             ]

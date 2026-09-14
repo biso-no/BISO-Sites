@@ -17,6 +17,7 @@ It currently drives:
 | `RESERVATIONS_CLEANUP_URL` (optional) | deletes expired webshop cart reservations so held stock is released | `apps/web` → `POST /api/cron/cleanup-reservations` |
 | `ORDERS_RECONCILE_URL` (optional) | re-verifies stale pending/authorized orders against their provider, retries missed Finago ledger postings and membership fulfilment, and resolves pending refunds | `apps/api` → `POST /api/cron/reconcile-orders` |
 | `TURNOVER_RETENTION_STOP_URL` (optional) | stops Azure Automation retention runs whose 7-day hold has elapsed after an M365 role-account turnover | `apps/admin` → `POST /api/it/turnover/stop-retention` |
+| `JOBS_PUBLISH_SCHEDULED_URL` (optional) | publishes scheduled vacancies whose publish time has passed | `apps/admin` → `POST /api/recruitment/publish-scheduled` |
 | `EXPENSES_POST_PENDING_URL` (optional) | posts approved reimbursements to the 24SevenOffice ledger (inert unless `expenses_ledger_posting` is on) | `apps/api` → `POST /api/expenses/post-pending` |
 
 Only configured URLs are pinged; leave the optional ones unset to skip them. The
@@ -32,7 +33,8 @@ Set these on the function in the Appwrite console (**Settings → Variables**) �
   header, and also required on HTTP/domain triggers (see Security below).
 - `ANNOUNCEMENTS_DISPATCH_URL` — full URL to the admin dispatch route.
 - `TICKSTER_SYNC_URL`, `DEPARTURES_SYNC_URL`, `RESERVATIONS_CLEANUP_URL`,
-  `ORDERS_RECONCILE_URL`, `TURNOVER_RETENTION_STOP_URL` — optional.
+  `ORDERS_RECONCILE_URL`, `TURNOVER_RETENTION_STOP_URL`,
+  `JOBS_PUBLISH_SCHEDULED_URL` — optional.
 - `CRON_TIMEOUT_MS` — optional **per-request** timeout (default `30000`). This is
   not the execution limit — that's the function's `timeout` (see below).
 

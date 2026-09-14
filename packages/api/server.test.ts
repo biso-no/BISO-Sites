@@ -116,6 +116,7 @@ describe("server Appwrite clients", () => {
         client.call("GET", new URL(`${slowServer.endpoint}/ping`))
       ).rejects.toMatchObject({
         code: 504,
+        message: "Appwrite request timed out after 20ms (admin GET /ping)",
         type: "appwrite_timeout",
       });
     } finally {

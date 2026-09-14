@@ -918,6 +918,7 @@ export type Jobs = Models.Row & {
     auto_screen: boolean;
     embedding_id: string | null;
     application_deadline: string | null;
+    scheduled_publish_at: string | null;
     applications: JobApplications[];
     campus: Campus;
 }

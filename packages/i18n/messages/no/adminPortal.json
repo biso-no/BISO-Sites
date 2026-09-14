@@ -79,7 +79,8 @@
       "closed": "Lukket",
       "cancelled": "Avlyst",
       "pending": "Venter",
-      "pending_approval": "Venter på godkjenning"
+      "pending_approval": "Venter på godkjenning",
+      "scheduled": "Planlagt"
     },
     "actions": "Handlinger",
     "new": "Ny",
