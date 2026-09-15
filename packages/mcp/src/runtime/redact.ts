@@ -41,6 +41,14 @@ export const SENSITIVE_COLUMNS: Record<string, readonly string[]> = {
     "webhook_secret",
   ],
   orders: ["payment_session_id", "payment_link"],
+  /**
+   * A member-only benefit's redemption code or link is the thing a membership
+   * buys. `campus_benefits` is readable by any staff principal once published,
+   * and the generic secret-name pattern does not match `redemption_value`, so
+   * without this rule the code would reach model context — contradicting the
+   * promise made by the content registry and `docs/tools.md`.
+   */
+  campus_benefits: ["redemption_value"],
   varsling_settings: ["email"],
 };
 

@@ -175,11 +175,22 @@ async function invokeTool(input: {
   const tier = tool.tier ?? "read";
 
   try {
-    const outcome = await withTimeout(
-      tool.handler(args as never, { ...context, logger }),
-      timeoutMs,
-      tool.name
-    );
+    const handling = tool.handler(args as never, { ...context, logger });
+    // Only reads race a timer. `Promise.race` abandons the loser; it does not
+    // cancel it, and the Appwrite SDK exposes no way to abort a request already
+    // in flight. Racing a mutation would therefore report a timeout to the
+    // caller while the write went on to succeed — leaving them to propose the
+    // same change again, this time genuinely duplicating it.
+    //
+    // Abandoning a *read* costs nothing, so reads keep the guard. A mutation is
+    // awaited to a definitive outcome instead, which is bounded rather than
+    // open-ended: `@repo/api/runtime` gives every Appwrite request its own
+    // `AbortSignal` deadline and raises a 504 when it expires, so the slowest
+    // possible mutation is its request count times that deadline.
+    const outcome =
+      tier === "read"
+        ? await withTimeout(handling, timeoutMs, tool.name)
+        : await handling;
     // A propose-mode call succeeds without writing anything. Recording it as
     // `ok` would put an entry in the activity log that reads like a completed
     // action, and `createAuditor` persists exactly those. Classify it as what
@@ -187,12 +198,17 @@ async function invokeTool(input: {
     await context.auditor.record({
       requestId,
       action: tool.name,
-      outcome: auditOutcome(outcome),
+      outcome: auditOutcome(outcome, tier),
       durationMs: Date.now() - startedAt,
       payload: { tier },
     });
     return toCallToolResult(outcome);
-  } catch (error) {
+  } catch (rawError) {
+    // A mutation that failed on a backend timeout has an unknown outcome: the
+    // request was sent and may have been applied. Saying `timeout` invites a
+    // retry, so it is reported as `external_uncertain`, whose whole meaning is
+    // "attempted, outcome unknown, never retry automatically".
+    const error = uncertainIfMutationTimedOut(rawError, tier);
     logToolFailure(logger, error);
     await context.auditor.record({
       requestId,
@@ -206,6 +222,31 @@ async function invokeTool(input: {
 }
 
 /**
+ * Reclassify a backend timeout on a mutating tool as an uncertain outcome.
+ *
+ * The write was dispatched. Whether it landed is genuinely unknown, and the
+ * only safe next step is to read the current state — never to resend.
+ */
+function uncertainIfMutationTimedOut(
+  error: unknown,
+  tier: MutationTier | "read"
+): unknown {
+  if (tier === "read" || !isDomainError(error) || error.code !== "timeout") {
+    return error;
+  }
+  return new DomainError(
+    "external_uncertain",
+    `${error.message} The write may or may not have been applied.`,
+    {
+      details: error.details,
+      remedy:
+        "Do not retry this proposal. Read the current state first, and only propose again if the change is still needed.",
+      cause: error,
+    }
+  );
+}
+
+/**
  * Map a tool outcome onto an audit outcome.
  *
  * A handler that performed no write reports `effect: "proposed"`; a read tool
@@ -213,12 +254,26 @@ async function invokeTool(input: {
  * persisting as one.
  */
 function auditOutcome(
-  outcome: ToolOutcome<unknown>
-): "ok" | "denied" | "proposed" {
+  outcome: ToolOutcome<unknown>,
+  tier: MutationTier | "read"
+): "ok" | "denied" | "proposed" | "read" {
   if (!outcome.ok) {
     return "denied";
   }
-  return outcome.effect === "proposed" ? "proposed" : "ok";
+  if (outcome.effect === "proposed") {
+    return "proposed";
+  }
+  if (outcome.effect === "executed") {
+    return "ok";
+  }
+  // A successful read. `createAuditor` persists only `ok`, so classifying
+  // reads separately is what keeps `audit_logs` a record of changes rather
+  // than of every question anyone asked.
+  //
+  // The tier is the safety net: a mutating tool that forgets to report its
+  // effect is still audited as a change, because a missing row for a real
+  // mutation is worse than a spurious one for a read.
+  return tier === "read" ? "read" : "ok";
 }
 
 /**

@@ -296,3 +296,41 @@ because it keeps MCP-published rows identical to portal-published rows, which is
 what makes tightening the table grant a schema change rather than a data
 migration. But nothing was broken for readers, and nothing was exposed that was
 not already exposed.
+
+
+---
+
+## 7. Second review round, and what it found
+
+A second automated review of `afca6ec` raised nine further issues. All nine
+reproduced. One of them — reads writing `audit_logs` rows — was a gap in the
+previous round's own fix.
+
+| # | Area | Verified as | Fix |
+|---|---|---|---|
+| 1 | `runtime/redact.ts` | **Confirmed, and it broke a written promise.** `campus_benefits.redemption_value` had no redaction rule and matches no generic secret-name pattern, so a member-only redemption code reached model context — while the registry, `docs/audit.md` and `docs/tools.md` all stated it never would | Explicit `campus_benefits` rule |
+| 2 | `domains/approvals.ts` | **Confirmed.** `assertRecruitmentGate` guards the three content handlers but not `biso_request_approval`, so a non-HR department member could file a persisted `jobs.publish` request. The portal's executor checks the *approver's* publish access, never the requester's role | Gate applied before the row is read |
+| 3 | `runtime/register.ts` | **Confirmed.** `Promise.race` abandons but cannot cancel, so a mutation could succeed after the caller was told it timed out | Only reads race a timer; a mutation's backend timeout reports `external_uncertain` |
+| 4 | `services/approvals.ts` | **Confirmed, with a different fix than proposed.** The portal writes the status change with the *approver's* session client, and `campus_benefits`/`news` grant no table-level update at all | `APPROVAL_EXECUTION_NOTES`, surfaced as a warning at filing time |
+| 5 | `runtime/register.ts` | **Confirmed — a gap in the previous round's fix.** Only the `proposed` case was classified; a read still mapped to `ok`, which the auditor persists | `effect: "read"` mapped separately, with tier as a safety net |
+| 6 | `services/discovery.ts` | **Confirmed.** A vacancy stays `published` past its deadline, so public discovery offered jobs the site no longer lists | The `isRecruitmentVacancyOpen` predicate, expressed as a query so `total` stays truthful |
+| 7 | `domains/workflows.ts` | **Confirmed.** Newest-first plus a limit discards exactly the drafts a staleness check looks for | Oldest-first probe, plus explicit truncation reporting |
+| 8 | `services/recruitment.ts` | **Confirmed.** A campus-scoped HR caller's `campusId` was ignored, so a Bergen request returned Oslo vacancies presented as filtered | The requested campus narrows the managed set, or is refused |
+| 9 | `services/content.ts` | **Confirmed — a dead ternary.** `preferred.length > 0 ? result.rows : result.rows`, with `preferred` computed and discarded | Use `preferred`, keeping the no-match fallback |
+
+### A defect in the test harness itself
+
+Writing the vacancy tests exposed something worse than any single finding: the
+in-memory backend **failed open on filters it could not express**.
+
+- `Query.or` nests plain objects, not JSON strings. `applyOr` parsed only
+  strings, so any object-nested `or` matched every row.
+- `matches()` returned `true` for any query with no `values`, and
+  `Query.isNull` has none — so an `or` containing one matched everything.
+
+Both meant a filter could silently vanish from a test while the test still
+passed. Any assertion that relied on an `or` — including the commerce
+scope tests from the previous round — was weaker than it looked. The fake now
+handles both nesting shapes, handles value-less operators, and **throws** on a
+nested query it cannot interpret rather than matching. A test harness used to
+assert authorization boundaries must fail closed like the thing it tests.

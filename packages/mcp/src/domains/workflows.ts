@@ -106,10 +106,15 @@ async function collectStaleDrafts(
   const findings: BriefingFinding[] = [];
   for (const domain of ["events", "news"] as const) {
     try {
+      // Oldest-first, deliberately. The interesting rows are the ones that have
+      // sat untouched longest, and a newest-first page of BRIEFING_LIMIT
+      // discards exactly those — so a campus with many drafts would be told
+      // "nothing is stale" precisely when the opposite is true.
       const drafts = await context.services.content.search(context.principal, {
         domain,
         status: "draft",
         campusId,
+        order: "oldest",
         limit: BRIEFING_LIMIT,
         offset: 0,
       });
@@ -118,15 +123,30 @@ async function collectStaleDrafts(
       }
       const cutoff = isoDaysAgo(STALE_DRAFT_DAYS);
       const stale = drafts.rows.filter((row) => row.updatedAt < cutoff);
+      const total = drafts.pagination.total ?? drafts.rows.length;
+      const truncated = total > drafts.rows.length;
+      // With oldest-first, every stale draft is inside the window unless the
+      // window is *entirely* stale — in which case there may be more. Say so
+      // rather than reporting a count that reads as complete.
+      const allShownAreStale = stale.length === drafts.rows.length;
+      const staleCount =
+        truncated && allShownAreStale
+          ? `at least ${stale.length}`
+          : `${stale.length}`;
       findings.push({
         kind: `${domain}_drafts`,
         severity: stale.length > 0 ? "attention" : "info",
         message:
           stale.length > 0
-            ? `${drafts.rows.length} unpublished ${domain} draft(s), ${stale.length} untouched for over ${STALE_DRAFT_DAYS} days.`
-            : `${drafts.rows.length} unpublished ${domain} draft(s).`,
+            ? `${total} unpublished ${domain} draft(s), ${staleCount} untouched for over ${STALE_DRAFT_DAYS} days.`
+            : `${total} unpublished ${domain} draft(s), none stale.`,
         items: toItems(drafts.rows),
       });
+      if (truncated) {
+        warnings.push(
+          `Showing the ${drafts.rows.length} oldest of ${total} ${domain} draft(s); newer ones are not listed.`
+        );
+      }
     } catch (error) {
       noteFailure(warnings, `${domain} drafts`, error);
     }

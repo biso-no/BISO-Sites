@@ -1271,3 +1271,141 @@ describe("clients wiring", () => {
     expect(clients.hasUserCredential).toBe(false);
   });
 });
+
+describe("audit_logs is a record of changes, not of questions", () => {
+  /**
+   * The auditor's stated contract is that mutations — not every call — attempt
+   * an `audit_logs` row, so an MCP change shows up in the same activity feed as
+   * a portal change. It persists exactly the `ok` outcomes, which makes the
+   * result-to-outcome mapping the thing that decides what staff see there.
+   */
+  function auditRows(harness: Harness) {
+    return harness.backend.writes.filter(
+      (write) => write.table === "audit_logs"
+    );
+  }
+
+  test("a successful read writes no audit row", async () => {
+    const harness = await connect({ principal: GLOBAL_ADMIN() });
+    try {
+      const { structured } = await callTool(harness.client, "biso_whoami");
+      expect(structured?.ok).toBe(true);
+      expect(structured?.effect).toBe("read");
+      expect(auditRows(harness)).toHaveLength(0);
+    } finally {
+      await harness.close();
+    }
+  });
+
+  test("several reads still write none", async () => {
+    const harness = await connect({ principal: GLOBAL_ADMIN() });
+    try {
+      await callTool(harness.client, "biso_whoami");
+      await callTool(harness.client, "biso_list_campuses");
+      await callTool(harness.client, "biso_content_search", { domain: "news" });
+      expect(auditRows(harness)).toHaveLength(0);
+    } finally {
+      await harness.close();
+    }
+  });
+
+  test("a proposal writes none", async () => {
+    const harness = await connect({
+      principal: GLOBAL_ADMIN(),
+      config: baseConfig({ writeMode: "propose" }),
+    });
+    try {
+      await callTool(harness.client, "biso_content_create_draft", {
+        domain: "news",
+        slug: "unwritten",
+        campusId: "1",
+        titleNo: "A",
+        titleEn: "A",
+        descriptionNo: "A",
+        descriptionEn: "A",
+      });
+      expect(auditRows(harness)).toHaveLength(0);
+    } finally {
+      await harness.close();
+    }
+  });
+
+  test("an executed mutation does write one", async () => {
+    const harness = await connect({
+      principal: GLOBAL_ADMIN(),
+      config: baseConfig({ writeMode: "operator" }),
+    });
+    try {
+      const args = {
+        domain: "news",
+        slug: "audited",
+        campusId: "1",
+        titleNo: "A",
+        titleEn: "A",
+        descriptionNo: "A",
+        descriptionEn: "A",
+      };
+      const first = await callTool(
+        harness.client,
+        "biso_content_create_draft",
+        args
+      );
+      const proposal = (
+        first.structured?.data as {
+          proposal: { proposalToken: string; expiresAt: string };
+        }
+      ).proposal;
+      await callTool(harness.client, "biso_content_create_draft", {
+        ...args,
+        proposalToken: proposal.proposalToken,
+        proposalExpiresAt: proposal.expiresAt,
+      });
+      expect(auditRows(harness).length).toBeGreaterThan(0);
+    } finally {
+      await harness.close();
+    }
+  });
+});
+
+describe("approval requests", () => {
+  test("a non-HR department member cannot file a job approval", async () => {
+    // `jobs` grants `read("any")`, so a department member can read a vacancy in
+    // their own department. Without a gate here they could file a persisted
+    // `jobs.publish` request, and the portal's executor checks the *approver's*
+    // publish access, never the requester's role — so Operations Unit could
+    // grant it and a vacancy would enter recruitment with no HR involvement.
+    const harness = await connect({
+      principal: DEPARTMENT_MEMBER(),
+      config: baseConfig({ writeMode: "operator" }),
+    });
+    try {
+      const { response, structured } = await callTool(
+        harness.client,
+        "biso_request_approval",
+        { domain: "jobs", id: "job-1" }
+      );
+      expect(response.isError).toBe(true);
+      expect(JSON.stringify(structured)).toContain("HR");
+      expect(domainWrites(harness)).toHaveLength(0);
+    } finally {
+      await harness.close();
+    }
+  });
+
+  test("the refusal happens before the vacancy is read", async () => {
+    const harness = await connect({
+      principal: DEPARTMENT_MEMBER(),
+      config: baseConfig({ writeMode: "operator" }),
+    });
+    try {
+      await callTool(harness.client, "biso_request_approval", {
+        domain: "jobs",
+        id: "job-1",
+      });
+      // Nothing elevated, nothing written: the gate is the first thing to run.
+      expect(harness.backend.elevations).toEqual([]);
+    } finally {
+      await harness.close();
+    }
+  });
+});

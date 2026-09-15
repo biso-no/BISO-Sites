@@ -194,6 +194,66 @@ const VACANCY_SELECT = [
   "translations.title",
 ];
 
+/**
+ * Which campuses a vacancy listing may cover.
+ *
+ * The rule that matters: a requested campus **narrows** what the principal may
+ * already see. It never replaces the managed set, and it is never silently
+ * dropped — answering an Oslo HR caller's Bergen request with Oslo vacancies,
+ * presented as a filtered result, is worse than refusing outright.
+ *
+ * `empty` is a legitimate answer, not an error: an HR membership that resolves
+ * to no campus sees nothing, and says why.
+ */
+function decideVacancyCampusScope(
+  scope: { canManageAnyCampus: boolean; managedCampusNames: string[] },
+  lookups: { campusIdsByName: Map<string, string> },
+  requestedCampusId: string | undefined
+):
+  | { kind: "empty"; scopeNote: string }
+  | { kind: "scoped"; campusIds: string[] | null; scopeNote: string } {
+  if (scope.canManageAnyCampus) {
+    return requestedCampusId
+      ? {
+          kind: "scoped",
+          campusIds: [requestedCampusId],
+          scopeNote: `Filtered to ${campusLabel(requestedCampusId)}.`,
+        }
+      : {
+          kind: "scoped",
+          campusIds: null,
+          scopeNote: "All campuses (HR national / global admin).",
+        };
+  }
+
+  const managedIds = scope.managedCampusNames
+    .map((name) => lookups.campusIdsByName.get(name))
+    .filter((id): id is string => Boolean(id));
+  if (managedIds.length === 0) {
+    return {
+      kind: "empty",
+      scopeNote:
+        "Your HR membership did not resolve to any campus, so no vacancies are visible.",
+    };
+  }
+
+  if (requestedCampusId && !managedIds.includes(requestedCampusId)) {
+    throw forbidden(
+      `You are HR for ${scope.managedCampusNames.join(", ")}, not ${campusLabel(requestedCampusId)}.`,
+      { requestedCampusId, managedCampusIds: managedIds },
+      "Ask for a campus you manage, or omit campusId to see all of them."
+    );
+  }
+
+  return {
+    kind: "scoped",
+    campusIds: requestedCampusId ? [requestedCampusId] : managedIds,
+    scopeNote: requestedCampusId
+      ? `HR, narrowed to ${campusLabel(requestedCampusId)}.`
+      : `HR for ${scope.managedCampusNames.join(", ")}.`,
+  };
+}
+
 export function createRecruitmentService(
   clients: BackendClients,
   lookupService: LookupService
@@ -222,28 +282,14 @@ export function createRecruitmentService(
         Query.offset(input.offset),
       ];
 
-      let scopeNote: string;
-      if (scope.canManageAnyCampus) {
-        scopeNote = "All campuses (HR national / global admin).";
-        if (input.campusId) {
-          queries.push(Query.equal("campus.$id", [input.campusId]));
-          scopeNote = `Filtered to ${campusLabel(input.campusId)}.`;
-        }
-      } else {
-        const managedIds = scope.managedCampusNames
-          .map((name) => lookups.campusIdsByName.get(name))
-          .filter((id): id is string => Boolean(id));
-        if (managedIds.length === 0) {
-          return {
-            rows: [],
-            total: 0,
-            scopeNote:
-              "Your HR membership did not resolve to any campus, so no vacancies are visible.",
-          };
-        }
-        queries.push(Query.equal("campus.$id", managedIds));
-        scopeNote = `HR for ${scope.managedCampusNames.join(", ")}.`;
+      const decided = decideVacancyCampusScope(scope, lookups, input.campusId);
+      if (decided.kind === "empty") {
+        return { rows: [], total: 0, scopeNote: decided.scopeNote };
       }
+      if (decided.campusIds) {
+        queries.push(Query.equal("campus.$id", decided.campusIds));
+      }
+      const scopeNote = decided.scopeNote;
 
       if (input.status) {
         queries.push(Query.equal("status", input.status));

@@ -50,6 +50,46 @@ export const EXECUTABLE_APPROVAL_DOMAINS = [
 
 export type ApprovalDomain = (typeof EXECUTABLE_APPROVAL_DOMAINS)[number];
 
+/**
+ * Who can actually *execute* an approved request, per domain.
+ *
+ * Being in `PUBLISH_ACTIONS` is not the same as being executable by whoever
+ * approves. `executeApprovalPublish` writes the status change with the
+ * **approver's session client** for every domain except two, so Appwrite's
+ * table permissions decide whether the approval does anything:
+ *
+ * | Domain | Table | Table-level `update` |
+ * |---|---|---|
+ * | benefits | `campus_benefits` | none |
+ * | news | `news` | none |
+ * | documents | `documents` | Operations Unit |
+ * | jobs | `jobs` | Operations Unit, HR |
+ * | events | `events` | n/a — goes through `publishEvent()` |
+ * | shop | `webshop_products` | n/a — admin app writes via the admin client |
+ *
+ * Drafts created by this package carry no row-level update grant either (see
+ * `services/permissions.ts`), so for `benefits` and `news` *no* approver can
+ * complete the publish through the portal today, and for `documents` only
+ * Operations Unit can. A campus-management approver gets a permission error and
+ * the row stays unpublished.
+ *
+ * This package does not execute approvals — it only files them — so the honest
+ * fix is to say so at filing time rather than to route the write through the
+ * service key, which would mean taking over an execution path the portal owns.
+ * Recorded as a roadmap item; surfaced here as data so the request tool and the
+ * approver's queue both read from one place.
+ */
+export const APPROVAL_EXECUTION_NOTES: Record<ApprovalDomain, string | null> = {
+  benefits:
+    "No approver can complete this through the portal today: `campus_benefits` grants no table-level update, and drafts carry no row-level update grant. The request will be filed and visible, but approving it currently fails with a permission error and the benefit stays unpublished.",
+  news: "No approver can complete this through the portal today: `news` grants no table-level update, and drafts carry no row-level update grant. The request will be filed and visible, but approving it currently fails with a permission error and the article stays unpublished.",
+  documents:
+    "Only an Operations Unit approver can complete this through the portal: `documents` grants table-level update to that team alone. A campus-management approver will get a permission error.",
+  jobs: "Only an Operations Unit or HR approver can complete this through the portal: `jobs` grants table-level update to those teams alone.",
+  events: null,
+  shop: null,
+};
+
 export interface ApprovalRequestView {
   action: string;
   approverTeamId: string;

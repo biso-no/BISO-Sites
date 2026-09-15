@@ -15,14 +15,16 @@ import { z } from "zod";
 import { campusLabel } from "../identity/campus";
 import { isAnonymous } from "../identity/principal";
 import { canPublishForCampus, describeScope } from "../identity/scope";
-import { notSupported } from "../runtime/errors";
+import { forbidden, notSupported } from "../runtime/errors";
 import { defineTool, type ToolModule } from "../runtime/register";
 import { buildPagination } from "../runtime/result";
 import {
+  APPROVAL_EXECUTION_NOTES,
   type ApprovalDomain,
   EXECUTABLE_APPROVAL_DOMAINS,
 } from "../services/approvals";
 import { type ContentDomain, domainSpec } from "../services/content-registry";
+import { hasRecruitmentAccess } from "../services/recruitment";
 import { proposalInput, proposeOrExecute } from "./content";
 import {
   newRequestId,
@@ -43,6 +45,18 @@ const RESOURCE_TYPE: Record<ApprovalDomain, string> = {
   news: "news",
   shop: "product",
 };
+
+/**
+ * The portal-execution caveat for a domain, if it has one.
+ *
+ * Kept as a list so it slots straight into the result envelope's `warnings`,
+ * and read from `APPROVAL_EXECUTION_NOTES` so the request tool and the
+ * approver's queue can never disagree about which domains dead-end.
+ */
+function executionWarnings(domain: ApprovalDomain): string[] | undefined {
+  const note = APPROVAL_EXECUTION_NOTES[domain];
+  return note ? [note] : undefined;
+}
 
 export const approvalsModule: ToolModule = {
   name: "approvals",
@@ -143,6 +157,22 @@ export const approvalsModule: ToolModule = {
         const requestId = newRequestId();
         const domain = args.domain as ApprovalDomain;
 
+        // Recruitment is HR-exclusive with global-admin break-glass, and the
+        // gate has to be here as well as on the content tools. `jobs` grants
+        // `read("any")`, so an ordinary department member can read a vacancy in
+        // their own department and would otherwise be able to file a persisted
+        // `jobs.publish` request for it. The portal's approval executor checks
+        // the *approver's* publish access, never the requester's role, so such
+        // a request could then be approved by Operations Unit and enter the
+        // recruitment workflow without HR ever sanctioning it.
+        if (domain === "jobs" && !hasRecruitmentAccess(context.principal)) {
+          throw forbidden(
+            "Recruitment is restricted to HR, with global-admin break-glass.",
+            { domain, id: args.id },
+            "Ask HR to file this request. Filing it here would create an approval an approver could grant without any HR involvement."
+          );
+        }
+
         // `shop` is the approval vocabulary for what the content registry calls
         // `products`; map before reading the row.
         const contentDomain: ContentDomain =
@@ -211,6 +241,9 @@ export const approvalsModule: ToolModule = {
             : { proposal: outcome.proposal },
           scope: describeScope(context.principal),
           links: item.links,
+          // Filing succeeds; completing it may not. Say so here rather than
+          // letting the requester discover it when the approver's click fails.
+          warnings: executionWarnings(domain),
         });
       },
     }),

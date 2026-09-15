@@ -226,8 +226,23 @@ export function createDiscoveryService(
     limit: number;
     offset: number;
   }) {
+    // A vacancy stays `published` after its deadline passes, so status alone is
+    // not "open". `isRecruitmentVacancyOpen` in `@repo/shared` is the repo's
+    // definition — published, and either deadline-less or not yet past — and
+    // `apps/web` filters its signed-out vacancy list and sitemap by it. Public
+    // discovery must agree, or an MCP client would offer visitors jobs they
+    // cannot apply for and cannot find on the site.
+    //
+    // Expressed as a query rather than a post-filter so `total` and the cursor
+    // stay truthful. The shared predicate also treats an unparseable deadline
+    // as open; a datetime column cannot hold one, so the two agree in practice.
+    const nowIso = new Date().toISOString();
     const queries: string[] = [
       Query.equal("status", "published"),
+      Query.or([
+        Query.isNull("application_deadline"),
+        Query.greaterThanEqual("application_deadline", nowIso),
+      ]),
       Query.select([
         "$id",
         "slug",

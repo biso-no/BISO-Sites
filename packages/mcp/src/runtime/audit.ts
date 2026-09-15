@@ -23,7 +23,7 @@ export interface AuditEvent {
   /** Dotted action, e.g. `content.publish` or `pages.save_draft`. */
   action: string;
   durationMs?: number;
-  outcome: "ok" | "denied" | "error" | "proposed";
+  outcome: "ok" | "denied" | "error" | "proposed" | "read";
   /** Extra context. Redacted before it leaves the process. */
   payload?: Record<string, unknown>;
   requestId: string;

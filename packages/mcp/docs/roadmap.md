@@ -229,7 +229,27 @@ same-named unit at another campus. The matcher here requires the campus implied
 by the name's prefix to equal the row's `campus_id`, and refuses a name that
 matches two rows within one campus.
 
-### S4. A shared proposal store for multi-process deployments
+### S4. Let an approver actually complete a benefits or news publish
+
+`executeApprovalPublish` in `apps/admin` writes the status change with the
+**approver's session client** for every domain except `events` (which routes
+through `publishEvent`) and `shop` (which the admin app writes with the admin
+client, and says why in a comment). But `campus_benefits` and `news` grant no
+table-level `update` at all, and drafts carry no row-level update grant — so no
+approver can complete those publishes, and `documents` works only for Operations
+Unit.
+
+The admin app already solved this once, for `shop`. The same treatment —
+authorize the approver, then write through the admin client — would make the
+`benefits`, `documents` and `news` approval paths work. That is an `apps/admin`
+change and out of scope here.
+
+Until then `APPROVAL_EXECUTION_NOTES` in `services/approvals.ts` states the
+constraint per domain, and `biso_request_approval` returns it as a warning, so a
+requester is told at filing time rather than discovering it when the approver's
+click fails.
+
+### S5. A shared proposal store for multi-process deployments
 
 `createProposalRegistry` makes a proposal token single-use, but the registry is
 per-process and in-memory — the same property `serverSecret` has. That is exact
@@ -238,7 +258,7 @@ deployment behind more than one worker would need a shared store (Redis, or an
 Appwrite row keyed by token) before the single-use guarantee holds across the
 fleet. See [architecture.md](./architecture.md).
 
-### S5. A proposal or approval record for non-publish actions
+### S6. A proposal or approval record for non-publish actions
 
 The approval queue executes `<domain>.publish` and nothing else. Extending it to
 updates or archives needs both a schema decision and an execution path — and,

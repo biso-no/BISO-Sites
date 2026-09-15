@@ -75,10 +75,23 @@ function readAttribute(row: FakeRow, path: string): unknown {
 
 function matches(row: FakeRow, query: ParsedQuery): boolean {
   const { method, attribute, values } = query;
-  if (!(attribute && values)) {
+  if (!attribute) {
     return true;
   }
   const actual = readAttribute(row, attribute);
+
+  // `isNull`/`isNotNull` carry no `values`. Requiring `values` before the
+  // switch made them — and so any `or` containing one — match every row, which
+  // is how a filter can silently disappear from a test.
+  if (method === "isNull") {
+    return actual === null || actual === undefined;
+  }
+  if (method === "isNotNull") {
+    return actual !== null && actual !== undefined;
+  }
+  if (!values) {
+    return true;
+  }
 
   switch (method) {
     case "equal":
@@ -120,24 +133,54 @@ function matches(row: FakeRow, query: ParsedQuery): boolean {
         typeof values[0] === "string" &&
         actual <= values[0]
       );
-    case "isNull":
-      return actual === null || actual === undefined;
-    case "isNotNull":
-      return actual !== null && actual !== undefined;
     default:
       // Unknown filters are treated as no-ops. `or` is handled separately.
       return true;
   }
 }
 
-function applyOr(row: FakeRow, query: ParsedQuery): boolean {
-  const nested = (query.values ?? [])
-    .map((value) => (typeof value === "string" ? parseQuery(value) : null))
-    .filter((value): value is ParsedQuery => value !== null);
+/**
+ * Coerce one nested member of an `or`/`and` into a parsed query.
+ *
+ * `Query.or` nests **objects**, not JSON strings — `{"method":"or","values":[
+ * {"method":"isNull",…}, …]}`. An earlier version of this fake only handled
+ * the string form, so every object-nested `or` fell through to "match
+ * everything", quietly turning any test that relied on one into a no-op.
+ * Both shapes are accepted now, and anything else throws rather than matching,
+ * because a filter this fake cannot express must fail a test rather than
+ * silently widen its result set.
+ */
+function coerceNested(value: unknown): ParsedQuery {
+  if (typeof value === "string") {
+    const parsed = parseQuery(value);
+    if (parsed) {
+      return parsed;
+    }
+  } else if (value && typeof value === "object") {
+    const q = value as {
+      method?: string;
+      attribute?: string;
+      values?: unknown[];
+    };
+    if (q.method) {
+      return { method: q.method, attribute: q.attribute, values: q.values };
+    }
+  }
+  throw new Error(
+    `Fake backend cannot interpret a nested query: ${JSON.stringify(value)}`
+  );
+}
+
+function applyGroup(row: FakeRow, query: ParsedQuery): boolean {
+  const nested = (query.values ?? []).map(coerceNested);
   if (nested.length === 0) {
     return true;
   }
-  return nested.some((inner) => matches(row, inner));
+  const test = (inner: ParsedQuery) =>
+    inner.method === "or" || inner.method === "and"
+      ? applyGroup(row, inner)
+      : matches(row, inner);
+  return query.method === "and" ? nested.every(test) : nested.some(test);
 }
 
 export interface FakeBackendOptions {
@@ -197,7 +240,9 @@ function buildDb(
 
     let rows = all.filter((row) =>
       filters.every((query) =>
-        query.method === "or" ? applyOr(row, query) : matches(row, query)
+        query.method === "or" || query.method === "and"
+          ? applyGroup(row, query)
+          : matches(row, query)
       )
     );
 

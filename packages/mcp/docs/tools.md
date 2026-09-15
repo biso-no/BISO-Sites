@@ -27,7 +27,7 @@ What the call actually did. Read it before telling a user something happened.
 
 | Value | Meaning |
 |---|---|
-| `read` | Nothing was written. The default when a tool does not say otherwise. |
+| `read` | Nothing was written. Always present, so a client never has to infer it from an absent field. |
 | `proposed` | A mutating tool validated and described the change and wrote **nothing**. This is the normal outcome in the default `propose` write mode, and it is still `"ok": true`. |
 | `executed` | The change was applied. |
 
@@ -125,7 +125,8 @@ distinguishing them would confirm an id exists.
 
 Read the result's `warnings`: for `news` and `jobs` the public path applies no
 free-text index, and the result says so rather than implying the term matched.
-Benefit results never carry a redemption code.
+Benefit results never carry a redemption code — enforced by a projection rule in
+`runtime/redact.ts`, not by naming convention, and covered by a test.
 
 ### Content — staff
 

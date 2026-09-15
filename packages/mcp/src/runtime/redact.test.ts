@@ -282,3 +282,30 @@ describe("fingerprint", () => {
     expect(fingerprint("abc")).not.toContain("abc");
   });
 });
+
+describe("benefit redemption values", () => {
+  test("a redemption value never survives projection", () => {
+    // `campus_benefits` is readable by any staff principal once published, and
+    // `redemption_value` matches none of the generic secret-name patterns — so
+    // without an explicit rule the code a membership buys would reach model
+    // context. The content registry and docs/tools.md both promise it does not.
+    const projected = stripSensitive("campus_benefits", {
+      $id: "b-1",
+      title_nb: "Kaffe",
+      partner_name: "Kafé",
+      redemption_value: "BISO2026-SECRET",
+      is_member_only: true,
+    });
+    expect(projected).not.toHaveProperty("redemption_value");
+    expect(projected.title_nb).toBe("Kaffe");
+    expect(JSON.stringify(projected)).not.toContain("BISO2026-SECRET");
+  });
+
+  test("the rule does not leak into other tables", () => {
+    const projected = stripSensitive("news", {
+      $id: "n-1",
+      redemption_value: "kept",
+    });
+    expect(projected.redemption_value).toBe("kept");
+  });
+});

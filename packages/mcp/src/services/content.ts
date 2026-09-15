@@ -78,6 +78,12 @@ export interface ContentSearchInput {
   limit: number;
   locale?: ContentLocale;
   offset: number;
+  /**
+   * Newest-first by default. `"oldest"` exists for the staleness probe in the
+   * campus briefing: with a `limit`, newest-first discards precisely the rows a
+   * staleness check is looking for.
+   */
+  order?: "newest" | "oldest";
   /** Free-text term matched against the domain's title/description. */
   query?: string;
   status?: string;
@@ -323,8 +329,13 @@ async function idsMatchingText(
         Query.limit(TRANSLATION_SCAN_LIMIT),
       ]
     );
+    // Prefer rows in the requested locale. Falling back to every match when
+    // none exist keeps a search from going empty just because the term only
+    // appears in the other language — but when the locale *does* match,
+    // returning all rows would surface a parent whose Norwegian text contains
+    // the term while its English text does not.
     const preferred = result.rows.filter((row) => row.locale === locale);
-    const source = preferred.length > 0 ? result.rows : result.rows;
+    const source = preferred.length > 0 ? preferred : result.rows;
     return [...new Set(source.map((row) => row.content_id))];
   } catch (error) {
     throw fromAppwriteError(error, {
@@ -518,7 +529,9 @@ export function createContentService(
 
       queries.push(
         Query.select(selectFor(spec)),
-        Query.orderDesc("$updatedAt"),
+        input.order === "oldest"
+          ? Query.orderAsc("$updatedAt")
+          : Query.orderDesc("$updatedAt"),
         Query.limit(input.limit),
         Query.offset(input.offset)
       );

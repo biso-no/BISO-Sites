@@ -51,8 +51,8 @@ export type ToolEffect = "read" | "proposed" | "executed";
 
 export interface ToolOk<T> {
   data: T;
-  /** Defaults to `read` when a handler does not say otherwise. */
-  effect?: ToolEffect;
+  /** Always present; `read` unless a handler says otherwise. */
+  effect: ToolEffect;
   /** Deep links into the apps for anything referenced. */
   links?: Record<string, string>;
   ok: true;
@@ -88,9 +88,16 @@ export const PUBLIC_SCOPE: AppliedScope = {
 };
 
 export function ok<T>(
-  input: Omit<ToolOk<T>, "ok" | "requestId"> & { requestId: string }
+  input: Omit<ToolOk<T>, "ok" | "requestId" | "effect"> & {
+    requestId: string;
+    effect?: ToolEffect;
+  }
 ): ToolOk<T> {
-  return { ok: true, ...input };
+  // `effect` is always present on the wire. A model reading the result should
+  // not have to know that an absent field means "read" — and the difference
+  // between "nothing was written" and "the change was applied" is exactly the
+  // thing it must not guess at.
+  return { ok: true, effect: "read", ...input };
 }
 
 /**
