@@ -166,7 +166,7 @@ describe("admin content update scoping", () => {
       department_id: null,
       description: "Description",
       description_en: null,
-      finago_account_number: null,
+      sales_type: null,
       image: "",
       images: null,
       inventory_mode: "unlimited",

@@ -10,12 +10,18 @@
  * doubles would otherwise fail its own `<= refundable` check.
  */
 
+import { type RevenueTarget, revenueTargetKey } from "./finago-shop-accounting";
+
 const MINOR_UNITS_PER_MAJOR = 100;
 
 /** An order line as the refund surface needs it. */
 export interface RefundableOrderItem {
   /** Ledger revenue account snapshotted at sale time, when the line has one. */
   finagoAccountNumber?: number | null;
+  /** Department dimension value snapshotted at sale time. */
+  finagoDepartment?: string | null;
+  /** Finago posting tax number snapshotted at sale time. */
+  finagoVatCode?: number | null;
   /** `order_items.$id`. */
   id: string;
   name: string;
@@ -221,143 +227,137 @@ export function validateRefundRequest(
   return { ok: true };
 }
 
+/** One slice of a refund, booked back against the target that was credited. */
+export interface RevenueAllocationEntry extends RevenueTarget {
+  amountMinor: number;
+}
+
 export interface RevenueAllocationInput {
-  /** Ledger account per order line, keyed by `order_items.$id`. */
-  accountByItemId: Record<string, number | null | undefined>;
   /**
-   * Minor units already reversed per ledger account, from earlier refunds on
-   * this order. Tracking it per ACCOUNT rather than per line is what makes the
-   * arithmetic order-independent: a free-amount refund reverses accounts
-   * without naming any line, so line quantities alone cannot describe what has
-   * already been given back.
+   * Minor units already reversed per target (`revenueTargetKey`) by this
+   * order's earlier refunds. Recorded per target rather than derived from line
+   * quantities because a free-amount refund reverses targets without naming a
+   * line.
    */
-  alreadyReversedByAccount?: Record<number, number>;
+  alreadyReversedByTarget?: Record<string, number>;
   amountMinor: number;
   items: RefundableOrderItem[];
   /** Empty for a free-amount refund. */
   lines: BuiltRefundLine[];
+  /** The target each order line credited, by `order_items.$id`. */
+  targetByItemId: Record<string, RevenueTarget | null | undefined>;
 }
 
-/** Each account's original credit on this order, in minor units. */
-function originalCreditByAccount(
+/** Each target's original credit on this order, in minor units. */
+function originalCreditByTarget(
   items: RefundableOrderItem[],
-  accountByItemId: Record<string, number | null | undefined>
-): Map<number, number> {
-  const credits = new Map<number, number>();
+  targetByItemId: RevenueAllocationInput["targetByItemId"]
+): { credits: Map<string, number>; targets: Map<string, RevenueTarget> } {
+  const credits = new Map<string, number>();
+  const targets = new Map<string, RevenueTarget>();
   for (const item of items) {
-    const account = accountByItemId[item.id];
-    if (!account) {
+    const target = targetByItemId[item.id];
+    if (!target) {
       continue;
     }
     const credit = toMinor(item.unitPrice) * item.quantity;
     if (credit > 0) {
-      credits.set(account, (credits.get(account) ?? 0) + credit);
+      const key = revenueTargetKey(target);
+      credits.set(key, (credits.get(key) ?? 0) + credit);
+      targets.set(key, target);
     }
   }
-  return credits;
+  return { credits, targets };
 }
 
 /**
- * Splits a refund across the ledger revenue accounts it should be debited
- * from, in minor units.
+ * Splits a refund across the revenue targets it should be debited from, in
+ * minor units.
  *
- * A line-item refund maps exactly: each line's amount goes to its product's
- * account. A free-amount refund names no line, so it is allocated in
- * proportion to each account's share of the order — with the rounding
- * remainder pushed onto the largest share so the parts always sum back to
- * `amountMinor` and the reversal transaction balances to zero.
+ * A line-item refund maps exactly: each line's amount goes to its target. A
+ * free-amount refund names no line, so it is allocated in proportion to each
+ * target's remaining room — with the rounding remainder walked onto the
+ * targets with the most room so the parts always sum back to `amountMinor`.
  */
-export function allocateAmountAcrossAccounts(
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: one allocation pass — line refunds, then proportional spread, then rounding remainder — kept together so the invariant (parts always sum to amountMinor) stays auditable in one place.
+export function allocateAmountAcrossTargets(
   input: RevenueAllocationInput
-): Array<{ accountNumber: number; amountMinor: number }> {
-  const originalCredits = originalCreditByAccount(
+): RevenueAllocationEntry[] {
+  const { credits, targets } = originalCreditByTarget(
     input.items,
-    input.accountByItemId
+    input.targetByItemId
   );
 
-  // What each account can still give back. Every allocation is capped by this,
-  // so no sequence of line and free-amount refunds can reverse more from an
-  // account than the sale ever credited to it.
-  const remaining = new Map<number, number>();
-  for (const [account, credit] of originalCredits) {
-    const already = input.alreadyReversedByAccount?.[account] ?? 0;
-    remaining.set(account, Math.max(0, credit - already));
+  // What each target can still give back. Every allocation is capped by this,
+  // so no sequence of refunds can reverse more than the sale credited.
+  const remaining = new Map<string, number>();
+  for (const [key, credit] of credits) {
+    const already = input.alreadyReversedByTarget?.[key] ?? 0;
+    remaining.set(key, Math.max(0, credit - already));
   }
 
-  const byAccount = new Map<number, number>();
-  const take = (account: number, wanted: number): number => {
-    const left = remaining.get(account) ?? 0;
+  const byTarget = new Map<string, number>();
+  const take = (key: string, wanted: number): number => {
+    const left = remaining.get(key) ?? 0;
     const taken = Math.min(wanted, left);
     if (taken <= 0) {
       return 0;
     }
-    remaining.set(account, left - taken);
-    byAccount.set(account, (byAccount.get(account) ?? 0) + taken);
+    remaining.set(key, left - taken);
+    byTarget.set(key, (byTarget.get(key) ?? 0) + taken);
     return taken;
   };
 
   let unallocated = input.amountMinor;
 
-  // A line refund names its accounts, so charge those first.
   for (const line of input.lines) {
-    const account = input.accountByItemId[line.orderItemId];
-    if (!account) {
-      // The line resolves to no revenue account, so nothing can be reversed
-      // for it. Drop its share instead of leaving it in `unallocated`: the
-      // spill below would otherwise debit an unrelated product's account for a
-      // line that never credited it. Under-allocating is the intended,
-      // *visible* failure — the ledger connector refuses to post a partial
-      // reversal and the refund is flagged for manual posting.
+    const target = input.targetByItemId[line.orderItemId];
+    if (!target) {
+      // The line credited no target, so nothing can be reversed for it. Drop
+      // its share rather than spill it onto another product's revenue; the
+      // connector refuses the short reversal and the refund is flagged.
       unallocated -= toMinor(line.amount);
       continue;
     }
-    unallocated -= take(account, toMinor(line.amount));
+    unallocated -= take(revenueTargetKey(target), toMinor(line.amount));
   }
 
-  // Whatever is left — the whole amount for a free refund, or a line refund's
-  // spillover once an account is exhausted — is spread across the accounts
-  // that still have room, in proportion to that room.
   if (unallocated > 0) {
-    const openAccounts = [...remaining.entries()].filter(
-      ([, left]) => left > 0
-    );
-    const totalRoom = openAccounts.reduce((sum, [, left]) => sum + left, 0);
+    const openTargets = [...remaining.entries()].filter(([, left]) => left > 0);
+    const totalRoom = openTargets.reduce((sum, [, left]) => sum + left, 0);
 
     if (totalRoom > 0) {
       const share = Math.min(unallocated, totalRoom);
       let placed = 0;
-      for (const [account, left] of openAccounts) {
-        const wanted = Math.floor((share * left) / totalRoom);
-        placed += take(account, wanted);
+      for (const [key, left] of openTargets) {
+        placed += take(key, Math.floor((share * left) / totalRoom));
       }
-      // Rounding remainder onto the accounts with the most room left, so the
-      // parts sum exactly and the reversal balances. Walked in order rather
-      // than dumped on the single largest: with the room fragmented across
-      // several accounts, one of them may not have the whole remainder, and a
-      // short allocation makes the ledger refuse the posting.
       let shortfall = share - placed;
       const byRoomDesc = [...remaining.entries()]
         .filter(([, left]) => left > 0)
         .sort((a, b) => b[1] - a[1]);
-      for (const [account] of byRoomDesc) {
+      for (const [key] of byRoomDesc) {
         if (shortfall <= 0) {
           break;
         }
-        shortfall -= take(account, shortfall);
+        shortfall -= take(key, shortfall);
       }
     }
   }
 
-  return toSortedEntries(byAccount);
-}
-
-function toSortedEntries(
-  byAccount: Map<number, number>
-): Array<{ accountNumber: number; amountMinor: number }> {
-  return [...byAccount.entries()]
-    .filter(([, amountMinor]) => amountMinor > 0)
-    .sort((a, b) => a[0] - b[0])
-    .map(([accountNumber, amountMinor]) => ({ accountNumber, amountMinor }));
+  const entries: RevenueAllocationEntry[] = [];
+  for (const [key, amountMinor] of byTarget) {
+    const target = targets.get(key);
+    if (target && amountMinor > 0) {
+      entries.push({ ...target, amountMinor });
+    }
+  }
+  return entries.sort(
+    (a, b) =>
+      a.accountNumber - b.accountNumber ||
+      a.departmentId.localeCompare(b.departmentId) ||
+      a.vatCode - b.vatCode
+  );
 }
 
 /**

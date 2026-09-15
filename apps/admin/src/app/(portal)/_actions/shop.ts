@@ -42,6 +42,7 @@ import {
   planCustomFieldSync,
   type StoredCustomField,
 } from "@/lib/shop/custom-fields";
+import { assertProductBookable } from "@/lib/shop/sales-type";
 import {
   buildContentRowPermissions,
   buildContentTranslationPermissions,
@@ -414,7 +415,7 @@ function buildProductFields(data: ProductFormValues) {
     cover_pattern: data.cover_pattern ?? "dotted",
     linked_event_id: data.linked_event_id ?? null,
     inventory_mode: data.inventory_mode ?? "unlimited",
-    finago_account_number: data.finago_account_number ?? null,
+    sales_type: data.sales_type ?? null,
   };
 }
 
@@ -914,6 +915,10 @@ export async function createProduct(
       campusId: validated.data.campus_id,
       departmentId: validated.data.department_id ?? null,
     });
+    await assertProductBookable(db, validated.data.status, {
+      departmentId: validated.data.department_id ?? null,
+      salesTypeId: validated.data.sales_type ?? null,
+    });
     if (validated.data.status === "published") {
       assertPublishAccess(
         ctx,
@@ -1004,6 +1009,10 @@ export async function updateProduct(
       allowGlobalCampus: false,
       campusId: validated.data.campus_id,
       departmentId: validated.data.department_id ?? null,
+    });
+    await assertProductBookable(db, validated.data.status, {
+      departmentId: validated.data.department_id ?? null,
+      salesTypeId: validated.data.sales_type ?? null,
     });
     if (
       product.status === "published" ||

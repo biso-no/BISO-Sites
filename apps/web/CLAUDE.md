@@ -154,10 +154,12 @@ All consumed server-side only:
   (`src/app/api/documents/[id]/download/route.ts`). Env: `SHAREPOINT_*`.
 - 24SevenOffice membership sync → `@repo/connectors/24sevenoffice`
   (`src/lib/actions/membership.ts`). Env: `AZURE_*`.
-- Vipps MobilePay → `@repo/payment/vipps` (`src/app/actions/orders.ts`,
-  `src/app/api/checkout/return/route.ts`). Env: `VIPPS_*`. The legacy webhook
-  at `/api/checkout/webhook` returns 410 — new flows go to
-  `/api/payment/vipps/callback`.
+- Vipps MobilePay and Stripe checkout run entirely in `apps/api` now — web no
+  longer imports `@repo/payment/vipps` (or `@repo/payment/stripe`) from
+  `src/app/actions/orders.ts` or anywhere else. `src/app/api/checkout/return/route.ts`
+  is a deprecated redirect-only shim: it forwards buyers, query intact, to
+  `apps/api`'s `/api/payment/return` and calls no third party itself. The
+  legacy webhook at `/api/checkout/webhook` returns 410.
 - OpenAI (`@ai-sdk/openai`) for expense OCR / description endpoints under
   `/api/expense/*` and `src/lib/actions/expense-ocr.ts`.
 - Membership purchase → `/membership/join`. Requires an authenticated user with
@@ -167,8 +169,9 @@ All consumed server-side only:
   `apps/api` at `/api/payment/[provider]/membership-checkout`. Fulfilment
   (Finago customer → category → invoice) is `fulfilMembershipOrder` in
   `@repo/shared/utils/membership-fulfilment`, triggered from the payment
-  webhook, `/api/checkout/return`, and the reconcile cron. Membership orders are
-  excluded from `postFinagoTransactionForOrder`. Env: `BI_AZURE_*`.
+  webhook, the API return route, and the API reconcile cron (all in `apps/api`).
+  Membership orders are excluded from `postFinagoTransactionForOrder`. Env:
+  `BI_AZURE_*`.
 
 ## Environment variables
 

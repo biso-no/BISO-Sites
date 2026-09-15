@@ -12,9 +12,15 @@
 
 import { ID, Query } from "@repo/api";
 import type { Orders as BaseOrders } from "@repo/api/types/appwrite";
+import { isFeatureEnabled } from "./feature-flags-server";
+import {
+  type RevenueTarget,
+  revenueTargetKey,
+  snapshotTarget,
+} from "./finago-shop-accounting";
 import { getOrderItems } from "./order-parsing";
 import {
-  allocateAmountAcrossAccounts,
+  allocateAmountAcrossTargets,
   type BuiltRefundLine,
   buildRefundLines,
   computeRefundable,
@@ -22,6 +28,7 @@ import {
   type RefundableOrderItem,
   type RefundLineRequest,
   type RefundValidationError,
+  type RevenueAllocationEntry,
   statusAfterRefund,
   toMajor,
   toMinor,
@@ -58,7 +65,7 @@ export interface OrderRefundRow {
   error?: string | null;
   finago_transaction_id?: string | null;
   idempotency_key?: string | null;
-  /** JSON `[{accountNumber, amountMinor}]` actually reversed by this refund. */
+  /** JSON `[{accountNumber, departmentId, vatCode, amountMinor}]` reversed by this refund. */
   ledger_allocation?: string | null;
   lines?: OrderRefundLineRow[] | null;
   /** Parent order: an id string, or the expanded row when selected. */
@@ -84,6 +91,19 @@ export const LEGACY_ITEM_PREFIX = "legacy-";
 
 const REFUNDS_TABLE = "order_refunds";
 const REFUND_LINES_TABLE = "order_refund_lines";
+
+/**
+ * `finago_transaction_id` values that are not a voucher this system posted:
+ * memberships (booked as invoices), an in-flight marker, free orders, and
+ * orders imported from WordPress (booked by hand in the old monthly report).
+ * A refund against one of these has no automatic reversal.
+ */
+const NOT_POSTED_BY_AUTOMATION = new Set([
+  "membership",
+  "posting",
+  "wordpress-import",
+  "zero-total",
+]);
 
 /**
  * Loads the order with its line items. Must be a `Query.select(...)` string,
@@ -158,6 +178,12 @@ export function toRefundableItems(
         typeof item.finago_account_number === "number"
           ? item.finago_account_number
           : null,
+      finagoDepartment:
+        typeof item.finago_department === "string"
+          ? item.finago_department
+          : null,
+      finagoVatCode:
+        typeof item.finago_vat_code === "number" ? item.finago_vat_code : null,
       id: item.order_item_id ?? `${LEGACY_ITEM_PREFIX}${index}`,
       name: item.name ?? item.title ?? item.product_name ?? "—",
       productId: item.product_id ?? null,
@@ -168,59 +194,176 @@ export function toRefundableItems(
 }
 
 /**
- * Minor units already reversed per ledger account across this order's earlier
- * refunds, read back from each refund's stored allocation.
+ * A stored `ledger_allocation`, or `null` when it cannot be trusted.
  *
- * Recorded per ACCOUNT rather than derived from line quantities because a
- * free-amount refund reverses accounts without naming a line: line quantities
- * alone cannot describe what a previous free refund already gave back, so the
- * next allocation would reverse it a second time.
+ * Only the current shape counts: a JSON array whose every entry names an
+ * account, a VAT code, a department and an amount. Anything else — malformed
+ * JSON, a non-array, or an entry in the old `{accountNumber, amountMinor}`
+ * format the column was introduced with on 2026-09-08 — cannot be matched to a
+ * revenue target, so what it already reversed is unknown. No such row exists
+ * in production (no reversal ever posted before this format), so this is a
+ * guard against hand edits rather than a migration path.
  */
-/**
- * Whether a previous refund on this order posted a ledger reversal whose
- * allocation was never recorded.
- *
- * That combination — a reversal transaction id with no `ledger_allocation` —
- * means money was given back to accounts we can no longer identify, so the
- * per-account remaining balances are unknowable and the next reversal would
- * over-reverse. It happens if the bookkeeping write failed, and for the whole
- * window before the `ledger_allocation` attribute is deployed.
- *
- * Refunds predating the column entirely have no transaction id either (they
- * could not have posted a reversal), so they do not trip this.
- */
-export function hasUnrecordedReversal(order: RefundableOrder): boolean {
-  return (order.refunds ?? []).some(
-    (refund) =>
-      refund.status !== "failed" &&
-      Boolean(refund.finago_transaction_id) &&
-      !refund.ledger_allocation
-  );
+export function parseLedgerAllocation(
+  raw: string
+): RevenueAllocationEntry[] | null {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return null;
+  }
+  if (!Array.isArray(parsed)) {
+    return null;
+  }
+  const entries: RevenueAllocationEntry[] = [];
+  for (const entry of parsed as Partial<RevenueAllocationEntry>[]) {
+    if (
+      !entry ||
+      typeof entry.accountNumber !== "number" ||
+      typeof entry.amountMinor !== "number" ||
+      typeof entry.vatCode !== "number" ||
+      typeof entry.departmentId !== "string" ||
+      !entry.departmentId
+    ) {
+      return null;
+    }
+    entries.push({
+      accountNumber: entry.accountNumber,
+      amountMinor: entry.amountMinor,
+      departmentId: entry.departmentId,
+      vatCode: entry.vatCode,
+    });
+  }
+  return entries;
 }
 
-export function reversedByAccount(
+/**
+ * Whether an earlier refund on this order reversed revenue we cannot account
+ * for: it posted a reversal (transaction id) without recording an allocation,
+ * or it recorded an allocation that cannot be read back
+ * (`parseLedgerAllocation`).
+ *
+ * Either way the per-target remaining balances are unknowable and the next
+ * reversal could over-reverse, so the caller refuses and flags the refund for
+ * manual posting. A missing allocation happens if the bookkeeping write
+ * failed. Refunds that never posted a reversal have neither field and do not
+ * trip this.
+ */
+export function hasUnrecordedReversal(order: RefundableOrder): boolean {
+  return (order.refunds ?? []).some((refund) => {
+    if (refund.status === "failed") {
+      return false;
+    }
+    if (refund.ledger_allocation) {
+      return parseLedgerAllocation(refund.ledger_allocation) === null;
+    }
+    return Boolean(refund.finago_transaction_id);
+  });
+}
+
+/**
+ * Minor units already reversed per revenue target across this order's earlier
+ * refunds, read back from each refund's stored allocation.
+ *
+ * Recorded per TARGET rather than derived from line quantities because a
+ * free-amount refund reverses targets without naming a line: line quantities
+ * alone cannot describe what a previous free refund already gave back, so the
+ * next allocation would reverse it a second time.
+ *
+ * Throws on an unreadable allocation rather than skip it — skipping would
+ * count that amount as still reversible. `reverseLedger` checks
+ * `hasUnrecordedReversal` first, so this only fires if a caller forgot to.
+ */
+export function reversedByTarget(
   order: RefundableOrder
-): Record<number, number> {
-  const byAccount: Record<number, number> = {};
+): Record<string, number> {
+  const byTarget: Record<string, number> = {};
   for (const refund of order.refunds ?? []) {
     if (refund.status === "failed" || !refund.ledger_allocation) {
       continue;
     }
-    try {
-      const parsed = JSON.parse(refund.ledger_allocation) as Array<{
-        accountNumber: number;
-        amountMinor: number;
-      }>;
-      for (const entry of parsed) {
-        byAccount[entry.accountNumber] =
-          (byAccount[entry.accountNumber] ?? 0) + entry.amountMinor;
-      }
-    } catch {
-      // A malformed record must not break the next refund; it only means this
-      // reversal is not subtracted, and the per-account cap still applies.
+    const entries = parseLedgerAllocation(refund.ledger_allocation);
+    if (!entries) {
+      throw new Error(
+        `Refund ${refund.$id} has an unreadable ledger allocation`
+      );
+    }
+    for (const entry of entries) {
+      const key = revenueTargetKey(entry);
+      byTarget[key] = (byTarget[key] ?? 0) + entry.amountMinor;
     }
   }
-  return byAccount;
+  return byTarget;
+}
+
+/**
+ * Priced lines with no complete ledger copy (account, VAT code and
+ * department) on the order line.
+ *
+ * Posting writes the target it booked back onto every line, so on a posted
+ * order a missing copy means that write-back failed or the data predates it.
+ * The product's current sales type may no longer match the voucher, so a
+ * reversal must not guess from it. Unpriced lines credited nothing and need no
+ * copy.
+ */
+export function linesWithoutLedgerCopy(
+  items: RefundableOrderItem[]
+): RefundableOrderItem[] {
+  return items.filter(
+    (item) =>
+      toMinor(item.unitPrice * item.quantity) > 0 &&
+      !snapshotTarget({
+        finago_account_number: item.finagoAccountNumber,
+        finago_department: item.finagoDepartment,
+        finago_vat_code: item.finagoVatCode,
+      })
+  );
+}
+
+/**
+ * Whether an earlier refund on this order (other than `currentRefundId`, which
+ * a settling pending refund appears as) did not post a reversal at all: no
+ * transaction id and no allocation. That happens when it was made before the
+ * order was posted (the order was then booked by hand), or when its own
+ * reversal was refused or failed. Its amount is still inside the original line
+ * credits, so allocating against those credits could reverse it twice.
+ */
+export function hasRefundWithoutReversal(
+  order: RefundableOrder,
+  currentRefundId?: string
+): boolean {
+  return (order.refunds ?? []).some(
+    (refund) =>
+      refund.$id !== currentRefundId &&
+      refund.status !== "failed" &&
+      !refund.finago_transaction_id &&
+      !refund.ledger_allocation
+  );
+}
+
+/**
+ * Why this refund's ledger reversal cannot be posted automatically, or `null`
+ * when it can. Every reason is a fail-closed refusal: the refund stands, and
+ * the message is recorded on the refund row for manual posting.
+ */
+export function ledgerReversalBlocker(
+  order: RefundableOrder,
+  items: RefundableOrderItem[],
+  currentRefundId?: string
+): string | null {
+  if (hasUnrecordedReversal(order)) {
+    return "An earlier refund on this order has no readable record of what its reversal gave back, so this one cannot be allocated safely. Post it manually in 24SO.";
+  }
+  if (hasRefundWithoutReversal(order, currentRefundId)) {
+    return "An earlier refund on this order posted no ledger reversal (it was made before the order was posted, or its reversal was refused), so what is left to reverse is unknown. Post it manually in 24SO.";
+  }
+  const uncopied = linesWithoutLedgerCopy(items);
+  if (uncopied.length > 0) {
+    const names = uncopied.map((item) => `"${item.name}"`).join(", ");
+    return `Order line(s) ${names} have no saved ledger account, VAT code and department, so the original booking cannot be mirrored. Post it manually in 24SO.`;
+  }
+  return null;
 }
 
 /** The order's existing refunds in the shape the pure helpers work with. */
@@ -260,14 +403,17 @@ export interface RefundExecutor {
 export interface LedgerReverser {
   /**
    * Posts the compensating ledger transaction. Returns the transaction id, or
-   * `null` when there is nothing to reverse (no revenue accounts resolved).
+   * `null` when there is nothing to reverse (no revenue targets resolved).
    */
   reverse: (input: {
-    allocation: Array<{ accountNumber: number; amountMinor: number }>;
+    allocation: RevenueAllocationEntry[];
     amount: number;
     /** Campus dimension for the reversal, taken from the order. */
     campusId?: string | null;
+    db: DbClient;
     orderId: string;
+    /** Payment provider of the original sale; picks the clearing account. */
+    provider?: string | null;
   }) => Promise<string | null>;
 }
 
@@ -825,6 +971,42 @@ async function restockRefundedLines(
   }
 }
 
+/** The in-flight marker `finago-order-posting.ts` writes before the Finago call. */
+const POSTING_MARKER = "posting";
+
+/** Whether shop ledger posting is on; an unreadable flag counts as off. */
+async function shopPostingEnabled(): Promise<boolean> {
+  try {
+    return await isFeatureEnabled("shop_ledger_posting");
+  } catch {
+    return false;
+  }
+}
+
+/** The order's current `finago_transaction_id`, or `unknown` when unreadable. */
+async function readFinagoTransactionId(
+  orderId: string,
+  db: DbClient
+): Promise<{ id: string | null; unknown: boolean }> {
+  const { dbId, ordersId } = tableIds();
+  try {
+    const row = (await db.getRow(dbId, ordersId, orderId, [
+      Query.select(["$id", "finago_transaction_id"]),
+    ])) as { finago_transaction_id?: unknown } | null;
+    if (!row) {
+      return { id: null, unknown: true };
+    }
+    const id = row.finago_transaction_id;
+    return { id: typeof id === "string" && id ? id : null, unknown: false };
+  } catch (error) {
+    console.error(
+      `[Refund] Could not re-read the posting state of order ${orderId}:`,
+      error
+    );
+    return { id: null, unknown: true };
+  }
+}
+
 async function reverseLedger({
   amount,
   db,
@@ -844,57 +1026,77 @@ async function reverseLedger({
   orderId: string;
   refundId: string;
 }): Promise<void> {
-  const { dbId, productsId } = tableIds();
+  const { dbId } = tableIds();
   if (!ledger) {
     return;
   }
 
-  // A membership order is booked as a 24SO invoice, not a ledger transaction,
-  // so there is no shop transaction to reverse — that needs a credit note,
-  // which is handled manually. Anything never posted has nothing to reverse.
-  if (
-    !order.finago_transaction_id ||
-    order.finago_transaction_id === "membership" ||
-    order.finago_transaction_id === "posting"
-  ) {
-    return;
-  }
-
-  // Fail closed rather than post a reversal we know to be wrong. Without the
-  // earlier allocation there is no way to tell how much of each account has
-  // already been given back, so the arithmetic below would reverse it twice.
-  // A human posting one transaction beats the ledger quietly drifting.
-  if (hasUnrecordedReversal(order)) {
-    const message =
-      "An earlier refund on this order posted a reversal without recording its allocation, so this one cannot be allocated safely. Post it manually in 24SO.";
-    console.error(`[Refund] ${message} (refund ${refundId})`);
+  const note = async (message: string) => {
+    console.error(`[Refund] ${message} (refund ${refundId}, order ${orderId})`);
     await db
       .updateRow(dbId, REFUNDS_TABLE, refundId, {
         error: message.slice(0, 1000),
       })
       .catch(() => undefined);
+  };
+
+  // Re-read the posting state now. `order` was read when the refund started,
+  // before the lock, the refund row and the provider call; posting may have
+  // moved on since, and deciding from that copy is how a reversal is skipped
+  // while the full total gets booked.
+  const posting = await readFinagoTransactionId(orderId, db);
+  if (posting.unknown || posting.id === POSTING_MARKER) {
+    await note(
+      "The order's Finago posting was in progress or unknown at refund time, so no reversal was posted. Post the reversal manually in 24SO once the order's posting is settled."
+    );
+    return;
+  }
+  if (!posting.id) {
+    // Posting refuses orders with refunds (`needs_manual`), so the note
+    // explains on the order page why no reversal exists. Only while posting is
+    // on: before rollout every refund is of an unposted order, and the note
+    // would mark each one with a misleading warning.
+    if (!(await shopPostingEnabled())) {
+      return;
+    }
+    await note(
+      "Order not yet posted to Finago at refund time, so no reversal was posted. Automatic posting holds orders with refunds for manual booking of the net sale."
+    );
+    return;
+  }
+  // A membership order is booked as a 24SO invoice, not a ledger transaction,
+  // so there is no shop transaction to reverse — that needs a credit note,
+  // which is handled manually. Free and WordPress orders were never posted.
+  if (NOT_POSTED_BY_AUTOMATION.has(posting.id)) {
+    return;
+  }
+
+  // Fail closed rather than post a reversal we know to be wrong: an earlier
+  // reversal we cannot read back would be reversed twice, and a line with no
+  // ledger copy would be debited against whatever its product maps to today.
+  // A human posting one transaction beats the ledger quietly drifting.
+  const blocker = ledgerReversalBlocker(order, items, refundId);
+  if (blocker) {
+    await note(blocker);
     return;
   }
 
   try {
-    const accountByItemId = await resolveRevenueAccounts(
-      items,
-      db,
-      dbId,
-      productsId
-    );
-    const allocation = allocateAmountAcrossAccounts({
-      accountByItemId,
-      alreadyReversedByAccount: reversedByAccount(order),
+    const targetByItemId = resolveRevenueTargets(items);
+    const allocation = allocateAmountAcrossTargets({
+      alreadyReversedByTarget: reversedByTarget(order),
       amountMinor: toMinor(amount),
       items,
       lines,
+      targetByItemId,
     });
     const transactionId = await ledger.reverse({
       allocation,
       amount,
       campusId: order.campus_id ?? null,
+      db,
       orderId,
+      provider: order.payment_provider ?? null,
     });
     if (transactionId) {
       // Outside the try/catch below on purpose: the reversal has ALREADY been
@@ -932,41 +1134,23 @@ async function reverseLedger({
 }
 
 /**
- * The ledger account to reverse per line.
- *
- * Prefers the account snapshotted on the order line at sale time: a product's
- * `finago_account_number` is editable, so reading the current product row can
- * debit an account the original sale never credited. Orders placed before that
- * snapshot existed fall back to the product.
+ * The revenue target to reverse per line: the copy saved on the order line at
+ * checkout or by posting's write-back. Never the product's current sales type
+ * — `ledgerReversalBlocker` has already refused any priced line without a
+ * copy, so a `null` here is an unpriced line that credited nothing.
  */
-async function resolveRevenueAccounts(
-  items: RefundableOrderItem[],
-  db: DbClient,
-  dbId: string,
-  productsId: string
-): Promise<Record<string, number | null>> {
-  const accountByItemId: Record<string, number | null> = {};
-  const cache = new Map<string, number | null>();
-
+function resolveRevenueTargets(
+  items: RefundableOrderItem[]
+): Record<string, RevenueTarget | null> {
+  const targetByItemId: Record<string, RevenueTarget | null> = {};
   for (const item of items) {
-    if (typeof item.finagoAccountNumber === "number") {
-      accountByItemId[item.id] = item.finagoAccountNumber;
-      continue;
-    }
-    if (!item.productId) {
-      accountByItemId[item.id] = null;
-      continue;
-    }
-    if (!cache.has(item.productId)) {
-      const product = (await db
-        .getRow(dbId, productsId, item.productId)
-        .catch(() => null)) as { finago_account_number?: number | null } | null;
-      cache.set(item.productId, product?.finago_account_number ?? null);
-    }
-    accountByItemId[item.id] = cache.get(item.productId) ?? null;
+    targetByItemId[item.id] = snapshotTarget({
+      finago_account_number: item.finagoAccountNumber,
+      finago_department: item.finagoDepartment,
+      finago_vat_code: item.finagoVatCode,
+    });
   }
-
-  return accountByItemId;
+  return targetByItemId;
 }
 
 /** Current provider-side state of a refund we already submitted. */

@@ -36,6 +36,13 @@ describe("FEATURE_FLAGS catalog", () => {
     expect(byKey.payments_stripe?.defaultEnabled).toBe(false);
     expect(byKey.ai_admin_copilot?.defaultEnabled).toBe(true);
   });
+
+  it("keeps shop ledger posting off until it is switched on", () => {
+    const flag = FEATURE_FLAGS.find((f) => f.key === "shop_ledger_posting");
+    expect(flag?.group).toBe("payments");
+    expect(flag?.defaultEnabled).toBe(false);
+    expect(mergeFlagStates([]).shop_ledger_posting).toBe(false);
+  });
 });
 
 describe("getFlagDef / isKnownFlagKey", () => {

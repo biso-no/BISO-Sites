@@ -1,4 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const flags = vi.hoisted(() => ({ isFeatureEnabled: vi.fn() }));
+vi.mock("./feature-flags-server", () => ({
+  isFeatureEnabled: flags.isFeatureEnabled,
+}));
+
 import {
   hasUnrecordedReversal,
   type LedgerReverser,
@@ -32,6 +38,9 @@ function buildOrder(overrides: Record<string, unknown> = {}) {
     order_items: [
       {
         $id: "line-a",
+        finago_account_number: 3000,
+        finago_department: "44",
+        finago_vat_code: 3,
         name: "Campus hoodie",
         product: { $id: "product-1" },
         quantity: 2,
@@ -39,6 +48,9 @@ function buildOrder(overrides: Record<string, unknown> = {}) {
       },
       {
         $id: "line-b",
+        finago_account_number: 3000,
+        finago_department: "44",
+        finago_vat_code: 3,
         name: "Cap",
         product: { $id: "product-2" },
         quantity: 1,
@@ -74,9 +86,20 @@ function orderRowFor(order: Record<string, unknown>) {
     if (tableId === "webshop_products") {
       return Promise.resolve({
         $id: rowId,
-        finago_account_number: 3000,
+        departmentId: "44",
+        sales_type: "varesalg",
         stock: 5,
       });
+    }
+    if (tableId === "sales_types") {
+      return Promise.resolve({
+        $id: rowId,
+        account_number: 3000,
+        active: true,
+      });
+    }
+    if (tableId === "ledger_accounts") {
+      return Promise.resolve({ $id: rowId, vat_code: 3 });
     }
     return Promise.resolve(null);
   };
@@ -96,6 +119,8 @@ beforeEach(() => {
   db.decrementRowColumn.mockResolvedValue({});
   db.incrementRowColumn.mockResolvedValue({ refund_lock: 1 });
   db.getRow.mockImplementation(orderRowFor(buildOrder()));
+  flags.isFeatureEnabled.mockReset();
+  flags.isFeatureEnabled.mockResolvedValue(false);
 });
 
 describe("toRefundableItems", () => {
@@ -413,8 +438,17 @@ describe("refundOrder", () => {
 
     expect(ledger.reverse).toHaveBeenCalledWith(
       expect.objectContaining({
-        allocation: [{ accountNumber: 3000, amountMinor: 49_900 }],
+        allocation: [
+          {
+            accountNumber: 3000,
+            amountMinor: 49_900,
+            departmentId: "44",
+            vatCode: 3,
+          },
+        ],
         amount: 499,
+        db,
+        provider: "stripe",
       })
     );
   });
@@ -422,6 +456,23 @@ describe("refundOrder", () => {
   it("skips the ledger reversal for a membership order", async () => {
     db.getRow.mockImplementation(
       orderRowFor(buildOrder({ finago_transaction_id: "membership" }))
+    );
+    const ledger: LedgerReverser = { reverse: vi.fn() };
+
+    await refundOrder({
+      db,
+      executor: executorReturning(49_900),
+      ledger,
+      orderId: ORDER_ID,
+      amount: 499,
+    });
+
+    expect(ledger.reverse).not.toHaveBeenCalled();
+  });
+
+  it("skips the ledger reversal for an order imported from WordPress", async () => {
+    db.getRow.mockImplementation(
+      orderRowFor(buildOrder({ finago_transaction_id: "wordpress-import" }))
     );
     const ledger: LedgerReverser = { reverse: vi.fn() };
 
@@ -827,5 +878,549 @@ describe("hasUnrecordedReversal", () => {
 
     expect(result).toMatchObject({ ok: true });
     expect(ledger.reverse).not.toHaveBeenCalled();
+  });
+});
+
+const MANUAL_POSTING_HINT = "Post it manually in 24SO";
+
+function refundRowErrors(): string[] {
+  return db.updateRow.mock.calls
+    .filter((call) => call[1] === "order_refunds")
+    .map((call) => String(call[3]?.error ?? ""))
+    .filter(Boolean);
+}
+
+describe("hasUnrecordedReversal — unreadable allocations", () => {
+  const withAllocation = (ledger_allocation: string) =>
+    ({
+      refunds: [
+        {
+          $id: "r1",
+          amount: 100,
+          finago_transaction_id: "tx-1",
+          ledger_allocation,
+          status: "succeeded",
+        },
+      ],
+    }) as never;
+
+  it("is true for an entry in the old account-only format", () => {
+    expect(
+      hasUnrecordedReversal(
+        withAllocation(
+          JSON.stringify([{ accountNumber: 3000, amountMinor: 100 }])
+        )
+      )
+    ).toBe(true);
+  });
+
+  it("is true when any one entry lacks a department", () => {
+    expect(
+      hasUnrecordedReversal(
+        withAllocation(
+          JSON.stringify([
+            {
+              accountNumber: 3000,
+              amountMinor: 50,
+              departmentId: "44",
+              vatCode: 3,
+            },
+            {
+              accountNumber: 3000,
+              amountMinor: 50,
+              departmentId: "",
+              vatCode: 3,
+            },
+          ])
+        )
+      )
+    ).toBe(true);
+  });
+
+  it("is true for malformed JSON or a non-array value", () => {
+    expect(hasUnrecordedReversal(withAllocation("{not json"))).toBe(true);
+    expect(
+      hasUnrecordedReversal(withAllocation('{"accountNumber":3000}'))
+    ).toBe(true);
+  });
+
+  it("is false for entries in the current format", () => {
+    expect(
+      hasUnrecordedReversal(
+        withAllocation(
+          JSON.stringify([
+            {
+              accountNumber: 3000,
+              amountMinor: 100,
+              departmentId: "44",
+              vatCode: 3,
+            },
+          ])
+        )
+      )
+    ).toBe(false);
+  });
+
+  it("ignores an unreadable allocation on a failed refund", () => {
+    expect(
+      hasUnrecordedReversal({
+        refunds: [
+          {
+            $id: "r1",
+            amount: 100,
+            ledger_allocation: "{not json",
+            status: "failed",
+          },
+        ],
+      } as never)
+    ).toBe(false);
+  });
+});
+
+describe("refundOrder — fail closed on the ledger reversal", () => {
+  function priorRefund(ledger_allocation: string) {
+    return {
+      $id: "r0",
+      amount: 100,
+      finago_transaction_id: "rev-0",
+      ledger_allocation,
+      status: "succeeded",
+    };
+  }
+
+  it("refuses the reversal when an earlier allocation is in the old format", async () => {
+    db.listRows.mockResolvedValue({
+      rows: [
+        priorRefund(
+          JSON.stringify([{ accountNumber: 3000, amountMinor: 10_000 }])
+        ),
+      ],
+    });
+    const ledger: LedgerReverser = { reverse: vi.fn() };
+
+    const result = await refundOrder({
+      db,
+      executor: executorReturning(59_900),
+      ledger,
+      orderId: ORDER_ID,
+      amount: 499,
+    });
+
+    expect(result).toMatchObject({ ok: true });
+    expect(ledger.reverse).not.toHaveBeenCalled();
+    expect(refundRowErrors().some((e) => e.includes(MANUAL_POSTING_HINT))).toBe(
+      true
+    );
+  });
+
+  it("refuses the reversal when an earlier allocation is malformed JSON", async () => {
+    db.listRows.mockResolvedValue({ rows: [priorRefund("[{oops")] });
+    const ledger: LedgerReverser = { reverse: vi.fn() };
+
+    const result = await refundOrder({
+      db,
+      executor: executorReturning(59_900),
+      ledger,
+      orderId: ORDER_ID,
+      amount: 499,
+    });
+
+    expect(result).toMatchObject({ ok: true });
+    expect(ledger.reverse).not.toHaveBeenCalled();
+    expect(refundRowErrors().some((e) => e.includes(MANUAL_POSTING_HINT))).toBe(
+      true
+    );
+  });
+
+  it("still caps by earlier current-format allocations", async () => {
+    // The sale credited 3000/44/3 with 1197 kr; 1000 kr is already reversed,
+    // so a 499 kr refund can reverse only the remaining 197 kr.
+    db.listRows.mockResolvedValue({
+      rows: [
+        priorRefund(
+          JSON.stringify([
+            {
+              accountNumber: 3000,
+              amountMinor: 100_000,
+              departmentId: "44",
+              vatCode: 3,
+            },
+          ])
+        ),
+      ],
+    });
+    const ledger: LedgerReverser = {
+      reverse: vi.fn().mockResolvedValue("rev-1"),
+    };
+
+    await refundOrder({
+      db,
+      executor: executorReturning(119_700),
+      ledger,
+      orderId: ORDER_ID,
+      amount: 197,
+    });
+
+    expect(ledger.reverse).toHaveBeenCalledWith(
+      expect.objectContaining({
+        allocation: [
+          {
+            accountNumber: 3000,
+            amountMinor: 19_700,
+            departmentId: "44",
+            vatCode: 3,
+          },
+        ],
+      })
+    );
+  });
+
+  it("reverses a posted order whose lines carry a full ledger copy", async () => {
+    const ledger: LedgerReverser = {
+      reverse: vi.fn().mockResolvedValue("rev-1"),
+    };
+
+    await refundOrder({
+      db,
+      executor: executorReturning(19_900),
+      ledger,
+      lines: [{ orderItemId: "line-b", quantity: 1 }],
+      orderId: ORDER_ID,
+    });
+
+    expect(ledger.reverse).toHaveBeenCalledWith(
+      expect.objectContaining({
+        allocation: [
+          {
+            accountNumber: 3000,
+            amountMinor: 19_900,
+            departmentId: "44",
+            vatCode: 3,
+          },
+        ],
+      })
+    );
+  });
+
+  it("refuses the reversal when a priced line on a posted order has no full ledger copy", async () => {
+    db.getRow.mockImplementation(
+      orderRowFor(
+        buildOrder({
+          order_items: [
+            {
+              $id: "line-a",
+              // Account-only: the posting write-back never completed.
+              finago_account_number: 3000,
+              name: "Campus hoodie",
+              product: { $id: "product-1" },
+              quantity: 2,
+              unit_price: 499,
+            },
+          ],
+          total: 998,
+        })
+      )
+    );
+    const ledger: LedgerReverser = { reverse: vi.fn() };
+
+    const result = await refundOrder({
+      db,
+      executor: executorReturning(49_900),
+      ledger,
+      lines: [{ orderItemId: "line-a", quantity: 1 }],
+      orderId: ORDER_ID,
+    });
+
+    expect(result).toMatchObject({ ok: true });
+    expect(ledger.reverse).not.toHaveBeenCalled();
+    // Never falls back to the product's current sales type.
+    const productReads = db.getRow.mock.calls.filter(
+      (call) => call[1] === "webshop_products" || call[1] === "sales_types"
+    );
+    expect(productReads).toHaveLength(0);
+    expect(refundRowErrors().some((e) => e.includes(MANUAL_POSTING_HINT))).toBe(
+      true
+    );
+  });
+
+  it("lets an unpriced line without a ledger copy through", async () => {
+    db.getRow.mockImplementation(
+      orderRowFor(
+        buildOrder({
+          order_items: [
+            ...buildOrder().order_items,
+            {
+              $id: "line-free",
+              name: "Free sticker",
+              product: { $id: "product-3" },
+              quantity: 1,
+              unit_price: 0,
+            },
+          ],
+        })
+      )
+    );
+    const ledger: LedgerReverser = {
+      reverse: vi.fn().mockResolvedValue("rev-1"),
+    };
+
+    await refundOrder({
+      db,
+      executor: executorReturning(19_900),
+      ledger,
+      lines: [{ orderItemId: "line-b", quantity: 1 }],
+      orderId: ORDER_ID,
+    });
+
+    expect(ledger.reverse).toHaveBeenCalled();
+  });
+});
+
+describe("refundOrder — posting state re-read before the reversal", () => {
+  /**
+   * The refund reads the order when it starts; posting can move the order on
+   * before the reversal runs. The first orders read returns `stale`, every
+   * later one returns `fresh`.
+   */
+  function orderMovesTo(
+    stale: Record<string, unknown>,
+    fresh: Record<string, unknown> | Error
+  ) {
+    const base = orderRowFor(stale);
+    let ordersReads = 0;
+    db.getRow.mockImplementation(
+      (dbId: string, tableId: string, rowId: string) => {
+        if (tableId === "orders") {
+          ordersReads += 1;
+          if (ordersReads > 1) {
+            return fresh instanceof Error
+              ? Promise.reject(fresh)
+              : Promise.resolve(fresh);
+          }
+        }
+        return base(dbId, tableId, rowId);
+      }
+    );
+  }
+
+  async function refundHoodie(ledger: LedgerReverser) {
+    return await refundOrder({
+      db,
+      executor: executorReturning(49_900),
+      ledger,
+      lines: [{ orderItemId: "line-a", quantity: 1 }],
+      orderId: ORDER_ID,
+    });
+  }
+
+  it("reverses when posting recorded a real id after the refund started", async () => {
+    orderMovesTo(
+      buildOrder({ finago_transaction_id: null }),
+      buildOrder({ finago_transaction_id: "tx-new" })
+    );
+    const ledger: LedgerReverser = {
+      reverse: vi.fn().mockResolvedValue("rev-1"),
+    };
+
+    await refundHoodie(ledger);
+
+    expect(ledger.reverse).toHaveBeenCalledWith(
+      expect.objectContaining({
+        allocation: [
+          {
+            accountNumber: 3000,
+            amountMinor: 49_900,
+            departmentId: "44",
+            vatCode: 3,
+          },
+        ],
+      })
+    );
+    expect(refundRowErrors()).toEqual([]);
+  });
+
+  it("notes a manual reversal and skips Finago when the order is mid-posting", async () => {
+    orderMovesTo(
+      buildOrder({ finago_transaction_id: "tx-9" }),
+      buildOrder({ finago_transaction_id: "posting" })
+    );
+    const ledger: LedgerReverser = { reverse: vi.fn() };
+
+    const result = await refundHoodie(ledger);
+
+    expect(result).toMatchObject({ ok: true });
+    expect(ledger.reverse).not.toHaveBeenCalled();
+    expect(
+      refundRowErrors().some((e) =>
+        e.includes("in progress or unknown at refund time")
+      )
+    ).toBe(true);
+  });
+
+  it("notes a manual reversal and skips Finago when the order cannot be re-read", async () => {
+    orderMovesTo(
+      buildOrder({ finago_transaction_id: "tx-9" }),
+      new Error("appwrite timeout")
+    );
+    const ledger: LedgerReverser = { reverse: vi.fn() };
+
+    await refundHoodie(ledger);
+
+    expect(ledger.reverse).not.toHaveBeenCalled();
+    expect(
+      refundRowErrors().some((e) =>
+        e.includes("in progress or unknown at refund time")
+      )
+    ).toBe(true);
+  });
+
+  it("notes that the order is held for manual booking when it is not posted yet", async () => {
+    flags.isFeatureEnabled.mockResolvedValue(true);
+    orderMovesTo(
+      buildOrder({ finago_transaction_id: null }),
+      buildOrder({ finago_transaction_id: null })
+    );
+    const ledger: LedgerReverser = { reverse: vi.fn() };
+
+    const result = await refundHoodie(ledger);
+
+    expect(result).toMatchObject({ ok: true });
+    expect(ledger.reverse).not.toHaveBeenCalled();
+    expect(
+      refundRowErrors().some((e) => e.includes("not yet posted to Finago"))
+    ).toBe(true);
+  });
+
+  it("stays silent for an unposted order while shop posting is off", async () => {
+    flags.isFeatureEnabled.mockResolvedValue(false);
+    orderMovesTo(
+      buildOrder({ finago_transaction_id: null }),
+      buildOrder({ finago_transaction_id: null })
+    );
+    const ledger: LedgerReverser = { reverse: vi.fn() };
+
+    const result = await refundHoodie(ledger);
+
+    expect(result).toMatchObject({ ok: true });
+    expect(flags.isFeatureEnabled).toHaveBeenCalledWith("shop_ledger_posting");
+    expect(ledger.reverse).not.toHaveBeenCalled();
+    expect(refundRowErrors()).toEqual([]);
+  });
+
+  it("stays silent for an unposted order when the posting flag cannot be read", async () => {
+    flags.isFeatureEnabled.mockRejectedValue(new Error("appwrite down"));
+    orderMovesTo(
+      buildOrder({ finago_transaction_id: null }),
+      buildOrder({ finago_transaction_id: null })
+    );
+    const ledger: LedgerReverser = { reverse: vi.fn() };
+
+    const result = await refundHoodie(ledger);
+
+    expect(result).toMatchObject({ ok: true });
+    expect(refundRowErrors()).toEqual([]);
+  });
+
+  it("notes a manual reversal at the posting marker even while shop posting is off", async () => {
+    flags.isFeatureEnabled.mockResolvedValue(false);
+    orderMovesTo(
+      buildOrder({ finago_transaction_id: "tx-9" }),
+      buildOrder({ finago_transaction_id: "posting" })
+    );
+    const ledger: LedgerReverser = { reverse: vi.fn() };
+
+    await refundHoodie(ledger);
+
+    expect(
+      refundRowErrors().some((e) =>
+        e.includes("in progress or unknown at refund time")
+      )
+    ).toBe(true);
+  });
+
+  it("stays silent for a membership order", async () => {
+    orderMovesTo(
+      buildOrder({ finago_transaction_id: "membership" }),
+      buildOrder({ finago_transaction_id: "membership" })
+    );
+    const ledger: LedgerReverser = { reverse: vi.fn() };
+
+    await refundHoodie(ledger);
+
+    expect(ledger.reverse).not.toHaveBeenCalled();
+    expect(refundRowErrors()).toEqual([]);
+  });
+});
+
+describe("ledger reversal after an earlier refund posted no reversal", () => {
+  it("refuses when an earlier refund has no reversal id or allocation", async () => {
+    // e.g. refunded before the order was held and booked by hand.
+    db.listRows.mockResolvedValue({
+      rows: [{ $id: "r0", amount: 100, status: "succeeded" }],
+    });
+    const ledger: LedgerReverser = { reverse: vi.fn() };
+
+    const result = await refundOrder({
+      db,
+      executor: executorReturning(59_900),
+      ledger,
+      amount: 499,
+      orderId: ORDER_ID,
+    });
+
+    expect(result).toMatchObject({ ok: true });
+    expect(ledger.reverse).not.toHaveBeenCalled();
+    expect(
+      refundRowErrors().some((e) => e.includes("posted no ledger reversal"))
+    ).toBe(true);
+  });
+
+  it("ignores earlier refunds that failed", async () => {
+    db.listRows.mockResolvedValue({
+      rows: [{ $id: "r0", amount: 100, status: "failed" }],
+    });
+    const ledger: LedgerReverser = {
+      reverse: vi.fn().mockResolvedValue("rev-1"),
+    };
+
+    await refundOrder({
+      db,
+      executor: executorReturning(49_900),
+      ledger,
+      amount: 499,
+      orderId: ORDER_ID,
+    });
+
+    expect(ledger.reverse).toHaveBeenCalled();
+  });
+
+  it("does not count the pending refund being settled against itself", async () => {
+    const pending = {
+      $id: "refund-1",
+      amount: 499,
+      lines: [{ name: "Campus hoodie", order_item: "line-a", quantity: 1 }],
+      provider_refund_id: "re_123",
+      status: "pending" as const,
+    };
+    const ledger: LedgerReverser = {
+      reverse: vi.fn().mockResolvedValue("rev-1"),
+    };
+
+    const outcome = await settlePendingRefund({
+      db,
+      ledger,
+      order: buildOrder({ refunds: [pending] }) as never,
+      refund: pending,
+      resolver: {
+        state: vi.fn().mockResolvedValue({
+          failed: false,
+          refundedTotalMinor: 49_900,
+          settled: true,
+        }),
+      },
+    });
+
+    expect(outcome).toBe("settled");
+    expect(ledger.reverse).toHaveBeenCalled();
   });
 });

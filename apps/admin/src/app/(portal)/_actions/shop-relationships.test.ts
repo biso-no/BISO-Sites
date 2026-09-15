@@ -59,7 +59,7 @@ const departmentValues: ProductFormValues = {
   department_id: "dept-1",
   description: "<p>Norske detaljer</p>",
   description_en: "",
-  finago_account_number: null,
+  sales_type: null,
   image: "",
   images: [],
   inventory_mode: "unlimited",

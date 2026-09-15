@@ -38,6 +38,7 @@ import {
   type PaginatedResult,
 } from "@/lib/list-params";
 import { paginationQueries } from "@/lib/list-queries";
+import { assertProductBookable } from "@/lib/shop/sales-type";
 import { assertPublishAccess } from "@/lib/utils/authorization";
 import {
   type ApprovalPublishPlan,
@@ -281,11 +282,38 @@ async function executeApprovalPublish(
       : null;
 
   assertPublishAccess(ctx, campusId);
-  await sessionDb.updateRow(DATABASE_ID, plan.table, plan.resourceId, {
-    status: "published",
-  });
+
+  if (plan.domain === "shop") {
+    // Approving a request flips the product straight to "published"; refuse
+    // it here too so an approval can never bypass the same gate the editor
+    // enforces (a sales type may have been deactivated or deleted between
+    // the request being filed and it being approved). Sales types are read
+    // with the admin client: the table is readable only by the operations
+    // unit, and the approver is already authorised by `assertPublishAccess`.
+    const { db: adminDb } = await createAdminClient();
+    await assertProductBookable(adminDb, "published", {
+      departmentId: nonEmptyString(row.departmentId),
+      salesTypeId: nonEmptyString(row.sales_type),
+    });
+    // Unlike every other domain here, `webshop_products` has `rowSecurity:
+    // false` and grants only `create` permissions (no `update`), so the
+    // approver's session write would be refused regardless of role. Write
+    // through the admin client instead, now that both `assertPublishAccess`
+    // and `assertProductBookable` have passed.
+    await adminDb.updateRow(DATABASE_ID, plan.table, plan.resourceId, {
+      status: "published",
+    });
+  } else {
+    await sessionDb.updateRow(DATABASE_ID, plan.table, plan.resourceId, {
+      status: "published",
+    });
+  }
 
   revalidateApprovalPublishPaths(plan);
+}
+
+function nonEmptyString(value: unknown): string | null {
+  return typeof value === "string" && value.length > 0 ? value : null;
 }
 
 function revalidateApprovalPublishPaths(plan: ApprovalPublishPlan) {

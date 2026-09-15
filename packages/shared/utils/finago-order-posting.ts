@@ -1,94 +1,72 @@
-import type { Orders as BaseOrders } from "@repo/api/types/appwrite";
-import { postShopTransaction } from "@repo/connectors/24sevenoffice";
+import type { Orders } from "@repo/api/types/appwrite";
+import {
+  buildShopTransactionInput,
+  postLedgerTransaction,
+  type ShopTransactionInput,
+} from "@repo/connectors/24sevenoffice";
+import { isFeatureEnabled } from "./feature-flags-server";
+import {
+  ledgerDate,
+  type RevenueTarget,
+  resolveShopPosting,
+  snapshotTarget,
+} from "./finago-shop-accounting";
+import {
+  hasFinagoRestCredentials,
+  loadShopAccountingSettings,
+  resolveItemTargets,
+} from "./finago-shop-accounting-server";
 import { isMembershipOrder } from "./membership-fulfilment";
-import { getOrderItems } from "./order-parsing";
+import { getOrderItems, type ParsedOrderItem } from "./order-parsing";
 import { ORDER_ITEMS_SELECT } from "./order-queries";
+import { loadOrderRefunds } from "./order-refunds";
 import type { DbClient } from "./vipps-order-ops";
 
-// finago_transaction_id / finago_posting_lock live on the Appwrite "orders"
-// table but predate the current generated types. Extend locally until
-// packages/api/types/appwrite.ts is regenerated after the schema push.
-export type FinagoOrder = BaseOrders & {
-  finago_posting_lock?: number | null;
-  finago_transaction_id?: string | null;
-};
+export type FinagoOrder = Orders;
 
 export interface FinagoPostingResult {
+  /** Why the order cannot be posted yet; set with `not_configured`. */
+  detail?: string;
   posted: boolean;
   reason?:
     | "already_posted"
     | "claimed_elsewhere"
+    | "disabled"
     | "membership_order"
+    /** Refunded before it was posted; book it by hand (see `refundBeforePosting`). */
+    | "needs_manual"
+    | "not_configured"
     | "not_found"
     | "not_paid"
-    | "post_failed";
+    | "post_failed"
+    | "zero_total";
   transactionId?: string;
 }
 
 const POSTABLE_STATUSES = new Set(["authorized", "paid"]);
+const MINOR_UNITS_PER_MAJOR = 100;
 
-// Written to `finago_transaction_id` right before the 24SO post and overwritten
-// with the real transaction id on success. Its purpose is to survive a crash or
-// failure *after* the external ledger side effect has been attempted: while it
-// is set the order is excluded from the reconcile query (`finago_transaction_id
-// IS NULL`) and from releaseStaleFinagoClaim, so no automatic path can post a
-// second 24SO transaction. Such an order is left for manual recovery. Mirrors
-// the expense-posting claim marker.
+// Written to `finago_transaction_id` right before the Finago post and
+// overwritten with the real id on success. While it is set the order is
+// excluded from the reconcile query (`finago_transaction_id IS NULL`) and from
+// releaseStaleFinagoClaim, so no automatic path can post a second voucher
+// after a crash or failure mid-post. Such an order is left for manual recovery.
 const FINAGO_POSTING_MARKER = "posting";
 
-// Stamped into `finago_transaction_id` for a membership order in place of a
-// real transaction id — reusing the same "non-transaction sentinel in this
-// column" convention as FINAGO_POSTING_MARKER above, not a new abuse of the
-// field. Without this, a membership order would satisfy the reconciliation
-// cron's `finago_transaction_id IS NULL` sweep query forever (it never gets a
-// real transaction id posted), re-entering that capped window on every cron
-// run for the order's entire lifetime and eventually crowding out genuinely
-// unposted shop orders.
+// Stamped for a membership order: memberships are booked as a 24SO invoice by
+// fulfilMembershipOrder, so without a value here the order would match the
+// reconcile sweep's `IS NULL` query forever.
 const MEMBERSHIP_LEDGER_EXCLUSION = "membership";
+
+// Stamped for a paid order with nothing to book (a free product), for the same
+// reason as the membership sentinel.
+const ZERO_TOTAL_EXCLUSION = "zero-total";
 
 function ordersTable() {
   return {
     dbId: process.env.APPWRITE_DATABASE_ID ?? "app",
     collId: process.env.APPWRITE_ORDERS_COLLECTION_ID ?? "orders",
   };
-}
-
-async function buildFinagoItems(order: FinagoOrder, db: DbClient) {
-  const items = getOrderItems(order);
-  const dbId = process.env.APPWRITE_DATABASE_ID;
-  const colId = process.env.APPWRITE_WEBSHOP_PRODUCTS_COLLECTION_ID;
-
-  if (!(dbId && colId)) {
-    throw new Error(
-      "Missing APPWRITE_DATABASE_ID or APPWRITE_WEBSHOP_PRODUCTS_COLLECTION_ID"
-    );
-  }
-
-  const enrichedItems = await Promise.all(
-    items.map(async (item) => {
-      if (!item.product_id) {
-        return null;
-      }
-      const product = (await db
-        .getRow(dbId, colId, item.product_id)
-        .catch(() => null)) as { finago_account_number?: number | null } | null;
-      return {
-        unit_price: Number(item.unit_price ?? item.price ?? 0),
-        quantity: Number(item.quantity ?? 0),
-        finago_account_number: product?.finago_account_number ?? null,
-      };
-    })
-  );
-
-  return enrichedItems.filter(
-    (
-      item
-    ): item is {
-      unit_price: number;
-      quantity: number;
-      finago_account_number: number | null;
-    } => item !== null && item.unit_price > 0 && item.quantity > 0
-  );
 }
 
 async function releaseClaim(orderId: string, db: DbClient): Promise<void> {
@@ -109,14 +87,225 @@ async function releaseClaim(orderId: string, db: DbClient): Promise<void> {
   }
 }
 
+/** Best-effort: a failed stamp only means a later sweep stamps it again. */
+async function stampExclusion(
+  orderId: string,
+  db: DbClient,
+  sentinel: string
+): Promise<void> {
+  const { dbId, collId } = ordersTable();
+  await db
+    .updateRow(dbId, collId, orderId, { finago_transaction_id: sentinel })
+    .catch((error) => {
+      console.error(
+        `[Finago] Failed to stamp "${sentinel}" on order ${orderId}:`,
+        error
+      );
+    });
+}
+
 /**
- * Posts a paid/authorized order to Finago (24SevenOffice) exactly once.
+ * Best-effort: copies the target a line was posted with onto its
+ * `order_items` row when checkout made no copy, so a later refund reverses
+ * against the same account, VAT code and department even if the product's
+ * sales type changes. Legacy `items_json` lines have no row and are skipped.
+ * A failure is logged and never changes the posting result.
+ */
+async function writeBackFallbackTargets(
+  orderId: string,
+  items: ParsedOrderItem[],
+  targets: Array<RevenueTarget | null>,
+  db: DbClient
+): Promise<void> {
+  const dbId = process.env.APPWRITE_DATABASE_ID ?? "app";
+  const itemsId =
+    process.env.APPWRITE_ORDER_ITEMS_COLLECTION_ID ?? "order_items";
+  for (const [index, item] of items.entries()) {
+    const target = targets[index];
+    if (!(target && item.order_item_id) || snapshotTarget(item)) {
+      continue;
+    }
+    try {
+      await db.updateRow(dbId, itemsId, item.order_item_id, {
+        finago_account_number: target.accountNumber,
+        finago_department: target.departmentId,
+        finago_vat_code: target.vatCode,
+      });
+    } catch (error) {
+      console.error(
+        `[Finago] Order ${orderId} posted, but the ledger copy for line ${item.order_item_id} could not be saved:`,
+        error
+      );
+    }
+  }
+}
+
+/**
+ * Why the order must not be posted automatically because of refunds, or
+ * `null` when it has none.
  *
- * Idempotency: an atomic `finago_posting_lock` claim (incrementRowColumn)
- * guarantees only one concurrent caller — webhook callback, return route, or
- * reconciliation cron — performs the post. The winner writes the real
- * `finago_transaction_id`; on failure it releases the claim so a later sweep
- * retries. This is the same claim-lock pattern as expense ledger posting.
+ * A refund recorded before the order is posted has no voucher to reverse, so
+ * `reverseLedger` skips it and nothing revisits it. Posting the full total
+ * afterwards would book revenue that was already given back. Nothing records
+ * which refunds still need a reversal, so rather than guess, any refund that
+ * has not failed — settled or still pending at the provider — or a non-zero
+ * `refunded_total` keeps the order out of automatic posting.
+ *
+ * Reads the refund history fresh (after the claim) and lets a read failure
+ * throw: an unknown history must not be treated as "no refunds".
+ */
+async function refundBeforePosting(
+  order: FinagoOrder,
+  db: DbClient
+): Promise<string | null> {
+  const refunds = await loadOrderRefunds(order.$id, db);
+  const live = refunds.filter((refund) => refund.status !== "failed");
+  const refundedMinor = Math.round(
+    Number(order.refunded_total ?? 0) * MINOR_UNITS_PER_MAJOR
+  );
+  if (live.length === 0 && refundedMinor <= 0) {
+    return null;
+  }
+  const detail = `Order has ${live.length} refund(s) (${refundedMinor / MINOR_UNITS_PER_MAJOR} kr refunded) recorded before it was posted; post the net sale to 24SO manually and record its transaction id`;
+  // `refunded_total` only moves when a refund settles, so a pending one is
+  // not in the amount above yet.
+  const pending = live.filter((refund) => refund.status === "pending").length;
+  return pending > 0
+    ? `${detail}; ${pending} refund(s) still pending — wait for them to settle before booking the net sale by hand`
+    : detail;
+}
+
+/**
+ * Undoes the "posting" marker when the Finago call was never made, and
+ * releases the claim so the sweep can look at the order again. If clearing the
+ * marker fails, the marker AND the claim stay: the order is stranded and
+ * visible for manual recovery, which is safe, whereas releasing without the
+ * reset would change nothing and a guess could double-book.
+ */
+async function abandonMarker(orderId: string, db: DbClient): Promise<void> {
+  const { dbId, collId } = ordersTable();
+  try {
+    await db.updateRow(dbId, collId, orderId, { finago_transaction_id: null });
+  } catch (error) {
+    console.error(
+      `[Finago] Could not clear the posting marker on order ${orderId}; leaving it for manual recovery:`,
+      error
+    );
+    return;
+  }
+  await releaseClaim(orderId, db);
+}
+
+type PreparedTransaction =
+  | {
+      input: ShopTransactionInput;
+      items: ParsedOrderItem[];
+      ok: true;
+      targets: Array<RevenueTarget | null>;
+    }
+  | { ok: false; reason: string };
+
+/**
+ * Everything that can be checked without touching Finago: credentials,
+ * settings, a sales type for every priced line, and a balanced voucher. A
+ * refusal here is a configuration gap, never a possible side effect.
+ */
+async function prepareTransaction(
+  order: FinagoOrder,
+  db: DbClient
+): Promise<PreparedTransaction> {
+  if (!hasFinagoRestCredentials()) {
+    return {
+      ok: false,
+      reason: "Finago REST credentials are not set on this app",
+    };
+  }
+
+  const settings = await loadShopAccountingSettings(db);
+  const items = getOrderItems(order);
+  const targets = await resolveItemTargets(db, items);
+
+  const resolution = resolveShopPosting({
+    campusId: order.campus_id ?? null,
+    items: items.map((item, index) => ({
+      name: item.name ?? item.title ?? "Vare",
+      quantity: Number(item.quantity ?? 0),
+      target: targets[index] ?? null,
+      unitPrice: Number(item.unit_price ?? item.price ?? 0),
+    })),
+    provider: order.payment_provider ?? null,
+    settings,
+    total: order.total ?? 0,
+  });
+  if (!resolution.ok) {
+    return resolution;
+  }
+
+  const { posting } = resolution;
+  try {
+    return {
+      input: buildShopTransactionInput({
+        campusId: posting.campusId,
+        clearingAccount: posting.clearingAccount,
+        comment: `Nettbutikk ${order.$id}`,
+        date: ledgerDate(),
+        lines: posting.lines,
+        total: posting.total,
+        transactionTypeNumber: posting.transactionTypeNumber,
+      }),
+      items,
+      ok: true,
+      targets,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      reason: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
+
+/**
+ * Checks refunds again with the marker in place, immediately before the
+ * Finago call. A refund that started before the first check reads the order
+ * before its row exists; if its row has appeared since, booking the full total
+ * now would leave that refund unreversed. The marker makes any refund from
+ * here on record a manual note instead of skipping silently.
+ *
+ * @returns the result to return instead of posting, or null to post.
+ */
+async function holdForLateRefund(
+  order: FinagoOrder,
+  db: DbClient
+): Promise<FinagoPostingResult | null> {
+  const orderId = order.$id;
+  let lateRefund: string | null;
+  try {
+    lateRefund = await refundBeforePosting(order, db);
+  } catch (error) {
+    console.error(
+      `[Finago] Could not re-read refunds for order ${orderId} before posting; not posting:`,
+      error
+    );
+    await abandonMarker(orderId, db);
+    return { posted: false, reason: "post_failed" };
+  }
+  if (!lateRefund) {
+    return null;
+  }
+  await abandonMarker(orderId, db);
+  console.warn(`[Finago] Order ${orderId} needs manual posting: ${lateRefund}`);
+  return { detail: lateRefund, posted: false, reason: "needs_manual" };
+}
+
+/**
+ * Posts a paid/authorized shop order to Finago exactly once.
+ *
+ * Idempotency: an atomic `finago_posting_lock` claim guarantees only one
+ * concurrent caller — webhook, return route, or reconcile cron — posts. All
+ * validation runs before the "posting" marker, so a configuration gap
+ * releases the claim and the sweep retries once it is fixed. Only a failure
+ * of the Finago call itself leaves the marker for manual recovery.
  */
 export async function postFinagoTransactionForOrder(
   orderId: string,
@@ -134,33 +323,18 @@ export async function postFinagoTransactionForOrder(
     return { posted: false, reason: "not_paid" };
   }
   if (order.finago_transaction_id) {
-    // Either a real transaction id (already posted), the in-flight/manual-
-    // recovery marker, or the membership-exclusion sentinel stamped below —
-    // all three mean no automatic path may post this order again. Checking
-    // this before the membership check means a membership order that has
-    // already been stamped short-circuits here on any later call instead of
-    // attempting (and skipping) a redundant stamp write every time.
     return { posted: false, reason: "already_posted" };
   }
-  // Memberships are booked as a 24SO invoice by fulfilMembershipOrder, not as a
-  // shop ledger transaction. Posting both would record the same revenue twice.
-  // Stamp the exclusion sentinel (see MEMBERSHIP_LEDGER_EXCLUSION) so this row
-  // permanently drops out of the reconciliation cron's sweep instead of
-  // re-entering it forever. Best-effort: a failed write must not change the
-  // outcome for the caller — a later call (this sweep or the next) will
-  // simply try to stamp it again, which is harmless.
   if (isMembershipOrder(order)) {
-    await db
-      .updateRow(dbId, collId, orderId, {
-        finago_transaction_id: MEMBERSHIP_LEDGER_EXCLUSION,
-      })
-      .catch((error) => {
-        console.error(
-          `[Finago] Failed to stamp membership exclusion for order ${orderId}:`,
-          error
-        );
-      });
+    await stampExclusion(orderId, db, MEMBERSHIP_LEDGER_EXCLUSION);
     return { posted: false, reason: "membership_order" };
+  }
+  if (Math.round((order.total ?? 0) * MINOR_UNITS_PER_MAJOR) <= 0) {
+    await stampExclusion(orderId, db, ZERO_TOTAL_EXCLUSION);
+    return { posted: false, reason: "zero_total" };
+  }
+  if (!(await isFeatureEnabled("shop_ledger_posting"))) {
+    return { posted: false, reason: "disabled" };
   }
 
   if (db.incrementRowColumn) {
@@ -178,14 +352,8 @@ export async function postFinagoTransactionForOrder(
           : 0;
       if (lockValue !== 1) {
         // Lost the race. Undo our own increment so the lock reflects only the
-        // in-flight winner (0/1) instead of drifting upward with every loser —
-        // an inflated lock combined with each attempt refreshing $updatedAt
-        // would keep releaseStaleFinagoClaim from ever aging out a crashed
-        // claim, stranding the paid order unposted.
+        // in-flight winner and a crashed claim can still age out.
         await releaseClaim(orderId, db);
-        console.log(
-          `[Finago] Posting for order ${orderId} already claimed (lock: ${lockValue}), skipping.`
-        );
         return { posted: false, reason: "claimed_elsewhere" };
       }
     } catch (error) {
@@ -196,12 +364,28 @@ export async function postFinagoTransactionForOrder(
     }
   }
 
-  // Build the ledger lines and stamp the in-flight marker BEFORE any 24SO call.
-  // A failure here happens before the external side effect, so it is safe to
-  // release the claim and let a later sweep retry.
-  let transactionItems: Awaited<ReturnType<typeof buildFinagoItems>>;
+  let prepared: PreparedTransaction;
   try {
-    transactionItems = await buildFinagoItems(order, db);
+    const refunded = await refundBeforePosting(order, db);
+    if (refunded) {
+      await releaseClaim(orderId, db);
+      console.warn(
+        `[Finago] Order ${orderId} needs manual posting: ${refunded}`
+      );
+      return { detail: refunded, posted: false, reason: "needs_manual" };
+    }
+    prepared = await prepareTransaction(order, db);
+    if (!prepared.ok) {
+      await releaseClaim(orderId, db);
+      console.warn(
+        `[Finago] Order ${orderId} not posted yet: ${prepared.reason}`
+      );
+      return {
+        detail: prepared.reason,
+        posted: false,
+        reason: "not_configured",
+      };
+    }
     await db.updateRow(dbId, collId, orderId, {
       finago_transaction_id: FINAGO_POSTING_MARKER,
     });
@@ -214,34 +398,32 @@ export async function postFinagoTransactionForOrder(
     return { posted: false, reason: "post_failed" };
   }
 
-  try {
-    const transactionId = await postShopTransaction({
-      orderId,
-      date: new Date().toISOString().slice(0, 10),
-      total: order.total ?? 0,
-      items: transactionItems,
-      campusId: order.campus_id ?? null,
-    });
+  const held = await holdForLateRefund(order, db);
+  if (held) {
+    return held;
+  }
 
+  let transactionId: string;
+  try {
+    transactionId = await postLedgerTransaction(prepared.input);
     await db.updateRow(dbId, collId, orderId, {
       finago_transaction_id: transactionId,
     });
     console.log(
       `[Finago] Posted order ${orderId} as transaction ${transactionId}`
     );
-    return { posted: true, transactionId };
   } catch (error) {
-    // The 24SO post has been attempted — it may have created the transaction
-    // even though recording its id failed. Do NOT release the claim or clear
-    // the marker: leaving the marker in place keeps every automatic path
-    // (webhook/return/cron + releaseStaleFinagoClaim) from posting a second
-    // transaction. The order is surfaced for manual recovery instead.
+    // The Finago post has been attempted and may have landed. Keep the marker
+    // and the claim so no automatic path posts a second voucher.
     console.error(
       `[Finago] Post attempted for order ${orderId}; leaving marker for manual recovery:`,
       error
     );
     return { posted: false, reason: "post_failed" };
   }
+
+  await writeBackFallbackTargets(orderId, prepared.items, prepared.targets, db);
+  return { posted: true, transactionId };
 }
 
 const STALE_CLAIM_MS = 30 * 60 * 1000;

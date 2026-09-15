@@ -22,6 +22,12 @@ import { NextResponse } from "next/server";
 import { isProd } from "@/lib/utils";
 
 /**
+ * DEPRECATED — the sweep now runs in apps/api (`/api/cron/reconcile-orders`).
+ * This copy stays only until `ORDERS_RECONCILE_URL` in scheduled-dispatch
+ * points at the API app; delete it in the same follow-up that deletes the
+ * `/api/checkout/return` shim. Running both is safe: every settlement path
+ * claims atomically.
+ *
  * Order reconciliation sweep (PR-038). Driven on a schedule by the
  * `scheduled-dispatch` Appwrite Function (`ORDERS_RECONCILE_URL`), which POSTs
  * with an `x-cron-secret` header; can also be hit manually with

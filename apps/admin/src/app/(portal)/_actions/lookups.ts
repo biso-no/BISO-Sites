@@ -2,7 +2,7 @@
 
 import { Query } from "@repo/api";
 import { createAdminClient } from "@repo/api/server";
-import type { Campus, Departments } from "@repo/api/types/appwrite";
+import type { Campus, Departments, SalesTypes } from "@repo/api/types/appwrite";
 import { requireAuth } from "@/lib/authorization";
 
 export async function listCampuses(): Promise<Campus[]> {
@@ -35,4 +35,40 @@ export async function listDepartmentsForCampus(
   return response.rows.filter((row) =>
     ctx.resolvedDepartmentIds.includes(row.$id)
   );
+}
+
+export interface SalesTypeOption {
+  accountNumber: number;
+  active: boolean;
+  id: string;
+  labelEn: string;
+  labelNo: string;
+}
+
+/**
+ * Active sales types for the product editor, in the order finance set. Pass
+ * the product's saved sales type to include it even when it has since been
+ * deactivated, so the editor can still show its label; other inactive types
+ * are never offered.
+ */
+export async function listSalesTypeOptions(
+  currentSalesTypeId?: string | null
+): Promise<SalesTypeOption[]> {
+  await requireAuth();
+  const { db } = await createAdminClient();
+  const activeOnly = Query.equal("active", true);
+  const response = await db.listRows<SalesTypes>("app", "sales_types", [
+    currentSalesTypeId
+      ? Query.or([activeOnly, Query.equal("$id", currentSalesTypeId)])
+      : activeOnly,
+    Query.orderAsc("sort_order"),
+    Query.limit(100),
+  ]);
+  return response.rows.map((row) => ({
+    accountNumber: row.account_number,
+    active: row.active !== false,
+    id: row.$id,
+    labelEn: row.label_en,
+    labelNo: row.label_no,
+  }));
 }

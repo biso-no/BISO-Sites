@@ -24,8 +24,14 @@ export interface CheckoutSessionParams {
     title?: string; // Add optional fields that might be used
     unit_price?: number;
     product_type?: string;
-    /** Ledger revenue account, snapshotted at sale time. */
+    /**
+     * Ledger copy made at sale time: the revenue account, its Finago posting
+     * tax number, and the department dimension value. Posting and refunds use
+     * it so editing a product or its sales type never rewrites a past sale.
+     */
     finago_account_number?: number | null;
+    finago_department?: string | null;
+    finago_vat_code?: number | null;
     category?: string;
     // Non-price fulfillment metadata carried through to the persisted order so
     // receipts/fulfillment retain the buyer's variant and custom-field answers.

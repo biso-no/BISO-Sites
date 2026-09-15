@@ -23,33 +23,33 @@ describe("isCheckoutClient", () => {
 });
 
 describe("checkoutReturnUrl", () => {
-  it("points at the web return route, which owns reconciliation", () => {
-    expect(checkoutReturnUrl("https://biso.no", "order-1")).toBe(
-      "https://biso.no/api/checkout/return?orderId=order-1"
+  it("points at the API return route, which owns reconciliation", () => {
+    expect(checkoutReturnUrl("https://api.biso.no", "order-1")).toBe(
+      "https://api.biso.no/api/payment/return?orderId=order-1"
     );
   });
 
   it("leaves the web URL unmarked so existing behaviour is untouched", () => {
     expect(
-      checkoutReturnUrl("https://biso.no", "order-1", "web")
+      checkoutReturnUrl("https://api.biso.no", "order-1", "web")
     ).not.toContain("client=");
   });
 
   it("marks an app checkout so the return route can deep-link back", () => {
-    expect(checkoutReturnUrl("https://biso.no", "order-1", "app")).toBe(
-      "https://biso.no/api/checkout/return?orderId=order-1&client=app"
+    expect(checkoutReturnUrl("https://api.biso.no", "order-1", "app")).toBe(
+      "https://api.biso.no/api/payment/return?orderId=order-1&client=app"
     );
   });
 
   it("normalises a trailing slash on the base URL", () => {
-    expect(checkoutReturnUrl("https://biso.no/", "order-1")).toBe(
-      "https://biso.no/api/checkout/return?orderId=order-1"
+    expect(checkoutReturnUrl("https://api.biso.no/", "order-1")).toBe(
+      "https://api.biso.no/api/payment/return?orderId=order-1"
     );
   });
 
   it("escapes the order id", () => {
-    expect(checkoutReturnUrl("https://biso.no", "a b&c")).toBe(
-      "https://biso.no/api/checkout/return?orderId=a%20b%26c"
+    expect(checkoutReturnUrl("https://api.biso.no", "a b&c")).toBe(
+      "https://api.biso.no/api/payment/return?orderId=a%20b%26c"
     );
   });
 });
@@ -76,8 +76,8 @@ describe("appOrderDeepLink", () => {
 
 describe("cancel marking", () => {
   it("marks an app cancel URL apart from its success URL", () => {
-    const success = checkoutReturnUrl("https://biso.no", "order-1", "app");
-    const cancel = checkoutReturnUrl("https://biso.no", "order-1", "app", {
+    const success = checkoutReturnUrl("https://api.biso.no", "order-1", "app");
+    const cancel = checkoutReturnUrl("https://api.biso.no", "order-1", "app", {
       cancelled: true,
     });
 
@@ -90,7 +90,7 @@ describe("cancel marking", () => {
 
   it("never marks the web URL, which has its own cancel destination", () => {
     expect(
-      checkoutReturnUrl("https://biso.no", "order-1", "web", {
+      checkoutReturnUrl("https://api.biso.no", "order-1", "web", {
         cancelled: true,
       })
     ).not.toContain("cancelled");

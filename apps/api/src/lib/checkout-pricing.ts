@@ -9,6 +9,9 @@ import type {
 } from "@repo/api/types/appwrite";
 import { type CheckoutSessionParams, Currency } from "@repo/shared/types/vipps";
 import { sanitizeStudentNumber } from "@repo/shared/utils/bi-student";
+import type { RevenueTarget } from "@repo/shared/utils/finago-shop-accounting";
+import { resolveRevenueTarget } from "@repo/shared/utils/finago-shop-accounting-server";
+import { discountedUnitPrice } from "@repo/shared/utils/member-discount";
 import { computeMembershipStatus } from "@repo/shared/utils/membership-status";
 import { ORDER_ITEMS_SELECT } from "@repo/shared/utils/order-queries";
 import {
@@ -385,7 +388,7 @@ async function resolvePricing(
   discountCache.set(product.$id, discount);
 
   const discountedUnit = discount.applied
-    ? Math.max(0, originalUnit * (1 - discount.percent / 100))
+    ? discountedUnitPrice(originalUnit, discount.percent)
     : originalUnit;
 
   return {
@@ -397,10 +400,27 @@ async function resolvePricing(
 }
 
 /**
+ * The revenue target a product sells under right now, cached per product for
+ * the checkout. An unresolvable target is not a checkout error: the order is
+ * still taken, and ledger posting resolves it (or waits) later.
+ */
+async function revenueTargetFor(
+  product: NormalizedProduct,
+  db: CheckoutDb,
+  cache: Map<string, RevenueTarget | null>
+): Promise<RevenueTarget | null> {
+  if (!cache.has(product.$id)) {
+    cache.set(product.$id, await resolveRevenueTarget(db, product));
+  }
+  return cache.get(product.$id) ?? null;
+}
+
+/**
  * Rebuilds the checkout from stored product rows: prices, member discount,
  * stock and purchase limits are all resolved server-side. Throws
  * {@link CheckoutValidationError} when a line cannot be fulfilled.
  */
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: orchestrates checkout validation, pricing and ledger resolution in one place
 export async function buildTrustedCheckoutParams({
   authClient,
   customerInfo,
@@ -438,6 +458,7 @@ export async function buildTrustedCheckoutParams({
     string,
     { applied: boolean; percent: number }
   >();
+  const targetCache = new Map<string, RevenueTarget | null>();
   const trustedItems: CheckoutSessionParams["items"] = [];
   const campusIds = new Set<string>();
 
@@ -478,10 +499,15 @@ export async function buildTrustedCheckoutParams({
 
     const answers = validatedAnswers(product, input.customFields, productName);
 
+    const revenueTarget = await revenueTargetFor(product, db, targetCache);
+
     trustedItems.push({
-      // Snapshotted so a later refund reverses the account this sale actually
-      // credited, even if the product's account is edited in between.
-      finago_account_number: product.finago_account_number ?? null,
+      // Snapshotted so ledger posting and any later refund use the account,
+      // VAT code and department this sale was made under, even if the product
+      // or its sales type is edited in between.
+      finago_account_number: revenueTarget?.accountNumber ?? null,
+      finago_department: revenueTarget?.departmentId ?? null,
+      finago_vat_code: revenueTarget?.vatCode ?? null,
       name: productName,
       price: pricing.discountedUnit,
       productId: product.$id,

@@ -53,8 +53,11 @@ export { getMembershipProducts, getProducts } from "./products";
 // Finago REST API
 export {
   type BuildExpenseTransactionParams,
+  type BuildShopTransactionParams,
   buildExpenseTransactionInput,
-  buildShopRefundTransactionInput,
+  buildShopReversalTransactionInput,
+  buildShopTransactionInput,
+  CAMPUS_DIMENSION_TYPE,
   DEPARTMENT_DIMENSION_TYPE,
   type DimensionElement,
   type ExpenseReceiptLine,
@@ -64,16 +67,23 @@ export {
   listTaxes,
   type PostExpenseTransactionParams,
   postExpenseTransaction,
-  postShopRefundTransaction,
-  postShopTransaction,
-  type ShopRefundTransactionParams,
-  type ShopTransactionParams,
+  postLedgerTransaction,
+  type ShopLedgerLine,
+  type ShopTransactionInput,
   type TaxCode,
   type UploadDocumentResult,
   uploadDocument,
 } from "./rest";
 // Customer sync function
 export { hasMembershipProduct } from "./sync";
+// Tax codes (SOAP — tax id → posting tax number)
+export {
+  type GetTaxCodeListResult,
+  getTaxCodes,
+  parseTaxCodeList,
+  type TaxCodeListEntry,
+  taxNumberByTaxId,
+} from "./tax-codes";
 // Types
 export type {
   CategoryDefinition,

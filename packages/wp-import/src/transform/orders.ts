@@ -18,7 +18,7 @@ const STATUS_MAP: Record<string, string> = {
  * "non-transaction sentinel in this column" convention documented next to
  * FINAGO_POSTING_MARKER / MEMBERSHIP_LEDGER_EXCLUSION in
  * packages/shared/utils/finago-order-posting.ts. The reconcile cron
- * (apps/web/src/app/api/cron/reconcile-orders/route.ts) sweeps every
+ * (apps/api/src/app/api/cron/reconcile-orders/route.ts) sweeps every
  * paid/authorized order with `finago_transaction_id IS NULL` and posts it to
  * the live 24SevenOffice ledger — with the column left unset, every imported
  * historical WooCommerce order would be swept and posted as fabricated

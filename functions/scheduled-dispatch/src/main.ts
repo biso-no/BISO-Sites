@@ -31,7 +31,7 @@
  *   TICKSTER_EVENTS_SYNC_URL    e.g. https://api.biso.no/api/tickster/events/sync
  *   DEPARTURES_SYNC_URL         e.g. https://api.biso.no/api/departures/sync
  *   RESERVATIONS_CLEANUP_URL    e.g. https://biso.no/api/cron/cleanup-reservations
- *   ORDERS_RECONCILE_URL        e.g. https://biso.no/api/cron/reconcile-orders
+ *   ORDERS_RECONCILE_URL        e.g. https://api.biso.no/api/cron/reconcile-orders
  *   TURNOVER_RETENTION_STOP_URL e.g. https://admin.biso.no/api/it/turnover/stop-retention
  *   EXPENSES_POST_PENDING_URL   e.g. https://api.biso.no/api/expenses/post-pending
  *                               (defaults to a 300s timeout — the route's cap)
@@ -68,12 +68,15 @@ type TargetName = (typeof TARGET_ENV_VARS)[number];
 /**
  * Per-target timeout defaults (ms). Most pings finish quickly, but ledger posting
  * runs far longer: `/api/expenses/post-pending` allows up to 300s and 24SO
- * `uploadDocument` polls ~60s per expense, so it gets a generous default. Override
- * any target with `<ENV_VAR_NAME>_TIMEOUT_MS`. The function's overall `timeout`
- * (Appwrite console) must be >= the largest per-target timeout.
+ * `uploadDocument` polls ~60s per expense, so it gets a generous default.
+ * `/api/cron/reconcile-orders` gets the same default — its Finago posting pass
+ * makes the same 24SO calls. Override any target with `<ENV_VAR_NAME>_TIMEOUT_MS`.
+ * The function's overall `timeout` (Appwrite console) must be >= the largest
+ * per-target timeout.
  */
 const TARGET_TIMEOUT_DEFAULTS: Partial<Record<TargetName, number>> = {
   EXPENSES_POST_PENDING_URL: 300_000,
+  ORDERS_RECONCILE_URL: 300_000,
 };
 
 type LogFn = (...messages: unknown[]) => void;

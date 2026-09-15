@@ -1,12 +1,13 @@
 import { describe, expect, test } from "bun:test";
 import {
   buildExpenseTransactionInput,
-  buildShopRefundTransactionInput,
+  buildShopReversalTransactionInput,
+  buildShopTransactionInput,
 } from "./transactions";
 
 const NO_RECEIPTS_ERROR = /at least one receipt/i;
-const NO_REVENUE_ACCOUNTS_ERROR = /No revenue accounts resolved/i;
-const PARTIAL_REVERSAL_ERROR = /refusing to post a partial reversal/i;
+const UNBALANCED_VOUCHER_ERROR = /unbalanced voucher/i;
+const EMPTY_VOUCHER_ERROR = /at least one revenue line/i;
 
 describe("buildExpenseTransactionInput", () => {
   const base = {
@@ -66,81 +67,124 @@ describe("buildExpenseTransactionInput", () => {
   });
 });
 
-describe("buildShopRefundTransactionInput", () => {
+describe("buildShopTransactionInput", () => {
   const base = {
-    allocation: [
-      { accountNumber: 3000, amountMinor: 49_900 },
-      { accountNumber: 3010, amountMinor: 19_900 },
+    campusId: "1",
+    clearingAccount: 1530,
+    comment: "Nettbutikk order-1",
+    date: "2026-09-11",
+    lines: [
+      {
+        accountNumber: 3000,
+        amount: 490,
+        comment: "Gensere til børsgruppen ×1",
+        departmentId: "44",
+        vatCode: 3,
+      },
+      { accountNumber: 3100, amount: 250, departmentId: "21", vatCode: 5 },
     ],
-    amount: 698,
-    date: "2026-09-08",
-    orderId: "order-1",
-    receivableAccountNumber: 1500,
-    transactionTypeNumber: 7,
+    total: 740,
+    transactionTypeNumber: 8,
   };
 
-  test("balances all lines to zero", () => {
-    const input = buildShopRefundTransactionInput(base);
+  test("debits the clearing account by the gross total, with no dimensions", () => {
+    const input = buildShopTransactionInput(base);
+    expect(input.transactionTypeNumber).toBe(8);
+    expect(input.date).toBe("2026-09-11");
+    expect(input.lines[0]).toStrictEqual({
+      accountNumber: 1530,
+      amount: 740,
+      comment: "Nettbutikk order-1",
+      tax: { number: 0 },
+    });
+  });
+
+  test("credits each revenue line with its VAT code, department and campus", () => {
+    const input = buildShopTransactionInput(base);
+    expect(input.lines[1]).toEqual({
+      accountNumber: 3000,
+      amount: -490,
+      comment: "Gensere til børsgruppen ×1",
+      dimensions: [
+        { dimensionType: 2, value: "44" },
+        { dimensionType: 101, value: "1" },
+      ],
+      tax: { number: 3 },
+    });
+    expect(input.lines[2]?.tax).toEqual({ number: 5 });
+  });
+
+  test("balances to zero", () => {
+    const input = buildShopTransactionInput(base);
     const sum = input.lines.reduce((acc, line) => acc + line.amount, 0);
     expect(Math.round(sum * 100) / 100).toBe(0);
   });
 
-  test("mirrors the original booking: revenue debited, receivable credited", () => {
-    const input = buildShopRefundTransactionInput(base);
-    const debit = input.lines.filter((l) => l.amount > 0);
-    const credit = input.lines.filter((l) => l.amount < 0);
-
-    expect(debit.map((l) => l.accountNumber)).toEqual([3000, 3010]);
-    expect(debit.map((l) => l.amount)).toEqual([499, 199]);
-    expect(credit).toHaveLength(1);
-    expect(credit[0].accountNumber).toBe(1500);
-    expect(credit[0].amount).toBe(-698);
+  test("omits the campus dimension when the order has no campus", () => {
+    const input = buildShopTransactionInput({ ...base, campusId: null });
+    expect(input.lines[0]?.dimensions).toBeUndefined();
+    expect(input.lines[1]?.dimensions).toEqual([
+      { dimensionType: 2, value: "44" },
+    ]);
   });
 
-  test("refuses an allocation that disagrees with the refunded amount", () => {
-    // Silently crediting the smaller allocation sum would balance the books
-    // while understating the cash returned, so a mismatch must fail loudly.
-    expect(() =>
-      buildShopRefundTransactionInput({ ...base, amount: 999 })
-    ).toThrow(PARTIAL_REVERSAL_ERROR);
-  });
-
-  test("applies the campus department dimension to every line", () => {
-    const input = buildShopRefundTransactionInput({ ...base, campusId: "2" });
-    for (const line of input.lines) {
-      expect(line.dimensions).toEqual([{ type: 2, value: "301" }]);
-    }
-  });
-
-  test("throws when no revenue account could be resolved", () => {
-    expect(() =>
-      buildShopRefundTransactionInput({ ...base, allocation: [] })
-    ).toThrow(NO_REVENUE_ACCOUNTS_ERROR);
-  });
-});
-
-describe("buildShopRefundTransactionInput allocation coverage", () => {
-  const base = {
-    allocation: [{ accountNumber: 3000, amountMinor: 49_900 }],
-    amount: 698,
-    date: "2026-09-08",
-    orderId: "order-1",
-    receivableAccountNumber: 1500,
-    transactionTypeNumber: 7,
-  };
-
-  test("refuses to post when the allocation does not cover the refund", () => {
-    // A refunded product with no finago_account_number drops out of the
-    // allocation; posting the remainder would balance but understate the cash
-    // actually returned.
-    expect(() => buildShopRefundTransactionInput(base)).toThrow(
-      PARTIAL_REVERSAL_ERROR
+  test("refuses lines that do not cover the total", () => {
+    expect(() => buildShopTransactionInput({ ...base, total: 999 })).toThrow(
+      UNBALANCED_VOUCHER_ERROR
     );
   });
 
-  test("posts when the allocation covers the refund exactly", () => {
-    const input = buildShopRefundTransactionInput({ ...base, amount: 499 });
-    const sum = input.lines.reduce((acc, line) => acc + line.amount, 0);
-    expect(Math.round(sum * 100) / 100).toBe(0);
+  test("refuses an empty voucher", () => {
+    expect(() =>
+      buildShopTransactionInput({ ...base, lines: [], total: 0 })
+    ).toThrow(EMPTY_VOUCHER_ERROR);
+  });
+});
+
+describe("buildShopReversalTransactionInput", () => {
+  const base = {
+    campusId: "1",
+    clearingAccount: 1540,
+    comment: "Refusjon nettbutikk order-1",
+    date: "2026-09-12",
+    lines: [
+      { accountNumber: 3000, amount: 299, departmentId: "16", vatCode: 3 },
+    ],
+    total: 299,
+    transactionTypeNumber: 8,
+  };
+
+  test("mirrors the sale with every sign flipped", () => {
+    const sale = buildShopTransactionInput(base);
+    const reversal = buildShopReversalTransactionInput(base);
+    expect(reversal.lines.map((line) => line.amount)).toEqual(
+      sale.lines.map((line) => -line.amount)
+    );
+  });
+
+  test("keeps VAT codes and dimensions on revenue lines only", () => {
+    const reversal = buildShopReversalTransactionInput(base);
+    expect(reversal.lines[0]).toStrictEqual({
+      accountNumber: 1540,
+      amount: -299,
+      comment: "Refusjon nettbutikk order-1",
+      tax: { number: 0 },
+    });
+    expect(reversal.lines[1]).toEqual(
+      expect.objectContaining({
+        accountNumber: 3000,
+        dimensions: [
+          { dimensionType: 2, value: "16" },
+          { dimensionType: 101, value: "1" },
+        ],
+        tax: { number: 3 },
+      })
+    );
+  });
+
+  test("refuses a reversal whose lines do not cover the refund", () => {
+    expect(() =>
+      buildShopReversalTransactionInput({ ...base, total: 300 })
+    ).toThrow(UNBALANCED_VOUCHER_ERROR);
   });
 });

@@ -1,283 +1,19 @@
 /**
  * Finago REST API — General Ledger Transactions
  *
- * POST /transactions is a new endpoint not yet in the generated schema.d.ts.
- * Types are defined manually here based on the published API spec.
+ * Pure voucher builders (expense reimbursements, webshop sales and refunds)
+ * plus `POST /transactions` transport through the typed client.
  */
 
-import { getAccessToken } from "./auth";
 import { finago } from "./client";
-import { DEPARTMENT_DIMENSION_TYPE } from "./departments";
+import {
+  CAMPUS_DIMENSION_TYPE,
+  DEPARTMENT_DIMENSION_TYPE,
+} from "./departments";
 import type { components } from "./schema";
-
-const BASE_URL = "https://rest.api.24sevenoffice.com/v1";
 
 const COMMENT_MAX_LENGTH = 75;
 const CENTS = 100;
-
-/**
- * Campus to 24SevenOffice DepartmentId mapping for webshop general-ledger
- * transactions. This is a distinct legacy department scheme from the one
- * membership invoices use (`CAMPUS_INVOICE_DEPARTMENT_IDS` in
- * `@repo/shared/utils/finago-membership-invoice`) and is unrelated to
- * membership purchases, so it is kept local rather than imported — this
- * package cannot depend on `@repo/shared` (workspace cycle).
- */
-const SHOP_CAMPUS_DEPARTMENT_IDS: Record<string, number> = {
-  "1": 2, // Oslo
-  "2": 301, // Bergen
-  "3": 601, // Trondheim
-  "4": 801, // Stavanger
-  "5": 1002, // National
-};
-
-interface TransactionLine {
-  accountNumber: number;
-  amount: number; // positive = debit, negative = credit
-  comment?: string;
-  dimensions?: Array<{ type: number; value: string }>;
-  tax: { number: number };
-}
-
-interface PostTransactionRequest {
-  comment?: string; // max 75 chars
-  date: string; // ISO 8601 date (YYYY-MM-DD)
-  lines: TransactionLine[];
-  transactionTypeNumber: number;
-}
-
-interface PostTransactionResponse {
-  transactionId: string;
-}
-
-export interface ShopTransactionParams {
-  campusId?: string | null;
-  comment?: string;
-  date: string;
-  items: Array<{
-    unit_price: number;
-    quantity: number;
-    finago_account_number?: number | null;
-  }>;
-  orderId: string;
-  total: number;
-}
-
-async function postTransaction(
-  request: PostTransactionRequest
-): Promise<PostTransactionResponse> {
-  const token = await getAccessToken();
-  const response = await fetch(`${BASE_URL}/transactions`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(request),
-  });
-
-  if (!response.ok) {
-    const body = await response.text().catch(() => "");
-    throw new Error(
-      `[Finago] POST /transactions failed: ${response.status} ${body}`
-    );
-  }
-
-  return response.json() as Promise<PostTransactionResponse>;
-}
-
-export async function postShopTransaction(
-  params: ShopTransactionParams
-): Promise<string> {
-  const transactionTypeNumber = Number(
-    process.env.TFSO_SHOP_TRANSACTION_TYPE_NUMBER
-  );
-  const vippsReceivableAccount = Number(
-    process.env.TFSO_VIPPS_RECEIVABLE_ACCOUNT
-  );
-
-  if (!(transactionTypeNumber && vippsReceivableAccount)) {
-    throw new Error(
-      "[Finago] TFSO_SHOP_TRANSACTION_TYPE_NUMBER and TFSO_VIPPS_RECEIVABLE_ACCOUNT must be set"
-    );
-  }
-
-  const departmentId = params.campusId
-    ? SHOP_CAMPUS_DEPARTMENT_IDS[params.campusId]
-    : undefined;
-
-  const departmentDimension: TransactionLine["dimensions"] = departmentId
-    ? [{ type: DEPARTMENT_DIMENSION_TYPE, value: String(departmentId) }]
-    : undefined;
-
-  // Debit: Vipps receivables (total amount, positive)
-  const debitLine: TransactionLine = {
-    accountNumber: vippsReceivableAccount,
-    amount: params.total,
-    tax: { number: 0 },
-    comment: `Order ${params.orderId}`.slice(0, 75),
-    dimensions: departmentDimension,
-  };
-
-  // Credit: Revenue accounts per product, grouped by account number (negative)
-  const accountTotals = new Map<number, number>();
-  for (const item of params.items) {
-    if (!item.finago_account_number) {
-      console.warn(
-        "[Finago] Item has no finago_account_number, skipping revenue line"
-      );
-      continue;
-    }
-    const lineAmount = item.unit_price * item.quantity;
-    accountTotals.set(
-      item.finago_account_number,
-      (accountTotals.get(item.finago_account_number) ?? 0) + lineAmount
-    );
-  }
-
-  if (accountTotals.size === 0) {
-    throw new Error(
-      `[Finago] No items with finago_account_number for order ${params.orderId} — skipping transaction`
-    );
-  }
-
-  const creditLines: TransactionLine[] = Array.from(
-    accountTotals.entries()
-  ).map(([accountNumber, amount]) => ({
-    accountNumber,
-    amount: -amount, // credit
-    tax: { number: 0 },
-    dimensions: departmentDimension,
-  }));
-
-  const result = await postTransaction({
-    transactionTypeNumber,
-    date: params.date,
-    comment: (params.comment ?? `Shop order ${params.orderId}`).slice(0, 75),
-    lines: [debitLine, ...creditLines],
-  });
-
-  return result.transactionId;
-}
-
-export interface ShopRefundTransactionParams {
-  /** Minor units (øre) per revenue account, as allocated by the refund. */
-  allocation: Array<{ accountNumber: number; amountMinor: number }>;
-  /** Total refunded, in NOK. */
-  amount: number;
-  campusId?: string | null;
-  comment?: string;
-  date: string;
-  orderId: string;
-}
-
-/**
- * Posts the compensating transaction for a refunded shop order: the exact
- * mirror of `postShopTransaction`, with every sign flipped.
- *
- * The original booking debits the receivable account and credits each product's
- * revenue account. A refund gives the money back, so the receivable is credited
- * and the revenue accounts are debited. The allocation is computed upstream (by
- * `allocateAmountAcrossAccounts`) and already sums to the refunded amount, so
- * the lines here balance to zero without further rounding.
- */
-/**
- * Pure builder for the refund reversal, split out so the line construction and
- * its balance invariant are testable without a network call.
- */
-export function buildShopRefundTransactionInput(
-  params: ShopRefundTransactionParams & {
-    receivableAccountNumber: number;
-    transactionTypeNumber: number;
-  }
-): PostTransactionRequest {
-  if (params.allocation.length === 0) {
-    throw new Error(
-      `[Finago] No revenue accounts resolved for refund on order ${params.orderId}`
-    );
-  }
-
-  // The allocation must account for every krone refunded. A refunded product
-  // with no `finago_account_number` drops out of the allocation, and crediting
-  // receivables by the (smaller) allocation sum would post a transaction that
-  // balances perfectly while understating the cash actually returned — a
-  // silently wrong ledger. Fail instead: the refund itself still stands, and
-  // the caller records the ledger failure for manual posting.
-  const allocatedMinor = params.allocation.reduce(
-    (sum, entry) => sum + entry.amountMinor,
-    0
-  );
-  const refundedMinor = Math.round(params.amount * CENTS);
-  if (allocatedMinor !== refundedMinor) {
-    throw new Error(
-      `[Finago] Refund allocation for order ${params.orderId} covers ${allocatedMinor} of ${refundedMinor} øre — refusing to post a partial reversal. Check that every refunded product has a finago_account_number.`
-    );
-  }
-
-  const departmentId = params.campusId
-    ? SHOP_CAMPUS_DEPARTMENT_IDS[params.campusId]
-    : undefined;
-  const departmentDimension: TransactionLine["dimensions"] = departmentId
-    ? [{ type: DEPARTMENT_DIMENSION_TYPE, value: String(departmentId) }]
-    : undefined;
-
-  // Debit each revenue account back by its refunded share (positive).
-  const debitLines: TransactionLine[] = params.allocation.map((entry) => ({
-    accountNumber: entry.accountNumber,
-    amount: entry.amountMinor / CENTS,
-    tax: { number: 0 },
-    dimensions: departmentDimension,
-  }));
-
-  // Credit the receivable account by the same total (negative). Summing the
-  // debit lines rather than trusting `params.amount` is what guarantees the
-  // transaction balances to zero: the allocation is the rounded truth.
-  const total = debitLines.reduce((sum, line) => sum + line.amount, 0);
-  const creditLine: TransactionLine = {
-    accountNumber: params.receivableAccountNumber,
-    amount: -total,
-    tax: { number: 0 },
-    comment: `Refund ${params.orderId}`.slice(0, COMMENT_MAX_LENGTH),
-    dimensions: departmentDimension,
-  };
-
-  return {
-    transactionTypeNumber: params.transactionTypeNumber,
-    date: params.date,
-    comment: (params.comment ?? `Refund order ${params.orderId}`).slice(
-      0,
-      COMMENT_MAX_LENGTH
-    ),
-    lines: [...debitLines, creditLine],
-  };
-}
-
-export async function postShopRefundTransaction(
-  params: ShopRefundTransactionParams
-): Promise<string> {
-  const transactionTypeNumber = Number(
-    process.env.TFSO_SHOP_TRANSACTION_TYPE_NUMBER
-  );
-  const vippsReceivableAccount = Number(
-    process.env.TFSO_VIPPS_RECEIVABLE_ACCOUNT
-  );
-
-  if (!(transactionTypeNumber && vippsReceivableAccount)) {
-    throw new Error(
-      "[Finago] TFSO_SHOP_TRANSACTION_TYPE_NUMBER and TFSO_VIPPS_RECEIVABLE_ACCOUNT must be set"
-    );
-  }
-
-  const result = await postTransaction(
-    buildShopRefundTransactionInput({
-      ...params,
-      receivableAccountNumber: vippsReceivableAccount,
-      transactionTypeNumber,
-    })
-  );
-
-  return result.transactionId;
-}
 
 // ---------------------------------------------------------------------------
 // Expense / reimbursement transactions
@@ -456,5 +192,138 @@ export async function postExpenseTransaction(
     );
   }
 
+  return data.transactionId;
+}
+
+// ---------------------------------------------------------------------------
+// Webshop vouchers (Inntektsrapport)
+// ---------------------------------------------------------------------------
+
+export type ShopTransactionInput = TransactionInputT;
+
+/** One revenue line of a webshop voucher. */
+export interface ShopLedgerLine {
+  accountNumber: number;
+  /** Positive NOK, VAT-inclusive. */
+  amount: number;
+  comment?: string;
+  /** The Finago department dimension value (`departments.Id`). */
+  departmentId: string;
+  /** Finago posting tax number, e.g. 3 (output VAT 25 %) or 5 (exempt). */
+  vatCode: number;
+}
+
+export interface BuildShopTransactionParams {
+  campusId?: string | null;
+  /** The payment provider's clearing account, e.g. 1530 (Vipps). */
+  clearingAccount: number;
+  comment: string;
+  date: string;
+  lines: ShopLedgerLine[];
+  /** Positive NOK the revenue lines must add up to exactly. */
+  total: number;
+  transactionTypeNumber: number;
+}
+
+function shopDimensions(
+  departmentId: string,
+  campusId: string | null | undefined
+): DimensionT[] | undefined {
+  const dimensions: DimensionT[] = [];
+  if (departmentId) {
+    dimensions.push({
+      dimensionType: DEPARTMENT_DIMENSION_TYPE,
+      value: departmentId,
+    });
+  }
+  if (campusId) {
+    dimensions.push({
+      dimensionType: CAMPUS_DIMENSION_TYPE,
+      value: String(campusId),
+    });
+  }
+  return dimensions.length > 0 ? dimensions : undefined;
+}
+
+function assertShopLinesCoverTotal(params: BuildShopTransactionParams): void {
+  if (params.lines.length === 0) {
+    throw new Error("[Finago] A shop voucher needs at least one revenue line");
+  }
+  const linesMinor = params.lines.reduce(
+    (sum, line) => sum + Math.round(line.amount * CENTS),
+    0
+  );
+  const totalMinor = Math.round(params.total * CENTS);
+  if (linesMinor !== totalMinor) {
+    throw new Error(
+      `[Finago] Shop lines cover ${linesMinor} of ${totalMinor} øre — refusing to post an unbalanced voucher`
+    );
+  }
+}
+
+function shopLines(
+  params: BuildShopTransactionParams,
+  sign: 1 | -1
+): TransactionLineT[] {
+  assertShopLinesCoverTotal(params);
+  // Dimensions belong on revenue lines only; the clearing line carries none.
+  const clearingLine: TransactionLineT = {
+    accountNumber: params.clearingAccount,
+    amount: sign * round2(params.total),
+    comment: params.comment.slice(0, COMMENT_MAX_LENGTH),
+    tax: { number: 0 },
+  };
+  const revenueLines: TransactionLineT[] = params.lines.map((line) => ({
+    accountNumber: line.accountNumber,
+    amount: -sign * round2(line.amount),
+    comment: line.comment?.slice(0, COMMENT_MAX_LENGTH),
+    dimensions: shopDimensions(line.departmentId, params.campusId),
+    tax: { number: line.vatCode },
+  }));
+  return [clearingLine, ...revenueLines];
+}
+
+/**
+ * A webshop sale: debit the provider's clearing account by the gross total,
+ * credit each revenue line with its own VAT code. Finago books the VAT part of
+ * a VAT-coded line to 2700. The payout voucher later credits the clearing
+ * account by the gross amount and books the fee, so no fee line belongs here.
+ */
+export function buildShopTransactionInput(
+  params: BuildShopTransactionParams
+): ShopTransactionInput {
+  return {
+    comment: params.comment.slice(0, COMMENT_MAX_LENGTH),
+    date: params.date,
+    lines: shopLines(params, 1),
+    transactionTypeNumber: params.transactionTypeNumber,
+  };
+}
+
+/** A webshop refund: the exact mirror of `buildShopTransactionInput`. */
+export function buildShopReversalTransactionInput(
+  params: BuildShopTransactionParams
+): ShopTransactionInput {
+  return {
+    comment: params.comment.slice(0, COMMENT_MAX_LENGTH),
+    date: params.date,
+    lines: shopLines(params, -1),
+    transactionTypeNumber: params.transactionTypeNumber,
+  };
+}
+
+/** Posts a prebuilt voucher to the general ledger and returns its id. */
+export async function postLedgerTransaction(
+  input: ShopTransactionInput
+): Promise<string> {
+  const { data, error } = await finago.POST("/transactions", {
+    body: input,
+    params: { header: { Authorization: "" } },
+  });
+  if (error || !data) {
+    throw new Error(
+      `[Finago] POST /transactions failed: ${JSON.stringify(error)}`
+    );
+  }
   return data.transactionId;
 }
