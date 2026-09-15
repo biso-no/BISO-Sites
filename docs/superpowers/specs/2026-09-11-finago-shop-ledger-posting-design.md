@@ -257,6 +257,16 @@ builder takes the same inputs with signs flipped.
   already given back. Posting returns `needs_manual`, releases its claim, and
   the API cron counts it as `finagoNeedsManual` and logs the order id every
   run until the net sale is booked by hand and its transaction id recorded.
+  The refund check runs once before the `"posting"` marker and again right
+  before the Finago call; a refund found the second time clears the marker
+  (or, if that write fails, leaves it for manual recovery) and never posts.
+- A refund re-reads the order's `finago_transaction_id` before reversing. At
+  the `"posting"` marker or when unreadable it notes on the refund row that the
+  reversal must be posted manually; when not posted yet it notes that posting
+  holds the order for manual booking. Neither calls Finago.
+- A reversal is refused (manual) when any earlier non-failed refund posted no
+  reversal (no transaction id and no allocation), since its amount is still
+  inside the original line credits.
 
 ## Error handling and visibility
 

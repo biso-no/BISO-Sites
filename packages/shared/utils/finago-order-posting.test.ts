@@ -476,6 +476,52 @@ describe("postFinagoTransactionForOrder", () => {
       expect(mocks.postLedgerTransaction).not.toHaveBeenCalled();
     });
 
+    it("does not post when a refund row appears after the first check", async () => {
+      // The refund created its row between the pre-marker check and the post.
+      db.listRows.mockResolvedValueOnce({ rows: [] }).mockResolvedValue({
+        rows: [{ $id: "refund-1", amount: 499, status: "pending" }],
+      });
+
+      const result = await postFinagoTransactionForOrder("order-1", db);
+
+      expect(result).toMatchObject({ posted: false, reason: "needs_manual" });
+      expect(mocks.postLedgerTransaction).not.toHaveBeenCalled();
+      const orderWrites = db.updateRow.mock.calls
+        .filter((call) => call[1] === "orders")
+        .map((call) => call[3]);
+      expect(orderWrites).toEqual([
+        { finago_transaction_id: "posting" },
+        { finago_transaction_id: null },
+      ]);
+      expect(db.decrementRowColumn).toHaveBeenCalledWith(CLAIM_RELEASE);
+    });
+
+    it("leaves the marker and the claim when the reset after a late refund fails", async () => {
+      db.listRows.mockResolvedValueOnce({ rows: [] }).mockResolvedValue({
+        rows: [{ $id: "refund-1", amount: 499, status: "pending" }],
+      });
+      db.updateRow
+        .mockResolvedValueOnce({})
+        .mockRejectedValueOnce(new Error("appwrite timeout"));
+
+      const result = await postFinagoTransactionForOrder("order-1", db);
+
+      expect(result).toMatchObject({ posted: false, reason: "needs_manual" });
+      expect(mocks.postLedgerTransaction).not.toHaveBeenCalled();
+      expect(db.decrementRowColumn).not.toHaveBeenCalled();
+    });
+
+    it("does not post when the refund history cannot be re-read after the marker", async () => {
+      db.listRows
+        .mockResolvedValueOnce({ rows: [] })
+        .mockRejectedValue(new Error("appwrite timeout"));
+
+      const result = await postFinagoTransactionForOrder("order-1", db);
+
+      expect(result.posted).toBe(false);
+      expect(mocks.postLedgerTransaction).not.toHaveBeenCalled();
+    });
+
     it("still posts when every earlier refund attempt failed", async () => {
       db.listRows.mockResolvedValue({
         rows: [{ $id: "refund-1", amount: 499, status: "failed" }],

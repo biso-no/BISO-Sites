@@ -321,16 +321,41 @@ export function linesWithoutLedgerCopy(
 }
 
 /**
+ * Whether an earlier refund on this order (other than `currentRefundId`, which
+ * a settling pending refund appears as) did not post a reversal at all: no
+ * transaction id and no allocation. That happens when it was made before the
+ * order was posted (the order was then booked by hand), or when its own
+ * reversal was refused or failed. Its amount is still inside the original line
+ * credits, so allocating against those credits could reverse it twice.
+ */
+export function hasRefundWithoutReversal(
+  order: RefundableOrder,
+  currentRefundId?: string
+): boolean {
+  return (order.refunds ?? []).some(
+    (refund) =>
+      refund.$id !== currentRefundId &&
+      refund.status !== "failed" &&
+      !refund.finago_transaction_id &&
+      !refund.ledger_allocation
+  );
+}
+
+/**
  * Why this refund's ledger reversal cannot be posted automatically, or `null`
  * when it can. Every reason is a fail-closed refusal: the refund stands, and
  * the message is recorded on the refund row for manual posting.
  */
 export function ledgerReversalBlocker(
   order: RefundableOrder,
-  items: RefundableOrderItem[]
+  items: RefundableOrderItem[],
+  currentRefundId?: string
 ): string | null {
   if (hasUnrecordedReversal(order)) {
     return "An earlier refund on this order has no readable record of what its reversal gave back, so this one cannot be allocated safely. Post it manually in 24SO.";
+  }
+  if (hasRefundWithoutReversal(order, currentRefundId)) {
+    return "An earlier refund on this order posted no ledger reversal (it was made before the order was posted, or its reversal was refused), so what is left to reverse is unknown. Post it manually in 24SO.";
   }
   const uncopied = linesWithoutLedgerCopy(items);
   if (uncopied.length > 0) {
@@ -945,6 +970,33 @@ async function restockRefundedLines(
   }
 }
 
+/** The in-flight marker `finago-order-posting.ts` writes before the Finago call. */
+const POSTING_MARKER = "posting";
+
+/** The order's current `finago_transaction_id`, or `unknown` when unreadable. */
+async function readFinagoTransactionId(
+  orderId: string,
+  db: DbClient
+): Promise<{ id: string | null; unknown: boolean }> {
+  const { dbId, ordersId } = tableIds();
+  try {
+    const row = (await db.getRow(dbId, ordersId, orderId, [
+      Query.select(["$id", "finago_transaction_id"]),
+    ])) as { finago_transaction_id?: unknown } | null;
+    if (!row) {
+      return { id: null, unknown: true };
+    }
+    const id = row.finago_transaction_id;
+    return { id: typeof id === "string" && id ? id : null, unknown: false };
+  } catch (error) {
+    console.error(
+      `[Refund] Could not re-read the posting state of order ${orderId}:`,
+      error
+    );
+    return { id: null, unknown: true };
+  }
+}
+
 async function reverseLedger({
   amount,
   db,
@@ -969,13 +1021,38 @@ async function reverseLedger({
     return;
   }
 
+  const note = async (message: string) => {
+    console.error(`[Refund] ${message} (refund ${refundId}, order ${orderId})`);
+    await db
+      .updateRow(dbId, REFUNDS_TABLE, refundId, {
+        error: message.slice(0, 1000),
+      })
+      .catch(() => undefined);
+  };
+
+  // Re-read the posting state now. `order` was read when the refund started,
+  // before the lock, the refund row and the provider call; posting may have
+  // moved on since, and deciding from that copy is how a reversal is skipped
+  // while the full total gets booked.
+  const posting = await readFinagoTransactionId(orderId, db);
+  if (posting.unknown || posting.id === POSTING_MARKER) {
+    await note(
+      "The order's Finago posting was in progress or unknown at refund time, so no reversal was posted. Post the reversal manually in 24SO once the order's posting is settled."
+    );
+    return;
+  }
+  if (!posting.id) {
+    // Posting now refuses orders with refunds (`needs_manual`), so the note
+    // explains on the order page why no reversal exists.
+    await note(
+      "Order not yet posted to Finago at refund time, so no reversal was posted. Automatic posting holds orders with refunds for manual booking of the net sale."
+    );
+    return;
+  }
   // A membership order is booked as a 24SO invoice, not a ledger transaction,
   // so there is no shop transaction to reverse — that needs a credit note,
-  // which is handled manually. Anything never posted has nothing to reverse.
-  if (
-    !order.finago_transaction_id ||
-    NOT_POSTED_BY_AUTOMATION.has(order.finago_transaction_id)
-  ) {
+  // which is handled manually. Free and WordPress orders were never posted.
+  if (NOT_POSTED_BY_AUTOMATION.has(posting.id)) {
     return;
   }
 
@@ -983,14 +1060,9 @@ async function reverseLedger({
   // reversal we cannot read back would be reversed twice, and a line with no
   // ledger copy would be debited against whatever its product maps to today.
   // A human posting one transaction beats the ledger quietly drifting.
-  const blocker = ledgerReversalBlocker(order, items);
+  const blocker = ledgerReversalBlocker(order, items, refundId);
   if (blocker) {
-    console.error(`[Refund] ${blocker} (refund ${refundId})`);
-    await db
-      .updateRow(dbId, REFUNDS_TABLE, refundId, {
-        error: blocker.slice(0, 1000),
-      })
-      .catch(() => undefined);
+    await note(blocker);
     return;
   }
 

@@ -169,6 +169,27 @@ async function refundBeforePosting(
   return `Order has ${live.length} refund(s) (${refundedMinor / MINOR_UNITS_PER_MAJOR} kr refunded) recorded before it was posted; post the net sale to 24SO manually and record its transaction id`;
 }
 
+/**
+ * Undoes the "posting" marker when the Finago call was never made, and
+ * releases the claim so the sweep can look at the order again. If clearing the
+ * marker fails, the marker AND the claim stay: the order is stranded and
+ * visible for manual recovery, which is safe, whereas releasing without the
+ * reset would change nothing and a guess could double-book.
+ */
+async function abandonMarker(orderId: string, db: DbClient): Promise<void> {
+  const { dbId, collId } = ordersTable();
+  try {
+    await db.updateRow(dbId, collId, orderId, { finago_transaction_id: null });
+  } catch (error) {
+    console.error(
+      `[Finago] Could not clear the posting marker on order ${orderId}; leaving it for manual recovery:`,
+      error
+    );
+    return;
+  }
+  await releaseClaim(orderId, db);
+}
+
 type PreparedTransaction =
   | {
       input: ShopTransactionInput;
@@ -236,6 +257,39 @@ async function prepareTransaction(
       reason: error instanceof Error ? error.message : String(error),
     };
   }
+}
+
+/**
+ * Checks refunds again with the marker in place, immediately before the
+ * Finago call. A refund that started before the first check reads the order
+ * before its row exists; if its row has appeared since, booking the full total
+ * now would leave that refund unreversed. The marker makes any refund from
+ * here on record a manual note instead of skipping silently.
+ *
+ * @returns the result to return instead of posting, or null to post.
+ */
+async function holdForLateRefund(
+  order: FinagoOrder,
+  db: DbClient
+): Promise<FinagoPostingResult | null> {
+  const orderId = order.$id;
+  let lateRefund: string | null;
+  try {
+    lateRefund = await refundBeforePosting(order, db);
+  } catch (error) {
+    console.error(
+      `[Finago] Could not re-read refunds for order ${orderId} before posting; not posting:`,
+      error
+    );
+    await abandonMarker(orderId, db);
+    return { posted: false, reason: "post_failed" };
+  }
+  if (!lateRefund) {
+    return null;
+  }
+  await abandonMarker(orderId, db);
+  console.warn(`[Finago] Order ${orderId} needs manual posting: ${lateRefund}`);
+  return { detail: lateRefund, posted: false, reason: "needs_manual" };
 }
 
 /**
@@ -336,6 +390,11 @@ export async function postFinagoTransactionForOrder(
       error
     );
     return { posted: false, reason: "post_failed" };
+  }
+
+  const held = await holdForLateRefund(order, db);
+  if (held) {
+    return held;
   }
 
   let transactionId: string;

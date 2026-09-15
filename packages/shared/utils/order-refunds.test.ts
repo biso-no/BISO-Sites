@@ -1167,3 +1167,204 @@ describe("refundOrder — fail closed on the ledger reversal", () => {
     expect(ledger.reverse).toHaveBeenCalled();
   });
 });
+
+describe("refundOrder — posting state re-read before the reversal", () => {
+  /**
+   * The refund reads the order when it starts; posting can move the order on
+   * before the reversal runs. The first orders read returns `stale`, every
+   * later one returns `fresh`.
+   */
+  function orderMovesTo(
+    stale: Record<string, unknown>,
+    fresh: Record<string, unknown> | Error
+  ) {
+    const base = orderRowFor(stale);
+    let ordersReads = 0;
+    db.getRow.mockImplementation(
+      (dbId: string, tableId: string, rowId: string) => {
+        if (tableId === "orders") {
+          ordersReads += 1;
+          if (ordersReads > 1) {
+            return fresh instanceof Error
+              ? Promise.reject(fresh)
+              : Promise.resolve(fresh);
+          }
+        }
+        return base(dbId, tableId, rowId);
+      }
+    );
+  }
+
+  async function refundHoodie(ledger: LedgerReverser) {
+    return await refundOrder({
+      db,
+      executor: executorReturning(49_900),
+      ledger,
+      lines: [{ orderItemId: "line-a", quantity: 1 }],
+      orderId: ORDER_ID,
+    });
+  }
+
+  it("reverses when posting recorded a real id after the refund started", async () => {
+    orderMovesTo(
+      buildOrder({ finago_transaction_id: null }),
+      buildOrder({ finago_transaction_id: "tx-new" })
+    );
+    const ledger: LedgerReverser = {
+      reverse: vi.fn().mockResolvedValue("rev-1"),
+    };
+
+    await refundHoodie(ledger);
+
+    expect(ledger.reverse).toHaveBeenCalledWith(
+      expect.objectContaining({
+        allocation: [
+          {
+            accountNumber: 3000,
+            amountMinor: 49_900,
+            departmentId: "44",
+            vatCode: 3,
+          },
+        ],
+      })
+    );
+    expect(refundRowErrors()).toEqual([]);
+  });
+
+  it("notes a manual reversal and skips Finago when the order is mid-posting", async () => {
+    orderMovesTo(
+      buildOrder({ finago_transaction_id: "tx-9" }),
+      buildOrder({ finago_transaction_id: "posting" })
+    );
+    const ledger: LedgerReverser = { reverse: vi.fn() };
+
+    const result = await refundHoodie(ledger);
+
+    expect(result).toMatchObject({ ok: true });
+    expect(ledger.reverse).not.toHaveBeenCalled();
+    expect(
+      refundRowErrors().some((e) =>
+        e.includes("in progress or unknown at refund time")
+      )
+    ).toBe(true);
+  });
+
+  it("notes a manual reversal and skips Finago when the order cannot be re-read", async () => {
+    orderMovesTo(
+      buildOrder({ finago_transaction_id: "tx-9" }),
+      new Error("appwrite timeout")
+    );
+    const ledger: LedgerReverser = { reverse: vi.fn() };
+
+    await refundHoodie(ledger);
+
+    expect(ledger.reverse).not.toHaveBeenCalled();
+    expect(
+      refundRowErrors().some((e) =>
+        e.includes("in progress or unknown at refund time")
+      )
+    ).toBe(true);
+  });
+
+  it("notes that the order is held for manual booking when it is not posted yet", async () => {
+    orderMovesTo(
+      buildOrder({ finago_transaction_id: null }),
+      buildOrder({ finago_transaction_id: null })
+    );
+    const ledger: LedgerReverser = { reverse: vi.fn() };
+
+    const result = await refundHoodie(ledger);
+
+    expect(result).toMatchObject({ ok: true });
+    expect(ledger.reverse).not.toHaveBeenCalled();
+    expect(
+      refundRowErrors().some((e) => e.includes("not yet posted to Finago"))
+    ).toBe(true);
+  });
+
+  it("stays silent for a membership order", async () => {
+    orderMovesTo(
+      buildOrder({ finago_transaction_id: "membership" }),
+      buildOrder({ finago_transaction_id: "membership" })
+    );
+    const ledger: LedgerReverser = { reverse: vi.fn() };
+
+    await refundHoodie(ledger);
+
+    expect(ledger.reverse).not.toHaveBeenCalled();
+    expect(refundRowErrors()).toEqual([]);
+  });
+});
+
+describe("ledger reversal after an earlier refund posted no reversal", () => {
+  it("refuses when an earlier refund has no reversal id or allocation", async () => {
+    // e.g. refunded before the order was held and booked by hand.
+    db.listRows.mockResolvedValue({
+      rows: [{ $id: "r0", amount: 100, status: "succeeded" }],
+    });
+    const ledger: LedgerReverser = { reverse: vi.fn() };
+
+    const result = await refundOrder({
+      db,
+      executor: executorReturning(59_900),
+      ledger,
+      amount: 499,
+      orderId: ORDER_ID,
+    });
+
+    expect(result).toMatchObject({ ok: true });
+    expect(ledger.reverse).not.toHaveBeenCalled();
+    expect(
+      refundRowErrors().some((e) => e.includes("posted no ledger reversal"))
+    ).toBe(true);
+  });
+
+  it("ignores earlier refunds that failed", async () => {
+    db.listRows.mockResolvedValue({
+      rows: [{ $id: "r0", amount: 100, status: "failed" }],
+    });
+    const ledger: LedgerReverser = {
+      reverse: vi.fn().mockResolvedValue("rev-1"),
+    };
+
+    await refundOrder({
+      db,
+      executor: executorReturning(49_900),
+      ledger,
+      amount: 499,
+      orderId: ORDER_ID,
+    });
+
+    expect(ledger.reverse).toHaveBeenCalled();
+  });
+
+  it("does not count the pending refund being settled against itself", async () => {
+    const pending = {
+      $id: "refund-1",
+      amount: 499,
+      lines: [{ name: "Campus hoodie", order_item: "line-a", quantity: 1 }],
+      provider_refund_id: "re_123",
+      status: "pending" as const,
+    };
+    const ledger: LedgerReverser = {
+      reverse: vi.fn().mockResolvedValue("rev-1"),
+    };
+
+    const outcome = await settlePendingRefund({
+      db,
+      ledger,
+      order: buildOrder({ refunds: [pending] }) as never,
+      refund: pending,
+      resolver: {
+        state: vi.fn().mockResolvedValue({
+          failed: false,
+          refundedTotalMinor: 49_900,
+          settled: true,
+        }),
+      },
+    });
+
+    expect(outcome).toBe("settled");
+    expect(ledger.reverse).toHaveBeenCalled();
+  });
+});
