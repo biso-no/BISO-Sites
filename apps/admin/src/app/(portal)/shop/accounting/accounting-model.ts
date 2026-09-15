@@ -127,6 +127,80 @@ export function ledgerAccountProblem(
   return null;
 }
 
+type SyncedAccount = {
+  active?: boolean | null;
+  vat_code?: number | null;
+} | null;
+
+/** Short reason an account cannot be posted to, for a list of problems. */
+function accountShortfall(
+  row: SyncedAccount | undefined,
+  needsVatCode: boolean
+): string | null {
+  if (!row) {
+    return "is not in the synced chart of accounts";
+  }
+  if (row.active === false) {
+    return "is inactive in Finago";
+  }
+  if (needsVatCode && typeof row.vat_code !== "number") {
+    return "has no VAT code";
+  }
+  return null;
+}
+
+const CLEARING_PROVIDER_LABELS = { stripe: "Stripe", vipps: "Vipps" } as const;
+
+/**
+ * Why webshop posting cannot be switched on yet, or null when it can.
+ *
+ * Every active sales type's revenue account must pass the same check as
+ * saving a sales type (`ledgerAccountProblem`: synced, active, with a VAT
+ * code), since seeded sales types skip that check. Both clearing accounts
+ * must be synced and active too — a mistyped one passes every check before
+ * the Finago call and would strand orders at the "posting" marker. Clearing
+ * accounts need no VAT code. `accounts` holds the synced `ledger_accounts`
+ * rows by account number; a missing entry means "not synced".
+ */
+export function enablePostingRefusal({
+  accounts,
+  salesTypes,
+  settings,
+}: {
+  accounts: ReadonlyMap<number, SyncedAccount>;
+  salesTypes: ReadonlyArray<{ account_number: number; label_no: string }>;
+  settings: Pick<ShopAccountingSettings, "clearingAccounts">;
+}): string | null {
+  if (salesTypes.length === 0) {
+    return "Save the posting settings and add at least one active sales type before switching posting on";
+  }
+
+  const problems: string[] = [];
+  for (const salesType of salesTypes) {
+    const row = accounts.get(salesType.account_number) ?? null;
+    if (ledgerAccountProblem(salesType.account_number, row) === null) {
+      continue;
+    }
+    const shortfall = accountShortfall(row, true);
+    problems.push(
+      `${salesType.label_no} (${salesType.account_number}) ${shortfall}`
+    );
+  }
+  for (const provider of ["vipps", "stripe"] as const) {
+    const accountNumber = settings.clearingAccounts[provider];
+    const shortfall = accountShortfall(accounts.get(accountNumber), false);
+    if (shortfall) {
+      problems.push(
+        `${CLEARING_PROVIDER_LABELS[provider]} clearing account ${accountNumber} ${shortfall}`
+      );
+    }
+  }
+
+  return problems.length > 0
+    ? `Sync accounts from Finago first: ${problems.join("; ")}.`
+    : null;
+}
+
 /**
  * Refusal for deactivating a sales type that live (published or pending
  * approval) products still book to, or null when none do. Posting skips an

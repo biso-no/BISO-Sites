@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
   deactivationBlockedMessage,
+  enablePostingRefusal,
   ledgerAccountProblem,
   revenueAccountOptions,
   SALES_TYPE_ID_RE,
@@ -159,6 +160,87 @@ describe("deactivationBlockedMessage", () => {
   test("uses the singular for one product", () => {
     expect(deactivationBlockedMessage(1)).toBe(
       "1 live product uses this sales type — move it to another sales type before deactivating it."
+    );
+  });
+});
+
+describe("enablePostingRefusal", () => {
+  const settings = { clearingAccounts: { stripe: 1540, vipps: 1530 } };
+  const varesalg = { account_number: 3000, label_no: "Varesalg" };
+  const egenandel = { account_number: 3100, label_no: "Egenandel" };
+  const chart = new Map<
+    number,
+    { active?: boolean | null; vat_code?: number | null }
+  >([
+    [1530, { active: true, vat_code: null }],
+    [1540, { active: true, vat_code: null }],
+    [3000, { active: true, vat_code: 3 }],
+    [3100, { active: true, vat_code: 5 }],
+  ]);
+
+  test("allows posting when every account can post", () => {
+    expect(
+      enablePostingRefusal({
+        accounts: chart,
+        salesTypes: [varesalg, egenandel],
+        settings,
+      })
+    ).toBeNull();
+  });
+
+  test("refuses without an active sales type", () => {
+    expect(
+      enablePostingRefusal({ accounts: chart, salesTypes: [], settings })
+    ).toContain("at least one active sales type");
+  });
+
+  test("names every sales type whose account cannot post", () => {
+    const accounts = new Map(chart);
+    accounts.set(3000, { active: true, vat_code: null });
+    accounts.delete(3100);
+
+    const message = enablePostingRefusal({
+      accounts,
+      salesTypes: [varesalg, egenandel],
+      settings,
+    });
+
+    expect(message).toContain("Sync accounts from Finago first");
+    expect(message).toContain("Varesalg (3000) has no VAT code");
+    expect(message).toContain(
+      "Egenandel (3100) is not in the synced chart of accounts"
+    );
+  });
+
+  test("names a sales type on an account Finago reports as inactive", () => {
+    const accounts = new Map(chart);
+    accounts.set(3100, { active: false, vat_code: 5 });
+
+    expect(
+      enablePostingRefusal({
+        accounts,
+        salesTypes: [egenandel],
+        settings,
+      })
+    ).toContain("Egenandel (3100) is inactive in Finago");
+  });
+
+  test("refuses when a clearing account is missing or inactive, without needing a VAT code", () => {
+    const accounts = new Map(chart);
+    accounts.delete(1530);
+    accounts.set(1540, { active: false, vat_code: null });
+
+    const message = enablePostingRefusal({
+      accounts,
+      salesTypes: [varesalg],
+      settings,
+    });
+
+    expect(message).toContain(
+      "Vipps clearing account 1530 is not in the synced chart of accounts"
+    );
+    expect(message).toContain(
+      "Stripe clearing account 1540 is inactive in Finago"
     );
   });
 });

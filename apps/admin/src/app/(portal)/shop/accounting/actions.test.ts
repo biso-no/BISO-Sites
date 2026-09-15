@@ -3,8 +3,10 @@ import { Query } from "@repo/api";
 import type { UserAuthContext } from "@/lib/authorization";
 
 const db = {
+  createRow: mock(),
   getRow: mock(),
   listRows: mock(),
+  updateRow: mock(),
   upsertRow: mock(),
 };
 
@@ -39,7 +41,9 @@ mock.module("../../_actions/audit-log", () => ({
   logAuditEvent: mock(async () => undefined),
 }));
 
-const { getAccountingView, saveSalesType } = await import("./actions");
+const { getAccountingView, saveSalesType, setShopLedgerPosting } = await import(
+  "./actions"
+);
 
 const input = {
   account_number: 3100,
@@ -96,8 +100,10 @@ function mockRows({
 }
 
 beforeEach(() => {
+  db.createRow.mockReset();
   db.getRow.mockReset();
   db.listRows.mockReset();
+  db.updateRow.mockReset();
   db.upsertRow.mockReset();
 });
 
@@ -212,5 +218,143 @@ describe("getAccountingView", () => {
       (call) => call[1] === "ledger_accounts"
     )?.[2] as string[];
     expect(queries).toContain(Query.between("account_number", 3000, 3999));
+  });
+});
+
+describe("setShopLedgerPosting: switching on only when the setup can post", () => {
+  const SAVED_SETTINGS = {
+    general: JSON.stringify({
+      clearingAccounts: { stripe: 1540, vipps: 1530 },
+      transactionTypeNumber: 8,
+    }),
+  };
+  const GOOD_CHART: Record<string, Record<string, unknown>> = {
+    "1530": { account_number: 1530, active: true, vat_code: null },
+    "1540": { account_number: 1540, active: true, vat_code: null },
+    "3000": { account_number: 3000, active: true, vat_code: 3 },
+  };
+
+  function mockPostingSetup({
+    chart = GOOD_CHART,
+    salesTypes = [
+      {
+        $id: "varesalg",
+        account_number: 3000,
+        active: true,
+        label_no: "Varesalg",
+      },
+    ],
+  }: {
+    chart?: Record<string, Record<string, unknown>>;
+    salesTypes?: Record<string, unknown>[];
+  }) {
+    db.getRow.mockImplementation(
+      (_databaseId: string, table: string, id: string) => {
+        if (table === "shop_settings") {
+          return Promise.resolve(SAVED_SETTINGS);
+        }
+        if (table === "ledger_accounts" && chart[id]) {
+          return Promise.resolve(chart[id]);
+        }
+        return Promise.reject(rowNotFound());
+      }
+    );
+    db.listRows.mockImplementation((_databaseId: string, table: string) => {
+      if (table === "sales_types") {
+        return Promise.resolve({ rows: salesTypes, total: salesTypes.length });
+      }
+      return Promise.resolve({ rows: [], total: 0 });
+    });
+    db.createRow.mockImplementation(
+      (
+        _databaseId: string,
+        _table: string,
+        id: string,
+        data: Record<string, unknown>
+      ) => Promise.resolve({ $id: id, ...data })
+    );
+  }
+
+  test("refuses when an active sales type's account has no VAT code", async () => {
+    mockPostingSetup({
+      chart: {
+        ...GOOD_CHART,
+        "3000": { account_number: 3000, active: true, vat_code: null },
+      },
+    });
+
+    const result = await setShopLedgerPosting(true);
+
+    expect(result).toEqual({
+      error: expect.stringContaining("Varesalg (3000) has no VAT code"),
+    });
+    expect(db.createRow).not.toHaveBeenCalled();
+    expect(db.updateRow).not.toHaveBeenCalled();
+  });
+
+  test("checks every active sales type, not just the first", async () => {
+    mockPostingSetup({
+      salesTypes: [
+        {
+          $id: "varesalg",
+          account_number: 3000,
+          active: true,
+          label_no: "Varesalg",
+        },
+        {
+          $id: "egenandel",
+          account_number: 3100,
+          active: true,
+          label_no: "Egenandel",
+        },
+      ],
+    });
+
+    const result = await setShopLedgerPosting(true);
+
+    expect(result).toEqual({
+      error: expect.stringContaining("Egenandel (3100)"),
+    });
+    const salesTypeQueries = db.listRows.mock.calls.find(
+      (call) => call[1] === "sales_types"
+    )?.[2] as string[];
+    expect(salesTypeQueries).not.toContain(Query.limit(1));
+  });
+
+  test("refuses when a clearing account is not in the synced chart", async () => {
+    const { "1540": _stripe, ...withoutStripe } = GOOD_CHART;
+    mockPostingSetup({ chart: withoutStripe });
+
+    const result = await setShopLedgerPosting(true);
+
+    expect(result).toEqual({
+      error: expect.stringContaining("Stripe clearing account 1540"),
+    });
+    expect(db.createRow).not.toHaveBeenCalled();
+  });
+
+  test("switches posting on when every account can post", async () => {
+    mockPostingSetup({});
+
+    const result = await setShopLedgerPosting(true);
+
+    expect(result).toEqual({ data: { enabled: true } });
+    expect(db.createRow).toHaveBeenCalledWith(
+      "app",
+      "feature_flags",
+      expect.any(String),
+      expect.objectContaining({ enabled: true, key: "shop_ledger_posting" })
+    );
+  });
+
+  test("switches posting off without checking accounts", async () => {
+    mockPostingSetup({ chart: {} });
+
+    const result = await setShopLedgerPosting(false);
+
+    expect(result).toEqual({ data: { enabled: false } });
+    expect(
+      db.getRow.mock.calls.some((call) => call[1] === "ledger_accounts")
+    ).toBe(false);
   });
 });

@@ -26,6 +26,7 @@ import { canManageAccounting } from "@/lib/roles";
 import { logAuditEvent } from "../../_actions/audit-log";
 import {
   deactivationBlockedMessage,
+  enablePostingRefusal,
   type LedgerAccountOption,
   ledgerAccountProblem,
   REVENUE_ACCOUNT_MAX,
@@ -320,10 +321,60 @@ export async function saveShopAccountingSettings(
   }
 }
 
+const MAX_SALES_TYPES = 100;
+
+/**
+ * Why posting cannot be switched on, or null. Loads every active sales type
+ * and the synced ledger account behind each one and behind both clearing
+ * accounts; the rules live in `enablePostingRefusal`. A failed account read
+ * counts as "not synced", which refuses — the safe direction.
+ */
+async function postingEnableBlocked(db: AdminDb): Promise<string | null> {
+  const [settingsRow, activeTypes] = await Promise.all([
+    readSettingsRow(db),
+    db.listRows<SalesTypes>("app", SALES_TYPES_TABLE, [
+      Query.equal("active", true),
+      Query.limit(MAX_SALES_TYPES),
+    ]),
+  ]);
+  const { saved, settings } = settingsOrDefault(settingsRow?.general);
+  if (!saved) {
+    return "Save the posting settings and add at least one active sales type before switching posting on";
+  }
+
+  const accountNumbers = new Set<number>([
+    ...activeTypes.rows.map((row) => row.account_number),
+    settings.clearingAccounts.vipps,
+    settings.clearingAccounts.stripe,
+  ]);
+  const accounts = new Map<number, LedgerAccounts | null>();
+  await Promise.all(
+    [...accountNumbers].map(async (accountNumber) => {
+      const row = await db
+        .getRow<LedgerAccounts>(
+          "app",
+          LEDGER_ACCOUNTS_TABLE,
+          String(accountNumber)
+        )
+        .catch(() => null);
+      if (row) {
+        accounts.set(accountNumber, row);
+      }
+    })
+  );
+
+  return enablePostingRefusal({
+    accounts,
+    salesTypes: activeTypes.rows,
+    settings,
+  });
+}
+
 /**
  * Switches webshop ledger posting on or off. Switching on requires saved
- * settings and at least one active sales type, so the first sweep cannot
- * fail every order. Audited like the feature flags page.
+ * settings, at least one active sales type, and a synced, postable ledger
+ * account behind every active sales type and both clearing accounts, so the
+ * first sweep cannot fail every order. Audited like the feature flags page.
  */
 export async function setShopLedgerPosting(
   enabled: boolean
@@ -333,21 +384,9 @@ export async function setShopLedgerPosting(
     const { db } = await createAdminClient();
 
     if (enabled) {
-      const [settingsRow, activeTypes] = await Promise.all([
-        readSettingsRow(db),
-        db.listRows<SalesTypes>("app", SALES_TYPES_TABLE, [
-          Query.equal("active", true),
-          Query.limit(1),
-        ]),
-      ]);
-      if (
-        !settingsOrDefault(settingsRow?.general).saved ||
-        activeTypes.rows.length === 0
-      ) {
-        return {
-          error:
-            "Save the posting settings and add at least one active sales type before switching posting on",
-        };
+      const blocked = await postingEnableBlocked(db);
+      if (blocked) {
+        return { error: blocked };
       }
     }
 
