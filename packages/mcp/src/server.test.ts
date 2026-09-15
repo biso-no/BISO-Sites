@@ -1,0 +1,1051 @@
+/**
+ * End-to-end protocol tests.
+ *
+ * These drive a real `Client` from the MCP SDK against a real server over an
+ * in-memory transport pair: initialization, capability negotiation, tool and
+ * resource discovery, tool calls, and error shapes all go through the actual
+ * protocol rather than calling handlers directly. A handler-level test would
+ * not catch a malformed schema, a name collision, or a result the SDK refuses
+ * to serialise.
+ *
+ * No network is involved: the backend is the in-memory fake, and no AI provider
+ * is configured, which also exercises the "works without provider credentials"
+ * requirement.
+ */
+
+import { describe, expect, test } from "bun:test";
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
+import { createBackendClients } from "./appwrite/clients";
+import { loadConfig, type ServerConfig } from "./config/env";
+import type { Principal } from "./identity/principal";
+import { createBisoMcpServer } from "./server";
+import {
+  ANONYMOUS,
+  CAMPUS_ADMIN,
+  collectingLogger,
+  createFakeBackend,
+  DEPARTMENT_MEMBER,
+  type FakeTables,
+  GLOBAL_ADMIN,
+  HR_MEMBER,
+  MEMBER_ONLY,
+} from "./testing/index";
+
+const BISO_RE = /^biso_/;
+const NO_USER_CREDENTIAL_I_RE = /no user credential/i;
+const OSLO_RE = /Oslo/;
+const NOT_VALID_FOR_NEWS_I_RE = /not valid for news/i;
+const SHAREPOINT_I_RE = /SharePoint/i;
+const ELICITATION_I_RE = /elicitation/i;
+const DOMAIN_I_RE = /domain/i;
+const BISO_WHOAMI_RE = /biso_whoami/;
+const NO_LANGUAGE_MODEL_I_RE = /no language model/i;
+const SERVICE_KEY_CLIENT_WHICH_IS_NOT_CONF_RE =
+  /service-key client, which is not configured/i;
+
+function baseConfig(overrides: Partial<ServerConfig> = {}): ServerConfig {
+  const config = loadConfig({
+    BISO_MCP_APPWRITE_ENDPOINT: "https://appwrite.example/v1",
+    BISO_MCP_APPWRITE_PROJECT: "test",
+    BISO_MCP_LOG_LEVEL: "silent",
+  });
+  return { ...config, ...overrides };
+}
+
+function seedTables(): FakeTables {
+  return {
+    campus: [
+      { $id: "1", name: "Oslo" },
+      { $id: "2", name: "Bergen" },
+      { $id: "5", name: "National" },
+    ],
+    departments: [
+      {
+        $id: "dept-a",
+        Name: "ESN Oslo",
+        campus_id: "1",
+        slug: "esn",
+        type: "unit",
+        active: true,
+      },
+      {
+        $id: "dept-b",
+        Name: "ESN Bergen",
+        campus_id: "2",
+        slug: "esn",
+        type: "unit",
+        active: true,
+      },
+      {
+        $id: "dept-ledger",
+        Name: "Drift Campus Oslo",
+        campus_id: "1",
+        slug: "drift",
+        type: "ledger",
+        active: true,
+      },
+    ],
+    feature_flags: [{ $id: "f1", key: "payments_stripe", enabled: false }],
+    news: [
+      {
+        $id: "news-oslo",
+        $createdAt: "2026-01-01T00:00:00.000Z",
+        $updatedAt: "2026-01-01T00:00:00.000Z",
+        slug: "oslo-news",
+        status: "published",
+        campus_id: "1",
+        department_id: "dept-a",
+        campus: { $id: "1" },
+        department: { $id: "dept-a" },
+        translation_refs: [
+          { locale: "no", title: "Oslo-nyhet" },
+          { locale: "en", title: "Oslo news" },
+        ],
+      },
+      {
+        $id: "news-bergen",
+        $createdAt: "2026-01-02T00:00:00.000Z",
+        $updatedAt: "2026-01-02T00:00:00.000Z",
+        slug: "bergen-news",
+        status: "draft",
+        campus_id: "2",
+        department_id: "dept-b",
+        campus: { $id: "2" },
+        department: { $id: "dept-b" },
+        translation_refs: [{ locale: "no", title: "Bergen-nyhet" }],
+      },
+    ],
+    approval_requests: [],
+    form_submissions: [],
+    audit_logs: [],
+  };
+}
+
+interface Harness {
+  backend: ReturnType<typeof createFakeBackend>;
+  client: Client;
+  close(): Promise<void>;
+  lines: string[];
+}
+
+async function connect(options: {
+  principal: Principal;
+  config?: ServerConfig;
+  tables?: FakeTables;
+  hasElevated?: boolean;
+  clientCapabilities?: Record<string, unknown>;
+}): Promise<Harness> {
+  const { logger, lines } = collectingLogger();
+  const backend = createFakeBackend({
+    tables: options.tables ?? seedTables(),
+    hasElevated: options.hasElevated ?? true,
+  });
+
+  const config = options.config ?? baseConfig();
+  // The fake backend goes in BEFORE registration: `isAvailable` reads
+  // `hasElevated`, so injecting it afterwards would leave every write tool
+  // unregistered and silently turn the mutation tests into no-ops.
+  const created = await createBisoMcpServer({
+    config,
+    logger,
+    principalOverride: options.principal,
+    clientsOverride: backend,
+  });
+
+  const client = new Client(
+    { name: "test-client", version: "1.0.0" },
+    { capabilities: options.clientCapabilities ?? {} }
+  );
+  const [clientTransport, serverTransport] =
+    InMemoryTransport.createLinkedPair();
+  await Promise.all([
+    created.server.connect(serverTransport),
+    client.connect(clientTransport),
+  ]);
+
+  return {
+    client,
+    lines,
+    backend,
+    close: async () => {
+      await client.close();
+      await created.server.close();
+    },
+  };
+}
+
+/**
+ * Writes excluding `audit_logs`.
+ *
+ * Every successful mutating call also writes an audit row, which is correct but
+ * is not the write under test — asserting on the raw list would make "nothing
+ * was written" fail for the wrong reason.
+ */
+function domainWrites(harness: Harness) {
+  return harness.backend.writes.filter((write) => write.table !== "audit_logs");
+}
+
+async function callTool(
+  client: Client,
+  name: string,
+  args: Record<string, unknown> = {}
+) {
+  const response = await client.callTool({ name, arguments: args });
+  const structured = response.structuredContent as
+    | Record<string, unknown>
+    | undefined;
+  return { response, structured };
+}
+
+describe("initialization and discovery", () => {
+  test("initializes and advertises tools, resources and prompts", async () => {
+    const harness = await connect({ principal: GLOBAL_ADMIN() });
+    try {
+      const tools = await harness.client.listTools();
+      expect(tools.tools.length).toBeGreaterThan(10);
+
+      const resources = await harness.client.listResources();
+      expect(resources.resources.length).toBeGreaterThan(0);
+
+      const prompts = await harness.client.listPrompts();
+      expect(prompts.prompts.length).toBeGreaterThan(0);
+    } finally {
+      await harness.close();
+    }
+  });
+
+  test("every tool has a unique name, a description and annotations", async () => {
+    const harness = await connect({ principal: GLOBAL_ADMIN() });
+    try {
+      const { tools } = await harness.client.listTools();
+      const names = tools.map((tool) => tool.name);
+      expect(new Set(names).size).toBe(names.length);
+      for (const tool of tools) {
+        expect(tool.description).toBeTruthy();
+        expect(tool.annotations).toBeDefined();
+        expect(tool.name).toMatch(BISO_RE);
+      }
+    } finally {
+      await harness.close();
+    }
+  });
+
+  test("read-only annotations match the tools that actually mutate", async () => {
+    const harness = await connect({ principal: GLOBAL_ADMIN() });
+    try {
+      const { tools } = await harness.client.listTools();
+      const mutating = tools.filter(
+        (tool) => tool.annotations?.readOnlyHint !== true
+      );
+      // Each mutating tool must take the proposal arguments, which is what
+      // makes its write path go through the gate.
+      for (const tool of mutating) {
+        const properties = (
+          tool.inputSchema as { properties?: Record<string, unknown> }
+        ).properties;
+        expect(properties).toHaveProperty("proposalToken");
+      }
+      expect(mutating.length).toBeGreaterThan(0);
+    } finally {
+      await harness.close();
+    }
+  });
+});
+
+describe("tool registration follows the profile", () => {
+  test("an anonymous principal gets only public tools", async () => {
+    const harness = await connect({ principal: ANONYMOUS() });
+    try {
+      const { tools } = await harness.client.listTools();
+      const names = tools.map((tool) => tool.name);
+      expect(names).toContain("biso_public_search");
+      expect(names).toContain("biso_whoami");
+      // No staff surface at all.
+      expect(names).not.toContain("biso_content_search");
+      expect(names).not.toContain("biso_page_load");
+      expect(names).not.toContain("biso_search_orders");
+      // Nothing that mutates.
+      expect(
+        tools.every((tool) => tool.annotations?.readOnlyHint === true)
+      ).toBe(true);
+    } finally {
+      await harness.close();
+    }
+  });
+
+  test("a plain member gets no staff tools", async () => {
+    const harness = await connect({ principal: MEMBER_ONLY() });
+    try {
+      const names = (await harness.client.listTools()).tools.map((t) => t.name);
+      expect(names).toContain("biso_public_search");
+      expect(names).not.toContain("biso_content_search");
+      expect(names).not.toContain("biso_list_pending_approvals");
+    } finally {
+      await harness.close();
+    }
+  });
+
+  test("recruitment tools are NOT registered for a non-HR department member", async () => {
+    // The admin assistant advertises vacancy tools to any department member;
+    // its backend then returns an empty list. Here they are simply absent.
+    const harness = await connect({ principal: DEPARTMENT_MEMBER() });
+    try {
+      const names = (await harness.client.listTools()).tools.map((t) => t.name);
+      expect(names).not.toContain("biso_list_vacancies");
+      expect(names).not.toContain("biso_list_applications");
+    } finally {
+      await harness.close();
+    }
+  });
+
+  test("recruitment tools ARE registered for HR", async () => {
+    const harness = await connect({ principal: HR_MEMBER() });
+    try {
+      const names = (await harness.client.listTools()).tools.map((t) => t.name);
+      expect(names).toContain("biso_list_vacancies");
+      expect(names).toContain("biso_list_applications");
+    } finally {
+      await harness.close();
+    }
+  });
+
+  test("platform tools are global-admin only", async () => {
+    const asAdmin = await connect({ principal: GLOBAL_ADMIN() });
+    const asCampus = await connect({ principal: CAMPUS_ADMIN() });
+    try {
+      expect(
+        (await asAdmin.client.listTools()).tools.map((t) => t.name)
+      ).toContain("biso_integration_configuration");
+      expect(
+        (await asCampus.client.listTools()).tools.map((t) => t.name)
+      ).not.toContain("biso_integration_configuration");
+    } finally {
+      await asAdmin.close();
+      await asCampus.close();
+    }
+  });
+
+  test("write tools are not registered without a service key", async () => {
+    const harness = await connect({
+      principal: GLOBAL_ADMIN(),
+      hasElevated: false,
+    });
+    try {
+      const names = (await harness.client.listTools()).tools.map((t) => t.name);
+      expect(names).not.toContain("biso_content_create_draft");
+      expect(names).not.toContain("biso_page_edit_blocks");
+      // Reads are unaffected.
+      expect(names).toContain("biso_content_search");
+    } finally {
+      await harness.close();
+    }
+  });
+});
+
+describe("biso_whoami", () => {
+  test("reports the principal and never accepts an identity argument", async () => {
+    const harness = await connect({ principal: CAMPUS_ADMIN("Oslo", "1") });
+    try {
+      const { structured } = await callTool(harness.client, "biso_whoami");
+      const data = structured?.data as Record<string, unknown>;
+      const principal = data.principal as Record<string, unknown>;
+      expect(principal.roles).toContain("campusadmin");
+      expect(principal.managedCampusIds).toEqual(["1"]);
+
+      // The tool takes no arguments at all, so there is nothing to spoof.
+      const { tools } = await harness.client.listTools();
+      const whoami = tools.find((tool) => tool.name === "biso_whoami");
+      const properties = (
+        whoami?.inputSchema as { properties?: Record<string, unknown> }
+      ).properties;
+      expect(properties ?? {}).toEqual({});
+    } finally {
+      await harness.close();
+    }
+  });
+
+  test("an anonymous session says so rather than implying an empty database", async () => {
+    const harness = await connect({ principal: ANONYMOUS() });
+    try {
+      const { structured } = await callTool(harness.client, "biso_whoami");
+      expect(String(structured?.summary)).toMatch(NO_USER_CREDENTIAL_I_RE);
+      expect(
+        (
+          (structured?.data as Record<string, unknown>).principal as Record<
+            string,
+            unknown
+          >
+        ).authenticated
+      ).toBe(false);
+    } finally {
+      await harness.close();
+    }
+  });
+});
+
+describe("scoped reads", () => {
+  test("a campus admin sees only their campus's content", async () => {
+    const harness = await connect({ principal: CAMPUS_ADMIN("Oslo", "1") });
+    try {
+      const { structured } = await callTool(
+        harness.client,
+        "biso_content_search",
+        { domain: "news" }
+      );
+      const items = (structured?.data as { items: Array<{ id: string }> })
+        .items;
+      expect(items.map((item) => item.id)).toEqual(["news-oslo"]);
+      // And the scope is stated, so an empty result is never ambiguous.
+      expect(
+        String((structured?.scope as { summary: string }).summary)
+      ).toMatch(OSLO_RE);
+    } finally {
+      await harness.close();
+    }
+  });
+
+  test("a global admin sees every campus", async () => {
+    const harness = await connect({ principal: GLOBAL_ADMIN() });
+    try {
+      const { structured } = await callTool(
+        harness.client,
+        "biso_content_search",
+        { domain: "news" }
+      );
+      const items = (structured?.data as { items: Array<{ id: string }> })
+        .items;
+      expect(items).toHaveLength(2);
+    } finally {
+      await harness.close();
+    }
+  });
+
+  test("a campusId argument cannot widen scope", async () => {
+    // Asking for Bergen as an Oslo admin returns nothing, not Bergen's rows.
+    const harness = await connect({ principal: CAMPUS_ADMIN("Oslo", "1") });
+    try {
+      const { structured } = await callTool(
+        harness.client,
+        "biso_content_search",
+        { domain: "news", campusId: "2" }
+      );
+      const items = (structured?.data as { items: unknown[] }).items;
+      expect(items).toHaveLength(0);
+    } finally {
+      await harness.close();
+    }
+  });
+
+  test("a cross-scope id substitution reports not_found, not forbidden", async () => {
+    // Distinguishing the two would confirm the id exists.
+    const harness = await connect({ principal: CAMPUS_ADMIN("Oslo", "1") });
+    try {
+      const { structured } = await callTool(
+        harness.client,
+        "biso_content_get",
+        {
+          domain: "news",
+          id: "news-bergen",
+        }
+      );
+      expect(structured?.ok).toBe(false);
+      expect((structured?.error as { code: string }).code).toBe("not_found");
+    } finally {
+      await harness.close();
+    }
+  });
+
+  test("limit is honoured and pagination is reported", async () => {
+    const harness = await connect({ principal: GLOBAL_ADMIN() });
+    try {
+      const { structured } = await callTool(
+        harness.client,
+        "biso_content_search",
+        { domain: "news", limit: 1 }
+      );
+      const items = (structured?.data as { items: unknown[] }).items;
+      expect(items).toHaveLength(1);
+      const pagination = structured?.pagination as {
+        hasMore: boolean;
+        nextCursor: string | null;
+        total: number;
+      };
+      expect(pagination.total).toBe(2);
+      expect(pagination.hasMore).toBe(true);
+      expect(pagination.nextCursor).toBeTruthy();
+    } finally {
+      await harness.close();
+    }
+  });
+
+  test("a continuation cursor returns the next page", async () => {
+    const harness = await connect({ principal: GLOBAL_ADMIN() });
+    try {
+      const first = await callTool(harness.client, "biso_content_search", {
+        domain: "news",
+        limit: 1,
+      });
+      const cursor = (first.structured?.pagination as { nextCursor: string })
+        .nextCursor;
+      const second = await callTool(harness.client, "biso_content_search", {
+        domain: "news",
+        limit: 1,
+        cursor,
+      });
+      const firstIds = (
+        first.structured?.data as { items: Array<{ id: string }> }
+      ).items.map((item) => item.id);
+      const secondIds = (
+        second.structured?.data as { items: Array<{ id: string }> }
+      ).items.map((item) => item.id);
+      expect(secondIds[0]).not.toBe(firstIds[0]);
+    } finally {
+      await harness.close();
+    }
+  });
+
+  test("an invalid status is warned about, not silently dropped", async () => {
+    const harness = await connect({ principal: GLOBAL_ADMIN() });
+    try {
+      const { structured } = await callTool(
+        harness.client,
+        "biso_content_search",
+        { domain: "news", status: "archived" }
+      );
+      expect(structured?.warnings).toBeDefined();
+      expect(String((structured?.warnings as string[]).join(" "))).toMatch(
+        NOT_VALID_FOR_NEWS_I_RE
+      );
+    } finally {
+      await harness.close();
+    }
+  });
+});
+
+describe("unsupported operations report why", () => {
+  test("creating a document says what is missing", async () => {
+    const harness = await connect({ principal: GLOBAL_ADMIN() });
+    try {
+      const { structured } = await callTool(
+        harness.client,
+        "biso_explain_permission",
+        { domain: "documents", operation: "create_draft" }
+      );
+      const data = structured?.data as {
+        allowed: boolean;
+        reasons: string[];
+      };
+      expect(data.allowed).toBe(false);
+      expect(data.reasons.join(" ")).toMatch(SHAREPOINT_I_RE);
+    } finally {
+      await harness.close();
+    }
+  });
+
+  test("the capability matrix carries a reason for every gap", async () => {
+    const harness = await connect({ principal: GLOBAL_ADMIN() });
+    try {
+      const { structured } = await callTool(
+        harness.client,
+        "biso_list_capabilities"
+      );
+      const matrix = (
+        structured?.data as {
+          matrix: Array<{ operations: Record<string, string> }>;
+        }
+      ).matrix;
+      for (const row of matrix) {
+        for (const value of Object.values(row.operations)) {
+          // Either supported, or a non-empty reason.
+          expect(value.length).toBeGreaterThan(0);
+        }
+      }
+    } finally {
+      await harness.close();
+    }
+  });
+});
+
+describe("mutations", () => {
+  test("propose mode returns a proposal and writes nothing", async () => {
+    const harness = await connect({ principal: GLOBAL_ADMIN() });
+    try {
+      const { structured } = await callTool(
+        harness.client,
+        "biso_content_create_draft",
+        {
+          domain: "news",
+          slug: "test-draft",
+          campusId: "1",
+          titleNo: "Tittel",
+          titleEn: "Title",
+          descriptionNo: "Tekst",
+          descriptionEn: "Text",
+        }
+      );
+      expect(structured?.ok).toBe(true);
+      const proposal = (
+        structured?.data as { proposal: Record<string, unknown> }
+      ).proposal;
+      expect(proposal.proposalToken).toBeTruthy();
+      expect((proposal.execution as { executable: boolean }).executable).toBe(
+        false
+      );
+      expect(domainWrites(harness)).toHaveLength(0);
+    } finally {
+      await harness.close();
+    }
+  });
+
+  test("operator mode executes a proposal and the draft is not public", async () => {
+    const harness = await connect({
+      principal: GLOBAL_ADMIN(),
+      config: baseConfig({ writeMode: "operator" }),
+    });
+    try {
+      const first = await callTool(
+        harness.client,
+        "biso_content_create_draft",
+        {
+          domain: "news",
+          slug: "test-draft",
+          campusId: "1",
+          titleNo: "Tittel",
+          titleEn: "Title",
+          descriptionNo: "Tekst",
+          descriptionEn: "Text",
+        }
+      );
+      const proposal = (
+        first.structured?.data as {
+          proposal: { proposalToken: string; expiresAt: string };
+        }
+      ).proposal;
+      expect(domainWrites(harness)).toHaveLength(0);
+
+      const second = await callTool(
+        harness.client,
+        "biso_content_create_draft",
+        {
+          domain: "news",
+          slug: "test-draft",
+          campusId: "1",
+          titleNo: "Tittel",
+          titleEn: "Title",
+          descriptionNo: "Tekst",
+          descriptionEn: "Text",
+          proposalToken: proposal.proposalToken,
+          proposalExpiresAt: proposal.expiresAt,
+        }
+      );
+      expect(second.structured?.ok).toBe(true);
+      const write = domainWrites(harness).at(-1);
+      expect(write?.table).toBe("news");
+      expect(write?.data?.status).toBe("draft");
+      // A draft carries no public read permission.
+      expect(write?.permissions).toEqual([]);
+    } finally {
+      await harness.close();
+    }
+  });
+
+  test("a token from one change cannot authorize a different one", async () => {
+    const harness = await connect({
+      principal: GLOBAL_ADMIN(),
+      config: baseConfig({ writeMode: "operator" }),
+    });
+    try {
+      const first = await callTool(
+        harness.client,
+        "biso_content_create_draft",
+        {
+          domain: "news",
+          slug: "slug-a",
+          campusId: "1",
+          titleNo: "A",
+          titleEn: "A",
+          descriptionNo: "A",
+          descriptionEn: "A",
+        }
+      );
+      const proposal = (
+        first.structured?.data as {
+          proposal: { proposalToken: string; expiresAt: string };
+        }
+      ).proposal;
+
+      // Same token, different slug.
+      const second = await callTool(
+        harness.client,
+        "biso_content_create_draft",
+        {
+          domain: "news",
+          slug: "slug-b",
+          campusId: "1",
+          titleNo: "A",
+          titleEn: "A",
+          descriptionNo: "A",
+          descriptionEn: "A",
+          proposalToken: proposal.proposalToken,
+          proposalExpiresAt: proposal.expiresAt,
+        }
+      );
+      expect(second.structured?.ok).toBe(false);
+      expect((second.structured?.error as { code: string }).code).toBe(
+        "requires_authorization"
+      );
+      expect(domainWrites(harness)).toHaveLength(0);
+    } finally {
+      await harness.close();
+    }
+  });
+
+  test("a fabricated token is refused", async () => {
+    const harness = await connect({
+      principal: GLOBAL_ADMIN(),
+      config: baseConfig({ writeMode: "operator" }),
+    });
+    try {
+      const { structured } = await callTool(
+        harness.client,
+        "biso_content_create_draft",
+        {
+          domain: "news",
+          slug: "x",
+          campusId: "1",
+          titleNo: "A",
+          titleEn: "A",
+          descriptionNo: "A",
+          descriptionEn: "A",
+          proposalToken: "made-up-token",
+          proposalExpiresAt: new Date(Date.now() + 60_000).toISOString(),
+        }
+      );
+      expect(structured?.ok).toBe(false);
+      expect(domainWrites(harness)).toHaveLength(0);
+    } finally {
+      await harness.close();
+    }
+  });
+
+  test("a campus admin cannot create content in another campus", async () => {
+    const harness = await connect({
+      principal: CAMPUS_ADMIN("Oslo", "1"),
+      config: baseConfig({ writeMode: "operator" }),
+    });
+    try {
+      const { structured } = await callTool(
+        harness.client,
+        "biso_content_create_draft",
+        {
+          domain: "news",
+          slug: "bergen-thing",
+          campusId: "2",
+          titleNo: "A",
+          titleEn: "A",
+          descriptionNo: "A",
+          descriptionEn: "A",
+        }
+      );
+      expect(structured?.ok).toBe(false);
+      expect((structured?.error as { code: string }).code).toBe("forbidden");
+      expect(domainWrites(harness)).toHaveLength(0);
+    } finally {
+      await harness.close();
+    }
+  });
+
+  test("confirm mode without client elicitation stays proposal-only", async () => {
+    const harness = await connect({
+      principal: GLOBAL_ADMIN(),
+      config: baseConfig({ writeMode: "confirm" }),
+      clientCapabilities: {},
+    });
+    try {
+      const { structured } = await callTool(
+        harness.client,
+        "biso_content_create_draft",
+        {
+          domain: "news",
+          slug: "x",
+          campusId: "1",
+          titleNo: "A",
+          titleEn: "A",
+          descriptionNo: "A",
+          descriptionEn: "A",
+        }
+      );
+      const proposal = (
+        structured?.data as {
+          proposal: { execution: { executable: boolean; reason: string } };
+        }
+      ).proposal;
+      expect(proposal.execution.executable).toBe(false);
+      expect(proposal.execution.reason).toMatch(ELICITATION_I_RE);
+    } finally {
+      await harness.close();
+    }
+  });
+});
+
+describe("errors", () => {
+  test("a failure is marked isError and carries a code", async () => {
+    const harness = await connect({ principal: GLOBAL_ADMIN() });
+    try {
+      const { response, structured } = await callTool(
+        harness.client,
+        "biso_content_get",
+        { domain: "news", id: "does-not-exist" }
+      );
+      expect(response.isError).toBe(true);
+      expect(structured?.ok).toBe(false);
+      expect((structured?.error as { code: string }).code).toBe("not_found");
+      expect(structured?.requestId).toBeTruthy();
+    } finally {
+      await harness.close();
+    }
+  });
+
+  test("invalid arguments are rejected at the protocol boundary", async () => {
+    // The SDK validates against the declared schema before the handler runs,
+    // so an out-of-enum value never reaches domain code.
+    const harness = await connect({ principal: GLOBAL_ADMIN() });
+    try {
+      const response = await harness.client.callTool({
+        name: "biso_content_search",
+        arguments: { domain: "not-a-domain" },
+      });
+      expect(response.isError).toBe(true);
+      expect(JSON.stringify(response.content)).toMatch(DOMAIN_I_RE);
+    } finally {
+      await harness.close();
+    }
+  });
+
+  test("an unknown tool is rejected", async () => {
+    const harness = await connect({ principal: GLOBAL_ADMIN() });
+    try {
+      const response = await harness.client.callTool({
+        name: "biso_not_a_tool",
+        arguments: {},
+      });
+      expect(response.isError).toBe(true);
+    } finally {
+      await harness.close();
+    }
+  });
+});
+
+describe("resources and prompts", () => {
+  test("the support matrix resource is readable", async () => {
+    const harness = await connect({ principal: GLOBAL_ADMIN() });
+    try {
+      const resource = await harness.client.readResource({
+        uri: "biso://schema/content-support-matrix",
+      });
+      const first = resource.contents[0];
+      const text = "text" in first ? String(first.text) : "";
+      const parsed = JSON.parse(text) as { matrix: unknown[] };
+      expect(parsed.matrix.length).toBeGreaterThan(0);
+    } finally {
+      await harness.close();
+    }
+  });
+
+  test("the permissions guide is not offered to an anonymous session", async () => {
+    const asAnon = await connect({ principal: ANONYMOUS() });
+    const asAdmin = await connect({ principal: GLOBAL_ADMIN() });
+    try {
+      const anonUris = (await asAnon.client.listResources()).resources.map(
+        (r) => r.uri
+      );
+      const adminUris = (await asAdmin.client.listResources()).resources.map(
+        (r) => r.uri
+      );
+      expect(anonUris).not.toContain("biso://guide/permissions");
+      expect(adminUris).toContain("biso://guide/permissions");
+    } finally {
+      await asAnon.close();
+      await asAdmin.close();
+    }
+  });
+
+  test("a prompt returns a usable message", async () => {
+    const harness = await connect({ principal: GLOBAL_ADMIN() });
+    try {
+      const prompt = await harness.client.getPrompt({
+        name: "campus-briefing",
+        arguments: { campus: "Oslo" },
+      });
+      expect(prompt.messages).toHaveLength(1);
+      const content = prompt.messages[0].content;
+      expect("text" in content ? content.text : "").toMatch(BISO_WHOAMI_RE);
+    } finally {
+      await harness.close();
+    }
+  });
+
+  test("staff prompts are not offered anonymously", async () => {
+    const harness = await connect({ principal: ANONYMOUS() });
+    try {
+      const names = (await harness.client.listPrompts()).prompts.map(
+        (p) => p.name
+      );
+      expect(names).toContain("find-published");
+      expect(names).not.toContain("campus-briefing");
+    } finally {
+      await harness.close();
+    }
+  });
+});
+
+describe("running without AI provider credentials", () => {
+  test("the server starts and every tool works", async () => {
+    // No OPENAI_API_KEY is set anywhere in these tests.
+    const config = baseConfig();
+    expect(config.ai.enabled).toBe(false);
+
+    const harness = await connect({ principal: GLOBAL_ADMIN(), config });
+    try {
+      const { tools } = await harness.client.listTools();
+      expect(tools.length).toBeGreaterThan(10);
+      const { structured } = await callTool(
+        harness.client,
+        "biso_content_search",
+        { domain: "news" }
+      );
+      expect(structured?.ok).toBe(true);
+    } finally {
+      await harness.close();
+    }
+  });
+
+  test("the composite workflows are deterministic and need no provider", async () => {
+    const harness = await connect({ principal: GLOBAL_ADMIN() });
+    try {
+      const { structured } = await callTool(
+        harness.client,
+        "biso_campus_briefing"
+      );
+      expect(structured?.ok).toBe(true);
+      expect(String((structured?.data as { method: string }).method)).toMatch(
+        NO_LANGUAGE_MODEL_I_RE
+      );
+    } finally {
+      await harness.close();
+    }
+  });
+});
+
+describe("lookups", () => {
+  test("ambiguous department references are refused with candidates", async () => {
+    // "ESN" exists in two campuses; picking one silently would be wrong.
+    const harness = await connect({ principal: GLOBAL_ADMIN() });
+    try {
+      const { structured } = await callTool(
+        harness.client,
+        "biso_resolve_department",
+        { reference: "ESN" }
+      );
+      expect(structured?.ok).toBe(false);
+      expect((structured?.error as { code: string }).code).toBe(
+        "invalid_input"
+      );
+      const details = (
+        structured?.error as { details: Record<string, unknown> }
+      ).details;
+      expect((details.candidates as unknown[]).length).toBe(2);
+    } finally {
+      await harness.close();
+    }
+  });
+
+  test("an exact id resolves", async () => {
+    const harness = await connect({ principal: GLOBAL_ADMIN() });
+    try {
+      const { structured } = await callTool(
+        harness.client,
+        "biso_resolve_department",
+        { reference: "dept-a" }
+      );
+      expect(structured?.ok).toBe(true);
+    } finally {
+      await harness.close();
+    }
+  });
+
+  test("operating ledgers are excluded from the public unit listing", async () => {
+    const harness = await connect({ principal: GLOBAL_ADMIN() });
+    try {
+      const { structured } = await callTool(
+        harness.client,
+        "biso_list_departments",
+        { publicOnly: true }
+      );
+      const departments = (
+        structured?.data as { departments: Array<{ id: string }> }
+      ).departments;
+      expect(departments.map((d) => d.id)).not.toContain("dept-ledger");
+    } finally {
+      await harness.close();
+    }
+  });
+
+  test("feature flags report the effective state and whether it is a default", async () => {
+    const harness = await connect({ principal: GLOBAL_ADMIN() });
+    try {
+      const { structured } = await callTool(
+        harness.client,
+        "biso_list_feature_flags"
+      );
+      const flags = (
+        structured?.data as {
+          flags: Array<{ key: string; enabled: boolean; isDefault: boolean }>;
+        }
+      ).flags;
+      const stripe = flags.find((flag) => flag.key === "payments_stripe");
+      expect(stripe?.enabled).toBe(false);
+      expect(stripe?.isDefault).toBe(false);
+      const shopLedger = flags.find(
+        (flag) => flag.key === "shop_ledger_posting"
+      );
+      expect(shopLedger?.enabled).toBe(false);
+      expect(shopLedger?.isDefault).toBe(true);
+    } finally {
+      await harness.close();
+    }
+  });
+});
+
+describe("clients wiring", () => {
+  test("requireElevated throws a clear unavailable error when unconfigured", () => {
+    const { logger } = collectingLogger();
+    const clients = createBackendClients(
+      baseConfig({
+        appwrite: { ...baseConfig().appwrite, apiKey: null },
+      }),
+      logger
+    );
+    expect(clients.hasElevated).toBe(false);
+    expect(() => clients.requireElevated("test")).toThrow(
+      SERVICE_KEY_CLIENT_WHICH_IS_NOT_CONF_RE
+    );
+  });
+
+  test("a service key alone leaves hasUserCredential false", () => {
+    const { logger } = collectingLogger();
+    const clients = createBackendClients(
+      baseConfig({
+        appwrite: {
+          ...baseConfig().appwrite,
+          apiKey: "secret",
+          userCredential: null,
+        },
+      }),
+      logger
+    );
+    expect(clients.hasElevated).toBe(true);
+    expect(clients.hasUserCredential).toBe(false);
+  });
+});
