@@ -89,6 +89,7 @@ import { buildAssistantOrderSearchQueries } from "@/lib/assistant-order-search";
 import type { UserAuthContext } from "@/lib/authorization";
 import { CAMPUS_ID_TO_NAME } from "@/lib/campus-constants";
 import { checkIntegrationHealth } from "@/lib/integration-health";
+import { publishBookableProduct } from "@/lib/shop/publish-gate";
 import { fetchRequiredTeamHealth } from "@/lib/team-health-check";
 import {
   fetchEventsTotal,
@@ -343,6 +344,15 @@ async function publishCreatedContent(
     await publishEvent(id);
     return;
   }
+  if (context.domain === "shop") {
+    // A product may only go live with a department and an active sales
+    // type — see `publishBookableProduct` — and `webshop_products` grants no
+    // `update` permission, so this must go through the admin client rather
+    // than the session client the other domains use below.
+    const { db } = await createAdminClient();
+    await publishBookableProduct(db, id);
+    return;
+  }
   const table = DOMAIN_PUBLISH_TABLE[context.domain];
   if (!table) {
     return;
@@ -559,6 +569,14 @@ function buildDeps(
       const { db } = await createSessionClient();
       const row = await db.getRow<GenericRow>("app", table, id);
       assertPublishAccess(ctx, getStringValue(row.campus_id));
+      if (domain === "shop") {
+        // Same gate and the same admin-client requirement as
+        // `publishCreatedContent` above — only after `assertPublishAccess`
+        // has authorised this caller for the row's campus.
+        const { db: adminDb } = await createAdminClient();
+        await publishBookableProduct(adminDb, id);
+        return { data: id };
+      }
       await db.updateRow("app", table, id, { status: "published" });
       return { data: id };
     },

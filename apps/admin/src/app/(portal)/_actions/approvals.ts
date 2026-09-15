@@ -295,11 +295,19 @@ async function executeApprovalPublish(
       departmentId: nonEmptyString(row.departmentId),
       salesTypeId: nonEmptyString(row.sales_type),
     });
+    // Unlike every other domain here, `webshop_products` has `rowSecurity:
+    // false` and grants only `create` permissions (no `update`), so the
+    // approver's session write would be refused regardless of role. Write
+    // through the admin client instead, now that both `assertPublishAccess`
+    // and `assertProductBookable` have passed.
+    await adminDb.updateRow(DATABASE_ID, plan.table, plan.resourceId, {
+      status: "published",
+    });
+  } else {
+    await sessionDb.updateRow(DATABASE_ID, plan.table, plan.resourceId, {
+      status: "published",
+    });
   }
-
-  await sessionDb.updateRow(DATABASE_ID, plan.table, plan.resourceId, {
-    status: "published",
-  });
 
   revalidateApprovalPublishPaths(plan);
 }

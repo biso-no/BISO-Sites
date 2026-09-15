@@ -231,23 +231,84 @@ describe("approveRequest: shop products must be bookable", () => {
     );
   });
 
-  test("publishes when the sales type is active", async () => {
+  test("publishes when the sales type is active, through the admin client", async () => {
     mockRows({ salesType: { $id: "sales-type-1", active: true } });
 
     const result = await approveRequest("req-1");
 
     expect(result).toEqual({ data: "req-1" });
-    expect(sessionDb.updateRow).toHaveBeenCalledWith(
+    // webshop_products has rowSecurity disabled and grants only `create`
+    // permissions (no `update`), so every approver's session write would be
+    // refused — the status flip must go through the admin client instead.
+    expect(db.updateRow).toHaveBeenCalledWith(
       "app",
       "webshop_products",
       "product-1",
       { status: "published" }
+    );
+    expect(sessionDb.updateRow).not.toHaveBeenCalledWith(
+      "app",
+      "webshop_products",
+      expect.anything(),
+      expect.anything()
     );
     expect(db.updateRow).toHaveBeenCalledWith(
       "app",
       "approval_requests",
       "req-1",
       expect.objectContaining({ status: "approved" })
+    );
+  });
+});
+
+describe("approveRequest: non-shop domains still write through the session client", () => {
+  const newsRequest = {
+    $id: "req-news-1",
+    action: "news.publish",
+    payload: "{}",
+    resource_id: "news-1",
+    status: "pending" as const,
+  };
+
+  const newsRow = {
+    $id: "news-1",
+    campus_id: "campus-oslo",
+    status: "pending_approval",
+  };
+
+  beforeEach(() => {
+    currentCtx = baseCtx;
+    for (const client of [db, sessionDb]) {
+      client.getRow.mockReset();
+      client.updateRow.mockReset();
+      client.createRow.mockReset();
+    }
+  });
+
+  test("updates the news row through the session client, not the admin client", async () => {
+    sessionDb.getRow.mockImplementation(
+      (_databaseId: string, table: string) => {
+        if (table === "approval_requests") {
+          return Promise.resolve(newsRequest);
+        }
+        if (table === "news") {
+          return Promise.resolve(newsRow);
+        }
+        return Promise.reject(new Error(`unexpected getRow(${table})`));
+      }
+    );
+
+    const result = await approveRequest("req-news-1");
+
+    expect(result).toEqual({ data: "req-news-1" });
+    expect(sessionDb.updateRow).toHaveBeenCalledWith("app", "news", "news-1", {
+      status: "published",
+    });
+    expect(db.updateRow).not.toHaveBeenCalledWith(
+      "app",
+      "news",
+      expect.anything(),
+      expect.anything()
     );
   });
 });
