@@ -151,7 +151,7 @@ export type BiIdentitySyncResult =
  * Appwrite only supports identity linking client-side, so the OAuth2 session is
  * started in the browser and this runs on the return leg. It reads the OIDC
  * identity's BI address, derives the student id, and enriches the profile with
- * the Azure employee id that Finago uses as the customer number.
+ * the Azure employee id that Finago stores as the customer's ExternalId.
  *
  * Writes go through the admin client: these columns are identity assertions,
  * deliberately outside the self-service SELF_SERVICE_PROFILE_FIELDS allow-list.

@@ -356,7 +356,7 @@ export interface UpsertMembershipCustomerParams {
  * itself fails (transient 24SO error/timeout), as opposed to a genuine "no
  * such customer" result. Callers must treat this as a hard stop, never fall
  * through to create: `upsertMembershipCustomer` creates with an explicit,
- * pinned `Id` (the Azure employee id), which 24SO treats as an upsert-by-id —
+ * pinned `Id` (the student number), which 24SO treats as an upsert-by-id —
  * so creating on a false "not found" doesn't mint a duplicate, it silently
  * overwrites (Name/ExternalId/EmailAddresses/etc.) any existing curated
  * customer record.
@@ -375,12 +375,13 @@ export class MembershipCustomerLookupError extends Error {
  * Resolve the Finago customer for a membership purchase, creating it when
  * absent.
  *
- * The customer number MUST equal the student's Azure employee id, because
- * that is what BI's own app uses — so `Id` is sent explicitly on create rather
- * than letting 24SO allocate one. `ExternalId` carries the sanitized student
- * number from their BI email address.
+ * BI keys its student customers by student number: `Id` is the digits of the
+ * student's BI email address (`s1715738@bi.no` → 1715738) — the same number
+ * the membership check reads categories from — and `ExternalId` is the
+ * student's Azure `employeeId`. A customer created here gets both, so it is
+ * indistinguishable from one BI's own app created.
  *
- * Both lookups use `throwOnError` and let a search failure propagate as
+ * The lookup uses `throwOnError` and lets a search failure propagate as
  * `MembershipCustomerLookupError` rather than falling through to create — see
  * that error's doc comment for why a false "not found" here is unsafe.
  */
@@ -389,40 +390,26 @@ export async function upsertMembershipCustomer(
 ): Promise<number> {
   const session = await getValidSession();
 
-  let byCompanyId: Company[];
+  let existing: Company[];
   try {
-    byCompanyId = await getCompanies(
+    existing = await getCompanies(
       session,
-      { CompanyId: params.employeeId },
+      { CompanyId: params.studentNumber },
       { throwOnError: true }
     );
   } catch (error) {
     throw new MembershipCustomerLookupError(error);
   }
-  if (byCompanyId[0]?.Id) {
-    return byCompanyId[0].Id;
-  }
-
-  let byExternalId: Company[];
-  try {
-    byExternalId = await getCompanies(
-      session,
-      { ExternalId: String(params.studentNumber) },
-      { throwOnError: true }
-    );
-  } catch (error) {
-    throw new MembershipCustomerLookupError(error);
-  }
-  if (byExternalId[0]?.Id) {
-    return byExternalId[0].Id;
+  if (existing[0]?.Id) {
+    return existing[0].Id;
   }
 
   const client = await createAuthenticatedClient("company", session);
   const newCompany: Company = {
-    Id: params.employeeId,
+    Id: params.studentNumber,
     Name: `(Student) ${params.lastName}, ${params.firstName}`,
     FirstName: params.firstName,
-    ExternalId: String(params.studentNumber),
+    ExternalId: String(params.employeeId),
     Type: "Consumer",
     Private: true,
     Country: "NO",
@@ -446,7 +433,7 @@ export async function upsertMembershipCustomer(
   }
 
   console.log(
-    `[24SO Company] Created membership customer ${company.Id} (ExternalId: ${params.studentNumber})`
+    `[24SO Company] Created membership customer ${company.Id} (ExternalId: ${params.employeeId})`
   );
   return company.Id;
 }
