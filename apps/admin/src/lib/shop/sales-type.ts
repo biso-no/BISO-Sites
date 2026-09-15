@@ -21,7 +21,7 @@ export interface ProductBooking {
  * a permission problem or the service being down — only the first may be
  * reported as a missing sales type.
  */
-function isRowNotFound(error: unknown): boolean {
+export function isRowNotFound(error: unknown): boolean {
   const code = (error as { code?: number } | null)?.code;
   const type = (error as { type?: string } | null)?.type;
   return (

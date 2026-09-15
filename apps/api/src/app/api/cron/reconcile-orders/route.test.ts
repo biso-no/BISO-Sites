@@ -496,7 +496,7 @@ describe("reconcile-orders cron: Finago pass", () => {
     expect(body.finagoNotConfigured).toBe(0);
     expect(body.errors).toBe(0);
     expect(console.warn).toHaveBeenCalledWith(
-      expect.stringContaining("refunded")
+      "[Reconcile Orders] Order refunded needs manual Finago posting: Order has refunds recorded before it was posted"
     );
   });
 });

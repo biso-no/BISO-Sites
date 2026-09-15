@@ -23,8 +23,10 @@ import { redirect } from "next/navigation";
 import { getUserAuthContext, type UserAuthContext } from "@/lib/authorization";
 import { syncLedgerAccounts } from "@/lib/finago/ledger-accounts-sync";
 import { canManageAccounting } from "@/lib/roles";
+import { isRowNotFound } from "@/lib/shop/sales-type";
 import { logAuditEvent } from "../../_actions/audit-log";
 import {
+  clearingAccountsRefusal,
   deactivationBlockedMessage,
   enablePostingRefusal,
   type LedgerAccountOption,
@@ -302,6 +304,21 @@ export async function saveShopAccountingSettings(
     }
 
     const { db } = await createAdminClient();
+    // While posting is on, a mistyped clearing account would fail every
+    // order at the Finago call. While it is off, settings may be saved before
+    // the first account sync; the enable guard checks them then.
+    if (await readPostingEnabled(db)) {
+      const refusal = clearingAccountsRefusal({
+        accounts: await readLedgerAccounts(db, [
+          parsed.data.clearingAccounts.vipps,
+          parsed.data.clearingAccounts.stripe,
+        ]),
+        settings: parsed.data,
+      });
+      if (refusal) {
+        return { error: refusal };
+      }
+    }
     await db.upsertRow<ShopSettings>(
       "app",
       SHOP_SETTINGS_TABLE,
@@ -323,11 +340,44 @@ export async function saveShopAccountingSettings(
 
 const MAX_SALES_TYPES = 100;
 
+const LEDGER_READ_FAILED = "Could not read ledger accounts — try again";
+
+/**
+ * The synced `ledger_accounts` rows for these account numbers. Only a
+ * not-found read means "not synced"; any other failure throws
+ * {@link LEDGER_READ_FAILED}, so a transient error is never reported as a
+ * missing account.
+ */
+async function readLedgerAccounts(
+  db: AdminDb,
+  accountNumbers: Iterable<number>
+): Promise<Map<number, LedgerAccounts>> {
+  const accounts = new Map<number, LedgerAccounts>();
+  await Promise.all(
+    [...new Set(accountNumbers)].map(async (accountNumber) => {
+      try {
+        accounts.set(
+          accountNumber,
+          await db.getRow<LedgerAccounts>(
+            "app",
+            LEDGER_ACCOUNTS_TABLE,
+            String(accountNumber)
+          )
+        );
+      } catch (error) {
+        if (!isRowNotFound(error)) {
+          throw new Error(LEDGER_READ_FAILED);
+        }
+      }
+    })
+  );
+  return accounts;
+}
+
 /**
  * Why posting cannot be switched on, or null. Loads every active sales type
  * and the synced ledger account behind each one and behind both clearing
- * accounts; the rules live in `enablePostingRefusal`. A failed account read
- * counts as "not synced", which refuses — the safe direction.
+ * accounts; the rules live in `enablePostingRefusal`.
  */
 async function postingEnableBlocked(db: AdminDb): Promise<string | null> {
   const [settingsRow, activeTypes] = await Promise.all([
@@ -342,30 +392,16 @@ async function postingEnableBlocked(db: AdminDb): Promise<string | null> {
     return "Save the posting settings and add at least one active sales type before switching posting on";
   }
 
-  const accountNumbers = new Set<number>([
+  const accounts = await readLedgerAccounts(db, [
     ...activeTypes.rows.map((row) => row.account_number),
     settings.clearingAccounts.vipps,
     settings.clearingAccounts.stripe,
   ]);
-  const accounts = new Map<number, LedgerAccounts | null>();
-  await Promise.all(
-    [...accountNumbers].map(async (accountNumber) => {
-      const row = await db
-        .getRow<LedgerAccounts>(
-          "app",
-          LEDGER_ACCOUNTS_TABLE,
-          String(accountNumber)
-        )
-        .catch(() => null);
-      if (row) {
-        accounts.set(accountNumber, row);
-      }
-    })
-  );
 
   return enablePostingRefusal({
     accounts,
     salesTypes: activeTypes.rows,
+    salesTypesTotal: activeTypes.total,
     settings,
   });
 }

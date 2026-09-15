@@ -41,9 +41,12 @@ mock.module("../../_actions/audit-log", () => ({
   logAuditEvent: mock(async () => undefined),
 }));
 
-const { getAccountingView, saveSalesType, setShopLedgerPosting } = await import(
-  "./actions"
-);
+const {
+  getAccountingView,
+  saveSalesType,
+  saveShopAccountingSettings,
+  setShopLedgerPosting,
+} = await import("./actions");
 
 const input = {
   account_number: 3100,
@@ -235,7 +238,10 @@ describe("setShopLedgerPosting: switching on only when the setup can post", () =
   };
 
   function mockPostingSetup({
+    accountReadError,
     chart = GOOD_CHART,
+    postingOn = false,
+    salesTypesTotal,
     salesTypes = [
       {
         $id: "varesalg",
@@ -245,13 +251,19 @@ describe("setShopLedgerPosting: switching on only when the setup can post", () =
       },
     ],
   }: {
+    accountReadError?: Error;
     chart?: Record<string, Record<string, unknown>>;
+    postingOn?: boolean;
     salesTypes?: Record<string, unknown>[];
+    salesTypesTotal?: number;
   }) {
     db.getRow.mockImplementation(
       (_databaseId: string, table: string, id: string) => {
         if (table === "shop_settings") {
           return Promise.resolve(SAVED_SETTINGS);
+        }
+        if (table === "ledger_accounts" && accountReadError) {
+          return Promise.reject(accountReadError);
         }
         if (table === "ledger_accounts" && chart[id]) {
           return Promise.resolve(chart[id]);
@@ -261,10 +273,27 @@ describe("setShopLedgerPosting: switching on only when the setup can post", () =
     );
     db.listRows.mockImplementation((_databaseId: string, table: string) => {
       if (table === "sales_types") {
-        return Promise.resolve({ rows: salesTypes, total: salesTypes.length });
+        return Promise.resolve({
+          rows: salesTypes,
+          total: salesTypesTotal ?? salesTypes.length,
+        });
+      }
+      if (table === "feature_flags" && postingOn) {
+        return Promise.resolve({
+          rows: [{ $id: "flag-1", enabled: true, key: "shop_ledger_posting" }],
+          total: 1,
+        });
       }
       return Promise.resolve({ rows: [], total: 0 });
     });
+    db.upsertRow.mockImplementation(
+      (
+        _databaseId: string,
+        _table: string,
+        id: string,
+        data: Record<string, unknown>
+      ) => Promise.resolve({ $id: id, ...data })
+    );
     db.createRow.mockImplementation(
       (
         _databaseId: string,
@@ -347,6 +376,28 @@ describe("setShopLedgerPosting: switching on only when the setup can post", () =
     );
   });
 
+  test("refuses when there are more active sales types than one read returns", async () => {
+    mockPostingSetup({ salesTypesTotal: 150 });
+
+    const result = await setShopLedgerPosting(true);
+
+    expect(result).toEqual({
+      error: expect.stringContaining("150 active sales types"),
+    });
+    expect(db.createRow).not.toHaveBeenCalled();
+  });
+
+  test("asks to try again when a ledger account read fails for a reason other than not found", async () => {
+    mockPostingSetup({ accountReadError: new Error("fetch failed") });
+
+    const result = await setShopLedgerPosting(true);
+
+    expect(result).toEqual({
+      error: "Could not read ledger accounts — try again",
+    });
+    expect(db.createRow).not.toHaveBeenCalled();
+  });
+
   test("switches posting off without checking accounts", async () => {
     mockPostingSetup({ chart: {} });
 
@@ -356,5 +407,86 @@ describe("setShopLedgerPosting: switching on only when the setup can post", () =
     expect(
       db.getRow.mock.calls.some((call) => call[1] === "ledger_accounts")
     ).toBe(false);
+  });
+});
+
+describe("saveShopAccountingSettings: clearing accounts", () => {
+  const input = {
+    clearingAccounts: { stripe: 1540, vipps: 1539 },
+    transactionTypeNumber: 8,
+  };
+
+  function mockSettingsSave({
+    chart,
+    postingOn,
+  }: {
+    chart: Record<string, Record<string, unknown>>;
+    postingOn: boolean;
+  }) {
+    db.getRow.mockImplementation(
+      (_databaseId: string, table: string, id: string) => {
+        if (table === "ledger_accounts" && chart[id]) {
+          return Promise.resolve(chart[id]);
+        }
+        return Promise.reject(rowNotFound());
+      }
+    );
+    db.listRows.mockImplementation((_databaseId: string, table: string) =>
+      Promise.resolve(
+        table === "feature_flags" && postingOn
+          ? {
+              rows: [{ $id: "f", enabled: true, key: "shop_ledger_posting" }],
+              total: 1,
+            }
+          : { rows: [], total: 0 }
+      )
+    );
+    db.upsertRow.mockImplementation(
+      (
+        _databaseId: string,
+        _table: string,
+        id: string,
+        data: Record<string, unknown>
+      ) => Promise.resolve({ $id: id, ...data })
+    );
+  }
+
+  test("refuses a mistyped clearing account while posting is on", async () => {
+    mockSettingsSave({
+      chart: { "1540": { account_number: 1540, active: true } },
+      postingOn: true,
+    });
+
+    const result = await saveShopAccountingSettings(input);
+
+    expect(result).toEqual({
+      error: expect.stringContaining(
+        "Vipps clearing account 1539 is not in the synced chart of accounts"
+      ),
+    });
+    expect(db.upsertRow).not.toHaveBeenCalled();
+  });
+
+  test("saves synced, active clearing accounts while posting is on", async () => {
+    mockSettingsSave({
+      chart: {
+        "1539": { account_number: 1539, active: true },
+        "1540": { account_number: 1540, active: true },
+      },
+      postingOn: true,
+    });
+
+    const result = await saveShopAccountingSettings(input);
+
+    expect(result).toEqual({ data: input });
+    expect(db.upsertRow).toHaveBeenCalled();
+  });
+
+  test("saves without the chart check while posting is off, so settings can precede the first sync", async () => {
+    mockSettingsSave({ chart: {}, postingOn: false });
+
+    const result = await saveShopAccountingSettings(input);
+
+    expect(result).toEqual({ data: input });
   });
 });

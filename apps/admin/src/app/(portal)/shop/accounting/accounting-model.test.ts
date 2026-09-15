@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
+  clearingAccountsRefusal,
   deactivationBlockedMessage,
   enablePostingRefusal,
   ledgerAccountProblem,
@@ -233,6 +234,53 @@ describe("enablePostingRefusal", () => {
     const message = enablePostingRefusal({
       accounts,
       salesTypes: [varesalg],
+      settings,
+    });
+
+    expect(message).toContain(
+      "Vipps clearing account 1530 is not in the synced chart of accounts"
+    );
+    expect(message).toContain(
+      "Stripe clearing account 1540 is inactive in Finago"
+    );
+  });
+});
+
+describe("enablePostingRefusal — more sales types than one read returns", () => {
+  test("refuses rather than check only the first page", () => {
+    const message = enablePostingRefusal({
+      accounts: new Map([
+        [1530, { active: true }],
+        [1540, { active: true }],
+        [3000, { active: true, vat_code: 3 }],
+      ]),
+      salesTypes: [{ account_number: 3000, label_no: "Varesalg" }],
+      salesTypesTotal: 101,
+      settings: { clearingAccounts: { stripe: 1540, vipps: 1530 } },
+    });
+
+    expect(message).toContain("101 active sales types");
+  });
+});
+
+describe("clearingAccountsRefusal", () => {
+  const settings = { clearingAccounts: { stripe: 1540, vipps: 1530 } };
+
+  test("accepts synced, active clearing accounts without VAT codes", () => {
+    expect(
+      clearingAccountsRefusal({
+        accounts: new Map([
+          [1530, { active: true, vat_code: null }],
+          [1540, { active: true }],
+        ]),
+        settings,
+      })
+    ).toBeNull();
+  });
+
+  test("names a missing or inactive clearing account", () => {
+    const message = clearingAccountsRefusal({
+      accounts: new Map([[1540, { active: false }]]),
       settings,
     });
 

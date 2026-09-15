@@ -165,14 +165,20 @@ const CLEARING_PROVIDER_LABELS = { stripe: "Stripe", vipps: "Vipps" } as const;
 export function enablePostingRefusal({
   accounts,
   salesTypes,
+  salesTypesTotal = salesTypes.length,
   settings,
 }: {
   accounts: ReadonlyMap<number, SyncedAccount>;
   salesTypes: ReadonlyArray<{ account_number: number; label_no: string }>;
+  /** Active sales types in the table; more than `salesTypes` means unchecked ones. */
+  salesTypesTotal?: number;
   settings: Pick<ShopAccountingSettings, "clearingAccounts">;
 }): string | null {
   if (salesTypes.length === 0) {
     return "Save the posting settings and add at least one active sales type before switching posting on";
+  }
+  if (salesTypesTotal > salesTypes.length) {
+    return `There are ${salesTypesTotal} active sales types, more than can be checked at once (${salesTypes.length}). Deactivate unused sales types before switching posting on.`;
   }
 
   const problems: string[] = [];
@@ -186,6 +192,16 @@ export function enablePostingRefusal({
       `${salesType.label_no} (${salesType.account_number}) ${shortfall}`
     );
   }
+  problems.push(...clearingAccountProblems(accounts, settings));
+
+  return syncFirstMessage(problems);
+}
+
+function clearingAccountProblems(
+  accounts: ReadonlyMap<number, SyncedAccount>,
+  settings: Pick<ShopAccountingSettings, "clearingAccounts">
+): string[] {
+  const problems: string[] = [];
   for (const provider of ["vipps", "stripe"] as const) {
     const accountNumber = settings.clearingAccounts[provider];
     const shortfall = accountShortfall(accounts.get(accountNumber), false);
@@ -195,10 +211,29 @@ export function enablePostingRefusal({
       );
     }
   }
+  return problems;
+}
 
+function syncFirstMessage(problems: string[]): string | null {
   return problems.length > 0
     ? `Sync accounts from Finago first: ${problems.join("; ")}.`
     : null;
+}
+
+/**
+ * Why these clearing accounts cannot be saved while posting is on, or null.
+ * Same rule as the enable guard: each must be synced and active (no VAT code
+ * needed), or every order would fail at the Finago call and strand at the
+ * "posting" marker.
+ */
+export function clearingAccountsRefusal({
+  accounts,
+  settings,
+}: {
+  accounts: ReadonlyMap<number, SyncedAccount>;
+  settings: Pick<ShopAccountingSettings, "clearingAccounts">;
+}): string | null {
+  return syncFirstMessage(clearingAccountProblems(accounts, settings));
 }
 
 /**
