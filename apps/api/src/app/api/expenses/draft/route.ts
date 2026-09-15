@@ -14,8 +14,10 @@ import {
 
 type DraftExpenseRow = Models.Row & ExpenseRowInput;
 
+type AdminDb = Awaited<ReturnType<typeof createAdminClient>>["db"];
+
 async function assertDraftOwnership(
-  db: Awaited<ReturnType<typeof createAuthenticatedClient>>["db"],
+  db: AdminDb,
   expenseId: string,
   userId: string
 ): Promise<NextResponse | null> {
@@ -57,7 +59,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { db, account } = await createAuthenticatedClient(req);
+    const { account } = await createAuthenticatedClient(req);
     const user = await account.get();
     const payload = parseExpensePayload(await req.json());
 
@@ -78,7 +80,7 @@ export async function POST(req: NextRequest) {
     );
 
     const draft = payload.expenseId
-      ? await updateDraftExpense(db, payload.expenseId, user.$id, expenseBody)
+      ? await updateDraftExpense(payload.expenseId, user.$id, expenseBody)
       : await createDraftExpense(user.$id, expenseBody);
 
     if (draft instanceof NextResponse) {
@@ -115,12 +117,17 @@ async function createDraftExpense(
   );
 }
 
+/**
+ * Expense rows are read-only to their submitter, so this ownership check is
+ * the only thing between the caller and the row: the read and the write both
+ * use the admin client.
+ */
 async function updateDraftExpense(
-  db: Awaited<ReturnType<typeof createAuthenticatedClient>>["db"],
   expenseId: string,
   userId: string,
   expenseBody: ExpenseRowInput
 ) {
+  const { db } = await createAdminClient();
   const ownershipError = await assertDraftOwnership(db, expenseId, userId);
 
   if (ownershipError) {

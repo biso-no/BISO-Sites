@@ -1,6 +1,10 @@
 import { ExpensesStatus } from "@repo/api/types/appwrite";
 import { describe, expect, it } from "vitest";
-import { buildExpenseRowInput, parseExpensePayload } from "./expense-payload";
+import {
+  buildExpenseRowInput,
+  buildExpenseRowPermissions,
+  parseExpensePayload,
+} from "./expense-payload";
 
 describe("expense payload helpers", () => {
   it("normalizes a draft payload into an Appwrite expense row", () => {
@@ -65,5 +69,11 @@ describe("expense payload helpers", () => {
 
   it("rejects payloads missing fields required by the expense table", () => {
     expect(parseExpensePayload({ campus: "oslo" })).toBeNull();
+  });
+
+  it("grants the submitter read access only, so an expense cannot be edited through Appwrite", () => {
+    expect(buildExpenseRowPermissions("user-id")).toEqual([
+      'read("user:user-id")',
+    ]);
   });
 });

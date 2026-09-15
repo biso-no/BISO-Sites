@@ -83,7 +83,15 @@ export function buildExpenseRowInput(
   };
 }
 
+/**
+ * Row permissions for an expense: the submitter can read it, nothing more.
+ *
+ * Ledger posting pays out the row's `total` to its `bank_account` as they
+ * stand at posting time, and approvals do not record the amount, so a
+ * submitter who could edit the row could change either after approval. Every
+ * change therefore goes through apps/api with the admin key, after an
+ * ownership check.
+ */
 export function buildExpenseRowPermissions(userId: string): string[] {
-  const userRole = Role.user(userId);
-  return [Permission.read(userRole), Permission.update(userRole)];
+  return [Permission.read(Role.user(userId))];
 }
