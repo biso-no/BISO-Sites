@@ -2,7 +2,11 @@
  * Clears the "posting" marker on an order whose Finago post was attempted but
  * never recorded, so the reconcile sweep can post it again. Refuses unless the
  * order carries the marker AND Finago has no transaction line mentioning the
- * order id around its date. Dry-run by default; pass --apply to write.
+ * order id dated between the day before the order was created and today (Oslo).
+ * The range runs to today because a voucher is dated when it was posted, which
+ * can be long after creation. If that range is too large to page through, the
+ * script refuses and asks for a manual check in Finago. Dry-run by default;
+ * pass --apply to write.
  *
  * Usage (from packages/api):
  *   bun run finago:reset-stranded-posting -- 6aa19747003c79019977
@@ -11,12 +15,11 @@
 import { Client, TablesDB } from "node-appwrite";
 import {
   collectAllTransactionLines,
+  pagingRefusalMessage,
   parseNextLinkUrl,
+  transactionLinesSearchWindow,
 } from "./finago-transaction-lines-paging";
 
-const DAY_MS = 24 * 60 * 60 * 1000;
-const LOOKBACK_DAYS = 1;
-const LOOKAHEAD_DAYS = 5;
 // The endpoint's `limit` caps lines per page; pagination (below) follows the
 // `Link` response header for anything beyond this, so the value only trades
 // off request count against page size.
@@ -88,16 +91,10 @@ if (!token) {
   process.exit(1);
 }
 
-const created = Date.parse(order.$createdAt);
-const dateFrom = new Date(created - LOOKBACK_DAYS * DAY_MS)
-  .toISOString()
-  .slice(0, 10);
 // `dateTo` is EXCLUSIVE on this endpoint (lines are returned up to 23:59 on
-// the day before dateTo), so add one extra day to actually cover
-// LOOKAHEAD_DAYS full days after the order was created.
-const dateTo = new Date(created + (LOOKAHEAD_DAYS + 1) * DAY_MS)
-  .toISOString()
-  .slice(0, 10);
+// the day before dateTo); the window helper already adds that day.
+const searchWindow = transactionLinesSearchWindow(order.$createdAt);
+const { dateFrom, dateTo } = searchWindow;
 
 const firstLinesUrl = new URL(
   "https://rest.api.24sevenoffice.com/v1/transactionlines"
@@ -127,9 +124,7 @@ const paged = await collectAllTransactionLines(
   }
 );
 if (!paged.ok) {
-  console.error(
-    `Refusing: could not read Finago transaction lines (${paged.reason ?? "unknown error"}).`
-  );
+  console.error(pagingRefusalMessage(paged, searchWindow));
   process.exit(1);
 }
 const lines = paged.lines;

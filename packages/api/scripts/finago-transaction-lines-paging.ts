@@ -1,6 +1,6 @@
 /**
- * Pure pagination helpers for the Finago `/transactionlines` REST endpoint,
- * shared by the stranded-posting reset script. Kept free of `fetch` so the
+ * Pure pagination and search-window helpers for the Finago `/transactionlines`
+ * REST endpoint, used by the stranded-posting reset script. Kept free of `fetch` so the
  * paging logic can be unit-tested without a network call.
  *
  * The endpoint follows RFC 5988 `Link` header pagination (see
@@ -47,13 +47,17 @@ export interface TransactionLinesResult {
   lines: unknown[];
   /** `false` when a page failed or pagination did not terminate. */
   ok: boolean;
+  /** True when paging stopped at `MAX_PAGES`: the date range is too large. */
+  pageCapReached?: boolean;
   /** Set when `ok` is `false`, for the caller's refusal message. */
   reason?: string;
 }
 
-// A 6-day transaction-line window should never come close to this many
-// pages; it exists only to fail closed instead of looping forever if Finago
-// ever returns a `Link` header that points back at an earlier page.
+// The search window runs from the order's creation to today, so an order
+// stranded for a long time can span many lines. This cap fails closed rather
+// than loop forever (e.g. a `Link` header pointing back at an earlier page) or
+// page through an unbounded range; the caller then refuses and says to check
+// Finago by hand.
 const MAX_PAGES = 50;
 
 /**
@@ -78,6 +82,7 @@ export async function collectAllTransactionLines(
       return {
         lines: [],
         ok: false,
+        pageCapReached: true,
         reason: `Exceeded ${MAX_PAGES} pages while paging Finago transaction lines; refusing rather than risk missing a match.`,
       };
     }
@@ -96,4 +101,61 @@ export async function collectAllTransactionLines(
   }
 
   return { lines, ok: true };
+}
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+const LOOKBACK_DAYS = 1;
+
+export interface TransactionLinesWindow {
+  /** Inclusive voucher date, `YYYY-MM-DD`. */
+  dateFrom: string;
+  /** Exclusive voucher date, `YYYY-MM-DD`. */
+  dateTo: string;
+}
+
+/** `YYYY-MM-DD` for `date` as a calendar day in Oslo. */
+function osloDate(date: Date): string {
+  return new Intl.DateTimeFormat("sv-SE", {
+    day: "2-digit",
+    month: "2-digit",
+    timeZone: "Europe/Oslo",
+    year: "numeric",
+  }).format(date);
+}
+
+/**
+ * The voucher-date range to search for an order's Finago lines.
+ *
+ * A voucher is dated when it is POSTED (`ledgerDate()`), which can be long
+ * after the order was created — e.g. an order that waited weeks for a
+ * configuration fix. So the range runs from a day before creation through
+ * today in Oslo (`dateTo` is exclusive, hence today + 1). It deliberately does
+ * not narrow by the order's `$updatedAt`: later refund writes move that past
+ * the posting time.
+ */
+export function transactionLinesSearchWindow(
+  createdAt: string,
+  now: Date = new Date()
+): TransactionLinesWindow {
+  const created = Date.parse(createdAt);
+  if (Number.isNaN(created)) {
+    throw new Error(`Invalid order creation time: ${createdAt}`);
+  }
+  const dateFrom = new Date(created - LOOKBACK_DAYS * DAY_MS)
+    .toISOString()
+    .slice(0, 10);
+  const todayInOslo = Date.parse(`${osloDate(now)}T00:00:00.000Z`);
+  const dateTo = new Date(todayInOslo + DAY_MS).toISOString().slice(0, 10);
+  return { dateFrom, dateTo };
+}
+
+/** Why the script refuses after a non-ok paging result. */
+export function pagingRefusalMessage(
+  result: TransactionLinesResult,
+  window: TransactionLinesWindow
+): string {
+  if (result.pageCapReached) {
+    return `Refusing: the Finago date range ${window.dateFrom}..${window.dateTo} is too large to search completely (${result.reason ?? "page cap reached"}). Check Finago manually for a voucher mentioning this order before clearing the marker by hand.`;
+  }
+  return `Refusing: could not read Finago transaction lines (${result.reason ?? "unknown error"}).`;
 }
