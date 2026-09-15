@@ -166,7 +166,13 @@ async function refundBeforePosting(
   if (live.length === 0 && refundedMinor <= 0) {
     return null;
   }
-  return `Order has ${live.length} refund(s) (${refundedMinor / MINOR_UNITS_PER_MAJOR} kr refunded) recorded before it was posted; post the net sale to 24SO manually and record its transaction id`;
+  const detail = `Order has ${live.length} refund(s) (${refundedMinor / MINOR_UNITS_PER_MAJOR} kr refunded) recorded before it was posted; post the net sale to 24SO manually and record its transaction id`;
+  // `refunded_total` only moves when a refund settles, so a pending one is
+  // not in the amount above yet.
+  const pending = live.filter((refund) => refund.status === "pending").length;
+  return pending > 0
+    ? `${detail}; ${pending} refund(s) still pending — wait for them to settle before booking the net sale by hand`
+    : detail;
 }
 
 /**

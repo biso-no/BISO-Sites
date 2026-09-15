@@ -1,4 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const flags = vi.hoisted(() => ({ isFeatureEnabled: vi.fn() }));
+vi.mock("./feature-flags-server", () => ({
+  isFeatureEnabled: flags.isFeatureEnabled,
+}));
+
 import {
   hasUnrecordedReversal,
   type LedgerReverser,
@@ -113,6 +119,8 @@ beforeEach(() => {
   db.decrementRowColumn.mockResolvedValue({});
   db.incrementRowColumn.mockResolvedValue({ refund_lock: 1 });
   db.getRow.mockImplementation(orderRowFor(buildOrder()));
+  flags.isFeatureEnabled.mockReset();
+  flags.isFeatureEnabled.mockResolvedValue(false);
 });
 
 describe("toRefundableItems", () => {
@@ -1267,6 +1275,7 @@ describe("refundOrder — posting state re-read before the reversal", () => {
   });
 
   it("notes that the order is held for manual booking when it is not posted yet", async () => {
+    flags.isFeatureEnabled.mockResolvedValue(true);
     orderMovesTo(
       buildOrder({ finago_transaction_id: null }),
       buildOrder({ finago_transaction_id: null })
@@ -1279,6 +1288,53 @@ describe("refundOrder — posting state re-read before the reversal", () => {
     expect(ledger.reverse).not.toHaveBeenCalled();
     expect(
       refundRowErrors().some((e) => e.includes("not yet posted to Finago"))
+    ).toBe(true);
+  });
+
+  it("stays silent for an unposted order while shop posting is off", async () => {
+    flags.isFeatureEnabled.mockResolvedValue(false);
+    orderMovesTo(
+      buildOrder({ finago_transaction_id: null }),
+      buildOrder({ finago_transaction_id: null })
+    );
+    const ledger: LedgerReverser = { reverse: vi.fn() };
+
+    const result = await refundHoodie(ledger);
+
+    expect(result).toMatchObject({ ok: true });
+    expect(flags.isFeatureEnabled).toHaveBeenCalledWith("shop_ledger_posting");
+    expect(ledger.reverse).not.toHaveBeenCalled();
+    expect(refundRowErrors()).toEqual([]);
+  });
+
+  it("stays silent for an unposted order when the posting flag cannot be read", async () => {
+    flags.isFeatureEnabled.mockRejectedValue(new Error("appwrite down"));
+    orderMovesTo(
+      buildOrder({ finago_transaction_id: null }),
+      buildOrder({ finago_transaction_id: null })
+    );
+    const ledger: LedgerReverser = { reverse: vi.fn() };
+
+    const result = await refundHoodie(ledger);
+
+    expect(result).toMatchObject({ ok: true });
+    expect(refundRowErrors()).toEqual([]);
+  });
+
+  it("notes a manual reversal at the posting marker even while shop posting is off", async () => {
+    flags.isFeatureEnabled.mockResolvedValue(false);
+    orderMovesTo(
+      buildOrder({ finago_transaction_id: "tx-9" }),
+      buildOrder({ finago_transaction_id: "posting" })
+    );
+    const ledger: LedgerReverser = { reverse: vi.fn() };
+
+    await refundHoodie(ledger);
+
+    expect(
+      refundRowErrors().some((e) =>
+        e.includes("in progress or unknown at refund time")
+      )
     ).toBe(true);
   });
 

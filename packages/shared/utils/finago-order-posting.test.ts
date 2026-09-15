@@ -464,7 +464,20 @@ describe("postFinagoTransactionForOrder", () => {
       const result = await postFinagoTransactionForOrder("order-1", db);
 
       expect(result).toMatchObject({ posted: false, reason: "needs_manual" });
+      expect(result.detail).toContain(
+        "1 refund(s) still pending — wait for them to settle before booking the net sale by hand"
+      );
       expect(mocks.postLedgerTransaction).not.toHaveBeenCalled();
+    });
+
+    it("does not mention pending refunds when every refund has settled", async () => {
+      db.listRows.mockResolvedValue({
+        rows: [{ $id: "refund-1", amount: 499, status: "succeeded" }],
+      });
+
+      const result = await postFinagoTransactionForOrder("order-1", db);
+
+      expect(result.detail).not.toContain("still pending");
     });
 
     it("is not posted when the order carries a refunded total without a readable refund row", async () => {

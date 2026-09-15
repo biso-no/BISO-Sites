@@ -12,6 +12,7 @@
 
 import { ID, Query } from "@repo/api";
 import type { Orders as BaseOrders } from "@repo/api/types/appwrite";
+import { isFeatureEnabled } from "./feature-flags-server";
 import {
   type RevenueTarget,
   revenueTargetKey,
@@ -973,6 +974,15 @@ async function restockRefundedLines(
 /** The in-flight marker `finago-order-posting.ts` writes before the Finago call. */
 const POSTING_MARKER = "posting";
 
+/** Whether shop ledger posting is on; an unreadable flag counts as off. */
+async function shopPostingEnabled(): Promise<boolean> {
+  try {
+    return await isFeatureEnabled("shop_ledger_posting");
+  } catch {
+    return false;
+  }
+}
+
 /** The order's current `finago_transaction_id`, or `unknown` when unreadable. */
 async function readFinagoTransactionId(
   orderId: string,
@@ -1042,8 +1052,13 @@ async function reverseLedger({
     return;
   }
   if (!posting.id) {
-    // Posting now refuses orders with refunds (`needs_manual`), so the note
-    // explains on the order page why no reversal exists.
+    // Posting refuses orders with refunds (`needs_manual`), so the note
+    // explains on the order page why no reversal exists. Only while posting is
+    // on: before rollout every refund is of an unposted order, and the note
+    // would mark each one with a misleading warning.
+    if (!(await shopPostingEnabled())) {
+      return;
+    }
     await note(
       "Order not yet posted to Finago at refund time, so no reversal was posted. Automatic posting holds orders with refunds for manual booking of the net sale."
     );
