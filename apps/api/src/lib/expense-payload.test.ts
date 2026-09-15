@@ -4,6 +4,7 @@ import {
   buildExpenseRowInput,
   buildExpenseRowPermissions,
   parseExpensePayload,
+  receiptFileIds,
 } from "./expense-payload";
 
 describe("expense payload helpers", () => {
@@ -75,5 +76,21 @@ describe("expense payload helpers", () => {
     expect(buildExpenseRowPermissions("user-id")).toEqual([
       'read("user:user-id")',
     ]);
+  });
+
+  it("returns only bare storage file ids, once each", () => {
+    expect(
+      receiptFileIds([
+        { url: "file-1" },
+        { url: "file-1" },
+        {
+          url: "https://appwrite.biso.no/v1/storage/buckets/expenses/files/x/view",
+        },
+        { url: "" },
+        { url: null },
+        { url: " file-2 " },
+      ])
+    ).toEqual(["file-1", "file-2"]);
+    expect(receiptFileIds(undefined)).toEqual([]);
   });
 });

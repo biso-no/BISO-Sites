@@ -95,3 +95,21 @@ export function buildExpenseRowInput(
 export function buildExpenseRowPermissions(userId: string): string[] {
   return [Permission.read(Role.user(userId))];
 }
+
+const APPWRITE_FILE_ID_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,35}$/;
+
+/**
+ * The `expenses` bucket file ids a draft's attachments point at.
+ *
+ * Attachment `url` holds a bare file id for receipts uploaded through the web
+ * or `POST /api/expenses/attachments`. Anything else — a legacy full URL, an
+ * empty value — is not a file this API may delete.
+ */
+export function receiptFileIds(
+  attachments: ReadonlyArray<{ url?: string | null }> | null | undefined
+): string[] {
+  const ids = (attachments ?? [])
+    .map((attachment) => attachment.url?.trim() ?? "")
+    .filter((url) => APPWRITE_FILE_ID_RE.test(url));
+  return [...new Set(ids)];
+}

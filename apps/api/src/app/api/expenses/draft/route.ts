@@ -10,6 +10,7 @@ import {
   buildExpenseRowPermissions,
   type ExpenseRowInput,
   parseExpensePayload,
+  receiptFileIds,
 } from "@/lib/expense-payload";
 
 type DraftExpenseRow = Models.Row & ExpenseRowInput;
@@ -140,6 +141,80 @@ async function updateDraftExpense(
     expenseId,
     expenseBody
   );
+}
+
+function isNotFound(error: unknown): boolean {
+  return (error as { code?: number } | null)?.code === 404;
+}
+
+/**
+ * Deletes one of the caller's own drafts, and the receipt files it
+ * referenced. Submitted expenses are never deletable here: once a draft has
+ * left draft, it belongs to the approval and posting flow.
+ */
+export async function DELETE(req: NextRequest) {
+  const origin = req.headers.get("origin");
+  const json = (data: unknown, status = 200) =>
+    applyCorsHeaders(NextResponse.json(data, { status }), origin);
+
+  const expenseId = new URL(req.url).searchParams.get("expenseId")?.trim();
+  if (!expenseId) {
+    return json({ success: false, error: "Missing expenseId" }, 400);
+  }
+
+  let userId: string;
+  try {
+    const { account } = await createAuthenticatedClient(req);
+    userId = (await account.get()).$id;
+  } catch {
+    return json({ success: false, error: "Authentication required" }, 401);
+  }
+
+  try {
+    const { db, storage } = await createAdminClient();
+    const expense = await db
+      .getRow<Expenses>("app", "expense", expenseId, [
+        Query.select(["$id", "status", "userId", "expenseAttachments.*"]),
+      ])
+      .catch((error: unknown) => {
+        if (isNotFound(error)) {
+          return null;
+        }
+        throw error;
+      });
+
+    if (!expense) {
+      return json({ success: false, error: "Expense not found" }, 404);
+    }
+    if (expense.userId !== userId) {
+      return json({ success: false, error: "Unauthorized access" }, 403);
+    }
+    if (expense.status !== ExpensesStatus.DRAFT) {
+      return json(
+        { success: false, error: "Only draft expenses can be deleted" },
+        409
+      );
+    }
+
+    // `expenseAttachments` cascades, so the attachment rows go with the draft.
+    await db.deleteRow("app", "expense", expenseId);
+
+    await Promise.all(
+      receiptFileIds(expense.expenseAttachments).map((fileId) =>
+        storage.deleteFile("expenses", fileId).catch((error: unknown) => {
+          console.error(
+            `[expenses/draft] Could not delete receipt ${fileId}:`,
+            error
+          );
+        })
+      )
+    );
+
+    return json({ success: true });
+  } catch (error) {
+    console.error("Error deleting expense draft:", error);
+    return json({ success: false, error: "Failed to delete draft" }, 500);
+  }
 }
 
 export function OPTIONS(req: NextRequest) {

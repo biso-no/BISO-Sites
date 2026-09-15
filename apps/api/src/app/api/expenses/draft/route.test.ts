@@ -33,7 +33,7 @@ vi.mock("@repo/shared/utils/feature-flags-server", () => ({
   isFeatureEnabled: vi.fn(async () => true),
 }));
 
-import { POST } from "./route";
+import { DELETE, POST } from "./route";
 
 const DRAFT_BODY = {
   bank_account: "1234.56.78901",
@@ -125,5 +125,98 @@ describe("expense draft route", () => {
 
     expect(response.status).toBe(409);
     expect(adminDb.updateRow).not.toHaveBeenCalled();
+  });
+});
+
+function deleteRequest(query: string) {
+  return new Request(`https://api.example/api/expenses/draft${query}`, {
+    method: "DELETE",
+  }) as never;
+}
+
+describe("expense draft deletion", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    account.get.mockResolvedValue({ $id: "submitter-1" });
+    adminDb.deleteRow.mockResolvedValue({});
+    storage.deleteFile.mockResolvedValue({});
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+  });
+
+  it("requires a signed-in caller", async () => {
+    account.get.mockRejectedValue(new Error("no session"));
+
+    const response = await DELETE(deleteRequest("?expenseId=expense-1"));
+
+    expect(response.status).toBe(401);
+    expect(adminDb.deleteRow).not.toHaveBeenCalled();
+  });
+
+  it("requires an expense id", async () => {
+    const response = await DELETE(deleteRequest(""));
+
+    expect(response.status).toBe(400);
+  });
+
+  it("answers 404 for an expense that does not exist", async () => {
+    adminDb.getRow.mockRejectedValue(
+      Object.assign(new Error("row_not_found"), { code: 404 })
+    );
+
+    const response = await DELETE(deleteRequest("?expenseId=expense-1"));
+
+    expect(response.status).toBe(404);
+  });
+
+  it("refuses to delete someone else's expense", async () => {
+    adminDb.getRow.mockResolvedValue({
+      $id: "expense-1",
+      expenseAttachments: [],
+      status: "draft",
+      userId: "someone-else",
+    });
+
+    const response = await DELETE(deleteRequest("?expenseId=expense-1"));
+
+    expect(response.status).toBe(403);
+    expect(adminDb.deleteRow).not.toHaveBeenCalled();
+  });
+
+  it("refuses to delete an expense that has been submitted", async () => {
+    adminDb.getRow.mockResolvedValue({
+      $id: "expense-1",
+      expenseAttachments: [],
+      status: "pending",
+      userId: "submitter-1",
+    });
+
+    const response = await DELETE(deleteRequest("?expenseId=expense-1"));
+
+    expect(response.status).toBe(409);
+    expect(adminDb.deleteRow).not.toHaveBeenCalled();
+  });
+
+  it("deletes an owned draft and its receipt files, even if a file is already gone", async () => {
+    adminDb.getRow.mockResolvedValue({
+      $id: "expense-1",
+      expenseAttachments: [{ url: "file-1" }, { url: "file-2" }],
+      status: "draft",
+      userId: "submitter-1",
+    });
+    storage.deleteFile
+      .mockRejectedValueOnce(new Error("file not found"))
+      .mockResolvedValueOnce({});
+
+    const response = await DELETE(deleteRequest("?expenseId=expense-1"));
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({ success: true });
+    expect(adminDb.deleteRow).toHaveBeenCalledWith(
+      "app",
+      "expense",
+      "expense-1"
+    );
+    expect(storage.deleteFile).toHaveBeenCalledWith("expenses", "file-1");
+    expect(storage.deleteFile).toHaveBeenCalledWith("expenses", "file-2");
   });
 });
