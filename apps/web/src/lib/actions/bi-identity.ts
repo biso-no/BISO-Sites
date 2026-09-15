@@ -8,9 +8,9 @@ import {
   parseBiStudentEmail,
 } from "@repo/shared/utils/bi-student";
 import { membershipCacheTag } from "@repo/shared/utils/membership-status";
+import { buildProfileRowPermissions } from "@repo/shared/utils/profile-fields";
 import { revalidateTag } from "next/cache";
 import { unstable_rethrow } from "next/navigation";
-import { buildProfileRowPermissions } from "@/lib/actions/profile-permissions";
 
 // The bi_* columns are pending an `appwrite push tables`; extend locally until
 // packages/api/types/appwrite.ts is regenerated.
@@ -154,7 +154,7 @@ export type BiIdentitySyncResult =
  * the Azure employee id that Finago uses as the customer number.
  *
  * Writes go through the admin client: these columns are identity assertions,
- * deliberately outside the self-service PROFILE_WRITABLE_FIELDS allow-list.
+ * deliberately outside the self-service SELF_SERVICE_PROFILE_FIELDS allow-list.
  */
 export async function syncBiStudentIdentity(): Promise<BiIdentitySyncResult> {
   try {
@@ -241,7 +241,7 @@ export async function syncBiStudentIdentity(): Promise<BiIdentitySyncResult> {
       // A brand-new user linking during onboarding has no row yet for
       // updateRow to find, every time. Create it instead, using the same
       // shape/permissions `updateProfile` falls back to for the identical
-      // gap. `PROFILE_WRITABLE_FIELDS` stays untouched — these bi_* columns
+      // gap. `SELF_SERVICE_PROFILE_FIELDS` stays untouched — these bi_* columns
       // remain outside self-service by design; this write goes through the
       // admin client, same as the update above.
       //
