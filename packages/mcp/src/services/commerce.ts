@@ -24,8 +24,8 @@ import { ORDER_ITEMS_SELECT } from "@repo/shared/utils/order-queries";
 import type { BackendClients } from "../appwrite/clients";
 import { campusLabel } from "../identity/campus";
 import type { Principal } from "../identity/principal";
-import { scopeQueries } from "../identity/scope";
-import { fromAppwriteError, notFound } from "../runtime/errors";
+import { canReadRow, describeScope, scopeQueries } from "../identity/scope";
+import { DomainError, fromAppwriteError, notFound } from "../runtime/errors";
 
 export const ORDER_STATUSES = [
   "pending",
@@ -71,7 +71,7 @@ export interface OrderDetail extends OrderSummary {
 }
 
 export interface CommerceService {
-  getOrder(orderId: string): Promise<OrderDetail>;
+  getOrder(principal: Principal, orderId: string): Promise<OrderDetail>;
   searchOrders(
     principal: Principal,
     input: {
@@ -198,7 +198,7 @@ export function createCommerceService(
       }
     },
 
-    async getOrder(orderId) {
+    async getOrder(principal, orderId) {
       try {
         const order = await clients.user.db.getRow<Orders>(
           "app",
@@ -206,6 +206,21 @@ export function createCommerceService(
           orderId,
           [ORDER_ITEMS_SELECT]
         );
+        // The `orders` table grants read to the whole Operations Unit team, so
+        // Appwrite answering this call proves nothing about campus scope: a
+        // department member of that team can fetch any campus's order by id
+        // while `searchOrders` correctly shows them none. Re-apply the same
+        // scope `searchOrders` applies — `departmentField: null`, so a
+        // department-only principal fails closed exactly as it does there.
+        //
+        // Reported as `not_found` rather than `forbidden` on purpose: an order
+        // id is guessable, and "forbidden" would confirm that it exists.
+        if (!canReadRow(principal, order.campus_id, null)) {
+          throw notFound(`No order ${orderId} is visible to you.`, {
+            orderId,
+            yourScope: describeScope(principal),
+          });
+        }
         return {
           ...toSummary(order),
           items: getOrderItems(order).map((item) => ({
@@ -219,6 +234,9 @@ export function createCommerceService(
           diagnostics: diagnose(order),
         };
       } catch (error) {
+        if (error instanceof DomainError) {
+          throw error;
+        }
         const mapped = fromAppwriteError(error, { operation: "get order" });
         if (mapped.code === "forbidden" || mapped.code === "not_found") {
           throw notFound(

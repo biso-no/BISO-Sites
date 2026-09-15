@@ -205,6 +205,7 @@ export const approvalsModule: ToolModule = {
         return result({
           requestId,
           summary: outcome.summary,
+          effect: outcome.executed ? "executed" : "proposed",
           data: outcome.executed
             ? { filed: outcome.data, proposal: outcome.proposal }
             : { proposal: outcome.proposal },

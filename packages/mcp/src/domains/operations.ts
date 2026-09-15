@@ -82,7 +82,10 @@ export const commerceModule: ToolModule = {
       profiles: STAFF_PROFILES,
       async handler(args, context) {
         const requestId = newRequestId();
-        const order = await context.services.commerce.getOrder(args.orderId);
+        const order = await context.services.commerce.getOrder(
+          context.principal,
+          args.orderId
+        );
         return result({
           requestId,
           summary: `Order ${order.id}: ${order.status}, ${order.total} ${order.currency}, ${order.items.length} line item(s).${order.diagnostics.length > 0 ? ` ${order.diagnostics.length} note(s).` : ""}`,
@@ -113,6 +116,11 @@ export const eventsModule: ToolModule = {
       },
       annotations: READ_ONLY,
       profiles: STAFF_PROFILES,
+      isAvailable(context) {
+        return context.clients.hasElevated
+          ? true
+          : "Attendee and segment-member counts need the service key: `event_attendees` grants no read to user credentials, and `segment_members` would silently undercount. Without it this tool could only return a wrong number.";
+      },
       async handler(args, context) {
         const requestId = newRequestId();
         const segments = await context.services.events.listSegments(
@@ -141,6 +149,11 @@ export const eventsModule: ToolModule = {
       },
       annotations: READ_ONLY,
       profiles: STAFF_PROFILES,
+      isAvailable(context) {
+        return context.clients.hasElevated
+          ? true
+          : "Attendee and segment-member counts need the service key: `event_attendees` grants no read to user credentials, and `segment_members` would silently undercount. Without it this tool could only return a wrong number.";
+      },
       async handler(args, context) {
         const requestId = newRequestId();
         const audience = await context.services.events.audience(

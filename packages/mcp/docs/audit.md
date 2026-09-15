@@ -256,3 +256,43 @@ this at runtime and `content-registry.test.ts` asserts no gap is unexplained.
 | Page-editor `insert_block`/`remove_block`/`set_prop`/`set_variant`/`apply_accent`/`bind_collection` | **Reimplemented** as real document edits with per-edit outcomes |
 | Page-editor `generate_copy` | **Excluded** — it returns a placeholder string that can be written into a live page |
 | Page-editor `list_blocks` | **Reimplemented** as `biso_page_load`, which actually reads blocks |
+
+---
+
+## 6. Defects found in this package by review, and fixed
+
+An automated review of the first revision (`da0e362`) raised nine issues. All
+nine were verified against primary sources before any change — the Appwrite
+schema, the `apps/admin` code they touch, and, where the claim was about SDK
+timing, the SDK source and a probe. Seven reproduced as stated, one reproduced
+with a different impact than reported, and one was a paging defect that also
+revealed a missing cursor.
+
+| # | Area | Verified as | Fix |
+|---|---|---|---|
+| 1 | `identity/resolve.ts` | **Confirmed.** `Query.equal("Name", …)` never matches a campus-prefixed department, so every ordinary department member resolved to zero scope | Campus-exact matcher in `identity/department-names.ts` |
+| 2 | `services/commerce.ts` | **Confirmed.** `orders` grants `read("team:sg-app-dept-operationsunit")` at table level, so `getOrder` returned any campus's buyer name, e-mail, totals and line items by id, while `searchOrders` scoped correctly | `canReadRow` before returning; `not_found`, never `forbidden` |
+| 3 | `services/pages.ts` | **Confirmed.** A published page short-circuited the ownership check, and `load()` prefers the draft, so out-of-scope staff could read unreleased edits | Published pages expose their *published* document only; `documentSource` says which |
+| 4 | `services/content.ts` | **Confirmed as written, but not in its stated impact.** Translation ACLs were not updated with the parent's lifecycle. They are inert today because `content_translations` grants `read("any")` at table level, so nothing was actually unreadable or exposed | Sync them anyway, publish-safe ordering; see [roadmap S1](./roadmap.md) |
+| 5 | `runtime/mutation.ts` | **Confirmed.** A proposal token is a pure MAC and was never consumed, so an additive mutation could be replayed into duplicate rows inside its 10-minute life | `createProposalRegistry`; the token is spent *before* the write |
+| 6 | `services/events.ts` | **Confirmed.** `event_attendees` grants no read to user credentials, and `segment_members` silently undercounts | Post-authorization counts go through the service key; tools unregistered without one |
+| 7 | `server.ts` | **Confirmed, and reproduced.** Client capabilities are assigned in the SDK's `_oninitialize`, which runs after `connect()` resolves — so `confirm` mode was permanently proposal-only | Capability read at call time, not sampled |
+| 8 | `runtime/register.ts` | **Confirmed.** A propose-only call was audited as `ok`, and the auditor persists exactly those | `ToolEffect` on the envelope; only `executed` persists |
+| 9 | `services/pages.ts` | **Confirmed, and broader.** Appwrite pages before the visibility filter, so visible rows behind a window of invisible drafts were unreachable — and the handler emitted no cursor at all | Forward scan with a raw-offset cursor; real `pagination` in the result |
+
+Two further defects were found by the tests written for these fixes rather than
+by the review: a folded name key that matched two different units once
+whitespace was deleted (fixed by preferring a case-preserving key), and a
+proposal registry that pruned a malformed expiry immediately, which would have
+turned an unparseable field into a replay bypass.
+
+**Finding 4 is worth stating precisely**, because the review's framing was
+wrong in a way that matters: it reported that publishing left content
+"unreadable". It does not. Appwrite grants access on the union of table and row
+permissions, and `content_translations` — like `news`, `events`, `documents`,
+`pages` and `webshop_products` — carries a table-level `read("any")`. Row
+permissions on those tables are inert for reads today. The fix is still right,
+because it keeps MCP-published rows identical to portal-published rows, which is
+what makes tightening the table grant a schema change rather than a data
+migration. But nothing was broken for readers, and nothing was exposed that was
+not already exposed.

@@ -228,7 +228,7 @@ export const identityModule: ToolModule = {
               mutations: {
                 writeMode: context.mutation.writeMode,
                 clientSupportsElicitation:
-                  context.mutation.clientSupportsElicitation,
+                  context.mutation.clientSupportsElicitation(),
                 note:
                   context.mutation.writeMode === "propose"
                     ? "Every mutating tool returns a validated proposal and writes nothing."

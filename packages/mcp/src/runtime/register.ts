@@ -180,10 +180,14 @@ async function invokeTool(input: {
       timeoutMs,
       tool.name
     );
+    // A propose-mode call succeeds without writing anything. Recording it as
+    // `ok` would put an entry in the activity log that reads like a completed
+    // action, and `createAuditor` persists exactly those. Classify it as what
+    // it is.
     await context.auditor.record({
       requestId,
       action: tool.name,
-      outcome: outcome.ok ? "ok" : "denied",
+      outcome: auditOutcome(outcome),
       durationMs: Date.now() - startedAt,
       payload: { tier },
     });
@@ -199,6 +203,22 @@ async function invokeTool(input: {
     });
     return toCallToolResult(toToolError(error, requestId));
   }
+}
+
+/**
+ * Map a tool outcome onto an audit outcome.
+ *
+ * A handler that performed no write reports `effect: "proposed"`; a read tool
+ * reports `"read"` or leaves it unset. Only `"executed"` is a change worth
+ * persisting as one.
+ */
+function auditOutcome(
+  outcome: ToolOutcome<unknown>
+): "ok" | "denied" | "proposed" {
+  if (!outcome.ok) {
+    return "denied";
+  }
+  return outcome.effect === "proposed" ? "proposed" : "ok";
 }
 
 /**

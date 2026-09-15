@@ -141,6 +141,8 @@ function applyOr(row: FakeRow, query: ParsedQuery): boolean {
 }
 
 export interface FakeBackendOptions {
+  /** The account `resolvePrincipal` will read; omit to make `account.get()` 401. */
+  account?: { $id: string; email?: string; name?: string };
   /** Rows the anonymous client can see, when different from `tables`. */
   anonymousTables?: FakeTables;
   /** Whether a service key is configured. */
@@ -148,6 +150,8 @@ export interface FakeBackendOptions {
   /** Whether a user credential is configured. */
   hasUserCredential?: boolean;
   tables?: FakeTables;
+  /** Team memberships `resolvePrincipal` will read. */
+  teams?: Array<{ $id: string; name: string }>;
 }
 
 export interface FakeBackend extends BackendClients {
@@ -320,7 +324,7 @@ export function createFakeBackend(
   const hasElevated = options.hasElevated ?? true;
 
   return {
-    user: fakeClients(userDb, "jwt"),
+    user: fakeClients(userDb, "jwt", options.account, options.teams),
     anonymous: fakeClients(anonDb, "anonymous"),
     hasUserCredential: options.hasUserCredential ?? true,
     hasElevated,

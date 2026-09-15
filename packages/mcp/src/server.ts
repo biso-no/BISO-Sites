@@ -46,6 +46,7 @@ import { registerResources } from "./resources/index";
 import { createAuditor } from "./runtime/audit";
 import { buildLinks, type ToolContext } from "./runtime/context";
 import { createLogger, type Logger } from "./runtime/logger";
+import { createProposalRegistry } from "./runtime/mutation";
 import {
   type RegisterResult,
   registerModules,
@@ -169,8 +170,12 @@ export async function createBisoMcpServer(
     mutation: {
       writeMode: config.writeMode,
       serverSecret,
-      // Filled in at connect time, when the client's capabilities are known.
-      clientSupportsElicitation: false,
+      proposals: createProposalRegistry(),
+      // Read at call time, not sampled at connect time: the client's
+      // capabilities arrive with its `initialize` request, which the SDK
+      // handles after `connect()` has already resolved.
+      clientSupportsElicitation: () =>
+        Boolean(server.server.getClientCapabilities()?.elicitation),
     },
     async confirmWithHuman(request) {
       // Re-read the capability at call time: `connect()` may have run after
@@ -219,17 +224,13 @@ export async function createBisoMcpServer(
   const resources = registerResources(server, context);
   const prompts = registerPrompts(server, context);
 
-  // The client's capabilities only exist after initialization. Patch the flag
-  // in place so `tierIsExecutable` sees the real value on the first call.
-  const originalConnect = server.connect.bind(server);
-  server.connect = async (transport) => {
-    await originalConnect(transport);
-    const capabilities = server.server.getClientCapabilities();
-    context.mutation.clientSupportsElicitation = Boolean(
-      capabilities?.elicitation
-    );
-    logger.info("Client connected", {
-      elicitation: context.mutation.clientSupportsElicitation,
+  // Log what the client turned out to support. The mutation gate does not
+  // depend on this running — it reads the capability at call time — but a
+  // `confirm`-mode session that cannot confirm should say so in the log rather
+  // than only when the first write is refused.
+  server.server.oninitialized = () => {
+    logger.info("Client initialized", {
+      elicitation: context.mutation.clientSupportsElicitation(),
       protocol: server.server.getClientVersion()?.name ?? "unknown",
     });
   };

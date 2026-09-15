@@ -16,6 +16,7 @@
 import { describe, expect, test } from "bun:test";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
+import { ElicitRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import { createBackendClients } from "./appwrite/clients";
 import { loadConfig, type ServerConfig } from "./config/env";
 import type { Principal } from "./identity/principal";
@@ -650,6 +651,146 @@ describe("mutations", () => {
     }
   });
 
+  test("a propose-only call is not recorded as a completed action", async () => {
+    // `createAuditor` persists exactly the `ok` outcomes, so classifying a
+    // proposal as `ok` would put a row in `audit_logs` describing a change
+    // that was never made.
+    const harness = await connect({
+      principal: GLOBAL_ADMIN(),
+      config: baseConfig({ writeMode: "propose" }),
+    });
+    try {
+      const { structured } = await callTool(
+        harness.client,
+        "biso_content_create_draft",
+        {
+          domain: "news",
+          slug: "nothing-written",
+          campusId: "1",
+          titleNo: "A",
+          titleEn: "A",
+          descriptionNo: "A",
+          descriptionEn: "A",
+        }
+      );
+
+      expect(structured?.ok).toBe(true);
+      expect(structured?.effect).toBe("proposed");
+      expect(domainWrites(harness)).toHaveLength(0);
+      // No audit row either — the auditor only persists executed changes.
+      expect(
+        harness.backend.writes.filter((write) => write.table === "audit_logs")
+      ).toHaveLength(0);
+    } finally {
+      await harness.close();
+    }
+  });
+
+  test("an executed mutation is recorded as one", async () => {
+    const harness = await connect({
+      principal: GLOBAL_ADMIN(),
+      config: baseConfig({ writeMode: "operator" }),
+    });
+    try {
+      const args = {
+        domain: "news",
+        slug: "written",
+        campusId: "1",
+        titleNo: "A",
+        titleEn: "A",
+        descriptionNo: "A",
+        descriptionEn: "A",
+      };
+      const first = await callTool(
+        harness.client,
+        "biso_content_create_draft",
+        args
+      );
+      const proposal = (
+        first.structured?.data as {
+          proposal: { proposalToken: string; expiresAt: string };
+        }
+      ).proposal;
+
+      const executed = await callTool(
+        harness.client,
+        "biso_content_create_draft",
+        {
+          ...args,
+          proposalToken: proposal.proposalToken,
+          proposalExpiresAt: proposal.expiresAt,
+        }
+      );
+      expect(executed.structured?.effect).toBe("executed");
+      expect(
+        harness.backend.writes.filter((write) => write.table === "audit_logs")
+          .length
+      ).toBeGreaterThan(0);
+    } finally {
+      await harness.close();
+    }
+  });
+
+  test("a proposal cannot be executed twice", async () => {
+    // `createDraft` mints a fresh `ID.unique()` on every call, so a replayed
+    // proposal inside its ten-minute life would create a second row that
+    // nobody proposed.
+    const harness = await connect({
+      principal: GLOBAL_ADMIN(),
+      config: baseConfig({ writeMode: "operator" }),
+    });
+    try {
+      const args = {
+        domain: "news",
+        slug: "replay-me",
+        campusId: "1",
+        titleNo: "Tittel",
+        titleEn: "Title",
+        descriptionNo: "Tekst",
+        descriptionEn: "Text",
+      };
+      const first = await callTool(
+        harness.client,
+        "biso_content_create_draft",
+        args
+      );
+      const proposal = (
+        first.structured?.data as {
+          proposal: { proposalToken: string; expiresAt: string };
+        }
+      ).proposal;
+
+      const executeArgs = {
+        ...args,
+        proposalToken: proposal.proposalToken,
+        proposalExpiresAt: proposal.expiresAt,
+      };
+
+      const executed = await callTool(
+        harness.client,
+        "biso_content_create_draft",
+        executeArgs
+      );
+      expect(executed.structured?.ok).toBe(true);
+      const afterFirst = domainWrites(harness).length;
+      expect(afterFirst).toBeGreaterThan(0);
+
+      const replay = await callTool(
+        harness.client,
+        "biso_content_create_draft",
+        executeArgs
+      );
+      expect(replay.response.isError).toBe(true);
+      expect(JSON.stringify(replay.structured)).toContain(
+        "already been executed"
+      );
+      // The decisive assertion: no second row.
+      expect(domainWrites(harness)).toHaveLength(afterFirst);
+    } finally {
+      await harness.close();
+    }
+  });
+
   test("a token from one change cannot authorize a different one", async () => {
     const harness = await connect({
       principal: GLOBAL_ADMIN(),
@@ -750,6 +891,87 @@ describe("mutations", () => {
       );
       expect(structured?.ok).toBe(false);
       expect((structured?.error as { code: string }).code).toBe("forbidden");
+      expect(domainWrites(harness)).toHaveLength(0);
+    } finally {
+      await harness.close();
+    }
+  });
+
+  test("confirm mode is executable when the client declares elicitation", async () => {
+    // Client capabilities arrive with the `initialize` request, which the SDK
+    // handles *after* `connect()` resolves. A gate that sampled them once at
+    // connect time would read `undefined` and pin this to false forever,
+    // silently downgrading `confirm` to `propose` for every capable client.
+    const harness = await connect({
+      principal: GLOBAL_ADMIN(),
+      config: baseConfig({ writeMode: "confirm" }),
+      clientCapabilities: { elicitation: {} },
+    });
+    try {
+      const { structured } = await callTool(
+        harness.client,
+        "biso_content_create_draft",
+        {
+          domain: "news",
+          slug: "x",
+          campusId: "1",
+          titleNo: "A",
+          titleEn: "A",
+          descriptionNo: "A",
+          descriptionEn: "A",
+        }
+      );
+      const proposal = (
+        structured?.data as {
+          proposal: { execution: { executable: boolean } };
+        }
+      ).proposal;
+      expect(proposal.execution.executable).toBe(true);
+    } finally {
+      await harness.close();
+    }
+  });
+
+  test("confirm mode writes nothing when the human declines", async () => {
+    const harness = await connect({
+      principal: GLOBAL_ADMIN(),
+      config: baseConfig({ writeMode: "confirm" }),
+      clientCapabilities: { elicitation: {} },
+    });
+    harness.client.setRequestHandler(ElicitRequestSchema, () =>
+      Promise.resolve({ action: "decline" as const })
+    );
+    try {
+      const args = {
+        domain: "news",
+        slug: "declined",
+        campusId: "1",
+        titleNo: "A",
+        titleEn: "A",
+        descriptionNo: "A",
+        descriptionEn: "A",
+      };
+      const first = await callTool(
+        harness.client,
+        "biso_content_create_draft",
+        args
+      );
+      const proposal = (
+        first.structured?.data as {
+          proposal: { proposalToken: string; expiresAt: string };
+        }
+      ).proposal;
+
+      const declined = await callTool(
+        harness.client,
+        "biso_content_create_draft",
+        {
+          ...args,
+          proposalToken: proposal.proposalToken,
+          proposalExpiresAt: proposal.expiresAt,
+        }
+      );
+      expect(declined.response.isError).toBe(true);
       expect(domainWrites(harness)).toHaveLength(0);
     } finally {
       await harness.close();

@@ -38,8 +38,21 @@ export interface Pagination {
   total: number | null;
 }
 
+/**
+ * What a successful call actually did to the backend.
+ *
+ * `proposed` is the important one: in the default `propose` write mode a
+ * mutating tool validates the change, describes it and writes **nothing**, yet
+ * still returns a successful result. Without this field that outcome is
+ * indistinguishable from a completed write — to the model reading the result,
+ * and to the `audit_logs` row derived from it.
+ */
+export type ToolEffect = "read" | "proposed" | "executed";
+
 export interface ToolOk<T> {
   data: T;
+  /** Defaults to `read` when a handler does not say otherwise. */
+  effect?: ToolEffect;
   /** Deep links into the apps for anything referenced. */
   links?: Record<string, string>;
   ok: true;

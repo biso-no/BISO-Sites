@@ -175,8 +175,13 @@ expiry, so a proposal for one change can never authorize a different one.
 | Mode | Behaviour |
 |---|---|
 | `propose` (default) | Proposals only. Nothing is ever written. |
-| `confirm` | Executes after the host returns `accept` from an elicitation. A client without the `elicitation` capability silently stays at `propose`. |
+| `confirm` | Executes after the host returns `accept` from an elicitation. A client that does not advertise the `elicitation` capability stays at `propose`, and the proposal says so. |
 | `operator` | The person running the process has authorized it to apply reversible changes without a per-call prompt. |
+
+In every mode a proposal is **single-use**: the token is spent before the write,
+so a call whose outcome you do not know cannot be retried into a duplicate row.
+Re-sending a spent token is refused. Check `effect` on the result — `proposed`
+means nothing was written, `executed` means it was.
 
 ### What no mode enables
 

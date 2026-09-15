@@ -94,7 +94,21 @@ export interface PageDocumentView {
   blockCount: number;
   blocks: BlockSummary[];
   description: string | null;
-  /** True when a published document exists and differs from the draft. */
+  /**
+   * Which document the blocks came from.
+   *
+   * A principal outside the page's scope may read a *published* page, but only
+   * its published document — never the draft sitting on top of it. Saying which
+   * one they got keeps that distinction visible instead of silently serving a
+   * different document to different callers.
+   */
+  documentSource: "draft" | "published";
+  /**
+   * True when a published document exists and differs from the draft.
+   *
+   * Always false for a `published` document source: whether an out-of-scope
+   * page has unpublished edits pending is itself information about that page.
+   */
   hasUnpublishedChanges: boolean;
   isPublished: boolean;
   locale: PageLocale;
@@ -138,7 +152,20 @@ export interface PageService {
   list(
     principal: Principal,
     input: { query?: string; status?: string; limit: number; offset: number }
-  ): Promise<{ rows: PageSummary[]; total: number }>;
+  ): Promise<{
+    /**
+     * Never known: counting the pages this caller may see would mean scanning
+     * the whole table, and Appwrite's own total would disclose how many exist
+     * that they may not see.
+     */
+    total: null;
+    /**
+     * Raw scan position to resume from, or null when the table was exhausted.
+     * Carried in the opaque cursor — it is not a count of visible rows.
+     */
+    nextOffset: number | null;
+    rows: PageSummary[];
+  }>;
   load(
     principal: Principal,
     input: { pageId: string; locale: PageLocale }
@@ -165,6 +192,14 @@ export interface PageService {
 
 const MAX_PROP_CHARS = 400;
 const PAGE_TABLE = "pages";
+/** Rows fetched per round trip while scanning for visible pages. */
+const PAGE_SCAN_BATCH = 100;
+/**
+ * Most rows one `list` call will examine. Bounds the work when a caller's
+ * visible pages sit far behind other campuses' drafts; hitting it returns a
+ * short page *with* a cursor, never a premature end.
+ */
+const PAGE_SCAN_CEILING = 1000;
 const TRANSLATION_TABLE = "page_translations";
 
 /** Bound a prop value so a listing stays readable. */
@@ -414,6 +449,66 @@ function applyOneEdit(doc: EditorPageDoc, edit: BlockEdit): BlockEditOutcome {
   }
 }
 
+/**
+ * Walk the `pages` table until a page of visible rows is filled.
+ *
+ * Appwrite applies `limit`/`offset` before this package's visibility check, so
+ * a single window can filter down to nothing while the caller's own pages sit
+ * just behind it. Scanning forward keeps `limit` meaning "visible rows" and
+ * lets the returned offset — carried in the opaque cursor — mean "raw scan
+ * position", which is the only pair of definitions that neither repeats nor
+ * skips a row.
+ *
+ * `nextOffset` is null only when the table is genuinely exhausted. Hitting
+ * `PAGE_SCAN_CEILING` returns a short page *with* an offset, so a caller that
+ * follows the cursor still reaches everything.
+ */
+async function scanVisiblePages(input: {
+  baseQueries: readonly string[];
+  isVisible(row: Pages): boolean;
+  limit: number;
+  offset: number;
+  read(queries: string[]): Promise<{ rows: Pages[] }>;
+}): Promise<{ rows: Pages[]; nextOffset: number | null }> {
+  const rows: Pages[] = [];
+  let offset = input.offset;
+  let scanned = 0;
+
+  while (rows.length < input.limit && scanned < PAGE_SCAN_CEILING) {
+    const batchSize = Math.min(PAGE_SCAN_BATCH, PAGE_SCAN_CEILING - scanned);
+    const batch = await input.read([
+      ...input.baseQueries,
+      Query.limit(batchSize),
+      Query.offset(offset),
+    ]);
+    if (batch.rows.length === 0) {
+      return { rows, nextOffset: null };
+    }
+
+    // Advance by exactly what was examined. Advancing by the whole batch would
+    // skip the rows left unread when the page fills mid-batch.
+    let consumed = 0;
+    for (const row of batch.rows) {
+      if (rows.length >= input.limit) {
+        break;
+      }
+      consumed += 1;
+      if (input.isVisible(row)) {
+        rows.push(row);
+      }
+    }
+    scanned += consumed;
+    offset += consumed;
+
+    if (consumed === batch.rows.length && batch.rows.length < batchSize) {
+      // A short batch that was read to the end means the table ended.
+      return { rows, nextOffset: null };
+    }
+  }
+
+  return { rows, nextOffset: offset };
+}
+
 export function createPageService(
   clients: BackendClients,
   links: { web(path: string): string; admin(path: string): string }
@@ -436,22 +531,32 @@ export function createPageService(
   }
 
   /**
-   * Whether this principal may see a page's *draft* document.
+   * How much of a page this principal may see.
    *
-   * Published pages are public by definition. Drafts follow ordinary content
-   * scoping, which is the check Appwrite cannot make here because the table has
-   * row security turned off.
+   * `pages` and `page_translations` carry `rowSecurity: false` with a
+   * table-level `read("any")` grant, so Appwrite enforces nothing here and this
+   * function is the only gate.
+   *
+   * A *published* page is public by definition — but only its published
+   * document is. The draft that sits on top of it is unreleased work belonging
+   * to the owning department, and `load()` prefers the draft whenever one
+   * exists, so treating "the page is published" as blanket access would serve
+   * another campus's unpublished edits to anyone who knew the page id.
    */
-  function assertCanSeeDraft(principal: Principal, row: Pages): void {
-    if (row.status === "published") {
-      return;
-    }
+  function pageVisibility(
+    principal: Principal,
+    row: Pages
+  ): "draft" | "published-only" {
     const campusId = relationId(row.campus) ?? row.campus_id ?? null;
     const departmentId =
       relationId(row.department) ?? row.department_id ?? null;
-    if (!canReadRow(principal, campusId, departmentId)) {
-      throw notFound(`No page found with id ${row.$id}.`, { pageId: row.$id });
+    if (canReadRow(principal, campusId, departmentId)) {
+      return "draft";
     }
+    if (row.status === "published") {
+      return "published-only";
+    }
+    throw notFound(`No page found with id ${row.$id}.`, { pageId: row.$id });
   }
 
   async function readPageRow(pageId: string): Promise<Pages> {
@@ -491,7 +596,7 @@ export function createPageService(
 
   return {
     async list(principal, input) {
-      const queries: string[] = [
+      const baseQueries: string[] = [
         Query.select([
           "$id",
           "$updatedAt",
@@ -504,41 +609,60 @@ export function createPageService(
           "department.$id",
         ]),
         Query.orderDesc("$updatedAt"),
-        Query.limit(input.limit),
-        Query.offset(input.offset),
       ];
       if (input.status) {
-        queries.push(Query.equal("status", input.status));
+        baseQueries.push(Query.equal("status", input.status));
       }
       if (input.query?.trim()) {
-        queries.push(Query.contains("slug", input.query.trim()));
+        baseQueries.push(Query.contains("slug", input.query.trim()));
       }
 
-      try {
-        const result = await clients.user.db.listRows<Pages>(
-          "app",
-          PAGE_TABLE,
-          queries
+      /**
+       * `pages` has row security off with a table-level `read("any")` grant, so
+       * Appwrite returns every page regardless of the caller and the
+       * visibility decision has to happen here. That means Appwrite's `limit`
+       * and `offset` page over *unfiltered* rows: a window that happens to hold
+       * nothing but other campuses' drafts filters down to nothing, and a
+       * caller who stopped there would conclude they have no pages while their
+       * own sat two rows further on.
+       *
+       * So scan forward in batches until the page is full or the table is
+       * exhausted, and let the cursor carry the raw scan position rather than a
+       * count of visible rows. The cursor is opaque by design, which is what
+       * makes redefining it here safe.
+       *
+       * The ceiling bounds the work per call. Reaching it returns a short page
+       * with a cursor, never a wrong "there is nothing more".
+       */
+      const isVisible = (row: Pages): boolean => {
+        if (row.status === "published") {
+          return true;
+        }
+        return canReadRow(
+          principal,
+          relationId(row.campus) ?? row.campus_id ?? null,
+          relationId(row.department) ?? row.department_id ?? null
         );
-        // `pages` has rowSecurity off with a table-level read(any) grant, so
-        // Appwrite returns every page regardless of the caller. Filter in
-        // application code: published pages are public, drafts are scoped.
-        const visible = result.rows.filter((row) => {
-          if (row.status === "published") {
-            return true;
-          }
-          return canReadRow(
-            principal,
-            relationId(row.campus) ?? row.campus_id ?? null,
-            relationId(row.department) ?? row.department_id ?? null
-          );
+      };
+
+      try {
+        const scan = await scanVisiblePages({
+          baseQueries,
+          isVisible,
+          limit: input.limit,
+          offset: input.offset,
+          read: (queries) =>
+            clients.user.db.listRows<Pages>("app", PAGE_TABLE, queries),
         });
+
         return {
-          rows: visible.map(summarise),
-          // The total is the filtered count, not Appwrite's: reporting
-          // Appwrite's would tell the caller how many pages exist that they
+          rows: scan.rows.map(summarise),
+          // The total is deliberately unknown: counting the rows this caller
+          // may see would mean scanning the whole table, and reporting
+          // Appwrite's own total would tell them how many pages exist that they
           // cannot see.
-          total: visible.length,
+          total: null,
+          nextOffset: scan.nextOffset,
         };
       } catch (error) {
         throw fromAppwriteError(error, { operation: "list pages" });
@@ -547,7 +671,7 @@ export function createPageService(
 
     async load(principal, input) {
       const row = await readPageRow(input.pageId);
-      assertCanSeeDraft(principal, row);
+      const visibility = pageVisibility(principal, row);
 
       const translation = translationOf(row, input.locale);
       if (!translation) {
@@ -559,7 +683,20 @@ export function createPageService(
 
       const draft = parseDoc(translation.draft_document);
       const published = parseDoc(translation.puck_document);
-      const active = draft ?? published;
+
+      const canSeeDraft = visibility === "draft";
+      const active = canSeeDraft ? (draft ?? published) : published;
+      const documentSource: "draft" | "published" =
+        canSeeDraft && draft !== null ? "draft" : "published";
+
+      if (!canSeeDraft && published === null) {
+        // The page is published but this locale has never been released. There
+        // is a draft, but it is not this caller's to read.
+        throw notFound(
+          `Page ${input.pageId} has no published ${input.locale} document.`,
+          { pageId: input.pageId, locale: input.locale }
+        );
+      }
 
       return {
         page: summarise(row),
@@ -572,7 +709,9 @@ export function createPageService(
         meta: active?.meta ?? null,
         blocks: (active?.blocks ?? []).map(toBlockSummary),
         blockCount: active?.blocks.length ?? 0,
+        documentSource,
         hasUnpublishedChanges:
+          canSeeDraft &&
           draft !== null &&
           published !== null &&
           serialiseDoc(draft) !== serialiseDoc(published),

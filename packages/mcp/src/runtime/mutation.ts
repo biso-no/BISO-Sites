@@ -147,8 +147,22 @@ export function buildProposalToken(input: {
 }
 
 export interface MutationGateOptions {
-  /** Whether the connected client advertised `elicitation`. */
-  clientSupportsElicitation: boolean;
+  /**
+   * Whether the connected client advertises `elicitation`, read at call time.
+   *
+   * A function rather than a flag on purpose. Client capabilities do not exist
+   * until the client's `initialize` request arrives, which is *after*
+   * `Server.connect()` resolves — the SDK assigns them in its `_oninitialize`
+   * handler. Sampling once at connect time therefore captures `undefined` and
+   * pins this to `false` forever, which silently turns `confirm` mode into
+   * `propose` mode for clients that can in fact confirm.
+   */
+  clientSupportsElicitation(): boolean;
+  /**
+   * Tokens already spent. A proposal authorizes one execution attempt; see
+   * `createProposalRegistry`.
+   */
+  proposals: ProposalRegistry;
   serverSecret: string;
   writeMode: WriteMode;
 }
@@ -177,7 +191,7 @@ export function tierIsExecutable(
     };
   }
   if (options.writeMode === "confirm") {
-    if (!options.clientSupportsElicitation) {
+    if (!options.clientSupportsElicitation()) {
       return {
         executable: false,
         reason:
@@ -316,4 +330,82 @@ export function diffFields(
     }
   }
   return diff;
+}
+
+/**
+ * Single-use enforcement for proposal tokens.
+ *
+ * `verifyProposalToken` is a pure MAC check: it recomputes the token from the
+ * current call's own values and compares. That makes a token unforgeable, and
+ * binds it to one actor, action, payload and revision — but it says nothing
+ * about how many times that one proposal may be executed. Within the token's
+ * ten-minute life the same call verifies every time.
+ *
+ * For a mutation that is naturally idempotent that is harmless; `setStatus` to
+ * the same status twice is the same row. For an *additive* one it is not:
+ * `createDraft` and `requestApproval` mint a fresh `ID.unique()` on every call,
+ * so a replayed proposal produces a second row that nobody proposed.
+ *
+ * A proposal therefore authorizes exactly one execution attempt. The token is
+ * consumed *before* the write, not after, because the case that matters most is
+ * a write whose outcome is unknown — a timeout, a dropped connection. Consuming
+ * first means such a call cannot be blindly retried into a duplicate; the
+ * caller must re-read the current state and propose again, which is the only
+ * safe response to an uncertain mutation.
+ *
+ * The registry is per-process and deliberately not persisted, exactly like
+ * `serverSecret`: a restart invalidates every outstanding proposal, which fails
+ * closed. It is not a distributed lock and does not pretend to be one — a
+ * future HTTP deployment running several processes needs a shared store, noted
+ * in `docs/roadmap.md`.
+ */
+export interface ProposalRegistry {
+  /**
+   * Record this token as used. Throws if it was already used.
+   * Call this after `verifyProposalToken` and before performing the write.
+   */
+  consume(token: string, expiresAt: string, now?: Date): void;
+  /** Number of tokens currently held. Exposed for tests. */
+  readonly size: number;
+}
+
+export function createProposalRegistry(): ProposalRegistry {
+  const used = new Map<string, number>();
+
+  const prune = (nowMs: number) => {
+    for (const [token, expiresAtMs] of used) {
+      if (expiresAtMs <= nowMs) {
+        used.delete(token);
+      }
+    }
+  };
+
+  return {
+    consume(token, expiresAt, now) {
+      const nowMs = (now ?? new Date()).getTime();
+      // Entries are only useful until the token would expire on its own, so
+      // the map stays bounded by the proposal TTL rather than by uptime.
+      prune(nowMs);
+
+      if (used.has(token)) {
+        throw requiresAuthorization(
+          "This proposal has already been executed.",
+          {},
+          "A proposal authorizes one change. If you are unsure whether the first attempt succeeded, read the current state before proposing again — re-running a mutation whose outcome is unknown can duplicate it."
+        );
+      }
+
+      // An unparseable expiry must not shorten the retention window —
+      // `nowMs` would be pruned on the very next call and turn a malformed
+      // field into a replay bypass. Hold it for a full TTL instead.
+      const expiresAtMs = Date.parse(expiresAt);
+      used.set(
+        token,
+        Number.isNaN(expiresAtMs) ? nowMs + PROPOSAL_TTL_MS : expiresAtMs
+      );
+    },
+    get size() {
+      return used.size;
+    },
+  };
 }

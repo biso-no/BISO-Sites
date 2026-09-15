@@ -197,3 +197,101 @@ describe("resolvePrincipal", () => {
     expect(principal.activeCampusId).toBeUndefined();
   });
 });
+
+describe("resolvePrincipal department scope", () => {
+  const departments = [
+    { $id: "dept-osl-fadd", Name: "OSL Fadderullan", campus_id: "1" },
+    { $id: "dept-trd-fadd", Name: "TRD Fadderullan", campus_id: "3" },
+    { $id: "dept-osl-sos", Name: "OSL Sosialt Utvalg", campus_id: "1" },
+  ];
+
+  /**
+   * The team a real Azure sync produces for "OSL Fadderullan": the stored name
+   * with its whitespace deleted. This is the case an equality match misses.
+   */
+  const OSL_FADDERULLAN_TEAM = {
+    $id: "sg-app-dept-oslfadderullan",
+    name: "OSLFadderullan",
+  };
+
+  test("resolves a campus-prefixed department to its row id", async () => {
+    const backend = createFakeBackend({
+      account: { $id: "u1", email: "a@biso.no", name: "A" },
+      teams: [
+        { $id: "sg-app-campus-oslo", name: "Oslo" },
+        OSL_FADDERULLAN_TEAM,
+      ],
+      tables: { departments },
+    });
+
+    const principal = await resolvePrincipal(
+      backend,
+      collectingLogger().logger
+    );
+
+    expect(principal.resolvedDepartmentIds).toEqual(["dept-osl-fadd"]);
+    expect(principal.resolvedCampusIds).toEqual(["1"]);
+    expect(principal.profile).toBe("staff");
+  });
+
+  test("never resolves the same unit at a campus the user does not belong to", async () => {
+    const backend = createFakeBackend({
+      account: { $id: "u2" },
+      teams: [
+        { $id: "sg-app-campus-oslo", name: "Oslo" },
+        OSL_FADDERULLAN_TEAM,
+      ],
+      tables: { departments },
+    });
+
+    const principal = await resolvePrincipal(
+      backend,
+      collectingLogger().logger
+    );
+
+    expect(principal.resolvedDepartmentIds).not.toContain("dept-trd-fadd");
+  });
+
+  test("a department team matching no row grants no scope and is logged", async () => {
+    const collector = collectingLogger();
+    const backend = createFakeBackend({
+      account: { $id: "u3" },
+      teams: [
+        { $id: "sg-app-campus-oslo", name: "Oslo" },
+        { $id: "sg-app-dept-ghost", name: "GhostUnit" },
+      ],
+      tables: { departments },
+    });
+
+    const principal = await resolvePrincipal(backend, collector.logger);
+
+    expect(principal.resolvedDepartmentIds).toEqual([]);
+    expect(
+      collector.lines.some((line) => line.includes("matched no department row"))
+    ).toBe(true);
+  });
+
+  test("two rows colliding in one campus grant neither", async () => {
+    const collector = collectingLogger();
+    const backend = createFakeBackend({
+      account: { $id: "u4" },
+      teams: [
+        { $id: "sg-app-campus-oslo", name: "Oslo" },
+        OSL_FADDERULLAN_TEAM,
+      ],
+      tables: {
+        departments: [
+          { $id: "dup-a", Name: "OSL Fadderullan", campus_id: "1" },
+          { $id: "dup-b", Name: "OSL Fadderullan", campus_id: "1" },
+        ],
+      },
+    });
+
+    const principal = await resolvePrincipal(backend, collector.logger);
+
+    expect(principal.resolvedDepartmentIds).toEqual([]);
+    expect(
+      collector.lines.some((line) => line.includes("more than one row"))
+    ).toBe(true);
+  });
+});

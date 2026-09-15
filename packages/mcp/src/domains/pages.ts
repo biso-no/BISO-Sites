@@ -23,6 +23,7 @@ import { describeScope } from "../identity/scope";
 import type { ToolContext } from "../runtime/context";
 import { invalidInput, notFound } from "../runtime/errors";
 import { defineTool, type ToolModule } from "../runtime/register";
+import { encodeCursor } from "../runtime/result";
 import {
   BLOCK_TYPE_CATALOG,
   FEED_BINDING_BLOCKS,
@@ -142,8 +143,15 @@ export const pagesModule: ToolModule = {
           summary: `${found.rows.length} page(s) visible to you.`,
           data: { pages: found.rows },
           scope: describeScope(context.principal),
+          pagination: {
+            count: found.rows.length,
+            total: found.total,
+            nextCursor:
+              found.nextOffset === null ? null : encodeCursor(found.nextOffset),
+            hasMore: found.nextOffset !== null,
+          },
           warnings: [
-            "`total` is the count you can see, not the number of pages that exist.",
+            "Page visibility is decided per row after the query, so a page can come back shorter than the limit while more results remain. Follow `pagination.nextCursor` until it is null rather than stopping at the first short page.",
           ],
         });
       },
@@ -168,10 +176,16 @@ export const pagesModule: ToolModule = {
         });
         return result({
           requestId,
-          summary: `"${view.title}" (${args.locale}) — ${view.blockCount} blocks, ${view.isPublished ? "published" : "not published"}${view.hasUnpublishedChanges ? ", with unpublished draft changes" : ""}.`,
+          summary: `"${view.title}" (${args.locale}) — ${view.blockCount} blocks from the ${view.documentSource} document, ${view.isPublished ? "published" : "not published"}${view.hasUnpublishedChanges ? ", with unpublished draft changes" : ""}.`,
           data: view,
           scope: describeScope(context.principal),
           links: view.page.links,
+          warnings:
+            view.documentSource === "published"
+              ? [
+                  "This page is outside your scope, so you are reading its published document. Any draft edits in progress are not shown, and you cannot save changes to it.",
+                ]
+              : undefined,
         });
       },
     }),
@@ -320,6 +334,7 @@ export const pagesModule: ToolModule = {
         return result({
           requestId,
           summary: `${outcome.summary} ${applied} edit(s) applied${rejected > 0 ? `, ${rejected} not applied` : ""}.`,
+          effect: outcome.executed ? "executed" : "proposed",
           data: {
             outcomes,
             resultingBlocks: doc.blocks.map((block) => {
@@ -421,6 +436,7 @@ export const pagesModule: ToolModule = {
         return result({
           requestId,
           summary: outcome.summary,
+          effect: outcome.executed ? "executed" : "proposed",
           data: outcome.executed
             ? { applied: outcome.data, proposal: outcome.proposal }
             : { proposal: outcome.proposal },

@@ -9,9 +9,11 @@
 
 import { describe, expect, test } from "bun:test";
 import { CAMPUS_ADMIN, GLOBAL_ADMIN } from "../testing/index";
+import { DomainError } from "./errors";
 import {
   buildProposalToken,
   createProposal,
+  createProposalRegistry,
   diffFields,
   tierIsExecutable,
   verifyProposalToken,
@@ -36,7 +38,11 @@ const baseToken = {
 };
 
 describe("tierIsExecutable", () => {
-  const client = { clientSupportsElicitation: true, serverSecret: SECRET };
+  const client = {
+    clientSupportsElicitation: () => true,
+    serverSecret: SECRET,
+    proposals: createProposalRegistry(),
+  };
 
   test("restricted is never executable, in any write mode", () => {
     for (const writeMode of ["propose", "confirm", "operator"] as const) {
@@ -61,7 +67,7 @@ describe("tierIsExecutable", () => {
       tierIsExecutable("draft", {
         ...client,
         writeMode: "confirm",
-        clientSupportsElicitation: false,
+        clientSupportsElicitation: () => false,
       }).executable
     ).toBe(false);
     expect(
@@ -74,7 +80,7 @@ describe("tierIsExecutable", () => {
       tierIsExecutable("draft", {
         ...client,
         writeMode: "operator",
-        clientSupportsElicitation: false,
+        clientSupportsElicitation: () => false,
       }).executable
     ).toBe(true);
     expect(
@@ -167,7 +173,8 @@ describe("createProposal", () => {
   const options = {
     writeMode: "operator" as const,
     serverSecret: SECRET,
-    clientSupportsElicitation: false,
+    clientSupportsElicitation: () => false,
+    proposals: createProposalRegistry(),
   };
 
   test("produces a token that verifies against its own inputs", () => {
@@ -233,5 +240,64 @@ describe("diffFields", () => {
     expect(diffFields(null, { a: 1 })).toEqual([
       { path: "a", before: null, after: 1 },
     ]);
+  });
+});
+
+const ALREADY_EXECUTED_RE = /already been executed/;
+
+describe("createProposalRegistry", () => {
+  const EXPIRES = "2026-01-01T00:10:00.000Z";
+  const NOW = new Date("2026-01-01T00:00:00.000Z");
+
+  test("accepts a token once", () => {
+    const registry = createProposalRegistry();
+    expect(() => registry.consume("token-a", EXPIRES, NOW)).not.toThrow();
+  });
+
+  test("refuses the same token a second time", () => {
+    const registry = createProposalRegistry();
+    registry.consume("token-a", EXPIRES, NOW);
+    expect(() => registry.consume("token-a", EXPIRES, NOW)).toThrow(
+      ALREADY_EXECUTED_RE
+    );
+  });
+
+  test("the refusal is an authorization error, not a validation one", () => {
+    const registry = createProposalRegistry();
+    registry.consume("token-a", EXPIRES, NOW);
+    try {
+      registry.consume("token-a", EXPIRES, NOW);
+      throw new Error("expected a throw");
+    } catch (error) {
+      expect(error).toBeInstanceOf(DomainError);
+      expect((error as DomainError).code).toBe("requires_authorization");
+    }
+  });
+
+  test("distinct tokens do not interfere", () => {
+    const registry = createProposalRegistry();
+    registry.consume("token-a", EXPIRES, NOW);
+    expect(() => registry.consume("token-b", EXPIRES, NOW)).not.toThrow();
+  });
+
+  test("entries are pruned once they expire, so the map stays bounded", () => {
+    const registry = createProposalRegistry();
+    registry.consume("token-a", EXPIRES, NOW);
+    expect(registry.size).toBe(1);
+
+    // Well past the token's own expiry: it could not be used again anyway, so
+    // holding it would only grow the map for the life of the process.
+    const later = new Date("2026-01-01T00:20:00.000Z");
+    registry.consume("token-b", "2026-01-01T00:30:00.000Z", later);
+    expect(registry.size).toBe(1);
+  });
+
+  test("a malformed expiry still consumes the token", () => {
+    // Failing open here would make an unparseable expiry a replay bypass.
+    const registry = createProposalRegistry();
+    registry.consume("token-a", "not-a-date", NOW);
+    expect(() => registry.consume("token-a", "not-a-date", NOW)).toThrow(
+      ALREADY_EXECUTED_RE
+    );
   });
 });

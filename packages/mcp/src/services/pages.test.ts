@@ -18,6 +18,7 @@ import {
   CAMPUS_ADMIN,
   createFakeBackend,
   DEPARTMENT_MEMBER,
+  type FakeRow,
   type FakeTables,
   GLOBAL_ADMIN,
 } from "../testing/index";
@@ -260,9 +261,18 @@ describe("load", () => {
     expect(view.page.id).toBe("page-1");
   });
 
-  test("a published page is visible regardless of scope", async () => {
+  test("a published page's published document is visible regardless of scope", async () => {
+    // The page must actually have a released document. Flipping `status` alone
+    // leaves the translation draft-only, and serving *that* out of scope is the
+    // leak covered in "draft visibility on a published page" below.
     const tables = tablesWith();
-    (tables.pages[0] as Record<string, unknown>).status = "published";
+    const page = tables.pages[0] as Record<string, unknown>;
+    page.status = "published";
+    const translations = page.translation_refs as Record<string, unknown>[];
+    translations[0].puck_document = JSON.stringify(
+      doc([{ id: "live", type: "text", body: "Released copy" }])
+    );
+
     const backend = createFakeBackend({ tables });
     const service = createPageService(backend, LINKS);
     const view = await service.load(CAMPUS_ADMIN("Bergen", "2"), {
@@ -270,6 +280,7 @@ describe("load", () => {
       locale: "no",
     });
     expect(view.page.id).toBe("page-1");
+    expect(view.documentSource).toBe("published");
   });
 
   test("a missing locale reports not found rather than an empty document", async () => {
@@ -304,14 +315,16 @@ describe("list", () => {
       offset: 0,
     });
     expect(asOslo.rows.map((row) => row.id)).toEqual(["page-1"]);
-    // The total must be the count they can see, not the count that exists.
-    expect(asOslo.total).toBe(1);
+    // `total` is deliberately unknown: counting what this caller may see would
+    // mean scanning the whole table, and Appwrite's own total would disclose
+    // how many pages exist that they may not see.
+    expect(asOslo.total).toBeNull();
 
     const asGlobal = await service.list(GLOBAL_ADMIN(), {
       limit: 20,
       offset: 0,
     });
-    expect(asGlobal.total).toBe(2);
+    expect(asGlobal.rows).toHaveLength(2);
   });
 });
 
@@ -504,5 +517,234 @@ describe("setPublished", () => {
         expectedRevision: "1999-01-01T00:00:00.000Z",
       })
     ).rejects.toThrow(CHANGED_SINCE_IT_WAS_READ_I_RE);
+  });
+});
+
+const NO_PUBLISHED_DOC_I_RE = /no published no document/i;
+const NO_PAGE_FOUND_RE = /No page found/;
+
+describe("draft visibility on a published page", () => {
+  /**
+   * The dangerous shape: the page row says `published`, so it is public — but
+   * the translation carries a draft with unreleased edits on top of the
+   * published document. `load()` prefers the draft, and `pages` has
+   * `rowSecurity: false` with a table-level `read("any")`, so nothing in
+   * Appwrite stops an out-of-scope caller reading it.
+   */
+  function publishedWithNewerDraft(): FakeTables {
+    return tablesWith({
+      pages: [
+        {
+          $id: "page-pub",
+          $createdAt: "2026-01-01T00:00:00.000Z",
+          $updatedAt: "2026-01-01T00:00:00.000Z",
+          slug: "public-page",
+          status: "published",
+          visibility: "public",
+          campus_id: "1",
+          department_id: "dept-a",
+          campus: { $id: "1" },
+          department: { $id: "dept-a" },
+          translation_refs: [
+            {
+              $id: "tr-pub",
+              $updatedAt: "2026-01-01T00:00:00.000Z",
+              locale: "no",
+              title: "Public page",
+              description: "Released",
+              is_published: true,
+              published_at: "2026-01-01T00:00:00.000Z",
+              draft_document: JSON.stringify(
+                doc([
+                  { id: "secret", type: "text", body: "UNRELEASED PRICING" },
+                ])
+              ),
+              puck_document: JSON.stringify(
+                doc([{ id: "live", type: "text", body: "Released copy" }])
+              ),
+            },
+          ],
+        },
+      ],
+    });
+  }
+
+  test("the owning department sees the draft", async () => {
+    const service = createPageService(
+      createFakeBackend({ tables: publishedWithNewerDraft() }),
+      LINKS
+    );
+    const view = await service.load(DEPARTMENT_MEMBER("dept-a", "1"), {
+      pageId: "page-pub",
+      locale: "no",
+    });
+    expect(view.documentSource).toBe("draft");
+    expect(view.blocks.map((block) => block.id)).toEqual(["secret"]);
+    expect(view.hasUnpublishedChanges).toBe(true);
+  });
+
+  test("another campus sees only the published document", async () => {
+    const service = createPageService(
+      createFakeBackend({ tables: publishedWithNewerDraft() }),
+      LINKS
+    );
+    const view = await service.load(CAMPUS_ADMIN("Bergen", "2"), {
+      pageId: "page-pub",
+      locale: "no",
+    });
+    expect(view.documentSource).toBe("published");
+    expect(view.blocks.map((block) => block.id)).toEqual(["live"]);
+    expect(JSON.stringify(view)).not.toContain("UNRELEASED PRICING");
+  });
+
+  test("an out-of-scope caller is not told that unpublished edits exist", async () => {
+    const service = createPageService(
+      createFakeBackend({ tables: publishedWithNewerDraft() }),
+      LINKS
+    );
+    const view = await service.load(CAMPUS_ADMIN("Bergen", "2"), {
+      pageId: "page-pub",
+      locale: "no",
+    });
+    expect(view.hasUnpublishedChanges).toBe(false);
+  });
+
+  test("a published page with no published document for the locale is not readable out of scope", async () => {
+    const tables = publishedWithNewerDraft();
+    const translations = (tables.pages as Record<string, unknown>[])[0]
+      .translation_refs as Record<string, unknown>[];
+    translations[0].puck_document = null;
+
+    const service = createPageService(createFakeBackend({ tables }), LINKS);
+    await expect(
+      service.load(CAMPUS_ADMIN("Bergen", "2"), {
+        pageId: "page-pub",
+        locale: "no",
+      })
+    ).rejects.toThrow(NO_PUBLISHED_DOC_I_RE);
+  });
+
+  test("an unpublished page stays invisible out of scope", async () => {
+    const service = createPageService(
+      createFakeBackend({ tables: tablesWith() }),
+      LINKS
+    );
+    await expect(
+      service.load(CAMPUS_ADMIN("Bergen", "2"), {
+        pageId: "page-1",
+        locale: "no",
+      })
+    ).rejects.toThrow(NO_PAGE_FOUND_RE);
+  });
+});
+
+describe("list pagination across the visibility filter", () => {
+  /**
+   * The shape that breaks naive paging: many out-of-scope drafts ahead of the
+   * caller's own page. Appwrite applies limit/offset before the application
+   * filter, so the first window contains nothing the caller may see.
+   */
+  function crowded(): FakeTables {
+    const pages: FakeRow[] = [];
+    for (let index = 0; index < 25; index += 1) {
+      pages.push({
+        $id: `bergen-draft-${index}`,
+        $updatedAt: `2026-02-${String(index + 1).padStart(2, "0")}T00:00:00.000Z`,
+        slug: `bergen-${index}`,
+        status: "draft",
+        visibility: "public",
+        campus_id: "2",
+        department_id: "dept-b",
+        campus: { $id: "2" },
+        department: { $id: "dept-b" },
+        translation_refs: [],
+      });
+    }
+    pages.push({
+      $id: "oslo-draft",
+      $updatedAt: "2026-01-01T00:00:00.000Z",
+      slug: "oslo-page",
+      status: "draft",
+      visibility: "public",
+      campus_id: "1",
+      department_id: "dept-a",
+      campus: { $id: "1" },
+      department: { $id: "dept-a" },
+      translation_refs: [],
+    });
+    return { pages, page_translations: [] };
+  }
+
+  test("finds a visible page sitting behind a full window of invisible drafts", async () => {
+    const service = createPageService(
+      createFakeBackend({ tables: crowded() }),
+      LINKS
+    );
+    const found = await service.list(CAMPUS_ADMIN("Oslo", "1"), {
+      limit: 20,
+      offset: 0,
+    });
+
+    // Ordering is `$updatedAt` descending, so the 25 Bergen drafts come first.
+    // A single 20-row window would have returned nothing at all.
+    expect(found.rows.map((row) => row.id)).toEqual(["oslo-draft"]);
+    expect(found.nextOffset).toBeNull();
+  });
+
+  test("a full page reports a cursor, and following it does not repeat or skip", async () => {
+    const tables = crowded();
+    const service = createPageService(createFakeBackend({ tables }), LINKS);
+    const principal = GLOBAL_ADMIN();
+
+    const first = await service.list(principal, { limit: 10, offset: 0 });
+    expect(first.rows).toHaveLength(10);
+    expect(first.nextOffset).toBe(10);
+
+    const second = await service.list(principal, {
+      limit: 10,
+      offset: first.nextOffset ?? 0,
+    });
+    expect(second.rows).toHaveLength(10);
+
+    const firstIds = new Set(first.rows.map((row) => row.id));
+    for (const row of second.rows) {
+      expect(firstIds.has(row.id)).toBe(false);
+    }
+
+    const third = await service.list(principal, {
+      limit: 10,
+      offset: second.nextOffset ?? 0,
+    });
+    const all = [...first.rows, ...second.rows, ...third.rows].map(
+      (row) => row.id
+    );
+    expect(new Set(all).size).toBe(26);
+    expect(third.nextOffset).toBeNull();
+  });
+
+  test("walking the cursor to exhaustion yields every visible page exactly once", async () => {
+    const service = createPageService(
+      createFakeBackend({ tables: crowded() }),
+      LINKS
+    );
+    const principal = CAMPUS_ADMIN("Oslo", "1");
+
+    const seen: string[] = [];
+    let offset = 0;
+    let guard = 0;
+    for (;;) {
+      guard += 1;
+      if (guard > 20) {
+        throw new Error("cursor did not terminate");
+      }
+      const page = await service.list(principal, { limit: 5, offset });
+      seen.push(...page.rows.map((row) => row.id));
+      if (page.nextOffset === null) {
+        break;
+      }
+      offset = page.nextOffset;
+    }
+
+    expect(seen).toEqual(["oslo-draft"]);
   });
 });

@@ -146,6 +146,13 @@ async function proposeOrExecute<TPayload, TResult>(input: {
     expiresAt: input.expiresAt,
   });
 
+  // Spend the proposal before anything is written. A token that verifies is
+  // still only good for one execution: `createDraft` and `requestApproval`
+  // mint a fresh id each time, so a replay would create a row nobody proposed.
+  // Consuming first also means a write whose outcome is unknown — a timeout,
+  // a dropped connection — cannot be blindly retried into a duplicate.
+  context.mutation.proposals.consume(input.token, input.expiresAt);
+
   // In `confirm` mode a human must accept before anything is written. The
   // elicitation is the only thing in this flow the model cannot produce itself.
   if (context.mutation.writeMode === "confirm") {
@@ -427,6 +434,7 @@ export const contentModule: ToolModule = {
         return result({
           requestId,
           summary: outcome.summary,
+          effect: outcome.executed ? "executed" : "proposed",
           data: outcome.executed
             ? { created: outcome.data, proposal: outcome.proposal }
             : { proposal: outcome.proposal },
@@ -543,6 +551,7 @@ export const contentModule: ToolModule = {
         return result({
           requestId,
           summary: outcome.summary,
+          effect: outcome.executed ? "executed" : "proposed",
           data: outcome.executed
             ? { applied: outcome.data, proposal: outcome.proposal }
             : {

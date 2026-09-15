@@ -27,6 +27,11 @@ import { fromAppwriteError } from "../runtime/errors";
 import type { Logger } from "../runtime/logger";
 import { CAMPUS_NAME_TO_ID } from "./campus";
 import {
+  type DepartmentNameMatcher,
+  departmentNameMatch,
+  departmentNameMatcher,
+} from "./department-names";
+import {
   ANONYMOUS_PRINCIPAL,
   type PolicyProfile,
   type Principal,
@@ -39,6 +44,12 @@ import {
 const HR_DEPARTMENT_KEY = "hr";
 const WHITESPACE_REGEX = /\s+/g;
 const TEAM_PAGE_LIMIT = 200;
+/**
+ * Ceiling on the department rows examined while resolving one principal.
+ * BISO runs on the order of a hundred units per campus; this leaves ample
+ * headroom while keeping identity resolution a single bounded read.
+ */
+const DEPARTMENT_SCAN_LIMIT = 500;
 
 /**
  * HR is the recruitment gatekeeper; detected by normalising the clean team name
@@ -156,6 +167,86 @@ export function resolveProfile(input: {
 }
 
 /**
+ * Rows a single team-derived name identifies, preferring strict matches.
+ *
+ * A strict hit reconstructs the stored name exactly, so it always wins over a
+ * case-folded one; folded hits apply only when nothing matched strictly.
+ */
+function hitsFor(
+  matcher: DepartmentNameMatcher,
+  rows: readonly Departments[]
+): Departments[] {
+  const strict: Departments[] = [];
+  const folded: Departments[] = [];
+  for (const row of rows) {
+    const strength = departmentNameMatch(matcher, row);
+    if (strength === "strict") {
+      strict.push(row);
+    } else if (strength === "folded") {
+      folded.push(row);
+    }
+  }
+  return strict.length > 0 ? strict : folded;
+}
+
+/**
+ * Reduce hits to at most one row per campus.
+ *
+ * One unit per campus is expected, and a user in several campuses may match one
+ * row in each. Two matches *inside a single campus* mean the comparison keys
+ * collided and there is no way to tell which row was meant, so that campus
+ * grants nothing.
+ */
+function uniquePerCampus(hits: readonly Departments[]): {
+  ids: string[];
+  collided: boolean;
+} {
+  const byCampus = new Map<string, Departments[]>();
+  for (const hit of hits) {
+    const key = hit.campus_id ?? "";
+    byCampus.set(key, [...(byCampus.get(key) ?? []), hit]);
+  }
+
+  const ids: string[] = [];
+  let collided = false;
+  for (const [, campusHits] of byCampus) {
+    if (campusHits.length > 1) {
+      collided = true;
+    } else {
+      ids.push(campusHits[0].$id);
+    }
+  }
+  return { ids, collided };
+}
+
+/** Pick the department rows each team-derived name identifies. */
+function matchDepartments(
+  matchers: ReadonlyArray<{ name: string; matcher: DepartmentNameMatcher }>,
+  rows: readonly Departments[]
+): { ids: string[]; unmatched: string[]; ambiguous: string[] } {
+  const ids = new Set<string>();
+  const unmatched: string[] = [];
+  const ambiguous: string[] = [];
+
+  for (const { name, matcher } of matchers) {
+    const hits = hitsFor(matcher, rows);
+    if (hits.length === 0) {
+      unmatched.push(name);
+      continue;
+    }
+    const resolved = uniquePerCampus(hits);
+    if (resolved.collided) {
+      ambiguous.push(name);
+    }
+    for (const id of resolved.ids) {
+      ids.add(id);
+    }
+  }
+
+  return { ids: [...ids], unmatched, ambiguous };
+}
+
+/**
  * Resolve department names to Appwrite `departments` row ids.
  *
  * Content rows store the row id in `department_id`, not the team-derived name,
@@ -163,27 +254,72 @@ export function resolveProfile(input: {
  * fail-closed rule in `scope.ts` — sees nothing. Returns `[]` on lookup
  * failure, which the scope engine treats the same as no membership: no extra
  * access is ever granted by a failed lookup.
+ *
+ * The match itself cannot be an equality test on `Name`: the team name is a
+ * lossy, whitespace-deleted derivation of it. `department-names.ts` carries the
+ * full explanation and the campus-exact matching rule. `apps/admin`'s
+ * `resolveDepartmentIds` does use equality and so resolves nothing for
+ * campus-prefixed departments — a pre-existing gap recorded in
+ * `docs/roadmap.md`; this package does not inherit it.
+ *
+ * Candidate rows are read campus-first so a scan can never reach a campus the
+ * principal does not belong to, and bounded so a large `departments` table
+ * cannot turn identity resolution into an unbounded dump.
  */
 async function resolveDepartmentIds(
   clients: BackendClients,
   departmentNames: readonly string[],
+  campusIds: readonly string[],
   logger: Logger
 ): Promise<string[]> {
   if (departmentNames.length === 0) {
     return [];
   }
+
+  const matchers = departmentNames.map((name) => ({
+    name,
+    matcher: departmentNameMatcher(name),
+  }));
+
   try {
     // The `departments` table grants `read("any")`, so the caller's own client
     // is enough; no elevation is needed to map a name to an id.
+    const filters = [
+      Query.select(["$id", "Name", "campus_id"]),
+      Query.limit(DEPARTMENT_SCAN_LIMIT),
+    ];
+    if (campusIds.length > 0) {
+      filters.unshift(Query.equal("campus_id", [...campusIds]));
+    }
     const result = await clients.user.db.listRows<Departments>(
       "app",
       "departments",
-      [
-        Query.equal("Name", [...departmentNames]),
-        Query.limit(departmentNames.length),
-      ]
+      filters
     );
-    return result.rows.map((row) => row.$id);
+
+    if (result.total > result.rows.length) {
+      logger.warn(
+        "departments table exceeded the resolution scan limit; some department memberships may not resolve",
+        { scanned: result.rows.length, total: result.total }
+      );
+    }
+
+    const outcome = matchDepartments(matchers, result.rows);
+    const { ids, unmatched, ambiguous } = outcome;
+
+    if (unmatched.length > 0) {
+      logger.warn(
+        "Some department teams matched no department row; those memberships grant no scope",
+        { unmatched }
+      );
+    }
+    if (ambiguous.length > 0) {
+      logger.warn(
+        "Some department teams matched more than one row in the same campus; failing closed for those",
+        { ambiguous }
+      );
+    }
+    return ids;
   } catch (error) {
     logger.warn("Failed to resolve department ids; failing closed", {
       departmentNames,
@@ -238,6 +374,7 @@ export async function resolvePrincipal(
   const resolvedDepartmentIds = await resolveDepartmentIds(
     clients,
     parsed.departmentNames,
+    resolvedCampusIds,
     logger
   );
 

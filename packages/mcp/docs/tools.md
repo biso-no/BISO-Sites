@@ -15,10 +15,34 @@ Every tool returns the same envelope. Success:
   },
   "pagination": { "count": 3, "total": 3, "nextCursor": null, "hasMore": false },
   "links": { "admin": "https://admin.biso.no/news/abc" },
+  "effect": "read",
   "requestId": "4f1c…",
   "warnings": ["…"]
 }
 ```
+
+### `effect`
+
+What the call actually did. Read it before telling a user something happened.
+
+| Value | Meaning |
+|---|---|
+| `read` | Nothing was written. The default when a tool does not say otherwise. |
+| `proposed` | A mutating tool validated and described the change and wrote **nothing**. This is the normal outcome in the default `propose` write mode, and it is still `"ok": true`. |
+| `executed` | The change was applied. |
+
+`proposed` exists because a successful envelope alone does not distinguish "I
+did it" from "here is what I would do" — and only `executed` is recorded in
+`audit_logs` as a completed action.
+
+### `pagination.total`
+
+`null` means the total is genuinely unknown, not zero. Some listings decide
+visibility per row after the query, so counting what a caller may see would mean
+scanning the whole table, and reporting the backend's own total would disclose
+how many rows exist that they may not see. When `total` is `null`, **follow
+`nextCursor` until it is `null`** rather than stopping at the first page shorter
+than the limit — a short page does not mean the end.
 
 Failure (`isError: true` on the MCP result):
 
@@ -160,6 +184,23 @@ report `{status: "applied"}` unconditionally.
 `set_accent` accepts only the five approved BISO accents; anything else is
 refused rather than written.
 
+**`biso_page_load` and draft visibility.** `pages` and `page_translations` have
+row security **off** with a table-level `read("any")`, so Appwrite enforces
+nothing and this package decides visibility itself. A published page is public —
+but only its *published* document is. The draft on top of it belongs to the
+owning department, so a caller outside the page's scope receives the published
+document and `documentSource: "published"`; `hasUnpublishedChanges` is `false`
+for them, because whether unreleased edits exist is itself information about
+that page. In scope, `documentSource` is `"draft"` whenever a draft exists.
+
+A published page whose locale has never been released has no published document,
+so an out-of-scope caller gets `not_found` rather than the draft.
+
+**`biso_page_list` pagination.** Visibility is decided per row *after* the
+query, so a page can come back shorter than `limit` while more results remain,
+and `pagination.total` is always `null`. Follow `pagination.nextCursor` until it
+is `null`.
+
 ### Approvals and inbox — staff
 
 | Tool | Read-only | Tier |
@@ -209,6 +250,17 @@ not verify that internal links resolve.
 
 Every mutating tool takes `proposalToken` and `proposalExpiresAt`. Omit them to
 get a proposal; pass them back to execute that exact change.
+
+**A proposal authorizes exactly one execution.** The token binds actor, action,
+payload and revision, and it is spent *before* the write — so a call whose
+outcome you do not know (a timeout, a dropped connection) cannot be retried into
+a duplicate. Re-sending a spent token returns `requires_authorization` with
+"This proposal has already been executed."; read the current state and propose
+again rather than retrying. Tokens live ten minutes and do not survive a server
+restart.
+
+Check `effect` on the result: `proposed` means nothing was written, `executed`
+means it was.
 
 **Step 1 — propose.**
 

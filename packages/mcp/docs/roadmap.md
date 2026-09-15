@@ -167,19 +167,35 @@ duplicating the recovery path too.
 These are Appwrite schema changes. `appwrite.config.json` is generated, so they
 are made in Appwrite and regenerated — **not** by editing the file.
 
-### S1. Enable row security on `pages` and `page_translations`
+### S1. Tighten the table-level `read("any")` grants on content
 
-Both have `rowSecurity: false` with a table-level `read("any")` grant, so every
-page draft — including `draft_document` — is readable by an anonymous client.
-`page-builder.ts` already builds correct row permissions, which suggests this
-was intended.
+Appwrite grants access on the **union** of table and row permissions, so a
+table-level `read("any")` makes every row readable no matter what its own ACL
+says. That grant is on nearly every content table:
 
-**Impact:** `apps/web`'s public page reads would need verifying against the
-tighter rules, and this package could stop filtering drafts in application code
-(it would keep the filter as defence in depth).
+| Table | `rowSecurity` | Table-level read |
+|---|---|---|
+| `pages`, `page_translations` | `false` | `read("any")` |
+| `webshop_products` | `false` | `read("any")` |
+| `news`, `events`, `documents` | `true` | `read("any")` |
+| `content_translations` | `true` | `read("any")` |
+| `jobs` | `true` | `read("any")` + two teams |
 
-**Risk if done carelessly:** turning row security on without backfilling
-permissions on existing rows makes every page vanish from the public site.
+The consequence is that **row permissions on these tables do nothing for read
+today**. A draft's empty ACL does not hide it; a published row's `read("any")`
+adds nothing. Every draft — including `pages.draft_document` — is readable by an
+anonymous client, and `buildContentRowPermissions` returning `[]` for a draft is
+defence in depth rather than the control it looks like.
+
+This package therefore enforces content visibility in application code and never
+delegates it to row security (`services/content.ts`, `services/pages.ts`), while
+still writing the row permissions the portal writes, so the two agree.
+
+**Impact:** `apps/web`'s public reads would need verifying against the tighter
+rules, and this package could then rely on row security instead of filtering.
+
+**Risk if done carelessly:** turning this on without backfilling permissions on
+existing rows makes every page and article vanish from the public site.
 
 ### S2. An MCP audit discriminator
 
@@ -187,7 +203,42 @@ permissions on existing rows makes every page vanish from the public site.
 package writes `via: "mcp"` inside the JSON `payload`, which works but is not
 queryable. A `source` column would let staff filter.
 
-### S3. A proposal or approval record for non-publish actions
+### S3. Fix `resolveDepartmentIds` in `apps/admin`
+
+`apps/admin/src/lib/authorization.ts:78` resolves team-derived department names
+with `Query.equal("Name", departmentNames)`. The team name is a
+whitespace-deleted derivation of the stored name, and stored names are
+campus-prefixed (`"OSL Fadderullan"`), so the round trip is lossy:
+
+```
+"OSL Fadderullan" → SG-App-Dept-OSLFadderullan → "OSLFadderullan"   ✗ no match
+"Operations Unit" → SG-App-Dept-OperationsUnit → "Operations Unit"  ✓
+```
+
+Equality therefore resolves nothing for ordinary campus departments, and by the
+fail-closed rule those members get no scope at all. It goes unnoticed because
+the names that *do* match — the unprefixed national ones — belong to global
+admins, who bypass scope anyway.
+
+This is an app change and out of scope here. `@repo/mcp` does not inherit it:
+`identity/department-names.ts` carries a campus-exact matcher, and
+`@repo/mcp/identity` exports it for a future consolidation.
+
+**Risk if done carelessly:** a looser match grants a member scope over a
+same-named unit at another campus. The matcher here requires the campus implied
+by the name's prefix to equal the row's `campus_id`, and refuses a name that
+matches two rows within one campus.
+
+### S4. A shared proposal store for multi-process deployments
+
+`createProposalRegistry` makes a proposal token single-use, but the registry is
+per-process and in-memory — the same property `serverSecret` has. That is exact
+for the stdio deployment, which is one process per user. A Streamable HTTP
+deployment behind more than one worker would need a shared store (Redis, or an
+Appwrite row keyed by token) before the single-use guarantee holds across the
+fleet. See [architecture.md](./architecture.md).
+
+### S5. A proposal or approval record for non-publish actions
 
 The approval queue executes `<domain>.publish` and nothing else. Extending it to
 updates or archives needs both a schema decision and an execution path — and,

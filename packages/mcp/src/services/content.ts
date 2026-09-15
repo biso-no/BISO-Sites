@@ -53,8 +53,16 @@ import {
   buildContentRowPermissions,
   buildTranslationRowPermissions,
 } from "./permissions";
+import type { Projected } from "./row";
 
 /** Appwrite's fulltext indexes cap what a search term can usefully be. */
+/**
+ * Ceiling on translation rows touched by one lifecycle change. A content row
+ * has one translation per locale (`uniq_content_locale` enforces it), so this
+ * is far above any real row and exists only to keep the write bounded.
+ */
+const TRANSLATION_SYNC_LIMIT = 25;
+
 const MAX_SEARCH_TERM = 120;
 /** How many translation rows to scan when resolving a text search. */
 const TRANSLATION_SCAN_LIMIT = 200;
@@ -680,14 +688,72 @@ export function createContentService(
           ? ("members" as const)
           : ("public" as const);
 
+      const rowPermissions = buildContentRowPermissions({ status, audience });
+      const translationPermissions = buildTranslationRowPermissions({
+        status,
+        audience,
+      });
+
+      /**
+       * Bring the row's `content_translations` ACLs in line with its new
+       * status, the way every `apps/admin` content action does (`news.ts`,
+       * `benefits.ts`, `shop.ts` all rebuild translation permissions from the
+       * status on every write).
+       *
+       * This is defence in depth rather than today's visibility control: the
+       * table itself grants `read("any")`, so a row ACL neither hides a draft
+       * translation nor reveals a published one while that grant stands.
+       * Writing them anyway keeps MCP-published content identical to
+       * portal-published content, so that tightening the table grant — the
+       * schema task in `docs/roadmap.md` — fixes both at once instead of
+       * leaving a cohort of rows the portal would have set correctly.
+       */
+      const syncTranslationPermissions = async (): Promise<void> => {
+        if (spec.translations.kind !== "content_translations") {
+          return;
+        }
+        const { contentType } = spec.translations;
+        const existing = await db.listRows<Projected<{ $id: string }>>(
+          "app",
+          "content_translations",
+          [
+            Query.equal("content_id", id),
+            Query.equal("content_type", contentType),
+            Query.select(["$id"]),
+            Query.limit(TRANSLATION_SYNC_LIMIT),
+          ]
+        );
+        for (const translation of existing.rows) {
+          await db.updateRow(
+            "app",
+            "content_translations",
+            translation.$id,
+            {},
+            translationPermissions
+          );
+        }
+      };
+
+      // Ordering matters, because there is no transaction across these writes.
+      // Publishing widens access, so widen the translations first: a failure
+      // then leaves the row unpublished, which is safe. Any other transition
+      // narrows access, so narrow the parent first, for the same reason.
+      const publishing = status === spec.publishedStatus;
+
       try {
+        if (publishing) {
+          await syncTranslationPermissions();
+        }
         const updated = await db.updateRow<Row>(
           "app",
           spec.table,
           id,
           { status },
-          buildContentRowPermissions({ status, audience })
+          rowPermissions
         );
+        if (!publishing) {
+          await syncTranslationPermissions();
+        }
         return {
           id: updated.$id,
           status,

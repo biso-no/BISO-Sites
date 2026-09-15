@@ -113,6 +113,7 @@ export function result<T>(input: {
   summary: string;
   data: T;
   scope: AppliedScope;
+  effect?: ToolOk<T>["effect"];
   pagination?: ToolOk<T>["pagination"];
   links?: Record<string, string>;
   warnings?: string[];

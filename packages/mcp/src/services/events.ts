@@ -135,12 +135,34 @@ export function createEventsService(clients: BackendClients): EventsService {
     }
   }
 
+  /**
+   * Count matching rows through the service key, after the caller has already
+   * been authorized against the parent event.
+   *
+   * The caller's own client cannot answer these questions:
+   *
+   * - `event_attendees` has `rowSecurity: false` and **no** table read grant,
+   *   so a user credential cannot read it at all — authorized staff would get
+   *   an error rather than a number.
+   * - `segment_members` has `rowSecurity: true` and no table read grant, so a
+   *   user credential sees only the rows individually granted to them. That
+   *   does not fail loudly; it silently returns a smaller number, which is
+   *   worse, because an audience preview that undercounts still looks like an
+   *   answer.
+   *
+   * Elevation is therefore load-bearing and not a shortcut. It happens only
+   * after `loadEvent` has run `canReadRow` against the event's own campus and
+   * department, and only ever produces a count — no attendee row, name or
+   * address is read or returned.
+   */
   async function countRows(table: string, queries: string[]): Promise<number> {
-    const result = await clients.user.db.listRows(
-      table === "event_attendees" ? "app" : "app",
-      table,
-      [...queries, Query.limit(COUNT_PROBE)]
+    const { db } = clients.requireElevated(
+      `count ${table} for an event audience (the table grants no read to user credentials)`
     );
+    const result = await db.listRows("app", table, [
+      ...queries,
+      Query.limit(COUNT_PROBE),
+    ]);
     return result.total;
   }
 
