@@ -4,6 +4,7 @@ import { createSessionClient, createSessionJwt } from "@repo/api/server";
 import type { ContentTranslations, Orders } from "@repo/api/types/appwrite";
 import type { Locale } from "@repo/i18n/config";
 import { getFeatureFlagStates } from "@repo/shared/utils/feature-flags-server";
+import { discountedUnitPrice } from "@repo/shared/utils/member-discount";
 import { ORDER_ITEMS_SELECT } from "@repo/shared/utils/order-queries";
 import { resolveCustomFieldAnswers } from "@repo/shared/utils/product-custom-fields";
 import {
@@ -321,7 +322,7 @@ async function resolvePricing(
   discountCache.set(productId, discount);
 
   const discountedUnit = discount.applied
-    ? Math.max(0, originalUnit * (1 - discount.percent / 100))
+    ? discountedUnitPrice(originalUnit, discount.percent)
     : originalUnit;
 
   return {

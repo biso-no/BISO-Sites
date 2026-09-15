@@ -11,6 +11,7 @@ import { type CheckoutSessionParams, Currency } from "@repo/shared/types/vipps";
 import { sanitizeStudentNumber } from "@repo/shared/utils/bi-student";
 import type { RevenueTarget } from "@repo/shared/utils/finago-shop-accounting";
 import { resolveRevenueTarget } from "@repo/shared/utils/finago-shop-accounting-server";
+import { discountedUnitPrice } from "@repo/shared/utils/member-discount";
 import { computeMembershipStatus } from "@repo/shared/utils/membership-status";
 import { ORDER_ITEMS_SELECT } from "@repo/shared/utils/order-queries";
 import {
@@ -369,25 +370,6 @@ async function getMemberDiscountIfAny(
   } catch {
     return { applied: false, percent: 0 };
   }
-}
-
-const MINOR_UNITS_PER_MAJOR = 100;
-const PERCENT = 100;
-
-/**
- * A member-discounted unit price, rounded to whole øre. Unrounded, a
- * non-integer discount gives sub-øre prices whose per-line øre sums can miss
- * the rounded order total, which ledger posting refuses as unbalanced.
- */
-export function discountedUnitPrice(
-  originalUnit: number,
-  discountPercent: number
-): number {
-  const discounted = Math.max(
-    0,
-    originalUnit * (1 - discountPercent / PERCENT)
-  );
-  return Math.round(discounted * MINOR_UNITS_PER_MAJOR) / MINOR_UNITS_PER_MAJOR;
 }
 
 async function resolvePricing(

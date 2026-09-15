@@ -186,6 +186,37 @@ describe("order checkout actions", () => {
       expect(payload.total).toBe(99.5);
     });
 
+    it("rounds a fractional-øre member price the same way the API does", async () => {
+      // 199 × 0.875 = 174.125 NOK. The API rounds each unit to whole øre
+      // (174.13), so 2 units must total 348.26, not 348.25, or the API
+      // rejects the checkout with "Checkout total mismatch".
+      webshop.parseProductMetadata.mockReturnValue({
+        member_discount_enabled: true,
+        member_discount_percent: 12.5,
+      });
+      membership.getMembershipStatus.mockResolvedValue({
+        checkedAt: Date.now(),
+        finagoCategoryIds: [123],
+        isMember: true,
+        memberships: [],
+      });
+      const fetchMock = stubCheckoutFetch();
+
+      const result = await createCartCheckoutSession({
+        email: "buyer@example.com",
+        items: [
+          { productId: "product-1", quantity: 2, slug: "trusted-product" },
+        ],
+        name: "Buyer Person",
+        provider: "vipps",
+      });
+
+      expect(result.success).toBe(true);
+      const payload = checkoutFetchPayload(fetchMock);
+      expect(Math.round(payload.total * 100)).toBe(34_826);
+      expect(Math.round(payload.subtotal * 100)).toBe(34_826);
+    });
+
     it("charges full price for a non-member", async () => {
       webshop.parseProductMetadata.mockReturnValue({
         member_discount_enabled: true,
