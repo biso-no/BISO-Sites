@@ -35,6 +35,7 @@ export default async function ShopAccountingPage() {
           save: t("save"),
           saved: t("saved"),
           saveError: t("saveError"),
+          clearingChangeHint: t("clearingChangeHint"),
           settingsHint: t("settingsHint"),
           settingsTitle: t("settingsTitle"),
           sortOrder: t("sortOrder"),

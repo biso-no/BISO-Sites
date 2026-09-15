@@ -1182,6 +1182,7 @@
     "voucherType": "Bilagsart (nummer)",
     "vippsClearing": "Avregningskonto Vipps",
     "stripeClearing": "Avregningskonto Stripe",
+    "clearingChangeHint": "Endrer du en avregningskonto, flyttes ikke ordre som allerede er bokført. Refusjoner av tidligere ordre bokføres mot den nye kontoen.",
     "notSaved": "Ikke lagret ennå — verdiene under er forslag",
     "save": "Lagre",
     "saved": "Lagret",

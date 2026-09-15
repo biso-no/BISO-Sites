@@ -25,6 +25,8 @@ export interface AccountingLabels {
   active: string;
   addSalesType: string;
   chooseAccount: string;
+  /** Shown under the clearing account fields. */
+  clearingChangeHint: string;
   createDefaults: string;
   labelEn: string;
   labelNo: string;
@@ -218,6 +220,9 @@ function SettingsPanel({
         {field("vipps-clearing", labels.vippsClearing, vipps, setVipps)}
         {field("stripe-clearing", labels.stripeClearing, stripe, setStripe)}
       </div>
+      <p className="mt-2 text-[12px]" style={{ color: STUDIO.ink4 }}>
+        {labels.clearingChangeHint}
+      </p>
       <div className="mt-4">
         <button
           disabled={pending}

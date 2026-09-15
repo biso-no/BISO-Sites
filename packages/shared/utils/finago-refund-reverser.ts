@@ -36,6 +36,10 @@ export const finagoRefundReverser: LedgerReverser = {
     return await postLedgerTransaction(
       buildShopReversalTransactionInput({
         campusId: campusId ?? null,
+        // Deliberately the CURRENT clearing account, not the one on the original
+        // voucher (not stored; no column): the refund leaves through the next
+        // payout, which is booked against today's account. The admin settings
+        // panel warns about this when the account is changed.
         clearingAccount: settings.clearingAccounts[clearing],
         comment: `Refusjon nettbutikk ${orderId}`,
         date: ledgerDate(),

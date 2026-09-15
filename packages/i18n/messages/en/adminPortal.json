@@ -1182,6 +1182,7 @@
     "voucherType": "Voucher type (number)",
     "vippsClearing": "Vipps clearing account",
     "stripeClearing": "Stripe clearing account",
+    "clearingChangeHint": "Changing a clearing account does not move orders that are already posted. Refunds of earlier orders will be booked against the new account.",
     "notSaved": "Not saved yet — the values below are suggestions",
     "save": "Save",
     "saved": "Saved",
