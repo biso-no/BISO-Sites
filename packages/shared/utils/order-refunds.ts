@@ -17,7 +17,6 @@ import {
   revenueTargetKey,
   snapshotTarget,
 } from "./finago-shop-accounting";
-import { resolveRevenueTargetForProduct } from "./finago-shop-accounting-server";
 import { getOrderItems } from "./order-parsing";
 import {
   allocateAmountAcrossTargets,
@@ -194,36 +193,87 @@ export function toRefundableItems(
 }
 
 /**
- * Minor units already reversed per ledger account across this order's earlier
- * refunds, read back from each refund's stored allocation.
+ * A stored `ledger_allocation`, or `null` when it cannot be trusted.
  *
- * Recorded per ACCOUNT rather than derived from line quantities because a
- * free-amount refund reverses accounts without naming a line: line quantities
- * alone cannot describe what a previous free refund already gave back, so the
- * next allocation would reverse it a second time.
+ * Only the current shape counts: a JSON array whose every entry names an
+ * account, a VAT code, a department and an amount. Anything else — malformed
+ * JSON, a non-array, or an entry in the old `{accountNumber, amountMinor}`
+ * format the column was introduced with on 2026-09-08 — cannot be matched to a
+ * revenue target, so what it already reversed is unknown. No such row exists
+ * in production (no reversal ever posted before this format), so this is a
+ * guard against hand edits rather than a migration path.
  */
-/**
- * Whether a previous refund on this order posted a ledger reversal whose
- * allocation was never recorded.
- *
- * That combination — a reversal transaction id with no `ledger_allocation` —
- * means money was given back to accounts we can no longer identify, so the
- * per-account remaining balances are unknowable and the next reversal would
- * over-reverse. It happens if the bookkeeping write failed, and for the whole
- * window before the `ledger_allocation` attribute is deployed.
- *
- * Refunds predating the column entirely have no transaction id either (they
- * could not have posted a reversal), so they do not trip this.
- */
-export function hasUnrecordedReversal(order: RefundableOrder): boolean {
-  return (order.refunds ?? []).some(
-    (refund) =>
-      refund.status !== "failed" &&
-      Boolean(refund.finago_transaction_id) &&
-      !refund.ledger_allocation
-  );
+export function parseLedgerAllocation(
+  raw: string
+): RevenueAllocationEntry[] | null {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return null;
+  }
+  if (!Array.isArray(parsed)) {
+    return null;
+  }
+  const entries: RevenueAllocationEntry[] = [];
+  for (const entry of parsed as Partial<RevenueAllocationEntry>[]) {
+    if (
+      !entry ||
+      typeof entry.accountNumber !== "number" ||
+      typeof entry.amountMinor !== "number" ||
+      typeof entry.vatCode !== "number" ||
+      typeof entry.departmentId !== "string" ||
+      !entry.departmentId
+    ) {
+      return null;
+    }
+    entries.push({
+      accountNumber: entry.accountNumber,
+      amountMinor: entry.amountMinor,
+      departmentId: entry.departmentId,
+      vatCode: entry.vatCode,
+    });
+  }
+  return entries;
 }
 
+/**
+ * Whether an earlier refund on this order reversed revenue we cannot account
+ * for: it posted a reversal (transaction id) without recording an allocation,
+ * or it recorded an allocation that cannot be read back
+ * (`parseLedgerAllocation`).
+ *
+ * Either way the per-target remaining balances are unknowable and the next
+ * reversal could over-reverse, so the caller refuses and flags the refund for
+ * manual posting. A missing allocation happens if the bookkeeping write
+ * failed. Refunds that never posted a reversal have neither field and do not
+ * trip this.
+ */
+export function hasUnrecordedReversal(order: RefundableOrder): boolean {
+  return (order.refunds ?? []).some((refund) => {
+    if (refund.status === "failed") {
+      return false;
+    }
+    if (refund.ledger_allocation) {
+      return parseLedgerAllocation(refund.ledger_allocation) === null;
+    }
+    return Boolean(refund.finago_transaction_id);
+  });
+}
+
+/**
+ * Minor units already reversed per revenue target across this order's earlier
+ * refunds, read back from each refund's stored allocation.
+ *
+ * Recorded per TARGET rather than derived from line quantities because a
+ * free-amount refund reverses targets without naming a line: line quantities
+ * alone cannot describe what a previous free refund already gave back, so the
+ * next allocation would reverse it a second time.
+ *
+ * Throws on an unreadable allocation rather than skip it — skipping would
+ * count that amount as still reversible. `reverseLedger` checks
+ * `hasUnrecordedReversal` first, so this only fires if a caller forgot to.
+ */
 export function reversedByTarget(
   order: RefundableOrder
 ): Record<string, number> {
@@ -232,35 +282,62 @@ export function reversedByTarget(
     if (refund.status === "failed" || !refund.ledger_allocation) {
       continue;
     }
-    try {
-      const parsed = JSON.parse(
-        refund.ledger_allocation
-      ) as Partial<RevenueAllocationEntry>[];
-      for (const entry of parsed) {
-        // Entries recorded before reversals carried a VAT code and department
-        // cannot be matched to a target, so they are skipped and do not count
-        // as already reversed — the next allocation treats that amount as still
-        // reversible. Production has no such entries; they predate the column.
-        if (
-          typeof entry.accountNumber !== "number" ||
-          typeof entry.amountMinor !== "number" ||
-          typeof entry.vatCode !== "number" ||
-          !entry.departmentId
-        ) {
-          continue;
-        }
-        const key = revenueTargetKey({
-          accountNumber: entry.accountNumber,
-          departmentId: entry.departmentId,
-          vatCode: entry.vatCode,
-        });
-        byTarget[key] = (byTarget[key] ?? 0) + entry.amountMinor;
-      }
-    } catch {
-      // A malformed record must not break the next refund.
+    const entries = parseLedgerAllocation(refund.ledger_allocation);
+    if (!entries) {
+      throw new Error(
+        `Refund ${refund.$id} has an unreadable ledger allocation`
+      );
+    }
+    for (const entry of entries) {
+      const key = revenueTargetKey(entry);
+      byTarget[key] = (byTarget[key] ?? 0) + entry.amountMinor;
     }
   }
   return byTarget;
+}
+
+/**
+ * Priced lines with no complete ledger copy (account, VAT code and
+ * department) on the order line.
+ *
+ * Posting writes the target it booked back onto every line, so on a posted
+ * order a missing copy means that write-back failed or the data predates it.
+ * The product's current sales type may no longer match the voucher, so a
+ * reversal must not guess from it. Unpriced lines credited nothing and need no
+ * copy.
+ */
+export function linesWithoutLedgerCopy(
+  items: RefundableOrderItem[]
+): RefundableOrderItem[] {
+  return items.filter(
+    (item) =>
+      toMinor(item.unitPrice * item.quantity) > 0 &&
+      !snapshotTarget({
+        finago_account_number: item.finagoAccountNumber,
+        finago_department: item.finagoDepartment,
+        finago_vat_code: item.finagoVatCode,
+      })
+  );
+}
+
+/**
+ * Why this refund's ledger reversal cannot be posted automatically, or `null`
+ * when it can. Every reason is a fail-closed refusal: the refund stands, and
+ * the message is recorded on the refund row for manual posting.
+ */
+export function ledgerReversalBlocker(
+  order: RefundableOrder,
+  items: RefundableOrderItem[]
+): string | null {
+  if (hasUnrecordedReversal(order)) {
+    return "An earlier refund on this order has no readable record of what its reversal gave back, so this one cannot be allocated safely. Post it manually in 24SO.";
+  }
+  const uncopied = linesWithoutLedgerCopy(items);
+  if (uncopied.length > 0) {
+    const names = uncopied.map((item) => `"${item.name}"`).join(", ");
+    return `Order line(s) ${names} have no saved ledger account, VAT code and department, so the original booking cannot be mirrored. Post it manually in 24SO.`;
+  }
+  return null;
 }
 
 /** The order's existing refunds in the shape the pure helpers work with. */
@@ -902,24 +979,23 @@ async function reverseLedger({
     return;
   }
 
-  // Fail closed rather than post a reversal we know to be wrong. Without the
-  // earlier allocation there is no way to tell how much of each account has
-  // already been given back, so the arithmetic below would reverse it twice.
+  // Fail closed rather than post a reversal we know to be wrong: an earlier
+  // reversal we cannot read back would be reversed twice, and a line with no
+  // ledger copy would be debited against whatever its product maps to today.
   // A human posting one transaction beats the ledger quietly drifting.
-  if (hasUnrecordedReversal(order)) {
-    const message =
-      "An earlier refund on this order posted a reversal without recording its allocation, so this one cannot be allocated safely. Post it manually in 24SO.";
-    console.error(`[Refund] ${message} (refund ${refundId})`);
+  const blocker = ledgerReversalBlocker(order, items);
+  if (blocker) {
+    console.error(`[Refund] ${blocker} (refund ${refundId})`);
     await db
       .updateRow(dbId, REFUNDS_TABLE, refundId, {
-        error: message.slice(0, 1000),
+        error: blocker.slice(0, 1000),
       })
       .catch(() => undefined);
     return;
   }
 
   try {
-    const targetByItemId = await resolveRevenueTargets(items, db);
+    const targetByItemId = resolveRevenueTargets(items);
     const allocation = allocateAmountAcrossTargets({
       alreadyReversedByTarget: reversedByTarget(order),
       amountMinor: toMinor(amount),
@@ -971,40 +1047,22 @@ async function reverseLedger({
 }
 
 /**
- * The revenue target to reverse per line: the copy made at checkout when the
- * line has one, else the product's current sales type (orders placed before
- * the copy existed). Each product is read at most once.
+ * The revenue target to reverse per line: the copy saved on the order line at
+ * checkout or by posting's write-back. Never the product's current sales type
+ * — `ledgerReversalBlocker` has already refused any priced line without a
+ * copy, so a `null` here is an unpriced line that credited nothing.
  */
-async function resolveRevenueTargets(
-  items: RefundableOrderItem[],
-  db: DbClient
-): Promise<Record<string, RevenueTarget | null>> {
+function resolveRevenueTargets(
+  items: RefundableOrderItem[]
+): Record<string, RevenueTarget | null> {
   const targetByItemId: Record<string, RevenueTarget | null> = {};
-  const byProduct = new Map<string, RevenueTarget | null>();
-
   for (const item of items) {
-    const snapshot = snapshotTarget({
+    targetByItemId[item.id] = snapshotTarget({
       finago_account_number: item.finagoAccountNumber,
       finago_department: item.finagoDepartment,
       finago_vat_code: item.finagoVatCode,
     });
-    if (snapshot) {
-      targetByItemId[item.id] = snapshot;
-      continue;
-    }
-    if (!item.productId) {
-      targetByItemId[item.id] = null;
-      continue;
-    }
-    if (!byProduct.has(item.productId)) {
-      byProduct.set(
-        item.productId,
-        await resolveRevenueTargetForProduct(db, item.productId)
-      );
-    }
-    targetByItemId[item.id] = byProduct.get(item.productId) ?? null;
   }
-
   return targetByItemId;
 }
 

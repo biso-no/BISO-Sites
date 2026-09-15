@@ -236,9 +236,15 @@ builder takes the same inputs with signs flipped.
 ## Refunds
 
 - `order-refunds.ts` allocation entries carry `accountNumber`, `vatCode` and
-  `departmentId`, stored in `order_refunds.ledger_allocation`. Entries from
-  before this change fall back to the account's current VAT code and the
-  product's department.
+  `departmentId`, stored in `order_refunds.ledger_allocation`. An allocation
+  that is unparseable or has any entry missing one of these fields (e.g. the
+  old `{accountNumber, amountMinor}` format) makes earlier reversals unknown:
+  the automatic reversal is refused and the refund row records that it must be
+  posted manually. Production has no such rows (no reversal ever posted).
+- A reversal debits only the ledger copy on each order line (account, VAT code,
+  department). If a priced line on a posted order has no complete copy (the
+  posting write-back failed), the reversal is refused and flagged for manual
+  posting — it never falls back to the product's current sales type.
 - The reversal credits the clearing account and debits each revenue line with
   the same VAT code and dimensions.
 - The payout voucher's "refusjoner" debit on 1530 clears it.
