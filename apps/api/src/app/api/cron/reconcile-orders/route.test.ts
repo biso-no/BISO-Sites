@@ -477,4 +477,26 @@ describe("reconcile-orders cron: Finago pass", () => {
     expect(body.finagoNotConfigured).toBe(1);
     expect(body.errors).toBe(0);
   });
+
+  it("counts orders refunded before posting as needing manual posting, not errors", async () => {
+    wireFinagoRows([shopOrder("shop-1"), shopOrder("refunded")]);
+    mocks.postFinagoTransactionForOrder
+      .mockResolvedValueOnce({ posted: true, transactionId: "tx-1" })
+      .mockResolvedValueOnce({
+        detail: "Order has refunds recorded before it was posted",
+        posted: false,
+        reason: "needs_manual",
+      });
+
+    const response = await GET(cronRequest());
+    const body = await response.json();
+
+    expect(body.finagoPosted).toBe(1);
+    expect(body.finagoNeedsManual).toBe(1);
+    expect(body.finagoNotConfigured).toBe(0);
+    expect(body.errors).toBe(0);
+    expect(console.warn).toHaveBeenCalledWith(
+      expect.stringContaining("refunded")
+    );
+  });
 });

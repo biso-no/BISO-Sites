@@ -251,13 +251,20 @@ builder takes the same inputs with signs flipped.
 - Orders whose `finago_transaction_id` is a sentinel — `membership`,
   `posting`, `zero-total`, `wordpress-import` — get no automatic reversal.
   WordPress-era sales were booked by hand in the monthly report.
+- An order with a refund (any refund row not `failed`, or `refunded_total > 0`)
+  before it was posted is never posted automatically: nothing records which
+  refunds still need a reversal, and posting the full total would book money
+  already given back. Posting returns `needs_manual`, releases its claim, and
+  the API cron counts it as `finagoNeedsManual` and logs the order id every
+  run until the net sale is booked by hand and its transaction id recorded.
 
 ## Error handling and visibility
 
 - `not_configured` and `disabled` never strand an order; the API cron retries.
 - A stranded `"posting"` marker is visible on the admin order detail page
   (ledger state), with the order id in the Finago voucher comment.
-- The API cron response reports posted / not_configured / failed counts.
+- The API cron response reports posted / not_configured / needs_manual /
+  failed counts.
 
 ## Testing
 

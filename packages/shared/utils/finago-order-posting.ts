@@ -19,6 +19,7 @@ import {
 import { isMembershipOrder } from "./membership-fulfilment";
 import { getOrderItems, type ParsedOrderItem } from "./order-parsing";
 import { ORDER_ITEMS_SELECT } from "./order-queries";
+import { loadOrderRefunds } from "./order-refunds";
 import type { DbClient } from "./vipps-order-ops";
 
 export type FinagoOrder = Orders;
@@ -32,6 +33,8 @@ export interface FinagoPostingResult {
     | "claimed_elsewhere"
     | "disabled"
     | "membership_order"
+    /** Refunded before it was posted; book it by hand (see `refundBeforePosting`). */
+    | "needs_manual"
     | "not_configured"
     | "not_found"
     | "not_paid"
@@ -135,6 +138,35 @@ async function writeBackFallbackTargets(
       );
     }
   }
+}
+
+/**
+ * Why the order must not be posted automatically because of refunds, or
+ * `null` when it has none.
+ *
+ * A refund recorded before the order is posted has no voucher to reverse, so
+ * `reverseLedger` skips it and nothing revisits it. Posting the full total
+ * afterwards would book revenue that was already given back. Nothing records
+ * which refunds still need a reversal, so rather than guess, any refund that
+ * has not failed — settled or still pending at the provider — or a non-zero
+ * `refunded_total` keeps the order out of automatic posting.
+ *
+ * Reads the refund history fresh (after the claim) and lets a read failure
+ * throw: an unknown history must not be treated as "no refunds".
+ */
+async function refundBeforePosting(
+  order: FinagoOrder,
+  db: DbClient
+): Promise<string | null> {
+  const refunds = await loadOrderRefunds(order.$id, db);
+  const live = refunds.filter((refund) => refund.status !== "failed");
+  const refundedMinor = Math.round(
+    Number(order.refunded_total ?? 0) * MINOR_UNITS_PER_MAJOR
+  );
+  if (live.length === 0 && refundedMinor <= 0) {
+    return null;
+  }
+  return `Order has ${live.length} refund(s) (${refundedMinor / MINOR_UNITS_PER_MAJOR} kr refunded) recorded before it was posted; post the net sale to 24SO manually and record its transaction id`;
 }
 
 type PreparedTransaction =
@@ -274,6 +306,14 @@ export async function postFinagoTransactionForOrder(
 
   let prepared: PreparedTransaction;
   try {
+    const refunded = await refundBeforePosting(order, db);
+    if (refunded) {
+      await releaseClaim(orderId, db);
+      console.warn(
+        `[Finago] Order ${orderId} needs manual posting: ${refunded}`
+      );
+      return { detail: refunded, posted: false, reason: "needs_manual" };
+    }
     prepared = await prepareTransaction(order, db);
     if (!prepared.ok) {
       await releaseClaim(orderId, db);

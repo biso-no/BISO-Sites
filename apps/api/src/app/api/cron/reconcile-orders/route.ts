@@ -34,7 +34,8 @@ import { NextResponse } from "next/server";
  *    Vipps-only, a Stripe order with a missed webhook stayed pending forever.
  * 2. Finago recovery — paid/authorized shop orders with no
  *    `finago_transaction_id` get their ledger posting retried (stale posting
- *    claims are released first).
+ *    claims are released first). An order refunded before it was posted is
+ *    never posted automatically; it is counted as `finagoNeedsManual`.
  * 3. Refund resolution — refunds still `pending` past the grace window are
  *    resolved against the provider.
  * 4. Membership recovery — paid/authorized membership orders with no
@@ -106,6 +107,7 @@ async function sweepUnsettledOrders(db: AdminDb): Promise<{
 
 async function sweepMissingFinagoPostings(db: AdminDb): Promise<{
   errors: number;
+  needsManual: number;
   notConfigured: number;
   posted: number;
   released: number;
@@ -113,6 +115,7 @@ async function sweepMissingFinagoPostings(db: AdminDb): Promise<{
   let posted = 0;
   let released = 0;
   let notConfigured = 0;
+  let needsManual = 0;
   let errors = 0;
 
   const orders = await db.listRows<FinagoOrder>("app", "orders", [
@@ -146,6 +149,13 @@ async function sweepMissingFinagoPostings(db: AdminDb): Promise<{
         posted += 1;
       } else if (result.reason === "not_configured") {
         notConfigured += 1;
+      } else if (result.reason === "needs_manual") {
+        // Refunded before it was posted: never auto-posted. Logged every run
+        // until someone books it by hand and records the transaction id.
+        needsManual += 1;
+        console.warn(
+          `[Reconcile Orders] Order ${order.$id} needs manual Finago posting: ${result.detail ?? "refunded before posting"}`
+        );
       } else if (result.reason === "post_failed") {
         errors += 1;
       }
@@ -158,7 +168,7 @@ async function sweepMissingFinagoPostings(db: AdminDb): Promise<{
     }
   }
 
-  return { errors, notConfigured, posted, released };
+  return { errors, needsManual, notConfigured, posted, released };
 }
 
 async function recoverMembershipFulfilment(db: AdminDb): Promise<{
@@ -243,6 +253,7 @@ async function handle(request: Request) {
         reconciled: reconcile.reconciled,
         finagoPosted: finago?.posted ?? 0,
         finagoNotConfigured: finago?.notConfigured ?? 0,
+        finagoNeedsManual: finago?.needsManual ?? 0,
         finagoSkipped: finago === null,
         staleClaimsReleased: finago?.released ?? 0,
         membershipFulfilled: membership.fulfilled,

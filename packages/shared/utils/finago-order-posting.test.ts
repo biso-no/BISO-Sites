@@ -127,6 +127,7 @@ describe("postFinagoTransactionForOrder", () => {
     db.incrementRowColumn.mockResolvedValue({ finago_posting_lock: 1 });
     db.decrementRowColumn.mockResolvedValue({ finago_posting_lock: 0 });
     db.updateRow.mockResolvedValue({});
+    db.listRows.mockResolvedValue({ rows: [] });
     mocks.isFeatureEnabled.mockResolvedValue(true);
     mocks.buildShopTransactionInput.mockReturnValue({ built: true });
     mocks.postLedgerTransaction.mockResolvedValue("finago-tx-1");
@@ -425,6 +426,75 @@ describe("postFinagoTransactionForOrder", () => {
     expect(result).toEqual({ posted: false, reason: "post_failed" });
     expect(mocks.postLedgerTransaction).not.toHaveBeenCalled();
     expect(db.decrementRowColumn).toHaveBeenCalledWith(CLAIM_RELEASE);
+  });
+
+  describe("an order refunded before it was posted", () => {
+    it("is not posted automatically when a refund row exists", async () => {
+      db.listRows.mockResolvedValue({
+        rows: [{ $id: "refund-1", amount: 499, status: "succeeded" }],
+      });
+
+      const result = await postFinagoTransactionForOrder("order-1", db);
+
+      expect(result).toMatchObject({ posted: false, reason: "needs_manual" });
+      expect(result.detail).toContain("refund");
+      expect(db.listRows).toHaveBeenCalledWith(
+        "app",
+        "order_refunds",
+        expect.arrayContaining([expect.stringContaining("order.$id")])
+      );
+      expect(mocks.postLedgerTransaction).not.toHaveBeenCalled();
+      expect(db.updateRow).not.toHaveBeenCalledWith(
+        "app",
+        "orders",
+        "order-1",
+        { finago_transaction_id: "posting" }
+      );
+      expect(db.decrementRowColumn).toHaveBeenCalledWith(CLAIM_RELEASE);
+      expect(console.warn).toHaveBeenCalledWith(
+        expect.stringContaining("order-1")
+      );
+    });
+
+    it("is not posted while a refund is still pending at the provider", async () => {
+      db.listRows.mockResolvedValue({
+        rows: [{ $id: "refund-1", amount: 499, status: "pending" }],
+      });
+
+      const result = await postFinagoTransactionForOrder("order-1", db);
+
+      expect(result).toMatchObject({ posted: false, reason: "needs_manual" });
+      expect(mocks.postLedgerTransaction).not.toHaveBeenCalled();
+    });
+
+    it("is not posted when the order carries a refunded total without a readable refund row", async () => {
+      wireRows(paidOrder({ refunded_total: 100 }));
+
+      const result = await postFinagoTransactionForOrder("order-1", db);
+
+      expect(result).toMatchObject({ posted: false, reason: "needs_manual" });
+      expect(mocks.postLedgerTransaction).not.toHaveBeenCalled();
+    });
+
+    it("still posts when every earlier refund attempt failed", async () => {
+      db.listRows.mockResolvedValue({
+        rows: [{ $id: "refund-1", amount: 499, status: "failed" }],
+      });
+
+      const result = await postFinagoTransactionForOrder("order-1", db);
+
+      expect(result).toEqual({ posted: true, transactionId: "finago-tx-1" });
+    });
+
+    it("releases the claim and does not post when the refund history cannot be read", async () => {
+      db.listRows.mockRejectedValue(new Error("appwrite timeout"));
+
+      const result = await postFinagoTransactionForOrder("order-1", db);
+
+      expect(result).toMatchObject({ posted: false });
+      expect(mocks.postLedgerTransaction).not.toHaveBeenCalled();
+      expect(db.decrementRowColumn).toHaveBeenCalledWith(CLAIM_RELEASE);
+    });
   });
 });
 
