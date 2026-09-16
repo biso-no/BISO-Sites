@@ -216,4 +216,17 @@ describe("payment return", () => {
       "biso://membership?orderId=order-1&status=failed"
     );
   });
+
+  it("never shows a paid membership order as cancelled to the app, even with a crafted cancel marker", async () => {
+    mocks.isMembershipOrder.mockReturnValue(true);
+    db.getRow.mockResolvedValue(order({ status: "paid" }));
+
+    const response = await GET(
+      returnRequest("orderId=order-1&client=app&cancelled=1")
+    );
+
+    expect(response.headers.get("location")).toBe(
+      "biso://membership?orderId=order-1&status=paid"
+    );
+  });
 });

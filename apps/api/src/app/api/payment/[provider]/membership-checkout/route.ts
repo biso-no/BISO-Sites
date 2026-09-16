@@ -256,6 +256,49 @@ async function resolveMembershipPurchase(
   };
 }
 
+type EligibilityOutcome =
+  | { ok: true }
+  | { ok: false; message: string; status: number };
+
+/**
+ * The join page already refuses these, but this endpoint is reachable
+ * directly with any valid JWT — the app calls it — so it applies the same
+ * gate: no charge while 24SevenOffice cannot be read (an existing member
+ * could pay for cover they already have), and none that would not extend
+ * the buyer's cover.
+ */
+async function resolveMembershipEligibility(identity: {
+  employeeId: string;
+  plan: MembershipPlan;
+  studentId: string;
+  studentNumber: number;
+}): Promise<EligibilityOutcome> {
+  const status = await getMembershipStatusForStudent(identity.studentNumber);
+  const gate = resolveMembershipGate({
+    employeeId: identity.employeeId,
+    isAuthenticated: true,
+    plans: [identity.plan],
+    status,
+    studentId: identity.studentId,
+  });
+  if (gate.state === "membership_check_unavailable") {
+    return {
+      ok: false,
+      message:
+        "We couldn't verify your membership right now. Try again shortly.",
+      status: 503,
+    };
+  }
+  if (gate.state !== "eligible") {
+    return {
+      ok: false,
+      message: "Your membership already covers this period.",
+      status: 409,
+    };
+  }
+  return { ok: true };
+}
+
 // Resolve credentials before creating the order so a misconfigured provider
 // doesn't leave an orphan PENDING order (matches the product checkout route).
 async function startVippsMembershipCheckout(
@@ -325,7 +368,6 @@ async function startStripeMembershipCheckout(
   return { ok: true, orderId, session };
 }
 
-// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: orchestrates auth, the membership purchase gate, idempotency and provider checkout in one auditable request flow
 export async function POST(
   req: NextRequest,
   ctx: { params: Promise<{ provider: string }> }
@@ -392,33 +434,9 @@ export async function POST(
     const { plan } = identity;
     const client = isCheckoutClient(body.client) ? body.client : "web";
 
-    // The join page already refuses these, but this endpoint is reachable
-    // directly with any valid JWT — the app calls it — so it applies the same
-    // gate: no charge while 24SevenOffice cannot be read (an existing member
-    // could pay for cover they already have), and none that would not extend
-    // the buyer's cover.
-    const status = await getMembershipStatusForStudent(identity.studentNumber);
-    const gate = resolveMembershipGate({
-      employeeId: identity.employeeId,
-      isAuthenticated: true,
-      plans: [plan],
-      status,
-      studentId: identity.studentId,
-    });
-    if (gate.state === "membership_check_unavailable") {
-      return json(
-        {
-          message:
-            "We couldn't verify your membership right now. Try again shortly.",
-        },
-        503
-      );
-    }
-    if (gate.state !== "eligible") {
-      return json(
-        { message: "Your membership already covers this period." },
-        409
-      );
+    const eligibility = await resolveMembershipEligibility(identity);
+    if (!eligibility.ok) {
+      return json({ message: eligibility.message }, eligibility.status);
     }
 
     // Idempotency: before creating anything, look for an order the caller
