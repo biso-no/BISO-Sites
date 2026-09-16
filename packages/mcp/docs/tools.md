@@ -250,6 +250,11 @@ is `null`.
 
 ### Approvals and inbox — staff
 
+The pending list is filtered to the approver teams you hold (the Operations Unit
+sees all). An approval request also grants read to whoever filed it, so row
+permissions alone would show you your own requests as though they were yours to
+decide.
+
 | Tool | Read-only | Tier |
 |---|---|---|
 | `biso_list_pending_approvals` | ✅ | — |

@@ -72,17 +72,17 @@ export const approvalsModule: ToolModule = {
       name: "biso_list_pending_approvals",
       title: "Pending approvals",
       description:
-        "List approval requests waiting for your decision. Appwrite row permissions decide what you see: a request is visible to its named approver team and to the Operations Unit, so this returns exactly the portal's own inbox.",
+        "List approval requests waiting for YOUR decision — filtered to the approver teams you actually hold, plus the Operations Unit override. A request also grants read to whoever filed it, so row permissions alone would show you your own requests as though they were yours to decide.",
       inputSchema: { ...paginationInput },
       annotations: READ_ONLY,
       profiles: STAFF_PROFILES,
       async handler(args, context) {
         const requestId = newRequestId();
         const { limit, offset } = readPage(args);
-        const found = await context.services.approvals.listPending({
-          limit,
-          offset,
-        });
+        const found = await context.services.approvals.listPending(
+          context.principal,
+          { limit, offset }
+        );
         return result({
           requestId,
           summary:

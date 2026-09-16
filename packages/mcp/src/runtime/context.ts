@@ -41,7 +41,21 @@ export interface ToolContext {
   logger: Logger;
   /** Everything the mutation gate needs, resolved once at connect time. */
   mutation: MutationGateOptions;
+  /**
+   * The principal this call authorizes against.
+   *
+   * Refreshed by the tool runner before each call — see `refreshPrincipal`.
+   * Handlers read it and never re-resolve it themselves.
+   */
   principal: Principal;
+  /**
+   * Re-resolve the caller's memberships.
+   *
+   * `force` is passed for every mutating call, because a mutation executes
+   * through the service-key client and Appwrite therefore cannot enforce a
+   * revocation that happened after this process started.
+   */
+  refreshPrincipal(options?: { force?: boolean }): Promise<Principal>;
   services: Services;
 }
 

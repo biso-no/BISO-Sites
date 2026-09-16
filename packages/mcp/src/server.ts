@@ -40,6 +40,7 @@ import {
 import { pagesModule } from "./domains/pages";
 import { workflowsModule } from "./domains/workflows";
 import type { Principal } from "./identity/principal";
+import { createPrincipalCache } from "./identity/refresh";
 import { resolvePrincipal } from "./identity/resolve";
 import { registerPrompts } from "./prompts/index";
 import { registerResources } from "./resources/index";
@@ -130,6 +131,15 @@ export async function createBisoMcpServer(
     options.clientsOverride ?? createBackendClients(config, logger);
   const principal =
     options.principalOverride ?? (await resolvePrincipal(clients, logger));
+  // Which tools exist is decided once, from this snapshot — that is a session
+  // fact the host sees in `tools/list`. What each *call* authorizes against is
+  // refreshed by the tool runner; see `identity/refresh.ts`.
+  const principals = createPrincipalCache({
+    clients,
+    initial: principal,
+    logger,
+    fixed: Boolean(options.principalOverride),
+  });
 
   const links = buildLinks(config);
   const services = createServices(clients, links);
@@ -157,6 +167,7 @@ export async function createBisoMcpServer(
 
   const context: ToolContext = {
     principal,
+    refreshPrincipal: (refreshOptions) => principals.refresh(refreshOptions),
     config,
     clients,
     services,

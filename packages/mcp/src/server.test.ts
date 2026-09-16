@@ -1986,3 +1986,98 @@ describe("an owner can repair a malformed draft", () => {
     }
   });
 });
+
+describe("scope is checked before a proposal exists", () => {
+  function publishedPageElsewhere(): FakeTables {
+    return {
+      campus: [
+        { $id: "1", name: "Oslo" },
+        { $id: "2", name: "Bergen" },
+      ],
+      departments: [
+        {
+          $id: "dept-a",
+          Name: "ESN Oslo",
+          campus_id: "1",
+          slug: "esn",
+          type: "unit",
+          active: true,
+        },
+      ],
+      pages: [
+        {
+          $id: "page-oslo",
+          $createdAt: "2026-01-01T00:00:00.000Z",
+          $updatedAt: "2026-01-01T00:00:00.000Z",
+          slug: "oslo-page",
+          status: "published",
+          visibility: "public",
+          campus_id: "1",
+          department_id: "dept-a",
+          campus: { $id: "1" },
+          department: { $id: "dept-a" },
+          translation_refs: [
+            {
+              $id: "tr-oslo",
+              $updatedAt: "2026-01-01T00:00:00.000Z",
+              locale: "no",
+              title: "Oslo page",
+              description: "Released",
+              is_published: true,
+              published_at: "2026-01-01T00:00:00.000Z",
+              draft_document: null,
+              puck_document: JSON.stringify({
+                blocks: [{ id: "live", type: "text" }],
+                meta: { title: "Oslo page", slug: "oslo-page" },
+              }),
+            },
+          ],
+        },
+      ],
+      audit_logs: [],
+    };
+  }
+
+  test("another campus cannot get a publish proposal", async () => {
+    // `load` hands them the published view on purpose, so reaching the handler
+    // proves nothing. A proposal would be reported executable, and in confirm
+    // mode would put a confirmation in front of a person, for a change
+    // `setPublished` refuses once the token comes back.
+    const harness = await connect({
+      principal: CAMPUS_ADMIN("Bergen", "2"),
+      config: baseConfig({ writeMode: "operator" }),
+      tables: publishedPageElsewhere(),
+    });
+    try {
+      const { response, structured } = await callTool(
+        harness.client,
+        "biso_page_publish",
+        { pageId: "page-oslo", locale: "no", publish: false }
+      );
+
+      expect(response.isError).toBe(true);
+      expect(JSON.stringify(structured)).not.toContain("proposalToken");
+      expect(domainWrites(harness)).toHaveLength(0);
+    } finally {
+      await harness.close();
+    }
+  });
+
+  test("the owning campus still gets one", async () => {
+    const harness = await connect({
+      principal: CAMPUS_ADMIN("Oslo", "1"),
+      config: baseConfig({ writeMode: "propose" }),
+      tables: publishedPageElsewhere(),
+    });
+    try {
+      const { response } = await callTool(harness.client, "biso_page_publish", {
+        pageId: "page-oslo",
+        locale: "no",
+        publish: false,
+      });
+      expect(response.isError).toBeFalsy();
+    } finally {
+      await harness.close();
+    }
+  });
+});

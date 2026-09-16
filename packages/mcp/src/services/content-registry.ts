@@ -374,8 +374,20 @@ export const CONTENT_REGISTRY: Readonly<
       campusRelation: "campus.$id",
       departmentRelation: "department.$id",
     },
-    supported: { search: true, get: true },
+    // Every operation, reads included. A page's title and locales live in
+    // `page_translations`, which the generic content service does not project
+    // or decode — it handles `content_translations` and inline columns — so a
+    // generic read would report a null title and no translations for a page
+    // that has both. It would also be *weaker* than the dedicated path: the
+    // generic search applies only `scopeQueries`, while `pages.list` applies a
+    // per-row visibility rule because `pages` has row security off with a
+    // table-level `read("any")`. A second, thinner door into page data is
+    // worse than no second door.
+    supported: {},
     unsupportedReason: {
+      search:
+        "Pages are block documents with their own translation table. Use `biso_page_list`, which applies the per-row visibility rule this table needs.",
+      get: "Use `biso_page_load`, which returns the real document, its blocks and which document you were served.",
       create_draft:
         "Pages are block documents. Use the `biso_page_*` tools, which operate on a real PageDoc.",
       update: "Use the `biso_page_*` tools.",

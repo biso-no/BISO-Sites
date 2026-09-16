@@ -8,6 +8,10 @@
  */
 
 import { describe, expect, test } from "bun:test";
+
+/** A reason for declining a read has to name the tool that does it. */
+const BISO_TOOL_RE = /`biso_\w+`/;
+
 import {
   CONTENT_DOMAINS,
   CONTENT_OPERATIONS,
@@ -43,10 +47,19 @@ describe("registry completeness", () => {
     }
   });
 
-  test("search and get are supported everywhere", () => {
+  test("a domain that declines a read says where to read it instead", () => {
+    // `search`/`get` used to be asserted supported everywhere, which is the
+    // kind of blanket claim that outlives the thing it describes: `pages` keeps
+    // its translations in a table the generic content service does not decode,
+    // and its dedicated tools apply a visibility rule the generic path does
+    // not. The invariant that actually matters is that declining points
+    // somewhere real.
     for (const domain of CONTENT_DOMAINS) {
-      expect(supports(domain, "search")).toBe(true);
-      expect(supports(domain, "get")).toBe(true);
+      for (const operation of ["search", "get"] as const) {
+        if (!supports(domain, operation)) {
+          expect(unsupportedReason(domain, operation)).toMatch(BISO_TOOL_RE);
+        }
+      }
     }
   });
 

@@ -123,10 +123,19 @@ export interface ApprovalService {
     }
   ): Promise<{ id: string; approverTeamId: string }>;
   get(id: string): Promise<ApprovalRequestView>;
-  listPending(input: {
-    limit: number;
-    offset: number;
-  }): Promise<{ rows: ApprovalRequestView[]; total: number }>;
+  /**
+   * The requests this principal can actually decide.
+   *
+   * `principal` is required: row security is not a sufficient filter here, and
+   * the reason is in `createApprovalRequest` — see `listPending`.
+   */
+  listPending(
+    principal: Principal,
+    input: {
+      limit: number;
+      offset: number;
+    }
+  ): Promise<{ rows: ApprovalRequestView[]; total: number }>;
 }
 
 function parsePayload(raw: string): Record<string, unknown> | null {
@@ -176,22 +185,53 @@ function toView(row: ApprovalRow): ApprovalRequestView {
   };
 }
 
+/**
+ * The approver teams this principal can decide for, or `null` for "all".
+ *
+ * Team ids come from the verified memberships on the principal, never from an
+ * argument. The Operations Unit holds `update` on every request row — the same
+ * override the portal grants — so for its members there is no honest team
+ * filter and row security is already the right boundary.
+ */
+function approverTeamsFor(principal: Principal): string[] | null {
+  const teams = [...principal.departmentTeamIds, ...principal.campusTeamIds];
+  if (teams.includes(OPERATIONS_UNIT_TEAM_ID)) {
+    return null;
+  }
+  return [...new Set(teams)];
+}
+
 export function createApprovalService(
   clients: BackendClients
 ): ApprovalService {
   return {
-    async listPending(input) {
+    async listPending(principal, input) {
+      // Row security alone is the wrong filter, even though it looks like the
+      // right one. `createApprovalRequest` in `apps/admin` grants
+      // `read`+`update` to the approver team and to the Operations Unit, and
+      // then `Permission.read(Role.user(requester))` — so a requester reads
+      // their own pending rows without being able to decide them. Returning
+      // those under "waiting for your decision" describes work the caller
+      // cannot do, and `biso_decide_approval` would refuse them.
+      //
+      // The filter is therefore on the decider's grant: the approver team must
+      // be one this principal holds, with the Operations Unit override the
+      // portal itself applies. It only ever narrows what row security already
+      // allowed.
+      const deciderTeams = approverTeamsFor(principal);
+      if (deciderTeams?.length === 0) {
+        return { rows: [], total: 0 };
+      }
+      const teamFilter = deciderTeams
+        ? [Query.equal("approver_team_id", deciderTeams)]
+        : [];
       try {
-        // `approval_requests` has row security on and no table-level grants, so
-        // the caller's own client returns exactly the rows their approver-team
-        // membership permits. No application-side filter is needed or wanted:
-        // adding one could only narrow it further and would drift from the
-        // portal's own inbox.
         const result = await clients.user.db.listRows<ApprovalRow>(
           "app",
           TABLE,
           [
             Query.equal("status", "pending"),
+            ...teamFilter,
             Query.orderDesc("$createdAt"),
             Query.limit(input.limit),
             Query.offset(input.offset),

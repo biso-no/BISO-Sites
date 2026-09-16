@@ -22,7 +22,12 @@ import {
   describeScope,
 } from "../identity/scope";
 import type { ToolContext } from "../runtime/context";
-import { forbidden, invalidInput, notSupported } from "../runtime/errors";
+import {
+  DomainError,
+  forbidden,
+  invalidInput,
+  notSupported,
+} from "../runtime/errors";
 import {
   type AppliedProposal,
   asApplied,
@@ -173,7 +178,7 @@ async function proposeOrExecute<TPayload, TResult>(input: {
     assertNotExpired(input.expiresAt);
   }
 
-  const data = await input.execute();
+  const data = await executeAndClassify(input.execute);
   // `asApplied`, never `proposal`: the proposal rebuilt at the top of this call
   // carries a token minted from a *fresh* expiry, which the registry has never
   // seen. Handing it back would re-authorize the change that was just made.
@@ -183,6 +188,42 @@ async function proposeOrExecute<TPayload, TResult>(input: {
     data,
     summary: `Applied ${input.action}.`,
   };
+}
+
+/**
+ * Run the write, and reclassify a timeout from *it* as an uncertain outcome.
+ *
+ * This is the only place that knows a write was dispatched, which is why the
+ * classification lives here. The tool layer used to infer it from the tool's
+ * tier instead, and a mutating handler does fallible reads first —
+ * `biso_content_set_lifecycle` reads the row before proposing, even in
+ * propose-only mode, where nothing is ever written. A timeout from that read
+ * was reported as `external_uncertain`: "the write may have been applied, do
+ * not retry". Both halves false, and the second actively unhelpful.
+ *
+ * A timeout here is the genuine case: the request went to Appwrite, the
+ * deadline in `@repo/api/runtime` expired, and whether it landed is unknown.
+ */
+async function executeAndClassify<TResult>(
+  execute: () => Promise<TResult>
+): Promise<TResult> {
+  try {
+    return await execute();
+  } catch (error) {
+    if (error instanceof DomainError && error.code === "timeout") {
+      throw new DomainError(
+        "external_uncertain",
+        `${error.message} The write may or may not have been applied.`,
+        {
+          details: error.details,
+          remedy:
+            "Do not retry this proposal. Read the current state first, and only propose again if the change is still needed.",
+          cause: error,
+        }
+      );
+    }
+    throw error;
+  }
 }
 
 function assertDomainSupports(

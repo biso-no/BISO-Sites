@@ -517,3 +517,36 @@ editing the slug back does not unbreak anything that has already been followed.
 An operation whose consequences do not match its tier does not belong in that
 tier, so the honest move is to not advertise it — which is the same rule the
 content registry applies to every operation it declines.
+
+---
+
+## 13. Eighth review round
+
+An eighth review of `d1beb0e` raised six. All six reproduced. **Two are
+follow-ups on fixes from the two previous rounds**, and one of those was masked
+by a test whose fixture was not realistic — which is the more useful half of the
+finding.
+
+| # | Area | Verified as | Fix |
+|---|---|---|---|
+| 1 | `server.ts` | **Confirmed.** `resolvePrincipal` runs once at construction and every handler closes over the result. A stdio server lives as long as the host that spawned it, so a membership revoked meanwhile still authorizes — and because a mutation executes through the service-key client, Appwrite never sees the caller's identity on the write and cannot apply the revocation itself. The application-side check is the only one | `identity/refresh.ts`: a 60-second TTL for reads, which the caller's own credential still gates, and a **forced** re-resolve before anything that can reach the elevated client. A forced refresh that fails throws rather than falling back to remembered roles |
+| 2 | `services/events.ts` | **Confirmed — a gap in round seven's own fix.** `attendee_id ?? user_id` looked like the more specific identity. It is the less reliable one: the admin auto-assign path writes both columns, the manual path writes only `user_id`, and the schema marks `user_id` required and `attendee_id` optional. One person assigned by each path is two identities, and the inflated count is back | Key on `user_id` — the column both paths write, and the one the `(segment_id, user_id)` unique index already uses |
+| 3 | `runtime/register.ts` | **Confirmed — a gap in round two's fix.** `uncertainIfMutationTimedOut` keyed on the tool's *tier*, but a mutating handler reads before it writes, and in propose mode never writes at all. A timeout from `content.get` was reported as `external_uncertain`: "the write may have been applied, do not retry" — both halves false | The reclassification moved into `proposeOrExecute`, around the `execute()` call, which is the only place that knows a write was dispatched. The tier heuristic is deleted rather than patched |
+| 4 | `domains/pages.ts` | **Confirmed — round five's guard, one tool over.** `biso_page_publish` loads the page (which deliberately hands an out-of-scope caller the published view) and went straight to `proposeOrExecute`. The proposal was reported executable, and in `confirm` mode a person would be shown a confirmation, for a change `setPublished` refuses only once the token comes back | `assertPublishAccess` before the proposal exists, matching `biso_page_edit_blocks` |
+| 5 | `services/approvals.ts` | **Confirmed, and the code comment asserted the opposite.** It claimed row security returns "exactly the rows their approver-team membership permits". `createApprovalRequest` grants `read`+`update` to the approver team and the Operations Unit, then `read` to the requester — so a requester saw their own pending rows under a heading that said they were theirs to decide | Filter on `approver_team_id` against the principal's verified team memberships, with no filter for the Operations Unit because it genuinely holds `update` on every row |
+| 6 | `services/content-registry.ts` | **Confirmed.** `pages` declared `search`/`get` supported, but the content service decodes only `content_translations` and inline columns — no projection, no title, no locales. And the generic path applies only `scopeQueries`, while `pages.list` applies a per-row visibility rule because `pages` has row security off with `read("any")` | Both marked unsupported, pointing at `biso_page_list` / `biso_page_load`. A second, thinner, less-guarded door is worse than no second door |
+
+### The test that hid finding #2
+
+Round seven's regression test seeded `user_id` **and** `attendee_id` on both
+rows. Real rows do not look like that: the two assignment paths in `apps/admin`
+write different column sets, and it is precisely the mix that breaks a
+`attendee_id`-first identity. The test asserted the right property against data
+that could not exercise it.
+
+This is the same failure mode as the four harness gaps, one level in: there the
+fake could not express what the backend does, here the fixture could not express
+what the data does. Reverting a fix and watching its test fail — which is the
+standing rule in this PR — does not catch it, because the test fails for the
+revert *and* passes for the wrong fixture. The fixture now models the two paths
+separately, and reverting to `attendee_id`-first fails it.

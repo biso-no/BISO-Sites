@@ -19,7 +19,7 @@ import type { PageDoc } from "@repo/api/page-builder";
 import { BRAND_ACCENT_VALUES } from "@repo/editor/theme/presets";
 import { z } from "zod";
 import { isAnonymous } from "../identity/principal";
-import { describeScope } from "../identity/scope";
+import { assertPublishAccess, describeScope } from "../identity/scope";
 import type { ToolContext } from "../runtime/context";
 import { forbidden, invalidInput, notFound } from "../runtime/errors";
 import { defineTool, type ToolModule } from "../runtime/register";
@@ -439,6 +439,17 @@ export const pagesModule: ToolModule = {
           pageId: args.pageId,
           locale: args.locale,
         });
+        // `load` hands an out-of-scope caller the published view of a published
+        // page on purpose, so reaching here proves nothing about publishing.
+        // Authorize before a proposal exists: minting one says it is executable
+        // and, in `confirm` mode, puts a confirmation in front of a person for
+        // a change `setPublished` will refuse once the token comes back. The
+        // same guard `biso_page_edit_blocks` applies.
+        assertPublishAccess(
+          context.principal,
+          view.page.campusId,
+          view.page.departmentId
+        );
         const revision = args.expectedRevision ?? view.revision;
         const payload = {
           pageId: args.pageId,

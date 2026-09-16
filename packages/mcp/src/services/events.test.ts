@@ -166,7 +166,10 @@ describe("assigned attendees are counted once", () => {
           capacity: 10,
         },
       ],
-      // One user, two segments — two rows.
+      // One user, two segments — two rows, written by the two different
+      // assignment paths. Auto-assign sets `attendee_id`; manual assign does
+      // not. Seeding both columns on both rows (as the first version of this
+      // test did) hides exactly the bug the identity choice has to survive.
       segment_members: [
         {
           $id: "sm-1",
@@ -180,7 +183,6 @@ describe("assigned attendees are counted once", () => {
           segment_id: "seg-workshop",
           event_id: "ev-1",
           user_id: "u-1",
-          attendee_id: "at-1",
         },
       ],
       event_attendees: [

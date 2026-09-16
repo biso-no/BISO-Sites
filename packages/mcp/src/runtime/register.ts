@@ -175,7 +175,18 @@ async function invokeTool(input: {
   const tier = tool.tier ?? "read";
 
   try {
-    const handling = tool.handler(args as never, { ...context, logger });
+    // Authorize against current memberships, not the ones this process saw at
+    // startup. Forced for anything that mutates: those execute through the
+    // service-key client, so this check is the only place a revoked role can
+    // still be caught.
+    const principal = await context.refreshPrincipal({
+      force: tier !== "read",
+    });
+    const handling = tool.handler(args as never, {
+      ...context,
+      principal,
+      logger,
+    });
     // Only reads race a timer. `Promise.race` abandons the loser; it does not
     // cancel it, and the Appwrite SDK exposes no way to abort a request already
     // in flight. Racing a mutation would therefore report a timeout to the
@@ -204,46 +215,21 @@ async function invokeTool(input: {
     });
     return toCallToolResult(outcome);
   } catch (rawError) {
-    // A mutation that failed on a backend timeout has an unknown outcome: the
-    // request was sent and may have been applied. Saying `timeout` invites a
-    // retry, so it is reported as `external_uncertain`, whose whole meaning is
-    // "attempted, outcome unknown, never retry automatically".
-    const error = uncertainIfMutationTimedOut(rawError, tier);
-    logToolFailure(logger, error);
+    // A timeout is NOT reclassified here. A mutating handler reads before it
+    // writes, and in propose mode it never writes at all, so the tool's tier
+    // cannot tell "the write may have landed" from "a lookup timed out". Only
+    // `proposeOrExecute` knows a write was dispatched, and it does the
+    // reclassification at that point.
+    logToolFailure(logger, rawError);
     await context.auditor.record({
       requestId,
       action: tool.name,
       outcome: "error",
       durationMs: Date.now() - startedAt,
-      payload: { code: isDomainError(error) ? error.code : "internal" },
+      payload: { code: isDomainError(rawError) ? rawError.code : "internal" },
     });
-    return toCallToolResult(toToolError(error, requestId));
+    return toCallToolResult(toToolError(rawError, requestId));
   }
-}
-
-/**
- * Reclassify a backend timeout on a mutating tool as an uncertain outcome.
- *
- * The write was dispatched. Whether it landed is genuinely unknown, and the
- * only safe next step is to read the current state — never to resend.
- */
-function uncertainIfMutationTimedOut(
-  error: unknown,
-  tier: MutationTier | "read"
-): unknown {
-  if (tier === "read" || !isDomainError(error) || error.code !== "timeout") {
-    return error;
-  }
-  return new DomainError(
-    "external_uncertain",
-    `${error.message} The write may or may not have been applied.`,
-    {
-      details: error.details,
-      remedy:
-        "Do not retry this proposal. Read the current state first, and only propose again if the change is still needed.",
-      cause: error,
-    }
-  );
 }
 
 /**

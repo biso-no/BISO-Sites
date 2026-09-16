@@ -178,10 +178,16 @@ export function createEventsService(clients: BackendClients): EventsService {
    * `unassignedCount` is `attendeeCount - assignedCount` it can report nobody
    * left to assign while attendees are in fact unassigned.
    *
-   * Identity comes from `attendee_id` where the row carries one and `user_id`
-   * otherwise, so a row linked to a specific attendee is counted as that
-   * attendee. Only those two columns are projected: this runs on the elevated
-   * client, and an audience preview has no business reading anything else.
+   * Identity is `user_id`, which is the only column both assignment paths
+   * write: the admin auto-assign path sets `attendee_id` as well, the manual
+   * one does not, and the schema marks `user_id` required and `attendee_id`
+   * optional. Keying on `attendee_id` where present would give one person two
+   * identities across those two paths and bring the inflated count straight
+   * back. It is also the column the `(segment_id, user_id)` unique index uses,
+   * so it is what "assigned once" already means to the backend.
+   *
+   * Only the identity columns are projected: this runs on the elevated client,
+   * and an audience preview has no business reading anything else.
    */
   async function countAssignedAttendees(
     eventId: string
@@ -198,7 +204,7 @@ export function createEventsService(clients: BackendClients): EventsService {
     ]);
     const identities = new Set<string>();
     for (const row of result.rows) {
-      const identity = row.attendee_id ?? row.user_id ?? row.$id;
+      const identity = row.user_id ?? row.attendee_id ?? row.$id;
       identities.add(identity);
     }
     return {
