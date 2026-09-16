@@ -26,6 +26,7 @@ import {
   DomainError,
   forbidden,
   invalidInput,
+  isTransportFailure,
   notSupported,
 } from "../runtime/errors";
 import {
@@ -191,7 +192,7 @@ async function proposeOrExecute<TPayload, TResult>(input: {
 }
 
 /**
- * Run the write, and reclassify a timeout from *it* as an uncertain outcome.
+ * Run the write, and reclassify a lost outcome from *it* as uncertain.
  *
  * This is the only place that knows a write was dispatched, which is why the
  * classification lives here. The tool layer used to infer it from the tool's
@@ -201,8 +202,19 @@ async function proposeOrExecute<TPayload, TResult>(input: {
  * was reported as `external_uncertain`: "the write may have been applied, do
  * not retry". Both halves false, and the second actively unhelpful.
  *
- * A timeout here is the genuine case: the request went to Appwrite, the
- * deadline in `@repo/api/runtime` expired, and whether it landed is unknown.
+ * Two failures here are genuinely unknown, and they are unknown for the same
+ * reason — the request reached Appwrite and no answer came back:
+ *
+ * - a `timeout`, where the deadline in `@repo/api/runtime` expired, and
+ * - a transport failure, where the connection dropped before the reply. That
+ *   one arrives as a status-less `internal`, because no HTTP response existed
+ *   to classify, and it is the more dangerous of the two: it reads like a
+ *   plain failure, so a caller would reasonably propose the same change again
+ *   and duplicate a draft or an approval whose first write did land.
+ *
+ * A 5xx is deliberately NOT in this set. There the backend answered, so the
+ * failure is reported as a failure — telling a caller "do not retry" about a
+ * write that definitively did not happen is its own kind of wrong.
  */
 async function executeAndClassify<TResult>(
   execute: () => Promise<TResult>
@@ -210,15 +222,19 @@ async function executeAndClassify<TResult>(
   try {
     return await execute();
   } catch (error) {
-    if (error instanceof DomainError && error.code === "timeout") {
+    const lostOutcome =
+      error instanceof DomainError &&
+      (error.code === "timeout" || isTransportFailure(error));
+    if (lostOutcome) {
+      const cause = error as DomainError;
       throw new DomainError(
         "external_uncertain",
-        `${error.message} The write may or may not have been applied.`,
+        `${cause.message} The write may or may not have been applied.`,
         {
-          details: error.details,
+          details: cause.details,
           remedy:
             "Do not retry this proposal. Read the current state first, and only propose again if the change is still needed.",
-          cause: error,
+          cause,
         }
       );
     }
@@ -349,7 +365,7 @@ export const contentModule: ToolModule = {
       name: "biso_content_get",
       title: "Read one content item",
       description:
-        "Read a single content item with its translations and every non-sensitive column. Returns a `revision` for use as `expectedRevision` on a later change. An item outside your scope reports as not found rather than forbidden, so an id cannot be probed for existence.",
+        "Read a single content item with its translations. For an item your campus/department scope covers, `raw` carries every non-sensitive column; for one you can see only because it is published, `raw` is null and `fields` carries the public columns. Returns a `revision` for use as `expectedRevision` on a later change. An item outside your scope reports as not found rather than forbidden, so an id cannot be probed for existence.",
       inputSchema: {
         domain: z.enum(CONTENT_DOMAINS).describe("Which content type."),
         id: z.string().min(1).describe("The row $id."),
@@ -370,6 +386,7 @@ export const contentModule: ToolModule = {
           data: detail,
           scope: describeScope(context.principal),
           links: detail.links,
+          warnings: detail.warnings,
         });
       },
     }),

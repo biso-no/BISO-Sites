@@ -123,8 +123,22 @@ export interface ContentSearchResult {
 }
 
 export interface ContentDetail extends ContentSummary {
-  /** Every non-sensitive column on the row. */
-  raw: Record<string, unknown>;
+  /**
+   * Every non-sensitive column on the row, or `null` when the caller does not
+   * own it.
+   *
+   * A published row is readable by anyone, so this getter lets one through
+   * without a campus check. That is right for *published content* and wrong
+   * for the whole row: `stripSensitive` is a denylist, so everything not named
+   * in it — an event's join link and contact address, a product's ledger
+   * account, a sync id — comes back too. Those are operational columns the
+   * public site never renders, and publication is not consent to expose them.
+   *
+   * So the raw row is for owners. A publication-authorized caller still gets
+   * `fields`, which is the curated per-domain projection, plus the
+   * translations, links and dates — everything a public reader would see.
+   */
+  raw: Record<string, unknown> | null;
   /** `$updatedAt`, for optimistic concurrency on a later write. */
   revision: string;
   translations: Array<{
@@ -133,6 +147,8 @@ export interface ContentDetail extends ContentSummary {
     description: string | null;
     shortDescription: string | null;
   }>;
+  /** Non-fatal notes, e.g. that `raw` was withheld. */
+  warnings: string[];
 }
 
 type Row = Models.Row & Record<string, unknown>;
@@ -262,6 +278,49 @@ function pickFields(
     }
   }
   return out;
+}
+
+/**
+ * The per-locale text for a detail read, by whichever route the domain stores
+ * it.
+ *
+ * Extracted from `get` so that the authorization decision above it reads as one
+ * sequence rather than being separated from its result by thirty lines of
+ * text-shaping.
+ */
+function detailTranslations(
+  spec: ContentDomainSpec,
+  row: Row
+): ContentDetail["translations"] {
+  if (spec.translations.kind === "content_translations") {
+    const refs = row[spec.translations.relationship];
+    if (!Array.isArray(refs)) {
+      return [];
+    }
+    return (refs as ContentTranslations[]).map((item) => ({
+      locale: item.locale,
+      title: textOf(item.title),
+      description: textOf(item.description),
+      shortDescription: textOf(item.short_description),
+    }));
+  }
+  if (spec.translations.kind === "inline_columns") {
+    return [
+      {
+        locale: "no",
+        title: textOf(row.title_nb),
+        description: textOf(row.description_nb),
+        shortDescription: textOf(row.teaser_nb),
+      },
+      {
+        locale: "en",
+        title: textOf(row.title_en),
+        description: textOf(row.description_en),
+        shortDescription: textOf(row.teaser_en),
+      },
+    ];
+  }
+  return [];
 }
 
 function toSummary(
@@ -658,51 +717,31 @@ export function createContentService(
       // `campus_benefits.redemption_value` and the `jobs` screening columns are
       // listed there.
       const isPublished = row.status === spec.publishedStatus;
-      if (
-        !(
-          isPublished ||
-          canReadRow(principal, ownership.campusId, ownership.departmentId)
-        )
-      ) {
+      // Which of the two checks let this through decides how much of the row
+      // comes back, so keep them apart rather than collapsing into one boolean.
+      const owned = canReadRow(
+        principal,
+        ownership.campusId,
+        ownership.departmentId
+      );
+      if (!(isPublished || owned)) {
         throw notFound(`No ${domain} found with id ${id}.`, { domain, id });
       }
 
-      const translations: ContentDetail["translations"] = [];
-      if (spec.translations.kind === "content_translations") {
-        const refs = row[spec.translations.relationship];
-        if (Array.isArray(refs)) {
-          for (const item of refs as ContentTranslations[]) {
-            translations.push({
-              locale: item.locale,
-              title: textOf(item.title),
-              description: textOf(item.description),
-              shortDescription: textOf(item.short_description),
-            });
-          }
-        }
-      } else if (spec.translations.kind === "inline_columns") {
-        translations.push(
-          {
-            locale: "no",
-            title: textOf(row.title_nb),
-            description: textOf(row.description_nb),
-            shortDescription: textOf(row.teaser_nb),
-          },
-          {
-            locale: "en",
-            title: textOf(row.title_en),
-            description: textOf(row.description_en),
-            shortDescription: textOf(row.teaser_en),
-          }
+      const translations = detailTranslations(spec, row);
+      const summary = toSummary(spec, row, "no", links);
+      const warnings: string[] = [];
+      if (!owned) {
+        warnings.push(
+          `This ${domain} is outside your campus and department scope; it is readable only because it is published. The full row is withheld — "fields" carries the public columns for ${domain}.`
         );
       }
-
-      const summary = toSummary(spec, row, "no", links);
       return {
         ...summary,
         translations,
-        raw: stripSensitive(spec.table, row),
+        raw: owned ? stripSensitive(spec.table, row) : null,
         revision: row.$updatedAt,
+        warnings,
       };
     },
 

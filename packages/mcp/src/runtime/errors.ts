@@ -175,9 +175,35 @@ export function fromAppwriteError(
       cause: error,
     });
   }
+  // No numeric status means no HTTP response arrived at all — a reset socket,
+  // a dropped connection, a DNS failure. That is materially different from a
+  // 5xx, where the backend answered: the request may have reached Appwrite and
+  // been applied in full, with only the reply lost. Tagged here so the one
+  // caller that knows a *write* was in flight can say so; every other caller
+  // treats it as the plain failure it looks like.
+  const transport = typeof status !== "number";
   return new DomainError(
     "internal",
     `The backend failed (${context.operation}).`,
-    { details: { operation: context.operation }, cause: error }
+    {
+      details: transport
+        ? { operation: context.operation, transport: true }
+        : { operation: context.operation, status },
+      cause: error,
+    }
+  );
+}
+
+/**
+ * Whether this error means "no response arrived", as opposed to "the backend
+ * said no".
+ *
+ * Only meaningful once a request has actually been dispatched.
+ */
+export function isTransportFailure(error: unknown): boolean {
+  return (
+    isDomainError(error) &&
+    error.code === "internal" &&
+    error.details.transport === true
   );
 }

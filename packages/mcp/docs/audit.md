@@ -577,3 +577,39 @@ path is broken; it says nothing about the paths beside it. The check that would
 have caught both is to grep for the other readers of the same thing before
 calling a fix done — which is now how these two are fixed, by giving each
 concern one definition instead of two.
+
+---
+
+## 15. Tenth review round
+
+A tenth review of `84d5f49` raised two, one P1. Both reproduced, and both are
+the *third* instance of a pattern this PR keeps hitting: a rule that was
+correct for the case it was written for, and silent for the case beside it.
+
+| # | Area | Verified as | Fix |
+|---|---|---|---|
+| 1 | `domains/content.ts` | **Confirmed (P1) — the second half of round eight's #3.** That round moved the uncertain-outcome classification into `executeAndClassify`, where a write is known to have been dispatched, and had it upgrade `timeout`. But `fromAppwriteError` only reaches `timeout` for a 504 or an `appwrite_timeout`; a connection reset after the request went out has **no HTTP status at all**, so it falls through to the `internal` catch-all. A write that may well have landed was reported as a plain failure, which invites exactly the duplicate the proposal registry exists to prevent | `fromAppwriteError` tags the status-less case `transport: true` (a 5xx keeps its `status`), `isTransportFailure` reads that, and `executeAndClassify` upgrades both it and `timeout`. A 5xx deliberately stays a failure: the backend answered, and "do not retry" is wrong advice about a write that definitively did not happen |
+| 2 | `services/content.ts` | **Confirmed.** `content.get` waves a published row past the campus check — right for published content — and then returned `stripSensitive(table, row)`, a **denylist**. So an out-of-scope caller received every column nobody had thought to name. Verified against the schema: `events.online_url`, `events.contact_email`, `events.external_id` and `webshop_products.finago_account_number` all exist, and all have **zero references in `apps/web`** — `online_url` is written and shown only in the admin event studio, `finago_account_number` only by the checkout and Finago accounting code | The raw row is withheld entirely when publication rather than scope authorized the read. Such a caller still gets `fields` (the curated per-domain projection), translations, links and dates — everything a public reader sees — plus a warning saying why |
+
+### Denylist, allowlist, and which question is being asked
+
+Finding #2 is not "four columns were missed". A denylist can only ever strip
+what someone thought to name, so the list was always going to trail the schema
+— and `appwrite.config.json` is generated, so columns arrive without anyone
+revisiting `SENSITIVE_COLUMNS`. The test that covered this previously asserted
+`auto_screen` **did** come back to an out-of-scope reader, which is the same
+defect written down as an expectation.
+
+Both rules are kept, because they answer different questions:
+
+- `SENSITIVE_COLUMNS` — "may a model see this column *at all*?" It applies to
+  the caller's own rows too; a screening rubric is inappropriate for the campus
+  that owns the vacancy.
+- Withholding the raw row — "does this caller have any claim on this row?"
+  Publication is a statement about the *content*, not consent to expose the
+  record around it.
+
+The same reasoning names the limit of the fix, which is worth stating rather
+than leaving implied: the underlying `read("any")` table grants mean Appwrite
+still serves those columns to anyone who asks it directly. This package no
+longer hands them to a model; it cannot stop the API. That remains roadmap S1.

@@ -237,6 +237,14 @@ export interface FakeBackendOptions {
   hasElevated?: boolean;
   /** Whether a user credential is configured. */
   hasUserCredential?: boolean;
+  /**
+   * Called after a write is recorded and before it is applied. Throwing here
+   * simulates a backend that received the request and then failed — which is
+   * the only way to exercise "the write was dispatched and we do not know what
+   * happened to it". The write still appears in `writes`, because it really was
+   * sent.
+   */
+  onWrite?: (op: "create" | "update" | "upsert", table: string) => void;
   tables?: FakeTables;
   /** Team memberships `resolvePrincipal` will read. */
   teams?: Array<{ $id: string; name: string }>;
@@ -373,7 +381,8 @@ function pruneNested(value: unknown, sub: Set<string>): unknown {
 function buildDb(
   tables: FakeTables,
   record: (entry: FakeBackend["writes"][number]) => void,
-  via: "user" | "elevated"
+  via: "user" | "elevated",
+  onWrite?: FakeBackendOptions["onWrite"]
 ): AppwriteClients["db"] {
   const listRows = (
     _databaseId: string,
@@ -455,6 +464,7 @@ function buildDb(
       permissions?: string[]
     ) => {
       record({ op, table: tableId, id: rowId, data, permissions, via });
+      onWrite?.(op, tableId);
       if (!tables[tableId]) {
         tables[tableId] = [];
       }
@@ -535,9 +545,14 @@ export function createFakeBackend(
   const elevations: string[] = [];
   const record = (entry: FakeBackend["writes"][number]) => writes.push(entry);
 
-  const userDb = buildDb(tables, record, "user");
-  const elevatedDb = buildDb(tables, record, "elevated");
-  const anonDb = buildDb(options.anonymousTables ?? tables, record, "user");
+  const userDb = buildDb(tables, record, "user", options.onWrite);
+  const elevatedDb = buildDb(tables, record, "elevated", options.onWrite);
+  const anonDb = buildDb(
+    options.anonymousTables ?? tables,
+    record,
+    "user",
+    options.onWrite
+  );
 
   const hasElevated = options.hasElevated ?? true;
 

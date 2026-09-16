@@ -152,6 +152,8 @@ async function connect(options: {
     account: { $id: string; email?: string; name?: string };
     teams: Array<{ $id: string; name: string }>;
   };
+  /** Throw from here to simulate a write that was dispatched and then failed. */
+  onWrite?: (op: "create" | "update" | "upsert", table: string) => void;
 }): Promise<Harness> {
   const { logger, lines } = collectingLogger();
   const backend = createFakeBackend({
@@ -159,6 +161,7 @@ async function connect(options: {
     hasElevated: options.hasElevated ?? true,
     account: options.resolveFrom?.account,
     teams: options.resolveFrom?.teams,
+    onWrite: options.onWrite,
   });
 
   const config = options.config ?? baseConfig();
@@ -786,6 +789,122 @@ describe("mutations", () => {
         harness.backend.writes.filter((write) => write.table === "audit_logs")
           .length
       ).toBeGreaterThan(0);
+    } finally {
+      await harness.close();
+    }
+  });
+
+  test("a write whose reply is lost reports an uncertain outcome", async () => {
+    // The dangerous shape: Appwrite accepted the row and the connection
+    // dropped before the response. `fetch` throws with no HTTP status, so
+    // `fromAppwriteError` has nothing to classify and falls through to
+    // `internal` — which reads as "it failed", and invites the caller to
+    // propose the same draft again and create a second row.
+    const dropped = Object.assign(new Error("fetch failed"), {
+      cause: Object.assign(new Error("read ECONNRESET"), {
+        code: "ECONNRESET",
+      }),
+    });
+    const harness = await connect({
+      principal: GLOBAL_ADMIN(),
+      config: baseConfig({ writeMode: "operator" }),
+      onWrite: (_op, table) => {
+        if (table === "news") {
+          throw dropped;
+        }
+      },
+    });
+    try {
+      const args = {
+        domain: "news",
+        slug: "lost-reply",
+        campusId: "1",
+        titleNo: "Tittel",
+        titleEn: "Title",
+        descriptionNo: "Tekst",
+        descriptionEn: "Text",
+      };
+      const first = await callTool(
+        harness.client,
+        "biso_content_create_draft",
+        args
+      );
+      const proposal = (
+        first.structured?.data as {
+          proposal: { proposalToken: string; expiresAt: string };
+        }
+      ).proposal;
+
+      const executed = await callTool(
+        harness.client,
+        "biso_content_create_draft",
+        {
+          ...args,
+          proposalToken: proposal.proposalToken,
+          proposalExpiresAt: proposal.expiresAt,
+        }
+      );
+
+      expect(executed.response.isError).toBe(true);
+      const error = (executed.structured as { error: { code: string } }).error;
+      expect(error.code).toBe("external_uncertain");
+      // And the write really was dispatched, which is why it is uncertain.
+      expect(
+        harness.backend.writes.some((write) => write.table === "news")
+      ).toBe(true);
+    } finally {
+      await harness.close();
+    }
+  });
+
+  test("a backend that answers with a failure is reported as a failure", async () => {
+    // The other side of the line. A 500 means Appwrite replied, so the write
+    // did not happen — telling the caller "do not retry" would be wrong.
+    const refused = Object.assign(new Error("Server error"), { code: 500 });
+    const harness = await connect({
+      principal: GLOBAL_ADMIN(),
+      config: baseConfig({ writeMode: "operator" }),
+      onWrite: (_op, table) => {
+        if (table === "news") {
+          throw refused;
+        }
+      },
+    });
+    try {
+      const args = {
+        domain: "news",
+        slug: "server-said-no",
+        campusId: "1",
+        titleNo: "Tittel",
+        titleEn: "Title",
+        descriptionNo: "Tekst",
+        descriptionEn: "Text",
+      };
+      const first = await callTool(
+        harness.client,
+        "biso_content_create_draft",
+        args
+      );
+      const proposal = (
+        first.structured?.data as {
+          proposal: { proposalToken: string; expiresAt: string };
+        }
+      ).proposal;
+
+      const executed = await callTool(
+        harness.client,
+        "biso_content_create_draft",
+        {
+          ...args,
+          proposalToken: proposal.proposalToken,
+          proposalExpiresAt: proposal.expiresAt,
+        }
+      );
+
+      expect(executed.response.isError).toBe(true);
+      expect(
+        (executed.structured as { error: { code: string } }).error.code
+      ).not.toBe("external_uncertain");
     } finally {
       await harness.close();
     }
