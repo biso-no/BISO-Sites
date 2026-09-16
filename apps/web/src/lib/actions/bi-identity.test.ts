@@ -8,7 +8,13 @@ const account = vi.hoisted(() => ({
 const db = vi.hoisted(() => ({
   createRow: vi.fn(),
   getRow: vi.fn(),
+  listRows: vi.fn(),
   updateRow: vi.fn(),
+}));
+
+const users = vi.hoisted(() => ({
+  deleteIdentity: vi.fn(),
+  listIdentities: vi.fn(),
 }));
 
 const getBiDirectoryUser = vi.hoisted(() => vi.fn());
@@ -32,7 +38,7 @@ const revalidateTag = vi.hoisted(() =>
 );
 
 vi.mock("@repo/api/server", () => ({
-  createAdminClient: vi.fn(async () => ({ db })),
+  createAdminClient: vi.fn(async () => ({ db, users })),
   createSessionClient: vi.fn(async () => ({ account })),
 }));
 
@@ -65,6 +71,12 @@ describe("syncBiStudentIdentity", () => {
     db.getRow.mockResolvedValue({});
     db.updateRow.mockResolvedValue({});
     db.createRow.mockResolvedValue({});
+    db.listRows.mockReset();
+    users.deleteIdentity.mockReset();
+    users.listIdentities.mockReset();
+    db.listRows.mockResolvedValue({ rows: [], total: 0 });
+    users.deleteIdentity.mockResolvedValue({});
+    users.listIdentities.mockResolvedValue({ identities: [] });
   });
 
   it("returns not_authenticated when there is no session, without writing anything", async () => {
@@ -315,6 +327,73 @@ describe("syncBiStudentIdentity", () => {
       expire: 0,
     });
   });
+
+  it("refuses a BI account already linked to another BISO account and removes the new identity", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    account.listIdentities.mockResolvedValue({
+      identities: [oidcIdentity("s1715738@bi.no")],
+    });
+    db.listRows.mockResolvedValue({
+      rows: [{ $id: "user-2", student_id: "s1715738" }],
+      total: 1,
+    });
+    users.listIdentities.mockResolvedValue({
+      identities: [
+        {
+          $id: "identity-9",
+          provider: "oidc",
+          providerEmail: "s1715738@bi.no",
+          providerUid: "s1715738@bi.no",
+        },
+      ],
+    });
+
+    const result = await syncBiStudentIdentity();
+
+    expect(result).toEqual({ success: false, error: "already_linked" });
+    expect(users.deleteIdentity).toHaveBeenCalledWith({
+      identityId: "identity-1",
+    });
+    expect(db.updateRow).not.toHaveBeenCalled();
+    expect(getBiDirectoryUser).not.toHaveBeenCalled();
+  });
+
+  it("clears an unverified claim on another account and links the verified student", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    account.listIdentities.mockResolvedValue({
+      identities: [oidcIdentity("s1715738@bi.no")],
+    });
+    db.listRows.mockResolvedValue({
+      rows: [{ $id: "user-2", student_id: "s1715738" }],
+      total: 1,
+    });
+    getBiDirectoryUser.mockResolvedValue({
+      campusHint: null,
+      displayName: "Ola Nordmann",
+      employeeId: "1015882",
+      givenName: "Ola",
+      mail: "s1715738@bi.no",
+      surname: "Nordmann",
+    });
+
+    const result = await syncBiStudentIdentity();
+
+    expect(result).toMatchObject({ success: true, studentId: "s1715738" });
+    expect(db.updateRow).toHaveBeenCalledWith("app", "user", "user-2", {
+      bi_campus_id: null,
+      bi_employee_id: null,
+      bi_linked_at: null,
+      student_id: null,
+    });
+    expect(db.updateRow).toHaveBeenCalledWith(
+      "app",
+      "user",
+      "user-1",
+      expect.objectContaining({ student_id: "s1715738" })
+    );
+    expect(users.deleteIdentity).not.toHaveBeenCalled();
+  });
+
   describe("BI_DEV_STUDENT_EMAIL_OVERRIDE", () => {
     // A staff address in BI's own tenant: same `bi.no` domain the student
     // format uses, so it clears the domain check and is rejected purely on the

@@ -1,6 +1,5 @@
 "use client";
 
-import { clientAccount, OAuthProvider } from "@repo/api/client";
 import { Alert, AlertDescription } from "@repo/ui/components/ui/alert";
 import { Button } from "@repo/ui/components/ui/button";
 import { Card } from "@repo/ui/components/ui/card";
@@ -15,7 +14,8 @@ import {
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import type { ComponentType } from "react";
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
+import { startBiAccountLink } from "@/lib/account-link-client";
 
 // The page's <h1> lives in the branded hero shell above (join/page.tsx); this
 // is the state's own secondary heading.
@@ -63,26 +63,26 @@ export function NeedsBiLinkState({
 }) {
   const t = useTranslations("membership.join.needsBiLink");
   const [isLinking, startLink] = useTransition();
+  const [startFailed, setStartFailed] = useState(false);
 
   const link = () => {
+    setStartFailed(false);
     startLink(async () => {
-      const base = window.location.origin;
-      // Success routes through /api/auth/bi-link, which runs the sync +
-      // cache invalidation outside the render path and only then redirects
-      // back here — see that route's doc comment for why.
-      await clientAccount.createOAuth2Session(
-        OAuthProvider.Oidc,
-        `${base}/api/auth/bi-link?returnTo=/membership/join`,
-        `${base}/membership/join?oidc_failed=1`,
-        ["openid", "email", "profile"]
-      );
+      try {
+        // Without a browser-side Appwrite session the OAuth redirect creates
+        // a brand-new account instead of linking this one — see
+        // ensureClientAppwriteSession.
+        await startBiAccountLink("/membership/join", "oidc_failed=1");
+      } catch {
+        setStartFailed(true);
+      }
     });
   };
 
   return (
     <StateCard
       alert={
-        linkFailed ? (
+        linkFailed || startFailed ? (
           <Alert className="text-left" variant="destructive">
             <AlertDescription>{t("linkFailed")}</AlertDescription>
           </Alert>

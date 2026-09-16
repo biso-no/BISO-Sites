@@ -10,6 +10,7 @@ export const metadata: Metadata = {
 
 interface OnboardingPageProps {
   searchParams: Promise<{
+    link_error?: string;
     linked?: string;
     oidc_failed?: string;
     required?: string;
@@ -34,7 +35,7 @@ export default async function OnboardingPage({
   }
 
   // Already has a profile and not mid-OAuth-flow → nothing to do here
-  if (userData.profile && params.linked !== "1") {
+  if (userData.profile && params.linked !== "1" && !params.link_error) {
     redirect("/profile");
   }
 

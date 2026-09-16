@@ -67,3 +67,36 @@ export function parseBiStudentEmail(
 
   return { studentId, studentNumber };
 }
+
+export interface LinkedIdentityLike {
+  provider?: string | null;
+  providerEmail?: string | null;
+  providerUid?: string | null;
+}
+
+/**
+ * Whether an account's Appwrite identities include a BI (OIDC) identity for
+ * `studentId`.
+ *
+ * This is what separates a verified link from a bare claim: Appwrite only
+ * creates an OIDC identity after BI's Microsoft sign-in succeeds, while a
+ * `user.student_id` value on its own proves nothing about who wrote it.
+ */
+export function identityBacksStudentId(
+  identities: readonly LinkedIdentityLike[],
+  studentId: string | null | undefined
+): boolean {
+  const expected = studentId?.trim().toLowerCase();
+  if (!expected) {
+    return false;
+  }
+  return identities.some((identity) => {
+    if ((identity.provider ?? "").toLowerCase() !== "oidc") {
+      return false;
+    }
+    const parsed =
+      parseBiStudentEmail(identity.providerEmail) ??
+      parseBiStudentEmail(identity.providerUid);
+    return parsed?.studentId === expected;
+  });
+}
