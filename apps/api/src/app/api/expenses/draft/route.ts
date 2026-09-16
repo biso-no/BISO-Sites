@@ -14,6 +14,7 @@ import {
   buildExpenseRowPermissions,
   type ExpenseRowInput,
   parseExpensePayload,
+  receiptFileId,
   receiptFileIds,
 } from "@/lib/expense-payload";
 
@@ -209,6 +210,16 @@ async function callerOwnsReceipt(
  * the child of a one-way relationship and carries no parent column, so the
  * draft's own attachment row ids are the reference: any referencing row that
  * is not one of them belongs to another expense.
+ *
+ * The probe cannot be an equality match on the bare id alone. Older rows
+ * stored the whole view URL, and those are exactly the rows most likely to
+ * belong to an expense that is already approved — an exact match would never
+ * return one, and the file would be deleted as if unreferenced. So the query
+ * is widened with a substring match (which the `departments` search shows
+ * works on a plain string column, index or not), and the comparison is
+ * between resolved file ids rather than raw `url` strings. A substring match
+ * over-matches rather than under-matches, which is the safe direction: an
+ * unrelated row is ignored once its `url` resolves to a different id.
  */
 async function onlyThisDraftReferences(
   db: AdminDb,
@@ -217,7 +228,7 @@ async function onlyThisDraftReferences(
 ): Promise<boolean> {
   const referencing = await db
     .listRows<ExpenseAttachments>("app", "expense_attachments", [
-      Query.equal("url", fileId),
+      Query.or([Query.equal("url", fileId), Query.contains("url", fileId)]),
       Query.limit(REFERENCE_PROBE_LIMIT),
     ])
     .catch((error: unknown) => {
@@ -240,7 +251,8 @@ async function onlyThisDraftReferences(
   }
 
   const foreign = referencing.rows.find(
-    (row) => !ownAttachmentRowIds.has(row.$id)
+    (row) =>
+      receiptFileId(row.url) === fileId && !ownAttachmentRowIds.has(row.$id)
   );
   if (foreign) {
     console.error(

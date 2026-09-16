@@ -9,19 +9,17 @@ import { revalidateTag, unstable_cache } from "next/cache";
 
 const MEMBERSHIP_CACHE_TTL_SECONDS = 10 * 60;
 
-/**
- * This cache is app-local, despite sharing `membershipCacheTag` with the
- * website's (apps/web/src/lib/actions/membership.ts). They are two separate
- * Next data caches in two separate deployments, so a `revalidateTag` here
- * never reaches the website's copy and vice versa — and neither is
- * invalidated when a purchase is fulfilled.
- *
- * The practical effect: a membership bought on one surface stays invisible to
- * the other until that side's own ten-minute TTL expires. The app's
- * post-purchase `?refresh=1` shortens its own wait, but it is floored to once
- * a minute per student (MEMBERSHIP_REFRESH_FLOOR_MS), so the app can still
- * say "not a member yet" for up to a minute after paying.
- */
+// This cache is app-local, despite sharing `membershipCacheTag` with the
+// website's (apps/web/src/lib/actions/membership.ts). They are two separate
+// Next data caches in two separate deployments, so a `revalidateTag` here
+// never reaches the website's copy and vice versa — and neither is
+// invalidated when a purchase is fulfilled.
+//
+// The practical effect: a membership bought on one surface stays invisible to
+// the other until that side's own ten-minute TTL expires. The app's
+// post-purchase `?refresh=1` shortens its own wait, but it is floored to once
+// a minute per student (MEMBERSHIP_REFRESH_FLOOR_MS), so the app can still
+// say "not a member yet" for up to a minute after paying.
 
 /** A forced refresh within this long of the last computation is served from cache. */
 export const MEMBERSHIP_REFRESH_FLOOR_MS = 60 * 1000;

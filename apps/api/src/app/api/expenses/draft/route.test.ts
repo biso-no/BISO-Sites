@@ -136,12 +136,64 @@ function deleteRequest(query: string) {
   }) as never;
 }
 
+interface AttachmentRow {
+  $id: string;
+  url: string;
+}
+
+interface ParsedQuery {
+  attribute?: string;
+  method: string;
+  values?: unknown[];
+}
+
+/**
+ * Enough of Appwrite's query semantics to tell an exact match from a
+ * substring one. Without this the mock would answer every probe with every
+ * fixture row, and a probe that can only match exact strings would look like
+ * it had found a legacy full-URL row it could never really see.
+ */
+function rowMatches(row: AttachmentRow, query: ParsedQuery): boolean {
+  if (query.method === "or") {
+    return (query.values ?? []).some((nested) =>
+      rowMatches(row, nested as ParsedQuery)
+    );
+  }
+  if (query.attribute !== "url") {
+    return true;
+  }
+  const values = (query.values ?? []) as string[];
+  if (query.method === "equal") {
+    return values.includes(row.url);
+  }
+  if (query.method === "contains") {
+    return values.some((value) => row.url.includes(value));
+  }
+  return true;
+}
+
+/** Attachment rows the mocked `expense_attachments` table holds. */
+let attachmentTable: AttachmentRow[] = [];
+
+function listAttachmentRows(
+  _databaseId: string,
+  _tableId: string,
+  queries: string[]
+) {
+  const parsed = queries.map((query) => JSON.parse(query) as ParsedQuery);
+  const rows = attachmentTable.filter((row) =>
+    parsed.every((query) => rowMatches(row, query))
+  );
+  return Promise.resolve({ rows, total: rows.length });
+}
+
 describe("expense draft deletion", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     account.get.mockResolvedValue({ $id: "submitter-1" });
     adminDb.deleteRow.mockResolvedValue({});
-    adminDb.listRows.mockResolvedValue({ rows: [], total: 0 });
+    attachmentTable = [];
+    adminDb.listRows.mockImplementation(listAttachmentRows);
     storage.deleteFile.mockResolvedValue({});
     storage.getFile.mockImplementation((_bucket: string, fileId: string) =>
       Promise.resolve({
@@ -263,13 +315,10 @@ describe("expense draft deletion", () => {
       userId: "submitter-1",
     });
     // The same file id also hangs off an approved expense's attachment row.
-    adminDb.listRows.mockResolvedValue({
-      rows: [
-        { $id: "att-1", url: "file-1" },
-        { $id: "att-on-approved-expense", url: "file-1" },
-      ],
-      total: 2,
-    });
+    attachmentTable = [
+      { $id: "att-1", url: "file-1" },
+      { $id: "att-on-approved-expense", url: "file-1" },
+    ];
 
     const response = await DELETE(deleteRequest("?expenseId=expense-1"));
 
@@ -283,6 +332,34 @@ describe("expense draft deletion", () => {
       "app",
       "expense_attachments",
       expect.arrayContaining([expect.stringContaining("file-1")])
+    );
+    expect(storage.deleteFile).not.toHaveBeenCalled();
+  });
+
+  it("does not delete a receipt an older expense stored as a full view url", async () => {
+    adminDb.getRow.mockResolvedValue({
+      $id: "expense-1",
+      expenseAttachments: [{ $id: "att-1", url: "file-1" }],
+      status: "draft",
+      userId: "submitter-1",
+    });
+    // The approved expense predates bare file ids and stored the whole view
+    // URL, so an exact match on the draft's bare id can never see it.
+    attachmentTable = [
+      { $id: "att-1", url: "file-1" },
+      {
+        $id: "att-on-approved-expense",
+        url: "https://appwrite.biso.no/v1/storage/buckets/expenses/files/file-1/view?project=biso",
+      },
+    ];
+
+    const response = await DELETE(deleteRequest("?expenseId=expense-1"));
+
+    expect(response.status).toBe(200);
+    expect(adminDb.deleteRow).toHaveBeenCalledWith(
+      "app",
+      "expense",
+      "expense-1"
     );
     expect(storage.deleteFile).not.toHaveBeenCalled();
   });
