@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   appCartDeepLink,
+  appMembershipDeepLink,
   appOrderDeepLink,
   appShopDeepLink,
   checkoutReturnUrl,
@@ -111,5 +112,23 @@ describe("app fallbacks", () => {
     for (const link of [appCartDeepLink(true), appShopDeepLink()]) {
       expect(new URL(link).protocol).toBe("biso:");
     }
+  });
+});
+
+describe("appMembershipDeepLink", () => {
+  it("reopens the app's membership screen with the order and its status", () => {
+    expect(appMembershipDeepLink("order-1", { status: "paid" })).toBe(
+      "biso://membership?orderId=order-1&status=paid"
+    );
+  });
+
+  it("marks an abandoned payment as cancelled rather than reporting a status", () => {
+    expect(
+      appMembershipDeepLink("order-1", { cancelled: true, status: "pending" })
+    ).toBe("biso://membership?orderId=order-1&cancelled=1");
+  });
+
+  it("produces a parseable absolute URL", () => {
+    expect(new URL(appMembershipDeepLink("a b&c")).protocol).toBe("biso:");
   });
 });

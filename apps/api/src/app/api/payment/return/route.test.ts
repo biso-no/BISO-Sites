@@ -182,4 +182,38 @@ describe("payment return", () => {
       "https://biso.no/shop?error=order_not_found"
     );
   });
+
+  it("deep-links an app membership buyer to the app's membership screen", async () => {
+    mocks.isMembershipOrder.mockReturnValue(true);
+
+    const response = await GET(returnRequest("orderId=order-1&client=app"));
+
+    expect(response.headers.get("location")).toBe(
+      "biso://membership?orderId=order-1&status=paid"
+    );
+  });
+
+  it("sends a cancelled app membership checkout to the membership screen, not the cart", async () => {
+    mocks.isMembershipOrder.mockReturnValue(true);
+    db.getRow.mockResolvedValue(order({ status: "pending" }));
+
+    const response = await GET(
+      returnRequest("orderId=order-1&client=app&cancelled=1")
+    );
+
+    expect(response.headers.get("location")).toBe(
+      "biso://membership?orderId=order-1&cancelled=1"
+    );
+  });
+
+  it("reports a failed app membership payment to the membership screen", async () => {
+    mocks.isMembershipOrder.mockReturnValue(true);
+    db.getRow.mockResolvedValue(order({ status: "failed" }));
+
+    const response = await GET(returnRequest("orderId=order-1&client=app"));
+
+    expect(response.headers.get("location")).toBe(
+      "biso://membership?orderId=order-1&status=failed"
+    );
+  });
 });

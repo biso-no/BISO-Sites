@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   createOrder: vi.fn(),
   createStripeCheckoutSession: vi.fn(),
   createVippsPayment: vi.fn(),
+  getMembershipStatusForStudent: vi.fn(),
   resolveStripeCredentials: vi.fn(),
   resolveVippsCredentials: vi.fn(),
   updateOrderWithSession: vi.fn(),
@@ -19,6 +20,9 @@ vi.mock("@repo/api/server", () => ({
 }));
 vi.mock("@/lib/auth", () => ({
   createAuthenticatedClient: vi.fn(),
+}));
+vi.mock("@/lib/membership-status-cache", () => ({
+  getMembershipStatusForStudent: mocks.getMembershipStatusForStudent,
 }));
 vi.mock("@repo/shared/utils/feature-flags-server", () => ({
   isFeatureEnabled: vi.fn().mockResolvedValue(true),
@@ -71,10 +75,12 @@ function membershipCheckoutRequest({
   authorization,
   campusId = "1",
   planId = "71",
+  client,
 }: {
   authorization?: string;
   campusId?: string;
   planId?: string;
+  client?: string;
 } = {}): NextRequest {
   const headers = new Headers({ "content-type": "application/json" });
   if (authorization) {
@@ -84,7 +90,7 @@ function membershipCheckoutRequest({
   return new Request(
     "https://api.biso.no/api/payment/vipps/membership-checkout",
     {
-      body: JSON.stringify({ campusId, planId }),
+      body: JSON.stringify({ campusId, planId, ...(client ? { client } : {}) }),
       headers,
       method: "POST",
     }
@@ -182,6 +188,13 @@ describe("membership checkout authorization", () => {
       sessionId: "stripe-session",
     });
     mockedUpdateOrderWithSession.mockResolvedValue(undefined);
+    mocks.getMembershipStatusForStudent.mockResolvedValue({
+      checkedAt: Date.now(),
+      finagoCategoryIds: [],
+      isMember: false,
+      memberships: [],
+      reason: "no_categories",
+    });
   });
 
   afterEach(() => {
@@ -433,5 +446,113 @@ describe("membership checkout authorization", () => {
       message: "Vipps checkout timed out",
     });
     expect(mockedUpdateOrderWithSession).not.toHaveBeenCalled();
+  });
+
+  it("sends an app buyer back through the return route marked for the app", async () => {
+    const response = await postVipps(
+      membershipCheckoutRequest({
+        authorization: "Bearer valid",
+        client: "app",
+      })
+    );
+
+    expect(response.status).toBe(200);
+    expect(mockedCreateVippsPayment).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      {
+        returnUrl:
+          "https://api.biso.no/api/payment/return?orderId=order-1&client=app",
+      }
+    );
+  });
+
+  it("gives an app buyer's Stripe cancel URL the cancelled marker instead of the website", async () => {
+    const response = await postStripe(
+      membershipCheckoutRequest({
+        authorization: "Bearer valid",
+        client: "app",
+      })
+    );
+
+    expect(response.status).toBe(200);
+    expect(mockedCreateStripeCheckoutSession).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      {
+        cancelUrl:
+          "https://api.biso.no/api/payment/return?orderId=order-1&client=app&cancelled=1",
+        successUrl:
+          "https://api.biso.no/api/payment/return?orderId=order-1&client=app",
+      }
+    );
+  });
+
+  it("refuses a plan that would not extend the buyer's current cover", async () => {
+    mocks.getMembershipStatusForStudent.mockResolvedValue({
+      checkedAt: Date.now(),
+      finagoCategoryIds: [113_178],
+      isMember: true,
+      memberships: [
+        {
+          category: "113178",
+          expiryDate: "2027-06-30",
+          id: "71",
+          name: "BISO Membership fall 2026 and spring 2027",
+          startDate: "2026-08-01",
+        },
+      ],
+    });
+
+    const response = await postVipps(
+      membershipCheckoutRequest({ authorization: "Bearer valid" })
+    );
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toEqual({
+      message: "Your membership already covers this period.",
+    });
+    expect(mockedCreateOrder).not.toHaveBeenCalled();
+  });
+
+  it("sells a plan that extends a member's cover", async () => {
+    mocks.getMembershipStatusForStudent.mockResolvedValue({
+      checkedAt: Date.now(),
+      finagoCategoryIds: [113_176],
+      isMember: true,
+      memberships: [
+        {
+          category: "113176",
+          expiryDate: "2026-12-31",
+          id: "54",
+          name: "BISO Membership fall 2026",
+          startDate: "2026-08-01",
+        },
+      ],
+    });
+
+    const response = await postVipps(
+      membershipCheckoutRequest({ authorization: "Bearer valid" })
+    );
+
+    expect(response.status).toBe(200);
+    expect(mockedCreateOrder).toHaveBeenCalled();
+  });
+
+  it("takes no payment while membership cannot be verified", async () => {
+    mocks.getMembershipStatusForStudent.mockResolvedValue({
+      checkedAt: Date.now(),
+      finagoCategoryIds: [],
+      isMember: false,
+      memberships: [],
+      reason: "finago_error",
+    });
+
+    const response = await postVipps(
+      membershipCheckoutRequest({ authorization: "Bearer valid" })
+    );
+
+    expect(response.status).toBe(503);
+    expect(mockedCreateOrder).not.toHaveBeenCalled();
   });
 });

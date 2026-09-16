@@ -14,9 +14,14 @@ import { createStripeCheckoutSession } from "@repo/payment/stripe";
 import { createVippsPayment } from "@repo/payment/vipps";
 import { type CheckoutSessionParams, Currency } from "@repo/shared/types/vipps";
 import { sanitizeStudentNumber } from "@repo/shared/utils/bi-student";
-import { checkoutReturnUrl } from "@repo/shared/utils/checkout-return";
+import {
+  type CheckoutClient,
+  checkoutReturnUrl,
+  isCheckoutClient,
+} from "@repo/shared/utils/checkout-return";
 import { isFeatureEnabled } from "@repo/shared/utils/feature-flags-server";
 import { CAMPUS_INVOICE_NAMES } from "@repo/shared/utils/finago-membership-invoice";
+import { resolveMembershipGate } from "@repo/shared/utils/membership-gate";
 import {
   type MembershipPlan,
   toMembershipPlan,
@@ -30,6 +35,7 @@ import {
 import { type NextRequest, NextResponse } from "next/server";
 import { createAuthenticatedClient } from "@/lib/auth";
 import { applyCorsHeaders, corsPreflightResponse } from "@/lib/cors";
+import { getMembershipStatusForStudent } from "@/lib/membership-status-cache";
 import { apiBaseUrl, type PublicUrls, webBaseUrl } from "@/lib/public-urls";
 
 type Provider = "vipps" | "stripe";
@@ -113,6 +119,7 @@ function isProvider(value: string): value is Provider {
 
 interface MembershipCheckoutBody {
   campusId?: string;
+  client?: string;
   planId?: string;
 }
 
@@ -181,7 +188,13 @@ async function findIdempotentOrder(
 }
 
 type IdentityOutcome =
-  | { ok: true; plan: MembershipPlan }
+  | {
+      employeeId: string;
+      ok: true;
+      plan: MembershipPlan;
+      studentId: string;
+      studentNumber: number;
+    }
   | { ok: false; message: string; status: number };
 
 /**
@@ -234,7 +247,13 @@ async function resolveMembershipPurchase(
     };
   }
 
-  return { ok: true, plan };
+  return {
+    employeeId: profile.bi_employee_id,
+    ok: true,
+    plan,
+    studentId: profile.student_id ?? "",
+    studentNumber,
+  };
 }
 
 // Resolve credentials before creating the order so a misconfigured provider
@@ -242,7 +261,8 @@ async function resolveMembershipPurchase(
 async function startVippsMembershipCheckout(
   params: CheckoutSessionParams,
   db: CheckoutDb,
-  urls: PublicUrls
+  urls: PublicUrls,
+  client: CheckoutClient
 ): Promise<SessionOutcome> {
   const creds = await resolveVippsCredentials(db);
   if (!creds) {
@@ -253,7 +273,7 @@ async function startVippsMembershipCheckout(
   // The ePayment `reference` is the order id; the amount is taken from the
   // persisted order total rather than the pre-persist `params.total`, same
   // discipline as the product checkout route.
-  const returnUrl = checkoutReturnUrl(urls.apiBase, orderId);
+  const returnUrl = checkoutReturnUrl(urls.apiBase, orderId, client);
   const payment = await withDeadline(
     createVippsPayment(
       { ...params, total: order.total ?? params.total, orderId },
@@ -277,7 +297,8 @@ async function startVippsMembershipCheckout(
 async function startStripeMembershipCheckout(
   params: CheckoutSessionParams,
   db: CheckoutDb,
-  urls: PublicUrls
+  urls: PublicUrls,
+  client: CheckoutClient
 ): Promise<SessionOutcome> {
   const creds = await resolveStripeCredentials(db);
   if (!creds) {
@@ -285,8 +306,13 @@ async function startStripeMembershipCheckout(
   }
 
   const { orderId } = await createOrder(params, db);
-  const successUrl = checkoutReturnUrl(urls.apiBase, orderId);
-  const cancelUrl = `${urls.webBase}/membership/join?cancelled=true`;
+  const successUrl = checkoutReturnUrl(urls.apiBase, orderId, client);
+  // Stripe only accepts http(s) cancel URLs, so an app buyer comes back
+  // through the return route with the cancelled marker, as in the shop route.
+  const cancelUrl =
+    client === "app"
+      ? checkoutReturnUrl(urls.apiBase, orderId, client, { cancelled: true })
+      : `${urls.webBase}/membership/join?cancelled=true`;
   const session = await withDeadline(
     createStripeCheckoutSession({ ...params, orderId }, creds, {
       successUrl,
@@ -299,6 +325,7 @@ async function startStripeMembershipCheckout(
   return { ok: true, orderId, session };
 }
 
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: orchestrates auth, the membership purchase gate, idempotency and provider checkout in one auditable request flow
 export async function POST(
   req: NextRequest,
   ctx: { params: Promise<{ provider: string }> }
@@ -363,6 +390,36 @@ export async function POST(
       return json({ message: identity.message }, identity.status);
     }
     const { plan } = identity;
+    const client = isCheckoutClient(body.client) ? body.client : "web";
+
+    // The join page already refuses these, but this endpoint is reachable
+    // directly with any valid JWT — the app calls it — so it applies the same
+    // gate: no charge while 24SevenOffice cannot be read (an existing member
+    // could pay for cover they already have), and none that would not extend
+    // the buyer's cover.
+    const status = await getMembershipStatusForStudent(identity.studentNumber);
+    const gate = resolveMembershipGate({
+      employeeId: identity.employeeId,
+      isAuthenticated: true,
+      plans: [plan],
+      status,
+      studentId: identity.studentId,
+    });
+    if (gate.state === "membership_check_unavailable") {
+      return json(
+        {
+          message:
+            "We couldn't verify your membership right now. Try again shortly.",
+        },
+        503
+      );
+    }
+    if (gate.state !== "eligible") {
+      return json(
+        { message: "Your membership already covers this period." },
+        409
+      );
+    }
 
     // Idempotency: before creating anything, look for an order the caller
     // already started for this plan, provider, and campus in the last 15
@@ -414,8 +471,8 @@ export async function POST(
 
     const outcome =
       provider === "vipps"
-        ? await startVippsMembershipCheckout(params, db, urls)
-        : await startStripeMembershipCheckout(params, db, urls);
+        ? await startVippsMembershipCheckout(params, db, urls, client)
+        : await startStripeMembershipCheckout(params, db, urls, client);
 
     if (!outcome.ok) {
       return json({ message: outcome.message }, outcome.status);
