@@ -9,7 +9,7 @@
 
 import { z } from "zod";
 import { defineTool, type ToolModule } from "../runtime/register";
-import { buildPagination, PUBLIC_SCOPE } from "../runtime/result";
+import { buildPagination, encodeCursor, PUBLIC_SCOPE } from "../runtime/result";
 import { PUBLIC_KINDS } from "../services/discovery";
 import {
   ALL_PROFILES,
@@ -72,21 +72,47 @@ export const discoveryModule: ToolModule = {
           offset,
         });
 
+        const total = found.total;
+        const more = total !== null && total > found.rows.length;
+
+        // Page search decides publication per row after the query, so it
+        // carries its own raw scan cursor; `buildPagination` infers the rest
+        // from the count for every other kind.
+        const pagination =
+          found.nextOffset === undefined
+            ? buildPagination({
+                count: found.rows.length,
+                total,
+                offset,
+                limit,
+              })
+            : {
+                count: found.rows.length,
+                total,
+                nextCursor:
+                  found.nextOffset === null
+                    ? null
+                    : encodeCursor(found.nextOffset),
+                hasMore: found.nextOffset !== null,
+              };
+
+        const notes = [...found.notes];
+        if (total === null) {
+          notes.push(
+            "Publication is decided per row after the query, so a page can come back shorter than the limit while more results remain. Follow `pagination.nextCursor` until it is null."
+          );
+        }
+
         return result({
           requestId,
           summary:
             found.rows.length === 0
               ? `No published ${args.kind} match that search.`
-              : `${found.rows.length} published ${args.kind}${found.total > found.rows.length ? ` of ${found.total}` : ""}.`,
+              : `${found.rows.length} published ${args.kind}${more ? ` of ${total}` : ""}.`,
           data: { items: found.rows },
           scope: PUBLIC_SCOPE,
-          pagination: buildPagination({
-            count: found.rows.length,
-            total: found.total,
-            offset,
-            limit,
-          }),
-          warnings: found.notes.length > 0 ? found.notes : undefined,
+          pagination,
+          warnings: notes.length > 0 ? notes : undefined,
         });
       },
     }),

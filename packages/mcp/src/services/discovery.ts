@@ -30,9 +30,15 @@ import { isPublicUnit } from "@repo/shared/utils/unit-visibility";
 import type { BackendClients } from "../appwrite/clients";
 import { campusLabel } from "../identity/campus";
 import { fromAppwriteError, notFound } from "../runtime/errors";
+import { scanForward } from "../runtime/scan";
 import type { Projected } from "./row";
 
 export type PublicLocale = "no" | "en";
+
+/** Rows fetched per round trip while scanning for publishable pages. */
+const PAGE_SCAN_BATCH = 100;
+/** Most rows one public page search will examine. */
+const PAGE_SCAN_CEILING = 1000;
 
 export const PUBLIC_KINDS = [
   "events",
@@ -79,7 +85,18 @@ export interface DiscoveryService {
     from?: string;
     limit: number;
     offset: number;
-  }): Promise<{ rows: PublicItem[]; total: number; notes: string[] }>;
+  }): Promise<{
+    rows: PublicItem[];
+    /**
+     * Null when the count is genuinely unknown. Page search decides per row,
+     * after the query, whether a locale is actually published, so a filtered
+     * window's size is not the result's size.
+     */
+    total: number | null;
+    /** Raw scan position to resume from; only page search sets it. */
+    nextOffset?: number | null;
+    notes: string[];
+  }>;
 }
 
 const SEARCH_SCAN = 100;
@@ -439,53 +456,118 @@ export function createDiscoveryService(
     return { rows, total: result.total };
   }
 
+  /**
+   * Title and description as the *published* document states them.
+   *
+   * `page_translations.title` and `.description` are not safe to read on a
+   * published page. `saveDraft` overwrites both from the draft's `meta` while
+   * leaving `is_published` true (`services/pages.ts`), so on any published page
+   * with edits in progress those columns hold unreleased copy. `puck_document`
+   * is the released document by definition, and it carries the same `meta`, so
+   * it is the only honest source for a public caller.
+   *
+   * The row columns remain the fallback for a page published before `meta` was
+   * written, which would otherwise render with no title at all.
+   */
+  function publishedMeta(translation: {
+    title?: string | null;
+    description?: string | null;
+    puck_document?: string | null;
+  }): { title: string; description: string | null } {
+    const fallback = {
+      title: translation.title ?? "",
+      description: translation.description ?? null,
+    };
+    if (!translation.puck_document) {
+      return fallback;
+    }
+    try {
+      const parsed: unknown = JSON.parse(translation.puck_document);
+      const meta = (
+        parsed as { meta?: { title?: unknown; description?: unknown } }
+      )?.meta;
+      if (!meta) {
+        return fallback;
+      }
+      return {
+        title: typeof meta.title === "string" ? meta.title : fallback.title,
+        description:
+          typeof meta.description === "string"
+            ? meta.description
+            : fallback.description,
+      };
+    } catch {
+      return fallback;
+    }
+  }
+
   async function searchPages(input: {
     query?: string;
     campusId?: string;
     limit: number;
     offset: number;
   }) {
-    const queries: string[] = [
+    const baseQueries: string[] = [
       // Explicit, because `pages` has row security off and grants read("any"):
       // without this the anonymous client returns drafts too.
       Query.equal("status", "published"),
       Query.equal("visibility", "public"),
       Query.select(["$id", "slug", "campus_id", "translation_refs.*"]),
       Query.orderDesc("$updatedAt"),
-      Query.limit(input.limit),
-      Query.offset(input.offset),
     ];
     if (input.campusId) {
-      queries.push(Query.equal("campus_id", [input.campusId]));
+      baseQueries.push(Query.equal("campus_id", [input.campusId]));
     }
     if (input.query?.trim()) {
-      queries.push(Query.contains("slug", input.query.trim()));
+      baseQueries.push(Query.contains("slug", input.query.trim()));
     }
-    const result = await db.listRows<Pages>("app", "pages", queries);
-    const rows: PublicItem[] = [];
-    for (const row of result.rows) {
-      const refs = Array.isArray(row.translation_refs)
-        ? row.translation_refs
-        : [];
-      // A page row can be published while a given locale's translation is not.
-      const published = refs.find((item) => item.is_published);
-      if (!published) {
-        continue;
-      }
-      rows.push({
-        kind: "pages",
-        id: row.$id,
-        title: published.title,
-        summary: plainSummary(published.description),
-        slug: row.slug ?? null,
-        campusId: row.campus_id ?? null,
-        campusLabel: campusLabel(row.campus_id),
-        dates: { published: published.published_at },
-        url: row.slug ? links.web(`/${row.slug}`) : null,
-        memberOnly: false,
-      });
-    }
-    return { rows, total: rows.length };
+
+    /**
+     * A page row can be `published` while the locale's translation is not, and
+     * that is decided per row after the query — so Appwrite's `limit`/`offset`
+     * page over rows that may all drop out. Scan forward instead, exactly as
+     * the staff `pages.list` does, so a window of parent-published-but-
+     * translation-unpublished rows cannot hide the published pages behind it.
+     */
+    const scan = await scanForward<Pages, PublicItem>({
+      ceiling: PAGE_SCAN_CEILING,
+      batchSize: PAGE_SCAN_BATCH,
+      limit: input.limit,
+      offset: input.offset,
+      read: (offset_, size) =>
+        db.listRows<Pages>("app", "pages", [
+          ...baseQueries,
+          Query.limit(size),
+          Query.offset(offset_),
+        ]),
+      accept: (row) => {
+        const refs = Array.isArray(row.translation_refs)
+          ? row.translation_refs
+          : [];
+        const published = refs.find((item) => item.is_published);
+        if (!published) {
+          return null;
+        }
+        const meta = publishedMeta(published);
+        return {
+          kind: "pages" as const,
+          id: row.$id,
+          title: meta.title,
+          summary: plainSummary(meta.description),
+          slug: row.slug ?? null,
+          campusId: row.campus_id ?? null,
+          campusLabel: campusLabel(row.campus_id),
+          dates: { published: published.published_at },
+          url: row.slug ? links.web(`/${row.slug}`) : null,
+          memberOnly: false,
+        };
+      },
+    });
+    const rows = scan.items;
+
+    // `total` is unknown rather than `rows.length`: the latter reported the
+    // size of one filtered window as if it were the whole result.
+    return { rows, total: null, nextOffset: scan.nextOffset };
   }
 
   return {
@@ -596,10 +678,15 @@ export function createDiscoveryService(
         blocks = [];
       }
 
+      // Blocks already came from `puck_document`; the metadata has to as well,
+      // or a published page with draft edits returns released blocks under an
+      // unreleased title.
+      const meta = publishedMeta(translation);
+
       return {
         slug: row.slug ?? input.slug,
-        title: translation.title,
-        description: translation.description ?? null,
+        title: meta.title,
+        description: meta.description,
         blocks,
         publishedAt: translation.published_at,
         url: links.web(`/${row.slug ?? input.slug}`),

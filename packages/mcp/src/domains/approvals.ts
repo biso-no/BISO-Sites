@@ -14,7 +14,11 @@
 import { z } from "zod";
 import { campusLabel } from "../identity/campus";
 import { isAnonymous } from "../identity/principal";
-import { canPublishForCampus, describeScope } from "../identity/scope";
+import {
+  assertWriteAccess,
+  canPublishForCampus,
+  describeScope,
+} from "../identity/scope";
 import { forbidden, notSupported } from "../runtime/errors";
 import { defineTool, type ToolModule } from "../runtime/register";
 import { buildPagination } from "../runtime/result";
@@ -182,6 +186,19 @@ export const approvalsModule: ToolModule = {
           contentDomain,
           args.id
         );
+
+        // `content.get` lets any staff principal read a *published* row — that
+        // is correct for reading public content, and wrong as the only gate on
+        // filing an approval. Without this check an Oslo department member
+        // could file a publish request for a Bergen article, and the portal's
+        // executor checks the approver's scope, never the requester's — so if
+        // the item were later unpublished, that persisted request could
+        // republish it on their behalf.
+        //
+        // The right bar is write access: an approval request says "I could
+        // edit this but cannot publish it", and the guard below is the second
+        // half of that sentence.
+        assertWriteAccess(context.principal, item.campusId, item.departmentId);
 
         if (canPublishForCampus(context.principal, item.campusId)) {
           throw notSupported(

@@ -171,6 +171,51 @@ function coerceNested(value: unknown): ParsedQuery {
   );
 }
 
+/**
+ * Sort rows the way Appwrite would.
+ *
+ * Applied rather than ignored: a fake that silently drops `orderAsc`/
+ * `orderDesc` cannot tell a correct ordering from a wrong one, which makes
+ * every test that depends on "the first N rows" vacuous — the same way
+ * ignoring a filter does.
+ */
+function applyOrder(rows: FakeRow[], parsed: ParsedQuery[]): FakeRow[] {
+  const order = parsed.find(
+    (query) => query.method === "orderAsc" || query.method === "orderDesc"
+  );
+  const attribute = order?.attribute;
+  if (!attribute) {
+    return rows;
+  }
+  const direction = order.method === "orderAsc" ? 1 : -1;
+  return [...rows].sort((left, right) =>
+    compareAttribute(
+      readAttribute(left, attribute),
+      readAttribute(right, attribute),
+      direction
+    )
+  );
+}
+
+/** Missing values sort last in either direction, so they never displace a real one. */
+function compareAttribute(a: unknown, b: unknown, direction: number): number {
+  const aMissing = a === null || a === undefined;
+  const bMissing = b === null || b === undefined;
+  if (aMissing && bMissing) {
+    return 0;
+  }
+  if (aMissing) {
+    return 1;
+  }
+  if (bMissing) {
+    return -1;
+  }
+  if (a === b) {
+    return 0;
+  }
+  return (a < b ? -1 : 1) * direction;
+}
+
 function applyGroup(row: FakeRow, query: ParsedQuery): boolean {
   const nested = (query.values ?? []).map(coerceNested);
   if (nested.length === 0) {
@@ -245,6 +290,8 @@ function buildDb(
           : matches(row, query)
       )
     );
+
+    rows = applyOrder(rows, parsed);
 
     const total = rows.length;
     const offset = parsed.find((q) => q.method === "offset")?.values?.[0];

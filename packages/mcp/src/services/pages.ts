@@ -66,6 +66,7 @@ import {
   notFound,
   staleRevision,
 } from "../runtime/errors";
+import { scanForward } from "../runtime/scan";
 
 export const PAGE_LOCALES = ["no", "en"] as const;
 export type PageLocale = (typeof PAGE_LOCALES)[number];
@@ -449,66 +450,6 @@ function applyOneEdit(doc: EditorPageDoc, edit: BlockEdit): BlockEditOutcome {
   }
 }
 
-/**
- * Walk the `pages` table until a page of visible rows is filled.
- *
- * Appwrite applies `limit`/`offset` before this package's visibility check, so
- * a single window can filter down to nothing while the caller's own pages sit
- * just behind it. Scanning forward keeps `limit` meaning "visible rows" and
- * lets the returned offset — carried in the opaque cursor — mean "raw scan
- * position", which is the only pair of definitions that neither repeats nor
- * skips a row.
- *
- * `nextOffset` is null only when the table is genuinely exhausted. Hitting
- * `PAGE_SCAN_CEILING` returns a short page *with* an offset, so a caller that
- * follows the cursor still reaches everything.
- */
-async function scanVisiblePages(input: {
-  baseQueries: readonly string[];
-  isVisible(row: Pages): boolean;
-  limit: number;
-  offset: number;
-  read(queries: string[]): Promise<{ rows: Pages[] }>;
-}): Promise<{ rows: Pages[]; nextOffset: number | null }> {
-  const rows: Pages[] = [];
-  let offset = input.offset;
-  let scanned = 0;
-
-  while (rows.length < input.limit && scanned < PAGE_SCAN_CEILING) {
-    const batchSize = Math.min(PAGE_SCAN_BATCH, PAGE_SCAN_CEILING - scanned);
-    const batch = await input.read([
-      ...input.baseQueries,
-      Query.limit(batchSize),
-      Query.offset(offset),
-    ]);
-    if (batch.rows.length === 0) {
-      return { rows, nextOffset: null };
-    }
-
-    // Advance by exactly what was examined. Advancing by the whole batch would
-    // skip the rows left unread when the page fills mid-batch.
-    let consumed = 0;
-    for (const row of batch.rows) {
-      if (rows.length >= input.limit) {
-        break;
-      }
-      consumed += 1;
-      if (input.isVisible(row)) {
-        rows.push(row);
-      }
-    }
-    scanned += consumed;
-    offset += consumed;
-
-    if (consumed === batch.rows.length && batch.rows.length < batchSize) {
-      // A short batch that was read to the end means the table ended.
-      return { rows, nextOffset: null };
-    }
-  }
-
-  return { rows, nextOffset: offset };
-}
-
 export function createPageService(
   clients: BackendClients,
   links: { web(path: string): string; admin(path: string): string }
@@ -646,17 +587,22 @@ export function createPageService(
       };
 
       try {
-        const scan = await scanVisiblePages({
-          baseQueries,
-          isVisible,
+        const scan = await scanForward<Pages, Pages>({
+          ceiling: PAGE_SCAN_CEILING,
+          batchSize: PAGE_SCAN_BATCH,
           limit: input.limit,
           offset: input.offset,
-          read: (queries) =>
-            clients.user.db.listRows<Pages>("app", PAGE_TABLE, queries),
+          read: (offset, size) =>
+            clients.user.db.listRows<Pages>("app", PAGE_TABLE, [
+              ...baseQueries,
+              Query.limit(size),
+              Query.offset(offset),
+            ]),
+          accept: (row) => (isVisible(row) ? row : null),
         });
 
         return {
-          rows: scan.rows.map(summarise),
+          rows: scan.items.map(summarise),
           // The total is deliberately unknown: counting the rows this caller
           // may see would mean scanning the whole table, and reporting
           // Appwrite's own total would tell them how many pages exist that they

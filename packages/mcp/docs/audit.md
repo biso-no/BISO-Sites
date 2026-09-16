@@ -334,3 +334,42 @@ scope tests from the previous round — was weaker than it looked. The fake now
 handles both nesting shapes, handles value-less operators, and **throws** on a
 nested query it cannot interpret rather than matching. A test harness used to
 assert authorization boundaries must fail closed like the thing it tests.
+
+
+---
+
+## 8. Third review round
+
+A third review, requested manually on `c1b194a`, raised five more. All five
+reproduced, and three are the *same defect classes* as earlier rounds reached
+through a different door — which is the useful signal in them.
+
+| # | Area | Verified as | Fix |
+|---|---|---|---|
+| 1 | `services/discovery.ts` | **Confirmed, and public-facing.** `saveDraft` writes the draft's `meta.title`/`meta.description` into the translation row's top-level columns while leaving `is_published` true, and both public search and `biso_public_get_page` read those columns — so an anonymous caller saw unreleased copy. `getPublicPage` was internally inconsistent: it took care to read *blocks* from `puck_document` and then took metadata from the row | `publishedMeta()` derives both from `puck_document.meta`, falling back to the columns only for pages published before `meta` existed |
+| 2 | `domains/pages.ts` | **Confirmed — the fixed page-load leak, second door.** `loadFullDoc` prefers `draft_document` with no scope check, so an out-of-scope caller's *proposal* reported the draft's block ids, types and count before `saveDraft` could refuse | The edit refuses up front when `load` gave only the published document; the helper now documents that it is not a gate |
+| 3 | `domains/approvals.ts` | **Confirmed.** `content.get` bypasses `canReadRow` for published rows — right for reading, wrong as the only gate on filing. Any staff principal could file a publish request for another campus's article, and the portal's executor checks the approver's scope, never the requester's | `assertWriteAccess` before filing: an approval says "I could edit this but cannot publish it" |
+| 4 | `services/discovery.ts` | **Confirmed — the fixed `page_list` paging bug, in the public path.** `limit`/`offset` applied before the published-translation filter, `total: rows.length`, no cursor | Forward scan with a raw-offset cursor |
+| 5 | `domains/workflows.ts` | **Confirmed.** `listVacancies` defaults to most-recently-updated, and the deadline filter ran after the limit — so a vacancy closing tomorrow that nobody had edited lately was dropped, and the briefing reported nothing urgent | An `order: "deadline"` probe, ascending and excluding null deadlines |
+
+### A second harness gap
+
+Fixing #5 exposed the same class of problem as round two: **the in-memory
+backend ignored `orderAsc`/`orderDesc` entirely.** Rows came back in insertion
+order, so no test could distinguish a correct ordering from a wrong one — which
+means the ordering fix from round two (`order: "oldest"` for stale drafts) was
+never actually verified by its tests either. The fake now sorts, with missing
+values last in both directions so they cannot displace a real one.
+
+That is twice now that a defect in the harness was worth more than the finding
+that uncovered it. Both had the same shape: **the fake silently did nothing
+where the real backend does something**, so the assertion passed without
+testing anything. Both are now loud instead — an unparseable nested query
+throws, and ordering is applied.
+
+### Consolidation
+
+Rounds two and three each produced a forward-scanning listing, and the two
+loops were nearly identical. They are now one generic `scanForward` in
+`runtime/scan.ts`, used by both the staff page listing and public page search,
+with the "advance by rows examined, not rows accepted" rule stated once.

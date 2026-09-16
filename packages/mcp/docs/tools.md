@@ -35,6 +35,14 @@ What the call actually did. Read it before telling a user something happened.
 did it" from "here is what I would do" — and only `executed` is recorded in
 `audit_logs` as a completed action.
 
+### Published pages
+
+`biso_public_search` and `biso_public_get_page` take a page's title and
+description from its **published document**, not from the translation row's
+columns: saving a draft overwrites those columns while the page stays
+published, so they can hold unreleased copy. Blocks were always read from the
+published document.
+
 ### `pagination.total`
 
 `null` means the total is genuinely unknown, not zero. Some listings decide
@@ -196,6 +204,11 @@ that page. In scope, `documentSource` is `"draft"` whenever a draft exists.
 
 A published page whose locale has never been released has no published document,
 so an out-of-scope caller gets `not_found` rather than the draft.
+
+**`biso_page_edit_blocks` and scope.** Editing requires scope over the page. A
+caller who may only read its published document is refused rather than handed a
+proposal they could never save — building one would disclose the draft's block
+structure through the per-edit outcomes.
 
 **`biso_page_list` pagination.** Visibility is decided per row *after* the
 query, so a page can come back shorter than `limit` while more results remain,

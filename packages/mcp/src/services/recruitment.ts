@@ -129,7 +129,20 @@ export interface RecruitmentService {
   ): Promise<{ rows: ApplicationSummary[]; total: number }>;
   listVacancies(
     principal: Principal,
-    input: { status?: string; campusId?: string; limit: number; offset: number }
+    input: {
+      status?: string;
+      campusId?: string;
+      /**
+       * `"deadline"` orders by `application_deadline` ascending, soonest
+       * first, and excludes vacancies that have none. It exists for the
+       * campus briefing, whose question is "what closes soon" — a question
+       * the default most-recently-updated ordering answers wrongly, because
+       * urgency and edit recency are unrelated.
+       */
+      order?: "updated" | "deadline";
+      limit: number;
+      offset: number;
+    }
   ): Promise<{ rows: VacancySummary[]; total: number; scopeNote: string }>;
 }
 
@@ -277,7 +290,9 @@ export function createRecruitmentService(
 
       const queries: string[] = [
         Query.select(VACANCY_SELECT),
-        Query.orderDesc("$updatedAt"),
+        input.order === "deadline"
+          ? Query.orderAsc("application_deadline")
+          : Query.orderDesc("$updatedAt"),
         Query.limit(input.limit),
         Query.offset(input.offset),
       ];
@@ -290,6 +305,12 @@ export function createRecruitmentService(
         queries.push(Query.equal("campus.$id", decided.campusIds));
       }
       const scopeNote = decided.scopeNote;
+
+      if (input.order === "deadline") {
+        // Ascending order would otherwise fill the window with vacancies that
+        // have no deadline at all — the rows this ordering exists to exclude.
+        queries.push(Query.isNotNull("application_deadline"));
+      }
 
       if (input.status) {
         queries.push(Query.equal("status", input.status));

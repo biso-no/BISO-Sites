@@ -1392,6 +1392,31 @@ describe("approval requests", () => {
     }
   });
 
+  test("a staff member cannot file an approval for another campus's content", async () => {
+    // `content.get` lets any staff principal read a *published* row, which is
+    // right for reading and wrong as the only gate on filing an approval: the
+    // portal's executor checks the approver's scope, never the requester's.
+    const harness = await connect({
+      principal: CAMPUS_ADMIN("Bergen", "2"),
+      config: baseConfig({ writeMode: "operator" }),
+    });
+    try {
+      const { response, structured } = await callTool(
+        harness.client,
+        "biso_request_approval",
+        { domain: "news", id: "news-oslo" }
+      );
+      expect(response.isError).toBe(true);
+      // `forbidden`, not `not_found`: they *can* read this row — it is
+      // published — which is exactly why reading it is not enough to file
+      // an approval against it.
+      expect(JSON.stringify(structured)).toContain("forbidden");
+      expect(domainWrites(harness)).toHaveLength(0);
+    } finally {
+      await harness.close();
+    }
+  });
+
   test("the refusal happens before the vacancy is read", async () => {
     const harness = await connect({
       principal: DEPARTMENT_MEMBER(),
@@ -1404,6 +1429,102 @@ describe("approval requests", () => {
       });
       // Nothing elevated, nothing written: the gate is the first thing to run.
       expect(harness.backend.elevations).toEqual([]);
+    } finally {
+      await harness.close();
+    }
+  });
+});
+
+describe("draft structure is not reachable through a second door", () => {
+  /**
+   * `biso_page_load` limits an out-of-scope caller to the published document.
+   * `biso_page_edit_blocks` reloads the document independently — and that
+   * reload prefers the draft. Even in propose mode, building the proposal
+   * would report the draft's block ids, types and count through `outcomes`
+   * and `resultingBlocks`, before `saveDraft` ever got the chance to refuse.
+   */
+  function publishedWithSecretDraft(): FakeTables {
+    return {
+      pages: [
+        {
+          $id: "page-pub",
+          $createdAt: "2026-01-01T00:00:00.000Z",
+          $updatedAt: "2026-01-01T00:00:00.000Z",
+          slug: "public-page",
+          status: "published",
+          visibility: "public",
+          campus_id: "1",
+          department_id: "dept-a",
+          campus: { $id: "1" },
+          department: { $id: "dept-a" },
+          translation_refs: [
+            {
+              $id: "tr-pub",
+              $updatedAt: "2026-01-01T00:00:00.000Z",
+              locale: "no",
+              title: "Public page",
+              description: "Released",
+              is_published: true,
+              published_at: "2026-01-01T00:00:00.000Z",
+              draft_document: JSON.stringify({
+                blocks: [
+                  { id: "SECRET-BLOCK", type: "text", body: "unreleased" },
+                ],
+                meta: { title: "t", slug: "s", status: "published" },
+              }),
+              puck_document: JSON.stringify({
+                blocks: [{ id: "live-block", type: "text", body: "released" }],
+                meta: { title: "t", slug: "s", status: "published" },
+              }),
+            },
+          ],
+        },
+      ],
+      page_translations: [],
+    };
+  }
+
+  test("an out-of-scope caller cannot propose edits, and learns nothing of the draft", async () => {
+    const harness = await connect({
+      principal: CAMPUS_ADMIN("Bergen", "2"),
+      config: baseConfig({ writeMode: "propose" }),
+      tables: publishedWithSecretDraft(),
+    });
+    try {
+      const { response, structured } = await callTool(
+        harness.client,
+        "biso_page_edit_blocks",
+        {
+          pageId: "page-pub",
+          locale: "no",
+          edits: [{ op: "insert", blockType: "text" }],
+        }
+      );
+      expect(response.isError).toBe(true);
+      expect(JSON.stringify(structured)).not.toContain("SECRET-BLOCK");
+      expect(domainWrites(harness)).toHaveLength(0);
+    } finally {
+      await harness.close();
+    }
+  });
+
+  test("the owning department can still propose edits", async () => {
+    const harness = await connect({
+      principal: DEPARTMENT_MEMBER("dept-a", "1"),
+      config: baseConfig({ writeMode: "propose" }),
+      tables: publishedWithSecretDraft(),
+    });
+    try {
+      const { response } = await callTool(
+        harness.client,
+        "biso_page_edit_blocks",
+        {
+          pageId: "page-pub",
+          locale: "no",
+          edits: [{ op: "insert", blockType: "text" }],
+        }
+      );
+      expect(response.isError).toBeFalsy();
     } finally {
       await harness.close();
     }

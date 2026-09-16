@@ -21,7 +21,7 @@ import { z } from "zod";
 import { isAnonymous } from "../identity/principal";
 import { describeScope } from "../identity/scope";
 import type { ToolContext } from "../runtime/context";
-import { invalidInput, notFound } from "../runtime/errors";
+import { forbidden, invalidInput, notFound } from "../runtime/errors";
 import { defineTool, type ToolModule } from "../runtime/register";
 import { encodeCursor } from "../runtime/result";
 import {
@@ -274,6 +274,20 @@ export const pagesModule: ToolModule = {
           }
         }
 
+        // `load` above already decided, from the principal's scope, which
+        // document this caller may see. A caller limited to the published one
+        // cannot save an edit anyway — `saveDraft` refuses them — and building
+        // a proposal for them would leak the draft's block ids, types and
+        // count through `outcomes` and `resultingBlocks` before that refusal.
+        // So the refusal happens here, before the document is loaded at all.
+        if (view.documentSource === "published") {
+          throw forbidden(
+            "This page is outside your scope, so you can only read its published document.",
+            { pageId: args.pageId, campusId: view.page.campusId },
+            "Content is editable by the department that owns it, that campus's management team, or a global admin."
+          );
+        }
+
         const full = await loadFullDoc(context, args.pageId, args.locale);
         const { doc, outcomes } = context.services.pages.applyEdits(
           full,
@@ -453,6 +467,14 @@ export const pagesModule: ToolModule = {
  *
  * `load` shortens long strings so a listing stays readable; writing that back
  * would silently truncate the page's real content.
+ */
+/**
+ * NOT an authorization boundary. This reads whichever document exists,
+ * preferring the draft, and performs no scope check of its own — every caller
+ * must have established the principal's access first (see the
+ * `documentSource` guard in `biso_page_edit_blocks`). It exists only because
+ * `load` returns truncated prop previews for readability, which must never be
+ * what gets written back.
  */
 async function loadFullDoc(
   context: ToolContext,

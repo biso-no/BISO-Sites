@@ -166,9 +166,22 @@ async function collectClosingVacancies(
     return [];
   }
   try {
+    // Ordered by deadline, not by recency. `listVacancies` defaults to
+    // most-recently-updated first, and a briefing's whole job here is to
+    // surface what closes soonest — which is uncorrelated with when the row was
+    // last touched. Taking the newest BRIEFING_LIMIT and *then* filtering by
+    // deadline would drop an imminent vacancy simply because nobody had edited
+    // it lately, and report "nothing closing" with no hint that it looked at
+    // the wrong rows.
     const vacancies = await context.services.recruitment.listVacancies(
       context.principal,
-      { status: "published", campusId, limit: BRIEFING_LIMIT, offset: 0 }
+      {
+        status: "published",
+        campusId,
+        order: "deadline",
+        limit: BRIEFING_LIMIT,
+        offset: 0,
+      }
     );
     const now = new Date().toISOString();
     const horizonAt = daysFromNow(horizon);
@@ -180,6 +193,17 @@ async function collectClosingVacancies(
     );
     if (closing.length === 0) {
       return [];
+    }
+    // Deadline-ordered, so everything inside the horizon is within the window
+    // unless the window is entirely inside it — the one case where more may
+    // exist.
+    if (
+      closing.length === vacancies.rows.length &&
+      vacancies.total > closing.length
+    ) {
+      warnings.push(
+        `At least ${closing.length} vacancy/vacancies close within ${horizon} days; the list shows the ${closing.length} closing soonest.`
+      );
     }
     return [
       {
