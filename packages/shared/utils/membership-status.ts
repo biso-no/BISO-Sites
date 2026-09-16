@@ -15,6 +15,12 @@ export interface MembershipInfo {
 
 export interface MembershipStatus {
   checkedAt: number;
+  /**
+   * Matched memberships whose expiry has passed, newest expiry first. Lets a
+   * client say when a membership ran out. Optional so existing callers that
+   * build a status by hand stay valid.
+   */
+  expiredMemberships?: MembershipInfo[];
   finagoCategoryIds: number[];
   isMember: boolean;
   memberships: MembershipInfo[];
@@ -79,6 +85,38 @@ async function withDeadline<T>(
   }
 }
 
+const EXPIRY_DATE_RE = /^(\d{4}-\d{2}-\d{2})/;
+
+const osloDateFormat = new Intl.DateTimeFormat("en-CA", {
+  day: "2-digit",
+  month: "2-digit",
+  timeZone: "Europe/Oslo",
+  year: "numeric",
+});
+
+/** Today's calendar date in Oslo, as `YYYY-MM-DD`. */
+export function osloToday(now: Date = new Date()): string {
+  return osloDateFormat.format(now);
+}
+
+/**
+ * Whether a `memberships` row still covers `now`: a membership is valid
+ * through the whole of its expiry day in Oslo.
+ *
+ * A date that cannot be read counts as expired. This check exists so expired
+ * memberships stop counting; an unreadable date must not slip through it.
+ */
+export function isMembershipRowActive(
+  expiryDate: string | null | undefined,
+  now: Date = new Date()
+): boolean {
+  const match = EXPIRY_DATE_RE.exec(expiryDate?.trim() ?? "");
+  if (!match) {
+    return false;
+  }
+  return match[1] >= osloToday(now);
+}
+
 export function emptyMembershipStatus(reason: string): MembershipStatus {
   return {
     isMember: false,
@@ -86,6 +124,7 @@ export function emptyMembershipStatus(reason: string): MembershipStatus {
     finagoCategoryIds: [],
     reason,
     checkedAt: Date.now(),
+    expiredMemberships: [],
   };
 }
 
@@ -105,9 +144,12 @@ export function emptyMembershipStatus(reason: string): MembershipStatus {
  * On a transient failure (Finago error/timeout) it throws
  * `MembershipComputationError` so the failure is NOT cached; the successful
  * "no categories" / matched results ARE returned normally and cached.
+ *
+ * A category counts only while its row has not expired — see `isMembershipRowActive`.
  */
 export async function computeMembershipStatus(
-  numericId: number
+  numericId: number,
+  now: Date = new Date()
 ): Promise<MembershipStatus> {
   // 1. Fetch category IDs from Finago (bounded by the per-request deadline).
   let finagoCategoryIds: number[];
@@ -137,30 +179,50 @@ export async function computeMembershipStatus(
     [Query.equal("status", true), Query.limit(200)]
   );
 
-  const activeMemberships = membershipsResponse.rows;
-  const finagoCategoryIdStrings = finagoCategoryIds.map((id) => String(id));
+  const heldCategories = new Set(finagoCategoryIds.map((id) => String(id)));
+  const matched = membershipsResponse.rows.filter(
+    (membership) =>
+      membership.category !== null &&
+      membership.category !== undefined &&
+      heldCategories.has(membership.category)
+  );
 
-  // 4. Match Finago category IDs with membership categories.
-  const matchedMemberships = activeMemberships.filter((membership) => {
-    if (!membership.category) {
-      return false;
+  // 4. A held category counts only while its row has not expired.
+  const active: Memberships[] = [];
+  const expired: Memberships[] = [];
+  for (const membership of matched) {
+    if (isMembershipRowActive(membership.expiryDate, now)) {
+      active.push(membership);
+      continue;
     }
-    return finagoCategoryIdStrings.includes(membership.category);
+    if (!EXPIRY_DATE_RE.test(membership.expiryDate?.trim() ?? "")) {
+      console.warn(
+        `[Membership] memberships row ${membership.$id} has an unreadable expiryDate "${membership.expiryDate}"; treating it as expired`
+      );
+    }
+    expired.push(membership);
+  }
+  expired.sort((a, b) =>
+    (b.expiryDate ?? "").localeCompare(a.expiryDate ?? "")
+  );
+
+  const toInfo = (membership: Memberships): MembershipInfo => ({
+    category: membership.category,
+    expiryDate: membership.expiryDate,
+    id: membership.$id,
+    name: membership.name,
+    startDate: membership.startDate,
   });
 
-  const isMember = matchedMemberships.length > 0;
+  const isMember = active.length > 0;
 
   return {
-    isMember,
-    memberships: matchedMemberships.map((m) => ({
-      id: m.$id,
-      name: m.name,
-      category: m.category,
-      startDate: m.startDate,
-      expiryDate: m.expiryDate,
-    })),
-    finagoCategoryIds,
     checkedAt: Date.now(),
+    expiredMemberships: expired.map(toInfo),
+    finagoCategoryIds,
+    isMember,
+    memberships: active.map(toInfo),
+    ...(isMember || expired.length === 0 ? {} : { reason: "expired" }),
   };
 }
 

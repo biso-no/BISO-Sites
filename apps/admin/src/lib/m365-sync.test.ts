@@ -54,7 +54,7 @@ describe("reconcileM365Profile", () => {
         department_ids: ["dept-1"],
         isActive: true,
       },
-      ['read("user:account-1")', 'update("user:account-1")']
+      ['read("user:account-1")']
     );
     expect(db.deleteRow).toHaveBeenCalledWith("app", "user", "graph-1");
   });

@@ -1,6 +1,5 @@
 "use client";
 
-import { clientAccount, OAuthProvider } from "@repo/api/client";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowRight,
@@ -15,6 +14,7 @@ import {
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
+import { startBiAccountLink } from "@/lib/account-link-client";
 import { updateProfile } from "@/lib/actions/user";
 
 // ---------- Types ----------
@@ -363,18 +363,17 @@ export function OnboardingFlow({
     setStepIdx((i) => i - 1);
   };
 
-  const triggerOidc = () => {
+  const triggerOidc = async () => {
     setState((prev) => ({ ...prev, pendingOAuth: true }));
-    const base = window.location.origin;
-    // Success routes through /api/auth/bi-link, which runs the sync + cache
-    // invalidation outside the render path and only then redirects back
-    // here with ?linked=1 — see that route's doc comment for why.
-    clientAccount.createOAuth2Session(
-      OAuthProvider.Oidc,
-      `${base}/api/auth/bi-link?returnTo=/onboarding`,
-      `${base}/onboarding?oidc_failed=1`,
-      ["openid", "email", "profile"]
-    );
+    try {
+      // Without a browser-side Appwrite session the OAuth redirect creates a
+      // brand-new account instead of linking this one — see
+      // ensureClientAppwriteSession.
+      await startBiAccountLink("/onboarding", "oidc_failed=1");
+    } catch {
+      setState((prev) => ({ ...prev, pendingOAuth: false }));
+      setSubmitError(t("errors.unknown"));
+    }
   };
 
   const skipStudent = () => {

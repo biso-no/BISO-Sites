@@ -89,3 +89,22 @@ export function appCartDeepLink(cancelled = false): string {
 export function appShopDeepLink(): string {
   return `${APP_SCHEME}://shop`;
 }
+
+/**
+ * The deep link that reopens the app on its membership screen after a
+ * membership payment, which is where a student sees whether their membership
+ * is now active. It carries the order and its outcome; the app still verifies
+ * the order itself, since a browser may drop a custom-scheme redirect.
+ */
+export function appMembershipDeepLink(
+  orderId: string,
+  outcome: { cancelled?: boolean; status?: string | null } = {}
+): string {
+  const params = new URLSearchParams({ orderId });
+  if (outcome.cancelled) {
+    params.set(CHECKOUT_CANCELLED_PARAM, "1");
+  } else if (outcome.status) {
+    params.set("status", outcome.status);
+  }
+  return `${APP_SCHEME}://membership?${params.toString()}`;
+}

@@ -145,12 +145,10 @@ describe("fulfilMembershipOrder", () => {
     db.incrementRowColumn.mockResolvedValue({ membership_fulfilment_lock: 1 });
     db.decrementRowColumn.mockResolvedValue({ membership_fulfilment_lock: 0 });
     db.updateRow.mockResolvedValue({});
-    // Deliberately different from profile.bi_employee_id ("9001234"):
-    // upsertMembershipCustomer resolves-or-creates and can legitimately
-    // return a different 24SO company id for an existing customer record. If
-    // postToFinago regressed to using identity.employeeId instead of this
-    // resolved id, the assertions below on assignMembershipCategory /
-    // postMembershipInvoice would fail.
+    // Deliberately different from both the student number and the employee
+    // id: the invoice and category must use whatever customer id
+    // upsertMembershipCustomer resolves, never an id recomputed from the
+    // profile.
     upsertMembershipCustomer.mockResolvedValue(5_550_001);
     assignMembershipCategory.mockResolvedValue(undefined);
     postMembershipInvoice.mockResolvedValue(556_677);

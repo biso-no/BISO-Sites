@@ -34,7 +34,7 @@ vi.mock("@repo/shared/utils/feature-flags-server", () => ({
   getFeatureFlagStates: featureFlags.getFeatureFlagStates,
 }));
 
-vi.mock("@/lib/membership-catalog", () => ({
+vi.mock("@repo/shared/utils/membership-catalog", () => ({
   getMembershipPlanById: catalog.getMembershipPlanById,
 }));
 

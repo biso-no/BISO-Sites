@@ -47,16 +47,22 @@ export async function ensureClientAppwriteSession(): Promise<void> {
  *
  * The scopes and the `/api/auth/bi-link` success URL match every other BI
  * entry point — see that route's doc comment for why the return leg runs the
- * profile sync instead of the destination page.
+ * profile sync instead of the destination page. `failureQuery` is the
+ * caller's choice, not fixed here: the join and onboarding pages read back
+ * `oidc_failed=1` for their own failure UI, which differs from this helper's
+ * default.
  */
-export async function startBiAccountLink(returnTo: string): Promise<void> {
+export async function startBiAccountLink(
+  returnTo: string,
+  failureQuery = "error=oauth_failed"
+): Promise<void> {
   await ensureClientAppwriteSession();
 
   const base = window.location.origin;
   await clientAccount.createOAuth2Session(
     OAuthProvider.Oidc,
     `${base}/api/auth/bi-link?returnTo=${encodeURIComponent(returnTo)}`,
-    `${base}${returnTo}?error=oauth_failed`,
+    `${base}${returnTo}?${failureQuery}`,
     LINK_SCOPES
   );
   // Browser navigates away; nothing after this runs.

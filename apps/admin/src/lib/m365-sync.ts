@@ -205,7 +205,9 @@ export async function reconcileM365Profile(
         department_ids: pending.department_ids ?? [],
         isActive: pending.isActive ?? true,
       },
-      [Permission.read(userRole), Permission.update(userRole)]
+      // Read-only to its owner, like every other profile row: self-service
+      // edits go through updateProfile with the admin key.
+      [Permission.read(userRole)]
     );
 
     // Drop the orphan keyed by the Graph id so it can't shadow future lookups

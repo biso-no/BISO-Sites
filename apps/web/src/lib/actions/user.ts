@@ -8,11 +8,14 @@ import {
 import type { Users } from "@repo/api/types/appwrite";
 import { sanitizeStudentNumber } from "@repo/shared/utils/bi-student";
 import { membershipCacheTag } from "@repo/shared/utils/membership-status";
+import {
+  buildProfileRowPermissions,
+  pickSelfServiceProfileFields,
+} from "@repo/shared/utils/profile-fields";
 import { revalidateTag } from "next/cache";
 import { cookies } from "next/headers";
 import { unstable_rethrow } from "next/navigation";
 import { cache } from "react";
-import { buildProfileRowPermissions } from "@/lib/actions/profile-permissions";
 import { isAuthenticatedAccount } from "@/lib/auth-utils";
 import { SESSION_COOKIE } from "@/lib/cookie-prefs";
 
@@ -35,7 +38,7 @@ function isOidcIdentity(identity: { provider?: string } | undefined): boolean {
  * Clears the BI student link (`student_id` + the `bi_*` enrichment columns)
  * after the linked OIDC identity has been removed. Writes go through the
  * admin client — these columns are deliberately outside the self-service
- * `PROFILE_WRITABLE_FIELDS` allow-list, same as `syncBiStudentIdentity`.
+ * `SELF_SERVICE_PROFILE_FIELDS` allow-list, same as `syncBiStudentIdentity`.
  *
  * The Appwrite identity is already deleted by the time this runs, so a
  * failure here must not fail the whole unlink action — it is logged and
@@ -165,57 +168,38 @@ export async function removeIdentity(identityId: string) {
   }
 }
 
-// Fields users may edit themselves via updateProfile. Everything else on
-// the Users row (roles, isActive, campus_id, department_ids,
-// membership_ids, student_id, email) is managed elsewhere — by the
-// Microsoft / 24SO sync, by dedicated server actions, or by the admin
-// CMS — so we don't accept caller-supplied writes to those columns.
-const PROFILE_WRITABLE_FIELDS = [
-  "name",
-  "phone",
-  "address",
-  "city",
-  "zip",
-  "bank_account",
-  "swift",
-  "avatar",
-  "bio",
-  "is_public",
-] as const satisfies readonly (keyof Users)[];
-
-type WritableProfileField = (typeof PROFILE_WRITABLE_FIELDS)[number];
-
-function pickWritableProfileFields(
-  input: Partial<Users>
-): Partial<Pick<Users, WritableProfileField>> {
-  const result: Partial<Pick<Users, WritableProfileField>> = {};
-  for (const key of PROFILE_WRITABLE_FIELDS) {
-    if (key in input) {
-      // The conditional cast keeps the narrow per-key type from Users.
-      result[key] = input[key] as never;
-    }
-  }
-  return result;
+function isRowNotFound(error: unknown): boolean {
+  return (error as { code?: number } | null)?.code === 404;
 }
 
+/**
+ * Saves the signed-in person's own profile.
+ *
+ * Profile rows are read-only to their owner, so the self-service allow-list
+ * is what stands between this request and the row; the write itself uses the
+ * admin client. A missing row is created here, because onboarding creates the
+ * profile lazily at its last step.
+ */
 export async function updateProfile(profile: Partial<Users>) {
   try {
-    const { account, db } = await createSessionClient();
+    const { account } = await createSessionClient();
     const user = await account.get();
+    const writable = pickSelfServiceProfileFields(profile);
+    const { db: adminDb } = await createAdminClient();
 
-    const writable = pickWritableProfileFields(profile);
+    const existing = await adminDb
+      .getRow<Users>("app", "user", user.$id)
+      .catch((error: unknown) => {
+        if (isRowNotFound(error)) {
+          return null;
+        }
+        throw error;
+      });
 
-    try {
-      await db.getRow<Users>("app", "user", user.$id);
-      if (typeof writable.name === "string" && writable.name.length > 0) {
-        await account.updateName(writable.name);
-      }
-      return await db.updateRow<Users>("app", "user", user.$id, writable);
-    } catch {
+    if (!existing) {
       // createRow's typed signature wants the full row; we're seeding a
       // partial profile that the user will fill in over time. Omit the
       // generic so the Appwrite SDK accepts the partial payload.
-      const { db: adminDb } = await createAdminClient();
       return await adminDb.createRow(
         "app",
         "user",
@@ -224,6 +208,11 @@ export async function updateProfile(profile: Partial<Users>) {
         buildProfileRowPermissions(user.$id)
       );
     }
+
+    if (typeof writable.name === "string" && writable.name.length > 0) {
+      await account.updateName(writable.name);
+    }
+    return await adminDb.updateRow<Users>("app", "user", user.$id, writable);
   } catch (error) {
     console.error("Error in updateProfile:", error);
     return null;

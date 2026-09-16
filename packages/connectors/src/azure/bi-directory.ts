@@ -2,8 +2,8 @@
  * Lookups against BI's Azure tenant, through BISO's app registration there.
  *
  * Separate from the `AZURE_*` variables, which address BISO's own tenant. The
- * only value this flow needs is `employeeId`, which becomes the Finago
- * customer number. `officeLocation`/`department` are read as a campus hint to
+ * only value this flow needs is `employeeId`, which Finago stores as the
+ * customer's `ExternalId`. `officeLocation`/`department` are read as a campus hint to
  * prefill the purchase wizard — never as an authority, since BI does not
  * populate them consistently.
  */

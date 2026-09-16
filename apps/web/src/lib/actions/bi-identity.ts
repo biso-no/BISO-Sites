@@ -1,16 +1,18 @@
 "use server";
 
+import { Query } from "@repo/api";
 import { createAdminClient, createSessionClient } from "@repo/api/server";
 import type { Users } from "@repo/api/types/appwrite";
 import { getBiDirectoryUser } from "@repo/connectors/azure/bi-directory";
 import {
   BI_STUDENT_EMAIL_DOMAIN,
+  identityBacksStudentId,
   parseBiStudentEmail,
 } from "@repo/shared/utils/bi-student";
 import { membershipCacheTag } from "@repo/shared/utils/membership-status";
+import { buildProfileRowPermissions } from "@repo/shared/utils/profile-fields";
 import { revalidateTag } from "next/cache";
 import { unstable_rethrow } from "next/navigation";
-import { buildProfileRowPermissions } from "@/lib/actions/profile-permissions";
 
 // The bi_* columns are pending an `appwrite push tables`; extend locally until
 // packages/api/types/appwrite.ts is regenerated.
@@ -32,6 +34,87 @@ function isRowNotFoundError(error: unknown): boolean {
     "code" in error &&
     (error as { code?: unknown }).code === 404
   );
+}
+
+type AdminClients = Awaited<ReturnType<typeof createAdminClient>>;
+
+/**
+ * One BISO account per BI student account, checked before a link is written.
+ *
+ * Another account holding the same `student_id` blocks the link only when
+ * that hold is verified — the other account has a BI (OIDC) identity for the
+ * same student. The identity Appwrite just attached to the current account is
+ * then removed, so it is not left holding a BI identity with no link. A hold
+ * nothing verifies (written before profile rows were locked, or by the retired
+ * app flow) is not a link: it is cleared and the verified student proceeds.
+ *
+ * Returns true when the link must be refused.
+ */
+async function refuseIfLinkedElsewhere(
+  { db, users }: Pick<AdminClients, "db" | "users">,
+  {
+    currentUserId,
+    identityId,
+    studentId,
+  }: { currentUserId: string; identityId: string; studentId: string }
+): Promise<boolean> {
+  const holders = await db.listRows<BiUser>("app", "user", [
+    Query.equal("student_id", studentId),
+    Query.notEqual("$id", currentUserId),
+    Query.limit(25),
+  ]);
+
+  for (const holder of holders.rows) {
+    const { identities } = await users.listIdentities({
+      queries: [Query.equal("userId", holder.$id), Query.limit(25)],
+    });
+
+    if (identityBacksStudentId(identities, studentId)) {
+      await users.deleteIdentity({ identityId }).catch((error: unknown) => {
+        console.error(
+          "[BI Identity] Could not remove the refused identity:",
+          error
+        );
+      });
+      console.warn(
+        `[BI Identity] ${studentId} is already linked to ${holder.$id}; refused the link for ${currentUserId}`
+      );
+      return true;
+    }
+
+    await db.updateRow<BiUser>("app", "user", holder.$id, {
+      bi_campus_id: null,
+      bi_employee_id: null,
+      bi_linked_at: null,
+      student_id: null,
+    });
+    console.warn(
+      `[BI Identity] Cleared an unverified claim to ${studentId} on ${holder.$id}`
+    );
+  }
+
+  return false;
+}
+
+/**
+ * The campus hint to write, or `null` to leave the existing value alone.
+ *
+ * Split out of `syncBiStudentIdentity` purely to keep that function's
+ * cognitive complexity under the lint limit — the behavior (never overwrite
+ * an already-set `bi_campus_id`) is unchanged.
+ */
+async function resolveCampusHintUpdate(
+  db: Pick<AdminClients, "db">["db"],
+  userId: string,
+  campusHint: string | null
+): Promise<string | null> {
+  if (!campusHint) {
+    return null;
+  }
+  const existing = (await db
+    .getRow<BiUser>("app", "user", userId)
+    .catch(() => null)) as BiUser | null;
+  return existing?.bi_campus_id ? null : campusHint;
 }
 
 const DEV_STUDENT_OVERRIDE_ENV = "BI_DEV_STUDENT_EMAIL_OVERRIDE";
@@ -141,7 +224,8 @@ export type BiIdentitySyncResult =
         | "not_authenticated"
         | "no_bi_identity"
         | "invalid_bi_email"
-        | "directory_unavailable";
+        | "directory_unavailable"
+        | "already_linked";
       success: false;
     };
 
@@ -151,10 +235,10 @@ export type BiIdentitySyncResult =
  * Appwrite only supports identity linking client-side, so the OAuth2 session is
  * started in the browser and this runs on the return leg. It reads the OIDC
  * identity's BI address, derives the student id, and enriches the profile with
- * the Azure employee id that Finago uses as the customer number.
+ * the Azure employee id that Finago stores as the customer's ExternalId.
  *
  * Writes go through the admin client: these columns are identity assertions,
- * deliberately outside the self-service PROFILE_WRITABLE_FIELDS allow-list.
+ * deliberately outside the self-service SELF_SERVICE_PROFILE_FIELDS allow-list.
  */
 export async function syncBiStudentIdentity(): Promise<BiIdentitySyncResult> {
   try {
@@ -192,6 +276,20 @@ export async function syncBiStudentIdentity(): Promise<BiIdentitySyncResult> {
       return { success: false, error: "invalid_bi_email" };
     }
 
+    const { db, users } = await createAdminClient();
+    if (
+      await refuseIfLinkedElsewhere(
+        { db, users },
+        {
+          currentUserId: user.$id,
+          identityId: biIdentity.$id,
+          studentId: parsed.studentId,
+        }
+      )
+    ) {
+      return { success: false, error: "already_linked" };
+    }
+
     let employeeId: string | null = null;
     let campusHint: string | null = null;
     let directoryFailed = false;
@@ -212,7 +310,6 @@ export async function syncBiStudentIdentity(): Promise<BiIdentitySyncResult> {
       console.error("[BI Identity] Directory lookup failed:", error);
     }
 
-    const { db } = await createAdminClient();
     const update: Partial<BiUser> = {
       student_id: parsed.studentId,
       bi_linked_at: new Date().toISOString(),
@@ -220,13 +317,13 @@ export async function syncBiStudentIdentity(): Promise<BiIdentitySyncResult> {
     if (employeeId) {
       update.bi_employee_id = employeeId;
     }
-    if (campusHint) {
-      const existing = (await db
-        .getRow<BiUser>("app", "user", user.$id)
-        .catch(() => null)) as BiUser | null;
-      if (!existing?.bi_campus_id) {
-        update.bi_campus_id = campusHint;
-      }
+    const campusHintUpdate = await resolveCampusHintUpdate(
+      db,
+      user.$id,
+      campusHint
+    );
+    if (campusHintUpdate) {
+      update.bi_campus_id = campusHintUpdate;
     }
 
     try {
@@ -241,7 +338,7 @@ export async function syncBiStudentIdentity(): Promise<BiIdentitySyncResult> {
       // A brand-new user linking during onboarding has no row yet for
       // updateRow to find, every time. Create it instead, using the same
       // shape/permissions `updateProfile` falls back to for the identical
-      // gap. `PROFILE_WRITABLE_FIELDS` stays untouched — these bi_* columns
+      // gap. `SELF_SERVICE_PROFILE_FIELDS` stays untouched — these bi_* columns
       // remain outside self-service by design; this write goes through the
       // admin client, same as the update above.
       //

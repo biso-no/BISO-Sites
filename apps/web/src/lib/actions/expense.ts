@@ -152,9 +152,12 @@ export async function uploadExpenseAttachment(formData: FormData) {
 
     // The expenses bucket carries no user-level create grant (fileSecurity is
     // on and broad bucket creates are disallowed), so upload through the admin
-    // client and stamp owner permissions — reproducing the creator-owner ACL
-    // Appwrite used to assign on a session upload. Reviewers and ledger posting
-    // read receipts through the admin client, which bypasses file security.
+    // client and stamp the owner's read grant. Read is the whole of it: an
+    // uploader who could update or delete the file could destroy the receipt
+    // behind an already-approved payout. Reviewers and ledger posting read
+    // receipts through the admin client, which bypasses file security, and
+    // `DELETE /api/expenses/draft` removes a draft's own receipts the same
+    // way — matching what `POST /api/expenses/attachments` already stores.
     const { storage } = await createAdminClient();
     const owner = Role.user(user.$id);
     const inputFile = InputFile.fromBuffer(
@@ -165,11 +168,7 @@ export async function uploadExpenseAttachment(formData: FormData) {
       "expenses", // Bucket ID
       ID.unique(),
       inputFile,
-      [
-        Permission.read(owner),
-        Permission.update(owner),
-        Permission.delete(owner),
-      ]
+      [Permission.read(owner)]
     );
     const viewUrl =
       APPWRITE_ENDPOINT && APPWRITE_PROJECT

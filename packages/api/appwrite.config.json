@@ -457,8 +457,7 @@
                 "create(\"team:sg-app-dept-operationsunit\")",
                 "read(\"team:sg-app-dept-operationsunit\")",
                 "update(\"team:sg-app-dept-operationsunit\")",
-                "delete(\"team:sg-app-dept-operationsunit\")",
-                "create(\"users\")"
+                "delete(\"team:sg-app-dept-operationsunit\")"
             ],
             "databaseId": "app",
             "name": "Users",

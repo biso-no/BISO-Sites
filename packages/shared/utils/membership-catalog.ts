@@ -1,10 +1,7 @@
 import { Query } from "@repo/api";
 import { createAdminClient } from "@repo/api/server";
 import type { Memberships } from "@repo/api/types/appwrite";
-import {
-  type MembershipPlan,
-  toMembershipPlan,
-} from "@repo/shared/utils/membership-plans";
+import { type MembershipPlan, toMembershipPlan } from "./membership-plans";
 
 /**
  * Purchasable membership plans, newest expiry first.
