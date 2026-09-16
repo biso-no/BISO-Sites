@@ -55,6 +55,34 @@ function toItems(rows: ContentSummary[]): BriefingFinding["items"] {
   }));
 }
 
+/**
+ * The one-sentence briefing headline.
+ *
+ * "Nothing needs attention" is an affirmative claim about work that exists, and
+ * every collector here answers a failure by pushing a warning and returning no
+ * findings. Keyed on the finding count alone, a backend outage therefore reads
+ * as an all-clear — the one reading a person must not take away from an
+ * incomplete briefing.
+ */
+function briefingSummary(input: {
+  findings: number;
+  horizon: number;
+  incomplete: boolean;
+  scope: string;
+  urgent: number;
+}): string {
+  if (input.findings === 0) {
+    return input.incomplete
+      ? `No findings, but the briefing is incomplete — at least one check could not be run, so this is not an all-clear. See the warnings. Looked ${input.horizon} days ahead within ${input.scope}.`
+      : `Nothing needs attention in the next ${input.horizon} days, within ${input.scope}.`;
+  }
+  const urgency = input.urgent > 0 ? `, ${input.urgent} urgent` : "";
+  const caveat = input.incomplete
+    ? " Some checks could not be run; see the warnings."
+    : "";
+  return `${input.findings} finding(s)${urgency}, within ${input.scope}, looking ${input.horizon} days ahead.${caveat}`;
+}
+
 function noteFailure(warnings: string[], what: string, error: unknown): void {
   warnings.push(
     `${what} could not be read: ${error instanceof Error ? error.message : "unknown error"}`
@@ -253,6 +281,13 @@ async function collectInboxFindings(
       context.principal,
       { campusId }
     );
+    // `inboxCounts` does not throw when one of its two queries fails: it
+    // resolves with that count as 0 and says so in `note`. So the catch below
+    // never runs for the most likely failure, and an unread count of pending
+    // approvals would otherwise be indistinguishable from none.
+    if (counts.note) {
+      warnings.push(`Inbox counts are incomplete: ${counts.note}`);
+    }
     const findings: BriefingFinding[] = [];
     if (counts.approvals > 0) {
       findings.push({
@@ -433,10 +468,13 @@ export const workflowsModule: ToolModule = {
 
         return result({
           requestId,
-          summary:
-            findings.length === 0
-              ? `Nothing needs attention in the next ${horizon} days, within ${scope.summary.toLowerCase()}.`
-              : `${findings.length} finding(s)${urgent > 0 ? `, ${urgent} urgent` : ""}, within ${scope.summary.toLowerCase()}, looking ${horizon} days ahead.`,
+          summary: briefingSummary({
+            findings: findings.length,
+            urgent,
+            horizon,
+            scope: scope.summary.toLowerCase(),
+            incomplete: warnings.length > 0,
+          }),
           data: {
             horizonDays: horizon,
             campusFilter: args.campusId
@@ -524,9 +562,14 @@ export const workflowsModule: ToolModule = {
           },
           scope: found.scope,
           pagination: found.pagination,
+          // Appended, never substituted. `content.search` reports a dropped
+          // status filter and a truncated translation scan this way, and a full
+          // page is exactly when those matter most — replacing them would hide
+          // "your filter was ignored" behind "there was more to see".
           warnings:
             found.rows.length === AUDIT_LIMIT
               ? [
+                  ...found.warnings,
                   `Only the first ${AUDIT_LIMIT} items were audited. Narrow by campus or status for complete coverage.`,
                 ]
               : found.warnings,

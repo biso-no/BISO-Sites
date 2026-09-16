@@ -16,7 +16,7 @@ import { campusLabel } from "../identity/campus";
 import { isAnonymous } from "../identity/principal";
 import {
   assertWriteAccess,
-  canPublishForCampus,
+  canPublish,
   describeScope,
 } from "../identity/scope";
 import { forbidden, notSupported } from "../runtime/errors";
@@ -200,10 +200,19 @@ export const approvalsModule: ToolModule = {
         // half of that sentence.
         assertWriteAccess(context.principal, item.campusId, item.departmentId);
 
-        if (canPublishForCampus(context.principal, item.campusId)) {
+        // The same predicate the publication path applies, asked as a
+        // question. Anything else means refusing a request from someone who
+        // genuinely cannot publish, or — as here before — filing one for
+        // someone who can.
+        if (canPublish(context.principal, item.campusId, item.departmentId)) {
           throw notSupported(
             "You can publish this yourself, so an approval request would be redundant.",
-            { domain, id: args.id, campusId: item.campusId }
+            {
+              domain,
+              id: args.id,
+              campusId: item.campusId,
+              departmentId: item.departmentId,
+            }
           );
         }
 

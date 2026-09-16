@@ -154,6 +154,8 @@ async function connect(options: {
   };
   /** Throw from here to simulate a write that was dispatched and then failed. */
   onWrite?: (op: "create" | "update" | "upsert", table: string) => void;
+  /** Throw from here to simulate a backend that is partially unavailable. */
+  onRead?: (table: string) => void;
 }): Promise<Harness> {
   const { logger, lines } = collectingLogger();
   const backend = createFakeBackend({
@@ -162,6 +164,7 @@ async function connect(options: {
     account: options.resolveFrom?.account,
     teams: options.resolveFrom?.teams,
     onWrite: options.onWrite,
+    onRead: options.onRead,
   });
 
   const config = options.config ?? baseConfig();
@@ -1659,6 +1662,31 @@ describe("approval requests", () => {
     }
   });
 
+  test("a department member who can publish is told the request is redundant", async () => {
+    // The guard used `canPublishForCampus`, which recognised only global and
+    // campus admins — a stricter policy than the repo has. `apps/admin`'s
+    // `assertPublishAccess` delegates to `assertWriteAccess`, and so does this
+    // port, so the department that owns the row can publish it directly. The
+    // redundant request was accepted and persisted anyway.
+    const harness = await connect({
+      principal: DEPARTMENT_MEMBER("dept-a", "1"),
+      config: baseConfig({ writeMode: "operator" }),
+    });
+    try {
+      const { response, structured } = await callTool(
+        harness.client,
+        "biso_request_approval",
+        { domain: "news", id: "news-oslo" }
+      );
+
+      expect(response.isError).toBe(true);
+      expect(JSON.stringify(structured)).toContain("redundant");
+      expect(domainWrites(harness)).toHaveLength(0);
+    } finally {
+      await harness.close();
+    }
+  });
+
   test("the refusal happens before the vacancy is read", async () => {
     const harness = await connect({
       principal: DEPARTMENT_MEMBER(),
@@ -2252,6 +2280,151 @@ describe("scope is checked before a proposal exists", () => {
         publish: false,
       });
       expect(response.isError).toBeFalsy();
+    } finally {
+      await harness.close();
+    }
+  });
+});
+
+/**
+ * What a briefing says when it could not read everything.
+ *
+ * Every collector answers a failure the same way: push a warning, return no
+ * findings. So "no findings" is ambiguous by construction — it means either
+ * "nothing needs attention" or "nothing could be read" — and only the warnings
+ * tell them apart. A summary that ignores them turns an outage into an
+ * all-clear, which is the one reading a person must not take away.
+ */
+describe("an incomplete briefing does not read as an all-clear", () => {
+  test("a failed probe stops the summary claiming nothing needs attention", async () => {
+    const harness = await connect({
+      principal: GLOBAL_ADMIN(),
+      tables: { campus: [{ $id: "1", name: "Oslo" }] },
+      onRead: () => {
+        throw new Error("backend unavailable");
+      },
+    });
+    try {
+      const { structured } = await callTool(
+        harness.client,
+        "biso_campus_briefing",
+        { horizonDays: 30 }
+      );
+
+      const data = structured?.data as { findings: unknown[] };
+      expect(data.findings).toHaveLength(0);
+      expect(structured?.warnings ?? []).not.toHaveLength(0);
+      expect(structured?.summary).not.toContain("Nothing needs attention");
+      expect(structured?.summary).toContain("incomplete");
+    } finally {
+      await harness.close();
+    }
+  });
+
+  test("a genuinely quiet briefing still says so", async () => {
+    // The negative control: the caveat must come from the warnings, not from
+    // the summary having simply stopped making a claim.
+    const harness = await connect({
+      principal: GLOBAL_ADMIN(),
+      tables: {
+        campus: [{ $id: "1", name: "Oslo" }],
+        events: [],
+        news: [],
+        jobs: [],
+        approval_requests: [],
+        form_submissions: [],
+      },
+    });
+    try {
+      const { structured } = await callTool(
+        harness.client,
+        "biso_campus_briefing",
+        { horizonDays: 30 }
+      );
+
+      expect(structured?.warnings ?? []).toHaveLength(0);
+      expect(structured?.summary).toContain("Nothing needs attention");
+    } finally {
+      await harness.close();
+    }
+  });
+
+  test("a half-failed inbox count is reported, not swallowed", async () => {
+    // `inboxCounts` does not throw when one of its two queries fails: it
+    // resolves with that count as 0 and a `note`. The collector's catch
+    // therefore never runs, and a campus with pending approvals it could not
+    // read looked exactly like a campus with none.
+    const harness = await connect({
+      principal: GLOBAL_ADMIN(),
+      tables: {
+        campus: [{ $id: "1", name: "Oslo" }],
+        events: [],
+        news: [],
+        jobs: [],
+        approval_requests: [],
+        form_submissions: [],
+      },
+      onRead: (table) => {
+        if (table === "approval_requests") {
+          throw new Error("approvals unavailable");
+        }
+      },
+    });
+    try {
+      const { structured } = await callTool(
+        harness.client,
+        "biso_campus_briefing",
+        { horizonDays: 30 }
+      );
+
+      const inboxWarnings = (structured?.warnings ?? []) as string[];
+      expect(inboxWarnings.join(" ")).toContain("Inbox counts");
+      expect(structured?.summary).not.toContain("Nothing needs attention");
+    } finally {
+      await harness.close();
+    }
+  });
+});
+
+/**
+ * Warnings the audit inherits from the search underneath it.
+ */
+describe("a full audit page keeps the search's own warnings", () => {
+  function manyNews(): FakeTables {
+    const news: FakeRow[] = [];
+    for (let index = 0; index < 60; index += 1) {
+      news.push({
+        $id: `n-${index}`,
+        $createdAt: "2026-01-01T00:00:00.000Z",
+        $updatedAt: "2026-01-01T00:00:00.000Z",
+        slug: `news-${index}`,
+        status: "published",
+        campus_id: "1",
+        translation_refs: [{ locale: "no", title: `Nyhet ${index}` }],
+      });
+    }
+    return { news, campus: [{ $id: "1", name: "Oslo" }] };
+  }
+
+  test("a dropped status filter survives the truncation notice", async () => {
+    // `content.search` ignores an invalid status and says so. On a full page
+    // the audit replaced that warning with its own, so the caller was told the
+    // result was truncated but not that it had audited every status rather
+    // than the one they asked for — the more misleading half.
+    const harness = await connect({
+      principal: GLOBAL_ADMIN(),
+      tables: manyNews(),
+    });
+    try {
+      const { structured } = await callTool(
+        harness.client,
+        "biso_content_quality_audit",
+        { domain: "news", status: "publised" }
+      );
+
+      const warnings = (structured?.warnings ?? []) as string[];
+      expect(warnings.join(" ")).toContain("not valid for news");
+      expect(warnings.join(" ")).toContain("Only the first 50");
     } finally {
       await harness.close();
     }

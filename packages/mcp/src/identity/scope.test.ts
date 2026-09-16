@@ -21,7 +21,7 @@ import {
 import {
   assertPublishAccess,
   assertWriteAccess,
-  canPublishForCampus,
+  canPublish,
   canReadRow,
   describeScope,
   relationId,
@@ -199,12 +199,49 @@ describe("canReadRow", () => {
   });
 });
 
-describe("canPublishForCampus", () => {
-  test("only global admins and the campus's own admins", () => {
-    expect(canPublishForCampus(GLOBAL_ADMIN(), null)).toBe(true);
-    expect(canPublishForCampus(CAMPUS_ADMIN("Oslo", "1"), "1")).toBe(true);
-    expect(canPublishForCampus(CAMPUS_ADMIN("Oslo", "1"), "2")).toBe(false);
-    expect(canPublishForCampus(DEPARTMENT_MEMBER(), "1")).toBe(false);
+describe("canPublish", () => {
+  test("it answers exactly what assertPublishAccess decides", () => {
+    // The predicate it replaced recognised only global and campus admins, and
+    // this test asserted that — which was the invented policy written down as
+    // an expectation. `apps/admin`'s `assertPublishAccess` delegates to
+    // `assertWriteAccess`, and so does the port, so the department that owns
+    // the row can publish it.
+    expect(canPublish(GLOBAL_ADMIN(), null)).toBe(true);
+    expect(canPublish(CAMPUS_ADMIN("Oslo", "1"), "1")).toBe(true);
+    expect(canPublish(CAMPUS_ADMIN("Oslo", "1"), "2")).toBe(false);
+    expect(canPublish(DEPARTMENT_MEMBER("dept-a", "1"), "1", "dept-a")).toBe(
+      true
+    );
+    expect(canPublish(DEPARTMENT_MEMBER("dept-a", "1"), "1", "dept-b")).toBe(
+      false
+    );
+  });
+
+  test("it agrees with the gate on every case the gate is tested for", () => {
+    // The property, not a sample of it: derived from `assertPublishAccess`, so
+    // the two cannot disagree. Restating the rules here instead would be a
+    // second copy of exactly the kind that drifted.
+    const cases: [
+      ReturnType<typeof GLOBAL_ADMIN>,
+      string | null,
+      string | null,
+    ][] = [
+      [GLOBAL_ADMIN(), "2", "dept-z"],
+      [CAMPUS_ADMIN("Oslo", "1"), "1", "dept-a"],
+      [CAMPUS_ADMIN("Oslo", "1"), "2", "dept-a"],
+      [DEPARTMENT_MEMBER("dept-a", "1"), "1", "dept-a"],
+      [DEPARTMENT_MEMBER("dept-a", "1"), "2", "dept-a"],
+      [DEPARTMENT_MEMBER("dept-a", "1"), "1", null],
+    ];
+    for (const [principal, campusId, departmentId] of cases) {
+      let gateAllowed = true;
+      try {
+        assertPublishAccess(principal, campusId, departmentId);
+      } catch {
+        gateAllowed = false;
+      }
+      expect(canPublish(principal, campusId, departmentId)).toBe(gateAllowed);
+    }
   });
 });
 

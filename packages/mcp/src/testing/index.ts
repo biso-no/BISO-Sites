@@ -244,6 +244,13 @@ export interface FakeBackendOptions {
    * happened to it". The write still appears in `writes`, because it really was
    * sent.
    */
+  /**
+   * Called at the start of every `listRows`. Throwing here simulates a backend
+   * that is partially unavailable — the case where a caller assembles a result
+   * from several queries and only some fail, which is the only way to test that
+   * it says so rather than reporting the surviving half as the whole.
+   */
+  onRead?: (table: string) => void;
   onWrite?: (op: "create" | "update" | "upsert", table: string) => void;
   tables?: FakeTables;
   /** Team memberships `resolvePrincipal` will read. */
@@ -382,13 +389,15 @@ function buildDb(
   tables: FakeTables,
   record: (entry: FakeBackend["writes"][number]) => void,
   via: "user" | "elevated",
-  onWrite?: FakeBackendOptions["onWrite"]
+  onWrite?: FakeBackendOptions["onWrite"],
+  onRead?: FakeBackendOptions["onRead"]
 ): AppwriteClients["db"] {
   const listRows = (
     _databaseId: string,
     tableId: string,
     queries?: string[]
   ) => {
+    onRead?.(tableId);
     const all = tables[tableId] ?? [];
     const parsed = (queries ?? [])
       .map(parseQuery)
@@ -545,13 +554,26 @@ export function createFakeBackend(
   const elevations: string[] = [];
   const record = (entry: FakeBackend["writes"][number]) => writes.push(entry);
 
-  const userDb = buildDb(tables, record, "user", options.onWrite);
-  const elevatedDb = buildDb(tables, record, "elevated", options.onWrite);
+  const userDb = buildDb(
+    tables,
+    record,
+    "user",
+    options.onWrite,
+    options.onRead
+  );
+  const elevatedDb = buildDb(
+    tables,
+    record,
+    "elevated",
+    options.onWrite,
+    options.onRead
+  );
   const anonDb = buildDb(
     options.anonymousTables ?? tables,
     record,
     "user",
-    options.onWrite
+    options.onWrite,
+    options.onRead
   );
 
   const hasElevated = options.hasElevated ?? true;

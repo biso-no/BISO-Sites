@@ -613,3 +613,39 @@ The same reasoning names the limit of the fix, which is worth stating rather
 than leaving implied: the underlying `read("any")` table grants mean Appwrite
 still serves those columns to anyone who asks it directly. This package no
 longer hands them to a model; it cannot stop the API. That remains roadmap S1.
+
+---
+
+## 16. Eleventh review round
+
+An eleventh review of `bfbc833` raised four, all P2. All four reproduced.
+Three are one defect wearing three hats: **a warning that exists is discarded,
+contradicted, or never asked for.**
+
+| # | Area | Verified as | Fix |
+|---|---|---|---|
+| 1 | `domains/approvals.ts` | **Confirmed.** The redundancy guard ("you can publish this yourself") used `canPublishForCampus`, which recognised only global and campus admins. The publication path uses `assertPublishAccess`, which delegates to `assertWriteAccess` and admits the department that owns the row. Settled against the primary source: `apps/admin/src/lib/utils/authorization.ts:202` delegates identically, so the **port is faithful and `canPublishForCampus` was the invented policy** — with exactly one caller, deciding the one question where the disagreement showed | `canPublish` replaces it, implemented by asking `assertPublishAccess` and catching. Tightening the gate instead would have diverged from `apps/admin`, which `identity/scope.test.ts` exists to prevent |
+| 2 | `domains/workflows.ts` | **Confirmed.** The briefing summary keyed on `findings.length === 0` alone. Every collector answers a failure by pushing a warning and returning no findings, so "no findings" means either "nothing needs attention" or "nothing could be read" — and during an outage the briefing said the first | `briefingSummary` takes `incomplete: warnings.length > 0` and, when the briefing is short of data, says so instead of giving an all-clear. A caveat is appended to the non-empty case too |
+| 3 | `domains/workflows.ts` | **Confirmed.** On a full page the audit **replaced** `found.warnings` with its truncation notice. `content.search` reports a dropped status filter and a short translation scan that way, so a mistyped status vanished on exactly the queries large enough to truncate | Appended rather than substituted |
+| 4 | `domains/workflows.ts` | **Confirmed.** `inboxCounts` does not throw when one of its two queries fails — it resolves with that count as `0` and a non-null `note`. The collector's `catch` therefore never ran, and a campus whose pending approvals could not be read was indistinguishable from one with none | The note is pushed onto `warnings` before the findings are built, which also feeds #2 |
+
+### A result is not just its data
+
+Every one of #2, #3 and #4 is the same mistake: treating the *value* a function
+returned as its whole answer, when the function also returned a statement about
+how complete that value is. A zero, an empty list and a 50-row page all look
+like ordinary results; `warnings` and `note` are what say otherwise.
+
+That is worth naming because it is the third distinct pattern this PR has
+produced at scale, after "the sibling call site" (rounds nine and ten) and
+"the denylist that trails the schema" (round ten). Two of these findings were
+in code written to *report* partial failure — `noteFailure` and the
+allSettled in `inboxCounts` both exist precisely for this — and the reporting
+still did not reach the caller, because the last step dropped it.
+
+Finding #1 is a fourth appearance of an earlier one: a test (`canPublishForCampus
+> only global admins and the campus's own admins`) that had written the invented
+policy down as its expectation, exactly as round ten's `auto_screen` case had.
+It is replaced by two: the real rule, and a case-for-case comparison against
+`assertPublishAccess` itself, so the predicate and the gate cannot disagree
+again without failing.

@@ -275,14 +275,34 @@ export function assertPublishAccess(
 }
 
 /** Whether this principal could publish for a campus, without throwing. */
-export function canPublishForCampus(
+/**
+ * Whether {@link assertPublishAccess} would allow this publication.
+ *
+ * Derived from the gate rather than restated alongside it, deliberately. The
+ * predicate this replaced (`canPublishForCampus`) recognised only global and
+ * campus admins, which is a stricter policy than the repo actually has:
+ * `apps/admin`'s `assertPublishAccess` delegates to `assertWriteAccess`, and so
+ * does this package's port, both of which admit the department that owns the
+ * row. Its one caller used it to decide "you could do this yourself, so an
+ * approval request is redundant" — and got that wrong for exactly the people
+ * the two checks disagreed about.
+ *
+ * Asking the gate is the only formulation that cannot drift from it again.
+ */
+export function canPublish(
   principal: Principal,
-  campusId: string | null
+  campusId?: string | null,
+  departmentId?: string | null
 ): boolean {
-  if (isGlobalAdmin(principal)) {
+  try {
+    assertPublishAccess(principal, campusId, departmentId);
     return true;
+  } catch (error) {
+    if (error instanceof DomainError) {
+      return false;
+    }
+    throw error;
   }
-  return Boolean(campusId && principal.managedCampusIds.includes(campusId));
 }
 
 /**

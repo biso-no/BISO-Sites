@@ -47,7 +47,7 @@ export {
   approverTeamsFor,
   assertPublishAccess,
   assertWriteAccess,
-  canPublishForCampus,
+  canPublish,
   canReadRow,
   describeScope,
   RELATIONSHIP_SCOPE_FIELDS,
