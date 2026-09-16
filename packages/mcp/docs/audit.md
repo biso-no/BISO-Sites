@@ -550,3 +550,30 @@ what the data does. Reverting a fix and watching its test fail — which is the
 standing rule in this PR — does not catch it, because the test fails for the
 revert *and* passes for the wrong fixture. The fixture now models the two paths
 separately, and reverting to `attendee_id`-first fails it.
+
+---
+
+## 14. Ninth review round
+
+A ninth review of `d5380e3`, triggered manually after the reviewer's usage
+limit lapsed, raised three. All three reproduced. **Two are follow-ups on
+round-eight fixes** — the same shape as round eight's own follow-ups: the fix
+landed on the path the finding named, and the sibling path kept the old
+behaviour.
+
+| # | Area | Verified as | Fix |
+|---|---|---|---|
+| 1 | `runtime/register.ts` | **Confirmed — the other half of round eight's #1.** Every call now re-resolves the principal, but `tool.profiles` was still consulted only in `registerModules`, against the startup snapshot, and the SDK keeps a registered tool callable for the life of the connection. The sharp case is `biso_integration_configuration`: its handler takes no `principal` at all, because registration was assumed to be the gate, so nothing downstream would catch the revocation. *The stated impact was slightly wide* — `INTEGRATION_REQUIREMENTS` is a hard-coded constant in this package, so the integration and variable **names** are already public; what leaks is the configured/missing state of this process's environment | `assertProfileAllowed(tool, principal)` in `invokeTool`, immediately after the refresh. Reads still carry the 60-second TTL by design; mutations force the refresh and see a revocation at once |
+| 2 | `services/content.ts` | **Confirmed.** There *was* a truncation warning, but it fires on the id count (`MAX_ID_BATCH`, 90) while the truncation happens in the scan (`TRANSLATION_SCAN_LIMIT`, 200) — and the locale filter sits between them. 250 matching translations, 80 of them in the requested locale inside the first window, and 80 ids is reported as the complete answer | `idsMatchingText` returns `{ ids, truncated }`, with `truncated` from `result.total > result.rows.length`, and `applyTextFilter` warns on it independently. Not paged: scanning forward would issue up to `total / 200` queries on an unbounded term and still cap at 90 ids, so it buys a differently-arbitrary 90 rather than completeness |
+| 3 | `services/operations.ts` | **Confirmed — the other half of round eight's #5.** `listPending` was filtered onto the decider's grant; the count behind `biso_inbox_counts` still read row visibility alone. `approval_requests` has `"$permissions": []` with `rowSecurity: true`, so visibility *is* row security — which grants the requester read on their own rows. A campus admin's own request, routed to another team, was counted as awaiting their decision | `approverTeamsFor` moves to `identity/scope.ts` so both paths share one definition, Operations Unit override included. `inboxCounts` applies it, short-circuiting to `0` for an approver with no teams rather than issuing an unfiltered query |
+
+### What these two follow-ups have in common
+
+Round eight fixed *a* stale-identity gap and *an* approver-filter gap. Both
+fixes were correct and both were incomplete, because each concern had a second
+call site that the finding did not name: a second place the profile mattered,
+and a second query over the same table. Verifying a finding proves the reported
+path is broken; it says nothing about the paths beside it. The check that would
+have caught both is to grep for the other readers of the same thing before
+calling a fix done — which is now how these two are fixed, by giving each
+concern one definition instead of two.
