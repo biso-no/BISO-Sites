@@ -19,7 +19,7 @@ import { startBiAccountLink } from "@/lib/account-link-client";
 
 // The page's <h1> lives in the branded hero shell above (join/page.tsx); this
 // is the state's own secondary heading.
-function StateCard({
+export function StateCard({
   icon: Icon,
   title,
   body,
@@ -45,12 +45,16 @@ function StateCard({
   );
 }
 
-export function SignedOutState() {
+export function SignedOutState({
+  redirectTo = "/membership/join",
+}: {
+  redirectTo?: string;
+}) {
   const t = useTranslations("membership.join.signedOut");
   return (
     <StateCard body={t("body")} icon={LogIn} title={t("title")}>
       <Button asChild>
-        <Link href="/auth/login?redirectTo=/membership/join">{t("cta")}</Link>
+        <Link href={`/auth/login?redirectTo=${redirectTo}`}>{t("cta")}</Link>
       </Button>
     </StateCard>
   );
@@ -58,8 +62,10 @@ export function SignedOutState() {
 
 export function NeedsBiLinkState({
   linkFailed = false,
+  returnTo = "/membership/join",
 }: {
   linkFailed?: boolean;
+  returnTo?: string;
 }) {
   const t = useTranslations("membership.join.needsBiLink");
   const [isLinking, startLink] = useTransition();
@@ -72,7 +78,7 @@ export function NeedsBiLinkState({
         // Without a browser-side Appwrite session the OAuth redirect creates
         // a brand-new account instead of linking this one — see
         // ensureClientAppwriteSession.
-        await startBiAccountLink("/membership/join", "oidc_failed=1");
+        await startBiAccountLink(returnTo, "oidc_failed=1");
       } catch {
         setStartFailed(true);
       }

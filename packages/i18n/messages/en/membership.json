@@ -242,5 +242,14 @@
       "noCampus": "Choose your campus.",
       "generic": "Something went wrong. Please try again."
     }
+  },
+  "link": {
+    "title": "Link your BI student account",
+    "subtitle": "Link it once here, then go back to the BISO app to see your membership.",
+    "linked": {
+      "title": "Your BI student account is linked",
+      "body": "Signed in as {email}. Go back to the BISO app to see your membership.",
+      "cta": "Return to the BISO app"
+    }
   }
 }
