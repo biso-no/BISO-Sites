@@ -319,16 +319,7 @@ export function verifyProposalToken(input: {
   now?: Date;
 }): void {
   const now = input.now ?? new Date();
-  if (Number.isNaN(Date.parse(input.expiresAt))) {
-    throw new DomainError("invalid_input", "The proposal expiry is malformed.");
-  }
-  if (Date.parse(input.expiresAt) < now.getTime()) {
-    throw requiresAuthorization(
-      "This proposal has expired.",
-      { expiresAt: input.expiresAt },
-      "Re-run the proposing tool to get a fresh proposal, then execute that one."
-    );
-  }
+  assertNotExpired(input.expiresAt, now);
   const expected = buildProposalToken({
     serverSecret: input.serverSecret,
     actorId: input.actorId,
@@ -342,6 +333,31 @@ export function verifyProposalToken(input: {
       "This proposal token does not match the requested change.",
       { action: input.action },
       "A token authorizes exactly one payload, for one actor, at one revision. Re-run the proposing tool and execute the proposal it returns."
+    );
+  }
+}
+
+/**
+ * Refuse a proposal whose advertised life has run out.
+ *
+ * Called twice per execution, and the second call is the point of it.
+ * `verifyProposalToken` runs before the human confirmation, and in `confirm`
+ * mode that confirmation is an elicitation with no deadline of its own — a
+ * dialog left open for an hour and then accepted would otherwise execute a
+ * proposal whose `expiresAt` says it lapsed fifty minutes ago. For an update
+ * the revision re-read catches the drift; for a create there is no revision to
+ * catch it with.
+ */
+export function assertNotExpired(expiresAt: string, now?: Date): void {
+  const at = Date.parse(expiresAt);
+  if (Number.isNaN(at)) {
+    throw new DomainError("invalid_input", "The proposal expiry is malformed.");
+  }
+  if (at < (now ?? new Date()).getTime()) {
+    throw requiresAuthorization(
+      "This proposal has expired.",
+      { expiresAt },
+      "Re-run the proposing tool to get a fresh proposal, then execute that one."
     );
   }
 }

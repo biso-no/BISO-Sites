@@ -748,3 +748,161 @@ describe("list pagination across the visibility filter", () => {
     expect(seen).toEqual(["oslo-draft"]);
   });
 });
+
+describe("what a published-only viewer is told", () => {
+  /**
+   * `saveDraft` writes the draft's `meta.title`/`meta.description` into the
+   * translation row's own columns while `is_published` stays true. A caller
+   * limited to the published document therefore gets released blocks under an
+   * unreleased headline unless the metadata comes from that document too.
+   */
+  function publishedWithRenamedDraft(): FakeTables {
+    const published: PageDoc = {
+      blocks: [{ id: "live", type: "text", body: "Released copy" }],
+      meta: {
+        accentColor: "#3DA9E0",
+        department: "dept-a",
+        slug: "public-page",
+        status: "published",
+        title: "Released title",
+        description: "Released description",
+      },
+    };
+    const draft: PageDoc = {
+      blocks: [{ id: "secret", type: "text", body: "UNRELEASED" }],
+      meta: {
+        ...published.meta,
+        title: "UNRELEASED TITLE",
+        description: "UNRELEASED DESCRIPTION",
+      },
+    };
+    return tablesWith({
+      pages: [
+        {
+          $id: "page-pub",
+          $createdAt: "2026-01-01T00:00:00.000Z",
+          $updatedAt: "2026-01-01T00:00:00.000Z",
+          slug: "public-page",
+          status: "published",
+          visibility: "public",
+          campus_id: "1",
+          department_id: "dept-a",
+          campus: { $id: "1" },
+          department: { $id: "dept-a" },
+          translation_refs: [
+            {
+              $id: "tr-pub",
+              $updatedAt: "2026-01-01T00:00:00.000Z",
+              locale: "no",
+              // The columns track the draft, which is the whole problem.
+              title: "UNRELEASED TITLE",
+              description: "UNRELEASED DESCRIPTION",
+              is_published: true,
+              published_at: "2026-01-01T00:00:00.000Z",
+              draft_document: JSON.stringify(draft),
+              puck_document: JSON.stringify(published),
+            },
+          ],
+        },
+      ],
+    });
+  }
+
+  test("another campus reads the published title, not the draft's", async () => {
+    const service = createPageService(
+      createFakeBackend({ tables: publishedWithRenamedDraft() }),
+      LINKS
+    );
+    const view = await service.load(CAMPUS_ADMIN("Bergen", "2"), {
+      pageId: "page-pub",
+      locale: "no",
+    });
+
+    expect(view.documentSource).toBe("published");
+    expect(view.title).toBe("Released title");
+    expect(view.description).toBe("Released description");
+  });
+
+  test("the owning campus still reads the draft's title", async () => {
+    const service = createPageService(
+      createFakeBackend({ tables: publishedWithRenamedDraft() }),
+      LINKS
+    );
+    const view = await service.load(CAMPUS_ADMIN("Oslo", "1"), {
+      pageId: "page-pub",
+      locale: "no",
+    });
+
+    expect(view.documentSource).toBe("draft");
+    expect(view.title).toBe("UNRELEASED TITLE");
+  });
+});
+
+describe("an owner whose locale has no draft", () => {
+  /**
+   * A legacy row: only `puck_document`, never a draft. `documentSource` is
+   * "published" for the owner too, so reading it as an authorization answer
+   * locks the owner out of creating the draft.
+   */
+  function publishedOnly(): FakeTables {
+    return tablesWith({
+      pages: [
+        {
+          $id: "page-legacy",
+          $createdAt: "2026-01-01T00:00:00.000Z",
+          $updatedAt: "2026-01-01T00:00:00.000Z",
+          slug: "legacy",
+          status: "published",
+          visibility: "public",
+          campus_id: "1",
+          department_id: "dept-a",
+          campus: { $id: "1" },
+          department: { $id: "dept-a" },
+          translation_refs: [
+            {
+              $id: "tr-legacy",
+              $updatedAt: "2026-01-01T00:00:00.000Z",
+              locale: "no",
+              title: "Legacy page",
+              description: "Released",
+              is_published: true,
+              published_at: "2026-01-01T00:00:00.000Z",
+              draft_document: null,
+              puck_document: JSON.stringify(
+                doc([{ id: "live", type: "text", body: "Released copy" }])
+              ),
+            },
+          ],
+        },
+      ],
+    });
+  }
+
+  test("is authorized for the draft even though there is none", async () => {
+    const service = createPageService(
+      createFakeBackend({ tables: publishedOnly() }),
+      LINKS
+    );
+    const view = await service.load(DEPARTMENT_MEMBER("dept-a", "1"), {
+      pageId: "page-legacy",
+      locale: "no",
+    });
+
+    expect(view.documentSource).toBe("published");
+    expect(view.canSeeDraft).toBe(true);
+  });
+
+  test("an out-of-scope caller is not authorized for the draft", async () => {
+    const service = createPageService(
+      createFakeBackend({ tables: publishedOnly() }),
+      LINKS
+    );
+    const view = await service.load(CAMPUS_ADMIN("Bergen", "2"), {
+      pageId: "page-legacy",
+      locale: "no",
+    });
+
+    expect(view.documentSource).toBe("published");
+    expect(view.canSeeDraft).toBe(false);
+  });
+});

@@ -41,7 +41,13 @@ did it" from "here is what I would do" — and only `executed` is recorded in
 description from its **published document**, not from the translation row's
 columns: saving a draft overwrites those columns while the page stays
 published, so they can hold unreleased copy. Blocks were always read from the
-published document.
+published document. `biso_page_load` does the same for any caller limited to
+the published document.
+
+A free-text `query` is only applied where the public path can apply it — today
+that is `pages`, matched against the slug. For every other kind the result's
+`notes` says the term was not applied, so a listing is never presented as
+though it matched.
 
 ### `pagination.total`
 
@@ -136,10 +142,14 @@ distinguishing them would confirm an id exists.
 | `biso_public_search` | `kind`: events, news, jobs, pages, units, benefits, documents. Runs on the **anonymous** client, so a draft cannot come back. `campusId` is optional for every kind; omitting it lists across campuses, and naming one adds national benefits to a `benefits` query. |
 | `biso_public_get_page` | Returns the **published** document, never the draft. |
 
-Read the result's `warnings`: for `news` and `jobs` the public path applies no
-free-text index, and the result says so rather than implying the term matched.
-Benefit results never carry a redemption code — enforced by a projection rule in
-`runtime/redact.ts`, not by naming convention, and covered by a test.
+Read the result's `warnings`: every kind except `pages` applies no free-text
+index on the public path, and the result says so rather than implying the term
+matched. Benefit results never carry a redemption code, and vacancy results
+never carry a screening rubric, interview template or application questions —
+enforced by projection rules in `runtime/redact.ts`, not by naming convention,
+and covered by tests. `biso_content_get` lets any *published* row through
+without a campus check, so that file is what keeps those columns inside the
+campus that owns them.
 
 ### Content — staff
 
@@ -213,7 +223,10 @@ so an out-of-scope caller gets `not_found` rather than the draft.
 **`biso_page_edit_blocks` and scope.** Editing requires scope over the page. A
 caller who may only read its published document is refused rather than handed a
 proposal they could never save — building one would disclose the draft's block
-structure through the per-edit outcomes.
+structure through the per-edit outcomes. The test is `canSeeDraft`, not
+`documentSource`: an owner whose locale has only a published document (a legacy
+row, or a draft that failed to parse) reads `documentSource: "published"` too,
+and editing is how they create or repair that draft.
 
 **`biso_page_list` pagination.** Visibility is decided per row *after* the
 query, so a page can come back shorter than `limit` while more results remain,
@@ -315,6 +328,10 @@ means it was.
 The token binds actor + action + payload + revision + expiry. Change any of them
 and it is refused with `requires_authorization`. It expires after 10 minutes and
 does not survive a server restart.
+
+In `confirm` mode the expiry is checked again after the person accepts, so a
+confirmation dialog left open past the ten minutes cannot execute a lapsed
+proposal.
 
 **An executed result carries no `proposalToken`.** The proposal echoed back
 alongside `effect: "executed"` describes what was applied — targets, payload,

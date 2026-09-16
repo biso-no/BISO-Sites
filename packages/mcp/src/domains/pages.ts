@@ -29,7 +29,7 @@ import {
   FEED_BINDING_BLOCKS,
   isKnownBlockType,
 } from "../services/blocks";
-import type { BlockEdit } from "../services/pages";
+import type { BlockEdit, PageDocumentView } from "../services/pages";
 import type { Projected } from "../services/row";
 import { proposalInput, proposeOrExecute } from "./content";
 import {
@@ -108,6 +108,26 @@ const blockEditSchema = z.discriminatedUnion("op", [
   }),
 ]);
 
+/**
+ * What to tell the caller about the document they were served.
+ *
+ * Two different situations produce a published document, and conflating them
+ * tells an owner they are out of scope when they are not.
+ */
+function loadWarnings(view: PageDocumentView): string[] | undefined {
+  if (!view.canSeeDraft) {
+    return [
+      "This page is outside your scope, so you are reading its published document. Any draft edits in progress are not shown, and you cannot save changes to it.",
+    ];
+  }
+  if (view.documentSource === "published") {
+    return [
+      "This locale has no draft document, so you are reading the published one. Editing it will create a draft from these blocks.",
+    ];
+  }
+  return;
+}
+
 export const pagesModule: ToolModule = {
   name: "pages",
   title: "Page documents",
@@ -180,12 +200,7 @@ export const pagesModule: ToolModule = {
           data: view,
           scope: describeScope(context.principal),
           links: view.page.links,
-          warnings:
-            view.documentSource === "published"
-              ? [
-                  "This page is outside your scope, so you are reading its published document. Any draft edits in progress are not shown, and you cannot save changes to it.",
-                ]
-              : undefined,
+          warnings: loadWarnings(view),
         });
       },
     }),
@@ -280,7 +295,12 @@ export const pagesModule: ToolModule = {
         // a proposal for them would leak the draft's block ids, types and
         // count through `outcomes` and `resultingBlocks` before that refusal.
         // So the refusal happens here, before the document is loaded at all.
-        if (view.documentSource === "published") {
+        //
+        // `canSeeDraft`, not `documentSource`: an owner whose locale has only a
+        // published document — a legacy row, or a draft that failed to parse —
+        // also reads `documentSource: "published"`, and refusing them would
+        // block the very edit that creates or repairs the draft.
+        if (!view.canSeeDraft) {
           throw forbidden(
             "This page is outside your scope, so you can only read its published document.",
             { pageId: args.pageId, campusId: view.page.campusId },

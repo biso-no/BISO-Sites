@@ -62,6 +62,29 @@ export const PUBLIC_KINDS = [
 
 export type PublicKind = (typeof PUBLIC_KINDS)[number];
 
+/**
+ * What happens to a free-text term, per kind.
+ *
+ * `biso_public_search` promises that `notes` says when the term was not
+ * applied. Only `pages` applies one at all, and only against the slug; the rest
+ * have no public text index on this path. Keeping the answer in one table means
+ * a new kind cannot quietly inherit "say nothing".
+ */
+const TEXT_SEARCH_NOTE: Record<PublicKind, string | null> = {
+  events:
+    "Events are listed by start date; the free-text term was not applied, because the public events listing has no text index on this path.",
+  news: "News is listed newest-first; the free-text term was not applied because the public news listing has no text index in this path.",
+  jobs: "Vacancies are listed most-recently-updated first; the free-text term was not applied in the public path.",
+  benefits:
+    "Benefits are listed most-recently-updated first; the free-text term was not applied.",
+  units:
+    "Units are listed alphabetically; the free-text term was not applied. Narrow with `campusId` instead.",
+  documents:
+    "Documents are listed in their configured order; the free-text term was not applied.",
+  pages:
+    "The free-text term was matched against the page slug only, not against title or body.",
+};
+
 export interface PublicItem {
   campusId: string | null;
   campusLabel: string;
@@ -605,23 +628,21 @@ export function createDiscoveryService(
     async search(input) {
       const locale = input.locale ?? "no";
       const notes: string[] = [];
+      // Said once, for every kind. Two kinds used to warn and four dropped the
+      // term in silence, under a summary that reads like the results match it.
+      if (input.query?.trim()) {
+        const note = TEXT_SEARCH_NOTE[input.kind];
+        if (note) {
+          notes.push(note);
+        }
+      }
       try {
         switch (input.kind) {
           case "events":
             return { ...(await searchEvents({ ...input, locale })), notes };
           case "news":
-            if (input.query) {
-              notes.push(
-                "News is listed newest-first; the free-text term was not applied because the public news listing has no text index in this path."
-              );
-            }
             return { ...(await searchNews({ ...input, locale })), notes };
           case "jobs":
-            if (input.query) {
-              notes.push(
-                "Vacancies are listed most-recently-updated first; the free-text term was not applied in the public path."
-              );
-            }
             return { ...(await searchJobs({ ...input, locale })), notes };
           case "benefits":
             notes.push(

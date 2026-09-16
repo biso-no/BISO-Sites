@@ -13,7 +13,7 @@
  * requirement.
  */
 
-import { describe, expect, test } from "bun:test";
+import { describe, expect, setSystemTime, test } from "bun:test";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { ElicitRequestSchema } from "@modelcontextprotocol/sdk/types.js";
@@ -46,6 +46,7 @@ const NO_LANGUAGE_MODEL_I_RE = /no language model/i;
 const SERVICE_KEY_CLIENT_WHICH_IS_NOT_CONF_RE =
   /service-key client, which is not configured/i;
 const MEMBER_PRICE_I_RE = /member price/i;
+const EXPIRED_I_RE = /has expired/i;
 
 function baseConfig(overrides: Partial<ServerConfig> = {}): ServerConfig {
   const config = loadConfig({
@@ -1732,6 +1733,170 @@ describe("the briefing and the audit report what they measured", () => {
       expect(
         data.findings.some((finding) => finding.kind === "new_submissions")
       ).toBe(false);
+    } finally {
+      await harness.close();
+    }
+  });
+});
+
+describe("a confirmation dialog does not extend a proposal's life", () => {
+  test("accepting after the expiry writes nothing", async () => {
+    // The elicitation has no deadline of its own, and the token is verified
+    // before it opens. The clock is advanced from inside the handler, which is
+    // exactly the shape of the real case: a dialog left open past the TTL and
+    // then accepted.
+    const harness = await connect({
+      principal: GLOBAL_ADMIN(),
+      config: baseConfig({ writeMode: "confirm" }),
+      clientCapabilities: { elicitation: {} },
+    });
+    try {
+      const args = {
+        domain: "news",
+        slug: "slow-confirm",
+        campusId: "1",
+        titleNo: "Tittel",
+        titleEn: "Title",
+        descriptionNo: "Tekst",
+        descriptionEn: "Text",
+      };
+      const proposed = await callTool(
+        harness.client,
+        "biso_content_create_draft",
+        args
+      );
+      const proposal = (
+        proposed.structured?.data as {
+          proposal: { proposalToken: string; expiresAt: string };
+        }
+      ).proposal;
+
+      harness.client.setRequestHandler(ElicitRequestSchema, () => {
+        setSystemTime(new Date(Date.parse(proposal.expiresAt) + 60_000));
+        return Promise.resolve({
+          action: "accept" as const,
+          content: { confirm: true },
+        });
+      });
+
+      const executed = await callTool(
+        harness.client,
+        "biso_content_create_draft",
+        {
+          ...args,
+          proposalToken: proposal.proposalToken,
+          proposalExpiresAt: proposal.expiresAt,
+        }
+      );
+
+      expect(executed.response.isError).toBe(true);
+      expect(JSON.stringify(executed.structured)).toMatch(EXPIRED_I_RE);
+      expect(domainWrites(harness)).toHaveLength(0);
+    } finally {
+      setSystemTime();
+      await harness.close();
+    }
+  });
+});
+
+describe("an owner whose page has no draft can still edit it", () => {
+  /**
+   * A legacy translation row: only `puck_document`. `documentSource` reads
+   * "published" for the owner too, so a guard that treats that as "out of
+   * scope" locks the owner out of creating the draft — while `saveDraft`
+   * enforces ownership independently anyway.
+   */
+  function publishedOnlyPage(): FakeTables {
+    return {
+      campus: [{ $id: "1", name: "Oslo" }],
+      departments: [
+        {
+          $id: "dept-a",
+          Name: "ESN Oslo",
+          campus_id: "1",
+          slug: "esn",
+          type: "unit",
+          active: true,
+        },
+      ],
+      pages: [
+        {
+          $id: "page-legacy",
+          $createdAt: "2026-01-01T00:00:00.000Z",
+          $updatedAt: "2026-01-01T00:00:00.000Z",
+          slug: "legacy",
+          status: "published",
+          visibility: "public",
+          campus_id: "1",
+          department_id: "dept-a",
+          campus: { $id: "1" },
+          department: { $id: "dept-a" },
+          translation_refs: [
+            {
+              $id: "tr-legacy",
+              $updatedAt: "2026-01-01T00:00:00.000Z",
+              locale: "no",
+              title: "Legacy page",
+              description: "Released",
+              is_published: true,
+              published_at: "2026-01-01T00:00:00.000Z",
+              draft_document: null,
+              puck_document: JSON.stringify({
+                blocks: [{ id: "live", type: "text", body: "Released" }],
+                meta: {
+                  title: "Legacy page",
+                  slug: "legacy",
+                  status: "published",
+                },
+              }),
+            },
+          ],
+        },
+      ],
+      audit_logs: [],
+    };
+  }
+
+  test("the owner is allowed to propose the first draft", async () => {
+    const harness = await connect({
+      principal: DEPARTMENT_MEMBER("dept-a", "1"),
+      config: baseConfig({ writeMode: "propose" }),
+      tables: publishedOnlyPage(),
+    });
+    try {
+      const { response } = await callTool(
+        harness.client,
+        "biso_page_edit_blocks",
+        {
+          pageId: "page-legacy",
+          locale: "no",
+          edits: [{ op: "insert", blockType: "text" }],
+        }
+      );
+      expect(response.isError).toBeFalsy();
+    } finally {
+      await harness.close();
+    }
+  });
+
+  test("another campus is still refused", async () => {
+    const harness = await connect({
+      principal: CAMPUS_ADMIN("Bergen", "2"),
+      config: baseConfig({ writeMode: "propose" }),
+      tables: publishedOnlyPage(),
+    });
+    try {
+      const { response, structured } = await callTool(
+        harness.client,
+        "biso_page_edit_blocks",
+        {
+          pageId: "page-legacy",
+          locale: "no",
+          edits: [{ op: "insert", blockType: "text" }],
+        }
+      );
+      expect(response.isError).toBe(true);
+      expect(JSON.stringify(structured)).toContain("outside your scope");
     } finally {
       await harness.close();
     }

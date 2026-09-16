@@ -408,3 +408,61 @@ describe("public benefit discovery", () => {
     expect(found.rows.map((row) => row.id)).toEqual(["national-benefit"]);
   });
 });
+
+describe("free-text terms the public path cannot apply", () => {
+  /**
+   * The tool documents that `notes` says when a term was not applied. Only
+   * `pages` applies one, and only against the slug; four kinds used to drop it
+   * in silence under a summary that reads as though the results match it.
+   */
+  const SILENT_KINDS = ["events", "benefits", "units", "documents"] as const;
+
+  for (const kind of SILENT_KINDS) {
+    test(`${kind} says the term was not applied`, async () => {
+      const service = createDiscoveryService(
+        createFakeBackend({ tables: {} }),
+        LINKS
+      );
+      const found = await service.search({
+        kind,
+        query: "welcome week",
+        locale: "no",
+        limit: 20,
+        offset: 0,
+      });
+
+      expect(found.notes.join(" ")).toContain("was not applied");
+    });
+  }
+
+  test("no note is added when no term was given", async () => {
+    const service = createDiscoveryService(
+      createFakeBackend({ tables: {} }),
+      LINKS
+    );
+    const found = await service.search({
+      kind: "events",
+      locale: "no",
+      limit: 20,
+      offset: 0,
+    });
+
+    expect(found.notes.join(" ")).not.toContain("was not applied");
+  });
+
+  test("pages says the term only matched the slug", async () => {
+    const service = createDiscoveryService(
+      createFakeBackend({ tables: { pages: [] } }),
+      LINKS
+    );
+    const found = await service.search({
+      kind: "pages",
+      query: "welcome",
+      locale: "no",
+      limit: 20,
+      offset: 0,
+    });
+
+    expect(found.notes.join(" ")).toContain("page slug only");
+  });
+});

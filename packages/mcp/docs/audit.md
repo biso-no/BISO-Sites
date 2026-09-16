@@ -418,3 +418,34 @@ that labels more than it filters, a credential handed back, a projection that
 did not match its reader. The fix each time was to move the rule into one
 place — `scanForward`, `orderQuery`, `asApplied` — rather than to patch the
 call site. The remaining copies are the ones worth looking for next.
+
+---
+
+## 10. Fifth review round
+
+A fifth review of `957eadb` raised five. All five reproduced. Three are earlier
+defect classes reached through a further door, and one is a regression this
+package introduced in round three.
+
+| # | Area | Verified as | Fix |
+|---|---|---|---|
+| 1 | `services/content.ts` | **Confirmed — round three's `isPublished` bypass, third door.** `content.get` waves any published row past `canReadRow`, and `SENSITIVE_COLUMNS` had no `jobs` entry, so `raw` carried `screening_rubric`, `interview_template` and `custom_questions`. A campus-scoped HR principal passes `assertRecruitmentGate`, `jobs` grants table-level `read("any")`, and the scoped `getVacancy` reports only `hasRubric` — so this was the one path that returned another campus's grading criteria | `SENSITIVE_COLUMNS.jobs`, which closes it on every path and for the caller's own campus too, since no tool here is meant to return a rubric. The `isPublished` shortcut now documents that `raw` is what carries the weight |
+| 2 | `services/pages.ts` | **Confirmed — round three's published-metadata finding, staff door.** `load` selected the published *blocks* for an out-of-scope caller and then took `title`/`description` from the translation row's columns, which `saveDraft` overwrites with the draft's meta | `publishedHeadline()`, applied whenever the caller is limited to the published document |
+| 3 | `domains/pages.ts` | **Confirmed — a regression from round three's own fix.** `documentSource === "published"` was read as "out of scope", but it is also what an authorized owner sees when the locale has no parseable draft — a legacy row, or a draft `parseDoc` fell back from. That owner was refused with "outside your scope" and could not create or repair the draft | `PageDocumentView.canSeeDraft` carries the authorization decision; `documentSource` goes back to describing which document was served. The load warning now distinguishes the two cases |
+| 4 | `domains/content.ts` | **Confirmed.** In `confirm` mode the token is verified and consumed before an elicitation that has no deadline of its own, so a dialog left open past the ten-minute TTL still executed on accept. An update's revision re-read catches the drift; a create has no revision to catch it with | `assertNotExpired()` extracted from `verifyProposalToken` and called again after the person accepts |
+| 5 | `services/discovery.ts` | **Confirmed, and wider than reported.** The finding named `events`; `benefits`, `units` and `documents` drop the term silently too, and only `pages` applies one — as a slug `contains`. The tool documents that `notes` says when a term was not applied | One `TEXT_SEARCH_NOTE` table covering all seven kinds, replacing two ad-hoc warnings, so a new kind cannot inherit "say nothing" |
+
+### Testing the confirmation window
+
+Finding #4 needed a test that could not be written by passing a stale expiry:
+`verifyProposalToken` refuses that *before* the confirmation, so such a test
+passes whether or not the second check exists — which is exactly what the first
+attempt did. The real path only opens when time passes *during* the
+elicitation, so the test advances the clock with `setSystemTime` from inside
+the elicitation handler and restores it afterwards. Reverting the fix now fails
+it.
+
+That is worth recording because it is the same trap as the harness gaps in
+rounds two, three and four, one level up: an assertion that passes for a reason
+other than the one it claims. A regression test is only evidence if it has been
+watched to fail.

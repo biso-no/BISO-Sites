@@ -49,6 +49,25 @@ export const SENSITIVE_COLUMNS: Record<string, readonly string[]> = {
    * promise made by the content registry and `docs/tools.md`.
    */
   campus_benefits: ["redemption_value"],
+  /**
+   * A vacancy's screening rubric, interview template and application questions
+   * are how candidates get graded. No tool in this package is meant to return
+   * them: the recruitment getter deliberately exposes only `hasRubric`.
+   *
+   * The generic content getter would, though. `jobs` grants table-level
+   * `read("any")`, and `content.get` lets any *published* row through without a
+   * campus check — correct for reading published content, wrong for the whole
+   * row — so a campus-scoped HR principal could read another campus's grading
+   * criteria by id. Stripping here closes it on every path rather than one, and
+   * for the caller's own campus too, which matches what the recruitment tools
+   * already promise.
+   */
+  jobs: [
+    "screening_rubric",
+    "interview_template",
+    "custom_questions",
+    "embedding_id",
+  ],
   varsling_settings: ["email"],
 };
 

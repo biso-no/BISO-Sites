@@ -598,6 +598,13 @@ export function createContentService(
       // Appwrite's own permissions already gate the read, but several content
       // tables grant `read("any")` at table level, so a second application-level
       // check is what actually keeps a draft in another campus out of reach.
+      //
+      // A *published* row is readable across campuses on purpose — it is
+      // already public. That makes `raw` below the load-bearing part: anything
+      // on a published row that should not cross a campus boundary has to be in
+      // `SENSITIVE_COLUMNS`, because this check will not stop it. That is why
+      // `campus_benefits.redemption_value` and the `jobs` screening columns are
+      // listed there.
       const isPublished = row.status === spec.publishedStatus;
       if (
         !(

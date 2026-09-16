@@ -26,6 +26,7 @@ import { forbidden, invalidInput, notSupported } from "../runtime/errors";
 import {
   type AppliedProposal,
   asApplied,
+  assertNotExpired,
   createProposal,
   type MutationProposal,
   verifyProposalToken,
@@ -166,6 +167,10 @@ async function proposeOrExecute<TPayload, TResult>(input: {
         "The user declined, dismissed, or the client could not present the confirmation. Nothing was written."
       );
     }
+    // The elicitation has no deadline of its own, so the proposal's may have
+    // passed while the dialog sat open. A ten-minute grant that executes an
+    // hour later is not the grant that was shown.
+    assertNotExpired(input.expiresAt);
   }
 
   const data = await input.execute();

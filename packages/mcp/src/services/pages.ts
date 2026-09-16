@@ -94,6 +94,18 @@ export interface PageSummary {
 export interface PageDocumentView {
   blockCount: number;
   blocks: BlockSummary[];
+  /**
+   * Whether this principal is *authorized* to see the draft.
+   *
+   * Deliberately separate from `documentSource`, which says which document they
+   * actually got. The two differ for an authorized owner whose locale has no
+   * parseable draft — a legacy row with only a published document, or a
+   * `draft_document` that failed to parse. Reading `documentSource` as an
+   * authorization answer refuses that owner the ability to create or repair the
+   * draft, which is a decision about availability wearing a scope decision's
+   * clothes.
+   */
+  canSeeDraft: boolean;
   description: string | null;
   /**
    * Which document the blocks came from.
@@ -102,6 +114,8 @@ export interface PageDocumentView {
    * its published document — never the draft sitting on top of it. Saying which
    * one they got keeps that distinction visible instead of silently serving a
    * different document to different callers.
+   *
+   * Not an authorization signal — see `canSeeDraft`.
    */
   documentSource: "draft" | "published";
   /**
@@ -265,6 +279,28 @@ function parseDoc(json: string | null | undefined): PageDoc | null {
   } catch {
     return null;
   }
+}
+
+/**
+ * Title and description as the *published* document carries them.
+ *
+ * The translation row's columns track the draft, so they are only a fallback —
+ * for a page released before `meta` was written into the document at all.
+ */
+function publishedHeadline(
+  translation: { title: string; description?: string | null },
+  published: PageDoc | null
+): { title: string; description: string | null } {
+  const meta = published?.meta as
+    | { title?: unknown; description?: unknown }
+    | undefined;
+  return {
+    title: typeof meta?.title === "string" ? meta.title : translation.title,
+    description:
+      typeof meta?.description === "string"
+        ? meta.description
+        : (translation.description ?? null),
+  };
 }
 
 function serialiseDoc(doc: PageDoc): string {
@@ -644,17 +680,27 @@ export function createPageService(
         );
       }
 
+      // `saveDraft` writes the draft's `meta.title`/`meta.description` into the
+      // translation row's own columns while `is_published` stays true, so those
+      // columns can hold unreleased copy. A caller limited to the published
+      // document must read its metadata from that document too — otherwise they
+      // get released blocks under an unreleased headline.
+      const headline = canSeeDraft
+        ? { title: translation.title, description: translation.description }
+        : publishedHeadline(translation, published);
+
       return {
         page: summarise(row),
         locale: input.locale,
-        title: translation.title,
-        description: translation.description ?? null,
+        title: headline.title,
+        description: headline.description ?? null,
         isPublished: translation.is_published,
         publishedAt: translation.published_at,
         revision: translation.$updatedAt,
         meta: active?.meta ?? null,
         blocks: (active?.blocks ?? []).map(toBlockSummary),
         blockCount: active?.blocks.length ?? 0,
+        canSeeDraft,
         documentSource,
         hasUnpublishedChanges:
           canSeeDraft &&
