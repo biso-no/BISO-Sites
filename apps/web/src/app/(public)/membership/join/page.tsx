@@ -1,13 +1,13 @@
 import type { Users } from "@repo/api/types/appwrite";
 import { getFeatureFlagStates } from "@repo/shared/utils/feature-flags-server";
+import { getPurchasableMembershipPlans } from "@repo/shared/utils/membership-catalog";
+import { resolveMembershipGate } from "@repo/shared/utils/membership-gate";
 import { Alert, AlertDescription } from "@repo/ui/components/ui/alert";
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { ShopHeroShell } from "@/components/shop/shop-hero-shell";
 import { getMembershipStatus } from "@/lib/actions/membership";
 import { getLoggedInUser } from "@/lib/actions/user";
-import { getPurchasableMembershipPlans } from "@/lib/membership-catalog";
-import { resolveMembershipGate } from "@/lib/membership-gate";
 import {
   AlreadyMemberState,
   MembershipCheckUnavailableState,

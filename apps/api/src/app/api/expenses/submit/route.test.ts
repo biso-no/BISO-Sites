@@ -9,6 +9,8 @@ const sessionDb = vi.hoisted(() => ({
 
 const adminDb = vi.hoisted(() => ({
   createRow: vi.fn(),
+  getRow: vi.fn(),
+  updateRow: vi.fn(),
 }));
 
 const account = vi.hoisted(() => ({
@@ -65,6 +67,8 @@ describe("expense submit route", () => {
   beforeEach(() => {
     account.get.mockReset();
     adminDb.createRow.mockReset();
+    adminDb.getRow.mockReset();
+    adminDb.updateRow.mockReset();
     sessionDb.createRow.mockReset();
     sessionDb.getRow.mockReset();
     sessionDb.updateRow.mockReset();
@@ -99,6 +103,7 @@ describe("expense submit route", () => {
         userId: "submitter-1",
       });
     adminDb.createRow.mockResolvedValue({ $id: "expense-1" });
+    adminDb.updateRow.mockResolvedValue({});
     storage.createFile.mockResolvedValue({ $id: "pdf-1" });
     messaging.createEmail.mockResolvedValue({});
     sessionDb.updateRow.mockResolvedValue({});
@@ -125,7 +130,75 @@ describe("expense submit route", () => {
         total: 100,
         userId: "submitter-1",
       }),
-      ['read("user:submitter-1")', 'update("user:submitter-1")']
+      ['read("user:submitter-1")']
     );
+  });
+
+  it("updates an owned draft through the admin client before submitting it", async () => {
+    adminDb.getRow.mockResolvedValue({
+      $id: "expense-1",
+      status: ExpensesStatus.DRAFT,
+      userId: "submitter-1",
+    });
+
+    const response = await POST(
+      submitRequest({
+        bank_account: "1234.56.78901",
+        campus: "1",
+        department: "dept-1",
+        expenseId: "expense-1",
+        total: 100,
+      })
+    );
+
+    expect(response.status).toBe(200);
+    expect(adminDb.updateRow).toHaveBeenCalledWith(
+      "app",
+      "expense",
+      "expense-1",
+      expect.objectContaining({ status: ExpensesStatus.DRAFT, total: 100 })
+    );
+    expect(sessionDb.updateRow).not.toHaveBeenCalled();
+  });
+
+  it("refuses to submit an expense that belongs to someone else", async () => {
+    adminDb.getRow.mockResolvedValue({
+      $id: "expense-1",
+      status: ExpensesStatus.DRAFT,
+      userId: "someone-else",
+    });
+
+    const response = await POST(
+      submitRequest({
+        bank_account: "1234.56.78901",
+        campus: "1",
+        department: "dept-1",
+        expenseId: "expense-1",
+        total: 100,
+      })
+    );
+
+    expect(response.status).toBe(403);
+    expect(adminDb.updateRow).not.toHaveBeenCalled();
+  });
+
+  it("marks a legacy-flow submission pending through the admin client", async () => {
+    const response = await POST(
+      submitRequest({
+        bank_account: "1234.56.78901",
+        campus: "1",
+        department: "dept-1",
+        total: 100,
+      })
+    );
+
+    expect(response.status).toBe(200);
+    expect(adminDb.updateRow).toHaveBeenCalledWith(
+      "app",
+      "expense",
+      "expense-1",
+      { status: ExpensesStatus.PENDING }
+    );
+    expect(sessionDb.updateRow).not.toHaveBeenCalled();
   });
 });

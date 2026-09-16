@@ -21,6 +21,8 @@ export type CreateExpenseData = Models.Row &
     invoice_id?: number | null;
   };
 
+type AdminDb = Awaited<ReturnType<typeof createAdminClient>>["db"];
+
 type ExpenseOwnershipResult =
   | { ok: true }
   | { error: string; ok: false; status: number };
@@ -34,7 +36,7 @@ function isExpenseOwnershipError(
 }
 
 async function checkDraftOwnership(
-  db: Awaited<ReturnType<typeof createAuthenticatedClient>>["db"],
+  db: AdminDb,
   expenseId: string,
   userId: string
 ): Promise<ExpenseOwnershipResult> {
@@ -65,8 +67,7 @@ async function checkDraftOwnership(
 }
 
 async function saveDraftBeforeSubmission(
-  db: Awaited<ReturnType<typeof createAuthenticatedClient>>["db"],
-  adminDb: Awaited<ReturnType<typeof createAdminClient>>["db"],
+  adminDb: AdminDb,
   expenseId: string | undefined,
   userId: string,
   expenseBody: ExpenseRowInput
@@ -81,13 +82,15 @@ async function saveDraftBeforeSubmission(
     );
   }
 
-  const ownership = await checkDraftOwnership(db, expenseId, userId);
+  // Expense rows are read-only to their submitter: ownership is checked here
+  // and the write goes through the admin client.
+  const ownership = await checkDraftOwnership(adminDb, expenseId, userId);
 
   if (!ownership.ok) {
     return ownership;
   }
 
-  return db.updateRow<CreateExpenseData>(
+  return adminDb.updateRow<CreateExpenseData>(
     "app",
     "expense",
     expenseId,
@@ -216,7 +219,6 @@ export async function POST(req: NextRequest) {
     );
 
     const expense = await saveDraftBeforeSubmission(
-      db,
       adminDb,
       expenseData.expenseId,
       user.$id,
@@ -412,9 +414,14 @@ export async function POST(req: NextRequest) {
       attachmentsIdsArray
     );
 
-    await db.updateRow<ExpenseStatusUpdateRow>("app", "expense", expense.$id, {
-      status: ExpensesStatus.PENDING,
-    });
+    await adminDb.updateRow<ExpenseStatusUpdateRow>(
+      "app",
+      "expense",
+      expense.$id,
+      {
+        status: ExpensesStatus.PENDING,
+      }
+    );
 
     return applyCorsHeaders(
       NextResponse.json({

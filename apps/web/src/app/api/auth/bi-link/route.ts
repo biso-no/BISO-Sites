@@ -10,6 +10,7 @@ import { syncBiStudentIdentity } from "@/lib/actions/bi-identity";
 const ALLOWED_RETURN_PATHS = new Set([
   "/member",
   "/membership/join",
+  "/membership/link",
   "/onboarding",
   "/profile",
 ]);
@@ -46,9 +47,15 @@ export async function GET(request: Request) {
     ? requestedReturnTo
     : "/profile";
 
-  await syncBiStudentIdentity();
+  const result = await syncBiStudentIdentity();
 
   const destination = new URL(returnTo, SITE_URL);
-  destination.searchParams.set("linked", "1");
+  if (!result.success && result.error === "already_linked") {
+    // The link was refused and the new identity removed again; the
+    // destination shows why (see AccountLinkSessionCleanup).
+    destination.searchParams.set("link_error", "already_linked");
+  } else {
+    destination.searchParams.set("linked", "1");
+  }
   return NextResponse.redirect(destination);
 }

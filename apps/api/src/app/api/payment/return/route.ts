@@ -3,6 +3,7 @@ import type { Orders } from "@repo/api/types/appwrite";
 import { reconcileOrderPayment } from "@repo/payment/reconcile";
 import {
   appCartDeepLink,
+  appMembershipDeepLink,
   appOrderDeepLink,
   appShopDeepLink,
   CHECKOUT_CANCELLED_PARAM,
@@ -47,13 +48,26 @@ function isOrderNotFound(error: unknown): boolean {
 function redirectToApp(
   status: string | null | undefined,
   orderId: string,
-  cancelled: boolean
+  cancelled: boolean,
+  isMembership: boolean
 ): NextResponse {
   const settled = status === "paid" || status === "authorized";
   // A cancelled Stripe session reconciles to `pending`, so the marker on the
   // cancel URL is honoured only while the order has not actually settled. A
   // Vipps payment the buyer abandons reconciles to `cancelled` outright.
-  if ((cancelled && !settled) || status === "cancelled") {
+  const abandoned = (cancelled && !settled) || status === "cancelled";
+
+  // A membership buyer never touched the cart: they go back to the membership
+  // screen, which re-verifies and shows whether the membership is active.
+  if (isMembership) {
+    return NextResponse.redirect(
+      appMembershipDeepLink(
+        orderId,
+        abandoned ? { cancelled: true } : { status }
+      )
+    );
+  }
+  if (abandoned) {
     return NextResponse.redirect(appCartDeepLink(true));
   }
   return NextResponse.redirect(appOrderDeepLink(orderId, status));
@@ -152,9 +166,10 @@ export async function GET(request: Request) {
 
     await settleOrderIfPaid(orderId, db);
 
+    const isMembership = isMembershipOrder(current);
     return isAppCheckout
-      ? redirectToApp(current.status, orderId, isCancelled)
-      : redirectForStatus(current.status, orderId, isMembershipOrder(current));
+      ? redirectToApp(current.status, orderId, isCancelled, isMembership)
+      : redirectForStatus(current.status, orderId, isMembership);
   } catch (error) {
     console.error("[payment/return] Error:", error);
     return failureRedirect("/shop?error=unknown");

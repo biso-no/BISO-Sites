@@ -21,6 +21,18 @@ export type {
 // Server-side cache TTL for the resolved membership status, in seconds.
 const MEMBERSHIP_CACHE_TTL_SECONDS = 10 * 60; // 10 minutes
 
+// This cache is app-local, despite sharing `membershipCacheTag` with the
+// API's (apps/api/src/lib/membership-status-cache.ts). They are two separate
+// Next data caches in two separate deployments, so a `revalidateTag` here
+// never reaches the app's copy and vice versa — and neither is invalidated
+// when a purchase is fulfilled.
+//
+// The practical effect: a membership bought on one surface stays invisible to
+// the other until that side's own ten-minute TTL expires. The app's
+// post-purchase `?refresh=1` shortens its own wait, but it is floored to once
+// a minute per student, so the app can still say "not a member yet" for up to
+// a minute after paying.
+
 /**
  * Server-side cached wrapper around `computeMembershipStatus`, keyed per user
  * by the numeric student id. Persists across requests and users correctly,

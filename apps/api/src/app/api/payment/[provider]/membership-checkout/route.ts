@@ -14,9 +14,14 @@ import { createStripeCheckoutSession } from "@repo/payment/stripe";
 import { createVippsPayment } from "@repo/payment/vipps";
 import { type CheckoutSessionParams, Currency } from "@repo/shared/types/vipps";
 import { sanitizeStudentNumber } from "@repo/shared/utils/bi-student";
-import { checkoutReturnUrl } from "@repo/shared/utils/checkout-return";
+import {
+  type CheckoutClient,
+  checkoutReturnUrl,
+  isCheckoutClient,
+} from "@repo/shared/utils/checkout-return";
 import { isFeatureEnabled } from "@repo/shared/utils/feature-flags-server";
 import { CAMPUS_INVOICE_NAMES } from "@repo/shared/utils/finago-membership-invoice";
+import { resolveMembershipGate } from "@repo/shared/utils/membership-gate";
 import {
   type MembershipPlan,
   toMembershipPlan,
@@ -30,6 +35,7 @@ import {
 import { type NextRequest, NextResponse } from "next/server";
 import { createAuthenticatedClient } from "@/lib/auth";
 import { applyCorsHeaders, corsPreflightResponse } from "@/lib/cors";
+import { getMembershipStatusForStudent } from "@/lib/membership-status-cache";
 import { apiBaseUrl, type PublicUrls, webBaseUrl } from "@/lib/public-urls";
 
 type Provider = "vipps" | "stripe";
@@ -50,6 +56,13 @@ type CheckoutDb = Awaited<ReturnType<typeof createAdminClient>>["db"];
 // same plan later is never blocked.
 const IDEMPOTENCY_WINDOW_MS = 15 * 60 * 1000;
 const RECENT_ORDERS_LIMIT = 20;
+
+// How far back the "already bought this" guard looks. A membership runs at
+// most a year, so a settled order older than this cannot still be covering
+// the buyer; the margin keeps a late-summer renewal of last year's plan
+// sellable.
+const SETTLED_ORDER_WINDOW_MS = 400 * 24 * 60 * 60 * 1000;
+const SETTLED_ORDERS_LIMIT = 50;
 
 // Same deadline discipline as the product checkout route: neither payment
 // helper has an internal timeout, so a hung provider call would otherwise
@@ -113,6 +126,7 @@ function isProvider(value: string): value is Provider {
 
 interface MembershipCheckoutBody {
   campusId?: string;
+  client?: string;
   planId?: string;
 }
 
@@ -181,7 +195,13 @@ async function findIdempotentOrder(
 }
 
 type IdentityOutcome =
-  | { ok: true; plan: MembershipPlan }
+  | {
+      employeeId: string;
+      ok: true;
+      plan: MembershipPlan;
+      studentId: string;
+      studentNumber: number;
+    }
   | { ok: false; message: string; status: number };
 
 /**
@@ -234,7 +254,112 @@ async function resolveMembershipPurchase(
     };
   }
 
-  return { ok: true, plan };
+  return {
+    employeeId: profile.bi_employee_id,
+    ok: true,
+    plan,
+    studentId: profile.student_id ?? "",
+    studentNumber,
+  };
+}
+
+type EligibilityOutcome =
+  | { ok: true }
+  | { ok: false; message: string; status: number };
+
+/**
+ * Whether this buyer already has a settled (paid or authorized) order for
+ * this exact plan.
+ *
+ * The 24SevenOffice gate below cannot answer this on its own: the invoice is
+ * raised by fulfilment and the status read is cached, so for minutes after a
+ * completed purchase the gate still sees a non-member. `findIdempotentOrder`
+ * does not cover it either — it only reuses PENDING orders, and a paid one
+ * has left that state. This check reads nothing but our own orders, so it
+ * holds regardless of what 24SevenOffice is doing.
+ */
+async function hasSettledOrderForPlan(
+  db: CheckoutDb,
+  userId: string,
+  planId: string
+): Promise<boolean> {
+  const windowStart = new Date(
+    Date.now() - SETTLED_ORDER_WINDOW_MS
+  ).toISOString();
+  const settled = await db.listRows<Orders>("app", "orders", [
+    Query.equal("userId", userId),
+    Query.equal("status", [OrdersStatus.PAID, OrdersStatus.AUTHORIZED]),
+    Query.greaterThan("$createdAt", windowStart),
+    Query.orderDesc("$createdAt"),
+    ORDER_ITEMS_SELECT,
+    Query.limit(SETTLED_ORDERS_LIMIT),
+  ]);
+
+  return settled.rows.some((order) =>
+    getOrderItems(order).some(
+      (item) => item.product_type === "membership" && item.product_id === planId
+    )
+  );
+}
+
+/**
+ * The join page already refuses these, but this endpoint is reachable
+ * directly with any valid JWT — the app calls it — so it applies the same
+ * gate: no charge while 24SevenOffice cannot be read (an existing member
+ * could pay for cover they already have), and none that would not extend
+ * the buyer's cover.
+ *
+ * The buyer's own settled orders are checked first — they are ours to read,
+ * they cost no 24SevenOffice call, and they close the window in which a
+ * just-fulfilled purchase is invisible to the cached status.
+ */
+async function resolveMembershipEligibility(
+  db: CheckoutDb,
+  userId: string,
+  identity: {
+    employeeId: string;
+    plan: MembershipPlan;
+    studentId: string;
+    studentNumber: number;
+  }
+): Promise<EligibilityOutcome> {
+  if (await hasSettledOrderForPlan(db, userId, identity.plan.id)) {
+    return {
+      ok: false,
+      message: "Your membership already covers this period.",
+      status: 409,
+    };
+  }
+
+  // Forced refresh: a status up to ten minutes old would still report the
+  // buyer as a non-member right after they paid, and the gate would sell
+  // them the same category a second time.
+  const status = await getMembershipStatusForStudent(identity.studentNumber, {
+    refresh: true,
+  });
+  const gate = resolveMembershipGate({
+    employeeId: identity.employeeId,
+    isAuthenticated: true,
+    plans: [identity.plan],
+    status,
+    studentId: identity.studentId,
+  });
+  if (gate.state === "membership_check_unavailable") {
+    return {
+      ok: false,
+      message:
+        "We couldn't verify your membership right now. Try again shortly.",
+      status: 503,
+    };
+  }
+  if (gate.state !== "eligible") {
+    return {
+      ok: false,
+      message: "Your membership already covers this period.",
+      status: 409,
+    };
+  }
+  return { ok: true };
 }
 
 // Resolve credentials before creating the order so a misconfigured provider
@@ -242,7 +367,8 @@ async function resolveMembershipPurchase(
 async function startVippsMembershipCheckout(
   params: CheckoutSessionParams,
   db: CheckoutDb,
-  urls: PublicUrls
+  urls: PublicUrls,
+  client: CheckoutClient
 ): Promise<SessionOutcome> {
   const creds = await resolveVippsCredentials(db);
   if (!creds) {
@@ -253,7 +379,7 @@ async function startVippsMembershipCheckout(
   // The ePayment `reference` is the order id; the amount is taken from the
   // persisted order total rather than the pre-persist `params.total`, same
   // discipline as the product checkout route.
-  const returnUrl = checkoutReturnUrl(urls.apiBase, orderId);
+  const returnUrl = checkoutReturnUrl(urls.apiBase, orderId, client);
   const payment = await withDeadline(
     createVippsPayment(
       { ...params, total: order.total ?? params.total, orderId },
@@ -277,7 +403,8 @@ async function startVippsMembershipCheckout(
 async function startStripeMembershipCheckout(
   params: CheckoutSessionParams,
   db: CheckoutDb,
-  urls: PublicUrls
+  urls: PublicUrls,
+  client: CheckoutClient
 ): Promise<SessionOutcome> {
   const creds = await resolveStripeCredentials(db);
   if (!creds) {
@@ -285,8 +412,13 @@ async function startStripeMembershipCheckout(
   }
 
   const { orderId } = await createOrder(params, db);
-  const successUrl = checkoutReturnUrl(urls.apiBase, orderId);
-  const cancelUrl = `${urls.webBase}/membership/join?cancelled=true`;
+  const successUrl = checkoutReturnUrl(urls.apiBase, orderId, client);
+  // Stripe only accepts http(s) cancel URLs, so an app buyer comes back
+  // through the return route with the cancelled marker, as in the shop route.
+  const cancelUrl =
+    client === "app"
+      ? checkoutReturnUrl(urls.apiBase, orderId, client, { cancelled: true })
+      : `${urls.webBase}/membership/join?cancelled=true`;
   const session = await withDeadline(
     createStripeCheckoutSession({ ...params, orderId }, creds, {
       successUrl,
@@ -363,6 +495,16 @@ export async function POST(
       return json({ message: identity.message }, identity.status);
     }
     const { plan } = identity;
+    const client = isCheckoutClient(body.client) ? body.client : "web";
+
+    const eligibility = await resolveMembershipEligibility(
+      db,
+      user.$id,
+      identity
+    );
+    if (!eligibility.ok) {
+      return json({ message: eligibility.message }, eligibility.status);
+    }
 
     // Idempotency: before creating anything, look for an order the caller
     // already started for this plan, provider, and campus in the last 15
@@ -414,8 +556,8 @@ export async function POST(
 
     const outcome =
       provider === "vipps"
-        ? await startVippsMembershipCheckout(params, db, urls)
-        : await startStripeMembershipCheckout(params, db, urls);
+        ? await startVippsMembershipCheckout(params, db, urls, client)
+        : await startStripeMembershipCheckout(params, db, urls, client);
 
     if (!outcome.ok) {
       return json({ message: outcome.message }, outcome.status);

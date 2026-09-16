@@ -108,8 +108,7 @@ category ids, which is what the API and the `memberships.category` column
 actually hold.
 
 **Created customers get a Finago-assigned customer number.** `saveCompany` and
-`createStudentCustomer` never send `Id`. This design requires the customer
-number to *be* the Azure employee id, so `Id` must be sent explicitly on create.
+`createStudentCustomer` never send `Id`. The customer number must *be* the student number from the BI email address, with the Azure employee id as `ExternalId`, so `Id` must be sent explicitly on create. (Corrected 2026-09-15: BI keys student customers by student number.)
 
 Separately, `syncMembershipsFrom24SO` writes `price: 0` on every upsert despite
 already fetching `product.Price`, and re-writes `canPurchase: false` on every
@@ -124,7 +123,7 @@ with `appwrite push tables`, then types regenerated with
 
 | Table | Column | Type | Required | Purpose |
 |---|---|---|---|---|
-| `user` | `bi_employee_id` | string(32) | no | Azure `employeeId`. This is the Finago CustomerId. |
+| `user` | `bi_employee_id` | string(32) | no | Azure `employeeId`. Stored as the Finago customer's `ExternalId`. |
 | `user` | `bi_campus_id` | string(8) | no | BI campus id `"1"`–`"5"`. Distinct from `campus_id`, which is a site display preference. |
 | `user` | `bi_linked_at` | datetime | no | When the OIDC link plus Azure enrichment last succeeded. Drives re-sync. |
 | `orders` | `membership_invoice_id` | string(64) | no | 24SO invoice `OrderId`, and the in-flight marker. Idempotency. |
@@ -286,10 +285,9 @@ Steps:
 1. Load the order. Require status `paid` or `authorized`, require a membership
    line, bail if `membership_invoice_id` is already set.
 2. Claim the lock.
-3. Resolve the Finago customer: by `CompanyId` = employee id; failing that by
-   `ExternalId` = sanitized student number; failing that create one with `Id`
-   set explicitly to the employee id, `ExternalId` set to the student number,
-   `Name` as `(Student) LastName, FirstName`, `Type: Consumer`, `Private: true`,
+3. Resolve the Finago customer by `CompanyId` = sanitized student number;
+   failing that create one with `Id` set explicitly to the student number,
+   `ExternalId` set to the employee id, `Name` as `(Student) LastName, FirstName`, `Type: Consumer`, `Private: true`,
    `Country: NO`, `CurrencyId: NOK`, and the buyer's email.
 4. Assign the plan's category id to the customer, skipping it if already
    present.
@@ -364,7 +362,7 @@ Vitest, colocated `*.test.ts`, matching existing convention.
 - invoice payload builder: department per campus, both dimension pairs at both
   levels, accrual date derived from plan start, and `ProductId` (not `ProductNo`)
   on the invoice row;
-- customer create sends `Id` equal to the employee id;
+- customer create sends `Id` equal to the student number and `ExternalId` equal to the employee id;
 - fulfilment idempotency across `already_posted`, `claimed_elsewhere`,
   `not_paid`, and the post-side-effect failure that must not release the claim;
 - gate resolution for each of the five states;

@@ -1,15 +1,18 @@
 "use server";
-import { type Models, Permission, Role } from "@repo/api";
+import type { Models } from "@repo/api";
 import { createAdminClient, createSessionClient } from "@repo/api/server";
 import type { Users } from "@repo/api/types/appwrite";
+import {
+  buildProfileRowPermissions,
+  pickSelfServiceProfileFields,
+} from "@repo/shared/utils/profile-fields";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { isGlobalAdmin } from "@/lib/authorization";
 import { isAuthenticatedAppwriteUser, isProd } from "@/lib/utils";
 
-function buildProfileRowPermissions(userId: string): string[] {
-  const userRole = Role.user(userId);
-  return [Permission.read(userRole), Permission.update(userRole)];
+function isRowNotFound(error: unknown): boolean {
+  return (error as { code?: number } | null)?.code === 404;
 }
 
 // The bi_* columns are pending an `appwrite push tables`; extend locally until
@@ -136,56 +139,61 @@ export async function removeIdentity(identityId: string) {
   }
 }
 
+/**
+ * Saves the signed-in person's own profile.
+ *
+ * Profile rows are read-only to their owner and the table no longer grants
+ * `create` to users, so the self-service allow-list is what stands between
+ * this request and the row, and both writes go through the admin client —
+ * the same shape as `apps/web`'s `updateProfile` and the app's
+ * `PUT /api/profile`. Identity columns (`student_id`, the `bi_*` link
+ * columns, `roles`) are dropped here: a forged `student_id` would be taken
+ * at face value by the member discount and the membership API. `email` is
+ * dropped too — the Appwrite account is the source of truth for it, which
+ * is why the profile form renders it read-only.
+ */
 export async function updateProfile(profile: Partial<Users>) {
   try {
-    const { account, db } = await createSessionClient();
+    const { account } = await createSessionClient();
     const user = await account.get();
+    const writable = pickSelfServiceProfileFields(profile);
+    const { db: adminDb } = await createAdminClient();
 
-    try {
-      await db.getRow("app", "user", user.$id);
-      if (profile.name) {
-        await account.updateName(profile.name);
-      }
-      return await db.updateRow("app", "user", user.$id, profile);
-    } catch {
-      const { db: adminDb } = await createAdminClient();
+    const existing = await adminDb
+      .getRow<Users>("app", "user", user.$id)
+      .catch((error: unknown) => {
+        // Only a missing row means "create it" — a read that failed for any
+        // other reason must not be answered by writing a fresh row over
+        // whatever is really there.
+        if (isRowNotFound(error)) {
+          return null;
+        }
+        throw error;
+      });
+
+    if (!existing) {
+      // createRow's typed signature wants the full row; this seeds a partial
+      // profile the person fills in over time. Omit the generic so the
+      // Appwrite SDK accepts the partial payload.
       return await adminDb.createRow(
         "app",
         "user",
         user.$id,
-        profile,
+        writable,
         buildProfileRowPermissions(user.$id)
       );
     }
+
+    if (typeof writable.name === "string" && writable.name.length > 0) {
+      await account.updateName(writable.name);
+    }
+    return await adminDb.updateRow<Users>("app", "user", user.$id, writable);
   } catch (error) {
     console.error("updateProfile failed");
     // Check if it's a specific Appwrite error we can handle
     if (typeof error === "object" && error !== null && "code" in error) {
       console.error(`Appwrite error code: ${error.code}`);
     }
-    return null;
-  }
-}
-
-async function _createProfile(profile: Partial<Users>, userId: string) {
-  try {
-    const { db } = await createSessionClient();
-
-    const existingProfile = await db.getRow("app", "user", userId);
-
-    if (existingProfile) {
-      return await db.updateRow("app", "user", userId, profile);
-    }
-    const { db: adminDb } = await createAdminClient();
-    return await adminDb.createRow(
-      "app",
-      "user",
-      userId,
-      profile,
-      buildProfileRowPermissions(userId)
-    );
-  } catch (error) {
-    console.error(error);
     return null;
   }
 }

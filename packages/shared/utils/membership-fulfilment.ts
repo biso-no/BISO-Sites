@@ -234,8 +234,8 @@ async function claimFulfilmentLock(
 
 /**
  * Resolves the BI identity (student number + Azure employee id) backing the
- * order's buyer. Both are required: the employee id is the Finago customer
- * number and the student number is its `ExternalId`.
+ * order's buyer. Both are required: the student number is the Finago customer
+ * number and the employee id is its `ExternalId`.
  */
 async function resolveBuyerIdentity(
   order: MembershipOrder,
@@ -355,7 +355,7 @@ async function resolvePurchasedPlan(
  */
 async function prepareFulfilment(
   orderId: string,
-  employeeId: number,
+  studentNumber: number,
   campusId: string,
   plan: PurchasedPlanSnapshot,
   db: DbClient
@@ -364,7 +364,7 @@ async function prepareFulfilment(
   try {
     const invoicePayload = buildMembershipInvoiceOrder({
       campusId,
-      customerId: employeeId,
+      customerId: studentNumber,
       plan,
       invoicedOn: new Date().toISOString().slice(0, 10),
     });
@@ -523,7 +523,7 @@ export async function fulfilMembershipOrder(
 
   const invoicePayload = await prepareFulfilment(
     orderId,
-    identity.employeeId,
+    identity.studentNumber,
     campusId,
     plan,
     db

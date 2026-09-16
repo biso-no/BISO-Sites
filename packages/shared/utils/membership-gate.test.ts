@@ -1,6 +1,6 @@
-import type { MembershipPlan } from "@repo/shared/utils/membership-plans";
 import { describe, expect, it } from "vitest";
 import { resolveMembershipGate } from "./membership-gate";
+import type { MembershipPlan } from "./membership-plans";
 
 const semester: MembershipPlan = {
   id: "54",
