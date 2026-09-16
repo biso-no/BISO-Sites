@@ -301,6 +301,38 @@ updates or archives needs both a schema decision and an execution path — and,
 more importantly, a decision about whether an approval queue should be a general
 mutation queue at all.
 
+### S8. Decide whether publishing is a distinct permission
+
+`assertPublishAccess` delegates to `assertWriteAccess` — in `apps/admin`
+(`authorization.ts:202`) and therefore in this package's port. So **no principal
+can edit a row but not publish it**, and the organisation has no "draft it, let
+someone else release it" state.
+
+That is a policy question, not a bug, and it is the reason the approval queue
+reads oddly: `approval_requests` exists, the portal's inbox consumes it, and
+`createApprovalRequest` lets any authenticated user file one — but there is no
+population for whom filing is *necessary*. Everyone who can file could have
+published. Filing is a process choice (a second pair of eyes on something
+public), which is a legitimate thing to want and a different thing from what the
+table's name suggests.
+
+Two coherent resolutions, both outside this package:
+
+1. **Make publishing a distinct grant** — a `publish` capability held by campus
+   management and global admins, with department members able to edit and draft
+   only. Then the approval queue means what it looks like it means. This changes
+   `apps/admin`'s authorization and every call site that publishes, so it is a
+   product decision first.
+2. **Keep them identical and rename the concept** — it is a *review request*,
+   not an authorization escalation, and the UI should say so.
+
+Until one is chosen, this package mirrors the repo's actual rule and states the
+situation in `biso_request_approval`'s result rather than inventing a stricter
+policy of its own. An earlier revision did invent one, and two review rounds
+were spent on the consequences: first it accepted requests from the people it
+meant to refuse, then — with the invented predicate corrected — it refused
+everyone and left the tool unreachable.
+
 ---
 
 ## Staging smoke procedure — NOT RUN

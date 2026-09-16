@@ -649,3 +649,50 @@ policy down as its expectation, exactly as round ten's `auto_screen` case had.
 It is replaced by two: the real rule, and a case-for-case comparison against
 `assertPublishAccess` itself, so the predicate and the gate cannot disagree
 again without failing.
+
+---
+
+## 17. Twelfth review round
+
+A twelfth review of `2f10647` raised three, one P1 — and the P1 is the
+consequence of round eleven's own fix. All three reproduced.
+
+| # | Area | Verified as | Fix |
+|---|---|---|---|
+| 1 | `domains/approvals.ts` | **Confirmed (P1) — caused by round eleven.** `canPublish` delegates to `assertPublishAccess`, which delegates to the `assertWriteAccess` call on the line above it. So every principal reaching the guard gets `true` and `biso_request_approval` always threw: the tool was unreachable. Checked against the portal: `createApprovalRequest` in `apps/admin` calls `requireAuth()` and **nothing else** — no write check, no publish check, no redundancy guard. The whole notion of refusing a "redundant" request was invented here | The refusal is removed. `assertWriteAccess` stays — deliberately stricter than the portal, because the portal's executor checks the approver's scope and never the requester's — and the "you could publish this yourself" observation becomes a warning on the result. The stale remediation hint in `biso_explain_permission`, which pointed a refused publish at a tool that would also refuse it, is removed |
+| 2 | `domains/identity.ts` | **Confirmed.** The department branch of the explainer returned `allowed: true` on department membership alone. `assertWriteAccess` checks the campus **first**, and a department id is not a campus claim — so the explainer answered yes for a row the operation refuses. The campus-admin branch directly above it already mirrored the gate | The campus check added, phrased as what it is: department membership does not carry across campuses |
+| 3 | `services/operations.ts` | **Confirmed.** `isApprover = isGlobalAdmin \|\| isCampusAdmin` returned zero early. `deriveRoles` grants `globaladmin` only for National **and** Operations Unit, so an Operations Unit member without the National campus team is neither — while `approverTeamsFor` treats them as the all-requests override and `listPending` shows them every row. The inbox and its count disagreed about the same rows | Approval eligibility comes from `approverTeamsFor`; the campus/global check stays for submissions, which are routed by campus scope and have no approver column |
+
+### Two rounds on one invented rule
+
+Findings #1 here and #1 last round are the same mistake seen from both sides.
+The package had a rule — *an approval request means you could edit this but not
+publish it* — that reads as an obvious description of what an approval queue is
+for, and is not true of this organisation: `assertPublishAccess` delegates to
+`assertWriteAccess`, so the two sets are identical.
+
+Round eleven caught the predicate being wrong and corrected it. Correcting it
+made the rule's emptiness visible: with the right predicate the guard refuses
+everyone. The lesson is not "check the predicate" — it is that **a rule nobody
+in the repo wrote should be suspected before it is refined.** The first fix
+refined it; the second deleted it, which is what should have happened in round
+eleven had the guard been traced back to `apps/admin` rather than only to the
+gate it disagreed with.
+
+`docs/roadmap.md` **S8** records the underlying product question — whether
+publishing should be a permission distinct from editing — because that, not any
+code here, is what would give the approval queue the meaning its name implies.
+
+### A test that locked in a wrong fix
+
+Round eleven's regression test asserted the refusal. It was written one round
+ago, verified to fail without its fix, and was still wrong — because the fix it
+protected was wrong. That is the third time a test has encoded a defect rather
+than caught it (`auto_screen`, `canPublishForCampus`, and now this), and the
+first where the test was written *by this PR, in the immediately preceding
+round*.
+
+"Revert the fix and watch the test fail" cannot catch this: the test fails for
+the revert exactly as designed. What catches it is asking whether the behaviour
+being locked in exists anywhere in the repo outside the change that introduced
+it.

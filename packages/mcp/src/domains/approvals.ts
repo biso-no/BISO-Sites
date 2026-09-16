@@ -19,7 +19,7 @@ import {
   canPublish,
   describeScope,
 } from "../identity/scope";
-import { forbidden, notSupported } from "../runtime/errors";
+import { forbidden } from "../runtime/errors";
 import { defineTool, type ToolModule } from "../runtime/register";
 import { buildPagination } from "../runtime/result";
 import {
@@ -66,7 +66,7 @@ export const approvalsModule: ToolModule = {
   name: "approvals",
   title: "Approvals and inbox",
   description:
-    "See what is waiting for a decision, and route a publish you cannot perform yourself to the team that can.",
+    "See what is waiting for a decision, and route a publish to the approver team rather than performing it directly.",
   tools: [
     defineTool({
       name: "biso_list_pending_approvals",
@@ -132,7 +132,7 @@ export const approvalsModule: ToolModule = {
       name: "biso_request_approval",
       title: "Request a publish approval",
       description:
-        "File an approval request to publish something you cannot publish yourself. Only publishing can be routed this way — the execution path behind approvals handles `<domain>.publish` and nothing else, so filing anything else would create a request nobody could act on. Routes to the campus management team, or to Operations Unit for vacancies.",
+        "File a request asking the approver team to publish something, instead of publishing it yourself. You must have write access to the item; whether to route it through review rather than publishing directly is a process decision, and the result says which situation you are in. Only publishing can be routed this way — the execution path behind approvals handles `<domain>.publish` and nothing else, so filing anything else would create a request nobody could act on. Routes to the campus management team, or to Operations Unit for vacancies.",
       inputSchema: {
         domain: z
           .enum(EXECUTABLE_APPROVAL_DOMAINS)
@@ -195,26 +195,10 @@ export const approvalsModule: ToolModule = {
         // the item were later unpublished, that persisted request could
         // republish it on their behalf.
         //
-        // The right bar is write access: an approval request says "I could
-        // edit this but cannot publish it", and the guard below is the second
-        // half of that sentence.
+        // This is the whole gate, and it is deliberately stricter than the
+        // portal's: `createApprovalRequest` in `apps/admin` calls `requireAuth`
+        // and nothing else.
         assertWriteAccess(context.principal, item.campusId, item.departmentId);
-
-        // The same predicate the publication path applies, asked as a
-        // question. Anything else means refusing a request from someone who
-        // genuinely cannot publish, or — as here before — filing one for
-        // someone who can.
-        if (canPublish(context.principal, item.campusId, item.departmentId)) {
-          throw notSupported(
-            "You can publish this yourself, so an approval request would be redundant.",
-            {
-              domain,
-              id: args.id,
-              campusId: item.campusId,
-              departmentId: item.departmentId,
-            }
-          );
-        }
 
         const payload = {
           domain,
@@ -269,7 +253,22 @@ export const approvalsModule: ToolModule = {
           links: item.links,
           // Filing succeeds; completing it may not. Say so here rather than
           // letting the requester discover it when the approver's click fails.
-          warnings: executionWarnings(domain),
+          //
+          // The second note is informational and must stay that way. There is
+          // no principal who can edit a row but not publish it —
+          // `assertPublishAccess` delegates to `assertWriteAccess`, here and in
+          // `apps/admin` — so a refusal keyed on "you could do this yourself"
+          // would refuse everyone and leave the tool unreachable. Whether to
+          // route a publish through review anyway is a process question, and
+          // the portal leaves it to the person; this says which one they are in.
+          warnings: [
+            ...(executionWarnings(domain) ?? []),
+            ...(canPublish(context.principal, item.campusId, item.departmentId)
+              ? [
+                  "You can publish this yourself. Filing a request routes it through the approver team instead, which is a process choice, not a requirement.",
+                ]
+              : []),
+          ],
         });
       },
     }),

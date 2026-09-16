@@ -40,6 +40,7 @@ const NO_USER_CREDENTIAL_I_RE = /no user credential/i;
 const OSLO_RE = /Oslo/;
 const NOT_VALID_FOR_NEWS_I_RE = /not valid for news/i;
 const SHAREPOINT_I_RE = /SharePoint/i;
+const BERGEN_I_RE = /Bergen/i;
 const ELICITATION_I_RE = /elicitation/i;
 const DOMAIN_I_RE = /domain/i;
 const BISO_WHOAMI_RE = /biso_whoami/;
@@ -605,6 +606,49 @@ describe("unsupported operations report why", () => {
       };
       expect(data.allowed).toBe(false);
       expect(data.reasons.join(" ")).toMatch(SHAREPOINT_I_RE);
+    } finally {
+      await harness.close();
+    }
+  });
+
+  test("the explainer applies the campus check the gate applies", async () => {
+    // `assertWriteAccess` rejects a campus outside `resolvedCampusIds` BEFORE
+    // it looks at the department, so a department id is not a campus claim.
+    // The explainer checked only the department and answered yes for a row the
+    // operation itself refuses — and an explainer that contradicts the gate is
+    // worse than none, because a person acts on the explanation.
+    const harness = await connect({
+      principal: DEPARTMENT_MEMBER("dept-a", "1"),
+    });
+    try {
+      const denied = await callTool(harness.client, "biso_explain_permission", {
+        domain: "news",
+        operation: "publish",
+        campusId: "2",
+        departmentId: "dept-a",
+      });
+      const deniedData = denied.structured?.data as {
+        allowed: boolean;
+        reasons: string[];
+      };
+      expect(deniedData.allowed).toBe(false);
+      expect(deniedData.reasons.join(" ")).toMatch(BERGEN_I_RE);
+
+      // Their own campus still answers yes, so the check narrows rather than
+      // simply refusing department members.
+      const allowed = await callTool(
+        harness.client,
+        "biso_explain_permission",
+        {
+          domain: "news",
+          operation: "publish",
+          campusId: "1",
+          departmentId: "dept-a",
+        }
+      );
+      expect((allowed.structured?.data as { allowed: boolean }).allowed).toBe(
+        true
+      );
     } finally {
       await harness.close();
     }
@@ -1662,25 +1706,74 @@ describe("approval requests", () => {
     }
   });
 
-  test("a department member who can publish is told the request is redundant", async () => {
-    // The guard used `canPublishForCampus`, which recognised only global and
-    // campus admins — a stricter policy than the repo has. `apps/admin`'s
-    // `assertPublishAccess` delegates to `assertWriteAccess`, and so does this
-    // port, so the department that owns the row can publish it directly. The
-    // redundant request was accepted and persisted anyway.
+  test("someone who could publish it may still route it through review", async () => {
+    // There is no principal who can edit a row but not publish it:
+    // `assertPublishAccess` delegates to `assertWriteAccess`, here and in
+    // `apps/admin`. So a refusal keyed on "you could do this yourself" refuses
+    // everyone, and this tool — which mirrors a real portal capability, gated
+    // there by `requireAuth` alone — becomes unreachable.
+    //
+    // The previous version of this test asserted that refusal. It was written
+    // to lock in a fix that was itself incomplete, and it would have kept
+    // passing over a dead tool forever.
     const harness = await connect({
       principal: DEPARTMENT_MEMBER("dept-a", "1"),
       config: baseConfig({ writeMode: "operator" }),
     });
     try {
+      const args = { domain: "news", id: "news-oslo" };
       const { response, structured } = await callTool(
         harness.client,
         "biso_request_approval",
-        { domain: "news", id: "news-oslo" }
+        args
+      );
+
+      expect(response.isError).toBeFalsy();
+      expect(structured?.effect).toBe("proposed");
+      // Informational, not a refusal: it says which situation they are in.
+      expect(((structured?.warnings ?? []) as string[]).join(" ")).toContain(
+        "publish this yourself"
+      );
+
+      // And the proposal really executes — the point of the finding is that
+      // the tool had become unreachable, so a reachable proposal is only half
+      // the property.
+      const proposal = (
+        structured?.data as {
+          proposal: { proposalToken: string; expiresAt: string };
+        }
+      ).proposal;
+      const executed = await callTool(harness.client, "biso_request_approval", {
+        ...args,
+        proposalToken: proposal.proposalToken,
+        proposalExpiresAt: proposal.expiresAt,
+      });
+
+      expect(executed.structured?.effect).toBe("executed");
+      expect(
+        domainWrites(harness).some(
+          (write) => write.table === "approval_requests"
+        )
+      ).toBe(true);
+    } finally {
+      await harness.close();
+    }
+  });
+
+  test("the request is still refused for content outside the requester's scope", async () => {
+    // Removing the redundancy guard must not soften the gate that matters.
+    const harness = await connect({
+      principal: DEPARTMENT_MEMBER("dept-a", "1"),
+      config: baseConfig({ writeMode: "operator" }),
+    });
+    try {
+      const { response } = await callTool(
+        harness.client,
+        "biso_request_approval",
+        { domain: "news", id: "news-bergen" }
       );
 
       expect(response.isError).toBe(true);
-      expect(JSON.stringify(structured)).toContain("redundant");
       expect(domainWrites(harness)).toHaveLength(0);
     } finally {
       await harness.close();

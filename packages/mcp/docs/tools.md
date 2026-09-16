@@ -270,6 +270,17 @@ and nothing else, so filing anything else would create a request nobody can act
 on. Deciding a request is **not** available here: approving also *executes* the
 publish, which needs the approver present.
 
+**It is not a way around an authorization you lack.** Filing requires write
+access to the item, and this model has no principal who can edit a row but not
+publish it — `assertPublishAccess` delegates to `assertWriteAccess`, here and in
+`apps/admin`. So everyone who can file a request could also have published
+directly, and the result says so as a warning. Routing a publish through the
+approver team is a *process* choice — a second pair of eyes on something public
+— not an escalation. (The portal is looser still: `createApprovalRequest` calls
+`requireAuth` and nothing else. The write-access check here is deliberately
+stricter, because the portal's executor checks the approver's scope and never
+the requester's.)
+
 `biso_list_submissions` returns field **names** only. A submission body is free
 text a visitor typed into a public form.
 

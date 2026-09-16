@@ -127,13 +127,28 @@ export function createOperationsService(
 ): OperationsService {
   return {
     async inboxCounts(principal, options) {
-      const isApprover = isGlobalAdmin(principal) || isCampusAdmin(principal);
-      if (!isApprover) {
+      // Two different eligibilities, previously collapsed into one gate.
+      //
+      // Approvals are routed by `approver_team_id`, so who can decide one is
+      // `approverTeamsFor` — the same answer `listPending` uses. That includes
+      // the Operations Unit override, and an Operations Unit member who does
+      // not also hold the National campus team is neither a global nor a campus
+      // admin: `deriveRoles` requires both. The old gate reported zero to
+      // exactly those people while `biso_list_pending_approvals` showed them
+      // the rows.
+      //
+      // Submissions have no approver column and are routed by campus scope, so
+      // that half keeps the admin check.
+      const deciderTeams = approverTeamsFor(principal);
+      const canDecide = deciderTeams === null || deciderTeams.length > 0;
+      const seesSubmissions =
+        isGlobalAdmin(principal) || isCampusAdmin(principal);
+      if (!(canDecide || seesSubmissions)) {
         return {
           approvals: 0,
           submissions: 0,
           total: 0,
-          note: "You are not a campus or global admin, so no approvals or submissions are routed to you.",
+          note: "You hold no approver team and are not a campus or global admin, so nothing is routed to you.",
         };
       }
 
@@ -152,7 +167,6 @@ export function createOperationsService(
       // waiting for their decision. `null` is the Operations Unit override (no
       // honest team filter exists for them); `[]` is a principal with no teams,
       // who can decide nothing.
-      const deciderTeams = approverTeamsFor(principal);
       const approverFilter = deciderTeams
         ? [Query.equal("approver_team_id", deciderTeams)]
         : [];
@@ -160,22 +174,24 @@ export function createOperationsService(
       // `Query.limit(1)` with `result.total`: Appwrite reports the full match
       // count regardless of page size, so one row is enough to count them.
       const [approvals, submissions] = await Promise.allSettled([
-        deciderTeams?.length === 0
-          ? Promise.resolve({ total: 0 })
-          : clients.user.db.listRows("app", "approval_requests", [
+        canDecide
+          ? clients.user.db.listRows("app", "approval_requests", [
               Query.equal("status", "pending"),
               ...approverFilter,
               Query.limit(1),
               ...campusFilter,
-            ]),
-        clients.user.db.listRows("app", "form_submissions", [
-          Query.equal("status", "new"),
-          Query.limit(1),
-          // `form_submissions` is campus-scoped only; it has no department
-          // column, so a department-only principal fails closed here.
-          ...scopeQueries(principal, { departmentField: null }),
-          ...campusFilter,
-        ]),
+            ])
+          : Promise.resolve({ total: 0 }),
+        seesSubmissions
+          ? clients.user.db.listRows("app", "form_submissions", [
+              Query.equal("status", "new"),
+              Query.limit(1),
+              // `form_submissions` is campus-scoped only; it has no department
+              // column, so a department-only principal fails closed here.
+              ...scopeQueries(principal, { departmentField: null }),
+              ...campusFilter,
+            ])
+          : Promise.resolve({ total: 0 }),
       ]);
 
       const approvalCount =

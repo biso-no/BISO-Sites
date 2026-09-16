@@ -9,11 +9,13 @@
  */
 
 import { describe, expect, test } from "bun:test";
+import { OPERATIONS_UNIT_TEAM_ID } from "../identity/campus";
 import {
   CAMPUS_ADMIN,
   createFakeBackend,
   DEPARTMENT_MEMBER,
   GLOBAL_ADMIN,
+  makePrincipal,
 } from "../testing/index";
 import { createApprovalService } from "./approvals";
 import { createOperationsService } from "./operations";
@@ -115,5 +117,38 @@ describe("the inbox count agrees with the inbox", () => {
     const found = await counts().inboxCounts(GLOBAL_ADMIN());
 
     expect(found.approvals).toBe(2);
+  });
+
+  test("an Operations Unit member who is not an admin still gets a count", async () => {
+    // `deriveRoles` grants `globaladmin` only for National **and** Operations
+    // Unit, so an Operations Unit member without the National campus team is
+    // neither a global nor a campus admin. `approverTeamsFor` treats them as
+    // the all-requests override and `listPending` shows them every row — while
+    // the count returned 0 early, so the inbox and its badge disagreed about
+    // the same rows.
+    const opsOnly = makePrincipal({
+      userId: "ops-1",
+      roles: [],
+      departmentNames: ["Operations Unit"],
+      departmentTeamIds: [OPERATIONS_UNIT_TEAM_ID],
+      resolvedDepartmentIds: ["dept-ops"],
+      profile: "staff",
+    });
+
+    expect(await counts().inboxCounts(opsOnly)).toMatchObject({
+      approvals: 2,
+    });
+    expect((await service().listPending(opsOnly, PAGE)).rows).toHaveLength(2);
+  });
+
+  test("someone with no approver team and no admin role still gets zero", async () => {
+    // The negative control: widening who is counted must not count everyone.
+    const nobody = makePrincipal({
+      userId: "nobody-1",
+      roles: [],
+      profile: "staff",
+    });
+
+    expect((await counts().inboxCounts(nobody)).approvals).toBe(0);
   });
 });

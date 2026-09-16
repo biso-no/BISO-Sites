@@ -101,6 +101,20 @@ function decideScope(query: PermissionQuery): PermissionDecision {
         ],
       };
     }
+    // `assertWriteAccess` checks the campus *before* the department, and a
+    // department id is not a campus claim: a member of a department that also
+    // exists on another campus would otherwise be told yes for a row the gate
+    // refuses. The campus-admin branch above already mirrors this; this one did
+    // not, and an explainer that disagrees with the operation it explains is
+    // worse than no explainer.
+    if (campusId && !principal.resolvedCampusIds.includes(campusId)) {
+      return {
+        allowed: false,
+        reasons: [
+          `You have no access to ${campusLabel(campusId)}. Department membership does not carry across campuses.`,
+        ],
+      };
+    }
     return {
       allowed: true,
       reasons: [`You are a member of ${principal.departmentNames.join(", ")}.`],
@@ -166,25 +180,19 @@ function decidePermission(query: PermissionQuery): PermissionDecision {
   };
 }
 
-/** Domains whose publish can be routed through the approval queue. */
-const ROUTABLE_PUBLISH_DOMAINS: readonly string[] = [
-  "benefits",
-  "documents",
-  "events",
-  "jobs",
-  "news",
-];
-
-function nextStepFor(
-  allowed: boolean,
-  domain: ContentDomain,
-  operation: ContentOperation
-): string | null {
+/**
+ * What to try next when an operation is refused.
+ *
+ * This used to point a refused publish at `biso_request_approval`, which was
+ * advice that could never work: filing a request needs write access to the
+ * item, and `assertPublishAccess` delegates to `assertWriteAccess`, so anyone
+ * refused a publish is refused the request too. Routing a publish through the
+ * approver team is a choice available to people who *can* publish — it belongs
+ * in that tool's own result, not in a refusal.
+ */
+function nextStepFor(allowed: boolean): string | null {
   if (allowed) {
     return null;
-  }
-  if (operation === "publish" && ROUTABLE_PUBLISH_DOMAINS.includes(domain)) {
-    return "A publish you cannot perform directly can be routed to the campus management team as an approval request (`biso_request_approval`).";
   }
   return "Ask someone with the required scope, or use the admin app.";
 }
@@ -329,7 +337,7 @@ export const identityModule: ToolModule = {
               domain,
               operation,
               reasons: decision.reasons,
-              nextStep: nextStepFor(decision.allowed, domain, operation),
+              nextStep: nextStepFor(decision.allowed),
               yourRoles: principal.roles,
               yourCampuses: principal.campusNames,
               yourDepartments: principal.departmentNames,
