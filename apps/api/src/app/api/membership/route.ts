@@ -82,91 +82,104 @@ export async function GET(req: NextRequest) {
     return applyCorsHeaders(response, origin);
   };
 
-  if (!req.headers.get("authorization")?.startsWith("Bearer ")) {
-    return json({ message: "Authentication required" }, 401);
-  }
-
-  let userId: string;
   try {
-    const { account } = await createAuthenticatedClient(req);
-    userId = (await account.get()).$id;
-  } catch {
-    return json({ message: "Authentication required" }, 401);
-  }
+    if (!req.headers.get("authorization")?.startsWith("Bearer ")) {
+      return json({ message: "Authentication required" }, 401);
+    }
 
-  let profile: BiUser | null;
-  try {
-    const { db } = await createAdminClient();
-    profile = await db
-      .getRow<BiUser>("app", "user", userId)
-      .catch((error: unknown) => {
-        if (isRowNotFound(error)) {
-          return null;
-        }
-        throw error;
-      });
+    let userId: string;
+    try {
+      const { account } = await createAuthenticatedClient(req);
+      userId = (await account.get()).$id;
+    } catch {
+      return json({ message: "Authentication required" }, 401);
+    }
+
+    let profile: BiUser | null;
+    try {
+      const { db } = await createAdminClient();
+      profile = await db
+        .getRow<BiUser>("app", "user", userId)
+        .catch((error: unknown) => {
+          if (isRowNotFound(error)) {
+            return null;
+          }
+          throw error;
+        });
+    } catch (error) {
+      console.error("[membership] Profile read failed:", error);
+      return json(
+        overviewBody(
+          "membership_check_unavailable",
+          emptyMembershipStatus("profile_unavailable"),
+          NO_GATE,
+          null,
+          null
+        )
+      );
+    }
+
+    const studentId = profile?.student_id ?? null;
+    const defaultCampusId = profile?.bi_campus_id ?? null;
+    const studentNumber = sanitizeStudentNumber(studentId);
+    if (studentNumber === null) {
+      return json(
+        overviewBody(
+          "needs_bi_link",
+          emptyMembershipStatus(
+            studentId ? "invalid_student_id" : "no_student_id"
+          ),
+          NO_GATE,
+          studentId,
+          defaultCampusId
+        )
+      );
+    }
+
+    const refresh = new URL(req.url).searchParams.get("refresh") === "1";
+    const [status, plans] = await Promise.all([
+      getMembershipStatusForStudent(studentNumber, { refresh }),
+      getPurchasableMembershipPlans().catch((error: unknown) => {
+        console.error("[membership] Catalog read failed:", error);
+        return null;
+      }),
+    ]);
+
+    if (plans === null) {
+      return json(
+        overviewBody(
+          "membership_check_unavailable",
+          { ...status, reason: "catalog_unavailable" },
+          NO_GATE,
+          studentId,
+          defaultCampusId
+        )
+      );
+    }
+
+    const gate = resolveMembershipGate({
+      employeeId: profile?.bi_employee_id,
+      isAuthenticated: true,
+      plans,
+      status,
+      studentId,
+    });
+
+    return json(
+      overviewBody(gate.state, status, gate, studentId, defaultCampusId)
+    );
   } catch (error) {
-    console.error("[membership] Profile read failed:", error);
+    console.error("[membership] Unexpected error:", error);
     return json(
       overviewBody(
         "membership_check_unavailable",
-        emptyMembershipStatus("profile_unavailable"),
+        emptyMembershipStatus("unexpected_error"),
         NO_GATE,
         null,
         null
       )
     );
   }
-
-  const studentId = profile?.student_id ?? null;
-  const defaultCampusId = profile?.bi_campus_id ?? null;
-  const studentNumber = sanitizeStudentNumber(studentId);
-  if (studentNumber === null) {
-    return json(
-      overviewBody(
-        "needs_bi_link",
-        emptyMembershipStatus(
-          studentId ? "invalid_student_id" : "no_student_id"
-        ),
-        NO_GATE,
-        studentId,
-        defaultCampusId
-      )
-    );
-  }
-
-  const refresh = new URL(req.url).searchParams.get("refresh") === "1";
-  const [status, plans] = await Promise.all([
-    getMembershipStatusForStudent(studentNumber, { refresh }),
-    getPurchasableMembershipPlans().catch((error: unknown) => {
-      console.error("[membership] Catalog read failed:", error);
-      return null;
-    }),
-  ]);
-
-  if (plans === null) {
-    return json(
-      overviewBody(
-        "membership_check_unavailable",
-        { ...status, reason: "catalog_unavailable" },
-        NO_GATE,
-        studentId,
-        defaultCampusId
-      )
-    );
-  }
-
-  const gate = resolveMembershipGate({
-    employeeId: profile?.bi_employee_id,
-    isAuthenticated: true,
-    plans,
-    status,
-    studentId,
-  });
-
-  return json(
-    overviewBody(gate.state, status, gate, studentId, defaultCampusId)
-  );
 }
 
 export function OPTIONS(req: NextRequest) {
