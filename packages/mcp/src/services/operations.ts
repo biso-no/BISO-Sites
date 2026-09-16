@@ -51,7 +51,16 @@ export interface IntegrationConfiguration {
 }
 
 export interface OperationsService {
-  inboxCounts(principal: Principal): Promise<InboxCounts>;
+  /**
+   * `campusId` narrows the counts; it can only intersect the principal's own
+   * scope, never widen it. A caller that reports a campus filter to its user
+   * has to pass it here too, or the numbers describe a wider scope than the
+   * label says they do.
+   */
+  inboxCounts(
+    principal: Principal,
+    options?: { campusId?: string }
+  ): Promise<InboxCounts>;
   integrationConfiguration(): IntegrationConfiguration[];
   submissions(
     principal: Principal,
@@ -117,7 +126,7 @@ export function createOperationsService(
   env: Record<string, string | undefined> = process.env
 ): OperationsService {
   return {
-    async inboxCounts(principal) {
+    async inboxCounts(principal, options) {
       const isApprover = isGlobalAdmin(principal) || isCampusAdmin(principal);
       if (!isApprover) {
         return {
@@ -128,12 +137,20 @@ export function createOperationsService(
         };
       }
 
+      // Applied on top of the principal's own scope, never instead of it, so a
+      // caller naming another campus gets zero rather than that campus's count.
+      // Both tables carry `campus_id`.
+      const campusFilter = options?.campusId
+        ? [Query.equal("campus_id", [options.campusId])]
+        : [];
+
       // `Query.limit(1)` with `result.total`: Appwrite reports the full match
       // count regardless of page size, so one row is enough to count them.
       const [approvals, submissions] = await Promise.allSettled([
         clients.user.db.listRows("app", "approval_requests", [
           Query.equal("status", "pending"),
           Query.limit(1),
+          ...campusFilter,
         ]),
         clients.user.db.listRows("app", "form_submissions", [
           Query.equal("status", "new"),
@@ -141,6 +158,7 @@ export function createOperationsService(
           // `form_submissions` is campus-scoped only; it has no department
           // column, so a department-only principal fails closed here.
           ...scopeQueries(principal, { departmentField: null }),
+          ...campusFilter,
         ]),
       ]);
 

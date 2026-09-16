@@ -68,21 +68,38 @@ async function collectUpcomingEvents(
   warnings: string[]
 ): Promise<BriefingFinding[]> {
   try {
+    const now = new Date().toISOString();
+    const horizonAt = daysFromNow(horizon);
+    // Soonest-first from `now`, not most-recently-edited. Default ordering is
+    // `$updatedAt` desc, which with a limit returns the events someone touched
+    // last — an imminent event nobody has edited would fall outside the window
+    // and the briefing would report that nothing is coming up.
     const events = await context.services.content.search(context.principal, {
       domain: "events",
       status: "published",
       campusId,
+      order: "date",
+      updatedSince: now,
       limit: BRIEFING_LIMIT,
       offset: 0,
     });
-    const now = new Date().toISOString();
-    const horizonAt = daysFromNow(horizon);
     const soon = events.rows.filter((row) => {
       const start = row.fields.start_date;
       return typeof start === "string" && start >= now && start <= horizonAt;
     });
     if (soon.length === 0) {
       return [];
+    }
+    // Date-ordered, so everything inside the horizon is in this window unless
+    // the window is entirely inside the horizon — the one case where more may
+    // exist behind it.
+    if (
+      soon.length === events.rows.length &&
+      (events.pagination.total ?? soon.length) > soon.length
+    ) {
+      warnings.push(
+        `At least ${soon.length} event(s) start within ${horizon} days; the list shows the ${soon.length} starting soonest.`
+      );
     }
     return [
       {
@@ -225,11 +242,16 @@ async function collectClosingVacancies(
 
 async function collectInboxFindings(
   context: BriefingContext,
+  campusId: string | undefined,
   warnings: string[]
 ): Promise<BriefingFinding[]> {
   try {
+    // The briefing labels its result with the requested campus, so the counts
+    // have to be narrowed to it too — otherwise it reports work from every
+    // campus in scope under one campus's heading.
     const counts = await context.services.operations.inboxCounts(
-      context.principal
+      context.principal,
+      { campusId }
     );
     const findings: BriefingFinding[] = [];
     if (counts.approvals > 0) {
@@ -401,7 +423,7 @@ export const workflowsModule: ToolModule = {
             horizon,
             warnings
           )),
-          ...(await collectInboxFindings(context, warnings)),
+          ...(await collectInboxFindings(context, args.campusId, warnings)),
         ];
 
         const urgent = findings.filter(

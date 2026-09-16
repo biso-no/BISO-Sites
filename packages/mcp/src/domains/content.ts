@@ -24,6 +24,8 @@ import {
 import type { ToolContext } from "../runtime/context";
 import { forbidden, invalidInput, notSupported } from "../runtime/errors";
 import {
+  type AppliedProposal,
+  asApplied,
   createProposal,
   type MutationProposal,
   verifyProposalToken,
@@ -94,7 +96,7 @@ async function proposeOrExecute<TPayload, TResult>(input: {
   | { executed: false; proposal: MutationProposal<TPayload>; summary: string }
   | {
       executed: true;
-      proposal: MutationProposal<TPayload>;
+      proposal: AppliedProposal<TPayload>;
       data: TResult;
       summary: string;
     }
@@ -167,9 +169,12 @@ async function proposeOrExecute<TPayload, TResult>(input: {
   }
 
   const data = await input.execute();
+  // `asApplied`, never `proposal`: the proposal rebuilt at the top of this call
+  // carries a token minted from a *fresh* expiry, which the registry has never
+  // seen. Handing it back would re-authorize the change that was just made.
   return {
     executed: true,
-    proposal,
+    proposal: asApplied(proposal, { expiresAt: input.expiresAt }),
     data,
     summary: `Applied ${input.action}.`,
   };

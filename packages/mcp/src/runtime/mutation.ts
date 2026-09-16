@@ -84,7 +84,7 @@ export interface MutationProposal<TPayload = unknown> {
   expiresAt: string;
   /** The exact payload that would be written, after validation. */
   payload: TPayload;
-  /** Stable id for this proposal; echoed in the audit record. */
+  /** Stable id for this proposal, for the caller to correlate against. */
   proposalId: string;
   /**
    * Binds actor + action + payload + revision. Opaque to the caller.
@@ -102,6 +102,56 @@ export interface MutationProposal<TPayload = unknown> {
   /** The rows this would touch. Always concrete ids, never a filter. */
   targets: Array<{ table: string; id: string; label?: string }>;
   tier: MutationTier;
+}
+
+/**
+ * A proposal that has already been applied.
+ *
+ * Structurally a `MutationProposal` minus `proposalToken`, and that omission is
+ * the whole point. `proposeOrExecute` rebuilds the proposal on the execute path
+ * so the token binds to the *current* call's own action, actor, payload and
+ * revision — but rebuilding also mints a fresh expiry, and therefore a fresh
+ * token the registry has never seen. Returning that token alongside the result
+ * would hand every caller a second, unspent authorization for the change they
+ * just made, undoing the single-use rule in `ProposalRegistry`. For an additive
+ * action — `createDraft` and `requestApproval` both mint `ID.unique()` and
+ * propose against a null revision, so nothing downstream would reject the
+ * repeat — echoing it back writes a second row.
+ *
+ * Everything that describes what was applied survives; the one field that could
+ * apply it again does not.
+ */
+export type AppliedProposal<TPayload = unknown> = Omit<
+  MutationProposal<TPayload>,
+  "proposalToken"
+>;
+
+/**
+ * Describe a proposal that has just been executed.
+ *
+ * `expiresAt` is carried over from the token that actually authorized the
+ * write, not from the rebuilt proposal, so the record names the proposal that
+ * was spent. Without the token it authorizes nothing either way.
+ *
+ * Written out field by field rather than by rest-destructuring so that a new
+ * field on `MutationProposal` is a type error here — the next credential-ish
+ * field must be an explicit decision, not an accident of spreading.
+ */
+export function asApplied<TPayload>(
+  proposal: MutationProposal<TPayload>,
+  consumed: { expiresAt: string }
+): AppliedProposal<TPayload> {
+  return {
+    action: proposal.action,
+    diff: proposal.diff,
+    execution: proposal.execution,
+    expiresAt: consumed.expiresAt,
+    payload: proposal.payload,
+    proposalId: proposal.proposalId,
+    revision: proposal.revision,
+    targets: proposal.targets,
+    tier: proposal.tier,
+  };
 }
 
 const PROPOSAL_TTL_MS = 10 * 60 * 1000;

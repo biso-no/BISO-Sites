@@ -27,6 +27,7 @@ import {
   collectingLogger,
   createFakeBackend,
   DEPARTMENT_MEMBER,
+  type FakeRow,
   type FakeTables,
   GLOBAL_ADMIN,
   HR_MEMBER,
@@ -44,6 +45,7 @@ const BISO_WHOAMI_RE = /biso_whoami/;
 const NO_LANGUAGE_MODEL_I_RE = /no language model/i;
 const SERVICE_KEY_CLIENT_WHICH_IS_NOT_CONF_RE =
   /service-key client, which is not configured/i;
+const MEMBER_PRICE_I_RE = /member price/i;
 
 function baseConfig(overrides: Partial<ServerConfig> = {}): ServerConfig {
   const config = loadConfig({
@@ -791,6 +793,69 @@ describe("mutations", () => {
     }
   });
 
+  test("an executed result carries no reusable proposal credential", async () => {
+    // The execute path rebuilds the proposal so the token binds to this call's
+    // own values, and rebuilding mints a *fresh* expiry — and therefore a token
+    // the single-use registry has never seen. Returning it would hand the
+    // caller a second authorization for the change they just made.
+    const harness = await connect({
+      principal: GLOBAL_ADMIN(),
+      config: baseConfig({ writeMode: "operator" }),
+    });
+    try {
+      const args = {
+        domain: "news",
+        slug: "echo-me",
+        campusId: "1",
+        titleNo: "Tittel",
+        titleEn: "Title",
+        descriptionNo: "Tekst",
+        descriptionEn: "Text",
+      };
+      const proposed = await callTool(
+        harness.client,
+        "biso_content_create_draft",
+        args
+      );
+      const proposal = (
+        proposed.structured?.data as {
+          proposal: { proposalToken: string; expiresAt: string };
+        }
+      ).proposal;
+
+      const executed = await callTool(
+        harness.client,
+        "biso_content_create_draft",
+        {
+          ...args,
+          proposalToken: proposal.proposalToken,
+          proposalExpiresAt: proposal.expiresAt,
+        }
+      );
+      expect(executed.structured?.ok).toBe(true);
+      const afterFirst = domainWrites(harness).length;
+      expect(afterFirst).toBeGreaterThan(0);
+
+      const applied = (
+        executed.structured?.data as { proposal: Record<string, unknown> }
+      ).proposal;
+      expect(applied).not.toHaveProperty("proposalToken");
+      // Not a fresh proposal either: the expiry names the one that was spent.
+      expect(applied.expiresAt).toBe(proposal.expiresAt);
+
+      // The decisive assertion: nothing the executed result hands back can
+      // write a second row.
+      await callTool(harness.client, "biso_content_create_draft", {
+        ...args,
+        proposalToken: (applied as { proposalToken?: string }).proposalToken,
+        proposalExpiresAt: applied.expiresAt as string,
+      });
+      expect(domainWrites(harness)).toHaveLength(afterFirst);
+    } finally {
+      await harness.close();
+    }
+  });
+
   test("a token from one change cannot authorize a different one", async () => {
     const harness = await connect({
       principal: GLOBAL_ADMIN(),
@@ -1525,6 +1590,148 @@ describe("draft structure is not reachable through a second door", () => {
         }
       );
       expect(response.isError).toBeFalsy();
+    } finally {
+      await harness.close();
+    }
+  });
+});
+
+describe("the briefing and the audit report what they measured", () => {
+  const SOON = "2026-09-20T10:00:00.000Z";
+  const FAR = "2027-06-01T10:00:00.000Z";
+
+  /**
+   * `BRIEFING_LIMIT` published events, all edited today and all starting far
+   * beyond the horizon, plus one imminent event nobody has touched in months.
+   * Ordered by `$updatedAt` the imminent one falls outside the window, and the
+   * briefing reports that nothing is coming up.
+   */
+  function eventsWithOneImminent(): FakeTables {
+    const events: FakeRow[] = [];
+    for (let index = 0; index < 25; index += 1) {
+      events.push({
+        $id: `far-${index}`,
+        $createdAt: "2026-09-15T00:00:00.000Z",
+        $updatedAt: "2026-09-15T00:00:00.000Z",
+        slug: `far-${index}`,
+        status: "published",
+        campus_id: "1",
+        start_date: FAR,
+        pricing_mode: "free",
+      });
+    }
+    events.push({
+      $id: "imminent",
+      $createdAt: "2026-01-01T00:00:00.000Z",
+      $updatedAt: "2026-01-01T00:00:00.000Z",
+      slug: "imminent",
+      status: "published",
+      campus_id: "1",
+      start_date: SOON,
+      pricing_mode: "free",
+    });
+    return { events, campus: [{ $id: "1", name: "Oslo" }] };
+  }
+
+  test("an imminent event is not displaced by recently edited ones", async () => {
+    const harness = await connect({
+      principal: GLOBAL_ADMIN(),
+      tables: eventsWithOneImminent(),
+    });
+    try {
+      const { structured } = await callTool(
+        harness.client,
+        "biso_campus_briefing",
+        { horizonDays: 30 }
+      );
+      const findings = (
+        structured?.data as {
+          findings: Array<{ items: Array<{ id: string }>; kind: string }>;
+        }
+      ).findings;
+      const upcoming = findings.find(
+        (finding) => finding.kind === "events_starting_soon"
+      );
+      expect(upcoming?.items.map((item) => item.id)).toContain("imminent");
+    } finally {
+      await harness.close();
+    }
+  });
+
+  test("a paid event with a member price is not flagged as missing one", async () => {
+    // `member_price` has to be in the projection for the check to mean
+    // anything: an unselected column reads as `undefined`, which is
+    // indistinguishable from "not set".
+    const harness = await connect({
+      principal: GLOBAL_ADMIN(),
+      tables: {
+        campus: [{ $id: "1", name: "Oslo" }],
+        events: [
+          {
+            $id: "paid-event",
+            $createdAt: "2026-09-15T00:00:00.000Z",
+            $updatedAt: "2026-09-15T00:00:00.000Z",
+            slug: "paid",
+            status: "published",
+            campus_id: "1",
+            start_date: FAR,
+            pricing_mode: "paid",
+            member_only: false,
+            member_price: 150,
+          },
+        ],
+      },
+    });
+    try {
+      const { structured } = await callTool(
+        harness.client,
+        "biso_content_quality_audit",
+        { domain: "events" }
+      );
+      const issues = (
+        structured?.data as { issues: Array<{ problems: string[] }> }
+      ).issues;
+      const problems = issues.flatMap((issue) => issue.problems);
+      expect(problems.join(" ")).not.toMatch(MEMBER_PRICE_I_RE);
+    } finally {
+      await harness.close();
+    }
+  });
+
+  test("the briefing's inbox counts honour the campus it reports", async () => {
+    const harness = await connect({
+      principal: GLOBAL_ADMIN(),
+      tables: {
+        campus: [
+          { $id: "1", name: "Oslo" },
+          { $id: "2", name: "Bergen" },
+        ],
+        approval_requests: [
+          { $id: "a-oslo", status: "pending", campus_id: "1" },
+          { $id: "a-bergen", status: "pending", campus_id: "2" },
+        ],
+        form_submissions: [{ $id: "s-bergen", status: "new", campus_id: "2" }],
+      },
+    });
+    try {
+      const { structured } = await callTool(
+        harness.client,
+        "biso_campus_briefing",
+        { campusId: "1" }
+      );
+      const data = structured?.data as {
+        campusFilter: string;
+        findings: Array<{ kind: string; message: string }>;
+      };
+      expect(data.campusFilter).toMatch(OSLO_RE);
+      const approvals = data.findings.find(
+        (finding) => finding.kind === "pending_approvals"
+      );
+      expect(approvals?.message).toContain("1 approval");
+      // Bergen's submission belongs to another campus's briefing.
+      expect(
+        data.findings.some((finding) => finding.kind === "new_submissions")
+      ).toBe(false);
     } finally {
       await harness.close();
     }

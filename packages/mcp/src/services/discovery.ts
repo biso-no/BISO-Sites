@@ -35,10 +35,20 @@ import type { Projected } from "./row";
 
 export type PublicLocale = "no" | "en";
 
+type UnitRow = Projected<{
+  Name: string;
+  campus_id: string;
+  slug: string | null;
+  type: string | null;
+  active: boolean;
+}>;
+
 /** Rows fetched per round trip while scanning for publishable pages. */
 const PAGE_SCAN_BATCH = 100;
 /** Most rows one public page search will examine. */
 const PAGE_SCAN_CEILING = 1000;
+/** Most department rows one public unit search will examine. */
+const UNIT_SCAN_CEILING = 1000;
 
 export const PUBLIC_KINDS = [
   "events",
@@ -310,10 +320,18 @@ export function createDiscoveryService(
   }) {
     // National benefits apply everywhere, so a campus query must include
     // campus 5 alongside the requested campus — `resolveBenefitCampusIds`.
-    const campusIds = resolveBenefitCampusIds(input.campusId ?? null);
+    //
+    // Only when a campus was actually asked for, though. That helper answers
+    // "which campuses does a member of campus X see", so it maps no campus to
+    // national alone — correct for the member portal, which always has a campus
+    // in hand, and wrong here: `campusId` is documented as an optional filter
+    // and every other public kind lists across campuses without one.
+    const campusFilter = input.campusId
+      ? [Query.equal("campus_id", resolveBenefitCampusIds(input.campusId))]
+      : [];
     const result = await db.listRows<CampusBenefits>("app", "campus_benefits", [
       Query.equal("status", "published"),
-      Query.equal("campus_id", campusIds),
+      ...campusFilter,
       // Redemption columns are deliberately absent from the projection:
       // a code is what a membership buys and is never public.
       Query.select([
@@ -360,46 +378,59 @@ export function createDiscoveryService(
     limit: number;
     offset: number;
   }) {
-    const queries: string[] = [
+    const baseQueries: string[] = [
       Query.equal("active", true),
       Query.select(["$id", "Name", "campus_id", "slug", "type", "active"]),
       Query.orderAsc("Name"),
-      // Over-fetch: `isPublicUnit` is a name rule that cannot be expressed as
-      // an Appwrite filter, so the page is filtered afterwards.
-      Query.limit(SEARCH_SCAN),
     ];
     if (input.campusId) {
-      queries.push(Query.equal("campus_id", [input.campusId]));
+      baseQueries.push(Query.equal("campus_id", [input.campusId]));
     }
-    const result = await db.listRows<
-      Projected<{
-        Name: string;
-        campus_id: string;
-        slug: string | null;
-        type: string | null;
-        active: boolean;
-      }>
-    >("app", "departments", queries);
 
-    const visible = result.rows.filter((row) =>
-      isPublicUnit({ Name: row.Name, active: row.active })
-    );
-    const page = visible.slice(input.offset, input.offset + input.limit);
-    const rows = page.map(
-      (row): PublicItem => ({
-        kind: "units",
-        id: row.$id,
-        title: row.Name,
-        summary: row.type,
-        slug: row.slug,
-        campusId: row.campus_id,
-        campusLabel: campusLabel(row.campus_id),
-        dates: {},
-        url: row.slug ? links.web(`/units/${row.campus_id}/${row.slug}`) : null,
-        memberOnly: false,
-      })
-    );
-    return { rows, total: visible.length };
+    /**
+     * `isPublicUnit` is a name rule — `departments` mirrors the accounting
+     * chart, so `active` is not a publication flag — and no Appwrite filter can
+     * express it. Reading one fixed window and filtering it locally made the
+     * first 100 alphabetical rows the entire searchable universe: a unit after
+     * them was unreachable at any offset, and `total` reported the size of that
+     * one window as the whole result. Scan forward instead, so `limit` means
+     * rows the caller actually gets and the cursor carries the raw position.
+     */
+    const scan = await scanForward<UnitRow, PublicItem>({
+      ceiling: UNIT_SCAN_CEILING,
+      batchSize: SEARCH_SCAN,
+      limit: input.limit,
+      offset: input.offset,
+      read: (offset_, size) =>
+        db.listRows<UnitRow>("app", "departments", [
+          ...baseQueries,
+          Query.limit(size),
+          Query.offset(offset_),
+        ]),
+      accept: (row) => {
+        if (!isPublicUnit({ Name: row.Name, active: row.active })) {
+          return null;
+        }
+        return {
+          kind: "units" as const,
+          id: row.$id,
+          title: row.Name,
+          summary: row.type,
+          slug: row.slug,
+          campusId: row.campus_id,
+          campusLabel: campusLabel(row.campus_id),
+          dates: {},
+          url: row.slug
+            ? links.web(`/units/${row.campus_id}/${row.slug}`)
+            : null,
+          memberOnly: false,
+        };
+      },
+    });
+
+    // `total` is unknown rather than the window size, for the same reason as
+    // the page search: publication is decided per row after the query.
+    return { rows: scan.items, total: null, nextOffset: scan.nextOffset };
   }
 
   async function searchDocuments(input: {

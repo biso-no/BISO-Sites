@@ -266,3 +266,145 @@ describe("public page metadata and paging", () => {
     expect(found.total).toBeNull();
   });
 });
+
+describe("public unit discovery", () => {
+  /**
+   * `departments` mirrors the chart of accounts, so a public listing has to
+   * drop operating ledgers and national governance rows — a name rule no
+   * Appwrite filter can express. Reading one fixed window and filtering it
+   * locally made that window the whole searchable universe.
+   */
+  function manyUnits(): FakeRow[] {
+    const rows: FakeRow[] = [];
+    // 120 ledger rows sort before "ESN …" alphabetically and are all excluded,
+    // so a single 100-row window contains nothing a visitor may see.
+    for (let index = 0; index < 120; index += 1) {
+      rows.push({
+        $id: `ledger-${index}`,
+        Name: `Drift Campus ${String(index).padStart(3, "0")}`,
+        campus_id: "1",
+        slug: `drift-${index}`,
+        type: "ledger",
+        active: true,
+      });
+    }
+    rows.push({
+      $id: "real-unit",
+      Name: "ESN Oslo",
+      campus_id: "1",
+      slug: "esn",
+      type: "unit",
+      active: true,
+    });
+    return rows;
+  }
+
+  test("a unit behind the first scan window is still reachable", async () => {
+    const service = createDiscoveryService(
+      createFakeBackend({ tables: { departments: manyUnits() } }),
+      LINKS
+    );
+    const found = await service.search({
+      kind: "units",
+      locale: "no",
+      limit: 20,
+      offset: 0,
+    });
+
+    expect(found.rows.map((row) => row.id)).toEqual(["real-unit"]);
+  });
+
+  test("the unit listing does not report a filtered window as the total", async () => {
+    const service = createDiscoveryService(
+      createFakeBackend({ tables: { departments: manyUnits() } }),
+      LINKS
+    );
+    const found = await service.search({
+      kind: "units",
+      locale: "no",
+      limit: 20,
+      offset: 0,
+    });
+
+    expect(found.total).toBeNull();
+    expect(found.nextOffset).toBeNull();
+  });
+});
+
+describe("public benefit discovery", () => {
+  function benefits(): FakeRow[] {
+    return [
+      {
+        $id: "oslo-benefit",
+        $updatedAt: "2026-01-02T00:00:00.000Z",
+        campus_id: "1",
+        status: "published",
+        title_nb: "Oslo-fordel",
+        is_member_only: false,
+      },
+      {
+        $id: "national-benefit",
+        $updatedAt: "2026-01-01T00:00:00.000Z",
+        campus_id: "5",
+        status: "published",
+        title_nb: "Nasjonal fordel",
+        is_member_only: false,
+      },
+    ];
+  }
+
+  test("omitting a campus lists benefits from every campus", async () => {
+    // `resolveBenefitCampusIds(null)` answers "national only", which is right
+    // for the member portal and wrong for an optional search filter.
+    const service = createDiscoveryService(
+      createFakeBackend({ tables: { campus_benefits: benefits() } }),
+      LINKS
+    );
+    const found = await service.search({
+      kind: "benefits",
+      locale: "no",
+      limit: 20,
+      offset: 0,
+    });
+
+    expect(found.rows.map((row) => row.id).sort()).toEqual([
+      "national-benefit",
+      "oslo-benefit",
+    ]);
+  });
+
+  test("a requested campus still includes national benefits", async () => {
+    const service = createDiscoveryService(
+      createFakeBackend({ tables: { campus_benefits: benefits() } }),
+      LINKS
+    );
+    const found = await service.search({
+      kind: "benefits",
+      campusId: "1",
+      locale: "no",
+      limit: 20,
+      offset: 0,
+    });
+
+    expect(found.rows.map((row) => row.id).sort()).toEqual([
+      "national-benefit",
+      "oslo-benefit",
+    ]);
+  });
+
+  test("a requested campus excludes another campus's benefits", async () => {
+    const service = createDiscoveryService(
+      createFakeBackend({ tables: { campus_benefits: benefits() } }),
+      LINKS
+    );
+    const found = await service.search({
+      kind: "benefits",
+      campusId: "2",
+      locale: "no",
+      limit: 20,
+      offset: 0,
+    });
+
+    expect(found.rows.map((row) => row.id)).toEqual(["national-benefit"]);
+  });
+});

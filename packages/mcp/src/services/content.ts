@@ -79,11 +79,17 @@ export interface ContentSearchInput {
   locale?: ContentLocale;
   offset: number;
   /**
-   * Newest-first by default. `"oldest"` exists for the staleness probe in the
-   * campus briefing: with a `limit`, newest-first discards precisely the rows a
-   * staleness check is looking for.
+   * Newest-first by default, by `$updatedAt`.
+   *
+   * `"oldest"` exists for the staleness probe in the campus briefing: with a
+   * `limit`, newest-first discards precisely the rows a staleness check is
+   * looking for. `"date"` orders by the domain's own date column ascending —
+   * `start_date` for events — which is what a "what is coming up" probe needs:
+   * ordering those by edit time takes the 25 most recently *touched* events,
+   * not the 25 starting soonest, so an imminent event nobody has edited drops
+   * out of the window entirely.
    */
-  order?: "newest" | "oldest";
+  order?: "newest" | "oldest" | "date";
   /** Free-text term matched against the domain's title/description. */
   query?: string;
   status?: string;
@@ -287,6 +293,20 @@ function toSummary(
     fields: pickFields(spec, row),
     links: built,
   };
+}
+
+/** Translate `ContentSearchInput["order"]` into the Appwrite ordering. */
+function orderQuery(
+  domain: ContentDomain,
+  order: ContentSearchInput["order"]
+): string {
+  if (order === "date") {
+    return Query.orderAsc(primaryDateField(domain));
+  }
+  if (order === "oldest") {
+    return Query.orderAsc("$updatedAt");
+  }
+  return Query.orderDesc("$updatedAt");
 }
 
 /** The date column a domain's `updatedSince` filter should use. */
@@ -529,9 +549,7 @@ export function createContentService(
 
       queries.push(
         Query.select(selectFor(spec)),
-        input.order === "oldest"
-          ? Query.orderAsc("$updatedAt")
-          : Query.orderDesc("$updatedAt"),
+        orderQuery(spec.domain, input.order),
         Query.limit(input.limit),
         Query.offset(input.offset)
       );

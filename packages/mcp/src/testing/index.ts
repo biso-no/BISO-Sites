@@ -258,6 +258,102 @@ export interface FakeBackend extends BackendClients {
   }>;
 }
 
+/**
+ * Apply `Query.select` the way Appwrite does: a projected row carries only the
+ * attributes that were asked for.
+ *
+ * The fake used to ignore `select` and hand back whole rows, which made the one
+ * mistake a projection can cause invisible — reading a column the query never
+ * asked for. That reads as `undefined` against the real backend and as the
+ * stored value here, so a test would pass on code that cannot work. It is the
+ * same way `or` and `orderAsc` used to fail open, and it hid a real defect:
+ * the event quality audit tested `member_price` while the event projection
+ * omitted it.
+ *
+ * Two deliberate simplifications, both narrower than Appwrite rather than
+ * wider:
+ *
+ * - `$`-prefixed system attributes are always kept. Which of them a projection
+ *   returns varies by Appwrite version, and none of them is a domain column, so
+ *   pruning them would fail tests over something this fake cannot settle.
+ * - A nested selection (`translation_refs.title`) keeps the relationship and
+ *   prunes it to the selected sub-attributes; `translation_refs.*` keeps it
+ *   whole.
+ */
+function applySelect(rows: FakeRow[], parsed: ParsedQuery[]): FakeRow[] {
+  const paths = parsed
+    .filter((query) => query.method === "select")
+    .flatMap((query) => (query.values ?? []) as unknown[])
+    .filter((value): value is string => typeof value === "string");
+
+  if (paths.length === 0) {
+    return rows;
+  }
+
+  // A bare `*` selects every top-level attribute; nested paths alongside it
+  // still prune their own relationship, exactly as Appwrite does.
+  const selectAll = paths.includes("*");
+  // `key` -> the sub-attributes selected under it, or null for the whole value.
+  const keep = new Map<string, Set<string> | null>();
+  for (const path of paths) {
+    const [head, ...rest] = path.split(".");
+    if (!head || head === "*") {
+      continue;
+    }
+    const nested = rest.join(".");
+    if (nested === "" || nested === "*") {
+      keep.set(head, null);
+      continue;
+    }
+    const existing = keep.get(head);
+    if (existing === null) {
+      continue;
+    }
+    const sub = existing ?? new Set<string>();
+    sub.add(nested);
+    keep.set(head, sub);
+  }
+
+  return rows.map((row) => projectRow(row, keep, selectAll));
+}
+
+function projectRow(
+  row: FakeRow,
+  keep: Map<string, Set<string> | null>,
+  selectAll: boolean
+): FakeRow {
+  const out: FakeRow = { $id: row.$id };
+  for (const [key, value] of Object.entries(row)) {
+    if (key.startsWith("$")) {
+      out[key] = value;
+      continue;
+    }
+    const selected = keep.has(key);
+    if (!(selected || selectAll)) {
+      continue;
+    }
+    const sub = selected ? keep.get(key) : null;
+    out[key] = sub ? pruneNested(value, sub) : value;
+  }
+  return out;
+}
+
+function pruneNested(value: unknown, sub: Set<string>): unknown {
+  if (Array.isArray(value)) {
+    return value.map((item) => pruneNested(item, sub));
+  }
+  if (!value || typeof value !== "object") {
+    return value;
+  }
+  const out: Record<string, unknown> = {};
+  for (const [key, nested] of Object.entries(value)) {
+    if (key.startsWith("$") || sub.has(key)) {
+      out[key] = nested;
+    }
+  }
+  return out;
+}
+
 function buildDb(
   tables: FakeTables,
   record: (entry: FakeBackend["writes"][number]) => void,
@@ -302,7 +398,10 @@ function buildDb(
     if (typeof limit === "number") {
       rows = rows.slice(0, limit);
     }
-    return Promise.resolve({ rows: structuredClone(rows), total });
+    return Promise.resolve({
+      rows: applySelect(structuredClone(rows), parsed),
+      total,
+    });
   };
 
   const getRow = (_databaseId: string, tableId: string, rowId: string) => {

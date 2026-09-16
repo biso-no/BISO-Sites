@@ -373,3 +373,48 @@ Rounds two and three each produced a forward-scanning listing, and the two
 loops were nearly identical. They are now one generic `scanForward` in
 `runtime/scan.ts`, used by both the staff page listing and public page search,
 with the "advance by rows examined, not rows accepted" rule stated once.
+
+---
+
+## 9. Fourth review round
+
+A fourth review of `2383c8b` raised six. All six reproduced. The P1 is the
+sharpest kind of finding — a fix from round one that defeated itself.
+
+| # | Area | Verified as | Fix |
+|---|---|---|---|
+| 1 | `domains/content.ts` | **Confirmed, and it undid round one's own fix.** `proposeOrExecute` rebuilds the proposal on the execute path so the token binds to the current call's values — and rebuilding mints a fresh expiry, hence a fresh token the single-use registry has never seen. That token was returned with the result. For `create_draft` / `request_approval` (null revision, `ID.unique()`) echoing it back writes a second row: the registry was intact and the response walked around it | `asApplied()` — the executed result keeps targets, payload, diff and the *spent* expiry, and omits the credential |
+| 2 | `services/content-registry.ts` | **Confirmed.** `eventProblems` tests `row.fields.member_price`, which `events.summaryColumns` never projected, so it read `undefined` for every row — and the audit flagged "no member price set" on every paid, non-member-only event | `member_price` added to the projection |
+| 3 | `domains/workflows.ts` | **Confirmed.** The briefing threaded `campusId` into its event, draft and vacancy probes but not into `inboxCounts`, then labelled the whole result `campusFilter: <one campus>` | `inboxCounts(principal, { campusId })`, applied on top of the principal's scope, never instead of it |
+| 4 | `domains/workflows.ts` | **Confirmed — round three's vacancy ordering bug, one probe over.** Upcoming events were taken newest-*edited* first and filtered to the horizon afterwards, so an imminent event nobody had touched fell out of the window | `order: "date"` (ascending on the domain's own date column) plus `updatedSince: now`, with the same truncation warning the vacancy probe uses |
+| 5 | `services/discovery.ts` | **Confirmed — the forward-scan bug, third door.** Public unit search read one fixed 100-row window, filtered it by `isPublicUnit` locally, sliced by `offset`, and reported `total: visible.length`. Units past the first 100 alphabetical rows were unreachable at any offset | `scanForward` with a raw cursor and `total: null`, matching page search |
+| 6 | `services/discovery.ts` | **Confirmed.** `resolveBenefitCampusIds(null)` answers "national only" — correct for the member portal, which always has a campus in hand. Applied unconditionally to an *optional* search filter it silently hid every campus benefit when no campus was named, unlike every other public kind | The campus predicate applies only when a campus was requested |
+
+### A third harness gap, and the last of that class
+
+Finding #2 could not be reproduced by any test, because **the fake ignored
+`Query.select` and returned whole rows.** A column the query never asked for
+reads as `undefined` against Appwrite and as the stored value here — so a test
+would pass on code that cannot work in production. It is exactly the shape of
+the previous two gaps: the fake silently did nothing where the real backend
+does something.
+
+The fake now projects. Two simplifications are deliberate and both narrow
+rather than widen: `$`-prefixed system attributes are always kept (which of
+them a projection returns varies by Appwrite version, and none is a domain
+column), and a nested selection prunes its relationship to the selected
+sub-attributes while `relation.*` keeps it whole.
+
+Making it project broke nothing else — 270 tests passed unchanged — which is
+itself the answer to "is any other projection wrong?". Between this, `or`,
+value-less operators and ordering, the fake now models every query feature this
+package actually uses.
+
+### What the four rounds have in common
+
+Five of the six findings here are a defect class this package had already fixed
+somewhere else: a forward-scan listing, a date-ordered probe, a campus filter
+that labels more than it filters, a credential handed back, a projection that
+did not match its reader. The fix each time was to move the rule into one
+place — `scanForward`, `orderQuery`, `asApplied` — rather than to patch the
+call site. The remaining copies are the ones worth looking for next.

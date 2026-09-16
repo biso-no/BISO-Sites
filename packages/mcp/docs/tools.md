@@ -52,6 +52,11 @@ how many rows exist that they may not see. When `total` is `null`, **follow
 `nextCursor` until it is `null`** rather than stopping at the first page shorter
 than the limit — a short page does not mean the end.
 
+`biso_page_list`, and `biso_public_search` for `kind: "pages"` and
+`kind: "units"`, all report `null`: a page's translation may be unpublished
+while the page is not, and a `departments` row is filtered by a name rule
+(`isPublicUnit`) that no Appwrite query can express.
+
 Failure (`isError: true` on the MCP result):
 
 ```json
@@ -128,7 +133,7 @@ distinguishing them would confirm an id exists.
 
 | Tool | Notes |
 |---|---|
-| `biso_public_search` | `kind`: events, news, jobs, pages, units, benefits, documents. Runs on the **anonymous** client, so a draft cannot come back. |
+| `biso_public_search` | `kind`: events, news, jobs, pages, units, benefits, documents. Runs on the **anonymous** client, so a draft cannot come back. `campusId` is optional for every kind; omitting it lists across campuses, and naming one adds national benefits to a `benefits` query. |
 | `biso_public_get_page` | Returns the **published** document, never the draft. |
 
 Read the result's `warnings`: for `news` and `jobs` the public path applies no
@@ -310,6 +315,14 @@ means it was.
 The token binds actor + action + payload + revision + expiry. Change any of them
 and it is refused with `requires_authorization`. It expires after 10 minutes and
 does not survive a server restart.
+
+**An executed result carries no `proposalToken`.** The proposal echoed back
+alongside `effect: "executed"` describes what was applied — targets, payload,
+diff, revision, and the expiry of the proposal that was spent — and deliberately
+omits the credential. Returning one would hand the caller a second, unspent
+authorization for the change they just made: for an additive action such as
+`biso_content_create_draft`, echoing it back would create a second row. To make
+another change, propose again.
 
 ### Tiers
 

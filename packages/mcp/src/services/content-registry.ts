@@ -177,6 +177,11 @@ export const CONTENT_REGISTRY: Readonly<
       "capacity",
       "member_only",
       "pricing_mode",
+      // Read by the quality audit, which flags a paid event with no member
+      // price. A column the projection omits comes back `undefined`, which is
+      // indistinguishable from "not set" — so omitting it here would make the
+      // audit report that problem for every paid event.
+      "member_price",
       "category",
     ],
     adminPath: (id) => `/events/${id}`,
