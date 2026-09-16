@@ -22,6 +22,7 @@ import {
 } from "../identity/campus";
 import type { Principal } from "../identity/principal";
 import { isAnonymous } from "../identity/principal";
+import { approverTeamsFor } from "../identity/scope";
 import {
   forbidden,
   fromAppwriteError,
@@ -183,22 +184,6 @@ function toView(row: ApprovalRow): ApprovalRequestView {
     reason: row.reason,
     payload: parsePayload(row.payload),
   };
-}
-
-/**
- * The approver teams this principal can decide for, or `null` for "all".
- *
- * Team ids come from the verified memberships on the principal, never from an
- * argument. The Operations Unit holds `update` on every request row — the same
- * override the portal grants — so for its members there is no honest team
- * filter and row security is already the right boundary.
- */
-function approverTeamsFor(principal: Principal): string[] | null {
-  const teams = [...principal.departmentTeamIds, ...principal.campusTeamIds];
-  if (teams.includes(OPERATIONS_UNIT_TEAM_ID)) {
-    return null;
-  }
-  return [...new Set(teams)];
 }
 
 export function createApprovalService(

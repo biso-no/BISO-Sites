@@ -19,7 +19,7 @@ import { Query } from "@repo/api";
 import type { BackendClients } from "../appwrite/clients";
 import type { Principal } from "../identity/principal";
 import { isCampusAdmin, isGlobalAdmin } from "../identity/principal";
-import { scopeQueries } from "../identity/scope";
+import { approverTeamsFor, scopeQueries } from "../identity/scope";
 import { fromAppwriteError } from "../runtime/errors";
 import type { Projected } from "./row";
 
@@ -144,14 +144,30 @@ export function createOperationsService(
         ? [Query.equal("campus_id", [options.campusId])]
         : [];
 
+      // The same decider filter `ApprovalService.listPending` applies, and for
+      // the same reason: `approval_requests` has no table-level permissions, so
+      // row security is the only grant — and it grants the *requester* read on
+      // their own rows. Counting on visibility alone therefore reports a
+      // caller's own requests, routed to a team they are not in, as work
+      // waiting for their decision. `null` is the Operations Unit override (no
+      // honest team filter exists for them); `[]` is a principal with no teams,
+      // who can decide nothing.
+      const deciderTeams = approverTeamsFor(principal);
+      const approverFilter = deciderTeams
+        ? [Query.equal("approver_team_id", deciderTeams)]
+        : [];
+
       // `Query.limit(1)` with `result.total`: Appwrite reports the full match
       // count regardless of page size, so one row is enough to count them.
       const [approvals, submissions] = await Promise.allSettled([
-        clients.user.db.listRows("app", "approval_requests", [
-          Query.equal("status", "pending"),
-          Query.limit(1),
-          ...campusFilter,
-        ]),
+        deciderTeams?.length === 0
+          ? Promise.resolve({ total: 0 })
+          : clients.user.db.listRows("app", "approval_requests", [
+              Query.equal("status", "pending"),
+              ...approverFilter,
+              Query.limit(1),
+              ...campusFilter,
+            ]),
         clients.user.db.listRows("app", "form_submissions", [
           Query.equal("status", "new"),
           Query.limit(1),

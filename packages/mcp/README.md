@@ -134,8 +134,14 @@ which lands in the audit record.
 ## Capability profiles
 
 The profile is computed from the verified principal and decides which tool
-modules are *registered*. It is a usability measure — the authorization checks in
-the service layer are what actually enforce access.
+modules are *registered*. Keeping an unusable tool out of `tools/list` is a
+usability measure — the scope checks in the service layer are what enforce
+access to rows.
+
+The profile itself is enforced twice, though: at registration, and again on
+every call against a freshly resolved principal. The second check is what makes
+a revoked membership take effect within the session rather than at the next
+restart.
 
 | Profile | When | What is registered |
 |---|---|---|

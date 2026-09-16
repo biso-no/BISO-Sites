@@ -20,7 +20,7 @@
 import { Query } from "@repo/api";
 import { DomainError, forbidden } from "../runtime/errors";
 import type { AppliedScope } from "../runtime/result";
-import { campusLabel } from "./campus";
+import { campusLabel, OPERATIONS_UNIT_TEAM_ID } from "./campus";
 import { isAnonymous, isGlobalAdmin, type Principal } from "./principal";
 
 /**
@@ -165,6 +165,31 @@ export function describeScope(
  * Single-row getters use this so an out-of-scope row reports `not_found`
  * rather than leaking its existence through a different error.
  */
+/**
+ * The approver teams this principal can decide for, or `null` for "all".
+ *
+ * Row security alone is the wrong filter for approvals, even though it looks
+ * like the right one. `createApprovalRequest` in `apps/admin` grants
+ * `read`+`update` to the approver team and to the Operations Unit, and then
+ * `Permission.read(Role.user(requester))` — so a requester can read their own
+ * pending rows without being able to decide them. Any query that presents rows
+ * as "waiting for your decision" has to filter on the decider's grant, not on
+ * what the caller can see.
+ *
+ * Team ids come from the verified memberships on the principal, never from an
+ * argument. The Operations Unit holds `update` on every request row — the same
+ * override the portal grants — so for its members there is no honest team
+ * filter and row security is already the right boundary; that is what `null`
+ * means here, and it is why callers must distinguish it from `[]`.
+ */
+export function approverTeamsFor(principal: Principal): string[] | null {
+  const teams = [...principal.departmentTeamIds, ...principal.campusTeamIds];
+  if (teams.includes(OPERATIONS_UNIT_TEAM_ID)) {
+    return null;
+  }
+  return [...new Set(teams)];
+}
+
 export function canReadRow(
   principal: Principal,
   campusId?: string | null,

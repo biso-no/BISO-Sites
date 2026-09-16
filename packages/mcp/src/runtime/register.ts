@@ -14,9 +14,15 @@
  *
  * Registration itself is a second, independent gate: a tool whose
  * `isAvailable` returns false is never registered, so a model cannot see it,
- * and the `list_capabilities` tool reports why. That is a usability measure,
- * not a security boundary — the `authorize` hook and the services are what
- * actually enforce access.
+ * and the `list_capabilities` tool reports why. That much is a usability
+ * measure — the services are what enforce access to rows.
+ *
+ * The profile gate is not, though, and cannot be. Registration is a snapshot
+ * of the memberships this process saw at startup, and a stdio server outlives
+ * that snapshot; a tool gated on `profiles` alone (the platform module, whose
+ * handler takes no principal) would otherwise stay callable for the rest of
+ * the session after the membership behind it is revoked. So the profile is
+ * re-checked against the refreshed principal on every call, here.
  */
 
 import { randomUUID } from "node:crypto";
@@ -26,9 +32,9 @@ import type {
   ToolAnnotations,
 } from "@modelcontextprotocol/sdk/types.js";
 import type { ZodRawShape, z } from "zod";
-import type { PolicyProfile } from "../identity/principal";
+import type { PolicyProfile, Principal } from "../identity/principal";
 import type { ToolContext } from "./context";
-import { DomainError, isDomainError } from "./errors";
+import { DomainError, forbidden, isDomainError } from "./errors";
 import type { Logger } from "./logger";
 import type { MutationTier } from "./mutation";
 import { type ToolOutcome, toCallToolResult, toToolError } from "./result";
@@ -182,6 +188,18 @@ async function invokeTool(input: {
     const principal = await context.refreshPrincipal({
       force: tier !== "read",
     });
+    // Registration filtered the tool list against the profile this process
+    // resolved at startup, and the SDK keeps a tool callable for the life of
+    // the connection once it is registered. A stdio server outlives that
+    // snapshot by hours, so the profile has to be re-checked here too.
+    //
+    // This is not redundant with the service layer: a tool whose only gate is
+    // `profiles` has no second check to fall back on. `biso_integration_
+    // configuration` is exactly that — its handler takes no principal, because
+    // registration was assumed to be the gate — so without this it keeps
+    // reporting which integrations this process has configured for the whole
+    // session after the global-admin membership behind it is revoked.
+    assertProfileAllowed(tool, principal);
     const handling = tool.handler(args as never, {
       ...context,
       principal,
@@ -230,6 +248,32 @@ async function invokeTool(input: {
     });
     return toCallToolResult(toToolError(rawError, requestId));
   }
+}
+
+/**
+ * Refuse a call whose profile no longer allows the tool.
+ *
+ * Phrased as a change ("now resolves as") rather than a flat denial, because
+ * the model *can* see the tool: it is in the list the client fetched at
+ * connect time. Telling it the session's profile changed is what stops it
+ * retrying a tool it can still see.
+ */
+function assertProfileAllowed(
+  tool: ToolDefinition,
+  principal: Principal
+): void {
+  if (tool.profiles.includes(principal.profile)) {
+    return;
+  }
+  throw forbidden(
+    `"${tool.name}" requires one of these profiles: ${tool.profiles.join(", ")}. This session now resolves as "${principal.profile}".`,
+    {
+      tool: tool.name,
+      requiredProfiles: [...tool.profiles],
+      currentProfile: principal.profile,
+    },
+    "Reconnect to refresh the tool list; this tool is no longer available to this identity."
+  );
 }
 
 /**

@@ -317,6 +317,20 @@ function primaryDateField(domain: ContentDomain): string {
   return "$updatedAt";
 }
 
+/** What a translation scan found, and whether it saw everything. */
+interface TextMatch {
+  ids: string[];
+  /**
+   * True when more translations matched than the scan read.
+   *
+   * Separate from "more ids than one query can carry" (`MAX_ID_BATCH`), and it
+   * has to be, because the locale filter below can shrink a truncated scan to
+   * a handful of ids. A caller that only checked the id count would then be
+   * told a partial search was complete.
+   */
+  truncated: boolean;
+}
+
 /**
  * Resolve a free-text search to a set of row ids via `content_translations`.
  *
@@ -330,7 +344,7 @@ async function idsMatchingText(
   spec: ContentDomainSpec,
   term: string,
   locale: ContentLocale
-): Promise<string[] | null> {
+): Promise<TextMatch | null> {
   if (spec.translations.kind !== "content_translations") {
     return null;
   }
@@ -356,7 +370,12 @@ async function idsMatchingText(
     // the term while its English text does not.
     const preferred = result.rows.filter((row) => row.locale === locale);
     const source = preferred.length > 0 ? preferred : result.rows;
-    return [...new Set(source.map((row) => row.content_id))];
+    return {
+      ids: [...new Set(source.map((row) => row.content_id))],
+      // `total` is the full match count; `rows` is one page of it. Appwrite
+      // reports both, so the scan knows when it stopped short.
+      truncated: result.total > result.rows.length,
+    };
   } catch (error) {
     throw fromAppwriteError(error, {
       operation: `search ${spec.domain} translations`,
@@ -398,12 +417,18 @@ async function applyTextFilter(input: {
     return "applied";
   }
 
-  const ids = await idsMatchingText(clients, spec, term, locale);
-  if (ids === null) {
+  const match = await idsMatchingText(clients, spec, term, locale);
+  if (match === null) {
     warnings.push(
       `Text search is not available for ${spec.domain}; the term was ignored.`
     );
     return "unavailable";
+  }
+  const { ids } = match;
+  if (match.truncated) {
+    warnings.push(
+      `More than ${TRANSLATION_SCAN_LIMIT} translations matched "${term}"; only the first ${TRANSLATION_SCAN_LIMIT} were scanned, so matching ${spec.domain} may be missing from these results. Narrow the term for complete results.`
+    );
   }
   if (ids.length === 0) {
     return "no_matches";

@@ -20,6 +20,7 @@ import { ElicitRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import { createBackendClients } from "./appwrite/clients";
 import { loadConfig, type ServerConfig } from "./config/env";
 import type { Principal } from "./identity/principal";
+import { PRINCIPAL_TTL_MS } from "./identity/refresh";
 import { createBisoMcpServer } from "./server";
 import {
   ANONYMOUS,
@@ -134,16 +135,30 @@ interface Harness {
 }
 
 async function connect(options: {
-  principal: Principal;
+  principal?: Principal;
   config?: ServerConfig;
   tables?: FakeTables;
   hasElevated?: boolean;
   clientCapabilities?: Record<string, unknown>;
+  /**
+   * Memberships for the server to derive the principal from, instead of being
+   * handed one.
+   *
+   * `principalOverride` marks the cache `fixed`, which switches re-resolution
+   * off entirely — correct for an injected identity, but it means a harness
+   * built on it cannot exercise a membership change at all.
+   */
+  resolveFrom?: {
+    account: { $id: string; email?: string; name?: string };
+    teams: Array<{ $id: string; name: string }>;
+  };
 }): Promise<Harness> {
   const { logger, lines } = collectingLogger();
   const backend = createFakeBackend({
     tables: options.tables ?? seedTables(),
     hasElevated: options.hasElevated ?? true,
+    account: options.resolveFrom?.account,
+    teams: options.resolveFrom?.teams,
   });
 
   const config = options.config ?? baseConfig();
@@ -327,6 +342,48 @@ describe("tool registration follows the profile", () => {
     } finally {
       await asAdmin.close();
       await asCampus.close();
+    }
+  });
+
+  test("a tool stops being callable when the profile behind it is revoked", async () => {
+    // Registration is a snapshot: the client fetched this tool list at connect
+    // time and the SDK keeps every registered tool callable for the life of
+    // the connection. A stdio server lives as long as its host, so that
+    // snapshot can outlast the membership it was built from by hours.
+    //
+    // `biso_integration_configuration` is the sharp case because its handler
+    // takes no principal at all — `profiles` was the only gate — so nothing
+    // downstream would catch the revocation.
+    const teams = [
+      { $id: "SG-App-Dept-OperationsUnit", name: "SG-App-Dept-OperationsUnit" },
+      { $id: "SG-App-Campus-National", name: "SG-App-Campus-National" },
+    ];
+    const harness = await connect({
+      resolveFrom: { account: { $id: "u-1", email: "admin@biso.no" }, teams },
+    });
+    try {
+      // Registered, which is also the proof that these memberships really did
+      // resolve to the operator profile.
+      expect(
+        (await harness.client.listTools()).tools.map((t) => t.name)
+      ).toContain("biso_integration_configuration");
+
+      // Revoke, then step past the read TTL so the next call re-resolves.
+      teams.length = 0;
+      setSystemTime(new Date(Date.now() + PRINCIPAL_TTL_MS + 1000));
+
+      const denied = await harness.client.callTool({
+        name: "biso_integration_configuration",
+        arguments: {},
+      });
+
+      expect(denied.isError).toBe(true);
+      expect(
+        (denied.structuredContent as { error: { code: string } }).error.code
+      ).toBe("forbidden");
+    } finally {
+      setSystemTime();
+      await harness.close();
     }
   });
 

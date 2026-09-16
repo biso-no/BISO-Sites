@@ -16,6 +16,7 @@ import {
   GLOBAL_ADMIN,
 } from "../testing/index";
 import { createApprovalService } from "./approvals";
+import { createOperationsService } from "./operations";
 
 function tables() {
   return {
@@ -57,6 +58,13 @@ function service() {
   return createApprovalService(createFakeBackend({ tables: tables() }));
 }
 
+function counts() {
+  return createOperationsService(
+    createFakeBackend({ tables: { ...tables(), form_submissions: [] } }),
+    {}
+  );
+}
+
 const PAGE = { limit: 20, offset: 0 };
 
 describe("the pending inbox lists only what the caller can decide", () => {
@@ -81,5 +89,31 @@ describe("the pending inbox lists only what the caller can decide", () => {
     const found = await service().listPending(GLOBAL_ADMIN(), PAGE);
 
     expect(found.rows.map((row) => row.id).sort()).toEqual(["mine", "theirs"]);
+  });
+});
+
+/**
+ * The count beside the inbox has to agree with the inbox.
+ *
+ * `listPending` filters on the decider's grant; this count did not, and read
+ * row visibility alone. `approval_requests` has no table-level permissions, so
+ * visibility *is* row security — and row security grants the requester read on
+ * their own rows. The fake returns every row that matches the query, which is
+ * the right model for that: what production would show the requester is
+ * exactly what an unfiltered query returns here.
+ */
+describe("the inbox count agrees with the inbox", () => {
+  test("a campus admin's own request, routed elsewhere, is not counted", async () => {
+    // `mine` is decided by campus management (this caller's team); `theirs`
+    // is routed to HR. A campus admin can read both, and can decide one.
+    const found = await counts().inboxCounts(CAMPUS_ADMIN("Oslo", "1"));
+
+    expect(found.approvals).toBe(1);
+  });
+
+  test("the Operations Unit override still counts everything", async () => {
+    const found = await counts().inboxCounts(GLOBAL_ADMIN());
+
+    expect(found.approvals).toBe(2);
   });
 });

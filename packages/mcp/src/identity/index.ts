@@ -44,6 +44,7 @@ export {
   type TeamParseResult,
 } from "./resolve";
 export {
+  approverTeamsFor,
   assertPublishAccess,
   assertWriteAccess,
   canPublishForCampus,

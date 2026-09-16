@@ -30,6 +30,14 @@ Steps 3 and 4 in that order are why a tool a principal may not use is never
 registered. Capability is derived from verified identity, not from what the
 client asks for.
 
+Registration is a *snapshot*, though, and a stdio server outlives it — the host
+that spawned it can live for hours. So the principal is re-resolved per call
+(forced before anything that mutates, TTL-bounded for reads; see
+`identity/refresh.ts`) and the tool's profile is re-checked against that
+refreshed principal before the handler runs. Without that second check a tool
+whose only gate is its profile stays callable for the whole session after the
+membership behind it has been withdrawn.
+
 ---
 
 ## Decisions
