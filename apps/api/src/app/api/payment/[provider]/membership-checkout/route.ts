@@ -57,6 +57,13 @@ type CheckoutDb = Awaited<ReturnType<typeof createAdminClient>>["db"];
 const IDEMPOTENCY_WINDOW_MS = 15 * 60 * 1000;
 const RECENT_ORDERS_LIMIT = 20;
 
+// How far back the "already bought this" guard looks. A membership runs at
+// most a year, so a settled order older than this cannot still be covering
+// the buyer; the margin keeps a late-summer renewal of last year's plan
+// sellable.
+const SETTLED_ORDER_WINDOW_MS = 400 * 24 * 60 * 60 * 1000;
+const SETTLED_ORDERS_LIMIT = 50;
+
 // Same deadline discipline as the product checkout route: neither payment
 // helper has an internal timeout, so a hung provider call would otherwise
 // hang this request indefinitely instead of surfacing as a 504.
@@ -261,19 +268,75 @@ type EligibilityOutcome =
   | { ok: false; message: string; status: number };
 
 /**
+ * Whether this buyer already has a settled (paid or authorized) order for
+ * this exact plan.
+ *
+ * The 24SevenOffice gate below cannot answer this on its own: the invoice is
+ * raised by fulfilment and the status read is cached, so for minutes after a
+ * completed purchase the gate still sees a non-member. `findIdempotentOrder`
+ * does not cover it either — it only reuses PENDING orders, and a paid one
+ * has left that state. This check reads nothing but our own orders, so it
+ * holds regardless of what 24SevenOffice is doing.
+ */
+async function hasSettledOrderForPlan(
+  db: CheckoutDb,
+  userId: string,
+  planId: string
+): Promise<boolean> {
+  const windowStart = new Date(
+    Date.now() - SETTLED_ORDER_WINDOW_MS
+  ).toISOString();
+  const settled = await db.listRows<Orders>("app", "orders", [
+    Query.equal("userId", userId),
+    Query.equal("status", [OrdersStatus.PAID, OrdersStatus.AUTHORIZED]),
+    Query.greaterThan("$createdAt", windowStart),
+    Query.orderDesc("$createdAt"),
+    ORDER_ITEMS_SELECT,
+    Query.limit(SETTLED_ORDERS_LIMIT),
+  ]);
+
+  return settled.rows.some((order) =>
+    getOrderItems(order).some(
+      (item) => item.product_type === "membership" && item.product_id === planId
+    )
+  );
+}
+
+/**
  * The join page already refuses these, but this endpoint is reachable
  * directly with any valid JWT — the app calls it — so it applies the same
  * gate: no charge while 24SevenOffice cannot be read (an existing member
  * could pay for cover they already have), and none that would not extend
  * the buyer's cover.
+ *
+ * The buyer's own settled orders are checked first — they are ours to read,
+ * they cost no 24SevenOffice call, and they close the window in which a
+ * just-fulfilled purchase is invisible to the cached status.
  */
-async function resolveMembershipEligibility(identity: {
-  employeeId: string;
-  plan: MembershipPlan;
-  studentId: string;
-  studentNumber: number;
-}): Promise<EligibilityOutcome> {
-  const status = await getMembershipStatusForStudent(identity.studentNumber);
+async function resolveMembershipEligibility(
+  db: CheckoutDb,
+  userId: string,
+  identity: {
+    employeeId: string;
+    plan: MembershipPlan;
+    studentId: string;
+    studentNumber: number;
+  }
+): Promise<EligibilityOutcome> {
+  if (await hasSettledOrderForPlan(db, userId, identity.plan.id)) {
+    return {
+      ok: false,
+      message: "Your membership already covers this period.",
+      status: 409,
+    };
+  }
+
+  // Forced refresh: a status up to ten minutes old would still report the
+  // buyer as a non-member right after they paid, and the gate would sell
+  // them the same category a second time.
+  const status = await getMembershipStatusForStudent(identity.studentNumber, {
+    refresh: true,
+  });
   const gate = resolveMembershipGate({
     employeeId: identity.employeeId,
     isAuthenticated: true,
@@ -434,7 +497,11 @@ export async function POST(
     const { plan } = identity;
     const client = isCheckoutClient(body.client) ? body.client : "web";
 
-    const eligibility = await resolveMembershipEligibility(identity);
+    const eligibility = await resolveMembershipEligibility(
+      db,
+      user.$id,
+      identity
+    );
     if (!eligibility.ok) {
       return json({ message: eligibility.message }, eligibility.status);
     }

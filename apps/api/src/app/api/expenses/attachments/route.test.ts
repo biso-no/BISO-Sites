@@ -18,16 +18,25 @@ vi.mock("@repo/api/file", () => ({ InputFile: { fromBuffer } }));
 
 import { POST } from "./route";
 
-const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3, 4]);
-const HEIC = new Uint8Array([0, 0, 0, 0x18, 0x66, 0x74, 0x79, 0x70, 0x68, 0x65, 0x69, 0x63]);
+const PNG = new Uint8Array([
+  0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3, 4,
+]);
+const HEIC = new Uint8Array([
+  0, 0, 0, 0x18, 0x66, 0x74, 0x79, 0x70, 0x68, 0x65, 0x69, 0x63,
+]);
 
-function uploadRequest(file?: File) {
+function uploadRequest(file?: File, authorization = "Bearer jwt") {
   const form = new FormData();
   if (file) {
     form.append("file", file);
   }
+  const headers = new Headers();
+  if (authorization) {
+    headers.set("authorization", authorization);
+  }
   return new Request("https://api.example/api/expenses/attachments", {
     body: form,
+    headers,
     method: "POST",
   }) as never;
 }
@@ -65,6 +74,21 @@ describe("expense receipt upload", () => {
     const response = await POST(uploadRequest(new File([PNG], "a.png")));
 
     expect(response.status).toBe(401);
+  });
+
+  it("refuses a cookie-only cross-site form post", async () => {
+    // multipart/form-data is CORS-safelisted, so a cross-origin form post with
+    // the session cookie is a simple request and never preflighted. Requiring
+    // the bearer token the app sends is what makes that post useless.
+    const response = await POST(uploadRequest(new File([PNG], "a.png"), ""));
+
+    expect(response.status).toBe(401);
+    await expect(response.json()).resolves.toEqual({
+      success: false,
+      error: "Authentication required",
+    });
+    expect(isFeatureEnabled).not.toHaveBeenCalled();
+    expect(storage.createFile).not.toHaveBeenCalled();
   });
 
   it("requires a file", async () => {

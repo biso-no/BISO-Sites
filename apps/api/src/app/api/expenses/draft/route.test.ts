@@ -10,11 +10,13 @@ const adminDb = vi.hoisted(() => ({
   createRow: vi.fn(),
   deleteRow: vi.fn(),
   getRow: vi.fn(),
+  listRows: vi.fn(),
   updateRow: vi.fn(),
 }));
 
 const storage = vi.hoisted(() => ({
   deleteFile: vi.fn(),
+  getFile: vi.fn(),
 }));
 
 const account = vi.hoisted(() => ({
@@ -139,7 +141,14 @@ describe("expense draft deletion", () => {
     vi.clearAllMocks();
     account.get.mockResolvedValue({ $id: "submitter-1" });
     adminDb.deleteRow.mockResolvedValue({});
+    adminDb.listRows.mockResolvedValue({ rows: [], total: 0 });
     storage.deleteFile.mockResolvedValue({});
+    storage.getFile.mockImplementation((_bucket: string, fileId: string) =>
+      Promise.resolve({
+        $id: fileId,
+        $permissions: ['read("user:submitter-1")'],
+      })
+    );
     vi.spyOn(console, "error").mockImplementation(() => undefined);
   });
 
@@ -199,7 +208,10 @@ describe("expense draft deletion", () => {
   it("deletes an owned draft and its receipt files, even if a file is already gone", async () => {
     adminDb.getRow.mockResolvedValue({
       $id: "expense-1",
-      expenseAttachments: [{ url: "file-1" }, { url: "file-2" }],
+      expenseAttachments: [
+        { $id: "att-1", url: "file-1" },
+        { $id: "att-2", url: "file-2" },
+      ],
       status: "draft",
       userId: "submitter-1",
     });
@@ -218,5 +230,75 @@ describe("expense draft deletion", () => {
     );
     expect(storage.deleteFile).toHaveBeenCalledWith("expenses", "file-1");
     expect(storage.deleteFile).toHaveBeenCalledWith("expenses", "file-2");
+  });
+
+  it("does not delete a file id the caller planted into a draft", async () => {
+    adminDb.getRow.mockResolvedValue({
+      $id: "expense-1",
+      expenseAttachments: [{ $id: "att-1", url: "someone-elses-file" }],
+      status: "draft",
+      userId: "submitter-1",
+    });
+    storage.getFile.mockResolvedValue({
+      $id: "someone-elses-file",
+      $permissions: ['read("user:someone-else")'],
+    });
+
+    const response = await DELETE(deleteRequest("?expenseId=expense-1"));
+
+    expect(response.status).toBe(200);
+    expect(adminDb.deleteRow).toHaveBeenCalledWith(
+      "app",
+      "expense",
+      "expense-1"
+    );
+    expect(storage.deleteFile).not.toHaveBeenCalled();
+  });
+
+  it("does not delete a receipt another expense still references", async () => {
+    adminDb.getRow.mockResolvedValue({
+      $id: "expense-1",
+      expenseAttachments: [{ $id: "att-1", url: "file-1" }],
+      status: "draft",
+      userId: "submitter-1",
+    });
+    // The same file id also hangs off an approved expense's attachment row.
+    adminDb.listRows.mockResolvedValue({
+      rows: [
+        { $id: "att-1", url: "file-1" },
+        { $id: "att-on-approved-expense", url: "file-1" },
+      ],
+      total: 2,
+    });
+
+    const response = await DELETE(deleteRequest("?expenseId=expense-1"));
+
+    expect(response.status).toBe(200);
+    expect(adminDb.deleteRow).toHaveBeenCalledWith(
+      "app",
+      "expense",
+      "expense-1"
+    );
+    expect(adminDb.listRows).toHaveBeenCalledWith(
+      "app",
+      "expense_attachments",
+      expect.arrayContaining([expect.stringContaining("file-1")])
+    );
+    expect(storage.deleteFile).not.toHaveBeenCalled();
+  });
+
+  it("does not delete a receipt whose ownership cannot be read", async () => {
+    adminDb.getRow.mockResolvedValue({
+      $id: "expense-1",
+      expenseAttachments: [{ $id: "att-1", url: "file-1" }],
+      status: "draft",
+      userId: "submitter-1",
+    });
+    storage.getFile.mockRejectedValue(new Error("storage unavailable"));
+
+    const response = await DELETE(deleteRequest("?expenseId=expense-1"));
+
+    expect(response.status).toBe(200);
+    expect(storage.deleteFile).not.toHaveBeenCalled();
   });
 });

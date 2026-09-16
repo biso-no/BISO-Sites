@@ -24,11 +24,21 @@ const EXPENSES_BUCKET_ID = "expenses";
  * there directly — the web uploads through a server action with the admin
  * key, and this route does the same for the app. The file is readable by its
  * uploader only; reviewers and ledger posting read it with the admin key.
+ *
+ * A bearer token is required, as on the profile and membership routes. The
+ * body is `multipart/form-data`, a CORS-safelisted content type, so a
+ * cross-origin form post carrying the session cookie would be a simple
+ * request that no preflight ever stops — only the app sends a token, so
+ * demanding one is what keeps another site from uploading as the caller.
  */
 export async function POST(req: NextRequest) {
   const origin = req.headers.get("origin");
   const json = (data: unknown, status = 200) =>
     applyCorsHeaders(NextResponse.json(data, { status }), origin);
+
+  if (!req.headers.get("authorization")?.startsWith("Bearer ")) {
+    return json({ success: false, error: "Authentication required" }, 401);
+  }
 
   if (!(await isFeatureEnabled("expenses_module"))) {
     return json(

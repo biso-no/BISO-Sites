@@ -121,14 +121,28 @@ function mockAuthenticatedUser(userId = "user-1") {
   } as unknown as Awaited<ReturnType<typeof createAuthenticatedClient>>);
 }
 
+function membershipOrder(planId: string, id = "order-9") {
+  return {
+    $id: id,
+    campus_id: "1",
+    items_json: JSON.stringify([
+      { product_id: planId, product_type: "membership", quantity: 1 },
+    ]),
+    payment_provider: "vipps",
+    status: "paid",
+  };
+}
+
 function mockAdminClient({
   profile = VALID_PROFILE,
   planRow = VALID_PLAN_ROW,
   existingOrders = [],
+  settledOrders = [],
 }: {
   profile?: Record<string, unknown> | null;
   planRow?: Record<string, unknown> | null;
   existingOrders?: Record<string, unknown>[];
+  settledOrders?: Record<string, unknown>[];
 } = {}) {
   const getRow = vi.fn((_dbId: string, table: string) => {
     if (table === "user") {
@@ -143,9 +157,13 @@ function mockAdminClient({
     }
     return Promise.reject(new Error(`unexpected table: ${table}`));
   });
-  const listRows = vi.fn().mockResolvedValue({
-    rows: existingOrders,
-    total: existingOrders.length,
+  // The settled-order guard and the pending-order idempotency lookup hit the
+  // same table; tell them apart by the status the query filters on.
+  const listRows = vi.fn((_dbId: string, _table: string, queries: string[]) => {
+    const rows = queries.some((query) => query.includes("paid"))
+      ? settledOrders
+      : existingOrders;
+    return Promise.resolve({ rows, total: rows.length });
   });
 
   mockedCreateAdminClient.mockResolvedValue({
@@ -537,6 +555,47 @@ describe("membership checkout authorization", () => {
 
     expect(response.status).toBe(200);
     expect(mockedCreateOrder).toHaveBeenCalled();
+  });
+
+  it("refuses a second order for a plan the buyer has already paid for", async () => {
+    // 24SevenOffice can lag a fulfilled purchase by up to the cache's ten
+    // minutes, and the idempotency lookup only reuses PENDING orders — so
+    // without this guard the gate would happily sell the same category twice
+    // and raise a second invoice.
+    mockAdminClient({ settledOrders: [membershipOrder("71")] });
+
+    const response = await postVipps(
+      membershipCheckoutRequest({ authorization: "Bearer valid" })
+    );
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toEqual({
+      message: "Your membership already covers this period.",
+    });
+    expect(mockedCreateOrder).not.toHaveBeenCalled();
+  });
+
+  it("sells a plan the buyer's earlier settled order was not for", async () => {
+    mockAdminClient({ settledOrders: [membershipOrder("54")] });
+
+    const response = await postVipps(
+      membershipCheckoutRequest({ authorization: "Bearer valid" })
+    );
+
+    expect(response.status).toBe(200);
+    expect(mockedCreateOrder).toHaveBeenCalled();
+  });
+
+  it("reads membership status with a forced refresh, not a ten-minute-old cache", async () => {
+    const response = await postVipps(
+      membershipCheckoutRequest({ authorization: "Bearer valid" })
+    );
+
+    expect(response.status).toBe(200);
+    expect(mocks.getMembershipStatusForStudent).toHaveBeenCalledWith(
+      1_715_738,
+      { refresh: true }
+    );
   });
 
   it("takes no payment while membership cannot be verified", async () => {
