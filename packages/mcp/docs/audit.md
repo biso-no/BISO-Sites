@@ -485,3 +485,35 @@ ignored its queries entirely, so no projection on a single-row read could be
 tested at all. Between `or`, value-less operators, ordering, `listRows`
 projection and now `getRow` projection, the fake models every query feature
 this package uses.
+
+---
+
+## 12. Seventh review round
+
+A seventh review of `d0b9f26`, requested manually, raised four. All four
+reproduced. The P1 is the first finding in this PR that is a security
+vulnerability in the ordinary sense rather than an authorization gap.
+
+| # | Area | Verified as | Fix |
+|---|---|---|---|
+| 1 | `domains/pages.ts` / `services/pages.ts` | **Confirmed, reproduced directly.** `set_prop` takes any dot path, and `@repo/editor`'s `setProp` walks it with `node[key]` — so `__proto__.x` resolves to the real `Object.prototype` and writes onto it. `applyEdits` deep-copies through `JSON.parse`, which does not help, because that copy's prototype *is* `Object.prototype`. It runs before `proposeOrExecute`, so it lands in the default propose-only mode with no confirmation and no write, and the tool reports the edit as applied | `unsafePathSegment` refuses `__proto__`, `constructor` and `prototype`, in the **service** as well as the schema, so a second caller cannot reintroduce it. The editor's own `setProp` is roadmap S7 |
+| 2 | `services/events.ts` | **Confirmed.** `assignedCount` counted `segment_members` rows. The table is unique on `(segment_id, user_id)` only, and the admin auto-assign path dedupes within one segment `kind` and not across the event — so a person in a bus segment and a workshop segment is two rows and one attendee. `unassignedCount = attendeeCount - assignedCount` could therefore report nobody left while attendees were unassigned | Count distinct identities (`attendee_id`, else `user_id`), projecting only those two columns, with a `MEMBER_SCAN_CEILING` and a note when it truncates |
+| 3 | `services/pages.ts` | **Confirmed — the malformed-draft class, in the publication path.** `setPublished` guarded on `!draft_document`, then wrote `puck_document: draft_document` verbatim. An unparseable draft replaced a working public page with one the site renders as no blocks, and unpublishing cannot undo it because the released document is already gone | `assertPublishableDraft` parses before overwriting; the released document is left untouched |
+| 4 | `domains/pages.ts` | **Confirmed.** `set_meta` accepted `key: "slug"` and reported it applied, but `saveDraft` writes only the translation row — never `pages.slug`, which is the routing key and carries `page_slug_unique` | `slug` removed from the enum, with the reason in the schema |
+
+### Why the slug edit was removed rather than implemented
+
+The canonical `savePageDraft` does write `meta.slug` to the parent row, so
+"just do what it does" looks like the obvious fix. It is not, for two reasons
+that only show up in the surrounding code: that path carries a
+`resolveUniquePageSlug` / `slugConflict` policy for the unique index, and
+`apps/admin` layers `assertUnitPageNamespace` on top because a slug can move a
+page into or out of the `units/<campus>/<slug>` address space.
+
+More decisively, `pages.save_draft` is a `draft`-tier operation, defined in
+`runtime/mutation.ts` as "reversible by editing again". Changing a live page's
+public address is not: inbound links break the moment it is published, and
+editing the slug back does not unbreak anything that has already been followed.
+An operation whose consequences do not match its tier does not belong in that
+tier, so the honest move is to not advertise it — which is the same rule the
+content registry applies to every operation it declines.

@@ -37,6 +37,7 @@ const DO_NOT_MANAGE_I_RE = /do not manage/i;
 const NO_NO_DRAFT_TO_PUBLISH_I_RE = /no no draft to publish/i;
 const NO_WRITE_ACCESS_TO_THIS_DEPARTMENT_I_RE =
   /no write access to this department/i;
+const MALFORMED_I_RE = /is malformed, so it was not published/i;
 
 const LINKS = {
   web: (path: string) => `https://biso.no${path}`,
@@ -904,5 +905,145 @@ describe("an owner whose locale has no draft", () => {
 
     expect(view.documentSource).toBe("published");
     expect(view.canSeeDraft).toBe(false);
+  });
+});
+
+describe("a prop path cannot escape the document", () => {
+  /**
+   * `setProp` walks the path with `node[key]`, which follows `__proto__` to the
+   * real `Object.prototype`. `applyEdits` deep-copies through `JSON.parse`,
+   * which does not help — the copy's prototype IS `Object.prototype`. And this
+   * runs before the proposal gate, so it would land in propose-only mode with
+   * no confirmation and no write.
+   */
+  const POLLUTED_KEY = "mcp_prototype_probe";
+
+  function pageDoc(): PageDoc {
+    return {
+      blocks: [{ id: "b1", type: "text", props: {} }],
+      meta: {
+        accentColor: "#3DA9E0",
+        department: "dept-a",
+        slug: "p",
+        status: "draft",
+        title: "T",
+      },
+    };
+  }
+
+  test("__proto__ in a path is refused and pollutes nothing", () => {
+    const service = createPageService(
+      createFakeBackend({ tables: tablesWith() }),
+      LINKS
+    );
+    try {
+      const { outcomes } = service.applyEdits(pageDoc(), [
+        {
+          op: "set_prop",
+          blockId: "b1",
+          path: `__proto__.${POLLUTED_KEY}`,
+          value: "PWNED",
+        },
+      ]);
+
+      expect(outcomes[0]?.applied).toBe(false);
+      expect(outcomes[0]?.detail).toContain("__proto__");
+      expect(({} as Record<string, unknown>)[POLLUTED_KEY]).toBeUndefined();
+    } finally {
+      // Belt and braces: if the guard ever regresses, do not leave the rest of
+      // the suite running against a polluted prototype.
+      delete (Object.prototype as Record<string, unknown>)[POLLUTED_KEY];
+    }
+  });
+
+  test("constructor and prototype are refused too", () => {
+    const service = createPageService(
+      createFakeBackend({ tables: tablesWith() }),
+      LINKS
+    );
+    const { outcomes } = service.applyEdits(pageDoc(), [
+      { op: "set_prop", blockId: "b1", path: "constructor.x", value: 1 },
+      { op: "set_prop", blockId: "b1", path: "props.a.prototype.b", value: 1 },
+    ]);
+
+    expect(outcomes.map((outcome) => outcome.applied)).toEqual([false, false]);
+  });
+
+  test("an ordinary nested path still applies", () => {
+    const service = createPageService(
+      createFakeBackend({ tables: tablesWith() }),
+      LINKS
+    );
+    const { doc, outcomes } = service.applyEdits(pageDoc(), [
+      {
+        op: "set_prop",
+        blockId: "b1",
+        path: "props.items.0.label",
+        value: "Hi",
+      },
+    ]);
+
+    expect(outcomes[0]?.applied).toBe(true);
+    const block = doc.blocks[0] as unknown as {
+      props: { items: Array<{ label: string }> };
+    };
+    expect(block.props.items[0]?.label).toBe("Hi");
+  });
+});
+
+describe("publishing refuses a malformed draft", () => {
+  function brokenDraft(): FakeTables {
+    return tablesWith({
+      pages: [
+        {
+          $id: "page-broken",
+          $createdAt: "2026-01-01T00:00:00.000Z",
+          $updatedAt: "2026-01-01T00:00:00.000Z",
+          slug: "broken",
+          status: "published",
+          visibility: "public",
+          campus_id: "1",
+          department_id: "dept-a",
+          campus: { $id: "1" },
+          department: { $id: "dept-a" },
+          translation_refs: [
+            {
+              $id: "tr-broken",
+              $updatedAt: "2026-01-01T00:00:00.000Z",
+              locale: "no",
+              title: "Broken",
+              description: "Released",
+              is_published: true,
+              published_at: "2026-01-01T00:00:00.000Z",
+              draft_document: "{ not json",
+              puck_document: JSON.stringify(
+                doc([{ id: "live", type: "text" }])
+              ),
+            },
+          ],
+        },
+      ],
+    });
+  }
+
+  test("the released document is left alone", async () => {
+    const backend = createFakeBackend({
+      tables: brokenDraft(),
+      hasElevated: true,
+    });
+    const service = createPageService(backend, LINKS);
+
+    await expect(
+      service.setPublished(GLOBAL_ADMIN(), {
+        pageId: "page-broken",
+        locale: "no",
+        published: true,
+        expectedRevision: null,
+      })
+    ).rejects.toThrow(MALFORMED_I_RE);
+
+    expect(
+      backend.writes.filter((write) => write.table !== "audit_logs")
+    ).toHaveLength(0);
   });
 });

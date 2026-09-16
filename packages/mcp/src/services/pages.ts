@@ -145,7 +145,9 @@ export type BlockEdit =
   | { op: "move"; blockId: string; toIndex: number }
   | { op: "set_prop"; blockId: string; path: string; value: unknown }
   | { op: "set_variant"; blockId: string; variant: string }
-  | { op: "set_meta"; key: "title" | "description" | "slug"; value: string }
+  // No `slug`: it is the page's routing key on the parent row, and this
+  // service writes only the translation. See the schema in `domains/pages.ts`.
+  | { op: "set_meta"; key: "title" | "description"; value: string }
   | { op: "set_accent"; hex: string };
 
 export interface BlockEditOutcome {
@@ -404,10 +406,76 @@ function applyMove(
   };
 }
 
+/**
+ * Path segments that must never be traversed.
+ *
+ * `setProp` walks the path with `node[key]`, which follows `__proto__` to the
+ * real `Object.prototype` — so a path like `__proto__.polluted` writes onto
+ * every object in the process. `applyEdits` deep-copies through `JSON.parse`,
+ * which does not help: the copy's prototype IS `Object.prototype`.
+ *
+ * This is checked here rather than only in the tool schema because the service
+ * is exported and a second caller must not be able to reintroduce it. The
+ * underlying `setProp` in `@repo/editor` has the same weakness and is reachable
+ * from the editor's own copilot; changing shared editor behaviour is outside
+ * this package, so it is recorded in `docs/roadmap.md` instead.
+ */
+const UNSAFE_PATH_SEGMENTS: ReadonlySet<string> = new Set([
+  "__proto__",
+  "constructor",
+  "prototype",
+]);
+
+/** The first prototype-bearing segment in a dot path, if any. */
+export function unsafePathSegment(path: string): string | null {
+  for (const segment of path.split(".")) {
+    if (UNSAFE_PATH_SEGMENTS.has(segment)) {
+      return segment;
+    }
+  }
+  return null;
+}
+
+/**
+ * Refuse to publish a draft that is not a usable document.
+ *
+ * Non-nullness is not validity, and publishing copies the draft string verbatim
+ * over `puck_document`. An unparseable draft would therefore replace a working
+ * public page with one the site renders as no blocks at all — and unpublishing
+ * does not bring the old document back, because it has already been
+ * overwritten.
+ */
+function assertPublishableDraft(
+  pageId: string,
+  locale: PageLocale,
+  translation: { draft_document?: string | null }
+): void {
+  if (!translation.draft_document) {
+    throw invalidInput(`Page ${pageId} has no ${locale} draft to publish.`, {
+      pageId,
+      locale,
+    });
+  }
+  if (parseDoc(translation.draft_document) === null) {
+    throw invalidInput(
+      `Page ${pageId}'s ${locale} draft is malformed, so it was not published. The released document is unchanged.`,
+      { pageId, locale }
+    );
+  }
+}
+
 function applySetProp(
   doc: EditorPageDoc,
   edit: Extract<BlockEdit, { op: "set_prop" }>
 ): BlockEditOutcome {
+  const unsafe = unsafePathSegment(edit.path);
+  if (unsafe) {
+    return {
+      edit,
+      applied: false,
+      detail: `"${edit.path}" traverses \`${unsafe}\`, which would write outside the document; nothing was set.`,
+    };
+  }
   const target = findBlock(doc, edit.blockId);
   if (!target) {
     return {
@@ -815,11 +883,8 @@ export function createPageService(
           { expected: input.expectedRevision, actual: existing.$updatedAt }
         );
       }
-      if (input.published && !existing.draft_document) {
-        throw invalidInput(
-          `Page ${input.pageId} has no ${input.locale} draft to publish.`,
-          { pageId: input.pageId, locale: input.locale }
-        );
+      if (input.published) {
+        assertPublishableDraft(input.pageId, input.locale, existing);
       }
 
       const permissions = pageRowPermissions({

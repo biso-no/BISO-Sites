@@ -220,6 +220,21 @@ that page. In scope, `documentSource` is `"draft"` whenever a draft exists.
 A published page whose locale has never been released has no published document,
 so an out-of-scope caller gets `not_found` rather than the draft.
 
+**`set_prop` paths.** A prop path may not contain `__proto__`, `constructor` or
+`prototype`. The underlying editor operation walks the path with `node[key]`,
+which would follow `__proto__` to the process's real `Object.prototype`; the
+edit is refused and reported as not applied, in the service as well as the tool
+schema.
+
+**`set_meta` does not change the slug.** A page's slug is its public address,
+lives on the parent `pages` row behind a unique index, and interacts with the
+`units/<campus>/<slug>` namespace rule. Renaming it is not reversible by
+editing again, so it is not offered here — change a slug in the admin app.
+
+**Publishing validates the draft.** A draft that does not parse is refused
+rather than copied over the released document, which cannot be undone by
+unpublishing.
+
 **`biso_page_edit_blocks` and scope.** Editing requires scope over the page. A
 caller who may only read its published document is refused rather than handed a
 proposal they could never save — building one would disclose the draft's block

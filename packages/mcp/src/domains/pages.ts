@@ -33,6 +33,7 @@ import {
   type BlockEdit,
   type PageDocumentView,
   parseDoc,
+  unsafePathSegment,
 } from "../services/pages";
 import type { Projected } from "../services/row";
 import { proposalInput, proposeOrExecute } from "./content";
@@ -87,6 +88,10 @@ const blockEditSchema = z.discriminatedUnion("op", [
     path: z
       .string()
       .min(1)
+      .refine((value) => unsafePathSegment(value) === null, {
+        message:
+          "A prop path may not contain `__proto__`, `constructor` or `prototype`.",
+      })
       .describe("Dot-notation prop path, e.g. `title` or `items.0.label`."),
     value: z
       .union([z.string(), z.number(), z.boolean(), z.null()])
@@ -99,7 +104,14 @@ const blockEditSchema = z.discriminatedUnion("op", [
   }),
   z.object({
     op: z.literal("set_meta"),
-    key: z.enum(["title", "description", "slug"]).describe("Which meta field."),
+    // `slug` is deliberately absent. It is the page's public address: the
+    // canonical `savePageDraft` writes `meta.slug` to the `pages` row, which
+    // carries the `page_slug_unique` index and a `resolveUniquePageSlug`
+    // conflict policy, and `apps/admin` adds a unit-namespace rule on top.
+    // Saving only the document would report a slug change that never reached
+    // routing; doing it properly would make a `draft`-tier edit silently move a
+    // live URL, which editing again does not undo.
+    key: z.enum(["title", "description"]).describe("Which meta field."),
     value: z.string().describe("The new value."),
   }),
   z.object({

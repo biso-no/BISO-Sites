@@ -229,6 +229,42 @@ same-named unit at another campus. The matcher here requires the campus implied
 by the name's prefix to equal the row's `campus_id`, and refuses a name that
 matches two rows within one campus.
 
+### S7. `setProp` in `@repo/editor` follows `__proto__`
+
+`packages/editor/src/editor/operations.ts:367` walks a dot path with
+`node[key]`:
+
+```ts
+for (let i = 0; i < parts.length - 1; i++) {
+  const key = parts[i];
+  const next = node[key];
+  if (next === null || typeof next !== "object") {
+    node[key] = Number.isNaN(Number(parts[i + 1])) ? {} : [];
+  }
+  node = node[key] as Record<string, unknown>;
+}
+```
+
+`__proto__` is an object, so the guard does not fire and `node` becomes the real
+`Object.prototype`. A path of `__proto__.anything` then writes a property onto
+every object in the process. A structural deep copy does not help: an object
+produced by `JSON.parse` has `Object.prototype` as its prototype.
+
+`@repo/mcp` does not inherit it — `unsafePathSegment` in `services/pages.ts`
+refuses `__proto__`, `constructor` and `prototype` before `setProp` is reached,
+in the service rather than only in the tool schema, and the export is available
+for a shared fix. But the editor's own copilot reaches `setProp` through the
+browser store with model-authored paths, so the primitive is still live in
+`apps/admin`.
+
+Changing shared editor behaviour is outside this package's scope. The fix there
+is the same shape: reject prototype-bearing segments, or traverse own
+properties only (`Object.hasOwn`), and freeze the check into a test.
+
+**Risk if left:** a prompt-injected page edit corrupts `Object.prototype` for
+the whole Next.js process, which can silently change the result of any later
+`if (obj.someFlag)` on an object that does not define the flag.
+
 ### S4. Let an approver actually complete a benefits or news publish
 
 `executeApprovalPublish` in `apps/admin` writes the status change with the

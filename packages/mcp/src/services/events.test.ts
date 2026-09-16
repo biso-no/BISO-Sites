@@ -138,3 +138,80 @@ describe("event audience", () => {
     expect(backend.elevations).toEqual([]);
   });
 });
+
+describe("assigned attendees are counted once", () => {
+  /**
+   * `segment_members` is unique on `(segment_id, user_id)` only, and the admin
+   * auto-assign path dedupes within one segment `kind` rather than across the
+   * event. A person in two segments is two rows and one attendee.
+   */
+  function sharedAttendee() {
+    return {
+      events: [
+        {
+          $id: "ev-1",
+          campus_id: "1",
+          department_id: "dept-a",
+          capacity: 100,
+          status: "published",
+          translation_refs: [{ locale: "no", title: "Fest" }],
+        },
+      ],
+      event_segments: [
+        { $id: "seg-bus", event_id: "ev-1", name: "Bus", capacity: 10 },
+        {
+          $id: "seg-workshop",
+          event_id: "ev-1",
+          name: "Workshop",
+          capacity: 10,
+        },
+      ],
+      // One user, two segments — two rows.
+      segment_members: [
+        {
+          $id: "sm-1",
+          segment_id: "seg-bus",
+          event_id: "ev-1",
+          user_id: "u-1",
+          attendee_id: "at-1",
+        },
+        {
+          $id: "sm-2",
+          segment_id: "seg-workshop",
+          event_id: "ev-1",
+          user_id: "u-1",
+          attendee_id: "at-1",
+        },
+      ],
+      event_attendees: [
+        { $id: "at-1", event_id: "ev-1", name: "Ada" },
+        { $id: "at-2", event_id: "ev-1", name: "Linn" },
+      ],
+    };
+  }
+
+  test("a person in two segments counts as one assigned attendee", async () => {
+    const service = createEventsService(
+      createFakeBackend({ tables: sharedAttendee(), hasElevated: true })
+    );
+    const audience = await service.audience(CAMPUS_ADMIN("Oslo", "1"), {
+      eventId: "ev-1",
+    });
+
+    expect(audience.assignedCount).toBe(1);
+  });
+
+  test("the second attendee is still reported as unassigned", async () => {
+    // The consequence that matters: counting rows made `assignedCount` 2,
+    // which cancelled out `attendeeCount` and claimed nobody was left.
+    const service = createEventsService(
+      createFakeBackend({ tables: sharedAttendee(), hasElevated: true })
+    );
+    const audience = await service.audience(CAMPUS_ADMIN("Oslo", "1"), {
+      eventId: "ev-1",
+    });
+
+    expect(audience.attendeeCount).toBe(2);
+    expect(audience.unassignedCount).toBe(1);
+  });
+});

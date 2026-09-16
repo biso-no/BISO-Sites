@@ -67,6 +67,8 @@ export interface EventsService {
 
 const SEGMENT_LIMIT = 100;
 const COUNT_PROBE = 1;
+/** Most `segment_members` rows one audience preview will read. */
+const MEMBER_SCAN_CEILING = 2000;
 
 export function createEventsService(clients: BackendClients): EventsService {
   /**
@@ -166,6 +168,45 @@ export function createEventsService(clients: BackendClients): EventsService {
     return result.total;
   }
 
+  /**
+   * How many *attendees* are assigned to a segment, not how many rows say so.
+   *
+   * `segment_members` is unique on `(segment_id, user_id)` only, and the admin
+   * auto-assign path dedupes within one segment `kind` rather than across the
+   * event — so a person in a bus segment and a workshop segment is two rows and
+   * one attendee. Counting rows inflates `assignedCount`, and because
+   * `unassignedCount` is `attendeeCount - assignedCount` it can report nobody
+   * left to assign while attendees are in fact unassigned.
+   *
+   * Identity comes from `attendee_id` where the row carries one and `user_id`
+   * otherwise, so a row linked to a specific attendee is counted as that
+   * attendee. Only those two columns are projected: this runs on the elevated
+   * client, and an audience preview has no business reading anything else.
+   */
+  async function countAssignedAttendees(
+    eventId: string
+  ): Promise<{ count: number; truncated: boolean }> {
+    const { db } = clients.requireElevated(
+      "count assigned attendees for an event audience (segment_members grants no read to user credentials)"
+    );
+    const result = await db.listRows<
+      Projected<{ user_id: string | null; attendee_id: string | null }>
+    >("app", "segment_members", [
+      Query.equal("event_id", eventId),
+      Query.select(["$id", "user_id", "attendee_id"]),
+      Query.limit(MEMBER_SCAN_CEILING),
+    ]);
+    const identities = new Set<string>();
+    for (const row of result.rows) {
+      const identity = row.attendee_id ?? row.user_id ?? row.$id;
+      identities.add(identity);
+    }
+    return {
+      count: identities.size,
+      truncated: result.total > result.rows.length,
+    };
+  }
+
   async function loadSegments(
     eventId: string,
     campusId: string | null
@@ -227,9 +268,13 @@ export function createEventsService(clients: BackendClients): EventsService {
         const attendeeCount = await countRows("event_attendees", [
           Query.equal("event_id", input.eventId),
         ]);
-        const assignedCount = await countRows("segment_members", [
-          Query.equal("event_id", input.eventId),
-        ]);
+        const assigned = await countAssignedAttendees(input.eventId);
+        const assignedCount = assigned.count;
+        if (assigned.truncated) {
+          notes.push(
+            `More than ${MEMBER_SCAN_CEILING} segment assignments exist for this event; the assigned and unassigned counts are computed from the first ${MEMBER_SCAN_CEILING} and are a lower and upper bound respectively.`
+          );
+        }
 
         if (event.capacity > 0 && attendeeCount > event.capacity) {
           notes.push(
