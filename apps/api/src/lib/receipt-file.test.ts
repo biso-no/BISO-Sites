@@ -8,7 +8,9 @@ import {
 const PDF = new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d, 0x31]);
 const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0]);
 const JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0]);
-const HEIC = new Uint8Array([0, 0, 0, 0x18, 0x66, 0x74, 0x79, 0x70, 0x68, 0x65, 0x69, 0x63]);
+const HEIC = new Uint8Array([
+  0, 0, 0, 0x18, 0x66, 0x74, 0x79, 0x70, 0x68, 0x65, 0x69, 0x63,
+]);
 
 describe("sniffReceiptMimeType", () => {
   it("recognises the formats the ledger merge can embed", () => {
@@ -26,7 +28,9 @@ describe("sniffReceiptMimeType", () => {
 describe("receiptFileName", () => {
   it("gives the stored file an extension matching its real type", () => {
     expect(receiptFileName("IMG_0001.HEIC", "image/jpeg")).toBe("IMG_0001.jpg");
-    expect(receiptFileName("kvittering.pdf", "application/pdf")).toBe("kvittering.pdf");
+    expect(receiptFileName("kvittering.pdf", "application/pdf")).toBe(
+      "kvittering.pdf"
+    );
     expect(receiptFileName("", "image/png")).toBe("receipt.png");
     expect(receiptFileName("../../etc/passwd", "image/png")).toBe("passwd.png");
   });
