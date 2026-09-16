@@ -97,6 +97,23 @@ describe("revokeOwnerWriteGrants", () => {
     expect(report.errors).toEqual([{ message: "rate limited", rowId: "e1" }]);
     expect(db.updateRow).toHaveBeenCalledTimes(2);
   });
+
+  it("handles exact multiple of 100 rows across pages", async () => {
+    const firstPage = Array.from({ length: 100 }, (_, index) => ({
+      $id: `e${index}`,
+      $permissions: ['read("user:u")'],
+    }));
+    db.listRows
+      .mockResolvedValueOnce(page(firstPage))
+      .mockResolvedValueOnce(page([]));
+
+    const report = await revokeOwnerWriteGrants(db, "expense", {
+      apply: false,
+    });
+
+    expect(report.scanned).toBe(100);
+    expect(db.listRows).toHaveBeenCalledTimes(2);
+  });
 });
 
 describe("auditStudentLinks", () => {
@@ -164,5 +181,49 @@ describe("auditStudentLinks", () => {
       rowId: "u3",
       tableId: "user",
     });
+  });
+
+  it("records listIdentities failure and carries on", async () => {
+    db.listRows.mockResolvedValueOnce(
+      page([
+        { $id: "u1", $permissions: [], student_id: "s1" },
+        { $id: "u2", $permissions: [], student_id: "s2" },
+      ])
+    );
+    users.listIdentities
+      .mockRejectedValueOnce(new Error("network error"))
+      .mockResolvedValueOnce({ identities: [] });
+
+    const report = await auditStudentLinks(db, users, {
+      clearUnverified: false,
+    });
+
+    expect(report.errors).toEqual([{ message: "network error", rowId: "u1" }]);
+    expect(report.unverified).toEqual([{ rowId: "u2", studentId: "s2" }]);
+    expect(report.cleared).toEqual([]);
+  });
+
+  it("records clearing failure and carries on", async () => {
+    db.listRows.mockResolvedValueOnce(
+      page([
+        { $id: "u1", $permissions: [], student_id: "s1" },
+        { $id: "u2", $permissions: [], student_id: "s2" },
+      ])
+    );
+    users.listIdentities
+      .mockResolvedValueOnce({ identities: [] })
+      .mockResolvedValueOnce({ identities: [] });
+    db.updateRow
+      .mockRejectedValueOnce(new Error("permission denied"))
+      .mockResolvedValueOnce({});
+
+    const report = await auditStudentLinks(db, users, {
+      clearUnverified: true,
+    });
+
+    expect(report.errors).toEqual([
+      { message: "permission denied", rowId: "u1" },
+    ]);
+    expect(report.cleared).toEqual(["u2"]);
   });
 });

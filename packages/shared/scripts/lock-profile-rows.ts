@@ -48,9 +48,18 @@ const users = new Users(client) as unknown as IdentityLister;
 const grants = await revokeOwnerWriteGrants(db, "user", { apply });
 console.log(`Mode: ${apply ? "APPLY" : "dry-run"}`);
 console.log(`Profile rows scanned: ${grants.scanned}`);
+const failedRowIds = new Set(grants.errors.map((entry) => entry.rowId));
 console.log(
-  `${apply ? "Removed" : "Would remove"} write grants on ${grants.changed.length} rows`
+  apply
+    ? `Removed write grants on ${grants.changed.length - failedRowIds.size} of ${grants.changed.length} rows`
+    : `Would remove write grants on ${grants.changed.length} rows`
 );
+for (const entry of grants.changed) {
+  const failed = failedRowIds.has(entry.rowId)
+    ? " — FAILED, see errors below"
+    : "";
+  console.log(`  ${entry.rowId}: ${entry.removed.join(", ")}${failed}`);
+}
 
 const links = await auditStudentLinks(db, users, { clearUnverified });
 console.log(`Unverified student links: ${links.unverified.length}`);

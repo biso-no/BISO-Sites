@@ -40,11 +40,17 @@ const report = await revokeOwnerWriteGrants(db, "expense", { apply });
 
 console.log(`Mode: ${apply ? "APPLY" : "dry-run"}`);
 console.log(`Expense rows scanned: ${report.scanned}`);
+const failedRowIds = new Set(report.errors.map((entry) => entry.rowId));
 console.log(
-  `${apply ? "Removed" : "Would remove"} write grants on ${report.changed.length} rows`
+  apply
+    ? `Removed write grants on ${report.changed.length - failedRowIds.size} of ${report.changed.length} rows`
+    : `Would remove write grants on ${report.changed.length} rows`
 );
 for (const entry of report.changed) {
-  console.log(`  ${entry.rowId}: ${entry.removed.join(", ")}`);
+  const failed = failedRowIds.has(entry.rowId)
+    ? " — FAILED, see errors below"
+    : "";
+  console.log(`  ${entry.rowId}: ${entry.removed.join(", ")}${failed}`);
 }
 if (report.errors.length > 0) {
   console.error(`ERRORS: ${report.errors.length}`);
