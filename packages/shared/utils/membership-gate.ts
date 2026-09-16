@@ -1,4 +1,4 @@
-import type { MembershipPlan } from "@repo/shared/utils/membership-plans";
+import type { MembershipPlan } from "./membership-plans";
 
 export type MembershipGateState =
   | "signed_out"

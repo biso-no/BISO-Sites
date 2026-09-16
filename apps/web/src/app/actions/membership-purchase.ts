@@ -9,7 +9,7 @@ import type { Users } from "@repo/api/types/appwrite";
 import { sanitizeStudentNumber } from "@repo/shared/utils/bi-student";
 import { getFeatureFlagStates } from "@repo/shared/utils/feature-flags-server";
 import { CAMPUS_INVOICE_NAMES } from "@repo/shared/utils/finago-membership-invoice";
-import { getMembershipPlanById } from "@/lib/membership-catalog";
+import { getMembershipPlanById } from "@repo/shared/utils/membership-catalog";
 
 // The bi_* columns are pending an `appwrite push tables`; extend locally until
 // packages/api/types/appwrite.ts is regenerated. Mirrors the pattern in
