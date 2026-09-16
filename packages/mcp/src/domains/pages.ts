@@ -29,7 +29,11 @@ import {
   FEED_BINDING_BLOCKS,
   isKnownBlockType,
 } from "../services/blocks";
-import type { BlockEdit, PageDocumentView } from "../services/pages";
+import {
+  type BlockEdit,
+  type PageDocumentView,
+  parseDoc,
+} from "../services/pages";
 import type { Projected } from "../services/row";
 import { proposalInput, proposeOrExecute } from "./content";
 import {
@@ -518,23 +522,26 @@ async function loadFullDoc(
   const translation = row?.translation_refs?.find(
     (item) => item.locale === locale
   );
-  const json = translation?.draft_document ?? translation?.puck_document;
-  if (!json) {
+  if (!(translation?.draft_document || translation?.puck_document)) {
     throw notFound(`Page ${pageId} has no ${locale} document.`, {
       pageId,
       locale,
     });
   }
-  const parsed: unknown = JSON.parse(json);
-  if (
-    !parsed ||
-    typeof parsed !== "object" ||
-    !Array.isArray((parsed as { blocks?: unknown }).blocks)
-  ) {
+
+  // Parse before choosing, not after. Choosing on non-nullness alone picks a
+  // malformed draft over a perfectly good published document — and `load` has
+  // already told the owner they may edit that published fallback, so this is
+  // precisely the row they came here to repair. `parseDoc` applies the same
+  // "unusable means absent" rule `load` uses, so the two cannot disagree about
+  // which document exists.
+  const doc =
+    parseDoc(translation.draft_document) ?? parseDoc(translation.puck_document);
+  if (!doc) {
     throw invalidInput(`Page ${pageId}'s ${locale} document is malformed.`, {
       pageId,
       locale,
     });
   }
-  return parsed as PageDoc;
+  return doc;
 }

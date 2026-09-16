@@ -262,7 +262,15 @@ function toBlockSummary(block: unknown): BlockSummary {
   };
 }
 
-function parseDoc(json: string | null | undefined): PageDoc | null {
+/**
+ * Parse a stored document, treating anything unusable as absent.
+ *
+ * Exported because the same rule has to hold wherever a document is chosen:
+ * `load` falls back from an unparseable draft to the published document and
+ * authorizes the owner to edit it, so a second reader that picked the draft on
+ * non-nullness alone would throw on exactly the row the owner needs to repair.
+ */
+export function parseDoc(json: string | null | undefined): PageDoc | null {
   if (!json) {
     return null;
   }

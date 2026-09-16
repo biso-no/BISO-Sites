@@ -279,6 +279,12 @@ export interface FakeBackend extends BackendClients {
  * - A nested selection (`translation_refs.title`) keeps the relationship and
  *   prunes it to the selected sub-attributes; `translation_refs.*` keeps it
  *   whole.
+ * - A bare `*` keeps every plain column but NOT a relationship, which must be
+ *   named. That is what every projection in this repository assumes: writing
+ *   `["*", "translation_refs.*"]` — as `NEWS_RELATIONSHIP_SELECT`, `JOB_SELECT`
+ *   and `readPageRow` all do — would be redundant if `*` already covered the
+ *   relationship. A relationship is recognised by its shape: a row, or an array
+ *   of rows, carrying `$id`.
  */
 function applySelect(rows: FakeRow[], parsed: ParsedQuery[]): FakeRow[] {
   const paths = parsed
@@ -329,13 +335,23 @@ function projectRow(
       continue;
     }
     const selected = keep.has(key);
-    if (!(selected || selectAll)) {
+    if (!(selected || (selectAll && !isRelationship(value)))) {
       continue;
     }
     const sub = selected ? keep.get(key) : null;
     out[key] = sub ? pruneNested(value, sub) : value;
   }
   return out;
+}
+
+/** A related row, or a list of them: an object carrying `$id`. */
+function isRelationship(value: unknown): boolean {
+  const candidate = Array.isArray(value) ? value[0] : value;
+  return (
+    typeof candidate === "object" &&
+    candidate !== null &&
+    "$id" in (candidate as Record<string, unknown>)
+  );
 }
 
 function pruneNested(value: unknown, sub: Set<string>): unknown {
@@ -404,7 +420,12 @@ function buildDb(
     });
   };
 
-  const getRow = (_databaseId: string, tableId: string, rowId: string) => {
+  const getRow = (
+    _databaseId: string,
+    tableId: string,
+    rowId: string,
+    queries?: string[]
+  ) => {
     const row = (tables[tableId] ?? []).find((item) => item.$id === rowId);
     if (!row) {
       const error = new Error(`Row ${rowId} not found`) as Error & {
@@ -415,7 +436,13 @@ function buildDb(
       error.type = "row_not_found";
       throw error;
     }
-    return Promise.resolve(structuredClone(row));
+    // A single-row read projects like a listing does. It used to ignore its
+    // queries entirely, which is the same failing-open shape as `listRows`
+    // before it honoured `select`.
+    const parsed = (queries ?? [])
+      .map(parseQuery)
+      .filter((value): value is ParsedQuery => value !== null);
+    return Promise.resolve(applySelect([structuredClone(row)], parsed)[0]);
   };
 
   const write =

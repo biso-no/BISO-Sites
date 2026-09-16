@@ -466,3 +466,92 @@ describe("free-text terms the public path cannot apply", () => {
     expect(found.notes.join(" ")).toContain("page slug only");
   });
 });
+
+describe("locale preference in page search", () => {
+  function bilingualPage(): FakeRow[] {
+    return [
+      {
+        $id: "bilingual",
+        $updatedAt: "2026-01-01T00:00:00.000Z",
+        slug: "bilingual",
+        status: "published",
+        visibility: "public",
+        campus_id: "1",
+        // English first in the relationship array, which is the whole point:
+        // the order rows come back in is not a locale preference.
+        translation_refs: [
+          {
+            $id: "tr-en",
+            locale: "en",
+            is_published: true,
+            published_at: "2026-01-01T00:00:00.000Z",
+            title: "English column",
+            puck_document: JSON.stringify({
+              blocks: [],
+              meta: { title: "English title", description: "English" },
+            }),
+          },
+          {
+            $id: "tr-no",
+            locale: "no",
+            is_published: true,
+            published_at: "2026-01-01T00:00:00.000Z",
+            title: "Norsk kolonne",
+            puck_document: JSON.stringify({
+              blocks: [],
+              meta: { title: "Norsk tittel", description: "Norsk" },
+            }),
+          },
+        ],
+      },
+    ];
+  }
+
+  test("a Norwegian search gets the Norwegian title", async () => {
+    const service = createDiscoveryService(
+      createFakeBackend({ tables: { pages: bilingualPage() } }),
+      LINKS
+    );
+    const found = await service.search({
+      kind: "pages",
+      locale: "no",
+      limit: 20,
+      offset: 0,
+    });
+
+    expect(found.rows[0]?.title).toBe("Norsk tittel");
+  });
+
+  test("an English search gets the English title", async () => {
+    const service = createDiscoveryService(
+      createFakeBackend({ tables: { pages: bilingualPage() } }),
+      LINKS
+    );
+    const found = await service.search({
+      kind: "pages",
+      locale: "en",
+      limit: 20,
+      offset: 0,
+    });
+
+    expect(found.rows[0]?.title).toBe("English title");
+  });
+
+  test("an unpublished locale falls back to a published one", async () => {
+    const rows = bilingualPage();
+    const refs = rows[0]?.translation_refs as Record<string, unknown>[];
+    refs[1].is_published = false;
+    const service = createDiscoveryService(
+      createFakeBackend({ tables: { pages: rows } }),
+      LINKS
+    );
+    const found = await service.search({
+      kind: "pages",
+      locale: "no",
+      limit: 20,
+      offset: 0,
+    });
+
+    expect(found.rows[0]?.title).toBe("English title");
+  });
+});

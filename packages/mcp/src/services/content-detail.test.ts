@@ -88,3 +88,53 @@ describe("recruitment internals in the generic getter", () => {
     expect(detail.status).toBe("published");
   });
 });
+
+describe("translations in the content detail read", () => {
+  function newsWithTranslations() {
+    return {
+      news: [
+        {
+          $id: "article",
+          $updatedAt: "2026-01-01T00:00:00.000Z",
+          slug: "welcome",
+          status: "published",
+          campus_id: "1",
+          department_id: "dept-a",
+          translation_refs: [
+            {
+              $id: "tr-no",
+              locale: "no",
+              title: "Velkomstuke",
+              description: "Norsk tekst",
+              short_description: "Norsk ingress",
+            },
+            {
+              $id: "tr-en",
+              locale: "en",
+              title: "Welcome week",
+              description: "English text",
+              short_description: "English teaser",
+            },
+          ],
+        },
+      ],
+    };
+  }
+
+  test("the detail read returns the translations it read", async () => {
+    // `get` reads `row[spec.translations.relationship]`, so the query has to
+    // name the relationship — every other detail reader in this repo does.
+    const service = createContentService(
+      createFakeBackend({ tables: newsWithTranslations() }),
+      LINKS
+    );
+    const detail = await service.get(HR_MEMBER("Oslo", "1"), "news", "article");
+
+    expect(detail.translations.map((item) => item.locale).sort()).toEqual([
+      "en",
+      "no",
+    ]);
+    expect(detail.title).toBe("Velkomstuke");
+    expect(detail.locales.sort()).toEqual(["en", "no"]);
+  });
+});

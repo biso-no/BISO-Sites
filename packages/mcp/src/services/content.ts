@@ -486,6 +486,31 @@ export function createContentService(
     return queries;
   }
 
+  /**
+   * The projection for a single-row detail read.
+   *
+   * `*` because `biso_content_get` promises every non-sensitive column, and the
+   * relationships named explicitly because a projection that does not name them
+   * cannot be relied on to expand them — which is why every other detail reader
+   * in this repository names them too (`NEWS_RELATIONSHIP_SELECT` and its
+   * siblings in `apps/admin`, `JOB_SELECT` in `@repo/shared`, `readPageRow` and
+   * `getPublicPage` here). `search` already did this through `selectFor`; `get`
+   * was the one reader that did not, while reading the children all the same.
+   */
+  function detailSelect(spec: ContentDomainSpec): string[] {
+    const columns = new Set<string>(["*"]);
+    if (spec.scope.campusRelation) {
+      columns.add(spec.scope.campusRelation);
+    }
+    if (spec.scope.departmentRelation) {
+      columns.add(spec.scope.departmentRelation);
+    }
+    if (spec.translations.kind === "content_translations") {
+      columns.add(`${spec.translations.relationship}.*`);
+    }
+    return [...columns];
+  }
+
   function selectFor(spec: ContentDomainSpec): string[] {
     const columns = new Set<string>([
       "$id",
@@ -580,7 +605,9 @@ export function createContentService(
       const spec = domainSpec(domain);
       let row: Row;
       try {
-        row = await clients.user.db.getRow<Row>("app", spec.table, id);
+        row = await clients.user.db.getRow<Row>("app", spec.table, id, [
+          Query.select(detailSelect(spec)),
+        ]);
       } catch (error) {
         const mapped = fromAppwriteError(error, {
           operation: `get ${domain}`,

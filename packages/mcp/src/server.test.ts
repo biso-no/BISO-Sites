@@ -1902,3 +1902,87 @@ describe("an owner whose page has no draft can still edit it", () => {
     }
   });
 });
+
+describe("an owner can repair a malformed draft", () => {
+  /**
+   * `load` treats an unparseable `draft_document` as absent and serves the
+   * published one, and an owner is authorized to edit that. The edit path
+   * reloads the document independently, so it has to make the same choice —
+   * picking the draft on non-nullness alone throws on exactly the row the
+   * owner came to repair.
+   */
+  function pageWithBrokenDraft(): FakeTables {
+    return {
+      campus: [{ $id: "1", name: "Oslo" }],
+      departments: [
+        {
+          $id: "dept-a",
+          Name: "ESN Oslo",
+          campus_id: "1",
+          slug: "esn",
+          type: "unit",
+          active: true,
+        },
+      ],
+      pages: [
+        {
+          $id: "page-broken",
+          $createdAt: "2026-01-01T00:00:00.000Z",
+          $updatedAt: "2026-01-01T00:00:00.000Z",
+          slug: "broken",
+          status: "published",
+          visibility: "public",
+          campus_id: "1",
+          department_id: "dept-a",
+          campus: { $id: "1" },
+          department: { $id: "dept-a" },
+          translation_refs: [
+            {
+              $id: "tr-broken",
+              $updatedAt: "2026-01-01T00:00:00.000Z",
+              locale: "no",
+              title: "Broken page",
+              description: "Released",
+              is_published: true,
+              published_at: "2026-01-01T00:00:00.000Z",
+              draft_document: "{ this is not json",
+              puck_document: JSON.stringify({
+                blocks: [{ id: "live", type: "text", body: "Released" }],
+                meta: {
+                  title: "Broken page",
+                  slug: "broken",
+                  status: "published",
+                },
+              }),
+            },
+          ],
+        },
+      ],
+      audit_logs: [],
+    };
+  }
+
+  test("the edit falls back to the published document", async () => {
+    const harness = await connect({
+      principal: DEPARTMENT_MEMBER("dept-a", "1"),
+      config: baseConfig({ writeMode: "propose" }),
+      tables: pageWithBrokenDraft(),
+    });
+    try {
+      const { response, structured } = await callTool(
+        harness.client,
+        "biso_page_edit_blocks",
+        {
+          pageId: "page-broken",
+          locale: "no",
+          edits: [{ op: "insert", blockType: "text" }],
+        }
+      );
+      expect(response.isError).toBeFalsy();
+      // Built on the published blocks, so the existing one is still there.
+      expect(JSON.stringify(structured)).toContain("live");
+    } finally {
+      await harness.close();
+    }
+  });
+});

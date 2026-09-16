@@ -449,3 +449,39 @@ That is worth recording because it is the same trap as the harness gaps in
 rounds two, three and four, one level up: an assertion that passes for a reason
 other than the one it claims. A regression test is only evidence if it has been
 watched to fail.
+
+---
+
+## 11. Sixth review round
+
+A sixth review of `025ac7a` raised three, all P2. One is a follow-on gap in the
+round-five fix, which is the most useful kind of finding a review can produce.
+
+| # | Area | Verified as | Fix |
+|---|---|---|---|
+| 1 | `services/discovery.ts` | **Confirmed.** `searchPages` took `refs.find((item) => item.is_published)` — the first published translation in relationship order, whatever its locale — and its parameter type did not even accept a locale, though the dispatcher's input carried one. `getPublicPage` preferred the requested locale, `pickTranslation` preferred requested → `no` → first, and page search agreed with neither | One `pickPublishedTranslation(refs, locale)` used by both page paths, so they cannot drift again |
+| 2 | `services/content.ts` | **Confirmed as an inconsistency; the stated symptom not reproduced — see below.** `get` read `row[spec.translations.relationship]` from a `getRow` with no projection at all, while every other relationship reader in this repository names the relationship explicitly, including its own sibling `search` through `selectFor` | `detailSelect(spec)` — `*` plus the scope relations and `<relationship>.*` |
+| 3 | `domains/pages.ts` | **Confirmed — a follow-on gap in round five's own fix.** `loadFullDoc` chose `draft_document ?? puck_document` *before* parsing, so a non-null but malformed draft won and a raw `JSON.parse` threw an uncaught `SyntaxError`. Round five had just authorized the owner to edit the published fallback in exactly that case, so the owner passed the new guard and hit this instead — unable to repair the one row the fix existed for | Parse before choosing, through the service's own `parseDoc`, so both readers apply the same "unusable means absent" rule |
+
+### What could not be verified, and what was done instead
+
+The finding on #2 states that Appwrite does not expand relationship rows by
+default. That is a claim about server behaviour, and nothing available offline
+settles it — so it is **not** asserted here. What the repository does settle is
+narrower and enough: every projection that needs a relationship names it
+alongside `*` (`NEWS_RELATIONSHIP_SELECT`, `EVENT_RELATIONSHIP_SELECT`,
+`PRODUCT_RELATIONSHIP_SELECT`, `JOB_SELECT`, `readPageRow`, `getPublicPage`),
+which would be redundant if `*` already covered it. `content.get` was the only
+reader that named nothing while reading the children all the same.
+
+So the fake now models the part that has evidence — a bare `*` keeps plain
+columns but not relationships, which must be named — and not the part that does
+not. That direction is deliberate: being stricter than the real backend causes a
+loud false failure, never a silent pass, and a test that reverts `detailSelect`
+to `["*"]` now fails.
+
+This is the fourth harness gap in five rounds, and the second in two: `getRow`
+ignored its queries entirely, so no projection on a single-row read could be
+tested at all. Between `or`, value-less operators, ordering, `listRows`
+projection and now `getRow` projection, the fake models every query feature
+this package uses.

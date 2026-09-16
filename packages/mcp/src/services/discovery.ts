@@ -150,6 +150,24 @@ function pickTranslation(
   );
 }
 
+/**
+ * The published translation to present, preferring the requested locale.
+ *
+ * Distinct from `pickTranslation` because publication matters here: a page's
+ * `no` translation can be published while its `en` one is not, and the fallback
+ * must stay inside what is actually released. Falling straight back to "any
+ * published" — rather than to "no" as `pickTranslation` does — keeps a page
+ * that exists only in English discoverable.
+ */
+function pickPublishedTranslation<
+  T extends { locale?: string | null; is_published?: boolean | null },
+>(refs: readonly T[], locale: PublicLocale): T | undefined {
+  return (
+    refs.find((item) => item.locale === locale && item.is_published) ??
+    refs.find((item) => item.is_published)
+  );
+}
+
 function plainSummary(value: string | null | undefined): string | null {
   if (!value) {
     return null;
@@ -558,6 +576,7 @@ export function createDiscoveryService(
   async function searchPages(input: {
     query?: string;
     campusId?: string;
+    locale: PublicLocale;
     limit: number;
     offset: number;
   }) {
@@ -598,7 +617,7 @@ export function createDiscoveryService(
         const refs = Array.isArray(row.translation_refs)
           ? row.translation_refs
           : [];
-        const published = refs.find((item) => item.is_published);
+        const published = pickPublishedTranslation(refs, input.locale);
         if (!published) {
           return null;
         }
@@ -660,7 +679,7 @@ export function createDiscoveryService(
             notes.push(
               "Filtered to published pages with a published translation, in application code — the `pages` table grants read to anyone."
             );
-            return { ...(await searchPages(input)), notes };
+            return { ...(await searchPages({ ...input, locale })), notes };
           default:
             return { rows: [], total: 0, notes };
         }
@@ -700,10 +719,7 @@ export function createDiscoveryService(
       const refs = Array.isArray(row.translation_refs)
         ? row.translation_refs
         : [];
-      const translation =
-        refs.find(
-          (item) => item.locale === input.locale && item.is_published
-        ) ?? refs.find((item) => item.is_published);
+      const translation = pickPublishedTranslation(refs, input.locale);
 
       if (!translation) {
         throw notFound(
