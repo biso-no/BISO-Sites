@@ -14,7 +14,7 @@
 
 - Package manager: Bun only (`bun add <pkg> --filter=<app>`). Never npm/pnpm.
 - Never import `appwrite` / `node-appwrite` in app code; use `@repo/api`, `@repo/api/server`.
-- Do not edit `packages/api/appwrite.config.json` or `packages/api/types/appwrite.ts`; use local row types until the user regenerates them.
+- New tables are added to `packages/api/appwrite.config.json` (user-approved; the user pushes them to Appwrite). Never hand-edit `packages/api/types/appwrite.ts`; use local row types until the user regenerates them.
 - Before writing Next.js code, read the relevant guide under `apps/<app>/node_modules/next/dist/docs/` (Next 16 has breaking changes).
 - `MEMBER_PASS_SECRET` and all wallet credentials are server-only; never referenced from a `"use client"` file or a module a client file imports. Client components may only import from `@repo/shared/utils/member-pass-slots` and `@/lib/member-pass/types`.
 - Slot length 30 s; accepted slot drift ±1; batch size 20 codes; duplicate window 10 minutes; guest link max 48 h, default 6 h; scan rows kept 90 days; expired links kept 30 days.
@@ -29,8 +29,8 @@
 
 ## Manual prerequisites (user, can run in parallel with Tasks 1–11)
 
-1. In the Appwrite console, database `app`, create table `member_pass_scanner_links` with columns `label` string(120) required, `campus_id` string(36) nullable, `token_hash` string(64) required, `expires_at` datetime required, `revoked_at` datetime nullable, `created_by` string(36) required; unique index on `token_hash`; index on `expires_at`. No permissions.
-2. Create table `member_pass_scans` with columns `member_user_id` string(36) required, `result` enum (`valid`,`duplicate`,`check_id`,`denied`,`unavailable`) required, `reason` string(40) nullable, `code_kind` enum (`web`,`google`,`apple`) nullable, `scanner_user_id` string(36) nullable, `scanner_link_id` string(36) nullable; index on (`member_user_id`, `$createdAt`); index on `$createdAt`. No permissions.
+1. After Task 11 lands, push the two new tables from `packages/api/appwrite.config.json` to Appwrite and regenerate types. Table `member_pass_scanner_links` has columns `label` string(120) required, `campus_id` string(36) nullable, `token_hash` string(64) required, `expires_at` datetime required, `revoked_at` datetime nullable, `created_by` string(36) required; unique index on `token_hash`; index on `expires_at`. No permissions.
+2. Table `member_pass_scans` has columns `member_user_id` string(36) required, `result` enum (`valid`,`duplicate`,`check_id`,`denied`,`unavailable`) required, `reason` string(40) nullable, `code_kind` enum (`web`,`google`,`apple`) nullable, `scanner_user_id` string(36) nullable, `scanner_link_id` string(36) nullable; index on (`member_user_id`, `$createdAt`); index on `$createdAt`. No permissions.
 3. Generate a secret: `openssl rand -base64 32`. Set `MEMBER_PASS_SECRET` to the same value on web and admin (local `.env.local` and Appwrite Sites).
 4. Wallet credentials (only needed for Tasks 17–18 to work at runtime): Apple Pass Type ID certificate + WWDR G4 certificate (PEM, base64-encoded into env); Google Pay & Wallet Console issuer id + service account JSON key (base64-encoded).
 5. After Task 20 is merged: set `MEMBER_PASS_CLEANUP_URL=https://api.biso.no/api/cron/cleanup-member-pass` on the `scheduled-dispatch` function.
@@ -2831,9 +2831,17 @@ Admin tests run with `bun test` (`bun:test`). Do not import `server-only` in `ap
 ### Task 11: Scan types and the scan/link store
 
 **Files:**
+- Modify: `packages/api/appwrite.config.json` (append two entries to `tables`)
 - Create: `apps/admin/src/lib/member-pass/types.ts`
 - Create: `apps/admin/src/lib/member-pass/store.ts`
 - Test: `apps/admin/src/lib/member-pass/store.test.ts`
+
+Schema (append to the `tables` array, mirroring existing entries such as `cart_reservations`: `$permissions: []`, `databaseId: "app"`, `enabled: true`, `rowSecurity: false`, index entries with `"type": "key"` / `"unique"`, `"status": "available"`, `"orders": []`):
+
+- `member_pass_scanner_links` (name "Member Pass Scanner Links"): `label` string 120 required; `campus_id` string 36 optional; `token_hash` string 64 required; `expires_at` datetime required; `revoked_at` datetime optional; `created_by` string 36 required. Indexes: `token_hash_unique` (unique, [`token_hash`]); `expires_at_idx` (key, [`expires_at`]).
+- `member_pass_scans` (name "Member Pass Scans"): `member_user_id` string 36 required; `result` string enum (`format: "enum"`, `elements: ["valid","duplicate","check_id","denied","unavailable"]`) required; `reason` string 40 optional; `code_kind` string enum (`["web","google","apple"]`) optional; `scanner_user_id` string 36 optional; `scanner_link_id` string 36 optional. Indexes: `member_created_idx` (key, [`member_user_id`, `$createdAt`]); `created_idx` (key, [`$createdAt`]).
+
+Copy an existing enum column from the file for the exact enum shape. The file is 4-space indented JSON; keep that formatting. After editing, `bun x vitest run` in `packages/api` must still pass (it validates the config).
 
 **Interfaces:**
 - Produces:
