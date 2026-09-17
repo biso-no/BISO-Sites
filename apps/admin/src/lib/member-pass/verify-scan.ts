@@ -50,6 +50,34 @@ const CODE_REASONS: Record<string, ScanDenialReason> = {
   stale: "stale",
 };
 
+function isRowNotFound(error: unknown): boolean {
+  return (error as { code?: number } | null)?.code === 404;
+}
+
+type ProfileLookup = { ok: true; profile: Users | null } | { ok: false };
+
+/**
+ * Loads the member's profile row. Only a 404 means "no such user" (denied,
+ * `not_linked`) — any other failure (outage, timeout) is reported as `ok:
+ * false` so the caller answers `unavailable` instead of silently treating an
+ * Appwrite blip as an unlinked account.
+ */
+async function fetchProfile(
+  db: AdminDb,
+  userId: string
+): Promise<ProfileLookup> {
+  try {
+    const profile = await db.getRow<Users>("app", "user", userId);
+    return { ok: true, profile };
+  } catch (error) {
+    if (isRowNotFound(error)) {
+      return { ok: true, profile: null };
+    }
+    console.error("[Member Pass] Profile lookup failed:", error);
+    return { ok: false };
+  }
+}
+
 async function log(
   deps: VerifyScanDeps,
   entry: {
@@ -99,9 +127,18 @@ export async function verifyScan(
   }
   const { kind, userId } = parsed;
 
-  const profile = await deps.db
-    .getRow<Users>("app", "user", userId)
-    .catch(() => null);
+  const lookup = await fetchProfile(deps.db, userId);
+  if (!lookup.ok) {
+    await log(deps, {
+      codeKind: kind,
+      memberUserId: userId,
+      reason: null,
+      result: "unavailable",
+      scanner,
+    });
+    return { result: "unavailable" };
+  }
+  const { profile } = lookup;
   const studentNumber = sanitizeStudentNumber(profile?.student_id);
   const name = profile?.name?.trim() || undefined;
   if (studentNumber === null) {

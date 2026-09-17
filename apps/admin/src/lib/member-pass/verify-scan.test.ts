@@ -1,4 +1,12 @@
-import { beforeEach, describe, expect, mock, test } from "bun:test";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  mock,
+  spyOn,
+  test,
+} from "bun:test";
 import {
   signAppleWalletCode,
   signWebPassCode,
@@ -41,6 +49,10 @@ const ACTIVE = {
 };
 
 describe("verifyScan", () => {
+  // The error paths below log via console.error by design; a spy keeps that
+  // expected noise out of the test output.
+  let consoleErrorSpy: ReturnType<typeof spyOn>;
+
   beforeEach(() => {
     for (const fn of [findLatestCountedScan, recordScan, getRow, getStatus]) {
       fn.mockReset();
@@ -53,6 +65,13 @@ describe("verifyScan", () => {
     getStatus.mockResolvedValue(ACTIVE);
     findLatestCountedScan.mockResolvedValue(null);
     recordScan.mockResolvedValue(undefined);
+    consoleErrorSpy = spyOn(console, "error").mockImplementation(() => {
+      // silence expected error-path logging
+    });
+  });
+
+  afterEach(() => {
+    consoleErrorSpy.mockRestore();
   });
 
   test("lets a live member through", async () => {
@@ -102,6 +121,26 @@ describe("verifyScan", () => {
       reason: "not_linked",
       result: "denied",
     });
+  });
+
+  test("reports unavailable when the profile lookup fails for a reason other than 404", async () => {
+    getRow.mockRejectedValue(new Error("down"));
+    expect(await verifyScan(code(), STAFF, deps)).toEqual({
+      result: "unavailable",
+    });
+    expect(getStatus).not.toHaveBeenCalled();
+    expect(recordScan.mock.calls[0]?.[0]).toMatchObject({
+      result: "unavailable",
+    });
+  });
+
+  test("treats a 404 profile lookup as an unlinked account, not unavailable", async () => {
+    getRow.mockRejectedValue({ code: 404 });
+    expect(await verifyScan(code(), STAFF, deps)).toMatchObject({
+      reason: "not_linked",
+      result: "denied",
+    });
+    expect(getStatus).not.toHaveBeenCalled();
   });
 
   test("denies a lapsed member with the right reason", async () => {
