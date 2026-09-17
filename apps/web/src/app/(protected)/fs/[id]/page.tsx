@@ -114,7 +114,9 @@ async function ExpenseDetails({ expenseId }: { expenseId: string }) {
             </h3>
             <div className="flex items-center gap-2">
               <Building2 className="h-4 w-4 text-brand" />
-              <span className="text-foreground">{expense.campus}</span>
+              <span className="text-foreground">
+                {expense.campusRel?.name ?? expense.campus}
+              </span>
             </div>
           </div>
 
@@ -122,7 +124,9 @@ async function ExpenseDetails({ expenseId }: { expenseId: string }) {
             <h3 className="mb-2 font-semibold text-muted-foreground text-sm">
               Department
             </h3>
-            <p className="text-foreground">{expense.department}</p>
+            <p className="text-foreground">
+              {expense.departmentRel?.Name ?? expense.department}
+            </p>
           </div>
 
           <div>

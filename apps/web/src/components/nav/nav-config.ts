@@ -45,6 +45,28 @@ export interface NavColumnConfig {
 }
 
 /** Panel triggers rendered in the desktop trigger row, in display order. */
+/**
+ * Routes that open on plain page content rather than a dark full-bleed hero.
+ * The nav is transparent with white text until the page scrolls, which is
+ * unreadable on a light background, so these routes get the solid nav from
+ * the first paint. Each entry matches itself and everything nested below it.
+ * Add a route here when its page does not start with a hero image.
+ */
+export const SOLID_NAV_ROUTES: readonly string[] = [
+  "/about/academics-contact",
+  "/applications",
+  "/fs/approve",
+  "/fs/new",
+  "/policies",
+  "/profile",
+];
+
+export function hasSolidNavRoute(pathname: string): boolean {
+  return SOLID_NAV_ROUTES.some(
+    (route) => pathname === route || pathname.startsWith(`${route}/`)
+  );
+}
+
 export const PANEL_TRIGGERS: { id: PanelId; labelKey: string }[] = [
   { id: "students", labelKey: "triggers.students" },
   { id: "projects", labelKey: "triggers.projects" },

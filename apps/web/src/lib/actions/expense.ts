@@ -27,6 +27,18 @@ export async function getExpenses(filters?: {
 
     const queries = [
       Query.equal("userId", user.$id),
+      Query.select([
+        "$id",
+        "$createdAt",
+        "campus",
+        "department",
+        "description",
+        "total",
+        "status",
+        "expenseAttachments.$id",
+        "campusRel.name",
+        "departmentRel.Name",
+      ]),
       Query.orderDesc("$createdAt"),
       Query.limit(100),
     ];
@@ -43,7 +55,11 @@ export async function getExpenses(filters?: {
 
     return {
       success: true,
-      expenses: response.rows,
+      expenses: response.rows.map((expense) => ({
+        ...expense,
+        campusName: expense.campusRel?.name ?? expense.campus,
+        departmentName: expense.departmentRel?.Name ?? expense.department,
+      })),
       total: response.total,
     };
   } catch (error) {

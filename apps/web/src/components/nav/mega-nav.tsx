@@ -7,7 +7,7 @@ import { Button } from "@repo/ui/components/ui/button";
 import { Menu, ShoppingCart, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
   type KeyboardEvent,
@@ -26,7 +26,7 @@ import { AccountMenu } from "./account-menu";
 import { DesktopMenu } from "./desktop-menu";
 import { MegaPanel } from "./mega-panel";
 import { MobileDrawer } from "./mobile-drawer";
-import type { PanelId } from "./nav-config";
+import { hasSolidNavRoute, type PanelId } from "./nav-config";
 import { AboutPanel } from "./panels/about-panel";
 import { ProjectsPanel } from "./panels/projects-panel";
 import { StudentsPanel } from "./panels/students-panel";
@@ -55,6 +55,7 @@ export function Navigation({
   const { isMember: memberFromContext } = useUserMembership();
   const { getItemCount, openDrawer } = useCart();
   const router = useRouter();
+  const pathname = usePathname();
   const t = useTranslations("common.navigation");
   const tShop = useTranslations("shop");
 
@@ -198,7 +199,8 @@ export function Navigation({
 
   useEffect(() => clearCloseTimer, [clearCloseTimer]);
 
-  const hasSolidBackground = isScrolled || openPanel !== null;
+  const hasSolidBackground =
+    isScrolled || openPanel !== null || hasSolidNavRoute(pathname);
 
   return (
     <motion.nav

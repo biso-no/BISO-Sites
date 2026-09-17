@@ -5,7 +5,7 @@ import { PublicPageHeader } from "@/components/public/public-page-header";
 export default function AcademicsContactPage() {
   const t = useTranslations("academicsContact");
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pt-20">
       <PublicPageHeader
         breadcrumbs={[
           { label: "Home", href: "/" },
