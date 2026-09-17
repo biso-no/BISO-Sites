@@ -112,7 +112,7 @@ Wallet" JWT (RS256, signed with the service account key via `node:crypto`)
 that embeds the Generic Class and this user's Generic Object, so no REST calls
 or OAuth token are needed. The object id is `<issuerId>.member-<userId>` and
 carries
-`rotatingBarcode = { type: QR_CODE, valuePattern: googleWalletCodePattern(userId), totpDetails: { algorithm: TOTP_SHA1, periodMillis: 30000, parameters: [{ key: base64(totpKey), valueLength: 6 }] } }`
+`rotatingBarcode = { type: QR_CODE, valuePattern: googleWalletCodePattern(userId), totpDetails: { algorithm: TOTP_SHA1, periodMillis: 30000, parameters: [{ key: hex(totpKey), valueLength: 6 }] } }`
 and `validTimeInterval.end` = membership expiry. Redirects to
 `https://pay.google.com/gp/v/save/<jwt>`. Whether rotating barcodes need Google
 to enable them on the issuer account is checked during setup; if they do and
@@ -191,8 +191,9 @@ session user.
 
 **Guest scanner:** `src/app/(scan)/scan/[token]/page.tsx`, outside portal auth
 (the admin root layout does not enforce a session; the `(portal)` layout does).
-The page and its route handler hash the token (SHA-256), load the link row,
-and reject when missing, expired, or revoked. Each scan re-validates the link.
+The page and a server action bound to the token (`scanWithGuestLink`) hash the
+token (SHA-256), load the link row, and reject when missing, expired, or
+revoked. Each scan re-validates the link.
 Rate-limited per link (simple in-memory token bucket, e.g. 60 scans/min).
 
 **Scanner UI** (`src/components/member-pass-scanner/*`, client): full-screen
@@ -203,7 +204,8 @@ within the overlay window.
 
 **Guest link management:** `src/app/(portal)/members/scan/links/page.tsx`,
 same gate. Create (label, campus, end time default now + 6 h, max 48 h) →
-shows the URL once plus a QR of it; list active links with revoke.
+shows the URL once with a copy button (a QR of the link is a later
+addition); list active links with revoke.
 Server actions follow the admin action shape and scope campus admins to their
 managed campuses.
 
