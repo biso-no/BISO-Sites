@@ -5,6 +5,7 @@ import { Button } from "@repo/ui/components/ui/button";
 import { Smartphone, Wallet, X } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
+import { termLabel } from "@/lib/member-pass/term-label";
 import type {
   MemberPassHolder,
   MemberPassResponse,
@@ -28,14 +29,7 @@ const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
 
 function useTermLabel(holder: MemberPassHolder): string {
   const t = useTranslations("memberPass");
-  const { term } = holder;
-  if (!term) {
-    return holder.membershipName;
-  }
-  if (term.season) {
-    return t("term.semester", { season: term.season, year: term.fromYear });
-  }
-  return t("term.span", { from: term.fromYear, to: term.toYear });
+  return termLabel(t, holder);
 }
 
 /** Minimal ambient type: `WakeLockSentinel` is not in every DOM lib target. */

@@ -30,6 +30,7 @@
     "next": "catalog:",
     "next-intl": "catalog:",
     "next-themes": "catalog:",
+    "passkit-generator": "^3.6.0",
     "qrcode": "^1.5.4",
     "react": "catalog:",
     "react-dom": "catalog:",

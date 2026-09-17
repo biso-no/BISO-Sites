@@ -60,5 +60,9 @@
   "wallet": {
     "apple": "Legg til i Apple Wallet",
     "google": "Legg til i Google Wallet"
+  },
+  "walletLabels": {
+    "membership": "Medlemskap",
+    "validUntil": "Gyldig til"
   }
 }

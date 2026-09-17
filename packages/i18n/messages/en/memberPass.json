@@ -60,5 +60,9 @@
   "wallet": {
     "apple": "Add to Apple Wallet",
     "google": "Add to Google Wallet"
+  },
+  "walletLabels": {
+    "membership": "Membership",
+    "validUntil": "Valid until"
   }
 }
