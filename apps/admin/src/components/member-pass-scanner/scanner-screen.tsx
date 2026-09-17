@@ -18,6 +18,7 @@ import {
   useState,
 } from "react";
 import type { ScanOutcome } from "@/lib/member-pass/types";
+import { recordSighting, type Sighting } from "./scan-repeat";
 import { SCAN_TONE_CLASSES, type ScanTone, scanTone } from "./scan-tone";
 
 type ScanAction = (
@@ -36,7 +37,6 @@ interface ScannerScreenProps {
 type CameraState = "starting" | "ready" | "error";
 
 const RESULT_DISMISS_MS = 3000;
-const SAME_CODE_COOLDOWN_MS = 4000;
 const VIBRATION: Record<ScanTone, number[]> = {
   amber: [80, 60, 80],
   green: [120],
@@ -108,18 +108,6 @@ function useCameraScanner(
   }, [video, onDecode]);
 
   return cameraState;
-}
-
-function isSameCodeInCooldown(
-  recent: { at: number; code: string } | null,
-  code: string,
-  now: number
-): boolean {
-  return (
-    recent !== null &&
-    recent.code === code &&
-    now - recent.at < SAME_CODE_COOLDOWN_MS
-  );
 }
 
 type Translator = ReturnType<typeof useTranslations<"adminPortal.memberPass">>;
@@ -228,18 +216,28 @@ export function ScannerScreen({
   const format = useFormatter();
   const video = useRef<HTMLVideoElement>(null);
   const busy = useRef(false);
-  const lastCode = useRef<{ at: number; code: string } | null>(null);
+  const lastSighting = useRef<Sighting | null>(null);
   const [outcome, setOutcome] = useState<ScanOutcome | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const handleCode = useCallback(
     async (code: string) => {
-      const now = Date.now();
-      if (busy.current || isSameCodeInCooldown(lastCode.current, code, now)) {
+      const { repeat, sighting } = recordSighting(
+        lastSighting.current,
+        code,
+        Date.now()
+      );
+      if (repeat) {
+        // Same pass still in view: keep ignoring it until it has been out
+        // of view for the whole window.
+        lastSighting.current = sighting;
+        return;
+      }
+      if (busy.current) {
         return;
       }
       busy.current = true;
-      lastCode.current = { at: now, code };
+      lastSighting.current = sighting;
       try {
         const response = await onScan(code);
         if (response.success) {
