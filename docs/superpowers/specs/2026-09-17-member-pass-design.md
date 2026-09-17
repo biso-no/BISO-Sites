@@ -207,10 +207,16 @@ shows the URL once plus a QR of it; list active links with revoke.
 Server actions follow the admin action shape and scope campus admins to their
 managed campuses.
 
-**Retention:** a new web cron route, `apps/web/src/app/api/cron/cleanup-member-pass/route.ts`
-(gated by `Bearer ${CRON_SECRET}` like `cleanup-reservations`), deletes
-`member_pass_scans` rows older than 90 days and link rows expired more than
-30 days ago. The admin app has no cron of its own.
+**Retention:** the apps are deployed on Appwrite Sites, so there is no
+Next.js cron. A new `apps/api` route, `POST /api/cron/cleanup-member-pass`,
+authenticates `CRON_SECRET` (`x-cron-secret` or `Authorization: Bearer`, via
+`safeSecretCompare`, like `reconcile-orders`). It deletes `member_pass_scans`
+rows older than 90 days and link rows expired more than 30 days ago, in
+bounded batches per run. The `scheduled-dispatch` Appwrite Function
+(`functions/scheduled-dispatch`) drives it through a new optional
+`MEMBER_PASS_CLEANUP_URL` (added to its endpoint list, README table and
+`.env.example`). The function runs every 5 minutes; the route is cheap when
+there is nothing to delete.
 
 ### 4. Appwrite schema (created in the Appwrite console, then regenerated)
 
@@ -244,6 +250,9 @@ After creating them: `appwrite pull` + regenerate
 following the existing `BiUser` pattern.
 
 ### 5. Configuration
+
+`scheduled-dispatch` function variable: `MEMBER_PASS_CLEANUP_URL`
+(e.g. `https://api.biso.no/api/cron/cleanup-member-pass`).
 
 New server-only env vars (also added to `turbo.json` `build.env` and the
 `.env.example` files):
