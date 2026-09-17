@@ -77,4 +77,16 @@ describe("POST /api/cron/cleanup-member-pass", () => {
     ).json();
     expect(body).toEqual({ linksDeleted: 1000, scansDeleted: 1000 });
   });
+
+  it("returns a clean 500 when the cleanup fails", async () => {
+    listRows.mockRejectedValue(new Error("Table not found"));
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    const response = await POST(request({ "x-cron-secret": SECRET }));
+    expect(response.status).toBe(500);
+    expect(await response.json()).toEqual({ error: "failed" });
+    expect(consoleError).toHaveBeenCalled();
+    consoleError.mockRestore();
+  });
 });

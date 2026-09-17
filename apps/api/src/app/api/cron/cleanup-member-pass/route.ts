@@ -12,6 +12,9 @@ import { NextResponse } from "next/server";
  * expired. Bounded per run; the next run picks up whatever is left.
  */
 
+export const runtime = "nodejs";
+export const maxDuration = 300;
+
 const DAY_MS = 24 * 60 * 60 * 1000;
 const SCAN_RETENTION_DAYS = 90;
 const LINK_RETENTION_DAYS = 30;
@@ -65,23 +68,28 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  const now = Date.now();
-  const { db } = await createAdminClient();
-  const scansDeleted = await deleteOlderThan(
-    db,
-    "member_pass_scans",
-    "$createdAt",
-    new Date(now - SCAN_RETENTION_DAYS * DAY_MS)
-  );
-  const linksDeleted = await deleteOlderThan(
-    db,
-    "member_pass_scanner_links",
-    "expires_at",
-    new Date(now - LINK_RETENTION_DAYS * DAY_MS)
-  );
+  try {
+    const now = Date.now();
+    const { db } = await createAdminClient();
+    const scansDeleted = await deleteOlderThan(
+      db,
+      "member_pass_scans",
+      "$createdAt",
+      new Date(now - SCAN_RETENTION_DAYS * DAY_MS)
+    );
+    const linksDeleted = await deleteOlderThan(
+      db,
+      "member_pass_scanner_links",
+      "expires_at",
+      new Date(now - LINK_RETENTION_DAYS * DAY_MS)
+    );
 
-  console.log(
-    `[Member Pass Cleanup] Deleted ${scansDeleted} scans and ${linksDeleted} links`
-  );
-  return NextResponse.json({ linksDeleted, scansDeleted });
+    console.log(
+      `[Member Pass Cleanup] Deleted ${scansDeleted} scans and ${linksDeleted} links`
+    );
+    return NextResponse.json({ linksDeleted, scansDeleted });
+  } catch (error) {
+    console.error("[Member Pass Cleanup] Cleanup failed:", error);
+    return NextResponse.json({ error: "failed" }, { status: 500 });
+  }
 }
