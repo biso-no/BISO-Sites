@@ -22,6 +22,12 @@ function toLocalInputValue(date: Date): string {
   return new Date(date.getTime() - offset).toISOString().slice(0, 16);
 }
 
+/** ISO time for a datetime-local value; null (server default) if empty or invalid. */
+function toExpiryIso(value: string): string | null {
+  const date = new Date(value);
+  return value && !Number.isNaN(date.getTime()) ? date.toISOString() : null;
+}
+
 export function ScannerLinksClient({
   allowAllCampuses,
   campuses,
@@ -49,7 +55,7 @@ export function ScannerLinksClient({
     startTransition(async () => {
       const result = await createScannerLink({
         campusId: campusId || null,
-        expiresAt: new Date(expiresAt).toISOString(),
+        expiresAt: toExpiryIso(expiresAt),
         label,
       });
       if (!result.success) {
