@@ -186,6 +186,16 @@ describe("verifyScan", () => {
     expect(since).toEqual(new Date(NOW.getTime() - 10 * 60 * 1000));
   });
 
+  test("never reports a negative time since a slightly future scan", async () => {
+    findLatestCountedScan.mockResolvedValue({
+      $createdAt: new Date(NOW.getTime() + 2000).toISOString(),
+    });
+    expect(await verifyScan(code(), STAFF, deps)).toMatchObject({
+      result: "duplicate",
+      secondsSincePrevious: 0,
+    });
+  });
+
   test("asks for ID on an Apple Wallet code, but duplicate wins", async () => {
     const apple = signAppleWalletCode(USER, "2026-12-31", SECRET);
     expect(await verifyScan(apple, STAFF, deps)).toMatchObject({

@@ -203,8 +203,11 @@ export async function verifyScan(
     result,
     ...(previous
       ? {
-          secondsSincePrevious: Math.round(
-            (deps.now.getTime() - previous.getTime()) / 1000
+          // Clamped: the previous scan's server timestamp can be slightly
+          // ahead of this server's clock.
+          secondsSincePrevious: Math.max(
+            0,
+            Math.round((deps.now.getTime() - previous.getTime()) / 1000)
           ),
         }
       : {}),
