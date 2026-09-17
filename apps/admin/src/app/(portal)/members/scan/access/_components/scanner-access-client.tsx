@@ -60,9 +60,7 @@ export function ScannerAccessClient({
   const [grants, setGrants] = useState(initialGrants);
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
-  const [campusId, setCampusId] = useState(
-    allowAllCampuses ? "" : (campuses[0]?.id ?? "")
-  );
+  const [campusId, setCampusId] = useState(campuses[0]?.id ?? "");
   const [expiresAt, setExpiresAt] = useState("");
   const [pending, startTransition] = useTransition();
 
@@ -160,7 +158,7 @@ export function ScannerAccessClient({
             <Input
               autoComplete="off"
               id={ids.name}
-              maxLength={128}
+              maxLength={120}
               onChange={(event) => setName(event.target.value)}
               placeholder={t("namePlaceholder")}
               value={name}

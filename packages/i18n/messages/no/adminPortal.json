@@ -1355,7 +1355,7 @@
       "campus": "Campus",
       "allCampuses": "Alle campuser",
       "expiresAt": "Sluttdato (valgfritt)",
-      "expiresHint": "La stå tom for å beholde tilgangen til du trekker den tilbake.",
+      "expiresHint": "La stå tom for å beholde gjeldende sluttdato for eksisterende tilgang, eller for tilgang til den trekkes tilbake for nye personer. For å fjerne en sluttdato, trekk tilbake og legg til personen på nytt.",
       "invite": "Gi tilgang og send invitasjon",
       "invited": "Tilgang gitt og invitasjon sendt.",
       "resent": "Invitasjonen er sendt på nytt.",
@@ -1384,6 +1384,7 @@
       },
       "errors": {
         "invalid_email": "Skriv inn en gyldig e-postadresse.",
+        "invalid_name": "Navnet kan ha høyst 120 tegn.",
         "invalid_expiry": "Velg en sluttdato fram i tid.",
         "forbidden_campus": "Du kan bare gi tilgang for din egen campus.",
         "not_found": "Tilgangen finnes ikke lenger.",

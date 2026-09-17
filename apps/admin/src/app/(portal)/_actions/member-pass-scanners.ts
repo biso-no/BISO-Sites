@@ -50,7 +50,8 @@ type AdminUsers = AdminClient["users"];
 const NAV_KEY = "portal.members";
 const RESOURCE_TYPE = "member_pass_scanner";
 const MAX_EMAIL_LENGTH = 320;
-const MAX_NAME_LENGTH = 128;
+/** Matches the `member_pass_scanners.name` column size. */
+const MAX_NAME_LENGTH = 120;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const DEFAULT_ANDROID_URL =
   "https://play.google.com/store/apps/details?id=com.biso.no";
@@ -80,9 +81,15 @@ function normaliseEmail(raw: string): string | null {
   return email;
 }
 
-function normaliseName(raw: string | null | undefined): string | null {
-  const name = raw?.trim().slice(0, MAX_NAME_LENGTH);
-  return name || null;
+/** undefined = longer than the column allows; null = no name given. */
+function normaliseName(
+  raw: string | null | undefined
+): string | null | undefined {
+  const name = raw?.trim();
+  if (!name) {
+    return null;
+  }
+  return name.length > MAX_NAME_LENGTH ? undefined : name;
 }
 
 /** undefined = invalid or not in the future; null = no end date. */
@@ -246,6 +253,9 @@ export async function inviteScanner(input: {
     return fail("invalid_expiry");
   }
   const name = normaliseName(input.name);
+  if (name === undefined) {
+    return fail("invalid_name");
+  }
 
   try {
     const { db, users } = await createAdminClient();
@@ -259,8 +269,10 @@ export async function inviteScanner(input: {
 
     let grant: ScannerGrantRow;
     if (existing) {
+      // No end date given on a re-invite keeps the existing one; there is no
+      // way to clear an end date here — revoke and add the person again.
       const patch = {
-        expires_at: expiresAt ? expiresAt.toISOString() : null,
+        expires_at: expiresAt ? expiresAt.toISOString() : existing.expires_at,
         name: name ?? existing.name,
       };
       await updateGrant(db, existing.$id, patch);

@@ -1355,7 +1355,7 @@
       "campus": "Campus",
       "allCampuses": "All campuses",
       "expiresAt": "End date (optional)",
-      "expiresHint": "Leave empty to keep access until you revoke it.",
+      "expiresHint": "Leave empty to keep the current end date for existing access, or for access until revoked for new people. To remove an end date, revoke and add the person again.",
       "invite": "Give access and send invitation",
       "invited": "Access given and invitation sent.",
       "resent": "Invitation sent again.",
@@ -1384,6 +1384,7 @@
       },
       "errors": {
         "invalid_email": "Enter a valid email address.",
+        "invalid_name": "Name must be 120 characters or fewer.",
         "invalid_expiry": "Choose an end date in the future.",
         "forbidden_campus": "You can only give access for your own campus.",
         "not_found": "That access no longer exists.",

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import type { UserAuthContext } from "@/lib/authorization";
 
 const PLAY_URL = "https://play.google.com/store/apps/details?id=com.biso.no";
@@ -78,6 +78,22 @@ const auditActions = () =>
   logAuditEvent.mock.calls.map((call) => (call as unknown[])[1]);
 
 describe("member pass scanner actions", () => {
+  const originalIosUrl = process.env.BISO_APP_IOS_URL;
+  const originalAndroidUrl = process.env.BISO_APP_ANDROID_URL;
+
+  afterEach(() => {
+    for (const [key, value] of [
+      ["BISO_APP_IOS_URL", originalIosUrl],
+      ["BISO_APP_ANDROID_URL", originalAndroidUrl],
+    ] as const) {
+      if (value === undefined) {
+        delete process.env[key];
+      } else {
+        process.env[key] = value;
+      }
+    }
+  });
+
   beforeEach(() => {
     ctx = campusAdminCtx;
     process.env.BISO_APP_IOS_URL = "https://apps.apple.com/app/biso/id1";
@@ -220,12 +236,49 @@ describe("member pass scanner actions", () => {
         expires_at: FUTURE,
         name: "Guard",
       });
-      const lookup = JSON.stringify(db.listRows.mock.calls[0]?.[2]);
-      expect(lookup).toContain("u1");
-      expect(lookup).toContain("revoked_at");
-      expect(lookup).toContain("campus_id");
+      const queries = (db.listRows.mock.calls[0]?.[2] as string[]).map(
+        (query) => JSON.parse(query)
+      );
+      expect(queries).toContainEqual({
+        attribute: "user_id",
+        method: "equal",
+        values: ["u1"],
+      });
+      expect(queries).toContainEqual({
+        attribute: "campus_id",
+        method: "equal",
+        values: ["1"],
+      });
+      expect(queries).toContainEqual({
+        attribute: "revoked_at",
+        method: "isNull",
+      });
       if (result.success) {
         expect(result.data.grant.id).toBe("g1");
+        expect(result.data.grant.expiresAt).toBe(FUTURE);
+      }
+    });
+
+    test("keeps the existing end date when re-inviting without one", async () => {
+      users.list.mockResolvedValue({
+        total: 1,
+        users: [{ $id: "u1", email: "guard@example.com", name: "" }],
+      });
+      db.listRows.mockResolvedValue({
+        rows: [grantRow({ expires_at: FUTURE })],
+        total: 1,
+      });
+      const result = await actions.inviteScanner({
+        campusId: "1",
+        email: "guard@example.com",
+        expiresAt: null,
+        name: "",
+      });
+      expect(result.success).toBe(true);
+      expect(db.updateRow.mock.calls[0]?.[3]).toMatchObject({
+        expires_at: FUTURE,
+      });
+      if (result.success) {
         expect(result.data.grant.expiresAt).toBe(FUTURE);
       }
     });
@@ -287,6 +340,32 @@ describe("member pass scanner actions", () => {
         ).toEqual({ error: "invalid_email", success: false });
       }
       expect(users.list).not.toHaveBeenCalled();
+    });
+
+    test("rejects a name over 120 characters", async () => {
+      expect(
+        await actions.inviteScanner({
+          campusId: "1",
+          email: "guard@example.com",
+          expiresAt: null,
+          name: "a".repeat(121),
+        })
+      ).toEqual({ error: "invalid_name", success: false });
+      expect(users.list).not.toHaveBeenCalled();
+      expect(users.create).not.toHaveBeenCalled();
+      expect(db.createRow).not.toHaveBeenCalled();
+    });
+
+    test("accepts a name at exactly 120 characters", async () => {
+      const name = "a".repeat(120);
+      const result = await actions.inviteScanner({
+        campusId: "1",
+        email: "guard@example.com",
+        expiresAt: null,
+        name,
+      });
+      expect(result.success).toBe(true);
+      expect(db.createRow.mock.calls[0]?.[3]).toMatchObject({ name });
     });
 
     test("rejects an end date in the past or an invalid one", async () => {
