@@ -18,6 +18,7 @@ import events from "./en/events.json";
 import fundingProgram from "./en/fundingProgram.json";
 import home from "./en/home.json";
 import jobs from "./en/jobs.json";
+import memberPass from "./en/memberPass.json";
 import memberPortal from "./en/memberPortal.json";
 import membership from "./en/membership.json";
 import news from "./en/news.json";
@@ -62,6 +63,7 @@ export default {
   units,
   projects,
   memberPortal,
+  memberPass,
   fundingProgram,
   projectDetail,
   volunteer,

@@ -31,6 +31,7 @@ export const messageNamespaces = [
   "units",
   "projects",
   "memberPortal",
+  "memberPass",
   "fundingProgram",
   "projectDetail",
   "volunteer",

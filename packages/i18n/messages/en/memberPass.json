@@ -1,0 +1,64 @@
+{
+  "member": "Member",
+  "live": "Live",
+  "validUntil": "Valid until {date}",
+  "refreshesIn": "New code in {seconds}s",
+  "tapToShow": "Tap to show staff",
+  "close": "Close",
+  "showToStaff": "Show this screen to staff. The code changes every 30 seconds.",
+  "todaysColor": "Today's color",
+  "term": {
+    "semester": "{season, select, spring {Spring} other {Fall}} {year}",
+    "span": "{from}–{to}"
+  },
+  "duration": {
+    "semester": "Semester",
+    "year": "1 year",
+    "three_years": "3 years"
+  },
+  "colors": {
+    "red": "Red",
+    "orange": "Orange",
+    "yellow": "Yellow",
+    "lime": "Lime",
+    "green": "Green",
+    "teal": "Teal",
+    "cyan": "Cyan",
+    "blue": "Blue",
+    "indigo": "Indigo",
+    "purple": "Purple",
+    "pink": "Pink",
+    "brown": "Brown"
+  },
+  "states": {
+    "loading": "Checking your membership…",
+    "noBiIdentity": {
+      "title": "Link your BI Student account",
+      "description": "We verify your membership through your BI student account.",
+      "action": "Link BI Student"
+    },
+    "notMember": {
+      "title": "No active membership",
+      "description": "Become a member to get your pass, discounts and member prices.",
+      "action": "Become a member"
+    },
+    "expired": {
+      "title": "Your membership has ended",
+      "description": "Renew to get your pass back.",
+      "action": "Renew membership"
+    },
+    "unavailable": {
+      "title": "Can't verify right now",
+      "description": "We couldn't reach the membership register. Try again in a moment.",
+      "action": "Try again"
+    },
+    "offline": {
+      "title": "Reconnect to refresh your pass",
+      "description": "Your pass needs a connection at least every ten minutes."
+    }
+  },
+  "wallet": {
+    "apple": "Add to Apple Wallet",
+    "google": "Add to Google Wallet"
+  }
+}
