@@ -33,7 +33,7 @@ mock.module("@repo/connectors/24sevenoffice", () => ({
   getCustomerCategories,
 }));
 
-const { resolveGuestLink, scanWithGuestLink } = await import("./actions");
+const { scanWithGuestLink } = await import("./actions");
 
 const liveLink = {
   $id: "link-1",
@@ -74,13 +74,6 @@ describe("guest scanner", () => {
     getCustomerCategories.mockResolvedValue([1]);
   });
 
-  test("looks the link up by the hash of its token", async () => {
-    expect(await resolveGuestLink(TOKEN)).toMatchObject({ $id: "link-1" });
-    expect(JSON.stringify(db.listRows.mock.calls[0]?.[2])).toContain(
-      hashGuestToken(TOKEN)
-    );
-  });
-
   test("scans on behalf of the link", async () => {
     const code = signWebPassCode("m1", passSlot(Date.now()), SECRET);
     const result = await scanWithGuestLink(TOKEN, code);
@@ -108,6 +101,27 @@ describe("guest scanner", () => {
         success: false,
       });
     }
+  });
+
+  test("refuses an empty or too-long token without querying the link table", async () => {
+    const code = signWebPassCode("m1", passSlot(Date.now()), SECRET);
+    expect(await scanWithGuestLink("", code)).toEqual({
+      error: "invalid_link",
+      success: false,
+    });
+    expect(await scanWithGuestLink("a".repeat(129), code)).toEqual({
+      error: "invalid_link",
+      success: false,
+    });
+    expect(db.listRows).not.toHaveBeenCalled();
+  });
+
+  test("refuses to scan without a secret", async () => {
+    process.env.MEMBER_PASS_SECRET = "";
+    expect(await scanWithGuestLink(TOKEN, "code")).toEqual({
+      error: "not_configured",
+      success: false,
+    });
   });
 
   test("rate limits a busy link", async () => {
