@@ -7,7 +7,7 @@ import {
   type Scanner,
   type ScannerLinkRow,
   type ScanResult,
-} from "./types";
+} from "./scan-types";
 
 export type AdminDb = Awaited<ReturnType<typeof createAdminClient>>["db"];
 

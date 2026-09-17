@@ -1,4 +1,4 @@
-import type { ScanOutcome } from "@/lib/member-pass/types";
+import type { ScanOutcome } from "@repo/shared/member-pass/scan-types";
 
 export type ScanTone = "green" | "orange" | "amber" | "red" | "grey";
 

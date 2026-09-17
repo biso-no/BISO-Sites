@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { hashGuestToken } from "@repo/shared/member-pass/guest-links";
 import { signWebPassCode } from "@repo/shared/utils/member-pass";
 import { passSlot } from "@repo/shared/utils/member-pass-slots";
-import { hashGuestToken } from "@/lib/member-pass/guest-links";
 
 const SECRET = "test-secret-that-is-at-least-32-characters-long";
 const TOKEN = "guest-token";

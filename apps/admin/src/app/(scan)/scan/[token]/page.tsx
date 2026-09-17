@@ -1,8 +1,8 @@
+import { resolveGuestLink } from "@repo/shared/member-pass/guest-scan";
 import { dayColor, readMemberPassSecret } from "@repo/shared/utils/member-pass";
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { ScannerScreen } from "@/components/member-pass-scanner/scanner-screen";
-import { resolveGuestLink } from "@/lib/member-pass/guest-scan";
 import { scanWithGuestLink } from "../actions";
 
 export const metadata: Metadata = {

@@ -1,5 +1,6 @@
 "use client";
 
+import type { ScanOutcome } from "@repo/shared/member-pass/scan-types";
 import type { DayColor } from "@repo/shared/utils/member-pass";
 import {
   AlertTriangle,
@@ -17,7 +18,6 @@ import {
   useRef,
   useState,
 } from "react";
-import type { ScanOutcome } from "@/lib/member-pass/types";
 import { recordSighting, type Sighting } from "./scan-repeat";
 import { SCAN_TONE_CLASSES, type ScanTone, scanTone } from "./scan-tone";
 

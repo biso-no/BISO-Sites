@@ -1,35 +1,26 @@
 import {
-  afterEach,
-  beforeEach,
-  describe,
-  expect,
-  mock,
-  spyOn,
-  test,
-} from "bun:test";
-import {
   signAppleWalletCode,
   signWebPassCode,
 } from "@repo/shared/utils/member-pass";
 import { passSlot } from "@repo/shared/utils/member-pass-slots";
 import { MembershipComputationError } from "@repo/shared/utils/membership-status";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-// Injected rather than `mock.module("./store")`: bun module mocks leak into
-// other test files in the same run (store.test.ts imports the real module).
+// Injected rather than `vi.mock("./scan-store")`: mocking the sibling module
+// is unnecessary since verifyScan takes its dependencies through `deps`.
 import { verifyScan } from "./verify-scan";
 
-const findLatestCountedScan = mock();
-const recordScan = mock();
+const findLatestCountedScan = vi.fn();
+const recordScan = vi.fn();
 const scans = { latestSince: findLatestCountedScan, record: recordScan };
 
 const SECRET = "test-secret-that-is-at-least-32-characters-long";
 const NOW = new Date("2026-09-17T10:00:00Z");
 const USER = "member-1";
 const STAFF = { kind: "staff", userId: "staff-1" } as const;
-const getRow = mock();
-// biome-ignore lint/suspicious/noExplicitAny: test double
+const getRow = vi.fn();
 const db = { getRow } as any;
-const getStatus = mock();
+const getStatus = vi.fn();
 const deps = { db, getStatus, now: NOW, scans, secret: SECRET };
 const code = () => signWebPassCode(USER, passSlot(NOW.getTime()), SECRET);
 
@@ -51,7 +42,7 @@ const ACTIVE = {
 describe("verifyScan", () => {
   // The error paths below log via console.error by design; a spy keeps that
   // expected noise out of the test output.
-  let consoleErrorSpy: ReturnType<typeof spyOn>;
+  let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
     for (const fn of [findLatestCountedScan, recordScan, getRow, getStatus]) {
@@ -65,7 +56,7 @@ describe("verifyScan", () => {
     getStatus.mockResolvedValue(ACTIVE);
     findLatestCountedScan.mockResolvedValue(null);
     recordScan.mockResolvedValue(undefined);
-    consoleErrorSpy = spyOn(console, "error").mockImplementation(() => {
+    consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {
       // silence expected error-path logging
     });
   });
@@ -74,7 +65,7 @@ describe("verifyScan", () => {
     consoleErrorSpy.mockRestore();
   });
 
-  test("lets a live member through", async () => {
+  it("lets a live member through", async () => {
     const outcome = await verifyScan(code(), STAFF, deps);
     expect(outcome).toEqual({
       expiryDate: "2026-12-31",
@@ -92,7 +83,7 @@ describe("verifyScan", () => {
     expect(JSON.stringify(outcome)).not.toContain("1715738");
   });
 
-  test("denies a forged code without touching Finago or the log", async () => {
+  it("denies a forged code without touching Finago or the log", async () => {
     const outcome = await verifyScan(
       "v1.member-1.1.AAAAAAAAAAAAAAAAAAAAAA",
       STAFF,
@@ -103,7 +94,7 @@ describe("verifyScan", () => {
     expect(recordScan).not.toHaveBeenCalled();
   });
 
-  test("denies a stale code", async () => {
+  it("denies a stale code", async () => {
     const old = signWebPassCode(USER, passSlot(NOW.getTime()) - 5, SECRET);
     expect(await verifyScan(old, STAFF, deps)).toEqual({
       reason: "stale",
@@ -111,7 +102,7 @@ describe("verifyScan", () => {
     });
   });
 
-  test("denies an account with no linked student", async () => {
+  it("denies an account with no linked student", async () => {
     getRow.mockResolvedValue({ $id: USER, name: "X", student_id: null });
     expect(await verifyScan(code(), STAFF, deps)).toMatchObject({
       reason: "not_linked",
@@ -123,7 +114,7 @@ describe("verifyScan", () => {
     });
   });
 
-  test("reports unavailable when the profile lookup fails for a reason other than 404", async () => {
+  it("reports unavailable when the profile lookup fails for a reason other than 404", async () => {
     getRow.mockRejectedValue(new Error("down"));
     expect(await verifyScan(code(), STAFF, deps)).toEqual({
       result: "unavailable",
@@ -134,7 +125,7 @@ describe("verifyScan", () => {
     });
   });
 
-  test("treats a 404 profile lookup as an unlinked account, not unavailable", async () => {
+  it("treats a 404 profile lookup as an unlinked account, not unavailable", async () => {
     getRow.mockRejectedValue({ code: 404 });
     expect(await verifyScan(code(), STAFF, deps)).toMatchObject({
       reason: "not_linked",
@@ -143,7 +134,7 @@ describe("verifyScan", () => {
     expect(getStatus).not.toHaveBeenCalled();
   });
 
-  test("denies a lapsed member with the right reason", async () => {
+  it("denies a lapsed member with the right reason", async () => {
     getStatus.mockResolvedValue({
       ...ACTIVE,
       isMember: false,
@@ -167,14 +158,14 @@ describe("verifyScan", () => {
     });
   });
 
-  test("reports unavailable when Finago fails", async () => {
+  it("reports unavailable when Finago fails", async () => {
     getStatus.mockRejectedValue(new MembershipComputationError("finago_error"));
     expect(await verifyScan(code(), STAFF, deps)).toEqual({
       result: "unavailable",
     });
   });
 
-  test("flags a second scan within ten minutes", async () => {
+  it("flags a second scan within ten minutes", async () => {
     findLatestCountedScan.mockResolvedValue({
       $createdAt: new Date(NOW.getTime() - 40_000).toISOString(),
     });
@@ -186,7 +177,7 @@ describe("verifyScan", () => {
     expect(since).toEqual(new Date(NOW.getTime() - 10 * 60 * 1000));
   });
 
-  test("never reports a negative time since a slightly future scan", async () => {
+  it("never reports a negative time since a slightly future scan", async () => {
     findLatestCountedScan.mockResolvedValue({
       $createdAt: new Date(NOW.getTime() + 2000).toISOString(),
     });
@@ -196,7 +187,7 @@ describe("verifyScan", () => {
     });
   });
 
-  test("asks for ID on an Apple Wallet code, but duplicate wins", async () => {
+  it("asks for ID on an Apple Wallet code, but duplicate wins", async () => {
     const apple = signAppleWalletCode(USER, "2026-12-31", SECRET);
     expect(await verifyScan(apple, STAFF, deps)).toMatchObject({
       result: "check_id",
@@ -209,14 +200,14 @@ describe("verifyScan", () => {
     });
   });
 
-  test("still answers when the scan log cannot be written", async () => {
+  it("still answers when the scan log cannot be written", async () => {
     recordScan.mockRejectedValue(new Error("down"));
     expect(await verifyScan(code(), STAFF, deps)).toMatchObject({
       result: "valid",
     });
   });
 
-  test("reports unavailable when the duplicate check cannot run", async () => {
+  it("reports unavailable when the duplicate check cannot run", async () => {
     // Failing open here would let one pass through the door repeatedly.
     findLatestCountedScan.mockRejectedValue(new Error("down"));
     expect(await verifyScan(code(), STAFF, deps)).toEqual({

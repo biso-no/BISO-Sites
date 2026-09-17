@@ -1,12 +1,12 @@
 "use server";
 
 import { createAdminClient } from "@repo/api/server";
+import { resolveGuestLink } from "@repo/shared/member-pass/guest-scan";
+import { createRateLimiter } from "@repo/shared/member-pass/rate-limit";
+import type { ScanOutcome } from "@repo/shared/member-pass/scan-types";
+import { scanLogFor, verifyScan } from "@repo/shared/member-pass/verify-scan";
 import { readMemberPassSecret } from "@repo/shared/utils/member-pass";
-import { resolveGuestLink } from "@/lib/member-pass/guest-scan";
 import { getScanMembershipStatus } from "@/lib/member-pass/membership-lookup";
-import { createRateLimiter } from "@/lib/member-pass/rate-limit";
-import type { ScanOutcome } from "@/lib/member-pass/types";
-import { scanLogFor, verifyScan } from "@/lib/member-pass/verify-scan";
 
 const allowScan = createRateLimiter({ limit: 60, windowMs: 60 * 1000 });
 

@@ -1,11 +1,11 @@
-import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { Query } from "@repo/api";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const db = {
-  createRow: mock(),
-  getRow: mock(),
-  listRows: mock(),
-  updateRow: mock(),
+  createRow: vi.fn(),
+  getRow: vi.fn(),
+  listRows: vi.fn(),
+  updateRow: vi.fn(),
 };
 
 const {
@@ -15,7 +15,7 @@ const {
   listLiveLinks,
   recordScan,
   revokeLinkRow,
-} = await import("./store");
+} = await import("./scan-store");
 
 const adminDb = db as any;
 
@@ -26,7 +26,7 @@ describe("member pass store", () => {
     }
   });
 
-  test("finds the latest counted scan since a time", async () => {
+  it("finds the latest counted scan since a time", async () => {
     db.listRows.mockResolvedValue({ rows: [{ $id: "s1" }], total: 1 });
     const since = new Date("2026-09-17T09:50:00Z");
     // Cast to unknown: the mock only returns a partial row, and
@@ -43,7 +43,7 @@ describe("member pass store", () => {
     ]);
   });
 
-  test("records a guest scan without a staff user", async () => {
+  it("records a guest scan without a staff user", async () => {
     db.createRow.mockResolvedValue({});
     await recordScan(adminDb, {
       codeKind: "web",
@@ -65,7 +65,7 @@ describe("member pass store", () => {
     expect(permissions).toEqual([]);
   });
 
-  test("looks a link up by token hash", async () => {
+  it("looks a link up by token hash", async () => {
     db.listRows.mockResolvedValue({ rows: [], total: 0 });
     expect(await findLinkByTokenHash(adminDb, "abc")).toBeNull();
     expect(db.listRows).toHaveBeenCalledWith(
@@ -75,7 +75,7 @@ describe("member pass store", () => {
     );
   });
 
-  test("creates, revokes and lists links", async () => {
+  it("creates, revokes and lists links", async () => {
     db.createRow.mockResolvedValue({ $id: "l1" });
     const expiresAt = new Date("2026-09-17T22:00:00Z");
     await createLinkRow(adminDb, {

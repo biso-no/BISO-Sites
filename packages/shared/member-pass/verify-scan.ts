@@ -9,13 +9,13 @@ import {
   type MembershipStatus,
   pickCurrentMembership,
 } from "@repo/shared/utils/membership-status";
-import { type AdminDb, findLatestCountedScan, recordScan } from "./store";
+import { type AdminDb, findLatestCountedScan, recordScan } from "./scan-store";
 import type {
   ScanDenialReason,
   Scanner,
   ScanOutcome,
   ScanResult,
-} from "./types";
+} from "./scan-types";
 
 type RecordScanInput = Parameters<typeof recordScan>[1];
 

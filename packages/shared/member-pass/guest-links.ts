@@ -1,5 +1,5 @@
 import { createHash, randomBytes } from "node:crypto";
-import type { ScannerLinkRow } from "./types";
+import type { ScannerLinkRow } from "./scan-types";
 
 export const GUEST_LINK_DEFAULT_HOURS = 6;
 export const GUEST_LINK_MAX_HOURS = 48;

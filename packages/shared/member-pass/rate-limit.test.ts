@@ -1,8 +1,8 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, it } from "vitest";
 import { createRateLimiter } from "./rate-limit";
 
 describe("createRateLimiter", () => {
-  test("allows up to the limit per key within the window", () => {
+  it("allows up to the limit per key within the window", () => {
     const allow = createRateLimiter({ limit: 2, windowMs: 1000 });
     expect(allow("a", 0)).toBe(true);
     expect(allow("a", 100)).toBe(true);

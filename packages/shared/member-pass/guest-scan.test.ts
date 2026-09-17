@@ -1,15 +1,15 @@
-import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { hashGuestToken } from "./guest-links";
 
 const TOKEN = "guest-token";
 
-const db = { listRows: mock() };
+const { db } = vi.hoisted(() => ({ db: { listRows: vi.fn() } }));
 
-mock.module("@repo/api/server", () => ({
-  createAdminClient: mock(async () => ({ db })),
+vi.mock("@repo/api/server", () => ({
+  createAdminClient: vi.fn(async () => ({ db })),
 }));
 
-const { resolveGuestLink } = await import("./guest-scan");
+import { resolveGuestLink } from "./guest-scan";
 
 const liveLink = {
   $id: "link-1",
@@ -24,14 +24,14 @@ describe("resolveGuestLink", () => {
     db.listRows.mockResolvedValue({ rows: [liveLink], total: 1 });
   });
 
-  test("looks the link up by the hash of its token", async () => {
+  it("looks the link up by the hash of its token", async () => {
     expect(await resolveGuestLink(TOKEN)).toMatchObject({ $id: "link-1" });
     expect(JSON.stringify(db.listRows.mock.calls[0]?.[2])).toContain(
       hashGuestToken(TOKEN)
     );
   });
 
-  test("refuses revoked or expired links", async () => {
+  it("refuses revoked or expired links", async () => {
     for (const link of [
       { ...liveLink, revoked_at: new Date().toISOString() },
       { ...liveLink, expires_at: new Date(Date.now() - 1000).toISOString() },
@@ -41,7 +41,7 @@ describe("resolveGuestLink", () => {
     }
   });
 
-  test("rejects an empty or too-long token without querying the database", async () => {
+  it("rejects an empty or too-long token without querying the database", async () => {
     expect(await resolveGuestLink("")).toBeNull();
     expect(await resolveGuestLink("a".repeat(129))).toBeNull();
     expect(db.listRows).not.toHaveBeenCalled();

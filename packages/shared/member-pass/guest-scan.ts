@@ -1,7 +1,7 @@
 import { createAdminClient } from "@repo/api/server";
 import { hashGuestToken, isLinkUsable } from "./guest-links";
-import { findLinkByTokenHash } from "./store";
-import type { ScannerLinkRow } from "./types";
+import { findLinkByTokenHash } from "./scan-store";
+import type { ScannerLinkRow } from "./scan-types";
 
 const MAX_TOKEN_LENGTH = 128;
 
