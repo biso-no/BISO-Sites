@@ -36,6 +36,7 @@
  *   JOBS_PUBLISH_SCHEDULED_URL  e.g. https://admin.biso.no/api/recruitment/publish-scheduled
  *   EXPENSES_POST_PENDING_URL   e.g. https://api.biso.no/api/expenses/post-pending
  *                               (defaults to a 300s timeout — the route's cap)
+ *   MEMBER_PASS_CLEANUP_URL     e.g. https://api.biso.no/api/cron/cleanup-member-pass
  *   CRON_TIMEOUT_MS             default per-request timeout (default 30000)
  *   <NAME>_TIMEOUT_MS           per-target timeout override, e.g.
  *                               EXPENSES_POST_PENDING_URL_TIMEOUT_MS
@@ -63,6 +64,7 @@ const TARGET_ENV_VARS = [
   "TURNOVER_RETENTION_STOP_URL",
   "EXPENSES_POST_PENDING_URL",
   "JOBS_PUBLISH_SCHEDULED_URL",
+  "MEMBER_PASS_CLEANUP_URL",
 ] as const;
 
 type TargetName = (typeof TARGET_ENV_VARS)[number];

@@ -19,6 +19,7 @@ It currently drives:
 | `TURNOVER_RETENTION_STOP_URL` (optional) | stops Azure Automation retention runs whose 7-day hold has elapsed after an M365 role-account turnover | `apps/admin` → `POST /api/it/turnover/stop-retention` |
 | `JOBS_PUBLISH_SCHEDULED_URL` (optional) | publishes scheduled vacancies whose publish time has passed | `apps/admin` → `POST /api/recruitment/publish-scheduled` |
 | `EXPENSES_POST_PENDING_URL` (optional) | posts approved reimbursements to the 24SevenOffice ledger (inert unless `expenses_ledger_posting` is on) | `apps/api` → `POST /api/expenses/post-pending` |
+| `MEMBER_PASS_CLEANUP_URL` (optional) | deletes member pass scan logs older than 90 days and scanner links expired more than 30 days ago | `apps/api` → `POST /api/cron/cleanup-member-pass` |
 
 Only configured URLs are pinged; leave the optional ones unset to skip them. The
 `*/5 * * * *` schedule (every 5 min) keeps announcements punctual and clears the
@@ -34,7 +35,7 @@ Set these on the function in the Appwrite console (**Settings → Variables**) �
 - `ANNOUNCEMENTS_DISPATCH_URL` — full URL to the admin dispatch route.
 - `TICKSTER_SYNC_URL`, `DEPARTURES_SYNC_URL`, `RESERVATIONS_CLEANUP_URL`,
   `ORDERS_RECONCILE_URL`, `TURNOVER_RETENTION_STOP_URL`,
-  `JOBS_PUBLISH_SCHEDULED_URL` — optional.
+  `JOBS_PUBLISH_SCHEDULED_URL`, `MEMBER_PASS_CLEANUP_URL` — optional.
 - `CRON_TIMEOUT_MS` — optional **per-request** timeout (default `30000`). This is
   not the execution limit — that's the function's `timeout` (see below).
 
@@ -51,6 +52,7 @@ syncs. So you only set `CRON_SECRET`, the same value, on each app.
 | `tickster/sync` (api) | `CRON_SECRET` (legacy `TICKSTER_SYNC_SECRET` still honored as a fallback) |
 | `tickster/events/sync` (api) | `CRON_SECRET` (legacy `TICKSTER_SYNC_SECRET` still honored as a fallback) |
 | `departures/sync` (api) | `CRON_SECRET` (legacy `ENTUR_SYNC_SECRET` still honored as a fallback) |
+| `cleanup-member-pass` (api) | `CRON_SECRET` |
 
 If `CRON_SECRET` is unset on the target app you'll get `500`; if it differs from
 what the function sends you'll get `401`.
