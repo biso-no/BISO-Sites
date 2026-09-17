@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   deriveAccrualMonths,
+  describeMembershipTerm,
   MEMBERSHIP_DIMENSION_IDS,
   MEMBERSHIP_DIMENSION_LABELS,
   toMembershipPlan,
@@ -138,5 +139,42 @@ describe("toMembershipPlan", () => {
     expect(MEMBERSHIP_DIMENSION_LABELS.semester).toBe("Semester");
     expect(MEMBERSHIP_DIMENSION_LABELS.year).toBe("Year");
     expect(MEMBERSHIP_DIMENSION_LABELS.three_years).toBe("3 Years");
+  });
+});
+
+describe("describeMembershipTerm", () => {
+  it("describes a fall semester", () => {
+    expect(describeMembershipTerm("01.07.2026", "31.12.2026")).toEqual({
+      duration: "semester",
+      fromYear: 2026,
+      season: "fall",
+      toYear: 2026,
+    });
+  });
+
+  it("describes a spring semester", () => {
+    expect(describeMembershipTerm("2027-01-01", "2027-06-30")).toEqual({
+      duration: "semester",
+      fromYear: 2027,
+      season: "spring",
+      toYear: 2027,
+    });
+  });
+
+  it("describes multi-semester terms by year span without a season", () => {
+    expect(describeMembershipTerm("01.07.2026", "01.07.2027")).toEqual({
+      duration: "year",
+      fromYear: 2026,
+      season: null,
+      toYear: 2027,
+    });
+    expect(describeMembershipTerm("01.07.2026", "01.07.2029")).toMatchObject({
+      duration: "three_years",
+      toYear: 2029,
+    });
+  });
+
+  it("returns null for unreadable dates", () => {
+    expect(describeMembershipTerm("soon", "2026-12-31")).toBeNull();
   });
 });

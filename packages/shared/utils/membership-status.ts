@@ -2,7 +2,9 @@ import { Query } from "@repo/api/client";
 import { createAdminClient } from "@repo/api/server";
 import type { Memberships } from "@repo/api/types/appwrite";
 import { getCustomerCategories } from "@repo/connectors/24sevenoffice";
-import { normalizeMembershipDate } from "./membership-dates";
+import { normalizeMembershipDate, osloToday } from "./membership-dates";
+
+export { osloToday } from "./membership-dates";
 
 const DEFAULT_MEMBERSHIP_FINAGO_TIMEOUT_MS = 3000;
 
@@ -84,18 +86,6 @@ async function withDeadline<T>(
       clearTimeout(timeout);
     }
   }
-}
-
-const osloDateFormat = new Intl.DateTimeFormat("en-CA", {
-  day: "2-digit",
-  month: "2-digit",
-  timeZone: "Europe/Oslo",
-  year: "numeric",
-});
-
-/** Today's calendar date in Oslo, as `YYYY-MM-DD`. */
-export function osloToday(now: Date = new Date()): string {
-  return osloDateFormat.format(now);
 }
 
 /**
@@ -232,4 +222,20 @@ export async function computeMembershipStatus(
 
 export function membershipCacheTag(numericId: number): string {
   return `membership:${numericId}`;
+}
+
+/**
+ * The membership a member holds for longest — what the pass and the portal
+ * show when Finago reports more than one held category.
+ */
+export function pickCurrentMembership(
+  memberships: MembershipInfo[]
+): MembershipInfo | null {
+  let current: MembershipInfo | null = null;
+  for (const membership of memberships) {
+    if (!current || membership.expiryDate > current.expiryDate) {
+      current = membership;
+    }
+  }
+  return current;
 }

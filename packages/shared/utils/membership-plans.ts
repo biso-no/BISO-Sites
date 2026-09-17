@@ -100,6 +100,47 @@ export function deriveAccrualMonths(
   return closest;
 }
 
+export interface MembershipTerm {
+  duration: MembershipDuration;
+  fromYear: number;
+  /** Set only for single-semester memberships. */
+  season: "spring" | "fall" | null;
+  toYear: number;
+}
+
+const LAST_SPRING_MONTH = 6;
+
+/**
+ * What a membership covers, for display: "Fall 2026" for a semester,
+ * "2026–2027" otherwise. Labels are localized by the caller.
+ */
+export function describeMembershipTerm(
+  startDate: string,
+  expiryDate: string
+): MembershipTerm | null {
+  const start = normalizeMembershipDate(startDate);
+  const expiry = normalizeMembershipDate(expiryDate);
+  if (!(start && expiry)) {
+    return null;
+  }
+  const accrualMonths = deriveAccrualMonths(start, expiry);
+  if (accrualMonths === null) {
+    return null;
+  }
+  const duration = DURATION_BY_ACCRUAL[accrualMonths];
+  const expiryMonth = Number(expiry.slice(5, 7));
+  let season: "spring" | "fall" | null = null;
+  if (duration === "semester") {
+    season = expiryMonth <= LAST_SPRING_MONTH ? "spring" : "fall";
+  }
+  return {
+    duration,
+    fromYear: Number(start.slice(0, 4)),
+    season,
+    toYear: Number(expiry.slice(0, 4)),
+  };
+}
+
 export function toMembershipPlan(
   row: MembershipRowLike
 ): MembershipPlan | null {

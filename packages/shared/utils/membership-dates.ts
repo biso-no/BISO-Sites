@@ -49,3 +49,15 @@ export function normalizeMembershipDate(
 
   return null;
 }
+
+const osloDateFormat = new Intl.DateTimeFormat("en-CA", {
+  day: "2-digit",
+  month: "2-digit",
+  timeZone: "Europe/Oslo",
+  year: "numeric",
+});
+
+/** Today's calendar date in Oslo, as `YYYY-MM-DD`. */
+export function osloToday(now: Date = new Date()): string {
+  return osloDateFormat.format(now);
+}

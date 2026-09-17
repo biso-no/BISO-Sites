@@ -18,6 +18,7 @@ import {
   computeMembershipStatus,
   isMembershipRowActive,
   osloToday,
+  pickCurrentMembership,
 } from "./membership-status";
 
 function row(id: string, category: string, expiryDate: string) {
@@ -178,5 +179,29 @@ describe("computeMembershipStatus", () => {
       reason: "no_categories",
     });
     expect(listRows).not.toHaveBeenCalled();
+  });
+});
+
+describe("pickCurrentMembership", () => {
+  const info = (id: string, expiryDate: string) => ({
+    category: "1",
+    expiryDate,
+    id,
+    name: id,
+    startDate: "2026-07-01",
+  });
+
+  it("returns the membership that runs longest", () => {
+    expect(
+      pickCurrentMembership([
+        info("semester", "2026-12-31"),
+        info("three-years", "2029-07-01"),
+        info("year", "2027-07-01"),
+      ])?.id
+    ).toBe("three-years");
+  });
+
+  it("returns null for no memberships", () => {
+    expect(pickCurrentMembership([])).toBeNull();
   });
 });
