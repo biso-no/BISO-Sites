@@ -1,17 +1,17 @@
 import {
+  buildGoogleWalletObject,
+  signGoogleSaveJwt,
+} from "@repo/shared/member-pass/google-pass";
+import { syncGoogleWalletPass } from "@repo/shared/member-pass/google-wallet-api";
+import { termLabel } from "@repo/shared/member-pass/term-label";
+import { readGoogleWalletConfig } from "@repo/shared/member-pass/wallet-config";
+import {
   googleWalletTotpKeyHex,
   readMemberPassSecret,
 } from "@repo/shared/utils/member-pass";
 import { connection, NextResponse } from "next/server";
 import { getTranslations } from "next-intl/server";
-import {
-  buildGoogleWalletObject,
-  signGoogleSaveJwt,
-} from "@/lib/member-pass/google-pass";
-import { syncGoogleWalletPass } from "@/lib/member-pass/google-wallet-api";
 import { resolveMemberPass } from "@/lib/member-pass/resolve";
-import { termLabel } from "@/lib/member-pass/term-label";
-import { readGoogleWalletConfig } from "@/lib/member-pass/wallet-config";
 
 const NO_STORE = { "Cache-Control": "private, no-store" };
 const SAVE_URL = "https://pay.google.com/gp/v/save/";

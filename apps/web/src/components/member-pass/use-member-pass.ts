@@ -1,5 +1,6 @@
 "use client";
 
+import type { MemberPassResponse } from "@repo/shared/member-pass/types";
 import {
   codesRemaining,
   MEMBER_PASS_REFETCH_BELOW,
@@ -9,7 +10,6 @@ import {
   slotSecondsLeft,
 } from "@repo/shared/utils/member-pass-slots";
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { MemberPassResponse } from "@/lib/member-pass/types";
 import {
   needsRetry,
   nextPassState,

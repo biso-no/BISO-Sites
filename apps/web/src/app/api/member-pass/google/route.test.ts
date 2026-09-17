@@ -13,13 +13,17 @@ const syncGoogleWalletPass = vi.hoisted(() =>
 );
 
 vi.mock("server-only", () => ({}));
-vi.mock("@/lib/member-pass/google-wallet-api", () => ({
+vi.mock("@repo/shared/member-pass/google-wallet-api", () => ({
   syncGoogleWalletPass,
 }));
 vi.mock("@/lib/member-pass/resolve", () => ({ resolveMemberPass }));
-vi.mock("@/lib/member-pass/wallet-config", () => ({ readGoogleWalletConfig }));
-vi.mock("@/lib/member-pass/google-pass", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@/lib/member-pass/google-pass")>()),
+vi.mock("@repo/shared/member-pass/wallet-config", () => ({
+  readGoogleWalletConfig,
+}));
+vi.mock("@repo/shared/member-pass/google-pass", async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import("@repo/shared/member-pass/google-pass")
+  >()),
   signGoogleSaveJwt,
 }));
 vi.mock("next-intl/server", () => ({

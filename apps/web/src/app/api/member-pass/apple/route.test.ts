@@ -10,9 +10,13 @@ const buildAppleWalletPass = vi.hoisted(() =>
 
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/member-pass/resolve", () => ({ resolveMemberPass }));
-vi.mock("@/lib/member-pass/wallet-config", () => ({ readAppleWalletConfig }));
-vi.mock("@/lib/member-pass/apple-pass", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@/lib/member-pass/apple-pass")>()),
+vi.mock("@repo/shared/member-pass/wallet-config", () => ({
+  readAppleWalletConfig,
+}));
+vi.mock("@repo/shared/member-pass/apple-pass", async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import("@repo/shared/member-pass/apple-pass")
+  >()),
   buildAppleWalletPass,
   loadWalletIcon: vi.fn(async () => Buffer.from("PNG")),
 }));

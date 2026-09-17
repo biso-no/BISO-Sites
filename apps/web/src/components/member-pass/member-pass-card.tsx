@@ -1,15 +1,15 @@
 "use client";
 
+import { termLabel } from "@repo/shared/member-pass/term-label";
+import type {
+  MemberPassHolder,
+  MemberPassResponse,
+} from "@repo/shared/member-pass/types";
 import type { MemberPassCode } from "@repo/shared/utils/member-pass-slots";
 import { Button } from "@repo/ui/components/ui/button";
 import { RefreshCw, Smartphone, Wallet, X } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
-import { termLabel } from "@/lib/member-pass/term-label";
-import type {
-  MemberPassHolder,
-  MemberPassResponse,
-} from "@/lib/member-pass/types";
 import "./member-pass.css";
 import { QrCode } from "./qr-code";
 

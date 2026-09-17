@@ -1,3 +1,8 @@
+import type { MemberPassResponse } from "@repo/shared/member-pass/types";
+import {
+  readAppleWalletConfig,
+  readGoogleWalletConfig,
+} from "@repo/shared/member-pass/wallet-config";
 import {
   dayColor,
   issueWebPassCodes,
@@ -5,11 +10,6 @@ import {
 } from "@repo/shared/utils/member-pass";
 import { NextResponse } from "next/server";
 import { resolveMemberPass } from "@/lib/member-pass/resolve";
-import type { MemberPassResponse } from "@/lib/member-pass/types";
-import {
-  readAppleWalletConfig,
-  readGoogleWalletConfig,
-} from "@/lib/member-pass/wallet-config";
 
 const NO_STORE = { "Cache-Control": "private, no-store" };
 

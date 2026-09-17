@@ -1,17 +1,17 @@
 import {
+  applePassFields,
+  buildAppleWalletPass,
+  loadWalletIcon,
+} from "@repo/shared/member-pass/apple-pass";
+import { termLabel } from "@repo/shared/member-pass/term-label";
+import { readAppleWalletConfig } from "@repo/shared/member-pass/wallet-config";
+import {
   readMemberPassSecret,
   signAppleWalletCode,
 } from "@repo/shared/utils/member-pass";
 import { connection, NextResponse } from "next/server";
 import { getTranslations } from "next-intl/server";
-import {
-  applePassFields,
-  buildAppleWalletPass,
-  loadWalletIcon,
-} from "@/lib/member-pass/apple-pass";
 import { resolveMemberPass } from "@/lib/member-pass/resolve";
-import { termLabel } from "@/lib/member-pass/term-label";
-import { readAppleWalletConfig } from "@/lib/member-pass/wallet-config";
 
 const NO_STORE = { "Cache-Control": "private, no-store" };
 

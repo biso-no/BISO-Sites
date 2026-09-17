@@ -5,7 +5,7 @@ const readAppleWalletConfig = vi.hoisted(() => vi.fn(() => null));
 const readGoogleWalletConfig = vi.hoisted(() => vi.fn(() => ({})));
 
 vi.mock("@/lib/member-pass/resolve", () => ({ resolveMemberPass }));
-vi.mock("@/lib/member-pass/wallet-config", () => ({
+vi.mock("@repo/shared/member-pass/wallet-config", () => ({
   readAppleWalletConfig,
   readGoogleWalletConfig,
 }));

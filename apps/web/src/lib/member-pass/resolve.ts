@@ -1,8 +1,14 @@
 import "server-only";
+import {
+  buildHolder,
+  memberPassStateFor,
+} from "@repo/shared/member-pass/state";
+import type {
+  MemberPassHolder,
+  MemberPassState,
+} from "@repo/shared/member-pass/types";
 import { getMembershipStatus } from "@/lib/actions/membership";
 import { getLoggedInUser } from "@/lib/actions/user";
-import { buildHolder, memberPassStateFor } from "./state";
-import type { MemberPassHolder, MemberPassState } from "./types";
 
 export type ResolvedMemberPass =
   | { state: "unauthenticated" }

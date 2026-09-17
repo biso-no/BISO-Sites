@@ -1,5 +1,5 @@
+import type { MemberPassResponse } from "@repo/shared/member-pass/types";
 import { describe, expect, it } from "vitest";
-import type { MemberPassResponse } from "@/lib/member-pass/types";
 import { needsRetry, nextPassState } from "./pass-refresh";
 
 const ACTIVE: MemberPassResponse = {

@@ -1,9 +1,9 @@
+import type { MemberPassResponse } from "@repo/shared/member-pass/types";
 import {
   codesRemaining,
   MEMBER_PASS_REFETCH_BELOW,
   type MemberPassCode,
 } from "@repo/shared/utils/member-pass-slots";
-import type { MemberPassResponse } from "@/lib/member-pass/types";
 
 /** How a `GET /api/member-pass` attempt ended. */
 export type PassFetchOutcome =
