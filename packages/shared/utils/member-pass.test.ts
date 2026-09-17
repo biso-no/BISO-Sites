@@ -87,6 +87,19 @@ describe("web pass codes", () => {
     }
   });
 
+  it("rejects a slot with a leading zero", () => {
+    // "007" and "7" must not both verify against the signature computed for
+    // the canonical slot number 7 — only one spelling of a slot may verify.
+    const code = signWebPassCode(USER, SLOT, SECRET);
+    const parts = code.split(".");
+    const slotIndex = parts.length - 2;
+    parts[slotIndex] = `0${parts[slotIndex]}`;
+    expect(verifyMemberPassCode(parts.join("."), SECRET, NOW)).toEqual({
+      ok: false,
+      reason: "malformed",
+    });
+  });
+
   it("issues twenty consecutive codes from the current slot", () => {
     const codes = issueWebPassCodes(USER, NOW.getTime(), SECRET);
     expect(codes).toHaveLength(20);
@@ -165,6 +178,24 @@ describe("apple wallet codes", () => {
       ok: false,
       reason: "bad_signature",
     });
+  });
+
+  it("rejects prototype-inherited property names used as a prefix", () => {
+    // A plain-object prefix lookup would let these fall through as
+    // "unrecognised, so undefined, so not < minParts" and be handled as an
+    // Apple code — they must be rejected outright instead.
+    const code = signAppleWalletCode(USER, "2026-12-31", SECRET);
+    const rest = code.slice(code.indexOf(".") + 1);
+    for (const badPrefix of [
+      "constructor",
+      "__proto__",
+      "toString",
+      "hasOwnProperty",
+    ]) {
+      expect(verifyMemberPassCode(`${badPrefix}.${rest}`, SECRET, NOW)).toEqual(
+        { ok: false, reason: "malformed" }
+      );
+    }
   });
 });
 

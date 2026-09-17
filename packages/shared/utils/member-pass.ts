@@ -26,7 +26,9 @@ const GOOGLE_TOTP_DIGITS = 6;
 export const DUPLICATE_SCAN_WINDOW_MS = 10 * 60 * 1000;
 
 const USER_ID_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,35}$/;
-const SLOT_RE = /^\d{1,12}$/;
+// No leading zeros: "007" and "7" must not both verify against the
+// signature computed for the canonical slot number 7.
+const SLOT_RE = /^(0|[1-9]\d{0,11})$/;
 const COMPACT_DATE_RE = /^(\d{4})(\d{2})(\d{2})$/;
 const TOTP_RE = /^\d{6}$/;
 const DASH_RE = /-/g;
@@ -202,7 +204,7 @@ function verifyApple(
   return { expiry, kind: "apple", ok: true, userId };
 }
 
-const MIN_PARTS: Record<string, number> = { a1: 4, g1: 3, v1: 4 };
+const MIN_PARTS = { a1: 4, g1: 3, v1: 4 } as const;
 
 export function verifyMemberPassCode(
   code: string,
@@ -211,8 +213,15 @@ export function verifyMemberPassCode(
 ): MemberPassVerifyResult {
   const parts = code.trim().split(".");
   const prefix = parts[0] ?? "";
-  const minParts = MIN_PARTS[prefix];
-  if (minParts === undefined || parts.length < minParts) {
+  // Compare against the three known literal prefixes rather than indexing
+  // MIN_PARTS with an attacker-controlled key: a plain object lookup lets an
+  // inherited key ("constructor", "__proto__", "toString",
+  // "hasOwnProperty", ...) pass an `undefined` check and fall through to the
+  // final `return verifyApple(...)` below.
+  if (prefix !== "a1" && prefix !== "g1" && prefix !== "v1") {
+    return MALFORMED;
+  }
+  if (parts.length < MIN_PARTS[prefix]) {
     return MALFORMED;
   }
   const current = passSlot(now.getTime());
