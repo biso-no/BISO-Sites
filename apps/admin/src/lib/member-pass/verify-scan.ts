@@ -95,17 +95,22 @@ async function log(
   }
 }
 
+/**
+ * The member's most recent counted scan inside the duplicate window, or
+ * `{ ok: false }` when the log cannot be read. Callers must not treat a
+ * failed read as "no previous scan": that would let one pass in repeatedly.
+ */
 async function previousScanAt(
   deps: VerifyScanDeps,
   userId: string
-): Promise<Date | null> {
+): Promise<{ at: Date | null; ok: true } | { ok: false }> {
   try {
     const since = new Date(deps.now.getTime() - DUPLICATE_SCAN_WINDOW_MS);
     const latest = await deps.scans.latestSince(userId, since);
-    return latest ? new Date(latest.$createdAt) : null;
+    return { at: latest ? new Date(latest.$createdAt) : null, ok: true };
   } catch (error) {
     console.error("[Member Pass] Duplicate check failed:", error);
-    return null;
+    return { ok: false };
   }
 }
 
@@ -181,7 +186,18 @@ export async function verifyScan(
   }
 
   const current = pickCurrentMembership(status.memberships);
-  const previous = await previousScanAt(deps, userId);
+  const previousScan = await previousScanAt(deps, userId);
+  if (!previousScan.ok) {
+    await log(deps, {
+      codeKind: kind,
+      memberUserId: userId,
+      reason: null,
+      result: "unavailable",
+      scanner,
+    });
+    return { result: "unavailable" };
+  }
+  const previous = previousScan.at;
   let result: ScanResult = "valid";
   if (previous) {
     result = "duplicate";

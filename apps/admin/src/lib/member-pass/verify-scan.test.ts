@@ -211,9 +211,19 @@ describe("verifyScan", () => {
 
   test("still answers when the scan log cannot be written", async () => {
     recordScan.mockRejectedValue(new Error("down"));
-    findLatestCountedScan.mockRejectedValue(new Error("down"));
     expect(await verifyScan(code(), STAFF, deps)).toMatchObject({
       result: "valid",
+    });
+  });
+
+  test("reports unavailable when the duplicate check cannot run", async () => {
+    // Failing open here would let one pass through the door repeatedly.
+    findLatestCountedScan.mockRejectedValue(new Error("down"));
+    expect(await verifyScan(code(), STAFF, deps)).toEqual({
+      result: "unavailable",
+    });
+    expect(recordScan.mock.calls.at(-1)?.[0]).toMatchObject({
+      result: "unavailable",
     });
   });
 });
