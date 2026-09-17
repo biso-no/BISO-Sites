@@ -11403,6 +11403,183 @@
                 }
             ],
             "indexes": []
+        },
+        {
+            "$id": "member_pass_scanner_links",
+            "$permissions": [],
+            "databaseId": "app",
+            "name": "Member Pass Scanner Links",
+            "enabled": true,
+            "rowSecurity": false,
+            "columns": [
+                {
+                    "key": "label",
+                    "type": "string",
+                    "required": true,
+                    "array": false,
+                    "size": 120,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "campus_id",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 36,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "token_hash",
+                    "type": "string",
+                    "required": true,
+                    "array": false,
+                    "size": 64,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "expires_at",
+                    "type": "datetime",
+                    "required": true,
+                    "array": false,
+                    "default": null,
+                    "format": ""
+                },
+                {
+                    "key": "revoked_at",
+                    "type": "datetime",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "format": ""
+                },
+                {
+                    "key": "created_by",
+                    "type": "string",
+                    "required": true,
+                    "array": false,
+                    "size": 36,
+                    "default": null,
+                    "encrypt": false
+                }
+            ],
+            "indexes": [
+                {
+                    "key": "token_hash_unique",
+                    "type": "unique",
+                    "status": "available",
+                    "columns": [
+                        "token_hash"
+                    ],
+                    "orders": []
+                },
+                {
+                    "key": "expires_at_idx",
+                    "type": "key",
+                    "status": "available",
+                    "columns": [
+                        "expires_at"
+                    ],
+                    "orders": []
+                }
+            ]
+        },
+        {
+            "$id": "member_pass_scans",
+            "$permissions": [],
+            "databaseId": "app",
+            "name": "Member Pass Scans",
+            "enabled": true,
+            "rowSecurity": false,
+            "columns": [
+                {
+                    "key": "member_user_id",
+                    "type": "string",
+                    "required": true,
+                    "array": false,
+                    "size": 36,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "result",
+                    "type": "string",
+                    "required": true,
+                    "array": false,
+                    "default": null,
+                    "format": "enum",
+                    "elements": [
+                        "valid",
+                        "duplicate",
+                        "check_id",
+                        "denied",
+                        "unavailable"
+                    ]
+                },
+                {
+                    "key": "reason",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 40,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "code_kind",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "format": "enum",
+                    "elements": [
+                        "web",
+                        "google",
+                        "apple"
+                    ]
+                },
+                {
+                    "key": "scanner_user_id",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 36,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "scanner_link_id",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 36,
+                    "default": null,
+                    "encrypt": false
+                }
+            ],
+            "indexes": [
+                {
+                    "key": "member_created_idx",
+                    "type": "key",
+                    "status": "available",
+                    "columns": [
+                        "member_user_id",
+                        "$createdAt"
+                    ],
+                    "orders": []
+                },
+                {
+                    "key": "created_idx",
+                    "type": "key",
+                    "status": "available",
+                    "columns": [
+                        "$createdAt"
+                    ],
+                    "orders": []
+                }
+            ]
         }
     ],
     "buckets": [
