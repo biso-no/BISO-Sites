@@ -30,7 +30,7 @@ export function grantStatus(
   if (grant.revoked_at) {
     return "revoked";
   }
-  if (grant.expires_at && new Date(grant.expires_at) < now) {
+  if (grant.expires_at && new Date(grant.expires_at) <= now) {
     return "expired";
   }
   return "active";
@@ -43,6 +43,19 @@ export function isGrantActive(
   return grantStatus(grant, now) === "active";
 }
 
+/**
+ * Not-expired filter pushed into the query itself: `expires_at` is null, or
+ * still in the future. Appwrite's default page size (25) could otherwise
+ * leave the one active grant off the page for a user with many old expired
+ * grants, so we can't rely on filtering expiry in code alone.
+ */
+function notExpiredQuery(now: Date): string {
+  return Query.or([
+    Query.isNull("expires_at"),
+    Query.greaterThan("expires_at", now.toISOString()),
+  ]);
+}
+
 export async function findActiveGrantForUser(
   db: AdminDb,
   userId: string,
@@ -51,7 +64,12 @@ export async function findActiveGrantForUser(
   const { rows } = await db.listRows(MEMBER_PASS_DB, SCANNER_GRANTS_TABLE, [
     Query.equal("user_id", userId),
     Query.isNull("revoked_at"),
+    notExpiredQuery(now),
+    Query.orderDesc("$createdAt"),
+    Query.limit(1),
   ]);
+  // isGrantActive stays as a safety net even though the query already
+  // filters revoked/expired rows.
   const active = (rows as unknown as ScannerGrantRow[]).find((row) =>
     isGrantActive(row, now)
   );
@@ -67,10 +85,15 @@ export async function findActiveGrantForUserAndCampus(
   const { rows } = await db.listRows(MEMBER_PASS_DB, SCANNER_GRANTS_TABLE, [
     Query.equal("user_id", userId),
     Query.isNull("revoked_at"),
+    notExpiredQuery(now),
     campusId === null
       ? Query.isNull("campus_id")
       : Query.equal("campus_id", campusId),
+    Query.orderDesc("$createdAt"),
+    Query.limit(1),
   ]);
+  // isGrantActive stays as a safety net even though the query already
+  // filters revoked/expired rows.
   const active = (rows as unknown as ScannerGrantRow[]).find((row) =>
     isGrantActive(row, now)
   );

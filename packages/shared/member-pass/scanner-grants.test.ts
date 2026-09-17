@@ -31,9 +31,17 @@ describe("grantStatus / isGrantActive", () => {
     expect(isGrantActive(grant, now)).toBe(true);
   });
 
-  it("is active exactly at the expiry instant", () => {
+  it("is expired exactly at the expiry instant", () => {
     const now = new Date("2026-09-17T12:00:00Z");
     const grant = { expires_at: now.toISOString(), revoked_at: null };
+    expect(grantStatus(grant, now)).toBe("expired");
+    expect(isGrantActive(grant, now)).toBe(false);
+  });
+
+  it("is active one millisecond before expires_at", () => {
+    const expiresAt = new Date("2026-09-17T12:00:00.001Z");
+    const now = new Date("2026-09-17T12:00:00.000Z");
+    const grant = { expires_at: expiresAt.toISOString(), revoked_at: null };
     expect(grantStatus(grant, now)).toBe("active");
     expect(isGrantActive(grant, now)).toBe(true);
   });
@@ -83,6 +91,12 @@ describe("scanner grants store", () => {
     expect(db.listRows).toHaveBeenCalledWith("app", SCANNER_GRANTS_TABLE, [
       Query.equal("user_id", "u1"),
       Query.isNull("revoked_at"),
+      Query.or([
+        Query.isNull("expires_at"),
+        Query.greaterThan("expires_at", now.toISOString()),
+      ]),
+      Query.orderDesc("$createdAt"),
+      Query.limit(1),
     ]);
   });
 
@@ -111,7 +125,13 @@ describe("scanner grants store", () => {
     expect(db.listRows).toHaveBeenCalledWith("app", SCANNER_GRANTS_TABLE, [
       Query.equal("user_id", "u1"),
       Query.isNull("revoked_at"),
+      Query.or([
+        Query.isNull("expires_at"),
+        Query.greaterThan("expires_at", now.toISOString()),
+      ]),
       Query.equal("campus_id", "1"),
+      Query.orderDesc("$createdAt"),
+      Query.limit(1),
     ]);
   });
 
@@ -122,7 +142,13 @@ describe("scanner grants store", () => {
     expect(db.listRows).toHaveBeenCalledWith("app", SCANNER_GRANTS_TABLE, [
       Query.equal("user_id", "u1"),
       Query.isNull("revoked_at"),
+      Query.or([
+        Query.isNull("expires_at"),
+        Query.greaterThan("expires_at", now.toISOString()),
+      ]),
       Query.isNull("campus_id"),
+      Query.orderDesc("$createdAt"),
+      Query.limit(1),
     ]);
   });
 
