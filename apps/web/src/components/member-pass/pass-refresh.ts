@@ -1,5 +1,6 @@
 import {
   codesRemaining,
+  MEMBER_PASS_REFETCH_BELOW,
   type MemberPassCode,
 } from "@repo/shared/utils/member-pass-slots";
 import type { MemberPassResponse } from "@/lib/member-pass/types";
@@ -15,6 +16,9 @@ export interface PassRefreshState {
   data: MemberPassResponse | null;
   offline: boolean;
 }
+
+/** How often a pass that needs fresh codes, or is offline, tries again. */
+export const PASS_RETRY_MS = 15_000;
 
 const UNAVAILABLE: MemberPassResponse = { state: "unavailable" };
 
@@ -48,4 +52,23 @@ export function nextPassState(
         ? { data: previous, offline: true }
         : { data: UNAVAILABLE, offline: false };
   }
+}
+
+/**
+ * Whether the pass should keep polling on its own. Covers the case where the
+ * last refetches failed and the browser never reports going offline or online
+ * (patchy venue Wi-Fi), which would otherwise leave the pass stuck.
+ */
+export function needsRetry(
+  data: MemberPassResponse | null,
+  offline: boolean,
+  slot: number
+): boolean {
+  if (offline) {
+    return true;
+  }
+  return (
+    data?.state === "active" &&
+    codesRemaining(data.codes, slot) < MEMBER_PASS_REFETCH_BELOW
+  );
 }

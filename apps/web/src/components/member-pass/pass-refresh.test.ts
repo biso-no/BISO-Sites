@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { MemberPassResponse } from "@/lib/member-pass/types";
-import { nextPassState } from "./pass-refresh";
+import { needsRetry, nextPassState } from "./pass-refresh";
 
 const ACTIVE: MemberPassResponse = {
   codes: [
@@ -69,5 +69,34 @@ describe("nextPassState", () => {
       data: null,
       offline: true,
     });
+  });
+});
+
+describe("needsRetry", () => {
+  it("keeps retrying while an active pass is running low on codes", () => {
+    // ACTIVE holds slots 100-101: two codes left at 100, none at 102.
+    expect(needsRetry(ACTIVE, false, 100)).toBe(true);
+    expect(needsRetry(ACTIVE, false, 102)).toBe(true);
+  });
+
+  it("keeps retrying while offline, whatever is shown", () => {
+    expect(needsRetry(null, true, 100)).toBe(true);
+    expect(needsRetry(NOT_MEMBER, true, 100)).toBe(true);
+  });
+
+  it("stops once a definitive non-active state is shown", () => {
+    expect(needsRetry(NOT_MEMBER, false, 100)).toBe(false);
+    expect(needsRetry(null, false, 100)).toBe(false);
+  });
+
+  it("does not retry an active pass with plenty of codes", () => {
+    const plenty: MemberPassResponse = {
+      ...ACTIVE,
+      codes: Array.from({ length: 20 }, (_, i) => ({
+        code: `v1.u.${100 + i}.s`,
+        slot: 100 + i,
+      })),
+    };
+    expect(needsRetry(plenty, false, 100)).toBe(false);
   });
 });

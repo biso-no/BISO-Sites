@@ -55,6 +55,7 @@ export function MemberPass({ linkHref = "/profile" }: { linkHref?: string }) {
         current={pass.current}
         now={pass.now}
         offline={pass.offline && !pass.current}
+        onRetry={pass.refresh}
         pass={data}
         secondsLeft={pass.secondsLeft}
       />

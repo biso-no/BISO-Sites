@@ -10,7 +10,12 @@ import {
 } from "@repo/shared/utils/member-pass-slots";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { MemberPassResponse } from "@/lib/member-pass/types";
-import { nextPassState, type PassFetchOutcome } from "./pass-refresh";
+import {
+  needsRetry,
+  nextPassState,
+  PASS_RETRY_MS,
+  type PassFetchOutcome,
+} from "./pass-refresh";
 
 const TICK_MS = 1000;
 const HTTP_UNAUTHORIZED = 401;
@@ -92,6 +97,17 @@ export function useMemberPass() {
       load();
     }
   }, [data, remaining, load]);
+
+  // The effect above only fires when `data` or `remaining` changes; a failed
+  // refetch changes neither, so keep trying on a timer until codes arrive.
+  const retrying = needsRetry(data, offline, slot);
+  useEffect(() => {
+    if (!retrying) {
+      return;
+    }
+    const timer = setInterval(load, PASS_RETRY_MS);
+    return () => clearInterval(timer);
+  }, [retrying, load]);
 
   return {
     current: selectCurrentCode(codes, slot),

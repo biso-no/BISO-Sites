@@ -2,7 +2,7 @@
 
 import type { MemberPassCode } from "@repo/shared/utils/member-pass-slots";
 import { Button } from "@repo/ui/components/ui/button";
-import { Smartphone, Wallet, X } from "lucide-react";
+import { RefreshCw, Smartphone, Wallet, X } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { termLabel } from "@/lib/member-pass/term-label";
@@ -19,6 +19,7 @@ interface MemberPassCardProps {
   current: MemberPassCode | null;
   now: number;
   offline: boolean;
+  onRetry: () => void;
   pass: ActivePass;
   secondsLeft: number;
 }
@@ -201,6 +202,14 @@ export function MemberPassCard(props: MemberPassCardProps) {
       <p className="text-center text-muted-foreground text-xs">
         {t("tapToShow")}
       </p>
+      {props.offline ? (
+        <div className="flex justify-center">
+          <Button onClick={props.onRetry} size="sm" variant="outline">
+            <RefreshCw className="mr-2 h-4 w-4" />
+            {t("states.unavailable.action")}
+          </Button>
+        </div>
+      ) : null}
 
       {wallets.apple || wallets.google ? (
         <div className="flex flex-wrap justify-center gap-2">
