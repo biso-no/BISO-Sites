@@ -72,6 +72,7 @@
         "@repo/ai": "workspace:*",
         "@repo/api": "workspace:*",
         "@repo/connectors": "workspace:*",
+        "@repo/i18n": "workspace:*",
         "@repo/payment": "workspace:*",
         "@repo/shared": "workspace:*",
         "ai": "catalog:",
