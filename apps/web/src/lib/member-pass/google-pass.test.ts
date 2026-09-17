@@ -9,6 +9,8 @@ import {
   signGoogleSaveJwt,
 } from "./google-pass";
 
+const ROTATING_OR_KEY_RE = /rotatingBarcode|totp|key/i;
+
 const HOLDER = {
   expiryDate: "2026-12-31",
   membershipName: "Semester",
@@ -68,8 +70,8 @@ describe("signGoogleSaveJwt", () => {
           .export({ format: "pem", type: "pkcs8" })
           .toString(),
       },
-      genericObject: { id: "3388.member-user-1" },
       now: new Date("2026-09-17T10:00:00Z"),
+      objectId: "3388.member-user-1",
       origins: ["https://biso.no"],
     });
     const [header, payload, signature] = jwt.split(".");
@@ -86,12 +88,15 @@ describe("signGoogleSaveJwt", () => {
       origins: ["https://biso.no"],
       typ: "savetowallet",
     });
-    expect(claims.payload.genericObjects).toEqual([
-      { id: "3388.member-user-1" },
-    ]);
-    expect(claims.payload.genericClasses).toEqual([
-      { id: "3388.biso-membership" },
-    ]);
+    // Only references: the object and its TOTP key live in the Wallet API.
+    expect(claims.payload).toEqual({
+      genericObjects: [
+        { classId: "3388.biso-membership", id: "3388.member-user-1" },
+      ],
+    });
+    expect(Buffer.from(payload ?? "", "base64url").toString()).not.toMatch(
+      ROTATING_OR_KEY_RE
+    );
     const verifier = createVerify("RSA-SHA256");
     verifier.update(`${header}.${payload}`);
     expect(

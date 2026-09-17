@@ -8,6 +8,7 @@ import {
   buildGoogleWalletObject,
   signGoogleSaveJwt,
 } from "@/lib/member-pass/google-pass";
+import { syncGoogleWalletPass } from "@/lib/member-pass/google-wallet-api";
 import { resolveMemberPass } from "@/lib/member-pass/resolve";
 import { termLabel } from "@/lib/member-pass/term-label";
 import { readGoogleWalletConfig } from "@/lib/member-pass/wallet-config";
@@ -17,6 +18,18 @@ const SAVE_URL = "https://pay.google.com/gp/v/save/";
 
 function error(status: number, code: string) {
   return NextResponse.json({ error: code }, { headers: NO_STORE, status });
+}
+
+async function syncPass(
+  ...args: Parameters<typeof syncGoogleWalletPass>
+): Promise<boolean> {
+  try {
+    await syncGoogleWalletPass(...args);
+    return true;
+  } catch (cause) {
+    console.error("[Member Pass] Google Wallet API failed:", cause);
+    return false;
+  }
 }
 
 /** Redirects the signed-in member to a "Save to Google Wallet" link. */
@@ -43,21 +56,27 @@ export async function GET() {
     const t = await getTranslations("memberPass");
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ?? "https://biso.no";
     const { holder, userId } = resolved;
+    const genericObject = buildGoogleWalletObject({
+      holder,
+      issuerId: config.issuerId,
+      labels: {
+        member: t("member"),
+        validUntil: t("walletLabels.validUntil"),
+      },
+      logoUrl: `${baseUrl}/apple-touch-icon.png`,
+      termLabel: termLabel(t, holder),
+      totpKeyHex: googleWalletTotpKeyHex(userId, secret),
+      userId,
+    });
+    // Write the pass through the Wallet API so the TOTP key stays out of the
+    // save link, and so a renewal updates a pass the member already saved.
+    if (!(await syncPass(config, genericObject))) {
+      return error(502, "wallet_unavailable");
+    }
     const jwt = signGoogleSaveJwt({
       config,
-      genericObject: buildGoogleWalletObject({
-        holder,
-        issuerId: config.issuerId,
-        labels: {
-          member: t("member"),
-          validUntil: t("walletLabels.validUntil"),
-        },
-        logoUrl: `${baseUrl}/apple-touch-icon.png`,
-        termLabel: termLabel(t, holder),
-        totpKeyHex: googleWalletTotpKeyHex(userId, secret),
-        userId,
-      }),
       now: new Date(),
+      objectId: genericObject.id,
       origins: [baseUrl],
     });
     return NextResponse.redirect(`${SAVE_URL}${jwt}`, {

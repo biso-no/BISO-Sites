@@ -8,7 +8,14 @@ const signGoogleSaveJwt = vi.hoisted(() =>
   vi.fn((_input: unknown) => "header.payload.sig")
 );
 
+const syncGoogleWalletPass = vi.hoisted(() =>
+  vi.fn(async (_config: unknown, _object: unknown) => undefined)
+);
+
 vi.mock("server-only", () => ({}));
+vi.mock("@/lib/member-pass/google-wallet-api", () => ({
+  syncGoogleWalletPass,
+}));
 vi.mock("@/lib/member-pass/resolve", () => ({ resolveMemberPass }));
 vi.mock("@/lib/member-pass/wallet-config", () => ({ readGoogleWalletConfig }));
 vi.mock("@/lib/member-pass/google-pass", async (importOriginal) => ({
@@ -24,6 +31,18 @@ vi.mock("next/server", async (importOriginal) => ({
 }));
 
 import { GET } from "./route";
+
+const ACTIVE = {
+  holder: {
+    expiryDate: "2026-12-31",
+    membershipName: "Semester",
+    name: "M",
+    startDate: "2026-07-01",
+    term: null,
+  },
+  state: "active",
+  userId: "user-1",
+};
 
 describe("GET /api/member-pass/google", () => {
   beforeEach(() => {
@@ -60,34 +79,41 @@ describe("GET /api/member-pass/google", () => {
     expect((await GET()).status).toBe(403);
   });
 
-  it("redirects members to the save link", async () => {
-    resolveMemberPass.mockResolvedValue({
-      holder: {
-        expiryDate: "2026-12-31",
-        membershipName: "Semester",
-        name: "M",
-        startDate: "2026-07-01",
-        term: null,
-      },
-      state: "active",
-      userId: "user-1",
-    });
+  it("writes the pass through the Wallet API, then redirects to the save link", async () => {
+    resolveMemberPass.mockResolvedValue(ACTIVE);
     const response = await GET();
     expect(response.status).toBe(302);
     expect(response.headers.get("location")).toBe(
       "https://pay.google.com/gp/v/save/header.payload.sig"
     );
-    const input = signGoogleSaveJwt.mock.calls[0]?.[0] as {
-      genericObject: {
-        rotatingBarcode: {
-          totpDetails: { parameters: { key: string }[] };
-        };
+    const object = syncGoogleWalletPass.mock.calls[0]?.[1] as {
+      id: string;
+      rotatingBarcode: {
+        totpDetails: { parameters: { key: string }[] };
       };
+    };
+    expect(object.rotatingBarcode.totpDetails.parameters[0]?.key).toMatch(
+      TOTP_KEY_HEX_RE
+    );
+    const input = signGoogleSaveJwt.mock.calls[0]?.[0] as {
+      objectId: string;
       origins: string[];
     };
     expect(input.origins).toEqual(["https://biso.no"]);
-    expect(
-      input.genericObject.rotatingBarcode.totpDetails.parameters[0]?.key
-    ).toMatch(TOTP_KEY_HEX_RE);
+    expect(input.objectId).toBe("3388.member-user-1");
+    expect(input).not.toHaveProperty("genericObject");
+  });
+
+  it("is 502 when the Wallet API fails", async () => {
+    resolveMemberPass.mockResolvedValue(ACTIVE);
+    syncGoogleWalletPass.mockRejectedValueOnce(new Error("boom"));
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    const response = await GET();
+    expect(response.status).toBe(502);
+    expect(await response.json()).toEqual({ error: "wallet_unavailable" });
+    expect(signGoogleSaveJwt).not.toHaveBeenCalled();
+    consoleError.mockRestore();
   });
 });

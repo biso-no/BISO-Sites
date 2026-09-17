@@ -29,7 +29,7 @@ export function buildGoogleWalletObject(input: {
   termLabel: string;
   totpKeyHex: string;
   userId: string;
-}): Record<string, unknown> {
+}): { id: string } & Record<string, unknown> {
   const { holder } = input;
   return {
     cardTitle: localized("BISO"),
@@ -70,27 +70,46 @@ function base64UrlJson(value: unknown): string {
   return Buffer.from(JSON.stringify(value)).toString("base64url");
 }
 
-/** A "Save to Google Wallet" JWT carrying the class and this member's object. */
-export function signGoogleSaveJwt(input: {
-  config: GoogleWalletConfig;
-  genericObject: Record<string, unknown>;
-  now: Date;
-  origins: string[];
-}): string {
+/** An RS256 JWT signed with the service account's private key. */
+export function signServiceAccountJwt(
+  claims: Record<string, unknown>,
+  privateKey: string
+): string {
   const header = base64UrlJson({ alg: "RS256", typ: "JWT" });
-  const payload = base64UrlJson({
-    aud: "google",
-    iat: Math.floor(input.now.getTime() / 1000),
-    iss: input.config.clientEmail,
-    origins: input.origins,
-    payload: {
-      genericClasses: [{ id: googleClassId(input.config.issuerId) }],
-      genericObjects: [input.genericObject],
-    },
-    typ: "savetowallet",
-  });
+  const payload = base64UrlJson(claims);
   const signer = createSign("RSA-SHA256");
   signer.update(`${header}.${payload}`);
-  const signature = signer.sign(input.config.privateKey).toString("base64url");
+  const signature = signer.sign(privateKey).toString("base64url");
   return `${header}.${payload}.${signature}`;
+}
+
+/**
+ * A "Save to Google Wallet" JWT that only references this member's Generic
+ * Object. The object (and its TOTP key) must already have been written
+ * through the Wallet API, so the save link carries no secrets.
+ */
+export function signGoogleSaveJwt(input: {
+  config: GoogleWalletConfig;
+  now: Date;
+  objectId: string;
+  origins: string[];
+}): string {
+  return signServiceAccountJwt(
+    {
+      aud: "google",
+      iat: Math.floor(input.now.getTime() / 1000),
+      iss: input.config.clientEmail,
+      origins: input.origins,
+      payload: {
+        genericObjects: [
+          {
+            classId: googleClassId(input.config.issuerId),
+            id: input.objectId,
+          },
+        ],
+      },
+      typ: "savetowallet",
+    },
+    input.config.privateKey
+  );
 }
