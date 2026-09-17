@@ -1,206 +1,149 @@
 "use client";
 
-import { Alert, AlertDescription } from "@repo/ui/components/ui/alert";
+import {
+  membershipPriceFormatter,
+  POPULAR_MEMBERSHIP_DURATION,
+} from "@repo/shared/utils/membership-plans";
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Button } from "@repo/ui/components/ui/button";
 import { Card } from "@repo/ui/components/ui/card";
 import { Separator } from "@repo/ui/components/ui/separator";
 import { TabsContent } from "@repo/ui/components/ui/tabs";
-import { Check, Download, Share2, Smartphone, Sparkles } from "lucide-react";
-import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { Check } from "lucide-react";
+import Link from "next/link";
+import { useFormatter, useTranslations } from "next-intl";
+import { MemberPass } from "@/components/member-pass/member-pass";
+import type {
+  CurrentMembershipView,
+  PlanView,
+} from "@/lib/member-portal-membership";
 import { LockedContentOverlay } from "../shared/locked-content-overlay";
-import { MembershipCard } from "../shared/membership-card";
-
-type MembershipDuration = "semester" | "year" | "three-year";
-
-const MEMBERSHIP_PRICES = {
-  semester: 350,
-  year: 550,
-  "three-year": 1400,
-};
 
 interface MembershipTabProps {
-  autoRenew: boolean;
-  currentPlan: MembershipDuration;
-  daysRemaining: number;
-  expiryDate: string;
+  current: CurrentMembershipView | null;
   hasBIIdentity: boolean;
   isMember: boolean;
-  studentId: string;
-  userName: string;
+  plans: PlanView[];
+}
+
+function useDate() {
+  const format = useFormatter();
+  return (date: string) =>
+    format.dateTime(new Date(`${date}T12:00:00Z`), {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
+}
+
+function Stat({
+  label,
+  value,
+  hint,
+}: {
+  hint?: string;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="rounded-lg bg-section p-6 dark:bg-inverted">
+      <div className="mb-1 text-muted-foreground text-sm">{label}</div>
+      <div className="font-semibold text-foreground text-lg">{value}</div>
+      {hint ? (
+        <div className="text-muted-foreground text-sm">{hint}</div>
+      ) : null}
+    </div>
+  );
 }
 
 export function MembershipTab({
-  userName,
-  studentId,
-  currentPlan,
-  expiryDate,
-  daysRemaining,
-  autoRenew,
-  isMember,
+  current,
   hasBIIdentity,
+  isMember,
+  plans,
 }: MembershipTabProps) {
   const t = useTranslations("memberPortal.membership");
-  const tPricing = useTranslations("memberPortal.states.notMember.pricing");
-  const [isAutoRenewEnabled, setIsAutoRenewEnabled] = useState(autoRenew);
+  const tPass = useTranslations("memberPass");
+  const formatDate = useDate();
 
   const content = (
-    <>
-      <Card className="border-0 p-8 shadow-lg dark:bg-inverted/50 dark:backdrop-blur-sm">
-        <div className="mb-6 flex items-center justify-between">
-          <div>
-            <h3 className="mb-2 font-bold text-foreground text-xl dark:text-foreground">
-              {t("title")}
-            </h3>
-            <p className="text-muted-foreground dark:text-muted-foreground">
-              {t("description")}
-            </p>
-          </div>
+    <Card className="border-0 p-8 shadow-lg dark:bg-inverted/50 dark:backdrop-blur-sm">
+      <div className="mb-6 flex items-center justify-between">
+        <div>
+          <h3 className="mb-2 font-bold text-foreground text-xl">
+            {t("title")}
+          </h3>
+          <p className="text-muted-foreground">{t("description")}</p>
+        </div>
+        {current ? (
           <Badge className="border-green-200 bg-green-100 px-4 py-2 text-green-700 dark:border-green-800 dark:bg-green-900/30 dark:text-green-400">
             <Check className="mr-2 h-4 w-4" />
             {t("active")}
           </Badge>
-        </div>
+        ) : null}
+      </div>
 
+      {current ? (
         <div className="mb-8 grid gap-6 md:grid-cols-3">
-          <div className="rounded-lg bg-linear-to-br from-brand-muted to-brand-muted p-6">
-            <div className="mb-1 text-muted-foreground text-sm dark:text-muted-foreground">
-              {t("currentPlan")}
-            </div>
-            <div className="mb-2 font-semibold text-foreground text-lg dark:text-foreground">
-              {tPricing(currentPlan)}
-            </div>
-            <div className="font-bold text-2xl text-foreground dark:text-foreground">
-              {MEMBERSHIP_PRICES[currentPlan]} NOK
-            </div>
-          </div>
-
-          <div className="rounded-lg bg-section p-6 dark:bg-inverted">
-            <div className="mb-1 text-muted-foreground text-sm dark:text-inverted-muted">
-              {t("nextBillingDate")}
-            </div>
-            <div className="mb-2 font-semibold text-foreground text-lg dark:text-foreground">
-              {new Date(expiryDate).toLocaleDateString("en-US", {
-                month: "long",
-                day: "numeric",
-                year: "numeric",
-              })}
-            </div>
-            <div className="text-muted-foreground text-sm dark:text-muted-foreground">
-              {daysRemaining} days remaining
-            </div>
-          </div>
-
-          <div className="rounded-lg bg-section p-6 dark:bg-inverted">
-            <div className="mb-1 text-muted-foreground text-sm dark:text-inverted-muted">
-              {t("autoRenewal")}
-            </div>
-            <div className="mb-2 font-semibold text-foreground text-lg dark:text-foreground">
-              {isAutoRenewEnabled ? t("enabled") : t("disabled")}
-            </div>
-            <Button
-              className="mt-2"
-              onClick={() => setIsAutoRenewEnabled(!isAutoRenewEnabled)}
-              size="sm"
-              variant="outline"
-            >
-              {isAutoRenewEnabled ? t("disable") : t("enable")}
-            </Button>
-          </div>
+          <Stat
+            label={t("currentPlan")}
+            value={
+              current.duration
+                ? tPass(`duration.${current.duration}`)
+                : current.name
+            }
+          />
+          <Stat label={t("startDate")} value={formatDate(current.startDate)} />
+          <Stat
+            hint={t("daysRemaining", { days: current.daysRemaining })}
+            label={t("validUntil")}
+            value={formatDate(current.expiryDate)}
+          />
         </div>
+      ) : null}
 
-        <Separator className="my-8" />
+      <h3 className="mb-4 font-semibold text-foreground text-lg">
+        {t("yourPass")}
+      </h3>
+      <div className="mx-auto max-w-md">
+        <MemberPass />
+      </div>
 
-        <h3 className="mb-4 font-semibold text-foreground text-lg dark:text-foreground">
-          {t("upgradeMembership")}
-        </h3>
-        <p className="mb-6 text-muted-foreground dark:text-muted-foreground">
-          {t("upgradeDescription")}
-        </p>
+      <Separator className="my-8" />
 
-        <div className="mb-6 grid gap-6 sm:grid-cols-3">
-          {Object.entries(MEMBERSHIP_PRICES).map(([type, price]) => (
+      <h3 className="mb-2 font-semibold text-foreground text-lg">
+        {t("extendTitle")}
+      </h3>
+      <p className="mb-6 text-muted-foreground">{t("extendDescription")}</p>
+      {plans.length === 0 ? (
+        <p className="text-muted-foreground text-sm">{t("noUpgrades")}</p>
+      ) : (
+        <div className="grid gap-6 sm:grid-cols-3">
+          {plans.map((plan) => (
             <Card
-              className={`cursor-pointer border-2 p-6 transition-all ${
-                type === currentPlan
-                  ? "border-brand bg-brand-muted"
-                  : "border-border hover:border-brand-border-strong"
-              }`}
-              key={type}
+              className="flex flex-col items-center gap-2 border-2 p-6 text-center"
+              key={plan.id}
             >
-              <div className="text-center">
-                {type === currentPlan && (
-                  <Badge className="mb-3 bg-brand text-white">
-                    {t("currentPlanBadge")}
-                  </Badge>
-                )}
-                <h3 className="mb-2 font-semibold text-foreground text-lg dark:text-foreground">
-                  {tPricing(type as MembershipDuration)}
-                </h3>
-                <div className="mb-1 font-bold text-2xl text-foreground dark:text-foreground">
-                  {price} NOK
-                </div>
-                <div className="mb-4 text-muted-foreground text-sm dark:text-muted-foreground">
-                  {type === "semester" && t("monthlyPrice", { price: 58 })}
-                  {type === "year" && t("monthlyPrice", { price: 46 })}
-                  {type === "three-year" && t("monthlyPrice", { price: 39 })}
-                </div>
-                {type === "three-year" && (
-                  <Badge
-                    className="border-green-200 bg-green-50 text-green-700"
-                    variant="outline"
-                  >
-                    {t("savePercent", { percent: 33 })}
-                  </Badge>
-                )}
-              </div>
+              {plan.duration === POPULAR_MEMBERSHIP_DURATION ? (
+                <Badge className="bg-brand text-white">{t("popular")}</Badge>
+              ) : null}
+              <h4 className="font-semibold text-foreground text-lg">
+                {tPass(`duration.${plan.duration}`)}
+              </h4>
+              <p className="font-bold text-2xl text-foreground">
+                {membershipPriceFormatter.format(plan.price)}
+              </p>
+              <p className="text-muted-foreground text-sm">
+                {t("validUntilDate", { date: formatDate(plan.expiryDate) })}
+              </p>
+              <Button asChild className="mt-2 w-full">
+                <Link href="/membership/join">{t("choosePlan")}</Link>
+              </Button>
             </Card>
           ))}
         </div>
-
-        <Alert className="border-brand-border bg-brand-muted">
-          <Sparkles className="h-4 w-4 text-brand" />
-          <AlertDescription className="text-muted-foreground">
-            <strong>{t("proTip")}</strong> {t("proTipDescription")}
-          </AlertDescription>
-        </Alert>
-
-        <Separator className="my-8" />
-
-        <h3 className="mb-4 font-semibold text-foreground text-lg dark:text-foreground">
-          {t("digitalCard")}
-        </h3>
-        <div className="grid gap-6 md:grid-cols-2">
-          <MembershipCard
-            expiryDate={expiryDate}
-            membershipType={tPricing(currentPlan)}
-            studentId={studentId}
-            userName={userName}
-          />
-
-          <div className="space-y-4">
-            <p className="text-muted-foreground dark:text-muted-foreground">
-              {t("useCard")}
-            </p>
-            <div className="space-y-3">
-              <Button className="w-full justify-start" variant="outline">
-                <Download className="mr-2 h-4 w-4" />
-                {t("addToAppleWallet")}
-              </Button>
-              <Button className="w-full justify-start" variant="outline">
-                <Smartphone className="mr-2 h-4 w-4" />
-                {t("addToGooglePay")}
-              </Button>
-              <Button className="w-full justify-start" variant="outline">
-                <Share2 className="mr-2 h-4 w-4" />
-                {t("shareCard")}
-              </Button>
-            </div>
-          </div>
-        </div>
-      </Card>
-    </>
+      )}
+    </Card>
   );
 
   return (

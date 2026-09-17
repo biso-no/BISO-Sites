@@ -1,19 +1,9 @@
 import { Suspense } from "react";
-import { verifyMembershipStatus } from "@/app/actions/member-portal";
 import { MemberPortalSkeleton } from "@/components/member-portal/shared/member-portal-skeleton";
+import type { MembershipStatus } from "@/lib/actions/membership";
+import { getMembershipStatus } from "@/lib/actions/membership";
 import { getLoggedInUser, listIdentities } from "@/lib/actions/user";
 import { MemberPortalContent } from "./member-portal-content";
-
-interface MembershipStatus {
-  active: boolean;
-  categories?: number[];
-  error?: string;
-  membership?: {
-    expiryDate?: string;
-    name?: string;
-  } | null;
-  studentId?: number;
-}
 
 export const metadata = {
   title: "Member Portal | BISO",
@@ -25,12 +15,7 @@ export default async function MemberPortalPage() {
   const userData = await getLoggedInUser();
 
   let hasBIIdentity = false;
-  let membershipStatus: MembershipStatus = {
-    active: false,
-    categories: undefined,
-    membership: null,
-    studentId: undefined,
-  };
+  let membershipStatus: MembershipStatus | null = null;
 
   if (userData) {
     // Check if user has BI identity linked
@@ -43,7 +28,7 @@ export default async function MemberPortalPage() {
 
     // Verify membership status (only if BI identity linked)
     if (hasBIIdentity) {
-      membershipStatus = await verifyMembershipStatus();
+      membershipStatus = await getMembershipStatus();
     }
   }
 
