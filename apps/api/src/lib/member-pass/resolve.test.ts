@@ -3,10 +3,17 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const account = vi.hoisted(() => ({ get: vi.fn() }));
 const getRow = vi.hoisted(() => vi.fn());
 const getMembershipStatusForStudent = vi.hoisted(() => vi.fn());
+const createAuthenticatedClient = vi.hoisted(() =>
+  vi.fn(async () => ({ account }))
+);
 
 vi.mock("server-only", () => ({}));
-vi.mock("@/lib/auth", () => ({
-  createAuthenticatedClient: vi.fn(async () => ({ account })),
+// Keep the real `extractJwtFromRequest` (a pure header check) so the
+// resolver's "no Bearer header" guard is exercised for real; only
+// `createAuthenticatedClient` is mocked.
+vi.mock("@/lib/auth", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/auth")>()),
+  createAuthenticatedClient,
 }));
 vi.mock("@repo/api/server", () => ({
   createAdminClient: vi.fn(async () => ({ db: { getRow } })),
@@ -37,9 +44,11 @@ function status(overrides: Record<string, unknown> = {}) {
   };
 }
 
-function request() {
+function request(
+  headers: Record<string, string> = { authorization: "Bearer jwt" }
+) {
   return new Request("https://api.biso.no/api/member-pass", {
-    headers: { authorization: "Bearer jwt" },
+    headers,
   }) as never;
 }
 
@@ -65,6 +74,23 @@ describe("resolveMemberPassForRequest", () => {
 
     expect(resolved).toEqual({ state: "unauthenticated" });
     expect(getRow).not.toHaveBeenCalled();
+  });
+
+  it("reports unauthenticated with no Authorization header, without falling back to a session cookie", async () => {
+    const resolved = await resolveMemberPassForRequest(request({}));
+
+    expect(resolved).toEqual({ state: "unauthenticated" });
+    expect(createAuthenticatedClient).not.toHaveBeenCalled();
+    expect(getRow).not.toHaveBeenCalled();
+  });
+
+  it("reports unauthenticated for a non-Bearer Authorization header", async () => {
+    const resolved = await resolveMemberPassForRequest(
+      request({ authorization: "Basic dXNlcjpwYXNz" })
+    );
+
+    expect(resolved).toEqual({ state: "unauthenticated" });
+    expect(createAuthenticatedClient).not.toHaveBeenCalled();
   });
 
   it("treats a missing profile row (404) as no BI identity", async () => {

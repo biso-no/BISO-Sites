@@ -38,13 +38,17 @@ describe("GET /api/member-pass", () => {
     );
   });
 
-  it("rejects a caller with no valid session", async () => {
+  it("rejects a caller with no valid session, with CORS headers still applied", async () => {
     resolveMemberPassForRequest.mockResolvedValue({
       state: "unauthenticated",
     });
-    const response = await GET(request());
+    const response = await GET(request({ origin: "https://web.biso.no" }));
     expect(response.status).toBe(401);
     expect(await response.json()).toEqual({ error: "not_authenticated" });
+    expect(response.headers.get("cache-control")).toBe("private, no-store");
+    expect(response.headers.get("access-control-allow-origin")).toBe(
+      "https://web.biso.no"
+    );
   });
 
   it("gives non-members a state and no codes", async () => {

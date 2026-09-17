@@ -72,11 +72,15 @@ describe("GET /api/member-pass/google", () => {
     expect((await GET(request())).status).toBe(404);
   });
 
-  it("is 401 for a caller with no valid session", async () => {
+  it("is 401 for a caller with no valid session, with CORS headers applied", async () => {
     resolveMemberPassForRequest.mockResolvedValue({
       state: "unauthenticated",
     });
-    expect((await GET(request())).status).toBe(401);
+    const response = await GET(request({ origin: "https://web.biso.no" }));
+    expect(response.status).toBe(401);
+    expect(response.headers.get("access-control-allow-origin")).toBe(
+      "https://web.biso.no"
+    );
   });
 
   it("is 403 for a non-member", async () => {

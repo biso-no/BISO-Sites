@@ -73,11 +73,17 @@ describe("GET /api/member-pass/apple", () => {
     expect((await GET(request())).status).toBe(404);
   });
 
-  it("is 401 for a caller with no valid session and 403 for a non-member", async () => {
+  it("is 401 for a caller with no valid session and 403 for a non-member, with CORS headers applied", async () => {
     resolveMemberPassForRequest.mockResolvedValue({
       state: "unauthenticated",
     });
-    expect((await GET(request())).status).toBe(401);
+    const unauthenticated = await GET(
+      request({ origin: "https://web.biso.no" })
+    );
+    expect(unauthenticated.status).toBe(401);
+    expect(unauthenticated.headers.get("access-control-allow-origin")).toBe(
+      "https://web.biso.no"
+    );
     resolveMemberPassForRequest.mockResolvedValue({ state: "not_member" });
     expect((await GET(request())).status).toBe(403);
   });

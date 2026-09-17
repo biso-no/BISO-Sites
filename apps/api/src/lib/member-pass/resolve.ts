@@ -11,7 +11,7 @@ import type {
 } from "@repo/shared/member-pass/types";
 import { sanitizeStudentNumber } from "@repo/shared/utils/bi-student";
 import type { NextRequest } from "next/server";
-import { createAuthenticatedClient } from "@/lib/auth";
+import { createAuthenticatedClient, extractJwtFromRequest } from "@/lib/auth";
 import { getMembershipStatusForStudent } from "@/lib/membership-status-cache";
 
 export type ResolvedMemberPass =
@@ -29,10 +29,19 @@ function isRowNotFound(error: unknown): boolean {
  * request's `Authorization: Bearer <JWT>` header instead of a session cookie,
  * and reads the profile's `student_id` through the admin client rather than
  * through a cached server action.
+ *
+ * Requires the `Authorization: Bearer <JWT>` header explicitly — a bare
+ * `createAuthenticatedClient(req)` call falls back to a session cookie when
+ * no JWT is present, which would let a credentialed browser request through
+ * without a JWT. The spec requires a missing or invalid JWT to be a 401.
  */
 export async function resolveMemberPassForRequest(
   req: NextRequest
 ): Promise<ResolvedMemberPass> {
+  if (!extractJwtFromRequest(req)) {
+    return { state: "unauthenticated" };
+  }
+
   let userId: string;
   let accountName = "";
   try {
