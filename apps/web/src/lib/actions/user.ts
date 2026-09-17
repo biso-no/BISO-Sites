@@ -132,8 +132,18 @@ export async function getLoggedInUser(): Promise<{
 export async function listIdentities() {
   try {
     const { account } = await createSessionClient();
-    const identities = await account.listIdentities();
-    return identities;
+    const { identities } = await account.listIdentities();
+    // The SDK returns class instances that also carry the provider's access
+    // and refresh tokens. Pages hand this result to Client Components, so
+    // return plain objects with only the non-secret fields.
+    return {
+      identities: identities.map((identity) => ({
+        $id: identity.$id,
+        provider: identity.provider,
+        providerUid: identity.providerUid,
+        providerEmail: identity.providerEmail,
+      })),
+    };
   } catch (error) {
     console.error(error);
     return null;
