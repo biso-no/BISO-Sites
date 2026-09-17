@@ -34,6 +34,12 @@ describe("deriveAccrualMonths", () => {
     expect(deriveAccrualMonths("2026-08-01", "2027-06-30")).toBe(12);
   });
 
+  it("reads DD.MM.YYYY dates", () => {
+    expect(deriveAccrualMonths("01.07.2026", "31.12.2026")).toBe(6);
+    expect(deriveAccrualMonths("01.07.2026", "01.07.2027")).toBe(12);
+    expect(deriveAccrualMonths("01.07.2026", "01.07.2029")).toBe(36);
+  });
+
   it("maps a three year span to 36", () => {
     expect(deriveAccrualMonths("2026-08-01", "2029-06-30")).toBe(36);
   });
@@ -61,6 +67,18 @@ describe("deriveAccrualMonths", () => {
 });
 
 describe("toMembershipPlan", () => {
+  it("hands DD.MM.YYYY row dates on as YYYY-MM-DD", () => {
+    expect(
+      toMembershipPlan(
+        row({ startDate: "01.07.2026", expiryDate: "31.12.2026" })
+      )
+    ).toMatchObject({
+      accrualMonths: 6,
+      expiryDate: "2026-12-31",
+      startDate: "2026-07-01",
+    });
+  });
+
   it("maps a semester row", () => {
     expect(toMembershipPlan(row())).toEqual({
       id: "54",

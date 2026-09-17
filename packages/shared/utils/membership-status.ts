@@ -2,6 +2,7 @@ import { Query } from "@repo/api/client";
 import { createAdminClient } from "@repo/api/server";
 import type { Memberships } from "@repo/api/types/appwrite";
 import { getCustomerCategories } from "@repo/connectors/24sevenoffice";
+import { normalizeMembershipDate } from "./membership-dates";
 
 const DEFAULT_MEMBERSHIP_FINAGO_TIMEOUT_MS = 3000;
 
@@ -85,8 +86,6 @@ async function withDeadline<T>(
   }
 }
 
-const EXPIRY_DATE_RE = /^(\d{4}-\d{2}-\d{2})/;
-
 const osloDateFormat = new Intl.DateTimeFormat("en-CA", {
   day: "2-digit",
   month: "2-digit",
@@ -103,6 +102,7 @@ export function osloToday(now: Date = new Date()): string {
  * Whether a `memberships` row still covers `now`: a membership is valid
  * through the whole of its expiry day in Oslo.
  *
+ * Accepts both `YYYY-MM-DD` and `DD.MM.YYYY` (see `normalizeMembershipDate`).
  * A date that cannot be read counts as expired. This check exists so expired
  * memberships stop counting; an unreadable date must not slip through it.
  */
@@ -110,11 +110,11 @@ export function isMembershipRowActive(
   expiryDate: string | null | undefined,
   now: Date = new Date()
 ): boolean {
-  const match = EXPIRY_DATE_RE.exec(expiryDate?.trim() ?? "");
-  if (!match) {
+  const expiry = normalizeMembershipDate(expiryDate);
+  if (!expiry) {
     return false;
   }
-  return match[1] >= osloToday(now);
+  return expiry >= osloToday(now);
 }
 
 export function emptyMembershipStatus(reason: string): MembershipStatus {
@@ -195,30 +195,34 @@ export async function computeMembershipStatus(
       active.push(membership);
       continue;
     }
-    if (!EXPIRY_DATE_RE.test(membership.expiryDate?.trim() ?? "")) {
+    if (!normalizeMembershipDate(membership.expiryDate)) {
       console.warn(
         `[Membership] memberships row ${membership.$id} has an unreadable expiryDate "${membership.expiryDate}"; treating it as expired`
       );
     }
     expired.push(membership);
   }
-  expired.sort((a, b) =>
-    (b.expiryDate ?? "").localeCompare(a.expiryDate ?? "")
-  );
 
+  // Dates go out as `YYYY-MM-DD` so callers can sort, compare and render them
+  // without knowing which form the row was written in.
   const toInfo = (membership: Memberships): MembershipInfo => ({
     category: membership.category,
-    expiryDate: membership.expiryDate,
+    expiryDate:
+      normalizeMembershipDate(membership.expiryDate) ?? membership.expiryDate,
     id: membership.$id,
     name: membership.name,
-    startDate: membership.startDate,
+    startDate:
+      normalizeMembershipDate(membership.startDate) ?? membership.startDate,
   });
+  const expiredInfo = expired
+    .map(toInfo)
+    .sort((a, b) => (b.expiryDate ?? "").localeCompare(a.expiryDate ?? ""));
 
   const isMember = active.length > 0;
 
   return {
     checkedAt: Date.now(),
-    expiredMemberships: expired.map(toInfo),
+    expiredMemberships: expiredInfo,
     finagoCategoryIds,
     isMember,
     memberships: active.map(toInfo),

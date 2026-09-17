@@ -51,6 +51,15 @@ describe("isMembershipRowActive", () => {
     ).toBe(true);
   });
 
+  it("reads a DD.MM.YYYY expiry", () => {
+    expect(
+      isMembershipRowActive("31.12.2026", new Date("2026-09-17T10:00:00Z"))
+    ).toBe(true);
+    expect(
+      isMembershipRowActive("30.06.2026", new Date("2026-09-17T10:00:00Z"))
+    ).toBe(false);
+  });
+
   it("treats an unreadable expiry as expired", () => {
     expect(isMembershipRowActive("", new Date())).toBe(false);
     expect(isMembershipRowActive("fall 2026", new Date())).toBe(false);
@@ -108,6 +117,40 @@ describe("computeMembershipStatus", () => {
     expect(status.isMember).toBe(false);
     expect(status.reason).toBe("expired");
     expect(status.memberships).toEqual([]);
+    expect(status.expiredMemberships?.map((m) => m.id)).toEqual([
+      "newer",
+      "older",
+    ]);
+  });
+
+  it("counts a held row whose dates are written DD.MM.YYYY", async () => {
+    getCustomerCategories.mockResolvedValue([113_176]);
+    listRows.mockResolvedValue({
+      rows: [{ ...row("54", "113176", "31.12.2026"), startDate: "01.07.2026" }],
+      total: 1,
+    });
+
+    const status = await computeMembershipStatus(1_715_738, now);
+
+    expect(status.isMember).toBe(true);
+    expect(status.memberships).toEqual([
+      expect.objectContaining({
+        expiryDate: "2026-12-31",
+        id: "54",
+        startDate: "2026-07-01",
+      }),
+    ]);
+  });
+
+  it("orders expired memberships by date, whatever form they are written in", async () => {
+    getCustomerCategories.mockResolvedValue([1, 2]);
+    listRows.mockResolvedValue({
+      rows: [row("older", "1", "31.12.2025"), row("newer", "2", "2026-06-30")],
+      total: 2,
+    });
+
+    const status = await computeMembershipStatus(1_715_738, now);
+
     expect(status.expiredMemberships?.map((m) => m.id)).toEqual([
       "newer",
       "older",

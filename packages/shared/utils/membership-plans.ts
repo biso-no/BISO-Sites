@@ -7,6 +7,8 @@
  * It is NOT the `ProductNo` (1009/2004/3004) shown in the 24SO UI.
  */
 
+import { normalizeMembershipDate } from "./membership-dates";
+
 export type MembershipDuration = "semester" | "year" | "three_years";
 
 /** The duration surfaced as "Popular" everywhere a plan picker renders one. */
@@ -77,8 +79,8 @@ export function deriveAccrualMonths(
   startDate: string,
   expiryDate: string
 ): 6 | 12 | 36 | null {
-  const start = new Date(startDate);
-  const expiry = new Date(expiryDate);
+  const start = new Date(normalizeMembershipDate(startDate) ?? startDate);
+  const expiry = new Date(normalizeMembershipDate(expiryDate) ?? expiryDate);
 
   if (Number.isNaN(start.getTime()) || Number.isNaN(expiry.getTime())) {
     return null;
@@ -131,7 +133,7 @@ export function toMembershipPlan(
     categoryId,
     duration: DURATION_BY_ACCRUAL[accrualMonths],
     accrualMonths,
-    startDate: row.startDate,
-    expiryDate: row.expiryDate,
+    startDate: normalizeMembershipDate(row.startDate) ?? row.startDate,
+    expiryDate: normalizeMembershipDate(row.expiryDate) ?? row.expiryDate,
   };
 }
