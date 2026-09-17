@@ -1291,6 +1291,77 @@
       "planPrice": "{price} kr"
     }
   },
+  "memberPass": {
+    "scanTitle": "Scan member passes",
+    "scanDescription": "Point the camera at a member's pass.",
+    "openScanner": "Scan passes",
+    "manageLinks": "Guest scanner links",
+    "todaysColor": "Today's color",
+    "cameraError": "Camera unavailable. Allow camera access and reload.",
+    "starting": "Starting camera…",
+    "notConfigured": "Pass scanning is not configured.",
+    "tapToContinue": "Tap to scan the next pass",
+    "results": {
+      "valid": "Valid member",
+      "duplicate": "Already scanned {seconds}s ago",
+      "check_id": "Wallet pass — check ID",
+      "unavailable": "Couldn't check — try again",
+      "denied": "Not valid"
+    },
+    "reasons": {
+      "bad_code": "Not a BISO pass",
+      "stale": "Old code — ask them to open the pass again",
+      "expired": "Membership has ended",
+      "not_member": "Not a member",
+      "not_linked": "No linked student account"
+    },
+    "validUntil": "Valid until {date}",
+    "links": {
+      "title": "Guest scanner links",
+      "description": "Give event security a scanner without an account. Links expire automatically and can be revoked.",
+      "label": "Label",
+      "labelPlaceholder": "e.g. Fadderuke – door 1",
+      "campus": "Campus",
+      "allCampuses": "All campuses",
+      "expiresAt": "Valid until",
+      "create": "Create link",
+      "created": "Link created — copy it now, it is shown only once.",
+      "copy": "Copy link",
+      "copied": "Copied",
+      "active": "Active links",
+      "none": "No active links.",
+      "revoke": "Revoke",
+      "revoked": "Link revoked",
+      "expires": "Expires {date}",
+      "errors": {
+        "invalid_label": "Enter a label.",
+        "invalid_expiry": "Choose a time in the future (max 48 hours).",
+        "forbidden_campus": "You can only create links for your own campus.",
+        "not_found": "That link no longer exists.",
+        "failed": "Something went wrong. Try again.",
+        "not_configured": "Pass scanning is not configured."
+      }
+    },
+    "guest": {
+      "invalidTitle": "This scanner link is not valid",
+      "invalidDescription": "It has expired or been revoked. Ask BISO staff for a new link.",
+      "rateLimited": "Too many scans — wait a moment."
+    },
+    "colors": {
+      "red": "Red",
+      "orange": "Orange",
+      "yellow": "Yellow",
+      "lime": "Lime",
+      "green": "Green",
+      "teal": "Teal",
+      "cyan": "Cyan",
+      "blue": "Blue",
+      "indigo": "Indigo",
+      "purple": "Purple",
+      "pink": "Pink",
+      "brown": "Brown"
+    }
+  },
   "unauthorized": {
     "tagline": "Access denied",
     "title": "You must be signed in to view this page",

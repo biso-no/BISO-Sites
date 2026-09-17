@@ -1291,6 +1291,77 @@
       "planPrice": "{price} kr"
     }
   },
+  "memberPass": {
+    "scanTitle": "Skann medlemskort",
+    "scanDescription": "Hold kameraet mot medlemskortet.",
+    "openScanner": "Skann medlemskort",
+    "manageLinks": "Gjesteskanner-lenker",
+    "todaysColor": "Dagens farge",
+    "cameraError": "Kameraet er utilgjengelig. Gi tilgang til kameraet og last inn på nytt.",
+    "starting": "Starter kamera…",
+    "notConfigured": "Skanning av medlemskort er ikke satt opp.",
+    "tapToContinue": "Trykk for å skanne neste kort",
+    "results": {
+      "valid": "Gyldig medlem",
+      "duplicate": "Allerede skannet for {seconds}s siden",
+      "check_id": "Wallet-kort — sjekk legitimasjon",
+      "unavailable": "Kunne ikke sjekke — prøv igjen",
+      "denied": "Ikke gyldig"
+    },
+    "reasons": {
+      "bad_code": "Ikke et BISO-kort",
+      "stale": "Gammel kode — be personen åpne kortet på nytt",
+      "expired": "Medlemskapet har utløpt",
+      "not_member": "Ikke medlem",
+      "not_linked": "Ingen tilkoblet studentkonto"
+    },
+    "validUntil": "Gyldig til {date}",
+    "links": {
+      "title": "Gjesteskanner-lenker",
+      "description": "Gi vakter en skanner uten konto. Lenkene utløper automatisk og kan trekkes tilbake.",
+      "label": "Navn",
+      "labelPlaceholder": "f.eks. Fadderuke – dør 1",
+      "campus": "Campus",
+      "allCampuses": "Alle campuser",
+      "expiresAt": "Gyldig til",
+      "create": "Lag lenke",
+      "created": "Lenken er laget — kopier den nå, den vises bare én gang.",
+      "copy": "Kopier lenke",
+      "copied": "Kopiert",
+      "active": "Aktive lenker",
+      "none": "Ingen aktive lenker.",
+      "revoke": "Trekk tilbake",
+      "revoked": "Lenken er trukket tilbake",
+      "expires": "Utløper {date}",
+      "errors": {
+        "invalid_label": "Skriv inn et navn.",
+        "invalid_expiry": "Velg et tidspunkt fram i tid (maks 48 timer).",
+        "forbidden_campus": "Du kan bare lage lenker for din egen campus.",
+        "not_found": "Lenken finnes ikke lenger.",
+        "failed": "Noe gikk galt. Prøv igjen.",
+        "not_configured": "Skanning av medlemskort er ikke satt opp."
+      }
+    },
+    "guest": {
+      "invalidTitle": "Denne skannerlenken er ikke gyldig",
+      "invalidDescription": "Den har utløpt eller blitt trukket tilbake. Be BISO om en ny lenke.",
+      "rateLimited": "For mange skanninger — vent litt."
+    },
+    "colors": {
+      "red": "Rød",
+      "orange": "Oransje",
+      "yellow": "Gul",
+      "lime": "Limegrønn",
+      "green": "Grønn",
+      "teal": "Blågrønn",
+      "cyan": "Turkis",
+      "blue": "Blå",
+      "indigo": "Indigo",
+      "purple": "Lilla",
+      "pink": "Rosa",
+      "brown": "Brun"
+    }
+  },
   "unauthorized": {
     "tagline": "Tilgang nektet",
     "title": "Du må være logget inn for å se denne siden",
