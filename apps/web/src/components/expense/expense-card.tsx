@@ -26,8 +26,8 @@ interface ExpenseCardProps {
     description: string | null;
     total: number;
     status: ExpensesStatus;
-    campus: string;
-    department: string;
+    campusName: string;
+    departmentName: string;
     $createdAt: string;
     expenseAttachments?: ExpenseAttachments[];
   };
@@ -114,7 +114,7 @@ export function ExpenseCard({ expense, index = 0 }: ExpenseCardProps) {
               <div className="flex items-center gap-2">
                 <Building2 className="h-4 w-4 text-brand" />
                 <span>
-                  {expense.campus} - {expense.department}
+                  {expense.campusName} - {expense.departmentName}
                 </span>
               </div>
               <div className="flex items-center gap-2">

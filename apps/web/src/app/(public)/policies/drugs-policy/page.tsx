@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 export default async function DrugsPolicyPage() {
   const t = await getTranslations("policies.drugsPolicy");
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pt-20">
       <PublicPageHeader
         breadcrumbs={[
           { label: "Home", href: "/" },

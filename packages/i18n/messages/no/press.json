@@ -1,21 +1,43 @@
 {
   "meta": {
     "title": "Presse og media | BISO",
-    "description": "Profilmateriale, pressekontakt og retningslinjer for bruk."
+    "description": "Pressekontakt, logoer og retningslinjer for BI Studentorganisasjon."
   },
   "title": "Presse og media",
+  "breadcrumbHome": "Hjem",
+  "subtitle": "Pressekontakt, logoer og retningslinjer for journalister og samarbeidspartnere.",
+  "intro": {
+    "title": "Skriver du om BISO?",
+    "body": "BI Studentorganisasjon (BISO) er studentorganisasjonen ved Handelshøyskolen BI, med campuser i Oslo, Bergen, Trondheim og Stavanger. Ta kontakt for kommentarer, intervjuer eller bakgrunn om studentlivet ved BI."
+  },
   "contact": {
     "title": "Pressekontakt",
-    "body": "For mediehenvendelser, intervjuer og bruk av merkevaren, kontakt oss på:"
+    "body": "For mediehenvendelser, intervjuer og bruk av merkevaren, kontakt oss på:",
+    "cta": "Send e-post"
   },
   "assets": {
-    "title": "Profilmateriale",
-    "logoLight": "BISO-logo (lys)",
-    "logoDark": "BISO-logo (mørk)",
+    "title": "Logoer og materiell",
+    "lead": "Last ned filene i full oppløsning. Velg logoversjonen som passer bakgrunnen din.",
+    "download": "Last ned",
+    "downloadAria": "Last ned {name}",
+    "logoLight": "Logo for lys bakgrunn",
+    "logoDark": "Logo for mørk bakgrunn",
     "orgChart": "Organisasjonskart"
   },
   "usage": {
-    "title": "Bruk av merkevaren",
-    "body": "Bruk logoen med friområde rundt, og ikke endre farger eller proporsjoner."
+    "title": "Bruk av logoen",
+    "doTitle": "Gjør",
+    "dontTitle": "Unngå",
+    "do": [
+      "La det være friområde rundt logoen på alle sider",
+      "Bruk versjonen for mørk bakgrunn på mørke bakgrunner og bilder",
+      "Skaler logoen proporsjonalt"
+    ],
+    "dont": [
+      "Endre fargene i logoen",
+      "Strekke, rotere eller beskjære logoen",
+      "Legge til effekter som skygge eller omriss"
+    ],
+    "note": "Planlegger du et samarbeid eller felles profilmateriell? Ta kontakt før du publiserer."
   }
 }

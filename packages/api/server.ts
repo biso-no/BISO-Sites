@@ -151,9 +151,10 @@ function createAppwriteTimeoutError(
 function logAppwriteTiming(
   kind: AppwriteClientKind,
   request: string,
-  durationMs: number,
+  elapsedMs: number,
   outcome: "ok" | "error" | "timeout"
 ) {
+  const durationMs = Math.round(elapsedMs);
   if (outcome === "timeout") {
     console.error("[appwrite] request timed out", {
       client: kind,
@@ -272,20 +273,28 @@ function configureServerClient(
     };
   };
 
+  // Durations use `performance.now()`, not `Date.now()`: these clients run
+  // while Next.js prerenders with Cache Components, and a wall-clock read
+  // there fails the render ("blocking-prerender-current-time").
   client.call = async (...args: Parameters<Client["call"]>) => {
     const request = describeAppwriteRequest(args[0], args[1]);
-    const startedAt = Date.now();
+    const startedAt = performance.now();
     try {
       const result = await call(...args);
-      logAppwriteTiming(kind, request, Date.now() - startedAt, "ok");
+      logAppwriteTiming(kind, request, performance.now() - startedAt, "ok");
       return result;
     } catch (error) {
       if (isAbortError(error)) {
-        logAppwriteTiming(kind, request, Date.now() - startedAt, "timeout");
+        logAppwriteTiming(
+          kind,
+          request,
+          performance.now() - startedAt,
+          "timeout"
+        );
         throw createAppwriteTimeoutError(kind, request);
       }
 
-      logAppwriteTiming(kind, request, Date.now() - startedAt, "error");
+      logAppwriteTiming(kind, request, performance.now() - startedAt, "error");
       throw error;
     }
   };
@@ -296,18 +305,23 @@ function configureServerClient(
   // instead of becoming a handled AppwriteException.
   client.redirect = async (...args: Parameters<Client["redirect"]>) => {
     const request = describeAppwriteRequest(args[0], args[1]);
-    const startedAt = Date.now();
+    const startedAt = performance.now();
     try {
       const result = await redirect(...args);
-      logAppwriteTiming(kind, request, Date.now() - startedAt, "ok");
+      logAppwriteTiming(kind, request, performance.now() - startedAt, "ok");
       return result;
     } catch (error) {
       if (isAbortError(error)) {
-        logAppwriteTiming(kind, request, Date.now() - startedAt, "timeout");
+        logAppwriteTiming(
+          kind,
+          request,
+          performance.now() - startedAt,
+          "timeout"
+        );
         throw createAppwriteTimeoutError(kind, request);
       }
 
-      logAppwriteTiming(kind, request, Date.now() - startedAt, "error");
+      logAppwriteTiming(kind, request, performance.now() - startedAt, "error");
       throw error;
     }
   };
