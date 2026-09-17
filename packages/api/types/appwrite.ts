@@ -1646,6 +1646,17 @@ export type MemberPassScans = Models.Row & {
   scanner_link_id: string | null;
 };
 
+export type MemberPassScanners = Models.Row & {
+  user_id: string;
+  email: string;
+  name: string | null;
+  campus_id: string | null;
+  granted_by: string;
+  expires_at: string | null;
+  revoked_at: string | null;
+  invited_at: string | null;
+};
+
 export type AuthTokens = Models.Row & {
   token: string;
 };
