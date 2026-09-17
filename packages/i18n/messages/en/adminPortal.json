@@ -1339,7 +1339,8 @@
         "forbidden_campus": "You can only create links for your own campus.",
         "not_found": "That link no longer exists.",
         "failed": "Something went wrong. Try again.",
-        "not_configured": "Pass scanning is not configured."
+        "not_configured": "Pass scanning is not configured.",
+        "invalid_link": "This scanner link is no longer valid."
       }
     },
     "guest": {

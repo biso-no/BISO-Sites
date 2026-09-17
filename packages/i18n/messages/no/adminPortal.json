@@ -1339,7 +1339,8 @@
         "forbidden_campus": "Du kan bare lage lenker for din egen campus.",
         "not_found": "Lenken finnes ikke lenger.",
         "failed": "Noe gikk galt. Prøv igjen.",
-        "not_configured": "Skanning av medlemskort er ikke satt opp."
+        "not_configured": "Skanning av medlemskort er ikke satt opp.",
+        "invalid_link": "Denne skannerlenken er ikke lenger gyldig."
       }
     },
     "guest": {
