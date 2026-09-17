@@ -457,7 +457,8 @@
                 "create(\"team:sg-app-dept-operationsunit\")",
                 "read(\"team:sg-app-dept-operationsunit\")",
                 "update(\"team:sg-app-dept-operationsunit\")",
-                "delete(\"team:sg-app-dept-operationsunit\")"
+                "delete(\"team:sg-app-dept-operationsunit\")",
+                "create(\"users\")"
             ],
             "databaseId": "app",
             "name": "Users",
@@ -11351,60 +11352,6 @@
             "indexes": []
         },
         {
-            "$id": "departments",
-            "$permissions": [],
-            "databaseId": "24so",
-            "name": "Departments",
-            "enabled": true,
-            "rowSecurity": false,
-            "columns": [
-                {
-                    "key": "Id",
-                    "type": "text",
-                    "required": true,
-                    "array": false,
-                    "default": null,
-                    "encrypt": false
-                },
-                {
-                    "key": "Name",
-                    "type": "text",
-                    "required": true,
-                    "array": false,
-                    "default": null,
-                    "encrypt": false
-                },
-                {
-                    "key": "Campus",
-                    "type": "text",
-                    "required": false,
-                    "array": false,
-                    "default": null,
-                    "encrypt": false
-                }
-            ],
-            "indexes": []
-        },
-        {
-            "$id": "auth_tokens",
-            "$permissions": [],
-            "databaseId": "24so",
-            "name": "Auth Tokens",
-            "enabled": true,
-            "rowSecurity": false,
-            "columns": [
-                {
-                    "key": "token",
-                    "type": "text",
-                    "required": true,
-                    "array": false,
-                    "default": null,
-                    "encrypt": false
-                }
-            ],
-            "indexes": []
-        },
-        {
             "$id": "member_pass_scanner_links",
             "$permissions": [],
             "databaseId": "app",
@@ -11580,6 +11527,60 @@
                     "orders": []
                 }
             ]
+        },
+        {
+            "$id": "departments",
+            "$permissions": [],
+            "databaseId": "24so",
+            "name": "Departments",
+            "enabled": true,
+            "rowSecurity": false,
+            "columns": [
+                {
+                    "key": "Id",
+                    "type": "text",
+                    "required": true,
+                    "array": false,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "Name",
+                    "type": "text",
+                    "required": true,
+                    "array": false,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "Campus",
+                    "type": "text",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "encrypt": false
+                }
+            ],
+            "indexes": []
+        },
+        {
+            "$id": "auth_tokens",
+            "$permissions": [],
+            "databaseId": "24so",
+            "name": "Auth Tokens",
+            "enabled": true,
+            "rowSecurity": false,
+            "columns": [
+                {
+                    "key": "token",
+                    "type": "text",
+                    "required": true,
+                    "array": false,
+                    "default": null,
+                    "encrypt": false
+                }
+            ],
+            "indexes": []
         }
     ],
     "buckets": [
