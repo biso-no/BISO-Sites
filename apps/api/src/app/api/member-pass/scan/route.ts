@@ -63,21 +63,22 @@ export async function POST(req: NextRequest) {
   }
 
   const now = new Date();
-  const auth = await requireScanner(req, now);
-  if (!auth.ok) {
-    return json({ error: auth.error }, origin, auth.status);
-  }
-
-  const parsed = await parseScanBody(req);
-  if (!parsed.ok) {
-    return json({ error: "invalid_body" }, origin, 400);
-  }
-
-  if (!scanRateLimiter(auth.userId, now.getTime())) {
-    return json({ error: "rate_limited" }, origin, 429);
-  }
 
   try {
+    const auth = await requireScanner(req, now);
+    if (!auth.ok) {
+      return json({ error: auth.error }, origin, auth.status);
+    }
+
+    const parsed = await parseScanBody(req);
+    if (!parsed.ok) {
+      return json({ error: "invalid_body" }, origin, 400);
+    }
+
+    if (!scanRateLimiter(auth.userId, now.getTime())) {
+      return json({ error: "rate_limited" }, origin, 429);
+    }
+
     const { db } = await createAdminClient();
     const outcome = await verifyScan(
       parsed.code,

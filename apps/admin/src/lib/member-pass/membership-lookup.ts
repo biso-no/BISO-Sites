@@ -1,4 +1,8 @@
 import {
+  type FreshMembershipStatusDeps,
+  getFreshMembershipStatus,
+} from "@repo/shared/member-pass/scan-membership";
+import {
   computeMembershipStatus,
   type MembershipStatus,
   membershipCacheTag,
@@ -6,7 +10,8 @@ import {
 import { unstable_cache } from "next/cache";
 
 // Short: a door queue re-checks the same member rarely, and a cancelled
-// membership must stop working quickly.
+// membership must stop working quickly. Kept in sync with
+// `@repo/shared/member-pass/scan-membership`'s `SCAN_STATUS_TTL_MS`.
 const SCAN_STATUS_TTL_SECONDS = 60;
 
 function cachedMembershipStatus(
@@ -21,37 +26,21 @@ function cachedMembershipStatus(
 }
 
 /** Injectable seams for tests; production calls use the real Next.js cache. */
-export interface ScanMembershipLookupDeps {
-  compute?: (studentNumber: number) => Promise<MembershipStatus>;
-  getCached?: (studentNumber: number) => Promise<MembershipStatus>;
-}
+export type ScanMembershipLookupDeps = Partial<FreshMembershipStatusDeps>;
 
 /**
- * Live Finago membership for a scan. Transient failures throw
- * `MembershipComputationError`, which `unstable_cache` does not store.
- *
- * `unstable_cache` is stale-while-revalidate: once an entry is older than
- * `revalidate`, it is served once more while a background refresh runs, and
- * if that refresh throws, the stale entry keeps being served on every
- * request after it — indefinitely, since there is no request path here that
- * ever awaits the refresh. A door scanner cannot afford that: a membership
- * cancelled during a Finago outage must stop scanning in quickly, not stay
- * "valid" until Finago recovers. So a cached result older than the TTL is
- * treated as a miss: this calls `computeMembershipStatus` directly
- * (uncached), so a Finago failure throws here and `verifyScan` reports
- * `unavailable` instead of serving a stale "is a member" result.
+ * Live Finago membership for a scan: this app's own `unstable_cache` reader
+ * (own cache key, own revalidate tag) plumbed into the shared freshness rule
+ * (`@repo/shared/member-pass/scan-membership`). See that module for why a
+ * stale cache entry is treated as a miss instead of being served — a door
+ * scanner cannot afford a Finago outage to look like a valid pass.
  */
-export async function getScanMembershipStatus(
+export function getScanMembershipStatus(
   studentNumber: number,
   deps: ScanMembershipLookupDeps = {}
 ): Promise<MembershipStatus> {
-  const compute = deps.compute ?? computeMembershipStatus;
-  const getCached = deps.getCached ?? cachedMembershipStatus;
-
-  const status = await getCached(studentNumber);
-  const ageMs = Date.now() - status.checkedAt;
-  if (ageMs > SCAN_STATUS_TTL_SECONDS * 1000) {
-    return compute(studentNumber);
-  }
-  return status;
+  return getFreshMembershipStatus(studentNumber, {
+    getCached: cachedMembershipStatus,
+    ...deps,
+  });
 }

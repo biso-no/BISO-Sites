@@ -196,6 +196,22 @@ describe("POST /api/member-pass/scan", () => {
     expect(await limited.json()).toEqual({ error: "rate_limited" });
   });
 
+  it("returns a clean 500 with CORS headers when requireScanner itself throws (e.g. an Appwrite outage)", async () => {
+    requireScanner.mockRejectedValue(new Error("appwrite down"));
+
+    const response = await POST(
+      request({ code: "v1.user-1.1.sig" }, { origin: "https://web.biso.no" })
+    );
+
+    expect(response.status).toBe(500);
+    expect(await response.json()).toEqual({ error: "failed" });
+    expect(response.headers.get("cache-control")).toBe("private, no-store");
+    expect(response.headers.get("access-control-allow-origin")).toBe(
+      "https://web.biso.no"
+    );
+    expect(verifyScan).not.toHaveBeenCalled();
+  });
+
   it("returns a clean 500 on an unexpected failure, without logging the code", async () => {
     verifyScan.mockRejectedValue(new Error("db exploded"));
     const consoleError = vi.spyOn(console, "error");
