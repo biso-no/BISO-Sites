@@ -1,0 +1,48 @@
+@keyframes member-pass-holo {
+  from {
+    background-position: 0% 50%;
+  }
+  to {
+    background-position: 200% 50%;
+  }
+}
+
+@keyframes member-pass-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.4;
+    transform: scale(0.8);
+  }
+}
+
+.member-pass-holo {
+  background-image: linear-gradient(
+    110deg,
+    #ff6ec4,
+    #7873f5,
+    #4ade80,
+    #facc15,
+    #ff6ec4,
+    #7873f5
+  );
+  background-size: 200% 100%;
+  animation: member-pass-holo 4s linear infinite;
+}
+
+.member-pass-live-dot {
+  animation: member-pass-pulse 1.2s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* Slowed, not stopped: the motion is what tells a live pass from a still. */
+  .member-pass-holo {
+    animation-duration: 20s;
+  }
+  .member-pass-live-dot {
+    animation-duration: 4s;
+  }
+}
