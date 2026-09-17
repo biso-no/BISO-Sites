@@ -10745,6 +10745,108 @@
       ]
     },
     {
+      "$id": "member_pass_scanners",
+      "$permissions": [],
+      "databaseId": "app",
+      "name": "Member Pass Scanners",
+      "enabled": true,
+      "rowSecurity": false,
+      "columns": [
+        {
+          "key": "user_id",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 36,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "email",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 320,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "name",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 120,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "campus_id",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 36,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "granted_by",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 36,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "expires_at",
+          "type": "datetime",
+          "required": false,
+          "array": false,
+          "default": null,
+          "format": ""
+        },
+        {
+          "key": "revoked_at",
+          "type": "datetime",
+          "required": false,
+          "array": false,
+          "default": null,
+          "format": ""
+        },
+        {
+          "key": "invited_at",
+          "type": "datetime",
+          "required": false,
+          "array": false,
+          "default": null,
+          "format": ""
+        }
+      ],
+      "indexes": [
+        {
+          "key": "user_id_idx",
+          "type": "key",
+          "status": "available",
+          "columns": ["user_id"],
+          "orders": []
+        },
+        {
+          "key": "email_idx",
+          "type": "key",
+          "status": "available",
+          "columns": ["email"],
+          "orders": []
+        },
+        {
+          "key": "campus_id_idx",
+          "type": "key",
+          "status": "available",
+          "columns": ["campus_id"],
+          "orders": []
+        }
+      ]
+    },
+    {
       "$id": "departments",
       "$permissions": [],
       "databaseId": "24so",
