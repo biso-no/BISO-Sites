@@ -195,7 +195,17 @@ function instrument(
     startedAt: number,
     outcome: AppwriteTimingEvent["outcome"]
   ) => {
-    const durationMs = Date.now() - startedAt;
+    // `performance.now()` is monotonic, so a wall-clock step mid-request (an
+    // NTP correction, a container clock sync) cannot make a duration wrong or
+    // negative. `./server` switched to it for a Next-specific reason — reading
+    // the wall clock during a Cache Components prerender fails the render —
+    // which cannot happen out here. The reason to match is the simpler one:
+    // this module documents itself as having the same slow-request logging
+    // behaviour, and monotonic is the right clock for an elapsed time anyway.
+    //
+    // Rounded because `durationMs` reaches an `audit_logs` row through
+    // `@repo/mcp`, and a fractional millisecond there is noise, not precision.
+    const durationMs = Math.round(performance.now() - startedAt);
     onTiming?.({
       client: kind,
       request,
@@ -211,7 +221,7 @@ function instrument(
   ) => {
     return async (...args: A): Promise<R> => {
       const request = describe(args);
-      const startedAt = Date.now();
+      const startedAt = performance.now();
       try {
         const result = await inner(...args);
         report(request, startedAt, "ok");

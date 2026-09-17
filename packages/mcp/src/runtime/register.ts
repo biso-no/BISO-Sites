@@ -176,7 +176,10 @@ async function invokeTool(input: {
 }): Promise<CallToolResult> {
   const { tool, args, context, timeoutMs } = input;
   const requestId = randomUUID();
-  const startedAt = Date.now();
+  // Monotonic, for the same reason `@repo/api/runtime` uses it: this duration
+  // is persisted to `audit_logs`, and a wall-clock step mid-call would record
+  // a wrong — possibly negative — elapsed time.
+  const startedAt = performance.now();
   const logger = context.logger.child({ requestId, tool: tool.name });
   const tier = tool.tier ?? "read";
 
@@ -228,7 +231,7 @@ async function invokeTool(input: {
       requestId,
       action: tool.name,
       outcome: auditOutcome(outcome, tier),
-      durationMs: Date.now() - startedAt,
+      durationMs: Math.round(performance.now() - startedAt),
       payload: { tier },
     });
     return toCallToolResult(outcome);
@@ -243,7 +246,7 @@ async function invokeTool(input: {
       requestId,
       action: tool.name,
       outcome: "error",
-      durationMs: Date.now() - startedAt,
+      durationMs: Math.round(performance.now() - startedAt),
       payload: { code: isDomainError(rawError) ? rawError.code : "internal" },
     });
     return toCallToolResult(toToolError(rawError, requestId));
