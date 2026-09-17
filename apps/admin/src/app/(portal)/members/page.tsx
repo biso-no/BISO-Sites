@@ -32,6 +32,9 @@ export default async function MembersPage({ searchParams }: MembersPageProps) {
           <Button asChild size="sm" variant="outline">
             <Link href="/members/scan/links">{tPass("manageLinks")}</Link>
           </Button>
+          <Button asChild size="sm" variant="outline">
+            <Link href="/members/scan/access">{tPass("manageAccess")}</Link>
+          </Button>
           <Button asChild size="sm">
             <Link href="/members/scan">
               <ScanLine className="mr-2 h-4 w-4" />

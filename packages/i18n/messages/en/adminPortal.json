@@ -1296,6 +1296,7 @@
     "scanDescription": "Point the camera at a member's pass.",
     "openScanner": "Scan passes",
     "manageLinks": "Guest scanner links",
+    "manageAccess": "Scanner access",
     "todaysColor": "Today's color",
     "cameraError": "Camera unavailable. Allow camera access and reload.",
     "starting": "Starting camera…",
@@ -1341,6 +1342,53 @@
         "failed": "Something went wrong. Try again.",
         "not_configured": "Pass scanning is not configured.",
         "invalid_link": "This scanner link is no longer valid."
+      }
+    },
+    "access": {
+      "title": "Scanner access",
+      "description": "Let people outside BISO scan member passes in the BISO app. They sign in with the email address you enter here.",
+      "addTitle": "Add scanner",
+      "email": "Email",
+      "emailPlaceholder": "name@example.com",
+      "name": "Name (optional)",
+      "namePlaceholder": "e.g. Ola Nordmann – Securitas",
+      "campus": "Campus",
+      "allCampuses": "All campuses",
+      "expiresAt": "End date (optional)",
+      "expiresHint": "Leave empty to keep access until you revoke it.",
+      "invite": "Give access and send invitation",
+      "invited": "Access given and invitation sent.",
+      "resent": "Invitation sent again.",
+      "emailNotSent": "Access saved, but the invitation was not sent — check SMTP settings.",
+      "revoked": "Access revoked.",
+      "listTitle": "People with scanner access",
+      "none": "Nobody has been given scanner access yet.",
+      "noEndDate": "No end date",
+      "notInvited": "Not sent",
+      "resend": "Resend invitation",
+      "revoke": "Revoke",
+      "columns": {
+        "name": "Name",
+        "email": "Email",
+        "campus": "Campus",
+        "grantedBy": "Granted by",
+        "expiresAt": "End date",
+        "status": "Status",
+        "invitedAt": "Last invited",
+        "actions": "Actions"
+      },
+      "status": {
+        "active": "Active",
+        "expired": "Expired",
+        "revoked": "Revoked"
+      },
+      "errors": {
+        "invalid_email": "Enter a valid email address.",
+        "invalid_expiry": "Choose an end date in the future.",
+        "forbidden_campus": "You can only give access for your own campus.",
+        "not_found": "That access no longer exists.",
+        "not_active": "This access has ended. Add the person again instead.",
+        "failed": "Something went wrong. Try again."
       }
     },
     "guest": {

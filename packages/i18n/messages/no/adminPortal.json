@@ -1296,6 +1296,7 @@
     "scanDescription": "Hold kameraet mot medlemskortet.",
     "openScanner": "Skann medlemskort",
     "manageLinks": "Gjesteskanner-lenker",
+    "manageAccess": "Skannertilgang",
     "todaysColor": "Dagens farge",
     "cameraError": "Kameraet er utilgjengelig. Gi tilgang til kameraet og last inn på nytt.",
     "starting": "Starter kamera…",
@@ -1341,6 +1342,53 @@
         "failed": "Noe gikk galt. Prøv igjen.",
         "not_configured": "Skanning av medlemskort er ikke satt opp.",
         "invalid_link": "Denne skannerlenken er ikke lenger gyldig."
+      }
+    },
+    "access": {
+      "title": "Skannertilgang",
+      "description": "La personer utenfor BISO skanne medlemskort i BISO-appen. De logger inn med e-postadressen du skriver inn her.",
+      "addTitle": "Legg til skanner",
+      "email": "E-post",
+      "emailPlaceholder": "navn@eksempel.no",
+      "name": "Navn (valgfritt)",
+      "namePlaceholder": "f.eks. Ola Nordmann – Securitas",
+      "campus": "Campus",
+      "allCampuses": "Alle campuser",
+      "expiresAt": "Sluttdato (valgfritt)",
+      "expiresHint": "La stå tom for å beholde tilgangen til du trekker den tilbake.",
+      "invite": "Gi tilgang og send invitasjon",
+      "invited": "Tilgang gitt og invitasjon sendt.",
+      "resent": "Invitasjonen er sendt på nytt.",
+      "emailNotSent": "Tilgangen er lagret, men invitasjonen ble ikke sendt — sjekk SMTP-innstillingene.",
+      "revoked": "Tilgangen er trukket tilbake.",
+      "listTitle": "Personer med skannertilgang",
+      "none": "Ingen har fått skannertilgang ennå.",
+      "noEndDate": "Ingen sluttdato",
+      "notInvited": "Ikke sendt",
+      "resend": "Send invitasjon på nytt",
+      "revoke": "Trekk tilbake",
+      "columns": {
+        "name": "Navn",
+        "email": "E-post",
+        "campus": "Campus",
+        "grantedBy": "Gitt av",
+        "expiresAt": "Sluttdato",
+        "status": "Status",
+        "invitedAt": "Sist invitert",
+        "actions": "Handlinger"
+      },
+      "status": {
+        "active": "Aktiv",
+        "expired": "Utløpt",
+        "revoked": "Trukket tilbake"
+      },
+      "errors": {
+        "invalid_email": "Skriv inn en gyldig e-postadresse.",
+        "invalid_expiry": "Velg en sluttdato fram i tid.",
+        "forbidden_campus": "Du kan bare gi tilgang for din egen campus.",
+        "not_found": "Tilgangen finnes ikke lenger.",
+        "not_active": "Denne tilgangen er avsluttet. Legg til personen på nytt i stedet.",
+        "failed": "Noe gikk galt. Prøv igjen."
       }
     },
     "guest": {
