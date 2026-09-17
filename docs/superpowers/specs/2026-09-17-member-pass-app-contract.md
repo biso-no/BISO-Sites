@@ -60,6 +60,12 @@ scanner-grant check and still surfaces as `401 {"error":"not_authenticated"}`
   missing wallet cert/key config and return `404 {"error":"not_configured"}`
   (see "Differences" — the brief only documented this for the two wallet
   cases, not that the check happens before the auth check).
+- **Configuration errors are checked before authentication.** On the wallet
+  endpoints (`apple`, `google`: `404 {"error":"not_configured"}`) and the
+  scanner endpoints (`scanner`, `scan`: `503 {"error":"not_configured"}`),
+  the config check runs first — so an unauthenticated caller (no/invalid
+  JWT) against a misconfigured deployment still sees the config error, not
+  `401`.
 
 ## 1. `GET /api/member-pass`
 
@@ -177,6 +183,14 @@ Tells the caller whether they may scan, and today's color.
 Re-checked on every call (no caching server-side) — a revoked grant stops
 working on the very next request.
 
+A grant's `campus_id` does not restrict *where* a pass can be scanned —
+membership is BISO-wide, so any active scanner can scan any member
+regardless of campus. The campus only decides which campus admins can see
+and revoke the grant in `apps/admin`. When a user holds several active
+grants (e.g. one per campus, or a leftover from a past invite), `/scanner`
+reports the newest one (`findActiveGrantForUser` orders by `$createdAt`
+descending) — its `campusId` and `expiresAt`, not a merge of all of them.
+
 ## 5. `POST /api/member-pass/scan`
 
 Body: `{"code": "<scanned string>"}`. The code is trimmed and must be a
@@ -277,7 +291,7 @@ Implemented in `apps/web/src/components/member-pass/use-member-pass.ts` and
   - A network error (fetch threw, e.g. no connectivity) **keeps** the
     previous data untouched and sets `offline: true` — regardless of whether
     the previous pass still has a usable code.
-  - Any other failure (non-2xx-non-401 HTTP status, i.e. a 5xx) keeps the
+  - Any other failure (any non-2xx status other than 401) keeps the
     previous pass **only if** it's `active` and still has ≥1 code at or after
     the current slot (`hasUsableCode`); otherwise it replaces the shown data
     with `{state:"unavailable"}` and clears `offline`.
@@ -384,10 +398,11 @@ message key `colors.<name>` in `packages/i18n/messages/{en,no}/memberPass.json`
 4. If SMTP is configured, an invitation email is sent
    (`buildScannerInviteEmail`, bilingual Norwegian/English) with these
    instructions: install the app → sign in with **that exact email** (an
-   Appwrite email code is sent) → open Explore → "Scan memberships". The
-   email includes App Store / Google Play links when configured
-   (`BISO_APP_IOS_URL` / `BISO_APP_ANDROID_URL`, the latter defaulting to a
-   Play Store search URL), otherwise a "search for BISO" hint. If the email
+   Appwrite email code is sent) → open Explore → "Scan memberships". Android
+   always gets a link — `BISO_APP_ANDROID_URL` if set, otherwise the default
+   `https://play.google.com/store/apps/details?id=com.biso.no` (a details
+   link, not a search URL). Only iOS falls back to a "search for BISO in the
+   App Store" hint, and only when `BISO_APP_IOS_URL` is unset. If the email
    send fails or SMTP isn't configured, the grant is still saved (invitation
    can be resent later via `resendScannerInvite`) — the invite email carries
    no token; access is entirely a function of the signed-in account's email
@@ -403,6 +418,9 @@ message key `colors.<name>` in `packages/i18n/messages/{en,no}/memberPass.json`
 - **`GET /api/member-pass/scanner` and `POST /api/member-pass/scan` can also
   return `500 {"error":"failed"}`** on an unhandled exception. The v2 brief
   did not document this status for either endpoint.
+- **`GET /api/member-pass/google` can also return `500 {"error":"failed"}`**
+  on an unhandled exception (e.g. JWT signing), on top of the `502
+  wallet_unavailable` case the brief documents.
 - **The `not_configured` check order differs from what the brief implies.**
   On `apple`/`google`, `404 {"error":"not_configured"}` is checked *before*
   authentication — an unauthenticated caller against a misconfigured wallet
