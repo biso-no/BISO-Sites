@@ -19,6 +19,10 @@ vi.mock("@/lib/member-pass/apple-pass", async (importOriginal) => ({
 vi.mock("next-intl/server", () => ({
   getTranslations: vi.fn(async () => (key: string) => key),
 }));
+vi.mock("next/server", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("next/server")>()),
+  connection: vi.fn(async () => undefined),
+}));
 
 import { GET } from "./route";
 
@@ -57,6 +61,11 @@ describe("GET /api/member-pass/apple", () => {
 
   it("is 404 when Apple Wallet is not configured", async () => {
     readAppleWalletConfig.mockReturnValue(null);
+    expect((await GET()).status).toBe(404);
+  });
+
+  it("is 404 when MEMBER_PASS_SECRET is not configured", async () => {
+    vi.stubEnv("MEMBER_PASS_SECRET", "");
     expect((await GET()).status).toBe(404);
   });
 

@@ -2,7 +2,7 @@ import {
   googleWalletTotpKeyHex,
   readMemberPassSecret,
 } from "@repo/shared/utils/member-pass";
-import { NextResponse } from "next/server";
+import { connection, NextResponse } from "next/server";
 import { getTranslations } from "next-intl/server";
 import {
   buildGoogleWalletObject,
@@ -21,6 +21,11 @@ function error(status: number, code: string) {
 
 /** Redirects the signed-in member to a "Save to Google Wallet" link. */
 export async function GET() {
+  // Render per request, not at build time. Without this, `cacheComponents`
+  // sees no dynamic API used before the early `not_configured` 404 (no
+  // wallet credentials at build time) and bakes that 404 in statically, so
+  // production serves a frozen 404 even once credentials are configured.
+  await connection();
   const config = readGoogleWalletConfig();
   const secret = readMemberPassSecret();
   if (!(config && secret)) {

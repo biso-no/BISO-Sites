@@ -2,7 +2,7 @@ import {
   readMemberPassSecret,
   signAppleWalletCode,
 } from "@repo/shared/utils/member-pass";
-import { NextResponse } from "next/server";
+import { connection, NextResponse } from "next/server";
 import { getTranslations } from "next-intl/server";
 import {
   applePassFields,
@@ -21,6 +21,11 @@ function error(status: number, code: string) {
 
 /** The signed-in member's pass as a downloadable `.pkpass` for Apple Wallet. */
 export async function GET() {
+  // Render per request, not at build time. Without this, `cacheComponents`
+  // sees no dynamic API used before the early `not_configured` 404 (no
+  // wallet credentials at build time) and bakes that 404 in statically, so
+  // production serves a frozen 404 even once credentials are configured.
+  await connection();
   const config = readAppleWalletConfig();
   const secret = readMemberPassSecret();
   if (!(config && secret)) {
