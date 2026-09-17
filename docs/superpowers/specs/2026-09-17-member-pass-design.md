@@ -107,16 +107,19 @@ crash.
 the holder fields. No web service / push updates (YAGNI): early cancellation is
 caught by the scanner's live Finago check.
 
-**`GET /api/member-pass/google`** — members only. Builds a "Save to Google
-Wallet" JWT (RS256, signed with the service account key via `node:crypto`)
-that embeds the Generic Class and this user's Generic Object, so no REST calls
-or OAuth token are needed. The object id is `<issuerId>.member-<userId>` and
-carries
+**`GET /api/member-pass/google`** — members only. Creates or updates the
+Generic Class and this user's Generic Object through the Google Wallet REST API
+(`walletobjects/v1`), authenticating with the service account through the OAuth
+2.0 JWT-bearer grant (signed with `node:crypto`; access token cached in memory).
+The object id is `<issuerId>.member-<userId>` and carries
 `rotatingBarcode = { type: QR_CODE, valuePattern: googleWalletCodePattern(userId), totpDetails: { algorithm: TOTP_SHA1, periodMillis: 30000, parameters: [{ key: hex(totpKey), valueLength: 6 }] } }`
-and `validTimeInterval.end` = membership expiry. Redirects to
-`https://pay.google.com/gp/v/save/<jwt>`. Whether rotating barcodes need Google
+and `validTimeInterval.end` = membership expiry. Every save rewrites the object,
+so a renewed membership updates the pass. The "Save to Google Wallet" JWT then
+carries only `{ classId, id }` — the TOTP key never reaches the browser or the
+save URL. Redirects to `https://pay.google.com/gp/v/save/<jwt>`; any Google API
+failure returns 502 `wallet_unavailable`. Whether rotating barcodes need Google
 to enable them on the issuer account is checked during setup; if they do and
-approval is pending, the Google button stays hidden.
+approval is pending, leave the Google env vars unset so the button stays hidden.
 
 **`<MemberPass>`** (`src/components/member-pass/member-pass.tsx`, client)
 
@@ -267,7 +270,7 @@ New server-only env vars (also added to `turbo.json` `build.env` and the
   base64-encoded) — web
 
 New dependencies: `qrcode` (web), `passkit-generator` (web), `qr-scanner`
-(admin). Google Wallet needs no dependency (JWT signed with `node:crypto`).
+(admin). Google Wallet needs no dependency (JWTs signed with `node:crypto`, REST calls with `fetch`).
 
 ## Security notes
 
@@ -280,7 +283,13 @@ New dependencies: `qrcode` (web), `passkit-generator` (web), `qr-scanner`
   email, and are not URLs.
 - Scan results expose name, membership name and expiry only.
 - Guest links are stored hashed, time-boxed (≤ 48 h), revocable, and
-  rate-limited.
+  rate-limited. Analytics are not loaded on `/scan/*`, so the token never
+  reaches the analytics database.
+- The admin app blocks the camera everywhere except `/members/scan` and
+  `/scan/*` (Permissions-Policy).
+- The Google Wallet TOTP key is written server-to-server; it is never in a
+  URL. Revoking one member's Google key requires rotating `MEMBER_PASS_SECRET`
+  (all Google passes) — accepted.
 
 ## Error handling
 
