@@ -90,6 +90,9 @@ export class CheckoutValidationError extends Error {
   }
 }
 
+/** The only `webshop_products.status` a buyer may transact against. */
+const PUBLISHED_STATUS = "published";
+
 const ORDER_STATUS_FILTER = Query.or([
   Query.equal("status", "authorized"),
   Query.equal("status", "paid"),
@@ -103,6 +106,32 @@ export function getRequiredEnv(name: string): string {
   return value;
 }
 
+/**
+ * Members-only gate, fail closed.
+ *
+ * `member_only` restricts who may BUY a product, not who may see it — every
+ * public surface lists it and marks it with a badge — so this is the only thing
+ * standing between a non-member and the purchase. It belongs on this trusted
+ * path, shared by `/checkout` and `/checkout/quote`, because the storefront's
+ * disabled button is bypassed by posting straight to the API.
+ *
+ * An error from the membership lookup propagates instead of counting as "not a
+ * member", so a 24SevenOffice outage fails the checkout rather than telling a
+ * paying member they are not one.
+ */
+async function ensureMemberOnlyAllowed(
+  product: NormalizedProduct,
+  productName: string,
+  isMember: () => Promise<boolean>
+): Promise<void> {
+  if (product.member_only && !(await isMember())) {
+    throw new CheckoutValidationError(
+      `${productName} is available to BISO members only.`,
+      403
+    );
+  }
+}
+
 // Validate a single product line against current stock and purchase limits
 // BEFORE any order/payment session is created, so a direct POST with an
 // oversized quantity cannot oversell or bypass per-user limits. Fails closed.
@@ -111,13 +140,17 @@ export async function ensureLineAvailability({
   requestedQuantity,
   userId,
   db,
+  isMember,
 }: {
   product: NormalizedProduct;
   requestedQuantity: number;
   userId: string;
   db: CheckoutDb;
+  isMember: () => Promise<boolean>;
 }): Promise<void> {
   const productName = product.title || product.slug || product.$id;
+
+  await ensureMemberOnlyAllowed(product, productName, isMember);
 
   // Stock check (fail closed): only enforced when the product tracks stock.
   // Available stock must account for OTHER buyers' active cart reservations,
@@ -287,6 +320,21 @@ export async function loadProduct(
     // this is where the buyer's answers are validated against them.
     [Query.select(["*", "variations.*", "custom_fields.*"])]
   );
+
+  // Only a published product can be bought, and this is the chokepoint that
+  // decides it: `db` is the admin client and `webshop_products` grants read to
+  // `any`, so a draft, pending-approval or archived product is fetched here
+  // perfectly happily. Both trusted entry points — `/api/payment/<provider>/
+  // checkout` and `/api/payment/checkout/quote` — come through this function,
+  // so a buyer who knows or guesses an unpublished product's id cannot price it
+  // or pay for it. A draft is a product that has never been offered for sale;
+  // it is reported as unavailable rather than as a validation failure.
+  if (product.status !== PUBLISHED_STATUS) {
+    throw new CheckoutValidationError(
+      `${productTitle(product) || productId} is not available for purchase.`,
+      404
+    );
+  }
   const metadataParsed = parseProductMetadata(product.metadata);
   const normalizedProduct: NormalizedProduct = {
     ...product,
@@ -337,10 +385,64 @@ function findVariation(product: NormalizedProduct, variationId?: string) {
   return product.variations?.find((variant) => variant.id === variationId);
 }
 
-async function getMemberDiscountIfAny(
-  product: NormalizedProduct,
+function isRowNotFound(error: unknown): boolean {
+  return (error as { code?: number } | null)?.code === 404;
+}
+
+/**
+ * Whether the buyer is an active member, resolved at most once per checkout and
+ * shared by the two features that need it: the `member_only` purchase gate and
+ * the member discount.
+ *
+ * Two failure modes, deliberately told apart:
+ *
+ * - No profile row, or a profile with no usable student number, is a definite
+ *   answer: this buyer is not a member. `getRow` *throws* a 404 rather than
+ *   returning null, so that has to be caught here — letting it escape turned a
+ *   plain "you are not a member" into a 500 with no reason attached.
+ * - A failing membership lookup is not an answer at all, so the error
+ *   propagates. The two callers then diverge as they should: the gate fails
+ *   closed on it, while the member discount catches it and charges full price.
+ */
+export function createMembershipResolver(
   authClient: AuthenticatedClient,
   userId: string
+): () => Promise<boolean> {
+  let pending: Promise<boolean> | null = null;
+
+  async function resolve(): Promise<boolean> {
+    if (!userId || userId === "guest") {
+      return false;
+    }
+    let studentId: string | null | undefined;
+    try {
+      const profile = await authClient.db.getRow<Users>("app", "user", userId);
+      studentId = profile?.student_id;
+    } catch (error) {
+      if (!isRowNotFound(error)) {
+        throw error;
+      }
+      return false;
+    }
+    const studentNumber = sanitizeStudentNumber(studentId);
+    if (studentNumber === null) {
+      return false;
+    }
+    const status = await computeMembershipStatus(studentNumber);
+    return status.isMember;
+  }
+
+  return () => {
+    if (!pending) {
+      pending = resolve();
+    }
+    return pending;
+  };
+}
+
+async function getMemberDiscountIfAny(
+  product: NormalizedProduct,
+  isMember: () => Promise<boolean>
 ) {
   if (
     !(
@@ -352,14 +454,7 @@ async function getMemberDiscountIfAny(
   }
 
   try {
-    const profile = await authClient.db.getRow<Users>("app", "user", userId);
-    const studentNumber = sanitizeStudentNumber(profile?.student_id);
-    if (studentNumber === null) {
-      return { applied: false, percent: 0 };
-    }
-
-    const status = await computeMembershipStatus(studentNumber);
-    if (!status.isMember) {
+    if (!(await isMember())) {
       return { applied: false, percent: 0 };
     }
 
@@ -368,6 +463,8 @@ async function getMemberDiscountIfAny(
       percent: Number(product.metadata_parsed.member_discount_percent) || 0,
     };
   } catch {
+    // Fails open: a membership lookup outage charges full price rather than
+    // blocking the sale.
     return { applied: false, percent: 0 };
   }
 }
@@ -376,15 +473,14 @@ async function resolvePricing(
   product: NormalizedProduct,
   variation: ProductVariation | undefined,
   discountCache: Map<string, { applied: boolean; percent: number }>,
-  authClient: AuthenticatedClient,
-  userId: string
+  isMember: () => Promise<boolean>
 ) {
   const basePrice = Number(product.regular_price || 0);
   const variationModifier = Number(variation?.price_modifier || 0);
   const originalUnit = Math.max(0, basePrice + variationModifier);
   const discount =
     discountCache.get(product.$id) ||
-    (await getMemberDiscountIfAny(product, authClient, userId));
+    (await getMemberDiscountIfAny(product, isMember));
   discountCache.set(product.$id, discount);
 
   const discountedUnit = discount.applied
@@ -459,6 +555,7 @@ export async function buildTrustedCheckoutParams({
     { applied: boolean; percent: number }
   >();
   const targetCache = new Map<string, RevenueTarget | null>();
+  const isMember = createMembershipResolver(authClient, userId);
   const trustedItems: CheckoutSessionParams["items"] = [];
   const campusIds = new Set<string>();
 
@@ -482,6 +579,7 @@ export async function buildTrustedCheckoutParams({
         requestedQuantity: quantityByProduct.get(input.productId) || 0,
         userId,
         db,
+        isMember,
       });
       validatedProducts.add(product.$id);
     }
@@ -491,8 +589,7 @@ export async function buildTrustedCheckoutParams({
       product,
       variation,
       discountCache,
-      authClient,
-      userId
+      isMember
     );
 
     const productName = product.title || product.slug || product.$id;

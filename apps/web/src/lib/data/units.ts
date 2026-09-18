@@ -54,6 +54,7 @@ import {
 import { isPublicUnit } from "@repo/shared/utils/unit-visibility";
 import { cacheLife } from "next/cache";
 import { buildTeaser } from "@/lib/content-text";
+import { listedProductsOnly } from "@/lib/data/product-visibility";
 
 /** ~125 public units today; the cap is the whole table with room to grow. */
 const UNIT_LIMIT = 500;
@@ -332,6 +333,8 @@ export async function cachedUnitProducts(
     ]),
     Query.equal("departmentId", id),
     Query.equal("status", WebshopProductsStatus.PUBLISHED),
+    // Link-only products are excluded from this feed like every other listing.
+    listedProductsOnly(),
     Query.equal("translation_refs.locale", locale),
     Query.orderDesc("$createdAt"),
     Query.limit(UNIT_FEED_LIMIT),

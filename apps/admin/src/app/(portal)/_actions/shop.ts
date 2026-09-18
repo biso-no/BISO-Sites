@@ -395,7 +395,30 @@ async function loadProductTranslationsByLocale(
   );
 }
 
-function buildProductFields(data: ProductFormValues) {
+/**
+ * The row payload for a product write. Both callers hand this to
+ * `db.upsertRow`, which validates as a full-document *replace*, so every
+ * column missing here is reset to its schema default on every save.
+ *
+ * `metadata` and `finago_account_number` are consequently carried over from
+ * the persisted row rather than omitted: no admin surface edits either one,
+ * but the storefront reads `metadata` for `max_per_user` / `max_per_order` /
+ * `sku`, so leaving it out silently dropped a product's purchase limits the
+ * next time anyone saved it.
+ *
+ * `member_only` and `unlisted` are carried over for the same reason whenever
+ * the caller omits them. The AI assistant sends partial payloads, so a plain
+ * `?? false` would let "change this product's price" publish a link-only
+ * product into the shop or drop a members-only product's purchase gate. The
+ * editor always sends both, so turning either one off still works.
+ */
+function buildProductFields(
+  data: ProductFormValues,
+  existing?: Pick<
+    WebshopProducts,
+    "finago_account_number" | "member_only" | "metadata" | "unlisted"
+  > | null
+) {
   return {
     slug: data.slug,
     // Canonical ownership relationships; the scalar columns remain as
@@ -407,7 +430,8 @@ function buildProductFields(data: ProductFormValues) {
     category: data.category ?? null,
     regular_price: data.regular_price,
     member_price: data.member_price ?? null,
-    member_only: data.member_only ?? false,
+    member_only: data.member_only ?? existing?.member_only ?? false,
+    unlisted: data.unlisted ?? existing?.unlisted ?? false,
     image: data.image || null,
     stock: data.stock ?? null,
     tags: data.tags ?? null,
@@ -416,6 +440,9 @@ function buildProductFields(data: ProductFormValues) {
     linked_event_id: data.linked_event_id ?? null,
     inventory_mode: data.inventory_mode ?? "unlimited",
     sales_type: data.sales_type ?? null,
+    // Not editable in the CMS; preserved so a save does not clear them.
+    metadata: existing?.metadata ?? null,
+    finago_account_number: existing?.finago_account_number ?? null,
   };
 }
 
@@ -512,12 +539,33 @@ async function syncProductCustomFields(
   }
 }
 
+/**
+ * Row ACLs for a product and its translations.
+ *
+ * The audience is always `public`, including for a `member_only` product.
+ * Members-only limits who can BUY a product, never who can SEE it — the rule
+ * events already follow — so every published product and its title should stay
+ * world-readable, and the purchase gate lives in `apps/api` where it cannot be
+ * bypassed by calling the API directly.
+ *
+ * Be clear about what this does and does not change TODAY: nothing. Both
+ * `webshop_products` and `content_translations` still carry a table-level
+ * `read("any")`, and Appwrite's row security is additive — a row is readable if
+ * the table grants it OR the row does — so the old
+ * `read("team:<members>")` row ACL never actually hid a product or its title
+ * from anyone. The only thing that hid members-only products was the
+ * client-side filter in `shop-list-client.tsx`, now deleted.
+ *
+ * This is written for the day those table-level grants are removed (see
+ * `packages/api/content-permission-cutover.ts`), when the row ACL becomes the
+ * thing that decides. Getting it wrong then would take every members-only
+ * product off the shop, and the cause would be nowhere near the symptom.
+ */
 async function buildProductPermissions(
   db: AdminDb,
   values: ProductFormValues
 ): Promise<{ rowPermissions: string[]; translationPermissions: string[] }> {
   const lookups = await loadRecruitmentLookups(db);
-  const audience = values.member_only ? "members" : "public";
   const { campusTeam, deptTeam } = deriveContentRowTeams(lookups, {
     campus_id: values.campus_id,
     department_id: values.department_id ?? null,
@@ -525,12 +573,12 @@ async function buildProductPermissions(
   return {
     rowPermissions: buildContentRowPermissions({
       status: values.status,
-      audience,
+      audience: "public",
       campusTeam,
       deptTeam,
     }),
     translationPermissions: buildContentTranslationPermissions({
-      audience,
+      audience: "public",
       status: values.status,
       writeTeams: deptTeam ? [deptTeam] : [],
       readTeams: campusTeam ? [campusTeam] : [],
@@ -1035,7 +1083,7 @@ export async function updateProduct(
       "webshop_products",
       id,
       {
-        ...buildProductFields(validated.data),
+        ...buildProductFields(validated.data, product),
         status: validated.data.status as WebshopProductsStatus,
         translation_refs: buildProductTranslationChildren(
           id,

@@ -115,5 +115,9 @@ export async function generateMetadata({
     title: `${translation?.title ?? "Product"} | BISO Shop`,
     description:
       translation?.short_description || translation?.description || "",
+    // A link-only product is kept out of the sitemap and every listing, so it
+    // should not be indexed if a shared link is ever crawled. `follow: false`
+    // keeps a crawler from walking on into the checkout from here.
+    ...(product.unlisted ? { robots: { follow: false, index: false } } : {}),
   };
 }

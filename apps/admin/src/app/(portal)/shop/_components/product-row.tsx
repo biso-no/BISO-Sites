@@ -6,7 +6,7 @@
  */
 
 import { resolveStorageFileUrl } from "@repo/api/storage";
-import { Lock, Pencil, Trash2 } from "lucide-react";
+import { EyeOff, Lock, Pencil, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 import { CoverPatternThumbnail } from "./cover-pattern-thumbnail";
@@ -96,6 +96,11 @@ export function ProductRow({
           {product.member_only && (
             <span title={t("fields.memberOnly")}>
               <Lock size={12} style={{ color: BRAND.gold, flexShrink: 0 }} />
+            </span>
+          )}
+          {product.unlisted && (
+            <span title={t("fields.unlisted")}>
+              <EyeOff size={12} style={{ color: BRAND.ink4, flexShrink: 0 }} />
             </span>
           )}
         </div>

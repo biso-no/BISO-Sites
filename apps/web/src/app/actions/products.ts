@@ -16,6 +16,13 @@ export async function getProduct(
       "webshop_products",
       [
         Query.equal("$id", id),
+        // `webshop_products` grants row read to `any`, so without this a draft,
+        // pending-approval or archived product is readable by id — and this is
+        // the read the checkout preview builds its order lines from
+        // (`buildOrderItems` in app/actions/orders.ts). `apps/api` refuses an
+        // unpublished product again on the trusted path; this keeps the site
+        // from quoting one in the first place.
+        Query.equal("status", "published"),
         Query.equal("translation_refs.locale", locale),
         Query.select([
           "$id",

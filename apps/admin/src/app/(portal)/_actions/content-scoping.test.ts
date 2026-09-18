@@ -181,6 +181,7 @@ describe("admin content update scoping", () => {
       status: "draft",
       stock: null,
       tags: null,
+      unlisted: false,
       variants_json: null,
     });
 

@@ -15,6 +15,7 @@ import {
   computeAvailableStock,
   sumReservedQuantity,
 } from "@repo/shared/utils/stock-availability";
+import { getLiveMembershipStatus } from "@/lib/actions/membership";
 import { ensureAnonymousSession } from "@/lib/anon-session";
 
 /** One `cart_field_answers` row, as the relationship returns it. */
@@ -102,6 +103,53 @@ function buildUserRowPermissions(userId: string): string[] {
 }
 
 /**
+ * Whether the caller may hold stock of this product at all.
+ *
+ * Two independent reasons to refuse:
+ *
+ * - The product is not published. A draft has never been offered for sale, so
+ *   it must not be findable or buyable; `webshop_products` grants read to
+ *   `any`, so nothing else stops a known id being reserved here.
+ * - The product is members-only and the caller is not a member. That restricts
+ *   who may BUY, not who may see, so the listing and product page show it to
+ *   everyone and this is where a non-member is stopped from parking the stock.
+ *   An anonymous visitor is never a member, which is the intended answer rather
+ *   than an edge case — reservations are deliberately open to anonymous carts.
+ *
+ * A failed read is reported as `unavailable` rather than assumed innocent: the
+ * product may genuinely be gone, and the reservation write that follows would
+ * fail anyway.
+ */
+async function reservationRefusalReason(
+  productId: string
+): Promise<"members_only" | "unavailable" | null> {
+  let product: WebshopProducts;
+  try {
+    const { db } = await createSessionClient();
+    product = await db.getRow<WebshopProducts>(
+      "app",
+      "webshop_products",
+      productId,
+      [Query.select(["member_only", "status"])]
+    );
+  } catch {
+    return "unavailable";
+  }
+
+  if (product.status !== "published") {
+    return "unavailable";
+  }
+  if (product.member_only !== true) {
+    return null;
+  }
+  // Live, not the ten-minute cache: a student who paid for their membership a
+  // moment ago must be able to buy straight away, and this gate is the first
+  // thing that would tell them otherwise.
+  const status = await getLiveMembershipStatus();
+  return status.isMember ? null : "members_only";
+}
+
+/**
  * Get available stock for a product, accounting for active reservations
  * Returns: available stock = product.stock - SUM(active_reservations.quantity)
  */
@@ -173,7 +221,7 @@ export async function createOrUpdateReservation(
   success: boolean;
   message?: string;
   quantity?: number;
-  reason?: "out_of_stock" | "error";
+  reason?: "members_only" | "out_of_stock" | "unavailable" | "error";
 }> {
   try {
     // Reserving stock is the first action that genuinely needs a per-user
@@ -186,6 +234,25 @@ export async function createOrUpdateReservation(
     // Get session user ID (works for both authenticated and anonymous sessions)
     const session = await account.get();
     const userId = session.$id;
+
+    // Refuse before writing a hold at all. Mirrors the same gate on the app's
+    // route (`apps/api/src/app/api/shop/cart/route.ts`); the authoritative
+    // refusal is still the one on the checkout path.
+    const refusal = await reservationRefusalReason(productId);
+    if (refusal === "members_only") {
+      return {
+        success: false,
+        message: "This product is for BISO members only",
+        reason: "members_only",
+      };
+    }
+    if (refusal === "unavailable") {
+      return {
+        success: false,
+        message: "This product is not available",
+        reason: "unavailable",
+      };
+    }
 
     // Set expiration to 10 minutes from now
     const now = Date.now();

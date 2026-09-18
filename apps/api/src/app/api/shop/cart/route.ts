@@ -1,10 +1,12 @@
 import { type Models, Permission, Query, Role } from "@repo/api";
 import { createAdminClient } from "@repo/api/server";
-import type { CartReservations } from "@repo/api/types/appwrite";
+import type { CartReservations, Users } from "@repo/api/types/appwrite";
+import { sanitizeStudentNumber } from "@repo/shared/utils/bi-student";
 import {
   cartReservationRowId,
   isRowAlreadyExists,
 } from "@repo/shared/utils/cart-reservation-id";
+import { computeMembershipStatus } from "@repo/shared/utils/membership-status";
 import {
   computeAvailableStock,
   sumReservedQuantity,
@@ -12,6 +14,7 @@ import {
 import { type NextRequest, NextResponse } from "next/server";
 import { createAuthenticatedClient } from "@/lib/auth";
 import { applyCorsHeaders, corsPreflightResponse } from "@/lib/cors";
+import { getMembershipStatusForStudent } from "@/lib/membership-status-cache";
 
 /**
  * Cart stock holds for clients without a server of their own (the native app).
@@ -207,15 +210,16 @@ async function computeCallerCeiling(
 }
 
 /**
- * Whether a failed product read means the product is genuinely gone, as
- * opposed to Appwrite being slow, rate-limiting, or down.
+ * Whether a failed read means the row is genuinely absent, as opposed to
+ * Appwrite being slow, rate-limiting, or down.
  *
- * Only the former may become `404 Product is not available`: the app treats
- * that as "this was deleted or unpublished" and drops the line from the
- * buyer's cart, so reporting a timeout that way would quietly delete a
- * perfectly good item instead of leaving it to be retried.
+ * For a product, only the former may become `404 Product is not available`: the
+ * app treats that as "this was deleted or unpublished" and drops the line from
+ * the buyer's cart, so reporting a timeout that way would quietly delete a
+ * perfectly good item instead of leaving it to be retried. The members-only
+ * gate needs the same distinction for its profile read.
  */
-function isProductNotFound(error: unknown): boolean {
+function isRowNotFound(error: unknown): boolean {
   const code = (error as { code?: number } | null)?.code;
   const type = (error as { type?: string } | null)?.type;
   return (
@@ -226,28 +230,86 @@ function isProductNotFound(error: unknown): boolean {
 async function readProductStock(
   db: CartDb,
   productId: string
-): Promise<{ found: boolean; stock: number | null }> {
+): Promise<{ found: boolean; memberOnly: boolean; stock: number | null }> {
   try {
     const product = await db.getRow<
-      Models.Row & { status?: string; stock?: number | null }
+      Models.Row & {
+        member_only?: boolean;
+        status?: string;
+        stock?: number | null;
+      }
     >("app", "webshop_products", productId, [
-      Query.select(["status", "stock"]),
+      Query.select(["member_only", "status", "stock"]),
     ]);
     if (product.status !== "published") {
-      return { found: false, stock: null };
+      return { found: false, memberOnly: false, stock: null };
     }
     return {
       found: true,
+      memberOnly: product.member_only === true,
       stock: typeof product.stock === "number" ? product.stock : null,
     };
   } catch (error) {
-    if (isProductNotFound(error)) {
-      return { found: false, stock: null };
+    if (isRowNotFound(error)) {
+      return { found: false, memberOnly: false, stock: null };
     }
     // Anything else belongs to the outer handler, which answers 500 and
     // invites a retry.
     throw error;
   }
+}
+
+/**
+ * Whether the caller may hold stock of a members-only product.
+ *
+ * Reserving is refused for a non-member so a product members can actually buy
+ * is not held away from them by someone who cannot complete the purchase. The
+ * checkout route is the authoritative gate; this one only stops the hold.
+ *
+ * Two-step, so that neither a stale cache nor needless load wins:
+ *
+ * - A cached "yes" is trusted and answered immediately. The only way it can be
+ *   wrong is a membership that lapsed in the last ten minutes, which is not
+ *   worth a 24SevenOffice round trip on every cart mutation.
+ * - A cached "no" is re-checked LIVE before refusing, because that is the
+ *   answer that blocks someone. A student who has just paid for a membership is
+ *   still `isMember: false` in the cache — nothing invalidates it on fulfilment
+ *   (see `membership-status-cache.ts`) — and telling them they are not a member
+ *   on the very purchase they joined to make is not acceptable.
+ *
+ * So the live call happens only for a buyer who is about to be turned away,
+ * which is exactly where correctness is worth the latency.
+ *
+ * A missing profile row is a definite "not a member", not a failure: `getRow`
+ * throws a 404 rather than returning null, so it is caught here instead of
+ * escaping as a 500.
+ */
+async function callerMayBuyMemberOnly(
+  db: CartDb,
+  userId: string
+): Promise<boolean> {
+  let studentId: string | null | undefined;
+  try {
+    const profile = await db.getRow<Users>("app", "user", userId, [
+      Query.select(["student_id"]),
+    ]);
+    studentId = profile?.student_id;
+  } catch (error) {
+    if (!isRowNotFound(error)) {
+      throw error;
+    }
+    return false;
+  }
+  const studentNumber = sanitizeStudentNumber(studentId);
+  if (studentNumber === null) {
+    return false;
+  }
+  const cached = await getMembershipStatusForStudent(studentNumber);
+  if (cached.isMember) {
+    return true;
+  }
+  const live = await computeMembershipStatus(studentNumber);
+  return live.isMember;
 }
 
 export async function PUT(req: NextRequest) {
@@ -270,9 +332,12 @@ export async function PUT(req: NextRequest) {
     }
 
     const { db } = await createAdminClient();
-    const { found, stock } = await readProductStock(db, productId);
+    const { found, memberOnly, stock } = await readProductStock(db, productId);
     if (!found) {
       return json({ message: "Product is not available" }, 404);
+    }
+    if (memberOnly && !(await callerMayBuyMemberOnly(db, userId))) {
+      return json({ message: "This product is for BISO members only" }, 403);
     }
 
     // Before the ceiling is computed, so a duplicate row left by an earlier
