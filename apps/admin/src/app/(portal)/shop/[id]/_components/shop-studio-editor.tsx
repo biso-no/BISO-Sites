@@ -56,6 +56,7 @@ import {
   CustomFieldsBoard,
   type CustomFieldType,
 } from "./custom-fields-board";
+import { generateSlug, nextAutoSlug } from "./shop-studio-slug";
 
 /* -------------------------------------------------------------------------- */
 /*                              Types                                          */
@@ -170,15 +171,6 @@ const MONO_STACK =
 /* -------------------------------------------------------------------------- */
 /*                                  Utilities                                  */
 /* -------------------------------------------------------------------------- */
-
-function generateSlug(title: string): string {
-  return title
-    .toLowerCase()
-    .replace(/[^a-z0-9\s-]/g, "")
-    .trim()
-    .replace(/\s+/g, "-")
-    .replace(/-+/g, "-");
-}
 
 /**
  * `createProduct`/`updateProduct` return either a flat message (e.g. the
@@ -1235,12 +1227,14 @@ function EssentialsStep({
   setShortDescription,
   setSlug,
   setSlugEditing,
+  setSlugLocked,
   setTags,
   setTitleEn,
   setTitleNo,
   shortDescription,
   slug,
   slugEditing,
+  slugLocked,
   tags,
   titleEn,
   titleNo,
@@ -1263,12 +1257,14 @@ function EssentialsStep({
   setShortDescription: (v: string) => void;
   setSlug: (v: string) => void;
   setSlugEditing: (v: boolean) => void;
+  setSlugLocked: (v: boolean) => void;
   setTags: (v: string[]) => void;
   setTitleEn: (v: string) => void;
   setTitleNo: (v: string) => void;
   shortDescription: string;
   slug: string;
   slugEditing: boolean;
+  slugLocked: boolean;
   tags: string[];
   titleEn: string;
   titleNo: string;
@@ -1280,16 +1276,26 @@ function EssentialsStep({
     campuses.find((c) => c.$id === campusId)?.name?.toLowerCase() ?? "campus";
   const campusSlug = campusName.replace(/\s+/g, "-");
 
+  // The slug mirrors the Norwegian title — the same one `buildPayload` falls
+  // back to — so editing the English tab never rewrites an existing slug.
   function handleTitleChange(value: string) {
     setTitle(value);
-    if (!slug) {
-      setSlug(generateSlug(value));
+    if (lang !== "no") {
+      return;
+    }
+    const next = nextAutoSlug({ locked: slugLocked, title: value });
+    if (next !== null) {
+      setSlug(next);
     }
   }
 
   function handleTitleBlur() {
-    if (!slug && titleNo) {
-      setSlug(generateSlug(titleNo));
+    if (!titleNo) {
+      return;
+    }
+    const next = nextAutoSlug({ locked: slugLocked, title: titleNo });
+    if (next !== null) {
+      setSlug(next);
     }
   }
 
@@ -1350,9 +1356,11 @@ function EssentialsStep({
           {slugEditing ? (
             <input
               onBlur={() => setSlugEditing(false)}
-              onChange={(e) =>
-                setSlug(e.target.value.replace(/[^a-z0-9-]/g, ""))
-              }
+              onChange={(e) => {
+                // A hand-typed slug wins from here on: stop mirroring the title.
+                setSlugLocked(true);
+                setSlug(e.target.value.replace(/[^a-z0-9-]/g, ""));
+              }}
               style={{
                 background: "transparent",
                 border: 0,
@@ -3427,6 +3435,9 @@ export function ShopStudioEditor({
   const [activeStep, setActiveStep] = useState<0 | 1 | 2 | 3 | 4>(0);
   const [localeLang, setLocaleLang] = useState<"en" | "no">("no");
   const [slugEditing, setSlugEditing] = useState(false);
+  // An existing product's slug is already live: never let a title edit rewrite
+  // it. New products mirror the title until someone types a slug by hand.
+  const [slugLocked, setSlugLocked] = useState(Boolean(product?.slug));
   const [autoTranslate, setAutoTranslate] = useState(false);
   const [isTranslating, setIsTranslating] = useState(false);
 
@@ -3660,12 +3671,14 @@ export function ShopStudioEditor({
                 setShortDescription={setShortDescription}
                 setSlug={setSlug}
                 setSlugEditing={setSlugEditing}
+                setSlugLocked={setSlugLocked}
                 setTags={setTags}
                 setTitleEn={setTitleEn}
                 setTitleNo={setTitleNo}
                 shortDescription={shortDescription}
                 slug={slug}
                 slugEditing={slugEditing}
+                slugLocked={slugLocked}
                 tags={tags}
                 titleEn={titleEn}
                 titleNo={titleNo}
