@@ -1,4 +1,5 @@
 import type { Users } from "@repo/api/types/appwrite";
+import { getPurchasableMembershipPlans } from "@repo/shared/utils/membership-catalog";
 import { getTranslations } from "next-intl/server";
 import {
   getBenefitReveals,
@@ -9,19 +10,11 @@ import {
 } from "@/app/actions/member-portal";
 import { MemberPortalTabs } from "@/components/member-portal/member-portal-tabs";
 import { MemberPortalHeader } from "@/components/member-portal/shared/member-portal-header";
-
-interface MembershipInfo {
-  expiryDate?: string;
-  name?: string;
-}
-
-interface MembershipStatus {
-  active: boolean;
-  categories?: number[];
-  error?: string;
-  membership?: MembershipInfo | null;
-  studentId?: number | null;
-}
+import type { MembershipStatus } from "@/lib/actions/membership";
+import {
+  toCurrentMembershipView,
+  upgradePlans,
+} from "@/lib/member-portal-membership";
 
 interface AccountSummary {
   email: string;
@@ -35,7 +28,7 @@ interface LoggedInUser {
 
 interface MemberPortalContentProps {
   hasBIIdentity: boolean;
-  membership: MembershipStatus;
+  membership: MembershipStatus | null;
   user: LoggedInUser | null;
 }
 
@@ -57,27 +50,27 @@ export async function MemberPortalContent({
 
   // Fetch benefits for the member portal (all users see published benefits;
   // non-members see teasers, members see the redemption value after reveal)
-  const [benefits, featuredBenefits, revealedBenefits] = await Promise.all([
-    getMemberPortalBenefits(campusId),
-    getFeaturedBenefits(campusId),
-    user
-      ? getBenefitReveals(user.user.$id)
-      : Promise.resolve(new Set<string>()),
-  ]);
+  const [benefits, featuredBenefits, revealedBenefits, plans] =
+    await Promise.all([
+      getMemberPortalBenefits(campusId),
+      getFeaturedBenefits(campusId),
+      user
+        ? getBenefitReveals(user.user.$id)
+        : Promise.resolve(new Set<string>()),
+      getPurchasableMembershipPlans().catch(() => []),
+    ]);
 
-  const isMember = membership.active;
-
-  // Calculate membership info
-  const membershipType = membership.membership?.name || "Year";
-  const expiryDate =
-    membership.membership?.expiryDate ||
-    new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString();
-  const startDate = new Date(
-    new Date(expiryDate).getTime() - 365 * 24 * 60 * 60 * 1000
-  ).toISOString();
-  const daysRemaining = Math.floor(
-    (new Date(expiryDate).getTime() - Date.now()) / (24 * 60 * 60 * 1000)
-  );
+  const current = membership ? toCurrentMembershipView(membership) : null;
+  const isMember = current !== null;
+  const tDuration = await getTranslations("memberPass.duration");
+  const membershipType = current?.duration
+    ? tDuration(current.duration)
+    : (current?.name ?? "");
+  const expiryDate = current?.expiryDate ?? "";
+  const startDate = current?.startDate ?? "";
+  const daysRemaining = current?.daysRemaining ?? 0;
+  const termDays = current?.termDays ?? 1;
+  const offeredPlans = upgradePlans(plans, current);
 
   // Get campus name
   const campus =
@@ -94,8 +87,7 @@ export async function MemberPortalContent({
   const userAvatar = profile?.avatar || user?.profile?.avatar || null;
 
   // Get student ID for BI email construction
-  const studentId =
-    profile?.student_id || user?.profile?.student_id || "S000000";
+  const studentId = profile?.student_id || user?.profile?.student_id || "";
   const biEmail = `${studentId}@bi.no`;
 
   return (
@@ -118,6 +110,7 @@ export async function MemberPortalContent({
           benefits={benefits}
           benefitsCount={benefits.length}
           biEmail={biEmail}
+          current={current}
           daysRemaining={daysRemaining}
           estimatedSavings={null}
           expiryDate={expiryDate}
@@ -126,6 +119,7 @@ export async function MemberPortalContent({
           isGuest={!user}
           isMember={isMember}
           membershipType={membershipType}
+          plans={offeredPlans}
           profile={profile || user?.profile || null}
           profileAccount={
             user?.user
@@ -138,8 +132,7 @@ export async function MemberPortalContent({
           publicProfile={publicProfile}
           revealedBenefits={revealedBenefits}
           startDate={startDate}
-          studentId={studentId}
-          userName={userName}
+          termDays={termDays}
         />
       </div>
     </div>

@@ -1291,6 +1291,127 @@
       "planPrice": "{price} kr"
     }
   },
+  "memberPass": {
+    "scanTitle": "Scan member passes",
+    "scanDescription": "Point the camera at a member's pass.",
+    "openScanner": "Scan passes",
+    "manageLinks": "Guest scanner links",
+    "manageAccess": "Scanner access",
+    "todaysColor": "Today's color",
+    "cameraError": "Camera unavailable. Allow camera access and reload.",
+    "starting": "Starting camera…",
+    "notConfigured": "Pass scanning is not configured.",
+    "tapToContinue": "Tap to scan the next pass",
+    "results": {
+      "valid": "Valid member",
+      "duplicate": "Already scanned {seconds}s ago",
+      "check_id": "Wallet pass — check ID",
+      "unavailable": "Couldn't check — try again",
+      "denied": "Not valid"
+    },
+    "reasons": {
+      "bad_code": "Not a BISO pass",
+      "stale": "Old code — ask them to open the pass again",
+      "expired": "Membership has ended",
+      "not_member": "Not a member",
+      "not_linked": "No linked student account"
+    },
+    "validUntil": "Valid until {date}",
+    "links": {
+      "title": "Guest scanner links",
+      "description": "Give event security a scanner without an account. Links expire automatically and can be revoked.",
+      "label": "Label",
+      "labelPlaceholder": "e.g. Fadderuke – door 1",
+      "campus": "Campus",
+      "allCampuses": "All campuses",
+      "expiresAt": "Valid until",
+      "create": "Create link",
+      "created": "Link created — copy it now, it is shown only once.",
+      "copy": "Copy link",
+      "copied": "Copied",
+      "active": "Active links",
+      "none": "No active links.",
+      "revoke": "Revoke",
+      "revoked": "Link revoked",
+      "expires": "Expires {date}",
+      "errors": {
+        "invalid_label": "Enter a label.",
+        "invalid_expiry": "Choose a time in the future (max 48 hours).",
+        "forbidden_campus": "You can only create links for your own campus.",
+        "not_found": "That link no longer exists.",
+        "failed": "Something went wrong. Try again.",
+        "not_configured": "Pass scanning is not configured.",
+        "invalid_link": "This scanner link is no longer valid."
+      }
+    },
+    "access": {
+      "title": "Scanner access",
+      "description": "Let people outside BISO scan member passes in the BISO app. They sign in with the email address you enter here.",
+      "addTitle": "Add scanner",
+      "email": "Email",
+      "emailPlaceholder": "name@example.com",
+      "name": "Name (optional)",
+      "namePlaceholder": "e.g. Ola Nordmann – Securitas",
+      "campus": "Campus",
+      "allCampuses": "All campuses",
+      "expiresAt": "End date (optional)",
+      "expiresHint": "Leave empty to keep the current end date for existing access, or for access until revoked for new people. To remove an end date, revoke and add the person again.",
+      "invite": "Give access and send invitation",
+      "invited": "Access given and invitation sent.",
+      "resent": "Invitation sent again.",
+      "emailNotSent": "Access saved, but the invitation was not sent — check SMTP settings.",
+      "revoked": "Access revoked.",
+      "listTitle": "People with scanner access",
+      "none": "Nobody has been given scanner access yet.",
+      "noEndDate": "No end date",
+      "notInvited": "Not sent",
+      "resend": "Resend invitation",
+      "revoke": "Revoke",
+      "columns": {
+        "name": "Name",
+        "email": "Email",
+        "campus": "Campus",
+        "grantedBy": "Granted by",
+        "expiresAt": "End date",
+        "status": "Status",
+        "invitedAt": "Last invited",
+        "actions": "Actions"
+      },
+      "status": {
+        "active": "Active",
+        "expired": "Expired",
+        "revoked": "Revoked"
+      },
+      "errors": {
+        "invalid_email": "Enter a valid email address.",
+        "invalid_name": "Name must be 120 characters or fewer.",
+        "invalid_expiry": "Choose an end date in the future.",
+        "forbidden_campus": "You can only give access for your own campus.",
+        "not_found": "That access no longer exists.",
+        "not_active": "This access has ended. Add the person again instead.",
+        "failed": "Something went wrong. Try again."
+      }
+    },
+    "guest": {
+      "invalidTitle": "This scanner link is not valid",
+      "invalidDescription": "It has expired or been revoked. Ask BISO staff for a new link.",
+      "rateLimited": "Too many scans — wait a moment."
+    },
+    "colors": {
+      "red": "Red",
+      "orange": "Orange",
+      "yellow": "Yellow",
+      "lime": "Lime",
+      "green": "Green",
+      "teal": "Teal",
+      "cyan": "Cyan",
+      "blue": "Blue",
+      "indigo": "Indigo",
+      "purple": "Purple",
+      "pink": "Pink",
+      "brown": "Brown"
+    }
+  },
   "unauthorized": {
     "tagline": "Access denied",
     "title": "You must be signed in to view this page",

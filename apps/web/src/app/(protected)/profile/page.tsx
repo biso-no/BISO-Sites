@@ -10,11 +10,9 @@ import {
 import { Briefcase } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
-import type { MembershipCheckResult } from "@/components/profile/membership-status-card";
-import MembershipStatusCard from "@/components/profile/membership-status-card";
+import { MemberPass } from "@/components/member-pass/member-pass";
 import { ProfileTabs } from "@/components/profile/profile-tabs";
 import { getLoggedInUser, listIdentities } from "@/lib/actions/user";
-import { checkMembership } from "@/lib/profile";
 
 export const metadata: Metadata = {
   title: "Your Profile | BISO",
@@ -30,23 +28,7 @@ export const metadata: Metadata = {
 // carry no behaviour on this page — they're read by nothing here.
 export default async function PublicProfilePage() {
   const userData = await getLoggedInUser();
-  let identitiesResp: {
-    identities?: { $id: string; provider: string }[];
-  } | null = null;
-  let membership: MembershipCheckResult | null = null;
-  let hasBIIdentity = false;
-
-  identitiesResp = await listIdentities();
-  const ids: { $id: string; provider: string }[] =
-    identitiesResp?.identities || [];
-  hasBIIdentity =
-    Array.isArray(ids) &&
-    ids.some((i) => String(i?.provider || "").toLowerCase() === "oidc");
-  if (hasBIIdentity) {
-    membership = await checkMembership();
-  } else {
-    membership = null;
-  }
+  const identitiesResp = await listIdentities();
 
   return (
     <div className="container mx-auto max-w-5xl px-4 pt-28 pb-6">
@@ -81,12 +63,9 @@ export default async function PublicProfilePage() {
           </Card>
         );
       })()}
-      {/* Membership status up-front */}
-      <div className="mb-6">
-        <MembershipStatusCard
-          hasBIIdentity={hasBIIdentity}
-          initial={membership}
-        />
+      {/* Membership pass up-front */}
+      <div className="mx-auto mb-6 max-w-md">
+        <MemberPass />
       </div>
 
       <Card className="mb-6 flex flex-row items-center justify-between gap-4 border border-primary/10 p-4">

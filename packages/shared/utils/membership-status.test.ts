@@ -18,6 +18,7 @@ import {
   computeMembershipStatus,
   isMembershipRowActive,
   osloToday,
+  pickCurrentMembership,
 } from "./membership-status";
 
 function row(id: string, category: string, expiryDate: string) {
@@ -49,6 +50,15 @@ describe("isMembershipRowActive", () => {
         new Date("2026-12-31T12:00:00Z")
       )
     ).toBe(true);
+  });
+
+  it("reads a DD.MM.YYYY expiry", () => {
+    expect(
+      isMembershipRowActive("31.12.2026", new Date("2026-09-17T10:00:00Z"))
+    ).toBe(true);
+    expect(
+      isMembershipRowActive("30.06.2026", new Date("2026-09-17T10:00:00Z"))
+    ).toBe(false);
   });
 
   it("treats an unreadable expiry as expired", () => {
@@ -114,6 +124,40 @@ describe("computeMembershipStatus", () => {
     ]);
   });
 
+  it("counts a held row whose dates are written DD.MM.YYYY", async () => {
+    getCustomerCategories.mockResolvedValue([113_176]);
+    listRows.mockResolvedValue({
+      rows: [{ ...row("54", "113176", "31.12.2026"), startDate: "01.07.2026" }],
+      total: 1,
+    });
+
+    const status = await computeMembershipStatus(1_715_738, now);
+
+    expect(status.isMember).toBe(true);
+    expect(status.memberships).toEqual([
+      expect.objectContaining({
+        expiryDate: "2026-12-31",
+        id: "54",
+        startDate: "2026-07-01",
+      }),
+    ]);
+  });
+
+  it("orders expired memberships by date, whatever form they are written in", async () => {
+    getCustomerCategories.mockResolvedValue([1, 2]);
+    listRows.mockResolvedValue({
+      rows: [row("older", "1", "31.12.2025"), row("newer", "2", "2026-06-30")],
+      total: 2,
+    });
+
+    const status = await computeMembershipStatus(1_715_738, now);
+
+    expect(status.expiredMemberships?.map((m) => m.id)).toEqual([
+      "newer",
+      "older",
+    ]);
+  });
+
   it("does not count a matched row with an unreadable expiry", async () => {
     getCustomerCategories.mockResolvedValue([1]);
     listRows.mockResolvedValue({ rows: [row("bad", "1", "soon")], total: 1 });
@@ -135,5 +179,29 @@ describe("computeMembershipStatus", () => {
       reason: "no_categories",
     });
     expect(listRows).not.toHaveBeenCalled();
+  });
+});
+
+describe("pickCurrentMembership", () => {
+  const info = (id: string, expiryDate: string) => ({
+    category: "1",
+    expiryDate,
+    id,
+    name: id,
+    startDate: "2026-07-01",
+  });
+
+  it("returns the membership that runs longest", () => {
+    expect(
+      pickCurrentMembership([
+        info("semester", "2026-12-31"),
+        info("three-years", "2029-07-01"),
+        info("year", "2027-07-01"),
+      ])?.id
+    ).toBe("three-years");
+  });
+
+  it("returns null for no memberships", () => {
+    expect(pickCurrentMembership([])).toBeNull();
   });
 });

@@ -1,0 +1,68 @@
+{
+  "member": "Medlem",
+  "live": "Live",
+  "validUntil": "Gyldig til {date}",
+  "refreshesIn": "Ny kode om {seconds}s",
+  "tapToShow": "Trykk for å vise frem",
+  "close": "Lukk",
+  "showToStaff": "Vis denne skjermen til personalet. Koden endres hvert 30. sekund.",
+  "todaysColor": "Dagens farge",
+  "term": {
+    "semester": "{season, select, spring {Vår} other {Høst}} {year}",
+    "span": "{from}–{to}"
+  },
+  "duration": {
+    "semester": "Semester",
+    "year": "1 år",
+    "three_years": "3 år"
+  },
+  "colors": {
+    "red": "Rød",
+    "orange": "Oransje",
+    "yellow": "Gul",
+    "lime": "Limegrønn",
+    "green": "Grønn",
+    "teal": "Blågrønn",
+    "cyan": "Turkis",
+    "blue": "Blå",
+    "indigo": "Indigo",
+    "purple": "Lilla",
+    "pink": "Rosa",
+    "brown": "Brun"
+  },
+  "states": {
+    "loading": "Sjekker medlemskapet ditt…",
+    "noBiIdentity": {
+      "title": "Koble til BI Student-kontoen din",
+      "description": "Vi bekrefter medlemskapet ditt via BI-studentkontoen din.",
+      "action": "Koble til BI Student"
+    },
+    "notMember": {
+      "title": "Ingen aktivt medlemskap",
+      "description": "Bli medlem for å få medlemskortet, rabatter og medlemspriser.",
+      "action": "Bli medlem"
+    },
+    "expired": {
+      "title": "Medlemskapet ditt har utløpt",
+      "description": "Forny for å få medlemskortet tilbake.",
+      "action": "Forny medlemskap"
+    },
+    "unavailable": {
+      "title": "Kan ikke bekrefte akkurat nå",
+      "description": "Vi fikk ikke kontakt med medlemsregisteret. Prøv igjen om litt.",
+      "action": "Prøv igjen"
+    },
+    "offline": {
+      "title": "Koble til nettet for å oppdatere kortet",
+      "description": "Medlemskortet trenger nett minst hvert tiende minutt."
+    }
+  },
+  "wallet": {
+    "apple": "Legg til i Apple Wallet",
+    "google": "Legg til i Google Wallet"
+  },
+  "walletLabels": {
+    "membership": "Medlemskap",
+    "validUntil": "Gyldig til"
+  }
+}

@@ -5,6 +5,7 @@
   "exports": {
     "./utils/*": "./utils/*.ts",
     "./types/*": "./types/*.ts",
+    "./member-pass/*": "./member-pass/*.ts",
     "./recruitment": "./recruitment.ts"
   },
   "scripts": {
@@ -26,6 +27,8 @@
     "@repo/api": "workspace:*",
     "@repo/connectors": "workspace:*",
     "node-appwrite": "catalog:",
+    "passkit-generator": "^3.6.0",
+    "server-only": "catalog:",
     "zod": "catalog:"
   }
 }

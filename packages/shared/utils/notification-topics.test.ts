@@ -86,7 +86,12 @@ describe("logicalTopicFor", () => {
 
 describe("the taxonomy", () => {
   it("matches the Flutter client's four logical topics", () => {
-    expect([...NOTIFICATION_TOPICS]).toEqual(["news", "events", "jobs", "shop"]);
+    expect([...NOTIFICATION_TOPICS]).toEqual([
+      "news",
+      "events",
+      "jobs",
+      "shop",
+    ]);
   });
 
   it("keeps general out of the campus-scoped set", () => {
