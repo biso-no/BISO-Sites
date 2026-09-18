@@ -282,6 +282,16 @@ function assertRecruitmentGate(
   }
 }
 
+/**
+ * The slug shape `biso_content_create_draft` accepts.
+ *
+ * Exported so `content-slug.test.ts` can assert the compatibility this tool
+ * depends on: every slug the repo's own `generateSlug` produces must pass this
+ * validator. A caller told to follow the canonical rule and then refused by
+ * this schema would have no way forward.
+ */
+export const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
 export const contentModule: ToolModule = {
   name: "content",
   title: "Content operations",
@@ -407,10 +417,12 @@ export const contentModule: ToolModule = {
           .min(1)
           .max(200)
           .regex(
-            /^[a-z0-9]+(?:-[a-z0-9]+)*$/,
+            SLUG_PATTERN,
             "Lowercase letters, digits and single hyphens only."
           )
-          .describe("URL slug, e.g. `velkomstfest-oslo-2026`."),
+          .describe(
+            "URL slug, e.g. `velkomstfest-oslo-2026`. Non-ASCII letters fold to their ASCII base rather than being dropped — `Høstball` becomes `hostball`, not `hstball` — which is what `generateSlug` in `@repo/shared/utils/content-slug` does for every other BISO surface."
+          ),
         campusId: z
           .string()
           .min(1)

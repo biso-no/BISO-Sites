@@ -711,6 +711,7 @@ change something that mattered.
 | `45188bc` → `d5da221` | `apps/web`, `@repo/i18n`, and `packages/api/server.ts`, which swapped `Date.now()` for `performance.now()` in its request timing | Nothing imports `@repo/api/server` here (`isolation.test.ts` asserts it), but `packages/api/runtime.ts` — added by this PR — documents itself as having *the same* request-timeout and slow-request behaviour as `./server`, and that claim went stale the moment the base landed. `runtime.ts` and `invokeTool` now use monotonic `performance.now()`, rounded, since `durationMs` reaches an `audit_logs` row |
 | `d5da221` → `ca9997f` | PR #75, member pass: 143 files, three new tables | Inert here, and checked rather than assumed. All 13 generated types this package imports differ only cosmetically (`}` → `};`, trailing enum commas, one field reordered). All 17 tables it reads are unchanged in `$permissions`, `rowSecurity` **and** column set. The three new tables (`member_pass_scans`, `member_pass_scanners`, `member_pass_scanner_links`) are untouched by this package |
 | `ca9997f` → `b11a842` | PR #76, webshop visibility: `webshop_products` gained an `unlisted` column | **Not inert.** See below |
+| `b11a842` → `1b6b3d1` | PRs consolidating slug derivation and member pricing into `@repo/shared/utils/{content-slug,member-discount}`, plus admin/web navigation and checkout work | No schema, type, lockfile or `turbo.json` change, and nothing under `packages/shared/utils/*` that this package imports. Both new helpers serve surfaces this package does not implement: it reads `member_price` but never computes a discount, and it requires a slug rather than deriving one. The slug consolidation did make one contract worth asserting — see below |
 
 ### `unlisted`: a column the product projection had to carry
 
@@ -744,3 +745,24 @@ change, which is the check that round eleven skipped: `apps/admin`'s product
 list renders an `unlisted` badge next to each product
 (`shop/_components/product-row.tsx`), so "a staff-facing product summary says
 whether a product is link-only" is the admin app's rule, not one invented here.
+
+### The slug contract, asserted rather than assumed
+
+`generateSlug` was extracted because five surfaces had drifted copies that all
+silently deleted Norwegian characters (`Høstball` → `hstball`). This package
+has no copy to drift: `biso_content_create_draft` requires a `slug` and
+validates its shape against `SLUG_PATTERN`.
+
+It does have an obligation, though, and it is easy to miss. The tool's
+description now points a caller at the canonical rule, which only helps if
+every slug that rule produces is one the validator accepts. A caller told to
+fold `Høstball` to `hostball` and then refused by the schema would have nowhere
+to go, and the refusal would surface as an unexplained `invalid_input` rather
+than as the drift it actually is.
+
+`domains/content-slug.test.ts` states that compatibility over realistic
+Norwegian titles, and the documented example is asserted against the real
+helper rather than left to a reviewer's memory. Tightening `SLUG_PATTERN` to
+reject digits — a plausible edit — fails it, so the test has teeth. The empty
+case is stated too: `generateSlug("🎉")` is `""`, which `.min(1)` rejects, so a
+title that folds away entirely still forces the caller to supply a slug.
