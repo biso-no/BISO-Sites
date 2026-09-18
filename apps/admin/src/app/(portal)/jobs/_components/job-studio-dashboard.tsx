@@ -19,14 +19,17 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
-import { useMemo, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { GuideVideoDialog } from "@/components/tours/guide-video-dialog";
-import { deleteJob } from "../../_actions/jobs";
+import { deleteJob, type JobStatusCounts } from "../../_actions/jobs";
 import { JOBS_PAGE_SIZE } from "../../_actions/schemas";
 import { PaginationBar } from "../../_components/pagination-bar";
+import { useListParams, useUrlSearch } from "../../_components/use-list-params";
 
 interface JobStudioDashboardProps {
+  /** Per-status totals across every accessible vacancy matching the search. */
+  counts: JobStatusCounts;
   initialJobs: RecruitmentVacancy[];
   labels: {
     applications: string;
@@ -485,14 +488,25 @@ function JobRow({
   );
 }
 
+function isFilter(value: string): value is (typeof FILTERS)[number] {
+  return (FILTERS as readonly string[]).includes(value);
+}
+
 export function JobStudioDashboard({
+  counts,
   initialJobs,
   labels,
   page,
   total,
 }: JobStudioDashboardProps) {
-  const [query, setQuery] = useState("");
-  const [filter, setFilter] = useState<(typeof FILTERS)[number]>("all");
+  // Search and status live in the URL so the server filters every accessible
+  // vacancy, not just the page currently rendered.
+  const [query, setQuery] = useUrlSearch("search");
+  const { get, setParams } = useListParams();
+  const statusParam = get("status", "all");
+  const filter = isFilter(statusParam) ? statusParam : "all";
+  const setFilter = (next: (typeof FILTERS)[number]) =>
+    setParams({ status: next === "all" ? null : next });
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [guideOpen, setGuideOpen] = useState(false);
   const [, startTransition] = useTransition();
@@ -500,41 +514,11 @@ export function JobStudioDashboard({
   const ts = useTranslations("adminPortal.jobs.studio");
   const tc = useTranslations("adminPortal.common");
   const tt = useTranslations("adminPortal.tours");
-  const locale = normalizeLocale(useLocale());
-
-  const counts = useMemo(
-    () => ({
-      all: initialJobs.length,
-      closed: initialJobs.filter((job) => job.status === "closed").length,
-      draft: initialJobs.filter((job) => job.status === "draft").length,
-      published: initialJobs.filter((job) => job.status === "published").length,
-    }),
-    [initialJobs]
-  );
 
   const closingSoon = initialJobs.filter((job) => {
     const days = daysUntil(job.application_deadline);
     return days != null && days >= 0 && days <= 5;
   }).length;
-
-  const filteredJobs = initialJobs.filter((job) => {
-    const haystack = [
-      getTitle(job, locale),
-      getTitle(job, "no"),
-      job.slug,
-      job.department?.Name,
-      job.campus?.name,
-      job.metadata.company,
-    ]
-      .filter(Boolean)
-      .join(" ")
-      .toLowerCase();
-
-    return (
-      (filter === "all" || job.status === filter) &&
-      (!query.trim() || haystack.includes(query.trim().toLowerCase()))
-    );
-  });
 
   function handleDelete(id: string) {
     startTransition(async () => {
@@ -631,9 +615,9 @@ export function JobStudioDashboard({
           value={String(counts.draft)}
         />
         <KpiCard
-          helper={ts("kpi.accessibleRecords", { count: total })}
+          helper={ts("kpi.accessibleRecords", { count: counts.all })}
           label={ts("kpi.totalJobs")}
-          value={String(total)}
+          value={String(counts.all)}
         />
         <KpiCard
           alert
@@ -748,7 +732,7 @@ export function JobStudioDashboard({
           </div>
         </div>
 
-        {filteredJobs.length === 0 ? (
+        {initialJobs.length === 0 ? (
           <div className="flex flex-col items-center justify-center px-6 py-20 text-center">
             <div
               className="grid h-16 w-16 place-items-center rounded-2xl border"
@@ -782,7 +766,7 @@ export function JobStudioDashboard({
               <div>{ts("table.deadline")}</div>
               <div className="text-right">{tc("actions")}</div>
             </div>
-            {filteredJobs.map((job) => (
+            {initialJobs.map((job) => (
               <JobRow
                 isConfirmingDelete={pendingDeleteId === job.$id}
                 job={job}
