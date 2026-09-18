@@ -77,12 +77,10 @@ describe("GET /api/member-pass/apple", () => {
     resolveMemberPassForRequest.mockResolvedValue({
       state: "unauthenticated",
     });
-    const unauthenticated = await GET(
-      request({ origin: "https://web.biso.no" })
-    );
+    const unauthenticated = await GET(request({ origin: "https://biso.no" }));
     expect(unauthenticated.status).toBe(401);
     expect(unauthenticated.headers.get("access-control-allow-origin")).toBe(
-      "https://web.biso.no"
+      "https://biso.no"
     );
     resolveMemberPassForRequest.mockResolvedValue({ state: "not_member" });
     expect((await GET(request())).status).toBe(403);
@@ -90,7 +88,7 @@ describe("GET /api/member-pass/apple", () => {
 
   it("returns a signed pass for members, with CORS and no-store headers", async () => {
     resolveMemberPassForRequest.mockResolvedValue(ACTIVE);
-    const response = await GET(request({ origin: "https://web.biso.no" }));
+    const response = await GET(request({ origin: "https://biso.no" }));
     expect(response.status).toBe(200);
     expect(response.headers.get("content-type")).toBe(
       "application/vnd.apple.pkpass"
@@ -100,7 +98,7 @@ describe("GET /api/member-pass/apple", () => {
     );
     expect(response.headers.get("cache-control")).toBe("private, no-store");
     expect(response.headers.get("access-control-allow-origin")).toBe(
-      "https://web.biso.no"
+      "https://biso.no"
     );
     const input = buildAppleWalletPass.mock.calls[0]?.[0] as {
       code: string;
@@ -136,7 +134,7 @@ describe("GET /api/member-pass/apple", () => {
 
 describe("OPTIONS /api/member-pass/apple", () => {
   it("answers CORS preflight", () => {
-    const response = OPTIONS(request({ origin: "https://web.biso.no" }));
+    const response = OPTIONS(request({ origin: "https://biso.no" }));
     expect(response.status).toBe(204);
   });
 });

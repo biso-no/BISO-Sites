@@ -1,19 +1,19 @@
-import type { Metadata } from "next";
-import { inter, museoSans } from "./fonts";
-import Providers from "./providers";
-import "@/app/styles.css";
-import Script from "next/script";
-import { NextIntlClientProvider } from "next-intl";
-import { getMessages } from "next-intl/server";
-import { Suspense } from "react";
 import { getLocale } from "@/app/actions/locale";
+import "@/app/styles.css";
 import { AccountLinkSessionCleanup } from "@/components/account-link-session-cleanup";
 import { AnalyticsTracker } from "@/components/analytics-tracker";
+import type { Metadata } from "next";
+import { NextIntlClientProvider } from "next-intl";
+import { getMessages } from "next-intl/server";
+import Script from "next/script";
+import { Suspense } from "react";
+import { inter, museoSans } from "./fonts";
+import Providers from "./providers";
 export const metadata: Metadata = {
   title: "BI Student Organisation",
   description: "BISO Apps",
   metadataBase: new URL(
-    process.env.NEXT_PUBLIC_BASE_URL ?? "https://web.biso.no"
+    process.env.NEXT_PUBLIC_BASE_URL ?? "https://biso.no"
   ),
   icons: {
     icon: [{ url: "/favico.png" }, { url: "/favico.png", type: "image/png" }],
@@ -59,7 +59,7 @@ export default async function RootLayout({
               </Suspense>
               {children}
               <Script
-                data-domains="web.biso.no,biso.no,www.biso.no"
+                data-domains="biso.no,biso.no,www.biso.no"
                 data-performance="true"
                 data-website-id="ada2c233-ee4f-4064-87c0-feaeb52c56ce"
                 defer

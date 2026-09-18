@@ -6,7 +6,7 @@ export function buildAnalyticsTools(deps: AssistantActionDeps) {
   return {
     getAnalyticsSummary: tool({
       description:
-        "Get web.biso.no traffic analytics for a period: pageviews, visitors, top pages and total events. Answers 'how is the site doing?'. Only available to global admins.",
+        "Get biso.no traffic analytics for a period: pageviews, visitors, top pages and total events. Answers 'how is the site doing?'. Only available to global admins.",
       inputSchema: z.object({
         range: z
           .enum(["7d", "30d", "90d"])

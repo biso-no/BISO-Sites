@@ -200,14 +200,14 @@ describe("POST /api/member-pass/scan", () => {
     requireScanner.mockRejectedValue(new Error("appwrite down"));
 
     const response = await POST(
-      request({ code: "v1.user-1.1.sig" }, { origin: "https://web.biso.no" })
+      request({ code: "v1.user-1.1.sig" }, { origin: "https://biso.no" })
     );
 
     expect(response.status).toBe(500);
     expect(await response.json()).toEqual({ error: "failed" });
     expect(response.headers.get("cache-control")).toBe("private, no-store");
     expect(response.headers.get("access-control-allow-origin")).toBe(
-      "https://web.biso.no"
+      "https://biso.no"
     );
     expect(verifyScan).not.toHaveBeenCalled();
   });
@@ -229,13 +229,11 @@ describe("POST /api/member-pass/scan", () => {
 
 describe("OPTIONS /api/member-pass/scan", () => {
   it("answers CORS preflight", () => {
-    const response = OPTIONS(
-      request(undefined, { origin: "https://web.biso.no" })
-    );
+    const response = OPTIONS(request(undefined, { origin: "https://biso.no" }));
 
     expect(response.status).toBe(204);
     expect(response.headers.get("access-control-allow-origin")).toBe(
-      "https://web.biso.no"
+      "https://biso.no"
     );
   });
 });
