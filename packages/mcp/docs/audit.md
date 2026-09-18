@@ -696,3 +696,51 @@ round*.
 the revert exactly as designed. What catches it is asking whether the behaviour
 being locked in exists anywhere in the repo outside the change that introduced
 it.
+
+## 18. Base moves while the PR was open
+
+`main` moved three times after the audit above was written. A clean textual
+merge says the lines do not collide; it says nothing about whether the base
+changed a rule this package mirrors. So each move was inspected before being
+trusted, and the inspection is recorded here because two of the three did
+change something that mattered.
+
+| Base | What moved | Effect here |
+|---|---|---|
+| `333165b` → `45188bc` | PR #74, plus `appwrite` ^26→^27 and `node-appwrite` ^28→^29 | `packages/mcp` takes `node-appwrite` through the root `catalog:`, so the major bump applied to it without a manifest change. Revalidated against 29.0.0; no source change needed |
+| `45188bc` → `d5da221` | `apps/web`, `@repo/i18n`, and `packages/api/server.ts`, which swapped `Date.now()` for `performance.now()` in its request timing | Nothing imports `@repo/api/server` here (`isolation.test.ts` asserts it), but `packages/api/runtime.ts` — added by this PR — documents itself as having *the same* request-timeout and slow-request behaviour as `./server`, and that claim went stale the moment the base landed. `runtime.ts` and `invokeTool` now use monotonic `performance.now()`, rounded, since `durationMs` reaches an `audit_logs` row |
+| `d5da221` → `ca9997f` | PR #75, member pass: 143 files, three new tables | Inert here, and checked rather than assumed. All 13 generated types this package imports differ only cosmetically (`}` → `};`, trailing enum commas, one field reordered). All 17 tables it reads are unchanged in `$permissions`, `rowSecurity` **and** column set. The three new tables (`member_pass_scans`, `member_pass_scanners`, `member_pass_scanner_links`) are untouched by this package |
+| `ca9997f` → `b11a842` | PR #76, webshop visibility: `webshop_products` gained an `unlisted` column | **Not inert.** See below |
+
+### `unlisted`: a column the product projection had to carry
+
+PR #76 introduced link-only products. `unlisted` is orthogonal to `status` and
+to `member_only`: an unlisted product is published and fully purchasable at its
+`/shop/<slug>` link, and `listedProductsOnly()` in
+`apps/web/src/lib/data/product-visibility.ts` keeps it out of every public
+listing.
+
+The first question was whether this package could leak one into a listing, the
+way three earlier findings did. It cannot, and for two independent reasons:
+`products` is not one of `PUBLIC_KINDS`, so public discovery never reaches the
+table at all; and `biso_content_search` is registered for staff profiles only,
+where `scopeQueries` fails closed for a principal with no campus or department
+claim. Neither of those is new, and neither depends on the other.
+
+What was wrong is narrower and is the same shape as finding #2 of the fifth
+round: the product projection carried `status` and `member_only` but not
+`unlisted`, so a staff caller could read a product summary and conclude the
+product was publicly discoverable when it was deliberately not. `summaryColumns`
+is both the `Query.select` list and the returned field set, so the column was
+absent from the answer rather than merely unread — and an absent column comes
+back `undefined`, which is indistinguishable from "listed".
+
+`unlisted` is now projected, and the registry note says what it means. The row
+is still returned: withholding a link-only product from the staff who own it
+would be the opposite defect, and the app's listing filter is the app's.
+
+The behaviour being locked in was checked against the repo outside PR #76's own
+change, which is the check that round eleven skipped: `apps/admin`'s product
+list renders an `unlisted` badge next to each product
+(`shop/_components/product-row.tsx`), so "a staff-facing product summary says
+whether a product is link-only" is the admin app's rule, not one invented here.

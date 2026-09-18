@@ -187,3 +187,71 @@ describe("locale-filtered search", () => {
     expect(result.rows.map((row) => row.id)).toContain("n-no-only");
   });
 });
+
+/**
+ * Link-only products.
+ *
+ * `unlisted` arrived with PR #76. It is orthogonal to `status` and to
+ * `member_only`: an unlisted product is published and fully purchasable at its
+ * `/shop/<slug>` link, and `listedProductsOnly()` keeps it out of every public
+ * listing (`apps/web/src/lib/data/product-visibility.ts`).
+ *
+ * Nothing here can leak one — `biso_content_search` is staff-only and
+ * `scopeQueries` fails closed — so the defect this covers is a reporting one: a
+ * summary carrying `status` and `member_only` but not `unlisted` lets a staff
+ * caller conclude a product is publicly discoverable when it is deliberately
+ * not. The column has to be in the projection for the answer to exist at all;
+ * an unselected column reads as `undefined`, which is indistinguishable from
+ * "listed".
+ */
+describe("product link-only status", () => {
+  function shop() {
+    return createContentService(
+      createFakeBackend({
+        tables: {
+          campus: [{ $id: "1", name: "Oslo" }],
+          webshop_products: [
+            {
+              $id: "p-listed",
+              status: "published",
+              campus_id: "1",
+              slug: "hoodie",
+              member_only: false,
+              unlisted: false,
+            },
+            {
+              $id: "p-link-only",
+              status: "published",
+              campus_id: "1",
+              slug: "staff-jacket",
+              member_only: false,
+              unlisted: true,
+            },
+          ],
+        },
+      }),
+      LINKS
+    );
+  }
+
+  test("a product summary says whether it is link-only", async () => {
+    const result = await shop().search(GLOBAL_ADMIN(), {
+      domain: "products",
+      ...PAGE,
+    });
+    const byId = new Map(result.rows.map((row) => [row.id, row.fields]));
+
+    expect(byId.get("p-link-only")?.unlisted).toBe(true);
+    expect(byId.get("p-listed")?.unlisted).toBe(false);
+  });
+
+  test("a link-only product is still found, not filtered out", async () => {
+    // The app's listing filter is the app's. Withholding the row here would
+    // hide a product from the staff who own it, which is the opposite defect.
+    const result = await shop().search(GLOBAL_ADMIN(), {
+      domain: "products",
+      ...PAGE,
+    });
+    expect(result.rows.map((row) => row.id)).toContain("p-link-only");
+  });
+});

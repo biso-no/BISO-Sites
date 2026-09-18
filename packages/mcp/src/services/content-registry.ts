@@ -312,6 +312,7 @@ export const CONTENT_REGISTRY: Readonly<
       "regular_price",
       "member_price",
       "member_only",
+      "unlisted",
       "stock",
       "inventory_mode",
       "category",
@@ -320,6 +321,7 @@ export const CONTENT_REGISTRY: Readonly<
     ],
     adminPath: (id) => `/shop/products/${id}`,
     publicPath: (slug) => `/shop/${slug}`,
+    note: "`unlisted` marks a link-only product: published and purchasable at its `publicPath`, but filtered out of every public listing by `listedProductsOnly()` in `apps/web/src/lib/data/product-visibility.ts`. Orthogonal to both `status` and `member_only`, so a summary that reports only those two cannot tell a link-only product from a discoverable one.",
   },
   documents: {
     domain: "documents",
