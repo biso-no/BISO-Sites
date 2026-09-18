@@ -157,9 +157,8 @@ export const EVENT_CATEGORY_MESSAGE_KEYS: Record<EventsCategory, string> = {
 };
 
 /**
- * Badge colours per category. Lives here rather than in each component: the
- * same map was previously triplicated verbatim across event-card, event-hero
- * and event-detail-modal.
+ * Badge colours per category. Lives here rather than in each component so
+ * event-card and event-hero stay in sync.
  */
 export const EVENT_CATEGORY_COLORS: Record<EventsCategory, string> = {
   [EventsCategory.SOCIAL]: "bg-purple-100 text-purple-700 border-purple-200",

@@ -246,8 +246,18 @@ export function EventImportantInfoCard({
   );
 }
 
-export function EventContactCard() {
+export function EventContactCard({ event }: { event: Events }) {
   const t = useTranslations("events");
+  const email = event.contact_email?.trim();
+
+  // The contact is set per event in the admin editor. Without an email there
+  // is nobody to route questions to, so the card is hidden.
+  if (!email) {
+    return null;
+  }
+
+  const name = event.contact_name?.trim();
+  const role = event.contact_role?.trim();
 
   return (
     <Card className="border-0 bg-blue-50 p-6 shadow-lg">
@@ -258,14 +268,16 @@ export function EventContactCard() {
             {t("infoCards.questions")}
           </h4>
           <p className="text-muted-foreground text-sm">
-            {t("infoCards.contactTeam")}{" "}
-            <a
-              className="text-brand hover:underline"
-              href="mailto:events@biso.no"
-            >
-              events@biso.no
+            {name
+              ? t("infoCards.contactPerson", { name })
+              : t("infoCards.contactOrganizer")}{" "}
+            <a className="text-brand hover:underline" href={`mailto:${email}`}>
+              {email}
             </a>
           </p>
+          {name && role && (
+            <p className="mt-1 text-muted-foreground text-xs">{role}</p>
+          )}
         </div>
       </div>
     </Card>

@@ -18,12 +18,14 @@ import {
   Users,
 } from "lucide-react";
 import { motion } from "motion/react";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { getPrimaryTranslation } from "@/lib/content-translation";
 import {
   EVENT_CATEGORY_COLORS,
   EVENT_CATEGORY_MESSAGE_KEYS,
   formatEventPrice,
+  getEventHref,
   parseEventMetadata,
   resolveEventCategory,
 } from "@/lib/types/event";
@@ -33,7 +35,6 @@ interface EventCardProps {
   event: Events;
   index: number;
   isMember?: boolean;
-  onViewDetails: (event: Events) => void;
 }
 
 interface EventBadgesProps {
@@ -122,12 +123,7 @@ function PriceDisplay({ price, memberPrice, isMember }: PriceDisplayProps) {
   return <div className="font-medium text-foreground">{price}</div>;
 }
 
-export function EventCard({
-  event,
-  index,
-  isMember = false,
-  onViewDetails,
-}: EventCardProps) {
+export function EventCard({ event, index, isMember = false }: EventCardProps) {
   const t = useTranslations("events");
   const eventData = event;
   const translation = getPrimaryTranslation(event);
@@ -167,6 +163,13 @@ export function EventCard({
 
   // Get image URL
   const imageUrl = eventData?.image || PLACEHOLDER_IMAGE;
+
+  // Rows without a slug have no detail page; render a disabled CTA rather than
+  // linking to a 404.
+  const detailHref = getEventHref(event);
+  const ctaLabel = eventData?.is_collection
+    ? t("card.viewCollection")
+    : t("card.viewDetails");
 
   return (
     <motion.div
@@ -253,15 +256,24 @@ export function EventCard({
             </div>
           </div>
 
-          <Button
-            className="w-full border-0 bg-linear-to-r from-brand-gradient-from to-brand-gradient-to text-white hover:from-brand-gradient-from/90 hover:to-brand-gradient-to/90"
-            onClick={() => onViewDetails(event)}
-          >
-            {eventData?.is_collection
-              ? t("card.viewCollection")
-              : t("card.viewDetails")}
-            <ArrowRight className="ml-2 h-4 w-4" />
-          </Button>
+          {detailHref ? (
+            <Button
+              asChild
+              className="w-full border-0 bg-linear-to-r from-brand-gradient-from to-brand-gradient-to text-white hover:from-brand-gradient-from/90 hover:to-brand-gradient-to/90"
+            >
+              <Link href={detailHref}>
+                {ctaLabel}
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Link>
+            </Button>
+          ) : (
+            <Button
+              className="w-full border-0 bg-linear-to-r from-brand-gradient-from to-brand-gradient-to text-white"
+              disabled
+            >
+              {ctaLabel}
+            </Button>
+          )}
         </div>
       </Card>
     </motion.div>

@@ -7,13 +7,12 @@ import { useListParams, useUrlSearch } from "@repo/ui/hooks/use-list-params";
 import { Calendar, Filter, Search, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useTranslations } from "next-intl";
-import { useCallback, useState } from "react";
+import { useCallback } from "react";
 import { listEvents } from "@/app/actions/events";
 import { LoadMoreButton } from "@/components/ui/load-more-button";
 import { EVENT_CATEGORY_MESSAGE_KEYS } from "@/lib/types/event";
 import { useLoadMore } from "@/lib/use-load-more";
 import { EventCard } from "./event-card";
-import { EventDetailModal } from "./event-detail-modal";
 
 interface EventsListClientProps {
   campus: string;
@@ -41,7 +40,6 @@ export function EventsListClient({
   const t = useTranslations("events");
   const { setParams } = useListParams();
   const [searchValue, setSearchValue] = useUrlSearch("q");
-  const [selectedEvent, setSelectedEvent] = useState<Events | null>(null);
 
   const { canLoadMore, error, isLoading, items, loadMore } = useLoadMore({
     initial: initialEvents,
@@ -154,7 +152,6 @@ export function EventsListClient({
                 index={index}
                 isMember={isMember}
                 key={event.$id}
-                onViewDetails={setSelectedEvent}
               />
             ))}
           </motion.div>
@@ -196,15 +193,6 @@ export function EventsListClient({
           retryLabel={t("filters.loadMoreFailed")}
         />
       </div>
-
-      {/* Event Detail Modal */}
-      {selectedEvent && (
-        <EventDetailModal
-          event={selectedEvent}
-          isMember={isMember}
-          onClose={() => setSelectedEvent(null)}
-        />
-      )}
     </>
   );
 }
