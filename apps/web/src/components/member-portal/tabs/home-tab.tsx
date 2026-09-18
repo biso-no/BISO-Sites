@@ -17,7 +17,8 @@ import {
   Zap,
 } from "lucide-react";
 import { motion } from "motion/react";
-import { useTranslations } from "next-intl";
+import { useFormatter, useTranslations } from "next-intl";
+import { MemberPass } from "@/components/member-pass/member-pass";
 import { shouldShowEstimatedSavings } from "@/lib/member-portal-utils";
 import { BenefitCard } from "../shared/benefit-card";
 import { BenefitsShowcase } from "../shared/benefits-showcase";
@@ -35,6 +36,7 @@ interface HomeTabProps {
   onTabChange: (tab: string) => void;
   revealedBenefits: Set<string>;
   startDate: string;
+  termDays: number;
 }
 
 interface AnimatedCounterProps {
@@ -74,12 +76,20 @@ function MemberOverview({
   benefits,
   revealedBenefits,
   onTabChange,
+  termDays,
 }: Omit<HomeTabProps, "isMember" | "hasBIIdentity">) {
   const t = useTranslations("memberPortal.overview");
   const tCommon = useTranslations("memberPortal.common");
+  const format = useFormatter();
 
   const featuredBenefits = benefits.slice(0, 3);
-  const progressPercentage = Math.min(100, (daysRemaining / 365) * 100);
+  const progressPercentage = Math.min(100, (daysRemaining / termDays) * 100);
+  const formatDate = (date: string) =>
+    format.dateTime(new Date(`${date}T12:00:00Z`), {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
 
   return (
     <>
@@ -289,11 +299,7 @@ function MemberOverview({
                   {t("started")}
                 </span>
                 <span className="ml-2 font-medium text-foreground dark:text-foreground">
-                  {new Date(startDate).toLocaleDateString("en-US", {
-                    month: "short",
-                    day: "numeric",
-                    year: "numeric",
-                  })}
+                  {formatDate(startDate)}
                 </span>
               </div>
               <div className="rounded-lg bg-background p-4 dark:bg-card">
@@ -301,11 +307,7 @@ function MemberOverview({
                   {t("expires")}
                 </span>
                 <span className="ml-2 font-medium text-foreground dark:text-foreground">
-                  {new Date(expiryDate).toLocaleDateString("en-US", {
-                    month: "short",
-                    day: "numeric",
-                    year: "numeric",
-                  })}
+                  {formatDate(expiryDate)}
                 </span>
               </div>
             </div>
@@ -361,21 +363,28 @@ export function HomeTab({
   isMember,
   hasBIIdentity: _hasBIIdentity,
   onTabChange,
+  termDays,
 }: HomeTabProps) {
   return (
     <TabsContent className="space-y-8" value="home">
       {isMember ? (
-        <MemberOverview
-          benefits={benefits}
-          benefitsCount={benefitsCount}
-          daysRemaining={daysRemaining}
-          estimatedSavings={estimatedSavings}
-          expiryDate={expiryDate}
-          membershipType={membershipType}
-          onTabChange={onTabChange}
-          revealedBenefits={revealedBenefits}
-          startDate={startDate}
-        />
+        <>
+          <div className="mx-auto max-w-md">
+            <MemberPass />
+          </div>
+          <MemberOverview
+            benefits={benefits}
+            benefitsCount={benefitsCount}
+            daysRemaining={daysRemaining}
+            estimatedSavings={estimatedSavings}
+            expiryDate={expiryDate}
+            membershipType={membershipType}
+            onTabChange={onTabChange}
+            revealedBenefits={revealedBenefits}
+            startDate={startDate}
+            termDays={termDays}
+          />
+        </>
       ) : (
         <NonMemberOverview benefits={benefits} />
       )}

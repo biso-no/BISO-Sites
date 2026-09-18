@@ -7,6 +7,8 @@
  * It is NOT the `ProductNo` (1009/2004/3004) shown in the 24SO UI.
  */
 
+import { normalizeMembershipDate } from "./membership-dates";
+
 export type MembershipDuration = "semester" | "year" | "three_years";
 
 /** The duration surfaced as "Popular" everywhere a plan picker renders one. */
@@ -77,8 +79,8 @@ export function deriveAccrualMonths(
   startDate: string,
   expiryDate: string
 ): 6 | 12 | 36 | null {
-  const start = new Date(startDate);
-  const expiry = new Date(expiryDate);
+  const start = new Date(normalizeMembershipDate(startDate) ?? startDate);
+  const expiry = new Date(normalizeMembershipDate(expiryDate) ?? expiryDate);
 
   if (Number.isNaN(start.getTime()) || Number.isNaN(expiry.getTime())) {
     return null;
@@ -96,6 +98,47 @@ export function deriveAccrualMonths(
     }
   }
   return closest;
+}
+
+export interface MembershipTerm {
+  duration: MembershipDuration;
+  fromYear: number;
+  /** Set only for single-semester memberships. */
+  season: "spring" | "fall" | null;
+  toYear: number;
+}
+
+const LAST_SPRING_MONTH = 6;
+
+/**
+ * What a membership covers, for display: "Fall 2026" for a semester,
+ * "2026–2027" otherwise. Labels are localized by the caller.
+ */
+export function describeMembershipTerm(
+  startDate: string,
+  expiryDate: string
+): MembershipTerm | null {
+  const start = normalizeMembershipDate(startDate);
+  const expiry = normalizeMembershipDate(expiryDate);
+  if (!(start && expiry)) {
+    return null;
+  }
+  const accrualMonths = deriveAccrualMonths(start, expiry);
+  if (accrualMonths === null) {
+    return null;
+  }
+  const duration = DURATION_BY_ACCRUAL[accrualMonths];
+  const expiryMonth = Number(expiry.slice(5, 7));
+  let season: "spring" | "fall" | null = null;
+  if (duration === "semester") {
+    season = expiryMonth <= LAST_SPRING_MONTH ? "spring" : "fall";
+  }
+  return {
+    duration,
+    fromYear: Number(start.slice(0, 4)),
+    season,
+    toYear: Number(expiry.slice(0, 4)),
+  };
 }
 
 export function toMembershipPlan(
@@ -131,7 +174,7 @@ export function toMembershipPlan(
     categoryId,
     duration: DURATION_BY_ACCRUAL[accrualMonths],
     accrualMonths,
-    startDate: row.startDate,
-    expiryDate: row.expiryDate,
+    startDate: normalizeMembershipDate(row.startDate) ?? row.startDate,
+    expiryDate: normalizeMembershipDate(row.expiryDate) ?? row.expiryDate,
   };
 }

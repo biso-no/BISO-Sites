@@ -1291,6 +1291,127 @@
       "planPrice": "{price} kr"
     }
   },
+  "memberPass": {
+    "scanTitle": "Skann medlemskort",
+    "scanDescription": "Hold kameraet mot medlemskortet.",
+    "openScanner": "Skann medlemskort",
+    "manageLinks": "Gjesteskanner-lenker",
+    "manageAccess": "Skannertilgang",
+    "todaysColor": "Dagens farge",
+    "cameraError": "Kameraet er utilgjengelig. Gi tilgang til kameraet og last inn på nytt.",
+    "starting": "Starter kamera…",
+    "notConfigured": "Skanning av medlemskort er ikke satt opp.",
+    "tapToContinue": "Trykk for å skanne neste kort",
+    "results": {
+      "valid": "Gyldig medlem",
+      "duplicate": "Allerede skannet for {seconds}s siden",
+      "check_id": "Wallet-kort — sjekk legitimasjon",
+      "unavailable": "Kunne ikke sjekke — prøv igjen",
+      "denied": "Ikke gyldig"
+    },
+    "reasons": {
+      "bad_code": "Ikke et BISO-kort",
+      "stale": "Gammel kode — be personen åpne kortet på nytt",
+      "expired": "Medlemskapet har utløpt",
+      "not_member": "Ikke medlem",
+      "not_linked": "Ingen tilkoblet studentkonto"
+    },
+    "validUntil": "Gyldig til {date}",
+    "links": {
+      "title": "Gjesteskanner-lenker",
+      "description": "Gi vakter en skanner uten konto. Lenkene utløper automatisk og kan trekkes tilbake.",
+      "label": "Navn",
+      "labelPlaceholder": "f.eks. Fadderuke – dør 1",
+      "campus": "Campus",
+      "allCampuses": "Alle campuser",
+      "expiresAt": "Gyldig til",
+      "create": "Lag lenke",
+      "created": "Lenken er laget — kopier den nå, den vises bare én gang.",
+      "copy": "Kopier lenke",
+      "copied": "Kopiert",
+      "active": "Aktive lenker",
+      "none": "Ingen aktive lenker.",
+      "revoke": "Trekk tilbake",
+      "revoked": "Lenken er trukket tilbake",
+      "expires": "Utløper {date}",
+      "errors": {
+        "invalid_label": "Skriv inn et navn.",
+        "invalid_expiry": "Velg et tidspunkt fram i tid (maks 48 timer).",
+        "forbidden_campus": "Du kan bare lage lenker for din egen campus.",
+        "not_found": "Lenken finnes ikke lenger.",
+        "failed": "Noe gikk galt. Prøv igjen.",
+        "not_configured": "Skanning av medlemskort er ikke satt opp.",
+        "invalid_link": "Denne skannerlenken er ikke lenger gyldig."
+      }
+    },
+    "access": {
+      "title": "Skannertilgang",
+      "description": "La personer utenfor BISO skanne medlemskort i BISO-appen. De logger inn med e-postadressen du skriver inn her.",
+      "addTitle": "Legg til skanner",
+      "email": "E-post",
+      "emailPlaceholder": "navn@eksempel.no",
+      "name": "Navn (valgfritt)",
+      "namePlaceholder": "f.eks. Ola Nordmann – Securitas",
+      "campus": "Campus",
+      "allCampuses": "Alle campuser",
+      "expiresAt": "Sluttdato (valgfritt)",
+      "expiresHint": "La stå tom for å beholde gjeldende sluttdato for eksisterende tilgang, eller for tilgang til den trekkes tilbake for nye personer. For å fjerne en sluttdato, trekk tilbake og legg til personen på nytt.",
+      "invite": "Gi tilgang og send invitasjon",
+      "invited": "Tilgang gitt og invitasjon sendt.",
+      "resent": "Invitasjonen er sendt på nytt.",
+      "emailNotSent": "Tilgangen er lagret, men invitasjonen ble ikke sendt — sjekk SMTP-innstillingene.",
+      "revoked": "Tilgangen er trukket tilbake.",
+      "listTitle": "Personer med skannertilgang",
+      "none": "Ingen har fått skannertilgang ennå.",
+      "noEndDate": "Ingen sluttdato",
+      "notInvited": "Ikke sendt",
+      "resend": "Send invitasjon på nytt",
+      "revoke": "Trekk tilbake",
+      "columns": {
+        "name": "Navn",
+        "email": "E-post",
+        "campus": "Campus",
+        "grantedBy": "Gitt av",
+        "expiresAt": "Sluttdato",
+        "status": "Status",
+        "invitedAt": "Sist invitert",
+        "actions": "Handlinger"
+      },
+      "status": {
+        "active": "Aktiv",
+        "expired": "Utløpt",
+        "revoked": "Trukket tilbake"
+      },
+      "errors": {
+        "invalid_email": "Skriv inn en gyldig e-postadresse.",
+        "invalid_name": "Navnet kan ha høyst 120 tegn.",
+        "invalid_expiry": "Velg en sluttdato fram i tid.",
+        "forbidden_campus": "Du kan bare gi tilgang for din egen campus.",
+        "not_found": "Tilgangen finnes ikke lenger.",
+        "not_active": "Denne tilgangen er avsluttet. Legg til personen på nytt i stedet.",
+        "failed": "Noe gikk galt. Prøv igjen."
+      }
+    },
+    "guest": {
+      "invalidTitle": "Denne skannerlenken er ikke gyldig",
+      "invalidDescription": "Den har utløpt eller blitt trukket tilbake. Be BISO om en ny lenke.",
+      "rateLimited": "For mange skanninger — vent litt."
+    },
+    "colors": {
+      "red": "Rød",
+      "orange": "Oransje",
+      "yellow": "Gul",
+      "lime": "Limegrønn",
+      "green": "Grønn",
+      "teal": "Blågrønn",
+      "cyan": "Turkis",
+      "blue": "Blå",
+      "indigo": "Indigo",
+      "purple": "Lilla",
+      "pink": "Rosa",
+      "brown": "Brun"
+    }
+  },
   "unauthorized": {
     "tagline": "Tilgang nektet",
     "title": "Du må være logget inn for å se denne siden",

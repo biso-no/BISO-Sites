@@ -15,6 +15,7 @@ export type MessageNamespace =
   | "about"
   | "membership"
   | "memberPortal"
+  | "memberPass"
   | "students"
   | "terms"
   | "projects"

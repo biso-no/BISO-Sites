@@ -14,7 +14,6 @@ import {
 } from "@repo/api/types/appwrite";
 import { resolveBenefitCampusIds } from "@repo/shared/utils/benefit-scope";
 import { isAuthenticatedAccount } from "@/lib/auth-utils";
-import { checkMembership } from "@/lib/profile";
 
 async function createOrUpdatePublicProfile(
   profile: Partial<PublicProfiles>,
@@ -119,26 +118,6 @@ export async function getFeaturedBenefits(
  */
 async function _getMemberBenefits(): Promise<CampusBenefits[]> {
   return await getMemberPortalBenefits();
-}
-
-export async function verifyMembershipStatus() {
-  try {
-    const membership = await checkMembership();
-
-    if (!membership.ok) {
-      return { active: false, error: membership.error };
-    }
-
-    return {
-      active: membership.active,
-      membership: membership.membership,
-      studentId: membership.studentId,
-      categories: membership.categories,
-    };
-  } catch (error) {
-    console.error("Error verifying membership:", error);
-    return { active: false, error: "Failed to verify membership status" };
-  }
 }
 
 export async function getUserProfile(): Promise<Users | null> {

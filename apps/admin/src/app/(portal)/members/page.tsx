@@ -1,3 +1,6 @@
+import { Button } from "@repo/ui/components/ui/button";
+import { ScanLine } from "lucide-react";
+import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { requireNavAccess } from "@/lib/authorization";
 import { listMembers } from "../_actions/members";
@@ -11,6 +14,7 @@ interface MembersPageProps {
 export default async function MembersPage({ searchParams }: MembersPageProps) {
   await requireNavAccess("portal.members");
   const t = await getTranslations("adminPortal.members");
+  const tPass = await getTranslations("adminPortal.memberPass");
   const { q, status } = await searchParams;
   const query = q?.trim() ?? "";
   const statusFilter =
@@ -23,7 +27,22 @@ export default async function MembersPage({ searchParams }: MembersPageProps) {
 
   return (
     <div className="pb-12">
-      <PageHeader description={t("description")} title={t("title")} />
+      <PageHeader description={t("description")} title={t("title")}>
+        <div className="flex gap-2">
+          <Button asChild size="sm" variant="outline">
+            <Link href="/members/scan/links">{tPass("manageLinks")}</Link>
+          </Button>
+          <Button asChild size="sm" variant="outline">
+            <Link href="/members/scan/access">{tPass("manageAccess")}</Link>
+          </Button>
+          <Button asChild size="sm">
+            <Link href="/members/scan">
+              <ScanLine className="mr-2 h-4 w-4" />
+              {tPass("openScanner")}
+            </Link>
+          </Button>
+        </div>
+      </PageHeader>
       <MembersListClient
         initialQuery={query}
         initialStatus={statusFilter ?? ""}
