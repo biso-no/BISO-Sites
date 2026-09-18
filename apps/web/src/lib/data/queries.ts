@@ -13,6 +13,7 @@ import type {
   Events,
   News,
 } from "@repo/api/types/appwrite";
+import { JobsStatus } from "@repo/api/types/appwrite";
 import { campusScopeIds } from "@/lib/campus-scope";
 import { WEB_PAGE_SIZE } from "@/lib/list-params";
 import { findContentIdsBySearch } from "./search-content";
@@ -144,10 +145,48 @@ export async function queryEvents(
   }
 
   if (upcomingOnly) {
-    queries.push(...upcomingQueries(new Date().toISOString()));
     queries.push(Query.orderAsc("start_date"));
   } else {
     queries.push(Query.orderDesc("$createdAt"));
+  }
+
+  queries.push(
+    ...eventFilterQueries({ campus, category, locale, status, upcomingOnly })
+  );
+
+  queries.push(Query.limit(limit), Query.offset(offset));
+
+  const response = await db.listRows<Events>("app", "events", queries);
+
+  return {
+    rows: response.rows.map((event) => filterTranslationRefs(event, locale)),
+    total: response.total,
+    capped,
+  };
+}
+
+/**
+ * The row filters behind every public event listing — everything except
+ * projection, search, ordering and paging. Shared with the homepage counter
+ * so "N upcoming events" counts exactly the rows `/events` would list.
+ */
+export function eventFilterQueries(
+  params: Pick<
+    ListEventsQuery,
+    "campus" | "category" | "locale" | "status" | "upcomingOnly"
+  >
+): string[] {
+  const {
+    campus,
+    category,
+    locale,
+    status = "published",
+    upcomingOnly,
+  } = params;
+  const queries: string[] = [];
+
+  if (upcomingOnly) {
+    queries.push(...upcomingQueries(new Date().toISOString()));
   }
 
   if (locale) {
@@ -186,15 +225,61 @@ export async function queryEvents(
     ])
   );
 
-  queries.push(Query.limit(limit), Query.offset(offset));
+  return queries;
+}
 
-  const response = await db.listRows<Events>("app", "events", queries);
+/**
+ * Open vacancies, as an Appwrite query rather than a post-fetch filter.
+ *
+ * `isRecruitmentVacancyOpen` used to run over an already-fetched window, which
+ * meant any open vacancy outside the newest 100 rows never reached the page —
+ * only 28 of 253 published jobs are open. It also made `total` overcount, which
+ * pagination cannot tolerate. The helper's "unparseable date -> keep" branch is
+ * unreachable for a datetime column, so this is equivalent.
+ */
+export function openVacancyQueries(): string[] {
+  return [
+    Query.equal("status", JobsStatus.PUBLISHED),
+    Query.or([
+      Query.isNull("application_deadline"),
+      Query.greaterThanEqual("application_deadline", new Date().toISOString()),
+    ]),
+  ];
+}
 
-  return {
-    rows: response.rows.map((event) => filterTranslationRefs(event, locale)),
-    total: response.total,
-    capped,
-  };
+/** Page size for `countRows`; Appwrite's per-request ceiling is 5000. */
+const COUNT_PAGE_SIZE = 1000;
+
+/**
+ * Number of rows matching `filters`, counted from the rows themselves.
+ *
+ * Don't read a count off `listRows(...).total`: since the recent Appwrite
+ * release it reports the size of the whole table, not of the filtered result,
+ * so every "N matching" figure derived from it silently became the table size.
+ * This projects `$id` only and walks cursor pages, so it stays cheap and exact
+ * at any size.
+ */
+export async function countRows(
+  db: Db,
+  tableId: string,
+  filters: string[]
+): Promise<number> {
+  let count = 0;
+  let cursor: string | undefined;
+  for (;;) {
+    const page = await db.listRows("app", tableId, [
+      ...filters,
+      Query.select(["$id"]),
+      Query.limit(COUNT_PAGE_SIZE),
+      ...(cursor ? [Query.cursorAfter(cursor)] : []),
+    ]);
+    count += page.rows.length;
+    const last = page.rows.at(-1);
+    if (page.rows.length < COUNT_PAGE_SIZE || !last) {
+      return count;
+    }
+    cursor = last.$id;
+  }
 }
 
 export interface ListNewsQuery {

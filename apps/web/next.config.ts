@@ -1,6 +1,6 @@
+import path from "node:path";
 import type { NextConfig } from "next";
 import createNextIntlPlugin from "next-intl/plugin";
-import path from "node:path";
 
 const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
 
@@ -16,6 +16,9 @@ const baseConfig: NextConfig = {
     "@repo/payment",
     "@repo/typescript-config",
   ],
+  // pdfjs (CV text extraction for AI screening) loads its worker via a
+  // relative `./pdf.worker.mjs` import that breaks once bundled.
+  serverExternalPackages: ["pdfjs-dist"],
   reactStrictMode: true,
   productionBrowserSourceMaps: false,
   outputFileTracingRoot: path.join(import.meta.dirname, "../../"),

@@ -17,7 +17,6 @@ import {
 import { getUserPreferences } from "@/lib/auth-utils";
 import { SESSION_COOKIE } from "@/lib/cookie-prefs";
 import {
-  cachedCampuses,
   cachedHomeCounts,
   cachedPartners,
   cachedPublishedEvents,
@@ -103,26 +102,22 @@ export default async function HomePage() {
   // The hero is campus-scoped like every other feed: the switcher filters the
   // whole site, so a visitor on Bergen must not be shown Oslo content. National
   // rows ride along with any selected campus (see `campusScopeIds`).
-  // Campuses/partners/counts are not member-scoped and stay cached for
+  // Partners/counts are not member-scoped and stay cached for
   // everyone. Failures fall back per-slice so a transient Appwrite error
   // renders an emptier homepage instead of a 500 — and is never cached.
-  const [heroEvents, heroNews, events, news, campuses, counts, partners] =
+  const [heroEvents, heroNews, events, news, counts, partners] =
     await Promise.all([
       homeEvents(hasSession, locale, campusKey, HERO_EVENTS_LIMIT),
       homeNews(hasSession, locale, campusKey, HERO_NEWS_LIMIT),
       homeEvents(hasSession, locale, campusKey, HOME_EVENTS_LIMIT),
       homeNews(hasSession, locale, campusKey, HOME_NEWS_LIMIT),
-      cachedCampuses(campusKey, false, true).catch(() => []),
-      cachedHomeCounts(campusKey).catch(() => ({
+      cachedHomeCounts(campusKey, locale).catch(() => ({
+        departmentCount: 0,
         eventCount: 0,
         jobCount: 0,
       })),
       cachedPartners().catch(() => []),
     ]);
-  const departments = campuses.reduce(
-    (acc, campus) => acc + campus.departments.length,
-    0
-  );
   return (
     <div className="min-h-screen bg-linear-to-b from-background via-section to-background">
       <Suspense fallback={<HeroSkeleton />}>
@@ -131,7 +126,7 @@ export default async function HomePage() {
 
       <Suspense fallback={<AboutSkeleton />}>
         <AboutSection
-          departmentsCount={departments}
+          departmentsCount={counts.departmentCount}
           eventCount={counts.eventCount}
           jobCount={counts.jobCount}
         />

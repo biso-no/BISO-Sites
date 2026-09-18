@@ -711,15 +711,16 @@ export type RecruitmentAiDimensionScore = z.infer<
  * Deliberately separate from `recruitmentAiScreeningSchema`: OpenAI's strict
  * structured outputs reject any property that is missing from `required`, which
  * is exactly what `.optional()` / `.default()` emit. This schema therefore lists
- * every field as required, and omits the server-owned metadata
- * (`generated_at`, `model`, `version`) that the model has no way to know —
- * `screenApplication` stamps those after the call.
+ * every field as required, and omits the server-owned fields
+ * (`generated_at`, `model`, `version`) that the model has no way to know, plus
+ * `normalized_score`, which is derived deterministically from the 1–5 scores by
+ * `computeScreeningNormalizedScore` so the 0–100 bands mean the same thing for
+ * every candidate. `screenApplication` stamps those after the call.
  *
  * Keep this in sync with `recruitmentAiScreeningSchema` when adding fields.
  */
 export const recruitmentAiScreeningOutputSchema = z.object({
   overall_score: z.number().int().min(1).max(5),
-  normalized_score: z.number().int().min(0).max(100),
   recommended_status: z.enum(["reviewed", "interview", "rejected"]),
   summary: z.string().trim().min(1).max(2000),
   dimension_scores: z.array(recruitmentAiDimensionScoreSchema).max(10),
@@ -733,6 +734,55 @@ export const recruitmentAiScreeningOutputSchema = z.object({
 export type RecruitmentAiScreeningOutput = z.infer<
   typeof recruitmentAiScreeningOutputSchema
 >;
+
+/**
+ * 0–100 value for each point on the 1–5 screening scale. Anchored to the admin
+ * match bands (`matchTint`: 90+ / 80+ / 70+): a "strong fit" (4) lands in the
+ * 80s and a "plausible, trainable" candidate (3) at 70, rather than the linear
+ * 75 / 50 that made solid student applicants look like rejects.
+ */
+const SCREENING_SCORE_ANCHORS = [10, 40, 70, 82, 95] as const;
+
+const MIN_SCREENING_SCORE = 1;
+const MAX_SCREENING_SCORE = 5;
+
+function interpolateScreeningScore(value: number): number {
+  const clamped = Math.min(
+    MAX_SCREENING_SCORE,
+    Math.max(MIN_SCREENING_SCORE, value)
+  );
+  const lowerIndex = Math.floor(clamped) - MIN_SCREENING_SCORE;
+  const upperIndex = Math.min(
+    lowerIndex + 1,
+    SCREENING_SCORE_ANCHORS.length - 1
+  );
+  const fraction = clamped - Math.floor(clamped);
+  const lower = SCREENING_SCORE_ANCHORS[lowerIndex] ?? 0;
+  const upper = SCREENING_SCORE_ANCHORS[upperIndex] ?? lower;
+  return lower + (upper - lower) * fraction;
+}
+
+/**
+ * Derives the 0–100 match score from the model's 1–5 judgements: the overall
+ * score, blended equally with the mean dimension score when dimensions exist
+ * so two "4" candidates can still be told apart.
+ */
+export function computeScreeningNormalizedScore(
+  screening: Pick<
+    RecruitmentAiScreeningOutput,
+    "overall_score" | "dimension_scores"
+  >
+): number {
+  const dimensions = screening.dimension_scores;
+  const value =
+    dimensions.length > 0
+      ? (screening.overall_score +
+          dimensions.reduce((sum, dimension) => sum + dimension.score, 0) /
+            dimensions.length) /
+        2
+      : screening.overall_score;
+  return Math.round(interpolateScreeningScore(value));
+}
 
 /**
  * Persistence schema — parses rows read back from `job_applications`.

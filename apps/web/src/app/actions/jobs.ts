@@ -1,5 +1,6 @@
 "use server";
 
+import { extractTextFromPdf } from "@repo/ai/server/pdf-text-extractor";
 import {
   normalizeScreeningScore,
   screenApplication,
@@ -18,7 +19,6 @@ import {
   CandidateProfilesEmbeddingStatus,
   JobApplicationsEmbeddingStatus,
   JobApplicationsStatus,
-  JobsStatus,
 } from "@repo/api/types/appwrite";
 import type { CandidateProfileWriteInput } from "@repo/api/types/inputs";
 import { createTypedRow, updateTypedRow } from "@repo/api/write";
@@ -54,6 +54,7 @@ import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 import { cache } from "react";
 import { campusScopeIds } from "@/lib/campus-scope";
+import { openVacancyQueries } from "@/lib/data/queries";
 import { findContentIdsBySearch } from "@/lib/data/search-content";
 import {
   emptyWebResult,
@@ -64,25 +65,6 @@ import {
 // ---------- public reads (session/guest client — enforces row permissions) ----------
 
 export type JobSort = "deadline" | "newest";
-
-/**
- * Open vacancies, as an Appwrite query rather than a post-fetch filter.
- *
- * `isRecruitmentVacancyOpen` used to run over an already-fetched window, which
- * meant any open vacancy outside the newest 100 rows never reached the page —
- * only 28 of 253 published jobs are open. It also made `total` overcount, which
- * pagination cannot tolerate. The helper's "unparseable date -> keep" branch is
- * unreachable for a datetime column, so this is equivalent.
- */
-function openVacancyQueries(): string[] {
-  return [
-    Query.equal("status", JobsStatus.PUBLISHED),
-    Query.or([
-      Query.isNull("application_deadline"),
-      Query.greaterThanEqual("application_deadline", new Date().toISOString()),
-    ]),
-  ];
-}
 
 // Primitive arguments only: React cache() keys on argument identity
 // (Object.is), so an options object allocated fresh at each call site would
@@ -412,9 +394,11 @@ export async function submitJobApplication(
 
     const resume = formData.get("resume");
     let resumeFileId: string | null = null;
+    let resumeBuffer: Buffer | null = null;
     if (resume instanceof File && resume.size > 0) {
       validateRecruitmentResumeFile(resume);
       const buffer = Buffer.from(await resume.arrayBuffer());
+      resumeBuffer = buffer;
       const uploaded = await storage.createFile(
         RECRUITMENT_RESUME_BUCKET_ID,
         ID.unique(),
@@ -568,6 +552,17 @@ export async function submitJobApplication(
         try {
           // Re-instantiate admin client inside after() to ensure no context loss
           const { db: afterDb } = await createAdminClient();
+          // A CV that fails to parse (scanned image, malformed PDF) should not
+          // block screening — the model is told no CV was provided.
+          const resumeText = resumeBuffer
+            ? await extractTextFromPdf(resumeBuffer).catch((err: unknown) => {
+                console.warn(
+                  `CV text extraction failed for application ${application.$id}:`,
+                  err
+                );
+                return null;
+              })
+            : null;
           const screening = await screenApplication({
             answers: (parsed.data.answers ?? []).map((a) => ({
               answer: a.answer ?? null,
@@ -575,13 +570,11 @@ export async function submitJobApplication(
             })),
             application: {
               $id: application.$id,
-              applicant_email: user.email,
               applicant_name: parsed.data.applicant_name,
               cover_letter: parsed.data.cover_letter ?? null,
-              current_employer: parsed.data.current_employer ?? null,
               current_role: parsed.data.current_role ?? null,
-              linkedin_url: parsed.data.linkedin_url ?? null,
             },
+            resumeText,
             rubric:
               vacancy.screening_rubric ?? parseRecruitmentScreeningRubric(null),
             vacancy: {

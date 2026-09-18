@@ -2218,6 +2218,15 @@
                     "orders": [
                         "DESC"
                     ]
+                },
+                {
+                    "key": "idx_data_retention_until",
+                    "type": "key",
+                    "status": "available",
+                    "columns": [
+                        "data_retention_until"
+                    ],
+                    "orders": []
                 }
             ]
         },
