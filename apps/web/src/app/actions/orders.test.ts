@@ -73,6 +73,7 @@ vi.mock("@/lib/types/webshop", () => ({
   parseProductMetadata: webshop.parseProductMetadata,
 }));
 
+import { getProduct } from "@/app/actions/products";
 import { createCartCheckoutSession, verifyOrder } from "./orders";
 
 function stubCheckoutFetch() {
@@ -158,6 +159,39 @@ describe("order checkout actions", () => {
   });
 
   describe("member discount pricing", () => {
+    it("charges an active member the product's fixed member price", async () => {
+      vi.mocked(getProduct).mockResolvedValueOnce({
+        $id: "product-1",
+        campus_id: "oslo",
+        member_price: 50,
+        metadata: null,
+        regular_price: 100,
+        slug: "trusted-product",
+        stock: 5,
+        translation_refs: [{ locale: "no", title: "Trusted Product" }],
+      } as unknown as Awaited<ReturnType<typeof getProduct>>);
+      membership.getMembershipStatus.mockResolvedValue({
+        checkedAt: Date.now(),
+        finagoCategoryIds: [123],
+        isMember: true,
+        memberships: [],
+      });
+      const fetchMock = stubCheckoutFetch();
+
+      const result = await createCartCheckoutSession({
+        email: "buyer@example.com",
+        items: [
+          { productId: "product-1", quantity: 1, slug: "trusted-product" },
+        ],
+        name: "Buyer Person",
+        provider: "vipps",
+      });
+
+      expect(result.success).toBe(true);
+      const payload = checkoutFetchPayload(fetchMock);
+      expect(payload.total).toBe(50);
+    });
+
     it("applies the member discount for an active Finago member", async () => {
       webshop.parseProductMetadata.mockReturnValue({
         member_discount_enabled: true,

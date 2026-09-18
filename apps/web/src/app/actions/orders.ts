@@ -4,7 +4,10 @@ import { createSessionClient, createSessionJwt } from "@repo/api/server";
 import type { ContentTranslations, Orders } from "@repo/api/types/appwrite";
 import type { Locale } from "@repo/i18n/config";
 import { getFeatureFlagStates } from "@repo/shared/utils/feature-flags-server";
-import { discountedUnitPrice } from "@repo/shared/utils/member-discount";
+import {
+  memberDiscountPercent,
+  memberUnitPrice,
+} from "@repo/shared/utils/member-discount";
 import { ORDER_ITEMS_SELECT } from "@repo/shared/utils/order-queries";
 import { resolveCustomFieldAnswers } from "@repo/shared/utils/product-custom-fields";
 import {
@@ -73,24 +76,21 @@ async function _getOrder(id: string) {
   }
 }
 
-async function getMemberDiscountIfAny(product: Record<string, unknown>) {
-  try {
-    if (
-      !(product?.member_discount_enabled && product?.member_discount_percent)
-    ) {
-      return { applied: false, percent: 0 };
+/**
+ * Whether the member price applies to this buyer, resolved once per checkout.
+ * Fails open: a membership lookup outage charges full price rather than
+ * blocking the sale.
+ */
+function createMembershipResolver(): () => Promise<boolean> {
+  let pending: Promise<boolean> | null = null;
+  return () => {
+    if (!pending) {
+      pending = getMembershipStatus()
+        .then((status) => status.isMember)
+        .catch(() => false);
     }
-    const status = await getMembershipStatus();
-    if (!status.isMember) {
-      return { applied: false, percent: 0 };
-    }
-    return {
-      applied: true,
-      percent: Number(product.member_discount_percent) || 0,
-    };
-  } catch {
-    return { applied: false, percent: 0 };
-  }
+    return pending;
+  };
 }
 
 interface CheckoutLineItemInput {
@@ -105,6 +105,7 @@ interface CheckoutLineItemInput {
 
 interface ProductVariation {
   id?: string;
+  member_price?: number | null;
   name?: string;
   price_modifier?: number;
 }
@@ -113,6 +114,7 @@ interface NormalizedProduct extends Record<string, unknown> {
   $id: string;
   campus_id?: string | null;
   custom_fields?: ProductCustomField[];
+  member_price?: number | null;
   metadata_parsed: Record<string, unknown>;
   price: number;
   slug: string;
@@ -239,6 +241,7 @@ async function loadProduct(
       .filter((variation) => variation.enabled)
       .map((variation) => ({
         id: variation.$id,
+        member_price: variation.member_price,
         name: variation.name,
         price_modifier:
           Number(variation.regular_price ?? product.regular_price) -
@@ -339,28 +342,37 @@ function findVariation(product: Record<string, unknown>, variationId?: string) {
 }
 
 async function resolvePricing(
-  product: Record<string, unknown>,
+  product: NormalizedProduct,
   variation: ProductVariation | undefined,
-  discountCache: Map<string, { applied: boolean; percent: number }>,
-  productId: string
+  isMember: () => Promise<boolean>
 ) {
   const basePrice = Number(product.price || 0);
   const variationModifier = Number(variation?.price_modifier || 0);
   const originalUnit = Math.max(0, basePrice + variationModifier);
+  const memberUnit = memberUnitPrice(originalUnit, {
+    legacyDiscountPercent: product.member_discount_enabled
+      ? Number(product.member_discount_percent) || 0
+      : null,
+    productMemberPrice: product.member_price,
+    variationMemberPrice: variation?.member_price,
+    variationModifier,
+  });
 
-  const discount =
-    discountCache.get(productId) || (await getMemberDiscountIfAny(product));
-  discountCache.set(productId, discount);
-
-  const discountedUnit = discount.applied
-    ? discountedUnitPrice(originalUnit, discount.percent)
-    : originalUnit;
+  if (memberUnit === null || !(await isMember())) {
+    return {
+      originalUnit,
+      discountedUnit: originalUnit,
+      discountApplied: false,
+      discountPercent: 0,
+      variationModifier,
+    };
+  }
 
   return {
     originalUnit,
-    discountedUnit,
-    discountApplied: discount.applied,
-    discountPercent: discount.percent || 0,
+    discountedUnit: memberUnit,
+    discountApplied: true,
+    discountPercent: memberDiscountPercent(originalUnit, memberUnit),
     variationModifier,
   };
 }
@@ -414,10 +426,7 @@ async function buildOrderItems(
   userId: string
 ) {
   const quantityByProduct = buildQuantityByProduct(items);
-  const discountCache = new Map<
-    string,
-    { applied: boolean; percent: number }
-  >();
+  const isMember = createMembershipResolver();
   const productCache = new Map<string, NormalizedProduct>();
   const orderItems: OrderItem[] = [];
   const campusIds = new Set<string>();
@@ -458,12 +467,7 @@ async function buildOrderItems(
     );
 
     const variation = findVariation(product, input.variationId);
-    const pricing = await resolvePricing(
-      product,
-      variation,
-      discountCache,
-      productId
-    );
+    const pricing = await resolvePricing(product, variation, isMember);
     const customFieldResponses = normalizeCustomFields(input.customFields);
     const customFields = buildCustomFieldPayload(product, customFieldResponses);
     const title = input.title?.trim() || product.title || product.slug;

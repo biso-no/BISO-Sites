@@ -91,7 +91,17 @@ export async function SiteShell({ children }: { children: React.ReactNode }) {
       initialMembershipStatus={membershipStatus}
       memberIdentity={memberIdentity}
     >
-      <Navigation account={account} featured={featured} />
+      {/*
+        Passed explicitly so the membership CTA is right in the server-rendered
+        HTML: the provider below carries the same status, but reading it through
+        context would render "Become a member" to an existing member for the
+        first paint and then retract it.
+      */}
+      <Navigation
+        account={account}
+        featured={featured}
+        isMember={membershipStatus?.isMember ?? false}
+      />
       <main>
         <div>{children}</div>
       </main>

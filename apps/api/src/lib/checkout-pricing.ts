@@ -11,7 +11,10 @@ import { type CheckoutSessionParams, Currency } from "@repo/shared/types/vipps";
 import { sanitizeStudentNumber } from "@repo/shared/utils/bi-student";
 import type { RevenueTarget } from "@repo/shared/utils/finago-shop-accounting";
 import { resolveRevenueTarget } from "@repo/shared/utils/finago-shop-accounting-server";
-import { discountedUnitPrice } from "@repo/shared/utils/member-discount";
+import {
+  memberDiscountPercent,
+  memberUnitPrice,
+} from "@repo/shared/utils/member-discount";
 import { computeMembershipStatus } from "@repo/shared/utils/membership-status";
 import { ORDER_ITEMS_SELECT } from "@repo/shared/utils/order-queries";
 import {
@@ -61,6 +64,7 @@ export interface CheckoutCustomerInfo {
 
 interface ProductVariation {
   id?: string;
+  member_price?: number | null;
   name?: string;
   price_modifier?: number;
 }
@@ -347,6 +351,7 @@ export async function loadProduct(
       .filter((variation) => variation.enabled)
       .map((variation) => ({
         id: variation.$id,
+        member_price: variation.member_price,
         name: variation.name,
         price_modifier:
           Number(variation.regular_price ?? product.regular_price) -
@@ -440,57 +445,50 @@ export function createMembershipResolver(
   };
 }
 
-async function getMemberDiscountIfAny(
-  product: NormalizedProduct,
+/**
+ * Whether the member price applies to this buyer. Fails open: a membership
+ * lookup outage charges full price rather than blocking the sale.
+ */
+async function isMemberOrFullPrice(
   isMember: () => Promise<boolean>
-) {
-  if (
-    !(
-      product.metadata_parsed.member_discount_enabled &&
-      product.metadata_parsed.member_discount_percent
-    )
-  ) {
-    return { applied: false, percent: 0 };
-  }
-
+): Promise<boolean> {
   try {
-    if (!(await isMember())) {
-      return { applied: false, percent: 0 };
-    }
-
-    return {
-      applied: true,
-      percent: Number(product.metadata_parsed.member_discount_percent) || 0,
-    };
+    return await isMember();
   } catch {
-    // Fails open: a membership lookup outage charges full price rather than
-    // blocking the sale.
-    return { applied: false, percent: 0 };
+    return false;
   }
 }
 
 async function resolvePricing(
   product: NormalizedProduct,
   variation: ProductVariation | undefined,
-  discountCache: Map<string, { applied: boolean; percent: number }>,
   isMember: () => Promise<boolean>
 ) {
   const basePrice = Number(product.regular_price || 0);
   const variationModifier = Number(variation?.price_modifier || 0);
   const originalUnit = Math.max(0, basePrice + variationModifier);
-  const discount =
-    discountCache.get(product.$id) ||
-    (await getMemberDiscountIfAny(product, isMember));
-  discountCache.set(product.$id, discount);
+  const memberUnit = memberUnitPrice(originalUnit, {
+    legacyDiscountPercent: product.metadata_parsed.member_discount_enabled
+      ? Number(product.metadata_parsed.member_discount_percent) || 0
+      : null,
+    productMemberPrice: product.member_price,
+    variationMemberPrice: variation?.member_price,
+    variationModifier,
+  });
 
-  const discountedUnit = discount.applied
-    ? discountedUnitPrice(originalUnit, discount.percent)
-    : originalUnit;
+  if (memberUnit === null || !(await isMemberOrFullPrice(isMember))) {
+    return {
+      discountApplied: false,
+      discountPercent: 0,
+      discountedUnit: originalUnit,
+      originalUnit,
+    };
+  }
 
   return {
-    discountApplied: discount.applied,
-    discountPercent: discount.percent || 0,
-    discountedUnit,
+    discountApplied: true,
+    discountPercent: memberDiscountPercent(originalUnit, memberUnit),
+    discountedUnit: memberUnit,
     originalUnit,
   };
 }
@@ -550,10 +548,6 @@ export async function buildTrustedCheckoutParams({
   const validatedProducts = new Set<string>();
 
   const productCache = new Map<string, NormalizedProduct>();
-  const discountCache = new Map<
-    string,
-    { applied: boolean; percent: number }
-  >();
   const targetCache = new Map<string, RevenueTarget | null>();
   const isMember = createMembershipResolver(authClient, userId);
   const trustedItems: CheckoutSessionParams["items"] = [];
@@ -585,12 +579,7 @@ export async function buildTrustedCheckoutParams({
     }
 
     const variation = findVariation(product, input.variationId);
-    const pricing = await resolvePricing(
-      product,
-      variation,
-      discountCache,
-      isMember
-    );
+    const pricing = await resolvePricing(product, variation, isMember);
 
     const productName = product.title || product.slug || product.$id;
 
