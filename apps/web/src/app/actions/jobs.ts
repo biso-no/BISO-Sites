@@ -1,5 +1,6 @@
 "use server";
 
+import { extractTextFromPdf } from "@repo/ai/server/pdf-text-extractor";
 import {
   normalizeScreeningScore,
   screenApplication,
@@ -412,9 +413,11 @@ export async function submitJobApplication(
 
     const resume = formData.get("resume");
     let resumeFileId: string | null = null;
+    let resumeBuffer: Buffer | null = null;
     if (resume instanceof File && resume.size > 0) {
       validateRecruitmentResumeFile(resume);
       const buffer = Buffer.from(await resume.arrayBuffer());
+      resumeBuffer = buffer;
       const uploaded = await storage.createFile(
         RECRUITMENT_RESUME_BUCKET_ID,
         ID.unique(),
@@ -568,6 +571,17 @@ export async function submitJobApplication(
         try {
           // Re-instantiate admin client inside after() to ensure no context loss
           const { db: afterDb } = await createAdminClient();
+          // A CV that fails to parse (scanned image, malformed PDF) should not
+          // block screening — the model is told no CV was provided.
+          const resumeText = resumeBuffer
+            ? await extractTextFromPdf(resumeBuffer).catch((err: unknown) => {
+                console.warn(
+                  `CV text extraction failed for application ${application.$id}:`,
+                  err
+                );
+                return null;
+              })
+            : null;
           const screening = await screenApplication({
             answers: (parsed.data.answers ?? []).map((a) => ({
               answer: a.answer ?? null,
@@ -575,13 +589,11 @@ export async function submitJobApplication(
             })),
             application: {
               $id: application.$id,
-              applicant_email: user.email,
               applicant_name: parsed.data.applicant_name,
               cover_letter: parsed.data.cover_letter ?? null,
-              current_employer: parsed.data.current_employer ?? null,
               current_role: parsed.data.current_role ?? null,
-              linkedin_url: parsed.data.linkedin_url ?? null,
             },
+            resumeText,
             rubric:
               vacancy.screening_rubric ?? parseRecruitmentScreeningRubric(null),
             vacancy: {

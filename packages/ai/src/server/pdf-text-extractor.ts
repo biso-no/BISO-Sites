@@ -15,12 +15,8 @@ interface PdfDocument {
 }
 
 interface PdfJsModule {
-  GlobalWorkerOptions: {
-    workerSrc?: string;
-  };
   getDocument: (options: {
     data: Uint8Array;
-    disableWorker: boolean;
     isEvalSupported: boolean;
     useWorkerFetch: boolean;
   }) => {
@@ -53,12 +49,11 @@ export async function extractTextFromPdf(input: PdfInput): Promise<string> {
     "pdfjs-dist/legacy/build/pdf.mjs"
   )) as PdfJsModule;
 
-  // Disable worker usage in Node environments where web workers are unavailable.
-  pdfjsLib.GlobalWorkerOptions.workerSrc = undefined;
-
+  // Under Node, pdfjs runs its worker in-process and points
+  // `GlobalWorkerOptions.workerSrc` at its bundled worker itself — overriding
+  // it breaks the fake worker, so leave it alone.
   const loadingTask = pdfjsLib.getDocument({
     data,
-    disableWorker: true,
     useWorkerFetch: false,
     isEvalSupported: false,
   });

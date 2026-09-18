@@ -677,7 +677,9 @@ export function JobApplicationForm({
               />
               <span className="text-muted-foreground text-sm">
                 I consent to BISO processing my application data for this
-                recruitment process. Data is retained for 180 days.
+                recruitment process. Data is retained for 180 days. An AI tool
+                may help screen applications, with your name and contact details
+                removed first; all decisions are made by people.
               </span>
             </label>
 

@@ -7,11 +7,15 @@ vi.mock("@repo/api/server", () => ({
   createAdminClient: vi.fn(async () => ({ db: sessionDb })),
 }));
 
-// recruitment-screener imports "server-only", which throws outside Next's
-// webpack loader (vitest runs in a plain node environment).
+// recruitment-screener and pdf-text-extractor import "server-only", which
+// throws outside Next's webpack loader (vitest runs in a plain node
+// environment).
 vi.mock("@repo/ai/server/recruitment-screener", () => ({
   normalizeScreeningScore: vi.fn(),
   screenApplication: vi.fn(),
+}));
+vi.mock("@repo/ai/server/pdf-text-extractor", () => ({
+  extractTextFromPdf: vi.fn(),
 }));
 
 // React's cache() memoizes on argument identity, so two tests calling
