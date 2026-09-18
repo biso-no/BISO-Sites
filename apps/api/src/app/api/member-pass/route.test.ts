@@ -42,12 +42,12 @@ describe("GET /api/member-pass", () => {
     resolveMemberPassForRequest.mockResolvedValue({
       state: "unauthenticated",
     });
-    const response = await GET(request({ origin: "https://web.biso.no" }));
+    const response = await GET(request({ origin: "https://biso.no" }));
     expect(response.status).toBe(401);
     expect(await response.json()).toEqual({ error: "not_authenticated" });
     expect(response.headers.get("cache-control")).toBe("private, no-store");
     expect(response.headers.get("access-control-allow-origin")).toBe(
-      "https://web.biso.no"
+      "https://biso.no"
     );
   });
 
@@ -65,7 +65,7 @@ describe("GET /api/member-pass", () => {
       state: "active",
       userId: "user-1",
     });
-    const response = await GET(request({ origin: "https://web.biso.no" }));
+    const response = await GET(request({ origin: "https://biso.no" }));
     const body = await response.json();
     expect(body.state).toBe("active");
     expect(body.holder).toEqual(HOLDER);
@@ -75,7 +75,7 @@ describe("GET /api/member-pass", () => {
     expect(body.wallets).toEqual({ apple: false, google: true });
     expect(typeof body.serverNow).toBe("number");
     expect(response.headers.get("access-control-allow-origin")).toBe(
-      "https://web.biso.no"
+      "https://biso.no"
     );
   });
 
@@ -93,10 +93,10 @@ describe("GET /api/member-pass", () => {
 
 describe("OPTIONS /api/member-pass", () => {
   it("answers CORS preflight", () => {
-    const response = OPTIONS(request({ origin: "https://web.biso.no" }));
+    const response = OPTIONS(request({ origin: "https://biso.no" }));
     expect(response.status).toBe(204);
     expect(response.headers.get("access-control-allow-origin")).toBe(
-      "https://web.biso.no"
+      "https://biso.no"
     );
   });
 });

@@ -76,7 +76,7 @@ describe("GET /api/member-pass/scanner", () => {
   });
 
   it("returns the grant's campus and expiry plus today's pass color, with CORS applied", async () => {
-    const response = await GET(request({ origin: "https://web.biso.no" }));
+    const response = await GET(request({ origin: "https://biso.no" }));
     const body = await response.json();
 
     expect(response.status).toBe(200);
@@ -86,7 +86,7 @@ describe("GET /api/member-pass/scanner", () => {
     expect(typeof body.dayColor.name).toBe("string");
     expect(response.headers.get("cache-control")).toBe("private, no-store");
     expect(response.headers.get("access-control-allow-origin")).toBe(
-      "https://web.biso.no"
+      "https://biso.no"
     );
   });
 
@@ -116,11 +116,11 @@ describe("GET /api/member-pass/scanner", () => {
 
 describe("OPTIONS /api/member-pass/scanner", () => {
   it("answers CORS preflight", () => {
-    const response = OPTIONS(request({ origin: "https://web.biso.no" }));
+    const response = OPTIONS(request({ origin: "https://biso.no" }));
 
     expect(response.status).toBe(204);
     expect(response.headers.get("access-control-allow-origin")).toBe(
-      "https://web.biso.no"
+      "https://biso.no"
     );
   });
 });

@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { discountedUnitPrice } from "./member-discount";
+import {
+  discountedUnitPrice,
+  memberDiscountPercent,
+  memberUnitPrice,
+} from "./member-discount";
 
 const toMinor = (kroner: number) => Math.round(kroner * 100);
 
@@ -25,5 +29,56 @@ describe("discountedUnitPrice", () => {
   it("leaves whole-krone discounts unchanged and never goes negative", () => {
     expect(discountedUnitPrice(500, 20)).toBe(400);
     expect(discountedUnitPrice(100, 150)).toBe(0);
+  });
+});
+
+describe("memberUnitPrice", () => {
+  it("uses the product's fixed member price", () => {
+    expect(memberUnitPrice(100, { productMemberPrice: 50 })).toBe(50);
+  });
+
+  it("prefers the fixed member price over the legacy percent", () => {
+    expect(
+      memberUnitPrice(100, {
+        productMemberPrice: 50,
+        legacyDiscountPercent: 10,
+      })
+    ).toBe(50);
+  });
+
+  it("prefers the variation's member price over the product's", () => {
+    expect(
+      memberUnitPrice(150, {
+        productMemberPrice: 50,
+        variationMemberPrice: 90,
+        variationModifier: 50,
+      })
+    ).toBe(90);
+  });
+
+  it("shifts the product's member price by the variation modifier", () => {
+    expect(
+      memberUnitPrice(150, { productMemberPrice: 50, variationModifier: 50 })
+    ).toBe(100);
+  });
+
+  it("falls back to the legacy percent", () => {
+    expect(memberUnitPrice(100, { legacyDiscountPercent: 25 })).toBe(75);
+  });
+
+  it("returns null when there is no discount to give", () => {
+    expect(memberUnitPrice(100, {})).toBeNull();
+    expect(memberUnitPrice(100, { productMemberPrice: null })).toBeNull();
+    expect(memberUnitPrice(100, { productMemberPrice: 0 })).toBeNull();
+    expect(memberUnitPrice(100, { productMemberPrice: 100 })).toBeNull();
+    expect(memberUnitPrice(100, { productMemberPrice: 120 })).toBeNull();
+  });
+});
+
+describe("memberDiscountPercent", () => {
+  it("expresses the discount as a whole percent", () => {
+    expect(memberDiscountPercent(100, 50)).toBe(50);
+    expect(memberDiscountPercent(299, 199)).toBe(33);
+    expect(memberDiscountPercent(0, 0)).toBe(0);
   });
 });

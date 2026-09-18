@@ -79,6 +79,37 @@ export const STANDALONE_LINKS: NavLinkConfig[] = [
   { id: "shop", labelKey: "shop", href: "/shop", icon: ShoppingBag },
 ];
 
+/** Key of the overflow ("…") trigger in the measured desktop row. */
+export const OVERFLOW_TRIGGER_KEY = "overflow";
+
+/**
+ * The desktop row items that may be surrendered to the overflow menu when the
+ * row runs out of room, **ordered by drop priority** — index 0 goes first.
+ *
+ * Everything absent from this list is load-bearing and never collapses: the
+ * logo, the three mega-panel triggers, the campus/theme/locale/cart controls,
+ * the membership CTA and the account menu. The row is only ever collapsed far
+ * enough to fit, so on a wide viewport none of this applies.
+ *
+ * `memberPortal` is dropped early on purpose — it is the one entry that stays
+ * reachable after it goes, from the account menu (`account-member-portal`
+ * below), so losing it from the row costs the least.
+ */
+export const NAV_OVERFLOW_DROP_ORDER: readonly string[] = [
+  "applyVerv",
+  "partner",
+  "memberPortal",
+  "shop",
+  "news",
+];
+
+/**
+ * Entries of {@link NAV_OVERFLOW_DROP_ORDER} that only exist for signed-in
+ * visitors, and so must be dropped from the drop order for everyone else — an
+ * item the row never renders must not be counted as one the row could give up.
+ */
+export const AUTH_ONLY_OVERFLOW_KEYS: readonly string[] = ["memberPortal"];
+
 /** Static columns for the "For Studenter" panel (the Campus column is dynamic). */
 export const STUDENT_COLUMNS: NavColumnConfig[] = [
   {

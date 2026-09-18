@@ -1,6 +1,3 @@
-import type { Metadata } from "next";
-import { notFound } from "next/navigation";
-import { Suspense } from "react";
 import { getLocale } from "@/app/actions/locale";
 import { getNewsBySlug, listNews } from "@/app/actions/news";
 import { ArticleBody } from "@/components/news/article-body";
@@ -11,12 +8,15 @@ import { RelatedArticles } from "@/components/news/related-articles";
 import { toPlainText } from "@/lib/content-text";
 import { serializeJsonLd } from "@/lib/json-ld";
 import {
-  buildLead,
-  buildSummary,
-  formatArticleDate,
-  pickTranslation,
-  readingMinutes,
+    buildLead,
+    buildSummary,
+    formatArticleDate,
+    pickTranslation,
+    readingMinutes,
 } from "@/lib/news-article";
+import type { Metadata } from "next";
+import { notFound } from "next/navigation";
+import { Suspense } from "react";
 
 const RELATED_COUNT = 3;
 const RELATED_POOL = 8;
@@ -105,7 +105,7 @@ async function NewsArticle({ slug }: { slug: string }) {
       "@type": "Organization",
       name: "BI Student Organisation",
     },
-    mainEntityOfPage: `${process.env.NEXT_PUBLIC_BASE_URL ?? "https://web.biso.no"}/news/${slug}`,
+    mainEntityOfPage: `${process.env.NEXT_PUBLIC_BASE_URL ?? "https://biso.no"}/news/${slug}`,
   };
 
   return (

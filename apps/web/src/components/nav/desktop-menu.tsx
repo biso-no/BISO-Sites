@@ -1,11 +1,11 @@
 "use client";
 
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import type { KeyboardEvent } from "react";
-import { PANEL_TRIGGERS, type PanelId, STANDALONE_LINKS } from "./nav-config";
+import { PANEL_TRIGGERS, type PanelId } from "./nav-config";
 
 interface DesktopMenuProps {
   onPanelEnter: (id: PanelId) => void;
@@ -16,11 +16,15 @@ interface DesktopMenuProps {
   ) => void;
   onPanelPointerDown: () => void;
   onPanelToggle: (id: PanelId) => void;
-  onStandaloneEnter: () => void;
   openPanel: PanelId | null;
   registerTrigger: (id: PanelId, el: HTMLButtonElement | null) => void;
 }
 
+/**
+ * The three mega-panel triggers. They are measured as one unit by
+ * {@link useNavOverflow} and never collapse — losing them would leave the site
+ * with no primary navigation at all.
+ */
 export function DesktopMenu({
   openPanel,
   onPanelEnter,
@@ -28,14 +32,12 @@ export function DesktopMenu({
   onPanelFocus,
   onPanelPointerDown,
   onPanelKeyDown,
-  onStandaloneEnter,
   registerTrigger,
 }: DesktopMenuProps) {
   const t = useTranslations("common.navigation");
-  const pathname = usePathname();
 
   return (
-    <div className="flex min-w-0 items-center gap-0.5 text-[0.92rem]">
+    <div className="flex items-center gap-0.5">
       {PANEL_TRIGGERS.map((trigger) => {
         const isOpen = openPanel === trigger.id;
         return (
@@ -65,26 +67,41 @@ export function DesktopMenu({
           </button>
         );
       })}
-
-      {STANDALONE_LINKS.map((link) => {
-        const isActive = pathname === link.href;
-        return (
-          <Link
-            className={`flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg px-2 py-2 text-white transition-colors duration-200 hover:text-brand ${
-              isActive ? "text-brand" : ""
-            }`}
-            href={link.href}
-            key={link.id}
-            onFocus={onStandaloneEnter}
-            onMouseEnter={onStandaloneEnter}
-          >
-            {link.icon && (
-              <link.icon aria-hidden className="h-4 w-4 opacity-90" />
-            )}
-            {t(link.labelKey)}
-          </Link>
-        );
-      })}
     </div>
+  );
+}
+
+interface NavRowLinkProps {
+  href: string;
+  icon?: LucideIcon;
+  label: string;
+  onActivate: () => void;
+}
+
+/**
+ * A plain (non-panel) link in the desktop row — News, Shop, Business. Kept in
+ * this file so it shares the trigger row's type scale and hover treatment.
+ */
+export function NavRowLink({
+  href,
+  icon: Icon,
+  label,
+  onActivate,
+}: NavRowLinkProps) {
+  const pathname = usePathname();
+  const isActive = pathname === href;
+
+  return (
+    <Link
+      className={`flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg px-2 py-2 text-white transition-colors duration-200 hover:text-brand ${
+        isActive ? "text-brand" : ""
+      }`}
+      href={href}
+      onFocus={onActivate}
+      onMouseEnter={onActivate}
+    >
+      {Icon && <Icon aria-hidden className="h-4 w-4 opacity-90" />}
+      {label}
+    </Link>
   );
 }

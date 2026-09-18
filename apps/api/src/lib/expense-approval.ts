@@ -3,7 +3,6 @@
 // chain or rejecting). Shared by the Teams bot endpoint and the web approval
 // page so both decision channels converge on the same idempotent logic.
 
-import { createHash, randomBytes } from "node:crypto";
 import { ID, type Models, Query } from "@repo/api";
 import { createAdminClient } from "@repo/api/server";
 import {
@@ -20,6 +19,7 @@ import {
   sendApprovalEmail,
   sendProactiveCard,
 } from "@repo/connectors/teams-bot";
+import { createHash, randomBytes } from "node:crypto";
 import { resolveExpenseApprovers } from "./expense-approver-resolution";
 
 const TOKEN_TTL_DAYS = 14;
@@ -39,7 +39,7 @@ function webBaseUrl(): string {
   return (
     process.env.EXPENSE_APPROVAL_WEB_URL ||
     process.env.NEXT_PUBLIC_BASE_URL ||
-    "https://web.biso.no"
+    "https://biso.no"
   );
 }
 

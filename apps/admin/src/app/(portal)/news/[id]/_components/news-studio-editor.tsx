@@ -1,6 +1,7 @@
 "use client";
 
 import type { Campus, Departments } from "@repo/api/types/appwrite";
+import { generateSlug } from "@repo/shared/utils/content-slug";
 import { ArrowLeft, ArrowRight, Check, Circle, Save, Send } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useMemo, useRef, useState } from "react";
@@ -115,14 +116,6 @@ const CATEGORY_OPTIONS = [
 
 const inputClass =
   "w-full rounded-lg border border-slate-300/80 bg-white/75 px-3 py-2.5 text-sm text-[#07111f] outline-none transition placeholder:text-slate-400 focus:border-[#3DA9E0] focus:bg-white focus:ring-2 focus:ring-[#3DA9E0]/15";
-
-const generateSlug = (title: string): string =>
-  title
-    .toLowerCase()
-    .replace(/[^a-z0-9\s-]/g, "")
-    .trim()
-    .replace(/\s+/g, "-")
-    .replace(/-+/g, "-");
 
 function StudioField({
   children,

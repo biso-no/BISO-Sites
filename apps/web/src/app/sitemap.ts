@@ -1,11 +1,11 @@
+import { sitemapEntries } from "@/lib/data/public-content";
 import {
   isUnitPageSlug,
   unitCanonicalPath,
 } from "@repo/shared/utils/unit-urls";
 import type { MetadataRoute } from "next";
-import { sitemapEntries } from "@/lib/data/public-content";
 
-const BASE = process.env.NEXT_PUBLIC_BASE_URL || "https://web.biso.no";
+const BASE = process.env.NEXT_PUBLIC_BASE_URL || "https://biso.no";
 
 const ABOUT_SUBROUTES = [
   "what-is-biso",

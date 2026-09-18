@@ -9,6 +9,7 @@ import type {
   TicksterEventsClient,
   TicksterVenue,
 } from "@repo/connectors/tickster";
+import { generateSlug } from "@repo/shared/utils/content-slug";
 
 /**
  * Tickster **published-event** → internal `events` sync.
@@ -60,10 +61,6 @@ const NON_ALNUM = /[^a-zA-Z0-9]/g;
 const HTML_TAG = /<[^>]*>/g;
 const HTML_ESCAPE_CHARS = /[&<>"']/g;
 const WHITESPACE = /\s+/g;
-const SLUG_STRIP = /[^a-z0-9\s-]/g;
-const SLUG_SPACES = /\s+/g;
-const SLUG_DASHES = /-+/g;
-const SLUG_TRIM = /^-+|-+$/g;
 
 const HTML_ESCAPE: Record<string, string> = {
   "&": "&amp;",
@@ -263,13 +260,7 @@ function buildEventRowId(ticksterId: string): string {
 }
 
 function buildSlug(name: string, ticksterId: string): string {
-  const base = name
-    .toLowerCase()
-    .trim()
-    .replace(SLUG_STRIP, "")
-    .replace(SLUG_SPACES, "-")
-    .replace(SLUG_DASHES, "-")
-    .replace(SLUG_TRIM, "");
+  const base = generateSlug(name);
   const suffix = ticksterId.toLowerCase().replace(NON_ALNUM, "");
   const slug = base ? `${base}-${suffix}` : `tickster-${suffix}`;
   return truncate(slug, SLUG_MAX);

@@ -76,10 +76,10 @@ describe("GET /api/member-pass/google", () => {
     resolveMemberPassForRequest.mockResolvedValue({
       state: "unauthenticated",
     });
-    const response = await GET(request({ origin: "https://web.biso.no" }));
+    const response = await GET(request({ origin: "https://biso.no" }));
     expect(response.status).toBe(401);
     expect(response.headers.get("access-control-allow-origin")).toBe(
-      "https://web.biso.no"
+      "https://biso.no"
     );
   });
 
@@ -90,11 +90,11 @@ describe("GET /api/member-pass/google", () => {
 
   it("writes the pass through the Wallet API, then returns a saveUrl JSON body", async () => {
     resolveMemberPassForRequest.mockResolvedValue(ACTIVE);
-    const response = await GET(request({ origin: "https://web.biso.no" }));
+    const response = await GET(request({ origin: "https://biso.no" }));
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toBe("private, no-store");
     expect(response.headers.get("access-control-allow-origin")).toBe(
-      "https://web.biso.no"
+      "https://biso.no"
     );
     expect(await response.json()).toEqual({
       saveUrl: "https://pay.google.com/gp/v/save/header.payload.sig",
@@ -133,7 +133,7 @@ describe("GET /api/member-pass/google", () => {
 
 describe("OPTIONS /api/member-pass/google", () => {
   it("answers CORS preflight", () => {
-    const response = OPTIONS(request({ origin: "https://web.biso.no" }));
+    const response = OPTIONS(request({ origin: "https://biso.no" }));
     expect(response.status).toBe(204);
   });
 });

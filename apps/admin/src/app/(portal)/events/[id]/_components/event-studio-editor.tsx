@@ -15,6 +15,7 @@ import {
   type EventUpsertInput,
   eventUpsertSchema,
 } from "@repo/shared/types/events";
+import { nextAutoSlug } from "@repo/shared/utils/content-slug";
 import {
   ArrowLeft,
   ArrowRight,
@@ -188,14 +189,8 @@ export type { EventStudioEditorProps };
 /*                                  Utilities                                 */
 /* -------------------------------------------------------------------------- */
 
-function generateSlug(title: string) {
-  return title
-    .toLowerCase()
-    .replace(/[^a-z0-9\s-]/g, "")
-    .trim()
-    .replace(/\s+/g, "-")
-    .replace(/-+/g, "-");
-}
+/** Characters a hand-typed slug may not contain. */
+const NON_SLUG_INPUT_RE = /[^a-z0-9-]/g;
 
 function toDateTimeInput(value: string | null | undefined) {
   return value ? value.slice(0, 16) : "";
@@ -1448,6 +1443,8 @@ function EssentialsStep({
   locale,
   set,
   setLocale,
+  setSlugLocked,
+  slugLocked,
   values,
 }: {
   allowedDepartmentIds?: string[];
@@ -1461,6 +1458,8 @@ function EssentialsStep({
     value: EventUpsertInput[K]
   ) => void;
   setLocale: (locale: LocaleCode) => void;
+  setSlugLocked: (v: boolean) => void;
+  slugLocked: boolean;
   values: EventUpsertInput;
 }) {
   const [slugEditing, setSlugEditing] = useState(false);
@@ -1475,8 +1474,12 @@ function EssentialsStep({
 
   function onTitleChange(value: string) {
     set(titleKey, value);
-    if (!values.slug || values.slug.length === 0) {
-      set("slug", generateSlug(value));
+    // The Norwegian title is canonical for the slug; the English one only
+    // stands in while there is no Norwegian title to derive from.
+    const source = titleKey === "title_no" ? value : values.title_no || value;
+    const next = nextAutoSlug({ locked: slugLocked, title: source });
+    if (next !== null) {
+      set("slug", next);
     }
   }
 
@@ -1537,9 +1540,11 @@ function EssentialsStep({
           {slugEditing ? (
             <input
               onBlur={() => setSlugEditing(false)}
-              onChange={(event) =>
-                set("slug", generateSlug(event.target.value))
-              }
+              onChange={(e) => {
+                // A hand-typed slug wins from here on: stop mirroring the title.
+                setSlugLocked(true);
+                set("slug", e.target.value.replace(NON_SLUG_INPUT_RE, ""));
+              }}
               style={{
                 background: "transparent",
                 border: 0,
@@ -4035,6 +4040,10 @@ export function EventStudioEditor({
     return defaults;
   });
   const [dirty, setDirty] = useState(false);
+  // An existing event's slug is already live: never let a title edit rewrite
+  // it. New events mirror the title until someone types a slug by hand. Lives
+  // here rather than in `EssentialsStep`, which unmounts when the step changes.
+  const [slugLocked, setSlugLocked] = useState(Boolean(event?.slug));
   const [submitting, setSubmitting] = useState(false);
   const [suggesting, setSuggesting] = useState(false);
   const [translating, setTranslating] = useState(false);
@@ -4415,6 +4424,8 @@ export function EventStudioEditor({
                 locale={locale}
                 set={set}
                 setLocale={setLocale}
+                setSlugLocked={setSlugLocked}
+                slugLocked={slugLocked}
                 values={values}
               />
             )}

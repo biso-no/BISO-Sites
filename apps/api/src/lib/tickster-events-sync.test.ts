@@ -170,6 +170,38 @@ describe("syncTicksterEvents", () => {
     };
   }
 
+  it("folds Norwegian characters in the slug instead of dropping them", async () => {
+    const { createRow, db } = makeDb();
+    const client = {
+      getEvent: vi.fn().mockResolvedValue(detailFor()),
+      listEvents: vi.fn(({ languageCode, query }) => {
+        if (typeof query === "string" && query.includes("Oslo")) {
+          return {
+            items: [
+              listItem(languageCode, { name: "BISO Høstball Ærlig Åpning" }),
+            ],
+            skipped: 0,
+            totalItems: 1,
+          };
+        }
+        return { items: [], skipped: 0, totalItems: 0 };
+      }),
+    };
+
+    await syncTicksterEvents({
+      client: client as never,
+      config: baseConfig(),
+      db: db as never,
+      now: () => new Date("2026-06-25T00:00:00.000Z"),
+    });
+
+    const eventCreate = createRow.mock.calls.find(
+      ([args]) => args.tableId === "events"
+    )?.[0];
+    // Previously "biso-hstball-rlig-pning": æ/ø/å were stripped outright.
+    expect(eventCreate.data.slug).toBe("biso-hostball-arlig-apning-g1abc");
+  });
+
   it("upserts an enriched event row with both translations", async () => {
     const { createRow, db } = makeDb();
     const client = makeClient();
