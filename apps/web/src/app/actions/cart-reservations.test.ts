@@ -40,7 +40,13 @@ describe("cart reservations", () => {
     sessionDb.updateRow.mockReset();
 
     account.get.mockResolvedValue({ $id: "session-user-1" });
-    sessionDb.getRow.mockResolvedValue({ $id: "product-1", stock: 5 });
+    // `status` is a required column on `webshop_products`, and reserving now
+    // refuses anything that is not published, so the fixture has to carry it.
+    sessionDb.getRow.mockResolvedValue({
+      $id: "product-1",
+      status: "published",
+      stock: 5,
+    });
     sessionDb.listRows.mockResolvedValue({ rows: [], total: 0 });
     adminDb.listRows.mockResolvedValue({ rows: [], total: 0 });
     adminDb.createRow.mockResolvedValue({});

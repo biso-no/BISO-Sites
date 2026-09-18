@@ -680,6 +680,7 @@
       "stock": "Stock",
       "status": "Status",
       "memberOnly": "Members only",
+      "unlisted": "Link only — hidden from listings",
       "sales": "Sales",
       "lowStock": "Low stock"
     },

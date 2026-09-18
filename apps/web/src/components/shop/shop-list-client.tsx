@@ -56,7 +56,6 @@ export function ShopListClient({
       try {
         const newProducts = await listProducts({
           locale,
-          status: "published",
           limit: 100,
           campus: activeCampusId || "all",
         });
@@ -86,11 +85,10 @@ export function ShopListClient({
     const description = toPlainText(translation?.description);
     const shortDescription = toPlainText(translation?.short_description);
 
-    // Filter out member-only products if user is not a member
-    if (productData?.member_only && !isMember) {
-      return false;
-    }
-
+    // Deliberately no `member_only` filter, for anyone: members-only limits who
+    // can BUY a product, not who can see it — the same rule events follow (see
+    // `components/events/members-only.tsx`). The card renders a badge instead,
+    // and the purchase itself is gated server-side in `apps/api`.
     const matchesCategory =
       selectedCategory === "All" || productData?.category === selectedCategory;
     const matchesSearch =

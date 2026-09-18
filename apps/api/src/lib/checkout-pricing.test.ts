@@ -29,6 +29,7 @@ function fakeDb(regularPrice: number, discountPercent: number) {
       }),
       regular_price: regularPrice,
       slug: "trusted-product",
+      status: "published",
       stock: null,
       translation_refs: [],
       variations: [],

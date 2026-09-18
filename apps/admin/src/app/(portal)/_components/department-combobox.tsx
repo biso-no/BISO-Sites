@@ -123,14 +123,16 @@ export function DepartmentCombobox({
   const searchRef = useRef<HTMLInputElement>(null);
   const prevCampusRef = useRef(campusId);
 
-  // Seed cache from initialDepartments on mount only
+  // Seed cache from initialDepartments on mount only. An empty list means the
+  // caller didn't preload anything, not that the campus has no departments —
+  // caching it would stop the initial campus from ever being fetched.
   const mountRef = useRef(false);
   useEffect(() => {
     if (mountRef.current) {
       return;
     }
     mountRef.current = true;
-    if (initialDepartments && campusId) {
+    if (initialDepartments?.length && campusId) {
       cacheRef.current.set(campusId, initialDepartments);
       setItems(initialDepartments);
     }

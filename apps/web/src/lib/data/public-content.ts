@@ -28,6 +28,7 @@ import type {
   LargeEvent,
   News,
   Pages,
+  WebshopProducts,
 } from "@repo/api/types/appwrite";
 import {
   JobsStatus,
@@ -55,6 +56,7 @@ import type { Partner } from "@/app/actions/about";
 import { campusScopeIds } from "@/lib/campus-scope";
 import type { NavFeatured } from "@/lib/types/nav";
 import { buildNavFeatured } from "./nav-featured";
+import { listedProductsOnly } from "./product-visibility";
 import { type PublicLocale, queryEvents, queryNews } from "./queries";
 
 export async function cachedPublishedEvents(
@@ -426,6 +428,25 @@ async function cachedSitemapPublished(table: string): Promise<SitemapRow[]> {
 }
 
 /**
+ * Products need the link-only predicate. An `unlisted` product is published and
+ * purchasable, so a plain status filter would advertise in the sitemap exactly
+ * the products staff marked as reachable only by direct link. The `/shop/<slug>`
+ * page stays live either way — it just goes unannounced, and renders `noindex`.
+ */
+async function cachedSitemapProducts(): Promise<SitemapRow[]> {
+  "use cache";
+  cacheLife("hours");
+  const { db } = await createPublicClient();
+  const res = await db.listRows<WebshopProducts>("app", "webshop_products", [
+    Query.select([...SITEMAP_SELECT]),
+    Query.equal("status", "published"),
+    listedProductsOnly(),
+    Query.limit(SITEMAP_LIMIT),
+  ]);
+  return sitemapRows(res.rows);
+}
+
+/**
  * Jobs need the open-vacancy predicate: getJobBySlug() rejects vacancies past
  * their application deadline, so a plain status filter would emit sitemap URLs
  * that resolve to 404.
@@ -505,9 +526,7 @@ export async function sitemapEntries(): Promise<SitemapEntries> {
       cachedSitemapJobs().catch(() => [] as SitemapRow[]),
       cachedSitemapPublished("events").catch(() => [] as SitemapRow[]),
       cachedSitemapPublished("news").catch(() => [] as SitemapRow[]),
-      cachedSitemapPublished("webshop_products").catch(
-        () => [] as SitemapRow[]
-      ),
+      cachedSitemapProducts().catch(() => [] as SitemapRow[]),
       cachedSitemapProjects().catch(() => [] as SitemapRow[]),
       cachedSitemapPages().catch(() => [] as SitemapRow[]),
       cachedSitemapUnits().catch(() => [] as UnitSitemapRow[]),

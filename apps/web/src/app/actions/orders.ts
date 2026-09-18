@@ -14,7 +14,10 @@ import {
 import { getLocale } from "@/app/actions/locale";
 import { getProduct } from "@/app/actions/products";
 import { validatePurchaseLimits } from "@/app/actions/purchase-limits";
-import { getMembershipStatus } from "@/lib/actions/membership";
+import {
+  getLiveMembershipStatus,
+  getMembershipStatus,
+} from "@/lib/actions/membership";
 import { ensureAnonymousSession } from "@/lib/anon-session";
 import type { OrderItem } from "@/lib/types/order";
 import {
@@ -251,6 +254,34 @@ async function loadProduct(
   return normalizedProduct;
 }
 
+/**
+ * Refuse a members-only product for a non-member before any payment session is
+ * created. `member_only` restricts who may BUY a product, not who may see it,
+ * so the listing and the product page show it to everyone — this is where that
+ * promise is kept.
+ *
+ * `apps/api` re-checks the same rule on the trusted path, which is the gate that
+ * actually holds (the browser can post straight to it). This copy exists so the
+ * buyer gets a clear reason from the site instead of a rejected checkout.
+ *
+ * Live rather than the ten-minute cached read: this refuses a purchase, and a
+ * student who joined moments ago must not be told they are not a member on the
+ * very order they joined to place. The member DISCOUNT above keeps the cached
+ * read — being charged full price is a worse-but-recoverable outcome than
+ * hammering 24SevenOffice on every line of every cart.
+ */
+async function ensureMemberOnlyAccess(product: NormalizedProduct) {
+  if (!product.member_only) {
+    return;
+  }
+  const status = await getLiveMembershipStatus();
+  if (!status.isMember) {
+    throw new Error(
+      `${product.title || product.slug} is available to BISO members only.`
+    );
+  }
+}
+
 async function ensureStockAvailability(
   product: Record<string, unknown>,
   productId: string,
@@ -408,6 +439,8 @@ async function buildOrderItems(
         `Product ${product.title || product.slug} is missing a price.`
       );
     }
+
+    await ensureMemberOnlyAccess(product);
 
     const requestedQuantity = quantityByProduct.get(productId) || 0;
     await ensureStockAvailability(

@@ -62,6 +62,11 @@ export function AddToCartClient({
   const isOutOfStock =
     stock !== null && availableStock !== null && availableStock <= 0;
 
+  // A members-only product is shown to everyone — `member_only` limits who can
+  // buy, not who can see — so this is where a non-member is stopped. The real
+  // gate is server-side in `apps/api`; this only saves them the round trip.
+  const isMemberOnlyBlocked = Boolean(product.member_only) && !isMember;
+
   const handleAddToCart = async () => {
     const fields = customFieldState?.fields ?? [];
     const answers = customFieldState?.answers ?? {};
@@ -118,24 +123,37 @@ export function AddToCartClient({
             )}
           </div>
 
-          {!isMember && memberPrice && memberPrice < regularPrice && (
+          {isMemberOnlyBlocked && (
             <Alert className="mb-4 border-white/20 bg-background/10">
               <AlertCircle className="h-4 w-4 text-white" />
               <AlertDescription className="text-sm text-white">
-                {t("product.becomeMemberSave", {
-                  amount: regularPrice - memberPrice,
-                })}
+                {t("product.membersOnlyNotice")}
               </AlertDescription>
             </Alert>
           )}
 
+          {!(isMemberOnlyBlocked || isMember) &&
+            memberPrice &&
+            memberPrice < regularPrice && (
+              <Alert className="mb-4 border-white/20 bg-background/10">
+                <AlertCircle className="h-4 w-4 text-white" />
+                <AlertDescription className="text-sm text-white">
+                  {t("product.becomeMemberSave", {
+                    amount: regularPrice - memberPrice,
+                  })}
+                </AlertDescription>
+              </Alert>
+            )}
+
           <Button
             className="mb-3 w-full bg-background text-brand-dark hover:bg-background/90 disabled:cursor-not-allowed disabled:opacity-50"
-            disabled={isOutOfStock}
+            disabled={isOutOfStock || isMemberOnlyBlocked}
             onClick={handleAddToCart}
           >
             <ShoppingCart className="mr-2 h-4 w-4" />
-            {isOutOfStock ? t("card.outOfStock") : t("product.addToCart")}
+            {isMemberOnlyBlocked && t("product.membersOnly")}
+            {!isMemberOnlyBlocked &&
+              (isOutOfStock ? t("card.outOfStock") : t("product.addToCart"))}
           </Button>
 
           {addedToCart && (
