@@ -9,6 +9,7 @@ import type {
   RecruitmentVacancy,
   RecruitmentVacancyWriteInput,
 } from "@repo/shared/types/recruitment";
+import { generateSlug } from "@repo/shared/utils/content-slug";
 import {
   ArrowLeft,
   ArrowRight,
@@ -124,15 +125,6 @@ type LocaleCode = "en" | "no";
 
 function getTranslation(job: RecruitmentVacancy | null, locale: "en" | "no") {
   return job?.translations.find((translation) => translation.locale === locale);
-}
-
-function generateSlug(title: string) {
-  return title
-    .toLowerCase()
-    .replace(/[^a-z0-9\s-]/g, "")
-    .trim()
-    .replace(/\s+/g, "-")
-    .replace(/-+/g, "-");
 }
 
 const TEASER_MAX_LENGTH = 280;

@@ -1,5 +1,6 @@
 import { type Models, Permission, Role } from "@repo/api";
 import type { RecruitmentLookups } from "@repo/shared/recruitment";
+import { generateSlug } from "@repo/shared/utils/content-slug";
 
 const GUEST_NAME_PREFIX = "guest_";
 
@@ -68,14 +69,12 @@ export function sanitizeRedirectTarget(
   return decoded;
 }
 
+/**
+ * Kept as the page editor's entry point; the rules live in `@repo/shared/utils/content-slug`
+ * alongside the studio editors' so page slugs fold `æøå` the same way.
+ */
 export function sanitizeSlug(text: string): string {
-  return text
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9\s-]/g, "")
-    .replace(/\s+/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-+|-+$/g, "");
+  return generateSlug(text);
 }
 
 const MEMBERS_TEAM = "biso-members";

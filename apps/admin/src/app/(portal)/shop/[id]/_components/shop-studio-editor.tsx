@@ -7,6 +7,7 @@ import type {
   Departments,
   WebshopProducts,
 } from "@repo/api/types/appwrite";
+import { generateSlug, nextAutoSlug } from "@repo/shared/utils/content-slug";
 import {
   ArrowLeft,
   Check,
@@ -56,7 +57,6 @@ import {
   CustomFieldsBoard,
   type CustomFieldType,
 } from "./custom-fields-board";
-import { generateSlug, nextAutoSlug } from "./shop-studio-slug";
 
 /* -------------------------------------------------------------------------- */
 /*                              Types                                          */
