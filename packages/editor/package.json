@@ -9,7 +9,9 @@
     "./render": "./src/render/index.ts",
     "./blocks": "./src/blocks/index.ts",
     "./page-feeds": "./src/editor/page-feeds.ts",
+    "./operations": "./src/editor/operations.ts",
     "./theme": "./src/theme/index.ts",
+    "./theme/presets": "./src/theme/presets.ts",
     "./theme/styles.css": "./src/theme/styles.css",
     "./ai": "./src/ai/index.ts",
     "./types": "./src/editor/types.ts"

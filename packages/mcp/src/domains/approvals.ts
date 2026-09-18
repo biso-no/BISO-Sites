@@ -1,0 +1,343 @@
+/**
+ * Approvals and the inbox.
+ *
+ * Deciding an approval is deliberately absent. `approveRequest` in the admin
+ * app does two things in one step: it flips the request row, and it *executes*
+ * the publish the request describes. Splitting that across a model-driven tool
+ * would mean this server performing a publish on behalf of an approver who
+ * clicked nothing — the exact case the mutation model exists to prevent. The
+ * tools here let an authorized person see what is waiting and file a new
+ * request; the decision itself stays in the portal, where the approver is
+ * present.
+ */
+
+import { z } from "zod";
+import { campusLabel } from "../identity/campus";
+import { isAnonymous } from "../identity/principal";
+import {
+  assertWriteAccess,
+  canPublish,
+  describeScope,
+} from "../identity/scope";
+import { forbidden } from "../runtime/errors";
+import { defineTool, type ToolModule } from "../runtime/register";
+import { buildPagination } from "../runtime/result";
+import {
+  APPROVAL_EXECUTION_NOTES,
+  type ApprovalDomain,
+  EXECUTABLE_APPROVAL_DOMAINS,
+} from "../services/approvals";
+import { type ContentDomain, domainSpec } from "../services/content-registry";
+import { hasRecruitmentAccess } from "../services/recruitment";
+import { proposalInput, proposeOrExecute } from "./content";
+import {
+  newRequestId,
+  paginationInput,
+  READ_ONLY,
+  readPage,
+  result,
+  STAFF_PROFILES,
+  WRITE_ADDITIVE,
+} from "./shared";
+
+/** `approval_requests.resource_type` values, keyed by content domain. */
+const RESOURCE_TYPE: Record<ApprovalDomain, string> = {
+  benefits: "benefit",
+  documents: "document",
+  events: "event",
+  jobs: "job",
+  news: "news",
+  shop: "product",
+};
+
+/**
+ * The portal-execution caveat for a domain, if it has one.
+ *
+ * Kept as a list so it slots straight into the result envelope's `warnings`,
+ * and read from `APPROVAL_EXECUTION_NOTES` so the request tool and the
+ * approver's queue can never disagree about which domains dead-end.
+ */
+function executionWarnings(domain: ApprovalDomain): string[] | undefined {
+  const note = APPROVAL_EXECUTION_NOTES[domain];
+  return note ? [note] : undefined;
+}
+
+export const approvalsModule: ToolModule = {
+  name: "approvals",
+  title: "Approvals and inbox",
+  description:
+    "See what is waiting for a decision, and route a publish to the approver team rather than performing it directly.",
+  tools: [
+    defineTool({
+      name: "biso_list_pending_approvals",
+      title: "Pending approvals",
+      description:
+        "List approval requests waiting for YOUR decision — filtered to the approver teams you actually hold, plus the Operations Unit override. A request also grants read to whoever filed it, so row permissions alone would show you your own requests as though they were yours to decide.",
+      inputSchema: { ...paginationInput },
+      annotations: READ_ONLY,
+      profiles: STAFF_PROFILES,
+      async handler(args, context) {
+        const requestId = newRequestId();
+        const { limit, offset } = readPage(args);
+        const found = await context.services.approvals.listPending(
+          context.principal,
+          { limit, offset }
+        );
+        return result({
+          requestId,
+          summary:
+            found.rows.length === 0
+              ? "Nothing is waiting for your approval."
+              : `${found.rows.length} pending approval request(s).`,
+          data: {
+            requests: found.rows,
+            note: "Deciding a request is not available from this server: approving also executes the publish it describes, which needs the approver present. Use the admin portal's inbox.",
+          },
+          scope: describeScope(context.principal),
+          pagination: buildPagination({
+            count: found.rows.length,
+            total: found.total,
+            offset,
+            limit,
+          }),
+          links: { inbox: context.links.admin("/inbox/approvals") },
+        });
+      },
+    }),
+
+    defineTool({
+      name: "biso_get_approval_request",
+      title: "Read an approval request",
+      description:
+        "Read one approval request: what it would publish, who filed it, which team must decide it, and its current status.",
+      inputSchema: {
+        requestId: z.string().min(1).describe("The approval_requests $id."),
+      },
+      annotations: READ_ONLY,
+      profiles: STAFF_PROFILES,
+      async handler(args, context) {
+        const outRequestId = newRequestId();
+        const request = await context.services.approvals.get(args.requestId);
+        return result({
+          requestId: outRequestId,
+          summary: `${request.action} on ${request.resourceType} ${request.resourceId ?? "(none)"} — ${request.status}, routed to ${request.approverTeamId}.`,
+          data: request,
+          scope: describeScope(context.principal),
+          links: { inbox: context.links.admin("/inbox/approvals") },
+        });
+      },
+    }),
+
+    defineTool({
+      name: "biso_request_approval",
+      title: "Request a publish approval",
+      description:
+        "File a request asking the approver team to publish something, instead of publishing it yourself. You must have write access to the item; whether to route it through review rather than publishing directly is a process decision, and the result says which situation you are in. Only publishing can be routed this way — the execution path behind approvals handles `<domain>.publish` and nothing else, so filing anything else would create a request nobody could act on. Routes to the campus management team, or to Operations Unit for vacancies.",
+      inputSchema: {
+        domain: z
+          .enum(EXECUTABLE_APPROVAL_DOMAINS)
+          .describe("Which content type would be published."),
+        id: z.string().min(1).describe("The row $id to publish."),
+        reason: z
+          .string()
+          .max(1000)
+          .optional()
+          .describe("Why this should be published. Shown to the approver."),
+        ...proposalInput,
+      },
+      annotations: WRITE_ADDITIVE,
+      tier: "draft",
+      profiles: STAFF_PROFILES,
+      isAvailable(context) {
+        if (isAnonymous(context.principal)) {
+          return "No user credential is configured, so a request could not be attributed to a requester.";
+        }
+        if (!context.clients.hasElevated) {
+          return "Filing an approval request needs the service key: `approval_requests` has no table-level create grant. Set BISO_MCP_APPWRITE_API_KEY.";
+        }
+        return true;
+      },
+      async handler(args, context) {
+        const requestId = newRequestId();
+        const domain = args.domain as ApprovalDomain;
+
+        // Recruitment is HR-exclusive with global-admin break-glass, and the
+        // gate has to be here as well as on the content tools. `jobs` grants
+        // `read("any")`, so an ordinary department member can read a vacancy in
+        // their own department and would otherwise be able to file a persisted
+        // `jobs.publish` request for it. The portal's approval executor checks
+        // the *approver's* publish access, never the requester's role, so such
+        // a request could then be approved by Operations Unit and enter the
+        // recruitment workflow without HR ever sanctioning it.
+        if (domain === "jobs" && !hasRecruitmentAccess(context.principal)) {
+          throw forbidden(
+            "Recruitment is restricted to HR, with global-admin break-glass.",
+            { domain, id: args.id },
+            "Ask HR to file this request. Filing it here would create an approval an approver could grant without any HR involvement."
+          );
+        }
+
+        // `shop` is the approval vocabulary for what the content registry calls
+        // `products`; map before reading the row.
+        const contentDomain: ContentDomain =
+          domain === "shop" ? "products" : (domain as ContentDomain);
+        const item = await context.services.content.get(
+          context.principal,
+          contentDomain,
+          args.id
+        );
+
+        // `content.get` lets any staff principal read a *published* row — that
+        // is correct for reading public content, and wrong as the only gate on
+        // filing an approval. Without this check an Oslo department member
+        // could file a publish request for a Bergen article, and the portal's
+        // executor checks the approver's scope, never the requester's — so if
+        // the item were later unpublished, that persisted request could
+        // republish it on their behalf.
+        //
+        // This is the whole gate, and it is deliberately stricter than the
+        // portal's: `createApprovalRequest` in `apps/admin` calls `requireAuth`
+        // and nothing else.
+        assertWriteAccess(context.principal, item.campusId, item.departmentId);
+
+        const payload = {
+          domain,
+          resourceId: args.id,
+          resourceType: RESOURCE_TYPE[domain],
+          campusId: item.campusId,
+          departmentId: item.departmentId,
+          payload: {
+            id: args.id,
+            title: item.title,
+            reason: args.reason ?? null,
+            requestedVia: "mcp",
+          },
+        };
+
+        const outcome = await proposeOrExecute({
+          context,
+          action: `${domain}.request_approval`,
+          tier: "draft",
+          targets: [
+            {
+              table: "approval_requests",
+              id: "(new)",
+              label: `${domain}.publish ${args.id}`,
+            },
+            {
+              table: domainSpec(contentDomain).table,
+              id: args.id,
+              label: item.title ?? args.id,
+            },
+          ],
+          payload,
+          revision: item.revision,
+          token: args.proposalToken,
+          expiresAt: args.proposalExpiresAt,
+          confirmation: {
+            title: "File approval request",
+            message: `Ask the approver team to publish "${item.title ?? args.id}" in ${campusLabel(item.campusId)}.`,
+          },
+          execute: () =>
+            context.services.approvals.create(context.principal, payload),
+        });
+
+        return result({
+          requestId,
+          summary: outcome.summary,
+          effect: outcome.executed ? "executed" : "proposed",
+          data: outcome.executed
+            ? { filed: outcome.data, proposal: outcome.proposal }
+            : { proposal: outcome.proposal },
+          scope: describeScope(context.principal),
+          links: item.links,
+          // Filing succeeds; completing it may not. Say so here rather than
+          // letting the requester discover it when the approver's click fails.
+          //
+          // The second note is informational and must stay that way. There is
+          // no principal who can edit a row but not publish it —
+          // `assertPublishAccess` delegates to `assertWriteAccess`, here and in
+          // `apps/admin` — so a refusal keyed on "you could do this yourself"
+          // would refuse everyone and leave the tool unreachable. Whether to
+          // route a publish through review anyway is a process question, and
+          // the portal leaves it to the person; this says which one they are in.
+          warnings: [
+            ...(executionWarnings(domain) ?? []),
+            ...(canPublish(context.principal, item.campusId, item.departmentId)
+              ? [
+                  "You can publish this yourself. Filing a request routes it through the approver team instead, which is a process choice, not a requirement.",
+                ]
+              : []),
+          ],
+        });
+      },
+    }),
+
+    defineTool({
+      name: "biso_inbox_counts",
+      title: "What needs my attention",
+      description:
+        "Count the approval requests and new form submissions waiting for you. A non-approver legitimately sees zeroes; the result says which case applies rather than implying the queues are empty.",
+      inputSchema: {},
+      annotations: READ_ONLY,
+      profiles: STAFF_PROFILES,
+      async handler(_args, context) {
+        const requestId = newRequestId();
+        const counts = await context.services.operations.inboxCounts(
+          context.principal
+        );
+        return result({
+          requestId,
+          summary:
+            counts.total === 0
+              ? (counts.note ?? "Nothing is waiting for you.")
+              : `${counts.atLeast ? "At least " : ""}${counts.total} item(s) waiting: ${counts.approvals} approval(s), ${counts.submissions} submission(s).${counts.note ? ` ${counts.note}` : ""}`,
+          data: counts,
+          scope: describeScope(context.principal),
+          links: { inbox: context.links.admin("/inbox") },
+        });
+      },
+    }),
+
+    defineTool({
+      name: "biso_list_submissions",
+      title: "Form submissions",
+      description:
+        "List contact-form submissions in your campus scope. Returns each submission's topic, status and the NAMES of its fields — never the submitted values, which are free text a visitor typed into a public form.",
+      inputSchema: {
+        status: z
+          .enum(["new", "read", "actioned", "archived"])
+          .optional()
+          .describe("Filter by handling status."),
+        topic: z.string().optional().describe("Filter by form topic."),
+        ...paginationInput,
+      },
+      annotations: READ_ONLY,
+      profiles: STAFF_PROFILES,
+      async handler(args, context) {
+        const requestId = newRequestId();
+        const { limit, offset } = readPage(args);
+        const found = await context.services.operations.submissions(
+          context.principal,
+          { status: args.status, topic: args.topic, limit, offset }
+        );
+        return result({
+          requestId,
+          summary: `${found.rows.length} submission(s)${args.status ? ` with status ${args.status}` : ""}.`,
+          data: {
+            submissions: found.rows,
+            note: "Submitted values are not returned. Open the submission in the admin app to read them.",
+          },
+          scope: describeScope(context.principal),
+          pagination: buildPagination({
+            count: found.rows.length,
+            total: found.total,
+            offset,
+            limit,
+          }),
+          links: { submissions: context.links.admin("/submissions") },
+        });
+      },
+    }),
+  ],
+};
