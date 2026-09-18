@@ -25,6 +25,12 @@ import type { Projected } from "./row";
 
 export interface InboxCounts {
   approvals: number;
+  /**
+   * True when either half hit `INBOX_COUNT_CEILING`, so the numbers are a
+   * floor rather than an exact count. Callers must not render a capped count
+   * as a plain figure.
+   */
+  atLeast: boolean;
   /** Non-approvers legitimately see zeroes; say so rather than implying empty. */
   note: string | null;
   submissions: number;
@@ -121,6 +127,41 @@ const INTEGRATION_REQUIREMENTS: ReadonlyArray<{
   { name: "Umami analytics", requires: ["UMAMI_API_URL", "UMAMI_USERNAME"] },
 ];
 
+/**
+ * How many inbox rows either half will count before reporting a floor.
+ *
+ * One request per half, `$id` only. Chosen to be far above a real decision
+ * queue — an inbox this size is a backlog to escalate, not a number to render
+ * precisely — so `atLeast` stays false in practice while the request stays
+ * bounded. Deliberately not a cursor walk: an unbounded scan to produce one
+ * headline figure is the kind of thing this package refuses to do elsewhere.
+ */
+const INBOX_COUNT_CEILING = 500;
+
+/** Rows from one settled half of the inbox count; a rejected half counts zero. */
+function settledCount(
+  settled: PromiseSettledResult<{ rows: unknown[] }>
+): number {
+  return settled.status === "fulfilled" ? settled.value.rows.length : 0;
+}
+
+/**
+ * What the caller is told about the numbers themselves.
+ *
+ * A failed half outranks a capped one: "one of these is missing" is worse news
+ * than "this one is a floor", and reporting only the cap would imply both
+ * halves were read.
+ */
+function inboxNote(failed: boolean, atLeast: boolean): string | null {
+  if (failed) {
+    return "At least one count could not be read and is reported as 0.";
+  }
+  if (atLeast) {
+    return `More than ${INBOX_COUNT_CEILING} items are waiting; the counts are a floor, not an exact figure.`;
+  }
+  return null;
+}
+
 export function createOperationsService(
   clients: BackendClients,
   env: Record<string, string | undefined> = process.env
@@ -146,6 +187,7 @@ export function createOperationsService(
       if (!(canDecide || seesSubmissions)) {
         return {
           approvals: 0,
+          atLeast: false,
           submissions: 0,
           total: 0,
           note: "You hold no approver team and are not a campus or global admin, so nothing is routed to you.",
@@ -171,43 +213,60 @@ export function createOperationsService(
         ? [Query.equal("approver_team_id", deciderTeams)]
         : [];
 
-      // `Query.limit(1)` with `result.total`: Appwrite reports the full match
-      // count regardless of page size, so one row is enough to count them.
+      // Counted from the rows, not from `listRows(...).total`.
+      //
+      // This used to read `total` off a `Query.limit(1)` call, on the premise
+      // that Appwrite reports the full match count regardless of page size.
+      // That premise is now disputed: `apps/web/src/lib/data/queries.ts`
+      // (`countRows`) states that since the Appwrite release this repo is on,
+      // `total` reports the size of the whole table rather than of the
+      // filtered result, and stopped using it for the homepage counters for
+      // exactly that reason. I could not confirm or refute that against
+      // Appwrite's release notes, and the repo has not adopted the rule
+      // everywhere — `apps/admin`'s own inbox still reads `total`.
+      //
+      // So this does not take a side. Counting returned rows is correct under
+      // either reading, because only `total` is in question and never which
+      // rows come back — the same assumption `countRows` itself rests on. The
+      // cost is one bounded request per half with an `$id`-only projection,
+      // and the ceiling is reported rather than silently truncating.
       const [approvals, submissions] = await Promise.allSettled([
         canDecide
           ? clients.user.db.listRows("app", "approval_requests", [
               Query.equal("status", "pending"),
               ...approverFilter,
-              Query.limit(1),
+              Query.select(["$id"]),
+              Query.limit(INBOX_COUNT_CEILING),
               ...campusFilter,
             ])
-          : Promise.resolve({ total: 0 }),
+          : Promise.resolve({ rows: [] }),
         seesSubmissions
           ? clients.user.db.listRows("app", "form_submissions", [
               Query.equal("status", "new"),
-              Query.limit(1),
+              Query.select(["$id"]),
+              Query.limit(INBOX_COUNT_CEILING),
               // `form_submissions` is campus-scoped only; it has no department
               // column, so a department-only principal fails closed here.
               ...scopeQueries(principal, { departmentField: null }),
               ...campusFilter,
             ])
-          : Promise.resolve({ total: 0 }),
+          : Promise.resolve({ rows: [] }),
       ]);
 
-      const approvalCount =
-        approvals.status === "fulfilled" ? approvals.value.total : 0;
-      const submissionCount =
-        submissions.status === "fulfilled" ? submissions.value.total : 0;
+      const approvalCount = settledCount(approvals);
+      const submissionCount = settledCount(submissions);
+      const atLeast =
+        approvalCount === INBOX_COUNT_CEILING ||
+        submissionCount === INBOX_COUNT_CEILING;
       const failed =
         approvals.status === "rejected" || submissions.status === "rejected";
 
       return {
         approvals: approvalCount,
+        atLeast,
         submissions: submissionCount,
         total: approvalCount + submissionCount,
-        note: failed
-          ? "At least one count could not be read and is reported as 0."
-          : null,
+        note: inboxNote(failed, atLeast),
       };
     },
 

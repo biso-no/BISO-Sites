@@ -291,7 +291,7 @@ export const approvalsModule: ToolModule = {
           summary:
             counts.total === 0
               ? (counts.note ?? "Nothing is waiting for you.")
-              : `${counts.total} item(s) waiting: ${counts.approvals} approval(s), ${counts.submissions} submission(s).`,
+              : `${counts.atLeast ? "At least " : ""}${counts.total} item(s) waiting: ${counts.approvals} approval(s), ${counts.submissions} submission(s).${counts.note ? ` ${counts.note}` : ""}`,
           data: counts,
           scope: describeScope(context.principal),
           links: { inbox: context.links.admin("/inbox") },

@@ -255,6 +255,20 @@ export interface FakeBackendOptions {
   tables?: FakeTables;
   /** Team memberships `resolvePrincipal` will read. */
   teams?: Array<{ $id: string; name: string }>;
+  /**
+   * Report `total` as the size of the whole table, ignoring the query filters.
+   *
+   * Models the behaviour `apps/web/src/lib/data/queries.ts` attributes to the
+   * Appwrite release this repo is on — the reason `countRows` there counts
+   * rows instead of reading `total`. The default (`total` = the filtered match
+   * count) is the behaviour the SDK has always documented.
+   *
+   * Without this switch the fake cannot express the difference at all: it
+   * derives `total` from the filtered rows, so code reading `total` and code
+   * counting rows are indistinguishable, and a regression test for one would
+   * pass against the other.
+   */
+  unfilteredTotal?: boolean;
 }
 
 export interface FakeBackend extends BackendClients {
@@ -390,7 +404,8 @@ function buildDb(
   record: (entry: FakeBackend["writes"][number]) => void,
   via: "user" | "elevated",
   onWrite?: FakeBackendOptions["onWrite"],
-  onRead?: FakeBackendOptions["onRead"]
+  onRead?: FakeBackendOptions["onRead"],
+  unfilteredTotal?: FakeBackendOptions["unfilteredTotal"]
 ): AppwriteClients["db"] {
   const listRows = (
     _databaseId: string,
@@ -423,7 +438,7 @@ function buildDb(
 
     rows = applyOrder(rows, parsed);
 
-    const total = rows.length;
+    const total = unfilteredTotal ? all.length : rows.length;
     const offset = parsed.find((q) => q.method === "offset")?.values?.[0];
     const limit = parsed.find((q) => q.method === "limit")?.values?.[0];
     if (typeof offset === "number") {
@@ -559,21 +574,24 @@ export function createFakeBackend(
     record,
     "user",
     options.onWrite,
-    options.onRead
+    options.onRead,
+    options.unfilteredTotal
   );
   const elevatedDb = buildDb(
     tables,
     record,
     "elevated",
     options.onWrite,
-    options.onRead
+    options.onRead,
+    options.unfilteredTotal
   );
   const anonDb = buildDb(
     options.anonymousTables ?? tables,
     record,
     "user",
     options.onWrite,
-    options.onRead
+    options.onRead,
+    options.unfilteredTotal
   );
 
   const hasElevated = options.hasElevated ?? true;

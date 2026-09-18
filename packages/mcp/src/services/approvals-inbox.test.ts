@@ -152,3 +152,106 @@ describe("the inbox count agrees with the inbox", () => {
     expect((await counts().inboxCounts(nobody)).approvals).toBe(0);
   });
 });
+
+/**
+ * The count is taken from the rows, not from `listRows(...).total`.
+ *
+ * `apps/web/src/lib/data/queries.ts` states that on the Appwrite release this
+ * repo is on, `total` reports the size of the whole table rather than of the
+ * filtered result, and its `countRows` stopped reading it for exactly that
+ * reason. I could not confirm that against Appwrite's release notes, and the
+ * repo has not adopted the rule everywhere, so `inboxCounts` does not take a
+ * side: it counts returned rows, which is right under either reading.
+ *
+ * These tests run the fake in `unfilteredTotal` mode — the disputed behaviour —
+ * because in the default mode the fake derives `total` from the filtered rows
+ * and the two implementations are indistinguishable.
+ */
+describe("the inbox count does not trust listRows total", () => {
+  /** One row this campus admin can decide, inside a much larger table. */
+  function noisyTables() {
+    const decided = Array.from({ length: 6 }, (_, index) => ({
+      $id: `settled-${index}`,
+      $createdAt: "2026-01-03T00:00:00.000Z",
+      status: "approved",
+      action: "news.publish",
+      resource_type: "news",
+      resource_id: `n-${index}`,
+      campus_id: "1",
+      department_id: "dept-a",
+      approver_team_id: "sg-app-dept-ledelsenoslo",
+      requester_id: "someone",
+      requester_email: "someone@biso.no",
+      payload: "{}",
+    }));
+    return {
+      approval_requests: [...tables().approval_requests, ...decided],
+      form_submissions: [
+        { $id: "handled", status: "handled", campus_id: "1" },
+        { $id: "also-handled", status: "handled", campus_id: "1" },
+      ],
+    };
+  }
+
+  function noisyCounts() {
+    return createOperationsService(
+      createFakeBackend({ tables: noisyTables(), unfilteredTotal: true }),
+      {}
+    );
+  }
+
+  test("a whole-table total does not become the count", async () => {
+    // Eight rows in `approval_requests`, two of them pending, one of those
+    // routed to this caller's team. Reading `total` reports 8; the answer is 1.
+    const found = await noisyCounts().inboxCounts(CAMPUS_ADMIN("Oslo", "1"));
+
+    expect(found.approvals).toBe(1);
+    expect(found.total).toBe(1);
+  });
+
+  test("a whole-table total does not become the submission count either", async () => {
+    // Both submission rows are `handled`, so the honest answer is zero even
+    // though the table is not empty.
+    const found = await noisyCounts().inboxCounts(GLOBAL_ADMIN());
+
+    expect(found.submissions).toBe(0);
+  });
+
+  test("an exact count is not labelled a floor", async () => {
+    const found = await noisyCounts().inboxCounts(GLOBAL_ADMIN());
+
+    expect(found.atLeast).toBe(false);
+    expect(found.note).toBeNull();
+  });
+});
+
+describe("a count that hits the ceiling is reported as a floor", () => {
+  test("the ceiling is stated, not rendered as the exact figure", async () => {
+    const flood = Array.from({ length: 600 }, (_, index) => ({
+      $id: `pending-${index}`,
+      $createdAt: "2026-01-04T00:00:00.000Z",
+      status: "pending",
+      action: "news.publish",
+      resource_type: "news",
+      resource_id: `n-${index}`,
+      campus_id: "1",
+      department_id: "dept-a",
+      approver_team_id: "sg-app-dept-ledelsenoslo",
+      requester_id: "someone",
+      requester_email: "someone@biso.no",
+      payload: "{}",
+    }));
+    const service = createOperationsService(
+      createFakeBackend({
+        tables: { approval_requests: flood, form_submissions: [] },
+      }),
+      {}
+    );
+
+    const found = await service.inboxCounts(CAMPUS_ADMIN("Oslo", "1"));
+
+    expect(found.approvals).toBe(500);
+    expect(found.atLeast).toBe(true);
+    expect(found.note).toContain("floor");
+  });
+});

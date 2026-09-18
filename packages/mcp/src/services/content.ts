@@ -431,9 +431,12 @@ async function idsMatchingText(
     const source = preferred.length > 0 ? preferred : result.rows;
     return {
       ids: [...new Set(source.map((row) => row.content_id))],
-      // `total` is the full match count; `rows` is one page of it. Appwrite
-      // reports both, so the scan knows when it stopped short.
-      truncated: result.total > result.rows.length,
+      // Truncation is "the scan filled its window", not "total exceeds the
+      // page". Reading `total` here would depend on it being the filtered
+      // match count, which `apps/web/src/lib/data/queries.ts` disputes — see
+      // `inboxCounts` in `./operations.ts`. A full window is the same answer
+      // under either reading.
+      truncated: result.rows.length === TRANSLATION_SCAN_LIMIT,
     };
   } catch (error) {
     throw fromAppwriteError(error, {

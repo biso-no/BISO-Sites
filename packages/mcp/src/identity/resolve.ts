@@ -297,10 +297,14 @@ async function resolveDepartmentIds(
       filters
     );
 
-    if (result.total > result.rows.length) {
+    // A full window means the scan stopped short. Comparing against `total`
+    // would fire on every campus-filtered read if `total` is the whole table,
+    // which `apps/web/src/lib/data/queries.ts` says it now is — see
+    // `inboxCounts` in `../services/operations.ts`.
+    if (result.rows.length === DEPARTMENT_SCAN_LIMIT) {
       logger.warn(
         "departments table exceeded the resolution scan limit; some department memberships may not resolve",
-        { scanned: result.rows.length, total: result.total }
+        { scanned: result.rows.length, ceiling: DEPARTMENT_SCAN_LIMIT }
       );
     }
 

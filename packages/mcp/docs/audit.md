@@ -699,11 +699,15 @@ it.
 
 ## 18. Base moves while the PR was open
 
-`main` moved three times after the audit above was written. A clean textual
+`main` moved seven times after the audit above was written. A clean textual
 merge says the lines do not collide; it says nothing about whether the base
 changed a rule this package mirrors. So each move was inspected before being
-trusted, and the inspection is recorded here because two of the three did
-change something that mattered.
+trusted, and the inspection is recorded here — including for the moves that
+changed nothing, because "inert" is a claim that should show its work.
+
+Four of the seven changed something. The seventh changed the most, and not in
+the diff: it called into question a backend guarantee this package had been
+relying on in eleven places.
 
 | Base | What moved | Effect here |
 |---|---|---|
@@ -713,6 +717,7 @@ change something that mattered.
 | `ca9997f` → `b11a842` | PR #76, webshop visibility: `webshop_products` gained an `unlisted` column | **Not inert.** See below |
 | `b11a842` → `1b6b3d1` | PRs consolidating slug derivation and member pricing into `@repo/shared/utils/{content-slug,member-discount}`, plus admin/web navigation and checkout work | No schema, type, lockfile or `turbo.json` change, and nothing under `packages/shared/utils/*` that this package imports. Both new helpers serve surfaces this package does not implement: it reads `member_price` but never computes a discount, and it requires a slug rather than deriving one. The slug consolidation did make one contract worth asserting — see below |
 | `1b6b3d1` → `efffef4` | Admin job search and status counts; the public event card linking to its detail page and showing a point of contact | Inert. Nothing outside `apps/` and `@repo/i18n` moved. Two things were checked rather than waved through — see below |
+| `efffef4` → `28f9a3b` | Recruitment retention cleanup, CV anonymisation for AI screening, a derived screening score, and a homepage counter rewrite | **Not inert**, though not for anything in the recruitment half. The counter rewrite carries a claim about `listRows(...).total` that, if true, made eleven counts in this package wrong. See below |
 
 ### `unlisted`: a column the product projection had to carry
 
@@ -791,3 +796,122 @@ Widening the projection to match a page's field list would be a design change
 to this package's read model, made on a base move's authority rather than a
 reviewer's, and the one thing this PR has been burned by twice is shipping a
 rule nobody asked for.
+
+### The seventh move: a backend guarantee this package had been trusting
+
+The four commits in `efffef4` → `28f9a3b` are mostly recruitment work, and the
+recruitment half turned out to be inert. What was not inert was a comment in
+`apps/web/src/lib/data/queries.ts`, added alongside a new `countRows` helper:
+
+> Don't read a count off `listRows(...).total`: since the recent Appwrite
+> release it reports the size of the whole table, not of the filtered result,
+> so every "N matching" figure derived from it silently became the table size.
+
+That release is the one this package already took, through the root `catalog:`,
+in the very first base move (`appwrite` ^26→^27, `node-appwrite` ^28→^29). So if
+the claim holds, it does not describe a new rule arriving in the base — it
+describes a defect this package has been carrying since move 1.
+
+**The claim could not be confirmed, and could not be dismissed.** Appwrite's
+published release notes contain no such entry; the threads that discuss `total`
+on 1.8.x describe a *different* bug (the new opt-out `total: false` parameter
+being ignored by the Node SDK). Meanwhile `apps/admin` still reads `.total` in
+some thirty places, and `queryEvents` — two functions above the warning, in the
+same file, in the same commit — still returns `response.total` for the events
+listing. So the repo has not adopted the rule it states.
+
+That leaves a decision to make without the evidence to settle it. It was made
+this way:
+
+**Counting returned rows is correct under either reading.** Only `total` is in
+dispute; which rows come back is not, and the repo's own `countRows` rests on
+exactly that assumption. So anywhere a count could be taken from rows within a
+bounded request, it now is — no side taken, no speculative rewrite.
+
+Two counts were load-bearing and are now taken from rows:
+
+- **`inboxCounts`** (`services/operations.ts`) read `total` off a
+  `Query.limit(1)` query, on a comment asserting the old guarantee as settled
+  fact. Under the disputed reading it would report the whole of
+  `approval_requests` and `form_submissions` — ignoring `status`,
+  `approver_team_id` and the campus scope, which would quietly make findings
+  #50 and #59 cosmetic. It now counts `$id`-projected rows up to
+  `INBOX_COUNT_CEILING` (500) and sets `atLeast` when it fills the window;
+  `biso_inbox_counts` and the morning briefing both say "At least" rather than
+  rendering a floor as an exact figure.
+- **The event audience counts** (`services/events.ts`) had the identical
+  `Query.limit(1)` + `total` shape. A whole-table `memberCount` would report
+  every segment as full; a whole-table `attendeeCount` would fire a false
+  "exceeds capacity" note and corrupt `unassignedCount`. Both now count rows to
+  `COUNT_CEILING` (2000), a capped `memberCount` reports `remaining: null`
+  rather than a number it cannot stand behind, and the audience notes say which
+  figures are floors. Fixing one and leaving its twin is the gap that produced
+  eight of the fifty-nine findings, so both moved together.
+
+Three truncation flags changed from `total > rows.length` to "the scan filled
+its window" (`identity/resolve.ts`, `services/content.ts`, the assigned-attendee
+count in `services/events.ts`). That test is the same answer under either
+reading; the old one would have fired on nearly every filtered read.
+
+**What was deliberately left alone**, and why the line is where it is: the
+`total` that accompanies a *listing* — in `discovery.ts`, `approvals.ts`,
+`recruitment.ts`, `content.ts`, `commerce.ts` and `operations.submissions` —
+still comes from `listRows`. Making those independent of `total` means counting
+whole result sets, which is an unbounded scan per listing, and this package
+refuses unbounded scans elsewhere for good reason. The repo drew the same line:
+it applied `countRows` to three standalone homepage figures and left the
+listings alone. The briefing's "more may exist" comparisons
+(`domains/workflows.ts`) also still read `total`, but they only ever *trigger* a
+warning whose number comes from the rows, so under the disputed reading they
+over-warn rather than misreport — they fail safe.
+
+So the honest summary is: the counts that state a figure on their own no longer
+depend on a guarantee in dispute; the counts attached to a page of rows still
+do. Settling it needs a query against a real Appwrite instance, which is
+outside this session's boundaries. It is on the roadmap as 3.5.
+
+**The test harness had to be extended to make any of this provable.** The fake
+derives `total` from the filtered rows, so code reading `total` and code
+counting rows are indistinguishable in it — a regression test for one would
+pass against the other. `createFakeBackend` now takes `unfilteredTotal`, which
+makes the fake report the whole table as `total`, and the new tests run in that
+mode. Verified with teeth: against the pre-fix implementations, three of the
+inbox tests and two of the audience tests fail, reporting 8 instead of 1, 2
+instead of 0, 600 instead of 500, 5 instead of 2 and 6 instead of 2.
+
+### What else the seventh move touched, and why none of it changed anything
+
+**`packages/api/appwrite.config.json` gained nine lines** — a single index,
+`idx_data_retention_until`, on `job_applications`, which this package reads. No
+column was added, removed or retyped, `$permissions` and `rowSecurity` are
+unchanged, and `packages/api/types/appwrite.ts` did not regenerate, which is
+consistent with an index-only change. The recruitment queries here filter on
+`job_id` and `status` and order by `screening_score`; none of that is affected.
+
+**A new anonymiser, `packages/shared/utils/screening-anonymizer.ts`**, scrubs
+direct identifiers from applicant free text "before it is sent to a model
+provider" (GDPR art. 5(1)(c)). An MCP server *is* a model-facing interface, so
+this one deserved a real look rather than a glance. It does not reach here:
+this package returns no applicant free text at all — no `cover_letter`, no
+`candidate_profiles`, no `answers`, no `interviews`, and `ai_screening` is
+reduced to a `hasScreening` boolean. The identifiers it does return
+(`applicantName`, `applicantEmail`) are structured fields that are the tool's
+stated purpose, gated on HR and global admins, and exactly what
+`apps/admin`'s own applications view renders. The rule targets unstructured text
+a model might mine for protected characteristics; scrubbing a name out of an
+HR reviewer's candidate list would break the tool without serving it.
+
+**The retention cleanup cron** deletes applications past `data_retention_until`,
+falling back to `$createdAt` + `RECRUITMENT_RETENTION_DAYS` where the value is
+absent. The question worth asking was whether this package's passthrough
+`dataRetentionUntil` could now mean something it does not say — a null reading
+as "never deleted" when the repo would in fact purge the row. It cannot: the
+column is `required: true` in the schema and the generated type declares it
+non-nullable, so the cron's null branch cannot surface through here. The field's
+meaning is unchanged; it merely became consequential.
+
+**`normalized_score` is now derived** by `computeScreeningNormalizedScore`
+rather than emitted by the model. This package reads the persisted
+`screening_score` column and never the AI output schema, and
+`biso_list_applications` describes the ordering without claiming a scale or
+bands, so there is no statement here to correct.

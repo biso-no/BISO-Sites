@@ -288,12 +288,15 @@ async function collectInboxFindings(
     if (counts.note) {
       warnings.push(`Inbox counts are incomplete: ${counts.note}`);
     }
+    // A capped count is a floor. The briefing states its figures as fact, so
+    // it has to say "at least" rather than render the ceiling as the answer.
+    const atLeast = counts.atLeast ? "At least " : "";
     const findings: BriefingFinding[] = [];
     if (counts.approvals > 0) {
       findings.push({
         kind: "pending_approvals",
         severity: "urgent",
-        message: `${counts.approvals} approval request(s) await your decision.`,
+        message: `${atLeast}${counts.approvals} approval request(s) await your decision.`,
         items: [],
       });
     }
@@ -301,7 +304,7 @@ async function collectInboxFindings(
       findings.push({
         kind: "new_submissions",
         severity: "attention",
-        message: `${counts.submissions} new form submission(s) are unhandled.`,
+        message: `${atLeast}${counts.submissions} new form submission(s) are unhandled.`,
         items: [],
       });
     }

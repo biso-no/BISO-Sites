@@ -160,6 +160,35 @@ half-populated segment.
 **Blocker:** the admin action owns the recovery semantics. Porting them means
 duplicating the recovery path too.
 
+### 3.5 Settle what `listRows(...).total` actually counts
+
+`apps/web/src/lib/data/queries.ts` states that on the Appwrite release this repo
+is on, `total` reports the size of the whole table rather than of the filtered
+result, and its `countRows` helper stopped reading it for that reason. The claim
+could not be confirmed against Appwrite's published release notes, and the repo
+has not adopted it everywhere — `apps/admin` still reads `.total` in some thirty
+places, and `queryEvents` still returns it two functions above the warning.
+
+This package has already been made independent of the answer wherever a count
+could be taken from rows within a bounded request: `inboxCounts`, the event
+audience counts, and three truncation flags (see audit §18). What still depends
+on it is the `total` that accompanies a page of rows in `discovery.ts`,
+`approvals.ts`, `recruitment.ts`, `content.ts`, `commerce.ts` and
+`operations.submissions`, because making those independent means counting whole
+result sets — an unbounded scan per listing.
+
+**Blocker:** settling it needs one query against a real Appwrite instance —
+a filtered `listRows` on a table with many non-matching rows, comparing `total`
+to `rows.length`. That is a live backend query, which was outside the
+boundaries of the session that built this package.
+
+**If confirmed:** the listing totals need a bounded `countRows`-style pass with
+an explicit "more than N" ceiling, and the same fix belongs in `apps/admin`,
+which has the bug in more places than this package ever did.
+
+**If refuted:** the counts changed here stay correct either way, but the comment
+in `apps/web` should be corrected so the next reader does not inherit it.
+
 ---
 
 ## Schema changes (separate future tasks)

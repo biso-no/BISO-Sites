@@ -36,8 +36,13 @@ export interface SegmentSummary {
   id: string;
   kind: string | null;
   memberCount: number;
+  /** True when `memberCount` hit `COUNT_CEILING` and is a floor, not a total. */
+  memberCountTruncated: boolean;
   name: string;
-  /** Free capacity, or null when the segment is uncapped (`capacity` 0). */
+  /**
+   * Free capacity, or null when the segment is uncapped (`capacity` 0) or when
+   * `memberCount` is a floor and the remainder cannot be computed.
+   */
   remaining: number | null;
   /** Notification topic this segment maps to, when it has one. */
   topicId: string | null;
@@ -66,7 +71,17 @@ export interface EventsService {
 }
 
 const SEGMENT_LIMIT = 100;
-const COUNT_PROBE = 1;
+/**
+ * Most rows either audience count will read before reporting a floor.
+ *
+ * These counts used to be `Query.limit(1)` plus `listRows(...).total`, on the
+ * premise that `total` is the full match count regardless of page size. That
+ * premise is disputed — see `inboxCounts` in `./operations.ts` for the whole
+ * argument — so they count returned rows instead, which is correct under
+ * either reading. `$id`-only projection keeps the transfer small; an audience
+ * preview reads no attendee row, name or address either way.
+ */
+const COUNT_CEILING = 2000;
 /** Most `segment_members` rows one audience preview will read. */
 const MEMBER_SCAN_CEILING = 2000;
 
@@ -156,16 +171,27 @@ export function createEventsService(clients: BackendClients): EventsService {
    * after `loadEvent` has run `canReadRow` against the event's own campus and
    * department, and only ever produces a count — no attendee row, name or
    * address is read or returned.
+   *
+   * `truncated` says the count is a floor because it reached `COUNT_CEILING`.
+   * A caller that renders it as an exact figure would be claiming more than
+   * this knows.
    */
-  async function countRows(table: string, queries: string[]): Promise<number> {
+  async function countRows(
+    table: string,
+    queries: string[]
+  ): Promise<{ count: number; truncated: boolean }> {
     const { db } = clients.requireElevated(
       `count ${table} for an event audience (the table grants no read to user credentials)`
     );
     const result = await db.listRows("app", table, [
       ...queries,
-      Query.limit(COUNT_PROBE),
+      Query.select(["$id"]),
+      Query.limit(COUNT_CEILING),
     ]);
-    return result.total;
+    return {
+      count: result.rows.length,
+      truncated: result.rows.length === COUNT_CEILING,
+    };
   }
 
   /**
@@ -209,7 +235,8 @@ export function createEventsService(clients: BackendClients): EventsService {
     }
     return {
       count: identities.size,
-      truncated: result.total > result.rows.length,
+      // A full window, not `total > rows.length`: see `COUNT_CEILING` above.
+      truncated: result.rows.length === MEMBER_SCAN_CEILING,
     };
   }
 
@@ -234,9 +261,10 @@ export function createEventsService(clients: BackendClients): EventsService {
 
     const summaries: SegmentSummary[] = [];
     for (const row of result.rows) {
-      const memberCount = await countRows("segment_members", [
+      const members = await countRows("segment_members", [
         Query.equal("segment_id", row.$id),
       ]);
+      const memberCount = members.count;
       const capacity = row.capacity ?? 0;
       summaries.push({
         id: row.$id,
@@ -247,9 +275,15 @@ export function createEventsService(clients: BackendClients): EventsService {
         campusLabel: campusLabel(row.campus_id ?? campusId),
         capacity,
         memberCount,
+        memberCountTruncated: members.truncated,
         topicId: row.topic_id,
         // `capacity: 0` is the schema default and means uncapped, not full.
-        remaining: capacity > 0 ? Math.max(capacity - memberCount, 0) : null,
+        // A floor count cannot answer "how many are left" either, so a
+        // truncated count reports unknown rather than a number it cannot hold.
+        remaining:
+          capacity > 0 && !members.truncated
+            ? Math.max(capacity - memberCount, 0)
+            : null,
       });
     }
     return summaries;
@@ -271,9 +305,23 @@ export function createEventsService(clients: BackendClients): EventsService {
 
       try {
         const segments = await loadSegments(input.eventId, event.campusId);
-        const attendeeCount = await countRows("event_attendees", [
+        const attendees = await countRows("event_attendees", [
           Query.equal("event_id", input.eventId),
         ]);
+        const attendeeCount = attendees.count;
+        if (attendees.truncated) {
+          notes.push(
+            `More than ${COUNT_CEILING} attendees are registered for this event; the attendee count is a floor and the unassigned count is not reliable.`
+          );
+        }
+        const truncatedSegments = segments.filter(
+          (segment) => segment.memberCountTruncated
+        );
+        if (truncatedSegments.length > 0) {
+          notes.push(
+            `Member counts are a floor for: ${truncatedSegments.map((segment) => segment.name).join(", ")}.`
+          );
+        }
         const assigned = await countAssignedAttendees(input.eventId);
         const assignedCount = assigned.count;
         if (assigned.truncated) {
