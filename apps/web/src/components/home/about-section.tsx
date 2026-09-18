@@ -3,12 +3,13 @@ import { Card } from "@repo/ui/components/ui/card";
 import {
   Briefcase,
   Calendar,
-  Link,
+  Link as LinkIcon,
   Megaphone,
   Rocket,
   Sparkles,
 } from "lucide-react";
 import { motion } from "motion/react";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 
 interface AboutClientProps {
@@ -29,16 +30,19 @@ export function AboutSection({
       number: `${eventCount}+`,
       label: t("about.upcomingEvents"),
       icon: Calendar,
+      href: "/events",
     },
     {
       number: `${jobCount}+`,
       label: t("about.jobOpportunities"),
       icon: Briefcase,
+      href: "/jobs",
     },
     {
       number: `${departmentsCount}+`,
       label: t("about.studentGroups"),
       icon: Rocket,
+      href: "/units",
     },
     //{ number: '15+', label: 'Years Strong', icon: Trophy },
   ];
@@ -51,7 +55,7 @@ export function AboutSection({
       gradient: "from-brand-gradient-from to-brand-gradient-to",
     },
     {
-      icon: Link,
+      icon: LinkIcon,
       title: tAbout("general.strategy.items.connected.title"),
       description: tAbout("general.strategy.items.connected.desc"),
       gradient: "from-brand-gradient-from to-cyan-600",
@@ -77,13 +81,23 @@ export function AboutSection({
               viewport={{ once: true }}
               whileInView={{ opacity: 1, y: 0 }}
             >
-              <Card className="border-0 p-6 text-center shadow-lg transition-shadow hover:shadow-xl">
-                <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-linear-to-br from-brand-gradient-from to-brand-gradient-to">
-                  <stat.icon className="h-6 w-6 text-white" />
-                </div>
-                <div className="mb-1 text-foreground">{stat.number}</div>
-                <div className="text-muted-foreground">{stat.label}</div>
-              </Card>
+              <Link
+                className="group block h-full rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                href={stat.href}
+              >
+                <Card className="h-full border-0 p-6 text-center shadow-lg transition-all duration-300 group-hover:-translate-y-1 group-hover:shadow-xl">
+                  <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-linear-to-br from-brand-gradient-from to-brand-gradient-to">
+                    <stat.icon
+                      aria-hidden="true"
+                      className="h-6 w-6 text-white"
+                    />
+                  </div>
+                  <div className="mb-1 text-foreground">{stat.number}</div>
+                  <div className="text-muted-foreground group-hover:text-foreground">
+                    {stat.label}
+                  </div>
+                </Card>
+              </Link>
             </motion.div>
           ))}
         </div>
