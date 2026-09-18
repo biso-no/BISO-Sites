@@ -73,6 +73,7 @@ const norwegianValues: ProductFormValues = {
   status: "draft",
   stock: null,
   tags: [],
+  unlisted: false,
   variants_json: null,
 };
 

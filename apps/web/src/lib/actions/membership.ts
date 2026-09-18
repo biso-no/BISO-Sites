@@ -139,6 +139,40 @@ export async function getMembershipStatus(): Promise<MembershipStatus> {
 }
 
 /**
+ * Membership status computed fresh, for a gate that is about to REFUSE
+ * something on the strength of the answer.
+ *
+ * {@link getMembershipStatus} is cached for ten minutes, which is right for
+ * showing a member price but wrong for a gate: a student who has just paid for
+ * their membership would be told for up to ten more minutes that they are not a
+ * member and cannot buy — on the very purchase they joined in order to make.
+ * Their money has already moved, so the answer has to be live.
+ *
+ * Unlike {@link refreshMembershipStatus} this does not invalidate the shared
+ * cache tag. A gate is a read; purging a cache other surfaces depend on, as a
+ * side effect of one add-to-cart, is not this function's business.
+ *
+ * Use it only where a negative answer blocks the user. Everywhere else — prices,
+ * badges, upsells — keep the cached read.
+ */
+export async function getLiveMembershipStatus(): Promise<MembershipStatus> {
+  const resolved = await resolveCurrentStudentId();
+  if ("status" in resolved) {
+    return resolved.status;
+  }
+  try {
+    return await computeMembershipStatus(resolved.numericId);
+  } catch (error) {
+    if (error instanceof MembershipComputationError) {
+      return emptyMembershipStatus(error.reason);
+    }
+    unstable_rethrow(error);
+    console.error("[Membership] Unexpected error:", error);
+    return emptyMembershipStatus("unexpected_error");
+  }
+}
+
+/**
  * Force refresh the membership status, bypassing the cache by invalidating the
  * per-user cache tag before re-reading. Must be called from a Server Action or
  * Route Handler (where `revalidateTag` is allowed), e.g. the `/api/membership`

@@ -74,7 +74,9 @@
     "tax": "Tax",
     "included": "Included",
     "optionsTitle": "Additional information",
-    "optionRequired": "This field is required"
+    "optionRequired": "This field is required",
+    "membersOnly": "Members only",
+    "membersOnlyNotice": "This product is for BISO members. Join to buy it."
   },
   "member": {
     "notMember": "Not a member yet?",
@@ -90,6 +92,8 @@
     "title": "Your Cart",
     "itemsReady": "{count} {count, plural, one {item} other {items}} ready for pickup",
     "outOfStock": "Sorry, that's out of stock right now.",
+    "membersOnly": "This product is for BISO members only.",
+    "unavailable": "That product isn't available anymore.",
     "updateFailed": "Couldn't update your cart. Please try again.",
     "empty": {
       "title": "Your cart is empty",

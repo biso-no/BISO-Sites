@@ -2126,21 +2126,25 @@ function PricingVariantsStep({
 
       {/* Member-only toggle */}
       <div>
-        <FieldLabel>Access restriction</FieldLabel>
+        <FieldLabel>Who can buy</FieldLabel>
         <div style={{ display: "flex", gap: 12 }}>
           <ToggleCard
             active={memberOnly}
-            description="Only visible to active BISO members."
+            description="Listed for everyone with a members-only badge; only members can complete the purchase."
             label="Members only"
             onClick={() => setMemberOnly(true)}
           />
           <ToggleCard
             active={!memberOnly}
-            description="Visible to all BI students."
+            description="Any BI student can buy this."
             label="Open to all"
             onClick={() => setMemberOnly(false)}
           />
         </div>
+        <p style={{ color: BRAND.ink4, fontSize: 11.5, marginTop: 5 }}>
+          Members only limits who can buy, not who can see. Use "Link only"
+          under Photos &amp; Visibility to hide a product from the shop.
+        </p>
       </div>
 
       {/* Questions asked at checkout, stored per order line */}
@@ -2156,20 +2160,128 @@ function PricingVariantsStep({
 /*                          PhotosVisibilityStep                              */
 /* -------------------------------------------------------------------------- */
 
+const BASE_URL_TRAILING_SLASH = /\/+$/;
+
+/**
+ * The public address of a link-only product, with a copy button. A product that
+ * appears in no listing cannot be found by browsing the site, so this is the
+ * only place staff can get the URL they need to hand out — which makes handing
+ * out a WRONG one the feature failing.
+ *
+ * The link is therefore built from the SAVED slug, never the editor's current
+ * value: a slug typed but not yet saved resolves to a 404. When the two differ,
+ * the old link is still the working one and the notice says so rather than
+ * quietly offering a dead address.
+ */
+function UnlistedLinkNotice({
+  draftSlug,
+  savedSlug,
+}: {
+  draftSlug: string;
+  savedSlug: string | null;
+}) {
+  const base = (
+    process.env.NEXT_PUBLIC_WEB_BASE_URL ?? "https://app.biso.no"
+  ).replace(BASE_URL_TRAILING_SLASH, "");
+  const url = savedSlug ? `${base}/shop/${savedSlug}` : null;
+  const slugIsUnsaved = savedSlug !== null && draftSlug !== savedSlug;
+
+  async function handleCopy() {
+    if (!url) {
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      toast.success("Link copied");
+    } catch {
+      toast.error("Could not copy the link — select it and copy manually.");
+    }
+  }
+
+  return (
+    <div
+      style={{
+        alignItems: "center",
+        background: BRAND.paper2,
+        border: `0.5px solid ${BRAND.rule2}`,
+        borderRadius: 10,
+        display: "flex",
+        gap: 10,
+        justifyContent: "space-between",
+        marginTop: 10,
+        padding: "10px 12px",
+      }}
+    >
+      <div style={{ minWidth: 0 }}>
+        <div style={{ color: BRAND.ink4, fontSize: 11, marginBottom: 3 }}>
+          Share this link with the buyers
+        </div>
+        {url ? (
+          <code
+            style={{
+              color: BRAND.ink,
+              fontSize: 12,
+              overflowWrap: "anywhere",
+            }}
+          >
+            {url}
+          </code>
+        ) : (
+          <span style={{ color: BRAND.ink4, fontSize: 12 }}>
+            Save the product to get its link.
+          </span>
+        )}
+        {slugIsUnsaved && (
+          <div style={{ color: BRAND.gold, fontSize: 11, marginTop: 4 }}>
+            You have changed the slug. This is still the working link until you
+            save.
+          </div>
+        )}
+      </div>
+      {url && (
+        <button
+          onClick={handleCopy}
+          style={{
+            background: BRAND.ink,
+            border: 0,
+            borderRadius: 8,
+            color: "white",
+            cursor: "pointer",
+            flexShrink: 0,
+            fontSize: 12,
+            padding: "7px 12px",
+          }}
+          type="button"
+        >
+          Copy link
+        </button>
+      )}
+    </div>
+  );
+}
+
 function PhotosVisibilityStep({
   coverPattern,
+  draftSlug,
   linkedEventId,
   localImages,
+  savedSlug,
   setCoverPattern,
   setLinkedEventId,
   setLocalImages,
+  setUnlisted,
+  unlisted,
 }: {
   coverPattern: string;
+  draftSlug: string;
   linkedEventId: string | null;
   localImages: string[];
+  savedSlug: string | null;
   setCoverPattern: (v: string) => void;
   setLinkedEventId: (v: string | null) => void;
   setLocalImages: (v: string[]) => void;
+  setUnlisted: (v: boolean) => void;
+  unlisted: boolean;
 }) {
   function handleUpload(index: number, url: string) {
     const next = [...localImages];
@@ -2255,6 +2367,28 @@ function PhotosVisibilityStep({
             );
           })}
         </div>
+      </div>
+
+      {/* Shop visibility */}
+      <div>
+        <FieldLabel>Shop visibility</FieldLabel>
+        <div style={{ display: "flex", gap: 12 }}>
+          <ToggleCard
+            active={!unlisted}
+            description="Listed in the shop and in campus and unit feeds."
+            label="Listed"
+            onClick={() => setUnlisted(false)}
+          />
+          <ToggleCard
+            active={unlisted}
+            description="Hidden from every listing and from search engines. Only people with the link can find it."
+            label="Link only"
+            onClick={() => setUnlisted(true)}
+          />
+        </div>
+        {unlisted && (
+          <UnlistedLinkNotice draftSlug={draftSlug} savedSlug={savedSlug} />
+        )}
       </div>
 
       {/* Linked event */}
@@ -3248,6 +3382,7 @@ export function ShopStudioEditor({
   const [memberOnly, setMemberOnly] = useState<boolean>(
     product?.member_only ?? false
   );
+  const [unlisted, setUnlisted] = useState<boolean>(product?.unlisted ?? false);
   const [inventoryMode, setInventoryMode] = useState<"tracked" | "unlimited">(
     (product?.inventory_mode as "tracked" | "unlimited") ?? "unlimited"
   );
@@ -3301,6 +3436,7 @@ export function ShopStudioEditor({
       regular_price: regularPrice,
       member_price: memberPrice,
       member_only: memberOnly,
+      unlisted,
       image: localImages[0] ?? null,
       stock,
       variations: localVariants,
@@ -3553,11 +3689,15 @@ export function ShopStudioEditor({
             {activeStep === 3 && (
               <PhotosVisibilityStep
                 coverPattern={coverPattern}
+                draftSlug={slug}
                 linkedEventId={linkedEventId}
                 localImages={localImages}
+                savedSlug={product?.slug ?? null}
                 setCoverPattern={setCoverPattern}
                 setLinkedEventId={setLinkedEventId}
                 setLocalImages={setLocalImages}
+                setUnlisted={setUnlisted}
+                unlisted={unlisted}
               />
             )}
             {activeStep === 4 && (

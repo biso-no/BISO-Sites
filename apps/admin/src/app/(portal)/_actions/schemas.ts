@@ -137,7 +137,22 @@ export const productSchema = z
     category: z.string().optional().nullable(),
     regular_price: z.coerce.number().nonnegative("Price must be 0 or more"),
     member_price: z.coerce.number().nonnegative().optional().nullable(),
-    member_only: z.boolean().default(false),
+    // `member_only` and `unlisted` are `.optional()` rather than
+    // `.default(false)` on purpose. A product row is written with `upsertRow`,
+    // a full-document replace, and not every caller sends a complete form: the
+    // AI assistant (`app/api/assistant/route.ts`) passes a partial payload
+    // straight to `updateProduct`. With a `false` default, "change this
+    // product's price" would also publish a hidden product into the shop and
+    // open a members-only product to everyone. Omitted now means "leave as it
+    // is" — see `buildProductFields` — while the editor always sends both, so
+    // switching either one off still works.
+    member_only: z.boolean().optional(),
+    // Hides the product from every public listing (shop index, unit feeds,
+    // sitemap) while leaving it fully published and purchasable to anyone who
+    // has the `/shop/<slug>` link. Orthogonal to `status`: an unlisted product
+    // is still subject to the same publish gates and is not confidential — the
+    // slug is guessable and `webshop_products` is world-readable.
+    unlisted: z.boolean().optional(),
     // Imported products carry a bare Appwrite file ID here; normalize it to a
     // full URL so the row is stored in the canonical form the CMS writes.
     image: z.preprocess(

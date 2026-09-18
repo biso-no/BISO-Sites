@@ -680,6 +680,7 @@
       "stock": "Lagerbeholdning",
       "status": "Status",
       "memberOnly": "Kun for medlemmer",
+      "unlisted": "Kun med lenke — skjult i oversikter",
       "sales": "Salg",
       "lowStock": "Lav beholdning"
     },

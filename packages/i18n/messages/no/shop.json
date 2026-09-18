@@ -74,7 +74,9 @@
     "tax": "Mva",
     "included": "Inkludert",
     "optionsTitle": "Tilleggsinformasjon",
-    "optionRequired": "Dette feltet må fylles ut"
+    "optionRequired": "Dette feltet må fylles ut",
+    "membersOnly": "Kun for medlemmer",
+    "membersOnlyNotice": "Dette produktet er for BISO-medlemmer. Bli medlem for å kjøpe det."
   },
   "member": {
     "notMember": "Ikke medlem ennå?",
@@ -90,6 +92,8 @@
     "title": "Handlekurven din",
     "itemsReady": "{count} {count, plural, one {vare} other {varer}} klar for henting",
     "outOfStock": "Beklager, denne er dessverre utsolgt akkurat nå.",
+    "membersOnly": "Dette produktet er kun for BISO-medlemmer.",
+    "unavailable": "Dette produktet er ikke tilgjengelig lenger.",
     "updateFailed": "Kunne ikke oppdatere handlekurven. Prøv igjen.",
     "empty": {
       "title": "Handlekurven er tom",

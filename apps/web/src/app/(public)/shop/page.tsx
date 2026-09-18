@@ -23,7 +23,6 @@ async function ShopList({
 }) {
   const products = await listProducts({
     locale,
-    status: "published",
     limit: 100,
     campus: campus || "all",
   });

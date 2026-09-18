@@ -1490,6 +1490,7 @@ export type WebshopProducts = Models.Row & {
   regular_price: number;
   member_price: number | null;
   member_only: boolean;
+  unlisted: boolean;
   category: string | null;
   image: string | null;
   stock: number | null;

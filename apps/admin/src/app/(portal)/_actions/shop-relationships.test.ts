@@ -74,6 +74,7 @@ const departmentValues: ProductFormValues = {
   status: "draft",
   stock: null,
   tags: [],
+  unlisted: false,
   variants_json: null,
 };
 
@@ -313,5 +314,53 @@ describe("order operations stay narrow", () => {
       expect.arrayContaining([Query.equal("campus_id", ["campus-oslo"])])
     );
     expect(adminDb.listRows).not.toHaveBeenCalled();
+  });
+});
+
+describe("product row writes are a full replace", () => {
+  test("persists the link-only flag", async () => {
+    currentCtx = campusAdminCtx;
+    mockProductRow({
+      $id: "product-1",
+      campus: { $id: "campus-oslo" },
+      department: { $id: "dept-1" },
+      status: "draft",
+    });
+
+    await updateProduct("product-1", {
+      ...departmentValues,
+      unlisted: true,
+    });
+
+    const call = adminDb.upsertRow.mock.calls.find(
+      (candidate) => candidate[1] === "webshop_products"
+    );
+    expect(call?.[3]).toMatchObject({ unlisted: true });
+  });
+
+  test("carries over the columns the CMS does not edit", async () => {
+    // `upsertRow` validates as a full-document replace, so a column the form
+    // does not send is reset to its schema default. `metadata` holds the
+    // storefront's purchase limits and SKU, and nothing in admin edits it —
+    // omitting it silently dropped those limits on every save.
+    currentCtx = campusAdminCtx;
+    mockProductRow({
+      $id: "product-1",
+      campus: { $id: "campus-oslo" },
+      department: { $id: "dept-1" },
+      finago_account_number: 3000,
+      metadata: '{"max_per_user":2,"sku":"HOODIE-L"}',
+      status: "draft",
+    });
+
+    await updateProduct("product-1", departmentValues);
+
+    const call = adminDb.upsertRow.mock.calls.find(
+      (candidate) => candidate[1] === "webshop_products"
+    );
+    expect(call?.[3]).toMatchObject({
+      finago_account_number: 3000,
+      metadata: '{"max_per_user":2,"sku":"HOODIE-L"}',
+    });
   });
 });

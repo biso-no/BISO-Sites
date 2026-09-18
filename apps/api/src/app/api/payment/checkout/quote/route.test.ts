@@ -28,6 +28,9 @@ const productRow = {
   metadata: null,
   regular_price: 199,
   slug: "hoodie",
+  // Only a published product can be priced or bought; the trusted path refuses
+  // anything else, so every fixture has to say so explicitly.
+  status: "published",
   stock: null,
   translation_refs: [{ locale: "no", title: "BISO Hoodie" }],
   variations: [],
