@@ -57,7 +57,23 @@ import { campusScopeIds } from "@/lib/campus-scope";
 import type { NavFeatured } from "@/lib/types/nav";
 import { buildNavFeatured } from "./nav-featured";
 import { listedProductsOnly } from "./product-visibility";
-import { type PublicLocale, queryEvents, queryNews } from "./queries";
+import {
+  countRows,
+  eventFilterQueries,
+  openVacancyQueries,
+  type PublicLocale,
+  queryEvents,
+  queryNews,
+} from "./queries";
+
+export interface HomeCounts {
+  departmentCount: number;
+  eventCount: number;
+  jobCount: number;
+}
+
+/** Same ceiling as `cachedPublicUnits`: the whole table with room to grow. */
+const HOME_DEPARTMENTS_LIMIT = 500;
 
 export async function cachedPublishedEvents(
   locale: PublicLocale,
@@ -93,37 +109,59 @@ export async function cachedPublishedNews(
 }
 
 /**
- * Homepage stat counters. The event count comes from the query `total`
- * (no rows transferred); the job count needs the open-deadline rule, so it
- * reads a minimal three-column projection — no relationship expansion.
+ * Homepage stat counters for the selected campus (`null` = every campus).
+ *
+ * Each figure uses the same filters as the page the card links to, so the
+ * number matches what the visitor finds there:
+ * - events: upcoming, published, translated into `locale` — as on `/events`;
+ * - jobs: open vacancies, campus-scoped with National riding along — `/jobs`;
+ * - departments: public units ON that campus — as on `/units`.
+ *
+ * Counted from rows, never from `listRows(...).total` (see `countRows`).
  */
 export async function cachedHomeCounts(
-  campusId: string | null
-): Promise<{ eventCount: number; jobCount: number }> {
+  campusId: string | null,
+  locale: PublicLocale
+): Promise<HomeCounts> {
   "use cache";
   cacheLife("minutes");
   const { db } = await createPublicClient();
 
-  const eventQueries = [Query.equal("status", "published"), Query.limit(1)];
+  const jobFilters = openVacancyQueries();
   const campusScope = campusScopeIds(campusId);
   if (campusScope) {
-    eventQueries.push(Query.equal("campus_id", campusScope));
+    jobFilters.push(Query.equal("campus_id", campusScope));
   }
 
-  const [eventsRes, jobsRes] = await Promise.all([
-    db.listRows<Events>("app", "events", eventQueries),
-    db.listRows<Jobs>("app", "jobs", [
-      Query.select(["$id", "status", "application_deadline"]),
-      Query.equal("status", JobsStatus.PUBLISHED),
-      Query.limit(200),
-    ]),
+  const departmentFilters = [
+    Query.select(["$id", "Name", "active"]),
+    Query.equal("active", true),
+    Query.limit(HOME_DEPARTMENTS_LIMIT),
+  ];
+  if (campusId) {
+    departmentFilters.push(Query.equal("campus_id", campusId));
+  }
+
+  const [eventCount, jobCount, departments] = await Promise.all([
+    countRows(
+      db,
+      "events",
+      eventFilterQueries({
+        campus: campusId ?? undefined,
+        locale,
+        status: "published",
+        upcomingOnly: true,
+      })
+    ),
+    countRows(db, "jobs", jobFilters),
+    db.listRows<Departments>("app", "departments", departmentFilters),
   ]);
 
-  const jobCount = jobsRes.rows.filter((job) =>
-    isRecruitmentVacancyOpen(job.status, job.application_deadline)
-  ).length;
-
-  return { eventCount: eventsRes.total, jobCount };
+  return {
+    departmentCount: departments.rows.filter(isPublicUnit).length,
+    eventCount,
+    jobCount,
+  };
 }
 
 export async function cachedCampuses(

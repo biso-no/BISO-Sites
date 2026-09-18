@@ -19,7 +19,6 @@ import {
   CandidateProfilesEmbeddingStatus,
   JobApplicationsEmbeddingStatus,
   JobApplicationsStatus,
-  JobsStatus,
 } from "@repo/api/types/appwrite";
 import type { CandidateProfileWriteInput } from "@repo/api/types/inputs";
 import { createTypedRow, updateTypedRow } from "@repo/api/write";
@@ -55,6 +54,7 @@ import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 import { cache } from "react";
 import { campusScopeIds } from "@/lib/campus-scope";
+import { openVacancyQueries } from "@/lib/data/queries";
 import { findContentIdsBySearch } from "@/lib/data/search-content";
 import {
   emptyWebResult,
@@ -65,25 +65,6 @@ import {
 // ---------- public reads (session/guest client — enforces row permissions) ----------
 
 export type JobSort = "deadline" | "newest";
-
-/**
- * Open vacancies, as an Appwrite query rather than a post-fetch filter.
- *
- * `isRecruitmentVacancyOpen` used to run over an already-fetched window, which
- * meant any open vacancy outside the newest 100 rows never reached the page —
- * only 28 of 253 published jobs are open. It also made `total` overcount, which
- * pagination cannot tolerate. The helper's "unparseable date -> keep" branch is
- * unreachable for a datetime column, so this is equivalent.
- */
-function openVacancyQueries(): string[] {
-  return [
-    Query.equal("status", JobsStatus.PUBLISHED),
-    Query.or([
-      Query.isNull("application_deadline"),
-      Query.greaterThanEqual("application_deadline", new Date().toISOString()),
-    ]),
-  ];
-}
 
 // Primitive arguments only: React cache() keys on argument identity
 // (Object.is), so an options object allocated fresh at each call site would
