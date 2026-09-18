@@ -10,6 +10,7 @@ import {
   JobsStatus,
 } from "@repo/api/types/appwrite";
 import {
+  fetchRecruitmentListPage,
   fetchRecruitmentListRows,
   getRecruitmentJobById,
 } from "@repo/shared/recruitment";
@@ -592,6 +593,105 @@ function scheduleJobTranslation(input: {
   });
 }
 
+/** Batch size when walking every in-scope vacancy for a search. */
+const JOB_SEARCH_BATCH = 100;
+
+const JOB_STATUSES = [
+  JobsStatus.PUBLISHED,
+  JobsStatus.DRAFT,
+  JobsStatus.CLOSED,
+] as const;
+
+export type JobStatusCounts = Record<"all" | JobsStatus, number>;
+
+/**
+ * Case-insensitive substring match over the fields HR recognises a vacancy
+ * by. `search` must already be trimmed and lowercased.
+ */
+function vacancyMatchesSearch(vacancy: RecruitmentVacancy, search: string) {
+  const haystack = [
+    ...vacancy.translations.map((translation) => translation.title),
+    vacancy.slug,
+    vacancy.department?.Name,
+    vacancy.campus?.name,
+    vacancy.metadata.company,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+  return haystack.includes(search);
+}
+
+/**
+ * Every vacancy matching `scopeQueries`, cursor-paged. Titles live on the
+ * `translations` relationship, which Appwrite can't substring-match, so a
+ * search has to filter the full scoped set in memory rather than one page.
+ */
+async function fetchAllScopedVacancies(
+  db: Awaited<ReturnType<typeof createSessionClient>>["db"],
+  scopeQueries: string[]
+) {
+  const vacancies: RecruitmentVacancy[] = [];
+  let cursor: string | undefined;
+  while (true) {
+    const batch = await fetchRecruitmentListRows(db, [
+      ...scopeQueries,
+      Query.orderDesc("$updatedAt"),
+      Query.limit(JOB_SEARCH_BATCH),
+      ...(cursor ? [Query.cursorAfter(cursor)] : []),
+    ]);
+    vacancies.push(...batch);
+    if (batch.length < JOB_SEARCH_BATCH) {
+      return vacancies;
+    }
+    cursor = batch.at(-1)?.$id;
+  }
+}
+
+function countVacanciesByStatus(
+  vacancies: RecruitmentVacancy[]
+): JobStatusCounts {
+  const counts: JobStatusCounts = {
+    all: vacancies.length,
+    closed: 0,
+    draft: 0,
+    published: 0,
+  };
+  for (const vacancy of vacancies) {
+    if (vacancy.status in counts) {
+      counts[vacancy.status as JobsStatus] += 1;
+    }
+  }
+  return counts;
+}
+
+async function countJobsByStatus(
+  db: Awaited<ReturnType<typeof createSessionClient>>["db"],
+  scopeQueries: string[]
+): Promise<JobStatusCounts> {
+  const countWhere = async (extra: string[]) =>
+    (
+      await db.listRows<Jobs>("app", "jobs", [
+        Query.select(["$id"]),
+        ...scopeQueries,
+        ...extra,
+        Query.limit(1),
+      ])
+    ).total;
+
+  const [all, ...byStatus] = await Promise.all([
+    countWhere([]),
+    ...JOB_STATUSES.map((status) =>
+      countWhere([Query.equal("status", status)])
+    ),
+  ]);
+  const counts: JobStatusCounts = { all, closed: 0, draft: 0, published: 0 };
+  JOB_STATUSES.forEach((status, index) => {
+    counts[status] = byStatus[index] ?? 0;
+  });
+  return counts;
+}
+
 export async function listJobs(opts?: {
   status?: string;
   search?: string;
@@ -603,15 +703,16 @@ export async function listJobs(opts?: {
   const lookups = await loadRecruitmentLookups(db);
   const page = Math.max(1, opts?.page ?? 1);
   const search = opts?.search?.trim().toLowerCase() ?? "";
+  const status = opts?.status && opts.status !== "all" ? opts.status : null;
 
   // Push the campus / department scope into the Appwrite query so we don't
   // fetch a global page of jobs only to throw most of them away in memory.
-  const queries: string[] = [Query.orderDesc("$updatedAt"), Query.limit(200)];
+  const scopeQueries: string[] = [];
   if (scope.canManageAnyCampus) {
     // Global / HR-national admins see every campus unless the campus switcher
     // narrows them to one. campus.$id mirrors the numeric campus_id values.
     if (ctx.activeCampusId) {
-      queries.push(Query.equal("campus.$id", [ctx.activeCampusId]));
+      scopeQueries.push(Query.equal("campus.$id", [ctx.activeCampusId]));
     }
   } else {
     const managedCampusIds = scope.managedCampusNames
@@ -623,12 +724,13 @@ export async function listJobs(opts?: {
 
     if (scope.isCampusAdmin && managedCampusIds.length > 0) {
       // Relationship-aware filter — new in Appwrite Relationships GA.
-      queries.push(Query.equal("campus.$id", managedCampusIds));
+      scopeQueries.push(Query.equal("campus.$id", managedCampusIds));
     } else if (managedDeptIds.length > 0) {
-      queries.push(Query.equal("department.$id", managedDeptIds));
+      scopeQueries.push(Query.equal("department.$id", managedDeptIds));
     } else {
       // No scope at all — short-circuit empty list.
       return {
+        counts: countVacanciesByStatus([]),
         page,
         pageSize: JOBS_PAGE_SIZE,
         rows: [] as RecruitmentVacancy[],
@@ -636,31 +738,42 @@ export async function listJobs(opts?: {
       };
     }
   }
-  if (opts?.status && opts.status !== "all") {
-    queries.push(Query.equal("status", opts.status));
-  }
-
-  const vacancies = await fetchRecruitmentListRows(db, queries);
-
-  const filtered = vacancies.filter((vacancy) => {
-    if (!search) {
-      return true;
-    }
-    const title =
-      vacancy.translations
-        .find((translation) => translation.locale === "no")
-        ?.title.toLowerCase() ?? "";
-    const company = vacancy.metadata.company?.toLowerCase() ?? "";
-    return title.includes(search) || company.includes(search);
-  });
 
   const start = (page - 1) * JOBS_PAGE_SIZE;
 
+  if (search) {
+    const matches = (await fetchAllScopedVacancies(db, scopeQueries)).filter(
+      (vacancy) => vacancyMatchesSearch(vacancy, search)
+    );
+    const filtered = status
+      ? matches.filter((vacancy) => vacancy.status === status)
+      : matches;
+    return {
+      counts: countVacanciesByStatus(matches),
+      page,
+      pageSize: JOBS_PAGE_SIZE,
+      rows: filtered.slice(start, start + JOBS_PAGE_SIZE),
+      total: filtered.length,
+    };
+  }
+
+  const [result, counts] = await Promise.all([
+    fetchRecruitmentListPage(db, [
+      ...scopeQueries,
+      ...(status ? [Query.equal("status", status)] : []),
+      Query.orderDesc("$updatedAt"),
+      Query.limit(JOBS_PAGE_SIZE),
+      Query.offset(start),
+    ]),
+    countJobsByStatus(db, scopeQueries),
+  ]);
+
   return {
+    counts,
     page,
     pageSize: JOBS_PAGE_SIZE,
-    rows: filtered.slice(start, start + JOBS_PAGE_SIZE),
-    total: filtered.length,
+    rows: result.rows,
+    total: result.total,
   };
 }
 
@@ -1172,12 +1285,9 @@ export async function listJobApplications(opts?: {
     ...(opts?.status && opts.status !== "all"
       ? [Query.equal("status", opts.status)]
       : []),
-    ...(search
-      ? [Query.limit(300)]
-      : [
-          Query.limit(APPLICATIONS_PAGE_SIZE),
-          Query.offset((page - 1) * APPLICATIONS_PAGE_SIZE),
-        ]),
+    ...(search ? [applicationSearchQuery(search, accessibleVacancies)] : []),
+    Query.limit(APPLICATIONS_PAGE_SIZE),
+    Query.offset((page - 1) * APPLICATIONS_PAGE_SIZE),
   ];
 
   const applicationsResponse = await db.listRows<JobApplications>(
@@ -1186,32 +1296,38 @@ export async function listJobApplications(opts?: {
     applicationQueries
   );
 
-  let rows: RecruitmentApplicationRecord[] = applicationsResponse.rows.map(
+  const rows: RecruitmentApplicationRecord[] = applicationsResponse.rows.map(
     (application) => buildRecruitmentApplicationRecord(application)
   );
-
-  if (search) {
-    rows = rows.filter((application) => {
-      const title = application.job?.title.toLowerCase() ?? "";
-      return (
-        application.applicant_name.toLowerCase().includes(search) ||
-        application.applicant_email.toLowerCase().includes(search) ||
-        title.includes(search)
-      );
-    });
-  }
 
   return {
     page,
     pageSize: APPLICATIONS_PAGE_SIZE,
-    rows: search
-      ? rows.slice(
-          (page - 1) * APPLICATIONS_PAGE_SIZE,
-          page * APPLICATIONS_PAGE_SIZE
-        )
-      : rows,
-    total: search ? rows.length : applicationsResponse.total,
+    rows,
+    total: applicationsResponse.total,
   };
+}
+
+/**
+ * Server-side applicant search: name or email substring (Appwrite's
+ * `contains` is a case-insensitive LIKE), or any application to a vacancy
+ * whose title/company matches. Vacancy titles live on a relationship Appwrite
+ * can't substring-match, so those are resolved to job ids first.
+ */
+function applicationSearchQuery(
+  search: string,
+  vacancies: RecruitmentVacancy[]
+) {
+  const matchingJobIds = vacancies
+    .filter((vacancy) => vacancyMatchesSearch(vacancy, search))
+    .map((vacancy) => vacancy.$id);
+  return Query.or([
+    Query.contains("applicant_name", search),
+    Query.contains("applicant_email", search),
+    ...(matchingJobIds.length > 0
+      ? [Query.equal("job_id", matchingJobIds)]
+      : []),
+  ]);
 }
 
 /** An HR team member, taken straight from the Appwrite team membership. */

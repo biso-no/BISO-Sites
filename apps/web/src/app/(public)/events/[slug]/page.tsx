@@ -104,7 +104,7 @@ async function EventDetails({ slug }: { slug: string }) {
             />
 
             <EventDetailsCard event={event} />
-            <EventContactCard />
+            <EventContactCard event={event} />
           </div>
         </div>
       </div>

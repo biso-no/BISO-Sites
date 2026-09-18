@@ -111,7 +111,8 @@
     "emailConfirmation": "Bekreftelse på registrering sendes på e-post",
     "refunds": "Refusjon tilgjengelig inntil 48 timer før arrangementet",
     "questions": "Spørsmål?",
-    "contactTeam": "Kontakt vårt arrangementsteam på",
+    "contactPerson": "Kontakt {name} på",
+    "contactOrganizer": "Kontakt arrangøren på",
     "noRegistrationNeeded": "Ingen påmelding nødvendig – bare møt opp"
   }
 }

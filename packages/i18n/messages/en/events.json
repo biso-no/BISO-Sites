@@ -111,7 +111,8 @@
     "emailConfirmation": "Registration confirmation will be sent via email",
     "refunds": "Refunds available up to 48 hours before the event",
     "questions": "Questions?",
-    "contactTeam": "Contact our events team at",
+    "contactPerson": "Contact {name} at",
+    "contactOrganizer": "Contact the organiser at",
     "noRegistrationNeeded": "No registration needed — just show up"
   }
 }
