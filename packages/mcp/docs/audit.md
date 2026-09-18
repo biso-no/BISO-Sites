@@ -712,6 +712,7 @@ change something that mattered.
 | `d5da221` → `ca9997f` | PR #75, member pass: 143 files, three new tables | Inert here, and checked rather than assumed. All 13 generated types this package imports differ only cosmetically (`}` → `};`, trailing enum commas, one field reordered). All 17 tables it reads are unchanged in `$permissions`, `rowSecurity` **and** column set. The three new tables (`member_pass_scans`, `member_pass_scanners`, `member_pass_scanner_links`) are untouched by this package |
 | `ca9997f` → `b11a842` | PR #76, webshop visibility: `webshop_products` gained an `unlisted` column | **Not inert.** See below |
 | `b11a842` → `1b6b3d1` | PRs consolidating slug derivation and member pricing into `@repo/shared/utils/{content-slug,member-discount}`, plus admin/web navigation and checkout work | No schema, type, lockfile or `turbo.json` change, and nothing under `packages/shared/utils/*` that this package imports. Both new helpers serve surfaces this package does not implement: it reads `member_price` but never computes a discount, and it requires a slug rather than deriving one. The slug consolidation did make one contract worth asserting — see below |
+| `1b6b3d1` → `efffef4` | Admin job search and status counts; the public event card linking to its detail page and showing a point of contact | Inert. Nothing outside `apps/` and `@repo/i18n` moved. Two things were checked rather than waved through — see below |
 
 ### `unlisted`: a column the product projection had to carry
 
@@ -766,3 +767,27 @@ helper rather than left to a reviewer's memory. Tightening `SLUG_PATTERN` to
 reject digits — a plausible edit — fails it, so the test has teeth. The empty
 case is stated too: `generateSlug("🎉")` is `""`, which `.min(1)` rejects, so a
 title that folds away entirely still forces the caller to supply a slug.
+
+### Two things checked on the sixth move, and why neither changed anything
+
+The admin job search now walks the full in-scope set in batches and filters in
+memory. That is a mechanism, not a rule: this package searches vacancies
+through Appwrite queries and already reports a truncated scan rather than
+implying completeness, which is the property that matters. Nothing to mirror.
+
+The second is closer to the line, and worth writing down because a reviewer may
+reasonably ask. `apps/web`'s **public** `getEventBySlug` now projects
+`contact_name`, `contact_role` and `contact_email`, so an event's point of
+contact is deliberately public. This package's curated event projection does
+not carry them, which makes it stricter than the public website for a caller
+reading a published event outside their scope.
+
+That was left alone on purpose. `summaryColumns` is a *summary* — it also omits
+the title, the description and the image, all of which are unambiguously public
+— so a caller is never misled about what an event is, only given less of it.
+That is the opposite of the `unlisted` case above, where the omission changed
+the meaning of what came back: a product looked discoverable when it was not.
+Widening the projection to match a page's field list would be a design change
+to this package's read model, made on a base move's authority rather than a
+reviewer's, and the one thing this PR has been burned by twice is shipping a
+rule nobody asked for.
