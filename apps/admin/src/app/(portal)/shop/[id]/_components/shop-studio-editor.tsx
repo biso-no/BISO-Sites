@@ -33,7 +33,10 @@ import {
 } from "@/app/_components/content-translation-controls";
 import { getTargetLocale } from "@/lib/content-translation";
 import { uploadMediaFile } from "@/lib/upload-client";
-import type { SalesTypeOption } from "../../../_actions/lookups";
+import {
+  listDepartmentsForCampus,
+  type SalesTypeOption,
+} from "../../../_actions/lookups";
 import {
   createProduct,
   generateProductTranslationDraft,
@@ -1489,10 +1492,7 @@ function EssentialsStep({
             <FieldLabel required>Campus</FieldLabel>
             <select
               disabled={!canChangeCampus}
-              onChange={(e) => {
-                setCampusId(e.target.value);
-                setDepartmentId(null);
-              }}
+              onChange={(e) => setCampusId(e.target.value)}
               style={fieldInputStyle()}
               value={campusId}
             >
@@ -3300,7 +3300,7 @@ export function ShopStudioEditor({
   campuses,
   canChangeCampus = true,
   defaultCampusId,
-  departments,
+  departments: initialDepartments,
   isNew,
   product,
   salesTypes,
@@ -3332,6 +3332,19 @@ export function ShopStudioEditor({
         ? (allowedDepartmentIds[0] ?? null)
         : null)
   );
+  // The server only pre-loads departments for the campus the editor opens on,
+  // so switching campus has to re-fetch the picker's options.
+  const [departments, setDepartments] =
+    useState<Departments[]>(initialDepartments);
+
+  async function handleCampusChange(nextCampusId: string) {
+    setCampusId(nextCampusId);
+    setDepartmentId(null);
+    setDepartments(
+      nextCampusId ? await listDepartmentsForCampus(nextCampusId) : []
+    );
+  }
+
   const [shortDescription, setShortDescription] = useState(
     noTranslation?.short_description ?? ""
   );
@@ -3640,7 +3653,7 @@ export function ShopStudioEditor({
                 onLangChange={setLocaleLang}
                 salesType={salesType}
                 salesTypes={salesTypes}
-                setCampusId={setCampusId}
+                setCampusId={handleCampusChange}
                 setCategory={setCategory}
                 setDepartmentId={setDepartmentId}
                 setSalesType={setSalesType}
