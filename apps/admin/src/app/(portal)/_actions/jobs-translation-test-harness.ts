@@ -68,7 +68,11 @@ mock.module("@repo/api/server", () => ({
 }));
 
 mock.module("@/lib/authorization", () => ({
-  requireAuth: mock(async () => ({ userId: "editor-1" })),
+  requireAuth: mock(async () => ({
+    managedCampusIds: [],
+    roles: [],
+    userId: "editor-1",
+  })),
 }));
 
 mock.module("@/lib/recruitment", () => ({

@@ -2,6 +2,7 @@ import type { EventRecord } from "@repo/shared/types/events";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { requireNavAccess } from "@/lib/authorization";
+import { withNationalEventScope } from "@/lib/event-scope";
 import { getEventTopicSubscriberCounts } from "@/lib/notifications/topic-subscribers";
 import { getEvent } from "../../_actions/events";
 import { listCampuses, listDepartmentsForCampus } from "../../_actions/lookups";
@@ -14,7 +15,7 @@ interface EventEditorPageProps {
 export default async function EventEditorPage({
   params,
 }: EventEditorPageProps) {
-  const ctx = await requireNavAccess("portal.events");
+  const ctx = withNationalEventScope(await requireNavAccess("portal.events"));
   const { id } = await params;
   const t = await getTranslations("adminPortal.events");
 
@@ -45,7 +46,9 @@ export default async function EventEditorPage({
     return ctx.resolvedCampusIds[0] ?? campuses[0]?.$id ?? "";
   })();
 
-  const canChangeCampus = isGlobalAdmin;
+  // Campus admins can move an event between their own campus and National.
+  const canChangeCampus =
+    isGlobalAdmin || (isCampusAdmin && ctx.managedCampusIds.length > 1);
   const filteredCampuses = isGlobalAdmin
     ? campuses
     : campuses.filter((c) => {
