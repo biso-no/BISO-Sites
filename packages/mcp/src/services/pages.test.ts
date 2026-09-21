@@ -32,6 +32,7 @@ const NOTHING_WAS_SET_I_RE = /nothing was set/i;
 const FROM_INDEX_TO_RE = /from index 2 to 0/;
 const NOT_AN_APPROVED_BISO_ACCENT_I_RE = /not an approved BISO accent/i;
 const NO_PAGE_FOUND_I_RE = /no page found/i;
+const NO_PUBLISHED_DOCUMENT_I_RE = /no published .* document/i;
 const NO_EN_TRANSLATION_I_RE = /no en translation/i;
 const CHANGED_SINCE_IT_WAS_READ_I_RE = /changed since it was read/i;
 const DO_NOT_MANAGE_I_RE = /do not manage/i;
@@ -122,6 +123,23 @@ describe("applyEdits", () => {
       [{ op: "insert", blockType: "cta", afterBlockId: "b-1" }]
     );
     expect((next.blocks[1] as { type: string }).type).toBe("cta");
+  });
+
+  test("inserting after a block that does not exist is reported as NOT applied", () => {
+    // `insertBlock` computes `findIndex(...) + 1`, so an unknown anchor
+    // becomes index 0 and the block lands at the TOP of the page — its own
+    // `idx < 0` guard can never fire. Reporting that as "inserted after <id>"
+    // both contradicts this tool's contract and silently reorders a live page.
+    const { doc: next, outcomes } = service.applyEdits(
+      doc([
+        { id: "b-1", type: "hero" },
+        { id: "b-2", type: "text" },
+      ]),
+      [{ op: "insert", blockType: "cta", afterBlockId: "does-not-exist" }]
+    );
+    expect(outcomes[0].applied).toBe(false);
+    expect(next.blocks).toHaveLength(2);
+    expect((next.blocks[0] as { id: string }).id).toBe("b-1");
   });
 
   test("removing a block that does not exist is reported as NOT applied", () => {
@@ -274,6 +292,10 @@ describe("load", () => {
     translations[0].puck_document = JSON.stringify(
       doc([{ id: "live", type: "text", body: "Released copy" }])
     );
+    // A document alone is not a released locale: unpublishing leaves the
+    // document in place and only clears this flag, so the fixture has to set
+    // it to express the state the test is about.
+    translations[0].is_published = true;
 
     const backend = createFakeBackend({ tables });
     const service = createPageService(backend, LINKS);
@@ -282,6 +304,76 @@ describe("load", () => {
       locale: "no",
     });
     expect(view.page.id).toBe("page-1");
+    expect(view.documentSource).toBe("published");
+  });
+
+  test("a withdrawn locale is not served from its retained document", async () => {
+    // Unpublishing a locale writes `is_published: false` and leaves
+    // `puck_document` alone. Publish another locale and the parent row is
+    // `published` again — at which point the document alone cannot tell a
+    // released locale from a withdrawn one. The public route asks
+    // `translation.is_published` before rendering; so does this.
+    const tables = tablesWith();
+    const page = tables.pages[0] as Record<string, unknown>;
+    page.status = "published";
+    const translations = page.translation_refs as Record<string, unknown>[];
+    translations[0].puck_document = JSON.stringify(
+      doc([{ id: "withdrawn", type: "text", body: "Taken down" }])
+    );
+    translations[0].is_published = false;
+
+    const backend = createFakeBackend({ tables });
+    const service = createPageService(backend, LINKS);
+    await expect(
+      service.load(CAMPUS_ADMIN("Bergen", "2"), {
+        pageId: "page-1",
+        locale: "no",
+      })
+    ).rejects.toThrow(NO_PUBLISHED_DOCUMENT_I_RE);
+  });
+
+  test("a member-only page is not readable by a staff caller who is not a member", async () => {
+    // `pageRowPermissions` grants a published `visibility: "authenticated"`
+    // page a read for the members team alone. A staff principal comes from
+    // campus and department teams and proves nothing about membership, and
+    // this table has row security off with a table-level `read("any")`, so
+    // this check is the only audience boundary there is.
+    const tables = tablesWith();
+    const page = tables.pages[0] as Record<string, unknown>;
+    page.status = "published";
+    page.visibility = "authenticated";
+    const translations = page.translation_refs as Record<string, unknown>[];
+    translations[0].puck_document = JSON.stringify(
+      doc([{ id: "members", type: "text", body: "Members only" }])
+    );
+    translations[0].is_published = true;
+
+    const service = createPageService(createFakeBackend({ tables }), LINKS);
+    await expect(
+      service.load(CAMPUS_ADMIN("Bergen", "2"), {
+        pageId: "page-1",
+        locale: "no",
+      })
+    ).rejects.toThrow(NO_PAGE_FOUND_I_RE);
+  });
+
+  test("a member-only page is readable by a member", async () => {
+    // The fix must not lock out the audience it exists to protect.
+    const tables = tablesWith();
+    const page = tables.pages[0] as Record<string, unknown>;
+    page.status = "published";
+    page.visibility = "authenticated";
+    const translations = page.translation_refs as Record<string, unknown>[];
+    translations[0].puck_document = JSON.stringify(
+      doc([{ id: "members", type: "text", body: "Members only" }])
+    );
+    translations[0].is_published = true;
+
+    const service = createPageService(createFakeBackend({ tables }), LINKS);
+    const view = await service.load(
+      { ...CAMPUS_ADMIN("Bergen", "2"), isMember: true },
+      { pageId: "page-1", locale: "no" }
+    );
     expect(view.documentSource).toBe("published");
   });
 

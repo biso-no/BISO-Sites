@@ -508,6 +508,56 @@ async function applyTextFilter(input: {
   return "applied";
 }
 
+/**
+ * The error for a lifecycle change whose parent row committed and whose
+ * translation permissions did not.
+ *
+ * The write order is deliberate and stays: publishing widens access, so the
+ * translations are widened first; every other transition narrows it, so the
+ * parent is narrowed first. Both orders fail safe — the item ends up less
+ * visible, never more. What was not safe was the *report*: an unpublish whose
+ * parent update landed leaves the item genuinely unpublished, with its
+ * proposal token already spent, while the caller is told the operation failed
+ * and may go looking for an item that is no longer public.
+ *
+ * Nothing is compensated, for the reason the page publish path gives: a
+ * reversing write runs against the backend that just refused one.
+ */
+function partialStatusFailure(
+  error: unknown,
+  input: {
+    domain: string;
+    id: string;
+    status: string;
+    statusCommitted: boolean;
+  }
+): DomainError {
+  const mapped = fromAppwriteError(error, {
+    operation: `set ${input.domain} status`,
+  });
+  if (!input.statusCommitted) {
+    return mapped;
+  }
+  return new DomainError(
+    mapped.code,
+    `${mapped.message} The ${input.domain} item is already \`${input.status}\` and that change is committed; only its translations' read permissions were not updated.`,
+    {
+      cause: error,
+      details: {
+        ...mapped.details,
+        committed: {
+          table: input.domain,
+          rowId: input.id,
+          status: input.status,
+        },
+        translationPermissionsUpdated: false,
+      },
+      remedy:
+        "The item's own status changed. Re-run the same transition to finish synchronising its translations, which is safe to repeat.",
+    }
+  );
+}
+
 export function createContentService(
   clients: BackendClients,
   links: { web(path: string): string; admin(path: string): string }
@@ -876,6 +926,9 @@ export function createContentService(
       // narrows access, so narrow the parent first, for the same reason.
       const publishing = status === spec.publishedStatus;
 
+      // Which write has already landed decides what the caller is told, so
+      // the flag is tracked rather than inferred from the error.
+      let statusCommitted = false;
       try {
         if (publishing) {
           await syncTranslationPermissions();
@@ -887,6 +940,7 @@ export function createContentService(
           { status },
           rowPermissions
         );
+        statusCommitted = true;
         if (!publishing) {
           await syncTranslationPermissions();
         }
@@ -896,8 +950,14 @@ export function createContentService(
           revision: updated.$updatedAt,
         };
       } catch (error) {
-        throw fromAppwriteError(error, {
-          operation: `set ${domain} status`,
+        throw partialStatusFailure(error, {
+          domain,
+          id,
+          status,
+          // Only the narrowing order can strand a committed parent: when
+          // publishing, the translation sync runs first, so a failure there
+          // leaves nothing committed and the plain error is the whole truth.
+          statusCommitted: statusCommitted && !publishing,
         });
       }
     },

@@ -356,6 +356,19 @@ function applyInsert(
   doc: EditorPageDoc,
   edit: Extract<BlockEdit, { op: "insert" }>
 ): BlockEditOutcome {
+  // A missing anchor must refuse, not relocate. `insertBlock` computes
+  // `findIndex(...) + 1`, so an unknown `afterBlockId` becomes index 0 — its
+  // own `idx < 0` guard can never fire — and the block lands at the *top* of
+  // the page. Reporting that as "inserted after <id>" contradicts this tool's
+  // contract that an unknown block id is reported as not applied, and it
+  // silently reorders a live page.
+  if (edit.afterBlockId && !findBlock(doc, edit.afterBlockId)) {
+    return {
+      edit,
+      applied: false,
+      detail: `No block with id ${edit.afterBlockId} exists; nothing was inserted.`,
+    };
+  }
   const newId = insertBlock(doc, edit.blockType, edit.afterBlockId);
   const where = edit.afterBlockId
     ? ` after ${edit.afterBlockId}`
@@ -654,6 +667,20 @@ export function createPageService(
       return "draft";
     }
     if (row.status === "published") {
+      // "Published" is not the same as "public". `pageRowPermissions` — and
+      // `buildPageRowPermissions`, which it mirrors — grant a published page
+      // with `visibility: "authenticated"` a read for the members team alone.
+      // A staff principal is derived from campus and department teams and
+      // proves nothing about membership, so without this a member-only page
+      // is readable by any staff caller who knows its id. There is no second
+      // gate to fall back on: this table has row security off and a
+      // table-level `read("any")`, which is the whole reason the decision
+      // happens here at all.
+      if (row.visibility === "authenticated" && !principal.isMember) {
+        throw notFound(`No page found with id ${row.$id}.`, {
+          pageId: row.$id,
+        });
+      }
       return "published-only";
     }
     throw notFound(`No page found with id ${row.$id}.`, { pageId: row.$id });
@@ -794,9 +821,14 @@ export function createPageService(
       const documentSource: "draft" | "published" =
         canSeeDraft && draft !== null ? "draft" : "published";
 
-      if (!canSeeDraft && published === null) {
-        // The page is published but this locale has never been released. There
-        // is a draft, but it is not this caller's to read.
+      if (!(canSeeDraft || (published && translation.is_published))) {
+        // Either this locale has never been released, or it was released and
+        // then withdrawn. Unpublishing writes `is_published: false` and leaves
+        // `puck_document` in place, so the document alone cannot say which —
+        // and after another locale republishes the parent row, serving it
+        // would hand back copy that was deliberately taken down. The public
+        // route asks the same question (`translation.is_published`) before it
+        // renders anything.
         throw notFound(
           `Page ${input.pageId} has no published ${input.locale} document.`,
           { pageId: input.pageId, locale: input.locale }

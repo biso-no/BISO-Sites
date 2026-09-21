@@ -25,7 +25,7 @@ import {
 import type { BackendClients } from "../appwrite/clients";
 import { fromAppwriteError } from "../runtime/errors";
 import type { Logger } from "../runtime/logger";
-import { CAMPUS_NAME_TO_ID } from "./campus";
+import { CAMPUS_NAME_TO_ID, MEMBERS_TEAM_ID } from "./campus";
 import {
   type DepartmentNameMatcher,
   departmentNameMatch,
@@ -387,6 +387,9 @@ export async function resolvePrincipal(
     email: user.email ?? null,
     name: user.name ?? null,
     roles,
+    // Read from the raw memberships rather than `parsed`, which drops this
+    // team on purpose — see `Principal.isMember`.
+    isMember: teams.some((team) => team.$id === MEMBERS_TEAM_ID),
     campusNames: parsed.campusNames,
     campusTeamIds: parsed.campusTeamIds,
     departmentNames: parsed.departmentNames,

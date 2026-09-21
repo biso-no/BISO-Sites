@@ -115,9 +115,6 @@ export const eventsModule: ToolModule = {
         eventId: z.string().min(1).describe("The event row $id."),
       },
       annotations: READ_ONLY,
-      // Reads attendee and segment data through `requireElevated`, so the
-      // caller's own credential never gates the result.
-      privilegedRead: true,
       profiles: STAFF_PROFILES,
       isAvailable(context) {
         return context.clients.hasElevated
@@ -151,9 +148,6 @@ export const eventsModule: ToolModule = {
         eventId: z.string().min(1).describe("The event row $id."),
       },
       annotations: READ_ONLY,
-      // Reads attendee and segment data through `requireElevated`, so the
-      // caller's own credential never gates the result.
-      privilegedRead: true,
       profiles: STAFF_PROFILES,
       isAvailable(context) {
         return context.clients.hasElevated
@@ -292,10 +286,6 @@ export const platformModule: ToolModule = {
         "Report which external integrations have their required environment variables set IN THIS PROCESS. This is a configuration check, not a health check: nothing is contacted, so a configured integration may still be unreachable, and a variable set for the web apps but not for this server reports as missing.",
       inputSchema: {},
       annotations: READ_ONLY,
-      // The handler takes no principal — it reads this process's own
-      // configuration — so `profiles` is its only gate, and that gate is worth
-      // no more than the principal it is checked against.
-      privilegedRead: true,
       profiles: OPERATOR_PROFILES,
       handler(_args, context) {
         const requestId = newRequestId();

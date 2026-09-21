@@ -29,7 +29,7 @@ import { resolveBenefitCampusIds } from "@repo/shared/utils/benefit-scope";
 import { unitCanonicalPath } from "@repo/shared/utils/unit-urls";
 import { isPublicUnit } from "@repo/shared/utils/unit-visibility";
 import type { BackendClients } from "../appwrite/clients";
-import { campusLabel } from "../identity/campus";
+import { campusLabel, NATIONAL_CAMPUS_ID } from "../identity/campus";
 import { fromAppwriteError, notFound } from "../runtime/errors";
 import { scanForward } from "../runtime/scan";
 import { resolveDateFilter } from "./event-time";
@@ -86,6 +86,29 @@ const TEXT_SEARCH_NOTE: Record<PublicKind, string | null> = {
   pages:
     "The free-text term was matched against the page slug only, not against title or body.",
 };
+
+/**
+ * The `campus_id` values a public feed should return for a selected campus.
+ *
+ * A port of `campusScopeIds` in `apps/web/src/lib/campus-scope.ts`, which is
+ * the canonical rule and states it plainly: picking Bergen means Oslo's
+ * content is not that visitor's business, but National content "rides along
+ * with whichever campus is selected rather than disappearing behind the
+ * filter". A bare equality filter therefore hides every organisation-wide
+ * event, article and vacancy from a campus-scoped search — the same answers
+ * the signed-out site shows.
+ *
+ * Ported rather than imported because the original lives in an app. Its own
+ * doc names the three tables it applies to (`campus_id` is a required column
+ * on `events`, `news` and `jobs`), which is why `units` and `pages` keep a
+ * plain campus filter: a department belongs to one campus, and a page is
+ * addressed by slug.
+ */
+function publicCampusScope(campusId: string): string[] {
+  return campusId === NATIONAL_CAMPUS_ID
+    ? [NATIONAL_CAMPUS_ID]
+    : [campusId, NATIONAL_CAMPUS_ID];
+}
 
 export interface PublicItem {
   campusId: string | null;
@@ -221,11 +244,23 @@ export function createDiscoveryService(
         "translation_refs.*",
       ]),
       Query.orderAsc("start_date"),
+      // Collections and standalone events only — never an item inside a
+      // collection. `buildEventQueries` in `apps/web/src/lib/data/queries.ts`
+      // applies exactly this, including the defensive empty-string arm for
+      // rows the admin editor may write as `""` rather than null. Without it a
+      // collection's contents come back as independent results, duplicating
+      // what the collection already represents and advertising links the
+      // public listing does not have.
+      Query.or([
+        Query.equal("is_collection", true),
+        Query.isNull("collection_id"),
+        Query.equal("collection_id", ""),
+      ]),
       Query.limit(input.limit),
       Query.offset(input.offset),
     ];
     if (input.campusId) {
-      queries.push(Query.equal("campus_id", [input.campusId]));
+      queries.push(Query.equal("campus_id", publicCampusScope(input.campusId)));
     }
     if (input.from) {
       queries.push(
@@ -278,7 +313,7 @@ export function createDiscoveryService(
       Query.offset(input.offset),
     ];
     if (input.campusId) {
-      queries.push(Query.equal("campus_id", [input.campusId]));
+      queries.push(Query.equal("campus_id", publicCampusScope(input.campusId)));
     }
     const result = await db.listRows<News>("app", "news", queries);
     const rows = result.rows.map((row): PublicItem => {
@@ -334,7 +369,7 @@ export function createDiscoveryService(
       Query.offset(input.offset),
     ];
     if (input.campusId) {
-      queries.push(Query.equal("campus_id", [input.campusId]));
+      queries.push(Query.equal("campus_id", publicCampusScope(input.campusId)));
     }
     const result = await db.listRows<
       Projected<{

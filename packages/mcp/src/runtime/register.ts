@@ -67,32 +67,6 @@ export interface ToolDefinition<TShape extends ZodRawShape = ZodRawShape> {
    */
   isAvailable?(context: ToolContext): true | string;
   name: string;
-  /**
-   * Set on a read whose result is not gated by the caller's own credential.
-   *
-   * The TTL on the principal exists because an ordinary read is gated twice:
-   * this package checks the principal, and Appwrite checks the caller's
-   * credential on the query itself. A revoked role loses the second check
-   * immediately, so a slightly stale first one costs nothing, and an unforced
-   * refresh that fails can safely fall back to the cached principal.
-   *
-   * That reasoning fails for two kinds of read, and both are here. One reads
-   * through `requireElevated` — the service key, which belongs to no user, so
-   * Appwrite applies no revocation at all and this package's check is the only
-   * one. The other has no principal-based gate in its handler, leaving
-   * `profiles` as its only gate over something the organisation would not hand
-   * to a stranger. For those, the refresh is forced exactly as it is for a
-   * mutation: if current memberships cannot be confirmed, the safe answer is
-   * to not serve the data.
-   *
-   * Forcing is not free — a forced refresh that fails throws, where an
-   * unforced one serves from cache — so the second half of that test is meant
-   * literally. `biso_page_list_block_types` also takes no principal, and is
-   * deliberately not marked: it returns the editor's static block catalogue,
-   * which describes this package's own schema rather than anything of BISO's,
-   * and trading its availability for that is not a trade worth making.
-   */
-  privilegedRead?: boolean;
   /** Profiles allowed to see this tool at all. */
   profiles: readonly PolicyProfile[];
   /**
@@ -104,6 +78,29 @@ export interface ToolDefinition<TShape extends ZodRawShape = ZodRawShape> {
    */
   tier?: MutationTier;
   title: string;
+  /**
+   * Why this read does *not* need a forced principal refresh.
+   *
+   * The default is inverted deliberately. A read is exempt only when the
+   * backend applies the caller's own credential to it — and on this schema
+   * that is rarer than it looks: `events`, `news`, `jobs`, `documents`,
+   * `pages`, `page_translations`, `content_translations`, `campus_benefits`
+   * and `webshop_products` all carry a table-level `read("any")` (roadmap S1),
+   * so Appwrite returns their rows to anyone and this package's scope check is
+   * the only boundary. Reads through `requireElevated` have the same property
+   * for the same reason, and a handler that takes no principal has no check at
+   * all beyond `profiles`.
+   *
+   * So every staff-only read is treated like a mutation: memberships are
+   * re-resolved before it, and a refresh that cannot confirm them refuses
+   * rather than serving from cache. Tools available to the `public` profile
+   * are exempt without saying so — they answer as a signed-out visitor, where
+   * there is nothing to revoke.
+   *
+   * Setting this is a claim that neither applies. It takes the reason rather
+   * than a boolean so the claim has to be argued at the call site.
+   */
+  unprivilegedRead?: string;
 }
 
 /**
@@ -188,6 +185,23 @@ export interface RegisterResult {
 }
 
 /**
+ * Whether this call must re-resolve memberships before it runs.
+ *
+ * Mutations always must. Reads must unless they are exempt — see
+ * `ToolDefinition.unprivilegedRead` for what exemption means and why it is the
+ * minority case on this schema.
+ */
+function needsCurrentMemberships(tool: ToolDefinition): boolean {
+  if ((tool.tier ?? "read") !== "read") {
+    return true;
+  }
+  if (tool.unprivilegedRead) {
+    return false;
+  }
+  return !tool.profiles.includes("public");
+}
+
+/**
  * Run one tool call with the cross-cutting guarantees applied.
  *
  * Extracted from the registration loop so the guarantees read as one sequence:
@@ -211,12 +225,12 @@ async function invokeTool(input: {
 
   try {
     // Authorize against current memberships, not the ones this process saw at
-    // startup. Forced for anything that mutates: those execute through the
+    // startup. Forced for anything that mutates — those execute through the
     // service-key client, so this check is the only place a revoked role can
-    // still be caught — and for the reads that share that property, which
-    // `privilegedRead` marks.
+    // still be caught — and for every staff read, which mostly shares that
+    // property. See `unprivilegedRead` for why the default runs that way.
     const principal = await context.refreshPrincipal({
-      force: tier !== "read" || tool.privilegedRead === true,
+      force: needsCurrentMemberships(tool),
     });
     // Registration filtered the tool list against the profile this process
     // resolved at startup, and the SDK keeps a tool callable for the life of

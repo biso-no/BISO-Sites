@@ -36,6 +36,7 @@ import {
 } from "./testing/index";
 
 const BISO_RE = /^biso_/;
+const STAFF_PROFILE_I_RE = /staff or IT-operator profile/i;
 const GLOBAL_ADMIN_RE = /globaladmin/;
 const PAGE_TOOL_RE = /biso_page_/;
 const NO_USER_CREDENTIAL_I_RE = /no user credential/i;
@@ -434,6 +435,11 @@ describe("tool registration follows the profile", () => {
       for (const name of [
         "biso_integration_configuration",
         "biso_event_audience",
+        // Page reads read `pages` and `page_translations`, which carry a
+        // table-level `read("any")` with row security off, so Appwrite applies
+        // no revocation to them either — the same property, reached a
+        // different way.
+        "biso_page_list",
       ]) {
         const denied = await harness.client.callTool({
           name,
@@ -661,6 +667,31 @@ describe("unsupported operations report why", () => {
       };
       expect(data.allowed).toBe(false);
       expect(data.reasons.join(" ")).toMatch(SHAREPOINT_I_RE);
+    } finally {
+      await harness.close();
+    }
+  });
+
+  test("the explainer applies the profile gate the tools apply", async () => {
+    // `biso_explain_permission` is registered for every profile so a member
+    // can ask what they may do; the generic content tools are staff-only. The
+    // explainer answered "yes" for a search that is not even in a member's
+    // tool list — the third way it has managed to disagree with the gate it
+    // explains.
+    const harness = await connect({ principal: MEMBER_ONLY() });
+    try {
+      const { structured } = await callTool(
+        harness.client,
+        "biso_explain_permission",
+        { domain: "news", operation: "search" }
+      );
+      const data = structured?.data as { allowed: boolean; reasons: string[] };
+      expect(data.allowed).toBe(false);
+      expect(data.reasons.join(" ")).toMatch(STAFF_PROFILE_I_RE);
+      // The tool really is absent, which is what makes the old answer wrong.
+      expect(
+        (await harness.client.listTools()).tools.map((tool) => tool.name)
+      ).not.toContain("biso_content_search");
     } finally {
       await harness.close();
     }

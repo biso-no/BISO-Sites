@@ -64,6 +64,18 @@ export interface Principal {
   departmentNames: string[];
   departmentTeamIds: string[];
   email: string | null;
+  /**
+   * Membership of the `biso-members` team.
+   *
+   * Kept separately because `parseTeamMemberships` deliberately discards every
+   * team that is neither a campus nor an `SG-App-Dept-*` — `biso-members` is
+   * exactly such a team, and must never become a department name. It is still
+   * an authorization fact: `buildPageRowPermissions` maps a page's
+   * `visibility: "authenticated"` to a read grant for that team alone, so
+   * without this there is no way to tell a member from a staff principal who
+   * merely holds campus teams.
+   */
+  isMember: boolean;
   /** Campus names this principal manages (campus admin). */
   managedCampuses: string[];
   /** Numeric campus ids for `managedCampuses`. */
@@ -108,6 +120,7 @@ export const ANONYMOUS_PRINCIPAL: Principal = {
   email: null,
   name: null,
   roles: [],
+  isMember: false,
   campusNames: [],
   campusTeamIds: [],
   departmentNames: [],

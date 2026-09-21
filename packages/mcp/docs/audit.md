@@ -759,6 +759,39 @@ a fixture is clock-dependent not when it is compared against `now` today, but
 when it *could* be. Both deadline fixtures are now relative to `Date.now()`,
 which is how they should have been written in the first place.
 
+## 17d. Fifteenth review round
+
+A fifteenth review of `d8c2bd5` raised nine — three P1 — the largest round of
+the PR. Eight reproduced and are fixed. One is an assertion about Appwrite that
+the repository contradicts; it is recorded rather than acted on.
+
+| # | Area | Verified as | Fix |
+|---|---|---|---|
+| 1 | `services/pages.ts` | **Confirmed (P1).** `pageVisibility` treats any `status === "published"` row as readable by anyone, without consulting `visibility`. `pageRowPermissions` — mirroring `buildPageRowPermissions` — grants a published `visibility: "authenticated"` page a read for the `biso-members` team alone, and a staff principal is derived from campus and department teams, which prove nothing about membership. This table has row security off and a table-level `read("any")`, as `list`'s own comment says, so this check is the only audience boundary | The `published-only` branch requires membership for a member-only page. `Principal` gains `isMember`, read from the raw teams because `parseTeamMemberships` drops `biso-members` on purpose. A second test pins that a real member still gets in |
+| 2 | `services/pages.ts` | **Confirmed (P1).** `load` served `puck_document` to a published-only caller without checking `translation.is_published`. Unpublishing a locale writes only `is_published: false` and leaves the document in place, so after another locale republishes the parent row, the withdrawn copy came back. `apps/web`'s page route asks `translation.is_published` before it renders anything | A published-only caller needs a released locale, not merely a stored document |
+| 3 | `services/approvals.ts` | **Observation true, consequence not established.** There is no index covering `approver_team_id`. But the claim that Appwrite therefore *fails* the query is contradicted by the repo: `apps/admin`'s own approvals inbox filters the same table on `campus_id`, which is equally unindexed. Settling it needs appwrite.io, which is unreachable from here | None. Roadmap **S0** records what a real instance must be asked, and that an index is worth adding either way |
+| 4 | `runtime/register.ts` | **Confirmed, and wider than reported.** Round fourteen forced a refresh for reads with no second gate, on the premise that an ordinary read *has* one — Appwrite applying the caller's credential. That premise is false for every table carrying a table-level `read("any")`, which is `events`, `news`, `jobs`, `documents`, `pages`, `page_translations`, `content_translations`, `campus_benefits` and `webshop_products`. The review asked for the two page tools; marking only those would have been arbitrary | The default is inverted. Every staff-only read now re-resolves memberships, and `unprivilegedRead` takes a *reason* rather than a boolean, so an exemption has to be argued. One exemption: the static block catalogue. `privilegedRead` is gone — nothing has to be remembered any more |
+| 5 | `services/discovery.ts` | **Confirmed against the canonical rule.** `campusScopeIds` in `apps/web/src/lib/campus-scope.ts` returns `[campus, "5"]` so National content "rides along with whichever campus is selected rather than disappearing behind the filter". The events, news and vacancy branches each used a bare equality filter. This is round fourteen's documents finding reaching only documents | `publicCampusScope`, ported with the citation, on exactly the three tables the canonical rule names. Units and pages keep a plain filter, and the comment says why so the next reader does not have to re-derive it |
+| 6 | `services/discovery.ts` | **Confirmed.** `buildEventQueries` in `apps/web` keeps collection parents and standalone events and excludes rows with a `collection_id`, defensive empty-string arm included. Without it a collection's contents came back as independent results | The same predicate, before pagination |
+| 7 | `services/pages.ts` | **Confirmed, and the bug is in the editor.** `insertBlock` computes `findIndex(...) + 1`, so an unknown anchor becomes index 0 and the block lands at the *top* — its own `idx < 0` guard is unreachable. The wrapper then reported "inserted after <id>" | The anchor is validated here before inserting, matching what `remove` already does. The editor's dead guard is not this package's to fix |
+| 8 | `services/content.ts` | **Confirmed.** The twin of round fourteen's page-publish partial, in the path that fix did not touch. Unpublishing narrows the parent first — the right order, and it stays — but a failure in the translation sync afterwards left the item genuinely unpublished, its proposal token spent, while the caller was told nothing happened | `partialStatusFailure`, the same shape as the page path: keep the code, state what committed, name a repeatable remedy, compensate nothing. Publishing is unaffected and a test pins that, since its order commits nothing before the failure |
+| 9 | `domains/identity.ts` | **Confirmed.** `biso_explain_permission` is registered for every profile so a member can ask what they may do; the generic content tools are staff-only. For `search` and `get` the explainer returned `allowed: true` to anyone authenticated, describing tools absent from the caller's own session | The profile requirement is part of the decision. Third time this explainer has disagreed with the gate it explains |
+
+### The premise, not the site
+
+Findings #4 and #5 are the same lesson from opposite directions, and it is
+sharper than "check the neighbours". Both fixes in round fourteen were correct
+*at the site they touched* and rested on a premise that was never true
+elsewhere: that an ordinary read is gated twice, and that the national
+ride-along was a documents rule. Checking neighbouring call sites would not
+have found either — what finds them is asking what the fix assumed and whether
+that assumption holds anywhere else.
+
+So the two fixes here are shaped to make the question unnecessary next time.
+The refresh default is inverted, so a new staff read is covered without anyone
+remembering; and the campus rule is a named function carrying the citation,
+applied to exactly the tables its source names.
+
 ## 18. Base moves while the PR was open
 
 `main` moved seven times after the audit above was written. A clean textual

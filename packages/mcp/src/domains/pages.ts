@@ -232,6 +232,8 @@ export const pagesModule: ToolModule = {
         "List the block types that can be inserted, which of them bind to a live content feed, and the approved brand accent colours. Use before `biso_page_edit_blocks`.",
       inputSchema: {},
       annotations: READ_ONLY,
+      unprivilegedRead:
+        "Returns this package's own static block catalogue — its own schema, not BISO's data — and a forced refresh that fails would make it unreadable for nothing.",
       profiles: STAFF_PROFILES,
       handler(_args, context) {
         const requestId = newRequestId();

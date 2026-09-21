@@ -716,3 +716,84 @@ describe("public links and campus scope match the public site", () => {
     expect(ids).not.toContain("bergen-bylaws");
   });
 });
+
+describe("public feeds carry National content and hide collection children", () => {
+  function eventRow(id: string, extra: Record<string, unknown>): FakeRow {
+    return {
+      $id: id,
+      $updatedAt: "2026-01-02T00:00:00.000Z",
+      slug: id,
+      status: "published",
+      start_date: "2026-01-05T10:00:00.000Z",
+      translation_refs: [],
+      ...extra,
+    } as FakeRow;
+  }
+
+  const tables = () => ({
+    events: [
+      eventRow("oslo-standalone", { campus_id: "1", collection_id: null }),
+      eventRow("national-standalone", { campus_id: "5", collection_id: null }),
+      eventRow("bergen-standalone", { campus_id: "2", collection_id: null }),
+      eventRow("the-collection", {
+        campus_id: "1",
+        is_collection: true,
+        collection_id: null,
+      }),
+      eventRow("child-of-collection", {
+        campus_id: "1",
+        collection_id: "the-collection",
+      }),
+    ],
+    campus: [{ $id: "1", name: "Oslo" } as FakeRow],
+  });
+
+  test("a campus filter keeps National events, as the site does", async () => {
+    // `campusScopeIds` in `apps/web` returns `[campus, "5"]` precisely so
+    // organisation-wide content rides along with every study campus.
+    const found = await createDiscoveryService(
+      createFakeBackend({ tables: tables() }),
+      LINKS
+    ).search({
+      kind: "events",
+      campusId: "1",
+      locale: "no",
+      limit: 25,
+      offset: 0,
+    });
+
+    const ids = found.rows.map((row) => row.id);
+    expect(ids).toContain("oslo-standalone");
+    expect(ids).toContain("national-standalone");
+    expect(ids).not.toContain("bergen-standalone");
+  });
+
+  test("selecting National returns National alone", async () => {
+    // It is already the widest bucket; widening it again would return every
+    // campus's content under a National filter.
+    const found = await createDiscoveryService(
+      createFakeBackend({ tables: tables() }),
+      LINKS
+    ).search({
+      kind: "events",
+      campusId: "5",
+      locale: "no",
+      limit: 25,
+      offset: 0,
+    });
+
+    expect(found.rows.map((row) => row.id)).toEqual(["national-standalone"]);
+  });
+
+  test("a collection's children are not returned as independent events", async () => {
+    const found = await createDiscoveryService(
+      createFakeBackend({ tables: tables() }),
+      LINKS
+    ).search({ kind: "events", locale: "no", limit: 25, offset: 0 });
+
+    const ids = found.rows.map((row) => row.id);
+    expect(ids).toContain("the-collection");
+    expect(ids).toContain("oslo-standalone");
+    expect(ids).not.toContain("child-of-collection");
+  });
+});

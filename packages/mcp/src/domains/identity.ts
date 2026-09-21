@@ -168,8 +168,22 @@ function decidePermission(query: PermissionQuery): PermissionDecision {
   }
 
   // Reads are scoped by the query rather than refused, so only write-shaped
-  // operations consult the scope rules.
+  // operations consult the scope rules — but they are still gated by profile,
+  // and this explainer is not. It is registered for every profile so a member
+  // can ask what they may do; the generic content tools are registered for
+  // staff and operators only. Answering "yes" to a member therefore described
+  // a tool that is not in their session at all, which is the third way this
+  // explainer has managed to disagree with the gate it explains.
   if (operation === "search" || operation === "get") {
+    if (!STAFF_PROFILES.includes(principal.profile)) {
+      return {
+        allowed: false,
+        reasons: [
+          ...reasons,
+          `Reading ${domain} through the content tools needs a staff or IT-operator profile; this session has \`${principal.profile}\`. Published items are reachable through the public discovery tools instead.`,
+        ],
+      };
+    }
     return { allowed, reasons };
   }
 
