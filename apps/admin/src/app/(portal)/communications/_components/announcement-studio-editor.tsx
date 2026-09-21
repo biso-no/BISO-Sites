@@ -3,6 +3,11 @@
 import type { Announcements } from "@repo/api/types/appwrite";
 import { logicalTopicFor } from "@repo/shared/utils/notification-topics";
 import {
+  isoToOsloWallClock,
+  OSLO_TIME_ZONE,
+  osloWallClockToIso,
+} from "@repo/shared/utils/oslo-time";
+import {
   AlertTriangle,
   ArrowLeft,
   ArrowRight,
@@ -1065,11 +1070,11 @@ function DistributionStep({
           </FieldLabel>
           <input
             onChange={(event) =>
-              set("scheduled_at", event.target.value || null)
+              set("scheduled_at", osloWallClockToIso(event.target.value))
             }
             style={fieldInputStyle()}
             type="datetime-local"
-            value={values.scheduled_at ? values.scheduled_at.slice(0, 16) : ""}
+            value={isoToOsloWallClock(values.scheduled_at)}
           />
         </div>
       </div>
@@ -1104,8 +1109,8 @@ function buildReviewRows(
   let scheduleValue = "Send immediately";
   if (values.scheduled_at) {
     scheduleValue = isFutureSchedule(values.scheduled_at)
-      ? `Scheduled · ${new Date(values.scheduled_at).toLocaleString("en-GB")}`
-      : `Send immediately (past date ${new Date(values.scheduled_at).toLocaleString("en-GB")})`;
+      ? `Scheduled · ${new Date(values.scheduled_at).toLocaleString("en-GB", { timeZone: OSLO_TIME_ZONE })}`
+      : `Send immediately (past date ${new Date(values.scheduled_at).toLocaleString("en-GB", { timeZone: OSLO_TIME_ZONE })})`;
   }
 
   return [

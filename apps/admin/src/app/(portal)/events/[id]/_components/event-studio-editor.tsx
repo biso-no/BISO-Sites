@@ -17,6 +17,11 @@ import {
 } from "@repo/shared/types/events";
 import { nextAutoSlug } from "@repo/shared/utils/content-slug";
 import {
+  isoToOsloWallClock,
+  OSLO_TIME_ZONE,
+  osloWallClockToIso,
+} from "@repo/shared/utils/oslo-time";
+import {
   ArrowLeft,
   ArrowRight,
   Bell,
@@ -192,9 +197,22 @@ export type { EventStudioEditorProps };
 /** Characters a hand-typed slug may not contain. */
 const NON_SLUG_INPUT_RE = /[^a-z0-9-]/g;
 
-function toDateTimeInput(value: string | null | undefined) {
-  return value ? value.slice(0, 16) : "";
+/**
+ * Event times are Oslo wall-clock time in the inputs and UTC ISO instants in
+ * state and storage; see `@repo/shared/utils/oslo-time`.
+ */
+const toDateTimeInput = isoToOsloWallClock;
+
+function fromDateTimeInput(value: string) {
+  return osloWallClockToIso(value);
 }
+
+const DATE_TIME_FIELDS: ReadonlySet<string> = new Set([
+  "end_date",
+  "registration_deadline",
+  "scheduled_publish_at",
+  "start_date",
+]);
 
 function formatDate(value: string | null | undefined) {
   if (!value) {
@@ -207,6 +225,7 @@ function formatDate(value: string | null | undefined) {
   return new Intl.DateTimeFormat("en-GB", {
     day: "2-digit",
     month: "short",
+    timeZone: OSLO_TIME_ZONE,
     year: "numeric",
   }).format(date);
 }
@@ -222,6 +241,7 @@ function formatTime(value: string | null | undefined) {
   return new Intl.DateTimeFormat("en-GB", {
     hour: "2-digit",
     minute: "2-digit",
+    timeZone: OSLO_TIME_ZONE,
   }).format(date);
 }
 
@@ -233,7 +253,10 @@ function formatMonthShort(value: string | null | undefined) {
   if (Number.isNaN(date.getTime())) {
     return "TBD";
   }
-  return new Intl.DateTimeFormat("en-GB", { month: "short" })
+  return new Intl.DateTimeFormat("en-GB", {
+    month: "short",
+    timeZone: OSLO_TIME_ZONE,
+  })
     .format(date)
     .toUpperCase();
 }
@@ -246,7 +269,10 @@ function formatDayNumber(value: string | null | undefined) {
   if (Number.isNaN(date.getTime())) {
     return "—";
   }
-  return String(date.getDate()).padStart(2, "0");
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "2-digit",
+    timeZone: OSLO_TIME_ZONE,
+  }).format(date);
 }
 
 function durationHours(
@@ -2070,7 +2096,7 @@ function ScheduleStep({
             </FieldLabel>
             <input
               onChange={(event) =>
-                set("start_date", event.target.value || null)
+                set("start_date", fromDateTimeInput(event.target.value))
               }
               style={fieldInputStyle()}
               type="datetime-local"
@@ -2082,7 +2108,9 @@ function ScheduleStep({
               <CalendarDays size={12} /> End
             </FieldLabel>
             <input
-              onChange={(event) => set("end_date", event.target.value || null)}
+              onChange={(event) =>
+                set("end_date", fromDateTimeInput(event.target.value))
+              }
               style={fieldInputStyle()}
               type="datetime-local"
               value={toDateTimeInput(values.end_date)}
@@ -2096,7 +2124,10 @@ function ScheduleStep({
           </FieldLabel>
           <input
             onChange={(event) =>
-              set("registration_deadline", event.target.value || null)
+              set(
+                "registration_deadline",
+                fromDateTimeInput(event.target.value)
+              )
             }
             style={fieldInputStyle()}
             type="datetime-local"
@@ -2703,7 +2734,10 @@ function TicketsStep({
             </FieldLabel>
             <input
               onChange={(event) =>
-                set("scheduled_publish_at", event.target.value || null)
+                set(
+                  "scheduled_publish_at",
+                  fromDateTimeInput(event.target.value)
+                )
               }
               style={fieldInputStyle()}
               type="datetime-local"
@@ -4107,6 +4141,14 @@ export function EventStudioEditor({
         }
         if (path === "description_no") {
           onChangeBlocksNoRef.current(htmlToDescriptionBlocks(value));
+          return;
+        }
+        if (DATE_TIME_FIELDS.has(path) && typeof value === "string") {
+          // A bare wall-clock value is Oslo time, same as the inputs.
+          setRef.current(
+            path as keyof EventUpsertInput,
+            (osloWallClockToIso(value) ?? value) as never
+          );
           return;
         }
         setRef.current(path as keyof EventUpsertInput, value as never);

@@ -7,6 +7,7 @@ import {
   DEFAULT_UPLOAD_BUCKET,
   decodeUploadFilename,
   resolveUploadBucket,
+  resolveUploadMimeType,
   sanitizeUploadFilename,
 } from "@/lib/upload-buckets";
 
@@ -55,7 +56,10 @@ export async function POST(request: Request) {
     );
   }
 
-  const mimeType = blob.type || "application/octet-stream";
+  const mimeType = resolveUploadMimeType(
+    blob.type,
+    request.headers.get("content-type")
+  );
   if (!bucket.mimeTypes.has(mimeType)) {
     return NextResponse.json(
       { error: "Unsupported file type" },

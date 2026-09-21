@@ -12,6 +12,7 @@ import type {
 } from "@repo/editor";
 import { EditorShell, normalizePageDoc } from "@repo/editor";
 import "@repo/editor/theme/styles.css";
+import { generateSlug } from "@repo/shared/utils/content-slug";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -22,7 +23,6 @@ import {
   unpublishPageAction,
 } from "@/app/(portal)/_actions/pages";
 import { uploadMediaFile } from "@/lib/upload-client";
-import { sanitizeSlug } from "@/lib/utils";
 
 interface PageEditorClientProps {
   availableLocales: EditorLocale[];
@@ -61,7 +61,7 @@ function emptyDoc({
   return {
     meta: {
       title,
-      slug: slug || sanitizeSlug(title) || "untitled",
+      slug: slug || generateSlug(title) || "untitled",
       department: department ?? "",
       accentColor: source?.meta.accentColor ?? "#3DA9E0",
       description: "",

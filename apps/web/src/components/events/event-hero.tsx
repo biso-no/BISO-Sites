@@ -1,8 +1,8 @@
 import type { ContentTranslations, Events } from "@repo/api/types/appwrite";
+import { formatOsloDate, formatOsloTime } from "@repo/shared/utils/oslo-time";
 import { ImageWithFallback } from "@repo/ui/components/image";
 import { Badge } from "@repo/ui/components/ui/badge";
 import { PLACEHOLDER_IMAGE } from "@repo/ui/lib/placeholder-images";
-import { format } from "date-fns";
 import { ArrowLeft, Calendar, Clock, MapPin, Users } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
@@ -33,16 +33,18 @@ export function EventHero({ event }: EventHeroProps) {
 
   // Format dates
   const startDate = eventData?.start_date
-    ? format(new Date(eventData.start_date), "MMMM d, yyyy")
+    ? formatOsloDate(eventData.start_date, {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      })
     : t("card.tba");
 
   const startTime = eventData?.start_date
-    ? format(new Date(eventData.start_date), "HH:mm")
+    ? formatOsloTime(eventData.start_date)
     : "";
 
-  const endTime = eventData?.end_date
-    ? format(new Date(eventData.end_date), "HH:mm")
-    : "";
+  const endTime = eventData?.end_date ? formatOsloTime(eventData.end_date) : "";
 
   const timeRange =
     startTime && endTime

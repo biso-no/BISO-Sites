@@ -226,6 +226,59 @@ describe("event relationship persistence", () => {
   });
 });
 
+describe("national events for campus admins", () => {
+  const osloCampusAdmin = makeCtx({
+    campusNames: ["Oslo"],
+    managedCampuses: ["Oslo"],
+    managedCampusIds: ["1"],
+    resolvedCampusIds: ["1"],
+    roles: ["campusadmin"],
+  });
+
+  test("a campus admin can create a national event", async () => {
+    currentCtx = osloCampusAdmin;
+    const result = await createEvent({
+      ...departmentEventValues,
+      campus_id: "5",
+      department_id: null,
+    });
+
+    expect(result).toEqual({ data: expect.any(String) });
+    expect(db.upsertRow).toHaveBeenCalledWith(
+      "app",
+      "events",
+      expect.any(String),
+      expect.objectContaining({ campus: "5" }),
+      expect.any(Array)
+    );
+  });
+
+  test("a campus admin still cannot create events for another campus", async () => {
+    currentCtx = osloCampusAdmin;
+    const result = await createEvent({
+      ...departmentEventValues,
+      campus_id: "2",
+      department_id: null,
+    });
+
+    expect(result).toEqual({
+      error: "Unauthorized: no write access to this campus",
+    });
+    expect(db.upsertRow).not.toHaveBeenCalled();
+  });
+
+  test("a department author cannot create a national event", async () => {
+    const result = await createEvent({
+      ...departmentEventValues,
+      campus_id: "5",
+      department_id: null,
+    });
+
+    expect(result).toEqual({ error: expect.stringContaining("Unauthorized") });
+    expect(db.upsertRow).not.toHaveBeenCalled();
+  });
+});
+
 describe("event segment authorization", () => {
   const segmentValues = {
     campus_id: null,

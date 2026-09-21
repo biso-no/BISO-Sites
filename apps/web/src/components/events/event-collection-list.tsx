@@ -1,9 +1,9 @@
 import type { ContentTranslations, Events } from "@repo/api/types/appwrite";
+import { formatOsloDate, formatOsloTime } from "@repo/shared/utils/oslo-time";
 import { ImageWithFallback } from "@repo/ui/components/image";
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Card } from "@repo/ui/components/ui/card";
 import { PLACEHOLDER_IMAGE } from "@repo/ui/lib/placeholder-images";
-import { format } from "date-fns";
 import { Calendar, Clock } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
@@ -27,13 +27,17 @@ function CollectionEventCard({
       )
     : null;
   const colStartDate = collectionEvent.start_date
-    ? format(new Date(collectionEvent.start_date), "MMMM d, yyyy")
+    ? formatOsloDate(collectionEvent.start_date, {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      })
     : t("card.tba");
   const colStartTime = collectionEvent.start_date
-    ? format(new Date(collectionEvent.start_date), "HH:mm")
+    ? formatOsloTime(collectionEvent.start_date)
     : "";
   const colEndTime = collectionEvent.end_date
-    ? format(new Date(collectionEvent.end_date), "HH:mm")
+    ? formatOsloTime(collectionEvent.end_date)
     : "";
   const colTimeRange =
     colStartTime && colEndTime

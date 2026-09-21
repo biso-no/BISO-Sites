@@ -1,9 +1,9 @@
 "use client";
 
+import { formatOsloDate } from "@repo/shared/utils/oslo-time";
 import { ImageWithFallback } from "@repo/ui/components/image";
 import { Card } from "@repo/ui/components/ui/card";
 import { PLACEHOLDER_IMAGE } from "@repo/ui/lib/placeholder-images";
-import { format } from "date-fns";
 import { CalendarDays } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
@@ -21,7 +21,15 @@ export function FeaturedEventCard({
   const t = useTranslations("common.navigation");
 
   const formattedDate = event.startDate
-    ? format(new Date(event.startDate), "d. MMM yyyy")
+    ? formatOsloDate(
+        event.startDate,
+        {
+          day: "numeric",
+          month: "short",
+          year: "numeric",
+        },
+        "en-GB"
+      )
     : null;
 
   return (

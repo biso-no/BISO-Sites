@@ -2,9 +2,9 @@
 
 import type { Events } from "@repo/api/types/appwrite";
 import { trackEvent } from "@repo/shared/utils/analytics";
+import { formatOsloDate, formatOsloTime } from "@repo/shared/utils/oslo-time";
 import { Button } from "@repo/ui/components/ui/button";
 import { Card } from "@repo/ui/components/ui/card";
-import { format } from "date-fns";
 import { CalendarCheck, ExternalLink, Share2, Ticket } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -89,7 +89,15 @@ function RegistrationFacts({
   }
 
   const deadlineLabel = registration.deadline
-    ? format(new Date(registration.deadline), "d MMM yyyy, HH:mm")
+    ? `${formatOsloDate(
+        registration.deadline,
+        {
+          day: "numeric",
+          month: "short",
+          year: "numeric",
+        },
+        "en-GB"
+      )}, ${formatOsloTime(registration.deadline)}`
     : null;
 
   return (

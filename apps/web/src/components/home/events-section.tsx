@@ -1,5 +1,6 @@
 "use client";
 import type { ContentTranslations, Events } from "@repo/api/types/appwrite";
+import { OSLO_TIME_ZONE } from "@repo/shared/utils/oslo-time";
 import { ImageWithFallback } from "@repo/ui/components/image";
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Button } from "@repo/ui/components/ui/button";
@@ -24,6 +25,7 @@ function formatDateString(date: Date | null): string {
   return date.toLocaleDateString("en-US", {
     month: "long",
     day: "numeric",
+    timeZone: OSLO_TIME_ZONE,
     year: "numeric",
   });
 }
@@ -38,6 +40,7 @@ function formatTimeString(
   const startTime = startDate.toLocaleTimeString("en-US", {
     hour: "2-digit",
     minute: "2-digit",
+    timeZone: OSLO_TIME_ZONE,
   });
   if (!endDate) {
     return startTime;
@@ -45,6 +48,7 @@ function formatTimeString(
   const endTime = endDate.toLocaleTimeString("en-US", {
     hour: "2-digit",
     minute: "2-digit",
+    timeZone: OSLO_TIME_ZONE,
   });
   return `${startTime} - ${endTime}`;
 }
