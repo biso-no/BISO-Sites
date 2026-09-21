@@ -197,7 +197,8 @@ export function createApprovalService(
       // then `Permission.read(Role.user(requester))` — so a requester reads
       // their own pending rows without being able to decide them. Returning
       // those under "waiting for your decision" describes work the caller
-      // cannot do, and `biso_decide_approval` would refuse them.
+      // cannot do — and there is no decide tool here to refuse them, because
+      // the decision happens in the portal.
       //
       // The filter is therefore on the decider's grant: the approver team must
       // be one this principal holds, with the Operations Unit override the

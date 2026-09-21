@@ -72,7 +72,7 @@ export const approvalsModule: ToolModule = {
       name: "biso_list_pending_approvals",
       title: "Pending approvals",
       description:
-        "List approval requests waiting for YOUR decision — filtered to the approver teams you actually hold, plus the Operations Unit override. A request also grants read to whoever filed it, so row permissions alone would show you your own requests as though they were yours to decide.",
+        "List approval requests waiting for YOUR decision — filtered to the approver teams you actually hold, plus the Operations Unit override, and only for campus or global admins, because the portal that executes a decision refuses everyone else. A request also grants read to whoever filed it, so row permissions alone would show you your own requests as though they were yours to decide.",
       inputSchema: { ...paginationInput },
       annotations: READ_ONLY,
       profiles: STAFF_PROFILES,

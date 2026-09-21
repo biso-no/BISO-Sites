@@ -67,6 +67,32 @@ export interface ToolDefinition<TShape extends ZodRawShape = ZodRawShape> {
    */
   isAvailable?(context: ToolContext): true | string;
   name: string;
+  /**
+   * Set on a read whose result is not gated by the caller's own credential.
+   *
+   * The TTL on the principal exists because an ordinary read is gated twice:
+   * this package checks the principal, and Appwrite checks the caller's
+   * credential on the query itself. A revoked role loses the second check
+   * immediately, so a slightly stale first one costs nothing, and an unforced
+   * refresh that fails can safely fall back to the cached principal.
+   *
+   * That reasoning fails for two kinds of read, and both are here. One reads
+   * through `requireElevated` — the service key, which belongs to no user, so
+   * Appwrite applies no revocation at all and this package's check is the only
+   * one. The other has no principal-based gate in its handler, leaving
+   * `profiles` as its only gate over something the organisation would not hand
+   * to a stranger. For those, the refresh is forced exactly as it is for a
+   * mutation: if current memberships cannot be confirmed, the safe answer is
+   * to not serve the data.
+   *
+   * Forcing is not free — a forced refresh that fails throws, where an
+   * unforced one serves from cache — so the second half of that test is meant
+   * literally. `biso_page_list_block_types` also takes no principal, and is
+   * deliberately not marked: it returns the editor's static block catalogue,
+   * which describes this package's own schema rather than anything of BISO's,
+   * and trading its availability for that is not a trade worth making.
+   */
+  privilegedRead?: boolean;
   /** Profiles allowed to see this tool at all. */
   profiles: readonly PolicyProfile[];
   /**
@@ -187,9 +213,10 @@ async function invokeTool(input: {
     // Authorize against current memberships, not the ones this process saw at
     // startup. Forced for anything that mutates: those execute through the
     // service-key client, so this check is the only place a revoked role can
-    // still be caught.
+    // still be caught — and for the reads that share that property, which
+    // `privilegedRead` marks.
     const principal = await context.refreshPrincipal({
-      force: tier !== "read",
+      force: tier !== "read" || tool.privilegedRead === true,
     });
     // Registration filtered the tool list against the profile this process
     // resolved at startup, and the SDK keeps a tool callable for the life of

@@ -19,7 +19,11 @@ import type { PageDoc } from "@repo/api/page-builder";
 import { BRAND_ACCENT_VALUES } from "@repo/editor/theme/presets";
 import { z } from "zod";
 import { isAnonymous } from "../identity/principal";
-import { assertPublishAccess, describeScope } from "../identity/scope";
+import {
+  assertPublishAccess,
+  describeScope,
+  PUBLISH_SCOPE_NOTE,
+} from "../identity/scope";
 import type { ToolContext } from "../runtime/context";
 import { forbidden, invalidInput, notFound } from "../runtime/errors";
 import { defineTool, type ToolModule } from "../runtime/register";
@@ -409,8 +413,7 @@ export const pagesModule: ToolModule = {
     defineTool({
       name: "biso_page_publish",
       title: "Publish or unpublish a page",
-      description:
-        "Publish a page's draft document to the public site, or unpublish it. Publishing copies the draft into the published document — exactly what the editor's publish does. Requires campus-admin or global-admin scope for the page's campus.",
+      description: `Publish a page's draft document to the public site, or unpublish it. Publishing copies the draft into the published document — exactly what the editor's publish does. ${PUBLISH_SCOPE_NOTE}`,
       inputSchema: {
         pageId: z.string().min(1).describe("The page row $id."),
         locale: localeArg,

@@ -119,13 +119,18 @@ describe("the inbox count agrees with the inbox", () => {
     expect(found.approvals).toBe(2);
   });
 
-  test("an Operations Unit member who is not an admin still gets a count", async () => {
+  test("an Operations Unit member who is not an admin decides nothing", async () => {
     // `deriveRoles` grants `globaladmin` only for National **and** Operations
     // Unit, so an Operations Unit member without the National campus team is
-    // neither a global nor a campus admin. `approverTeamsFor` treats them as
-    // the all-requests override and `listPending` shows them every row — while
-    // the count returned 0 early, so the inbox and its badge disagreed about
-    // the same rows.
+    // neither a global nor a campus admin. They hold `update` on every request
+    // row, which is why this looked like the all-requests override — but
+    // `approveRequest` and `rejectRequest` in the portal refuse anyone without
+    // one of those two roles, and the portal is the only place a decision can
+    // be made. An empty queue is the true answer for them.
+    //
+    // This test previously asserted 2, which is the defect written down as an
+    // expectation: it was added to settle a disagreement between the count and
+    // the list, and settled it on the side neither surface could act on.
     const opsOnly = makePrincipal({
       userId: "ops-1",
       roles: [],
@@ -136,9 +141,29 @@ describe("the inbox count agrees with the inbox", () => {
     });
 
     expect(await counts().inboxCounts(opsOnly)).toMatchObject({
+      approvals: 0,
+    });
+    expect((await service().listPending(opsOnly, PAGE)).rows).toHaveLength(0);
+  });
+
+  test("an Operations Unit member who IS an admin still decides everything", async () => {
+    // The override itself is intact and must stay: what changed is who
+    // reaches it. A global admin holds National plus Operations Unit, so the
+    // portal admits them and the team filter drops away.
+    const opsAdmin = makePrincipal({
+      userId: "ops-2",
+      roles: ["globaladmin"],
+      campusNames: ["National"],
+      departmentNames: ["Operations Unit"],
+      departmentTeamIds: [OPERATIONS_UNIT_TEAM_ID],
+      resolvedDepartmentIds: ["dept-ops"],
+      profile: "staff",
+    });
+
+    expect(await counts().inboxCounts(opsAdmin)).toMatchObject({
       approvals: 2,
     });
-    expect((await service().listPending(opsOnly, PAGE)).rows).toHaveLength(2);
+    expect((await service().listPending(opsAdmin, PAGE)).rows).toHaveLength(2);
   });
 
   test("someone with no approver team and no admin role still gets zero", async () => {

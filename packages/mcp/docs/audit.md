@@ -697,6 +697,38 @@ the revert exactly as designed. What catches it is asking whether the behaviour
 being locked in exists anywhere in the repo outside the change that introduced
 it.
 
+## 17b. Thirteenth review round
+
+A thirteenth review of `c974360` raised three P2s. All three reproduced, and
+two of them are this PR's own earlier fixes reaching only part of their
+subject — the ninth and tenth occurrences of that pattern.
+
+| # | Area | Verified as | Fix |
+|---|---|---|---|
+| 1 | `runtime/register.ts` | **Confirmed.** The dispatcher forces a principal refresh for mutations and not for reads, and the comment justifying that says the caller's own credential still gates a read. Two reads break that premise: `biso_event_segments` and `biso_event_audience` read `event_attendees` and `segment_members` through `requireElevated` — the service key belongs to no user, so Appwrite applies no revocation — and `biso_integration_configuration`'s handler takes no principal at all, which the file's own comment already said. A revoked role stayed usable on those for the 60s TTL, and indefinitely if an unforced refresh failed and fell back to cache | `privilegedRead` on the tool definition, forced exactly as a mutation is. Marked on those three. `biso_page_list_block_types` also takes no principal and is deliberately **not** marked, with the reason recorded: forcing costs availability (a forced refresh that fails throws) and its static block catalogue is this package's own schema, not BISO's data |
+| 2 | `identity/scope.ts` | **Confirmed — and it inverts round twelve's #3.** `approveRequest` and `rejectRequest` in `apps/admin/src/app/(portal)/_actions/approvals.ts` refuse anyone without `globaladmin` or `campusadmin` before touching the row. Deciding exists nowhere else — this package has no decide tool on purpose — so that gate is the whole policy. An Operations Unit member holding neither role has `update` on every request row and can decide none of them, yet `approverTeamsFor` handed them the all-requests override | The portal's role gate runs first in `approverTeamsFor`; the Operations Unit override then applies only to people it admits. `listPending` and `inboxCounts` both follow, since they share that function |
+| 3 | `domains/content.ts` | **Confirmed.** `assertPublishAccess` delegates to `assertWriteAccess`, which admits the department that owns the row — a correction this PR already made to the *predicate* in round eleven. Three separate texts went on telling the model that only campus and global admins can publish, and sent a department member to file an approval request for something they may do themselves. The review named two; `domains/pages.ts` carried it too, and `setPublished` passes `departmentId` exactly as the content path does | One `PUBLISH_SCOPE_NOTE`, declared beside the gate it describes and consumed by all three texts, so restating it is no longer possible. A test asserts the sentence and the gate agree |
+
+### The fourth test that had written the defect down
+
+Finding #2 did not just contradict a fix; it contradicted a **test**. Round
+twelve's #3 was a disagreement between the approvals count and the approvals
+list about the same rows, and the fix settled it — on the side neither surface
+could act on. The test added to lock that in asserted `approvals: 2` and two
+rows for exactly the person the portal refuses.
+
+That is the fourth time a test in this PR has recorded the defect as its
+expectation, and it is the same lesson in a new place: reverting a fix cannot
+catch it, because the test fails for the revert precisely as designed. What
+catches it is the question round eleven already produced — *does this rule exist
+in the repo outside the change that introduced it?* Here the answer was eleven
+lines of `approvals.ts` that nobody had read, and the disagreement the round
+twelve fix was resolving had a right answer available the whole time.
+
+The test is now inverted, with the old expectation named in it, and a second
+test pins the case it must not take with it: an Operations Unit member who *is*
+a global admin still decides everything.
+
 ## 18. Base moves while the PR was open
 
 `main` moved seven times after the audit above was written. A clean textual

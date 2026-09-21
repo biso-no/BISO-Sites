@@ -394,6 +394,56 @@ describe("tool registration follows the profile", () => {
     }
   });
 
+  test("a revoked role does not survive the read TTL on a privileged read", async () => {
+    // The test above steps past the TTL, which is the easy half. The window
+    // inside it is the one that matters here: an ordinary read is gated twice
+    // — by this package and by Appwrite applying the caller's credential to
+    // the query — so a briefly stale principal costs nothing. Neither of these
+    // two tools has that second gate. `biso_integration_configuration` takes
+    // no principal at all, and `biso_event_audience` reads `event_attendees`
+    // and `segment_members` through the service key, which belongs to no user
+    // and carries no revocation. For both, this check is the only one, so the
+    // refresh is forced and the clock is deliberately left alone.
+    const teams = [
+      { $id: "SG-App-Dept-OperationsUnit", name: "SG-App-Dept-OperationsUnit" },
+      { $id: "SG-App-Campus-National", name: "SG-App-Campus-National" },
+    ];
+    const harness = await connect({
+      resolveFrom: { account: { $id: "u-1", email: "admin@biso.no" }, teams },
+      tables: {
+        events: [
+          {
+            $id: "e-1",
+            status: "published",
+            campus_id: "1",
+            slug: "e-1",
+            title: "Kickoff",
+          },
+        ],
+        campus: [{ $id: "1", name: "Oslo" }],
+      },
+    });
+    try {
+      teams.length = 0;
+
+      for (const name of [
+        "biso_integration_configuration",
+        "biso_event_audience",
+      ]) {
+        const denied = await harness.client.callTool({
+          name,
+          arguments: name === "biso_event_audience" ? { eventId: "e-1" } : {},
+        });
+        expect(denied.isError).toBe(true);
+        expect(
+          (denied.structuredContent as { error: { code: string } }).error.code
+        ).toBe("forbidden");
+      }
+    } finally {
+      await harness.close();
+    }
+  });
+
   test("write tools are not registered without a service key", async () => {
     const harness = await connect({
       principal: GLOBAL_ADMIN(),

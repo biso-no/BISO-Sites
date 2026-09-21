@@ -25,12 +25,15 @@ import {
   canPublish,
   canReadRow,
   describeScope,
+  PUBLISH_SCOPE_NOTE,
   relationId,
   rowOwnership,
   scopeQueries,
 } from "./scope";
 
 const DO_NOT_MANAGE_I_RE = /do not manage/i;
+const OWNING_DEPARTMENT_RE = /department that owns/i;
+const ADMINS_ONLY_RE = /only campus|only global/i;
 const NO_WRITE_ACCESS_TO_THIS_DEPARTMENT_I_RE =
   /no write access to this department/i;
 const NO_ACCESS_TO_BERGEN_CAMPUS_I_RE = /no access to Bergen \(campus 2\)/i;
@@ -212,6 +215,20 @@ describe("canReadRow", () => {
     expect(canReadRow(DEPARTMENT_MEMBER("dept-a", "1"), "1", "dept-b")).toBe(
       false
     );
+  });
+});
+
+describe("PUBLISH_SCOPE_NOTE", () => {
+  test("says what the gate does, including the owning department", () => {
+    // This guards a statement rather than a behaviour, and it exists because
+    // the statement was the thing that broke: `canPublishForCampus` was
+    // corrected to admit the owning department, and three separate texts went
+    // on describing the stricter rule. They now share this one sentence, so
+    // the check is that the sentence and the gate agree.
+    const owner = DEPARTMENT_MEMBER("dept-a", "1");
+    expect(canPublish(owner, "1", "dept-a")).toBe(true);
+    expect(PUBLISH_SCOPE_NOTE).toMatch(OWNING_DEPARTMENT_RE);
+    expect(PUBLISH_SCOPE_NOTE).not.toMatch(ADMINS_ONLY_RE);
   });
 });
 

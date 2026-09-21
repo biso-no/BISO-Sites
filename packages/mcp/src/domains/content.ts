@@ -20,6 +20,7 @@ import {
   assertPublishAccess,
   assertWriteAccess,
   describeScope,
+  PUBLISH_SCOPE_NOTE,
 } from "../identity/scope";
 import type { ToolContext } from "../runtime/context";
 import {
@@ -527,8 +528,7 @@ export const contentModule: ToolModule = {
     defineTool({
       name: "biso_content_set_lifecycle",
       title: "Publish, unpublish or archive",
-      description:
-        "Change a content item's publication state. `publish` makes it publicly visible, `unpublish` returns it to draft, `archive` retires it. Support varies by domain — call `biso_list_capabilities` first. Publishing requires campus-admin or global-admin scope for the item's campus; a department member who cannot publish directly can route it with `biso_request_approval`.",
+      description: `Change a content item's publication state. \`publish\` makes it publicly visible, \`unpublish\` returns it to draft, \`archive\` retires it. Support varies by domain — call \`biso_list_capabilities\` first. ${PUBLISH_SCOPE_NOTE} Routing it to the approver team with \`biso_request_approval\` instead is a process choice, not a way past a refusal.`,
       inputSchema: {
         domain: z.enum(CONTENT_DOMAINS).describe("Which content type."),
         id: z.string().min(1).describe("The row $id."),

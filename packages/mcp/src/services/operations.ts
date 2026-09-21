@@ -171,12 +171,12 @@ export function createOperationsService(
       // Two different eligibilities, previously collapsed into one gate.
       //
       // Approvals are routed by `approver_team_id`, so who can decide one is
-      // `approverTeamsFor` — the same answer `listPending` uses. That includes
-      // the Operations Unit override, and an Operations Unit member who does
-      // not also hold the National campus team is neither a global nor a campus
-      // admin: `deriveRoles` requires both. The old gate reported zero to
-      // exactly those people while `biso_list_pending_approvals` showed them
-      // the rows.
+      // `approverTeamsFor` — the same answer `listPending` uses, which is the
+      // point: the count and the list must not disagree about the same rows.
+      // That check now carries the portal's own role gate as well, so an
+      // Operations Unit member who holds neither admin role counts zero here
+      // and sees an empty queue there, which is what `approveRequest` will
+      // tell them.
       //
       // Submissions have no approver column and are routed by campus scope, so
       // that half keeps the admin check.

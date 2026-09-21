@@ -17,7 +17,7 @@ import { BRAND_ACCENT_VALUES } from "@repo/editor/theme/presets";
 import { describeConfig } from "../config/env";
 import { CAMPUS_NAME_TO_ID } from "../identity/campus";
 import { describePrincipal, isAnonymous } from "../identity/principal";
-import { describeScope } from "../identity/scope";
+import { describeScope, PUBLISH_SCOPE_NOTE } from "../identity/scope";
 import type { ToolContext } from "../runtime/context";
 import { BLOCK_TYPE_CATALOG, FEED_BINDING_BLOCKS } from "../services/blocks";
 import { supportMatrix } from "../services/content-registry";
@@ -168,9 +168,9 @@ metadata. Ownership decides who may edit it, so it cannot be changed casually.
 
 Creating something never publishes it. A draft carries no public read
 permission at all — it is invisible until a publish both flips the status and
-grants \`read(any)\`. Publishing needs campus-admin or global-admin scope for
-the item's campus. A department member who cannot publish directly can file an
-approval request, which routes to the campus management team.
+grants \`read(any)\`. ${PUBLISH_SCOPE_NOTE} Filing an approval request routes the publish to the
+campus management team instead; that is a process choice, not a way past a
+refusal.
 
 ## Tone
 

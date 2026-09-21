@@ -36,7 +36,12 @@ import { Query } from "@repo/api";
 import { DomainError, forbidden } from "../runtime/errors";
 import type { AppliedScope } from "../runtime/result";
 import { campusLabel, OPERATIONS_UNIT_TEAM_ID } from "./campus";
-import { isAnonymous, isGlobalAdmin, type Principal } from "./principal";
+import {
+  isAnonymous,
+  isCampusAdmin,
+  isGlobalAdmin,
+  type Principal,
+} from "./principal";
 
 /**
  * Matches no rows. Returned instead of `[]` whenever scope is unresolved.
@@ -191,13 +196,26 @@ export function describeScope(
  * as "waiting for your decision" has to filter on the decider's grant, not on
  * what the caller can see.
  *
+ * Row permissions are not sufficient in the other direction either, and that
+ * is the correction this function carries. Deciding happens in the portal —
+ * this package has no decide tool on purpose — and `approveRequest` and
+ * `rejectRequest` in `apps/admin/src/app/(portal)/_actions/approvals.ts` refuse
+ * anyone without `globaladmin` or `campusadmin` before they reach the row. An
+ * Operations Unit member holding neither role therefore has `update` on every
+ * request row and can decide none of them, so the queue is empty for them
+ * rather than complete. The team filter only applies to people that gate
+ * admits.
+ *
  * Team ids come from the verified memberships on the principal, never from an
- * argument. The Operations Unit holds `update` on every request row — the same
- * override the portal grants — so for its members there is no honest team
- * filter and row security is already the right boundary; that is what `null`
- * means here, and it is why callers must distinguish it from `[]`.
+ * argument. Among those who may decide, the Operations Unit holds `update` on
+ * every request row — the same override the portal grants — so there is no
+ * honest team filter and row security is already the right boundary; that is
+ * what `null` means here, and it is why callers must distinguish it from `[]`.
  */
 export function approverTeamsFor(principal: Principal): string[] | null {
+  if (!(isGlobalAdmin(principal) || isCampusAdmin(principal))) {
+    return [];
+  }
   const teams = [...principal.departmentTeamIds, ...principal.campusTeamIds];
   if (teams.includes(OPERATIONS_UNIT_TEAM_ID)) {
     return null;
@@ -288,6 +306,19 @@ export function assertPublishAccess(
 ): void {
   assertWriteAccess(principal, campusId, departmentId);
 }
+
+/**
+ * How {@link assertPublishAccess} reads in a tool description or a resource.
+ *
+ * Stated once and consumed everywhere, because restating it is what went
+ * wrong: the predicate beside this gate was corrected to admit the owning
+ * department, and three separate texts went on telling the model that only
+ * campus and global admins can publish — a stricter rule than the repo has,
+ * and one that sends a department member to file an approval request for
+ * something they are allowed to do themselves.
+ */
+export const PUBLISH_SCOPE_NOTE =
+  "Publishing follows the same scope as editing: campus and global admins for the item's campus, and the department that owns the row.";
 
 /** Whether this principal could publish for a campus, without throwing. */
 /**
