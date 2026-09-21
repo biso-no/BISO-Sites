@@ -77,3 +77,16 @@ export function sanitizeUploadFilename(name: string | undefined): string {
   const extension = EXTENSION_REGEX.exec(cleaned)?.[0] ?? "";
   return `${cleaned.slice(0, MAX_FILENAME_LENGTH - extension.length)}${extension}`;
 }
+
+/**
+ * Under `bun --bun next dev`, `request.blob()` drops the request's
+ * Content-Type, so the Blob reports `type: ""`. Fall back to the header (minus
+ * any `; charset=…` parameter) before defaulting to octet-stream.
+ */
+export function resolveUploadMimeType(
+  blobType: string,
+  contentTypeHeader: string | null
+): string {
+  const raw = blobType || contentTypeHeader?.split(";")[0] || "";
+  return raw.trim().toLowerCase() || "application/octet-stream";
+}

@@ -3,6 +3,7 @@ import {
   DEFAULT_UPLOAD_BUCKET,
   decodeUploadFilename,
   resolveUploadBucket,
+  resolveUploadMimeType,
   sanitizeUploadFilename,
 } from "./upload-buckets";
 
@@ -47,5 +48,22 @@ describe("upload filenames", () => {
     const sanitized = sanitizeUploadFilename(`${"a".repeat(300)}.jpeg`);
     expect(sanitized).toHaveLength(120);
     expect(sanitized).toEndWith(".jpeg");
+  });
+});
+
+describe("resolveUploadMimeType", () => {
+  it("prefers the blob's own type", () => {
+    expect(resolveUploadMimeType("image/png", "image/jpeg")).toBe("image/png");
+  });
+
+  it("falls back to the Content-Type header when the blob type is empty", () => {
+    expect(resolveUploadMimeType("", "image/jpeg")).toBe("image/jpeg");
+    expect(resolveUploadMimeType("", "Image/PNG; charset=binary")).toBe(
+      "image/png"
+    );
+  });
+
+  it("defaults to octet-stream when neither is present", () => {
+    expect(resolveUploadMimeType("", null)).toBe("application/octet-stream");
   });
 });
