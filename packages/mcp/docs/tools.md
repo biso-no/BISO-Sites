@@ -139,7 +139,7 @@ distinguishing them would confirm an id exists.
 
 | Tool | Notes |
 |---|---|
-| `biso_public_search` | `kind`: events, news, jobs, pages, units, benefits, documents. Runs on the **anonymous** client, so a draft cannot come back. `campusId` is optional for every kind; omitting it lists across campuses, and naming one adds national benefits to a `benefits` query. |
+| `biso_public_search` | `kind`: events, news, jobs, pages, units, benefits, documents. Runs on the **anonymous** client, so a draft cannot come back. `campusId` is optional for every kind; omitting it lists across campuses, and naming one adds national benefits to a `benefits` query. Event dates come back as stored UTC instants and a bare `YYYY-MM-DD` in `from` is read as that day's start in Europe/Oslo — see `services/event-time.ts`. |
 | `biso_public_get_page` | Returns the **published** document, never the draft. |
 
 Read the result's `warnings`: every kind except `pages` applies no free-text

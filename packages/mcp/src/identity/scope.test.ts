@@ -18,6 +18,7 @@ import {
   GLOBAL_ADMIN,
   makePrincipal,
 } from "../testing/index";
+import { NATIONAL_CAMPUS_ID } from "./campus";
 import {
   assertPublishAccess,
   assertWriteAccess,
@@ -124,6 +125,21 @@ describe("assertWriteAccess", () => {
   test("a campus admin may not write in another campus", () => {
     expect(() => assertWriteAccess(CAMPUS_ADMIN("Oslo", "1"), "2")).toThrow(
       DO_NOT_MANAGE_I_RE
+    );
+  });
+
+  test("a campus admin does not reach the National campus", () => {
+    // Pinning a decision, not an accident. `apps/admin`'s events surface wraps
+    // its context in `withNationalEventScope` so campus leadership can run
+    // national events; this server deliberately does not follow, because the
+    // event tools read `event_attendees` and `segment_members` on the service
+    // key and this check is all that scopes them. If that is ever reversed it
+    // should be by changing this test, not by noticing it went green.
+    expect(() =>
+      assertWriteAccess(CAMPUS_ADMIN("Oslo", "1"), NATIONAL_CAMPUS_ID)
+    ).toThrow(DO_NOT_MANAGE_I_RE);
+    expect(canReadRow(CAMPUS_ADMIN("Oslo", "1"), NATIONAL_CAMPUS_ID)).toBe(
+      false
     );
   });
 

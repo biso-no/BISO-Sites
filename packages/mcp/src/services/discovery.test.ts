@@ -555,3 +555,70 @@ describe("locale preference in page search", () => {
     expect(found.rows[0]?.title).toBe("English title");
   });
 });
+
+describe("the events date filter", () => {
+  /**
+   * An event that starts at 00:30 Oslo on 22 September — `2026-09-21T22:30Z`
+   * once stored. It belongs to the Oslo day a caller names, but sits before
+   * UTC midnight, so a `from` compared as written drops it from its own day.
+   */
+  const EARLY_ON_THE_22ND = "2026-09-21T22:30:00.000Z";
+
+  function eventTables() {
+    return {
+      events: [
+        {
+          $id: "early",
+          $updatedAt: "2026-01-02T00:00:00.000Z",
+          slug: "early",
+          status: "published",
+          campus_id: "1",
+          start_date: EARLY_ON_THE_22ND,
+          translation_refs: [],
+        } as FakeRow,
+      ],
+      campus: [{ $id: "1", name: "Oslo" } as FakeRow],
+    };
+  }
+
+  function service() {
+    return createDiscoveryService(
+      createFakeBackend({ tables: eventTables() }),
+      LINKS
+    );
+  }
+
+  test("a bare date keeps an event starting early on that Oslo day", async () => {
+    const found = await service().search({
+      kind: "events",
+      from: "2026-09-22",
+      limit: 25,
+      offset: 0,
+    });
+    expect(found.rows.map((row) => row.id)).toEqual(["early"]);
+  });
+
+  test("a bare date still excludes the day before", async () => {
+    // The resolution must move the boundary, not remove it.
+    const found = await service().search({
+      kind: "events",
+      from: "2026-09-23",
+      limit: 25,
+      offset: 0,
+    });
+    expect(found.rows).toEqual([]);
+  });
+
+  test("a full instant is used exactly as given", async () => {
+    // 22:45Z is after the event, so it must not come back — if the filter
+    // re-resolved a full timestamp against Oslo it would shift two hours and
+    // let it through.
+    const found = await service().search({
+      kind: "events",
+      from: "2026-09-21T22:45:00.000Z",
+      limit: 25,
+      offset: 0,
+    });
+    expect(found.rows).toEqual([]);
+  });
+});

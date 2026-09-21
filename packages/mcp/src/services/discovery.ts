@@ -31,6 +31,7 @@ import type { BackendClients } from "../appwrite/clients";
 import { campusLabel } from "../identity/campus";
 import { fromAppwriteError, notFound } from "../runtime/errors";
 import { scanForward } from "../runtime/scan";
+import { resolveDateFilter } from "./event-time";
 import type { Projected } from "./row";
 
 export type PublicLocale = "no" | "en";
@@ -88,7 +89,11 @@ const TEXT_SEARCH_NOTE: Record<PublicKind, string | null> = {
 export interface PublicItem {
   campusId: string | null;
   campusLabel: string;
-  /** Domain-specific dates: event start, deadline, publication. */
+  /**
+   * Domain-specific dates: event start, deadline, publication. Stored UTC
+   * instants, passed through unchanged; BISO schedules in Oslo wall-clock
+   * time, so the tools that return these say which zone to render them in.
+   */
   dates: Record<string, string | null>;
   id: string;
   kind: PublicKind;
@@ -114,7 +119,10 @@ export interface DiscoveryService {
     query?: string;
     campusId?: string;
     locale?: PublicLocale;
-    /** Events only: restrict to events starting on or after this ISO date. */
+    /**
+     * Events only: restrict to events starting on or after this ISO date.
+     * A bare `YYYY-MM-DD` is resolved against Oslo — see `event-time.ts`.
+     */
     from?: string;
     limit: number;
     offset: number;
@@ -219,7 +227,9 @@ export function createDiscoveryService(
       queries.push(Query.equal("campus_id", [input.campusId]));
     }
     if (input.from) {
-      queries.push(Query.greaterThanEqual("start_date", input.from));
+      queries.push(
+        Query.greaterThanEqual("start_date", resolveDateFilter(input.from))
+      );
     }
     const result = await db.listRows<Events>("app", "events", queries);
     const rows = result.rows.map((row): PublicItem => {

@@ -46,6 +46,7 @@ import {
   supports,
   unsupportedReason,
 } from "../services/content-registry";
+import { DATE_FILTER_NOTE } from "../services/event-time";
 import { hasRecruitmentAccess } from "../services/recruitment";
 import {
   localeInput,
@@ -333,7 +334,7 @@ export const contentModule: ToolModule = {
           .string()
           .optional()
           .describe(
-            "ISO date. For events this filters on start date; for everything else on last update."
+            `ISO date. For events this filters on start date; for everything else on last update. ${DATE_FILTER_NOTE}`
           ),
         ...localeInput,
         ...paginationInput,

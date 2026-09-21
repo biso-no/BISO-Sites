@@ -11,6 +11,7 @@ import { z } from "zod";
 import { defineTool, type ToolModule } from "../runtime/register";
 import { buildPagination, encodeCursor, PUBLIC_SCOPE } from "../runtime/result";
 import { PUBLIC_KINDS } from "../services/discovery";
+import { DATE_FILTER_NOTE, OSLO_TIME_NOTE } from "../services/event-time";
 import {
   ALL_PROFILES,
   localeInput,
@@ -30,8 +31,7 @@ export const discoveryModule: ToolModule = {
     defineTool({
       name: "biso_public_search",
       title: "Search published content",
-      description:
-        "Search what BISO publishes publicly. Runs as an anonymous visitor, so only published, publicly visible items are returned — never drafts, and never member-only redemption codes. Filter by campus, and for events by start date.",
+      description: `Search what BISO publishes publicly. Runs as an anonymous visitor, so only published, publicly visible items are returned — never drafts, and never member-only redemption codes. Filter by campus, and for events by start date. ${OSLO_TIME_NOTE}`,
       inputSchema: {
         kind: z
           .enum(PUBLIC_KINDS)
@@ -52,7 +52,7 @@ export const discoveryModule: ToolModule = {
           .string()
           .optional()
           .describe(
-            "Events only: ISO date; return events starting on or after it."
+            `Events only: ISO date; return events starting on or after it. ${DATE_FILTER_NOTE}`
           ),
         ...localeInput,
         ...paginationInput,

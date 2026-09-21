@@ -20,8 +20,7 @@
     "check-types": "tsc --noEmit",
     "clean": "git clean -xdf .cache .turbo dist node_modules",
     "lint": "biome lint .",
-    "test": "bun test ./src",
-    "inspect": "bun run ./scripts/inspect.ts"
+    "test": "bun test ./src"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.30.0",

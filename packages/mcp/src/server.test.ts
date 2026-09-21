@@ -1895,8 +1895,16 @@ describe("draft structure is not reachable through a second door", () => {
 });
 
 describe("the briefing and the audit report what they measured", () => {
-  const SOON = "2026-09-20T10:00:00.000Z";
-  const FAR = "2027-06-01T10:00:00.000Z";
+  /**
+   * Relative to the real clock, not the calendar. The briefing measures its
+   * horizon from `new Date()`, so a hardcoded date stops being "soon" the day
+   * it passes and the test then fails for a reason that has nothing to do with
+   * what it checks — which is exactly what happened to the literal that used
+   * to sit here.
+   */
+  const DAY = 86_400_000;
+  const SOON = new Date(Date.now() + 2 * DAY).toISOString();
+  const FAR = new Date(Date.now() + 300 * DAY).toISOString();
 
   /**
    * `BRIEFING_LIMIT` published events, all edited today and all starting far

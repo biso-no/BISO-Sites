@@ -15,6 +15,21 @@
  *   spread into the query and return every row in every campus.
  * - **Campus team membership alone grants nothing.** Read access needs a
  *   managed campus (campus admin) or a resolved department (department member).
+ *
+ * One deliberate divergence from what the portal *answers*, as opposed to what
+ * it computes. The four helpers above are unchanged, but since `ad20cd1`
+ * `apps/admin`'s events surface — and only that surface — passes them a
+ * context widened by `withNationalEventScope`, which adds the National campus
+ * to a campus admin's managed campuses so campus leadership can run national
+ * events. This server does not widen: the rule lives in an app rather than in
+ * a shared package or the row permissions, and the event tools here read
+ * `event_attendees` and `segment_members` with the service key because those
+ * tables have `rowSecurity: false` — which makes this campus check the only
+ * thing scoping them. Granting a campus admin another scope's attendee list on
+ * the strength of a rule read out of a second app is not a trade this package
+ * makes on its own. The honest consequence: a campus admin who can edit a
+ * national event in the portal is told "not found" when they ask this server
+ * about its audience. `docs/roadmap.md` has what a decision needs.
  */
 
 import { Query } from "@repo/api";

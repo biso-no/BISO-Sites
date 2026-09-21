@@ -17,6 +17,7 @@ import { isAnonymous } from "../identity/principal";
 import { describeScope } from "../identity/scope";
 import { defineTool, type ToolModule } from "../runtime/register";
 import type { ContentSummary } from "../services/content";
+import { OSLO_TIME_NOTE } from "../services/event-time";
 import { hasRecruitmentAccess } from "../services/recruitment";
 import { newRequestId, READ_ONLY, result, STAFF_PROFILES } from "./shared";
 
@@ -416,8 +417,7 @@ export const workflowsModule: ToolModule = {
     defineTool({
       name: "biso_campus_briefing",
       title: "Campus briefing",
-      description:
-        "A scoped snapshot of what needs attention: vacancies closing soon, events starting soon, unpublished drafts, pending approvals and unhandled submissions. Deterministic aggregation over your own scope — no model is involved, and every finding links to the item it came from.",
+      description: `A scoped snapshot of what needs attention: vacancies closing soon, events starting soon, unpublished drafts, pending approvals and unhandled submissions. Deterministic aggregation over your own scope — no model is involved, and every finding links to the item it came from. ${OSLO_TIME_NOTE}`,
       inputSchema: {
         campusId: z
           .string()

@@ -255,3 +255,52 @@ describe("product link-only status", () => {
     expect(result.rows.map((row) => row.id)).toContain("p-link-only");
   });
 });
+
+describe("the updatedSince filter", () => {
+  /**
+   * For events `updatedSince` filters on `start_date`, so it carries the same
+   * Oslo day boundary as public discovery's `from`. This event starts 00:30
+   * Oslo on 22 September; a bare date compared as written is UTC midnight and
+   * drops it from the day it belongs to.
+   */
+  const EARLY_ON_THE_22ND = "2026-09-21T22:30:00.000Z";
+
+  function eventService() {
+    return createContentService(
+      createFakeBackend({
+        tables: {
+          events: [
+            {
+              $id: "early",
+              $updatedAt: "2026-01-02T00:00:00.000Z",
+              status: "published",
+              campus_id: "1",
+              slug: "early",
+              start_date: EARLY_ON_THE_22ND,
+            } as FakeRow,
+          ],
+          campus: [{ $id: "1", name: "Oslo" } as FakeRow],
+        },
+      }),
+      LINKS
+    );
+  }
+
+  test("a bare date keeps an event starting early on that Oslo day", async () => {
+    const result = await eventService().search(GLOBAL_ADMIN(), {
+      domain: "events",
+      updatedSince: "2026-09-22",
+      ...PAGE,
+    });
+    expect(result.rows.map((row) => row.id)).toEqual(["early"]);
+  });
+
+  test("a bare date still excludes the day after", async () => {
+    const result = await eventService().search(GLOBAL_ADMIN(), {
+      domain: "events",
+      updatedSince: "2026-09-23",
+      ...PAGE,
+    });
+    expect(result.rows).toEqual([]);
+  });
+});

@@ -49,6 +49,7 @@ import {
   type ContentDomainSpec,
   domainSpec,
 } from "./content-registry";
+import { resolveDateFilter } from "./event-time";
 import {
   buildContentRowPermissions,
   buildTranslationRowPermissions,
@@ -93,7 +94,10 @@ export interface ContentSearchInput {
   /** Free-text term matched against the domain's title/description. */
   query?: string;
   status?: string;
-  /** ISO date; only rows whose primary date is on/after this. */
+  /**
+   * ISO date; only rows whose primary date is on/after this. A bare
+   * `YYYY-MM-DD` is resolved against Oslo — see `event-time.ts`.
+   */
   updatedSince?: string;
 }
 
@@ -565,7 +569,7 @@ export function createContentService(
       queries.push(
         Query.greaterThanEqual(
           primaryDateField(spec.domain),
-          input.updatedSince
+          resolveDateFilter(input.updatedSince)
         )
       );
     }

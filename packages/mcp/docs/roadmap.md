@@ -189,6 +189,38 @@ which has the bug in more places than this package ever did.
 **If refuted:** the counts changed here stay correct either way, but the comment
 in `apps/web` should be corrected so the next reader does not inherit it.
 
+### 3.6 Decide whether campus leadership reaches national events here
+
+Since `ad20cd1`, `apps/admin` wraps its events surface — and only that surface —
+in `withNationalEventScope`, adding the National campus to a campus admin's
+managed campuses so campus leadership, which includes each campus's head of PR,
+can list, create, edit, publish and delete national events. This package does
+not follow, and `identity/scope.ts` says why: the rule lives in an app rather
+than in a shared package or the row permissions, and the event tools here read
+`event_attendees` and `segment_members` with the service key because those
+tables have `rowSecurity: false`, which makes this package's campus check the
+only thing scoping them. Widening on the strength of an app-local rule would
+hand a campus admin another scope's attendee list on the service key's
+authority.
+
+The result is a real gap, not a tidy one: a campus admin who can edit a
+national event in the portal gets "not found" from `biso_event_segments` and
+`biso_event_audience` for the same event.
+
+**Blocker:** this is a question for a maintainer, not a fact to look up. Is
+campus leadership meant to see the attendee list of a national event, or only
+to edit the event record? The portal's widening does not distinguish the two,
+because everything it scopes is the event row; here the same widening would
+also open the attendee and segment tables, which no backend permission guards.
+
+**If they are:** the rule belongs in `@repo/shared` rather than in
+`apps/admin/src/lib`, so both consumers derive it from one place; this package
+would then apply it to the event surface only, as admin does, and the pinning
+test in `identity/scope.test.ts` inverts.
+
+**If they are not:** admin's widening needs to stop short of the attendee view,
+and this package's narrower answer is already correct.
+
 ---
 
 ## Schema changes (separate future tasks)

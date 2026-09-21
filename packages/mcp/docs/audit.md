@@ -915,3 +915,66 @@ rather than emitted by the model. This package reads the persisted
 `screening_score` column and never the AI output schema, and
 `biso_list_applications` describes the ordering without claiming a scale or
 bands, so there is no statement here to correct.
+
+### Eighth base move: `28f9a3b → ad20cd1`
+
+Two commits, neither inert. One consolidates a rule this package also has to
+state; the other changes what the portal *answers* without changing the module
+this package ports.
+
+**`24f727d` — `packages/shared/utils/oslo-time.ts`.** A new shared helper, now
+used by ten components across both apps, stating the repo's rule in one place:
+BISO's events are entered and shown as Europe/Oslo wall-clock time whatever
+zone the process runs in, and stored as UTC ISO instants. This is the same
+shape as the fifth move's slug consolidation — a rule this package touches
+without owning — and it reaches here twice.
+
+*Filters.* `biso_public_search`'s `from` and `biso_content_search`'s
+`updatedSince` were passed to Appwrite as written. A caller asking for events
+"from 2026-09-22" means the Oslo day; compared as written that is UTC midnight,
+02:00 in Oslo, so an event starting earlier that Oslo morning was dropped from
+the day it belongs to. `services/event-time.ts` now resolves a bare
+`YYYY-MM-DD` through the shared `osloWallClockToIso` and leaves a full
+timestamp alone — it already names an instant, and re-resolving it would move
+the caller's boundary by an hour or two. Both call sites were fixed, not just
+the one the rule surfaced on: against the pre-fix code the discovery test and
+the content test each fail.
+
+*Descriptions.* This package renders nothing and keeps returning the stored
+instant, which is exact and self-describing — but an instant rendered without
+its zone reads as an event one or two hours before the one BISO scheduled. The
+tools whose answer is a time (`biso_public_search`, `biso_campus_briefing`) and
+both date filters now say which zone to render in, with the zone taken from
+`OSLO_TIME_ZONE` rather than a local copy, and a test asserts that so a future
+change to the shared rule cannot leave a stale zone behind here. The generic
+content tools make no timing claim and were left alone.
+
+**`ad20cd1` — `withNationalEventScope` in `apps/admin/src/lib/event-scope.ts`.**
+Campus admins now also manage National-campus events, within admin's events
+surface only. The four helpers this package ports
+(`apps/admin/src/lib/utils/authorization.ts`) are unchanged, so the port is
+still faithful; what changed is the context admin feeds them.
+
+This package does not follow, and `identity/scope.ts` now says so rather than
+leaving the reader to infer parity from "a faithful port". Two reasons. The
+rule lives in an app, not in a shared package or the row permissions — and the
+`events` table grants no table-level update at all, so nothing in the backend
+expresses it either way. And the event tools here read `event_attendees` and
+`segment_members` with the service key precisely because those tables have
+`rowSecurity: false`, which makes this campus check the only thing scoping
+them; widening it would hand a campus admin another scope's attendee list on
+the service key's authority, on the strength of a rule read out of a second
+app. The consequence is stated plainly rather than hidden: a campus admin who
+can edit a national event in the portal is told "not found" when they ask this
+server about its audience. Pinned by a test that says it is a decision, and
+carried to `roadmap.md` as a question for a maintainer, since settling it means
+knowing whether campus leadership is meant to see national attendee lists.
+
+**An expired fixture, found by the same run.** `server.test.ts` pinned the
+briefing's "imminent event" to `2026-09-20`, two days out when it was written.
+Real time passed it and the test began failing for a reason unrelated to what
+it checks. The fixture is now relative to the clock the briefing actually reads
+(`Date.now()`), and the repaired test was re-verified to still fail when the
+ordering it guards is reverted. It is this package's only clock-dependent
+fixture; the sweep that found it checked every other date literal in the suite,
+and the rest are compared against each other, not against now.
