@@ -142,7 +142,7 @@ export async function createBisoMcpServer(
   });
 
   const links = buildLinks(config);
-  const services = createServices(clients, links);
+  const services = createServices(clients, links, options.env);
 
   const server = new McpServer(
     { name: SERVER_NAME, version: SERVER_VERSION },

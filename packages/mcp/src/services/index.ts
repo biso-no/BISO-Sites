@@ -47,7 +47,17 @@ export interface ServiceLinks {
 
 export function createServices(
   clients: BackendClients,
-  links: ServiceLinks
+  links: ServiceLinks,
+  /**
+   * The same record the configuration was parsed from.
+   *
+   * `biso_integration_configuration` reports which variables are set *in this
+   * process*, so an embedded caller that passes `env` to
+   * `createBisoMcpServer` must get an answer about that record — not about the
+   * host's ambient `process.env`, which would both be wrong and disclose the
+   * host's unrelated variables.
+   */
+  env?: Record<string, string | undefined>
 ): Services {
   // `lookups` is shared rather than built twice: it caches campuses and
   // departments, and recruitment's scope resolution needs the same view.
@@ -59,7 +69,7 @@ export function createServices(
     discovery: createDiscoveryService(clients, links),
     events: createEventsService(clients),
     lookups,
-    operations: createOperationsService(clients),
+    operations: createOperationsService(clients, env),
     pages: createPageService(clients, links),
     recruitment: createRecruitmentService(clients, lookups),
   };

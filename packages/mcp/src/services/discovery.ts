@@ -26,6 +26,7 @@ import type {
   Pages,
 } from "@repo/api/types/appwrite";
 import { resolveBenefitCampusIds } from "@repo/shared/utils/benefit-scope";
+import { unitCanonicalPath } from "@repo/shared/utils/unit-urls";
 import { isPublicUnit } from "@repo/shared/utils/unit-visibility";
 import type { BackendClients } from "../appwrite/clients";
 import { campusLabel } from "../identity/campus";
@@ -471,9 +472,18 @@ export function createDiscoveryService(
           campusId: row.campus_id,
           campusLabel: campusLabel(row.campus_id),
           dates: {},
-          url: row.slug
-            ? links.web(`/units/${row.campus_id}/${row.slug}`)
-            : null,
+          // `/units/<campus-segment>/<slug>`, never the campus id: the
+          // public route resolves the segment with `campusSegmentToId`, which
+          // answers null for "2" and 404s. `@repo/shared/utils/unit-urls` is
+          // the repo's single definition of that convention and backs every
+          // other producer of these links.
+          url: (() => {
+            const path = unitCanonicalPath({
+              campusId: row.campus_id,
+              slug: row.slug,
+            });
+            return path ? links.web(path) : null;
+          })(),
           memberOnly: false,
         };
       },
@@ -507,7 +517,19 @@ export function createDiscoveryService(
       Query.offset(input.offset),
     ];
     if (input.campusId) {
-      queries.push(Query.equal("campus_id", [input.campusId]));
+      // A campus filter must not hide the national documents — statutes and
+      // organisation-wide policy — that the same signed-out visitor sees on
+      // the public site. `listPublishedDocuments` in `apps/web` runs two
+      // queries and merges them, and says why in its own comment: national
+      // documents are "always shown regardless of campus filter", because
+      // their visibility comes from `scope`, not from the campus selected.
+      // Filtering on `campus_id` alone dropped every one of them.
+      queries.push(
+        Query.or([
+          Query.equal("scope", ["national"]),
+          Query.equal("campus_id", [input.campusId]),
+        ])
+      );
     }
     const result = await db.listRows<
       Projected<{

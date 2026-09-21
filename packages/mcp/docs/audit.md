@@ -729,6 +729,36 @@ The test is now inverted, with the old expectation named in it, and a second
 test pins the case it must not take with it: an Operations Unit member who *is*
 a global admin still decides everything.
 
+## 17c. Fourteenth review round
+
+A fourteenth review of `13dcfc9` raised eight — one P1 — the largest round
+since the third. All eight reproduced.
+
+| # | Area | Verified as | Fix |
+|---|---|---|---|
+| 1 | `domains/content.ts` | **Confirmed (P1).** In `confirm` mode the handler *waits*: the dispatcher's forced refresh runs before it, and the elicitation then sits open for as long as the person takes, up to the proposal's ten minutes. A revocation landing in that window is invisible, and the write executes through the elevated client, so Appwrite cannot apply it either. The fifth member of the stale-principal family, and the only window the previous four left open | `assertUnchangedAuthority` compares an `authorityFingerprint` (sorted, so re-resolve order cannot trip it) before and after the dialog, in the one funnel all five mutating tools share. Comparing the whole authority rather than re-running each domain's predicate needs no per-call-site knowledge, so it cannot be threaded through four call sites and forgotten at the fifth; a *widened* grant is refused too, because what the person accepted was authorized by the memberships of that moment |
+| 2 | `domains/content.ts` | **Confirmed.** The registry withdraws reads for `pages` — "every operation, reads included" — but the generic handlers called only `assertRecruitmentGate`, so `domain: "pages"` dispatched anyway and the generic service, which neither projects nor decodes `page_translations`, returned a null title and no translations. The withdrawal was advertised and not enforced | `assertDomainSupports(domain, "search" \| "get")` at both handlers, so the registry's own sentence is what the caller gets |
+| 3 | `services/pages.ts` | **Confirmed.** Two rows, two requests, no transaction. The locale update copies the draft and sets `is_published` *before* the page update runs; if the second fails the locale is public now — certainly when the page is already published through another locale — while the caller is told the operation failed. Unpublishing has the mirror problem | The committed half is reported, not compensated: a compensating write can fail the same way and this package does not promise rollback. The underlying code is kept, so a permission error still reads as one, and `remedy` names the step that finishes or undoes it |
+| 4 | `resources/index.ts` | **Confirmed.** Resource reads never pass through `invokeTool`, so nothing refreshed the identity resource: it described the startup principal for the life of the process while `biso_whoami` and every authorization check used the current one — the server disagreeing with itself about who the caller is | The resource resolves the principal itself, unforced, matching the read it is: the TTL applies and a failed refresh serves the cached identity rather than making the resource unreadable |
+| 5 | `services/discovery.ts` | **Confirmed against the public site.** `listPublishedDocuments` in `apps/web` runs two queries and merges them, and says why in its own comment: national documents are shown "regardless of campus filter", because their visibility comes from `scope`. Filtering on `campus_id` alone hid every statute and organisation-wide policy from a campus-scoped search — documents the same signed-out visitor sees on the site | `Query.or` of `scope = national` and the requested campus. Still a filter: another campus's bylaws stay out |
+| 6 | `services/recruitment.ts` | **Confirmed.** `order: "deadline"` excluded null deadlines — a fix from an earlier round — but not *past* ones. A vacancy stays `published` after its deadline, so ascending order puts the oldest expired rows first and they fill the briefing's whole window; the workflow filters them out locally and reports nothing closing soon while a vacancy closes this week | A lower bound on `application_deadline` in the query, before the limit. The same fix, one step further along than last time |
+| 7 | `services/discovery.ts` | **Confirmed.** Unit links were built by hand as `/units/<campus-id>/<slug>`, but the public route resolves the *segment*: `campusSegmentToId("2")` is null, so `/units/2/fadderullan` 404s. `@repo/shared/utils/unit-urls` is the repo's single definition of the convention and backs every other producer | `unitCanonicalPath`, the same helper the rest of the repo uses |
+| 8 | `server.ts` | **Confirmed.** `loadConfig(options.env)` parses the record an embedded caller supplies, but `createServices` was called without it, so `createOperationsService` fell back to the host's ambient `process.env`. `biso_integration_configuration` therefore answered about the host's variables — wrong for the caller, and a disclosure of variables that have nothing to do with this server | The record is threaded through `createServices`. Omitting it still defaults to `process.env`, so the standalone binary is unchanged |
+
+### A third expired fixture, found by its own fix
+
+Finding #6's lower bound immediately failed `recruitment.test.ts`, whose
+"closes tomorrow" vacancy was dated `2026-09-17` — in the past by the time the
+fix landed. The sweep after the eighth base move had looked at that fixture and
+judged it safe, correctly: the test asserted *ordering*, and `2026-09-17 <
+2027-01-01` holds whatever the date is. Adding a bound against the real clock is
+what made its literals matter.
+
+So the rule learned there needs widening, and this is where it is written down:
+a fixture is clock-dependent not when it is compared against `now` today, but
+when it *could* be. Both deadline fixtures are now relative to `Date.now()`,
+which is how they should have been written in the first place.
+
 ## 18. Base moves while the PR was open
 
 `main` moved seven times after the audit above was written. A clean textual

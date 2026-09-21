@@ -56,7 +56,7 @@ export function registerResources(
     name: string,
     description: string,
     mimeType: string,
-    read: () => ReturnType<typeof json>
+    read: () => ReturnType<typeof json> | Promise<ReturnType<typeof json>>
   ) => {
     server.registerResource(
       name,
@@ -72,13 +72,25 @@ export function registerResources(
     "Current principal",
     "The verified identity this server acts as, its derived roles, and the scope every result is filtered to.",
     "application/json",
-    () =>
-      json("biso://identity/principal", {
-        principal: describePrincipal(context.principal),
-        scope: describeScope(context.principal),
+    async () => {
+      // Resource reads never pass through `invokeTool`, so nothing else
+      // refreshes this one: `context.principal` is the identity resolved at
+      // startup, and a stdio server outlives that by hours. Left alone, this
+      // resource keeps describing revoked roles and campuses while
+      // `biso_whoami` and every authorization check use the current ones — the
+      // resource disagreeing with the server about who the caller is.
+      //
+      // Unforced, matching the read it is: the TTL applies, and a refresh that
+      // fails serves the cached identity rather than making the resource
+      // unreadable.
+      const principal = await context.refreshPrincipal();
+      return json("biso://identity/principal", {
+        principal: describePrincipal(principal),
+        scope: describeScope(principal),
         server: describeConfig(context.config),
         writeMode: context.mutation.writeMode,
-      })
+      });
+    }
   );
 
   add(

@@ -310,6 +310,19 @@ export function createRecruitmentService(
         // Ascending order would otherwise fill the window with vacancies that
         // have no deadline at all — the rows this ordering exists to exclude.
         queries.push(Query.isNotNull("application_deadline"));
+        // And with vacancies whose deadline has already passed, which is the
+        // same failure one step further on: a vacancy stays `published` after
+        // its deadline (`isRecruitmentVacancyOpen` exists because status alone
+        // is not "open"), so the oldest expired rows sort first and can fill
+        // the briefing's whole window. The caller then filters them out and is
+        // told nothing is closing soon while later vacancies close this week.
+        // The bound belongs in the query, before the limit, not after it.
+        queries.push(
+          Query.greaterThanEqual(
+            "application_deadline",
+            new Date().toISOString()
+          )
+        );
       }
 
       if (input.status) {

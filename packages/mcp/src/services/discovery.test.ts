@@ -622,3 +622,97 @@ describe("the events date filter", () => {
     expect(found.rows).toEqual([]);
   });
 });
+
+describe("public links and campus scope match the public site", () => {
+  test("a unit link uses the canonical campus segment, not the campus id", async () => {
+    // `/units/2/fadderullan` 404s: the public route resolves the segment with
+    // `campusSegmentToId`, which answers null for "2". The convention lives in
+    // `@repo/shared/utils/unit-urls` and backs every other producer of these
+    // links, so discovery has to go through it too.
+    const service = createDiscoveryService(
+      createFakeBackend({
+        tables: {
+          departments: [
+            {
+              $id: "u-1",
+              Name: "Fadderullan",
+              campus_id: "2",
+              slug: "fadderullan",
+              type: "unit",
+              active: true,
+            } as FakeRow,
+          ],
+        },
+      }),
+      LINKS
+    );
+    const found = await service.search({
+      kind: "units",
+      locale: "no",
+      limit: 20,
+      offset: 0,
+    });
+
+    expect(found.rows[0]?.url).toBe("https://biso.no/units/bergen/fadderullan");
+  });
+
+  test("a campus filter keeps the national documents the site always shows", async () => {
+    // `listPublishedDocuments` in `apps/web` runs two queries and merges them,
+    // and says why: national documents are shown "regardless of campus
+    // filter", because their visibility comes from `scope`. Filtering on
+    // `campus_id` alone hid every statute from a campus-scoped search.
+    const service = createDiscoveryService(
+      createFakeBackend({
+        tables: {
+          documents: [
+            {
+              $id: "statutes",
+              $updatedAt: "2026-01-02T00:00:00.000Z",
+              title: "Statutes",
+              status: "published",
+              scope: "national",
+              campus_id: null,
+              category: "governing",
+              sort_order: 1,
+            } as FakeRow,
+            {
+              $id: "oslo-bylaws",
+              $updatedAt: "2026-01-02T00:00:00.000Z",
+              title: "Oslo bylaws",
+              status: "published",
+              scope: "campus",
+              campus_id: "1",
+              category: "campus-bylaws",
+              sort_order: 2,
+            } as FakeRow,
+            {
+              $id: "bergen-bylaws",
+              $updatedAt: "2026-01-02T00:00:00.000Z",
+              title: "Bergen bylaws",
+              status: "published",
+              scope: "campus",
+              campus_id: "2",
+              category: "campus-bylaws",
+              sort_order: 3,
+            } as FakeRow,
+          ],
+          campus: [{ $id: "1", name: "Oslo" } as FakeRow],
+        },
+      }),
+      LINKS
+    );
+    const found = await service.search({
+      kind: "documents",
+      campusId: "1",
+      locale: "no",
+      limit: 20,
+      offset: 0,
+    });
+
+    const ids = found.rows.map((row) => row.id);
+    expect(ids).toContain("statutes");
+    expect(ids).toContain("oslo-bylaws");
+    // Still a campus filter: another campus's bylaws stay out.
+    expect(ids).not.toContain("bergen-bylaws");
+  });
+});

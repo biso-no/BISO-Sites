@@ -14,6 +14,7 @@
 
 import { describe, expect, test } from "bun:test";
 import type { PageDoc } from "@repo/api/page-builder";
+import { DomainError } from "../runtime/errors";
 import {
   CAMPUS_ADMIN,
   createFakeBackend,
@@ -405,7 +406,54 @@ describe("saveDraft", () => {
   });
 });
 
+const COMMITTED_I_RE = /committed/i;
+const RECOVERY_I_RE = /unpublish the locale|re-run/i;
+
 describe("setPublished", () => {
+  test("reports the locale that committed when the page row fails", async () => {
+    // Two rows, two requests, no transaction across them. If the locale
+    // update commits and the page update does not, the draft is public *now*
+    // — certainly so when the page is already published through another
+    // locale — while a plain error tells the caller nothing was written. No
+    // compensating write is attempted, because it can fail the same way.
+    const backend = createFakeBackend({
+      tables: tablesWith(),
+      onWrite: (_op, table) => {
+        if (table === "pages") {
+          throw new Error("page row update failed");
+        }
+      },
+    });
+    const service = createPageService(backend, LINKS);
+
+    let thrown: unknown;
+    try {
+      await service.setPublished(GLOBAL_ADMIN(), {
+        pageId: "page-1",
+        locale: "no",
+        published: true,
+        expectedRevision: null,
+      });
+    } catch (error) {
+      thrown = error;
+    }
+
+    expect(thrown).toBeInstanceOf(DomainError);
+    const failure = thrown as DomainError;
+    expect(failure.message).toMatch(COMMITTED_I_RE);
+    expect(failure.details.committed).toMatchObject({
+      table: "page_translations",
+      isPublished: true,
+    });
+    expect(failure.details.pageStatusUpdated).toBe(false);
+    expect(failure.remedy).toMatch(RECOVERY_I_RE);
+    // The locale really did commit — that is the whole point.
+    expect(
+      backend.writes.find((write) => write.table === "page_translations")?.data
+        ?.is_published
+    ).toBe(true);
+  });
+
   test("copies the draft into the published document", async () => {
     const backend = createFakeBackend({ tables: tablesWith() });
     const service = createPageService(backend, LINKS);

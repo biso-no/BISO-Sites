@@ -28,8 +28,8 @@
 
 import { createHash, randomUUID, timingSafeEqual } from "node:crypto";
 import type { WriteMode } from "../config/env";
-import type { Principal } from "../identity/principal";
-import { DomainError, requiresAuthorization } from "./errors";
+import { authorityFingerprint, type Principal } from "../identity/principal";
+import { DomainError, forbidden, requiresAuthorization } from "./errors";
 
 /**
  * How reversible an operation is, and therefore what may authorize it.
@@ -348,6 +348,39 @@ export function verifyProposalToken(input: {
  * the revision re-read catches the drift; for a create there is no revision to
  * catch it with.
  */
+/**
+ * Refuse a write whose author's authority changed while a human was deciding.
+ *
+ * The dispatcher forces a principal refresh before the handler runs, which is
+ * the right moment for every write except one: in `confirm` mode the handler
+ * then *waits*, for as long as the person takes to answer the elicitation, and
+ * up to the proposal's ten-minute life. A revocation landing in that window is
+ * invisible to the check that already ran, and the write executes through the
+ * elevated client, so Appwrite never sees the caller's identity and cannot
+ * apply it either.
+ *
+ * Comparing the whole authority rather than re-running each domain's predicate
+ * is deliberate. It needs no per-call-site knowledge, so it cannot be threaded
+ * through four of five call sites and forgotten at the fifth, and it fails
+ * closed on a change this package has not thought of. A grant that widened is
+ * refused too: what the person was shown and accepted was authorized by the
+ * memberships of that moment, and re-proposing costs one call.
+ */
+export function assertUnchangedAuthority(
+  before: Principal,
+  after: Principal,
+  action: string
+): void {
+  if (authorityFingerprint(before) === authorityFingerprint(after)) {
+    return;
+  }
+  throw forbidden(
+    "Your access changed while this was waiting for confirmation.",
+    { action },
+    "Nothing was written. The memberships that authorized this change are not the ones you hold now — propose it again to see what is currently permitted."
+  );
+}
+
 export function assertNotExpired(expiresAt: string, now?: Date): void {
   const at = Date.parse(expiresAt);
   if (Number.isNaN(at)) {

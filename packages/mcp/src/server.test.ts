@@ -36,6 +36,8 @@ import {
 } from "./testing/index";
 
 const BISO_RE = /^biso_/;
+const GLOBAL_ADMIN_RE = /globaladmin/;
+const PAGE_TOOL_RE = /biso_page_/;
 const NO_USER_CREDENTIAL_I_RE = /no user credential/i;
 const OSLO_RE = /Oslo/;
 const NOT_VALID_FOR_NEWS_I_RE = /not valid for news/i;
@@ -157,6 +159,8 @@ async function connect(options: {
   onWrite?: (op: "create" | "update" | "upsert", table: string) => void;
   /** Throw from here to simulate a backend that is partially unavailable. */
   onRead?: (table: string) => void;
+  /** The environment record an embedded caller would supply. */
+  env?: Record<string, string | undefined>;
 }): Promise<Harness> {
   const { logger, lines } = collectingLogger();
   const backend = createFakeBackend({
@@ -174,6 +178,7 @@ async function connect(options: {
   // unregistered and silently turn the mutation tests into no-ops.
   const created = await createBisoMcpServer({
     config,
+    env: options.env,
     logger,
     principalOverride: options.principal,
     clientsOverride: backend,
@@ -1398,6 +1403,105 @@ describe("errors", () => {
   });
 });
 
+describe("a withdrawn operation is refused, not dispatched", () => {
+  test.each([
+    ["biso_content_search", { domain: "pages", limit: 5 }],
+    ["biso_content_get", { domain: "pages", id: "p-1" }],
+  ])("%s refuses pages and names the tool that handles them", async (tool, args) => {
+    // The registry withdraws reads for `pages` as well as writes: the generic
+    // service neither projects nor decodes `page_translations`, so a dispatch
+    // returns a null title and no translations for a page that has both, and
+    // applies a weaker visibility rule than `biso_page_list`. The withdrawal
+    // was advertised in the support matrix and not enforced at dispatch.
+    const harness = await connect({ principal: GLOBAL_ADMIN() });
+    try {
+      const refused = await harness.client.callTool({
+        name: tool,
+        arguments: args,
+      });
+      expect(refused.isError).toBe(true);
+      const error = (
+        refused.structuredContent as {
+          error: { code: string; message: string };
+        }
+      ).error;
+      expect(error.code).toBe("not_supported");
+      expect(error.message).toMatch(PAGE_TOOL_RE);
+    } finally {
+      await harness.close();
+    }
+  });
+});
+
+describe("what an embedded caller supplies is what is reported", () => {
+  test("integration configuration reads the supplied env, not the host's", async () => {
+    // `loadConfig` parses the record an embedded caller passes, but the
+    // services were built without it, so this tool answered from the host's
+    // ambient `process.env` — wrong for the caller, and a disclosure of
+    // variables that have nothing to do with this server.
+    const harness = await connect({
+      principal: GLOBAL_ADMIN(),
+      env: {
+        AZURE_GRAPH_TENANT_ID: "t",
+        AZURE_GRAPH_CLIENT_ID: "c",
+        AZURE_GRAPH_CLIENT_SECRET: "s",
+      },
+    });
+    try {
+      const { structured } = await callTool(
+        harness.client,
+        "biso_integration_configuration",
+        {}
+      );
+      const integrations = (
+        structured?.data as {
+          integrations: Array<{ name: string; configured: boolean }>;
+        }
+      ).integrations;
+      const configured = integrations
+        .filter((entry) => entry.configured)
+        .map((entry) => entry.name);
+      // Exactly the one the supplied record satisfies. Everything else is
+      // absent from it, so nothing can report as configured off the back of
+      // the host's environment.
+      expect(configured).toHaveLength(1);
+      expect(configured[0]).toContain("Microsoft Graph");
+    } finally {
+      await harness.close();
+    }
+  });
+
+  test("the identity resource reflects a revoked membership", async () => {
+    // Resource reads never pass through `invokeTool`, so nothing refreshed
+    // this one: it kept describing the startup principal while `biso_whoami`
+    // and every authorization check used the current one.
+    const teams = [
+      { $id: "SG-App-Dept-OperationsUnit", name: "SG-App-Dept-OperationsUnit" },
+      { $id: "SG-App-Campus-National", name: "SG-App-Campus-National" },
+    ];
+    const harness = await connect({
+      resolveFrom: { account: { $id: "u-1", email: "admin@biso.no" }, teams },
+    });
+    try {
+      const before = await harness.client.readResource({
+        uri: "biso://identity/principal",
+      });
+      expect(JSON.stringify(before)).toMatch(GLOBAL_ADMIN_RE);
+
+      teams.length = 0;
+      setSystemTime(new Date(Date.now() + PRINCIPAL_TTL_MS + 1000));
+
+      const after = await harness.client.readResource({
+        uri: "biso://identity/principal",
+      });
+      expect(JSON.stringify(after)).not.toMatch(GLOBAL_ADMIN_RE);
+    } finally {
+      setSystemTime();
+      await harness.close();
+    }
+  });
+});
+
 describe("resources and prompts", () => {
   test("the support matrix resource is readable", async () => {
     const harness = await connect({ principal: GLOBAL_ADMIN() });
@@ -2149,6 +2253,75 @@ describe("a confirmation dialog does not extend a proposal's life", () => {
       expect(domainWrites(harness)).toHaveLength(0);
     } finally {
       setSystemTime();
+      await harness.close();
+    }
+  });
+});
+
+describe("a confirmation dialog does not outlive the authority behind it", () => {
+  test("a membership revoked while the dialog is open writes nothing", async () => {
+    // The dispatcher's forced refresh runs before the handler, which covers
+    // every write except the one that then waits on a person. A dialog can sit
+    // open for the proposal's whole ten minutes, and the write executes through
+    // the elevated client, so Appwrite never sees the caller and cannot apply
+    // the revocation either. `resolveFrom` rather than an injected principal,
+    // because an injected one is held fixed and has no memberships to lose.
+    const teams = [
+      { $id: "SG-App-Dept-OperationsUnit", name: "SG-App-Dept-OperationsUnit" },
+      { $id: "SG-App-Campus-National", name: "SG-App-Campus-National" },
+    ];
+    const harness = await connect({
+      resolveFrom: { account: { $id: "u-1", email: "admin@biso.no" }, teams },
+      config: baseConfig({ writeMode: "confirm" }),
+      clientCapabilities: { elicitation: {} },
+    });
+    try {
+      const args = {
+        domain: "news",
+        slug: "revoked-mid-dialog",
+        campusId: "1",
+        titleNo: "Tittel",
+        titleEn: "Title",
+        descriptionNo: "Tekst",
+        descriptionEn: "Text",
+      };
+      const proposed = await callTool(
+        harness.client,
+        "biso_content_create_draft",
+        args
+      );
+      const proposal = (
+        proposed.structured?.data as {
+          proposal: { proposalToken: string; expiresAt: string };
+        }
+      ).proposal;
+
+      // Revoked while the person is deciding — after the dispatcher's refresh,
+      // before the write.
+      harness.client.setRequestHandler(ElicitRequestSchema, () => {
+        teams.length = 0;
+        return Promise.resolve({
+          action: "accept" as const,
+          content: { confirm: true },
+        });
+      });
+
+      const executed = await callTool(
+        harness.client,
+        "biso_content_create_draft",
+        {
+          ...args,
+          proposalToken: proposal.proposalToken,
+          proposalExpiresAt: proposal.expiresAt,
+        }
+      );
+
+      expect(executed.response.isError).toBe(true);
+      expect(
+        (executed.structured as { error: { code: string } }).error.code
+      ).toBe("forbidden");
+      expect(domainWrites(harness)).toHaveLength(0);
+    } finally {
       await harness.close();
     }
   });

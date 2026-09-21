@@ -94,6 +94,18 @@ describe("deadline ordering", () => {
    * limit it answers it destructively: an imminent vacancy nobody has edited
    * lately falls outside the window, and the briefing reports nothing urgent.
    */
+  /**
+   * Deadlines are relative to the real clock, because `order: "deadline"`
+   * now bounds on it: a vacancy stays `published` after its deadline, so the
+   * query excludes past ones before the limit. A hardcoded date would stop
+   * meaning "upcoming" the day it passed — which is precisely what happened
+   * to the literal that used to sit here.
+   */
+  const DAY = 86_400_000;
+  const CLOSES_SOON = new Date(Date.now() + 2 * DAY).toISOString();
+  const CLOSES_LATER = new Date(Date.now() + 300 * DAY).toISOString();
+  const CLOSED_ALREADY = new Date(Date.now() - 2 * DAY).toISOString();
+
   function tablesWithDeadlines() {
     return {
       campus: [{ $id: "1", name: "Oslo" }],
@@ -105,7 +117,7 @@ describe("deadline ordering", () => {
           campus: { $id: "1" },
           status: "published",
           title: "Far off",
-          application_deadline: "2027-01-01T00:00:00.000Z",
+          application_deadline: CLOSES_LATER,
         },
         {
           $id: "stale-but-imminent",
@@ -114,7 +126,7 @@ describe("deadline ordering", () => {
           campus: { $id: "1" },
           status: "published",
           title: "Closes tomorrow",
-          application_deadline: "2026-09-17T00:00:00.000Z",
+          application_deadline: CLOSES_SOON,
         },
         {
           $id: "no-deadline",
@@ -142,6 +154,49 @@ describe("deadline ordering", () => {
       offset: 0,
     });
     expect(result.rows.map((row) => row.id)).toEqual(["stale-but-imminent"]);
+  });
+
+  test("an expired vacancy does not occupy the deadline window", async () => {
+    // A vacancy stays `published` after its deadline, so ascending order puts
+    // the oldest expired rows first. With a limit they fill the whole window
+    // and the briefing filters them out locally — reporting nothing closing
+    // soon while a vacancy closes in two days. The bound has to be in the
+    // query, before the limit.
+    const backend = createFakeBackend({
+      tables: {
+        campus: [{ $id: "1", name: "Oslo" }],
+        jobs: [
+          {
+            $id: "expired",
+            $updatedAt: "2026-01-01T00:00:00.000Z",
+            campus_id: "1",
+            campus: { $id: "1" },
+            status: "published",
+            title: "Closed last week",
+            application_deadline: CLOSED_ALREADY,
+          },
+          {
+            $id: "closes-soon",
+            $updatedAt: "2026-01-01T00:00:00.000Z",
+            campus_id: "1",
+            campus: { $id: "1" },
+            status: "published",
+            title: "Closes in two days",
+            application_deadline: CLOSES_SOON,
+          },
+        ],
+      },
+    });
+    const result = await createRecruitmentService(
+      backend,
+      createLookupService(backend)
+    ).listVacancies(GLOBAL_ADMIN(), {
+      status: "published",
+      order: "deadline",
+      limit: 1,
+      offset: 0,
+    });
+    expect(result.rows.map((row) => row.id)).toEqual(["closes-soon"]);
   });
 
   test("vacancies with no deadline are excluded from the deadline probe", async () => {

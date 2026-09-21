@@ -562,6 +562,53 @@ function applyOneEdit(doc: EditorPageDoc, edit: BlockEdit): BlockEditOutcome {
   }
 }
 
+/**
+ * The error for a publish whose locale row committed and page row did not.
+ *
+ * Two rows, two requests, and Appwrite has no transaction across them. When
+ * only the first lands, the operation is not the clean failure the underlying
+ * error describes: the locale's draft is public *now* — certainly so when the
+ * page is already published through another locale — while the caller is being
+ * told nothing happened. The committed half is reported rather than
+ * compensated, because a compensating write can fail exactly the same way and
+ * this package does not promise rollback. The original code is kept, so a
+ * permission error still reads as one.
+ */
+function partialPublishFailure(
+  error: unknown,
+  input: {
+    locale: string;
+    published: boolean;
+    translationRowId: string;
+    localeCommitted: boolean;
+  }
+): DomainError {
+  const mapped = fromAppwriteError(error, { operation: "publish page" });
+  if (!input.localeCommitted) {
+    return mapped;
+  }
+  const verb = input.published ? "published" : "unpublished";
+  return new DomainError(
+    mapped.code,
+    `${mapped.message} The \`${input.locale}\` translation was already ${verb} and that change is committed; only the page's own status was not updated.`,
+    {
+      cause: error,
+      details: {
+        ...mapped.details,
+        committed: {
+          table: TRANSLATION_TABLE,
+          rowId: input.translationRowId,
+          isPublished: input.published,
+        },
+        pageStatusUpdated: false,
+      },
+      remedy: input.published
+        ? "The locale is live even though the page status did not change. Re-run this tool to finish the publish, or unpublish the locale to undo it."
+        : "The locale is hidden even though the page status did not change. Re-run this tool to finish, or publish the locale again to undo it.",
+    }
+  );
+}
+
 export function createPageService(
   clients: BackendClients,
   links: { web(path: string): string; admin(path: string): string }
@@ -895,6 +942,10 @@ export function createPageService(
         "publish page (page rows grant no write to campus teams)"
       );
 
+      // Two rows, two requests, and Appwrite has no transaction spanning
+      // them. Which one failed decides what the caller is told, so the flag
+      // is tracked rather than inferred from the error.
+      let localeCommitted = false;
       try {
         // Publishing copies the draft into `puck_document`, which is what the
         // public site reads — the same move `publishPage` makes.
@@ -911,6 +962,7 @@ export function createPageService(
             : { is_published: false },
           permissions
         );
+        localeCommitted = true;
         await db.updateRow<Pages>(
           "app",
           PAGE_TABLE,
@@ -925,7 +977,12 @@ export function createPageService(
           revision: updatedTranslation.$updatedAt,
         };
       } catch (error) {
-        throw fromAppwriteError(error, { operation: "publish page" });
+        throw partialPublishFailure(error, {
+          locale: input.locale,
+          published: input.published,
+          translationRowId: existing.$id,
+          localeCommitted,
+        });
       }
     },
   };

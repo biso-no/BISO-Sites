@@ -80,6 +80,28 @@ export interface Principal {
   userId: string;
 }
 
+/**
+ * Everything about a principal that decides what it may do, as one string.
+ *
+ * Team lists arrive in whatever order `teams.list()` returned them, so each is
+ * sorted: a re-resolve that returns the same memberships in a different order
+ * is the same authority and must compare equal. `email` and `name` are left
+ * out — they can change without changing what the person may do.
+ */
+export function authorityFingerprint(principal: Principal): string {
+  const sorted = (values: string[]) => [...values].sort().join(",");
+  return [
+    principal.userId,
+    principal.profile,
+    sorted(principal.roles),
+    sorted(principal.campusTeamIds),
+    sorted(principal.departmentTeamIds),
+    sorted(principal.managedCampusIds),
+    sorted(principal.resolvedCampusIds),
+    sorted(principal.resolvedDepartmentIds),
+  ].join("\u0000");
+}
+
 /** The principal used when no user credential is configured. */
 export const ANONYMOUS_PRINCIPAL: Principal = {
   userId: "",

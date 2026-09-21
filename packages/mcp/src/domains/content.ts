@@ -34,6 +34,7 @@ import {
   type AppliedProposal,
   asApplied,
   assertNotExpired,
+  assertUnchangedAuthority,
   createProposal,
   type MutationProposal,
   verifyProposalToken,
@@ -179,6 +180,14 @@ async function proposeOrExecute<TPayload, TResult>(input: {
     // passed while the dialog sat open. A ten-minute grant that executes an
     // hour later is not the grant that was shown.
     assertNotExpired(input.expiresAt);
+    // Nor is it the grant of a person whose access changed while they were
+    // deciding. The dispatcher's forced refresh ran before this handler, which
+    // covers every write except the one that then waits on a human.
+    assertUnchangedAuthority(
+      context.principal,
+      await context.refreshPrincipal({ force: true }),
+      input.action
+    );
   }
 
   const data = await executeAndClassify(input.execute);
@@ -344,6 +353,12 @@ export const contentModule: ToolModule = {
       profiles: STAFF_PROFILES,
       async handler(args, context) {
         const requestId = newRequestId();
+        // The registry withdraws reads for `pages` as well as writes, and the
+        // reason is not cosmetic: the generic service neither projects nor
+        // decodes `page_translations`, so dispatching one returns a null title
+        // and no translations for a page that has both. Advertising the
+        // withdrawal without enforcing it left the broken path reachable.
+        assertDomainSupports(args.domain as ContentDomain, "search");
         assertRecruitmentGate(args.domain as ContentDomain, context);
         const { limit, offset } = readPage(args);
 
@@ -386,6 +401,7 @@ export const contentModule: ToolModule = {
       profiles: STAFF_PROFILES,
       async handler(args, context) {
         const requestId = newRequestId();
+        assertDomainSupports(args.domain as ContentDomain, "get");
         assertRecruitmentGate(args.domain as ContentDomain, context);
         const detail = await context.services.content.get(
           context.principal,
