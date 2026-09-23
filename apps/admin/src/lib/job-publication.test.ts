@@ -116,7 +116,7 @@ describe("publishDueJobs", () => {
     expect(jobPermissions).toContain('read("any")');
   });
 
-  it("uses members-only read access for member vacancies", async () => {
+  it("still publishes member vacancies world-readable — applying is what is gated", async () => {
     const { calls, db } = fakeDb([
       { $id: "job-1", metadata: JSON.stringify({ audience: "members" }) },
     ]);
@@ -124,10 +124,10 @@ describe("publishDueJobs", () => {
     await publishDueJobs(db as never, NOW);
 
     const [, , , jobPermissions] = calls.at(-1) ?? [];
-    expect(jobPermissions).not.toContain('read("any")');
-    expect(
-      jobPermissions?.some((permission) => permission.startsWith('read("team:'))
-    ).toBeTrue();
+    expect(jobPermissions).toContain('read("any")');
+    // `biso-members` is not a team in this project, so granting it hid the
+    // vacancy from every student instead of just non-members.
+    expect(jobPermissions?.join(" ")).not.toContain("biso-members");
   });
 
   it("skips a vacancy whose schedule was cancelled mid-run", async () => {

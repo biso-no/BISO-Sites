@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { getJobBySlug } from "@/app/actions/jobs";
 import { getLocale } from "@/app/actions/locale";
 import { JobDetailsClient } from "@/components/jobs/job-details-client";
+import { getMembershipStatus } from "@/lib/actions/membership";
 import { getLoggedInUser } from "@/lib/actions/user";
 
 interface JobPageProps {
@@ -21,11 +22,20 @@ async function JobDetails({ slug }: { slug: string }) {
     notFound();
   }
 
+  // Only pay for the membership lookup when the answer can change the UI. The
+  // cached read is right here (this renders a form, it does not refuse a
+  // request); submitJobApplication re-checks live before accepting one.
+  const isMember =
+    user && job.metadata.audience === "members"
+      ? (await getMembershipStatus()).isMember
+      : false;
+
   return (
     <JobDetailsClient
       applicantEmail={user?.user.email ?? ""}
       applicantName={user?.user.name ?? ""}
       isAuthenticated={Boolean(user)}
+      isMember={isMember}
       job={job}
     />
   );
