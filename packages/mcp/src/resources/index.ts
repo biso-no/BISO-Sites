@@ -80,13 +80,37 @@ export function registerResources(
       // `biso_whoami` and every authorization check use the current ones — the
       // resource disagreeing with the server about who the caller is.
       //
-      // Unforced, matching the read it is: the TTL applies, and a refresh that
-      // fails serves the cached identity rather than making the resource
-      // unreadable.
-      const principal = await context.refreshPrincipal();
+      // Forced, because this resource's entire subject is the caller's
+      // authority, and `biso_whoami` now forces for the same reason. An
+      // unforced read let the TTL hand back roles that had already been
+      // revoked — and, if re-resolution then kept failing, indefinitely.
+      //
+      // But a resource that becomes unreadable on a backend blip is worse than
+      // one that is honest about its age, so a failed refresh falls back to the
+      // cached identity and *says so* rather than presenting it as current.
+      // Silently asserting revoked roles is the one option that is worse than
+      // both.
+      let principal = context.principal;
+      let current = true;
+      try {
+        principal = await context.refreshPrincipal({ force: true });
+      } catch {
+        // Unforced: returns the cached principal instead of throwing.
+        principal = await context.refreshPrincipal();
+        current = false;
+      }
       return json("biso://identity/principal", {
         principal: describePrincipal(principal),
         scope: describeScope(principal),
+        freshness: current
+          ? {
+              current: true,
+              note: "Memberships were re-resolved from Appwrite for this read.",
+            }
+          : {
+              current: false,
+              note: "Appwrite could not be reached, so this is the last identity that resolved successfully. It may name roles or campuses that have since been revoked — the tools will refuse anything they no longer allow.",
+            },
         server: describeConfig(context.config),
         writeMode: context.mutation.writeMode,
       });

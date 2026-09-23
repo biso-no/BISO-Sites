@@ -888,6 +888,39 @@ a leak, matching it would mean handing a model unreleased copy and letting it
 repeat that copy as published. The narrower obligation wins: report what is
 released, and record the app's behaviour rather than inheriting it.
 
+## 17g. Eighteenth review round
+
+An eighteenth review of `611e19a` raised three, one P1. All three reproduced
+and are fixed. Two are named "fresh evidence after" a round-seventeen fix, and
+the P1 is the plainest instance in the whole PR of the rule this package is
+supposed to follow.
+
+| # | Area | Verified as | Fix |
+|---|---|---|---|
+| 1 | `services/content.ts` | **Confirmed (P1), against a rule the repository states outright.** `baseQueries` scoped on the legacy scalars (`campus_id`, `department_id`) while `apps/admin`'s `applyContentRelationshipScopeQueries` scopes on `campus.$id` and `department.$id`, and its companion `getContentOwnership` says why: "relationship values win; `legacyFallback` exposes the scalar columns only for rows that predate the relationship backfill (repair rollout window)". Mid-backfill the two disagree and the scalar is the stale one — and these tables carry a table-level `read("any")`, so Appwrite offers no second gate. Every domain spec already held the relation paths; they were used for the *projection* only | `scopeFieldsFor` prefers the relation, for the scope filter and for the argument narrowing alike, so an argument cannot narrow on one side of a repair-window row while authorization reads the other |
+| 2 | `domains/pages.ts` | **Confirmed — round seventeen's fix, one target over.** `biso_page_edit_blocks` named table `page_translations` with the *page's* id. `saveDraft` writes a translation row whose id it only returns afterwards, so the audit row pointed at a row that does not exist; and `withCreatedIds` could not repair it, because it only replaces the placeholder | The target is the page. That is also what `logAuditEvent` records for page actions in `apps/admin`, so the two systems' rows line up, and the locale is already in the label |
+| 3 | `resources/index.ts` | **Confirmed.** The identity resource used an unforced refresh, deliberately, so a failed re-resolution served the cache rather than making the resource unreadable. Round seventeen made `biso_whoami` force — so the two disagreed, and the resource presented a cached identity as current. Under a persistent outage it would do so indefinitely | Forced, like `whoami`. But a resource that dies on a backend blip is worse than one honest about its age, so a failed refresh falls back to the cache **and says so** in a `freshness` field. Silently asserting revoked roles was the one option worse than both |
+
+### The second consequence of scoping by the wrong column
+
+Finding #1's security half is the repair window. Its other half is quieter and
+was live all the time: `documents` and `campus_benefits` have a `department`
+relationship and **no `department_id` column**, so scoping by the scalar left
+`departmentField` null — and `scopeQueries` fails closed on a null department
+field. A department member therefore saw *none* of their own department's
+documents or benefits, and the scope description told them why in a sentence
+that was itself wrong: "this collection has no department dimension".
+
+A table without a department *column* is not a table without a department.
+That is the whole reason the canonical helper names the relationship.
+
+### Where the same fix does not belong
+
+The other two `scopeQueries` call sites were checked rather than assumed.
+`form_submissions` and `orders` carry a `campus_id` scalar and **no campus
+relationship at all** — so there the scalar is not the legacy path, it is the
+only path, and no repair-window divergence is possible. Both stay as they are.
+
 ## 18. Base moves while the PR was open
 
 `main` moved nine times after the audit above was written. A clean textual

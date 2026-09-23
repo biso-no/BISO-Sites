@@ -1573,6 +1573,42 @@ describe("what an embedded caller supplies is what is reported", () => {
     }
   });
 
+  test("the identity resource reflects a revocation inside the TTL", async () => {
+    // Same reasoning as `biso_whoami`, and now the same behaviour: this
+    // resource's entire subject is the caller's authority, so an unforced read
+    // let the TTL hand back roles that had already been revoked — and, if
+    // re-resolution kept failing, indefinitely. No clock advance here.
+    const teams = [
+      { $id: "SG-App-Dept-OperationsUnit", name: "SG-App-Dept-OperationsUnit" },
+      { $id: "SG-App-Campus-National", name: "SG-App-Campus-National" },
+    ];
+    const harness = await connect({
+      resolveFrom: { account: { $id: "u-1", email: "admin@biso.no" }, teams },
+    });
+    try {
+      const before = await harness.client.readResource({
+        uri: "biso://identity/principal",
+      });
+      expect(JSON.stringify(before)).toMatch(GLOBAL_ADMIN_RE);
+
+      teams.length = 0;
+
+      const after = await harness.client.readResource({
+        uri: "biso://identity/principal",
+      });
+      expect(JSON.stringify(after)).not.toMatch(GLOBAL_ADMIN_RE);
+      // And it says so: the payload states whether it re-resolved, so a
+      // cached answer is never presented as a current one.
+      const body = after.contents[0];
+      const parsed = JSON.parse("text" in body ? String(body.text) : "{}") as {
+        freshness?: { current?: boolean };
+      };
+      expect(parsed.freshness?.current).toBe(true);
+    } finally {
+      await harness.close();
+    }
+  });
+
   test("the identity resource reflects a revoked membership", async () => {
     // Resource reads never pass through `invokeTool`, so nothing refreshed
     // this one: it kept describing the startup principal while `biso_whoami`
@@ -2567,6 +2603,48 @@ describe("an owner whose page has no draft can still edit it", () => {
         }
       );
       expect(response.isError).toBeFalsy();
+    } finally {
+      await harness.close();
+    }
+  });
+
+  test("the audit row names the page, not a translation that does not exist", async () => {
+    // The target used to say table `page_translations` with the *page's* id.
+    // `saveDraft` writes a translation row whose id it only returns after the
+    // write, so that pointed the activity log at a row that is not there.
+    // `apps/admin` records page actions against the page too.
+    const harness = await connect({
+      principal: DEPARTMENT_MEMBER("dept-a", "1"),
+      config: baseConfig({ writeMode: "operator" }),
+      tables: publishedOnlyPage(),
+    });
+    try {
+      const args = {
+        pageId: "page-legacy",
+        locale: "no",
+        edits: [{ op: "insert", blockType: "text" }],
+      };
+      const first = await callTool(
+        harness.client,
+        "biso_page_edit_blocks",
+        args
+      );
+      const proposal = (
+        first.structured?.data as {
+          proposal: { proposalToken: string; expiresAt: string };
+        }
+      ).proposal;
+      await callTool(harness.client, "biso_page_edit_blocks", {
+        ...args,
+        proposalToken: proposal.proposalToken,
+        proposalExpiresAt: proposal.expiresAt,
+      });
+
+      const row =
+        harness.backend.writes.find((write) => write.table === "audit_logs")
+          ?.data ?? {};
+      expect(row.resource_type).toBe("pages");
+      expect(row.resource_id).toBe("page-legacy");
     } finally {
       await harness.close();
     }

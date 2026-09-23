@@ -356,9 +356,15 @@ export const pagesModule: ToolModule = {
           context,
           action: "pages.save_draft",
           tier: "draft",
+          // The page, not the translation row. `saveDraft` writes a
+          // `page_translations` row whose id it only returns afterwards —
+          // naming that table beside the *page's* id pointed the audit row at
+          // a translation that does not exist. The page is also what
+          // `logAuditEvent` records for page actions in `apps/admin`, so the
+          // two systems' rows line up, and the locale is in the label.
           targets: [
             {
-              table: "page_translations",
+              table: "pages",
               id: args.pageId,
               label: `${view.title} (${args.locale})`,
             },

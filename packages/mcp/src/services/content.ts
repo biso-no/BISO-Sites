@@ -569,19 +569,42 @@ export function createContentService(
    * principal's own scope — it is applied on top of `scopeQueries`, never
    * instead of it — so a caller naming another campus gets no rows rather than
    * that campus's rows.
+   *
+   * Everything here filters on the **relationship** paths (`campus.$id`,
+   * `department.$id`), not the legacy scalar columns, because that is what
+   * `applyContentRelationshipScopeQueries` in `apps/admin` does and its
+   * companion `getContentOwnership` states the rule outright: "relationship
+   * values win; `legacyFallback` exposes the scalar columns only for rows that
+   * predate the relationship backfill (repair rollout window)". Scoping on the
+   * scalar authorizes a repair-window row by whichever value is *stale*, and
+   * these tables carry a table-level `read("any")`, so Appwrite offers no
+   * second gate to catch it.
+   *
+   * It also stops a table without a department *scalar* being treated as a
+   * table without a department. `documents` and `campus_benefits` have no
+   * `department_id` column but do have the relationship, so scoping by the
+   * scalar made `departmentField` null, which `scopeQueries` fails closed on —
+   * hiding a department's own documents and benefits from it.
    */
+  function scopeFieldsFor(spec: ContentDomainSpec): {
+    campusField: string | null;
+    departmentField: string | null;
+  } {
+    return {
+      campusField: spec.scope.campusRelation ?? spec.scope.campusField,
+      departmentField:
+        spec.scope.departmentRelation ?? spec.scope.departmentField,
+    };
+  }
+
   function baseQueries(
     principal: Principal,
     spec: ContentDomainSpec,
     input: ContentSearchInput,
     warnings: string[]
   ): string[] {
-    const queries: string[] = [
-      ...scopeQueries(principal, {
-        campusField: spec.scope.campusField,
-        departmentField: spec.scope.departmentField,
-      }),
-    ];
+    const fields = scopeFieldsFor(spec);
+    const queries: string[] = [...scopeQueries(principal, fields)];
 
     if (input.status) {
       if (spec.statuses.includes(input.status)) {
@@ -594,8 +617,10 @@ export function createContentService(
     }
 
     if (input.campusId) {
-      if (spec.scope.campusField) {
-        queries.push(Query.equal(spec.scope.campusField, [input.campusId]));
+      // The same path the scope filter used, or an argument could narrow on
+      // one side of a repair-window row while authorization read the other.
+      if (fields.campusField) {
+        queries.push(Query.equal(fields.campusField, [input.campusId]));
       } else {
         warnings.push(
           `${spec.domain} has no campus column; the campus filter was not applied.`
@@ -604,10 +629,8 @@ export function createContentService(
     }
 
     if (input.departmentId) {
-      if (spec.scope.departmentField) {
-        queries.push(
-          Query.equal(spec.scope.departmentField, [input.departmentId])
-        );
+      if (fields.departmentField) {
+        queries.push(Query.equal(fields.departmentField, [input.departmentId]));
       } else {
         warnings.push(
           `${spec.domain} has no department column; the department filter was not applied.`
