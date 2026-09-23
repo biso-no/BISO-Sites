@@ -114,6 +114,91 @@ describe("public vacancy discovery", () => {
   });
 });
 
+describe("members-only vacancies", () => {
+  /**
+   * `audience` is not a visibility rule. A members-only vacancy is published
+   * `read(any)` like any other, because advertising a role you could take as
+   * a member is what sells the membership; the gate is on applying, checked
+   * against live membership when the application is submitted. So public
+   * discovery must keep offering the vacancy AND say that acting on it needs
+   * a membership — telling a student nothing here means letting them write an
+   * application that is refused on submit.
+   */
+  function audienceService() {
+    return createDiscoveryService(
+      createFakeBackend({
+        tables: {
+          jobs: [
+            {
+              $id: "members-only",
+              $updatedAt: "2026-01-03T00:00:00.000Z",
+              slug: "members-only",
+              status: "published",
+              campus_id: "1",
+              application_deadline: FUTURE,
+              metadata: JSON.stringify({ audience: "members" }),
+              translations: [],
+            },
+            {
+              $id: "open-to-all",
+              $updatedAt: "2026-01-02T00:00:00.000Z",
+              slug: "open-to-all",
+              status: "published",
+              campus_id: "1",
+              application_deadline: FUTURE,
+              metadata: JSON.stringify({ audience: "public" }),
+              translations: [],
+            },
+            {
+              $id: "no-metadata",
+              $updatedAt: "2026-01-01T00:00:00.000Z",
+              slug: "no-metadata",
+              status: "published",
+              campus_id: "1",
+              application_deadline: FUTURE,
+              metadata: null,
+              translations: [],
+            },
+          ] satisfies FakeRow[],
+        },
+      }),
+      LINKS
+    );
+  }
+
+  async function searchVacancies() {
+    const result = await audienceService().search({
+      kind: "jobs",
+      locale: "no",
+      limit: 20,
+      offset: 0,
+    });
+    return new Map(result.rows.map((row) => [row.id, row]));
+  }
+
+  test("a members-only vacancy is still offered to the public", async () => {
+    const rows = await searchVacancies();
+    expect(rows.has("members-only")).toBe(true);
+  });
+
+  test("it is flagged as requiring a membership to act on", async () => {
+    const rows = await searchVacancies();
+    expect(rows.get("members-only")?.memberOnly).toBe(true);
+  });
+
+  test("a vacancy open to everyone is not flagged", async () => {
+    const rows = await searchVacancies();
+    expect(rows.get("open-to-all")?.memberOnly).toBe(false);
+  });
+
+  test("a vacancy with no metadata at all is not flagged", async () => {
+    // The column is optional, and an absent audience means "public" — never
+    // an unexplained membership wall on a role anyone may apply for.
+    const rows = await searchVacancies();
+    expect(rows.get("no-metadata")?.memberOnly).toBe(false);
+  });
+});
+
 describe("public page metadata and paging", () => {
   /**
    * The shape that leaks: a page is published, its translation is published,

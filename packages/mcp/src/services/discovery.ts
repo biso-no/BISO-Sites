@@ -25,6 +25,7 @@ import type {
   News,
   Pages,
 } from "@repo/api/types/appwrite";
+import { parseRecruitmentVacancyMetadata } from "@repo/shared/types/recruitment";
 import { resolveBenefitCampusIds } from "@repo/shared/utils/benefit-scope";
 import { unitCanonicalPath } from "@repo/shared/utils/unit-urls";
 import { isPublicUnit } from "@repo/shared/utils/unit-visibility";
@@ -362,6 +363,7 @@ export function createDiscoveryService(
         "slug",
         "campus_id",
         "application_deadline",
+        "metadata",
         "translations.*",
       ]),
       Query.orderDesc("$updatedAt"),
@@ -376,11 +378,25 @@ export function createDiscoveryService(
         slug: string;
         campus_id: string;
         application_deadline: string | null;
+        metadata: string | null;
         translations?: unknown;
       }>
     >("app", "jobs", queries);
+    // A members-only vacancy is advertised to everyone — `audience` does not
+    // narrow the row read, deliberately, because seeing a role you could take
+    // as a member is what sells the membership (`buildJobRowPermissions` in
+    // `apps/admin` says so). The restriction is on *applying*, enforced at
+    // submit time against live membership by `submitJobApplication` in
+    // `apps/web`. That is `memberOnly`'s meaning here — required to use, not
+    // to see — so a client can say so up front instead of letting a student
+    // write an application that is refused on submit.
+    //
+    // `audience` lives in the `metadata` JSON column, parsed with the repo's
+    // own schema; that parser falls back to defaults on a malformed blob
+    // rather than throwing, so one bad row cannot take out public search.
     const rows = result.rows.map((row): PublicItem => {
       const translation = pickTranslation(row.translations, input.locale);
+      const metadata = parseRecruitmentVacancyMetadata(row.metadata);
       return {
         kind: "jobs",
         id: row.$id,
@@ -393,7 +409,7 @@ export function createDiscoveryService(
         campusLabel: campusLabel(row.campus_id),
         dates: { applicationDeadline: row.application_deadline ?? null },
         url: row.slug ? links.web(`/jobs/${row.slug}`) : null,
-        memberOnly: false,
+        memberOnly: metadata.audience === "members",
       };
     });
     return { rows, total: result.total };

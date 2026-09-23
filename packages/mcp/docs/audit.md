@@ -794,15 +794,17 @@ applied to exactly the tables its source names.
 
 ## 18. Base moves while the PR was open
 
-`main` moved seven times after the audit above was written. A clean textual
+`main` moved nine times after the audit above was written. A clean textual
 merge says the lines do not collide; it says nothing about whether the base
 changed a rule this package mirrors. So each move was inspected before being
 trusted, and the inspection is recorded here — including for the moves that
 changed nothing, because "inert" is a claim that should show its work.
 
-Four of the seven changed something. The seventh changed the most, and not in
+Six of the nine changed something. The seventh changed the most, and not in
 the diff: it called into question a backend guarantee this package had been
-relying on in eleven places.
+relying on in eleven places. The ninth is the clearest case of why a clean
+merge proves nothing: it did not touch a line this package owns, and it still
+made one of its answers wrong.
 
 | Base | What moved | Effect here |
 |---|---|---|
@@ -813,6 +815,8 @@ relying on in eleven places.
 | `b11a842` → `1b6b3d1` | PRs consolidating slug derivation and member pricing into `@repo/shared/utils/{content-slug,member-discount}`, plus admin/web navigation and checkout work | No schema, type, lockfile or `turbo.json` change, and nothing under `packages/shared/utils/*` that this package imports. Both new helpers serve surfaces this package does not implement: it reads `member_price` but never computes a discount, and it requires a slug rather than deriving one. The slug consolidation did make one contract worth asserting — see below |
 | `1b6b3d1` → `efffef4` | Admin job search and status counts; the public event card linking to its detail page and showing a point of contact | Inert. Nothing outside `apps/` and `@repo/i18n` moved. Two things were checked rather than waved through — see below |
 | `efffef4` → `28f9a3b` | Recruitment retention cleanup, CV anonymisation for AI screening, a derived screening score, and a homepage counter rewrite | **Not inert**, though not for anything in the recruitment half. The counter rewrite carries a claim about `listRows(...).total` that, if true, made eleven counts in this package wrong. See below |
+| `28f9a3b` → `ad20cd1` | A shared Europe/Oslo wall-clock helper adopted by ten components, and campus admins gaining National-campus events inside admin's portal | **Not inert.** One rule to follow, one deliberately not followed. See below |
+| `ad20cd1` → `d6c1c42` | Members-only vacancies: the ACL that was meant to hide them is gone, and applying is gated on live membership instead | **Not inert.** Nothing under `packages/` moved, and a public answer here still became wrong. See below |
 
 ### `unlisted`: a column the product projection had to carry
 
@@ -1073,3 +1077,74 @@ it checks. The fixture is now relative to the clock the briefing actually reads
 ordering it guards is reverted. It is this package's only clock-dependent
 fixture; the sweep that found it checked every other date literal in the suite,
 and the rest are compared against each other, not against now.
+
+### Ninth base move: `ad20cd1 → d6c1c42`
+
+One commit, seven files, every one of them in `apps/`. No schema, no generated
+types, no lockfile, no root `catalog`, nothing under `packages/`. The merge was
+clean and this package's suite passed before a line of it was read — which is
+exactly the situation the rest of this section exists to distrust.
+
+**What moved.** `buildJobRowPermissions` used to swap `read("any")` for
+`read("team:biso-members")` on a members-only vacancy. It no longer does: a
+published vacancy is world-readable whatever its audience, and the membership
+requirement moved to *applying*, checked in `submitJobApplication` against
+**live**, uncached status so a student who has just paid can apply straight
+away. The operational reason is in the commit: `biso-members` is not a team in
+the live project, so the grant matched nobody and hid every members-only
+vacancy from every student rather than from non-members. The product reason is
+in the new code's own comment — seeing a role you could take as a member is
+what sells the membership.
+
+**Does this package mint the ACL that was removed?** No, and not by luck.
+`services/permissions.ts` ports `buildContentRowPermissions` from
+`apps/admin/src/lib/utils.ts`, the *content* rule, which this commit did not
+touch. The recruitment rule lives in `apps/admin/src/lib/recruitment.ts`, which
+is deliberately not ported: `content-registry.ts` marks `jobs` `search`- and
+`get`-only and withdraws every mutating operation on a vacancy with a reason,
+so no code path here writes a `jobs` row. `audience` is not even a column on
+that table — it lives inside the `metadata` JSON blob.
+
+**Does public discovery now say the wrong thing?** It did. `searchJobs` never
+filtered on audience — it filters on published-and-open — so its *result set*
+already agreed with the new rule row for row. What disagreed was the flag it
+attached. `PublicItem.memberOnly` is documented here as "requires membership to
+use, not to see", and before this move no vacancy could be both: a members-only
+vacancy was unreadable by the anonymous client these tools run on, so
+`memberOnly: false` was true of everything that came back. After the move such
+a vacancy *is* returned, and a non-member still cannot apply to it. The flag
+now reads `metadata.audience === "members"`, parsed with the repo's own
+`parseRecruitmentVacancyMetadata`, which falls back to schema defaults instead
+of throwing so one malformed blob cannot take out public search.
+
+That is the same correction the base move made to the site:
+`job-application-form.tsx` now shows a "Become a member" card up front rather
+than letting a student complete four steps and a CV upload to be refused on
+submit. A client told `memberOnly: false` would have steered them into exactly
+that. Four tests pin it: the vacancy is still offered publicly, it is flagged,
+a public-audience vacancy is not, and a vacancy with no metadata at all is not
+— an absent audience means public, never an unexplained membership wall.
+
+**What was checked and left as it was.**
+
+- *`Principal.isMember` still reads Appwrite team membership.* "No such team
+  exists in the project" is an observation about the live instance, not a
+  repeal of the mechanism. `apps/admin/src/lib/team-health.ts` still lists
+  `biso-members` as a **required** core team provisioned by the M365 sync,
+  `apps/admin/src/lib/utils.ts` still mints its grant for member-only news,
+  events and pages, and `apps/web/src/lib/data/nav-featured.ts` still runs a
+  session client precisely so those row permissions surface in a signed-in
+  visitor's nav. Following a recruitment change into content would mean
+  widening a read gate on the strength of a comment in a recruitment test.
+  `pages.ts`'s member-only branch fails closed either way: if the team really
+  is absent then nobody is a member, nobody is served a member-only page, and
+  that is what the row permissions do on the site too.
+- *`computeMembershipStatus` is a different question.* Paid membership, keyed
+  on the numeric student id, is what the new apply gate consults — not team
+  membership. This package does not implement applying, so it has no reason to
+  reach for it, and reaching for it from an anonymous discovery path would
+  answer nothing anyway.
+- *The staff `jobs` projection still omits `metadata`.* HR reads a vacancy in
+  the recruitment studio, where audience is a field on the form. Pulling the
+  whole blob in to surface one key would also pull in the contact e-mail and
+  the cover-image URLs — a redaction decision, not a consequence of this move.
