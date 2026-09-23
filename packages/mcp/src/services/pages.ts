@@ -292,25 +292,45 @@ export function parseDoc(json: string | null | undefined): PageDoc | null {
 }
 
 /**
- * Title and description as the *published* document carries them.
+ * Title and description as a released document states them — and from nowhere
+ * else.
  *
- * The translation row's columns track the draft, so they are only a fallback —
- * for a page released before `meta` was written into the document at all.
+ * The one definition behind both callers that must not serve unreleased copy:
+ * this module's published-only branch, and public discovery's `publishedMeta`.
+ * They were separate functions with the same fallback, and a review found one
+ * of them.
+ *
+ * `page_translations.title`/`.description` track the *draft*: `saveDraft`
+ * writes them from the draft's `meta` while `is_published` stays true. Falling
+ * back to them when the released document has no `meta.title` therefore serves
+ * an unreleased headline on exactly the pages whose released document cannot
+ * contradict it. A document that does not state a title is reported as not
+ * stating one; the caller still has the slug.
+ *
+ * `apps/web` does the opposite and worse — `normalizeDoc` in
+ * `@repo/api/page-builder` overlays the column *over* the document's meta for
+ * every page, so the live site shows a saved draft's headline on a published
+ * page. Roadmap S10. It is not a reason to copy it: a model reads these
+ * answers and repeats them.
  */
-function publishedHeadline(
-  translation: { title: string; description?: string | null },
-  published: PageDoc | null
-): { title: string; description: string | null } {
-  const meta = published?.meta as
-    | { title?: unknown; description?: unknown }
-    | undefined;
+export function releasedHeadline(meta: unknown): {
+  title: string;
+  description: string | null;
+} {
+  const fields = meta as { title?: unknown; description?: unknown } | undefined;
   return {
-    title: typeof meta?.title === "string" ? meta.title : translation.title,
+    title: typeof fields?.title === "string" ? fields.title : "",
     description:
-      typeof meta?.description === "string"
-        ? meta.description
-        : (translation.description ?? null),
+      typeof fields?.description === "string" ? fields.description : null,
   };
+}
+
+/** {@link releasedHeadline}, reading the released document's own `meta`. */
+function publishedHeadline(published: PageDoc | null): {
+  title: string;
+  description: string | null;
+} {
+  return releasedHeadline(published?.meta);
 }
 
 function serialiseDoc(doc: PageDoc): string {
@@ -439,11 +459,56 @@ const UNSAFE_PATH_SEGMENTS: ReadonlySet<string> = new Set([
   "prototype",
 ]);
 
-/** The first prototype-bearing segment in a dot path, if any. */
-export function unsafePathSegment(path: string): string | null {
-  for (const segment of path.split(".")) {
+/**
+ * Most segments a prop path may have. `items.0.cta.label` is four.
+ */
+const MAX_PROP_PATH_SEGMENTS = 12;
+/** Most characters one segment may have. */
+const MAX_PROP_PATH_SEGMENT_LENGTH = 64;
+/**
+ * Largest array index a prop path may address.
+ *
+ * `setProp` creates an array when the *next* segment parses as a number, then
+ * assigns `node[index]` — which sets the array's `length` to `index + 1`. A
+ * path of `items.4294967294` therefore produces an array of length
+ * 4,294,967,295, and saving the page serialises it: `JSON.stringify` walks
+ * every slot and emits `null` for each, which is where the process dies.
+ *
+ * Nothing legitimate needs a four-digit index. Blocks and their prop arrays
+ * are hand-authored in an editor, so this is an ample ceiling for an edit and
+ * far below the point where the resulting document costs anything to write.
+ */
+const MAX_PROP_ARRAY_INDEX = 999;
+/** A segment that is entirely digits, and therefore an array index. */
+const ARRAY_INDEX_SEGMENT = /^\d+$/;
+
+/**
+ * Why this prop path may not be applied, or null when it may.
+ *
+ * Two separate hazards, both about what `setProp` *creates* rather than what
+ * it overwrites: a prototype-bearing segment writes outside the document, and
+ * an unbounded numeric segment allocates an array whose serialisation is the
+ * thing that saves the page.
+ */
+export function propPathProblem(path: string): string | null {
+  const segments = path.split(".");
+  if (segments.length > MAX_PROP_PATH_SEGMENTS) {
+    return `it has ${segments.length} segments; at most ${MAX_PROP_PATH_SEGMENTS} are allowed`;
+  }
+  for (const segment of segments) {
     if (UNSAFE_PATH_SEGMENTS.has(segment)) {
-      return segment;
+      return `it traverses \`${segment}\`, which would write outside the document`;
+    }
+    if (segment.length > MAX_PROP_PATH_SEGMENT_LENGTH) {
+      return `a segment is ${segment.length} characters; at most ${MAX_PROP_PATH_SEGMENT_LENGTH} are allowed`;
+    }
+    // Only a segment that is *entirely* digits becomes an array index;
+    // `item2` is an ordinary key and stays one.
+    if (
+      ARRAY_INDEX_SEGMENT.test(segment) &&
+      Number(segment) > MAX_PROP_ARRAY_INDEX
+    ) {
+      return `index ${segment} is beyond ${MAX_PROP_ARRAY_INDEX}, and applying it would allocate an array that large`;
     }
   }
   return null;
@@ -481,12 +546,12 @@ function applySetProp(
   doc: EditorPageDoc,
   edit: Extract<BlockEdit, { op: "set_prop" }>
 ): BlockEditOutcome {
-  const unsafe = unsafePathSegment(edit.path);
-  if (unsafe) {
+  const problem = propPathProblem(edit.path);
+  if (problem) {
     return {
       edit,
       applied: false,
-      detail: `"${edit.path}" traverses \`${unsafe}\`, which would write outside the document; nothing was set.`,
+      detail: `"${edit.path}" was refused: ${problem}; nothing was set.`,
     };
   }
   const target = findBlock(doc, edit.blockId);
@@ -852,7 +917,7 @@ export function createPageService(
       // get released blocks under an unreleased headline.
       const headline = canSeeDraft
         ? { title: translation.title, description: translation.description }
-        : publishedHeadline(translation, published);
+        : publishedHeadline(published);
 
       return {
         page: summarise(row),

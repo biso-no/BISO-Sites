@@ -280,19 +280,52 @@ describe("public page metadata and paging", () => {
     expect(JSON.stringify(page)).not.toContain("UNRELEASED");
   });
 
-  test("a page published before meta existed still renders its stored title", async () => {
+  /**
+   * The previous version of this test set the row's `title` column to a benign
+   * "Legacy title" before asserting that the fallback returned it — and that
+   * assignment was the only reason the fallback looked safe. The column is
+   * `saveDraft`'s to write, and this fixture's own value for it is
+   * "UNRELEASED TITLE", because that is what a draft really leaves there. Left
+   * alone, the fallback serves unreleased copy to anonymous callers on exactly
+   * the pages whose released document cannot contradict it.
+   */
+  test("a published document with no meta does not fall back to the draft's headline", async () => {
     const tables = pageWithNewerDraft();
     const translations = (tables.pages[0] as Record<string, unknown>)
       .translation_refs as Record<string, unknown>[];
     translations[0].puck_document = JSON.stringify({ blocks: [] });
-    translations[0].title = "Legacy title";
 
     const service = createDiscoveryService(
       createFakeBackend({ tables }),
       LINKS
     );
     const page = await service.getPublicPage({ slug: "a-page", locale: "no" });
-    expect(page.title).toBe("Legacy title");
+
+    expect(JSON.stringify(page)).not.toContain("UNRELEASED");
+    // No released title is reported as none, not as someone else's draft. The
+    // caller still has the slug and the URL to identify the page by.
+    expect(page.title).toBe("");
+    expect(page.slug).toBe("a-page");
+  });
+
+  test("search does not fall back to the draft's headline either", async () => {
+    const tables = pageWithNewerDraft();
+    const translations = (tables.pages[0] as Record<string, unknown>)
+      .translation_refs as Record<string, unknown>[];
+    translations[0].puck_document = JSON.stringify({ blocks: [] });
+
+    const service = createDiscoveryService(
+      createFakeBackend({ tables }),
+      LINKS
+    );
+    const found = await service.search({
+      kind: "pages",
+      locale: "no",
+      limit: 20,
+      offset: 0,
+    });
+
+    expect(JSON.stringify(found.rows)).not.toContain("UNRELEASED");
   });
 
   test("published pages behind unpublished-translation rows are reachable", async () => {

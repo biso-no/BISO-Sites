@@ -1017,6 +1017,42 @@ describe("what a published-only viewer is told", () => {
     expect(view.description).toBe("Released description");
   });
 
+  test("a released document with no title does not borrow the draft's", async () => {
+    /**
+     * The sibling of the same defect in public discovery, which a review found
+     * there and not here. Both had a fallback to the translation row's
+     * columns for a document released before `meta` was written — and those
+     * columns are `saveDraft`'s, so the fallback served the draft's headline
+     * on exactly the pages whose released document could not contradict it.
+     * Both now read `releasedHeadline`, which has no fallback at all.
+     */
+    const tables = publishedWithRenamedDraft();
+    const translations = (tables.pages[0] as Record<string, unknown>)
+      .translation_refs as Record<string, unknown>[];
+    const published = JSON.parse(
+      translations[0].puck_document as string
+    ) as PageDoc;
+    const {
+      title: _title,
+      description: _description,
+      ...rest
+    } = published.meta;
+    translations[0].puck_document = JSON.stringify({
+      ...published,
+      meta: rest,
+    });
+
+    const service = createPageService(createFakeBackend({ tables }), LINKS);
+    const view = await service.load(CAMPUS_ADMIN("Bergen", "2"), {
+      pageId: "page-pub",
+      locale: "no",
+    });
+
+    expect(view.documentSource).toBe("published");
+    expect(view.title).not.toBe("UNRELEASED TITLE");
+    expect(view.description).not.toBe("UNRELEASED DESCRIPTION");
+  });
+
   test("the owning campus still reads the draft's title", async () => {
     const service = createPageService(
       createFakeBackend({ tables: publishedWithRenamedDraft() }),
@@ -1157,6 +1193,67 @@ describe("a prop path cannot escape the document", () => {
     const { outcomes } = service.applyEdits(pageDoc(), [
       { op: "set_prop", blockId: "b1", path: "constructor.x", value: 1 },
       { op: "set_prop", blockId: "b1", path: "props.a.prototype.b", value: 1 },
+    ]);
+
+    expect(outcomes.map((outcome) => outcome.applied)).toEqual([false, false]);
+  });
+
+  test("an out-of-range array index is refused before it allocates", () => {
+    /**
+     * `setProp` creates an array when the *next* segment parses as a number,
+     * then assigns `node[index]` — which sets `length` to `index + 1`. A path
+     * of `items.4294967294` therefore builds an array of 4,294,967,295 slots,
+     * and saving the page serialises it: `JSON.stringify` emits a `null` for
+     * every one. The guard has to run before `applyEdits`, not at save time,
+     * because the document is built in propose mode too.
+     */
+    const service = createPageService(
+      createFakeBackend({ tables: tablesWith() }),
+      LINKS
+    );
+    const { doc, outcomes } = service.applyEdits(pageDoc(), [
+      {
+        op: "set_prop",
+        blockId: "b1",
+        path: "props.items.4294967294",
+        value: "x",
+      },
+    ]);
+
+    expect(outcomes[0]?.applied).toBe(false);
+    expect(outcomes[0]?.detail).toContain("4294967294");
+    // Nothing was allocated: the serialised document stays small.
+    expect(JSON.stringify(doc).length).toBeLessThan(10_000);
+  });
+
+  test("a small index still applies, and a non-numeric lookalike is a plain key", () => {
+    // The bound is on what an index *allocates*, not on nesting. `item2` is an
+    // ordinary key and must keep working.
+    const service = createPageService(
+      createFakeBackend({ tables: tablesWith() }),
+      LINKS
+    );
+    const { outcomes } = service.applyEdits(pageDoc(), [
+      { op: "set_prop", blockId: "b1", path: "props.items.2", value: "ok" },
+      { op: "set_prop", blockId: "b1", path: "props.item2.label", value: "ok" },
+    ]);
+
+    expect(outcomes.map((outcome) => outcome.applied)).toEqual([true, true]);
+  });
+
+  test("an absurdly deep or long path is refused", () => {
+    const service = createPageService(
+      createFakeBackend({ tables: tablesWith() }),
+      LINKS
+    );
+    const { outcomes } = service.applyEdits(pageDoc(), [
+      { op: "set_prop", blockId: "b1", path: `${"a.".repeat(40)}z`, value: 1 },
+      {
+        op: "set_prop",
+        blockId: "b1",
+        path: `props.${"x".repeat(200)}`,
+        value: 1,
+      },
     ]);
 
     expect(outcomes.map((outcome) => outcome.applied)).toEqual([false, false]);

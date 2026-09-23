@@ -29,7 +29,11 @@ import {
 } from "../services/approvals";
 import { type ContentDomain, domainSpec } from "../services/content-registry";
 import { hasRecruitmentAccess } from "../services/recruitment";
-import { proposalInput, proposeOrExecute } from "./content";
+import {
+  NEW_ROW_PLACEHOLDER,
+  proposalInput,
+  proposeOrExecute,
+} from "./content";
 import {
   newRequestId,
   paginationInput,
@@ -221,7 +225,7 @@ export const approvalsModule: ToolModule = {
           targets: [
             {
               table: "approval_requests",
-              id: "(new)",
+              id: NEW_ROW_PLACEHOLDER,
               label: `${domain}.publish ${args.id}`,
             },
             {

@@ -37,7 +37,7 @@ import {
   type BlockEdit,
   type PageDocumentView,
   parseDoc,
-  unsafePathSegment,
+  propPathProblem,
 } from "../services/pages";
 import type { Projected } from "../services/row";
 import { proposalInput, proposeOrExecute } from "./content";
@@ -92,9 +92,9 @@ const blockEditSchema = z.discriminatedUnion("op", [
     path: z
       .string()
       .min(1)
-      .refine((value) => unsafePathSegment(value) === null, {
+      .refine((value) => propPathProblem(value) === null, {
         message:
-          "A prop path may not contain `__proto__`, `constructor` or `prototype`.",
+          "A prop path may not contain `__proto__`, `constructor` or `prototype`, exceed 12 segments or 64 characters per segment, or address an array index above 999.",
       })
       .describe("Dot-notation prop path, e.g. `title` or `items.0.label`."),
     value: z

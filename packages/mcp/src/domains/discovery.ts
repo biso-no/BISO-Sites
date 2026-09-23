@@ -58,6 +58,8 @@ export const discoveryModule: ToolModule = {
         ...paginationInput,
       },
       annotations: READ_ONLY,
+      unprivilegedRead:
+        "Answers entirely from the anonymous client, so the caller's memberships cannot change a single row of the result — and a forced refresh that failed would take public discovery down for nothing.",
       profiles: ALL_PROFILES,
       async handler(args, context) {
         const requestId = newRequestId();
@@ -130,6 +132,8 @@ export const discoveryModule: ToolModule = {
         ...localeInput,
       },
       annotations: READ_ONLY,
+      unprivilegedRead:
+        "Answers entirely from the anonymous client, so the caller's memberships cannot change a single row of the result — and a forced refresh that failed would take public discovery down for nothing.",
       profiles: ALL_PROFILES,
       async handler(args, context) {
         const requestId = newRequestId();

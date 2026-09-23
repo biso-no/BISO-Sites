@@ -360,6 +360,41 @@ before writing the parent, and both surfaces inherit it. Note that the parent's
 must keep its published permissions, or the row becomes unreadable while its
 status still says otherwise.
 
+### S10. `normalizeDoc` serves a saved draft's headline on a published page
+
+`normalizeDoc` in `packages/api/page-builder.ts` overlays the translation row's
+columns **over** the document's own `meta`:
+
+```ts
+title: translation.title ?? doc.meta.title,
+description: translation.description ?? doc.meta.description,
+```
+
+`savePageDraft` writes those columns from the *draft*'s meta while
+`is_published` stays true. `getPage` — the public catch-all route in
+`apps/web` — runs every page through `normalizeDoc`, so any published page with
+a draft in progress renders under the draft's headline: its `<h1>`, its
+`<title>`, and whatever a link unfurler or a crawler picks up.
+
+The same function also falls back from `puck_document` to `draft_document`
+when no published document exists, so a page in that state renders its draft
+outright.
+
+This is an app change and out of scope here. `@repo/mcp` does not inherit it:
+`releasedHeadline` in `services/pages.ts` reads the released document's `meta`
+and has no fallback to the columns at all, and both the public and the
+published-only staff paths go through it.
+
+**If it is fixed:** the columns are still the right source for an *editor*
+view, which is what they were written for — the fix is to stop preferring them
+on the public read, not to stop writing them. Keeping the row columns in sync
+with the published document on publish would be the alternative, and is the
+larger change.
+
+**Related:** roadmap S9 (what unpublishing one locale does to the page row)
+touches the same three surfaces — route, sitemap, listings — and is worth
+settling in the same pass.
+
 ### S7. `setProp` in `@repo/editor` follows `__proto__`
 
 `packages/editor/src/editor/operations.ts:367` walks a dot path with

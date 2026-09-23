@@ -1502,6 +1502,77 @@ describe("what an embedded caller supplies is what is reported", () => {
     }
   });
 
+  test("biso_whoami reports a revocation inside the read TTL", async () => {
+    // `biso_whoami` is open to every profile, including `public` — and the
+    // refresh exemption used to be derived from exactly that, so an
+    // authenticated caller heard their old roles read back from cache for the
+    // whole TTL while every mutation in the same session forced a refresh and
+    // refused the same authority. A tool being available to the public says
+    // nothing about whether *this* caller's memberships matter; being
+    // anonymous does.
+    //
+    // No clock advance here on purpose: that is what makes this a test of the
+    // forced refresh rather than of the TTL expiring.
+    const teams = [
+      { $id: "SG-App-Dept-OperationsUnit", name: "SG-App-Dept-OperationsUnit" },
+      { $id: "SG-App-Campus-National", name: "SG-App-Campus-National" },
+    ];
+    const harness = await connect({
+      resolveFrom: { account: { $id: "u-1", email: "admin@biso.no" }, teams },
+    });
+    const rolesOf = (structured: Record<string, unknown> | undefined) =>
+      (
+        (structured?.data as { principal?: { roles?: string[] } } | undefined)
+          ?.principal?.roles ?? []
+      ).join(",");
+
+    try {
+      const before = await callTool(harness.client, "biso_whoami");
+      // Asserted on the principal's own roles, not on the whole payload: the
+      // derivation note explains what grants `globaladmin` in static prose, so
+      // a substring match over the response would pass either way.
+      expect(rolesOf(before.structured)).toContain("globaladmin");
+
+      teams.length = 0;
+
+      const after = await callTool(harness.client, "biso_whoami");
+      expect(rolesOf(after.structured)).not.toContain("globaladmin");
+    } finally {
+      await harness.close();
+    }
+  });
+
+  test("the permission explainer agrees with it inside the TTL too", async () => {
+    // The third surface that has disagreed with the gate it explains. Same
+    // shape, same reason to pin it separately: it is a different tool with its
+    // own registration.
+    const teams = [
+      { $id: "SG-App-Dept-OperationsUnit", name: "SG-App-Dept-OperationsUnit" },
+      { $id: "SG-App-Campus-National", name: "SG-App-Campus-National" },
+    ];
+    const harness = await connect({
+      resolveFrom: { account: { $id: "u-1", email: "admin@biso.no" }, teams },
+    });
+    try {
+      const ask = () =>
+        callTool(harness.client, "biso_explain_permission", {
+          domain: "news",
+          operation: "publish",
+          campusId: "1",
+        });
+
+      const before = await ask();
+      expect(JSON.stringify(before.structured)).toContain('"allowed":true');
+
+      teams.length = 0;
+
+      const after = await ask();
+      expect(JSON.stringify(after.structured)).not.toContain('"allowed":true');
+    } finally {
+      await harness.close();
+    }
+  });
+
   test("the identity resource reflects a revoked membership", async () => {
     // Resource reads never pass through `invokeTool`, so nothing refreshed
     // this one: it kept describing the startup principal while `biso_whoami`
@@ -1883,6 +1954,21 @@ describe("audit_logs is a record of changes, not of questions", () => {
       expect(row.resource_type).toBe("news");
       // The tool name is still recorded — in the payload, where it belongs.
       expect(String(row.payload)).toContain("biso_content_create_draft");
+      // And the row it created is named. The proposal is built before the
+      // write, when the target can only be a placeholder; that placeholder
+      // must not be what reaches the activity log.
+      const created = (
+        (
+          (
+            await callTool(harness.client, "biso_content_search", {
+              domain: "news",
+            })
+          ).structured?.data as { items?: Array<{ id?: string }> } | undefined
+        )?.items ?? []
+      ).map((item) => item.id);
+      expect(row.resource_id).not.toBe("(new)");
+      expect(typeof row.resource_id).toBe("string");
+      expect(created).toContain(row.resource_id as string);
     } finally {
       await harness.close();
     }

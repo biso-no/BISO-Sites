@@ -835,6 +835,59 @@ and a cursor that does not advance is a defect with or without the dispute. So
 the loop is closed and the dispute is left open, which is also what makes the
 fix cheap enough to be obviously correct.
 
+## 17f. Seventeenth review round
+
+A seventeenth review of `4476bab` raised four, one P1. All four reproduced and
+are fixed — and two of them were named "fresh evidence after" a round-sixteen
+fix, which is exactly what they were.
+
+| # | Area | Verified as | Fix |
+|---|---|---|---|
+| 1 | `services/discovery.ts` | **Confirmed (P1), and a test of this PR's own was concealing it.** `publishedMeta` fell back to `page_translations.title`/`.description` when the released document carried no `meta` — the same columns `saveDraft` overwrites from the draft, which the function's own comment says two lines above. So a legacy published page served its *draft's* headline to anonymous callers | `releasedHeadline`, which has no fallback: a document that does not state a title is reported as not stating one, and the caller still has the slug. See below for the test, and for what `apps/web` does |
+| 2 | `runtime/register.ts` | **Confirmed.** Round fifteen inverted the refresh default but kept deriving the exemption from `!tool.profiles.includes("public")` — a property of the tool's *audience*. `biso_whoami`, `biso_list_capabilities` and `biso_explain_permission` are open to everyone and are entirely about the caller's own authority, so an authenticated caller heard revoked roles read back from cache for the whole TTL while mutations in the same session forced a refresh and refused that same authority | The exemption is a property of the caller: anonymous callers have no memberships to go stale, everyone else forces. The two genuinely principal-independent tools — public search and public page, both answering from the anonymous client — say so with an `unprivilegedRead` reason |
+| 3 | `domains/content.ts` | **Confirmed — round sixteen's own fix, one step short.** `noteMutation` reported the proposal's targets, and a create names its target `"(new)"` because the row does not exist yet. That placeholder is what reached `audit_logs.resource_id`, so the activity row still could not name the draft whose creation it was logging | `withCreatedIds` re-reports the targets after the write, swapping the placeholder for the returned `$id`. Central, in `proposeOrExecute`, so no call site can forget it; the placeholder is now one exported constant rather than a literal in two files |
+| 4 | `domains/pages.ts` | **Confirmed, and it is the `__proto__` finding's other half.** `setProp` creates an array when the *next* path segment parses as a number, then assigns `node[index]` — so `props.items.4294967294` builds an array of 4,294,967,295 slots, and saving the page serialises it. The schema refused prototype-bearing segments and nothing else | `propPathProblem` bounds what a path may *create*: at most 12 segments, 64 characters each, and no array index above 999. Checked in the schema and again in `applySetProp`, because `applyEdits` runs before the proposal gate — in propose mode too |
+
+### The fallback, the sibling, and the test that hid both
+
+Finding #1's fallback was three lines under a comment explaining why those
+columns are unsafe. What let it survive is the test that covered it: it set
+the row's `title` column to a benign `"Legacy title"` before asserting the
+fallback returned it. The fixture's own value for that column is
+`"UNRELEASED TITLE"` — deliberately, because that is what a draft really
+leaves there — so the assignment was the only thing making the fallback look
+safe. That is the fifth test in this PR to write a defect down as its
+expectation, and the first to *edit the fixture* in order to do it.
+
+Then the question that has caught fifteen findings: does the fix reach only
+the site the review named? It did not. `publishedHeadline` in
+`services/pages.ts` had the identical fallback on the staff `published-only`
+path, with its own comment calling the columns "only a fallback" — so an
+out-of-scope staff caller got the owning department's unreleased headline the
+same way. The review named `discovery.ts`. Both now call one exported
+`releasedHeadline`, and the staff path has its own test.
+
+### What `apps/web` does, and why this does not copy it
+
+Verifying #1 turned up something larger than the finding. `normalizeDoc` in
+`@repo/api/page-builder` — which `getPage`, the public catch-all route, runs
+every page through — does not *fall back* to the row columns. It prefers them:
+
+```ts
+title: translation.title ?? doc.meta.title,
+```
+
+So the live site shows a saved draft's headline on **any** published page with
+edits in progress, not merely on legacy ones. That is an app bug, recorded as
+roadmap **S10** with the fix that belongs in `normalizeDoc`.
+
+It is deliberately not copied here, and the reasoning is worth stating because
+it cuts against this package's usual rule. "What does the public site show" is
+the specification for public discovery — but where the site's answer is itself
+a leak, matching it would mean handing a model unreleased copy and letting it
+repeat that copy as published. The narrower obligation wins: report what is
+released, and record the app's behaviour rather than inheriting it.
+
 ## 18. Base moves while the PR was open
 
 `main` moved nine times after the audit above was written. A clean textual

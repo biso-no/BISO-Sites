@@ -34,6 +34,7 @@ import { campusLabel, NATIONAL_CAMPUS_ID } from "../identity/campus";
 import { fromAppwriteError, notFound } from "../runtime/errors";
 import { scanForward } from "../runtime/scan";
 import { resolveDateFilter } from "./event-time";
+import { releasedHeadline } from "./pages";
 import type { Projected } from "./row";
 
 export type PublicLocale = "no" | "en";
@@ -612,7 +613,8 @@ export function createDiscoveryService(
   }
 
   /**
-   * Title and description as the *published* document states them.
+   * Title and description as the *published* document states them — and from
+   * nowhere else.
    *
    * `page_translations.title` and `.description` are not safe to read on a
    * published page. `saveDraft` overwrites both from the draft's `meta` while
@@ -621,38 +623,35 @@ export function createDiscoveryService(
    * is the released document by definition, and it carries the same `meta`, so
    * it is the only honest source for a public caller.
    *
-   * The row columns remain the fallback for a page published before `meta` was
-   * written, which would otherwise render with no title at all.
+   * There used to be a fallback to those columns for a page published before
+   * `meta` was written, so it would not render with no title at all. That
+   * fallback reopened the exact leak the rest of this function exists to
+   * close, on precisely the rows where nobody would notice: a legacy page
+   * whose released document has no `meta.title` served the *draft's* headline
+   * to anonymous callers. An unreleased title is worse than no title, so a
+   * document that does not state one is reported as not stating one. The
+   * caller still gets the slug and the URL.
+   *
+   * Note that `apps/web` does the opposite and worse: `normalizeDoc` in
+   * `@repo/api/page-builder` overlays `translation.title` **over** the
+   * document's own meta for every page, so the live site shows unreleased
+   * headlines on any published page with a saved draft. That is an app bug,
+   * recorded as roadmap S10 — it is not a reason to copy it here, because
+   * these tools are read by a model that will repeat what they say.
    */
   function publishedMeta(translation: {
     title?: string | null;
     description?: string | null;
     puck_document?: string | null;
   }): { title: string; description: string | null } {
-    const fallback = {
-      title: translation.title ?? "",
-      description: translation.description ?? null,
-    };
     if (!translation.puck_document) {
-      return fallback;
+      return releasedHeadline(undefined);
     }
     try {
       const parsed: unknown = JSON.parse(translation.puck_document);
-      const meta = (
-        parsed as { meta?: { title?: unknown; description?: unknown } }
-      )?.meta;
-      if (!meta) {
-        return fallback;
-      }
-      return {
-        title: typeof meta.title === "string" ? meta.title : fallback.title,
-        description:
-          typeof meta.description === "string"
-            ? meta.description
-            : fallback.description,
-      };
+      return releasedHeadline((parsed as { meta?: unknown })?.meta);
     } catch {
-      return fallback;
+      return releasedHeadline(undefined);
     }
   }
 

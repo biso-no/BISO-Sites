@@ -32,7 +32,11 @@ import type {
   ToolAnnotations,
 } from "@modelcontextprotocol/sdk/types.js";
 import type { ZodRawShape, z } from "zod";
-import type { PolicyProfile, Principal } from "../identity/principal";
+import {
+  isAnonymous,
+  type PolicyProfile,
+  type Principal,
+} from "../identity/principal";
 import type { MutationNote, ToolContext } from "./context";
 import { DomainError, forbidden, isDomainError } from "./errors";
 import type { Logger } from "./logger";
@@ -190,15 +194,31 @@ export interface RegisterResult {
  * Mutations always must. Reads must unless they are exempt — see
  * `ToolDefinition.unprivilegedRead` for what exemption means and why it is the
  * minority case on this schema.
+ *
+ * The exemption is a property of the *caller*, not of the tool's audience.
+ * This used to read `!tool.profiles.includes("public")`, which exempted every
+ * tool a signed-out visitor may also call — and `biso_whoami`,
+ * `biso_list_capabilities` and `biso_explain_permission` are exactly that:
+ * open to everyone, and entirely about the caller's own authority. An
+ * authenticated caller therefore heard their revoked roles read back from
+ * cache for the whole TTL, while the mutation tools forced a refresh and
+ * refused the same authority in the same session. A tool being available to
+ * the public says nothing about whether *this* caller's memberships matter.
+ *
+ * An anonymous caller has no memberships that can go stale, so they are the
+ * one group a read can skip it for.
  */
-function needsCurrentMemberships(tool: ToolDefinition): boolean {
+function needsCurrentMemberships(
+  tool: ToolDefinition,
+  principal: Principal
+): boolean {
   if ((tool.tier ?? "read") !== "read") {
     return true;
   }
   if (tool.unprivilegedRead) {
     return false;
   }
-  return !tool.profiles.includes("public");
+  return !isAnonymous(principal);
 }
 
 /**
@@ -236,7 +256,7 @@ async function invokeTool(input: {
     // still be caught — and for every staff read, which mostly shares that
     // property. See `unprivilegedRead` for why the default runs that way.
     const principal = await context.refreshPrincipal({
-      force: needsCurrentMemberships(tool),
+      force: needsCurrentMemberships(tool, context.principal),
     });
     // Registration filtered the tool list against the profile this process
     // resolved at startup, and the SDK keeps a tool callable for the life of

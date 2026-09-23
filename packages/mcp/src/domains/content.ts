@@ -79,6 +79,16 @@ const proposalInput = {
 };
 
 const LIFECYCLE_TRANSITIONS = ["publish", "unpublish", "archive"] as const;
+
+/**
+ * Target id for a row that does not exist yet.
+ *
+ * A proposal describes a change *before* it happens, so a create has nothing
+ * real to point at. `withCreatedIds` swaps this for the row's `$id` once the
+ * write returns, which is what reaches the audit row — so this string should
+ * never appear in `audit_logs`.
+ */
+export const NEW_ROW_PLACEHOLDER = "(new)";
 type LifecycleTransition = (typeof LIFECYCLE_TRANSITIONS)[number];
 
 /**
@@ -203,6 +213,16 @@ async function proposeOrExecute<TPayload, TResult>(input: {
   }
 
   const data = await executeAndClassify(input.execute);
+  // Re-report the targets now that the write has happened. The first report
+  // ran before it, when a row being created had no id yet and carried
+  // `NEW_ROW_PLACEHOLDER` — which is what the audit row recorded as its
+  // `resource_id`, leaving the activity log unable to name the draft it had
+  // just logged the creation of. Overwriting the note rather than adding a
+  // second hook keeps the dispatcher reading one value.
+  context.noteMutation?.({
+    action: proposal.action,
+    targets: withCreatedIds(proposal.targets, data),
+  });
   // `asApplied`, never `proposal`: the proposal rebuilt at the top of this call
   // carries a token minted from a *fresh* expiry, which the registry has never
   // seen. Handing it back would re-authorize the change that was just made.
@@ -212,6 +232,28 @@ async function proposeOrExecute<TPayload, TResult>(input: {
     data,
     summary: `Applied ${input.action}.`,
   };
+}
+
+/**
+ * Fill in the ids of rows that did not exist when the proposal was built.
+ *
+ * A create names its target `NEW_ROW_PLACEHOLDER`, because there is nothing
+ * else to call a row Appwrite has not made yet. Every service that creates a
+ * row returns its `$id` as `id`, so that is the one convention this reads; a
+ * result without one leaves the targets exactly as they were, which is still
+ * truthful — it just does not gain an id.
+ */
+function withCreatedIds(
+  targets: MutationProposal["targets"],
+  result: unknown
+): MutationProposal["targets"] {
+  const created = (result as { id?: unknown } | null)?.id;
+  if (typeof created !== "string" || created === "") {
+    return targets;
+  }
+  return targets.map((target) =>
+    target.id === NEW_ROW_PLACEHOLDER ? { ...target, id: created } : target
+  );
 }
 
 /**
@@ -527,7 +569,11 @@ export const contentModule: ToolModule = {
           action: `${domain}.create_draft`,
           tier: "draft",
           targets: [
-            { table: domainSpec(domain).table, id: "(new)", label: args.slug },
+            {
+              table: domainSpec(domain).table,
+              id: NEW_ROW_PLACEHOLDER,
+              label: args.slug,
+            },
           ],
           payload,
           revision: null,
