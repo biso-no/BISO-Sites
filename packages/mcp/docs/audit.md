@@ -792,6 +792,49 @@ The refresh default is inverted, so a new staff read is covered without anyone
 remembering; and the campus rule is a named function carrying the citation,
 applied to exactly the tables its source names.
 
+## 17e. Sixteenth review round
+
+A sixteenth review of `6e2cc25` — the first since the quota gap, and the first
+to see the ninth base move's work — raised four, one P1. Three reproduced and
+are fixed. The fourth describes real behaviour whose cause is the repository's
+own, and is recorded rather than diverged from.
+
+| # | Area | Verified as | Fix |
+|---|---|---|---|
+| 1 | `runtime/result.ts` | **Confirmed in part (P1).** `buildPagination` derived `hasMore` from `offset + count < total`. When a page comes back empty, `consumed` is still `offset`, so the cursor handed back is the one just followed and a client told to "follow `nextCursor` until it is null" loops on it forever. The review reaches that through the disputed reading of `listRows(...).total` — under which a filtered query reports the whole table and the comparison stays true after the last matching row. The *second* half of the finding, "treat these totals as unknown", would require settling that dispute, which roadmap 3.5 says cannot be settled from here | An empty page yields no cursor. That is right under **both** readings — rows deleted between two requests leave a filtered `total` stale in exactly the same way — so the guard takes no position. A walk of the pessimistic reading (five matching rows, nine hundred in the table) is pinned as a test, asserting on each step that the cursor *moved* |
+| 2 | `runtime/register.ts` | **Confirmed.** The persisted `audit_logs` row carried `action: tool.name` and `payload: { tier }` — nothing else. `logAuditEvent` in `apps/admin` writes a specific action with the row's id and type (`page_unpublished`, `page`, the page id), so publishing one article and unpublishing another produced two indistinguishable MCP rows next to portal rows that say exactly what happened. The proposal already carried both | The mutation gate reports `{ action, targets }` to the dispatcher, which writes the dotted action plus the primary target's id and table, with the full target list and the tool's name in the payload. Reported at the one chokepoint every executable mutation passes through, so a tool cannot forget to describe itself |
+| 3 | `services/pages.ts` | **Confirmed — round fifteen's finding #1, one function over.** That round taught the *load* path that a published `visibility: "authenticated"` page is granted to the members team alone. `list` had its own predicate, which returned true for any published row. A summary carries the slug, the owning campus and department and both links, so a member-only page's whole identity went to staff callers the load path refuses | One `pageAccess`, with `pageVisibility` and the list predicate as thin callers. Three tests: refused to a non-member, served to a member, and still listed for its own campus |
+| 4 | `services/pages.ts` | **Behaviour confirmed; the premise is the repo's, not this package's.** Unpublishing one locale does draft the parent row, and listings gate on that, so a still-published sibling locale drops out of the sitemap and every public listing while keeping its URL. But `unpublishPage` in `@repo/api/page-builder` writes exactly that, unconditionally, and `apps/admin`'s own unpublish button calls it with no sibling check. The rule the review cites describes how `pages.status` *becomes* published, and the publish path does match it — unpublish is the asymmetric half | None in the code path. Diverging would mean the same action leaves different state depending on which surface did it. `biso_page_publish` now states the effect in its description **and** in the confirmation a person is shown, the port carries its citation, and roadmap **S9** carries the product question with the surface-by-surface cost |
+
+### A fix is not a rule until it has one home
+
+Finding #3 is the fifteenth time in this PR that a fix reached the site a
+review named and stopped there, and this time it is sharper than usual: the
+member-only gate was added to `pageVisibility` one round earlier, correctly,
+while nine lines away `list` kept its own copy of the older rule. Two functions
+answering the same question is the whole failure mode — the fix cannot reach
+both because there is nothing that says they are the same question.
+
+So the repair is not "add the check to `list` too". It is one `pageAccess` with
+two thin callers, one that throws and one that skips, which is the same move as
+round fifteen's `publicCampusScope` and `PUBLISH_SCOPE_NOTE`: where a rule was
+being restated, it becomes a definition.
+
+### Declining half a finding is not declining it
+
+Finding #1 arrives wrapped in the `listRows(...).total` dispute, which this PR
+has deliberately refused to settle for four rounds — Appwrite's release notes
+carry no such entry and the repository has not adopted its own rule. The
+tempting readings are both wrong: accept the whole thing and take a side on an
+unsettled question, or dismiss the whole thing because its premise is
+unsettled.
+
+The useful question is narrower — *what is true under both readings?* An empty
+page is the end of what an offset can yield whichever way `total` is counted,
+and a cursor that does not advance is a defect with or without the dispute. So
+the loop is closed and the dispute is left open, which is also what makes the
+fix cheap enough to be obviously correct.
+
 ## 18. Base moves while the PR was open
 
 `main` moved nine times after the audit above was written. A clean textual

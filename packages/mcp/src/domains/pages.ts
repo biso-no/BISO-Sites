@@ -415,7 +415,7 @@ export const pagesModule: ToolModule = {
     defineTool({
       name: "biso_page_publish",
       title: "Publish or unpublish a page",
-      description: `Publish a page's draft document to the public site, or unpublish it. Publishing copies the draft into the published document — exactly what the editor's publish does. ${PUBLISH_SCOPE_NOTE}`,
+      description: `Publish a page's draft document to the public site, or unpublish it. Publishing copies the draft into the published document — exactly what the editor's publish does. Unpublishing also returns the page row itself to draft, again matching the editor, so a page whose *other* locale is still published keeps its URL but drops out of listings and the sitemap until something republishes it. ${PUBLISH_SCOPE_NOTE}`,
       inputSchema: {
         pageId: z.string().min(1).describe("The page row $id."),
         locale: localeArg,
@@ -488,7 +488,7 @@ export const pagesModule: ToolModule = {
             title: args.publish ? "Publish page" : "Unpublish page",
             message: args.publish
               ? `Publish "${view.title}" (${args.locale}) to the public site.`
-              : `Remove "${view.title}" (${args.locale}) from the public site.`,
+              : `Remove "${view.title}" (${args.locale}) from the public site. This also returns the page to draft, so any other published locale drops out of listings and the sitemap.`,
           },
           execute: () =>
             context.services.pages.setPublished(context.principal, {

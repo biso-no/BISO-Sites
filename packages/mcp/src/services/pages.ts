@@ -644,7 +644,7 @@ export function createPageService(
   }
 
   /**
-   * How much of a page this principal may see.
+   * How much of a page this principal may see, or nothing at all.
    *
    * `pages` and `page_translations` carry `rowSecurity: false` with a
    * table-level `read("any")` grant, so Appwrite enforces nothing here and this
@@ -655,11 +655,19 @@ export function createPageService(
    * to the owning department, and `load()` prefers the draft whenever one
    * exists, so treating "the page is published" as blanket access would serve
    * another campus's unpublished edits to anyone who knew the page id.
+   *
+   * This is the single definition behind both callers — `pageVisibility`,
+   * which refuses a read, and `list`, which skips a row. They were separate
+   * predicates saying the same thing until one of them was corrected and the
+   * other was not: the member-only gate below was added to the load path
+   * alone, leaving the listing still handing out a member-only page's slug,
+   * owner and live link to any staff caller. One function with two thin
+   * callers is what stops that happening a third time.
    */
-  function pageVisibility(
+  function pageAccess(
     principal: Principal,
     row: Pages
-  ): "draft" | "published-only" {
+  ): "draft" | "published-only" | "none" {
     const campusId = relationId(row.campus) ?? row.campus_id ?? null;
     const departmentId =
       relationId(row.department) ?? row.department_id ?? null;
@@ -677,13 +685,23 @@ export function createPageService(
       // table-level `read("any")`, which is the whole reason the decision
       // happens here at all.
       if (row.visibility === "authenticated" && !principal.isMember) {
-        throw notFound(`No page found with id ${row.$id}.`, {
-          pageId: row.$id,
-        });
+        return "none";
       }
       return "published-only";
     }
-    throw notFound(`No page found with id ${row.$id}.`, { pageId: row.$id });
+    return "none";
+  }
+
+  /** {@link pageAccess}, as a read gate: "none" is reported as absent. */
+  function pageVisibility(
+    principal: Principal,
+    row: Pages
+  ): "draft" | "published-only" {
+    const access = pageAccess(principal, row);
+    if (access === "none") {
+      throw notFound(`No page found with id ${row.$id}.`, { pageId: row.$id });
+    }
+    return access;
   }
 
   async function readPageRow(pageId: string): Promise<Pages> {
@@ -761,16 +779,8 @@ export function createPageService(
        * The ceiling bounds the work per call. Reaching it returns a short page
        * with a cursor, never a wrong "there is nothing more".
        */
-      const isVisible = (row: Pages): boolean => {
-        if (row.status === "published") {
-          return true;
-        }
-        return canReadRow(
-          principal,
-          relationId(row.campus) ?? row.campus_id ?? null,
-          relationId(row.department) ?? row.department_id ?? null
-        );
-      };
+      const isVisible = (row: Pages): boolean =>
+        pageAccess(principal, row) !== "none";
 
       try {
         const scan = await scanForward<Pages, Pages>({
@@ -995,6 +1005,21 @@ export function createPageService(
           permissions
         );
         localeCommitted = true;
+        // The parent row follows the locale unconditionally, which is what
+        // `unpublishPage` in `@repo/api/page-builder` does — the function the
+        // editor's own unpublish button calls, with no check for a sibling
+        // locale either. So unpublishing one locale of a bilingual page also
+        // drafts the parent, and the still-published locale keeps its URL
+        // (`getPage` resolves by slug and reads the translation) while
+        // dropping out of the sitemap and every public listing, which do gate
+        // on `pages.status`.
+        //
+        // Deliberately not corrected here. The same action would then leave
+        // different state depending on whether it was done from the portal or
+        // from this server, and the asymmetry is the repo's: its publish path
+        // sets the parent published while its unpublish path drafts it. The
+        // tool says what it does, and `docs/roadmap.md` carries the product
+        // question.
         await db.updateRow<Pages>(
           "app",
           PAGE_TABLE,

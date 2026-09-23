@@ -123,6 +123,18 @@ async function proposeOrExecute<TPayload, TResult>(input: {
     options: context.mutation,
   });
 
+  // Report what this call is about to touch before any of it can fail. The
+  // dispatcher turns it into the `audit_logs` row's action, resource id and
+  // resource type, which otherwise carry only the tool's name — indistinguish-
+  // able between publishing one page and unpublishing another. Reported on the
+  // propose path too: nothing is persisted for a proposal, but the stderr
+  // record is written for every call and is the only attestation when the row
+  // write fails.
+  context.noteMutation?.({
+    action: proposal.action,
+    targets: proposal.targets,
+  });
+
   if (!input.token) {
     return {
       executed: false,

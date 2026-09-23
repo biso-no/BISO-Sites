@@ -18,6 +18,26 @@ import type { Auditor } from "./audit";
 import type { Logger } from "./logger";
 import type { MutationGateOptions } from "./mutation";
 
+/**
+ * What a mutating call actually touched, for the persisted `audit_logs` row.
+ *
+ * `logAuditEvent` in `apps/admin` writes a specific action (`page_unpublished`)
+ * with the resource's id and type; the dispatcher here only knows the tool's
+ * name and tier, which made every publish and unpublish through
+ * `biso_content_set_lifecycle` an identical row. The proposal already carries
+ * both, so it reports them rather than the dispatcher guessing.
+ *
+ * Recorded at the one chokepoint every executable mutation passes through, so
+ * a tool cannot forget to describe itself — a mutation that does not go
+ * through the proposal gate is not a mutation this server can execute.
+ */
+export interface MutationNote {
+  /** Dotted operation, e.g. `content.publish`. */
+  action: string;
+  /** The rows the change touches. Concrete ids, never a filter. */
+  targets: ReadonlyArray<{ table: string; id: string; label?: string }>;
+}
+
 export interface ToolContext {
   auditor: Auditor;
   clients: BackendClients;
@@ -41,6 +61,11 @@ export interface ToolContext {
   logger: Logger;
   /** Everything the mutation gate needs, resolved once at connect time. */
   mutation: MutationGateOptions;
+  /**
+   * Where the mutation gate reports {@link MutationNote}. Supplied per call by
+   * the dispatcher; absent in contexts built for tests that never dispatch.
+   */
+  noteMutation?(note: MutationNote): void;
   /**
    * The principal this call authorizes against.
    *

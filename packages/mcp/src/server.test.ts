@@ -1839,6 +1839,54 @@ describe("audit_logs is a record of changes, not of questions", () => {
       await harness.close();
     }
   });
+
+  test("the row says what changed, not just which tool ran", async () => {
+    /**
+     * `logAuditEvent` in the portal writes a specific action with the row's id
+     * and type — `page_unpublished`, `page`, the page id. A row carrying only
+     * the tool's name and its tier cannot tell a publish from an unpublish, or
+     * one article from another, which is exactly the value of putting MCP
+     * changes in the same activity feed. The proposal already names both.
+     */
+    const harness = await connect({
+      principal: GLOBAL_ADMIN(),
+      config: baseConfig({ writeMode: "operator" }),
+    });
+    try {
+      const args = {
+        domain: "news",
+        slug: "identified",
+        campusId: "1",
+        titleNo: "A",
+        titleEn: "A",
+        descriptionNo: "A",
+        descriptionEn: "A",
+      };
+      const first = await callTool(
+        harness.client,
+        "biso_content_create_draft",
+        args
+      );
+      const proposal = (
+        first.structured?.data as {
+          proposal: { proposalToken: string; expiresAt: string };
+        }
+      ).proposal;
+      await callTool(harness.client, "biso_content_create_draft", {
+        ...args,
+        proposalToken: proposal.proposalToken,
+        proposalExpiresAt: proposal.expiresAt,
+      });
+
+      const row = auditRows(harness)[0]?.data ?? {};
+      expect(row.action).toBe("news.create_draft");
+      expect(row.resource_type).toBe("news");
+      // The tool name is still recorded — in the payload, where it belongs.
+      expect(String(row.payload)).toContain("biso_content_create_draft");
+    } finally {
+      await harness.close();
+    }
+  });
 });
 
 describe("approval requests", () => {

@@ -33,7 +33,7 @@ import type {
 } from "@modelcontextprotocol/sdk/types.js";
 import type { ZodRawShape, z } from "zod";
 import type { PolicyProfile, Principal } from "../identity/principal";
-import type { ToolContext } from "./context";
+import type { MutationNote, ToolContext } from "./context";
 import { DomainError, forbidden, isDomainError } from "./errors";
 import type { Logger } from "./logger";
 import type { MutationTier } from "./mutation";
@@ -222,6 +222,12 @@ async function invokeTool(input: {
   const startedAt = performance.now();
   const logger = context.logger.child({ requestId, tool: tool.name });
   const tier = tool.tier ?? "read";
+  // Per call, never shared: this holder is closed over by this invocation
+  // alone, so one tool's targets can never land on another's audit row. A
+  // holder rather than a bare `let` because the only writer is the callback
+  // below, and TypeScript would otherwise narrow the variable to `null` at
+  // every read that follows.
+  const mutation: { note: MutationNote | null } = { note: null };
 
   try {
     // Authorize against current memberships, not the ones this process saw at
@@ -248,6 +254,9 @@ async function invokeTool(input: {
       ...context,
       principal,
       logger,
+      noteMutation: (value) => {
+        mutation.note = value;
+      },
     });
     // Only reads race a timer. `Promise.race` abandons the loser; it does not
     // cancel it, and the Appwrite SDK exposes no way to abort a request already
@@ -270,10 +279,10 @@ async function invokeTool(input: {
     // it is.
     await context.auditor.record({
       requestId,
-      action: tool.name,
+      ...auditSubject(mutation.note, tool.name),
       outcome: auditOutcome(outcome, tier),
       durationMs: Math.round(performance.now() - startedAt),
-      payload: { tier },
+      payload: { tier, tool: tool.name, targets: mutation.note?.targets },
     });
     return toCallToolResult(outcome);
   } catch (rawError) {
@@ -285,10 +294,13 @@ async function invokeTool(input: {
     logToolFailure(logger, rawError);
     await context.auditor.record({
       requestId,
-      action: tool.name,
+      ...auditSubject(mutation.note, tool.name),
       outcome: "error",
       durationMs: Math.round(performance.now() - startedAt),
-      payload: { code: isDomainError(rawError) ? rawError.code : "internal" },
+      payload: {
+        code: isDomainError(rawError) ? rawError.code : "internal",
+        tool: tool.name,
+      },
     });
     return toCallToolResult(toToolError(rawError, requestId));
   }
@@ -327,6 +339,37 @@ function assertProfileAllowed(
  * reports `"read"` or leaves it unset. Only `"executed"` is a change worth
  * persisting as one.
  */
+/**
+ * What the audit row is *about*.
+ *
+ * A mutation names its dotted action and its primary row — the shape
+ * `logAuditEvent` writes from the portal (`page_unpublished`, resource id,
+ * resource type), so an MCP change and a portal change line up in the same
+ * activity log instead of one of them reading as a bare tool name. Without
+ * this, publishing one page and unpublishing another produced two identical
+ * rows.
+ *
+ * `audit_logs` carries one `resource_id`/`resource_type` pair while a change
+ * can touch several rows, so the first target is the subject and the whole
+ * list travels in the payload. Anything that reported no note — every read,
+ * and any failure raised before the proposal gate — falls back to the tool's
+ * name, which is then genuinely all that is known about it.
+ */
+function auditSubject(
+  note: MutationNote | null,
+  toolName: string
+): { action: string; resourceId?: string; resourceType?: string } {
+  if (!note) {
+    return { action: toolName };
+  }
+  const primary = note.targets[0];
+  return {
+    action: note.action,
+    resourceId: primary?.id,
+    resourceType: primary?.table,
+  };
+}
+
 function auditOutcome(
   outcome: ToolOutcome<unknown>,
   tier: MutationTier | "read"

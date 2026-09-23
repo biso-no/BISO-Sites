@@ -320,6 +320,46 @@ same-named unit at another campus. The matcher here requires the campus implied
 by the name's prefix to equal the row's `campus_id`, and refuses a name that
 matches two rows within one campus.
 
+### S9. Decide what unpublishing one locale should do to the page row
+
+`unpublishPage` in `packages/api/page-builder.ts` sets `pages.status` to
+`draft` whenever any locale is unpublished, with no check for a sibling. The
+editor's unpublish button reaches it through `unpublishPageAction`
+(`apps/admin/src/app/(portal)/_actions/pages.ts`), which passes only the id and
+the locale, so the portal behaves the same way.
+
+The repo's own model, stated in
+`apps/admin/src/app/(portal)/departments/[id]/page.tsx`, is that `pages.status`
+"flips to published as soon as any single locale is published" — and the
+publish path matches it. Unpublish is the asymmetric half: one locale going
+down takes the parent with it.
+
+What that costs, concretely, for a page published in both locales when English
+is withdrawn:
+
+| Surface | Gates on | Norwegian after the unpublish |
+|---|---|---|
+| The page route (`getPage`) | the locale's `is_published` | still served |
+| `cachedSitemapPages`, public page listings | `pages.status` | gone |
+| `biso_public_search` here | `pages.status`, matching the site | gone |
+
+So the page keeps working for anyone holding its URL and quietly leaves every
+listing that would have led someone to it.
+
+**Not corrected in `@repo/mcp`.** `setLocalePublished` follows
+`unpublishPage` deliberately: diverging would mean the same action leaves
+different state depending on whether a person used the portal or this server,
+and which behaviour is right is a product question about the page model, not a
+porting decision. `biso_page_publish` states the effect in its description and
+in the confirmation a person is shown, so nothing here is silent about it.
+
+**If it is settled as "keep the parent published while any locale is live":**
+the change belongs in `unpublishPage`, reading the page's other translations
+before writing the parent, and both surfaces inherit it. Note that the parent's
+`$permissions` are rewritten in the same call — a parent that stays published
+must keep its published permissions, or the row becomes unreadable while its
+status still says otherwise.
+
 ### S7. `setProp` in `@repo/editor` follows `__proto__`
 
 `packages/editor/src/editor/operations.ts:367` walks a dot path with

@@ -420,6 +420,59 @@ describe("list", () => {
     });
     expect(asGlobal.rows).toHaveLength(2);
   });
+
+  /**
+   * The load path learned this rule a round before the listing did. A summary
+   * carries the slug, the owning campus and department, and both the admin and
+   * the public link — so a listing that waves every published row through
+   * hands a member-only page's whole identity to a staff caller the load path
+   * would refuse. Both now come from one predicate.
+   */
+  function memberOnlyPublished(): FakeTables {
+    const tables = tablesWith();
+    const page = tables.pages[0] as Record<string, unknown>;
+    page.status = "published";
+    page.visibility = "authenticated";
+    return tables;
+  }
+
+  test("a member-only page is not listed to a staff caller who is not a member", async () => {
+    const service = createPageService(
+      createFakeBackend({ tables: memberOnlyPublished() }),
+      LINKS
+    );
+    const found = await service.list(CAMPUS_ADMIN("Bergen", "2"), {
+      limit: 20,
+      offset: 0,
+    });
+    expect(found.rows.map((row) => row.id)).toEqual([]);
+  });
+
+  test("a member-only page is listed to a member", async () => {
+    const service = createPageService(
+      createFakeBackend({ tables: memberOnlyPublished() }),
+      LINKS
+    );
+    const found = await service.list(
+      { ...CAMPUS_ADMIN("Bergen", "2"), isMember: true },
+      { limit: 20, offset: 0 }
+    );
+    expect(found.rows.map((row) => row.id)).toEqual(["page-1"]);
+  });
+
+  test("the owning campus still sees its own member-only page", async () => {
+    // Ownership is checked before the published branch, so a board editing a
+    // member-only page does not lose it from their own listing.
+    const service = createPageService(
+      createFakeBackend({ tables: memberOnlyPublished() }),
+      LINKS
+    );
+    const found = await service.list(CAMPUS_ADMIN("Oslo", "1"), {
+      limit: 20,
+      offset: 0,
+    });
+    expect(found.rows.map((row) => row.id)).toEqual(["page-1"]);
+  });
 });
 
 describe("saveDraft", () => {

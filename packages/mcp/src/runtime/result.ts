@@ -201,6 +201,37 @@ export function decodeCursor(cursor: string | undefined): number {
   return 0;
 }
 
+/**
+ * Is there another page after this one?
+ *
+ * An empty page is the end of what this offset can yield, whatever `total`
+ * says. Without that first clause a zero-row page hands the caller back the
+ * cursor they just used — `consumed` is still `offset` — and a client
+ * following `hasMore` loops on it forever.
+ *
+ * That is not hypothetical. Whether `listRows(...).total` counts the filtered
+ * result or the whole table is unsettled on this Appwrite release
+ * (`docs/roadmap.md` 3.5), and under the whole-table reading `consumed <
+ * total` stays true for every filtered query that has run out of rows. The
+ * guard takes no side in that question, because it is right under both: rows
+ * deleted between two requests leave a filtered `total` stale in exactly the
+ * same way.
+ */
+function hasMorePages(input: {
+  count: number;
+  total: number | null;
+  offset: number;
+  limit: number;
+}): boolean {
+  if (input.count === 0) {
+    return false;
+  }
+  if (input.total === null) {
+    return input.count === input.limit;
+  }
+  return input.offset + input.count < input.total;
+}
+
 export function buildPagination(input: {
   count: number;
   total: number | null;
@@ -208,8 +239,7 @@ export function buildPagination(input: {
   limit: number;
 }): Pagination {
   const consumed = input.offset + input.count;
-  const hasMore =
-    input.total === null ? input.count === input.limit : consumed < input.total;
+  const hasMore = hasMorePages(input);
   return {
     count: input.count,
     total: input.total,
