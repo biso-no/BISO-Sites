@@ -53,7 +53,11 @@ interface JobApplicationFormProps {
   customQuestions?: RecruitmentCustomQuestion[];
   cvRequired: boolean;
   isAuthenticated: boolean;
+  /** Current user's live membership status; only consulted when membersOnly. */
+  isMember?: boolean;
   jobId: string;
+  /** Vacancy is members-only: everyone can read it, only members may apply. */
+  membersOnly?: boolean;
 }
 
 type Step = "contact" | "questions" | "documents" | "review";
@@ -234,13 +238,64 @@ function QuestionInput({
   );
 }
 
+interface ApplyGate {
+  cta: string;
+  href: string;
+  message: string;
+}
+
+/**
+ * Which wall, if any, stands between this visitor and the form. Sign-in comes
+ * first: an anonymous visitor has no membership we could check yet.
+ */
+function resolveApplyGate({
+  isAuthenticated,
+  isMember,
+  membersOnly,
+}: {
+  isAuthenticated: boolean;
+  isMember: boolean;
+  membersOnly: boolean;
+}): ApplyGate | null {
+  if (!isAuthenticated) {
+    return {
+      cta: "Sign in to apply",
+      href: "/auth/login",
+      message: "You need a signed-in BISO account to apply.",
+    };
+  }
+  if (membersOnly && !isMember) {
+    return {
+      cta: "Become a member",
+      href: "/membership/join",
+      message:
+        "This position is open to BISO members only. Become a member to apply.",
+    };
+  }
+  return null;
+}
+
+function ApplyGateCard({ cta, href, message }: ApplyGate) {
+  return (
+    <Card className="border-border/60 p-6 shadow-sm">
+      <h3 className="font-semibold text-foreground text-xl">Apply</h3>
+      <p className="mt-2 text-muted-foreground text-sm">{message}</p>
+      <Button asChild className="mt-4 w-full">
+        <Link href={href}>{cta}</Link>
+      </Button>
+    </Card>
+  );
+}
+
 export function JobApplicationForm({
   applicantEmail = "",
   applicantName = "",
   cvRequired,
   customQuestions = [],
   isAuthenticated,
+  isMember = false,
   jobId,
+  membersOnly = false,
 }: JobApplicationFormProps) {
   const hasQuestions = customQuestions.length > 0;
   const steps = hasQuestions
@@ -330,18 +385,12 @@ export function JobApplicationForm({
     });
   }
 
-  if (!isAuthenticated) {
-    return (
-      <Card className="border-border/60 p-6 shadow-sm">
-        <h3 className="font-semibold text-foreground text-xl">Apply</h3>
-        <p className="mt-2 text-muted-foreground text-sm">
-          You need a signed-in BISO account to apply.
-        </p>
-        <Button asChild className="mt-4 w-full">
-          <Link href="/auth/login">Sign in to apply</Link>
-        </Button>
-      </Card>
-    );
+  // The vacancy itself stays readable to everyone — only the form is gated, so
+  // a non-member sees the role and what joining would get them, rather than
+  // filling in four steps and a CV upload to be refused on submit.
+  const gate = resolveApplyGate({ isAuthenticated, isMember, membersOnly });
+  if (gate) {
+    return <ApplyGateCard {...gate} />;
   }
 
   if (isSuccess) {

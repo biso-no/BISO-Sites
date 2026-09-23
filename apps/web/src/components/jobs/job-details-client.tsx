@@ -25,6 +25,8 @@ interface JobDetailsClientProps {
   applicantEmail?: string;
   applicantName?: string;
   isAuthenticated: boolean;
+  /** Live membership status, resolved on the server; gates the apply form. */
+  isMember?: boolean;
   job: RecruitmentVacancy;
 }
 
@@ -122,6 +124,7 @@ export function JobDetailsClient({
   applicantEmail,
   applicantName,
   isAuthenticated,
+  isMember = false,
   job,
 }: JobDetailsClientProps) {
   const router = useRouter();
@@ -331,7 +334,9 @@ export function JobDetailsClient({
                 customQuestions={job.custom_questions ?? []}
                 cvRequired={Boolean(job.metadata.cv_required)}
                 isAuthenticated={isAuthenticated}
+                isMember={isMember}
                 jobId={job.$id}
+                membersOnly={job.metadata.audience === "members"}
               />
 
               {/* GDPR notice */}

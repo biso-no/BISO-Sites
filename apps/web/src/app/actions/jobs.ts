@@ -53,6 +53,7 @@ import {
 import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 import { cache } from "react";
+import { getLiveMembershipStatus } from "@/lib/actions/membership";
 import { campusScopeIds } from "@/lib/campus-scope";
 import { openVacancyQueries } from "@/lib/data/queries";
 import { findContentIdsBySearch } from "@/lib/data/search-content";
@@ -370,6 +371,21 @@ export async function submitJobApplication(
         success: false,
         error: "This vacancy is not accepting applications.",
       };
+    }
+
+    // Members-only vacancies are visible to everyone — the gate is here, on
+    // applying, not on reading the row. Live (uncached) status: a student who
+    // paid for their membership a moment ago must be able to apply straight
+    // away, and this gate is the one thing that would tell them otherwise.
+    if (vacancy.metadata.audience === "members") {
+      const membership = await getLiveMembershipStatus();
+      if (!membership.isMember) {
+        return {
+          success: false,
+          error:
+            "This vacancy is open to BISO members only. Buy a membership to apply.",
+        };
+      }
     }
 
     const missingAnswerError = assertRequiredAnswersPresent(

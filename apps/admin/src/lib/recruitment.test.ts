@@ -111,10 +111,17 @@ describe("buildJobRowPermissions", () => {
     expect(perms.join(" ")).not.toContain("team:admin");
   });
 
-  test("published + members swaps read(any) for biso-members", () => {
+  test("published + members stays world-readable — the gate is on applying", () => {
     const perms = buildJobRowPermissions("members", "published");
+    expect(perms).toContain('read("any")');
+    expect(perms).toContain('read("team:sg-app-dept-hr")');
+    // No such team exists; granting it hid the vacancy from everyone.
+    expect(perms.join(" ")).not.toContain("biso-members");
+  });
+
+  test("draft + members is not public either", () => {
+    const perms = buildJobRowPermissions("members", "draft");
     expect(perms).not.toContain('read("any")');
-    expect(perms).toContain('read("team:biso-members")');
     expect(perms).toContain('read("team:sg-app-dept-hr")');
   });
 
