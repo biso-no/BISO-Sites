@@ -94,7 +94,7 @@ const blockEditSchema = z.discriminatedUnion("op", [
       .min(1)
       .refine((value) => propPathProblem(value) === null, {
         message:
-          "A prop path may not contain `__proto__`, `constructor` or `prototype`, exceed 12 segments or 64 characters per segment, or address an array index above 999.",
+          "A prop path may not start with `id` or `type` (the block's own identity), contain `__proto__`, `constructor` or `prototype`, exceed 12 segments or 64 characters per segment, or address an array index above 999.",
       })
       .describe("Dot-notation prop path, e.g. `title` or `items.0.label`."),
     value: z

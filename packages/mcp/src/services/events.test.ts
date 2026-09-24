@@ -80,7 +80,7 @@ describe("event audience", () => {
       eventId: "ev-1",
     });
 
-    const crew = segments.find((segment) => segment.id === "seg-1");
+    const crew = segments.rows.find((segment) => segment.id === "seg-1");
     expect(crew?.memberCount).toBe(2);
     expect(
       backend.elevations.some((reason) => reason.includes("segment_members"))
@@ -275,7 +275,7 @@ describe("audience counts do not trust listRows total", () => {
 
     // Six `segment_members` rows exist; two are in `seg-1`. Counting the
     // table would also report the segment as over its capacity of 10.
-    const crew = segments.find((segment) => segment.id === "seg-1");
+    const crew = segments.rows.find((segment) => segment.id === "seg-1");
     expect(crew?.memberCount).toBe(2);
     expect(crew?.memberCountTruncated).toBe(false);
     expect(crew?.remaining).toBe(8);

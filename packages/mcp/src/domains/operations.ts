@@ -123,18 +123,24 @@ export const eventsModule: ToolModule = {
       },
       async handler(args, context) {
         const requestId = newRequestId();
-        const segments = await context.services.events.listSegments(
+        const page = await context.services.events.listSegments(
           context.principal,
           { eventId: args.eventId }
         );
+        const segments = page.rows;
         return result({
           requestId,
           summary:
             segments.length === 0
               ? "This event has no segments."
-              : `${segments.length} segment(s).`,
-          data: { segments },
+              : `${page.truncated ? "At least " : ""}${segments.length} segment(s).`,
+          data: { segments, truncated: page.truncated },
           scope: describeScope(context.principal),
+          warnings: page.truncated
+            ? [
+                `Only the first ${segments.length} segments were read; this event has more. Capacity and membership for the rest are not included.`,
+              ]
+            : [],
         });
       },
     }),
@@ -219,6 +225,36 @@ export const recruitmentModule: ToolModule = {
             offset,
             limit,
           }),
+        });
+      },
+    }),
+
+    defineTool({
+      name: "biso_get_vacancy",
+      title: "Get vacancy",
+      description:
+        "Read one vacancy by id, scoped by the recruitment rule rather than the general content rule — HR sees every vacancy at its campuses regardless of which department owns it. Screening rubric and interview template are reported as present or absent, never returned.",
+      inputSchema: {
+        jobId: z.string().min(1).describe("The vacancy row $id."),
+      },
+      annotations: READ_ONLY,
+      profiles: STAFF_PROFILES,
+      isAvailable(context) {
+        return hasRecruitmentAccess(context.principal)
+          ? true
+          : "Recruitment is HR-exclusive with global-admin break-glass. This principal holds neither, so vacancy tools are not registered.";
+      },
+      async handler(args, context) {
+        const requestId = newRequestId();
+        const vacancy = await context.services.recruitment.getVacancy(
+          context.principal,
+          args.jobId
+        );
+        return result({
+          requestId,
+          summary: `"${vacancy.title ?? vacancy.slug}" — ${vacancy.status}, ${vacancy.campusLabel}.`,
+          data: { vacancy },
+          scope: describeScope(context.principal),
         });
       },
     }),

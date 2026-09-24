@@ -597,6 +597,31 @@ export function createContentService(
     };
   }
 
+  /**
+   * Refuse a publish the row itself rules out.
+   *
+   * Authorization decides whether this principal may publish; this decides
+   * whether *this row* can be published from here at all. The one case today is
+   * an event with `notify_push`, whose canonical publish sends an announcement
+   * this package cannot — and publishing without it is unrecoverable, because
+   * the status is then already `published`.
+   */
+  function assertPublishablePerDomain(
+    spec: ContentDomainSpec,
+    domain: ContentDomain,
+    id: string,
+    row: unknown
+  ): void {
+    const blocked = spec.publishPrecondition?.(row as Record<string, unknown>);
+    if (blocked) {
+      throw new DomainError(
+        "not_supported",
+        `This ${domain} cannot be published from this server.`,
+        { details: { domain, id }, remedy: blocked }
+      );
+    }
+  }
+
   function baseQueries(
     principal: Principal,
     spec: ContentDomainSpec,
@@ -863,6 +888,7 @@ export function createContentService(
           ownership.campusId,
           ownership.departmentId
         );
+        assertPublishablePerDomain(spec, domain, id, current);
       } else {
         assertWriteAccess(
           principal,

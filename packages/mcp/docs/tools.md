@@ -155,8 +155,8 @@ campus that owns them.
 
 | Tool | Read-only | Tier |
 |---|---|---|
-| `biso_content_search` | ✅ | — |
-| `biso_content_get` | ✅ | — |
+| `biso_content_search` | ✅ | `jobs` is refused: recruitment scope is not content scope. Use `biso_list_vacancies`. |
+| `biso_content_get` | ✅ | `jobs` is refused; use `biso_get_vacancy`. |
 | `biso_content_create_draft` | ❌ | `draft` |
 | `biso_content_set_lifecycle` | ❌ | `publish` |
 
@@ -293,6 +293,7 @@ text a visitor typed into a public form.
 | `biso_event_segments` | staff | Authorized against the parent event; the segment tables have row security disabled. |
 | `biso_event_audience` | staff | Counts, fill, unassigned. Messaging a segment is not available. |
 | `biso_list_vacancies` | **HR only** | Not registered at all for other staff. |
+| `biso_get_vacancy` | **HR only** | One vacancy by id, under the *recruitment* scope rule — HR sees every vacancy at its campuses whatever department owns it. `jobs` is deliberately absent from `biso_content_search`/`get` for that reason: content scope would narrow HR to the HR department's own rows. Rubric and interview template are reported as present or absent, never returned. |
 | `biso_list_applications` | **HR only** | Screening scores and review state. No cover letters, no phone numbers, no resume files. |
 | `biso_integration_configuration` | global admin | **Configuration presence, not health.** Nothing is contacted. |
 

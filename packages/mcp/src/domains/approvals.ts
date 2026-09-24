@@ -19,6 +19,7 @@ import {
   canPublish,
   describeScope,
 } from "../identity/scope";
+import type { ToolContext } from "../runtime/context";
 import { forbidden } from "../runtime/errors";
 import { defineTool, type ToolModule } from "../runtime/register";
 import { buildPagination } from "../runtime/result";
@@ -64,6 +65,71 @@ const RESOURCE_TYPE: Record<ApprovalDomain, string> = {
 function executionWarnings(domain: ApprovalDomain): string[] | undefined {
   const note = APPROVAL_EXECUTION_NOTES[domain];
   return note ? [note] : undefined;
+}
+
+/**
+ * What a `<domain>.publish` approval is being filed about.
+ *
+ * Only the fields the request needs — enough to authorize the requester, name
+ * the row in the proposal and link to it.
+ */
+interface ApprovalSubject {
+  campusId: string | null;
+  departmentId: string | null;
+  links: Record<string, string>;
+  revision: string;
+  title: string | null;
+}
+
+/**
+ * Read the subject under the rule that actually governs it.
+ *
+ * Every domain but `jobs` is content, and content scope is campus plus
+ * department. Recruitment is not: `toRecruitmentAdminScope` gives HR every
+ * vacancy at its campuses with no department narrowing, and HR together with
+ * National every campus. Reading a vacancy through the content path would
+ * refuse an HR user for a vacancy they manage — the same mismatch that took
+ * `jobs` out of the generic content tools.
+ */
+async function readApprovalSubject(
+  context: ToolContext,
+  domain: ApprovalDomain,
+  contentDomain: ContentDomain,
+  id: string
+): Promise<ApprovalSubject> {
+  if (domain === "jobs") {
+    const vacancy = await context.services.recruitment.getVacancy(
+      context.principal,
+      id
+    );
+    const spec = domainSpec(contentDomain);
+    const links: Record<string, string> = {
+      admin: context.links.admin(spec.adminPath(vacancy.id)),
+    };
+    if (spec.publicPath && vacancy.slug) {
+      links.public = context.links.web(spec.publicPath(vacancy.slug));
+    }
+    return {
+      campusId: vacancy.campusId,
+      departmentId: vacancy.departmentId,
+      links,
+      revision: vacancy.updatedAt,
+      title: vacancy.title,
+    };
+  }
+
+  const item = await context.services.content.get(
+    context.principal,
+    contentDomain,
+    id
+  );
+  return {
+    campusId: item.campusId,
+    departmentId: item.departmentId,
+    links: item.links,
+    revision: item.revision,
+    title: item.title,
+  };
 }
 
 export const approvalsModule: ToolModule = {
@@ -185,8 +251,9 @@ export const approvalsModule: ToolModule = {
         // `products`; map before reading the row.
         const contentDomain: ContentDomain =
           domain === "shop" ? "products" : (domain as ContentDomain);
-        const item = await context.services.content.get(
-          context.principal,
+        const item = await readApprovalSubject(
+          context,
+          domain,
           contentDomain,
           args.id
         );
@@ -202,7 +269,19 @@ export const approvalsModule: ToolModule = {
         // This is the whole gate, and it is deliberately stricter than the
         // portal's: `createApprovalRequest` in `apps/admin` calls `requireAuth`
         // and nothing else.
-        assertWriteAccess(context.principal, item.campusId, item.departmentId);
+        //
+        // Not for `jobs`: recruitment scope is not content scope, and
+        // `getVacancy` has already applied the canonical one. Asking
+        // `assertWriteAccess` as well would re-impose the department narrowing
+        // that `toRecruitmentAdminScope` deliberately does not have, and refuse
+        // an HR user for a vacancy they demonstrably manage.
+        if (domain !== "jobs") {
+          assertWriteAccess(
+            context.principal,
+            item.campusId,
+            item.departmentId
+          );
+        }
 
         const payload = {
           domain,

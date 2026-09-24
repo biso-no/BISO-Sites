@@ -111,7 +111,16 @@ export function scopeQueries(
       return [NO_MATCH_FILTER];
     }
     const filters: string[] = [];
-    if (campusField && principal.resolvedCampusIds.length > 0) {
+    if (campusField) {
+      // A department member is scoped by campus *and* department, and
+      // `canReadRow` enforces both: with no resolved campus it refuses every
+      // row that carries one. Emitting the department predicate alone would
+      // make this list the looser of the two gates — that department's drafts
+      // at every campus, each of which the single-row check would then refuse.
+      // A table with a campus dimension and no campus to match on is no match.
+      if (principal.resolvedCampusIds.length === 0) {
+        return [NO_MATCH_FILTER];
+      }
       filters.push(Query.equal(campusField, principal.resolvedCampusIds));
     }
     filters.push(Query.equal(departmentField, principal.resolvedDepartmentIds));
@@ -162,6 +171,22 @@ export function describeScope(
         departmentIds: [],
         summary:
           "No rows: this collection has no department dimension and you have department-level access only",
+      };
+    }
+    // The mirror of the campus guard in `scopeQueries`. Department scope is
+    // campus *and* department; with no campus resolved the query matches
+    // nothing, and a summary that named the departments would describe a scope
+    // the caller did not get.
+    if (
+      resolveField(fields.campusField, DEFAULT_CAMPUS_FIELD) !== null &&
+      principal.resolvedCampusIds.length === 0
+    ) {
+      return {
+        level: "department",
+        campusIds: [],
+        departmentIds: [...principal.resolvedDepartmentIds],
+        summary:
+          "No rows: your department scope resolved no campus, and this collection is campus-scoped",
       };
     }
     return {

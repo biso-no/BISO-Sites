@@ -483,6 +483,28 @@ const MAX_PROP_ARRAY_INDEX = 999;
 const ARRAY_INDEX_SEGMENT = /^\d+$/;
 
 /**
+ * Top-level keys `set_prop` may not address, because they are the block's
+ * identity rather than its content.
+ *
+ * `setProp` walks from the **block**, not from `block.props`, so a path whose
+ * first segment is `id` or `type` rewrites the discriminator the rest of the
+ * document is keyed on. A duplicate or null `id` breaks `findBlock`, and
+ * therefore every later `move`, `remove` and `set_prop` that targets it; an
+ * unrecognised `type` renders as `Unknown block`. Neither is a prototype
+ * escape — this is the same primitive as the `__proto__` guard above, one
+ * level less exotic: what `setProp` overwrites rather than what it creates.
+ *
+ * Only the *first* segment is reserved. A prop legitimately named `id` or
+ * `type` nested inside the block's content — `items.0.id`, `props.type` — is
+ * ordinary data and stays writable.
+ *
+ * `layout` is deliberately not reserved: `layout.padding` is a legitimate
+ * edit, and the schema's scalar-only `value` cannot replace the object with
+ * anything that survives a render as identity would.
+ */
+const RESERVED_ROOT_SEGMENTS: ReadonlySet<string> = new Set(["id", "type"]);
+
+/**
  * Why this prop path may not be applied, or null when it may.
  *
  * Two separate hazards, both about what `setProp` *creates* rather than what
@@ -494,6 +516,10 @@ export function propPathProblem(path: string): string | null {
   const segments = path.split(".");
   if (segments.length > MAX_PROP_PATH_SEGMENTS) {
     return `it has ${segments.length} segments; at most ${MAX_PROP_PATH_SEGMENTS} are allowed`;
+  }
+  const root = segments[0];
+  if (root !== undefined && RESERVED_ROOT_SEGMENTS.has(root)) {
+    return `\`${root}\` is the block's own identity, not one of its props`;
   }
   for (const segment of segments) {
     if (UNSAFE_PATH_SEGMENTS.has(segment)) {

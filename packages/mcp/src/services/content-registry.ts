@@ -66,6 +66,15 @@ export interface ContentDomainSpec {
   publicPath: ((slug: string) => string) | null;
   /** The value meaning publicly visible. */
   publishedStatus: string;
+  /**
+   * Why this particular row may not be published from here, or null.
+   *
+   * Support is otherwise a property of the domain. This is the one thing that
+   * is a property of the *row*: a publish whose canonical path does more than
+   * change a status, for a reason a column carries. Checked against the row
+   * the backend just returned, immediately before the write.
+   */
+  publishPrecondition?: (row: Record<string, unknown>) => string | null;
   /** Columns that carry campus/department ownership for scoping. */
   scope: {
     campusField: string | null;
@@ -110,8 +119,11 @@ export const CONTENT_REGISTRY: Readonly<
       campusRelation: "campus.$id",
       departmentRelation: "department.$id",
     },
-    supported: { search: true, get: true },
+    supported: {},
     unsupportedReason: {
+      search:
+        "Vacancies are not searchable through the generic content path: recruitment scope is not content scope. `toRecruitmentAdminScope` gives HR every vacancy at its campuses with no department narrowing, and HR together with National every campus — whereas content scope narrows a department member to rows their own department owns. Applying the content rule here would both hide most of a campus HR user's vacancies and, for HR+National, nearly all of them. Use `biso_list_vacancies`, which asks the recruitment rule.",
+      get: "See `search`. Use `biso_get_vacancy`.",
       create_draft:
         "Vacancies carry a screening rubric, custom questions and an interview template that the recruitment studio owns. Create them in the admin app.",
       update: NOT_IMPLEMENTED_CREATE,
@@ -131,7 +143,7 @@ export const CONTENT_REGISTRY: Readonly<
     ],
     adminPath: (id) => `/jobs/${id}`,
     publicPath: (slug) => `/jobs/${slug}`,
-    note: "Recruitment is HR-exclusive with global-admin break-glass; a plain department member sees nothing here even though general content is open to them.",
+    note: "Recruitment is HR-exclusive with global-admin break-glass, and its scope rule is its own — campus without department narrowing. Nothing is served from the generic content path; `biso_list_vacancies` and `biso_get_vacancy` apply the recruitment rule instead.",
   },
   events: {
     domain: "events",
@@ -158,6 +170,21 @@ export const CONTENT_REGISTRY: Readonly<
       publish: true,
       unpublish: true,
     },
+    /**
+     * `publishEvent` in `apps/admin` writes the status and then, when the row
+     * has `notify_push`, calls `sendEventAnnouncement`. This package cannot
+     * send it — outbound messaging is a restricted operation here — so
+     * publishing such an event would make it public while silently dropping
+     * the announcement its organiser configured, with no second chance: the
+     * status is already `published`, so the portal's own publish will not
+     * re-send it either.
+     *
+     * Refused rather than sent, and refused rather than published quietly.
+     */
+    publishPrecondition: (row) =>
+      row.notify_push === true
+        ? "This event is configured to send a push announcement on publish (`notify_push`). The portal's publish sends it; this server cannot, and publishing here would make the event public with the announcement silently skipped. Publish it from the admin app."
+        : null,
     unsupportedReason: {
       update:
         "Event updates touch pricing, capacity, ticket linkage and segments together; partial updates through this package could leave those inconsistent.",

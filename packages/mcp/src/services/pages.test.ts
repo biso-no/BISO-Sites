@@ -1185,6 +1185,49 @@ describe("a prop path cannot escape the document", () => {
     }
   });
 
+  test("a block's own id and type are not props", () => {
+    // `setProp` walks from the *block*, not from `block.props`, so a first
+    // segment of `id` or `type` rewrites the discriminator every later edit
+    // targets. Two blocks with one id break `findBlock`; an unknown type
+    // renders as `Unknown block`.
+    const service = createPageService(
+      createFakeBackend({ tables: tablesWith() }),
+      LINKS
+    );
+    const doc = pageDoc();
+    const { outcomes, doc: after } = service.applyEdits(doc, [
+      { op: "set_prop", blockId: "b1", path: "id", value: "b2" },
+      { op: "set_prop", blockId: "b1", path: "type", value: "nonsense" },
+      { op: "set_prop", blockId: "b1", path: "id.nested", value: "x" },
+    ]);
+
+    expect(outcomes.map((outcome) => outcome.applied)).toEqual([
+      false,
+      false,
+      false,
+    ]);
+    expect((after.blocks[0] as { id: string }).id).toBe("b1");
+    expect((after.blocks[0] as { type: string }).type).toBe("text");
+  });
+
+  test("but a prop genuinely named id or type still writes", () => {
+    // The guard is on the first segment only. Block content routinely carries
+    // an `id` or a `type` of its own, and refusing those would make the tool
+    // unable to edit ordinary blocks.
+    const service = createPageService(
+      createFakeBackend({ tables: tablesWith() }),
+      LINKS
+    );
+    const { outcomes, doc: after } = service.applyEdits(pageDoc(), [
+      { op: "set_prop", blockId: "b1", path: "props.id", value: "card-3" },
+      { op: "set_prop", blockId: "b1", path: "props.items.0.type", value: "a" },
+    ]);
+
+    expect(outcomes.map((outcome) => outcome.applied)).toEqual([true, true]);
+    const props = (after.blocks[0] as { props: Record<string, unknown> }).props;
+    expect(props.id).toBe("card-3");
+  });
+
   test("constructor and prototype are refused too", () => {
     const service = createPageService(
       createFakeBackend({ tables: tablesWith() }),

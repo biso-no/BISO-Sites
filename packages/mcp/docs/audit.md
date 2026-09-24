@@ -921,6 +921,76 @@ The other two `scopeQueries` call sites were checked rather than assumed.
 relationship at all** — so there the scalar is not the legacy path, it is the
 only path, and no repair-window divergence is possible. Both stay as they are.
 
+## 17h. Nineteenth review round
+
+A nineteenth review of `5415df2` — the first head it had seen since the tenth
+base move — raised six, two of them P1. All six reproduced and all six are
+fixed. Two are the same defect the round before had already named, one file
+over each; the theme of the round is that the previous round's two fixes both
+stopped at the site that was reported.
+
+| # | Area | Verified as | Fix |
+|---|---|---|---|
+| 1 | `services/events.ts` | **Confirmed (P1) — round eighteen's P1, one file over.** `assertEventAccess` projected `campus_id`/`department_id` and passed the scalars to `canReadRow`. `events` carries *both* those columns and the `campus`/`department` relationships, so mid-backfill they disagree and the scalar is stale. It matters more here than in a listing: everything past this check runs on the service key over `event_segments`, `segment_members` and `event_attendees`, all `rowSecurity: false`, so this check is the entire boundary. `apps/admin`'s own `event-segments.ts` reads it with `getContentOwnership(event, { legacyFallback: true })` | Project the relationship ids, authorize through the shared `rowOwnership`, and report the canonical campus so the segment fallback agrees with the gate. Pinned in both directions: the stale-scalar campus is refused, the relationship owner is served |
+| 2 | `identity/scope.ts` | **Confirmed (P1).** `canReadRow` refuses every campus-bearing row when a principal resolved no campus; `scopeQueries` emitted the department predicate *alone* in that state. The list was therefore the looser of the two gates — a department's drafts at every campus, each of which the single-row check would then refuse. The state is reachable: a department team whose companion campus team is missing still resolves a department | A campus dimension with no campus to match on is no match: `NO_MATCH_FILTER`. And the same guard in `describeScope`, which would otherwise have named the departments in a summary describing a scope the caller did not get |
+| 3 | `domains/pages.ts` | **Confirmed — finding #38's guard, one hazard short.** `propPathProblem` bounded prototype keys, depth and array indices, but `setProp` walks from the **block**, not from `block.props`. A first segment of `id` or `type` therefore rewrites the discriminator every later edit is keyed on: a duplicate id breaks `findBlock` and so every subsequent `move`, `remove` and `set_prop`; an arbitrary type renders as `Unknown block` | The first segment may not be `id` or `type`. Only the first — `items.0.id` is ordinary content and stays writable, which the second test pins. `layout` is deliberately not reserved: `layout.padding` is a legitimate edit |
+| 4 | `services/events.ts` | **Confirmed.** `loadSegments` capped at 100 and returned a bare array, so segment 101 and its capacity and membership did not look capped, they looked absent. `event_segments` enforces no per-event ceiling, and `apps/admin`'s own list asks for **200** — so the two surfaces disagreed about what exists | The ceiling matches the portal's, and the result carries `truncated` rather than silence. The audience preview says it first, because every count below it is computed over the segments that were read |
+| 5 | `services/content-registry.ts` | **Confirmed.** `publishEvent` in `apps/admin` writes the status and then, when the row has `notify_push`, calls `sendEventAnnouncement`. `setStatus` writes status and ACLs. Publishing such an event from here would make it public with the announcement silently dropped — and unrecoverably, since the status is then already `published` and the portal's publish will not re-send it | A `publishPrecondition` on the domain spec, checked against the row the backend just returned, immediately before the write. Refused, not sent and not published quietly. Unpublishing is unaffected; so is an event without the flag |
+| 6 | `services/content.ts` | **Confirmed.** `biso_content_search`/`get` admitted HR through `assertRecruitmentGate` and then applied *content* scope. But recruitment scope is not content scope: `toRecruitmentAdminScope` gives HR every vacancy at its campuses with **no** department narrowing, and HR with National every campus. Vacancies are owned by the departments that are hiring, so the content rule hid most of a campus HR user's vacancies and nearly all of an HR+National user's | `jobs` is withdrawn from the generic path — enforced at dispatch by the existing `assertDomainSupports` — and the refusal names the tool that asks the right rule. `getVacancy` already existed with the canonical scope and had no tool; it does now, as `biso_get_vacancy`, so nothing is lost |
+
+### Two fixes that had stopped at the reported site
+
+Findings #1 and #3 are round eighteen's and finding #38's respectively, each
+one file or one segment further on. That is sixteen occurrences of this shape
+before this round and eighteen after, and it is worth being precise about why
+the sweep missed them. Round eighteen's fix was to `scopeFieldsFor`, a helper
+in the content service, and the sweep that followed asked "which other domain
+specs have this scope shape" — a question scoped to the registry. `events.ts`
+does not use the registry at all: it hand-projects the columns it needs. The
+search had the right *rule* and the wrong *population*.
+
+So the population that matters for an ownership rule is not "call sites of the
+helper" but "reads that authorize on a campus or a department", however they
+get there. Under that question the remaining ones were checked: `commerce.ts`
+and `operations.ts` read `orders` and `form_submissions`, which carry a
+`campus_id` scalar and no campus relationship, so there is no second column to
+prefer and nothing to diverge.
+
+### The approval path had the recruitment defect too
+
+Finding #6 named `biso_content_search`. Withdrawing `jobs` there left a second
+generic read: `biso_request_approval` accepts `domain: "jobs"`, gates on
+`hasRecruitmentAccess` — finding #11's fix — and then called
+`content.get(principal, "jobs", id)`, applying content scope to a vacancy for
+exactly the population the gate had just admitted. An HR user would have been
+refused a vacancy they demonstrably manage, so the tool was unusable for most
+of its audience.
+
+The fix is the same rule in the same place rather than a second copy of it:
+`readApprovalSubject` reads a vacancy through `recruitment.getVacancy` and
+everything else through `content.get`. Its companion is easy to miss —
+`assertWriteAccess` runs on the subject immediately afterwards, and for `jobs`
+that would re-impose the department narrowing `toRecruitmentAdminScope`
+deliberately does not have, one line after the read was fixed. It does not run
+for `jobs`; `canManageRecruitmentVacancy`, inside `getVacancy`, is the
+requester check for that domain.
+
+The two other internal callers of the generic search were checked and do not
+reach jobs: the briefing's staleness probe iterates `["events", "news"]`, and
+`biso_content_quality_audit` takes `z.enum(["events", "news", "benefits",
+"products"])`.
+
+### Where the precondition is enforced, and where it is not
+
+Finding #5's check runs in `setStatus`, at the write, and not also in the tool
+handler that builds the proposal. That is deliberate. `content.get` returns a
+projection that does not carry `notify_push`, so a propose-time copy would
+need the column widened into the detail shape *and* a second statement of the
+rule — and this PR has spent four rounds on rules that had two homes. One
+definition in the registry, enforced at the single chokepoint every executable
+publish passes through. A proposal for a publish that is later refused costs a
+round trip and says exactly why; a rule that drifts costs a defect.
+
 ## 18. Base moves while the PR was open
 
 `main` moved ten times after the audit above was written. A clean textual
