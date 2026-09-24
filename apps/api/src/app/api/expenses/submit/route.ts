@@ -1,4 +1,5 @@
 import { ID, type Models, Query } from "@repo/api";
+import { appwriteErrorStatus, orNullIfNotFound } from "@repo/api/errors";
 import { InputFile } from "@repo/api/file";
 import { createAdminClient } from "@repo/api/server";
 import type { Users } from "@repo/api/types/appwrite";
@@ -40,12 +41,15 @@ async function checkDraftOwnership(
   expenseId: string,
   userId: string
 ): Promise<ExpenseOwnershipResult> {
-  const existingExpense = await db.getRow<Expenses>(
-    "app",
-    "expense",
-    expenseId,
-    [Query.select(["$id", "status", "userId"])]
+  const existingExpense = await orNullIfNotFound(
+    db.getRow<Expenses>("app", "expense", expenseId, [
+      Query.select(["$id", "status", "userId"]),
+    ])
   );
+
+  if (!existingExpense) {
+    return { ok: false, error: "Expense not found", status: HTTP_NOT_FOUND };
+  }
 
   if (existingExpense.userId !== userId) {
     return {
@@ -164,6 +168,52 @@ function isProfileComplete(profile: Users): profile is CompleteProfile {
   );
 }
 
+const HTTP_BAD_REQUEST = 400;
+const HTTP_UNAUTHORIZED = 401;
+const HTTP_NOT_FOUND = 404;
+const HTTP_INTERNAL_ERROR = 500;
+
+/** Marks a request body that could not be parsed as JSON. */
+class MalformedJsonError extends Error {
+  constructor() {
+    super("Malformed JSON body");
+    this.name = "MalformedJsonError";
+  }
+}
+
+/** Marks an Appwrite 401 from `account.get()` (no/expired session or JWT). */
+class UnauthenticatedError extends Error {
+  constructor() {
+    super("Unauthorized");
+    this.name = "UnauthenticatedError";
+  }
+}
+
+async function readJsonBody(req: NextRequest): Promise<unknown> {
+  try {
+    return await req.json();
+  } catch {
+    throw new MalformedJsonError();
+  }
+}
+
+/**
+ * Maps a failure from the submit flow to an HTTP status and a client-safe
+ * message. Never serializes the raw error.
+ */
+function submitErrorResponse(error: unknown): {
+  message: string;
+  status: number;
+} {
+  if (error instanceof UnauthenticatedError) {
+    return { message: "Unauthorized", status: HTTP_UNAUTHORIZED };
+  }
+  if (error instanceof MalformedJsonError) {
+    return { message: "Malformed JSON body", status: HTTP_BAD_REQUEST };
+  }
+  return { message: "Failed to submit expense", status: HTTP_INTERNAL_ERROR };
+}
+
 export async function POST(req: NextRequest) {
   const origin = req.headers.get("origin");
 
@@ -184,10 +234,26 @@ export async function POST(req: NextRequest) {
       messaging,
       storage: adminStorage,
     } = await createAdminClient();
-    const user = await account.get();
-    const profile = await db.getRow<Users>("app", "user", user.$id);
+    const user = await account.get().catch((error: unknown) => {
+      if (appwriteErrorStatus(error) === HTTP_UNAUTHORIZED) {
+        throw new UnauthenticatedError();
+      }
+      throw error;
+    });
+    const profile = await orNullIfNotFound(
+      db.getRow<Users>("app", "user", user.$id)
+    );
+    if (!profile) {
+      return applyCorsHeaders(
+        NextResponse.json(
+          { success: false, error: "Profile not found" },
+          { status: HTTP_NOT_FOUND }
+        ),
+        origin
+      );
+    }
 
-    const expenseData = parseExpensePayload(await req.json());
+    const expenseData = parseExpensePayload(await readJsonBody(req));
 
     if (!expenseData) {
       return applyCorsHeaders(
@@ -204,10 +270,13 @@ export async function POST(req: NextRequest) {
 
     if (!expenseData?.bank_account) {
       return applyCorsHeaders(
-        NextResponse.json({
-          success: false,
-          error: "Bank account is required",
-        }),
+        NextResponse.json(
+          {
+            success: false,
+            error: "Bank account is required",
+          },
+          { status: HTTP_BAD_REQUEST }
+        ),
         origin
       );
     }
@@ -274,11 +343,14 @@ export async function POST(req: NextRequest) {
 
     if (!isProfileComplete(profile)) {
       return applyCorsHeaders(
-        NextResponse.json({
-          success: false,
-          error: "Missing required fields: ",
-          missingFields: findMissingProfileFields(profile).join(", "),
-        }),
+        NextResponse.json(
+          {
+            success: false,
+            error: "Missing required fields: ",
+            missingFields: findMissingProfileFields(profile).join(", "),
+          },
+          { status: HTTP_BAD_REQUEST }
+        ),
         origin
       );
     }
@@ -433,8 +505,9 @@ export async function POST(req: NextRequest) {
     );
   } catch (error) {
     console.error("Error creating expense:", error);
+    const { message, status } = submitErrorResponse(error);
     return applyCorsHeaders(
-      NextResponse.json({ success: false, error }),
+      NextResponse.json({ success: false, error: message }, { status }),
       origin
     );
   }

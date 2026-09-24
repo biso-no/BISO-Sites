@@ -636,7 +636,12 @@ export async function createCartCheckoutSession(
     if (!user?.$id) {
       throw new Error("A valid checkout session is required.");
     }
-    const jwt = await createSessionJwt().catch(() => null);
+    // Null only when there is no session. An Appwrite outage throws; log it
+    // and show a generic message rather than the backend's error text.
+    const jwt = await createSessionJwt().catch((error: unknown) => {
+      console.error("[checkout] Failed to create session JWT", error);
+      throw new Error("Checkout is temporarily unavailable. Please try again.");
+    });
     if (!jwt) {
       throw new Error("A valid checkout session is required.");
     }

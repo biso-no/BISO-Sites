@@ -14,16 +14,17 @@ export async function GET(_request: NextRequest) {
       },
     });
   } catch (error) {
+    // getAuthStatus only throws when the auth backend itself failed (a missing
+    // or rejected session resolves to logged-out). Report "unknown" as 503 so
+    // clients don't treat an outage as a sign-out.
     console.error("Error checking authentication status:", error);
 
     return NextResponse.json(
+      { error: "Failed to check authentication status" },
       {
-        hasSession: false,
-        isAuthenticated: false,
-        isAnonymous: false,
-        error: "Failed to check authentication status",
-      },
-      { status: 500 }
+        status: 503,
+        headers: { "Cache-Control": "no-cache, no-store, must-revalidate" },
+      }
     );
   }
 }

@@ -12,6 +12,7 @@ const {
   createLinkRow,
   findLatestCountedScan,
   findLinkByTokenHash,
+  getLinkRow,
   listLiveLinks,
   recordScan,
   revokeLinkRow,
@@ -117,6 +118,22 @@ describe("member pass store", () => {
         Query.limit(100),
         Query.equal("campus_id", ["1", "2"]),
       ]
+    );
+  });
+
+  it("returns null from getLinkRow when the link does not exist", async () => {
+    db.getRow.mockRejectedValue(
+      Object.assign(new Error("not found"), { code: 404 })
+    );
+    expect(await getLinkRow(adminDb, "missing")).toBeNull();
+  });
+
+  it("rethrows a getLinkRow failure that is not a 404", async () => {
+    db.getRow.mockRejectedValue(
+      Object.assign(new Error("Service unavailable"), { code: 503 })
+    );
+    await expect(getLinkRow(adminDb, "l1")).rejects.toThrow(
+      "Service unavailable"
     );
   });
 });

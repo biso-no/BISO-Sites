@@ -159,14 +159,18 @@ export async function POST(request: Request) {
       }
     );
 
+    const failed = applications.failed + profiles.failed;
     const body = {
       applicationsDeleted: applications.deleted,
-      failed: applications.failed + profiles.failed,
+      failed,
+      ok: failed === 0,
       profilesDeleted: profiles.deleted,
       resumesDeleted,
     };
     console.log(`${LOG_TAG} ${JSON.stringify(body)}`);
-    return NextResponse.json(body);
+    // Surface per-row delete failures to the scheduler, which classifies
+    // target health by response.ok — a 200 would mask a partial sweep.
+    return NextResponse.json(body, { status: failed > 0 ? 500 : 200 });
   } catch (error) {
     console.error(`${LOG_TAG} Cleanup failed:`, error);
     return NextResponse.json({ error: "failed" }, { status: 500 });

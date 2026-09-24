@@ -1,6 +1,18 @@
 import type { NextRequest } from "next/server";
-import { describe, expect, it } from "vitest";
-import { hasValidSyncSecret } from "./route";
+import { describe, expect, it, vi } from "vitest";
+
+const syncDepartures = vi.hoisted(() => vi.fn());
+
+vi.mock("@repo/api/server", () => ({
+  createAdminClient: vi.fn(async () => ({ db: {} })),
+}));
+
+vi.mock("@/lib/entur-departures", () => ({
+  getDepartureSyncSecret: () => "secret",
+  syncDepartures,
+}));
+
+import { GET, hasValidSyncSecret } from "./route";
 
 function syncRequest({
   authorization,
@@ -65,5 +77,31 @@ describe("departures sync secret auth", () => {
         "secret"
       )
     ).toBe(false);
+  });
+
+  it("returns 502 with ok:false when any stop failed", async () => {
+    syncDepartures.mockResolvedValueOnce({
+      failed: [{ id: "NSR:1", reason: "boom" }],
+      skipped: [],
+      updated: ["NSR:2"],
+    });
+
+    const response = await GET(syncRequest({ authorization: "Bearer secret" }));
+
+    expect(response.status).toBe(502);
+    await expect(response.json()).resolves.toMatchObject({ ok: false });
+  });
+
+  it("returns 200 with ok:true when nothing failed", async () => {
+    syncDepartures.mockResolvedValueOnce({
+      failed: [],
+      skipped: [],
+      updated: ["NSR:2"],
+    });
+
+    const response = await GET(syncRequest({ authorization: "Bearer secret" }));
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({ ok: true });
   });
 });

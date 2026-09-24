@@ -113,7 +113,9 @@ export async function startMembershipCheckout(
         // Non-critical: the campus is carried on the order regardless.
       });
 
-    const jwt = await createSessionJwt().catch(() => null);
+    // Null only when there is no session; an Appwrite outage throws into the
+    // catch below instead of reading as "sign in again".
+    const jwt = await createSessionJwt();
     if (!jwt) {
       return { success: false, error: "A valid session is required." };
     }

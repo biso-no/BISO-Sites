@@ -1,4 +1,5 @@
 import { ID, Query } from "@repo/api";
+import { orNullIfNotFound } from "@repo/api/errors";
 import type { createAdminClient } from "@repo/api/server";
 import type { MemberPassCodeKind } from "@repo/shared/utils/member-pass";
 import {
@@ -80,9 +81,11 @@ export async function getLinkRow(
   db: AdminDb,
   linkId: string
 ): Promise<ScannerLinkRow | null> {
-  return (await db
-    .getRow(MEMBER_PASS_DB, LINKS_TABLE, linkId)
-    .catch(() => null)) as unknown as ScannerLinkRow | null;
+  // null only on 404; any other failure throws rather than posing as a
+  // missing link.
+  return (await orNullIfNotFound(
+    db.getRow(MEMBER_PASS_DB, LINKS_TABLE, linkId)
+  )) as unknown as ScannerLinkRow | null;
 }
 
 export async function createLinkRow(

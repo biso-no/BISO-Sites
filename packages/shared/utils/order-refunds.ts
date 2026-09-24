@@ -11,6 +11,7 @@
  */
 
 import { ID, Query } from "@repo/api";
+import { orNullIfNotFound } from "@repo/api/errors";
 import type { Orders as BaseOrders } from "@repo/api/types/appwrite";
 import { isFeatureEnabled } from "./feature-flags-server";
 import {
@@ -477,9 +478,11 @@ export async function refundOrder(
   const { db, orderId } = input;
   const { dbId, ordersId } = tableIds();
 
-  const order = (await db
-    .getRow(dbId, ordersId, orderId, [ORDER_WITH_REFUNDS_SELECT])
-    .catch(() => null)) as RefundableOrder | null;
+  // Only a 404 is "not found"; any other read failure (outage, timeout, 401)
+  // propagates so the caller reports an error instead of "no such order".
+  const order = (await orNullIfNotFound(
+    db.getRow(dbId, ordersId, orderId, [ORDER_WITH_REFUNDS_SELECT])
+  )) as RefundableOrder | null;
   if (!order) {
     return { ok: false, reason: "not_found" };
   }

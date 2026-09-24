@@ -92,14 +92,14 @@ describe("listPendingApprovals", () => {
     expect(queries).toContain(Query.equal("campus_id", ["campus-bergen"]));
   });
 
-  test("degrades to an empty page when the table is missing", async () => {
-    sessionDb.listRows.mockRejectedValueOnce(new Error("table not found"));
+  test("reports a read failure as an error, not an empty page", async () => {
+    sessionDb.listRows.mockRejectedValueOnce(
+      Object.assign(new Error("Server error"), { code: 500 })
+    );
 
     const result = await listPendingApprovals({ page: 1, size: 25, q: "" });
 
-    expect(result).toEqual({
-      data: { rows: [], total: 0, page: 1, size: 25 },
-    });
+    expect(result).toEqual({ error: "Failed to load approvals" });
   });
 });
 

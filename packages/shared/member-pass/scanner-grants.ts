@@ -1,4 +1,5 @@
 import { ID, Query } from "@repo/api";
+import { orNullIfNotFound } from "@repo/api/errors";
 import type { AdminDb } from "./scan-store";
 import { MEMBER_PASS_DB } from "./scan-store";
 
@@ -124,9 +125,11 @@ export async function getGrant(
   db: AdminDb,
   id: string
 ): Promise<ScannerGrantRow | null> {
-  return (await db
-    .getRow(MEMBER_PASS_DB, SCANNER_GRANTS_TABLE, id)
-    .catch(() => null)) as unknown as ScannerGrantRow | null;
+  // null only on 404; any other failure throws rather than posing as a
+  // missing grant.
+  return (await orNullIfNotFound(
+    db.getRow(MEMBER_PASS_DB, SCANNER_GRANTS_TABLE, id)
+  )) as unknown as ScannerGrantRow | null;
 }
 
 export async function createGrant(

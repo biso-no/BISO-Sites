@@ -1,3 +1,4 @@
+import { isNotFound } from "@repo/api/errors";
 import type { Users } from "@repo/api/types/appwrite";
 import { sanitizeStudentNumber } from "@repo/shared/utils/bi-student";
 import {
@@ -50,10 +51,6 @@ const CODE_REASONS: Record<string, ScanDenialReason> = {
   stale: "stale",
 };
 
-function isRowNotFound(error: unknown): boolean {
-  return (error as { code?: number } | null)?.code === 404;
-}
-
 type ProfileLookup = { ok: true; profile: Users | null } | { ok: false };
 
 /**
@@ -70,7 +67,7 @@ async function fetchProfile(
     const profile = await db.getRow<Users>("app", "user", userId);
     return { ok: true, profile };
   } catch (error) {
-    if (isRowNotFound(error)) {
+    if (isNotFound(error)) {
       return { ok: true, profile: null };
     }
     console.error("[Member Pass] Profile lookup failed:", error);

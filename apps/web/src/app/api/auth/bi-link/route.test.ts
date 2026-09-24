@@ -58,6 +58,21 @@ describe("BI link return leg", () => {
     );
   });
 
+  it.each([
+    "not_authenticated",
+    "no_bi_identity",
+    "invalid_bi_email",
+    "sync_failed",
+  ])("reports %s instead of marking it linked", async (error) => {
+    syncBiStudentIdentity.mockResolvedValue({ error, success: false });
+
+    const response = await GET(linkReturn("/onboarding"));
+
+    expect(response.headers.get("location")).toBe(
+      `https://biso.no/onboarding?link_error=${error}`
+    );
+  });
+
   it("sends an unknown return path to the profile", async () => {
     syncBiStudentIdentity.mockResolvedValue({
       campusHint: null,

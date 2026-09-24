@@ -1,8 +1,11 @@
+import { isTransientMembershipReason } from "@repo/shared/utils/membership-gate";
 import { NextResponse } from "next/server";
 import {
   getMembershipStatus,
   refreshMembershipStatus,
 } from "@/lib/actions/membership";
+
+const SERVICE_UNAVAILABLE = 503;
 
 /**
  * GET: Check user's membership status
@@ -20,7 +23,14 @@ export async function GET(request: Request) {
     // Per-user data; getMembershipStatus reuses a short-lived server-side
     // cache keyed by the authenticated user's student id, and we don't want
     // any shared CDN to serve one user's status to another.
+    // `getMembershipStatus` never throws: an outage comes back as
+    // `isMember: false` with a transient reason. Answering that with 200
+    // tells clients "definitely not a member"; 503 lets them keep what they
+    // had. The body is still the status, so callers can read the reason.
+    const isTransientFailure = isTransientMembershipReason(status.reason);
+
     return NextResponse.json(status, {
+      status: isTransientFailure ? SERVICE_UNAVAILABLE : undefined,
       headers: { "Cache-Control": "private, no-store" },
     });
   } catch (error) {

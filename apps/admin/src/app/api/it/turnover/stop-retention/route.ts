@@ -122,15 +122,20 @@ async function handle(request: NextRequest) {
       }
     }
 
+    // Failed stops are retried on the next sweep, but report them as a 500 so
+    // the scheduler logs the run as a failure instead of an OK ping.
     return NextResponse.json(
       {
-        ok: true,
+        ok: failed === 0,
         stopped,
         failed,
         scanned: due.rows.length,
         timestamp: nowIso,
       },
-      { headers: { "Cache-Control": "no-store" } }
+      {
+        status: failed > 0 ? 500 : 200,
+        headers: { "Cache-Control": "no-store" },
+      }
     );
   } catch (error) {
     console.error("[it/turnover/stop-retention] Unexpected error:", error);

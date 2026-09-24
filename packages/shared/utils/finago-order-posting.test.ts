@@ -321,6 +321,43 @@ describe("postFinagoTransactionForOrder", () => {
     expect(db.decrementRowColumn).toHaveBeenCalledWith(CLAIM_RELEASE);
   });
 
+  it("returns not_found only when the order read 404s", async () => {
+    db.getRow.mockRejectedValue(
+      Object.assign(new Error("row_not_found"), { code: 404 })
+    );
+
+    const result = await postFinagoTransactionForOrder("order-1", db);
+
+    expect(result).toEqual({ posted: false, reason: "not_found" });
+  });
+
+  it("throws when the order read fails for any other reason", async () => {
+    db.getRow.mockRejectedValue(
+      Object.assign(new Error("Service unavailable"), { code: 503 })
+    );
+
+    await expect(postFinagoTransactionForOrder("order-1", db)).rejects.toThrow(
+      "Service unavailable"
+    );
+    expect(db.incrementRowColumn).not.toHaveBeenCalled();
+  });
+
+  it("reports post_failed, not not_configured, when a settings read fails", async () => {
+    db.getRow.mockImplementation((_db: string, table: string) =>
+      table === "orders"
+        ? Promise.resolve(paidOrder())
+        : Promise.reject(
+            Object.assign(new Error("Request timed out"), { code: 504 })
+          )
+    );
+
+    const result = await postFinagoTransactionForOrder("order-1", db);
+
+    expect(result).toEqual({ posted: false, reason: "post_failed" });
+    expect(db.decrementRowColumn).toHaveBeenCalledWith(CLAIM_RELEASE);
+    expect(mocks.postLedgerTransaction).not.toHaveBeenCalled();
+  });
+
   it("releases the claim when Finago credentials are missing", async () => {
     vi.stubEnv("TFSO_REST_CLIENT_ID", "");
 

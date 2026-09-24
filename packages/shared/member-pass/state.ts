@@ -1,3 +1,4 @@
+import { isTransientMembershipReason } from "@repo/shared/utils/membership-gate";
 import { describeMembershipTerm } from "@repo/shared/utils/membership-plans";
 import {
   type MembershipStatus,
@@ -6,7 +7,6 @@ import {
 import type { MemberPassHolder, MemberPassState } from "./types";
 
 const NOT_LINKED_REASONS = new Set(["no_student_id", "invalid_student_id"]);
-const TRANSIENT_REASONS = new Set(["finago_error", "unexpected_error"]);
 
 export function memberPassStateFor(status: MembershipStatus): MemberPassState {
   if (status.isMember) {
@@ -16,7 +16,7 @@ export function memberPassStateFor(status: MembershipStatus): MemberPassState {
   if (NOT_LINKED_REASONS.has(reason)) {
     return "no_bi_identity";
   }
-  if (TRANSIENT_REASONS.has(reason)) {
+  if (isTransientMembershipReason(reason)) {
     return "unavailable";
   }
   if (reason === "expired") {

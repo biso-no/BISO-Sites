@@ -15,6 +15,19 @@ describe("readAccountLinkReturn", () => {
     ).toEqual({ error: "already_linked", isReturnLeg: true });
   });
 
+  it("recognises every failure the link route can report", () => {
+    for (const code of [
+      "invalid_bi_email",
+      "no_bi_identity",
+      "not_authenticated",
+      "sync_failed",
+    ]) {
+      expect(
+        readAccountLinkReturn(new URLSearchParams(`link_error=${code}`))
+      ).toEqual({ error: code, isReturnLeg: true });
+    }
+  });
+
   it("ignores ordinary visits and unknown errors", () => {
     expect(readAccountLinkReturn(new URLSearchParams(""))).toEqual({
       error: null,

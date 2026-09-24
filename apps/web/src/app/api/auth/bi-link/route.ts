@@ -50,12 +50,15 @@ export async function GET(request: Request) {
   const result = await syncBiStudentIdentity();
 
   const destination = new URL(returnTo, SITE_URL);
-  if (!result.success && result.error === "already_linked") {
-    // The link was refused and the new identity removed again; the
-    // destination shows why (see AccountLinkSessionCleanup).
-    destination.searchParams.set("link_error", "already_linked");
-  } else {
+  // `directory_unavailable` is a partial success: `student_id` was written and
+  // only the directory enrichment failed, which the join gate retries. Every
+  // other failure means no link landed, so the destination must not treat the
+  // student as linked; it shows why instead (see AccountLinkSessionCleanup).
+  const linked = result.success || result.error === "directory_unavailable";
+  if (linked) {
     destination.searchParams.set("linked", "1");
+  } else {
+    destination.searchParams.set("link_error", result.error);
   }
   return NextResponse.redirect(destination);
 }
