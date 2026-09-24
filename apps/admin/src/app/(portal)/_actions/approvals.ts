@@ -24,19 +24,15 @@
  *   read(team:sg-app-dept-operationsunit), update(team:sg-app-dept-operationsunit),
  *   read(user:<requester_id>)
  *
- * Create the collection and regenerate packages/api/types/appwrite.ts before
- * using these actions in production.
+ * The table now exists in packages/api/appwrite.config.json, so read failures
+ * are real errors and are reported as `{ error }`, never as an empty list.
  */
 
 import { ID, type Models, Permission, Query, Role } from "@repo/api";
 import { createAdminClient, createSessionClient } from "@repo/api/server";
 import { revalidatePath } from "next/cache";
 import { requireAuth } from "@/lib/authorization";
-import {
-  emptyResult,
-  type ListParams,
-  type PaginatedResult,
-} from "@/lib/list-params";
+import type { ListParams, PaginatedResult } from "@/lib/list-params";
 import { paginationQueries } from "@/lib/list-queries";
 import { assertProductBookable } from "@/lib/shop/sales-type";
 import { assertPublishAccess } from "@/lib/utils/authorization";
@@ -189,9 +185,11 @@ export async function listPendingApprovals(
         size: params.size,
       },
     };
-  } catch (_error) {
-    // If the table doesn't exist yet, return empty list gracefully
-    return { data: emptyResult<ApprovalRequest>(params) };
+  } catch (error) {
+    // Don't degrade to an empty list: "no pending approvals" and "couldn't
+    // load approvals" must look different to the approver.
+    console.error("[approvals] Failed to list pending approvals:", error);
+    return { error: "Failed to load approvals" };
   }
 }
 

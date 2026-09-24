@@ -290,7 +290,7 @@ describe("syncBiStudentIdentity", () => {
     // A non-404 failure must not be treated as "row doesn't exist" — falling
     // through to create() here could conflict with a row that does exist.
     expect(db.createRow).not.toHaveBeenCalled();
-    expect(result).toEqual({ success: false, error: "directory_unavailable" });
+    expect(result).toEqual({ success: false, error: "sync_failed" });
   });
 
   it("does not report a successful link as a failure when cache invalidation throws mid-render (C2 regression guard)", async () => {

@@ -122,6 +122,7 @@ function resetMocks() {
   mocks.postFinagoTransactionForOrder.mockResolvedValue({ posted: false });
   mocks.reconcileOrderPayment.mockResolvedValue(undefined);
   mocks.sweepPendingRefunds.mockResolvedValue({
+    errors: 0,
     failed: 0,
     settled: 0,
     unresolved: 0,
@@ -336,6 +337,7 @@ describe("reconcile-orders cron: passes", () => {
   it("calls sweepPendingRefunds with db and an ISO cutoff, and reports its counts", async () => {
     wireListRowsForPasses({});
     mocks.sweepPendingRefunds.mockResolvedValue({
+      errors: 0,
       failed: 1,
       settled: 2,
       unresolved: 3,
@@ -346,7 +348,12 @@ describe("reconcile-orders cron: passes", () => {
       refundsFailed: number;
       refundsSettled: number;
       refundsUnresolved: number;
+      success: boolean;
     };
+
+    // A failed refund is a failed run: the scheduler reads response.ok.
+    expect(response.status).toBe(500);
+    expect(body.success).toBe(false);
 
     expect(mocks.sweepPendingRefunds).toHaveBeenCalledWith(
       db,
@@ -498,5 +505,82 @@ describe("reconcile-orders cron: Finago pass", () => {
     expect(console.warn).toHaveBeenCalledWith(
       "[Reconcile Orders] Order refunded needs manual Finago posting: Order has refunds recorded before it was posted"
     );
+  });
+});
+
+describe("reconcile-orders cron: run health", () => {
+  beforeEach(resetMocks);
+
+  it("answers 200 with success when nothing failed", async () => {
+    wireListRowsForPasses({});
+
+    const response = await GET(cronRequest());
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.success).toBe(true);
+    expect(body.errors).toBe(0);
+  });
+
+  it("answers 500 when a payment reconcile throws (e.g. an Appwrite outage)", async () => {
+    wireListRowsForPasses({
+      pending: [{ ...shopOrder("order-1"), payment_session_id: "sess_1" }],
+    });
+    mocks.reconcileOrderPayment.mockRejectedValue(
+      Object.assign(new Error("Service unavailable"), { code: 503 })
+    );
+
+    const response = await GET(cronRequest());
+    const body = await response.json();
+
+    expect(response.status).toBe(500);
+    expect(body.success).toBe(false);
+    expect(body.errors).toBe(1);
+  });
+
+  it("answers 500 when Finago posting cannot read the order", async () => {
+    wireListRowsForPasses({ finago: [shopOrder("shop-1")] });
+    mocks.postFinagoTransactionForOrder.mockRejectedValue(
+      Object.assign(new Error("Request timed out"), { code: 504 })
+    );
+
+    const response = await GET(cronRequest());
+    const body = await response.json();
+
+    expect(response.status).toBe(500);
+    expect(body.errors).toBe(1);
+    expect(body.finagoNotConfigured).toBe(0);
+  });
+
+  it("counts a membership read failure as an error", async () => {
+    wireListRowsForPasses({ membership: [membershipOrder()] });
+    mocks.fulfilMembershipOrder.mockResolvedValue({
+      fulfilled: false,
+      reason: "read_failed",
+    });
+
+    const response = await GET(cronRequest());
+    const body = await response.json();
+
+    expect(response.status).toBe(500);
+    expect(body.errors).toBe(1);
+  });
+
+  it("counts refund sweep read failures as errors, not unresolved", async () => {
+    wireListRowsForPasses({});
+    mocks.sweepPendingRefunds.mockResolvedValue({
+      errors: 2,
+      failed: 0,
+      settled: 0,
+      unresolved: 0,
+    });
+
+    const response = await GET(cronRequest());
+    const body = await response.json();
+
+    expect(response.status).toBe(500);
+    expect(body.success).toBe(false);
+    expect(body.refundErrors).toBe(2);
+    expect(body.errors).toBe(2);
   });
 });

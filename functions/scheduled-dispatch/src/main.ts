@@ -205,6 +205,30 @@ function authorizeHttpTrigger(
   return false;
 }
 
+/**
+ * Some endpoints report partial failure inside a 2xx body (`ok: false`,
+ * `success: false`, a `failed` count > 0, or a non-empty `failed` list). Treat those as failures too so a
+ * degraded run is not logged as OK. Non-JSON bodies are judged by status only.
+ */
+function bodyReportsFailure(text: string): boolean {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    return false;
+  }
+  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+    return false;
+  }
+  const { ok, success, failed } = parsed as Record<string, unknown>;
+  return (
+    ok === false ||
+    success === false ||
+    (typeof failed === "number" && failed > 0) ||
+    (Array.isArray(failed) && failed.length > 0)
+  );
+}
+
 async function ping(target: Target, secret: string): Promise<PingResult> {
   const startedAt = Date.now();
   const controller = new AbortController();
@@ -220,7 +244,7 @@ async function ping(target: Target, secret: string): Promise<PingResult> {
       name: target.name,
       url: target.url,
       status: response.status,
-      ok: response.ok,
+      ok: response.ok && !bodyReportsFailure(text),
       body: text.slice(0, MAX_BODY_CHARS),
       durationMs: Date.now() - startedAt,
     };

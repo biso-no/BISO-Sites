@@ -214,7 +214,10 @@ async function recoverMembershipFulfilment(db: AdminDb): Promise<{
       const result = await fulfilMembershipOrder(order.$id, db);
       if (result.fulfilled) {
         fulfilled += 1;
-      } else if (result.reason === "finago_failed") {
+      } else if (
+        result.reason === "finago_failed" ||
+        result.reason === "read_failed"
+      ) {
         errors += 1;
       }
     } catch (error) {
@@ -251,9 +254,16 @@ async function handle(request: Request) {
     const refunds = await sweepPendingRefunds(db, cutoffIso());
     const membership = await recoverMembershipFulfilment(db);
 
+    const errors =
+      reconcile.errors + finago.errors + refunds.errors + membership.errors;
+    // The scheduler judges target health by response.ok, so any failed order
+    // or refund must surface as a 5xx — a 200 would report a broken run
+    // (including an Appwrite outage swallowed per order) as a healthy ping.
+    const failed = errors > 0 || refunds.failed > 0;
+
     return NextResponse.json(
       {
-        success: true,
+        success: !failed,
         reconciled: reconcile.reconciled,
         finagoPosted: finago.posted,
         staleClaimsReleased: finago.released,
@@ -262,10 +272,11 @@ async function handle(request: Request) {
         refundsSettled: refunds.settled,
         refundsFailed: refunds.failed,
         refundsUnresolved: refunds.unresolved,
-        errors: reconcile.errors + finago.errors + membership.errors,
+        refundErrors: refunds.errors,
+        errors,
         timestamp: new Date().toISOString(),
       },
-      { headers: { "Cache-Control": "no-store" } }
+      { status: failed ? 500 : 200, headers: { "Cache-Control": "no-store" } }
     );
   } catch (error) {
     console.error("Error in reconcile-orders cron:", error);

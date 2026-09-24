@@ -241,6 +241,79 @@ describe("fulfilMembershipOrder", () => {
     expect(db.decrementRowColumn).toHaveBeenCalled();
   });
 
+  it("throws when the order read fails for a reason other than 404", async () => {
+    db.getRow.mockRejectedValue(
+      Object.assign(new Error("Service unavailable"), { code: 503 })
+    );
+
+    await expect(fulfilMembershipOrder("order-1", db)).rejects.toThrow(
+      "Service unavailable"
+    );
+    expect(db.incrementRowColumn).not.toHaveBeenCalled();
+  });
+
+  it("returns not_found only when the order read 404s", async () => {
+    db.getRow.mockRejectedValue(
+      Object.assign(new Error("row_not_found"), { code: 404 })
+    );
+
+    const result = await fulfilMembershipOrder("order-1", db);
+
+    expect(result).toEqual({ fulfilled: false, reason: "not_found" });
+  });
+
+  it("reports read_failed, not missing_identity, when the profile read fails", async () => {
+    db.getRow.mockImplementation((_dbId: string, table: string) => {
+      if (table === "orders") {
+        return Promise.resolve(paidMembershipOrder());
+      }
+      return Promise.reject(
+        Object.assign(new Error("Request timed out"), { code: 504 })
+      );
+    });
+
+    const result = await fulfilMembershipOrder("order-1", db);
+
+    expect(result).toEqual({ fulfilled: false, reason: "read_failed" });
+    expect(postMembershipInvoice).not.toHaveBeenCalled();
+    expect(db.decrementRowColumn).toHaveBeenCalled();
+  });
+
+  it("reports missing_identity when the profile row does not exist", async () => {
+    db.getRow.mockImplementation((_dbId: string, table: string) => {
+      if (table === "orders") {
+        return Promise.resolve(paidMembershipOrder());
+      }
+      return Promise.reject(
+        Object.assign(new Error("row_not_found"), { code: 404 })
+      );
+    });
+
+    const result = await fulfilMembershipOrder("order-1", db);
+
+    expect(result).toEqual({ fulfilled: false, reason: "missing_identity" });
+  });
+
+  it("reports read_failed, not plan_unavailable, when the plan read fails", async () => {
+    db.getRow.mockImplementation((_dbId: string, table: string) => {
+      if (table === "orders") {
+        return Promise.resolve(paidMembershipOrder());
+      }
+      if (table === "user") {
+        return Promise.resolve(profile);
+      }
+      return Promise.reject(
+        Object.assign(new Error("Service unavailable"), { code: 503 })
+      );
+    });
+
+    const result = await fulfilMembershipOrder("order-1", db);
+
+    expect(result).toEqual({ fulfilled: false, reason: "read_failed" });
+    expect(postMembershipInvoice).not.toHaveBeenCalled();
+    expect(db.decrementRowColumn).toHaveBeenCalled();
+  });
+
   it("keeps the marker and does not release when Finago already ran", async () => {
     wireReads(paidMembershipOrder());
     postMembershipInvoice.mockRejectedValue(new Error("timeout"));

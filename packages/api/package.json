@@ -19,6 +19,7 @@
     ".": "./index.ts",
     "./server": "./server.ts",
     "./client": "./client.ts",
+    "./errors": "./errors.ts",
     "./file": "./file.ts",
     "./page-builder": "./page-builder.ts",
     "./storage": "./storage.ts",

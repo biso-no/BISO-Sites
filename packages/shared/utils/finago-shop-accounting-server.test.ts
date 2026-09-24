@@ -54,6 +54,18 @@ describe("loadShopAccountingSettings", () => {
   it("returns null when nothing has been saved", async () => {
     expect(await loadShopAccountingSettings(fakeDb({}))).toBeNull();
   });
+
+  it("throws when the read fails for a reason other than 404", async () => {
+    const db = fakeDb();
+    db.getRow.mockImplementation(() =>
+      Promise.reject(
+        Object.assign(new Error("Service unavailable"), { code: 503 })
+      )
+    );
+    await expect(loadShopAccountingSettings(db)).rejects.toThrow(
+      "Service unavailable"
+    );
+  });
 });
 
 describe("resolveRevenueTargetForProduct", () => {

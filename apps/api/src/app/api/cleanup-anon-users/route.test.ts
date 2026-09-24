@@ -1,5 +1,15 @@
 import type { NextRequest } from "next/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
+
+const users = vi.hoisted(() => ({
+  delete: vi.fn(),
+  list: vi.fn(),
+}));
+
+vi.mock("@repo/api/server", () => ({
+  createAdminClient: vi.fn(async () => ({ users })),
+}));
+
 import { GET, hasValidCronSecret } from "./route";
 
 function cronRequest({
@@ -71,6 +81,60 @@ describe("anonymous user cleanup auth", () => {
     await expect(response.json()).resolves.toEqual({
       code: "SECRET_NOT_CONFIGURED",
       error: "CRON_SECRET is not configured",
+    });
+  });
+
+  it("returns 500 with ok:false when some deletes fail", async () => {
+    vi.stubEnv("CRON_SECRET", "secret");
+    users.list.mockReset();
+    users.delete.mockReset();
+    users.list.mockResolvedValueOnce({
+      users: [{ $id: "anon-1" }, { $id: "anon-2" }],
+    });
+    users.delete
+      .mockResolvedValueOnce({})
+      .mockRejectedValueOnce(new Error("boom"));
+
+    const response = await GET(cronRequest({ authorization: "Bearer secret" }));
+
+    expect(response.status).toBe(500);
+    await expect(response.json()).resolves.toEqual({
+      deletedCount: 1,
+      failedCount: 1,
+      ok: false,
+    });
+  });
+
+  it("returns 500 JSON when listing users throws", async () => {
+    vi.stubEnv("CRON_SECRET", "secret");
+    users.list.mockReset();
+    users.list.mockRejectedValueOnce(new Error("appwrite down"));
+
+    const response = await GET(cronRequest({ authorization: "Bearer secret" }));
+
+    expect(response.status).toBe(500);
+    await expect(response.json()).resolves.toMatchObject({
+      code: "INTERNAL_ERROR",
+      ok: false,
+    });
+  });
+
+  it("returns 200 when every delete succeeds", async () => {
+    vi.stubEnv("CRON_SECRET", "secret");
+    users.list.mockReset();
+    users.delete.mockReset();
+    users.list
+      .mockResolvedValueOnce({ users: [{ $id: "anon-1" }] })
+      .mockResolvedValueOnce({ users: [] });
+    users.delete.mockResolvedValue({});
+
+    const response = await GET(cronRequest({ authorization: "Bearer secret" }));
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      deletedCount: 1,
+      failedCount: 0,
+      ok: true,
     });
   });
 });

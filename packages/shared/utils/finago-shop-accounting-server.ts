@@ -2,11 +2,13 @@
  * Webshop → Finago ledger posting: the loaders.
  *
  * Reads shop accounting settings, sales types and synced VAT codes from
- * Appwrite through whichever client the caller holds. Every loader answers
- * `null` rather than throwing: a missing row or a transient read failure both
- * mean "not configured yet", which makes the poster release its claim and the
- * reconcile sweep retry — never a stranded order.
+ * Appwrite through whichever client the caller holds. A missing row (404)
+ * answers `null` — "not configured yet" — which makes the poster release its
+ * claim and the reconcile sweep retry. Any other read failure (outage,
+ * timeout, 401) throws, so the caller reports an error rather than a
+ * configuration gap; the poster still releases its claim on the way out.
  */
+import { orNullIfNotFound } from "@repo/api/errors";
 import type { WebshopProducts } from "@repo/api/types/appwrite";
 import {
   LEDGER_ACCOUNTS_TABLE,
@@ -38,11 +40,9 @@ async function readRow<T>(
   table: string,
   id: string
 ): Promise<T | null> {
-  try {
-    return ((await db.getRow(DB_ID, table, id)) as T | null) ?? null;
-  } catch {
-    return null;
-  }
+  return (
+    ((await orNullIfNotFound(db.getRow(DB_ID, table, id))) as T | null) ?? null
+  );
 }
 
 export async function loadShopAccountingSettings(

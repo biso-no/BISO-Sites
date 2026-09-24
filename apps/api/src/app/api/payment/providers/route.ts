@@ -57,8 +57,10 @@ export async function GET(req: NextRequest) {
     const { db } = await createAdminClient();
 
     const [vippsCreds, stripeCreds] = await Promise.all([
-      resolveVippsCredentials(db).catch(() => null),
-      resolveStripeCredentials(db).catch(() => null),
+      // Null means "not configured"; a failed settings read throws into the
+      // 503 below rather than being cached publicly as "no providers".
+      resolveVippsCredentials(db),
+      resolveStripeCredentials(db),
     ]);
 
     const providers: ProviderAvailability[] = [

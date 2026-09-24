@@ -225,7 +225,8 @@ export type BiIdentitySyncResult =
         | "no_bi_identity"
         | "invalid_bi_email"
         | "directory_unavailable"
-        | "already_linked";
+        | "already_linked"
+        | "sync_failed";
       success: false;
     };
 
@@ -371,6 +372,10 @@ export async function syncBiStudentIdentity(): Promise<BiIdentitySyncResult> {
       console.error("[BI Identity] Cache invalidation failed:", error);
     }
 
+    // Partial success: `student_id` is written, only the directory
+    // enrichment (`bi_employee_id`) is missing. Callers treat this as linked
+    // and let the join gate offer a retry. Distinct from `sync_failed`
+    // below, where the write itself never landed.
     if (directoryFailed) {
       return { success: false, error: "directory_unavailable" };
     }
@@ -384,6 +389,10 @@ export async function syncBiStudentIdentity(): Promise<BiIdentitySyncResult> {
   } catch (error) {
     unstable_rethrow(error);
     console.error("[BI Identity] Sync failed:", error);
-    return { success: false, error: "directory_unavailable" };
+    // Everything that can throw into here runs before or during the profile
+    // write, so the link did NOT land. Reporting this as
+    // `directory_unavailable` (a partial success) made the link route mark
+    // the student as linked when nothing was written.
+    return { success: false, error: "sync_failed" };
   }
 }

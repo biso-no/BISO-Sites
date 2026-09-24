@@ -444,32 +444,30 @@ const CLEANUP_MAX_PAGES = 20;
  * Only call this from trusted contexts (the CRON_SECRET-gated route).
  */
 export async function cleanupAllExpiredReservations(): Promise<number> {
-  try {
-    const { db } = await createAdminClient();
-    let deletedCount = 0;
+  // Deliberately no try/catch: a failure here must reach the cron route so it
+  // answers 500. Swallowing it into `0` made an outage look like "nothing to
+  // clean up" and the scheduler never saw the failure.
+  const { db } = await createAdminClient();
+  let deletedCount = 0;
 
-    for (let page = 0; page < CLEANUP_MAX_PAGES; page++) {
-      const now = new Date().toISOString();
-      const expired = await db.listRows("app", "cart_reservations", [
-        Query.lessThan("expires_at", now),
-        Query.limit(CLEANUP_PAGE_SIZE),
-      ]);
+  for (let page = 0; page < CLEANUP_MAX_PAGES; page++) {
+    const now = new Date().toISOString();
+    const expired = await db.listRows("app", "cart_reservations", [
+      Query.lessThan("expires_at", now),
+      Query.limit(CLEANUP_PAGE_SIZE),
+    ]);
 
-      for (const reservation of expired.rows) {
-        await db.deleteRow("app", "cart_reservations", reservation.$id);
-        deletedCount += 1;
-      }
-
-      if (expired.rows.length < CLEANUP_PAGE_SIZE) {
-        break;
-      }
+    for (const reservation of expired.rows) {
+      await db.deleteRow("app", "cart_reservations", reservation.$id);
+      deletedCount += 1;
     }
 
-    return deletedCount;
-  } catch (error) {
-    console.error("Error cleaning up all expired reservations:", error);
-    return 0;
+    if (expired.rows.length < CLEANUP_PAGE_SIZE) {
+      break;
+    }
   }
+
+  return deletedCount;
 }
 
 /**

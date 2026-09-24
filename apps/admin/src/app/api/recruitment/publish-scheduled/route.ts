@@ -52,11 +52,17 @@ async function handlePublishScheduled(request: NextRequest) {
     if (result.published > 0) {
       revalidatePath("/jobs");
     }
-    return NextResponse.json({
-      ...result,
-      durationMs: Date.now() - startedAt,
-      ok: result.failed === 0,
-    });
+    // Surface publish failures to the scheduler, which classifies target
+    // health by response status — a 200 would hide them.
+    const ok = result.failed === 0;
+    return NextResponse.json(
+      {
+        ...result,
+        durationMs: Date.now() - startedAt,
+        ok,
+      },
+      { status: ok ? 200 : 500 }
+    );
   } catch (error) {
     console.error("[recruitment/publish-scheduled] Unexpected error:", {
       durationMs: Date.now() - startedAt,

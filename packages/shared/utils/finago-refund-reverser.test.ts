@@ -93,7 +93,9 @@ describe("finagoRefundReverser", () => {
   });
 
   it("throws without posting when shop accounting settings are missing", async () => {
-    db.getRow.mockRejectedValue(new Error("row_not_found"));
+    db.getRow.mockRejectedValue(
+      Object.assign(new Error("row_not_found"), { code: 404 })
+    );
 
     await expect(reverse()).rejects.toThrow(
       "Shop accounting settings have not been saved in admin"

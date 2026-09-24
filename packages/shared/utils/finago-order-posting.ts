@@ -1,3 +1,4 @@
+import { orNullIfNotFound } from "@repo/api/errors";
 import type { Orders } from "@repo/api/types/appwrite";
 import {
   buildShopTransactionInput,
@@ -313,9 +314,12 @@ export async function postFinagoTransactionForOrder(
 ): Promise<FinagoPostingResult> {
   const { dbId, collId } = ordersTable();
 
-  const order = (await db
-    .getRow(dbId, collId, orderId, [ORDER_ITEMS_SELECT])
-    .catch(() => null)) as FinagoOrder | null;
+  // Only a 404 is "not found". Any other read failure throws: nothing has been
+  // claimed yet, and the reconcile sweep's per-order catch counts it as an
+  // error instead of a silently skipped order.
+  const order = (await orNullIfNotFound(
+    db.getRow(dbId, collId, orderId, [ORDER_ITEMS_SELECT])
+  )) as FinagoOrder | null;
   if (!order) {
     return { posted: false, reason: "not_found" };
   }

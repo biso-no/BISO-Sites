@@ -9,16 +9,30 @@ import { Login } from "@/components/login";
 import { getAuthStatus } from "@/lib/auth-utils";
 import { sanitizeRedirectTarget } from "@/lib/utils";
 
+/**
+ * Whether to skip the login form. If the auth backend is down we can't tell,
+ * so render the form rather than crash the only entry point — signing in will
+ * surface its own error if Appwrite is still unreachable.
+ */
+async function isSignedIn(): Promise<boolean> {
+  try {
+    const authStatus = await getAuthStatus();
+    return authStatus.isAuthenticated;
+  } catch (authError) {
+    console.error("[auth/login] Could not determine auth status:", authError);
+    return false;
+  }
+}
+
 export default async function LoginPage({
   searchParams,
 }: {
   searchParams: Promise<{ redirectTo?: string; error?: string }>;
 }) {
   const t = await getTranslations("admin.auth");
-  const authStatus = await getAuthStatus();
   const { error, redirectTo } = await searchParams;
 
-  if (authStatus.isAuthenticated) {
+  if (await isSignedIn()) {
     return redirect(sanitizeRedirectTarget(redirectTo));
   }
 

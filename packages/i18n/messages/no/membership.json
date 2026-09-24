@@ -187,7 +187,8 @@
       "body": "Vi bekrefter medlemskapet ditt mot BI-studentregisteret. Å logge inn med studentmailen er ikke nok — du må koble til selve kontoen.",
       "cta": "Koble til BI Student-konto",
       "linkFailed": "Vi fikk ikke fullført koblingen. Vennligst prøv igjen, eller kontakt oss hvis det fortsetter å mislykkes.",
-      "alreadyLinked": "Denne BI-studentkontoen er allerede koblet til en annen BISO-konto. Koble den fra der, eller kontakt BISO."
+      "alreadyLinked": "Denne BI-studentkontoen er allerede koblet til en annen BISO-konto. Koble den fra der, eller kontakt BISO.",
+      "invalidBiEmail": "Kontoen du koblet til er ikke en BI-studentkonto. Koble til kontoen for studentmailen med s-nummeret ditt (s1234567@bi.no)."
     },
     "needsDirectoryRecord": {
       "title": "Vi kunne ikke bekrefte BI-registreringen din",
