@@ -101,7 +101,7 @@ describe("sweepPendingRefunds", () => {
 
     const tally = await sweepPendingRefunds(db, new Date().toISOString());
 
-    expect(tally).toEqual({ errors: 1, failed: 0, settled: 0, unresolved: 0 });
+    expect(tally).toEqual({ errors: 1, failed: 0, settled: 0, stillPending: 0, unresolved: 0 });
     expect(mocks.settlePendingRefund).not.toHaveBeenCalled();
   });
 
@@ -110,7 +110,7 @@ describe("sweepPendingRefunds", () => {
 
     const tally = await sweepPendingRefunds(db, new Date().toISOString());
 
-    expect(tally).toEqual({ errors: 0, failed: 0, settled: 0, unresolved: 1 });
+    expect(tally).toEqual({ errors: 0, failed: 0, settled: 0, stillPending: 0, unresolved: 1 });
   });
 
   it("counts a refund-history read failure as an error", async () => {
@@ -140,6 +140,15 @@ describe("sweepPendingRefunds", () => {
 
     const tally = await sweepPendingRefunds(db, new Date().toISOString());
 
-    expect(tally).toEqual({ errors: 0, failed: 0, settled: 1, unresolved: 0 });
+    expect(tally).toEqual({ errors: 0, failed: 0, settled: 1, stillPending: 0, unresolved: 0 });
+  });
+
+  it("counts a refund still processing as pending, not an error", async () => {
+    getRow.mockResolvedValue({ $id: "order-1" });
+    mocks.settlePendingRefund.mockResolvedValue("still_pending");
+
+    const tally = await sweepPendingRefunds(db, new Date().toISOString());
+
+    expect(tally).toEqual({ errors: 0, failed: 0, settled: 0, stillPending: 1, unresolved: 0 });
   });
 });

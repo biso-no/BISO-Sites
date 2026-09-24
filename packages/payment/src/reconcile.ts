@@ -161,6 +161,8 @@ export interface PendingRefundSweepTally {
   errors: number;
   failed: number;
   settled: number;
+  /** Accepted by the provider but not settled yet: healthy, not an error. */
+  stillPending: number;
   unresolved: number;
 }
 
@@ -186,6 +188,7 @@ export async function sweepPendingRefunds(
     errors: 0,
     failed: 0,
     settled: 0,
+    stillPending: 0,
     unresolved: 0,
   };
   const pending = await listPendingRefunds(db, olderThanIso);
@@ -284,6 +287,8 @@ export async function sweepPendingRefunds(
       tally.failed += 1;
     } else if (outcome === "unresolved") {
       tally.unresolved += 1;
+    } else if (outcome === "still_pending") {
+      tally.stillPending += 1;
     }
   }
 

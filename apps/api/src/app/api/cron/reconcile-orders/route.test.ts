@@ -125,6 +125,7 @@ function resetMocks() {
     errors: 0,
     failed: 0,
     settled: 0,
+    stillPending: 0,
     unresolved: 0,
   });
   db.updateRow.mockResolvedValue({});
@@ -572,6 +573,7 @@ describe("reconcile-orders cron: run health", () => {
       errors: 2,
       failed: 0,
       settled: 0,
+      stillPending: 0,
       unresolved: 0,
     });
 

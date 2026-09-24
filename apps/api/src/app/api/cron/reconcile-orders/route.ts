@@ -273,6 +273,7 @@ async function handle(request: Request) {
         membershipClaimsReleased: membership.released,
         refundsSettled: refunds.settled,
         refundsFailed: refunds.failed,
+        refundsStillPending: refunds.stillPending,
         refundsUnresolved: refunds.unresolved,
         refundErrors: refunds.errors,
         errors,
