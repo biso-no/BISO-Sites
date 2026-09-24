@@ -18,8 +18,30 @@ export default async function ApprovalsPage({
 
   const params = parseListParams(await searchParams);
   const result = await listPendingApprovals(params);
-  const requests = "data" in result ? result.data.rows : [];
-  const total = "data" in result ? result.data.total : 0;
+
+  // A failed read must not render as "no pending requests" — approvers would
+  // assume the queue is clear.
+  if ("error" in result) {
+    return (
+      <div className="pb-12">
+        <PageHeader description={t("description")} title={t("title")} />
+        <div
+          className="rounded-2xl p-5 text-sm"
+          role="alert"
+          style={{
+            background: "rgba(248,113,113,0.08)",
+            border: "1px solid rgba(248,113,113,0.20)",
+            color: "#fca5a5",
+          }}
+        >
+          {result.error}
+        </div>
+      </div>
+    );
+  }
+
+  const requests = result.data.rows;
+  const { total } = result.data;
 
   return (
     <div className="pb-12">

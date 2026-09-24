@@ -1,3 +1,4 @@
+import { isNotFound } from "@repo/api/errors";
 import { selectStripeCredentials, selectVippsCredentials } from "./select";
 import type {
   CredentialEnv,
@@ -26,6 +27,11 @@ function databaseId(): string {
  * admin `db` client, with a short in-process TTL cache (mirrors the
  * feature-flag reader). A missing row (404) resolves to `null` so the pure
  * selectors fall back to env.
+ *
+ * Any other failure (outage, timeout, 401) throws and is NOT cached: falling
+ * back to env there would verify Vipps webhooks against the wrong secret and
+ * answer 401 "invalid signature" for as long as the cache entry lived. A
+ * thrown error surfaces as a 5xx, which the provider retries.
  */
 async function readSettingsRow(
   provider: PaymentProvider,
@@ -36,12 +42,15 @@ async function readSettingsRow(
     return cached.row;
   }
 
-  let row: PaymentSettingsRow | null = null;
+  let row: PaymentSettingsRow | null;
   try {
     row = await db.getRow<PaymentSettingsRow>(databaseId(), TABLE_ID, provider);
-  } catch (e) {
+  } catch (error) {
+    if (!isNotFound(error)) {
+      throw error;
+    }
     console.warn(
-      `[payment/credentials] ${provider} row not found in DB (${(e as Error)?.message ?? e}) — falling back to env`
+      `[payment/credentials] ${provider} row not found in DB — falling back to env`
     );
     row = null;
   }

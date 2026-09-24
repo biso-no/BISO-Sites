@@ -1,4 +1,5 @@
 import { fastModel } from "@repo/ai/models";
+import { appwriteErrorStatus } from "@repo/api/errors";
 import { getFeatureFlagStates } from "@repo/shared/utils/feature-flags-server";
 import { generateObject } from "ai";
 import { type NextRequest, NextResponse } from "next/server";
@@ -10,6 +11,9 @@ import {
   normalizeExpenseSummaryRequest,
 } from "@/lib/expense-summary";
 
+const HTTP_UNAUTHORIZED = 401;
+const HTTP_INTERNAL_ERROR = 500;
+
 const SummarySchema = z.object({
   summary: z
     .string()
@@ -19,12 +23,23 @@ const SummarySchema = z.object({
 export async function POST(req: NextRequest) {
   const origin = req.headers.get("origin");
   // Auth check - supports both JWT (Authorization header) and session cookie
-  const { account } = await createAuthenticatedClient(req);
-  const user = await account.get();
-
-  if (!user) {
+  // account.get() throws (Appwrite 401) for a missing/expired session; keep it
+  // inside a try so the caller gets a JSON 401 with CORS, not an unhandled 500.
+  try {
+    const { account } = await createAuthenticatedClient(req);
+    await account.get();
+  } catch (error) {
+    const unauthorized = appwriteErrorStatus(error) === HTTP_UNAUTHORIZED;
+    if (!unauthorized) {
+      console.error("[expenses/summary] Auth check failed:", error);
+    }
     return applyCorsHeaders(
-      NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
+      NextResponse.json(
+        {
+          error: unauthorized ? "Unauthorized" : "Authentication check failed",
+        },
+        { status: unauthorized ? HTTP_UNAUTHORIZED : HTTP_INTERNAL_ERROR }
+      ),
       origin
     );
   }

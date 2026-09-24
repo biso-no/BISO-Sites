@@ -1,5 +1,6 @@
 "use server";
 import type { Models } from "@repo/api";
+import { orNullIfNotFound } from "@repo/api/errors";
 import {
   createAdminClient,
   createSessionClient,
@@ -34,47 +35,99 @@ function isOidcIdentity(identity: { provider?: string } | undefined): boolean {
   return String(identity?.provider ?? "").toLowerCase() === "oidc";
 }
 
+type SessionAccount = Awaited<
+  ReturnType<typeof createSessionClient>
+>["account"];
+
+type AdminDb = Awaited<ReturnType<typeof createAdminClient>>["db"];
+
+const CLEARED_BI_LINK = {
+  student_id: null,
+  bi_employee_id: null,
+  bi_campus_id: null,
+  bi_linked_at: null,
+} as const;
+
 /**
- * Clears the BI student link (`student_id` + the `bi_*` enrichment columns)
- * after the linked OIDC identity has been removed. Writes go through the
- * admin client — these columns are deliberately outside the self-service
- * `SELF_SERVICE_PROFILE_FIELDS` allow-list, same as `syncBiStudentIdentity`.
+ * Clears the BI student link (`student_id` + the `bi_*` enrichment columns).
+ * Writes go through the admin client — these columns are deliberately outside
+ * the self-service `SELF_SERVICE_PROFILE_FIELDS` allow-list, same as
+ * `syncBiStudentIdentity`.
  *
- * The Appwrite identity is already deleted by the time this runs, so a
- * failure here must not fail the whole unlink action — it is logged and
- * swallowed, leaving `student_id` (and therefore member pricing/status)
- * stale until the next successful clear or relink.
+ * Runs BEFORE the OIDC identity is deleted and throws on failure, so a failed
+ * clear aborts the unlink instead of leaving an unlinked account that still
+ * holds `student_id` (and therefore member status/pricing).
+ *
+ * Returns the columns as they were, so the caller can put them back if the
+ * identity deletion that follows fails, or `null` when there was no profile
+ * row (nothing to clear).
  */
 async function clearBiStudentLink(
-  account: Awaited<ReturnType<typeof createSessionClient>>["account"]
-) {
+  adminDb: AdminDb,
+  userId: string
+): Promise<Partial<BiUser> | null> {
+  const profile = await orNullIfNotFound(
+    adminDb.getRow<BiUser>("app", "user", userId)
+  );
+  if (!profile) {
+    return null;
+  }
+
+  await adminDb.updateRow<BiUser>("app", "user", userId, CLEARED_BI_LINK);
+
+  // The cached membership status is keyed by the numeric student id; bust it
+  // so this account stops being reported as a member immediately instead of
+  // for up to MEMBERSHIP_CACHE_TTL_SECONDS.
+  const numericId = sanitizeStudentNumber(profile.student_id ?? null);
+  if (numericId !== null) {
+    revalidateTag(membershipCacheTag(numericId), { expire: 0 });
+  }
+
+  return {
+    student_id: profile.student_id ?? null,
+    bi_employee_id: profile.bi_employee_id ?? null,
+    bi_campus_id: profile.bi_campus_id ?? null,
+    bi_linked_at: profile.bi_linked_at ?? null,
+  };
+}
+
+/**
+ * Best-effort undo of `clearBiStudentLink` when the identity it prepared for
+ * could not be deleted, so the still-linked account keeps its link. If this
+ * fails too, the account is left unlinked-but-holding-the-identity, which
+ * fails safe (no member status) and is fixed by relinking.
+ */
+async function restoreBiStudentLink(
+  adminDb: AdminDb,
+  userId: string,
+  previous: Partial<BiUser>
+): Promise<void> {
   try {
-    const user = await account.get();
-    const { db: adminDb } = await createAdminClient();
-    const profile = (await adminDb
-      .getRow<BiUser>("app", "user", user.$id)
-      .catch(() => null)) as BiUser | null;
-    const previousStudentId = profile?.student_id ?? null;
-
-    await adminDb.updateRow<BiUser>("app", "user", user.$id, {
-      student_id: null,
-      bi_employee_id: null,
-      bi_campus_id: null,
-      bi_linked_at: null,
-    });
-
-    // The cached membership status is keyed by the numeric student id; bust
-    // it so this account stops being reported as a member immediately
-    // instead of for up to MEMBERSHIP_CACHE_TTL_SECONDS.
-    const numericId = sanitizeStudentNumber(previousStudentId);
-    if (numericId !== null) {
-      revalidateTag(membershipCacheTag(numericId), { expire: 0 });
-    }
+    await adminDb.updateRow<BiUser>("app", "user", userId, previous);
   } catch (error) {
     console.error(
-      "Failed to clear BI student link after identity removal",
+      "Failed to restore BI student link after identity removal failed",
       error
     );
+  }
+}
+
+async function removeOidcIdentity(
+  account: SessionAccount,
+  identityId: string
+): Promise<void> {
+  const user = await account.get();
+  const { db: adminDb } = await createAdminClient();
+
+  const previous = await clearBiStudentLink(adminDb, user.$id);
+
+  try {
+    await account.deleteIdentity(identityId);
+  } catch (error) {
+    if (previous) {
+      await restoreBiStudentLink(adminDb, user.$id, previous);
+    }
+    throw error;
   }
 }
 
@@ -150,36 +203,38 @@ export async function listIdentities() {
   }
 }
 
-export async function removeIdentity(identityId: string) {
+export async function removeIdentity(
+  identityId: string
+): Promise<{ success: true } | { success: false; error: string }> {
   try {
     const { account } = await createSessionClient();
 
     // Determine before deleting whether this is the BI Student (OIDC)
     // identity — deleting it without clearing student_id would let a user
     // unlink and keep member status/pricing indefinitely (or hand off a
-    // still-"member" account to someone else).
-    const identities = await account.listIdentities().catch(() => null);
-    const removedIdentity = identities?.identities.find(
+    // still-"member" account to someone else). A failed lookup must fail the
+    // action: treating it as "not OIDC" is exactly how that clear got skipped.
+    const { identities } = await account.listIdentities();
+    const removedIdentity = identities.find(
       (identity) => identity.$id === identityId
     );
-    const wasOidc = isOidcIdentity(removedIdentity);
+    if (!removedIdentity) {
+      return { success: false, error: "Identity not found" };
+    }
 
-    await account.deleteIdentity(identityId);
-
-    if (wasOidc) {
-      await clearBiStudentLink(account);
+    if (isOidcIdentity(removedIdentity)) {
+      await removeOidcIdentity(account, identityId);
+    } else {
+      await account.deleteIdentity(identityId);
     }
 
     return { success: true };
   } catch (error) {
+    unstable_rethrow(error);
     const message = error instanceof Error ? error.message : String(error);
     console.error("Failed to remove identity", error);
     return { success: false, error: message };
   }
-}
-
-function isRowNotFound(error: unknown): boolean {
-  return (error as { code?: number } | null)?.code === 404;
 }
 
 /**
@@ -197,14 +252,9 @@ export async function updateProfile(profile: Partial<Users>) {
     const writable = pickSelfServiceProfileFields(profile);
     const { db: adminDb } = await createAdminClient();
 
-    const existing = await adminDb
-      .getRow<Users>("app", "user", user.$id)
-      .catch((error: unknown) => {
-        if (isRowNotFound(error)) {
-          return null;
-        }
-        throw error;
-      });
+    const existing = await orNullIfNotFound(
+      adminDb.getRow<Users>("app", "user", user.$id)
+    );
 
     if (!existing) {
       // createRow's typed signature wants the full row; we're seeding a

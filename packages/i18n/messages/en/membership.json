@@ -187,7 +187,8 @@
       "body": "We verify your membership against your BI student record. Signing in with your student email isn't enough — link the account itself.",
       "cta": "Link BI Student account",
       "linkFailed": "We couldn't complete the link. Please try again, or contact us if it keeps failing.",
-      "alreadyLinked": "This BI student account is already linked to another BISO account. Unlink it there, or contact BISO."
+      "alreadyLinked": "This BI student account is already linked to another BISO account. Unlink it there, or contact BISO.",
+      "invalidBiEmail": "The account you linked isn't a BI student account. Link the account for your s-number student email (s1234567@bi.no)."
     },
     "needsDirectoryRecord": {
       "title": "We couldn't verify your BI record",

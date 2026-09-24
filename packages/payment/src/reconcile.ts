@@ -12,6 +12,7 @@
  * stock never decremented, revenue never posted, membership never fulfilled.
  */
 
+import { orNullIfNotFound } from "@repo/api/errors";
 import { finagoRefundReverser } from "@repo/shared/utils/finago-refund-reverser";
 import {
   type LedgerReverser,
@@ -129,9 +130,11 @@ export async function reconcileOrderPayment(
   db: ReconcileDb
 ): Promise<void> {
   const { dbId, collId } = ordersTable();
-  const order = (await db
-    .getRow<ReconcilableOrder>(dbId, collId, orderId)
-    .catch(() => null)) as ReconcilableOrder | null;
+  // Only a 404 is a quiet no-op. Any other read failure throws, so the cron
+  // counts it as an error instead of reporting the order as reconciled.
+  const order = (await orNullIfNotFound(
+    db.getRow<ReconcilableOrder>(dbId, collId, orderId)
+  )) as ReconcilableOrder | null;
 
   if (!order?.payment_session_id) {
     return;
@@ -147,6 +150,20 @@ export async function reconcileOrderPayment(
   if (order.payment_provider === "stripe") {
     await reconcileStripePayment(orderId, order, db);
   }
+}
+
+export interface PendingRefundSweepTally {
+  /**
+   * Refunds that could not be processed because a read or write failed
+   * (Appwrite outage, timeout, 401). They stay pending and are retried, but
+   * the sweep must report them as failures rather than as merely unresolved.
+   */
+  errors: number;
+  failed: number;
+  settled: number;
+  /** Accepted by the provider but not settled yet: healthy, not an error. */
+  stillPending: number;
+  unresolved: number;
 }
 
 /**
@@ -166,8 +183,14 @@ export async function sweepPendingRefunds(
   // the refund succeeded and restocks it while the original Finago posting is
   // never reversed, and nothing revisits succeeded refunds to repair that.
   ledger: LedgerReverser = finagoRefundReverser
-): Promise<{ failed: number; settled: number; unresolved: number }> {
-  const tally = { failed: 0, settled: 0, unresolved: 0 };
+): Promise<PendingRefundSweepTally> {
+  const tally: PendingRefundSweepTally = {
+    errors: 0,
+    failed: 0,
+    settled: 0,
+    stillPending: 0,
+    unresolved: 0,
+  };
   const pending = await listPendingRefunds(db, olderThanIso);
   if (pending.length === 0) {
     return tally;
@@ -184,11 +207,21 @@ export async function sweepPendingRefunds(
       continue;
     }
 
-    const order = (await db
-      .getRow<RefundableOrder>(dbId, ordersId, orderId, [
-        ORDER_WITH_REFUNDS_SELECT,
-      ])
-      .catch(() => null)) as RefundableOrder | null;
+    let order: RefundableOrder | null;
+    try {
+      order = (await orNullIfNotFound(
+        db.getRow<RefundableOrder>(dbId, ordersId, orderId, [
+          ORDER_WITH_REFUNDS_SELECT,
+        ])
+      )) as RefundableOrder | null;
+    } catch (error) {
+      console.error(
+        `[Refund] Could not read order ${orderId}; leaving refund ${refund.$id} pending:`,
+        error
+      );
+      tally.errors += 1;
+      continue;
+    }
     if (!order) {
       tally.unresolved += 1;
       continue;
@@ -204,7 +237,7 @@ export async function sweepPendingRefunds(
         `[Refund] Could not load refund history for ${orderId}; leaving refund ${refund.$id} pending:`,
         error
       );
-      tally.unresolved += 1;
+      tally.errors += 1;
       continue;
     }
 
@@ -244,7 +277,7 @@ export async function sweepPendingRefunds(
         `[Refund] Sweep could not settle refund ${refund.$id}:`,
         error
       );
-      tally.unresolved += 1;
+      tally.errors += 1;
       continue;
     }
 
@@ -254,6 +287,8 @@ export async function sweepPendingRefunds(
       tally.failed += 1;
     } else if (outcome === "unresolved") {
       tally.unresolved += 1;
+    } else if (outcome === "still_pending") {
+      tally.stillPending += 1;
     }
   }
 

@@ -50,10 +50,10 @@ async function handleSync(request: NextRequest) {
     const { db } = await createAdminClient();
     const result = await syncDepartures({ db });
 
-    return NextResponse.json({
-      ...result,
-      ok: result.failed.length === 0,
-    });
+    // Surface partial failures to the scheduler (matches tickster/events/sync):
+    // a failed stop fetch or upsert returns non-2xx instead of a masked 200.
+    const ok = result.failed.length === 0;
+    return NextResponse.json({ ...result, ok }, { status: ok ? 200 : 502 });
   } catch (error) {
     console.error("[departures/sync] Unexpected error:", error);
     return NextResponse.json(

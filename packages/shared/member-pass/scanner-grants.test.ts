@@ -178,9 +178,20 @@ describe("scanner grants store", () => {
     expect(db.getRow).toHaveBeenCalledWith("app", SCANNER_GRANTS_TABLE, "g1");
   });
 
-  it("returns null from getGrant on any error", async () => {
-    db.getRow.mockRejectedValue(new Error("not found"));
+  it("returns null from getGrant when the row does not exist", async () => {
+    db.getRow.mockRejectedValue(
+      Object.assign(new Error("not found"), { code: 404 })
+    );
     expect(await getGrant(adminDb, "missing")).toBeNull();
+  });
+
+  it("rethrows a getGrant failure that is not a 404", async () => {
+    db.getRow.mockRejectedValue(
+      Object.assign(new Error("Service unavailable"), { code: 503 })
+    );
+    await expect(getGrant(adminDb, "g1")).rejects.toThrow(
+      "Service unavailable"
+    );
   });
 
   it("creates a grant with no row permissions", async () => {

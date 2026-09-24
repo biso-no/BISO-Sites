@@ -5,7 +5,23 @@ import { useTranslations } from "next-intl";
 import { useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { endClientAppwriteSession } from "@/lib/account-link-client";
-import { readAccountLinkReturn } from "@/lib/account-link-return";
+import {
+  type AccountLinkError,
+  readAccountLinkReturn,
+} from "@/lib/account-link-return";
+
+/**
+ * Message (under `membership.join.needsBiLink`) for each link failure. Only
+ * the two cases the student can act on get their own wording; the rest are
+ * "try again" failures.
+ */
+const LINK_ERROR_MESSAGE_KEYS = {
+  already_linked: "alreadyLinked",
+  invalid_bi_email: "invalidBiEmail",
+  no_bi_identity: "linkFailed",
+  not_authenticated: "linkFailed",
+  sync_failed: "linkFailed",
+} as const satisfies Record<AccountLinkError, string>;
 
 /**
  * Closes the browser-side Appwrite session that an account link had to open.
@@ -40,8 +56,8 @@ export function AccountLinkSessionCleanup() {
     // A ref rather than state: this must fire once per return leg, and
     // re-running it on a re-render would be a pointless extra 401.
     handled.current = true;
-    if (error === "already_linked") {
-      toast.error(t("alreadyLinked"));
+    if (error) {
+      toast.error(t(LINK_ERROR_MESSAGE_KEYS[error]));
     }
     endClientAppwriteSession().catch(() => {
       // Already swallowed inside; nothing actionable for the visitor here.

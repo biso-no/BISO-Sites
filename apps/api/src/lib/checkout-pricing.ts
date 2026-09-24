@@ -504,7 +504,18 @@ async function revenueTargetFor(
   cache: Map<string, RevenueTarget | null>
 ): Promise<RevenueTarget | null> {
   if (!cache.has(product.$id)) {
-    cache.set(product.$id, await resolveRevenueTarget(db, product));
+    let target: RevenueTarget | null = null;
+    try {
+      target = await resolveRevenueTarget(db, product);
+    } catch (error) {
+      // A failed settings/sales-type read must not block the sale either;
+      // posting retries the resolution later.
+      console.error(
+        `[checkout] revenue target lookup failed for ${product.$id}:`,
+        error
+      );
+    }
+    cache.set(product.$id, target);
   }
   return cache.get(product.$id) ?? null;
 }

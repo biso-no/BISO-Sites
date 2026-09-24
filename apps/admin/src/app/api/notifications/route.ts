@@ -1,7 +1,13 @@
 import { NextResponse } from "next/server";
 import { fetchNotifications } from "@/lib/actions/notifications";
+import { requireApiAuth } from "@/lib/api-auth";
 
 export async function GET() {
+  const auth = await requireApiAuth();
+  if (auth.response) {
+    return auth.response;
+  }
+
   try {
     const notifications = await fetchNotifications();
     return NextResponse.json(notifications);

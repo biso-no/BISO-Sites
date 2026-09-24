@@ -452,7 +452,9 @@ describe("member pass scanner actions", () => {
         error: "forbidden_campus",
         success: false,
       });
-      db.getRow.mockRejectedValue(new Error("missing"));
+      db.getRow.mockRejectedValue(
+        Object.assign(new Error("missing"), { code: 404 })
+      );
       expect(await actions.resendScannerInvite("nope")).toEqual({
         error: "not_found",
         success: false,
@@ -507,7 +509,9 @@ describe("member pass scanner actions", () => {
     });
 
     test("returns not_found for a missing grant", async () => {
-      db.getRow.mockRejectedValue(new Error("missing"));
+      db.getRow.mockRejectedValue(
+        Object.assign(new Error("missing"), { code: 404 })
+      );
       expect(await actions.revokeScannerGrant("nope")).toEqual({
         error: "not_found",
         success: false,

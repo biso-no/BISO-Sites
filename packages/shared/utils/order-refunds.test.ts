@@ -519,6 +519,33 @@ describe("refundOrder", () => {
 
     expect(result).toEqual({ ok: false, reason: "not_found" });
   });
+
+  it("returns not_found when the order read 404s", async () => {
+    db.getRow.mockRejectedValue(
+      Object.assign(new Error("row_not_found"), { code: 404 })
+    );
+
+    const result = await refundOrder({
+      db,
+      executor: executorReturning(0),
+      orderId: "nope",
+      amount: 10,
+    });
+
+    expect(result).toEqual({ ok: false, reason: "not_found" });
+  });
+
+  it("throws instead of reporting not_found when the order read fails", async () => {
+    db.getRow.mockRejectedValue(
+      Object.assign(new Error("Service unavailable"), { code: 503 })
+    );
+    const executor = executorReturning(0);
+
+    await expect(
+      refundOrder({ db, executor, orderId: ORDER_ID, amount: 10 })
+    ).rejects.toThrow("Service unavailable");
+    expect(executor.refund).not.toHaveBeenCalled();
+  });
 });
 
 describe("refundOrder — uncertain and unsettled provider outcomes", () => {

@@ -15,7 +15,17 @@ export type MembershipGateState =
 // (genuinely not a member, safe to cache) or `not_authenticated`/
 // `no_student_id`/`invalid_student_id` (already handled by the earlier gate
 // checks in this function, before `status.reason` is even consulted).
-const TRANSIENT_STATUS_REASONS = new Set(["finago_error", "unexpected_error"]);
+const TRANSIENT_STATUS_REASONS: ReadonlySet<string> = new Set([
+  "finago_error",
+  "unexpected_error",
+]);
+
+/** True when a `MembershipStatus.reason` means the check failed, not "no". */
+export function isTransientMembershipReason(
+  reason: string | null | undefined
+): boolean {
+  return reason != null && TRANSIENT_STATUS_REASONS.has(reason);
+}
 
 export interface MembershipGateInput {
   employeeId: string | null | undefined;
@@ -77,7 +87,7 @@ export function resolveMembershipGate(
   }
   if (
     input.status?.reason &&
-    TRANSIENT_STATUS_REASONS.has(input.status.reason)
+    isTransientMembershipReason(input.status.reason)
   ) {
     return { state: "membership_check_unavailable", ...empty };
   }

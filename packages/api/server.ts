@@ -12,6 +12,7 @@ import {
   Teams,
   Users,
 } from "node-appwrite";
+import { appwriteErrorStatus } from "./errors";
 
 /**
  * Returns the base URL of the current deployment.
@@ -457,6 +458,24 @@ export async function createAdminClient() {
   };
 }
 
+const UNAUTHORIZED = 401;
+
+/**
+ * Resolves to `null` when Appwrite answers 401 (no session, or an expired
+ * one) and rethrows every other failure, so an outage is not mistaken for a
+ * signed-out caller.
+ */
+async function nullIfNoSession<T>(read: Promise<T>): Promise<T | null> {
+  try {
+    return await read;
+  } catch (error) {
+    if (appwriteErrorStatus(error) === UNAUTHORIZED) {
+      return null;
+    }
+    throw error;
+  }
+}
+
 /**
  * Mint a JWT scoped to the caller's own Appwrite session.
  *
@@ -466,15 +485,16 @@ export async function createAdminClient() {
  * cookie, so this can only ever mint a token for whoever is already signed in,
  * and the token still dies with that session.
  *
- * Returns `null` when there is no usable session. Misconfiguration (a missing
- * `APPWRITE_API_KEY`) still throws.
+ * Returns `null` when there is no usable session (Appwrite answers 401).
+ * Any other failure — an outage, a timeout, misconfiguration such as a missing
+ * `APPWRITE_API_KEY` — throws.
  */
 export async function createSessionJwt(): Promise<string | null> {
   const { account } = await createSessionClient();
 
   const [user, session] = await Promise.all([
-    account.get().catch(() => null),
-    account.getSession({ sessionId: "current" }).catch(() => null),
+    nullIfNoSession(account.get()),
+    nullIfNoSession(account.getSession({ sessionId: "current" })),
   ]);
 
   if (!(user?.$id && session?.$id)) {

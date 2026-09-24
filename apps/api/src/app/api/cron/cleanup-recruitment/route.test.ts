@@ -71,9 +71,11 @@ describe("POST /api/cron/cleanup-recruitment", () => {
       .mockResolvedValueOnce(page([{ $id: "p1" }]));
 
     const response = await POST(authed());
+    expect(response.status).toBe(200);
     expect(await response.json()).toEqual({
       applicationsDeleted: 2,
       failed: 0,
+      ok: true,
       profilesDeleted: 1,
       resumesDeleted: 1,
     });
@@ -96,8 +98,14 @@ describe("POST /api/cron/cleanup-recruitment", () => {
       Object.assign(new Error("boom"), { code: 500 })
     );
 
-    const body = await (await POST(authed())).json();
-    expect(body).toMatchObject({ applicationsDeleted: 0, failed: 1 });
+    const response = await POST(authed());
+    expect(response.status).toBe(500);
+    const body = await response.json();
+    expect(body).toMatchObject({
+      applicationsDeleted: 0,
+      failed: 1,
+      ok: false,
+    });
     expect(deleteRow).not.toHaveBeenCalled();
   });
 

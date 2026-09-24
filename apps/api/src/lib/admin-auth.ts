@@ -1,5 +1,6 @@
 import "server-only";
 import { Query } from "@repo/api";
+import { appwriteErrorStatus } from "@repo/api/errors";
 import { createAdminClient, createSessionClient } from "@repo/api/server";
 import type { AdminScope } from "@repo/shared/types/user-management";
 import {
@@ -8,6 +9,8 @@ import {
   normalizeTeamName,
 } from "@repo/shared/utils/team-roles";
 import type { NextRequest } from "next/server";
+
+const UNAUTHORIZED = 401;
 
 // Helper to reduce complexity
 function computeManagedCampusNames(
@@ -41,6 +44,10 @@ export function extractJwtFromRequest(req: NextRequest): string | undefined {
  * 1. National + OperationsUnit => manage ANY campus/department
  * 2. Campus-{X} + Ledelsen{X} => manage within campus X only
  * 3. Campus-{X} + Dept-{Y} => manage within that department only
+ *
+ * Resolves to `null` only when the caller is not authenticated (no session, or
+ * Appwrite answered 401). Any other failure (outage, timeout, 5xx) is rethrown
+ * so routes answer 5xx instead of a misleading 401.
  */
 export async function getAdminScope(
   req: NextRequest
@@ -90,8 +97,11 @@ export async function getAdminScope(
       isCampusAdmin,
     };
   } catch (error) {
+    if (appwriteErrorStatus(error) === UNAUTHORIZED) {
+      return null;
+    }
     console.error("Failed to get admin scope:", error);
-    return null;
+    throw error;
   }
 }
 

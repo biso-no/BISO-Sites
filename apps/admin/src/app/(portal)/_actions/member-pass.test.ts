@@ -205,7 +205,9 @@ describe("member pass actions", () => {
       success: true,
     });
     expect(db.updateRow).toHaveBeenCalledTimes(1);
-    db.getRow.mockRejectedValue(new Error("not found"));
+    db.getRow.mockRejectedValue(
+      Object.assign(new Error("not found"), { code: 404 })
+    );
     expect(await actions.revokeScannerLink("nope")).toEqual({
       error: "not_found",
       success: false,

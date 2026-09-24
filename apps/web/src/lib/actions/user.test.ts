@@ -100,6 +100,80 @@ describe("removeIdentity", () => {
   });
 });
 
+describe("removeIdentity failures", () => {
+  beforeEach(() => {
+    account.deleteIdentity.mockReset();
+    account.get.mockReset();
+    account.listIdentities.mockReset();
+    adminDb.getRow.mockReset();
+    adminDb.updateRow.mockReset();
+    revalidateTag.mockReset();
+
+    account.get.mockResolvedValue({ $id: "user-1" });
+    account.deleteIdentity.mockResolvedValue({});
+    adminDb.getRow.mockResolvedValue({
+      bi_campus_id: "2",
+      bi_employee_id: "9001234",
+      bi_linked_at: "2026-01-01T00:00:00.000Z",
+      student_id: "s1715738",
+    });
+    adminDb.updateRow.mockResolvedValue({});
+  });
+
+  it("fails without deleting anything when the identity lookup fails", async () => {
+    account.listIdentities.mockRejectedValue(new Error("appwrite down"));
+
+    const result = await removeIdentity("identity-oidc");
+
+    expect(result).toEqual({ success: false, error: "appwrite down" });
+    expect(account.deleteIdentity).not.toHaveBeenCalled();
+    expect(adminDb.updateRow).not.toHaveBeenCalled();
+  });
+
+  it("keeps the identity when clearing student_id fails", async () => {
+    account.listIdentities.mockResolvedValue({
+      identities: [oidcIdentity("identity-oidc")],
+    });
+    adminDb.updateRow.mockRejectedValue(new Error("write failed"));
+
+    const result = await removeIdentity("identity-oidc");
+
+    expect(result).toEqual({ success: false, error: "write failed" });
+    expect(account.deleteIdentity).not.toHaveBeenCalled();
+  });
+
+  it("restores the link when the identity deletion fails after the clear", async () => {
+    account.listIdentities.mockResolvedValue({
+      identities: [oidcIdentity("identity-oidc")],
+    });
+    account.deleteIdentity.mockRejectedValue(new Error("delete failed"));
+
+    const result = await removeIdentity("identity-oidc");
+
+    expect(result).toEqual({ success: false, error: "delete failed" });
+    expect(adminDb.updateRow).toHaveBeenLastCalledWith(
+      "app",
+      "user",
+      "user-1",
+      {
+        bi_campus_id: "2",
+        bi_employee_id: "9001234",
+        bi_linked_at: "2026-01-01T00:00:00.000Z",
+        student_id: "s1715738",
+      }
+    );
+  });
+
+  it("fails when the identity does not belong to the account", async () => {
+    account.listIdentities.mockResolvedValue({ identities: [emailIdentity()] });
+
+    const result = await removeIdentity("identity-other");
+
+    expect(result).toEqual({ success: false, error: "Identity not found" });
+    expect(account.deleteIdentity).not.toHaveBeenCalled();
+  });
+});
+
 describe("updateProfile", () => {
   beforeEach(() => {
     vi.clearAllMocks();
