@@ -395,6 +395,45 @@ larger change.
 touches the same three surfaces — route, sitemap, listings — and is worth
 settling in the same pass.
 
+### S11. A failed department lookup is reported as "no departments"
+
+`resolveDepartmentIds` in `identity/resolve.ts` warns and returns `[]` when the
+`departments` read fails:
+
+```ts
+} catch (error) {
+  logger.warn("Failed to resolve department ids; failing closed", { ... });
+  return [];
+}
+```
+
+Failing closed is right — a lookup outage should cost the caller scope, never
+grant it — and it is what `apps/admin/src/lib/authorization.ts:92` does with
+the same read, so the port stays faithful. The warning goes to stderr, which is
+where diagnostics belong.
+
+What is still wrong by this package's own standard is what the *caller* is
+told. `biso_whoami`, `biso_explain_permission` and `biso://identity/principal`
+all then describe a principal with no departments, which is indistinguishable
+from a principal who genuinely belongs to none. Everywhere else here, a result
+that could not be fully computed says so: a briefing probe that fails warns
+rather than reporting no findings, a search that drops a filter says which, a
+count that lost one of its two queries reports itself incomplete. Scope
+resolution is the one place that still answers as though the question had been
+answered.
+
+**The fix** is the shape the rest of the package already uses: return the
+failure alongside the value rather than in place of it — `{ ids: [], complete:
+false }` — and have the three identity surfaces relay it, the same way
+`freshness` on the identity resource relays a failed membership refresh. It is
+small, and it is deliberately not in this PR: it changes `Principal`, which
+every tool reads, and it surfaced from a base-move inspection rather than from
+a review, so it goes here rather than into a diff that is waiting on review.
+
+**Related:** roadmap S3 is the other half of the same function — `apps/admin`
+cannot match a department team by name at all, because the stored name is
+campus-prefixed and the team name has its whitespace deleted.
+
 ### S7. `setProp` in `@repo/editor` follows `__proto__`
 
 `packages/editor/src/editor/operations.ts:367` walks a dot path with

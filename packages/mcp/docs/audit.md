@@ -923,17 +923,19 @@ only path, and no repair-window divergence is possible. Both stay as they are.
 
 ## 18. Base moves while the PR was open
 
-`main` moved nine times after the audit above was written. A clean textual
+`main` moved ten times after the audit above was written. A clean textual
 merge says the lines do not collide; it says nothing about whether the base
 changed a rule this package mirrors. So each move was inspected before being
 trusted, and the inspection is recorded here — including for the moves that
 changed nothing, because "inert" is a claim that should show its work.
 
-Six of the nine changed something. The seventh changed the most, and not in
+Six of the ten changed something. The seventh changed the most, and not in
 the diff: it called into question a backend guarantee this package had been
 relying on in eleven places. The ninth is the clearest case of why a clean
 merge proves nothing: it did not touch a line this package owns, and it still
-made one of its answers wrong.
+made one of its answers wrong. The tenth is the one case of the opposite — it
+wrote the repo's version of a rule this package had already reached on its own,
+and saying so meant checking every site here against it rather than assuming.
 
 | Base | What moved | Effect here |
 |---|---|---|
@@ -946,6 +948,7 @@ made one of its answers wrong.
 | `efffef4` → `28f9a3b` | Recruitment retention cleanup, CV anonymisation for AI screening, a derived screening score, and a homepage counter rewrite | **Not inert**, though not for anything in the recruitment half. The counter rewrite carries a claim about `listRows(...).total` that, if true, made eleven counts in this package wrong. See below |
 | `28f9a3b` → `ad20cd1` | A shared Europe/Oslo wall-clock helper adopted by ten components, and campus admins gaining National-campus events inside admin's portal | **Not inert.** One rule to follow, one deliberately not followed. See below |
 | `ad20cd1` → `d6c1c42` | Members-only vacancies: the ACL that was meant to hide them is gone, and applying is gated on live membership instead | **Not inert.** Nothing under `packages/` moved, and a public answer here still became wrong. See below |
+| `d6c1c42` → `0135812` | PR #77: `.catch(() => null)` removed across the apps, and `@repo/api` gains an `errors.ts` keeping "the row does not exist" apart from "the backend failed" | **Inert, and checked rather than assumed.** That is the rule `runtime/errors.ts` already applies. See below |
 
 ### `unlisted`: a column the product projection had to carry
 
@@ -1277,3 +1280,58 @@ a public-audience vacancy is not, and a vacancy with no metadata at all is not
   the recruitment studio, where audience is a field on the form. Pulling the
   whole blob in to surface one key would also pull in the contact e-mail and
   the cover-image URLs — a redaction decision, not a consequence of this move.
+
+### Tenth base move: `d6c1c42 → 0135812`
+
+Three commits, 82 files, and the first base move whose subject is this
+package's own. PR #77 strips `.catch(() => null)` out of the apps and adds
+`packages/api/errors.ts`, whose header states the rule:
+
+> `.catch(() => null)` around a read turns every failure — a timeout, a 401, an
+> outage — into "not found", and the caller then answers 404/409/200-empty for
+> what was really a 5xx.
+
+`isNotFound` keys on the numeric `code` and nothing else, `orNullIfNotFound`
+rethrows everything that is not a 404, and `createSessionJwt` in
+`@repo/api/server` now returns `null` only for a 401 — so an outage is no
+longer read as a signed-out caller.
+
+**Nothing here changed, and that is the finding rather than the absence of
+one.** `fromAppwriteError` already branches on the numeric `code`:
+504/`appwrite_timeout` → `timeout`, 401/403 → `forbidden`, 404 → `not_found`,
+409 → `stale_revision`, any other 4xx → `invalid_input`, everything else →
+`internal` — and *no* numeric status at all is tagged `transport: true`,
+because then the reply may have been lost after a write was applied. Same
+distinction, reached independently and for the same reason.
+
+Being able to say that required reading every `catch` in the package that
+resolves to a benign value instead of rethrowing. There are eleven. Eight were
+read directly; the three in `workflows.ts` are the briefing probes that finding
+#54 already made report their own failures. They divide into three kinds:
+
+- **Parsing, not calling.** `result.ts` (a malformed cursor restarts at 0),
+  `operations.ts` (a malformed submission body has no readable fields),
+  `pages.ts` and `approvals.ts` (`JSON.parse` of a stored column), and the
+  fake's query reader. None is a backend call, so none can mask one.
+- **A refusal is an answer, not a failure.** `canPublish` catches its own
+  `DomainError` and rethrows anything else; `server.ts` counts a failed
+  elicitation as *not* confirmed. Both fail in the direction that withholds,
+  which is the point of them.
+- **One that does swallow a read, deliberately.** `resolve.ts` warns and
+  returns `[]` when department resolution fails, so a lookup outage costs the
+  caller scope rather than granting it. `apps/admin/src/lib/authorization.ts`
+  does the identical thing at line 92, so the port stays faithful. What it
+  still gets wrong by this package's own standard is the reporting: the caller
+  is told "no departments" where the truth is "could not tell". Roadmap **S11**.
+
+No file under `packages/` that this package imports moved. The diff's
+`packages/` changes are `member-pass/*`, `finago-*`, `membership-fulfilment`,
+`membership-gate`, `order-refunds` and `payment/*`; the import list here holds
+none of them. `membership-gate` is the near miss — it exports a new
+`isTransientMembershipReason`, which matters wherever paid membership gates an
+action, and this package still implements no such surface (base move 9).
+
+The one line both sides edited is `packages/api/package.json`: the base added
+`"./errors"`, this branch had added `"./runtime"`, two entries apart in the
+same `exports` block. Git merged both, and the merged block was read rather
+than trusted.
