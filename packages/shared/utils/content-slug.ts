@@ -79,3 +79,29 @@ export function nextAutoSlug({
   }
   return generateSlug(title);
 }
+
+/**
+ * `slug` if it's free, otherwise the first free `slug-{year}`,
+ * `slug-{year}-2`, `slug-{year}-3`, …
+ *
+ * Recurring content (the same role posted every year) naturally reuses its
+ * title, so a collision gets the year first and a counter only after that.
+ */
+export function uniqueSlug(
+  slug: string,
+  taken: ReadonlySet<string>,
+  year: number
+): string {
+  if (!taken.has(slug)) {
+    return slug;
+  }
+  const withYear = `${slug}-${year}`;
+  if (!taken.has(withYear)) {
+    return withYear;
+  }
+  let counter = 2;
+  while (taken.has(`${withYear}-${counter}`)) {
+    counter++;
+  }
+  return `${withYear}-${counter}`;
+}

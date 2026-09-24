@@ -991,6 +991,26 @@ export function JobStudioEditor({
       : updateJob(job.$id, vacancy, translation);
   }
 
+  function announceSaved(
+    status: JobsStatus,
+    result: Awaited<ReturnType<typeof persistVacancy>>
+  ) {
+    // The server moves a colliding slug to `-{year}`; show what was saved.
+    if ("slug" in result && result.slug) {
+      setValue("slug", result.slug);
+    }
+    setDirty(false);
+    const successMessage = getSuccessMessage(
+      status,
+      "scheduledPublishAt" in result ? result.scheduledPublishAt : null
+    );
+    toast.success(
+      "translationQueued" in result && result.translationQueued
+        ? `${successMessage} Translation queued.`
+        : successMessage
+    );
+  }
+
   async function submit(status: JobsStatus) {
     if (isSaving || isPublishing) {
       return;
@@ -1032,16 +1052,7 @@ export function JobStudioEditor({
         return;
       }
 
-      setDirty(false);
-      const successMessage = getSuccessMessage(
-        status,
-        "scheduledPublishAt" in result ? result.scheduledPublishAt : null
-      );
-      toast.success(
-        "translationQueued" in result && result.translationQueued
-          ? `${successMessage} Translation queued.`
-          : successMessage
-      );
+      announceSaved(status, result);
 
       if (isNew && "data" in result && result.data) {
         router.push(`/jobs/${result.data}`);

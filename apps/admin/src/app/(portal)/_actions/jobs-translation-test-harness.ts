@@ -18,6 +18,14 @@ export const adminDb = {
   upsertRow: mock(),
 };
 
+/**
+ * The content_translations reads behind the deferred translation write.
+ * `adminDb.listRows` answers the jobs-table slug-uniqueness scan itself (no
+ * collisions) and forwards every other table here, so a queued
+ * `mockImplementationOnce` isn't eaten by the scan that runs first.
+ */
+export const translationRows = mock();
+
 export const createAdminClientSpy = mock(async () => ({ db: adminDb }));
 export const assertRecruitmentVacancyWriteAccessSpy = mock(() => undefined);
 export const assertWriteAccessSpy = mock(() => undefined);
@@ -140,6 +148,13 @@ export const resetTranslationHarness = (): void => {
   sessionDb.getRow.mockReset();
   afterSpy.mockClear();
   sessionDb.listRows.mockImplementation(async () => ({ rows: [], total: 0 }));
+  translationRows.mockReset();
+  adminDb.listRows.mockImplementation(
+    (databaseId: string, tableId: string, queries?: string[]) =>
+      tableId === "jobs"
+        ? { rows: [], total: 0 }
+        : translationRows(databaseId, tableId, queries)
+  );
   adminDb.upsertRow.mockImplementation(
     (_databaseId: string, tableId: string) => {
       primaryWriteCompleted = true;
