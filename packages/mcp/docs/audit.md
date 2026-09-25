@@ -991,6 +991,141 @@ definition in the registry, enforced at the single chokepoint every executable
 publish passes through. A proposal for a publish that is later refused costs a
 round trip and says exactly why; a rule that drifts costs a defect.
 
+## 17i. Twentieth review round
+
+Four findings on `0a57be0`, all P2, all real. The first review of two heads at
+once: the quota that ran out two minutes after round nineteen posted reset
+overnight, so this covers both round nineteen's fixes and the eleventh base
+move's.
+
+| # | File | Finding | Verdict |
+|---|---|---|---|
+| 1 | `domains/content.ts` | a caller-supplied campus and department are never checked against **each other** | confirmed against `apps/admin` |
+| 2 | `services/pages.ts` | `parseDoc` accepts a document whose `meta` violates `PageDoc`'s own type | confirmed |
+| 3 | `services/events.ts` | one segment count per request, awaited in a loop, up to 200 of them | confirmed |
+| 4 | `runtime/register.ts` | the `requestId` returned on success cannot find its own audit row | confirmed |
+
+### The pair was never the unit of authorization
+
+`assertWriteAccess` answers two questions — may this principal write at this
+campus, and is this department one of theirs — and for a campus or global admin
+the department arm **never runs**, because managing the campus returns early.
+Nothing in it says the department belongs to the campus. `create_draft` is the
+only write in this package that takes both from the caller, so it is the only
+one that could be handed `campusId: "1", departmentId: "dept-bergen"` and
+create a row whose two ownership relationships disagree — which matters more
+now than it once did, because round eighteen made the relationship the
+canonical thing scoping reads.
+
+`assertContentOwnership` in `apps/admin/src/lib/content-authorization.ts` is
+the repo's answer, and the new `assertWritableOwnership` is its shape: the
+cheap scope check first so an out-of-scope request never costs a read, then
+re-read the department and compare. Two details are deliberate.
+
+- **Ownership is read through `rowOwnership`,** not through
+  `lookups.departments()`. That cache maps `campusId` from `row.campus_id` —
+  the legacy scalar. Authorizing on it would have reintroduced exactly what
+  round nineteen's first P1 removed from `events.ts`, one file over. The
+  admin function reads `campus.$id`; so does this.
+- **It runs in the handler, not inside `createDraft`.** A check inside the
+  service would run only on execute, so propose mode would mint a proposal for
+  an ownership pair that cannot be executed — and a proposal is the thing a
+  human is asked to approve.
+
+**Population, checked rather than assumed:** every other `assertWriteAccess`
+call in the package takes its campus and department from a row it has already
+read — `saveDraft` from the page row, `setStatus` from the content row,
+`request_approval` from the subject. There is one caller-supplied pair, and it
+is now checked. `campusId` is already `z.string().min(1)`, so admin's other two
+rules — a department needs a campus, and content needs a campus — hold
+structurally here and need no second statement.
+
+### A document whose `meta` is missing is not a document
+
+`PageDoc.meta` is `PageMeta`, not `PageMeta | null`. `parseDoc` checked only
+that `blocks` was an array, so a stored `{"blocks": [], "meta": null}` came
+back typed as a valid `PageDoc` — and the readers dereference it:
+`@repo/api/page-builder` reads `normalizedDoc.meta.slug` unconditionally when
+it publishes, and `readPage` reads `doc.meta.slug` whenever the row's own
+`slug` column is empty.
+
+**This is the earlier malformed-draft fix one case short.** Finding #40 stopped
+publication of a draft that would not *parse*; this is a draft that parses and
+is still not a document. The fix goes in `parseDoc` rather than beside the
+publish check so the two agree by construction: `load` treats such a draft as
+**absent** and falls back to the published document, which is the path that
+lets its owner repair it, and `assertPublishableDraft` refuses to copy it over
+a working page. A validity rule with two homes drifts.
+
+Only `meta.slug` is required, because it is the field those readers require. A
+draft that has lost its title or its accent colour is repairable; rejecting it
+here would make it unloadable instead.
+
+### A fix of mine made the third finding twice as bad
+
+Round nineteen raised `SEGMENT_LIMIT` from 100 to 200 so the package would read
+as many segments as the portal does. It did not look at what the loop below the
+limit does with them: one `countRows` per segment, awaited one at a time. The
+ceiling I raised is the multiplier on a round trip count, so that fix doubled
+this defect's worst case from 100 requests to 200 — enough to pass the read
+timeout on a large event, after which the caller gets nothing at all while the
+abandoned handler goes on issuing the rest (`Promise.race` abandons a read; it
+cannot cancel it).
+
+The counts now run in waves of eight through `runtime/concurrency.ts`, which
+turns 200 sequential round trips into 25. **Not** collapsed into a single
+`Query.equal("segment_id", [...200 ids])` scan, which would be one request:
+every segment would then share one `COUNT_CEILING` rather than having its own,
+so an event with many populated segments would start reporting floors where it
+reports exact counts today. That trade needs the backend's own limit on how
+many values `Query.equal` accepts, which cannot be established from here.
+Roadmap **S13**.
+
+`inWaves` keeps input order, and that is the contract rather than a
+convenience: the caller indexes results against the input array, so a
+reordering would report one segment's membership against another's capacity —
+a defect that reads as plausible data rather than as a bug.
+
+### The id you are given should be the id you can look up
+
+Handlers mint their own `requestId` with `newRequestId()`, whose doc comment
+says why: a result stays self-describing when a service is exercised directly
+in a test. But the dispatcher mints a *different* one, and that is the id bound
+into the child logger and written into the audit row's payload. `toToolError`
+already returns the dispatcher's on the failure path. So the **successful**
+mutation — the one whose audit row someone actually wants to find — was the
+single case whose `requestId` matched nothing in the log or in `audit_logs`.
+
+`withRequestId` stamps the dispatcher's id onto a successful envelope before
+serialization. Only the envelope's own field is replaced; nothing inside `data`
+is touched, so a proposal token or a row id that happens to be a UUID is left
+alone.
+
+### What the tests prove, and one that proves less
+
+Thirteen new tests across four files. Against the genuine pre-fix files:
+
+- the mismatched-pair call through the **real dispatcher** returns a valid
+  proposal pre-fix and `invalid_input` after — the control, a department that
+  does belong to the named campus, passes on both sides;
+- four of the six `parseDoc` cases fail pre-fix, the other two being controls
+  (a slug-bearing `meta` is still accepted, unparseable JSON is still refused);
+- the `requestId` correlation test fails pre-fix, and asserts against both the
+  audit row's payload and the captured stderr line.
+
+**The `inWaves` tests are not of that kind, and should not be read as if they
+were.** Finding #3 is a latency defect, and the fake backend resolves instantly,
+so no test here can fail against the sequential loop by timing. What those six
+tests guard is the new helper's contract — order preserved, concurrency bounded
+and actually used, a rejection propagating rather than yielding a short result —
+which is where a future edit could do real damage. The finding itself was
+verified by reading the loop and the limit, not by a failing test.
+
+A note on method, from a near-miss: the pre-fix copies were saved as
+`/tmp/fixed.$(basename $f)`, and `services/content.ts` and `domains/content.ts`
+share a basename, so one silently overwrote the other. The fixed service file
+had to be rebuilt from its original plus the patch. Flatten the path.
+
 ## 18. Base moves while the PR was open
 
 `main` moved ten times after the audit above was written. A clean textual

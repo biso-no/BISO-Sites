@@ -927,6 +927,130 @@ describe("mutations", () => {
     }
   });
 
+  test("a campus paired with another campus's department is refused", async () => {
+    // `dept-b` is ESN Bergen, campus 2. A global admin clears the campus arm
+    // of `assertWriteAccess` outright and never reaches the department arm, so
+    // before the pair itself was checked this produced a perfectly valid
+    // proposal to create a row whose campus and department disagree.
+    // `assertContentOwnership` in `apps/admin` re-reads the department for
+    // exactly this reason.
+    const harness = await connect({ principal: GLOBAL_ADMIN() });
+    try {
+      const { structured } = await callTool(
+        harness.client,
+        "biso_content_create_draft",
+        {
+          domain: "news",
+          slug: "mismatched",
+          campusId: "1",
+          departmentId: "dept-b",
+          titleNo: "A",
+          titleEn: "A",
+          descriptionNo: "A",
+          descriptionEn: "A",
+        }
+      );
+      expect(structured?.ok).toBe(false);
+      const error = structured?.error as { code: string; message: string };
+      expect(error.code).toBe("invalid_input");
+      expect(error.message).toContain("belongs to");
+      // And nothing was proposed, let alone written.
+      expect(domainWrites(harness)).toHaveLength(0);
+    } finally {
+      await harness.close();
+    }
+  });
+
+  test("a department at the named campus is still accepted", async () => {
+    const harness = await connect({ principal: GLOBAL_ADMIN() });
+    try {
+      const { structured } = await callTool(
+        harness.client,
+        "biso_content_create_draft",
+        {
+          domain: "news",
+          slug: "matched",
+          campusId: "1",
+          departmentId: "dept-a",
+          titleNo: "A",
+          titleEn: "A",
+          descriptionNo: "A",
+          descriptionEn: "A",
+        }
+      );
+      expect(structured?.ok).toBe(true);
+      expect(structured?.effect).toBe("proposed");
+    } finally {
+      await harness.close();
+    }
+  });
+
+  test("the requestId a caller is given is the one its audit row carries", async () => {
+    // Handlers mint their own id with `newRequestId()` so a result is
+    // self-describing when a service is exercised directly in a test. The
+    // dispatcher mints the one that is bound into the logger and written to
+    // `audit_logs` — and that is the one a caller needs, because it is the
+    // only one that can find the record of what happened. Returning the
+    // handler's on success made the *successful* mutation the single case
+    // whose id matched nothing.
+    const harness = await connect({
+      principal: GLOBAL_ADMIN(),
+      config: baseConfig({ writeMode: "operator" }),
+    });
+    try {
+      const args = {
+        domain: "news",
+        slug: "traceable",
+        campusId: "1",
+        titleNo: "A",
+        titleEn: "A",
+        descriptionNo: "A",
+        descriptionEn: "A",
+      };
+      const first = await callTool(
+        harness.client,
+        "biso_content_create_draft",
+        args
+      );
+      const proposal = (
+        first.structured?.data as {
+          proposal: { proposalToken: string; expiresAt: string };
+        }
+      ).proposal;
+      const executed = await callTool(
+        harness.client,
+        "biso_content_create_draft",
+        {
+          ...args,
+          proposalToken: proposal.proposalToken,
+          proposalExpiresAt: proposal.expiresAt,
+        }
+      );
+
+      expect(executed.structured?.effect).toBe("executed");
+      const returned = executed.structured?.requestId as string;
+      expect(returned).toBeTruthy();
+
+      const auditRows = harness.backend.writes.filter(
+        (write) => write.table === "audit_logs"
+      );
+      expect(auditRows.length).toBeGreaterThan(0);
+      // The id is inside the serialized payload, which is where `createAuditor`
+      // puts it alongside `via: "mcp"`.
+      const auditIds = auditRows.map((write) => {
+        const payload = (write.data as { payload?: string }).payload ?? "{}";
+        return (JSON.parse(payload) as { requestId?: string }).requestId;
+      });
+      expect(auditIds).toContain(returned);
+
+      // And the same id is the one bound into the child logger, so a caller
+      // holding it can find the stderr line too.
+      expect(harness.lines.some((line) => line.includes(returned))).toBe(true);
+    } finally {
+      await harness.close();
+    }
+  });
+
   test("a write whose reply is lost reports an uncertain outcome", async () => {
     // The dangerous shape: Appwrite accepted the row and the connection
     // dropped before the response. `fetch` throws with no HTTP status, so

@@ -281,7 +281,8 @@ export function parseDoc(json: string | null | undefined): PageDoc | null {
     if (
       parsed &&
       typeof parsed === "object" &&
-      Array.isArray((parsed as PageDoc).blocks)
+      Array.isArray((parsed as PageDoc).blocks) &&
+      hasUsableMeta(parsed as PageDoc)
     ) {
       return parsed as PageDoc;
     }
@@ -289,6 +290,35 @@ export function parseDoc(json: string | null | undefined): PageDoc | null {
   } catch {
     return null;
   }
+}
+
+/**
+ * Whether a parsed document states the metadata its own type promises.
+ *
+ * `PageDoc.meta` is `PageMeta`, not `PageMeta | null` — so a stored
+ * `{"blocks": [], "meta": null}` is already outside the type, and returning it
+ * as a `PageDoc` makes every reader's dereference a lie. They do dereference:
+ * `@repo/api/page-builder` reads `normalizedDoc.meta.slug` unconditionally
+ * when it publishes, and `readPage` reads `doc.meta.slug` whenever the row's
+ * own `slug` column is empty.
+ *
+ * `slug` is the field checked because it is the one those readers require;
+ * a document that has it can lose a title or a colour without anything
+ * throwing. Checking more than the readers need would turn a repairable draft
+ * into an unloadable one.
+ *
+ * This is deliberately in `parseDoc` rather than beside the publish check, so
+ * the two agree by construction: `load` treats such a draft as **absent** and
+ * falls back to the published document, which is the path that lets the owner
+ * repair it, and `assertPublishableDraft` refuses to copy it over a working
+ * page. A validity rule with two homes drifts; this one has one.
+ */
+function hasUsableMeta(doc: PageDoc): boolean {
+  const meta: unknown = doc.meta;
+  if (!meta || typeof meta !== "object") {
+    return false;
+  }
+  return typeof (meta as { slug?: unknown }).slug === "string";
 }
 
 /**

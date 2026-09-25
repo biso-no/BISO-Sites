@@ -538,8 +538,13 @@ export const contentModule: ToolModule = {
 
         // Authorize the requested ownership before anything else. The campus
         // and department in the arguments are untrusted; this is what stops a
-        // department member filing content under another department.
-        assertWriteAccess(
+        // department member filing content under another department — and,
+        // because a campus or global admin clears the campus arm outright and
+        // never reaches the department one, what stops *any* caller pairing a
+        // campus with a department that does not belong to it. Runs here
+        // rather than inside `createDraft` so a proposal is refused when it is
+        // built, not when a human approves it.
+        await context.services.content.assertWritableOwnership(
           context.principal,
           args.campusId,
           args.departmentId ?? null

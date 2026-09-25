@@ -36,6 +36,7 @@ import {
   DomainError,
   forbidden,
   fromAppwriteError,
+  invalidInput,
   notFound,
 } from "../runtime/errors";
 import { stripSensitive } from "../runtime/redact";
@@ -158,6 +159,33 @@ export interface ContentDetail extends ContentSummary {
 type Row = Models.Row & Record<string, unknown>;
 
 export interface ContentService {
+  /**
+   * Authorize a caller-supplied `(campus, department)` pair for a write.
+   *
+   * `assertWriteAccess` answers "may this principal write at this campus, and
+   * is this department one of theirs" — and for a campus or global admin the
+   * department arm never runs, because they manage the campus outright. That
+   * leaves the pair itself unchecked: nothing so far says the *department*
+   * belongs to the *campus*. A global admin naming Bergen's department under
+   * Oslo, or a campus admin naming another campus's department under their
+   * own, would create a row whose two ownership relationships disagree.
+   *
+   * `assertContentOwnership` in `apps/admin/src/lib/content-authorization.ts`
+   * is the repo's answer and this is its shape: the cheap scope check first so
+   * an out-of-scope request never costs a read, then re-read the department
+   * and compare. Ownership is read through `rowOwnership`, so the campus
+   * relationship decides and the legacy scalar is only a fallback — the same
+   * rule the content tables themselves are scoped by.
+   *
+   * Only `create_draft` needs this. Every other write in this package takes
+   * its ownership from a row it has already read, where the pair is whatever
+   * the backend stored rather than whatever a caller asked for.
+   */
+  assertWritableOwnership(
+    principal: Principal,
+    campusId: string,
+    departmentId: string | null
+  ): Promise<void>;
   /** Create a draft row plus its translation rows. */
   createDraft(
     principal: Principal,
@@ -1008,6 +1036,57 @@ export function createContentService(
           // leaves nothing committed and the plain error is the whole truth.
           statusCommitted: statusCommitted && !publishing,
         });
+      }
+    },
+
+    async assertWritableOwnership(principal, campusId, departmentId) {
+      // Cheap scope check first, exactly as `assertContentOwnership` does, so
+      // a request the caller has no business making never costs a read.
+      assertWriteAccess(principal, campusId, departmentId);
+      if (!departmentId) {
+        return;
+      }
+      type DepartmentOwner = Projected<{
+        campus?: string | { $id: string } | null;
+        campus_id?: string | null;
+      }>;
+      let department: DepartmentOwner;
+      try {
+        department = await clients.user.db.getRow<DepartmentOwner>(
+          "app",
+          "departments",
+          departmentId,
+          [Query.select(["$id", "campus.$id", "campus_id"])]
+        );
+      } catch (error) {
+        // A missing department is a caller error; anything else is the
+        // backend's, and must not be reported as "this department is wrong".
+        const domainError = fromAppwriteError(error, {
+          operation: "verify department ownership",
+        });
+        if (domainError.code === "not_found") {
+          throw invalidInput(
+            `No department ${departmentId} exists, so content cannot be filed under it.`,
+            { departmentId, campusId }
+          );
+        }
+        throw domainError;
+      }
+      const owner = rowOwnership(department, { legacyFallback: true }).campusId;
+      if (owner !== campusId) {
+        throw new DomainError(
+          "invalid_input",
+          `Department ${departmentId} belongs to ${campusLabel(owner)}, not ${campusLabel(campusId)}, so content cannot be filed under both.`,
+          {
+            details: {
+              departmentId,
+              departmentCampusId: owner,
+              requestedCampusId: campusId,
+            },
+            remedy:
+              "Name the department's own campus, or a department that belongs to the campus you named.",
+          }
+        );
       }
     },
 

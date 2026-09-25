@@ -304,7 +304,17 @@ async function invokeTool(input: {
       durationMs: Math.round(performance.now() - startedAt),
       payload: { tier, tool: tool.name, targets: mutation.note?.targets },
     });
-    return toCallToolResult(outcome);
+    // The id the caller is given must be the id the caller can look up.
+    //
+    // Handlers mint their own with `newRequestId()` so a result is
+    // self-describing when a service is exercised directly in a test — but
+    // this dispatcher's id is the one bound into the child logger above and
+    // written to the audit row just now, and it is the one `toToolError`
+    // already returns on the failure path. Returning the handler's id on
+    // success meant the *successful* mutation — the one whose audit row
+    // someone actually wants to find — was the one case whose `requestId`
+    // matched nothing in the log or in `audit_logs`.
+    return toCallToolResult(withRequestId(outcome, requestId));
   } catch (rawError) {
     // A timeout is NOT reclassified here. A mutating handler reads before it
     // writes, and in propose mode it never writes at all, so the tool's tier
@@ -324,6 +334,19 @@ async function invokeTool(input: {
     });
     return toCallToolResult(toToolError(rawError, requestId));
   }
+}
+
+/**
+ * Stamp the dispatcher's request id onto a successful outcome.
+ *
+ * Only the envelope's own id is replaced; nothing inside `data` is touched, so
+ * a proposal token or a row id that happens to be a UUID is left alone.
+ */
+function withRequestId(
+  outcome: ToolOutcome<unknown>,
+  requestId: string
+): ToolOutcome<unknown> {
+  return outcome.ok === true ? { ...outcome, requestId } : outcome;
 }
 
 /**

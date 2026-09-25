@@ -467,6 +467,37 @@ which is what `localizeVacancy` now does for the other three fields. Worth
 doing there rather than in each caller, because `getRecruitmentVacancyTitle`
 is the shared answer to "what is this vacancy called".
 
+### S13. One grouped scan for event segment member counts
+
+`loadSegments` in `services/events.ts` issues one `countRows` per segment.
+Round twenty made those run in waves of eight rather than one at a time, which
+turns 200 round trips into 25 — enough to stay inside the read timeout, but
+still 25.
+
+One request would do it:
+
+```ts
+Query.equal("segment_id", segmentIds)   // all of them, then tally in memory
+```
+
+**What stops it being done here** is not the query shape but the ceiling.
+`countRows` gives every segment its own `COUNT_CEILING` of 2000 rows, and a
+single grouped scan would make all of them share one. An event with many
+populated segments would then start reporting floors where it reports exact
+counts today — a precision regression traded for latency, and this package's
+standing rule is that a floor must be visible rather than convenient.
+
+Deciding it needs two facts that a live instance can supply and reading cannot:
+how many values this Appwrite release accepts in a `Query.equal` array — 200
+segment ids may simply be refused — and what the real distribution of segment
+membership looks like, which sets the ceiling a grouped scan would need.
+
+**The fix**, once those are known: scan `segment_members` for the event's
+segments through `scanForward` with a ceiling chosen from that distribution,
+tally by `segment_id`, and mark every tally truncated when the scan hits its
+bound. `inWaves` in `runtime/concurrency.ts` stays useful either way — it is
+the general answer to a per-row read, and this is only its first caller.
+
 ### S7. `setProp` in `@repo/editor` follows `__proto__`
 
 `packages/editor/src/editor/operations.ts:367` walks a dot path with

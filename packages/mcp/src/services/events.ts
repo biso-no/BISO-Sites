@@ -25,6 +25,7 @@ import type { BackendClients } from "../appwrite/clients";
 import { campusLabel } from "../identity/campus";
 import type { Principal } from "../identity/principal";
 import { canReadRow, rowOwnership } from "../identity/scope";
+import { inWaves } from "../runtime/concurrency";
 import { forbidden, fromAppwriteError, notFound } from "../runtime/errors";
 import type { Projected } from "./row";
 
@@ -104,6 +105,17 @@ const SEGMENT_LIMIT = 200;
  * preview reads no attendee row, name or address either way.
  */
 const COUNT_CEILING = 2000;
+
+/**
+ * How many segment counts are in flight at once.
+ *
+ * Eight, not unbounded: firing all 200 at once would hand the backend a burst
+ * this package has no business creating, and Appwrite would queue them anyway.
+ * Eight turns 200 sequential round trips into 25, which is the difference
+ * between passing the read timeout and not.
+ */
+const COUNT_CONCURRENCY = 8;
+
 /** Most `segment_members` rows one audience preview will read. */
 const MEMBER_SCAN_CEILING = 2000;
 
@@ -294,14 +306,32 @@ export function createEventsService(clients: BackendClients): EventsService {
       Query.limit(SEGMENT_LIMIT),
     ]);
 
-    const summaries: SegmentSummary[] = [];
-    for (const row of result.rows) {
-      const members = await countRows("segment_members", [
-        Query.equal("segment_id", row.$id),
-      ]);
+    // One count per segment, in bounded-concurrency waves rather than one at a
+    // time. A segment count is its own request, and `SEGMENT_LIMIT` is 200, so
+    // sequential counting is up to 200 round trips for a single tool call —
+    // enough to pass the read timeout on a large event, after which the caller
+    // gets nothing at all while the abandoned handler keeps issuing the rest.
+    // `Promise.race` abandons a read; it cannot cancel it (see `invokeTool`).
+    //
+    // Not collapsed into a single `Query.equal("segment_id", [...200 ids])`
+    // scan, which would be one request: each segment would then share one
+    // `COUNT_CEILING` instead of having its own, so an event with many
+    // populated segments would start reporting floors where it reports exact
+    // counts today — a precision regression that cannot be justified from
+    // here, since the ceiling that matters is the backend's own limit on how
+    // many values `Query.equal` accepts, and that needs a live instance to
+    // establish. Roadmap S13.
+    const counted = await inWaves(result.rows, COUNT_CONCURRENCY, (row) =>
+      countRows("segment_members", [Query.equal("segment_id", row.$id)])
+    );
+    const summaries: SegmentSummary[] = result.rows.map((row, index) => {
+      // `inWaves` preserves input order, so index `i` is `result.rows[i]`'s
+      // own count. A mismatch here would report one segment's membership
+      // against another's capacity.
+      const members = counted[index] ?? { count: 0, truncated: false };
       const memberCount = members.count;
       const capacity = row.capacity ?? 0;
-      summaries.push({
+      return {
         id: row.$id,
         eventId: row.event_id,
         name: row.name,
@@ -319,8 +349,8 @@ export function createEventsService(clients: BackendClients): EventsService {
           capacity > 0 && !members.truncated
             ? Math.max(capacity - memberCount, 0)
             : null,
-      });
-    }
+      };
+    });
     // Counting the rows returned, not reading `result.total`: what this needs
     // to know is whether the window filled, which is true under either reading
     // of what `total` counts (roadmap 3.5).
