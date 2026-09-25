@@ -20,7 +20,7 @@ import {
   isHr,
 } from "../identity/principal";
 import { describeScope } from "../identity/scope";
-import { invalidInput } from "../runtime/errors";
+import { invalidInput, notFound } from "../runtime/errors";
 import { defineTool, type ToolModule } from "../runtime/register";
 import { PUBLIC_SCOPE } from "../runtime/result";
 import {
@@ -35,6 +35,7 @@ import {
 import { hasRecruitmentAccess } from "../services/recruitment";
 import {
   ALL_PROFILES,
+  isStaffProfile,
   newRequestId,
   READ_ONLY,
   result,
@@ -175,7 +176,7 @@ function decidePermission(query: PermissionQuery): PermissionDecision {
   // a tool that is not in their session at all, which is the third way this
   // explainer has managed to disagree with the gate it explains.
   if (operation === "search" || operation === "get") {
-    if (!STAFF_PROFILES.includes(principal.profile)) {
+    if (!isStaffProfile(principal)) {
       return {
         allowed: false,
         reasons: [
@@ -406,15 +407,37 @@ export const identityModule: ToolModule = {
       profiles: ALL_PROFILES,
       async handler(args, context) {
         const requestId = newRequestId();
+        // The full chart of accounts is staff material. `departments` mirrors
+        // 24SevenOffice, so it carries operating-ledger and national
+        // governance rows that have no public page — which is why public unit
+        // discovery in `services/discovery.ts` filters every row through
+        // `isPublicUnit`. This tool is registered for every profile, so
+        // without this a signed-out caller reading `publicOnly: false` (the
+        // default) got the whole chart from a server whose stated rule is
+        // "would a signed-out visitor see this?".
+        //
+        // Forced rather than refused: the question "which units exist" is a
+        // fair one for a student to ask, and the publicly listed answer is the
+        // one the site would give them. The result says the filter was
+        // applied rather than letting the count imply the chart is smaller
+        // than it is.
+        const staff = isStaffProfile(context.principal);
+        const publicOnly = staff ? args.publicOnly : true;
         const departments = await context.services.lookups.departments({
           campusId: args.campusId,
-          publicOnly: args.publicOnly,
+          publicOnly,
         });
         return result({
           requestId,
-          summary: `${departments.length} departments${args.campusId ? ` in ${campusLabel(args.campusId)}` : ""}${args.publicOnly ? " (publicly listed only)" : ""}.`,
+          summary: `${departments.length} departments${args.campusId ? ` in ${campusLabel(args.campusId)}` : ""}${publicOnly ? " (publicly listed only)" : ""}.`,
           data: { departments },
           scope: describeScope(context.principal),
+          warnings:
+            staff || args.publicOnly === true
+              ? undefined
+              : [
+                  "Only publicly listed units are shown. The full chart of accounts — operating ledgers and national governance rows — is staff-only.",
+                ],
         });
       },
     }),
@@ -437,6 +460,15 @@ export const identityModule: ToolModule = {
         const department = await context.services.lookups.resolveDepartment(
           args.reference
         );
+        // The sibling of the listing rule. Narrowing the *list* for a public
+        // caller while leaving an exact resolver open would only mean asking
+        // for the ledger row by name instead of reading it off a page.
+        if (!(isStaffProfile(context.principal) || department.publiclyListed)) {
+          throw notFound(
+            `No publicly listed unit matches "${args.reference}".`,
+            { reference: args.reference }
+          );
+        }
         return result({
           requestId,
           summary: `"${args.reference}" resolves to ${department.name} (${campusLabel(department.campusId)}).`,

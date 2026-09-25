@@ -927,6 +927,64 @@ describe("mutations", () => {
     }
   });
 
+  test("a public caller sees only publicly listed units", async () => {
+    // `departments` mirrors the 24SevenOffice chart of accounts, so it holds
+    // operating-ledger and governance rows with no public page — which is why
+    // public unit discovery filters every row through `isPublicUnit`. This
+    // tool is registered for every profile, and `publicOnly` defaults to
+    // false, so a signed-out caller was reading the whole chart.
+    const harness = await connect({ principal: ANONYMOUS() });
+    try {
+      const { structured } = await callTool(
+        harness.client,
+        "biso_list_departments"
+      );
+      const { departments } = structured?.data as {
+        departments: Array<{ $id?: string; id: string; type: string | null }>;
+      };
+      const ids = departments.map((unit) => unit.id);
+      expect(ids).not.toContain("dept-ledger");
+      expect(ids).toContain("dept-a");
+      expect(structured?.warnings).toBeTruthy();
+    } finally {
+      await harness.close();
+    }
+  });
+
+  test("and cannot reach a ledger row through the exact resolver either", async () => {
+    // Narrowing the listing while leaving the resolver open would only mean
+    // asking for the row by name instead of reading it off a page.
+    const harness = await connect({ principal: ANONYMOUS() });
+    try {
+      const { structured } = await callTool(
+        harness.client,
+        "biso_resolve_department",
+        { reference: "dept-ledger" }
+      );
+      expect(structured?.ok).toBe(false);
+      expect((structured?.error as { code: string }).code).toBe("not_found");
+    } finally {
+      await harness.close();
+    }
+  });
+
+  test("a staff caller still gets the full chart", async () => {
+    const harness = await connect({ principal: GLOBAL_ADMIN() });
+    try {
+      const { structured } = await callTool(
+        harness.client,
+        "biso_list_departments"
+      );
+      const { departments } = structured?.data as {
+        departments: Array<{ id: string }>;
+      };
+      expect(departments.map((unit) => unit.id)).toContain("dept-ledger");
+      expect(structured?.warnings).toBeUndefined();
+    } finally {
+      await harness.close();
+    }
+  });
+
   test("a campus paired with another campus's department is refused", async () => {
     // `dept-b` is ESN Bergen, campus 2. A global admin clears the campus arm
     // of `assertWriteAccess` outright and never reaches the department arm, so

@@ -1126,6 +1126,102 @@ A note on method, from a near-miss: the pre-fix copies were saved as
 share a basename, so one silently overwrote the other. The fixed service file
 had to be rebuilt from its original plus the patch. Flatten the path.
 
+## 17j. Twenty-first review round
+
+Three findings on `29c9c62`, all P2, all confirmed. Two of the three are the
+same shape as round twenty's: a guard that exists and does not cover the case
+next to the one it was written for.
+
+| # | File | Finding | Verdict |
+|---|---|---|---|
+| 1 | `services/pages.ts` | `items.length` reaches the array-resize the numeric ceiling was added to prevent | confirmed |
+| 2 | `domains/identity.ts` | the full 24SevenOffice chart of accounts is readable by a signed-out caller | confirmed |
+| 3 | `services/pages.ts` | `set_variant` persists a variant the block type does not declare | confirmed |
+
+### The array ceiling had a second door, with no digits in it
+
+`MAX_PROP_ARRAY_INDEX` was added because `setProp` creates an array when the
+next segment parses as a number and then assigns `node[index]`, so
+`items.4294967294` produces a four-billion-slot array that kills the process on
+`JSON.stringify`. The guard tests `ARRAY_INDEX_SEGMENT` — `/^\d+$/` — against
+each segment.
+
+`items.length` contains no digit. It walks the same `setProp` and ends at
+`node[lastKey] = value`, where `lastKey` is `"length"` and `node` is the array
+itself, so the value **is** the new length. The `value` schema accepts any
+number. Same outcome, past the guard written to stop it.
+
+Verified rather than assumed, in two directions:
+
+- The exploit needs `items` to **already be an array**. `setProp`'s own
+  create-as-it-walks step reads `Number(parts[i + 1])`, and `Number("length")`
+  is `NaN`, so a path into a *missing* prop creates `{}` and setting
+  `{}.length` is inert. It bites a block that has a real prop array — which is
+  the ordinary case for the blocks that have one.
+- No block declares a `length` prop. `packages/editor/src/blocks` has no such
+  key, so reserving the segment costs nothing legitimate.
+
+Refused as a path segment in `propPathProblem` rather than resolved against the
+document: it belongs with the other structural refusals, where the caller is
+told at validation time and the tool schema's own message can say so.
+
+### A chart of accounts is not public data
+
+`biso_list_departments` is registered for `ALL_PROFILES`, and its `publicOnly`
+argument "defaults to false (the full chart of accounts)" — its own
+description then explains that `departments` mirrors 24SevenOffice, so
+"operating ledgers and national governance rows are active accounts with no
+public page".
+
+Both halves are true, and together they are the finding. This package's stated
+rule for public tools is "would a signed-out visitor see this?", and
+`services/discovery.ts` answers it for units by filtering every row through
+`isPublicUnit`. The lookup did not, and the same anonymous caller could reach
+both.
+
+The filter is now **forced** for non-staff profiles rather than the tool being
+withdrawn: "which units exist" is a fair question for a student, and the
+publicly listed answer is the one the site would give. The result says the
+filter was applied, so a smaller count is not read as a smaller organisation.
+
+**The sibling, which the finding also named:** `biso_resolve_department` takes
+no `publicOnly` at all and resolves against the whole chart. Narrowing the
+listing while leaving an exact resolver open would only mean asking for the
+ledger row by name instead of reading it off a page, so it now refuses a
+non-public unit for a non-staff caller — as `not_found`, because "there is no
+such public unit" is what is true from that caller's position.
+
+`isStaffProfile` in `domains/shared.ts` is the one definition, and the
+pre-existing third caller — the permission explainer at `identity.ts:178` —
+now uses it instead of its own copy of `STAFF_PROFILES.includes(...)`.
+
+### A variant the renderer has never heard of
+
+`BLOCK_TYPE_CATALOG` already declares the allowed variants per block type, and
+`applySetVariant` checked only that the block existed. Renderers read `variant`
+directly — the hero includes its artwork only for `split`, others emit
+variant-specific classes — so a typo or another block's variant does not fail
+loudly. It renders a block with a piece missing, on a published page.
+
+`variantProblem` resolves the target block's type and refuses anything the
+catalogue does not declare for it. A type with no declared variants refuses
+every value, because for those types the property is one nothing reads.
+
+### Tests
+
+Thirteen new tests. Against the genuine pre-fix files, six of the ten
+page-edit guards fail and both public-unit tests fail; the remaining five are
+controls, and each is there because it could plausibly have been broken by its
+fix:
+
+- `items.0.label` still applies and the numeric ceiling still refuses — the
+  `length` reservation must not have widened into ordinary paths or replaced
+  the guard beside it;
+- a declared variant still applies, and an unknown block id is still reported
+  as an unknown block id rather than as a bad variant;
+- a **staff** caller still receives the full chart, with no warning attached —
+  the fix narrows by profile, not for everyone.
+
 ## 18. Base moves while the PR was open
 
 `main` moved ten times after the audit above was written. A clean textual

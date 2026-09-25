@@ -67,6 +67,7 @@ import {
   staleRevision,
 } from "../runtime/errors";
 import { scanForward } from "../runtime/scan";
+import { BLOCK_TYPE_CATALOG } from "./blocks";
 
 export const PAGE_LOCALES = ["no", "en"] as const;
 export type PageLocale = (typeof PAGE_LOCALES)[number];
@@ -513,6 +514,24 @@ const MAX_PROP_ARRAY_INDEX = 999;
 const ARRAY_INDEX_SEGMENT = /^\d+$/;
 
 /**
+ * A segment that addresses an array's own size rather than one of its props.
+ *
+ * `MAX_PROP_ARRAY_INDEX` closes the numeric route to a huge sparse array —
+ * `items.4294967294` is refused — but `length` reaches the same place without
+ * a digit anywhere in the path. `setProp` walks to the node and assigns
+ * `node[lastKey] = value`, so on a block that already has an `items` array,
+ * `items.length` with the value `4294967294` sets that array's length
+ * directly, and saving the page serialises four billion `null`s.
+ *
+ * Refused as a segment rather than resolved against the document, because the
+ * check belongs with the other structural refusals in `propPathProblem`,
+ * where the caller is told at validation time. No block in
+ * `BLOCK_TYPE_CATALOG` declares a `length` prop — the editor's block
+ * definitions have none — so nothing legitimate is lost.
+ */
+const ARRAY_SIZE_SEGMENT = "length";
+
+/**
  * Top-level keys `set_prop` may not address, because they are the block's
  * identity rather than its content.
  *
@@ -565,6 +584,9 @@ export function propPathProblem(path: string): string | null {
       Number(segment) > MAX_PROP_ARRAY_INDEX
     ) {
       return `index ${segment} is beyond ${MAX_PROP_ARRAY_INDEX}, and applying it would allocate an array that large`;
+    }
+    if (segment === ARRAY_SIZE_SEGMENT) {
+      return `\`${ARRAY_SIZE_SEGMENT}\` is an array's own size, not one of its props; setting it would resize the array rather than edit the page`;
     }
   }
   return null;
@@ -626,15 +648,52 @@ function applySetProp(
   };
 }
 
+/**
+ * Whether a block type declares this variant.
+ *
+ * `BLOCK_TYPE_CATALOG` already states the allowed variants per type, and the
+ * renderers read `variant` directly: the hero renderer includes its artwork
+ * only for `split`, and several others emit variant-specific classes. An
+ * unrecognised value therefore does not fail loudly — it renders a block with
+ * a piece missing, on a published page, which is the failure mode this package
+ * exists to keep a model from causing.
+ *
+ * A type absent from the catalogue's variant list has no variant concept at
+ * all, so any value is refused for it rather than being written as a prop
+ * nothing reads.
+ */
+function variantProblem(type: string, variant: string): string | null {
+  const entry = BLOCK_TYPE_CATALOG.find((info) => info.type === type);
+  if (!entry) {
+    return `\`${type}\` is not a block type this server knows`;
+  }
+  if (entry.variants.length === 0) {
+    return `\`${type}\` blocks have no variants`;
+  }
+  if (!entry.variants.includes(variant)) {
+    return `\`${type}\` blocks accept ${entry.variants.map((name) => `\`${name}\``).join(", ")}`;
+  }
+  return null;
+}
+
 function applySetVariant(
   doc: EditorPageDoc,
   edit: Extract<BlockEdit, { op: "set_variant" }>
 ): BlockEditOutcome {
-  if (!findBlock(doc, edit.blockId)) {
+  const target = findBlock(doc, edit.blockId);
+  if (!target) {
     return {
       edit,
       applied: false,
       detail: `No block with id ${edit.blockId} exists; the variant was not set.`,
+    };
+  }
+  const problem = variantProblem(target.type, edit.variant);
+  if (problem) {
+    return {
+      edit,
+      applied: false,
+      detail: `"${edit.variant}" was refused: ${problem}; the variant is unchanged.`,
     };
   }
   setVariant(doc, edit.blockId, edit.variant);

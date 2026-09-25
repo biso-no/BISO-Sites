@@ -101,6 +101,19 @@ export const STAFF_PROFILES: readonly PolicyProfile[] = [
 
 export const OPERATOR_PROFILES: readonly PolicyProfile[] = ["it-operator"];
 
+/**
+ * Whether this session's profile is a staff one.
+ *
+ * Registration already gates a tool by profile, so this is for the tools
+ * registered for *every* profile that still owe a public caller a narrower
+ * answer than a staff one — the unit lookups, which would otherwise hand a
+ * signed-out caller the 24SevenOffice chart of accounts, and the permission
+ * explainer, which must not describe tools that are not in the session.
+ */
+export function isStaffProfile(principal: { profile: PolicyProfile }): boolean {
+  return STAFF_PROFILES.includes(principal.profile);
+}
+
 export const SIGNED_IN_PROFILES: readonly PolicyProfile[] = [
   "member",
   "staff",
