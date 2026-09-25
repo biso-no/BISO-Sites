@@ -25,6 +25,7 @@ import type {
   News,
   Pages,
 } from "@repo/api/types/appwrite";
+import { localizeVacancy } from "@repo/shared/recruitment";
 import { parseRecruitmentVacancyMetadata } from "@repo/shared/types/recruitment";
 import { resolveBenefitCampusIds } from "@repo/shared/utils/benefit-scope";
 import { unitCanonicalPath } from "@repo/shared/utils/unit-urls";
@@ -182,6 +183,45 @@ function pickTranslation(
     list[0] ??
     null
   );
+}
+
+/**
+ * A vacancy's translations narrowed to `locale`, with fields the locale row
+ * left blank filled in from another locale.
+ *
+ * `localizeVacancy` in `@repo/shared/recruitment` is the repo's statement of
+ * that rule — a locale row can exist with only some fields written, so a blank
+ * field falls back to the first other locale that has it — and `apps/web` runs
+ * every vacancy listing and detail through it. Public search has to agree, or
+ * an English client would be shown an empty title on a vacancy the site
+ * renders with its Norwegian one. Composed rather than restated so the two
+ * cannot drift.
+ *
+ * It returns the list untouched when the locale has no row at all, so
+ * `pickTranslation`'s own locale -> `no` -> first fallback still applies after
+ * it. Deliberately **not** extended to events, news or pages: their
+ * translations are published per locale, and blending a published locale's
+ * text into an unpublished one is exactly what `pickPublishedTranslation`
+ * exists to prevent.
+ */
+function localizedVacancyTranslations(
+  refs: unknown,
+  locale: PublicLocale
+): unknown {
+  if (!Array.isArray(refs)) {
+    return refs;
+  }
+  return localizeVacancy(
+    {
+      translations: refs as Array<{
+        description: string;
+        locale: PublicLocale;
+        short_description: string | null;
+        title: string;
+      }>,
+    },
+    locale
+  ).translations;
 }
 
 /**
@@ -396,7 +436,10 @@ export function createDiscoveryService(
     // own schema; that parser falls back to defaults on a malformed blob
     // rather than throwing, so one bad row cannot take out public search.
     const rows = result.rows.map((row): PublicItem => {
-      const translation = pickTranslation(row.translations, input.locale);
+      const translation = pickTranslation(
+        localizedVacancyTranslations(row.translations, input.locale),
+        input.locale
+      );
       const metadata = parseRecruitmentVacancyMetadata(row.metadata);
       return {
         kind: "jobs",

@@ -434,6 +434,39 @@ a review, so it goes here rather than into a diff that is waiting on review.
 cannot match a department team by name at all, because the stored name is
 campus-prefixed and the team name has its whitespace deleted.
 
+### S12. `getRecruitmentVacancyTitle` has the blank-title gap this package fixed
+
+Base move eleven (`fcf6904`) rewrote `localizeVacancy` in
+`@repo/shared/recruitment` to fall back **per field** when the requested
+locale's row left one blank, and its own doc comment says why: a locale row
+can exist with a title and teaser but no body. The same file's
+`getRecruitmentVacancyTitle` was not changed and still reads:
+
+```ts
+return (
+  vacancy.translations.find((t) => t.locale === locale)?.title ??
+  vacancy.translations[0]?.title ??
+  "Untitled"
+);
+```
+
+`toRecruitmentTranslation`, four functions above it, writes `title ?? ""`. So
+a translation row whose title was never filled in holds `""`, `??` does not
+catch it, and the function returns `""` — not the other locale's title, and
+not even its own `"Untitled"` fallback.
+
+This package does not call it; `services/recruitment.ts` carries its own
+title-only form of the rule and cites the shared file (audit §18, eleventh
+base move). So this is a report, not a blocked fix: editing
+`packages/shared/recruitment.ts` is outside this PR's boundary, and the
+callers that would change are in the apps.
+
+**The fix** is one line in the shared file — order the candidate rows
+requested-locale-first and take the first whose `title.trim()` is non-empty,
+which is what `localizeVacancy` now does for the other three fields. Worth
+doing there rather than in each caller, because `getRecruitmentVacancyTitle`
+is the shared answer to "what is this vacancy called".
+
 ### S7. `setProp` in `@repo/editor` follows `__proto__`
 
 `packages/editor/src/editor/operations.ts:367` walks a dot path with

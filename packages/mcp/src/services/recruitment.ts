@@ -161,18 +161,40 @@ async function buildLookups(
   };
 }
 
-function titleOf(job: Jobs): string | null {
-  const translations = job.translations as
-    | Array<{ locale: string; title: string }>
-    | undefined;
+/**
+ * A vacancy's staff-facing title.
+ *
+ * Norwegian is BISO's working language, so a `no` row wins. But a locale row
+ * can exist with only some fields written, so a **blank** title falls through
+ * to the first other locale that has one rather than being reported as the
+ * vacancy's name — `localizeVacancy` in `@repo/shared/recruitment` is the
+ * repo's statement of that per-field rule. This is its title-only form:
+ * `VACANCY_SELECT` projects `translations.locale` and `.title` alone, and the
+ * shared helper reads fields this projection deliberately does not fetch.
+ *
+ * One definition, two callers. The listing and `getVacancy` answered this
+ * from byte-identical copies before; they must not drift apart, because a
+ * caller who finds a vacancy by title in one and then opens it in the other
+ * would be told it is a different role.
+ */
+function titleOf(translations: unknown): string | null {
   if (!Array.isArray(translations)) {
     return null;
   }
-  return (
-    translations.find((t) => t.locale === "no")?.title ??
-    translations[0]?.title ??
-    null
-  );
+  const list = translations as Array<{
+    locale?: string | null;
+    title?: string | null;
+  }>;
+  const ordered = [
+    ...list.filter((t) => t.locale === "no"),
+    ...list.filter((t) => t.locale !== "no"),
+  ];
+  for (const translation of ordered) {
+    if (translation.title?.trim()) {
+      return translation.title;
+    }
+  }
+  return null;
 }
 
 function toVacancy(job: Jobs): VacancySummary {
@@ -180,7 +202,7 @@ function toVacancy(job: Jobs): VacancySummary {
     id: job.$id,
     slug: job.slug,
     status: job.status,
-    title: titleOf(job),
+    title: titleOf(job.translations),
     campusId: job.campus_id,
     campusLabel: campusLabel(job.campus_id),
     departmentId: job.department_id ?? null,
@@ -362,10 +384,7 @@ export function createRecruitmentService(
         id: vacancy.$id,
         slug: vacancy.slug,
         status: vacancy.status,
-        title:
-          vacancy.translations.find((t) => t.locale === "no")?.title ??
-          vacancy.translations[0]?.title ??
-          null,
+        title: titleOf(vacancy.translations),
         campusId: vacancy.campus_id,
         campusLabel: campusLabel(vacancy.campus_id),
         departmentId: vacancy.department_id ?? null,

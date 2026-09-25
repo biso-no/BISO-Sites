@@ -1405,3 +1405,64 @@ The one line both sides edited is `packages/api/package.json`: the base added
 `"./errors"`, this branch had added `"./runtime"`, two entries apart in the
 same `exports` block. Git merged both, and the merged block was read rather
 than trusted.
+
+### Eleventh base move: `0135812 → fcf6904`
+
+One commit, two files, both in `packages/shared`. It rewrites `localizeVacancy`
+and states a rule this package had three copies of and all three got wrong:
+
+> A locale row can exist with some fields left blank (e.g. a title and teaser
+> but no body), so each blank field falls back to the first other locale that
+> has it — otherwise the detail page renders an empty "About this vacancy"
+> while the listing shows a teaser.
+
+The rule is about *presentation*, but the fact under it is about *data*: a
+`jobs` translation row can be present for a locale and still carry an empty
+title. `toRecruitmentTranslation` in the same file writes `title ?? ""`, so
+"absent" normalizes to `""` — and `""` is not nullish, so every
+`find(locale)?.title ?? next` in this package returned the empty string and
+stopped there. A vacancy the site titles "Kommunikasjonsansvarlig" came back
+from three of this package's surfaces with no title at all.
+
+**The sweep asked for the population, not the reported site.** Grepping
+`translations` across `src` (minus `translation_refs`, which is content, not
+recruitment) gives exactly three places that present a vacancy's translated
+fields, and all three were wrong:
+
+| Site | Path | What it did |
+|---|---|---|
+| `services/discovery.ts` `searchJobs` | public | `pickTranslation` picks the locale's row, then `translation?.title ?? null` |
+| `services/recruitment.ts` `titleOf` | staff listing | `find("no")?.title ?? translations[0]?.title ?? null` |
+| `services/recruitment.ts` `getVacancy` | staff detail | a **byte-identical copy** of `titleOf`'s expression, inline |
+
+The public path now **composes** the shared helper rather than restating it:
+`localizeVacancy` runs first, and `pickTranslation`'s own locale → `no` →
+first ordering still applies after it, because the helper returns the list
+untouched when the locale has no row at all. The two cannot drift.
+
+The staff path cannot use the helper: `VACANCY_SELECT` projects
+`translations.locale` and `.title` alone, and `localizeVacancy` reads
+`description` and `short_description`. Widening the projection to satisfy a
+helper whose other outputs are discarded would be the wrong trade, and casting
+a row that genuinely lacks those fields into the helper's parameter type would
+be a lie to the type checker. So `titleOf` carries the title-only form of the
+rule, cites the shared file as its source — and the inline copy in `getVacancy`
+is gone. One definition, two callers. That duplication mattered on its own
+terms: a caller who found a vacancy by title in the listing and opened it by id
+was being answered from a second copy of the rule.
+
+**Deliberately not extended to events, news or pages.** Their translations are
+published per locale, and `pickPublishedTranslation` exists precisely to keep
+a fallback inside what is actually released; blending a published locale's text
+into an unpublished one is the bug that function prevents. `pickTranslation`
+itself is therefore untouched — it still serves both content and jobs, and only
+the jobs call site gained the narrowing.
+
+Five regression tests (`services/vacancy-title.test.ts`). Three fail against the
+genuine pre-fix files with `Received: ""`; the other two are controls — the
+locale's *own* filled field must survive the fallback, and a Norwegian caller
+must see no change.
+
+`getRecruitmentVacancyTitle` in `@repo/shared/recruitment` has the same `??`
+gap on the same data, and this package does not call it. Out of scope to edit —
+roadmap **S12**.
