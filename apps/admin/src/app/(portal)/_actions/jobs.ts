@@ -13,6 +13,7 @@ import {
   fetchRecruitmentListPage,
   fetchRecruitmentListRows,
   getRecruitmentJobById,
+  resolveUniqueRecruitmentJobSlug,
 } from "@repo/shared/recruitment";
 import {
   assertRecruitmentApplicationTransition,
@@ -891,6 +892,11 @@ export async function createJob(
       department_id: validated.data.department_id ?? null,
     });
     const jobId = ID.unique();
+    vacancyData.slug = await resolveUniqueRecruitmentJobSlug(
+      adminDb,
+      vacancyData.slug,
+      { year: new Date().getFullYear() }
+    );
     const audience = validated.data.audience ?? "public";
     const jobPerms = buildJobRowPermissions(audience, publication.status);
     const translationPerms = buildJobTranslationPermissions(
@@ -953,6 +959,7 @@ export async function createJob(
     return {
       data: job.$id,
       scheduledPublishAt: publication.scheduledPublishAt,
+      slug: vacancyData.slug,
       ...(translationQueued ? { translationQueued: true as const } : {}),
     };
   } catch (error) {
@@ -1019,8 +1026,18 @@ export async function updateJob(
     // Application questions and interview rounds are edited in the
     // applications workspace. Callers that don't send them (the job studio)
     // must not wipe them with the schema defaults.
+    // A saved slug is a live URL: only a slug the editor changed is moved off
+    // a collision, never one the row already has.
+    const slug =
+      validated.data.slug === vacancy.slug
+        ? vacancy.slug
+        : await resolveUniqueRecruitmentJobSlug(adminDb, validated.data.slug, {
+            excludeJobId: id,
+            year: new Date().getFullYear(),
+          });
     const data: RecruitmentVacancyWriteInput = {
       ...validated.data,
+      slug,
       status: publication.status,
       custom_questions:
         "custom_questions" in values
@@ -1080,6 +1097,7 @@ export async function updateJob(
     return {
       data: id,
       scheduledPublishAt: publication.scheduledPublishAt,
+      slug,
       ...(translationQueued ? { translationQueued: true as const } : {}),
     };
   } catch (error) {

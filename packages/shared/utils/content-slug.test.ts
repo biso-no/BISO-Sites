@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { generateSlug, nextAutoSlug } from "./content-slug";
+import { generateSlug, nextAutoSlug, uniqueSlug } from "./content-slug";
 
 /**
  * Replays what a title input does: one `nextAutoSlug` call per keystroke, each
@@ -67,4 +67,25 @@ test("a title with nothing slug-worthy yields an empty slug", () => {
 
 test("typing a Norwegian title keystroke by keystroke stays stable", () => {
   expect(typeTitle("Årsmøte 2026")).toBe("arsmote-2026");
+});
+
+test("uniqueSlug keeps a free slug", () => {
+  expect(uniqueSlug("debate-manager", new Set(), 2026)).toBe("debate-manager");
+});
+
+test("uniqueSlug appends the year on a collision", () => {
+  expect(uniqueSlug("debate-manager", new Set(["debate-manager"]), 2026)).toBe(
+    "debate-manager-2026"
+  );
+});
+
+test("uniqueSlug counts up once the year variant is taken too", () => {
+  const taken = new Set([
+    "debate-manager",
+    "debate-manager-2026",
+    "debate-manager-2026-2",
+  ]);
+  expect(uniqueSlug("debate-manager", taken, 2026)).toBe(
+    "debate-manager-2026-3"
+  );
 });
