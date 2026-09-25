@@ -4,6 +4,7 @@ import {
   buildRecruitmentStaffRowPermissions,
   buildRecruitmentVacancy,
   getRecruitmentJobById,
+  localizeVacancy,
 } from "./recruitment";
 
 describe("buildRecruitmentStaffRowPermissions", () => {
@@ -88,5 +89,50 @@ describe("getRecruitmentJobById", () => {
     await expect(getRecruitmentJobById(db as never, "job-1")).rejects.toBe(
       timeout
     );
+  });
+});
+
+describe("localizeVacancy", () => {
+  const vacancy = {
+    translations: [
+      {
+        description: "",
+        locale: "no" as const,
+        short_description: "Vi søker en kommunikasjonsansvarlig",
+        title: "Kommunikasjonsansvarlig",
+      },
+      {
+        description: "<p>Som kommunikasjonsansvarlig</p>",
+        locale: "en" as const,
+        short_description: null,
+        title: "Communications manager",
+      },
+    ],
+  };
+
+  it("keeps only the requested locale, preferring its own filled fields", () => {
+    const { translations } = localizeVacancy(vacancy, "en");
+    expect(translations).toHaveLength(1);
+    expect(translations[0]).toMatchObject({
+      description: "<p>Som kommunikasjonsansvarlig</p>",
+      locale: "en",
+      title: "Communications manager",
+    });
+  });
+
+  it("falls back per field when the requested locale left one blank", () => {
+    const { translations } = localizeVacancy(vacancy, "no");
+    expect(translations).toEqual([
+      {
+        description: "<p>Som kommunikasjonsansvarlig</p>",
+        locale: "no",
+        short_description: "Vi søker en kommunikasjonsansvarlig",
+        title: "Kommunikasjonsansvarlig",
+      },
+    ]);
+  });
+
+  it("returns every translation when the locale is missing entirely", () => {
+    expect(localizeVacancy(vacancy, "de").translations).toHaveLength(2);
   });
 });
