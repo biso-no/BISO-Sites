@@ -357,14 +357,52 @@ export function getRecruitmentVacancyTitle(
   );
 }
 
+type LocalizableTranslation = Pick<
+  RecruitmentTranslation,
+  "description" | "locale" | "short_description" | "title"
+>;
+
+function firstFilled(
+  translations: LocalizableTranslation[],
+  field: "description" | "short_description" | "title"
+): string | null {
+  for (const translation of translations) {
+    const value = translation[field];
+    if (value?.trim()) {
+      return value;
+    }
+  }
+  return null;
+}
+
+/**
+ * Narrow a vacancy to the requested locale. A locale row can exist with some
+ * fields left blank (e.g. a title and teaser but no body), so each blank field
+ * falls back to the first other locale that has it — otherwise the detail page
+ * renders an empty "About this vacancy" while the listing shows a teaser.
+ */
 export function localizeVacancy<
-  T extends { translations: Array<{ locale: string }> },
+  T extends { translations: LocalizableTranslation[] },
 >(vacancy: T, locale: string): T {
-  const localized = vacancy.translations.filter(
-    (t: { locale: string }) => t.locale === locale
-  );
+  const localized = vacancy.translations.filter((t) => t.locale === locale);
+  if (localized.length === 0) {
+    return vacancy;
+  }
+  const others = vacancy.translations.filter((t) => t.locale !== locale);
   return {
     ...vacancy,
-    translations: localized.length > 0 ? localized : vacancy.translations,
+    translations: localized.map((translation) => ({
+      ...translation,
+      description: translation.description?.trim()
+        ? translation.description
+        : (firstFilled(others, "description") ?? translation.description),
+      short_description: translation.short_description?.trim()
+        ? translation.short_description
+        : (firstFilled(others, "short_description") ??
+          translation.short_description),
+      title: translation.title?.trim()
+        ? translation.title
+        : (firstFilled(others, "title") ?? translation.title),
+    })),
   };
 }
