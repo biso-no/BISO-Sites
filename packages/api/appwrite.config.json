@@ -4636,6 +4636,17 @@
                         "asc",
                         "asc"
                     ]
+                },
+                {
+                    "key": "slug",
+                    "type": "unique",
+                    "status": "available",
+                    "columns": [
+                        "slug"
+                    ],
+                    "orders": [
+                        "asc"
+                    ]
                 }
             ]
         },
@@ -9227,7 +9238,11 @@
                 "create(\"team:sg-app-dept-operationsunit\")",
                 "read(\"team:sg-app-dept-operationsunit\")",
                 "update(\"team:sg-app-dept-operationsunit\")",
-                "delete(\"team:sg-app-dept-operationsunit\")"
+                "delete(\"team:sg-app-dept-operationsunit\")",
+                "read(\"team:sg-app-dept-ledelsenstavanger\")",
+                "read(\"team:sg-app-dept-ledelsentrondheim\")",
+                "read(\"team:sg-app-dept-ledelsenbergen\")",
+                "read(\"team:sg-app-dept-ledelsenoslo\")"
             ],
             "databaseId": "app",
             "name": "Orders",
@@ -10063,13 +10078,6 @@
                     "default": false
                 },
                 {
-                    "key": "unlisted",
-                    "type": "boolean",
-                    "required": false,
-                    "array": false,
-                    "default": false
-                },
-                {
                     "key": "category",
                     "type": "string",
                     "required": false,
@@ -10191,6 +10199,13 @@
                     "size": 36,
                     "default": null,
                     "encrypt": false
+                },
+                {
+                    "key": "unlisted",
+                    "type": "boolean",
+                    "required": false,
+                    "array": false,
+                    "default": false
                 }
             ],
             "indexes": [
@@ -10527,7 +10542,11 @@
                 "create(\"team:sg-app-dept-operationsunit\")",
                 "read(\"team:sg-app-dept-operationsunit\")",
                 "update(\"team:sg-app-dept-operationsunit\")",
-                "delete(\"team:sg-app-dept-operationsunit\")"
+                "delete(\"team:sg-app-dept-operationsunit\")",
+                "read(\"team:sg-app-dept-ledelsenstavanger\")",
+                "read(\"team:sg-app-dept-ledelsentrondheim\")",
+                "read(\"team:sg-app-dept-ledelsenbergen\")",
+                "read(\"team:sg-app-dept-ledelsenoslo\")"
             ],
             "databaseId": "app",
             "name": "Order Items",
@@ -10983,7 +11002,11 @@
                 "create(\"team:sg-app-dept-operationsunit\")",
                 "read(\"team:sg-app-dept-operationsunit\")",
                 "update(\"team:sg-app-dept-operationsunit\")",
-                "delete(\"team:sg-app-dept-operationsunit\")"
+                "delete(\"team:sg-app-dept-operationsunit\")",
+                "read(\"team:sg-app-dept-ledelsenstavanger\")",
+                "read(\"team:sg-app-dept-ledelsentrondheim\")",
+                "read(\"team:sg-app-dept-ledelsenbergen\")",
+                "read(\"team:sg-app-dept-ledelsenoslo\")"
             ],
             "databaseId": "app",
             "name": "Order Item Field Answers",
@@ -11059,7 +11082,11 @@
                 "create(\"team:sg-app-dept-operationsunit\")",
                 "read(\"team:sg-app-dept-operationsunit\")",
                 "update(\"team:sg-app-dept-operationsunit\")",
-                "delete(\"team:sg-app-dept-operationsunit\")"
+                "delete(\"team:sg-app-dept-operationsunit\")",
+                "read(\"team:sg-app-dept-ledelsenstavanger\")",
+                "read(\"team:sg-app-dept-ledelsentrondheim\")",
+                "read(\"team:sg-app-dept-ledelsenbergen\")",
+                "read(\"team:sg-app-dept-ledelsenoslo\")"
             ],
             "databaseId": "app",
             "name": "Order Refunds",
@@ -11246,7 +11273,11 @@
                 "create(\"team:sg-app-dept-operationsunit\")",
                 "read(\"team:sg-app-dept-operationsunit\")",
                 "update(\"team:sg-app-dept-operationsunit\")",
-                "delete(\"team:sg-app-dept-operationsunit\")"
+                "delete(\"team:sg-app-dept-operationsunit\")",
+                "read(\"team:sg-app-dept-ledelsenstavanger\")",
+                "read(\"team:sg-app-dept-ledelsentrondheim\")",
+                "read(\"team:sg-app-dept-ledelsenbergen\")",
+                "read(\"team:sg-app-dept-ledelsenoslo\")"
             ],
             "databaseId": "app",
             "name": "Order Refund Lines",
