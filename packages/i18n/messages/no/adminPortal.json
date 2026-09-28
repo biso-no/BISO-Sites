@@ -422,6 +422,9 @@
       "deadlineDaysLeft": "{count}d igjen",
       "pastDeadline": "Frist passert",
       "duplicate": "Dupliser",
+      "duplicateHint": "Dupliser for en ny runde",
+      "duplicateSuccess": "Kopi opprettet som nytt utkast",
+      "duplicateError": "Kunne ikke lage kopien. Prøv igjen om litt.",
       "confirmDelete": "Bekreft sletting",
       "kpi": {
         "openPositions": "Åpne stillinger",
