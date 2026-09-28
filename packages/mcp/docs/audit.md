@@ -1901,3 +1901,42 @@ campus leadership may read orders; `buildAssistantOrderSearchQueries` in
 department-only principal nothing, and this package mirrors it. Widening the
 rule here alone would put this server ahead of the portal it mirrors. Roadmap
 **S14**.
+
+### Thirteenth base move: `5f53d7a → 5404442`
+
+One commit, four files, all in `apps/admin`. It extends the job-reuse notice
+from PR #79 with a fourth signal, and states a data fact this package had to be
+asked about:
+
+> Vacancies migrated from the old WordPress site keep a `wpjob…` row ID. Their
+> `$createdAt` is the import date, not when the round ran, so the ID is the only
+> reliable sign that they belong to a past round.
+
+Two questions follow from it, and this package answers no to both.
+
+**Does anything here order or date a vacancy by `$createdAt`?** No. The staff
+listing in `services/recruitment.ts` orders by `application_deadline` when the
+caller asks for a deadline sort and by `$updatedAt` otherwise; `VACANCY_SELECT`
+projects `$updatedAt` and never `$createdAt`. Public `searchJobs` in
+`services/discovery.ts` orders by `$updatedAt` and its projection does not name
+`$createdAt` at all, so the column is not even read. The one place this package
+presents `$createdAt` as a publication date — `dates: { published: … }` — is the
+**news** path, whose rows this move does not concern. `VacancySummary` carries
+`updatedAt` and `scheduledPublishAt`, and no created date, so nothing can
+surface the import date to a caller as the date the round opened.
+
+**Does anything here assume a `jobs` `$id` has a particular shape?** No. Every
+vacancy tool takes `z.string().min(1)`, and the single `regex` in the package
+validates a *slug* for `news`/`events` drafts, not a row id. A `wpjob…` id
+passes through `biso_get_vacancy`, `biso_list_vacancies` and the applications
+tools unchanged.
+
+So the move is inert for `packages/mcp` — the fifth of thirteen that is. It is
+recorded rather than passed over silently, because "inert" is a conclusion that
+has to be reached by asking the two questions above, not by observing that the
+diff touches only `apps/admin`: the eleventh move touched only
+`packages/shared` and was the opposite of inert.
+
+Revalidated after the merge all the same: 482 tests, 17/17 typecheck, biome
+clean over 83 files, stdio smoke.
+
