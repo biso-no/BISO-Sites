@@ -12,6 +12,7 @@ import {
   type RecruitmentVacancy,
 } from "./types/recruitment";
 import type { AdminScope } from "./types/user-management";
+import { uniqueSlug } from "./utils/content-slug";
 
 export interface RecruitmentLookups {
   campusIdsByName: Map<string, string>;
@@ -321,10 +322,54 @@ export async function getRecruitmentJobBySlug(
   const response = await db.listRows<Jobs>("app", "jobs", [
     Query.select([...JOB_SELECT]),
     Query.equal("slug", slug),
+    // Slugs are kept unique on save; should a duplicate slip through, the
+    // newest vacancy wins rather than an arbitrary (usually closed) old one.
+    Query.orderDesc("$createdAt"),
     Query.limit(1),
   ]);
   const job = response.rows[0];
   return job ? buildRecruitmentVacancy(job) : null;
+}
+
+const SLUG_SCAN_PAGE_SIZE = 100;
+
+/**
+ * The slug a job should be saved under: `slug` itself, or the first free
+ * `slug-{year}` / `slug-{year}-N` when another job already owns it. Job pages
+ * are looked up by slug, so a duplicate would make one of the two unreachable.
+ *
+ * `db` must see every row (drafts and closed jobs included) — pass the admin
+ * client. `excludeJobId` is the job being updated, which may keep its own slug.
+ */
+export async function resolveUniqueRecruitmentJobSlug(
+  db: DbClient,
+  slug: string,
+  { excludeJobId, year }: { excludeJobId?: string; year: number }
+): Promise<string> {
+  const taken = new Set<string>();
+  let cursor: string | undefined;
+  while (true) {
+    const response = await db.listRows<Pick<Jobs, "$id" | "slug">>(
+      "app",
+      "jobs",
+      [
+        Query.select(["$id", "slug"]),
+        Query.startsWith("slug", slug),
+        Query.limit(SLUG_SCAN_PAGE_SIZE),
+        ...(cursor ? [Query.cursorAfter(cursor)] : []),
+      ]
+    );
+    for (const row of response.rows) {
+      if (row.$id !== excludeJobId) {
+        taken.add(row.slug);
+      }
+    }
+    if (response.rows.length < SLUG_SCAN_PAGE_SIZE) {
+      break;
+    }
+    cursor = response.rows.at(-1)?.$id;
+  }
+  return uniqueSlug(slug, taken, year);
 }
 
 export async function getRecruitmentJobById(
