@@ -53,6 +53,10 @@ import {
 } from "@/lib/content-translation.server";
 import { resolveJobPublication } from "@/lib/job-publication";
 import {
+  buildDuplicateSlugCandidates,
+  buildDuplicateVacancyInput,
+} from "@/lib/job-reuse";
+import {
   applyDescriptionMerge,
   computeJobTranslationMemory,
   type JobTranslationMemory,
@@ -1235,6 +1239,124 @@ export async function deleteJob(id: string) {
   } catch (error) {
     return {
       error: error instanceof Error ? error.message : "Failed to delete job",
+    };
+  }
+}
+
+/**
+ * Applications received for a vacancy. The studio uses it to warn HR off
+ * rewriting a past round in place (see `describeJobReuse`).
+ */
+export async function getJobApplicationCount(id: string): Promise<number> {
+  const ctx = await requireAuth();
+  const { db } = await createSessionClient();
+  const scope = toRecruitmentAdminScope(ctx);
+  const lookups = await loadRecruitmentLookups(db);
+  const vacancy = await getRecruitmentJobById(db, id);
+  if (!vacancy) {
+    return 0;
+  }
+  assertRecruitmentVacancyWriteAccess(scope, lookups, vacancy);
+
+  const applications = await db.listRows("app", "job_applications", [
+    Query.select(["$id"]),
+    Query.equal("job.$id", id),
+    Query.limit(1),
+  ]);
+  return applications.total;
+}
+
+const osloYearFormatter = new Intl.DateTimeFormat("en-GB", {
+  timeZone: "Europe/Oslo",
+  year: "numeric",
+});
+
+/**
+ * Copies a vacancy into a new draft for the next recruitment round. The copy
+ * keeps content, screening, questions and interview rounds, gets a fresh slug
+ * (`<base>-<year>`) and no applications, and leaves deadline / start date /
+ * schedule blank so the old round's dates can't leak into the new one.
+ */
+export async function duplicateJob(
+  id: string
+): Promise<{ data: string; error?: never } | { data?: never; error: string }> {
+  const ctx = await requireAuth();
+
+  try {
+    const { db: sessionDb } = await createSessionClient();
+    const { db: adminDb } = await createAdminClient();
+    const scope = toRecruitmentAdminScope(ctx);
+    const lookups = await loadRecruitmentLookups(sessionDb);
+    const source = await getRecruitmentJobById(sessionDb, id);
+
+    if (!source) {
+      return { error: "Vacancy not found" };
+    }
+    assertRecruitmentVacancyWriteAccess(scope, lookups, source);
+
+    // Slugs are globally unique, including drafts on campuses this user can't
+    // read, so the availability check has to bypass row security.
+    const candidates = buildDuplicateSlugCandidates(
+      source.slug,
+      Number(osloYearFormatter.format(new Date()))
+    );
+    const taken = await adminDb.listRows<Jobs>("app", "jobs", [
+      Query.select(["slug"]),
+      Query.equal("slug", candidates),
+      Query.limit(candidates.length),
+    ]);
+    const takenSlugs = new Set(taken.rows.map((row) => row.slug));
+    const slug = candidates.find((candidate) => !takenSlugs.has(candidate));
+    if (!slug) {
+      return {
+        error: "Couldn't find a free web address for the copy. Try again.",
+      };
+    }
+
+    const data = buildDuplicateVacancyInput(source, slug);
+    const audience = data.audience ?? "members";
+    const jobId = ID.unique();
+    const payload = await buildJobUpsertPayload(
+      sessionDb,
+      jobId,
+      data,
+      buildJobTranslationPermissions(audience, JobsStatus.DRAFT)
+    );
+    payload.scheduled_publish_at = null;
+    await adminDb.upsertRow(
+      "app",
+      "jobs",
+      jobId,
+      payload,
+      buildJobRowPermissions(audience, JobsStatus.DRAFT)
+    );
+
+    after(() =>
+      logAuditEvent(ctx, "recruitment.vacancy.duplicate", {
+        payload: {
+          campus_id: source.campus_id,
+          department_id: source.department_id,
+          source_id: source.$id,
+        },
+        resourceId: jobId,
+        resourceType: "job",
+      })
+    );
+
+    revalidatePath("/jobs");
+    return { data: jobId };
+  } catch (error) {
+    unstable_rethrow(error);
+    console.error("[duplicateJob] failed", { error, jobId: id });
+    if ((error as { code?: unknown } | null)?.code === 409) {
+      return {
+        error:
+          "Someone else just created a copy with the same web address. Try again.",
+      };
+    }
+    return {
+      error:
+        error instanceof Error ? error.message : "Failed to duplicate vacancy",
     };
   }
 }

@@ -422,6 +422,9 @@
       "deadlineDaysLeft": "{count}d left",
       "pastDeadline": "Past deadline",
       "duplicate": "Duplicate",
+      "duplicateHint": "Duplicate for a new round",
+      "duplicateSuccess": "Copy created as a new draft",
+      "duplicateError": "Couldn't create the copy. Try again in a moment.",
       "confirmDelete": "Confirm delete",
       "kpi": {
         "openPositions": "Open positions",
