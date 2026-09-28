@@ -24,6 +24,9 @@ function describeReasons(
   applicationDeadline: string | null
 ): string[] {
   const lines: string[] = [];
+  if (reuse.reasons.includes("imported")) {
+    lines.push("It was imported from the old BISO website.");
+  }
   if (reuse.reasons.includes("closed")) {
     lines.push("It has been closed.");
   }

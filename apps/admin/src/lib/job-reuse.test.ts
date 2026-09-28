@@ -9,6 +9,7 @@ const FUTURE = "2026-10-15T21:59:00.000Z";
 describe("describeJobReuse", () => {
   it("does not nag on a live vacancy still taking applications", () => {
     const signals = describeJobReuse({
+      jobId: "abc123",
       applicationCount: 12,
       applicationDeadline: FUTURE,
       now: NOW,
@@ -20,6 +21,7 @@ describe("describeJobReuse", () => {
 
   it("does not nag on a fresh draft", () => {
     const signals = describeJobReuse({
+      jobId: "abc123",
       applicationCount: 0,
       applicationDeadline: null,
       now: NOW,
@@ -31,6 +33,7 @@ describe("describeJobReuse", () => {
 
   it("suggests duplicating a closed vacancy", () => {
     const signals = describeJobReuse({
+      jobId: "abc123",
       applicationCount: 0,
       applicationDeadline: null,
       now: NOW,
@@ -42,6 +45,7 @@ describe("describeJobReuse", () => {
 
   it("suggests duplicating once the deadline has passed", () => {
     const signals = describeJobReuse({
+      jobId: "abc123",
       applicationCount: 8,
       applicationDeadline: PAST,
       now: NOW,
@@ -53,6 +57,7 @@ describe("describeJobReuse", () => {
 
   it("suggests duplicating an unpublished vacancy that has applicants", () => {
     const signals = describeJobReuse({
+      jobId: "abc123",
       applicationCount: 3,
       applicationDeadline: FUTURE,
       now: NOW,
@@ -61,8 +66,34 @@ describe("describeJobReuse", () => {
     expect(signals.suggestDuplicate).toBe(true);
   });
 
+  it("treats vacancies imported from the old site as past rounds", () => {
+    for (const jobId of ["wpjob_1234", "Wpjob-99", "WPJOB42"]) {
+      const signals = describeJobReuse({
+        applicationCount: 0,
+        applicationDeadline: FUTURE,
+        jobId,
+        now: NOW,
+        status: JobsStatus.PUBLISHED,
+      });
+      expect(signals.suggestDuplicate).toBe(true);
+      expect(signals.reasons).toEqual(["imported"]);
+    }
+  });
+
+  it("only matches the prefix, not wpjob elsewhere in the ID", () => {
+    const signals = describeJobReuse({
+      applicationCount: 0,
+      applicationDeadline: FUTURE,
+      jobId: "job-wpjob",
+      now: NOW,
+      status: JobsStatus.PUBLISHED,
+    });
+    expect(signals.suggestDuplicate).toBe(false);
+  });
+
   it("ignores an unparseable deadline", () => {
     const signals = describeJobReuse({
+      jobId: "abc123",
       applicationCount: 0,
       applicationDeadline: "not-a-date",
       now: NOW,
