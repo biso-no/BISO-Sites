@@ -10,7 +10,18 @@ import type {
  * applicants into the old round's pipeline. The studio uses these signals to
  * steer them to "Duplicate" instead.
  */
-export type JobReuseReason = "closed" | "deadline_passed" | "has_applications";
+export type JobReuseReason =
+  | "closed"
+  | "deadline_passed"
+  | "has_applications"
+  | "imported";
+
+/**
+ * Vacancies migrated from the old WordPress site keep a `wpjob…` row ID. Their
+ * `$createdAt` is the import date, not when the round ran, so the ID is the
+ * only reliable sign that they belong to a past round.
+ */
+const IMPORTED_JOB_ID_RE = /^wpjob/i;
 
 export interface JobReuseSignals {
   applicationCount: number;
@@ -22,11 +33,13 @@ export interface JobReuseSignals {
 export function describeJobReuse({
   applicationCount,
   applicationDeadline,
+  jobId,
   now = new Date(),
   status,
 }: {
   applicationCount: number;
   applicationDeadline: string | null;
+  jobId: string;
   now?: Date;
   status: JobsStatus;
 }): JobReuseSignals {
@@ -37,8 +50,12 @@ export function describeJobReuse({
     deadline.getTime() < now.getTime();
   const isClosed = status === JobsStatus.CLOSED;
   const hasApplications = applicationCount > 0;
+  const isImported = IMPORTED_JOB_ID_RE.test(jobId);
 
   const reasons: JobReuseReason[] = [];
+  if (isImported) {
+    reasons.push("imported");
+  }
   if (isClosed) {
     reasons.push("closed");
   }
@@ -60,7 +77,7 @@ export function describeJobReuse({
   return {
     applicationCount,
     reasons,
-    suggestDuplicate: roundEnded || unpublishedWithApplicants,
+    suggestDuplicate: isImported || roundEnded || unpublishedWithApplicants,
   };
 }
 

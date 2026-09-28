@@ -82,6 +82,7 @@ export default async function JobEditorPage({
     ? describeJobReuse({
         applicationCount,
         applicationDeadline: job.application_deadline,
+        jobId: job.$id,
         status: job.status,
       })
     : null;
