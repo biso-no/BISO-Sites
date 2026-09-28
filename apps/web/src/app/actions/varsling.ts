@@ -3,7 +3,11 @@
 import { Query } from "@repo/api";
 import { createAdminClient, createSessionClient } from "@repo/api/server";
 import type { Campus, VarslingSettings } from "@repo/api/types/appwrite";
-import { sendEmail } from "@repo/connectors/email";
+import {
+  isCertainNonDelivery,
+  isSmtpConfigured,
+  sendEmail,
+} from "@repo/connectors/email";
 import { headers } from "next/headers";
 import {
   clampString,
@@ -37,6 +41,21 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 // burst of genuine reports while still capping a bot at 30/hour per address.
 const SUBMISSIONS_PER_WINDOW = 5;
 const SUBMISSION_WINDOW_MS = 10 * 60 * 1000;
+
+// Never "please try again": a reporter who reads that may believe the case is
+// filed, or burn their nerve retrying something that cannot work. Say what is
+// known, and give them the route that works.
+//
+// Two messages, because two different things are known. Claiming certain
+// non-delivery where the truth is "we lost the connection mid-send" could have
+// someone re-file a sensitive disclosure that already arrived; softening it
+// everywhere would let a report that certainly failed read as "probably fine"
+// and go unfollowed. Both messages send them to a person either way.
+const NOT_DELIVERED_ERROR =
+  "Your report could NOT be delivered. Please contact one of the people listed on this page directly, so your case reaches someone.";
+
+const DELIVERY_UNCONFIRMED_ERROR =
+  "We could not confirm your report was delivered — it may not have arrived. Please contact one of the people listed on this page directly to be sure your case is received, and mention that you also used this form.";
 
 const RATE_LIMITED_ERROR =
   "Too many reports have been submitted from this network. Please wait a few minutes and try again, or contact one of the people listed on this page directly.";
@@ -190,6 +209,18 @@ export async function submitVarslingCase(
     return { success: false, error: "Invalid contact email address." };
   }
 
+  // Checked before anything else: with no relay configured every submission is
+  // going to fail, and a reporter should learn that immediately rather than
+  // after a lookup — and without spending a rate-limit slot on it. Logged at
+  // error level because a deployment in this state silently accepts nothing.
+  if (!isSmtpConfigured()) {
+    console.error(
+      "[varsling] SMTP is not configured — set SMTP_HOST and SMTP_FROM. No report can be delivered until then."
+    );
+    // Nothing was attempted, so certain non-delivery is the honest claim.
+    return { success: false, error: NOT_DELIVERED_ERROR };
+  }
+
   // A cheap early rejection so a sustained flood from an exhausted key never
   // reaches Appwrite. It reserves nothing — the binding gate is the `reserve`
   // immediately before the send.
@@ -197,6 +228,13 @@ export async function submitVarslingCase(
   if (clientKey && !submissionLimiter.check(clientKey).allowed) {
     return { success: false, error: RATE_LIMITED_ERROR };
   }
+
+  // Everything above the send — building the Appwrite client, resolving the
+  // recipient — can throw, and none of it puts a byte on the wire. Without
+  // this the catch cannot tell "the relay went quiet mid-send" from "we never
+  // got as far as the relay", and would soften a certain failure into an
+  // unconfirmed one.
+  let sendAttempted = false;
 
   try {
     const { db } = await createAdminClient();
@@ -240,6 +278,7 @@ export async function submitVarslingCase(
     // *targets*, which only exist for Appwrite users. Varsling recipients are
     // staff mailboxes that may never sign in to the project, so the message
     // has to leave over a plain relay.
+    sendAttempted = true;
     await sendEmail({
       html: buildVarslingEmail(emailInput),
       // Only set when the reporter chose to be reachable; an anonymous report
@@ -252,10 +291,22 @@ export async function submitVarslingCase(
 
     return { success: true };
   } catch (error) {
-    console.error("Failed to submit varsling case:", error);
+    // The message carries the reason — a relay refusal, a TLS failure, an
+    // Appwrite timeout — and is the only record of a report that did not make
+    // it. Keep it whole.
+    console.error("[varsling] Failed to deliver a report:", error);
+
+    // Delivery is in doubt only if a send was actually under way. A failure
+    // before that — no Appwrite client, no recipient row — never reached the
+    // relay, so say so plainly rather than asking the reporter to warn someone
+    // about a duplicate that cannot exist. Past the send, only an explicit
+    // refusal proves anything: a reset or a timeout may have been queued on
+    // the far side already.
+    const certain = !sendAttempted || isCertainNonDelivery(error);
+
     return {
       success: false,
-      error: "Failed to submit varsling case. Please try again.",
+      error: certain ? NOT_DELIVERED_ERROR : DELIVERY_UNCONFIRMED_ERROR,
     };
   }
 }
