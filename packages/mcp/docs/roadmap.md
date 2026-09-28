@@ -498,6 +498,34 @@ tally by `segment_id`, and mark every tally truncated when the scan hits its
 bound. `inWaves` in `runtime/concurrency.ts` stays useful either way — it is
 the general answer to a per-row read, and this is only its first caller.
 
+### S14. Campus leadership can read orders in Appwrite but not through this server
+
+`appwrite.config.json` now grants `read` on `orders`, `order_items`,
+`order_item_field_answers`, `order_refunds` and `order_refund_lines` to the four
+`ledelsen` department teams, alongside the Operations Unit grant that was
+already there. The application-level rule did not move with it: both
+`buildAssistantOrderSearchQueries` in `apps/admin` and `searchOrders` here scope
+orders with `departmentField: null`, which fails a department-only principal
+closed — and a `ledelsen` member who holds no campus-admin role is exactly that.
+So the schema says campus leadership may read order data and this server, like
+the portal's own assistant, shows them none.
+
+Widening the rule here alone would put this server ahead of the portal it
+mirrors, which is the drift the package exists to avoid, so it is not done.
+
+**What a maintainer has to decide** is which of the two is the intended rule:
+whether the grant was added for a surface that reads orders under a service key
+(the webshop's own reporting, say) and the assistant path should keep failing
+closed, or whether campus leadership is meant to read orders as themselves. Only
+the second needs code, and then it needs the portal and this server changed
+together — the natural shape being a campus association for the `ledelsen`
+teams, so a Ledelsen Oslo member is scoped to Oslo rather than to every campus
+the table-level grant would physically expose.
+
+Note the grant is table-level, so it is not self-limiting: it lets a member of
+any one `ledelsen` team fetch any campus's order by id. `getOrder`'s `canReadRow`
+re-check is what stops that today, and it holds whichever way this is decided.
+
 ### S7. `setProp` in `@repo/editor` follows `__proto__`
 
 `packages/editor/src/editor/operations.ts:367` walks a dot path with

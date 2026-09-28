@@ -11,10 +11,12 @@
  * a human can act in the right place.
  *
  * Scope mirrors `buildAssistantOrderSearchQueries`: campus-scoped, no
- * department dimension. Note `orders` grants table-level read only to
- * Operations Unit, so a campus admin's own credential may return nothing even
- * where the scope filter would allow it — the result says which of the two
- * applied.
+ * department dimension. Note `orders` grants table-level read to Operations
+ * Unit and to the four `ledelsen` department teams, never to the campus teams,
+ * so a campus admin's own credential may return nothing even where the scope
+ * filter would allow it, while a member of one of those five teams can reach
+ * every campus's orders whatever their own campus — the result says which of
+ * the two applied.
  */
 
 import { Query } from "@repo/api";
@@ -206,12 +208,15 @@ export function createCommerceService(
           orderId,
           [ORDER_ITEMS_SELECT]
         );
-        // The `orders` table grants read to the whole Operations Unit team, so
-        // Appwrite answering this call proves nothing about campus scope: a
-        // department member of that team can fetch any campus's order by id
-        // while `searchOrders` correctly shows them none. Re-apply the same
-        // scope `searchOrders` applies — `departmentField: null`, so a
-        // department-only principal fails closed exactly as it does there.
+        // The `orders` table grants read to the whole Operations Unit team and
+        // to the four `ledelsen` department teams, so Appwrite answering this
+        // call proves nothing about campus scope: a department member of any of
+        // those five can fetch any campus's order by id — a `ledelsen` team is
+        // named for a campus but its grant is table-level, so it reaches the
+        // other three too — while `searchOrders` correctly shows them none.
+        // Re-apply the same scope `searchOrders` applies — `departmentField:
+        // null`, so a department-only principal fails closed exactly as it does
+        // there.
         //
         // Reported as `not_found` rather than `forbidden` on purpose: an order
         // id is guessable, and "forbidden" would confirm that it exists.
@@ -240,7 +245,7 @@ export function createCommerceService(
         const mapped = fromAppwriteError(error, { operation: "get order" });
         if (mapped.code === "forbidden" || mapped.code === "not_found") {
           throw notFound(
-            `No order ${orderId} is visible to you. The orders table grants read to the Operations Unit team; campus admins may not be able to read it directly.`,
+            `No order ${orderId} is visible to you. The orders table grants read to the Operations Unit and campus-leadership teams; campus admins may not be able to read it directly.`,
             { orderId }
           );
         }

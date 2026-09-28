@@ -1697,3 +1697,61 @@ must see no change.
 `getRecruitmentVacancyTitle` in `@repo/shared/recruitment` has the same `??`
 gap on the same data, and this package does not call it. Out of scope to edit —
 roadmap **S12**.
+
+### Twelfth base move: `fcf6904 → 5f53d7a`
+
+Two PRs (#78, #79). The app-side work is a recruitment feature — duplicating a
+vacancy, and a notice nudging HR off reusing a past round — which this package
+does not reach: `jobs` is withdrawn from the generic content path, so
+`supports("jobs", "create_draft")` is false and nothing here writes a job row.
+Two facts underneath it do reach this package, and one of them had copies.
+
+**`jobs.slug` gained a `unique` index, and `getRecruitmentJobBySlug` in
+`@repo/shared` gained `Query.orderDesc("$createdAt")`.** The rule is that a job
+slug now identifies one vacancy, and where duplicates predate the index the
+newest wins rather than an arbitrary row. Asked of this package: does it resolve
+a job by slug, or write one? Neither. `slug` appears in the recruitment service
+only as a projected output field, and the one `Query.equal("slug", …)` in `src`
+is `getPublicPage`, which reads `pages` — a different table, with no uniqueness
+claim, and not what this base move changed. No copy, so no change.
+
+**The five order tables gained `read` for the four `ledelsen` department
+teams.** `orders`, `order_items`, `order_item_field_answers`, `order_refunds`
+and `order_refund_lines` previously granted table-level read to Operations Unit
+alone. That sentence was written down in six places here, and all six were now
+false:
+
+| Site | What it said |
+|---|---|
+| `services/commerce.ts` module doc | "`orders` grants table-level read **only to** Operations Unit" |
+| `services/commerce.ts` `getOrder` comment | "grants read to the whole Operations Unit team" |
+| `services/commerce.ts` `getOrder` not-found message | "grants read to the Operations Unit team" — **caller-facing** |
+| `domains/operations.ts` `biso_search_orders` | same claim in the **tool description** the model reads |
+| `services/commerce.test.ts` module doc | the hazard stated over one team |
+| `docs/tools.md` | the same row in the tool table |
+
+Two of those are read by someone deciding what to do — a tool description and an
+error's explanation of why a lookup came back empty — which is the third time in
+this PR that a tool's own description stated the fact that made it wrong. All
+six now name the population: Operations Unit **and** the four `ledelsen` teams,
+never the campus teams.
+
+**No behaviour changed, and that was checked rather than assumed.** The grant is
+table-level, so it widens who can fetch *any* campus's order by id — a
+`ledelsen` team is named for a campus but its grant is not scoped to one. What
+stops that is `getOrder`'s `canReadRow(principal, order.campus_id, null)`: the
+`null` department argument makes the final `Boolean(departmentId && …)` false
+for every department-only principal, whatever campus they resolve to. So the
+re-check the second review round added is doing more work after this base move
+than before it, and `commerce.test.ts` already pins it — `DEPARTMENT_MEMBER`
+stands for all five teams, because the check turns on the principal's scope and
+not on which team granted the row. A second test with a different department
+name would pass for the reason the first one already proves; the test's module
+doc was corrected instead, to say so.
+
+**What is left open is a product question, not a defect.** The schema now says
+campus leadership may read orders; `buildAssistantOrderSearchQueries` in
+`apps/admin` still scopes them with `departmentField: null` and shows a
+department-only principal nothing, and this package mirrors it. Widening the
+rule here alone would put this server ahead of the portal it mirrors. Roadmap
+**S14**.

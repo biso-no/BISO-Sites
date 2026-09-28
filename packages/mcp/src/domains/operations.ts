@@ -31,7 +31,7 @@ export const commerceModule: ToolModule = {
       name: "biso_search_orders",
       title: "Search orders",
       description:
-        "Search webshop orders by buyer name, email or order id, scoped to your campus. Note the `orders` table grants read to the Operations Unit team, so a campus admin may see nothing here even where campus scope would allow it.",
+        "Search webshop orders by buyer name, email or order id, scoped to your campus. Note the `orders` table grants read to the Operations Unit and campus-leadership (`ledelsen`) teams, not to the campus teams, so a campus admin may see nothing here even where campus scope would allow it.",
       inputSchema: {
         query: z
           .string()

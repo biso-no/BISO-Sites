@@ -288,7 +288,7 @@ text a visitor typed into a public form.
 
 | Tool | Profile | Notes |
 |---|---|---|
-| `biso_search_orders` | staff | Campus-scoped. The `orders` table grants read to Operations Unit, so a campus admin may see nothing. |
+| `biso_search_orders` | staff | Campus-scoped. The `orders` table grants read to Operations Unit and the four `ledelsen` teams, not to the campus teams, so a campus admin may see nothing. |
 | `biso_get_order` | staff | Line items plus plain-language diagnostics from stored state. No provider is contacted. |
 | `biso_event_segments` | staff | Authorized against the parent event; the segment tables have row security disabled. |
 | `biso_event_audience` | staff | Counts, fill, unassigned. Messaging a segment is not available. |

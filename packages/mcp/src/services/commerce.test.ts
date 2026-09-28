@@ -1,13 +1,16 @@
 /**
  * Commerce read scope.
  *
- * The hazard these tests pin: `orders` carries a table-level
- * `read("team:sg-app-dept-operationsunit")` grant, so Appwrite answering a
- * `getRow` proves only that the caller is in that team — not that the order is
- * within their campus. A member of the Operations Unit team who is *not* also
- * in Campus-National is an ordinary department principal, whom `searchOrders`
- * correctly shows nothing; without an explicit check the by-id path would hand
- * them buyer names, e-mail addresses, totals and line items for every campus.
+ * The hazard these tests pin: `orders` carries table-level read grants —
+ * `read("team:sg-app-dept-operationsunit")` and, since the order tables were
+ * opened to campus leadership, one per `ledelsen` department team — so Appwrite
+ * answering a `getRow` proves only that the caller is in one of those five
+ * teams, not that the order is within their campus. A member of any of them who
+ * is *not* also a campus or global admin is an ordinary department principal,
+ * whom `searchOrders` correctly shows nothing; without an explicit check the
+ * by-id path would hand them buyer names, e-mail addresses, totals and line
+ * items for every campus. `DEPARTMENT_MEMBER` stands for all five: the check
+ * turns on the principal's scope, not on which department team granted the row.
  */
 
 import { describe, expect, test } from "bun:test";
