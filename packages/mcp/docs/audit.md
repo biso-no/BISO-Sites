@@ -1222,6 +1222,152 @@ fix:
 - a **staff** caller still receives the full chart, with no warning attached —
   the fix narrows by profile, not for everyone.
 
+## 17k. Twenty-second review round
+
+Four findings on `262ab66`, all P2, all confirmed. Two of them are the shape
+this PR keeps producing — a rule applied in one place and restated wrongly, or
+not at all, in the place beside it — and the other two are gates the repo
+already states elsewhere and this package had not asked for.
+
+| # | File | Finding | Verdict |
+|---|---|---|---|
+| 1 | `domains/approvals.ts` | a publish approval filed against an already-published event re-sends its push announcement when granted | confirmed |
+| 2 | `services/content.ts` | the scope line is built from a different field set than the query, and denies a dimension the query used | confirmed |
+| 3 | `runtime/audit.ts` | a mutation whose first write committed is recorded as `error` and so never reaches `audit_logs` | confirmed |
+| 4 | `domains/identity.ts` | feature-flag state is listed for every staff profile, where the repo's own gate is global-admin-only | confirmed |
+
+### An approval is a durable request, and the executor never re-checks
+
+`executeApprovalPublish` in `apps/admin/src/app/(portal)/_actions/approvals.ts`
+routes `events` to `publishEvent`, which — read at `events.ts:881` — takes no
+interest in the event's current status: it writes `status: "published"`,
+synchronises the translation permissions, and then, `if (event.notify_push)`,
+calls `sendEventAnnouncement`. There is no transition check anywhere in that
+path. So approving a publish request for an event that is *already* published
+sends a second push to everyone the first reached, and a push cannot be
+recalled.
+
+This package could file exactly that request. `readApprovalSubject` returned
+campus, department, links, revision and title — everything the scope gate and
+the summary needed, and not the one field that decides whether the request
+means anything. It now returns `status` too, and the handler refuses when the
+subject already sits in the domain's `publishedStatus`.
+
+**The refusal is domain-wide, not events-only.** Every domain writes
+`status: "published"` over whatever is there, so a request against a published
+row asks an approver to decide something that has already happened; `events` is
+where that turns from pointless into harmful. The message says which of the two
+it is.
+
+**It runs in the handler, before `proposeOrExecute`** — round twenty's lesson,
+applied without being reminded of it. A propose-mode call that returned a token
+would be offering to file a request that cannot be filed, and there is a test
+for exactly that.
+
+**What this cannot close** is the window after filing: the request row is
+durable, and someone else may publish the subject while it waits. Only the
+executor can see that, and the executor is `apps/admin`. Roadmap **S15**, which
+names the shape the fix wants — the precondition `assertProductBookable`
+already gives `shop` in the same function, re-checked at approval time.
+
+**The test that had to change.** `server.test.ts`'s "someone who could publish
+it may still route it through review" filed against `news-oslo`, which is
+published — the comment three lines above it says so. The property it exists to
+pin is round eleven's: the tool must not become unreachable. That property is
+untouched; its subject was simply a row no one should file a request against.
+It now uses `news-bergen`, a draft, with the department member who owns it. A
+test whose fixture contradicts a rule the code has since learned is not
+evidence for the rule it was written to defend.
+
+### A scope line built from the other field set
+
+Round nine taught `baseQueries` to scope on the relationship paths through
+`scopeFieldsFor` — `campus.$id` and `department.$id`, with the legacy scalars
+as fallback — because that is what `applyContentRelationshipScopeQueries` in
+`apps/admin` does. Two tests in `content-scope.test.ts` pin the rows that come
+back, including the case that motivated it: `documents` and `campus_benefits`
+carry a `department` relationship and **no** `department_id` column at all.
+
+The scope line beside those rows was built from `spec.scope.campusField` and
+`spec.scope.departmentField` — the registry's scalar pair, read directly. For
+those two domains `departmentField` is `null`, which is the input
+`describeScope` answers with *"No rows: this collection has no department
+dimension and you have department-level access only"*, and `departmentIds: []`.
+So a department member searching `documents` got their own department's rows
+under a sentence saying the collection has no departments and they would see
+nothing.
+
+That is worse than a cosmetic mismatch. `describeScope`'s job in this package is
+to let a client tell an empty result from an unscoped one; a line that reports
+the no-match narrative over a narrowed result invites the opposite reading of
+both. One `scopeFieldsFor(spec)` fixes it, and the point is that the same
+expression now produces the query and the description — they cannot drift again.
+
+**Twenty-six times now**, a fix has reached the site a finding named and not the
+one beside it. Here the fix and the gap were written in the same round: the
+tests asserted the rows and nobody asked what the envelope said about them.
+
+The control asserts that `news` — which has the scalar *and* the relationship —
+describes exactly as it did before, since the plausible over-reach of preferring
+relations is changing an answer that was already right.
+
+### A failure that changed the world is not an `error`
+
+`partialStatusFailure` (`services/content.ts`) and `partialPublishFailure`
+(`services/pages.ts`) exist because Appwrite has no transaction across two rows.
+Each reports, in the thrown error, that the first write landed: the item really
+is `draft`, or the locale really is live, and the proposal token is spent. Both
+put the landed write under `details.committed`.
+
+`createAuditor` persisted a row for `outcome === "ok"` and nothing else, and the
+dispatcher records a throw as `"error"`. So precisely the calls that changed
+public state while reporting failure were the calls that appeared in no activity
+log — the opposite of the rule the module's own header states, that a change
+made through MCP should be visible to staff in the same log as one made through
+the portal.
+
+`committedWrite` in `runtime/errors.ts` is the one reader of the `committed`
+shape, added there rather than in either service so the two helpers cannot each
+be taught about the audit log separately. The dispatcher classifies such a
+failure as `committed_partial`, a new `AuditEvent` outcome that persists like
+`ok`, and carries the committed descriptor into the row's payload so it names
+the row that moved. The caller still gets an error — nothing about the reply
+changed — because the half-done change is genuinely a failure from where they
+stand.
+
+The control is the publishing direction: it widens access, so the translations
+go first and a failure there commits nothing. That call must stay out of
+`audit_logs`, and the test asserts both that and the absence of any write to the
+row itself, so it cannot pass for the wrong reason.
+
+### A gate the repo states twice, asked for in neither place
+
+`biso_list_feature_flags` was registered for `STAFF_PROFILES`. The repo's answer
+is narrower in both places it gives one: `NAV_ACCESS` in
+`apps/admin/src/lib/roles.ts` grants `portal.settings` to `GLOBAL_ADMIN` alone,
+and the existing assistant mounts `buildSettingsTools` only under
+`capabilities.settings`, its `getFeatureFlags` description reading "Only
+available to global admins".
+
+There is no second gate to fall back on: `feature_flags` carries a table-level
+`read("any")`, so `featureFlags()` under the caller's own credential is never
+refused. The tool is now `OPERATOR_PROFILES`, which `resolveProfile` grants to
+global admins alone.
+
+`isEnabled` on the same service has no caller in `src`, so the tool was the
+whole population — checked rather than assumed. The test asserts both halves of
+the gate, registration and the per-call `assertProfileAllowed`, because round
+eighteen established that a stdio session outlives the profile snapshot
+registration was built from.
+
+### Round twenty-two's lesson
+
+**A rule the repo states in prose is still a rule.** Two of these four are
+places where `apps/admin` had already decided — the settings gate, and the
+transition check `publishEvent` conspicuously lacks — and this package either
+did not ask or asked a different question. Where the repo states a rule, find
+the file that states it, and then find the file beside it that does not.
+
 ## 18. Base moves while the PR was open
 
 `main` moved ten times after the audit above was written. A clean textual

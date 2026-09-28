@@ -119,7 +119,7 @@ distinguishing them would confirm an id exists.
 | `biso_list_departments` | ✅ | `publicOnly` applies the same filter the public site uses. |
 | `biso_resolve_department` | ✅ | **Refuses ambiguity** and lists candidates. |
 | `biso_resolve_campus` | ✅ | Name ⇄ numeric id. |
-| `biso_list_feature_flags` | ✅ | Staff only. Reports whether a state is a stored override or a catalogue default. |
+| `biso_list_feature_flags` | ✅ | **Global admins only**, matching `portal.settings` in `apps/admin` and the existing assistant's `getFeatureFlags`. Reports whether a state is a stored override or a catalogue default. |
 
 ```jsonc
 // biso_whoami → data.principal

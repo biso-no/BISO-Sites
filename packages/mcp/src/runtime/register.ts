@@ -38,7 +38,12 @@ import {
   type Principal,
 } from "../identity/principal";
 import type { MutationNote, ToolContext } from "./context";
-import { DomainError, forbidden, isDomainError } from "./errors";
+import {
+  committedWrite,
+  DomainError,
+  forbidden,
+  isDomainError,
+} from "./errors";
 import type { Logger } from "./logger";
 import type { MutationTier } from "./mutation";
 import { type ToolOutcome, toCallToolResult, toToolError } from "./result";
@@ -322,14 +327,21 @@ async function invokeTool(input: {
     // `proposeOrExecute` knows a write was dispatched, and it does the
     // reclassification at that point.
     logToolFailure(logger, rawError);
+    // A failure whose first write landed is not an `error` as far as the
+    // activity log is concerned: the item really is published, unpublished or
+    // permission-changed, and `createAuditor` persists only what changed state.
+    // The committed descriptor rides along so the row names the row that moved,
+    // rather than leaving a reader to infer it from the message.
+    const committed = committedWrite(rawError);
     await context.auditor.record({
       requestId,
       ...auditSubject(mutation.note, tool.name),
-      outcome: "error",
+      outcome: committed ? "committed_partial" : "error",
       durationMs: Math.round(performance.now() - startedAt),
       payload: {
         code: isDomainError(rawError) ? rawError.code : "internal",
         tool: tool.name,
+        ...(committed ? { committed, targets: mutation.note?.targets } : {}),
       },
     });
     return toCallToolResult(toToolError(rawError, requestId));

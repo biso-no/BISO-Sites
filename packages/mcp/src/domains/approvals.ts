@@ -20,7 +20,7 @@ import {
   describeScope,
 } from "../identity/scope";
 import type { ToolContext } from "../runtime/context";
-import { forbidden } from "../runtime/errors";
+import { DomainError, forbidden } from "../runtime/errors";
 import { defineTool, type ToolModule } from "../runtime/register";
 import { buildPagination } from "../runtime/result";
 import {
@@ -78,6 +78,12 @@ interface ApprovalSubject {
   departmentId: string | null;
   links: Record<string, string>;
   revision: string;
+  /**
+   * The subject's CURRENT lifecycle status, as read just now. `null` for a row
+   * that carries none, which is not the same as "not published" — the guard
+   * below declines to refuse on an absent status rather than guessing.
+   */
+  status: string | null;
   title: string | null;
 }
 
@@ -114,6 +120,7 @@ async function readApprovalSubject(
       departmentId: vacancy.departmentId,
       links,
       revision: vacancy.updatedAt,
+      status: vacancy.status,
       title: vacancy.title,
     };
   }
@@ -128,8 +135,55 @@ async function readApprovalSubject(
     departmentId: item.departmentId,
     links: item.links,
     revision: item.revision,
+    status: item.status,
     title: item.title,
   };
+}
+
+/**
+ * Refuse a publish request for something already published.
+ *
+ * `executeApprovalPublish` in `apps/admin` performs the transition without
+ * looking at where the row started: every domain writes `status: "published"`
+ * over whatever is there, and `events` goes through `publishEvent`, which
+ * re-sends `sendEventAnnouncement` for any event carrying `notify_push`
+ * regardless of its previous status. So an approval filed against an
+ * already-published event is not the no-op it looks like — granting it pushes
+ * a second announcement to everyone the first one reached.
+ *
+ * The check belongs at filing time because that is the only moment this
+ * package is in the loop: the request row is durable and the executor is the
+ * portal's. It closes the case that can be seen from here — the subject is
+ * published *now* — and `docs/roadmap.md` S15 carries the case that cannot,
+ * where the subject is published while the request sits pending.
+ *
+ * It runs in the handler rather than inside `proposeOrExecute`, so a propose-
+ * mode call refuses too instead of returning a token for a request that would
+ * be refused on execution.
+ */
+function assertNotAlreadyPublished(
+  domain: ApprovalDomain,
+  contentDomain: ContentDomain,
+  id: string,
+  item: ApprovalSubject
+): void {
+  const published = domainSpec(contentDomain).publishedStatus;
+  if (item.status === null || item.status !== published) {
+    return;
+  }
+  const consequence =
+    domain === "events"
+      ? " Approving it would run the canonical publish again, which re-sends the push announcement to everyone who already received it."
+      : " Approving it would write the same status again, asking someone to decide something that has already happened.";
+  throw new DomainError(
+    "invalid_input",
+    `This ${domain} item is already \`${published}\`, so there is nothing for an approver to publish.${consequence}`,
+    {
+      details: { domain, id, status: item.status },
+      remedy:
+        "Check the item first — it may already be live. If it needs a change, edit and re-publish it rather than filing a publish approval.",
+    }
+  );
 }
 
 export const approvalsModule: ToolModule = {
@@ -282,6 +336,8 @@ export const approvalsModule: ToolModule = {
             item.departmentId
           );
         }
+
+        assertNotAlreadyPublished(domain, contentDomain, args.id, item);
 
         const payload = {
           domain,

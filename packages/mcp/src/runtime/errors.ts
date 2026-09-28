@@ -195,6 +195,32 @@ export function fromAppwriteError(
 }
 
 /**
+ * The write a failed multi-row mutation nevertheless committed, if any.
+ *
+ * Appwrite has no transaction across two rows, so a mutation built from two
+ * writes can land the first and fail the second. `partialStatusFailure` in
+ * `services/content.ts` and `partialPublishFailure` in `services/pages.ts`
+ * both report that by putting the landed write under `details.committed`, and
+ * this is the ONE reader of that shape — an outcome that says "error" while
+ * public state has already changed is exactly the call an activity log must
+ * not omit, and the two helpers must not each be taught about the log
+ * separately.
+ *
+ * Returns the committed descriptor, or `null` when the failure committed
+ * nothing (which both helpers signal by returning the mapped error untouched).
+ */
+export function committedWrite(error: unknown): Record<string, unknown> | null {
+  if (!isDomainError(error)) {
+    return null;
+  }
+  const committed = error.details.committed;
+  if (typeof committed !== "object" || committed === null) {
+    return null;
+  }
+  return committed as Record<string, unknown>;
+}
+
+/**
  * Whether this error means "no response arrived", as opposed to "the backend
  * said no".
  *

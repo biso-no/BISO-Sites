@@ -754,10 +754,17 @@ export function createContentService(
     async search(principal, input): Promise<ContentSearchResult> {
       const spec = domainSpec(input.domain);
       const warnings: string[] = [];
-      const scope = describeScope(principal, {
-        campusField: spec.scope.campusField,
-        departmentField: spec.scope.departmentField,
-      });
+      // The SAME field set `baseQueries` scopes on, via `scopeFieldsFor` —
+      // relation first, scalar only as its fallback. Passing the registry's
+      // scalar pair here instead made the description disagree with the rows
+      // for the two domains that have no scalar department column at all:
+      // `documents` and `benefits` declare `departmentField: null` beside a
+      // `departmentRelation`, so `describeScope` reported "no department
+      // dimension" — the no-match narrative a department member gets — while
+      // the query had narrowed on `department.$id` and returned their rows.
+      // A scope line that contradicts the payload invites a client to treat a
+      // scoped result as unscoped.
+      const scope = describeScope(principal, scopeFieldsFor(spec));
 
       const queries = baseQueries(principal, spec, input, warnings);
       const term = input.query?.trim()

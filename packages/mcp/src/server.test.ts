@@ -214,6 +214,36 @@ async function connect(options: {
  * is not the write under test — asserting on the raw list would make "nothing
  * was written" fail for the wrong reason.
  */
+/**
+ * The seed plus real `content_translations` rows.
+ *
+ * `setStatus` synchronises permissions on the translation rows it finds, so
+ * without any it makes a single write and cannot express a mutation that
+ * commits one write and fails the next. Kept local to the tests that need it:
+ * the shared seed is read by dozens of assertions that count rows.
+ */
+function withNewsTranslations(): FakeTables {
+  return {
+    ...seedTables(),
+    content_translations: [
+      {
+        $id: "tr-oslo-no",
+        content_id: "news-oslo",
+        content_type: "news",
+        locale: "no",
+        title: "Oslo-nyhet",
+      },
+      {
+        $id: "tr-bergen-no",
+        content_id: "news-bergen",
+        content_type: "news",
+        locale: "no",
+        title: "Bergen-nyhet",
+      },
+    ],
+  };
+}
+
 function domainWrites(harness: Harness) {
   return harness.backend.writes.filter((write) => write.table !== "audit_logs");
 }
@@ -1225,6 +1255,130 @@ describe("mutations", () => {
     }
   });
 
+  test("a mutation whose first write committed still lands in the audit log", async () => {
+    // Unpublishing narrows access, so `setStatus` writes the parent row first
+    // and the translations second. When only the second fails,
+    // `partialStatusFailure` says so outright — the item IS `draft` now, and
+    // its proposal token is spent — yet the call ends as an error, and
+    // `createAuditor` persisted `ok` alone. The change was therefore made with
+    // no row in `audit_logs`: invisible in the activity log staff actually
+    // read, which is the one place a partial commit most needs to appear.
+    const refused = Object.assign(new Error("Server error"), { code: 500 });
+    const harness = await connect({
+      principal: GLOBAL_ADMIN(),
+      config: baseConfig({ writeMode: "operator" }),
+      tables: withNewsTranslations(),
+      onWrite: (_op, table) => {
+        if (table === "content_translations") {
+          throw refused;
+        }
+      },
+    });
+    try {
+      const args = {
+        domain: "news",
+        id: "news-oslo",
+        transition: "unpublish",
+      };
+      const first = await callTool(
+        harness.client,
+        "biso_content_set_lifecycle",
+        args
+      );
+      const proposal = (
+        first.structured?.data as {
+          proposal: { proposalToken: string; expiresAt: string };
+        }
+      ).proposal;
+
+      const executed = await callTool(
+        harness.client,
+        "biso_content_set_lifecycle",
+        {
+          ...args,
+          proposalToken: proposal.proposalToken,
+          proposalExpiresAt: proposal.expiresAt,
+        }
+      );
+
+      // The call still fails — the caller is not told a half-done change
+      // succeeded — and the committed half is still reported to them.
+      expect(executed.response.isError).toBe(true);
+      expect(JSON.stringify(executed.structured)).toContain("committed");
+      // The parent row really was written.
+      expect(
+        harness.backend.writes.some(
+          (write) => write.table === "news" && write.op === "update"
+        )
+      ).toBe(true);
+      // And so was the audit row, which is the property under test.
+      const audit = harness.backend.writes.filter(
+        (write) => write.table === "audit_logs"
+      );
+      expect(audit).toHaveLength(1);
+      expect(String(audit[0]?.data?.payload)).toContain("committed");
+    } finally {
+      await harness.close();
+    }
+  });
+
+  test("the control: a failure that committed nothing writes no audit row", async () => {
+    // The over-reach this fix could plausibly have caused. Publishing widens
+    // access, so the translations go first and a failure there leaves the
+    // status untouched — a clean failure, which must stay out of `audit_logs`
+    // exactly as every other refused call does.
+    const refused = Object.assign(new Error("Server error"), { code: 500 });
+    const harness = await connect({
+      principal: GLOBAL_ADMIN(),
+      config: baseConfig({ writeMode: "operator" }),
+      tables: withNewsTranslations(),
+      onWrite: (_op, table) => {
+        if (table === "content_translations") {
+          throw refused;
+        }
+      },
+    });
+    try {
+      const args = {
+        domain: "news",
+        id: "news-bergen",
+        transition: "publish",
+      };
+      const first = await callTool(
+        harness.client,
+        "biso_content_set_lifecycle",
+        args
+      );
+      const proposal = (
+        first.structured?.data as {
+          proposal: { proposalToken: string; expiresAt: string };
+        }
+      ).proposal;
+
+      const executed = await callTool(
+        harness.client,
+        "biso_content_set_lifecycle",
+        {
+          ...args,
+          proposalToken: proposal.proposalToken,
+          proposalExpiresAt: proposal.expiresAt,
+        }
+      );
+
+      expect(executed.response.isError).toBe(true);
+      expect(
+        harness.backend.writes.filter((write) => write.table === "audit_logs")
+      ).toHaveLength(0);
+      // And nothing was written to the row either, so there is genuinely
+      // nothing to record.
+      expect(
+        harness.backend.writes.some((write) => write.table === "news")
+      ).toBe(false);
+    } finally {
+      await harness.close();
+    }
+  });
+
   test("a proposal cannot be executed twice", async () => {
     // `createDraft` mints a fresh `ID.unique()` on every call, so a replayed
     // proposal inside its ten-minute life would create a second row that
@@ -1977,6 +2131,32 @@ describe("lookups", () => {
     }
   });
 
+  test("feature flags are global-admin only, at registration and per call", async () => {
+    // `portal.settings` in `apps/admin/src/lib/roles.ts` is `[GLOBAL_ADMIN]`,
+    // and the existing assistant mounts `buildSettingsTools` only when
+    // `capabilities.settings` is set — its `getFeatureFlags` description saying
+    // "Only available to global admins". This server had listed the switches
+    // for every staff profile, and `feature_flags` carries a table-level
+    // `read("any")`, so nothing downstream would have refused the read.
+    //
+    // Both halves are asserted because registration alone is not the gate: a
+    // stdio session outlives the profile snapshot taken at startup, which is
+    // why `assertProfileAllowed` re-checks on every call.
+    const asCampus = await connect({ principal: CAMPUS_ADMIN() });
+    try {
+      expect(
+        (await asCampus.client.listTools()).tools.map((t) => t.name)
+      ).not.toContain("biso_list_feature_flags");
+      const { response } = await callTool(
+        asCampus.client,
+        "biso_list_feature_flags"
+      );
+      expect(response.isError).toBe(true);
+    } finally {
+      await asCampus.close();
+    }
+  });
+
   test("feature flags report the effective state and whether it is a default", async () => {
     const harness = await connect({ principal: GLOBAL_ADMIN() });
     try {
@@ -2253,12 +2433,20 @@ describe("approval requests", () => {
     // The previous version of this test asserted that refusal. It was written
     // to lock in a fix that was itself incomplete, and it would have kept
     // passing over a dead tool forever.
+    //
+    // The subject is `news-bergen` — a DRAFT — because a publish approval for
+    // an already-published row is refused outright: there is nothing for an
+    // approver to publish, and for `events` granting one re-sends the push.
+    // `news-oslo`, this test's original subject, is published; using it made
+    // the test assert reachability through a request that should never be
+    // filed. The property under test is unchanged: a department member who
+    // could publish their own row may route it through review instead.
     const harness = await connect({
-      principal: DEPARTMENT_MEMBER("dept-a", "1"),
+      principal: DEPARTMENT_MEMBER("dept-b", "2"),
       config: baseConfig({ writeMode: "operator" }),
     });
     try {
-      const args = { domain: "news", id: "news-oslo" };
+      const args = { domain: "news", id: "news-bergen" };
       const { response, structured } = await callTool(
         harness.client,
         "biso_request_approval",
@@ -2292,6 +2480,57 @@ describe("approval requests", () => {
           (write) => write.table === "approval_requests"
         )
       ).toBe(true);
+    } finally {
+      await harness.close();
+    }
+  });
+
+  test("a publish request is refused when the subject is already published", async () => {
+    // `executeApprovalPublish` in `apps/admin` writes `status: "published"`
+    // over whatever is there, and for `events` it goes through `publishEvent`,
+    // which re-sends `sendEventAnnouncement` for any `notify_push` event
+    // regardless of its previous status. So a request filed against something
+    // already published is not the no-op it looks like.
+    //
+    // `news-oslo` is published and owned by this principal, so the scope gate
+    // above passes and this check is the one doing the refusing.
+    const harness = await connect({
+      principal: DEPARTMENT_MEMBER("dept-a", "1"),
+      config: baseConfig({ writeMode: "operator" }),
+    });
+    try {
+      const { response, structured } = await callTool(
+        harness.client,
+        "biso_request_approval",
+        { domain: "news", id: "news-oslo" }
+      );
+
+      expect(response.isError).toBe(true);
+      expect(JSON.stringify(structured)).toContain("invalid_input");
+      expect(JSON.stringify(structured)).toContain("already");
+      expect(domainWrites(harness)).toHaveLength(0);
+    } finally {
+      await harness.close();
+    }
+  });
+
+  test("and refused in propose mode too, rather than handing back a token", async () => {
+    // The refusal lives in the handler, not inside `proposeOrExecute`. A
+    // propose-mode call that returned a proposal here would be offering a token
+    // for a request that cannot be filed.
+    const harness = await connect({
+      principal: DEPARTMENT_MEMBER("dept-a", "1"),
+      config: baseConfig({ writeMode: "propose" }),
+    });
+    try {
+      const { response, structured } = await callTool(
+        harness.client,
+        "biso_request_approval",
+        { domain: "news", id: "news-oslo" }
+      );
+
+      expect(response.isError).toBe(true);
+      expect(JSON.stringify(structured)).not.toContain("proposalToken");
     } finally {
       await harness.close();
     }

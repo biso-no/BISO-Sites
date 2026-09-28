@@ -23,7 +23,18 @@ export interface AuditEvent {
   /** Dotted action, e.g. `content.publish` or `pages.save_draft`. */
   action: string;
   durationMs?: number;
-  outcome: "ok" | "denied" | "error" | "proposed" | "read";
+  /**
+   * `committed_partial` is a failure that nevertheless changed stored state —
+   * one write of a multi-row mutation landed and the next did not. It persists
+   * like `ok`, because the point of the row is that the change happened.
+   */
+  outcome:
+    | "ok"
+    | "committed_partial"
+    | "denied"
+    | "error"
+    | "proposed"
+    | "read";
   /** Extra context. Redacted before it leaves the process. */
   payload?: Record<string, unknown>;
   requestId: string;
@@ -75,9 +86,15 @@ export function createAuditor(input: {
         payload: event.payload ?? null,
       });
 
+      // A row is persisted when stored state changed. That is every `ok`
+      // mutation and — the case that used to fall through — a failure whose
+      // first write committed: `setPublished` and a narrowing `setStatus` both
+      // report a landed write while throwing, so the item is genuinely
+      // published or unpublished, its proposal token is spent, and without
+      // this the change appears in no activity log at all.
       const shouldPersist =
         input.persist &&
-        event.outcome === "ok" &&
+        (event.outcome === "ok" || event.outcome === "committed_partial") &&
         input.principal.userId !== "" &&
         input.clients.hasElevated;
 

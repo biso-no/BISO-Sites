@@ -526,6 +526,36 @@ Note the grant is table-level, so it is not self-limiting: it lets a member of
 any one `ledelsen` team fetch any campus's order by id. `getOrder`'s `canReadRow`
 re-check is what stops that today, and it holds whichever way this is decided.
 
+### S15. The approval executor cannot refuse a publish replay
+
+`biso_request_approval` now refuses to file a publish request for a subject
+that is already published, which closes the case this package can see. It does
+not close the other one: an approval request is a durable row, and the subject
+can be published by someone else between the request being filed and an
+approver granting it.
+
+Nothing in the execution path notices. `executeApprovalPublish` in
+`apps/admin/src/app/(portal)/_actions/approvals.ts` writes
+`status: "published"` over whatever is there for five of the six domains, and
+routes `events` to `publishEvent`, which re-sends `sendEventAnnouncement` for
+any event carrying `notify_push` without looking at the event's previous
+status. So granting a stale request for an event pushes a second announcement
+to everyone the first one reached — a notification that cannot be recalled.
+
+**What stops it being done here** is that the fix belongs in the executor, and
+the executor is `apps/admin`, outside this PR's boundary. The shape it wants is
+the one `assertProductBookable` already has for `shop` in the same function: a
+precondition re-checked at approval time rather than at filing time, refusing
+when the row has left the state the request was filed against.
+
+**The fix**, for a maintainer: have `executeApprovalPublish` read the subject's
+current status before executing and refuse a transition that is already done,
+returning an error the inbox can show ("this was published on <date>; the
+request is stale"). `events` needs it most, but every domain benefits — an
+approver should not be asked to decide something that has already happened.
+Storing the status observed at filing time on the request row would let the
+executor say what changed, which is a schema addition and so a separate task.
+
 ### S7. `setProp` in `@repo/editor` follows `__proto__`
 
 `packages/editor/src/editor/operations.ts:367` walks a dot path with

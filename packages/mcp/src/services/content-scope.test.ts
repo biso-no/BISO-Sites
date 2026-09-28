@@ -141,4 +141,48 @@ describe("a table with no department column still has a department", () => {
     );
     expect(found.rows.map((row) => row.id)).not.toContain("theirs");
   });
+
+  /**
+   * The two tests above assert the ROWS. The scope line beside them was built
+   * from a second, different field set — the registry's scalar pair — so it
+   * went on saying what the rows had stopped being: the query narrowed on
+   * `department.$id` and returned this department's documents while the
+   * description announced that the collection has no department dimension at
+   * all, which is the wording `describeScope` reserves for "you get nothing".
+   * A client reading the envelope rather than counting rows would take a
+   * correctly scoped result for an unscoped one.
+   */
+  test("and the scope line says so, instead of denying the dimension", async () => {
+    const found = await service(documentsOf("dept-esn-oslo")).search(
+      DEPARTMENT_MEMBER(),
+      { domain: "documents", limit: 20, offset: 0 }
+    );
+    expect(found.rows).not.toHaveLength(0);
+    expect(found.scope.departmentIds).toContain("dept-esn-oslo");
+    expect(found.scope.summary).not.toContain("no department dimension");
+  });
+
+  test("the control: a domain that does have the scalar is unchanged", async () => {
+    // `news` declares `department_id` as well as the relationship, so the
+    // relation-preferring field set must describe it exactly as the scalar one
+    // did. This is the over-reach the fix could plausibly have caused.
+    const found = await service({
+      news: [
+        {
+          $id: "ours",
+          $updatedAt: "2026-01-01T00:00:00.000Z",
+          slug: "ours",
+          status: "draft",
+          campus_id: "1",
+          campus: { $id: "1" },
+          department_id: "dept-esn-oslo",
+          department: { $id: "dept-esn-oslo" },
+        },
+      ],
+      content_translations: [],
+    }).search(DEPARTMENT_MEMBER(), { domain: "news", limit: 20, offset: 0 });
+    expect(found.rows.map((row) => row.id)).toEqual(["ours"]);
+    expect(found.scope.departmentIds).toContain("dept-esn-oslo");
+    expect(found.scope.summary).not.toContain("no department dimension");
+  });
 });

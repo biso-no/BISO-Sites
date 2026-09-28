@@ -37,9 +37,9 @@ import {
   ALL_PROFILES,
   isStaffProfile,
   newRequestId,
+  OPERATOR_PROFILES,
   READ_ONLY,
   result,
-  STAFF_PROFILES,
 } from "./shared";
 
 interface PermissionDecision {
@@ -482,10 +482,20 @@ export const identityModule: ToolModule = {
       name: "biso_list_feature_flags",
       title: "Feature flags",
       description:
-        "List the platform's feature flags and their effective state. Several capabilities default to OFF (`payments_stripe`, `shop_ledger_posting`, `expenses_ledger_posting`); a flag being off is why a related workflow appears stalled rather than broken. This server never changes a flag.",
+        "List the platform's feature flags and their effective state. Several capabilities default to OFF (`payments_stripe`, `shop_ledger_posting`, `expenses_ledger_posting`); a flag being off is why a related workflow appears stalled rather than broken. **Global admins only**, matching `portal.settings` in `apps/admin` and the existing assistant's own `getFeatureFlags`. This server never changes a flag.",
       inputSchema: {},
       annotations: READ_ONLY,
-      profiles: STAFF_PROFILES,
+      // Global admin only (`it-operator`), and the gate has to be here because
+      // there is no second one: `feature_flags` carries a table-level
+      // `read("any")`, so `featureFlags()` under the caller's own credential is
+      // never refused. The repo states the rule twice — `NAV_ACCESS` gives
+      // `portal.settings` to `GLOBAL_ADMIN` alone, and the assistant mounts
+      // `buildSettingsTools` only when `capabilities.settings` is set, its
+      // `getFeatureFlags` description saying "Only available to global admins".
+      // Reading the switches tells a campus admin which payment, ledger-posting
+      // and expense capabilities are live platform-wide, which is settings
+      // information rather than their own campus's.
+      profiles: OPERATOR_PROFILES,
       async handler(_args, context) {
         const requestId = newRequestId();
         const flags = await context.services.lookups.featureFlags();
