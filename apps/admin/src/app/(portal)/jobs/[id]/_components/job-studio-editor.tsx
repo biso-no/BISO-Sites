@@ -36,9 +36,11 @@ import {
   AutoTranslateControl,
   TranslationReviewCard,
 } from "@/app/_components/content-translation-controls";
+import type { JobReuseSignals } from "@/lib/job-reuse";
 import { uploadMediaFile } from "@/lib/upload-client";
 import {
   createJob,
+  duplicateJob,
   generateJobTranslationDraft,
   suggestJobDescriptionSection,
   updateJob,
@@ -58,6 +60,11 @@ import {
   stripHtml,
 } from "../../../_components/description-blocks";
 import { describeJobFormIssues, type JobFormIssue } from "./job-form-issues";
+import {
+  FreshDuplicateBanner,
+  JobReuseBanner,
+  JobReuseDialog,
+} from "./job-reuse-notice";
 
 interface JobStudioEditorProps {
   allowedDepartmentIds?: string[];
@@ -65,6 +72,8 @@ interface JobStudioEditorProps {
   canChangeCampus?: boolean;
   defaultCampusId?: string;
   initialDepartments: Departments[];
+  /** Opened straight after "Duplicate" — prompt HR to set the new dates. */
+  isFreshDuplicate?: boolean;
   isNew: boolean;
   job: RecruitmentVacancy | null;
   labels: {
@@ -75,7 +84,10 @@ interface JobStudioEditorProps {
     saveError: string;
     saveSuccess: string;
   };
+  reuse?: JobReuseSignals | null;
 }
+
+const LOGISTICS_STEP = 2;
 
 const BRAND = {
   accent: "#3DA9E0",
@@ -677,9 +689,11 @@ export function JobStudioEditor({
   canChangeCampus = true,
   defaultCampusId,
   initialDepartments,
+  isFreshDuplicate = false,
   isNew,
   job,
   labels,
+  reuse,
 }: JobStudioEditorProps) {
   const router = useRouter();
   const [step, setStep] = useState(0);
@@ -700,6 +714,23 @@ export function JobStudioEditor({
   const [isTranslating, setIsTranslating] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [formIssues, setFormIssues] = useState<JobFormIssue[]>([]);
+  const [showFreshDuplicate, setShowFreshDuplicate] =
+    useState(isFreshDuplicate);
+  // Past-round nudge: the banner shows on load, the dialog interrupts the
+  // first edit or a publish, and "keep editing" silences both for this visit.
+  const suggestDuplicate = Boolean(reuse?.suggestDuplicate && job);
+  const [reuseAcknowledged, setReuseAcknowledged] = useState(false);
+  const [reuseDialog, setReuseDialog] = useState<{
+    intent: "edit" | "publish";
+    open: boolean;
+  }>({ intent: "edit", open: false });
+  const reusePromptedRef = useRef(false);
+  useEffect(() => {
+    if (isFreshDuplicate) {
+      window.history.replaceState(null, "", window.location.pathname);
+    }
+  }, [isFreshDuplicate]);
+  const [isDuplicating, setIsDuplicating] = useState(false);
   const isBusy = isSaving || isPublishing;
   const isLive = job?.status === JobsStatus.PUBLISHED;
   const willSchedule = form.publication_mode === "scheduled" && !isLive;
@@ -731,6 +762,57 @@ export function JobStudioEditor({
   ) {
     setForm((current) => ({ ...current, [key]: value }));
     setDirty(true);
+    promptReuseOnFirstEdit();
+  }
+
+  function promptReuseOnFirstEdit() {
+    if (!suggestDuplicate || reuseAcknowledged || reusePromptedRef.current) {
+      return;
+    }
+    reusePromptedRef.current = true;
+    setReuseDialog({ intent: "edit", open: true });
+  }
+
+  function acknowledgeReuse() {
+    reusePromptedRef.current = true;
+    setReuseAcknowledged(true);
+    const shouldPublish = reuseDialog.intent === "publish" && reuseDialog.open;
+    setReuseDialog((current) => ({ ...current, open: false }));
+    if (shouldPublish) {
+      submit(JobsStatus.PUBLISHED);
+    }
+  }
+
+  async function handleDuplicate() {
+    if (!job || isDuplicating) {
+      return;
+    }
+    if (
+      dirty &&
+      // biome-ignore lint/suspicious/noAlert: Same unsaved-work confirmation pattern as the translation replacement above.
+      !window.confirm(
+        "The copy is made from the last saved version. Your unsaved edits here will be discarded. Continue?"
+      )
+    ) {
+      return;
+    }
+    setIsDuplicating(true);
+    try {
+      const result = await duplicateJob(job.$id);
+      if (result.error !== undefined) {
+        toast.error(result.error);
+        return;
+      }
+      setDirty(false);
+      setReuseDialog((current) => ({ ...current, open: false }));
+      toast.success("Copy created as a new draft");
+      router.push(`/jobs/${result.data}?duplicated=1`);
+    } catch (error) {
+      console.error("[JobStudio] duplicate failed", error);
+      toast.error("Couldn't create the copy. Try again in a moment.");
+    } finally {
+      setIsDuplicating(false);
+    }
   }
 
   // Keep a ref to the latest setValue so the form bridge effect registers once on mount
@@ -795,7 +877,9 @@ export function JobStudioEditor({
 
   function handleAutoTranslateChange(checked: boolean) {
     setAutoTranslate(checked);
-    setValue("auto_translate", checked);
+    // Not a content edit, so bypass setValue's past-round prompt.
+    setForm((current) => ({ ...current, auto_translate: checked }));
+    setDirty(true);
   }
 
   // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Translation replacement keeps both locale branches explicit so destination writes remain auditable.
@@ -991,6 +1075,36 @@ export function JobStudioEditor({
       : updateJob(job.$id, vacancy, translation);
   }
 
+  function announceSaved(
+    status: JobsStatus,
+    result: Awaited<ReturnType<typeof persistVacancy>>
+  ) {
+    // The server moves a colliding slug to `-{year}`; show what was saved.
+    if ("slug" in result && result.slug) {
+      setValue("slug", result.slug);
+    }
+    setDirty(false);
+    const successMessage = getSuccessMessage(
+      status,
+      "scheduledPublishAt" in result ? result.scheduledPublishAt : null
+    );
+    toast.success(
+      "translationQueued" in result && result.translationQueued
+        ? `${successMessage} Translation queued.`
+        : successMessage
+    );
+  }
+
+  /** Publish, but ask first when this looks like a past-round vacancy. */
+  function requestPublish() {
+    if (suggestDuplicate && !reuseAcknowledged) {
+      reusePromptedRef.current = true;
+      setReuseDialog({ intent: "publish", open: true });
+      return;
+    }
+    submit(JobsStatus.PUBLISHED);
+  }
+
   async function submit(status: JobsStatus) {
     if (isSaving || isPublishing) {
       return;
@@ -1032,16 +1146,7 @@ export function JobStudioEditor({
         return;
       }
 
-      setDirty(false);
-      const successMessage = getSuccessMessage(
-        status,
-        "scheduledPublishAt" in result ? result.scheduledPublishAt : null
-      );
-      toast.success(
-        "translationQueued" in result && result.translationQueued
-          ? `${successMessage} Translation queued.`
-          : successMessage
-      );
+      announceSaved(status, result);
 
       if (isNew && "data" in result && result.data) {
         router.push(`/jobs/${result.data}`);
@@ -1111,7 +1216,7 @@ export function JobStudioEditor({
             <button
               className="inline-flex items-center gap-2 rounded-lg bg-[#001731] px-4 py-2 font-medium text-sm text-white shadow-lg shadow-slate-950/10 transition hover:-translate-y-0.5"
               disabled={isBusy}
-              onClick={() => submit(JobsStatus.PUBLISHED)}
+              onClick={requestPublish}
               type="button"
             >
               <Send size={15} />
@@ -1140,6 +1245,28 @@ export function JobStudioEditor({
                   Step {step + 1} of {STEPS.length} · {STEPS[step]}
                 </span>
               </div>
+
+              {showFreshDuplicate && (
+                <FreshDuplicateBanner
+                  onDismiss={() => setShowFreshDuplicate(false)}
+                  onGoToDates={() => {
+                    setStep(LOGISTICS_STEP);
+                    setShowFreshDuplicate(false);
+                  }}
+                />
+              )}
+
+              {suggestDuplicate && reuse && job && (
+                <JobReuseBanner
+                  acknowledged={reuseAcknowledged}
+                  applicationDeadline={job.application_deadline}
+                  dirty={dirty}
+                  isDuplicating={isDuplicating}
+                  onAcknowledge={acknowledgeReuse}
+                  onDuplicate={handleDuplicate}
+                  reuse={reuse}
+                />
+              )}
 
               {armedSchedule && (
                 <div className="mb-6 flex items-start gap-3 rounded-xl border border-[#3DA9E0]/40 bg-[#3DA9E0]/10 p-4 text-sm">
@@ -2233,7 +2360,7 @@ export function JobStudioEditor({
               <button
                 className="inline-flex items-center gap-2 rounded-lg bg-[#001731] px-4 py-2 font-medium text-sm text-white"
                 disabled={isBusy}
-                onClick={() => submit(JobsStatus.PUBLISHED)}
+                onClick={requestPublish}
                 type="button"
               >
                 <Send size={15} />
@@ -2243,6 +2370,21 @@ export function JobStudioEditor({
           </div>
         </footer>
       </div>
+
+      {suggestDuplicate && reuse && job && (
+        <JobReuseDialog
+          applicationDeadline={job.application_deadline}
+          intent={reuseDialog.intent}
+          isDuplicating={isDuplicating}
+          onAcknowledge={acknowledgeReuse}
+          onDuplicate={handleDuplicate}
+          onOpenChange={(open) =>
+            setReuseDialog((current) => ({ ...current, open }))
+          }
+          open={reuseDialog.open}
+          reuse={reuse}
+        />
+      )}
     </div>
   );
 }

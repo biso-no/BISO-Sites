@@ -10,6 +10,7 @@ import {
   resetTranslationHarness,
   scheduleContentTranslationSpy,
   sessionDb,
+  translationRows,
 } from "./jobs-translation-test-harness";
 
 const PRIMARY_FAILED_WITH_REF = /^primary failed \(ref [0-9a-f]{8}\)$/;
@@ -125,7 +126,11 @@ describe("job auto-translation scheduling", () => {
       sourceLocale: "en",
     });
 
-    expect(result).toEqual({ data: "job-1", scheduledPublishAt: null });
+    expect(result).toEqual({
+      data: "job-1",
+      scheduledPublishAt: null,
+      slug: "student-role",
+    });
     expect(deferredTask).toBeUndefined();
   });
 
@@ -140,7 +145,11 @@ describe("job auto-translation scheduling", () => {
       { enabled: true, sourceLocale: "en" }
     );
 
-    expect(result).toEqual({ data: "job-1", scheduledPublishAt: null });
+    expect(result).toEqual({
+      data: "job-1",
+      scheduledPublishAt: null,
+      slug: "student-role",
+    });
     expect(deferredTask).toBeUndefined();
   });
 
@@ -154,12 +163,16 @@ describe("job auto-translation scheduling", () => {
       { enabled: true, sourceLocale: "en" }
     );
 
-    expect(result).toEqual({ data: "job-1", scheduledPublishAt: null });
+    expect(result).toEqual({
+      data: "job-1",
+      scheduledPublishAt: null,
+      slug: "student-role",
+    });
     expect(deferredTask).toBeUndefined();
   });
 
   test("keeps the deferred destination inside the one-way parent relation", async () => {
-    adminDb.listRows.mockImplementationOnce(async () => ({
+    translationRows.mockImplementationOnce(async () => ({
       rows: [
         {
           $id: "source-en",
@@ -187,6 +200,7 @@ describe("job auto-translation scheduling", () => {
     expect(result).toEqual({
       data: "job-1",
       scheduledPublishAt: null,
+      slug: "student-role",
       translationQueued: true,
     });
     expect(deferredTask).toBeDefined();
@@ -214,7 +228,7 @@ describe("job auto-translation scheduling", () => {
   });
 
   test("updates an existing destination in place through the parent relation", async () => {
-    adminDb.listRows.mockImplementationOnce(async () => ({
+    translationRows.mockImplementationOnce(async () => ({
       rows: [
         {
           $id: "source-en",
@@ -247,7 +261,7 @@ describe("job auto-translation scheduling", () => {
   });
 
   test("skips a destination edited while the translation was running", async () => {
-    adminDb.listRows.mockImplementationOnce(async () => ({
+    translationRows.mockImplementationOnce(async () => ({
       rows: [
         {
           $id: "source-en",
@@ -276,7 +290,7 @@ describe("job auto-translation scheduling", () => {
   });
 
   test("skips the destination write when the submitted source is stale", async () => {
-    adminDb.listRows.mockImplementationOnce(async () => ({
+    translationRows.mockImplementationOnce(async () => ({
       rows: [
         {
           $id: "source-en",
@@ -388,7 +402,11 @@ describe("job writes", () => {
       { enabled: false, sourceLocale: "en" }
     );
 
-    expect(result).toEqual({ data: "job-1", scheduledPublishAt: null });
+    expect(result).toEqual({
+      data: "job-1",
+      scheduledPublishAt: null,
+      slug: "student-role",
+    });
     const payload = adminDb.upsertRow.mock.calls.at(-1)?.[3] as Record<
       string,
       unknown
@@ -472,6 +490,7 @@ describe("job writes", () => {
     expect(result).toEqual({
       data: "job-1",
       scheduledPublishAt: "2099-01-01T09:00:00.000Z",
+      slug: "student-role",
     });
     const payload = adminDb.upsertRow.mock.calls.at(-1)?.[3] as Record<
       string,
@@ -522,5 +541,70 @@ describe("job writes", () => {
     await createJob(jobValues, { enabled: false, sourceLocale: "en" });
 
     expect(afterSpy).toHaveBeenCalledTimes(1);
+  });
+
+  const stubTakenSlugs = (...slugs: string[]) => {
+    adminDb.listRows.mockImplementation(
+      (_databaseId: string, tableId: string) =>
+        tableId === "jobs"
+          ? {
+              rows: slugs.map((slug, index) => ({
+                $id: `other-${index}`,
+                slug,
+              })),
+              total: slugs.length,
+            }
+          : { rows: [], total: 0 }
+    );
+  };
+  const savedSlug = () =>
+    (adminDb.upsertRow.mock.calls.at(-1)?.[3] as Record<string, unknown>).slug;
+
+  test("moves a new vacancy off a slug another job already uses", async () => {
+    stubTakenSlugs("student-role");
+    const year = new Date().getFullYear();
+
+    const result = await createJob(jobValues, {
+      enabled: false,
+      sourceLocale: "en",
+    });
+
+    expect(savedSlug()).toBe(`student-role-${year}`);
+    expect(result).toMatchObject({ slug: `student-role-${year}` });
+  });
+
+  test("counts up when the year variant is taken too", async () => {
+    const year = new Date().getFullYear();
+    stubTakenSlugs("student-role", `student-role-${year}`);
+
+    await createJob(jobValues, { enabled: false, sourceLocale: "en" });
+
+    expect(savedSlug()).toBe(`student-role-${year}-2`);
+  });
+
+  test("never moves the slug a vacancy is already published under", async () => {
+    stubStoredVacancy();
+    stubTakenSlugs("student-role");
+
+    await updateJob("job-1", editorValues(), {
+      enabled: false,
+      sourceLocale: "en",
+    });
+
+    expect(savedSlug()).toBe("student-role");
+  });
+
+  test("moves an edited slug off a collision", async () => {
+    stubStoredVacancy();
+    stubTakenSlugs("student-role-renamed");
+    const year = new Date().getFullYear();
+
+    await updateJob(
+      "job-1",
+      { ...editorValues(), slug: "student-role-renamed" },
+      { enabled: false, sourceLocale: "en" }
+    );
+
+    expect(savedSlug()).toBe(`student-role-renamed-${year}`);
   });
 });

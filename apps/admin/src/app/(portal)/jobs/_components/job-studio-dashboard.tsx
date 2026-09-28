@@ -8,6 +8,7 @@ import {
   CalendarClock,
   Copy,
   Filter,
+  Loader2,
   MapPin,
   Pencil,
   Play,
@@ -18,11 +19,16 @@ import {
   Users,
 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { GuideVideoDialog } from "@/components/tours/guide-video-dialog";
-import { deleteJob, type JobStatusCounts } from "../../_actions/jobs";
+import {
+  deleteJob,
+  duplicateJob,
+  type JobStatusCounts,
+} from "../../_actions/jobs";
 import { JOBS_PAGE_SIZE } from "../../_actions/schemas";
 import { PaginationBar } from "../../_components/pagination-bar";
 import { useListParams, useUrlSearch } from "../../_components/use-list-params";
@@ -332,15 +338,19 @@ function JobRow({
   job,
   labels,
   isConfirmingDelete,
+  isDuplicating,
   onCancelDelete,
   onDelete,
+  onDuplicate,
   onRequestDelete,
 }: {
   isConfirmingDelete: boolean;
+  isDuplicating: boolean;
   job: RecruitmentVacancy;
   labels: JobStudioDashboardProps["labels"];
   onCancelDelete: () => void;
   onDelete: (id: string) => void;
+  onDuplicate: (id: string) => void;
   onRequestDelete: (id: string) => void;
 }) {
   const locale = normalizeLocale(useLocale());
@@ -451,16 +461,24 @@ function JobRow({
           <Pencil size={14} />
         </Link>
         <button
+          aria-busy={isDuplicating}
           aria-label={t("duplicate")}
-          className="grid h-8 w-8 place-items-center rounded-lg transition"
+          className="grid h-8 w-8 place-items-center rounded-lg transition disabled:opacity-60"
+          disabled={isDuplicating}
+          onClick={() => onDuplicate(job.$id)}
           style={{
             background: BRAND.paper2,
             border: `0.5px solid ${BRAND.rule2}`,
             color: BRAND.ink3,
           }}
+          title={t("duplicateHint")}
           type="button"
         >
-          <Copy size={14} />
+          {isDuplicating ? (
+            <Loader2 className="animate-spin" size={14} />
+          ) : (
+            <Copy size={14} />
+          )}
         </button>
         <button
           aria-label={isConfirmingDelete ? t("confirmDelete") : labels.delete}
@@ -508,6 +526,8 @@ export function JobStudioDashboard({
   const setFilter = (next: (typeof FILTERS)[number]) =>
     setParams({ status: next === "all" ? null : next });
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
+  const router = useRouter();
   const [guideOpen, setGuideOpen] = useState(false);
   const [, startTransition] = useTransition();
   const t = useTranslations("adminPortal.jobs");
@@ -530,6 +550,26 @@ export function JobStudioDashboard({
       setPendingDeleteId(null);
       toast.success(t("deleteSuccess"));
     });
+  }
+
+  async function handleDuplicate(id: string) {
+    if (duplicatingId) {
+      return;
+    }
+    setDuplicatingId(id);
+    try {
+      const result = await duplicateJob(id);
+      if (result.error !== undefined) {
+        toast.error(result.error);
+        return;
+      }
+      toast.success(ts("duplicateSuccess"));
+      router.push(`/jobs/${result.data}?duplicated=1`);
+    } catch {
+      toast.error(ts("duplicateError"));
+    } finally {
+      setDuplicatingId(null);
+    }
   }
 
   return (
@@ -769,11 +809,13 @@ export function JobStudioDashboard({
             {initialJobs.map((job) => (
               <JobRow
                 isConfirmingDelete={pendingDeleteId === job.$id}
+                isDuplicating={duplicatingId === job.$id}
                 job={job}
                 key={job.$id}
                 labels={labels}
                 onCancelDelete={() => setPendingDeleteId(null)}
                 onDelete={handleDelete}
+                onDuplicate={handleDuplicate}
                 onRequestDelete={setPendingDeleteId}
               />
             ))}

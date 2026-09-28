@@ -1,24 +1,37 @@
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { requireNavAccess } from "@/lib/authorization";
-import { getJob } from "../../_actions/jobs";
+import { describeJobReuse } from "@/lib/job-reuse";
+import { getJob, getJobApplicationCount } from "../../_actions/jobs";
 import { listCampuses, listDepartmentsForCampus } from "../../_actions/lookups";
 import { JobStudioEditor } from "./_components/job-studio-editor";
 
 interface JobEditorPageProps {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ duplicated?: string }>;
 }
 
-export default async function JobEditorPage({ params }: JobEditorPageProps) {
+export default async function JobEditorPage({
+  params,
+  searchParams,
+}: JobEditorPageProps) {
   const ctx = await requireNavAccess("portal.jobs");
   const { id } = await params;
+  const { duplicated } = await searchParams;
   const t = await getTranslations("adminPortal.jobs");
 
   const isNew = id === "new";
 
-  const [job, campuses] = await Promise.all([
+  const [job, campuses, applicationCount] = await Promise.all([
     isNew ? null : getJob(id),
     listCampuses(),
+    // Only feeds the "duplicate instead" nudge; never block the editor on it.
+    isNew
+      ? 0
+      : getJobApplicationCount(id).catch((error: unknown) => {
+          console.error("[JobEditorPage] application count failed", error);
+          return 0;
+        }),
   ]);
 
   if (!(isNew || job)) {
@@ -65,6 +78,14 @@ export default async function JobEditorPage({ params }: JobEditorPageProps) {
     ? departments.filter((d) => allowedDepartmentIds.includes(d.$id))
     : departments;
 
+  const reuse = job
+    ? describeJobReuse({
+        applicationCount,
+        applicationDeadline: job.application_deadline,
+        status: job.status,
+      })
+    : null;
+
   return (
     <JobStudioEditor
       allowedDepartmentIds={allowedDepartmentIds}
@@ -72,6 +93,7 @@ export default async function JobEditorPage({ params }: JobEditorPageProps) {
       canChangeCampus={canChangeCampus}
       defaultCampusId={effectiveCampusId}
       initialDepartments={initialDepartments}
+      isFreshDuplicate={Boolean(duplicated) && !isNew}
       isNew={isNew}
       job={job}
       labels={{
@@ -82,6 +104,7 @@ export default async function JobEditorPage({ params }: JobEditorPageProps) {
         saveError: t("saveError"),
         publishSuccess: t("publishSuccess"),
       }}
+      reuse={reuse}
     />
   );
 }
