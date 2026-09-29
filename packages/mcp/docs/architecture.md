@@ -45,8 +45,10 @@ membership behind it has been withdrawn.
 ### 1. A framework-independent backend entry point
 
 **Problem.** `@repo/api/server` is `"use server"`, imports `next/headers` at
-module scope, and reads its endpoint, project and API key from `process.env`
-when the module loads.
+module scope, and reads its endpoint and project from `process.env` when the
+module loads. (The API key became a per-call read in `34a724f`, for Appwrite
+Functions' per-execution `x-appwrite-key`; it is still taken from the ambient
+environment rather than passed in, so the problem below stands.)
 
 **What was actually measured.** Under Bun 1.3.11 the module imports fine in a
 plain process and `createSessionClient(jwt)` works; only the no-JWT cookie path

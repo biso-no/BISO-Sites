@@ -109,8 +109,12 @@ The module **does** import in a plain Bun process, and the JWT path works. Only
 the cookie path fails. This package still avoids it, for three reasons that are
 choices rather than necessities: it drags the whole Next runtime into a stdio
 process; `"use server"` has real semantics under other loaders and bundlers; and
-`createAdminClient()` reads its key from module scope with no way to inject
-credentials or hold two configurations. Hence `packages/api/runtime.ts`.
+`createAdminClient()` takes its key only from the ambient environment, with no
+way to inject credentials or hold two configurations. (As of `34a724f` it
+resolves `APPWRITE_API_KEY || APPWRITE_FUNCTION_API_KEY` per call rather than at
+module load, so an Appwrite Function sees the key it is handed per execution.
+That changes when the key is read, not whether it can be passed in — the reason
+below is unaffected.) Hence `packages/api/runtime.ts`.
 
 ### Two findings the earlier review did not cover
 
@@ -1988,3 +1992,57 @@ Revalidated after the merge: 482 tests, **18/18** typecheck, biome clean over 83
 files, stdio smoke. The typecheck count moved because this move adds an
 eighteenth workspace with a `check-types` task (`member-roster-sync`), not
 because anything here gained one.
+
+### Fifteenth base move: `1ac31d9 → 34a724f`
+
+Two follow-up PRs to the member roster (#81, #82). Most of it is out of reach:
+`functions/member-roster-sync/**` is not a dependency of anything here, and the
+24SevenOffice connector gained an all-companies read that this package cannot
+call, because `@repo/connectors` is not one of its dependencies.
+
+**One file in the move is a direct dependency, and it changes a rule.**
+`packages/api/server.ts` stops reading the admin API key at module load:
+
+```ts
+function resolveApiKey(): string | undefined {
+  return process.env.APPWRITE_API_KEY || process.env.APPWRITE_FUNCTION_API_KEY;
+}
+```
+
+with the reason stated in the diff — inside an Appwrite Function the key
+arrives per execution as the `x-appwrite-key` header, *after* the module has
+been imported, so a module-scope constant captures nothing.
+
+**Does this package hold a copy of the defect?** No, and by construction rather
+than by luck: `packages/api/runtime.ts` never reads a key from the environment
+at all. `applyCredential` switches on a caller-supplied `AppwriteCredential` and
+calls `client.setKey(credential.apiKey)`, so the value arrives as an argument.
+The MCP server's own key is `BISO_MCP_APPWRITE_API_KEY`, parsed through
+`config/env.ts` into `apiKey` and passed down — a different variable on a
+different path. Nor does the underlying hazard apply: this is a stdio process
+whose environment is fixed at launch, not a Function handed a key per execution.
+
+**It does invalidate prose, in three places rather than the one that is
+obvious.** Grepping the claim rather than fixing the file that prompted it
+found all three, and they are not interchangeable — one of them is the recorded
+justification for `runtime.ts` existing at all:
+
+| Site | Stale claim |
+|---|---|
+| `packages/api/runtime.ts` header | "it takes its endpoint/project/**key** from `process.env` at module scope" |
+| `docs/audit.md` §4 | "`createAdminClient()` reads its key from **module scope** with no way to inject credentials" |
+| `docs/architecture.md` Decision 1 | "reads its endpoint, project **and API key** from `process.env` when the module loads" |
+
+Each now says endpoint and project load at module scope while the key resolves
+per call, and each says explicitly that this changes *when* the key is read and
+not *whether* it can be passed in — so the reason `runtime.ts` exists is
+untouched. Over-correcting here would have been easy and wrong: the claim in
+`src/runtime/isolation.test.ts` that "`@repo/api/server` imports `next/headers`
+at module scope" is the other half of the same sentence, it is still true, and
+it is deliberately left alone.
+
+So the fifteenth move is **not** inert — the sixth of fifteen that is not, and
+the second where what it invalidated was prose rather than code.
+
+Revalidated after the merge: 482 tests, 18/18 typecheck, biome clean over 83
+files, stdio smoke.

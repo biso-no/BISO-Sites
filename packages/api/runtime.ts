@@ -3,7 +3,10 @@
  *
  * `./server` is the entry point for the Next.js apps: it is a `"use server"`
  * module, it reads `next/headers` to resolve the caller's session cookie, and
- * it takes its endpoint/project/key from `process.env` at module scope. All of
+ * it takes its endpoint and project from `process.env` at module scope. (Its
+ * API key moved to a per-call read in `34a724f`, so that an Appwrite Function
+ * picks up the `x-appwrite-key` it is handed per execution; either way the key
+ * comes only from the ambient environment and never as an argument.) All of
  * that is correct inside a request-scoped Next.js runtime and wrong outside
  * one — a plain Node/Bun process (an MCP server, a CLI, a worker) has no
  * request scope, may need to hold more than one credential at a time, and
